@@ -39,6 +39,259 @@ struct RuntimeLogSink {
     correlation: Option<String>,
 }
 
+#[cfg(test)]
+mod sequence_bridge_tests {
+    use super::IbexHostContext;
+    use crate::auth::admission::AdmissionLease;
+    use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
+    use crate::manifest::{
+        AuthInput, FieldManifest, FieldType, HandlerInput, SchemaManifest, SequenceDeclaration,
+        SequenceScopeAccess, TableManifest,
+    };
+    use crate::storage::{BufferedCommitPayload, BufferedWrite, DbRead, LocalDatabase, MembershipWriter};
+    use serde_json::{Map, Value, json};
+
+    fn schema() -> SchemaManifest {
+        SchemaManifest {
+            tables: vec![TableManifest {
+                name: "orgs".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "ownerId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "name".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                membership: None,
+                asset_sharing: None,
+            }],
+            sequences: vec![
+                SequenceDeclaration {
+                    name: "privateJobs".to_owned(),
+                    scope_table: "orgs".to_owned(),
+                    scope_access: SequenceScopeAccess::DeclaredAuthorizationV1,
+                },
+                SequenceDeclaration {
+                    name: "publicJobs".to_owned(),
+                    scope_table: "orgs".to_owned(),
+                    scope_access: SequenceScopeAccess::PublicV1,
+                },
+            ],
+            required_capabilities: vec!["sequence_allocation_v1".to_owned()],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn ready_db() -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema()).expect("sequence schema");
+        for (id, owner) in [("org-alice", "alice"), ("org-bob", "bob")] {
+            db.commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "orgs".to_owned(),
+                    id: id.to_owned(),
+                    values: Map::from_iter([
+                        ("ownerId".to_owned(), json!(owner)),
+                        ("name".to_owned(), json!(id)),
+                    ]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("insert scope row");
+        }
+        db
+    }
+
+    fn context<'a>(
+        db: &'a LocalDatabase,
+        user: Option<&str>,
+        declared: &[&str],
+        scope_authority: Option<(&str, &str)>,
+    ) -> IbexHostContext<'a> {
+        let input = HandlerInput {
+            auth: AuthInput {
+                principal: user.map(str::to_owned),
+                user_id: user.map(str::to_owned),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let authority = ResolvedAppAuthority::dev_from_auth(&input.auth);
+        let mut context = IbexHostContext::new_with_projection(
+            DbRead::Live(db),
+            input,
+            HandlerAuthProjection::from_authority(&authority),
+            AdmissionLease::unmanaged(0, 0),
+            MembershipWriter::from_resolved(&authority),
+            true,
+        )
+        .expect("sequence bridge context");
+        context.declared_sequences = declared.iter().map(|name| (*name).to_owned()).collect();
+        context.sequence_scope_authority = scope_authority
+            .map(|(table, field)| (table.to_owned(), field.to_owned()));
+        context
+    }
+
+    // @ref LLP 0135#17-allocation-authority-and-information-flow — hidden and
+    // absent non-public parents collapse byte-for-byte before counter lookup;
+    // declared owner reach and explicit public scope are the only v1 gates.
+    #[test]
+    fn sequence_host_bridge_enforces_declaration_authority_and_collapse() {
+        let db = ready_db();
+
+        let undeclared = context(&db, Some("alice"), &[], Some(("orgs", "ownerId")))
+            .handle_host_call(
+                "sequence.allocate",
+                json!({ "counter": "privateJobs", "scopeId": "org-alice" }),
+            )
+            .expect_err("undeclared allocation refuses");
+        assert_eq!(undeclared.diagnostic.code, "SNAPBACK_SEQUENCE_UNDECLARED");
+
+        let mut authorized = context(
+            &db,
+            Some("alice"),
+            &["privateJobs"],
+            Some(("orgs", "ownerId")),
+        );
+        assert_eq!(
+            authorized
+                .handle_host_call(
+                    "sequence.allocate",
+                    json!({ "counter": "privateJobs", "scopeId": "org-alice" }),
+                )
+                .unwrap(),
+            json!(1),
+        );
+        let second = authorized
+            .handle_host_call(
+                "sequence.allocate",
+                json!({ "counter": "privateJobs", "scopeId": "org-alice" }),
+            )
+            .expect_err("v1 admits one allocation per invocation");
+        assert_eq!(
+            second.diagnostic.code,
+            "SNAPBACK_SEQUENCE_DECLARATION_INVALID"
+        );
+
+        let hidden = context(
+            &db,
+            Some("alice"),
+            &["privateJobs"],
+            Some(("orgs", "ownerId")),
+        )
+        .handle_host_call(
+            "sequence.allocate",
+            json!({ "counter": "privateJobs", "scopeId": "org-bob" }),
+        )
+        .expect_err("another owner's scope is hidden");
+        let missing = context(
+            &db,
+            Some("alice"),
+            &["privateJobs"],
+            Some(("orgs", "ownerId")),
+        )
+        .handle_host_call(
+            "sequence.allocate",
+            json!({ "counter": "privateJobs", "scopeId": "org-missing" }),
+        )
+        .expect_err("absent scope is unavailable");
+        assert_eq!(
+            serde_json::to_vec(&hidden.diagnostic).unwrap(),
+            serde_json::to_vec(&missing.diagnostic).unwrap(),
+            "hidden and absent scope refusals must be byte-identical",
+        );
+
+        let mut public = context(&db, None, &["publicJobs"], None);
+        assert_eq!(
+            public
+                .handle_host_call(
+                    "sequence.allocate",
+                    json!({ "counter": "publicJobs", "scopeId": "org-alice" }),
+                )
+                .unwrap(),
+            json!(1),
+        );
+    }
+
+    #[test]
+    fn sequence_host_bridge_commits_only_through_server_buffered_effects() {
+        let mut db = ready_db();
+        let input = HandlerInput {
+            auth: AuthInput {
+                principal: Some("alice".to_owned()),
+                user_id: Some("alice".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let (allocation, result, ledger) = {
+            let mut invocation = context(
+                &db,
+                Some("alice"),
+                &["privateJobs"],
+                Some(("orgs", "ownerId")),
+            );
+            let result = invocation
+                .handle_host_call(
+                    "sequence.allocate",
+                    json!({ "counter": "privateJobs", "scopeId": "org-alice" }),
+                )
+                .unwrap();
+            let allocation = invocation.sequence_allocations.pop().unwrap();
+            (allocation, result, invocation.take_ctx_ledger().unwrap())
+        };
+        let commit = db
+            .commit_buffered_writes_idempotent_guarded(
+                &input,
+                BufferedCommitPayload {
+                    writes: Vec::new(),
+                    membership_plans: Vec::new(),
+                    read_dependencies: Vec::new(),
+                    result,
+                    ctx_ledger: ledger,
+                    job_enqueues: Vec::new(),
+                    job_producer: None,
+                    asset_admissions: Vec::new(),
+                    sequence_allocations: vec![allocation],
+                },
+                None,
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("authoritative buffered commit");
+        assert_eq!(commit.sequence_allocations[0].value, 1);
+        assert_eq!(commit.output.result, json!(1));
+        assert!(commit.output.ctx_ledger.as_ref().unwrap().ids.is_empty());
+
+        let mut next = context(
+            &db,
+            Some("alice"),
+            &["privateJobs"],
+            Some(("orgs", "ownerId")),
+        );
+        assert_eq!(
+            next.handle_host_call(
+                "sequence.allocate",
+                json!({ "counter": "privateJobs", "scopeId": "org-alice" }),
+            )
+            .unwrap(),
+            json!(2),
+        );
+    }
+}
+
 thread_local! {
     static RUNTIME_LOG_SINKS: RefCell<Vec<RuntimeLogSink>> = const { RefCell::new(Vec::new()) };
 }
@@ -409,6 +662,7 @@ impl RuntimeManager {
             true,
         )?;
         invocation.declared_refusals = prepared.declared_refusals().to_vec();
+        invocation.install_prepared_sequence_authority(prepared);
         let result = run_ibex_handler_with_context(module, &mut invocation, pool);
         // A terminal role denial fails the (dry-run) mutation and never commits,
         // preserving the trusted brand regardless of a handler catch.
@@ -494,6 +748,7 @@ pub(crate) fn execute_ibex_mutation_prepared(
         true,
     )?;
     invocation.declared_refusals = prepared.declared_refusals().to_vec();
+    invocation.install_prepared_sequence_authority(prepared);
     let result = run_ibex_handler_with_context_until(module, &mut invocation, pool, deadline);
     // A terminal role denial fails the mutation before commit and preserves the
     // trusted brand regardless of a handler catch (LLP 0056 M3).
@@ -552,6 +807,7 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
     )?;
     invocation.protected_query_profile = protected_query_profile;
     invocation.declared_refusals = prepared.declared_refusals().to_vec();
+    invocation.install_prepared_sequence_authority(prepared);
     // The shipped DK-4 reset does not restore module lexical/imported state.
     // Protected queries therefore take a fresh realm even if a caller
     // accidentally supplies the warm pool.
@@ -626,6 +882,7 @@ pub(crate) fn run_ibex_asset_authorizer_prepared(
     )?;
     invocation.protected_query_profile = true;
     invocation.declared_refusals = prepared.declared_refusals().to_vec();
+    invocation.install_prepared_sequence_authority(prepared);
     let value = run_ibex_handler_with_context(module, &mut invocation, None);
     if let Some(denial) = invocation.take_terminal_denial() {
         return Err(denial);
@@ -1151,6 +1408,8 @@ pub(crate) struct IbexHostContext<'a> {
     /// and empty by default, so any path that does not deliberately carry the
     /// declaration folds every claimed `appCode` (LLP 0108).
     declared_refusals: Vec<String>,
+    declared_sequences: Vec<String>,
+    sequence_scope_authority: Option<(String, String)>,
     writes: Vec<BufferedWrite>,
     /// Buffered `ctx.jobs.enqueue` intents (LLP 0070's first slice). Like
     /// `writes`, these are effects of the mutation transaction: they commit
@@ -1231,6 +1490,13 @@ struct ReplayLedger {
 }
 
 impl<'a> IbexHostContext<'a> {
+    fn install_prepared_sequence_authority(&mut self, prepared: &PreparedInvocation) {
+        self.declared_sequences = prepared.declared_sequences().to_vec();
+        self.sequence_scope_authority = prepared
+            .sequence_scope_authority()
+            .map(|(table, field)| (table.to_owned(), field.to_owned()));
+    }
+
     pub(crate) fn new_with_projection(
         db: DbRead<'a>,
         input: HandlerInput,
@@ -1264,6 +1530,8 @@ impl<'a> IbexHostContext<'a> {
             },
             protected_query_profile: false,
             declared_refusals: Vec::new(),
+            declared_sequences: Vec::new(),
+            sequence_scope_authority: None,
             writes: Vec::new(),
             job_enqueues: Vec::new(),
             asset_admissions: Vec::new(),
@@ -1323,6 +1591,8 @@ impl<'a> IbexHostContext<'a> {
             mode: IbexInvocationMode::Action,
             protected_query_profile: false,
             declared_refusals: Vec::new(),
+            declared_sequences: Vec::new(),
+            sequence_scope_authority: None,
             writes: Vec::new(),
             job_enqueues: Vec::new(),
             asset_admissions: Vec::new(),
@@ -1620,6 +1890,79 @@ impl<'a> IbexHostContext<'a> {
                 let existed = self.apply_buffered_to_point(&table, &id, stored).is_some();
                 self.writes.push(BufferedWrite::Delete { table, id });
                 Ok(Value::Bool(existed))
+            }
+            // Framework-owned, incarnation-scoped allocation. The imperative
+            // handler surface is declaration-closed and v1 admits one call.
+            // A non-public counter additionally proves row reach from the
+            // handler's analyzable primary-read/authScopeField declaration;
+            // invocation authentication alone is never sufficient.
+            "sequence.allocate" => {
+                self.ensure_writable("sequence.allocate")?;
+                if !self.sequence_allocations.is_empty() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                        "runtime",
+                        "v1 admits at most one sequence allocation per invocation",
+                    ));
+                }
+                let counter = required_string(&args, "counter")?;
+                let scope_id = required_string(&args, "scopeId")?;
+                if !self
+                    .declared_sequences
+                    .iter()
+                    .any(|declared| declared == &counter)
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SEQUENCE_UNDECLARED",
+                        "runtime",
+                        "the invoked mutation did not declare this sequence counter",
+                    )
+                    .with_details(json!({ "counter": counter })));
+                }
+                let declaration = self
+                    .db()
+                    .schema()
+                    .sequences
+                    .iter()
+                    .find(|declaration| declaration.name == counter)
+                    .cloned()
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_SEQUENCE_UNDECLARED",
+                            "runtime",
+                            "the active schema does not declare this sequence counter",
+                        )
+                    })?;
+                if declaration.scope_access
+                    == crate::manifest::SequenceScopeAccess::DeclaredAuthorizationV1
+                {
+                    let authorized = self
+                        .sequence_scope_authority
+                        .as_ref()
+                        .filter(|(table, _)| table == &declaration.scope_table)
+                        .cloned();
+                    let Some((scope_table, owner_field)) = authorized else {
+                        return Err(crate::storage::sequence_parent_unavailable());
+                    };
+                    let stored = self.db().get(&scope_table, &scope_id)?;
+                    self.capture_point_read(&scope_table, &scope_id, stored.as_ref())?;
+                    let principal = self.input.auth.user_id.as_deref();
+                    let reaches = stored.as_ref().is_some_and(|row| {
+                        row.get(&owner_field).and_then(Value::as_str) == principal
+                            && principal.is_some()
+                    });
+                    if !reaches {
+                        return Err(crate::storage::sequence_parent_unavailable());
+                    }
+                }
+                let allocation = self.db().preview_sequence_allocation(
+                    &counter,
+                    &declaration.scope_table,
+                    &scope_id,
+                )?;
+                let value = allocation.value;
+                self.sequence_allocations.push(allocation);
+                Ok(json!(value))
             }
             // Transactional one-off enqueue (LLP 0070 first slice). Mutations
             // only: queries cannot enqueue, and actions enqueue only through
@@ -4007,6 +4350,11 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED"
         | "SNAPBACK_OVERLOADED"
         | "SNAPBACK_VALUE_TOO_LARGE"
+        // @ref LLP 0135#3-capability-ids-and-diagnostics — sequence runtime
+        // outcomes remain typed across both handler-envelope decoders.
+        | "SNAPBACK_SEQUENCE_EXHAUSTED"
+        | "SNAPBACK_SEQUENCE_UNDECLARED"
+        | "SNAPBACK_RELATION_PARENT_UNAVAILABLE"
         // LLP 0051 D1: ledger divergence and the ledger-length limit are
         // typed results, not generic handler failures.
         | "SNAPBACK_CTX_LEDGER_EXHAUSTED"
@@ -4416,6 +4764,18 @@ mod parse_handler_output_tests {
             parse(r#"{"r":{"__snapbackOk":false,"code":"SNAPBACK_VALUE_TOO_LARGE"}}"#),
             Err("SNAPBACK_VALUE_TOO_LARGE".to_owned())
         );
+        for code in [
+            "SNAPBACK_SEQUENCE_EXHAUSTED",
+            "SNAPBACK_SEQUENCE_UNDECLARED",
+            "SNAPBACK_RELATION_PARENT_UNAVAILABLE",
+        ] {
+            assert_eq!(
+                parse(&format!(
+                    r#"{{"r":{{"__snapbackOk":false,"code":"{code}"}}}}"#
+                )),
+                Err(code.to_owned()),
+            );
+        }
         assert_eq!(
             parse(r#"{"r":{"__snapbackOk":false,"code":"SNAPBACK_ACTION_TIMEOUT"}}"#),
             Err("SNAPBACK_ACTION_TIMEOUT".to_owned())

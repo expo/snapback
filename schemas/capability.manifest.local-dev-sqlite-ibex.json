@@ -136,7 +136,8 @@
     "bounded_response_stream_v1",
     "notifications",
     "ephemeral_hosted_adapter",
-    "ephemeral_multi_instance_sticky_routing"
+    "ephemeral_multi_instance_sticky_routing",
+    "sequence_allocation_v1"
   ],
   "capabilityMaturity": {
     "args_contract_v1": "experimental",

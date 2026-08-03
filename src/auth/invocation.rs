@@ -1222,6 +1222,11 @@ pub struct PreparedInvocation {
     ///
     /// @ref LLP 0108#tracked-refusal-opt-in
     tracked_refusals: Vec<String>,
+    /// Private sequence allocation authority copied from the admitted
+    /// function generation. Handler input can neither add counters nor choose
+    /// the row-visibility proof used for non-public scopes.
+    declared_sequences: Vec<String>,
+    sequence_scope_authority: Option<(String, String)>,
 }
 
 impl PreparedInvocation {
@@ -1256,6 +1261,16 @@ impl PreparedInvocation {
     /// Declared application refusal codes for this function (LLP 0108).
     pub(crate) fn declared_refusals(&self) -> &[String] {
         &self.declared_refusals
+    }
+
+    pub(crate) fn declared_sequences(&self) -> &[String] {
+        &self.declared_sequences
+    }
+
+    pub(crate) fn sequence_scope_authority(&self) -> Option<(&str, &str)> {
+        self.sequence_scope_authority
+            .as_ref()
+            .map(|(table, field)| (table.as_str(), field.as_str()))
     }
 
     /// Refusal codes whose admitted occurrences opt into issue tracking.
@@ -1558,6 +1573,12 @@ impl InvocationGate {
             invocation_id: crate::ids::mint_time_ordered(crate::ids::Kind::Invocation),
             declared_refusals: function.refusals.clone(),
             tracked_refusals: function.tracked_refusals.clone(),
+            declared_sequences: function.sequences.clone(),
+            sequence_scope_authority: function
+                .read_set_summary
+                .primary_table
+                .clone()
+                .zip(function.read_set_summary.auth_scope_field.clone()),
         })
     }
 }

@@ -6,7 +6,11 @@
 generation, Authorization, Live Queries, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-02 (the §4 acceptance folds landed as dated owner
+**Revised:** 2026-08-02 (unpublished sequence implementation-substrate
+checkpoint recorded: declaration/codegen, authoritative allocation,
+protected storage/replay, activation/restore defenses, and provider
+withholding are executable; §5.1 qualification, positive publication,
+demos, and all snapshot-batch work remain open); 2026-08-02 (the §4 acceptance folds landed as dated owner
 amendments; implementation/capability claims remain gated); 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
 authorization: dual-family READY — Fable round 3, Codex round 4 —
 with the three conditions checked and satisfied: (1) zero unresolved
@@ -1006,6 +1010,34 @@ passing today.
   and the branch adjudication themselves stay with SD-2's owner
   (LLP 0130), not this Spec.
 
+## Implementation checkpoint — 2026-08-02
+
+The sequence half now has an **unpublished implementation substrate**. It
+includes schema and function declarations plus generated types; the single
+host-owned `AllocateSequence` step in the write-with-activity profile; the
+declared JavaScript `ctx.sequence.allocate` bridge; SQLite protected counter
+state keyed by counter, scope row, and relation incarnation; atomic commit,
+portable exhaustion, exact-replay facts, activation enrollment, reopen, and
+detached-restore validation; and Contract/provider withholding of optimistic
+and offline replay authority for sequence-bearing mutations. Frozen v1/v2
+function-hash domains remain unchanged; sequence authority uses the dated v3
+domain.
+
+This is not capability publication. `sequence_allocation_v1` remains absent
+from every target's positive support set and present as a structured GAP; the
+separate experimental-id registry continues to name it. The candidate
+progress inventory at
+`tests/conformance/sequence-publication-v1.receipt.json` is deliberately
+non-authoritative and unbound to a revision/tree. It lists the still-open
+§5.1 and publication gates, including the disclosure-abort runs, real T1/T2
+and duplicate-submission concurrency, containment/prefixed-unique enforcement,
+reviewed backfill UX, mutation-atomic optimistic withholding, holistic
+exhaustion rollback, Relay/Campfire demos, a digest-bound positive carrier,
+package attestation, and remote/hosted target families.
+
+The snapshot-batch half has not started. The shared option-3a cursor grammar
+therefore remains unpinned by this implementation checkpoint.
+
 ## Nonclaims
 
 - **No aggregates, in either part.** No readable counter value, no counts,
@@ -1022,9 +1054,10 @@ passing today.
   surface presents one (§1.4). Admission of allocating operations to
   local execution is out of scope pending LLP 0129 row 2's admission
   vocabulary (open question 6).
-- **No implementation, no capability support, experimental terminus.**
-  Both ids are reserved; support is false everywhere; every §5 claim is a
-  future witness, not a status. On the default LLP 0113 route both
+- **Sequence substrate, no capability support; snapshot unimplemented.**
+  The sequence id has the unpublished substrate recorded above, while the
+  snapshot id remains design-only. Support is false everywhere; every
+  unlisted §5 claim is a future witness, not a status. On the default LLP 0113 route both
   profiles terminate at experimental until LLP 0134's promotion path is
   ratified (LLP 0120 finding 9); this Spec cannot and does not shorten
   that.

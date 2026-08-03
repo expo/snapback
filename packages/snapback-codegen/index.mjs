@@ -191,6 +191,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'versioned_seed_install_v1',
   'versioned_seed_reset_v1',
   'write_activity_v1',
+  'sequence_allocation_v1',
 ]);
 // @ref LLP 0058#capability-maturity — mirror of the Rust registry's
 // non-stable maturity table (src/manifest.rs TargetCapabilityId::maturity).
@@ -218,6 +219,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'versioned_seed_install_v1',
   'versioned_seed_reset_v1',
   'write_activity_v1',
+  'sequence_allocation_v1',
 ]);
 
 export function experimentalTargetCapabilityIdsCanonicalJson() {
@@ -720,6 +722,10 @@ export async function generateInProcess(backendDir, options = {}) {
   const authMode = validateSchemaAuthDefinition(schemaDef, err);
   const artifactVersion = authMode === 'sessions' ? SESSIONS_SCHEMA_VERSION : SCHEMA_VERSION;
   const schemaRequiredCapabilities = [...new Set(schemaDef.requiredCapabilities ?? [])];
+  if (Object.keys(schemaDef.sequences ?? {}).length > 0
+      && !schemaRequiredCapabilities.includes('sequence_allocation_v1')) {
+    schemaRequiredCapabilities.push('sequence_allocation_v1');
+  }
   if (authMode === 'sessions' && !schemaRequiredCapabilities.includes('auth.sessions.v1')) {
     schemaRequiredCapabilities.unshift('auth.sessions.v1');
   }
@@ -1170,6 +1176,14 @@ export async function generateInProcess(backendDir, options = {}) {
       ...(assetSharing ? { assetSharing } : {}),
     };
   }
+  const sequences = Object.values(schemaDef.sequences ?? {});
+  for (const sequence of sequences) {
+    if (!tables[sequence.scopeTable]) {
+      err('SNAPBACK_SEQUENCE_DECLARATION_INVALID', 'schema', `sequence ${sequence.name} names unknown scope table ${sequence.scopeTable}`, { sequence: sequence.name, scopeTable: sequence.scopeTable });
+    } else if (tables[sequence.scopeTable].permissionBacking || tables[sequence.scopeTable].membership || tables[sequence.scopeTable].assetSharing) {
+      err('SNAPBACK_SEQUENCE_DECLARATION_INVALID', 'schema', `sequence ${sequence.name} scope must be an ordinary table without independent authority`, { sequence: sequence.name, scopeTable: sequence.scopeTable });
+    }
+  }
 
   if (
     Object.values(tables).some((table) => (table.searchIndexes?.length ?? 0) > 0)
@@ -1409,6 +1423,11 @@ export async function generateInProcess(backendDir, options = {}) {
       continue;
     }
     validateFunctionAuthDefinition(name, def, err);
+    for (const counter of def.sequences ?? []) {
+      if (!sequences.some((declaration) => declaration.name === counter)) {
+        err('SNAPBACK_SEQUENCE_UNDECLARED', 'function', `${name}: sequence ${counter} is absent from defineSchema(..., { sequences })`, { function: name, sequence: counter });
+      }
+    }
     validateFunctionRefusalTrackingDefinition(name, def, err);
     validateProtectedAndRetainabilityDefinition(name, def, err);
     const argNames = new Set(Object.keys(def.args));
@@ -1936,6 +1955,32 @@ export async function generateInProcess(backendDir, options = {}) {
           err('FUNCTION_UNKNOWN_TABLE', 'function', `${name}: handler declares unknown table ${table}`, { function: name, table });
         }
       }
+      const nonPublicSequences = (def.sequences ?? [])
+        .map((counter) => sequences.find((candidate) => candidate.name === counter))
+        .filter((declaration) => declaration?.scopeAccess === 'declared-authorization.v1');
+      if (nonPublicSequences.length > 0) {
+        const primaryTable = reads[0];
+        const ownerField = def.js.authScopeField;
+        const declaredOwnerField = tables[primaryTable]?.fields.find(
+          (candidate) => candidate.name === ownerField,
+        );
+        if (
+          reads.length !== 1
+          || typeof ownerField !== 'string'
+          || ownerField.length === 0
+          || !declaredOwnerField
+          || declaredOwnerField.optional === true
+          || !['String', 'Principal'].includes(declaredOwnerField.field_type)
+          || nonPublicSequences.some((declaration) => declaration.scopeTable !== primaryTable)
+        ) {
+          err(
+            'SNAPBACK_SEQUENCE_DECLARATION_INVALID',
+            'function',
+            `${name}: non-public handler sequence scope must be its sole primary read table with one required string/principal authScopeField`,
+            { function: name, primaryTable: primaryTable ?? null, authScopeField: ownerField ?? null },
+          );
+        }
+      }
       const resolvedHandler = resolveJsHandler(def, name);
       functions.push({
         name,
@@ -1953,6 +1998,7 @@ export async function generateInProcess(backendDir, options = {}) {
         sourceSpan: resolvedHandler?.sourceSpan ?? null,
         declaredReads: reads,
         declaredWrites: writes,
+        authScopeField: def.js.authScopeField ?? null,
         syncabilityClass: 'mutation',
       });
       // The class-specific "outgrew the IR" diagnostic (LLP 0051 D2 /
@@ -1981,6 +2027,7 @@ export async function generateInProcess(backendDir, options = {}) {
       };
     } else if (def.__kind === 'Mutation') {
       const writes = new Set();
+      let sequenceAllocationCount = 0;
       const checkValuesMap = (t, values, where) => {
         for (const [field, expr] of Object.entries(values)) {
           if (!fieldNames(t).has(field)) err('QUERY_UNKNOWN_FIELD', 'function', `${name}: ${where} sets unknown field ${t}.${field}`, { function: name, table: t, field });
@@ -2024,6 +2071,20 @@ export async function generateInProcess(backendDir, options = {}) {
           checkExpr(body.cond, 'guard condition');
         } else if (kind === 'Let') {
           checkExpr(body.expr, 'let expression');
+        } else if (kind === 'AllocateSequence') {
+          sequenceAllocationCount += 1;
+          checkExpr(body.scope, 'sequence scope');
+          const declaration = sequences.find((candidate) => candidate.name === body.counter);
+          if (!def.writeWithActivityPlan) {
+            err('SNAPBACK_SEQUENCE_DECLARATION_INVALID', 'function', `${name}: AllocateSequence is admitted only by write-with-activity.v1`, { function: name, sequence: body.counter });
+          } else if (!declaration) {
+            err('SNAPBACK_SEQUENCE_UNDECLARED', 'function', `${name}: AllocateSequence names unknown counter ${body.counter}`, { function: name, sequence: body.counter });
+          } else if (
+            declaration.scopeTable !== def.writeWithActivityPlan.scopeTable
+            || JSON.stringify(body.scope) !== JSON.stringify(def.writeWithActivityPlan.scopeId)
+          ) {
+            err('SNAPBACK_SEQUENCE_DECLARATION_INVALID', 'function', `${name}: allocation counter and scope must match the exact write-with-activity scope`, { function: name, sequence: body.counter, scopeTable: declaration.scopeTable });
+          }
         } else if (kind === 'AssertSourceChanged') {
           checkExpr(body.id, 'source id');
         } else if (kind === 'AssertCurrentRelation') {
@@ -2107,6 +2168,9 @@ export async function generateInProcess(backendDir, options = {}) {
           err('MUTATION_UNSUPPORTED_STEP', 'function', `${name}: unsupported mutation step ${kind}`, { function: name, step: kind });
         }
       }
+      if (sequenceAllocationCount > 1) {
+        err('SNAPBACK_SEQUENCE_DECLARATION_INVALID', 'function', `${name}: v1 admits at most one sequence allocation`, { function: name, allocations: sequenceAllocationCount });
+      }
       if (def.plan.return_value && 'Expr' in def.plan.return_value) {
         checkExpr(def.plan.return_value.Expr, 'return expression');
       }
@@ -2133,22 +2197,14 @@ export async function generateInProcess(backendDir, options = {}) {
         syncabilityClass: 'mutation',
         ...(def.standardPattern ? { standardPattern: def.standardPattern } : {}),
       });
-      contractMutations[name] = {
+      contractMutations[name] = buildContractMutationDescriptor({
         name,
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
         writes: [...writes],
-        invalidates: [...writes],
-        // IR-tier mutations embed their plan (Exact LLP 0329 E-B): the
-        // adapter derives the default optimistic overlay from it, so the
-        // descriptor honestly claims `optimistic` (additive manifest v2
-        // extension per Exact LLP 0284 §2.4). JS-tier mutations keep
-        // `optimistic: false` — their overlays are app reducers the
-        // manifest cannot see.
-        optimistic: true,
         plan: serializedPlan,
-        serverRunnable: true,
-      };
+        sequenceAllocationCount,
+      });
     } else if (def.__kind === 'Action' && def.js) {
       const writes = def.js.writes ?? [];
       for (const table of writes) {
@@ -2296,6 +2352,17 @@ export async function generateInProcess(backendDir, options = {}) {
   // admission, never as a late activation surprise.
   if (projections.length > 0 && !schemaRequiredCapabilities.includes('relational_query_v1')) {
     schemaRequiredCapabilities.push('relational_query_v1');
+  }
+  const projectionOutputNames = new Set(projections.map((projection) => projection.outputTable));
+  for (const sequence of sequences) {
+    if (projectionOutputNames.has(sequence.scopeTable)) {
+      err(
+        'SNAPBACK_SEQUENCE_DECLARATION_INVALID',
+        'schema',
+        `sequence ${sequence.name} scope ${sequence.scopeTable} cannot be a maintained-projection output`,
+        { sequence: sequence.name, scopeTable: sequence.scopeTable },
+      );
+    }
   }
 
   if (diagnostics.some((d) => d.severity === 'error')) {
@@ -2921,6 +2988,7 @@ export async function generateInProcess(backendDir, options = {}) {
     portabilityFlags: [],
     artifactDiagnostics: [],
     ephemeralCollections,
+    ...(sequences.length > 0 ? { sequences } : {}),
     tables: Object.values(tables),
   };
   // @ref LLP 0058#capability-maturity — the artifact pair's experimental
@@ -2961,11 +3029,7 @@ export async function generateInProcess(backendDir, options = {}) {
   // Exact LLP 0329 E-B: IR-tier mutations embed their plan, so the adapter
   // can derive default optimistic overlays from the generated artifact alone
   // — the flags below claim exactly that and nothing more.
-  const hasDerivedOverlayMutations = Object.values(contractMutations).some(
-    (descriptor) => descriptor.plan !== undefined,
-  );
-  const allMutationsReplayable = Object.values(contractMutations).length > 0
-    && Object.values(contractMutations).every((descriptor) => descriptor.plan !== undefined);
+  const mutationCapabilities = contractCapabilitiesForMutations(contractMutations);
   // Keep the pre-introspection projection during the migration as an
   // independent emit-both witness. The neutral producer below must reproduce
   // this Exact-owned consumer document exactly or codegen fails before writing.
@@ -2989,12 +3053,12 @@ export async function generateInProcess(backendDir, options = {}) {
       initialSnapshot: true,
       // True exactly when some mutation carries a derivable IR plan: the
       // adapter's generated default overlay backs the claim (LLP 0329 §E5).
-      optimisticMutations: hasDerivedOverlayMutations,
+      optimisticMutations: mutationCapabilities.optimisticMutations,
       // LLP 0051 D6: the same closed IR plans now drive both the derived
       // overlay and the D1-ledgered durable client queue. A manifest with no
       // IR mutation cannot claim offline replay.
-      derivedOptimisticOverlays: hasDerivedOverlayMutations,
-      offlineReplay: allMutationsReplayable,
+      derivedOptimisticOverlays: mutationCapabilities.derivedOptimisticOverlays,
+      offlineReplay: mutationCapabilities.offlineReplay,
       rowSyncState: true,
       serverRunnableQueries: true,
       forceStates: true,
@@ -3738,6 +3802,7 @@ function planExprs(serialized) {
     const kind = Object.keys(step)[0];
     const body = step[kind];
     if (kind === 'Insert' || kind === 'InsertEach') exprs.push(...Object.values(body.values));
+    if (kind === 'AllocateSequence') exprs.push(body.scope);
     if (kind === 'InsertEach') exprs.push(body.source);
     if (kind === 'Patch') exprs.push(body.id, ...Object.values(body.values));
     if (kind === 'Delete' || kind === 'Get') exprs.push(body.id);
@@ -3762,6 +3827,15 @@ export function serializeMutationPlan(plan, functionName, err) {
       const values = dict();
       for (const [k, e] of Object.entries(body.values)) values[k] = serializeExpr(e);
       return { Insert: { table: body.table, values, bind_id_as: body.bind_id_as } };
+    }
+    if (kind === 'AllocateSequence') {
+      return {
+        AllocateSequence: {
+          counter: body.counter,
+          scope: serializeExpr(body.scope),
+          into: body.into,
+        },
+      };
     }
     if (kind === 'Patch') {
       const values = dict();
@@ -4687,6 +4761,9 @@ function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
     ...(Array.isArray(def.trackedRefusals) && def.trackedRefusals.length > 0
       ? { trackedRefusals: [...def.trackedRefusals] }
       : {}),
+    ...(Array.isArray(def.sequences) && def.sequences.length > 0
+      ? { sequences: [...def.sequences] }
+      : {}),
     ...(Array.isArray(def.authorizationDependence)
       ? { authorizationDependence: [...def.authorizationDependence] }
       : {}),
@@ -5095,19 +5172,48 @@ function functionId(appId, name) {
   return `${appId}:${name}`;
 }
 
-function decorateFunctions(appId, functions) {
-  return functions.map((fn) => {
-    const reads = readSummary(fn);
-    const writes = writeSummary(fn);
-    // @ref LLP 0065#1-fact-classes — fail closed: a plan node the ceiling
-    //   walker does not recognize aborts generation instead of shipping a
-    //   function whose effects escaped the recorded ceiling.
-    let effectCeiling;
-    try {
-      effectCeiling = computeEffectCeiling(fn);
-    } catch (error) {
-      throw new Error(`${fn.name}: ${error.message}`, { cause: error });
-    }
+export function buildContractMutationDescriptor({
+  name,
+  args,
+  argOrder,
+  writes,
+  plan,
+  sequenceAllocationCount = 0,
+}) {
+  const optimistic = sequenceAllocationCount === 0;
+  return {
+    name,
+    args,
+    argOrder,
+    writes,
+    invalidates: writes,
+    // IR-tier mutations normally embed their plan (Exact LLP 0329 E-B), so
+    // the adapter can derive the default optimistic overlay from it.
+    optimistic,
+    // Sequence allocation is authoritative-only in the substrate checkpoint.
+    // The Contract adapter cannot ledger this step plus later host-owned WWA
+    // ids yet, so withholding the plan also withholds durable lane-Q replay.
+    ...(optimistic ? { plan } : {}),
+    serverRunnable: true,
+  };
+}
+
+export function contractCapabilitiesForMutations(contractMutations) {
+  const descriptors = Object.values(contractMutations);
+  const hasDerivedOverlayMutations = descriptors.some(
+    (descriptor) => descriptor.plan !== undefined && descriptor.optimistic === true,
+  );
+  return {
+    optimisticMutations: hasDerivedOverlayMutations,
+    derivedOptimisticOverlays: hasDerivedOverlayMutations,
+    offlineReplay: descriptors.length > 0
+      && descriptors.every((descriptor) => descriptor.plan !== undefined),
+  };
+}
+
+export function functionImplementationHashRecord(appId, fn, summaries = {}) {
+    const reads = summaries.reads ?? readSummary(fn);
+    const writes = summaries.writes ?? writeSummary(fn);
     // @ref LLP 0118#findings — finding 4: the v1 hash carries no dependency
     // field by design, so helper-using operations move to the v2 format whose
     // handler carries named helper-content edges (name + content hash, no
@@ -5120,7 +5226,11 @@ function decorateFunctions(appId, functions) {
       && fn.inlineHelpers.length > 0
       ? [...fn.inlineHelpers].sort((left, right) => (left.name < right.name ? -1 : 1))
       : null;
-    const implementationFormatVersion = inlineHelpers ? 'v2' : 'v1';
+    // LLP 0108 freezes every implementation-hash preimage by version. A
+    // sequence declaration changes execution authority, so it moves the
+    // operation to v3 instead of silently reinterpreting the v1/v2 domains.
+    const sequenceAuthority = Array.isArray(fn.sequences) && fn.sequences.length > 0;
+    const implementationFormatVersion = sequenceAuthority ? 'v3' : (inlineHelpers ? 'v2' : 'v1');
     const implementationIdentity = {
       format: `snapback.function-implementation.${implementationFormatVersion}`,
       app: appId,
@@ -5149,10 +5259,34 @@ function decorateFunctions(appId, functions) {
       writes,
       authRequirement: fn.authRequirement ?? 'optional-user',
       authorizationDependence: fn.authorizationDependence ?? [],
+      ...(sequenceAuthority ? { sequences: [...fn.sequences] } : {}),
       uses: fn.uses ?? [],
       standardPattern: fn.standardPattern ?? null,
       ...(fn.boundedSkew !== undefined ? { boundedSkew: fn.boundedSkew } : {}),
     };
+    return {
+      implementationFormatVersion,
+      implementationIdentity,
+      implementationHash: `sha256:${sha256(
+        `snapback:function-implementation:${implementationFormatVersion}\n${canonicalResultJson(implementationIdentity)}`,
+      )}`,
+    };
+}
+
+function decorateFunctions(appId, functions) {
+  return functions.map((fn) => {
+    const reads = readSummary(fn);
+    const writes = writeSummary(fn);
+    // @ref LLP 0065#1-fact-classes — fail closed: a plan node the ceiling
+    //   walker does not recognize aborts generation instead of shipping a
+    //   function whose effects escaped the recorded ceiling.
+    let effectCeiling;
+    try {
+      effectCeiling = computeEffectCeiling(fn);
+    } catch (error) {
+      throw new Error(`${fn.name}: ${error.message}`, { cause: error });
+    }
+    const implementation = functionImplementationHashRecord(appId, fn, { reads, writes });
     return {
       id: functionId(appId, fn.name),
       name: fn.name,
@@ -5161,9 +5295,7 @@ function decorateFunctions(appId, functions) {
       sourceSpan: fn.sourceSpan ?? null,
       handlerForm: fn.handlerForm
         ?? (fn.runtime?.IbexModule ? 'module' : 'plan'),
-      implementationHash: `sha256:${sha256(
-        `snapback:function-implementation:${implementationFormatVersion}\n${canonicalResultJson(implementationIdentity)}`,
-      )}`,
+      implementationHash: implementation.implementationHash,
       argsContractHash: fn.argsContractHash,
       argsContract: fn.argsContract,
       ...(fn.boundedSkew !== undefined ? { boundedSkew: { ...fn.boundedSkew } } : {}),
@@ -5178,6 +5310,9 @@ function decorateFunctions(appId, functions) {
       ...(Array.isArray(fn.refusals) && fn.refusals.length > 0 ? { refusals: [...fn.refusals] } : {}),
       ...(Array.isArray(fn.trackedRefusals) && fn.trackedRefusals.length > 0
         ? { trackedRefusals: [...fn.trackedRefusals] }
+        : {}),
+      ...(Array.isArray(fn.sequences) && fn.sequences.length > 0
+        ? { sequences: [...fn.sequences] }
         : {}),
       ...(Array.isArray(fn.authorizationDependence) && fn.authorizationDependence.length > 0
         ? { authorizationDependence: fn.authorizationDependence }
@@ -5260,6 +5395,9 @@ function requiredCapabilities(fn) {
     'args_contract_v1',
     ...(fn.handlerForm === 'inline' ? ['inline_handler_v1'] : []),
   ];
+  if (Array.isArray(fn.sequences) && fn.sequences.length > 0) {
+    contractCapabilities.push('sequence_allocation_v1');
+  }
   if (fn.runtime?.HostPlan?.SearchQuery) {
     return [runtimeCapability, 'full_text_search_v1', ...contractCapabilities];
   }

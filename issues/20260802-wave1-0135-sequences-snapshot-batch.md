@@ -36,3 +36,20 @@ dated implementation-record amendment on the LLP; LLP 0115 board row updated.
   and marked §4 folded. This implementation ticket
   must not repeat them; it still owns code, executable acceptance, capability
   registration, demo replacement, and the implementation record.
+- **2026-08-02 — unpublished sequence substrate checkpoint.** The sequence
+  lane now implements declaration/schema validation, generated authoring and
+  types, one host-owned WWA allocation step, the declared handler bridge,
+  protected SQLite counters keyed by scope incarnation, atomic settlement and
+  private exact-replay facts, portable exhaustion, relation-enrollment
+  activation/reopen/restore defenses, frozen v1/v2 plus sequence-aware v3
+  implementation hashes, and fail-closed provider behavior with no optimistic
+  or offline replay claim. This is deliberately not publication:
+  `sequence_allocation_v1` remains absent from every target's positive support
+  set and present as a structured GAP. LLP 0135 §5.1 still needs its complete
+  disclosure-abort, true concurrency/duplicate, containment and prefixed-unique
+  enforcement, reviewed backfill UX, mutation-atomic optimistic, holistic
+  exhaustion, Relay, and Campfire vectors, followed by a digest-bound positive
+  carrier and package/remote/hosted qualification. The candidate receipt is a
+  non-authoritative, revision-unbound progress inventory. Snapshot-batch has
+  not started; this ticket remains open and LLP 0135 remains Accepted rather
+  than Implemented.

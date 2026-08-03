@@ -932,7 +932,7 @@ export async function createSnapbackContractSurface({
       onError: publishDiagnostic,
     });
     const everyMutationReplayable = mutationNames.length > 0
-      && mutationNames.every((name) => typeof derivedReducers[name] === 'function');
+      && mutationNames.every((name) => manifest?.mutations?.[name]?.plan !== undefined);
     const storeIdentity = {
       appId: retainedIdentity?.appId
         ?? artifactIndex?.appId
@@ -1795,9 +1795,12 @@ export async function createSnapbackContractSurface({
       if (!committed.committed) throw staleContractAuthorityError();
     }
     for (const record of restoredPending) {
-      const reducer = typeof optimisticReducers[record.function] === 'function'
-        ? optimisticReducers[record.function]
-        : derivedReducers[record.function] ?? null;
+      const descriptor = manifest?.mutations?.[record.function];
+      const reducer = descriptor?.optimistic === false
+        ? null
+        : typeof optimisticReducers[record.function] === 'function'
+          ? optimisticReducers[record.function]
+          : derivedReducers[record.function] ?? null;
       if (!reducer) continue;
       inFlightOptimistic.add({
         mutationId: record.id,
@@ -2184,9 +2187,13 @@ export async function createSnapbackContractSurface({
     // per name; mutations touching tables this boundary cannot see stay
     // pending-without-overlay (no overlay beats a wrong prediction).
     for (const name of mutationNames) {
+      const descriptor = manifest?.mutations?.[name];
       const appReducer = optimisticReducers[name];
-      const activeReducer = typeof appReducer === 'function' ? appReducer : derivedReducers[name] ?? null;
-      mutationOverlayClass[name] = typeof appReducer === 'function'
+      const optimisticWithheld = descriptor?.optimistic === false;
+      const activeReducer = optimisticWithheld
+        ? null
+        : typeof appReducer === 'function' ? appReducer : derivedReducers[name] ?? null;
+      mutationOverlayClass[name] = !optimisticWithheld && typeof appReducer === 'function'
         ? 'reducer'
         : activeReducer
           ? 'derived'

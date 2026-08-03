@@ -7,7 +7,8 @@ use crate::manifest::{
     MutationOutput, MutationPlan, MutationSettlement, MutationStep, OrderDirection, OrderExpr,
     PORTABLE_STORAGE_VERSION_MAX, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS,
     QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest,
-    SeedData, SettlementMintObservation, SettlementTimeObservation, TableManifest, ValueExpr, auth_fingerprint,
+    SEQUENCE_MAX_SAFE_INTEGER, SeedData, SequenceAllocationFact, SettlementMintObservation,
+    SettlementTimeObservation, TableManifest, ValueExpr, auth_fingerprint,
     effective_query_limit, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
     validate_portable_timestamp_millis, validate_query_plan_shape,
 };
@@ -578,11 +579,34 @@ pub struct MutationCommit {
     /// maintenance, or the version head — only the live matcher.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub job_changes: Vec<ChangedRow>,
+    /// Private receipt facts for framework-owned sequence effects. These are
+    /// returned only to the submitting authority and stripped from fan-out.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sequence_allocations: Vec<SequenceAllocationFact>,
     /// `None` means no commit occurred (dry-run or exact replay). Every fresh
     /// committed app writer returns the pair observed/written in its SQLite
     /// transaction, including ordinary commits that did not advance it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub authorization: Option<AuthorizationCommitWitness>,
+}
+
+impl MutationCommit {
+    /// Rebuild the non-executing exact-replay commit carrier from its durable
+    /// output. Application changes and enqueue facts stay empty, while the
+    /// original submitter-only sequence effect facts are restored verbatim.
+    pub(crate) fn exact_replay(output: MutationOutput) -> Self {
+        let sequence_allocations = output.settlement_sequence_allocations.clone();
+        Self {
+            output,
+            changes: Vec::new(),
+            read_dependencies: Vec::new(),
+            write_dependencies: Vec::new(),
+            job_enqueues: Vec::new(),
+            job_changes: Vec::new(),
+            sequence_allocations,
+            authorization: None,
+        }
+    }
 }
 
 /// A server-admitted lane-L override for one direct RuntimeNow field. The
@@ -685,7 +709,17 @@ pub(crate) struct BufferedSequenceAllocation {
     pub value: u64,
 }
 
-pub(crate) const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
+impl From<&BufferedSequenceAllocation> for SequenceAllocationFact {
+    fn from(allocation: &BufferedSequenceAllocation) -> Self {
+        Self {
+            counter_name: allocation.counter_name.clone(),
+            scope_table: allocation.scope_table.clone(),
+            scope_id: allocation.scope_id.clone(),
+            scope_incarnation: allocation.scope_incarnation.clone(),
+            value: allocation.value,
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 struct MembershipCommitAuthority<'a> {
@@ -1071,6 +1105,7 @@ fn reset_and_seed_transaction(
                 ctx_ledger: None,
                 settlement_mint_observations: Vec::new(),
                 settlement_time_observation: None,
+                settlement_sequence_allocations: Vec::new(),
             })
         }
     };
@@ -1726,7 +1761,21 @@ impl LocalDatabase {
             // additive migration without requiring ordinary writers to stop.
             validate_existing_storage_ordering(conn, head)
         })?;
-        db.schema = stored_schema.unwrap_or_default();
+        let active_schema = stored_schema.clone().unwrap_or_default();
+        {
+            let tx = db
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)?;
+            // Legacy databases predate the explicit enrollment marker. The
+            // stored active manifest is the only bootstrap authority: it may
+            // mark its already-participating parents, never a merely
+            // incidental registry row from an ordinary predecessor schema.
+            preflight_relation_enrollments(&tx, stored_schema.as_ref(), &active_schema)?;
+            validate_relation_activation(&tx, &active_schema)?;
+            validate_sequence_activation(&tx, &active_schema)?;
+            tx.commit()?;
+        }
+        db.schema = active_schema;
         if let Some(push_seam) = &db.schema.push_seam {
             // @ref LLP 0143#d1-device-token-custody — every reopened writer
             // re-arms physical deletion and refuses a non-exact protected
@@ -1765,7 +1814,7 @@ impl LocalDatabase {
             let backup = rusqlite::backup::Backup::new(&self.conn, &mut conn)?;
             backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
         }
-        Ok(Self {
+        let restored = Self {
             conn,
             path: None,
             schema: self.schema.clone(),
@@ -1775,7 +1824,10 @@ impl LocalDatabase {
                 crate::auth::service_fence::ServiceAuthorityFenceRegistry::default(),
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
-        })
+        };
+        validate_relation_activation(&restored.conn, &restored.schema)?;
+        validate_sequence_activation(&restored.conn, &restored.schema)?;
+        Ok(restored)
     }
 
     pub(crate) fn install_authorization_interlock(
@@ -2309,6 +2361,8 @@ impl LocalDatabase {
                     "error": error.to_string(),
                 }))
             })?;
+            validate_retained_sequence_allocations(&output.settlement_sequence_allocations)
+                .map_err(|error| error.with_detail("clientMutationId", identity.id.clone()))?;
             debug_assert_eq!(output.version, output_version);
             Ok(Some(output))
         })
@@ -3363,6 +3417,7 @@ impl LocalDatabase {
                 ctx_ledger: None,
                 settlement_mint_observations: Vec::new(),
                 settlement_time_observation: None,
+                settlement_sequence_allocations: Vec::new(),
             },
             authorization,
         })
@@ -3593,15 +3648,7 @@ impl LocalDatabase {
         identity: &ClientMutationIdentity,
     ) -> SnapbackResult<MutationCommit> {
         if let Some(output) = self.client_mutation_result(identity)? {
-            return Ok(MutationCommit {
-                output,
-                changes: Vec::new(),
-                read_dependencies: Vec::new(),
-                write_dependencies: Vec::new(),
-                job_enqueues: Vec::new(),
-                job_changes: Vec::new(),
-                authorization: None,
-            });
+            return Ok(MutationCommit::exact_replay(output));
         }
         Ok(self
             .execute_mutation_plan(plan, input, true, Some(identity), None)?
@@ -3619,15 +3666,7 @@ impl LocalDatabase {
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
         if let Some(output) = self.client_mutation_result(identity)? {
-            return Ok(MutationCommit {
-                output,
-                changes: Vec::new(),
-                read_dependencies: Vec::new(),
-                write_dependencies: Vec::new(),
-                job_enqueues: Vec::new(),
-                job_changes: Vec::new(),
-                authorization: None,
-            });
+            return Ok(MutationCommit::exact_replay(output));
         }
         Ok(self
             .execute_mutation_plan_with_lifecycle_and_settlement_time(
@@ -3706,15 +3745,7 @@ impl LocalDatabase {
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
         if let Some(output) = self.client_mutation_result(identity)? {
-            return Ok(MutationCommit {
-                output,
-                changes: Vec::new(),
-                read_dependencies: Vec::new(),
-                write_dependencies: Vec::new(),
-                job_enqueues: Vec::new(),
-                job_changes: Vec::new(),
-                authorization: None,
-            });
+            return Ok(MutationCommit::exact_replay(output));
         }
         Ok(self
             .execute_mutation_plan_with_lifecycle_and_settlement_time(
@@ -3865,7 +3896,9 @@ impl LocalDatabase {
                 | MutationStep::Get { table, .. }
                 | MutationStep::AssertCurrentRelation { table, .. }
                 | MutationStep::AssertSourceChanged { table, .. } => Some(table.as_str()),
-                MutationStep::Guard { .. } | MutationStep::Let { .. } => None,
+                MutationStep::AllocateSequence { .. }
+                | MutationStep::Guard { .. }
+                | MutationStep::Let { .. } => None,
             };
             if let Some(target) = target {
                 touched_tables.insert(target.to_owned());
@@ -3895,6 +3928,7 @@ impl LocalDatabase {
         });
         let mut direct_bindings = direct_input.as_ref().map(|_| BTreeMap::new());
         let mut changes = Vec::new();
+        let mut sequence_allocation_facts = Vec::new();
         let mut read_dependencies: Vec<CapturedReadDependency> = Vec::new();
         // Every host-generated id in answer order — the IR half of the
         // ctx-answer ledger (LLP 0051 D1's `generatedIds`), reported by
@@ -3911,6 +3945,52 @@ impl LocalDatabase {
             check_live()?;
             let step_site = format!("plan/steps/{step_index}");
             match step {
+                MutationStep::AllocateSequence {
+                    counter,
+                    scope,
+                    into,
+                } => {
+                    let declaration = schema
+                        .sequences
+                        .iter()
+                        .find(|declaration| declaration.name == *counter)
+                        .ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_SEQUENCE_UNDECLARED",
+                                "runtime",
+                                "HostPlan names a sequence absent from the active schema",
+                            )
+                        })?;
+                    let scope_id = expect_string(
+                        eval_expr(
+                            scope,
+                            input,
+                            &bindings,
+                            now_ms,
+                            Some(&next_id),
+                            &format!("{step_site}/allocate-sequence/scope"),
+                        )?,
+                        "sequence scope id",
+                    )?;
+                    let allocation = preview_sequence_allocation_on(
+                        &tx,
+                        &schema,
+                        counter,
+                        &declaration.scope_table,
+                        &scope_id,
+                    )?;
+                    let facts = apply_sequence_allocations(
+                        &tx,
+                        &schema,
+                        std::slice::from_ref(&allocation),
+                    )?;
+                    let value = json!(allocation.value);
+                    bindings.insert(into.clone(), value.clone());
+                    if let Some(direct) = direct_bindings.as_mut() {
+                        direct.insert(into.clone(), value);
+                    }
+                    sequence_allocation_facts.extend(facts);
+                }
                 MutationStep::Insert {
                     table,
                     values,
@@ -4137,16 +4217,15 @@ impl LocalDatabase {
                         }
                         None => {
                             if let Some(code) = else_error {
-                                return Err(SnapbackError::error(
-                                    code.clone(),
-                                    "handler",
+                                return Err(mutation_plan_refusal(
+                                    code,
                                     format!("get on {} {id} found no row", table.name),
-                                )
-                                .with_details(json!({
-                                    "table": table.name,
-                                    "id": id,
-                                    "step": "Get",
-                                })));
+                                    json!({
+                                        "table": table.name,
+                                        "id": id,
+                                        "step": "Get",
+                                    }),
+                                ));
                             }
                             bindings.insert(bind_as.clone(), Value::Null);
                             if let Some(direct) = direct_bindings.as_mut() {
@@ -4232,12 +4311,11 @@ impl LocalDatabase {
                     .iter()
                     .all(crate::value_expr::truthy);
                     if !admitted {
-                        return Err(SnapbackError::error(
-                            else_error.clone(),
-                            "handler",
+                        return Err(mutation_plan_refusal(
+                            else_error,
                             "mutation guard failed",
-                        )
-                        .with_details(json!({ "step": "Guard" })));
+                            json!({ "step": "Guard" }),
+                        ));
                     }
                 }
                 MutationStep::Let { bind_as, expr } => {
@@ -4531,7 +4609,7 @@ impl LocalDatabase {
             },
             now_ms,
         )?;
-        if !changes.is_empty() {
+        if !changes.is_empty() || !sequence_allocation_facts.is_empty() {
             set_version(&tx, next_version)?;
         }
 
@@ -4569,7 +4647,7 @@ impl LocalDatabase {
         plan_ids.borrow().ensure_exact_consumption()?;
         let generated_ids = plan_ids.borrow().generated.clone();
 
-        let version = if changes.is_empty() {
+        let version = if changes.is_empty() && sequence_allocation_facts.is_empty() {
             current_version
         } else {
             next_version
@@ -4600,6 +4678,7 @@ impl LocalDatabase {
                     accepted: settlement_time_within_bound && sink_reached,
                 }
             }),
+            settlement_sequence_allocations: sequence_allocation_facts.clone(),
         };
         let authorization_predecessor = if apply {
             auth_stream::read_authorization_version_on(&tx)?
@@ -4664,6 +4743,7 @@ impl LocalDatabase {
                 // note's callee/producer scoping).
                 job_enqueues: Vec::new(),
                 job_changes: Vec::new(),
+                sequence_allocations: sequence_allocation_facts,
                 authorization,
             },
             generated_ids,
@@ -4707,6 +4787,11 @@ impl LocalDatabase {
         Check: Fn() -> SnapbackResult<()>,
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        if let Some(identity) = identity
+            && let Some(output) = self.client_mutation_result(identity)?
+        {
+            return Ok(MutationCommit::exact_replay(output));
+        }
         let BufferedCommitPayload {
             writes,
             membership_plans,
@@ -4950,7 +5035,8 @@ impl LocalDatabase {
         // The protected counter advances only after every caller-owned read
         // witness has validated, and before app writes are applied in the
         // same transaction. Any later failure rolls the advance back.
-        apply_sequence_allocations(&tx, &schema, &sequence_allocations)?;
+        let sequence_allocation_facts =
+            apply_sequence_allocations(&tx, &schema, &sequence_allocations)?;
 
         let mut carried_writes: Vec<_> = writes
             .into_iter()
@@ -5230,6 +5316,7 @@ impl LocalDatabase {
             ctx_ledger: options.ctx_ledger,
             settlement_mint_observations: Vec::new(),
             settlement_time_observation: None,
+            settlement_sequence_allocations: sequence_allocation_facts.clone(),
         };
         let authorization_predecessor = if options.apply {
             auth_stream::read_authorization_version_on(&tx)?
@@ -5288,6 +5375,7 @@ impl LocalDatabase {
             read_dependencies,
             job_enqueues: job_enqueue_facts,
             job_changes,
+            sequence_allocations: sequence_allocation_facts,
             authorization,
         })
     }
@@ -5467,6 +5555,12 @@ impl LocalDatabase {
               _snapback_relation_incarnations_v1_active
               ON _snapback_relation_incarnations_v1(table_name, row_id)
               WHERE active = 1;
+            -- Enrollment is migration authority, distinct from incidental
+            -- incarnation rows produced by the universal central writer.
+            CREATE TABLE IF NOT EXISTS _snapback_relation_enrollments_v1 (
+              table_name TEXT PRIMARY KEY,
+              enrolled_by TEXT NOT NULL
+            );
             -- @ref LLP 0135#11-counter-identity-and-scope — protected,
             -- incarnation-scoped sequence state; application SQL never sees
             -- this table through the schema/query surface.
@@ -5475,7 +5569,7 @@ impl LocalDatabase {
               scope_table TEXT NOT NULL,
               scope_row_id TEXT NOT NULL,
               scope_incarnation TEXT NOT NULL,
-              next_value INTEGER NOT NULL CHECK(next_value >= 1),
+              next_value INTEGER NOT NULL CHECK(next_value BETWEEN 1 AND 9007199254740992),
               PRIMARY KEY(counter_name, scope_table, scope_row_id, scope_incarnation)
             );
             -- @ref LLP 0053#invalidation-is-an-obligation-not-a-message —
@@ -8364,55 +8458,11 @@ impl DbRead<'_> {
         scope_id: &str,
     ) -> SnapbackResult<BufferedSequenceAllocation> {
         let conn = self.conn();
-        let scope = schema_table(match self {
+        let schema = match self {
             DbRead::Pinned { schema, .. } => schema,
             DbRead::Live(db) => &db.schema,
-        }, scope_table)?;
-        let scope_exists = conn
-            .query_row(
-                &format!("SELECT 1 FROM {} WHERE _id = ?1", quote_ident(&scope.name)?),
-                params![scope_id],
-                |_| Ok(()),
-            )
-            .optional()?
-            .is_some();
-        let incarnation = conn
-            .query_row(
-                "SELECT incarnation
-                   FROM _snapback_relation_incarnations_v1
-                  WHERE table_name = ?1 AND row_id = ?2 AND active = 1",
-                params![scope_table, scope_id],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()?;
-        if !scope_exists || incarnation.is_none() {
-            return Err(sequence_parent_unavailable());
-        }
-        let scope_incarnation = incarnation.expect("checked above");
-        let next = conn
-            .query_row(
-                "SELECT next_value
-                   FROM _snapback_sequence_counters_v1
-                  WHERE counter_name = ?1 AND scope_table = ?2
-                    AND scope_row_id = ?3 AND scope_incarnation = ?4",
-                params![counter_name, scope_table, scope_id, scope_incarnation],
-                |row| row.get::<_, i64>(0),
-            )
-            .optional()?
-            .map(|value| u64::try_from(value).map_err(|_| sequence_counter_corrupt()))
-            .transpose()?
-            .unwrap_or(1);
-        if next > SEQUENCE_MAX_SAFE_INTEGER {
-            return Err(sequence_exhausted());
-        }
-        Ok(BufferedSequenceAllocation {
-            counter_name: counter_name.to_owned(),
-            scope_table: scope_table.to_owned(),
-            scope_id: scope_id.to_owned(),
-            scope_incarnation,
-            expected_next: next,
-            value: next,
-        })
+        };
+        preview_sequence_allocation_on(conn, schema, counter_name, scope_table, scope_id)
     }
 
     pub fn table_change_version(&self, table: &str) -> SnapbackResult<u64> {
@@ -9673,14 +9723,12 @@ fn validate_membership_activation(
         }
     }
     validate_relation_activation(tx, manifest)?;
+    validate_sequence_activation(tx, manifest)?;
     Ok(())
 }
 
-fn validate_relation_activation(
-    tx: &Transaction<'_>,
-    manifest: &SchemaManifest,
-) -> SnapbackResult<()> {
-    let participating_parents = manifest
+fn relation_participating_parents(manifest: &SchemaManifest) -> BTreeSet<&str> {
+    manifest
         .tables
         .iter()
         .flat_map(|child| child.fields.iter())
@@ -9688,8 +9736,119 @@ fn validate_relation_activation(
             FieldType::RelationIncarnation { parent_table, .. } => Some(parent_table.as_str()),
             _ => None,
         })
-        .collect::<BTreeSet<_>>();
-    for parent_table in participating_parents {
+        .chain(
+            manifest
+                .sequences
+                .iter()
+                .map(|sequence| sequence.scope_table.as_str()),
+        )
+        .collect()
+}
+
+/// Establish enrollment authority before activation validation. A table that
+/// already participated under the predecessor manifest is grandfathered;
+/// a genuinely new participant auto-enrolls only while physically empty.
+/// Incidental registry rows alone never count as reviewed backfill authority.
+///
+/// @ref LLP 0135#11-counter-identity-and-scope — adopting a sequence scope
+/// with pre-existing rows requires an explicit reviewed registry backfill.
+fn preflight_relation_enrollments(
+    tx: &Transaction<'_>,
+    predecessor: Option<&SchemaManifest>,
+    successor: &SchemaManifest,
+) -> SnapbackResult<()> {
+    let predecessor_parents = predecessor
+        .map(relation_participating_parents)
+        .unwrap_or_default();
+    for table in relation_participating_parents(successor) {
+        let enrolled = tx
+            .query_row(
+                "SELECT 1 FROM _snapback_relation_enrollments_v1 WHERE table_name = ?1",
+                params![table],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some();
+        if enrolled {
+            continue;
+        }
+        let physical = tx
+            .query_row(
+                "SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?1",
+                params![table],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some();
+        let existing_rows = if physical {
+            tx.query_row(
+                &format!("SELECT COUNT(*) FROM {}", quote_ident(table)?),
+                [],
+                |row| row.get::<_, i64>(0),
+            )?
+        } else {
+            0
+        };
+        let enrollment_basis = if predecessor_parents.contains(table) {
+            "predecessor-manifest"
+        } else if existing_rows == 0 {
+            "empty-table"
+        } else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
+                "schema",
+                "a newly enrolled relation parent has pre-existing rows without reviewed backfill authority",
+            )
+            .with_details(json!({
+                "parentTable": table,
+                "existingRows": existing_rows,
+                "enrollmentMarker": false,
+            })));
+        };
+        tx.execute(
+            "INSERT INTO _snapback_relation_enrollments_v1(table_name, enrolled_by)
+             VALUES(?1, ?2)",
+            params![table, enrollment_basis],
+        )?;
+    }
+    let successor_parents = relation_participating_parents(successor);
+    let mut statement = tx.prepare("SELECT table_name FROM _snapback_relation_enrollments_v1")?;
+    let existing = statement
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    drop(statement);
+    for table in existing {
+        if !successor_parents.contains(table.as_str()) {
+            tx.execute(
+                "DELETE FROM _snapback_relation_enrollments_v1 WHERE table_name = ?1",
+                params![table],
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_relation_activation(
+    tx: &Connection,
+    manifest: &SchemaManifest,
+) -> SnapbackResult<()> {
+    for parent_table in relation_participating_parents(manifest) {
+        let enrolled = tx
+            .query_row(
+                "SELECT 1 FROM _snapback_relation_enrollments_v1 WHERE table_name = ?1",
+                params![parent_table],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some();
+        if !enrolled {
+            return Err(SnapbackError::error(
+                "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
+                "schema",
+                "relation parent lacks a reviewed enrollment marker",
+            )
+            .with_detail("parentTable", parent_table.to_owned()));
+        }
         let parent_table_sql = quote_ident(parent_table)?;
         let missing_or_duplicate_active = tx
             .query_row(
@@ -9792,6 +9951,56 @@ fn validate_relation_activation(
                     "parentTable": parent_table,
                 })));
             }
+        }
+    }
+    Ok(())
+}
+
+/// Treat protected counter contents as untrusted input at every activation
+/// and detached restore. Rows outside the active declaration set (including a
+/// removed counter or a counter whose scope table changed) require an explicit
+/// reviewed migration; they are never silently adopted by a later schema.
+fn validate_sequence_activation(
+    conn: &Connection,
+    manifest: &SchemaManifest,
+) -> SnapbackResult<()> {
+    let declared = manifest
+        .sequences
+        .iter()
+        .map(|sequence| (sequence.name.as_str(), sequence.scope_table.as_str()))
+        .collect::<BTreeSet<_>>();
+    let mut statement = conn.prepare(
+        "SELECT counter_name, scope_table, scope_row_id, scope_incarnation, next_value
+           FROM _snapback_sequence_counters_v1",
+    )?;
+    let rows = statement.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, String>(3)?,
+            row.get::<_, i64>(4)?,
+        ))
+    })?;
+    for row in rows {
+        let (counter, scope_table, scope_id, scope_incarnation, next_value) = row?;
+        let enrolled = declared.contains(&(counter.as_str(), scope_table.as_str()));
+        let successor_in_domain = u64::try_from(next_value)
+            .is_ok_and(|value| (1..=SEQUENCE_MAX_SAFE_INTEGER + 1).contains(&value));
+        if !enrolled || !successor_in_domain {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SEQUENCE_ACTIVATION_STATE_INVALID",
+                "schema",
+                "protected sequence state does not match the active declaration scope",
+            )
+            .with_details(json!({
+                "counter": counter,
+                "scopeTable": scope_table,
+                "scopeId": scope_id,
+                "scopeIncarnation": scope_incarnation,
+                "nextValue": next_value,
+                "declared": enrolled,
+            })));
         }
     }
     Ok(())
@@ -10296,6 +10505,63 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                 format!("resourceTable {resource_table:?} is not an active table in this schema"),
             )
             .with_detail("resourceTable", resource_table.to_owned()));
+        }
+    }
+
+    let mut sequence_names = BTreeSet::new();
+    if manifest.sequences.len() > 64 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+            "schema",
+            "schema declares more than 64 sequence counters",
+        ));
+    }
+    if !manifest.sequences.is_empty()
+        && !manifest
+            .required_capabilities
+            .iter()
+            .any(|capability| capability == "sequence_allocation_v1")
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+            "schema",
+            "schema sequence declarations require capability sequence_allocation_v1",
+        ));
+    }
+    for sequence in &manifest.sequences {
+        validate_user_identifier("sequence", &sequence.name).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                "schema",
+                format!("sequence name {:?} must be an identifier", sequence.name),
+            )
+        })?;
+        if !sequence_names.insert(sequence.name.as_str()) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                "schema",
+                format!("duplicate sequence {}", sequence.name),
+            ));
+        }
+        let scope = manifest.table(&sequence.scope_table).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                "schema",
+                format!(
+                    "sequence {} names unknown scope table {}",
+                    sequence.name, sequence.scope_table
+                ),
+            )
+        })?;
+        if scope.is_permission_backing() || scope.asset_sharing.is_some() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                "schema",
+                format!(
+                    "sequence {} scope {} must be an ordinary table without independent authority",
+                    sequence.name, sequence.scope_table
+                ),
+            ));
         }
     }
 
@@ -13059,6 +13325,26 @@ impl MembershipPlan {
     }
 }
 
+fn mutation_plan_refusal(
+    code: &str,
+    message: impl Into<String>,
+    details: Value,
+) -> SnapbackError {
+    // A generated WWA scope read deliberately collapses a missing parent and
+    // a present-but-hidden parent to one byte-identical public refusal. The
+    // builder assigns this code to both the Get and owner Guard; do not leak
+    // which step failed through the message or details carrier.
+    if code == "SNAPBACK_RELATION_PARENT_UNAVAILABLE" {
+        return SnapbackError::error(
+            code,
+            "handler",
+            "relation parent unavailable",
+        )
+        .with_details(json!({ "step": "ScopeAuthority" }));
+    }
+    SnapbackError::error(code, "handler", message).with_details(details)
+}
+
 fn membership_refusal(code: &str, message: impl Into<String>) -> SnapbackError {
     SnapbackError::error(code, "auth", message)
 }
@@ -15597,7 +15883,7 @@ fn relation_incarnation_write_protected(table: &TableManifest, field: &str) -> S
     .with_detail("field", field.to_owned())
 }
 
-fn sequence_parent_unavailable() -> SnapbackError {
+pub(crate) fn sequence_parent_unavailable() -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_RELATION_PARENT_UNAVAILABLE",
         "storage",
@@ -15621,6 +15907,61 @@ fn sequence_counter_corrupt() -> SnapbackError {
     )
 }
 
+fn preview_sequence_allocation_on(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    counter_name: &str,
+    scope_table: &str,
+    scope_id: &str,
+) -> SnapbackResult<BufferedSequenceAllocation> {
+    let scope = schema_table(schema, scope_table)?;
+    let scope_exists = conn
+        .query_row(
+            &format!("SELECT 1 FROM {} WHERE _id = ?1", quote_ident(&scope.name)?),
+            params![scope_id],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    let incarnation = conn
+        .query_row(
+            "SELECT incarnation
+               FROM _snapback_relation_incarnations_v1
+              WHERE table_name = ?1 AND row_id = ?2 AND active = 1",
+            params![scope_table, scope_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    if !scope_exists || incarnation.is_none() {
+        return Err(sequence_parent_unavailable());
+    }
+    let scope_incarnation = incarnation.expect("checked above");
+    let next = conn
+        .query_row(
+            "SELECT next_value
+               FROM _snapback_sequence_counters_v1
+              WHERE counter_name = ?1 AND scope_table = ?2
+                AND scope_row_id = ?3 AND scope_incarnation = ?4",
+            params![counter_name, scope_table, scope_id, scope_incarnation],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()?
+        .map(|value| u64::try_from(value).map_err(|_| sequence_counter_corrupt()))
+        .transpose()?
+        .unwrap_or(1);
+    if next > SEQUENCE_MAX_SAFE_INTEGER {
+        return Err(sequence_exhausted());
+    }
+    Ok(BufferedSequenceAllocation {
+        counter_name: counter_name.to_owned(),
+        scope_table: scope_table.to_owned(),
+        scope_id: scope_id.to_owned(),
+        scope_incarnation,
+        expected_next: next,
+        value: next,
+    })
+}
+
 /// Validate and advance every tentative allocation under the authoritative
 /// writer transaction. The v1 runtime admits one allocation per invocation;
 /// accepting a slice here keeps this storage primitive exact for generated
@@ -15629,7 +15970,8 @@ fn apply_sequence_allocations(
     tx: &Transaction<'_>,
     schema: &SchemaManifest,
     allocations: &[BufferedSequenceAllocation],
-) -> SnapbackResult<()> {
+) -> SnapbackResult<Vec<SequenceAllocationFact>> {
+    let mut facts = Vec::with_capacity(allocations.len());
     for allocation in allocations {
         let scope = schema_table(schema, &allocation.scope_table)?;
         let scope_exists = tx
@@ -15705,8 +16047,9 @@ fn apply_sequence_allocations(
                 successor,
             ],
         )?;
+        facts.push(SequenceAllocationFact::from(allocation));
     }
-    Ok(())
+    Ok(facts)
 }
 
 /// Resolve every protected child stamp from an actually-present parent and its
@@ -16611,6 +16954,36 @@ fn validate_user_identifier(kind: &str, value: &str) -> SnapbackResult<()> {
     Ok(())
 }
 
+fn validate_retained_sequence_allocations(
+    facts: &[SequenceAllocationFact],
+) -> SnapbackResult<()> {
+    let invalid = || {
+        SnapbackError::error(
+            "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
+            "storage",
+            "stored client mutation sequence facts are invalid",
+        )
+    };
+    if facts.len() > 1 {
+        return Err(invalid());
+    }
+    for fact in facts {
+        if !is_identifier(&fact.counter_name)
+            || fact.counter_name.starts_with("_snapback")
+            || is_auth_reserved_identifier(&fact.counter_name)
+            || !is_identifier(&fact.scope_table)
+            || fact.scope_table.starts_with("_snapback")
+            || is_auth_reserved_identifier(&fact.scope_table)
+            || !replay_opaque_id_is_valid(&fact.scope_id)
+            || !crate::ids::is_canonical_uuid_v7(&fact.scope_incarnation)
+            || !(1..=SEQUENCE_MAX_SAFE_INTEGER).contains(&fact.value)
+        {
+            return Err(invalid());
+        }
+    }
+    Ok(())
+}
+
 /// `_auth` is a complete namespace root, and SQLite folds ASCII identifier
 /// case. Keep this predicate shared by manifest and runtime name resolvers so
 /// no casing variant becomes an alternate path into the protected catalog.
@@ -17504,6 +17877,12 @@ mod guarded_commit_tests {
                     asset_sharing: None,
                 },
             ],
+            sequences: vec![crate::manifest::SequenceDeclaration {
+                name: "jobs".to_owned(),
+                scope_table: "parents".to_owned(),
+                scope_access: crate::manifest::SequenceScopeAccess::PublicV1,
+            }],
+            required_capabilities: vec!["sequence_allocation_v1".to_owned()],
             ..SchemaManifest::default()
         }
     }
@@ -17513,6 +17892,39 @@ mod guarded_commit_tests {
         db.apply_schema(relation_schema())
             .expect("apply relation schema");
         db
+    }
+
+    fn sequence_only_schema(enrolled: bool) -> SchemaManifest {
+        SchemaManifest {
+            tables: vec![TableManifest {
+                name: "sequenceScopes".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                membership: None,
+                asset_sharing: None,
+            }],
+            sequences: enrolled
+                .then(|| crate::manifest::SequenceDeclaration {
+                    name: "positions".to_owned(),
+                    scope_table: "sequenceScopes".to_owned(),
+                    scope_access: crate::manifest::SequenceScopeAccess::PublicV1,
+                })
+                .into_iter()
+                .collect(),
+            required_capabilities: enrolled
+                .then(|| "sequence_allocation_v1".to_owned())
+                .into_iter()
+                .collect(),
+            ..SchemaManifest::default()
+        }
     }
 
     fn insert_sequence_scope(db: &mut LocalDatabase, id: &str, title: &str) {
@@ -17604,6 +18016,365 @@ mod guarded_commit_tests {
         assert_eq!(stored_next, 3);
     }
 
+    #[test]
+    fn sequence_schema_declarations_fail_closed_before_activation() {
+        let assert_invalid = |schema: SchemaManifest, label: &str| {
+            let error = validate_schema(&schema).expect_err(label);
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                "{label}",
+            );
+        };
+
+        let mut missing_capability = relation_schema();
+        missing_capability.required_capabilities.clear();
+        assert_invalid(missing_capability, "schema capability requirement is mandatory");
+
+        let mut duplicate = relation_schema();
+        duplicate.sequences.push(duplicate.sequences[0].clone());
+        assert_invalid(duplicate, "duplicate sequence name refuses");
+
+        let mut invalid_name = relation_schema();
+        invalid_name.sequences[0].name = "not a name".to_owned();
+        assert_invalid(invalid_name, "invalid sequence name refuses");
+
+        let mut independent_authority = relation_schema();
+        independent_authority.tables[0].asset_sharing =
+            Some(crate::manifest::AssetSharingManifest::PublicRead);
+        assert_invalid(
+            independent_authority,
+            "independently authority-bearing scope refuses",
+        );
+    }
+
+    // @ref LLP 0135#11-counter-identity-and-scope — declaring a sequence
+    // enrolls its scope table in the protected incarnation lifecycle even
+    // when no child relation field otherwise names that table.
+    #[test]
+    fn sequence_scope_activation_requires_relation_registry_entry() {
+        let mut db = relation_database();
+        insert_sequence_scope(&mut db, "parent-1", "scope");
+        db.conn
+            .execute(
+                "DELETE FROM _snapback_relation_incarnations_v1
+                  WHERE table_name = 'parents' AND row_id = 'parent-1'",
+                [],
+            )
+            .unwrap();
+
+        let error = db
+            .apply_schema(relation_schema())
+            .expect_err("a sequence scope without its active incarnation must not activate");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+        );
+        assert_eq!(error.diagnostic.details["parentTable"], json!("parents"));
+        assert_eq!(error.diagnostic.details["rowId"], json!("parent-1"));
+    }
+
+    #[test]
+    fn sequence_scope_adoption_requires_reviewed_enrollment_backfill() {
+        let mut db = LocalDatabase::memory().expect("memory adoption database");
+        db.apply_schema(sequence_only_schema(false))
+            .expect("apply ordinary predecessor schema");
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Insert {
+                table: "sequenceScopes".to_owned(),
+                id: "scope-1".to_owned(),
+                values: object(&[("title", json!("preexisting"))]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("insert predecessor row");
+        let incidental: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_relation_incarnations_v1
+                  WHERE table_name = 'sequenceScopes' AND row_id = 'scope-1' AND active = 1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(incidental, 1, "the universal writer created incidental registry state");
+
+        let error = db
+            .apply_schema(sequence_only_schema(true))
+            .expect_err("incidental registry state is not reviewed adoption authority");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+        );
+        assert_eq!(error.diagnostic.details["existingRows"], json!(1));
+
+        db.conn
+            .execute(
+                "INSERT INTO _snapback_relation_enrollments_v1(table_name, enrolled_by)
+                 VALUES('sequenceScopes', 'reviewed-backfill-test')",
+                [],
+            )
+            .unwrap();
+        db.apply_schema(sequence_only_schema(true))
+            .expect("reviewed marker plus matching registry state activates");
+        assert_eq!(
+            DbRead::Live(&db)
+                .preview_sequence_allocation("positions", "sequenceScopes", "scope-1")
+                .unwrap()
+                .value,
+            1
+        );
+        db.apply_schema(sequence_only_schema(false))
+            .expect("retire sequence participation with no protected counter row");
+        let marker_count: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_relation_enrollments_v1
+                  WHERE table_name = 'sequenceScopes'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(marker_count, 0, "retirement removes enrollment authority");
+        let error = db
+            .apply_schema(sequence_only_schema(true))
+            .expect_err("retire then re-adopt requires a fresh reviewed backfill");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+        );
+    }
+
+    // Detached handler snapshots exercise the same protected-state validation
+    // used after restore: a valid counter and its exact incarnation survive,
+    // and the restored reader observes the same unconsumed successor.
+    #[test]
+    fn sequence_detached_restore_preserves_counter_and_incarnation() {
+        let mut db = relation_database();
+        insert_sequence_scope(&mut db, "parent-1", "scope");
+        let first = preview_sequence(&db, "jobs", "parent-1").unwrap();
+        let incarnation = first.scope_incarnation.clone();
+        commit_sequence_allocation(&mut db, first, Vec::new()).unwrap();
+
+        let restored = db.detached_read_snapshot().expect("validated restore snapshot");
+        let next = preview_sequence(&restored, "jobs", "parent-1").unwrap();
+        assert_eq!(next.value, 2);
+        assert_eq!(next.scope_incarnation, incarnation);
+        let stored: (String, i64) = restored
+            .conn
+            .query_row(
+                "SELECT scope_incarnation, next_value
+                   FROM _snapback_sequence_counters_v1
+                  WHERE counter_name = 'jobs' AND scope_table = 'parents'
+                    AND scope_row_id = 'parent-1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(stored, (incarnation, 2));
+
+        db.conn
+            .execute(
+                "DELETE FROM _snapback_relation_enrollments_v1 WHERE table_name = 'parents'",
+                [],
+            )
+            .unwrap();
+        let error = match db.detached_read_snapshot() {
+            Ok(_) => panic!("a detached restore must not bootstrap a missing enrollment marker"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+        );
+    }
+
+    #[test]
+    fn sequence_reopen_validates_bidirectional_registry_after_marker_bootstrap() {
+        let directory = tempfile::tempdir().expect("sequence reopen directory");
+        let path = directory.path().join("sequence.sqlite3");
+        let mut db = LocalDatabase::open(&path).expect("open sequence database");
+        db.apply_schema(relation_schema()).expect("apply relation schema");
+        insert_sequence_scope(&mut db, "parent-1", "scope");
+        db.conn
+            .execute(
+                "DELETE FROM _snapback_relation_incarnations_v1
+                  WHERE table_name = 'parents' AND row_id = 'parent-1'",
+                [],
+            )
+            .unwrap();
+        db.conn
+            .execute(
+                "DELETE FROM _snapback_relation_enrollments_v1 WHERE table_name = 'parents'",
+                [],
+            )
+            .unwrap();
+        drop(db);
+
+        let error = match LocalDatabase::open(&path) {
+            Ok(_) => panic!("stored manifest may bootstrap the marker but not missing registry rows"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED"
+        );
+    }
+
+    // @ref LLP 0135#14-idempotent-re-allocation — exact durable replay is
+    // non-executing: the declared result and submitter-only allocation fact
+    // are restored from settlement while the counter remains unchanged.
+    #[test]
+    fn sequence_exact_replay_restores_private_fact_without_advancing() {
+        let mut db = relation_database();
+        insert_sequence_scope(&mut db, "parent-1", "scope");
+        let input = HandlerInput::default();
+        let identity = ClientMutationIdentity::new("cm_sequence_replay", "allocate", &input);
+        let allocation = preview_sequence(&db, "jobs", "parent-1").unwrap();
+        let result = json!({ "sequence": allocation.value });
+        let payload = || BufferedCommitPayload {
+            writes: Vec::new(),
+            membership_plans: Vec::new(),
+            read_dependencies: Vec::new(),
+            result: result.clone(),
+            ctx_ledger: ledger(),
+            job_enqueues: Vec::new(),
+            job_producer: None,
+            asset_admissions: Vec::new(),
+            sequence_allocations: vec![allocation.clone()],
+        };
+
+        let fresh = db
+            .commit_buffered_writes_idempotent_guarded(
+                &input,
+                payload(),
+                Some(&identity),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("fresh allocation settlement");
+        let fresh_result = serde_json::to_vec(&fresh.output.result).unwrap();
+        assert_eq!(fresh.sequence_allocations.len(), 1);
+        assert_eq!(fresh.sequence_allocations[0].value, 1);
+        assert_eq!(db.current_version().unwrap(), 2);
+
+        let replay = db
+            .commit_buffered_writes_idempotent_guarded(
+                &input,
+                payload(),
+                Some(&identity),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("exact duplicate settlement replay");
+        assert_eq!(
+            serde_json::to_vec(&replay.output.result).unwrap(),
+            fresh_result,
+            "declared result bytes must replay identically",
+        );
+        assert_eq!(replay.sequence_allocations, fresh.sequence_allocations);
+        assert!(replay.changes.is_empty());
+        assert_eq!(db.current_version().unwrap(), 2);
+        assert_eq!(
+            preview_sequence(&db, "jobs", "parent-1").unwrap().value,
+            2,
+            "exact replay must not advance the counter",
+        );
+    }
+
+    #[test]
+    fn host_plan_sequence_exact_replay_restores_fact_without_advancing() {
+        let mut db = relation_database();
+        insert_sequence_scope(&mut db, "parent-1", "scope");
+        let input = HandlerInput::default();
+        let identity = ClientMutationIdentity::new("cm_host_sequence_replay", "allocate", &input);
+        let plan = MutationPlan {
+            steps: vec![MutationStep::AllocateSequence {
+                counter: "jobs".to_owned(),
+                scope: ValueExpr::Literal(json!("parent-1")),
+                into: "sequence".to_owned(),
+            }],
+            return_value: Some(ReturnValue::Binding("sequence".to_owned())),
+        };
+        let fresh = db
+            .execute_mutation_idempotent(&plan, &input, &identity)
+            .expect("fresh host-plan allocation");
+        let replay = db
+            .execute_mutation_idempotent(&plan, &input, &identity)
+            .expect("exact host-plan replay");
+        assert_eq!(fresh.output.result, json!(1));
+        assert_eq!(replay.output.result, fresh.output.result);
+        assert_eq!(replay.sequence_allocations, fresh.sequence_allocations);
+        assert_eq!(db.current_version().unwrap(), 2);
+        assert_eq!(preview_sequence(&db, "jobs", "parent-1").unwrap().value, 2);
+    }
+
+    #[test]
+    fn sequence_exact_replay_rejects_corrupt_private_facts() {
+        let mut db = relation_database();
+        insert_sequence_scope(&mut db, "parent-1", "scope");
+        let input = HandlerInput::default();
+        let identity = ClientMutationIdentity::new("cm_sequence_corrupt", "allocate", &input);
+        let allocation = preview_sequence(&db, "jobs", "parent-1").unwrap();
+        let fresh = db
+            .commit_buffered_writes_idempotent_guarded(
+                &input,
+                BufferedCommitPayload {
+                    writes: Vec::new(),
+                    membership_plans: Vec::new(),
+                    read_dependencies: Vec::new(),
+                    result: json!({ "sequence": allocation.value }),
+                    ctx_ledger: ledger(),
+                    job_enqueues: Vec::new(),
+                    job_producer: None,
+                    asset_admissions: Vec::new(),
+                    sequence_allocations: vec![allocation],
+                },
+                Some(&identity),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("fresh allocation settlement");
+        let valid = serde_json::to_value(&fresh.output).unwrap();
+        let fact = valid["_settlementSequenceAllocations"][0].clone();
+        let mut corruptions = Vec::new();
+        for (field, value) in [
+            ("counterName", json!("not a counter")),
+            ("scopeTable", json!("_snapback_hidden")),
+            ("scopeId", json!("contains space")),
+            ("scopeIncarnation", json!("not-a-v7-incarnation")),
+            ("value", json!(SEQUENCE_MAX_SAFE_INTEGER + 1)),
+            ("value", json!(0)),
+        ] {
+            let mut output = valid.clone();
+            output["_settlementSequenceAllocations"][0][field] = value;
+            corruptions.push((field.to_owned(), output));
+        }
+        let mut duplicate = valid.clone();
+        duplicate["_settlementSequenceAllocations"] = json!([fact.clone(), fact]);
+        corruptions.push(("duplicate".to_owned(), duplicate));
+
+        for (label, output) in corruptions {
+            db.conn
+                .execute(
+                    "UPDATE _snapback_client_mutations SET output_json = ?1
+                     WHERE client_mutation_id = ?2",
+                    params![output.to_string(), identity.id],
+                )
+                .unwrap();
+            let error = db
+                .client_mutation_result(&identity)
+                .expect_err("corrupt private allocation facts must not replay");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
+                "{label}",
+            );
+        }
+    }
+
     // @ref LLP 0135#12-allocation-surfaces — a stale buffered counter read
     // loses at authoritative commit and its failed attempt creates no gap.
     #[test]
@@ -17670,6 +18441,84 @@ mod guarded_commit_tests {
         assert_eq!(error.diagnostic.code, "SNAPBACK_RELATION_PARENT_UNAVAILABLE");
         assert_eq!(db.current_version().unwrap(), 1);
         assert_eq!(preview_sequence(&db, "jobs", "parent-1").unwrap().value, 1);
+    }
+
+    // @ref LLP 0135#12-allocation-surfaces — generated WWA scope authority
+    // collapses a missing parent and a hidden parent before allocation. The
+    // externally serialized diagnostic is identical and neither attempt can
+    // create or advance protected counter state.
+    #[test]
+    fn sequence_wwa_missing_and_hidden_scope_refusals_are_byte_identical() {
+        let plan = MutationPlan {
+            steps: vec![
+                MutationStep::Get {
+                    table: "parents".to_owned(),
+                    id: ValueExpr::Arg("parentId".to_owned()),
+                    bind_as: "scope".to_owned(),
+                    else_error: Some("SNAPBACK_RELATION_PARENT_UNAVAILABLE".to_owned()),
+                },
+                MutationStep::Guard {
+                    cond: ValueExpr::Binary {
+                        op: crate::manifest::BinaryOp::Eq,
+                        left: Box::new(ValueExpr::Field {
+                            base: Box::new(ValueExpr::Binding("scope".to_owned())),
+                            key: "owner".to_owned(),
+                        }),
+                        right: Box::new(ValueExpr::AuthUserId),
+                    },
+                    else_error: "SNAPBACK_RELATION_PARENT_UNAVAILABLE".to_owned(),
+                },
+                MutationStep::AllocateSequence {
+                    counter: "jobs".to_owned(),
+                    scope: ValueExpr::Arg("parentId".to_owned()),
+                    into: "position".to_owned(),
+                },
+            ],
+            return_value: Some(ReturnValue::Binding("position".to_owned())),
+        };
+        let input = HandlerInput {
+            args: Value::Object(Map::from_iter([(
+                "parentId".to_owned(),
+                json!("parent-1"),
+            )])),
+            auth: AuthInput {
+                user_id: Some("user-2".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let counter_rows = |db: &LocalDatabase| -> i64 {
+            db.conn
+                .query_row(
+                    "SELECT count(*) FROM _snapback_sequence_counters_v1",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap()
+        };
+
+        let mut missing_db = relation_database();
+        let missing_version = missing_db.current_version().unwrap();
+        let missing = missing_db
+            .execute_mutation(&plan, &input)
+            .expect_err("missing scope must refuse before allocation");
+        assert_eq!(missing_db.current_version().unwrap(), missing_version);
+        assert_eq!(counter_rows(&missing_db), 0);
+
+        let mut hidden_db = relation_database();
+        insert_sequence_scope(&mut hidden_db, "parent-1", "scope");
+        let hidden_version = hidden_db.current_version().unwrap();
+        let hidden = hidden_db
+            .execute_mutation(&plan, &input)
+            .expect_err("hidden scope must refuse before allocation");
+        assert_eq!(hidden_db.current_version().unwrap(), hidden_version);
+        assert_eq!(counter_rows(&hidden_db), 0);
+
+        assert_eq!(
+            serde_json::to_vec(&missing.diagnostic).unwrap(),
+            serde_json::to_vec(&hidden.diagnostic).unwrap(),
+            "missing and hidden scope refusals must be byte-identical",
+        );
     }
 
     // @ref LLP 0135#11-counter-identity-and-scope — the relation

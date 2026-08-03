@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "snapback.sequence-publication-evidence.v1",
+  "date": "2026-08-02",
+  "evidenceBinding": {
+    "status": "none-candidate-progress-inventory",
+    "sourceRevision": null,
+    "sourceTreeSha256": null
+  },
+  "repositoryLocal": {
+    "status": "partial",
+    "cases": [
+      {
+        "id": "authority-collapse-public-and-private",
+        "status": "passed",
+        "runner": "rust",
+        "test": "runtime::sequence_bridge_tests::sequence_host_bridge_enforces_declaration_authority_and_collapse"
+      },
+      {
+        "id": "server-only-buffered-effect",
+        "status": "passed",
+        "runner": "rust",
+        "test": "runtime::sequence_bridge_tests::sequence_host_bridge_commits_only_through_server_buffered_effects"
+      },
+      {
+        "id": "storage-substrate-preview-conflict-rollback-and-incarnation",
+        "status": "passed",
+        "runner": "rust",
+        "tests": [
+          "storage::guarded_commit_tests::sequence_allocation_is_dense_commit_ordered_and_versioned",
+          "storage::guarded_commit_tests::concurrent_sequence_previews_exact_compare_without_gaps",
+          "storage::guarded_commit_tests::sequence_advance_rolls_back_with_discarded_or_failed_mutation",
+          "storage::guarded_commit_tests::sequence_scope_delete_recreate_starts_a_new_counter_identity"
+        ],
+        "claimBoundary": "The stale-preview test is a serial storage-substrate conflict witness, not the LLP 0135 section 5.1 T1/T2 concurrent submission and receipt witness."
+      },
+      {
+        "id": "portable-exhaustion-bound",
+        "status": "passed",
+        "runner": "rust",
+        "test": "storage::guarded_commit_tests::sequence_exhaustion_allocates_max_then_refuses_stably",
+        "claimBoundary": "This proves the protected counter's stable maximum/refusal behavior only; source, activity, and settlement rollback at exhaustion remains unqualified."
+      },
+      {
+        "id": "scope-activation-and-valid-restore",
+        "status": "passed",
+        "runner": "rust",
+        "tests": [
+          "storage::guarded_commit_tests::sequence_scope_activation_requires_relation_registry_entry",
+          "storage::guarded_commit_tests::sequence_detached_restore_preserves_counter_and_incarnation"
+        ]
+      },
+      {
+        "id": "exact-replay-direct-and-buffered",
+        "status": "passed",
+        "runner": "rust",
+        "tests": [
+          "storage::guarded_commit_tests::host_plan_sequence_exact_replay_restores_fact_without_advancing",
+          "storage::guarded_commit_tests::sequence_exact_replay_restores_private_fact_without_advancing",
+          "storage::guarded_commit_tests::sequence_exact_replay_rejects_corrupt_private_facts"
+        ]
+      },
+      {
+        "id": "generated-wwa-scope-collapse",
+        "status": "passed",
+        "runner": "node+rust",
+        "tests": [
+          "packages/snapback-codegen/relation-activity-authoring.test.mjs (emitted Get/Guard refusal shape)",
+          "storage::guarded_commit_tests::sequence_wwa_missing_and_hidden_scope_refusals_are_byte_identical (runtime execution)"
+        ],
+        "claimBoundary": "The two witnesses jointly pin authoring shape and runtime collapse without asserting a capability-published end-to-end generated artifact."
+      },
+      {
+        "id": "schema-types-codegen-and-no-optimistic-claim",
+        "status": "passed",
+        "runner": "node+typescript",
+        "commands": [
+          "node packages/snapback-codegen/sequence-authoring.test.mjs",
+          "tsc --noEmit --strict packages/snapback-codegen/sequence-authoring-types.fixture.ts"
+        ]
+      }
+    ]
+  },
+  "publication": {
+    "status": "incomplete",
+    "authority": null,
+    "targetProfileIds": [],
+    "capabilityIds": [
+      "sequence_allocation_v1"
+    ],
+    "capabilitiesPublished": false,
+    "acknowledgmentRequired": true,
+    "artifactAuthority": false,
+    "hostedAuthority": false,
+    "claimBoundary": "Non-authoritative progress inventory only; it is neither a qualification receipt nor a source/package carrier.",
+    "remainingGates": [
+      "two aborted-allocation disclosure runs: console-plus-captured-read abort and thrown-error rejection, with all durable/result surfaces trace-free",
+      "LLP 0135 sections 1.1 and 1.7 containment and prefixed-unique-constraint enforcement",
+      "explicit reviewed backfill migration UX followed by allocation",
+      "LLP 0135 section 5.1 T1/T2 concurrent submissions with no duplicate, no gap, commit-version order, and receipt evidence",
+      "exact replay across genuinely concurrent duplicate submissions",
+      "mutation-atomic optimistic withholding cross-projection",
+      "exhaustion rollback of source, activity, and settlement",
+      "Relay moveCard acceptance with generated allocation and no range derivation",
+      "Campfire concurrent send acceptance with no range derivation",
+      "positive source carrier bound to the complete matrix",
+      "public package attestation",
+      "remote-service target corpus",
+      "hosted capability-publication family"
+    ]
+  },
+  "publicPackage": {
+    "status": "withheld-structured-gap",
+    "buildDistribution": "public-package",
+    "authority": null,
+    "capabilityGaps": [
+      "sequence_allocation_v1"
+    ],
+    "reason": "Complete local section 5.1 qualification and a digest-bound positive source carrier are absent; PackageCapabilityAttestationV1 is also not embedded and release-key verified"
+  }
+}

@@ -640,6 +640,14 @@ pub enum Receipt {
         /// inspectable rollback-schedules-nothing evidence.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         enqueues: Vec<crate::jobs::JobEnqueueFact>,
+        /// Private framework-effect facts for the submitting authority. Scope
+        /// ids and incarnation identities never enter the global fan-out ring.
+        #[serde(
+            default,
+            rename = "sequenceAllocations",
+            skip_serializing_if = "Vec::is_empty"
+        )]
+        sequence_allocations: Vec<crate::manifest::SequenceAllocationFact>,
         transport: String,
         /// Adapter-supplied opaque correlation, echoed verbatim (capped).
         correlation: Value,
@@ -718,11 +726,13 @@ impl Receipt {
         if let Self::Mutation {
             claim_ledger,
             id_map,
+            sequence_allocations,
             ..
         } = &mut self
         {
             *claim_ledger = None;
             *id_map = None;
+            sequence_allocations.clear();
         }
         self.into_value()
     }
@@ -1033,6 +1043,13 @@ mod tests {
             // Empty enqueues stay off the wire: the pinned shape below is
             // unchanged for every mutation that scheduled nothing.
             enqueues: Vec::new(),
+            sequence_allocations: vec![crate::manifest::SequenceAllocationFact {
+                counter_name: "jobs".into(),
+                scope_table: "orgs".into(),
+                scope_id: "org-private".into(),
+                scope_incarnation: "inc-private".into(),
+                value: 7,
+            }],
             transport: "http".into(),
             correlation: Value::Null,
             received_at_ms: 1,
@@ -1054,6 +1071,13 @@ mod tests {
                 "rollbackReason": null,
                 "affectedTables": ["todos"],
                 "snapshotVersion": 9,
+                "sequenceAllocations": [{
+                    "counterName": "jobs",
+                    "scopeTable": "orgs",
+                    "scopeId": "org-private",
+                    "scopeIncarnation": "inc-private",
+                    "value": 7
+                }],
                 "transport": "http",
                 "correlation": null,
                 "receivedAtMs": 1,
@@ -1083,6 +1107,13 @@ mod tests {
             affected_tables: Some(vec!["todos".into()]),
             snapshot_version: Some(9),
             enqueues: Vec::new(),
+            sequence_allocations: vec![crate::manifest::SequenceAllocationFact {
+                counter_name: "jobs-private".into(),
+                scope_table: "orgs-private".into(),
+                scope_id: "scope-private".into(),
+                scope_incarnation: "incarnation-private".into(),
+                value: 41,
+            }],
             transport: "http".into(),
             correlation: Value::Null,
             received_at_ms: 1,
@@ -1097,7 +1128,18 @@ mod tests {
             fanout.get("idMap").is_none(),
             "subscriber fan-out omits private id reconciliation"
         );
-        assert!(!fanout.to_string().contains("authoritative-id"));
+        assert!(fanout.get("sequenceAllocations").is_none());
+        let fanout_bytes = fanout.to_string();
+        for private in [
+            "authoritative-id",
+            "jobs-private",
+            "orgs-private",
+            "scope-private",
+            "incarnation-private",
+            "41",
+        ] {
+            assert!(!fanout_bytes.contains(private));
+        }
 
         let disposed = Receipt::Subscription {
             event: SubscriptionReceiptEvent::Disposed,

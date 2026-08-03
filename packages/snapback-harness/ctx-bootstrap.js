@@ -806,6 +806,18 @@
         id: function() { return host("runtime.id", {}); }
       }
     };
+    ctx.sequence = {
+      allocate: mode === "mutation"
+        ? function(counter, scopeId) {
+            return host("sequence.allocate", { counter: counter, scopeId: scopeId });
+          }
+        : function() {
+            throw snapbackError(
+              "SNAPBACK_SEQUENCE_UNAVAILABLE",
+              "sequence allocation is available only inside mutations"
+            );
+          }
+    };
     // Transactional one-off durable work (LLP 0070 first slice): mutations
     // buffer enqueues that commit or roll back with their writes. Queries
     // cannot enqueue; actions enqueue only through an explicit mutation —

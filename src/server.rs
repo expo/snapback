@@ -7090,6 +7090,7 @@ impl MutationResponse {
             ctx_ledger,
             settlement_mint_observations: _,
             settlement_time_observation: _,
+            settlement_sequence_allocations: _,
         } = output;
         Self {
             version,

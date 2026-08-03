@@ -628,9 +628,20 @@ pub fn validate_mutation_plan(plan: &crate::manifest::MutationPlan) -> Result<()
         )));
     }
 
+    let allocation_bindings = plan
+        .steps
+        .iter()
+        .filter_map(|step| match step {
+            MutationStep::AllocateSequence { into, .. } => Some(into.clone()),
+            _ => None,
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut declared_bindings = std::collections::BTreeSet::new();
     let mut exprs: Vec<&ValueExpr> = Vec::new();
     for step in &plan.steps {
+        let before = exprs.len();
         match step {
+            MutationStep::AllocateSequence { scope, .. } => exprs.push(scope),
             MutationStep::Insert { values, .. } => exprs.extend(values.values()),
             MutationStep::Patch { id, values, .. } => {
                 exprs.push(id);
@@ -653,6 +664,45 @@ pub fn validate_mutation_plan(plan: &crate::manifest::MutationPlan) -> Result<()
                 exprs.extend(values.values());
             }
         }
+        for expr in &exprs[before..] {
+            validate_allocation_binding_order(
+                expr,
+                &allocation_bindings,
+                &declared_bindings,
+            )?;
+        }
+        let binding = match step {
+            MutationStep::AllocateSequence { into, .. } => Some(into),
+            MutationStep::Insert {
+                bind_id_as: Some(binding),
+                ..
+            }
+            | MutationStep::Get {
+                bind_as: binding, ..
+            }
+            | MutationStep::Let {
+                bind_as: binding, ..
+            } => Some(binding),
+            _ => None,
+        };
+        if let Some(binding) = binding {
+            if !valid_binding_identifier(binding) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_PLAN_INVALID",
+                    "runtime",
+                    format!("invalid mutation binding {binding:?}"),
+                )
+                .with_details(json!({ "binding": binding, "reason": "invalidIdentifier" })));
+            }
+            if !declared_bindings.insert(binding.clone()) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_PLAN_INVALID",
+                    "runtime",
+                    format!("mutation binding {binding:?} is declared more than once"),
+                )
+                .with_details(json!({ "binding": binding, "reason": "duplicate" })));
+            }
+        }
     }
     match &plan.return_value {
         Some(ReturnValue::Document { id, .. }) => exprs.push(id),
@@ -661,6 +711,49 @@ pub fn validate_mutation_plan(plan: &crate::manifest::MutationPlan) -> Result<()
     }
     for expr in exprs {
         validate_expr(expr, 0)?;
+    }
+    if let Some(ReturnValue::Document { id, .. } | ReturnValue::Expr(id)) = &plan.return_value {
+        validate_allocation_binding_order(id, &allocation_bindings, &declared_bindings)?;
+    }
+    Ok(())
+}
+
+fn validate_allocation_binding_order(
+    expr: &ValueExpr,
+    allocation_bindings: &std::collections::BTreeSet<String>,
+    declared_bindings: &std::collections::BTreeSet<String>,
+) -> Result<(), SnapbackError> {
+    let mut children = Vec::new();
+    match expr {
+        ValueExpr::Binding(binding)
+            if allocation_bindings.contains(binding.as_str())
+                && !declared_bindings.contains(binding.as_str()) =>
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BINDING_MISSING",
+                "runtime",
+                format!("sequence binding {binding:?} is used before allocation"),
+            )
+            .with_details(json!({ "binding": binding })));
+        }
+        ValueExpr::Field { base, .. } => children.push(base.as_ref()),
+        ValueExpr::Binary { left, right, .. } => {
+            children.push(left.as_ref());
+            children.push(right.as_ref());
+        }
+        ValueExpr::Unary { expr, .. } => children.push(expr.as_ref()),
+        ValueExpr::If { cond, then, r#else } => {
+            children.push(cond.as_ref());
+            children.push(then.as_ref());
+            children.push(r#else.as_ref());
+        }
+        ValueExpr::Concat(parts) => children.extend(parts.iter()),
+        ValueExpr::Call { args, .. } => children.extend(args.iter()),
+        ValueExpr::Record { fields } => children.extend(fields.values()),
+        _ => {}
+    }
+    for child in children {
+        validate_allocation_binding_order(child, allocation_bindings, declared_bindings)?;
     }
     Ok(())
 }

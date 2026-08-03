@@ -11874,15 +11874,7 @@ impl LocalSnapback {
                 }
                 let admission = authority.admission_lease().clone();
                 let correlation = capped_correlation(input.correlation.clone());
-                let commit = MutationCommit {
-                    output,
-                    changes: Vec::new(),
-                    read_dependencies: Vec::new(),
-                    write_dependencies: Vec::new(),
-                    job_enqueues: Vec::new(),
-                    job_changes: Vec::new(),
-                    authorization: None,
-                };
+                let commit = MutationCommit::exact_replay(output);
                 let recorded = self.record_mutation_commit_after_publication_guard(
                     MutationReceiptPublication::new(
                         name,
@@ -11953,15 +11945,7 @@ impl LocalSnapback {
                 && let Some(output) = self.db.client_mutation_result(identity)?
             {
                 crate::result_contract::validate_handler_result(&function, &output.result)?;
-                let commit = MutationCommit {
-                    output,
-                    changes: Vec::new(),
-                    read_dependencies: Vec::new(),
-                    write_dependencies: Vec::new(),
-                    job_enqueues: Vec::new(),
-                    job_changes: Vec::new(),
-                    authorization: None,
-                };
+                let commit = MutationCommit::exact_replay(output);
                 let recorded = self.record_mutation_commit_after_publication_guard(
                     MutationReceiptPublication::new(
                         name,
@@ -12248,7 +12232,16 @@ impl LocalSnapback {
             .function(name)
             .map(|function| function.write_set_summary.tables.clone())
             .filter(|tables| !tables.is_empty());
-        let (outcome, rollback_reason, snapshot_version, claim_ledger, id_map, enqueues, result) =
+        let (
+            outcome,
+            rollback_reason,
+            snapshot_version,
+            claim_ledger,
+            id_map,
+            enqueues,
+            sequence_allocations,
+            result,
+        ) =
             match result {
                 Ok(commit) => (
                     MutationReceiptOutcome::Confirmed,
@@ -12262,6 +12255,7 @@ impl LocalSnapback {
                     ),
                     settlement_id_map(settlement, &commit.output.settlement_mint_observations),
                     commit.job_enqueues.clone(),
+                    commit.sequence_allocations.clone(),
                     Ok(commit),
                 ),
             Err(error) => match self.db.current_version() {
@@ -12274,6 +12268,7 @@ impl LocalSnapback {
                     settlement_claim_ledger(settlement, None, &[], None),
                     settlement_id_map(settlement, &[]),
                     Vec::new(),
+                    Vec::new(),
                     Err(error),
                 ),
                 Err(version_error) => (
@@ -12282,6 +12277,7 @@ impl LocalSnapback {
                     None,
                     settlement_claim_ledger(settlement, None, &[], None),
                     settlement_id_map(settlement, &[]),
+                    Vec::new(),
                     Vec::new(),
                     Err(version_error),
                 ),
@@ -12300,6 +12296,7 @@ impl LocalSnapback {
             affected_tables,
             snapshot_version,
             enqueues,
+            sequence_allocations,
             transport: transport.to_owned(),
             correlation: correlation.unwrap_or(Value::Null),
             received_at_ms: now_millis(),
@@ -12450,15 +12447,7 @@ impl LocalSnapback {
                 expected.authority_instance_id,
             );
             if let Some(output) = self.db.client_mutation_result(&identity)? {
-                return Ok(MutationCommit {
-                    output,
-                    changes: Vec::new(),
-                    read_dependencies: Vec::new(),
-                    write_dependencies: Vec::new(),
-                    job_enqueues: Vec::new(),
-                    job_changes: Vec::new(),
-                    authorization: None,
-                });
+                return Ok(MutationCommit::exact_replay(output));
             }
         }
         // @ref LLP 0058#gate-algorithm — fresh execution still performs
@@ -12490,15 +12479,7 @@ impl LocalSnapback {
             && let Some(output) = self.db.client_mutation_result(identity)?
         {
             crate::result_contract::validate_handler_result(&function, &output.result)?;
-            return Ok(MutationCommit {
-                output,
-                changes: Vec::new(),
-                read_dependencies: Vec::new(),
-                write_dependencies: Vec::new(),
-                job_enqueues: Vec::new(),
-                job_changes: Vec::new(),
-                authorization: None,
-            });
+            return Ok(MutationCommit::exact_replay(output));
         }
         // @ref LLP 0131#runtime-ingress-validation — fresh mutation admission
         // validates the declared argument contract after the replay-settlement
@@ -22461,6 +22442,31 @@ fn validate_function_schema_references(
             ))
         }
     };
+    let projection_outputs = manifest
+        .projections
+        .iter()
+        .map(|projection| projection.output_table.as_str())
+        .collect::<BTreeSet<_>>();
+    for sequence in &schema.sequences {
+        let scope = table(&sequence.scope_table)?;
+        if scope.is_permission_backing()
+            || scope.asset_sharing.is_some()
+            || projection_outputs.contains(sequence.scope_table.as_str())
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                "schema",
+                format!(
+                    "sequence {} scope {} must be an ordinary independently authoritative table",
+                    sequence.name, sequence.scope_table
+                ),
+            )
+            .with_details(json!({
+                "sequence": sequence.name,
+                "scopeTable": sequence.scope_table,
+            })));
+        }
+    }
     let query = |plan: &QueryPlan| -> SnapbackResult<()> {
         crate::manifest::validate_query_plan_shape(plan)?;
         let table_manifest = table(&plan.table)?;
@@ -22528,6 +22534,102 @@ fn validate_function_schema_references(
     };
 
     for function in &manifest.functions {
+        for counter in &function.sequences {
+            let Some(declaration) = schema
+                .sequences
+                .iter()
+                .find(|declaration| declaration.name == *counter)
+            else {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SEQUENCE_UNDECLARED",
+                    "runtime",
+                    format!(
+                        "function {} names sequence {counter}, which is absent from the active schema",
+                        function.name
+                    ),
+                )
+                .with_details(json!({
+                    "function": function.name,
+                    "sequence": counter,
+                })));
+            };
+            let scope = table(&declaration.scope_table)?;
+            if scope.is_permission_backing() || scope.asset_sharing.is_some() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                    "runtime",
+                    "sequence scope must be an ordinary table without independent authority",
+                )
+                .with_details(json!({
+                    "function": function.name,
+                    "sequence": counter,
+                    "scopeTable": declaration.scope_table,
+                })));
+            }
+        }
+        if matches!(function.runtime, FunctionRuntime::IbexModule(_))
+            && function.sequences.iter().any(|counter| {
+                schema.sequences.iter().any(|declaration| {
+                    declaration.name == *counter
+                        && declaration.scope_access
+                            == crate::manifest::SequenceScopeAccess::DeclaredAuthorizationV1
+                })
+            })
+        {
+            let Some(primary) = function.read_set_summary.primary_table.as_deref() else {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                    "runtime",
+                    format!(
+                        "handler {} must declare one primary read table for non-public sequence scope authority",
+                        function.name
+                    ),
+                ));
+            };
+            let Some(owner_field) = function.read_set_summary.auth_scope_field.as_deref() else {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                    "runtime",
+                    format!(
+                        "handler {} must declare authScopeField for non-public sequence scope authority",
+                        function.name
+                    ),
+                ));
+            };
+            let declared = table(primary)?.field(owner_field).ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                    "runtime",
+                    format!(
+                        "handler {} sequence authScopeField names unknown field {primary}.{owner_field}",
+                        function.name
+                    ),
+                )
+            })?;
+            if declared.optional
+                || !matches!(
+                    declared.field_type,
+                    crate::manifest::FieldType::String | crate::manifest::FieldType::Principal
+                )
+                || function.sequences.iter().any(|counter| {
+                    schema.sequences.iter().any(|sequence| {
+                        sequence.name == *counter
+                            && sequence.scope_access
+                                == crate::manifest::SequenceScopeAccess::DeclaredAuthorizationV1
+                            && sequence.scope_table != primary
+                    })
+                })
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                    "runtime",
+                    format!(
+                        "handler {} non-public sequence scope must be its primary read table with one required string/principal authScopeField",
+                        function.name
+                    ),
+                ));
+            }
+        }
         match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => {
                 query(plan)?;
@@ -22748,6 +22850,47 @@ fn validate_function_schema_references(
                             }
                         }
                         MutationStep::Guard { .. } | MutationStep::Let { .. } => {}
+                        MutationStep::AllocateSequence { counter, scope, .. } => {
+                            let declaration = schema
+                                .sequences
+                                .iter()
+                                .find(|declaration| declaration.name == *counter)
+                                .ok_or_else(|| {
+                                    SnapbackError::error(
+                                        "SNAPBACK_SEQUENCE_UNDECLARED",
+                                        "runtime",
+                                        format!(
+                                            "function {} allocates sequence {counter}, which is absent from the active schema",
+                                            function.name
+                                        ),
+                                    )
+                                })?;
+                            let FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(profile)) =
+                                &function.runtime
+                            else {
+                                return Err(SnapbackError::error(
+                                    "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                                    "runtime",
+                                    "AllocateSequence is admitted only by write-with-activity.v1",
+                                ));
+                            };
+                            if declaration.scope_table != profile.scope_table
+                                || scope != &profile.scope_id
+                            {
+                                return Err(SnapbackError::error(
+                                    "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                                    "runtime",
+                                    format!(
+                                        "write-with-activity function {} allocation must use its exact declared scope",
+                                        function.name
+                                    ),
+                                )
+                                .with_details(json!({
+                                    "sequence": counter,
+                                    "scopeTable": declaration.scope_table,
+                                })));
+                            }
+                        }
                     }
                 }
                 if let Some(crate::manifest::ReturnValue::Document { table: name, .. }) =
@@ -23050,6 +23193,24 @@ fn validate_function_schema_references(
         }
     }
     validate_maintained_projections(manifest, schema)?;
+    let projection_outputs = manifest
+        .projections
+        .iter()
+        .map(|projection| projection.output_table.as_str())
+        .collect::<BTreeSet<_>>();
+    for sequence in &schema.sequences {
+        if projection_outputs.contains(sequence.scope_table.as_str()) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                "schema",
+                "a maintained-projection output cannot be a sequence scope",
+            )
+            .with_details(json!({
+                "sequence": sequence.name,
+                "scopeTable": sequence.scope_table,
+            })));
+        }
+    }
     Ok(())
 }
 
@@ -23459,6 +23620,7 @@ fn validate_function_against_projection_outputs(
                     MutationStep::Get { .. }
                     | MutationStep::AssertCurrentRelation { .. }
                     | MutationStep::AssertSourceChanged { .. }
+                    | MutationStep::AllocateSequence { .. }
                     | MutationStep::Guard { .. }
                     | MutationStep::Let { .. } => None,
                 };
@@ -24764,7 +24926,9 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
                     MutationStep::AssertSourceChanged { table, .. } => {
                         reads.insert(table.clone());
                     }
-                    MutationStep::Guard { .. } | MutationStep::Let { .. } => {}
+                    MutationStep::AllocateSequence { .. }
+                    | MutationStep::Guard { .. }
+                    | MutationStep::Let { .. } => {}
                 }
             }
             (reads.into_iter().collect(), writes.into_iter().collect())
@@ -25551,7 +25715,8 @@ mod tests {
         MembershipScope, MutationOutput, MutationPlan, MutationSettlement, MutationStep,
         PermissionScopeExpr, QueryPlan, ResultObjectFieldContract, ResultValueContract,
         ReturnValue, SchemaManifest, SeedData, SettlementClaimSet, SettlementIdentityClaims,
-        SettlementLane, SettlementMintClaim, SettlementMintObservation, TableManifest, ValueExpr,
+        SequenceDeclaration, SequenceScopeAccess, SettlementLane, SettlementMintClaim,
+        SettlementMintObservation, TableManifest, ValueExpr,
         FunctionResultContract, ctx_ledger_version,
     };
     use crate::runtime::ExecutedIbexMutation;
@@ -40592,6 +40757,176 @@ globalThis.__snapbackHandlers = {
             }),
             bounded_skew: None,
         }
+    }
+
+    #[test]
+    fn rederive_sequence_executes_authoritatively_without_accepted_sequence_claim() {
+        let mut snapback = LocalSnapback::memory().expect("memory sequence settlement");
+        snapback
+            .apply_schema(SchemaManifest {
+                required_capabilities: vec!["sequence_allocation_v1".to_owned()],
+                sequences: vec![SequenceDeclaration {
+                    name: "jobs".to_owned(),
+                    scope_table: "parents".to_owned(),
+                    scope_access: SequenceScopeAccess::PublicV1,
+                }],
+                tables: vec![TableManifest {
+                    name: "parents".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "title".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    membership: None,
+                    asset_sharing: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("apply sequence settlement schema");
+        snapback
+            .db
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![crate::storage::BufferedWrite::Insert {
+                    table: "parents".to_owned(),
+                    id: "parent-1".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("scope"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("insert sequence scope");
+        let mut function = FunctionDefinition::new(
+            "allocate",
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: r#"globalThis.__snapbackHandlers = {
+                  async allocate(ctx, args) {
+                    return await ctx.sequence.allocate('jobs', args.parentId);
+                  }
+                };"#
+                    .to_owned(),
+                export: "allocate".to_owned(),
+            }),
+        );
+        function.sequences = vec!["jobs".to_owned()];
+        function.required_capabilities = vec!["sequence_allocation_v1".to_owned()];
+        // Deliberately bypass target publication admission: this internal
+        // substrate witness tests settlement semantics while the capability
+        // remains a structured GAP pending the complete §5.1 matrix.
+        snapback.functions = FunctionManifest {
+            functions: vec![function],
+            ..FunctionManifest::default()
+        };
+
+        let settlement = MutationSettlement {
+            lane: SettlementLane::ReDerive,
+            ..MutationSettlement::default()
+        };
+        let (result, receipt) = invoke_synthetic_settlement(
+            &mut snapback,
+            "allocate",
+            HandlerInput {
+                args: Value::Object(Map::from_iter([(
+                    "parentId".to_owned(),
+                    json!("parent-1"),
+                )])),
+                ..HandlerInput::default()
+            },
+            "cm_sequence_rederive",
+            settlement,
+        )
+        .expect("re-derive sequence settlement executes on the server");
+        assert_eq!(result.expect("authoritative allocation").result, json!(1));
+        let receipt = serde_json::to_value(receipt).unwrap();
+        assert_eq!(receipt["settlementLane"], "re-derive");
+        assert_eq!(receipt["sequenceAllocations"][0]["value"], 1);
+        assert!(receipt["claimLedger"]
+            .as_array()
+            .is_none_or(|claims| claims.iter().all(|claim| {
+                claim["fieldOrSlot"].as_str().is_none_or(|slot| !slot.contains("sequence"))
+                    && claim["disposition"] != "accepted"
+            })));
+    }
+
+    #[test]
+    fn function_schema_reference_validation_rejects_asset_authority_sequence_scope() {
+        let schema = SchemaManifest {
+            required_capabilities: vec!["sequence_allocation_v1".to_owned()],
+            sequences: vec![SequenceDeclaration {
+                name: "jobs".to_owned(),
+                scope_table: "parents".to_owned(),
+                scope_access: SequenceScopeAccess::PublicV1,
+            }],
+            tables: vec![TableManifest {
+                name: "parents".to_owned(),
+                fields: Vec::new(),
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                membership: None,
+                asset_sharing: Some(crate::manifest::AssetSharingManifest::PublicRead),
+            }],
+            ..SchemaManifest::default()
+        };
+        let mut function = FunctionDefinition::new(
+            "allocate",
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: String::new(),
+                export: "allocate".to_owned(),
+            }),
+        );
+        function.sequences = vec!["jobs".to_owned()];
+        let error = validate_function_schema_references(
+            &FunctionManifest {
+                functions: vec![function],
+                ..FunctionManifest::default()
+            },
+            &schema,
+        )
+        .expect_err("asset authority scope must fail cross-manifest defense");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_SEQUENCE_DECLARATION_INVALID"
+        );
+    }
+
+    #[test]
+    fn schema_reference_validation_rejects_unused_asset_authority_sequence_scope() {
+        let schema = SchemaManifest {
+            required_capabilities: vec!["sequence_allocation_v1".to_owned()],
+            sequences: vec![SequenceDeclaration {
+                name: "jobs".to_owned(),
+                scope_table: "parents".to_owned(),
+                scope_access: SequenceScopeAccess::PublicV1,
+            }],
+            tables: vec![TableManifest {
+                name: "parents".to_owned(),
+                fields: Vec::new(),
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                membership: None,
+                asset_sharing: Some(crate::manifest::AssetSharingManifest::PublicRead),
+            }],
+            ..SchemaManifest::default()
+        };
+        let error = validate_function_schema_references(&FunctionManifest::default(), &schema)
+            .expect_err("unused asset authority scope must fail whole-pair preflight");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_SEQUENCE_DECLARATION_INVALID"
+        );
     }
 
     #[test]

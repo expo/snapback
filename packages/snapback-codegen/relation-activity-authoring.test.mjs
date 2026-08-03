@@ -4,7 +4,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { generate, serializeMutationPlan } from './index.mjs';
+import {
+  buildContractMutationDescriptor,
+  contractCapabilitiesForMutations,
+  generate,
+  serializeMutationPlan,
+} from './index.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
@@ -51,7 +56,7 @@ export default defineSchema({ incidents, tasks, activity });
 `);
   const profileSource = `
 import {
-  arg, asc, binding, clientMutation, defineBoundedChildrenQuery,
+  allocateSequence, arg, asc, binding, clientMutation, defineBoundedChildrenQuery,
   defineWriteWithActivity, existingOwner, insert, literal, mutationPlan, patch,
   owner, record, results, runtimeNow, throughParent, throughScope, v,
 } from '${defineUrl}';
@@ -90,9 +95,9 @@ export const addTask = defineWriteWithActivity({
     scopeIncarnation: 'incidentIncarnation',
   }],
   primary: mutationPlan(insert('tasks', {
-    position: runtimeNow(),
+    position: binding('position'),
     body: arg('body'),
-  }, { bindIdAs: 'taskId' })),
+  }, { bindIdAs: 'taskId' }), allocateSequence('taskPositions', arg('incidentId'), 'position')),
   source: { table: tasks, id: binding('taskId') },
   activity: {
     table: activity,
@@ -125,6 +130,12 @@ export const addTask = defineWriteWithActivity({
   }),
 });
 `;
+  const profileWithoutSequence = profileSource
+    .replace(`position: binding('position'),`, `position: literal(1),`)
+    .replace(
+      `}, { bindIdAs: 'taskId' }), allocateSequence('taskPositions', arg('incidentId'), 'position'))`,
+      `}, { bindIdAs: 'taskId' }))`,
+    );
   writeFileSync(join(dir, 'functions.mjs'), `
 import { defineLiveQuery } from '${defineUrl}';
 export const baseline = defineLiveQuery({
@@ -176,6 +187,15 @@ export const baseline = defineLiveQuery({
     scopeIncarnation: 'incidentIncarnation',
   }]);
   const steps = authored.addTask.plan.steps;
+  assert.equal(steps[0].Get.else_error, 'SNAPBACK_RELATION_PARENT_UNAVAILABLE');
+  assert.equal(steps[1].Guard.else_error, 'SNAPBACK_RELATION_PARENT_UNAVAILABLE');
+  assert.deepEqual(steps[2], {
+    AllocateSequence: {
+      counter: 'taskPositions',
+      scope: { __expr: true, Arg: 'incidentId' },
+      into: 'position',
+    },
+  }, 'the builder owns the exact post-owner-guard allocation position');
   assert(steps.some((step) => step.AssertSourceChanged?.operation === 'insert'));
   const sourceInsert = steps.find((step) => step.Insert?.table === 'tasks').Insert;
   assert.deepEqual(sourceInsert.values.incidentId, { __expr: true, Arg: 'incidentId' });
@@ -195,6 +215,7 @@ export const baseline = defineLiveQuery({
       scopeReads: 1,
       settlementLookups: 1,
       settlementWrites: 1,
+      sequenceAllocations: 1,
       sourceWrites: 1,
     },
   );
@@ -295,6 +316,7 @@ export const baseline = defineLiveQuery({
     deleteSteps[deleteIndex].Delete.id,
   );
 
+  writeFileSync(join(dir, 'functions.mjs'), profileWithoutSequence);
   result = await generate(dir);
   assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
   const publishedFunctionsText = readFileSync(
@@ -332,6 +354,43 @@ export const baseline = defineLiveQuery({
     guardedManifest.steps.some((step) => step.AssertSourceChanged),
     'the published write/activity manifest retains its host-owned source-effect assertion',
   );
+  const contractData = JSON.parse(
+    readFileSync(join(dir, 'generated', 'contract-data.manifest.json'), 'utf8'),
+  );
+  assert.equal(
+    contractData.mutations.addTask.optimistic,
+    true,
+    'the admitted non-sequence mutation retains provider-derived optimistic execution',
+  );
+  assert.equal(
+    contractData.capabilities.optimisticMutations,
+    true,
+    'the admitted non-sequence mutation retains the global optimistic claim',
+  );
+  assert.equal(contractData.capabilities.derivedOptimisticOverlays, true);
+  assert.notEqual(contractData.mutations.addTask.plan, undefined);
+  assert.equal(contractData.capabilities.offlineReplay, true);
+
+  const sequenceDescriptor = buildContractMutationDescriptor({
+    name: 'sequenceMutation',
+    args: {},
+    argOrder: [],
+    writes: ['tasks'],
+    plan: { steps: [{ AllocateSequence: {} }], return_value: null },
+    sequenceAllocationCount: 1,
+  });
+  assert.equal(sequenceDescriptor.optimistic, false);
+  assert.equal(sequenceDescriptor.plan, undefined);
+  assert.equal(sequenceDescriptor.serverRunnable, true);
+  assert.deepEqual(
+    contractCapabilitiesForMutations({ sequenceMutation: sequenceDescriptor }),
+    {
+      optimisticMutations: false,
+      derivedOptimisticOverlays: false,
+      offlineReplay: false,
+    },
+    'the provider publishes no optimistic or replay authority for sequence-bearing IR',
+  );
 
   const relationBlock = `  relations: [{
     table: tasks,
@@ -341,26 +400,31 @@ export const baseline = defineLiveQuery({
 `;
   for (const [label, invalidSource, expected] of [
     [
+      'sequence allocation binding collision',
+      profileSource.replace(`{ bindIdAs: 'taskId' }`, `{ bindIdAs: 'position' }`),
+      /primary binding position is declared more than once/u,
+    ],
+    [
       'missing relation declaration',
-      profileSource.replace(relationBlock, ''),
+      profileWithoutSequence.replace(relationBlock, ''),
       /relations must declare every non-scope primary table/u,
     ],
     [
       'authored cross-scope foreign key',
-      profileSource.replace(
+      profileWithoutSequence.replace(
         `  primary: mutationPlan(insert('tasks', {
-    position: runtimeNow(),`,
+    position: literal(1),`,
         `  primary: mutationPlan(insert('tasks', {
     incidentId: arg('incidentId'),
-    position: runtimeNow(),`,
+    position: literal(1),`,
       ),
       /may not author protected relation fields/u,
     ],
     [
       'authored extra runtime id',
-      profileSource.replace(
-        `    position: runtimeNow(),`,
-        `    position: runtimeId(),`,
+      profileWithoutSequence.replace(
+        `    body: arg('body'),`,
+        `    body: runtimeId(),`,
       ).replace(
         `runtimeNow, throughParent`,
         `runtimeId, runtimeNow, throughParent`,
@@ -369,7 +433,7 @@ export const baseline = defineLiveQuery({
     ],
     [
       'authored runtime id scope',
-      profileSource.replace(
+      profileWithoutSequence.replace(
         `id: arg('incidentId'),`,
         `id: runtimeId(),`,
       ).replace(
@@ -380,10 +444,10 @@ export const baseline = defineLiveQuery({
     ],
     [
       'empty source patch',
-      profileSource
+      profileWithoutSequence
         .replace(
           `primary: mutationPlan(insert('tasks', {
-    position: runtimeNow(),
+    position: literal(1),
     body: arg('body'),
   }, { bindIdAs: 'taskId' }))`,
           `primary: mutationPlan(patch('tasks', arg('taskId'), {}))`,
@@ -400,7 +464,7 @@ export const baseline = defineLiveQuery({
     ],
     [
       'protected incarnation provenance alias',
-      profileSource.replace(
+      profileWithoutSequence.replace(
         `actualActor: 'actualActor',`,
         `actualActor: 'incidentIncarnation',`,
       ),
@@ -408,7 +472,7 @@ export const baseline = defineLiveQuery({
     ],
     [
       'missing scope owner field',
-      profileSource.replace(
+      profileWithoutSequence.replace(
         `scope: existingOwner({
     table: incidents,
     id: arg('incidentId'),
@@ -424,7 +488,7 @@ export const baseline = defineLiveQuery({
     ],
     [
       'JSON bounded projection',
-      profileSource.replace(
+      profileWithoutSequence.replace(
         `select: { id: '_id', position: 'position', body: 'body', note: 'note' }`,
         `select: { id: '_id', position: 'position', body: 'body', metadata: 'metadata' }`,
       ),
@@ -432,7 +496,7 @@ export const baseline = defineLiveQuery({
     ],
     [
       'duplicate bounded order',
-      profileSource.replace(
+      profileWithoutSequence.replace(
         `order: [asc('position')],`,
         `order: [asc('position'), asc('position')],`,
       ),
@@ -440,7 +504,7 @@ export const baseline = defineLiveQuery({
     ],
     [
       'empty bounded output name',
-      profileSource.replace(
+      profileWithoutSequence.replace(
         `select: { id: '_id', position: 'position', body: 'body', note: 'note' }`,
         `select: { id: '_id', '': 'position', body: 'body', note: 'note' }`,
       ),
@@ -468,7 +532,7 @@ export default defineSchema({ incidents, tasks, activity });`,
 export default defineSchema({ incidents, tasks, activity });`,
     ),
   );
-  writeFileSync(join(dir, 'functions.mjs'), profileSource);
+  writeFileSync(join(dir, 'functions.mjs'), profileWithoutSequence);
   const permissionBackingActivity = await generate(dir);
   assert.equal(permissionBackingActivity.ok, false);
   assert.match(

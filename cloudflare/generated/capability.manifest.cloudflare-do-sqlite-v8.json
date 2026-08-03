@@ -93,7 +93,8 @@
     "multiple_apps_per_deployment",
     "hosted_marketplace",
     "retained_version_resume",
-    "write_activity_v1"
+    "write_activity_v1",
+    "sequence_allocation_v1"
   ],
   "vmLifecycle": "fresh-isolate-per-deploy",
   "runtimeFacts": {

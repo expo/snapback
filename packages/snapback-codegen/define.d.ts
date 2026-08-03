@@ -223,6 +223,11 @@ export declare function insertEach(
   itemAs: string,
   values: Record<string, ValueExpr>,
 ): MutationStep;
+export declare function allocateSequence(
+  counter: string,
+  scope: ValueExpr,
+  into: string,
+): MutationStep;
 
 export declare function returnBinding(name: string): ReturnSpec;
 export declare function returnChangedCount(): ReturnSpec;
@@ -263,7 +268,8 @@ export type TargetCapabilityId =
   | 'mutation_read_set_validation'
   | 'settlement.bounded_skew'
   | 'permission_epoch_resync'
-  | 'full_text_search_v1';
+  | 'full_text_search_v1'
+  | 'sequence_allocation_v1';
 
 export interface PushAudienceReference<Name extends string = string> {
   readonly audience: Name;
@@ -389,6 +395,10 @@ interface JsMutationSpecBase extends AuthorityCreatingAuthOptions {
   args?: Record<string, Validator>;
   reads?: string[];
   writes: string[];
+  sequences?: string[];
+  /** Required owner/principal field on the sole primary read table; the
+   * non-public sequence allocator compares it to the effective subject. */
+  authScopeField?: string;
   result?: ResultContract;
   /** Declares the named out-of-profile class keeping this mutation JS-tier;
    * codegen emits the class-specific "outgrew the IR" info diagnostic. */
@@ -551,9 +561,18 @@ export declare function defineSchema(
     /** Registry-only LLP 0143 declaration. The send and handoff-ledger slices
      * are not implied by this marker. */
     pushSeam?: PushSeamDefinition;
+    sequences?: Record<string, SequenceDefinition>;
     requiredCapabilities?: TargetCapabilityId[];
   },
 ): unknown;
+export interface SequenceDefinition {
+  readonly scope: TableBuilder;
+  readonly scopeAccess: 'declared-authorization.v1' | 'public.v1';
+}
+export declare function defineSequence(spec: {
+  scope: TableBuilder;
+  scopeAccess?: 'declared-authorization.v1' | 'public.v1';
+}): SequenceDefinition;
 export declare function defineQuery(spec: HostPlanQuerySpec): unknown;
 export declare function defineLiveQuery(spec: HostPlanQuerySpec): unknown;
 /**

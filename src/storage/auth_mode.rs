@@ -566,6 +566,11 @@ impl LocalDatabase {
                     &schema_manifest,
                     predecessor_head,
                 )?;
+                super::preflight_relation_enrollments(
+                    tx,
+                    current.active_manifest.as_ref(),
+                    &schema_manifest,
+                )?;
 
                 // One final-state activation sequence on every deployment lane:
                 // tables/columns -> same-transaction seed -> membership scan ->
@@ -1026,6 +1031,11 @@ impl LocalDatabase {
             || current.state.active_deployment.as_ref() != Some(&deployment);
         let predecessor_head = current_version_on(&tx)?;
         super::preflight_membership_activation_sources(&tx, &manifest, predecessor_head)?;
+        super::preflight_relation_enrollments(
+            &tx,
+            current.active_manifest.as_ref(),
+            &manifest,
+        )?;
         apply_schema_tables(&tx, &manifest)?;
         let mut seeded_changes = Vec::new();
         if let Some(seed) = seed {
@@ -1178,6 +1188,11 @@ impl LocalDatabase {
 
                 let predecessor_head = current_version_on(tx)?;
                 super::preflight_membership_activation_sources(tx, &manifest, predecessor_head)?;
+                super::preflight_relation_enrollments(
+                    tx,
+                    current.active_manifest.as_ref(),
+                    &manifest,
+                )?;
                 apply_schema_tables(tx, &manifest)?;
                 if deployment.auth_mode == AuthMode::Sessions {
                     // @ref LLP 0055#grants — basis changes and the activation
@@ -1338,6 +1353,11 @@ impl LocalDatabase {
         let activation_changed = current.active_manifest.as_ref() != Some(&manifest);
         let predecessor_head = current_version_on(&tx)?;
         super::preflight_membership_activation_sources(&tx, &manifest, predecessor_head)?;
+        super::preflight_relation_enrollments(
+            &tx,
+            current.active_manifest.as_ref(),
+            &manifest,
+        )?;
         apply_schema_tables(&tx, &manifest)?;
         // Raw dev has no same-activation seed, but it uses the same post-DDL,
         // pre-index validator as staged and same-mode deployment.

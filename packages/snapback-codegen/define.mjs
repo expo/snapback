@@ -25,6 +25,7 @@ const EPHEMERAL_COLLECTION = Symbol('snapback.ephemeralCollection');
 const EPHEMERAL = Symbol('snapback.ephemeral');
 const ASSET_UPLOAD = Symbol('snapback.assetUpload');
 const PUSH_SEAM = Symbol('snapback.pushSeam');
+const SEQUENCE = Symbol('snapback.sequence');
 const OBJECT_GET_PROTOTYPE_OF = Object.getPrototypeOf;
 const REFLECT_APPLY = Reflect.apply;
 const ARRAY_SLICE = Array.prototype.slice;
@@ -114,6 +115,7 @@ const TARGET_CAPABILITIES = new Set([
   'full_text_search_v1',
   'bounded_children_v1',
   'write_activity_v1',
+  'sequence_allocation_v1',
 ]);
 const SEARCH_INDEX_SPEC_FIELDS = new Set([
   'semanticVersion', 'textFields', 'fieldClassifications', 'equalityFilters', 'storedFields',
@@ -1208,6 +1210,31 @@ export function defineSchema(tables, options = {}) {
       }),
     };
   }
+  const sequences = {};
+  if (options.sequences !== undefined) {
+    assert(
+      options.sequences && typeof options.sequences === 'object' && !Array.isArray(options.sequences),
+      'defineSchema option "sequences" must be an object of defineSequence(...) declarations',
+    );
+    for (const [name, sequence] of Object.entries(options.sequences)) {
+      assert(/^[A-Za-z_][A-Za-z0-9_]*$/u.test(name), `invalid sequence identifier ${name}`);
+      assert(sequence?.[SEQUENCE] === true, `sequence ${name} must be defineSequence(...)`);
+      assert(
+        sequence.scope?.__table === true && typeof sequence.scope.__tableName === 'string',
+        `sequence ${name} scope must be a table installed in this defineSchema(...)`,
+      );
+      const scope = sequence.scope;
+      assert(
+        scope.permissionBackingDeclared !== true && scope.membershipDeclaration == null,
+        `sequence ${name} scope must be an ordinary non-permission-backing table`,
+      );
+      sequences[name] = {
+        name,
+        scopeTable: scope.__tableName,
+        scopeAccess: sequence.scopeAccess,
+      };
+    }
+  }
   return {
     __schema: true,
     tables,
@@ -1215,10 +1242,20 @@ export function defineSchema(tables, options = {}) {
     ...(auth ? { auth } : {}),
     ...(assets ? { assets } : {}),
     ...(pushSeam ? { pushSeam } : {}),
+    ...(Object.keys(sequences).length > 0 ? { sequences } : {}),
     ...(options.requiredCapabilities !== undefined
       ? { requiredCapabilities: [...new Set(options.requiredCapabilities)] }
       : {}),
   };
+}
+
+export function defineSequence({ scope, scopeAccess = 'declared-authorization.v1' } = {}) {
+  assert(scope?.__table === true, 'defineSequence() scope must be a defineTable(...)');
+  assert(
+    scopeAccess === 'declared-authorization.v1' || scopeAccess === 'public.v1',
+    'defineSequence() scopeAccess must be declared-authorization.v1 or public.v1',
+  );
+  return Object.freeze({ [SEQUENCE]: true, scope, scopeAccess });
 }
 
 const SEARCH_QUERY_SPEC_FIELDS = new Set(['table', 'index', 'auth', 'resourceArg']);
@@ -2331,6 +2368,12 @@ export const assertSourceChanged = (table, id, operation) => {
   return { AssertSourceChanged: { table, id: expectExpr(id, 'assertSourceChanged()'), operation } };
 };
 
+export const allocateSequence = (counter, scope, into) => {
+  assert(typeof counter === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/u.test(counter), 'allocateSequence() counter must be an identifier');
+  assert(typeof into === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/u.test(into), 'allocateSequence() into must be an identifier');
+  return { AllocateSequence: { counter, scope: expectExpr(scope, 'allocateSequence()'), into } };
+};
+
 export const mutationPlan = (...steps) => Object.freeze({
   __mutationPlan: true,
   steps: steps.flat(),
@@ -2384,6 +2427,7 @@ function mutationStepUsesRuntimeId(step) {
   if (kind === 'Delete' || kind === 'Get') return expressionUsesRuntimeId(payload.id);
   if (kind === 'Guard') return expressionUsesRuntimeId(payload.cond);
   if (kind === 'Let') return expressionUsesRuntimeId(payload.expr);
+  if (kind === 'AllocateSequence') return expressionUsesRuntimeId(payload.scope);
   return false;
 }
 
@@ -2441,7 +2485,7 @@ export function defineWriteWithActivity(spec) {
       facts,
     });
   }
-  const admittedSteps = new Set(['Insert', 'Patch', 'Delete', 'Get', 'Guard', 'Let']);
+  const admittedSteps = new Set(['Insert', 'Patch', 'Delete', 'Get', 'Guard', 'Let', 'AllocateSequence']);
   assert(
     spec.primary.steps.every((step) => admittedSteps.has(Object.keys(step)[0])),
     'primary contains a step outside the closed point-operation profile',
@@ -2513,7 +2557,18 @@ export function defineWriteWithActivity(spec) {
     'primary admits at most eight relationship point reads including generated current-relation assertions',
   );
   assert(guardsAndLets <= 16, 'primary admits at most sixteen Guard/Let steps');
+  const allocations = spec.primary.steps.filter((step) => Object.hasOwn(step, 'AllocateSequence'));
+  assert(allocations.length <= 1, 'write-with-activity admits at most one sequence allocation');
+  if (allocations.length === 1) {
+    assert(
+      JSON.stringify(allocations[0].AllocateSequence.scope) === JSON.stringify(spec.scope.id),
+      'write-with-activity sequence allocation must use the exact operation scope id',
+    );
+  }
   const sourceOperation = Object.keys(sourceStep)[0].toLowerCase();
+  const scopeRefusal = allocations.length > 0
+    ? 'SNAPBACK_RELATION_PARENT_UNAVAILABLE'
+    : 'SNAPBACK_ROW_NOT_FOUND';
   const scopeBinding = '__activityScope';
   const activityIdBinding = '__activityId';
   const provenance = spec.activity.provenance;
@@ -2606,8 +2661,17 @@ export function defineWriteWithActivity(spec) {
   const authoredBindings = new Set();
   for (const step of spec.primary.steps) {
     const [kind, payload] = Object.entries(step)[0];
-    if (kind === 'Get' || kind === 'Let') authoredBindings.add(payload.bind_as);
-    if (kind === 'Insert' && payload.bind_id_as) authoredBindings.add(payload.bind_id_as);
+    let bindingName = null;
+    if (kind === 'Get' || kind === 'Let') bindingName = payload.bind_as;
+    if (kind === 'Insert' && payload.bind_id_as) bindingName = payload.bind_id_as;
+    if (kind === 'AllocateSequence') bindingName = payload.into;
+    if (bindingName !== null) {
+      assert(
+        !authoredBindings.has(bindingName),
+        `primary binding ${bindingName} is declared more than once`,
+      );
+      authoredBindings.add(bindingName);
+    }
   }
   assert(
     !authoredBindings.has(scopeBinding)
@@ -2618,6 +2682,10 @@ export function defineWriteWithActivity(spec) {
   const guardedPrimary = [];
   for (const step of spec.primary.steps) {
     const [kind, payload] = Object.entries(step)[0];
+    // Sequence allocation has one structurally admitted position: directly
+    // after the generated scope Get+owner Guard. The author chooses the
+    // counter, scope, and binding; the builder owns execution order.
+    if (kind === 'AllocateSequence') continue;
     if (!['Get', 'Insert', 'Patch', 'Delete'].includes(kind) || payload.table === scopeTable) {
       guardedPrimary.push(step);
       continue;
@@ -2683,8 +2751,9 @@ export function defineWriteWithActivity(spec) {
     [provenance.mutation]: clientMutationDigest(),
   };
   const steps = [
-    get(scopeTable, spec.scope.id, scopeBinding, { elseError: 'SNAPBACK_ROW_NOT_FOUND' }),
-    guard(eqv(field(bindingRef(scopeBinding), spec.scope.visibility.field), authUserId()), 'SNAPBACK_ROW_NOT_FOUND'),
+    get(scopeTable, spec.scope.id, scopeBinding, { elseError: scopeRefusal }),
+    guard(eqv(field(bindingRef(scopeBinding), spec.scope.visibility.field), authUserId()), scopeRefusal),
+    ...allocations,
     ...guardedPrimary,
     assertSourceChanged(sourceTable, spec.source.id, sourceOperation),
     insert(activityTable, values, { bindIdAs: activityIdBinding }),
@@ -2695,6 +2764,7 @@ export function defineWriteWithActivity(spec) {
     ...authoredFunctionAuth({ auth: spec.auth ?? 'authenticated' }, 'Mutation'),
     args: spec.args ?? {},
     resultContract: spec.result,
+    sequences: allocations.map((step) => step.AllocateSequence.counter),
     plan: { steps, return_value: { Expr: expectExpr(spec.returns, 'WriteWithActivity returns') } },
     writeWithActivityPlan: {
       profile: 'write-with-activity.v1',
@@ -2725,6 +2795,7 @@ export function defineWriteWithActivity(spec) {
         runtimeNow: 1,
         settlementLookups: 1,
         settlementWrites: 1,
+        sequenceAllocations: allocations.length,
         maximumApplicationWrites: 2 + (authoredWrites.some((step) => step.Patch?.table === scopeTable) ? 1 : 0),
       },
     },
@@ -2827,6 +2898,13 @@ export function defineJsMutation(spec) {
     assert(spec.exportName, 'defineJsMutation requires exportName');
   }
   assert(spec.writes && Array.isArray(spec.writes) && spec.writes.length > 0, 'defineJsMutation requires declared writes');
+  if (spec.authScopeField !== undefined) {
+    assert(
+      typeof spec.authScopeField === 'string' && spec.authScopeField.length > 0,
+      'defineJsMutation authScopeField must be a non-empty string',
+    );
+    assert((spec.reads ?? []).length === 1, 'defineJsMutation authScopeField requires exactly one declared read table');
+  }
   if (spec.result !== undefined) {
     assert(
       spec.result?.__resultContract === true
@@ -2840,6 +2918,13 @@ export function defineJsMutation(spec) {
       `defineJsMutation outgrewIr must be one of: ${Object.keys(OUTGREW_IR_CLASSES).join(', ')}`,
     );
   }
+  const sequences = spec.sequences ?? [];
+  assert(Array.isArray(sequences), 'defineJsMutation sequences must be an array');
+  assert(
+    sequences.every((name) => typeof name === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/u.test(name)),
+    'defineJsMutation sequences must contain identifiers',
+  );
+  assert(new Set(sequences).size === sequences.length, 'defineJsMutation sequences must be unique');
   return {
     [FN]: true,
     __kind: 'Mutation',
@@ -2847,12 +2932,14 @@ export function defineJsMutation(spec) {
     args: spec.args ?? {},
     ...(spec.result !== undefined ? { resultContract: spec.result } : {}),
     ...(spec.outgrewIr !== undefined ? { outgrewIr: spec.outgrewIr } : {}),
+    ...(sequences.length > 0 ? { sequences: [...sequences] } : {}),
     js: {
       ...(inline
         ? { inlineHandler: spec.handler }
         : { source: spec.source, exportName: spec.exportName }),
       reads: spec.reads ?? [],
       writes: spec.writes,
+      authScopeField: spec.authScopeField ?? null,
       syncabilityClass: 'mutation',
     },
   };

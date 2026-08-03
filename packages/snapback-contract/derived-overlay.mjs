@@ -714,6 +714,9 @@ export const deriveOptimisticReducers = ({ manifest, table, onError = null }) =>
   const derived = Object.create(null);
   if (typeof table !== 'string') return derived;
   for (const [name, descriptor] of Object.entries(manifest?.mutations ?? {})) {
+    // A mutation-level false is an atomic withholding decision: neither one
+    // row nor one projection may derive a speculative changeset from its plan.
+    if (descriptor?.optimistic === false) continue;
     const plan = descriptor?.plan;
     if (!plan) continue;
     const reducer = deriveOptimisticReducer({ name, plan, table, onError });

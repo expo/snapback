@@ -187,6 +187,30 @@ pub struct AppIdentity {
     pub wordmark_url: Option<String>,
 }
 
+/// Declared visibility posture for one sequence scope. Public scope is an
+/// explicit disclosure; every other counter requires the enclosing operation
+/// to prove row reach before allocation.
+///
+/// @ref LLP 0135#17-allocation-authority-and-information-flow — bare
+/// invocation authority never reaches a non-public counter.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum SequenceScopeAccess {
+    #[serde(rename = "declared-authorization.v1")]
+    DeclaredAuthorizationV1,
+    #[serde(rename = "public.v1")]
+    PublicV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SequenceDeclaration {
+    pub name: String,
+    #[serde(rename = "scopeTable", alias = "scope_table")]
+    pub scope_table: String,
+    #[serde(rename = "scopeAccess", alias = "scope_access")]
+    pub scope_access: SequenceScopeAccess,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct SchemaManifest {
     #[serde(
@@ -251,6 +275,10 @@ pub struct SchemaManifest {
         alias = "ephemeral_collections"
     )]
     pub ephemeral_collections: Vec<EphemeralCollection>,
+    /// Framework-owned monotonic counters. This declaration is inspectable;
+    /// protected current values are not.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sequences: Vec<SequenceDeclaration>,
     pub tables: Vec<TableManifest>,
 }
 
@@ -273,6 +301,7 @@ impl Default for SchemaManifest {
             target_profile: Some(TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()),
             portability_flags: Vec::new(),
             ephemeral_collections: Vec::new(),
+            sequences: Vec::new(),
             tables: Vec::new(),
         }
     }
@@ -392,6 +421,8 @@ pub struct PublicSchemaManifest {
     pub portability_flags: Vec<String>,
     #[serde(rename = "ephemeralCollections")]
     pub ephemeral_collections: Vec<EphemeralCollection>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sequences: Vec<SequenceDeclaration>,
     pub tables: Vec<TableManifest>,
 }
 
@@ -414,6 +445,7 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             target_profile,
             portability_flags,
             ephemeral_collections,
+            sequences,
             tables,
         } = manifest;
         Self {
@@ -433,6 +465,7 @@ impl From<SchemaManifest> for PublicSchemaManifest {
             target_profile,
             portability_flags,
             ephemeral_collections,
+            sequences,
             tables,
         }
     }
@@ -1272,6 +1305,21 @@ impl FunctionManifest {
                     ));
                 }
             }
+            if !function.sequences.is_empty()
+                && !function
+                    .required_capabilities
+                    .iter()
+                    .any(|capability| capability == "sequence_allocation_v1")
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                    "capability",
+                    format!(
+                        "function {} declares sequences without required capability sequence_allocation_v1",
+                        function.name
+                    ),
+                ));
+            }
 
             validate_protected_query_profile(function)?;
             validate_authority_independent(function)?;
@@ -1282,6 +1330,7 @@ impl FunctionManifest {
             validate_result_contract_definition(function)?;
             validate_args_contract_definition(function)?;
             validate_declared_refusals(function)?;
+            validate_declared_sequences(function)?;
             validate_bounded_skew_definition(function)?;
 
             if self.schema_version == SNAPBACK_SESSIONS_SCHEMA_VERSION {
@@ -2335,6 +2384,102 @@ fn validate_declared_refusals(function: &FunctionDefinition) -> SnapbackResult<(
     Ok(())
 }
 
+const MAX_DECLARED_SEQUENCES: usize = 64;
+
+fn validate_declared_sequences(function: &FunctionDefinition) -> SnapbackResult<()> {
+    let ordinary_allocations = match &function.runtime {
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => plan
+            .steps
+            .iter()
+            .any(|step| matches!(step, MutationStep::AllocateSequence { .. })),
+        _ => false,
+    };
+    let host_allocations = match &function.runtime {
+        FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(WriteWithActivityPlan {
+            mutation: plan,
+            ..
+        })) => plan
+            .steps
+            .iter()
+            .filter_map(|step| match step {
+                MutationStep::AllocateSequence { counter, .. } => Some(counter.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>(),
+        _ => Vec::new(),
+    };
+    let invalid = |reason: &str, sequence: &str| {
+        SnapbackError::error(
+            "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+            "runtime",
+            format!(
+                "function {} declares invalid sequence authority: {reason}",
+                function.name
+            ),
+        )
+        .with_details(serde_json::json!({
+            "function": function.name,
+            "sequence": sequence,
+            "reason": reason,
+        }))
+    };
+    if ordinary_allocations {
+        return Err(invalid(
+            "AllocateSequence is admitted only by write-with-activity.v1",
+            "",
+        ));
+    }
+    if function.sequences.is_empty() && host_allocations.is_empty() {
+        return Ok(());
+    }
+    if function.kind != FunctionKind::Mutation {
+        return Err(invalid("only mutations may declare sequences", ""));
+    }
+    if function.sequences.len() > MAX_DECLARED_SEQUENCES {
+        return Err(invalid("more than 64 declared sequences", ""));
+    }
+    if !function
+        .required_capabilities
+        .iter()
+        .any(|capability| capability == "sequence_allocation_v1")
+    {
+        return Err(invalid(
+            "the declaration requires sequence_allocation_v1",
+            "",
+        ));
+    }
+    let mut seen = BTreeSet::new();
+    for sequence in &function.sequences {
+        let mut chars = sequence.chars();
+        let valid = chars
+            .next()
+            .is_some_and(|ch| ch == '_' || ch.is_ascii_alphabetic())
+            && chars.all(|ch| ch == '_' || ch.is_ascii_alphanumeric());
+        if !valid {
+            return Err(invalid("name must be an identifier", sequence));
+        }
+        if !seen.insert(sequence.as_str()) {
+            return Err(invalid("duplicate declared sequence", sequence));
+        }
+    }
+    // HostPlan has no hidden imperative surface: its declarations must be the
+    // exact counters present in the closed plan, and v1 admits one allocation
+    // total per invocation. JavaScript is checked dynamically at ctx.sequence.
+    if matches!(function.runtime, FunctionRuntime::HostPlan(_)) {
+        if host_allocations.len() > 1 {
+            return Err(invalid("v1 admits at most one allocation", ""));
+        }
+        let allocated = host_allocations.into_iter().collect::<BTreeSet<_>>();
+        if allocated != seen {
+            return Err(invalid(
+                "HostPlan declarations must exactly match AllocateSequence steps",
+                "",
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn validate_bounded_skew_definition(function: &FunctionDefinition) -> SnapbackResult<()> {
     let Some(declaration) = &function.bounded_skew else {
         return Ok(());
@@ -2752,6 +2897,10 @@ impl ObservedEffects {
             HandlerPlan::Mutation(plan) => {
                 for step in &plan.steps {
                     match step {
+                        MutationStep::AllocateSequence { scope, .. } => {
+                            self.expr(scope);
+                            self.host_operations.insert("sequenceAllocate");
+                        }
                         MutationStep::Insert { table, values, .. } => {
                             self.write(table, "insert");
                             values.values().for_each(|value| self.expr(value));
@@ -3331,6 +3480,7 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
         || plan.effect_formula.runtime_now != 1
         || plan.effect_formula.settlement_lookups != 1
         || plan.effect_formula.settlement_writes != 1
+        || plan.effect_formula.sequence_allocations > 1
         || plan.effect_formula.auxiliary_point_reads > 8
         || plan.effect_formula.maximum_application_writes > 3
     {
@@ -3343,6 +3493,11 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
     }
     let scope_binding = "__activityScope";
     let activity_binding = "__activityId";
+    let scope_refusal = if plan.effect_formula.sequence_allocations > 0 {
+        "SNAPBACK_RELATION_PARENT_UNAVAILABLE"
+    } else {
+        "SNAPBACK_ROW_NOT_FOUND"
+    };
     if !matches!(
         &steps[0],
         MutationStep::Get {
@@ -3353,7 +3508,7 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
         } if table == &plan.scope_table
             && id == &plan.scope_id
             && bind_as == scope_binding
-            && else_error.as_deref() == Some("SNAPBACK_ROW_NOT_FOUND")
+            && else_error.as_deref() == Some(scope_refusal)
     ) {
         return Err(invalid());
     }
@@ -3366,7 +3521,7 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
                     right,
                 },
             else_error,
-        } if else_error == "SNAPBACK_ROW_NOT_FOUND"
+        } if else_error == scope_refusal
             && matches!(right.as_ref(), ValueExpr::AuthUserId) =>
         {
             matches!(
@@ -3385,6 +3540,22 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
         return Err(invalid());
     }
     let source_assertion_index = steps.len() - 2;
+    let allocation_positions = steps
+        .iter()
+        .enumerate()
+        .filter_map(|(index, step)| {
+            matches!(step, MutationStep::AllocateSequence { .. }).then_some(index)
+        })
+        .collect::<Vec<_>>();
+    match plan.effect_formula.sequence_allocations {
+        0 if allocation_positions.is_empty() => {}
+        1 if allocation_positions == [2]
+            && matches!(
+                &steps[2],
+                MutationStep::AllocateSequence { scope, .. } if scope == &plan.scope_id
+            ) => {}
+        _ => return Err(invalid()),
+    }
     let guard_and_let_count = steps[2..source_assertion_index]
         .iter()
         .filter(|step| matches!(step, MutationStep::Guard { .. } | MutationStep::Let { .. }))
@@ -3392,6 +3563,7 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
     let forbidden_expr =
         |expr: &ValueExpr| expr.uses_runtime_id() || expr.uses_authoritative_only();
     let step_uses_forbidden_expr = |step: &MutationStep| match step {
+        MutationStep::AllocateSequence { scope, .. } => forbidden_expr(scope),
         MutationStep::Insert { values, .. } => values.values().any(forbidden_expr),
         MutationStep::Patch { id, values, .. } => {
             forbidden_expr(id) || values.values().any(forbidden_expr)
@@ -3488,9 +3660,16 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
     let mut source_writes = 0_u8;
     let mut scope_patches = 0_u8;
     let mut auxiliary_point_reads = 0_u8;
+    let mut sequence_allocations = 0_u8;
     for index in 2..source_assertion_index {
         let step = &steps[index];
         match step {
+            MutationStep::AllocateSequence { scope, .. } => {
+                if scope != &plan.scope_id {
+                    return Err(invalid());
+                }
+                sequence_allocations += 1;
+            }
             MutationStep::Get { table, id, .. } => {
                 if table == &plan.scope_table
                     || !matches!(
@@ -3601,6 +3780,7 @@ pub fn validate_write_with_activity_plan_shape(plan: &WriteWithActivityPlan) -> 
         || plan.effect_formula.scope_patches != scope_patches
         || plan.effect_formula.auxiliary_point_reads != auxiliary_point_reads
         || plan.effect_formula.runtime_ids != expected_runtime_ids
+        || plan.effect_formula.sequence_allocations != sequence_allocations
         || plan.effect_formula.maximum_application_writes != 2 + scope_patches
     {
         return Err(invalid());
@@ -3943,6 +4123,13 @@ pub struct FunctionDefinition {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub tracked_refusals: Vec<String>,
+    /// Named sequence counters this function may allocate. Omission is the
+    /// closed empty declaration; only mutation runtimes may carry entries.
+    ///
+    /// @ref LLP 0135#12-allocation-surfaces — imperative allocation is
+    /// admitted by a per-kind declaration and checked at the ctx boundary.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sequences: Vec<String>,
     /// Closed authority dimensions used by this result. Codegen derives the
     /// HostPlan value from `AuthUserId`/`authScopeField`; opaque JavaScript is
     /// never upgraded merely because an author writes `userId` here.
@@ -4020,6 +4207,7 @@ impl FunctionDefinition {
             retainable: false,
             refusals: Vec::new(),
             tracked_refusals: Vec::new(),
+            sequences: Vec::new(),
             authorization_dependence: Vec::new(),
             syncability_class: Some(syncability_class.to_owned()),
             read_set_summary: DependencySummary::default(),
@@ -4458,6 +4646,8 @@ pub struct WriteWithActivityEffectFormula {
     pub runtime_now: u8,
     pub settlement_lookups: u8,
     pub settlement_writes: u8,
+    #[serde(default)]
+    pub sequence_allocations: u8,
     pub maximum_application_writes: u8,
 }
 
@@ -4846,6 +5036,10 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             // descriptor restates neither.
             refusals: _,
             tracked_refusals: _,
+            // Allocation authority stays private like handler source and
+            // refusal declarations. Schema inspection exposes the counter's
+            // scope/access posture without widening invocation authority.
+            sequences: _,
             authorization_dependence,
             syncability_class,
             read_set_summary,
@@ -5282,6 +5476,17 @@ pub struct MutationPlan {
 //   the v1 step set. (Plain comment: doc text flows into generated schemas.)
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum MutationStep {
+    /// Allocate the next value from one declared counter and bind it for later
+    /// point writes/activity/result expressions. Host-owned; v1 admits at
+    /// most one per plan.
+    ///
+    /// @ref LLP 0135#12-allocation-surfaces — AllocateSequence is the closed
+    /// generated surface and never joins the `{ids, now}` ctx ledger.
+    AllocateSequence {
+        counter: String,
+        scope: ValueExpr,
+        into: String,
+    },
     Insert {
         table: String,
         values: BTreeMap<String, ValueExpr>,
@@ -5889,6 +6094,32 @@ pub(crate) struct SettlementTimeObservation {
     pub accepted: bool,
 }
 
+/// One committed framework-owned sequence effect retained inside the exact
+/// settlement output. Duplicate delivery reconstructs the submitting
+/// authority's private receipt from this carrier without re-executing the
+/// handler or advancing the counter again.
+///
+/// This is deliberately the same closed fact shape as the private receipt
+/// member. It never enters the public [`MutationOutput`] schema and
+/// [`crate::server::MutationResponse`] strips it exhaustively.
+///
+/// @ref LLP 0135#17-allocation-authority-and-information-flow — allocation
+///   facts ride only the submitting authority's effect receipt, including
+///   exact settlement replay.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SequenceAllocationFact {
+    pub counter_name: String,
+    pub scope_table: String,
+    pub scope_id: String,
+    pub scope_incarnation: String,
+    #[schemars(range(min = 1, max = SEQUENCE_MAX_SAFE_INTEGER))]
+    pub value: u64,
+}
+
+/// Largest integer represented exactly by every supported JavaScript client.
+pub const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
+
 fn settlement_claim_set_version() -> u32 {
     1
 }
@@ -6323,6 +6554,16 @@ pub struct MutationOutput {
     )]
     #[schemars(skip)]
     pub(crate) settlement_time_observation: Option<SettlementTimeObservation>,
+    /// Private committed sequence effects retained for exact replay receipt
+    /// reconstruction. The public response strips this implementation ledger.
+    #[doc(hidden)]
+    #[serde(
+        default,
+        rename = "_settlementSequenceAllocations",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    #[schemars(skip)]
+    pub(crate) settlement_sequence_allocations: Vec<SequenceAllocationFact>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -6428,6 +6669,8 @@ pub enum TargetCapabilityId {
     VersionedSeedResetV1,
     #[serde(rename = "write_activity_v1")]
     WriteActivityV1,
+    #[serde(rename = "sequence_allocation_v1")]
+    SequenceAllocationV1,
     #[serde(rename = "asset_lifecycle_v1")]
     AssetLifecycleV1,
     #[serde(rename = "asset_image_finalization_v1")]
@@ -6441,7 +6684,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 27] = [
+    pub const ALL: [Self; 28] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -6464,6 +6707,7 @@ impl TargetCapabilityId {
         Self::VersionedSeedInstallV1,
         Self::VersionedSeedResetV1,
         Self::WriteActivityV1,
+        Self::SequenceAllocationV1,
         Self::AssetLifecycleV1,
         Self::AssetImageFinalizationV1,
         Self::AssetImagePipelineV1,
@@ -6495,6 +6739,7 @@ impl TargetCapabilityId {
             Self::VersionedSeedInstallV1 => "versioned_seed_install_v1",
             Self::VersionedSeedResetV1 => "versioned_seed_reset_v1",
             Self::WriteActivityV1 => "write_activity_v1",
+            Self::SequenceAllocationV1 => "sequence_allocation_v1",
             Self::AssetLifecycleV1 => "asset_lifecycle_v1",
             Self::AssetImageFinalizationV1 => "asset_image_finalization_v1",
             Self::AssetVideoFinalizationV1 => "asset_video_finalization_v1",
@@ -6540,6 +6785,7 @@ impl TargetCapabilityId {
             | Self::VersionedSeedInstallV1
             | Self::VersionedSeedResetV1
             | Self::WriteActivityV1
+            | Self::SequenceAllocationV1
             | Self::AssetLifecycleV1
             | Self::AssetImageFinalizationV1
             | Self::AssetVideoFinalizationV1
@@ -6637,6 +6883,15 @@ impl TargetCapabilityId {
                         }
                         _ => unreachable!(),
                     }
+            }
+            Self::SequenceAllocationV1 => {
+                facts.sequence_allocation_v1_registered
+                    && facts.local_sequence_publication_v1_verified
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+                    && manifest.mutation_isolation_mode
+                        == "handler-captured-read-set-validation"
+                    && facts.mutation_read_set_validator_registered
+                    && facts.result_contract_v1_registered
             }
             Self::HostPlanRuntime => facts.host_plan_runtime,
             Self::IbexCtxDbHostBridge => facts.ibex_ctx_db_host_bridge_available,
@@ -6938,7 +7193,9 @@ pub struct TargetCapabilityFacts {
     permission_epoch_resync_registered: bool,
     registered_bundle_boot_v1_registered: bool,
     write_activity_v1_registered: bool,
+    sequence_allocation_v1_registered: bool,
     local_relation_activity_publication_v1_verified: bool,
+    local_sequence_publication_v1_verified: bool,
     asset_lifecycle_local_fs_registered: bool,
     asset_image_finalization_registered: bool,
     asset_reference_gc_registered: bool,
@@ -6996,7 +7253,12 @@ impl TargetCapabilityFacts {
             // experimental capability fact.
             registered_bundle_boot_v1_registered: true,
             write_activity_v1_registered: true,
+            sequence_allocation_v1_registered: true,
             local_relation_activity_publication_v1_verified,
+            // LLP 0135 §5.1's full acceptance matrix is not yet closed. Keep
+            // the implementation substrate present but publication authority
+            // false until a separate positive carrier lands.
+            local_sequence_publication_v1_verified: false,
         }
     }
 
@@ -7008,7 +7270,9 @@ impl TargetCapabilityFacts {
             // fail closed like the other local-only registrations.
             jobs_one_off_v1_registered: false,
             write_activity_v1_registered: false,
+            sequence_allocation_v1_registered: false,
             local_relation_activity_publication_v1_verified: false,
+            local_sequence_publication_v1_verified: false,
             ..Self::local_auth_aware()
         }
     }
@@ -7017,6 +7281,12 @@ impl TargetCapabilityFacts {
         self.bounded_children_v1_registered = false;
         self.write_activity_v1_registered = false;
         self.local_relation_activity_publication_v1_verified = false;
+        self
+    }
+
+    fn with_sequence_publication_withheld(mut self) -> Self {
+        self.sequence_allocation_v1_registered = false;
+        self.local_sequence_publication_v1_verified = false;
         self
     }
 }
@@ -7571,6 +7841,7 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "ephemeral_hosted_adapter".to_owned(),
         "ephemeral_multi_instance_sticky_routing".to_owned(),
         "write_activity_v1".to_owned(),
+        "sequence_allocation_v1".to_owned(),
     ]
 }
 
@@ -7584,6 +7855,12 @@ fn ensure_relation_activity_capability_gaps(gaps: &mut Vec<String>) {
     }
     if !gaps.iter().any(|gap| gap == "write_activity_v1") {
         gaps.push("write_activity_v1".to_owned());
+    }
+}
+
+fn ensure_sequence_capability_gap(gaps: &mut Vec<String>) {
+    if !gaps.iter().any(|gap| gap == "sequence_allocation_v1") {
+        gaps.push("sequence_allocation_v1".to_owned());
     }
 }
 
@@ -7608,6 +7885,11 @@ impl CapabilityManifest {
                 .retain(|gap| gap != "bounded_children_v1" && gap != "write_activity_v1");
         } else {
             ensure_relation_activity_capability_gaps(&mut capability_gaps);
+        }
+        if capability_facts.local_sequence_publication_v1_verified {
+            capability_gaps.retain(|gap| gap != "sequence_allocation_v1");
+        } else {
+            ensure_sequence_capability_gap(&mut capability_gaps);
         }
         let mut manifest = Self {
             artifact_kind: capability_manifest_kind(),
@@ -7824,7 +8106,10 @@ impl CapabilityManifest {
             .push("notifications.expoPushSeam".to_owned());
         ensure_relation_activity_capability_gaps(&mut manifest.capability_gaps);
         let mut facts =
-            TargetCapabilityFacts::local_auth_aware().with_relation_activity_publication_withheld();
+            TargetCapabilityFacts::local_auth_aware()
+                .with_relation_activity_publication_withheld()
+                .with_sequence_publication_withheld();
+        ensure_sequence_capability_gap(&mut manifest.capability_gaps);
         facts.full_text_search_v1_registered = false;
         facts.asset_lifecycle_local_fs_registered = false;
         facts.asset_image_finalization_registered = false;
@@ -7873,6 +8158,7 @@ impl CapabilityManifest {
             manifest.capability_maturity.remove(&withheld);
         }
         ensure_relation_activity_capability_gaps(&mut manifest.capability_gaps);
+        ensure_sequence_capability_gap(&mut manifest.capability_gaps);
         manifest.vm_lifecycle = "fresh-process-per-invocation".to_owned();
         for limit in &mut manifest.resource_limits {
             // The service boundary makes wall-clock enforcement real on this
@@ -8011,6 +8297,7 @@ impl CapabilityManifest {
             "hosted_marketplace".to_owned(),
             "retained_version_resume".to_owned(),
             "write_activity_v1".to_owned(),
+            "sequence_allocation_v1".to_owned(),
         ];
         manifest.resource_limits = vec![
             // V8 wall-clock is enforced by the platform (the object/request is
@@ -8727,6 +9014,53 @@ mod membership_manifest_grammar_tests {
         }
     }
 
+    #[test]
+    fn sequence_publication_stays_withheld_until_full_qualification() {
+        let local = CapabilityManifest::local_v0_declared();
+        assert!(!local
+            .supported_capabilities
+            .contains(&TargetCapabilityId::SequenceAllocationV1));
+        assert!(local
+            .capability_gaps
+            .iter()
+            .any(|gap| gap == "sequence_allocation_v1"));
+        for manifest in [
+            CapabilityManifest::remote_service_sqlite_ibex_declared(),
+            CapabilityManifest::conformance_workerd_v8(json!({})),
+            CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+        ] {
+            assert!(
+                !manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::SequenceAllocationV1),
+                "{} must not inherit local sequence authority",
+                manifest.target_profile_id,
+            );
+            assert!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "sequence_allocation_v1"),
+                "{} must retain the structured sequence GAP",
+                manifest.target_profile_id,
+            );
+        }
+
+        let packaged = CapabilityManifest::local_v0_with_facts(
+            local_v0_default_capability_gaps(),
+            TargetCapabilityFacts::local_auth_aware_for_distribution(
+                crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+            ),
+        );
+        assert!(!packaged
+            .supported_capabilities
+            .contains(&TargetCapabilityId::SequenceAllocationV1));
+        assert!(packaged
+            .capability_gaps
+            .iter()
+            .any(|gap| gap == "sequence_allocation_v1"));
+    }
+
     fn write_activity_plan_fixture() -> WriteWithActivityPlan {
         let scope_id = ValueExpr::Arg("incidentId".to_owned());
         let source_id = ValueExpr::Arg("taskId".to_owned());
@@ -8801,6 +9135,7 @@ mod membership_manifest_grammar_tests {
                 runtime_now: 1,
                 settlement_lookups: 1,
                 settlement_writes: 1,
+                sequence_allocations: 0,
                 maximum_application_writes: 2,
             },
             mutation: MutationPlan {
@@ -8884,6 +9219,51 @@ mod membership_manifest_grammar_tests {
         assert!(
             validate_write_with_activity_plan_shape(&forged_ceiling).is_err(),
             "the declared quantitative ceiling is reconstructed from the executable plan",
+        );
+
+        let allocation = MutationStep::AllocateSequence {
+            counter: "jobs".to_owned(),
+            scope: valid.scope_id.clone(),
+            into: "jobNumber".to_owned(),
+        };
+        let mut with_allocation = valid.clone();
+        with_allocation.effect_formula.sequence_allocations = 1;
+        with_allocation.mutation.steps.insert(2, allocation.clone());
+        validate_write_with_activity_plan_shape(&with_allocation)
+            .expect("one allocation immediately after the owner proof is admitted");
+
+        let mut late_allocation = valid.clone();
+        late_allocation.effect_formula.sequence_allocations = 1;
+        late_allocation.mutation.steps.insert(3, allocation.clone());
+        assert!(
+            validate_write_with_activity_plan_shape(&late_allocation).is_err(),
+            "allocation after another primary step is outside the generated authority profile",
+        );
+
+        let mut second_allocation = with_allocation.clone();
+        second_allocation.mutation.steps.insert(3, allocation.clone());
+        assert!(
+            validate_write_with_activity_plan_shape(&second_allocation).is_err(),
+            "a second allocation cannot hide behind the one-allocation formula",
+        );
+
+        let mut wrong_scope = with_allocation.clone();
+        let Some(MutationStep::AllocateSequence { scope, .. }) =
+            wrong_scope.mutation.steps.get_mut(2)
+        else {
+            panic!("sequence allocation fixture");
+        };
+        *scope = ValueExpr::Arg("anotherIncidentId".to_owned());
+        assert!(
+            validate_write_with_activity_plan_shape(&wrong_scope).is_err(),
+            "allocation scope must equal the operation scope expression",
+        );
+
+        let mut formula_mismatch = with_allocation;
+        formula_mismatch.effect_formula.sequence_allocations = 0;
+        assert!(
+            validate_write_with_activity_plan_shape(&formula_mismatch).is_err(),
+            "the effect formula cannot omit an executable allocation",
         );
 
         let mut extra_runtime_id = valid.clone();

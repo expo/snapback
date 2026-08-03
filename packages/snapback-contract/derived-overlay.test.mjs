@@ -458,11 +458,13 @@ const todoPlan = {
     queries: { listTodos: { reads: ['todos'] } },
     mutations: {
       withPlan: { plan: todoPlan },
+      withheld: { optimistic: false, plan: todoPlan },
       noPlan: {},
     },
   };
   const derived = deriveOptimisticReducers({ manifest, table: 'todos' });
   assert.ok(typeof derived.withPlan === 'function');
+  assert.ok(!('withheld' in derived));
   assert.ok(!('noPlan' in derived));
 }
 

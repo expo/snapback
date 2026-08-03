@@ -19,6 +19,7 @@
     "notifications",
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing",
+    "sequence_allocation_v1",
     "assets",
     "notifications.expoPushSeam",
     "write_activity_v1"
