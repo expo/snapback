@@ -219,6 +219,14 @@ pub struct ErrorsIssueRequestV1 {
     pub issue: String,
 }
 
+impl Default for ErrorsIssueRequestV1 {
+    fn default() -> Self {
+        Self {
+            issue: String::new(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorCorrelationQueryV1 {
@@ -278,6 +286,17 @@ pub struct ErrorsTransitionRequestV1 {
     pub expect_seq: Option<i64>,
     #[serde(default)]
     pub selector: Option<ErrorsTransitionSelectorV1>,
+}
+
+impl Default for ErrorsTransitionRequestV1 {
+    fn default() -> Self {
+        Self {
+            issue: None,
+            to: ErrorsIssueStateV1::Open,
+            expect_seq: None,
+            selector: None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
