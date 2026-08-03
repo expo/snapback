@@ -194,6 +194,8 @@ const TARGET_CAPABILITY_IDS = new Set([
 ]);
 // @ref LLP 0058#capability-maturity — mirror of the Rust registry's
 // non-stable maturity table (src/manifest.rs TargetCapabilityId::maturity).
+// @ref LLP 0134#9-acceptance — this mirror is checked byte-for-byte against
+// Rust's canonical test-mode emission; it is not a second maturity authority.
 // Codegen derives requirements from the closed capability table above, so it
 // also emits the matching experimental acknowledgment: the generated artifact
 // knowingly binds to the not-yet-Accepted contract, and admission refuses an
@@ -202,16 +204,25 @@ const TARGET_CAPABILITY_IDS = new Set([
 // (bounded_response_stream_v1 left this set when LLP 0076 was Accepted,
 // 2026-07-25).
 const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
+  'args_contract_v1',
+  'asset_image_finalization_v1',
+  'asset_image_pipeline_v1',
+  'asset_lifecycle_v1',
+  'asset_reference_gc_v1',
+  'asset_video_finalization_v1',
   'bounded_children_v1',
   'inline_handler_v1',
   'jobs_one_off_v1',
   'registered_bundle_boot_v1',
   'result_contract_v1',
-  'args_contract_v1',
   'versioned_seed_install_v1',
   'versioned_seed_reset_v1',
   'write_activity_v1',
 ]);
+
+export function experimentalTargetCapabilityIdsCanonicalJson() {
+  return JSON.stringify([...EXPERIMENTAL_TARGET_CAPABILITY_IDS].sort());
+}
 const LOCAL_MAX_PENDING_EPHEMERAL_KEYS = 1_024;
 const TARGET_PROFILE_LOCAL = 'local-dev-sqlite-ibex';
 const TARGET_PROFILE_REMOTE = 'remote-service-sqlite-ibex';

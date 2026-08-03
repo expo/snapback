@@ -13,6 +13,14 @@ const IGNORED_TEST_DIRS = new Set(['.git', 'coverage', 'dist', 'node_modules']);
 
 const inventories = [
   {
+    id: 'snapback-maturity-records',
+    packageDir: '.',
+    testDir: 'tests',
+    suffix: '.test.mjs',
+    scriptNames: ['test:maturity'],
+    expectedFiles: ['tests/capability-maturity.test.mjs'],
+  },
+  {
     id: '@expo/snapback-runtime-darwin-arm64',
     packageDir: 'packages/snapback-runtime-darwin-arm64',
     testDir: '.',
@@ -429,7 +437,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // 159 -> 162 (2026-08-02, LLP 0147 Micro Phase B): @expo/snapback-client gains
 // the maintained Micro core/live behavior and operational comparison suites;
 // @expo/snapback-codegen gains the compiled-profile generation suite.
-assert.equal(total, 162, 'reviewed package/admin test count changed');
+// 162 -> 163 (2026-08-02, LLP 0134): the repository-level maturity-record
+// suite exercises a real capability pair through soak, promotion, and demotion.
+assert.equal(total, 163, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

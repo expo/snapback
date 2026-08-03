@@ -6466,12 +6466,17 @@ impl TargetCapabilityId {
     /// §Capability maturity, amendment 2026-07-24). Maturity is a fact about
     /// the id's governing contract, not about any one runtime instance, so it
     /// lives on the closed registry next to the id itself: candidate
-    /// artifacts can neither assert nor upgrade it.
+    /// artifacts can neither assert nor upgrade it. The match is deliberately
+    /// exhaustive: a newly minted id cannot inherit `stable` merely because a
+    /// maintainer forgot to assign it.
     ///
     /// @ref LLP 0058#capability-maturity — an `experimental` entry in
     /// `supportedCapabilities` is not the plain 0058 compatibility assertion;
     /// admission refuses it unless the requiring artifact acknowledges the
     /// experimental contract.
+    /// @ref LLP 0134#4-the-promotion-act — stable assignment is changed only
+    /// by a digest-bound, history-pinned promotion act; there is no stable
+    /// wildcard for unreviewed ids.
     pub const fn maturity(self) -> CapabilityMaturity {
         // LLP 0076 was Accepted 2026-07-25 and LLP 0080/0081 flipped to
         // Implemented 2026-07-26 (coupled suite green, admitted Step 5
@@ -6499,8 +6504,45 @@ impl TargetCapabilityId {
             | Self::AssetVideoFinalizationV1
             | Self::AssetImagePipelineV1
             | Self::AssetReferenceGcV1 => CapabilityMaturity::Experimental,
-            _ => CapabilityMaturity::Stable,
+            Self::AuthSessionsV1
+            | Self::BoundedResponseStreamV1
+            | Self::Cron
+            | Self::CronActionRunMutation
+            | Self::HostPlanRuntime
+            | Self::IbexCtxDbHostBridge
+            | Self::LiveSubscriptions
+            | Self::MutationReadSetValidation
+            | Self::PermissionEpochResync
+            | Self::RelationalQueryV1
+            | Self::MigrationKeysetScanV1
+            | Self::FullTextSearchV1
+            | Self::SettlementBoundedSkew => CapabilityMaturity::Stable,
         }
+    }
+
+    /// The closed LLP 0134 §7 reservation for the pre-rule shipped surfaces
+    /// that may use the grandfathered-direct promotion route. Membership is
+    /// eligibility only; it neither changes maturity nor waives the receipt.
+    ///
+    /// @ref LLP 0134#7-the-grandfather-set — only these five ids may exercise
+    /// `grandfathered-direct.v1`; all later ids take the default evidence route.
+    pub const GRANDFATHERED_DIRECT_PROMOTION_IDS: [Self; 5] = [
+        Self::InlineHandlerV1,
+        Self::ResultContractV1,
+        Self::RegisteredBundleBootV1,
+        Self::VersionedSeedInstallV1,
+        Self::VersionedSeedResetV1,
+    ];
+
+    pub const fn is_grandfathered_direct_promotion_eligible(self) -> bool {
+        matches!(
+            self,
+            Self::InlineHandlerV1
+                | Self::ResultContractV1
+                | Self::RegisteredBundleBootV1
+                | Self::VersionedSeedInstallV1
+                | Self::VersionedSeedResetV1
+        )
     }
 
     /// Evaluate the id's named positive predicate for one exact target/runtime
@@ -8442,6 +8484,31 @@ mod membership_manifest_grammar_tests {
                 .code,
             "SNAPBACK_CAPABILITY_UNSUPPORTED"
         );
+    }
+
+    // @ref LLP 0134#7-the-grandfather-set — the reserved direct route is a
+    // closed five-id eligibility set and grants no maturity by itself.
+    #[test]
+    fn capability_maturity_grandfather_set_is_closed_and_still_experimental() {
+        assert_eq!(
+            TargetCapabilityId::GRANDFATHERED_DIRECT_PROMOTION_IDS,
+            [
+                TargetCapabilityId::InlineHandlerV1,
+                TargetCapabilityId::ResultContractV1,
+                TargetCapabilityId::RegisteredBundleBootV1,
+                TargetCapabilityId::VersionedSeedInstallV1,
+                TargetCapabilityId::VersionedSeedResetV1,
+            ]
+        );
+        for id in TargetCapabilityId::ALL {
+            assert_eq!(
+                id.is_grandfathered_direct_promotion_eligible(),
+                TargetCapabilityId::GRANDFATHERED_DIRECT_PROMOTION_IDS.contains(&id),
+            );
+            if id.is_grandfathered_direct_promotion_eligible() {
+                assert_eq!(id.maturity(), CapabilityMaturity::Experimental);
+            }
+        }
     }
 
     #[test]

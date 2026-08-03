@@ -15,9 +15,10 @@
 
 use serde_json::Value;
 use snapback::local::LocalSnapback;
-use snapback::manifest::CapabilityManifest;
+use snapback::manifest::{CapabilityManifest, CapabilityMaturity, TargetCapabilityId};
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 
 fn committed_manifest_path(file_name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -28,6 +29,11 @@ fn committed_manifest_path(file_name: &str) -> PathBuf {
 fn committed_cloudflare_manifest_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json")
+}
+
+fn committed_maturity_registry_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/acceptance/capability-maturity.experimental.json")
 }
 
 fn declared_manifest_json(manifest: CapabilityManifest) -> Value {
@@ -75,6 +81,55 @@ fn sorted_keys(value: Value) -> Value {
         Value::Array(items) => Value::Array(items.into_iter().map(sorted_keys).collect()),
         other => other,
     }
+}
+
+// @ref LLP 0134#9-acceptance — A1 compares canonical emissions, never Rust or
+// JavaScript source text. Rust remains runtime authority; the committed array
+// is a reviewable projection used by the history-aware transition checker.
+#[test]
+fn capability_maturity_registry_matches_codegen_canonical_emission() {
+    let mut rust_ids: Vec<&str> = TargetCapabilityId::ALL
+        .into_iter()
+        .filter(|id| id.maturity() != CapabilityMaturity::Stable)
+        .map(TargetCapabilityId::as_str)
+        .collect();
+    rust_ids.sort_unstable();
+    let rust_canonical = serde_json::to_string(&rust_ids).expect("emit Rust maturity registry");
+    println!("[maturity-registry] rust={rust_canonical}");
+
+    let projection_path = committed_maturity_registry_path();
+    if std::env::var("SNAPBACK_UPDATE_MATURITY_REGISTRY").is_ok() {
+        fs::write(&projection_path, format!("{rust_canonical}\n"))
+            .expect("write committed maturity registry projection");
+    }
+    assert_eq!(
+        fs::read_to_string(&projection_path)
+            .expect("read committed maturity registry projection")
+            .trim_end(),
+        rust_canonical,
+        "the history-check projection drifted; regenerate with \
+         SNAPBACK_UPDATE_MATURITY_REGISTRY=1 cargo test \
+         capability_maturity_registry_matches_codegen_canonical_emission",
+    );
+
+    let output = Command::new("node")
+        .args([
+            "--input-type=module",
+            "--eval",
+            "import { experimentalTargetCapabilityIdsCanonicalJson as emit } from \
+             './packages/snapback-codegen/index.mjs'; process.stdout.write(emit());",
+        ])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .output()
+        .expect("run codegen maturity emitter");
+    assert!(
+        output.status.success(),
+        "codegen maturity emitter failed: {}",
+        String::from_utf8_lossy(&output.stderr),
+    );
+    let codegen_canonical = String::from_utf8(output.stdout).expect("codegen emits UTF-8");
+    println!("[maturity-registry] codegen={codegen_canonical}");
+    assert_eq!(codegen_canonical, rust_canonical);
 }
 
 #[test]

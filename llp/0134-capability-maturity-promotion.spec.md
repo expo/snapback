@@ -5,7 +5,18 @@
 **Systems:** Capability publication, Application data API, Relational queries, Code generation, Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
+**Revised:** 2026-08-02 (implementation record: the first process machinery
+lands — exhaustive fail-closed Rust maturity assignment, canonical Rust/codegen
+parity projection, the exact §7 reservation, closed record validation for all
+six suffixes, digest replay, daily soak coverage, candidate-parent and
+staged-tree pins, and history-aware promotion/demotion checks. One real
+`inline_handler_v1` local observation starts the non-retroactive soak record;
+committed acceptance separately exercises the real atomic
+`bounded_children_v1` + `write_activity_v1` id set through complete promotion
+and fast-path demotion fixtures. The
+implementation pins the previously implicit population representation and
+records one unresolved circularity below; no capability is promoted by this
+landing). 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
 authorization: dual-family READY — Fable round 3, Codex round 5 —
 with the three conditions checked and satisfied: (1) zero unresolved
 MATERIAL concerns in either family's final round; (2) within the
@@ -834,6 +845,71 @@ This Spec's own Review → Accepted transition may ride LLP 0130 SD-4 if it
 converges dual-family READY with zero unresolved MATERIAL concerns, within
 its decided scope, weakening no evidence boundary — recorded per SD-4. Its
 §Acceptance items gate Implemented as usual.
+
+## Implementation record — 2026-08-02
+
+The first implementation lands the process authority without promoting a
+capability. `TargetCapabilityId::maturity` remains the sole runtime authority,
+but its former `_ => Stable` judgment default is gone: all ids are assigned
+exhaustively, so adding an id without choosing a maturity fails compilation.
+Codegen's mirror now includes every Rust non-stable id and exports a sorted
+canonical-JSON projection; `tests/capability_v0.rs` compares that emission
+byte-for-byte with Rust and with the committed history projection at
+`tests/acceptance/capability-maturity.experimental.json`. The five §7 ids are
+also a closed Rust eligibility set whose members remain experimental.
+
+`scripts/capability-maturity.mjs` implements A2 and A5 for all six record
+suffixes. It rejects unknown members and suffixes, non-canonical bytes,
+unresolvable or mismatched locators, incomplete local day cells, hosted
+identity/extract mismatches, open MATERIAL findings, invalid grandfather
+baselines, late fast-path notifications, non-atomic registry diffs, wrong
+candidate parents, stacked transitions, missing code/test/doc/guide/board
+companions, and a promotion tree whose recomputed self-excluding manifest does
+not equal `stagedTreeManifestSha256`. `tests/capability-maturity.test.mjs`
+constructs a real git history for the atomic
+`bounded_children_v1` + `write_activity_v1` set: fourteen daily observations,
+a default-route promotion, a committed gate regression, and a fast-path
+demotion. The ordinary local proof runs both that acceptance and the validator.
+
+Two schema seams were implicit in the accepted prose and are pinned here so
+independent producers do not choose incompatible shapes:
+
+- `soakEvidence.window.targetPopulation` is the closed object
+  `{ localProfileIds, hostedDeployments }`; `localProfileIds` is a sorted,
+  unique, non-empty array, and `hostedDeployments` is a sorted unique array of
+  `{ targetProfileId, deploymentIdentity }`. This makes the local
+  `profile × UTC-day` cells and hosted one-extract-per-identity population
+  mechanically distinguishable.
+- `MaturityGrandfatherEvidenceV1` is the closed per-member object
+  `{ schemaVersion, capabilityIds, cutoffDate, preCutoffCommitRefs,
+  acceptanceSuiteRefs, demoUseRefs, positivePredicateRefs,
+  governingContractBaseline }`; `cutoffDate` is exactly `2026-07-30`. For an
+  A5 demotion, the governing LLP is recovered from the closed
+  `voidedReceiptRef`, because `MaturityDemotionRecordV1` has no duplicate
+  `governingLlp` member.
+
+One accepted sentence is not implementable as written and is not silently
+claimed: §4 requires the registry comment to contain the promotion receipt's
+SHA-256, while the receipt contains `stagedTreeManifestSha256` over a tree that
+excludes only the receipt and therefore includes that registry comment. The
+comment changes the tree digest, which changes the receipt, which changes the
+comment—a cryptographic self-reference with no constructible ordering. A1,
+A2, and A5 still bind the same-commit record, changed id set, sole parent, and
+entire landed tree; the validator deliberately does not claim the additional
+comment-digest comparison. A dated design correction must choose a
+self-excluding digest domain (or remove that redundant comment digest) before
+the first real promotion. This keeps the implementation honest without
+weakening any check it claims to perform.
+
+The first retained production-tree observation is
+`tests/acceptance/maturity/inline-handler-local-dev-2026-08-03.soak-observation.json`,
+emitted after `inline-result-contracts.test.mjs` passed against candidate
+`55971c8b25d34a5f75d920f25debe55458332807`. The intended relation/activity
+pair could not start its window: its mandatory publication suite found the
+committed `src/local.rs` digest had drifted from the source-owned carrier on
+that candidate. Issue
+`20260802-relation-activity-publication-carrier-drift` retains the exact
+failure; no green observation was fabricated.
 
 ## Non-goals
 

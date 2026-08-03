@@ -13,6 +13,9 @@ import type { CodegenSummary } from './codegen-summary.mjs';
 
 export { formatCodegenSummary } from './codegen-summary.mjs';
 
+/** Canonical sorted projection of Rust's registry-owned experimental ids. */
+export function experimentalTargetCapabilityIdsCanonicalJson(): string;
+
 export interface CodegenDiagnostic {
   readonly code: string;
   readonly severity: 'error' | 'warning' | 'info';
