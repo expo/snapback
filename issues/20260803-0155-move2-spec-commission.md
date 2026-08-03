@@ -1,6 +1,9 @@
 # 0155 Move 2 Spec commission — the local persistent store
 
-**Status:** Open — awaiting a dedicated authoring session
+**Status:** Open — Spec authored as **LLP 0166**
+(`llp/0166-local-persistent-store.spec.md`, Draft v0.1, 2026-08-03); the
+dual-family super-refine loop is the remaining exit condition, then this
+ticket closes pointing at it. Acceptance is Charlie's.
 **Opened:** 2026-08-03 (wave-3 Track A; Charlie ruled spec-first)
 **Related:** LLP 0155 §Move 2 (the charter — read first), LLP 0157
 (Accepted; plan identity + completeness witness this store consumes),
