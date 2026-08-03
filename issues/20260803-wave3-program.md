@@ -24,8 +24,13 @@ same day, after an 8-round dual-family loop converged dual-READY at
 round 8); the four dated amendments (0008 DK-9, 0080, 0157, 0155
 §Move 2) and the 0043/0053/0090 boundary notes landed with acceptance;
 the 0161-OQ5 seam is answered in 0166 §D8 (nothing pulled forward from
-Track B). The implementation program is
-`issues/20260803-0166-impl-program.md` with lanes L1–L8
+Track B). **The implementation program EXITED 2026-08-03** — all eight lanes
+landed same-day, carrier-exit evidence retained (13 PASS / 4 declared
+GAP over real Chrome), bundle attribution recorded, four fake-vs-real
+defects caught and fixed by the evidence run
+(`issues/closed/20260803-0166-impl-program.md`). Capability publication
+is the remaining explicit step, plus two follow-ons (logout bridge;
+retained-render bridge blocked on the 0157 server half). Lanes L1–L8
 (`20260803-0166-L*.md`): L1→L2 substrate first, then parallel lanes;
 S4 legacy parity is a standing gate; capabilities stay unpublished
 until the S1–S8 oracles + the 0157-consumed carrier exit pass.
