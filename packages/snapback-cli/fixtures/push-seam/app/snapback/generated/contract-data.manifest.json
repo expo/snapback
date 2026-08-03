@@ -1,0 +1,829 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "snapback.v1:sessions:function:sha256:a3b161ddc2a45d9ae9ab426352ab87223c1cfea9246655e93c7b4d91329e8124",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {},
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:20f3dd5db16515847e7b001c7e7daf9b1e78ca7456d637bf73ac4246e3b59293",
+  "manifestVersion": 2,
+  "mutations": {
+    "joinAsHost": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "implementationHash": "sha256:c941c6b01420d9f2242002fa5fc6b7e0b6924a6636b7b4f0d02cb2796322835a",
+      "invalidates": [
+        "appMembers"
+      ],
+      "name": "joinAsHost",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "null"
+        }
+      },
+      "resultHash": "sha256:6a7271e69c8ea471cb72bf6110a4ba9d9629a1ba88343e49afdb6cc5f4406387",
+      "serverRunnable": true,
+      "writes": [
+        "appMembers"
+      ]
+    },
+    "leaveHost": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "implementationHash": "sha256:1b4d278c1c99afd7afa229440d2fc98ce3382ae4af37974696a32acf4955e9b1",
+      "invalidates": [
+        "appMembers"
+      ],
+      "name": "leaveHost",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "value",
+        "value": {
+          "kind": "null"
+        }
+      },
+      "resultHash": "sha256:6a7271e69c8ea471cb72bf6110a4ba9d9629a1ba88343e49afdb6cc5f4406387",
+      "serverRunnable": true,
+      "writes": [
+        "appMembers"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "pushLedger": {
+      "argOrder": [
+        "intentId"
+      ],
+      "args": {
+        "intentId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:b01dd398489cf547eb7a8d28c7cbb353033a0e977ef2f924532b387d060dbcad",
+      "defaultLive": false,
+      "ephemeral": false,
+      "implementationHash": "sha256:99d6b26db13c2d88d594403a4904c7cb1bac64418c09329858a714221f901aa6",
+      "initialSnapshot": false,
+      "livePush": false,
+      "localRunnable": false,
+      "mode": "snapshot",
+      "name": "pushLedger",
+      "reads": [
+        "_snapback_push_ledger_v1"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "attemptCount": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "attemptNumber": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "number",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "batchId": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "string",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "batchIndex": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "number",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "batchState": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "string",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "createdAtMs": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "expiresAtMs": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "expoAcceptedAtMs": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "number",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "expoErrorCode": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "string",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "handedToExpoAtMs": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "number",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "httpStatus": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "number",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "intentId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "intentState": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "messageId": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "string",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "messageState": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "string",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "nextReceiptPollAtMs": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "number",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "previousAmbiguous": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "boolean",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "receiptPollCount": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "number",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "receiptWindowClosesAtMs": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "number",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "requestErrorCode": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "string",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "retirementEffect": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "boolean",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "settledAtMs": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "number",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "ticketId": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "string",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "tokenId": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "string",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "transmittingAtMs": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": null
+                },
+                {
+                  "name": "number",
+                  "shape": "primitive"
+                }
+              ]
+            },
+            "triggerMode": {
+              "shape": "union",
+              "variants": [
+                {
+                  "shape": "literal",
+                  "value": "immediate"
+                },
+                {
+                  "shape": "literal",
+                  "value": "system"
+                },
+                {
+                  "shape": "literal",
+                  "value": "deferred"
+                }
+              ]
+            },
+            "updatedAtMs": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "kind": "records",
+        "record": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "intentId",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "triggerMode",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "literal",
+                    "value": "immediate"
+                  },
+                  {
+                    "kind": "literal",
+                    "value": "system"
+                  },
+                  {
+                    "kind": "literal",
+                    "value": "deferred"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "intentState",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "attemptCount",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "createdAtMs",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "updatedAtMs",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "expiresAtMs",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "batchId",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                ]
+              }
+            },
+            {
+              "name": "attemptNumber",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                ]
+              }
+            },
+            {
+              "name": "batchIndex",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                ]
+              }
+            },
+            {
+              "name": "batchState",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                ]
+              }
+            },
+            {
+              "name": "transmittingAtMs",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                ]
+              }
+            },
+            {
+              "name": "settledAtMs",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                ]
+              }
+            },
+            {
+              "name": "httpStatus",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                ]
+              }
+            },
+            {
+              "name": "requestErrorCode",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                ]
+              }
+            },
+            {
+              "name": "previousAmbiguous",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "boolean"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "messageId",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                ]
+              }
+            },
+            {
+              "name": "tokenId",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                ]
+              }
+            },
+            {
+              "name": "messageState",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                ]
+              }
+            },
+            {
+              "name": "ticketId",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                ]
+              }
+            },
+            {
+              "name": "receiptPollCount",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                ]
+              }
+            },
+            {
+              "name": "nextReceiptPollAtMs",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                ]
+              }
+            },
+            {
+              "name": "receiptWindowClosesAtMs",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                ]
+              }
+            },
+            {
+              "name": "handedToExpoAtMs",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                ]
+              }
+            },
+            {
+              "name": "expoAcceptedAtMs",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                ]
+              }
+            },
+            {
+              "name": "expoErrorCode",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                ]
+              }
+            },
+            {
+              "name": "retirementEffect",
+              "required": true,
+              "value": {
+                "kind": "union",
+                "variants": [
+                  {
+                    "kind": "null"
+                  },
+                  {
+                    "kind": "boolean"
+                  }
+                ]
+              }
+            }
+          ],
+          "kind": "object"
+        }
+      },
+      "resultHash": "sha256:6af0d2fddbd802bc12171ca8d46792bcb137a4d51c71cd56a55f1161935be0b5",
+      "serverRunnable": true,
+      "subscription": "none"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:0818bac7dd0dcdfcc5c59c68cd86552bdb0c179a8e784e6d5ce1c029c2035b80",
+  "schemaVersion": "snapback.v1"
+}

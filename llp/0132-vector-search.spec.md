@@ -870,3 +870,53 @@ report the capability without its own evidence.
 4. **Ceiling tuning.** Whether 2^26 scalar pairs, k ≤ 64, and 4,096
    dimensions are the right product bounds is an empirical question
    for the qualification evidence before stable promotion.
+
+## Implementation record — 2026-08-02
+
+The local SQLite/Ibex target implements `vector_search_v1` at experimental
+maturity. `v.vector(dimensions)` and `table.vectorIndex(name, spec)` carry the
+fixed dimension, metric, complete participating-field classifications,
+equality/stored fields, visibility, tie direction, semantic version, and
+per-partition corpus bound into `TableManifest.vectorIndexes`.
+`defineVectorQuery` emits the closed `VectorQuery` host plan and exact result
+contract; generated references expose the dimension-bound request schema, and
+`SnapbackClient.vectorSearch` validates the request before transport and
+returns the cursor-free `{items}` page.
+
+The SQLite adapter stores canonical little-endian binary64 postings in an
+ordinary transactional shadow generation. Every source insert, update,
+owner-partition transfer, delete, seed/reset, and activation path maintains or
+preflights that generation in the same transaction. Query execution resolves
+the caller's `public-read` or `owner.v1` partition before scanning, performs
+the fixed-order scalar `l2sq` or `dot` kernel, applies declared equality
+filters, source/version/partition release rechecks, and sorts by distance plus
+the declared row-id tie direction. Generation-root, manifest-digest, or source
+drift quarantines the index and fails closed.
+
+Executable evidence retained by this landing includes:
+
+- `src/vector/sqlite.rs` tests the Research Room-shaped 32-dimensional
+  public/owner fixture end to end, both metrics and tie directions, declared
+  filters and stored fields, cross-owner noninterference counters, mutation
+  freshness, transfer and corpus overflow rollback, activation/classification
+  refusal, injected maintenance failure, and corruption quarantine;
+- `schemas/vector.distance-fixtures-v1.json` is the Rust-owned conversion and
+  arithmetic corpus. Rust and JavaScript run the same expected binary64 bits
+  for the named FMA, reassociation, x87, FTZ/DAZ, decimal-conversion, negative
+  zero, and component-ceiling divergence classes. The artifact records the
+  exercised kernel/build evidence, and the local capability manifest binds its
+  SHA-256 profile digest;
+- `packages/snapback-codegen/vector-result-contracts.test.mjs` proves the
+  declaration, schema/function manifests, generated TypeScript, client carrier,
+  provider projection, capability facts, profile, and ANN nonclaim agree; and
+- `tests/acceptance/vector/realistic-scale-budget-v1.json` records the
+  preregistered 1,536-dimensional partition filled to 43,690 vectors
+  (67,107,840 scalar pairs), one synchronous update and exact k=64 query, the
+  admitted boundary insert, and the next-insert atomic refusal.
+
+The capability is claimed only by `local-dev-sqlite-ibex`; remote-service,
+Cloudflare, PostgreSQL, and hosted targets remain unsupported. No ANN or other
+accelerator, approximate profile, embedding computation, cosine, range or
+membership filters, live/offline query, or pagination surface was built. The
+four open questions remain policy inputs rather than implementation gaps in
+the exact v1 claim.

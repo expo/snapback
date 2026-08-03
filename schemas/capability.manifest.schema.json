@@ -549,6 +549,12 @@
         "localLoopbackTestOverride": {
           "type": "boolean"
         },
+        "maxConcurrentSendAttempts": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
         "neverClaims": {
           "items": {
             "type": "string"
@@ -618,6 +624,7 @@
         "productionEndpoint",
         "localLoopbackTestOverride",
         "sendBatchMax",
+        "maxConcurrentSendAttempts",
         "receiptBatchMax",
         "receiptFirstPollMs",
         "receiptPollIntervalsMs",
@@ -947,6 +954,7 @@
             "host_plan_runtime",
             "ibex_ctx_db_host_bridge",
             "inline_handler_v1",
+            "notifications.expoPushSeam",
             "live_subscriptions",
             "mutation_read_set_validation",
             "permission_epoch_resync",
@@ -956,6 +964,7 @@
             "snapshot_batch_v1",
             "migration_keyset_scan_v1",
             "full_text_search_v1",
+            "vector_search_v1",
             "result_contract_v1",
             "settlement.bounded_skew",
             "args_contract_v1",

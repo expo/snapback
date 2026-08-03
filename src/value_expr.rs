@@ -124,12 +124,7 @@ fn escaped_path_segment(value: &str) -> String {
     value.replace('~', "~0").replace('/', "~1")
 }
 
-fn eval_at_depth(
-    expr: &ValueExpr,
-    env: &ExprEnv<'_>,
-    depth: usize,
-    path: &str,
-) -> ExprResult {
+fn eval_at_depth(expr: &ValueExpr, env: &ExprEnv<'_>, depth: usize, path: &str) -> ExprResult {
     if depth > MAX_EXPR_DEPTH {
         return Err(ExprError::Fail(SnapbackError::error(
             "SNAPBACK_PLAN_BOUNDS",
@@ -249,8 +244,7 @@ fn eval_at_depth(
         ValueExpr::Concat(parts) => {
             let mut output = String::new();
             for (index, part) in parts.iter().enumerate() {
-                let value =
-                    eval_at_depth(part, env, depth + 1, &child_path(path, index))?;
+                let value = eval_at_depth(part, env, depth + 1, &child_path(path, index))?;
                 output.push_str(&stringify_for_concat(&value)?);
             }
             Ok(Value::String(output))

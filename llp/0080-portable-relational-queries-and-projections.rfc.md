@@ -5,7 +5,10 @@
 **Systems:** Application data API, Query planning, Storage portability, Live Queries, Authorization, Code generation, Maintained projections, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-02 (Accepted LLP 0135 owner fold: snapshot-batch is the
+**Revised:** 2026-08-03 (Accepted LLP 0157 boundary: this RFC continues to own
+`RelationalQueryPlanV1` and its result/cursor semantics; LLP 0157 owns its
+composition-node identity, completeness witness, and profile registration);
+2026-08-02 (Accepted LLP 0135 owner fold: snapshot-batch is the
 admitted static multi-child composition; aggregate admission stays open under
 LLP 0130 SD-2); 2026-08-02 (retention-section dated note: Accepted LLP 0155
 commissions a retention-class extension — local re-evaluation of admitted
@@ -68,7 +71,7 @@ and stable surface are unchanged; `relational_query_v1` participates as
 an admitted node class governed here. This RFC's OQ1
 client-composition alternative is superseded for multi-child
 single-snapshot reads by that substrate.)
-**Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0037, LLP 0051, LLP 0053, LLP 0056, LLP 0063, LLP 0065, LLP 0081
+**Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0037, LLP 0051, LLP 0053, LLP 0056, LLP 0063, LLP 0065, LLP 0081, LLP 0157
 
 ## Summary
 
@@ -758,3 +761,16 @@ fan-out half is therefore answered; the aggregate half remains open pending
 LLP 0130 SD-2 and still belongs in this RFC's noninterference and
 result-semantics frame. No implementation or maturity claim follows from this
 design fold.
+
+## LLP 0157 acceptance boundary — 2026-08-03
+
+Accepted LLP 0157 registers this RFC's `relational_query_v1` node class,
+`RelationalQueryPlanV1` owner record, `relational-query.v1` cursor profile,
+and exact ordered boundary/`_id` variant. This RFC continues to own the
+relational grammar, visibility, index, result encoding, standalone cursor,
+and live semantics. `single-node.v1` is admitted now; multi-node relational
+composition still requires LLP 0135 OQ5's versioned successor registration
+in LLP 0157. LLP 0157's fragment seam does not authorize local relational
+re-evaluation: this RFC's opaque-snapshot-only retention rule remains until a
+separately accepted amendment changes it. No implementation or capability
+fact follows from the boundary.

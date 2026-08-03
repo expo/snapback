@@ -170,6 +170,7 @@
       "source": "app-declared"
     },
     "localLoopbackTestOverride": true,
+    "maxConcurrentSendAttempts": 1,
     "neverClaims": [
       "device-delivery",
       "notification-display",
@@ -377,6 +378,7 @@
     "ibex_ctx_db_host_bridge",
     "inline_handler_v1",
     "jobs_one_off_v1",
+    "notifications.expoPushSeam",
     "live_subscriptions",
     "mutation_read_set_validation",
     "permission_epoch_resync",

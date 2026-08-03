@@ -4,8 +4,8 @@ id: backend.expo-push-seam
 order: 46
 audience: agent-first
 capabilities: [backend.expo-push-seam]
-authorities: [llp/0143-expo-push-notification-seam.rfc.md, src/push.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-client/push-registry.mjs]
-examples: []
+authorities: [llp/0143-expo-push-notification-seam.rfc.md, src/push.rs, src/server.rs, src/admin.rs, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-client/push-registry.mjs, packages/snapback-cli/fake-expo-push.mjs]
+examples: [packages/snapback-cli/fixtures/push-seam]
 status: current
 targets: [local]
 maturity: partial
@@ -93,18 +93,20 @@ See [Secrets and deployment config](../operating/secrets-and-config.md).
 ## Register the current installation
 
 Importing the root client adds no push code or property. Attach the explicit
-subpath and supply durable installation custody:
+subpath and inject Expo's file-system module to select the conventional
+device-scoped default:
 
-```js fragment reason="Apps choose their native durable-storage adapter"
+```js fragment reason="Expo supplies the native module; Snapback owns the dedicated push file"
+import * as ExpoFileSystem from 'expo-file-system';
 import { SnapbackClient } from '@expo/snapback-client';
+import { createExpoPushInstallationStorage } from '@expo/snapback-client/push-installation-expo';
 import { attachPushRegistry } from '@expo/snapback-client/push-registry';
 
+const pushInstallationStorage = createExpoPushInstallationStorage({
+  fileSystem: ExpoFileSystem,
+});
 const client = attachPushRegistry(new SnapbackClient(origin, { bearerToken }), {
-  pushInstallationStorage: {
-    read: () => durableStore.get('snapback.push.installation.v1'),
-    write: (value) => durableStore.set('snapback.push.installation.v1', value),
-    clear: () => durableStore.delete('snapback.push.installation.v1'),
-  },
+  pushInstallationStorage,
 });
 
 await client.push.registerExpoToken({
@@ -113,11 +115,17 @@ await client.push.registerExpoToken({
 });
 ```
 
-The installation id lives in this injected native custody, not in the RQS
-cache. Ordinary logout does not need to erase it: the server retires the exact
-session generation's token row transactionally. A full client-custody wipe
-must call the storage adapter's `clear`; the next registration mints a new id.
-Web push registration is outside v1.
+The installation id lives in the dedicated
+`snapback-push/installation.v1.json` document-store member, not in the RQS
+cache. Ordinary logout preserves it while the server retires the exact session
+generation's token row transactionally. Account switching also preserves the
+id; registering under the successor session rebinds the device through the
+single-owner rule. A full app-data custody wipe must call
+`pushInstallationStorage.clear()`; the next registration mints a new id. An OS
+app-data reset or reinstall removes the app container and therefore also mints
+a fresh id. Apps with another native durable key/value store may still pass a
+custom `pushInstallationStorage`; missing custody continues to refuse rather
+than fall back to process memory. Web push registration is outside v1.
 
 The app still owns `expo-notifications` setup: OS permission prompts,
 `projectId`, foreground behavior, and `addPushTokenListener`. On a rotation
@@ -169,9 +177,23 @@ Authority depends on the trigger:
   re-resolves recipients. Explicit-principal audiences are refused here.
 
 The return value contains `intentId`, `attempt`, `targetCount`, `batchCount`,
-the current aggregate `state`, and `deduplicated`. The per-message ledger is
-host-owned; an app-readable generated ledger projection has not shipped, so
-do not build product UI by querying protected tables.
+the current aggregate `state`, and `deduplicated`.
+
+If the process dies after claiming a batch but before its durable transmit
+marker, maintenance safely sends the exact protected binding after the claim
+lease expires. Once the marker exists, recovery settles an unanswered attempt
+as `ambiguous` instead. Fresh action reservations are not maintenance work, so
+the worker cannot race the action that created them.
+
+## Read handoff facts without reading secrets
+
+Export one `definePushLedgerQuery({ auth: 'authenticated' })`. It accepts only
+`intentId`; the host loads the stored audience reference and rechecks its
+current authorization before returning flat lifecycle rows. The projection
+contains opaque intent, batch, message, and token-row ids plus timing, state,
+ticket id, allowlisted error code, and retirement effect. It never contains
+token bytes, title/body/data, dedupe key, audience arguments, config, or Expo
+prose. Do not query the protected ledger tables directly.
 
 ## Treat ambiguity as possible duplicate display
 
@@ -195,6 +217,9 @@ closed error vocabulary crosses into settlement.
 The local maintenance worker polls at 15 minutes after handoff, then 30
 minutes, 1 hour, 2 hours, and 4-hour-capped intervals, for at most seven polls
 inside a roughly 24-hour window. It requests at most 1,000 ticket ids at once.
+Tests may call `POST /_snapback/api/push/maintenance` with an injected clock
+only when a Dev/Test profile uses a loopback provider override; injected time
+is refused against the real Expo endpoint.
 
 - `handed-to-expo` means the send endpoint returned a successful ticket.
 - `expo-accepted` means Expo's receipt says it handed the message to APNs/FCM.
@@ -222,7 +247,10 @@ Production sends are pinned to `https://exp.host`. Only a dev/test-profile
 server accepts `SNAPBACK_EXPO_PUSH_BASE_URL`, and the value must be a loopback
 HTTP(S) origin. The shared conformance fixture scripts ticket responses,
 receipt responses, both `DeviceNotRegistered` stages, and a socket close after
-request bytes; it uses the same bounded HTTP carrier as production.
+request bytes; it uses the same bounded HTTP carrier as production. Import
+`startFakeExpoPushService` from
+`@expo/snapback-cli/testing/fake-expo-push` for that reusable carrier; the
+committed `push-seam` fixture exercises it through the generated app surface.
 
 iOS simulators cannot mint Expo push tokens. Android emulators with Play
 services generally can, but deterministic acceptance should still use fixture

@@ -1071,8 +1071,7 @@ fn reset_and_seed_transaction(
             // preflight explicit: unlike ordinary seed, no pre-reset corrupt
             // row is allowed to participate in activation.
             preflight_membership_activation_sources(tx, schema, 0)?;
-            let mut changes =
-                seed_into_transaction(tx, schema, seed, 1, order_field_bounds)?;
+            let mut changes = seed_into_transaction(tx, schema, seed, 1, order_field_bounds)?;
             let direct_application_rows = changes.len();
             if !projections.is_empty() {
                 maintain_projections_in_tx(
@@ -1882,9 +1881,7 @@ impl LocalDatabase {
         &mut self,
         declaration: crate::push::PushSeamDeclarationV1,
     ) -> SnapbackResult<()> {
-        self.with_auth_transaction(|tx| {
-            crate::push::activate_manifest_in(tx, Some(&declaration))
-        })?;
+        self.with_auth_transaction(|tx| crate::push::activate_manifest_in(tx, Some(&declaration)))?;
         self.schema.auth = Some(crate::manifest::AuthManifest {
             mode: crate::manifest::AuthMode::Sessions,
         });
@@ -2951,12 +2948,9 @@ impl LocalDatabase {
     ) -> SnapbackResult<()> {
         let prior = self.load_api_envelope_state()?;
         let mut retained: Vec<String> = Vec::new();
-        let previous = prior.as_ref().and_then(|state| {
-            state
-                .current
-                .as_ref()
-                .map(|current| current.digest.clone())
-        });
+        let previous = prior
+            .as_ref()
+            .and_then(|state| state.current.as_ref().map(|current| current.digest.clone()));
         let current = composed.map(|(digest, _)| ApiEnvelopeCurrentRecord {
             digest: digest.to_string(),
             inputs_hash: inputs_hash.to_string(),
@@ -2992,13 +2986,15 @@ impl LocalDatabase {
             transaction.execute(
                 "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)
                  ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                params![format!("{META_API_ENVELOPE_BYTES_PREFIX}{digest}"), canonical],
+                params![
+                    format!("{META_API_ENVELOPE_BYTES_PREFIX}{digest}"),
+                    canonical
+                ],
             )?;
         }
         // Evict every stored envelope outside the retention window.
-        let mut evict = transaction.prepare(
-            "SELECT key FROM _snapback_meta WHERE key LIKE ?1 ESCAPE '\\'",
-        )?;
+        let mut evict =
+            transaction.prepare("SELECT key FROM _snapback_meta WHERE key LIKE ?1 ESCAPE '\\'")?;
         let stored: Vec<String> = evict
             .query_map(
                 params![format!(
@@ -3014,10 +3010,7 @@ impl LocalDatabase {
                 .strip_prefix(META_API_ENVELOPE_BYTES_PREFIX)
                 .unwrap_or_default();
             if !retained.iter().any(|kept| kept == digest) {
-                transaction.execute(
-                    "DELETE FROM _snapback_meta WHERE key = ?1",
-                    params![key],
-                )?;
+                transaction.execute("DELETE FROM _snapback_meta WHERE key = ?1", params![key])?;
             }
         }
         transaction.commit()?;
@@ -3417,13 +3410,8 @@ impl LocalDatabase {
         let touched = seed.tables.keys().cloned().collect();
         validate_touched_managed_tables(&tx, &schema, &touched, current_version)?;
         preflight_membership_activation_sources(&tx, &schema, current_version)?;
-        let changes = seed_into_transaction(
-            &tx,
-            &schema,
-            seed,
-            next_version,
-            &self.order_field_bounds,
-        )?;
+        let changes =
+            seed_into_transaction(&tx, &schema, seed, next_version, &self.order_field_bounds)?;
         // The standalone seed API has the same invariant obligations as a
         // deployment seed; it cannot bypass membership activation checks just
         // because DDL was already active.
@@ -4242,8 +4230,7 @@ impl LocalDatabase {
             .map(|ledger| ledger.now)
             .unwrap_or_else(now_millis);
         validate_portable_timestamp_millis(now_ms)?;
-        let settlement_time_skew = settlement_time
-            .map(|policy| now_ms.abs_diff(policy.claimed));
+        let settlement_time_skew = settlement_time.map(|policy| now_ms.abs_diff(policy.claimed));
         let settlement_time_within_bound = settlement_time_skew
             .zip(settlement_time)
             .is_some_and(|(skew, policy)| skew <= policy.max_skew_ms);
@@ -4337,9 +4324,8 @@ impl LocalDatabase {
         let next_id = |site: &str| plan_ids.borrow_mut().next_for(site, None);
         // Row ids carry their table's prefix; ids minted inside field
         // expressions go through `next_id` and stay generic (LLP 0148 §D6).
-        let next_id_for = |site: &str, table: &str| {
-            plan_ids.borrow_mut().next_for(site, Some(table))
-        };
+        let next_id_for =
+            |site: &str, table: &str| plan_ids.borrow_mut().next_for(site, Some(table));
 
         for (step_index, step) in plan.steps.iter().enumerate() {
             check_live()?;
@@ -4947,10 +4933,8 @@ impl LocalDatabase {
                         // The item binding is scoped to this step's value maps.
                         let mut item_bindings = bindings.clone();
                         item_bindings.insert(item_as.clone(), item);
-                        let id = next_id_for(
-                            &format!("{step_site}/insert-each/row-id"),
-                            &table.name,
-                        )?;
+                        let id =
+                            next_id_for(&format!("{step_site}/insert-each/row-id"), &table.name)?;
                         if projection_sources.contains(&table.name) {
                             projection_pre_images
                                 .entry((table.name.clone(), id.clone()))
@@ -4968,16 +4952,15 @@ impl LocalDatabase {
                             &settlement_time_sink_reached,
                         )?;
                         let changed_fields = changed_field_names(&row);
-                        let document =
-                            insert_document(
-                                &tx,
-                                table,
-                                &id,
-                                &row,
-                                next_version,
-                                now_ms,
-                                &self.order_field_bounds,
-                            )?;
+                        let document = insert_document(
+                            &tx,
+                            table,
+                            &id,
+                            &row,
+                            next_version,
+                            now_ms,
+                            &self.order_field_bounds,
+                        )?;
                         record_change(
                             &tx,
                             next_version,
@@ -5062,16 +5045,14 @@ impl LocalDatabase {
                 get_document_from_tx(&tx, table, &id, next_version)?.unwrap_or(Value::Null)
             }
             Some(ReturnValue::ChangedCount) | None => json!(changes.len()),
-            Some(ReturnValue::Expr(expr)) => {
-                eval_expr(
-                    expr,
-                    input,
-                    &bindings,
-                    now_ms,
-                    Some(&next_id),
-                    "plan/return/expression",
-                )?
-            }
+            Some(ReturnValue::Expr(expr)) => eval_expr(
+                expr,
+                input,
+                &bindings,
+                now_ms,
+                Some(&next_id),
+                "plan/return/expression",
+            )?,
         };
 
         plan_ids.borrow().ensure_exact_consumption()?;
@@ -7388,16 +7369,15 @@ impl LocalDatabase {
             }
         }
         for (output_id, (_, logical)) in &pending {
-            let document =
-                insert_document(
-                    &tx,
-                    output_table,
-                    output_id,
-                    logical,
-                    next_version,
-                    now_ms,
-                    &self.order_field_bounds,
-                )?;
+            let document = insert_document(
+                &tx,
+                output_table,
+                output_id,
+                logical,
+                next_version,
+                now_ms,
+                &self.order_field_bounds,
+            )?;
             record_change(
                 &tx,
                 next_version,
@@ -8989,7 +8969,7 @@ impl DbRead<'_> {
         new_id()
     }
 
-    fn conn(&self) -> &Connection {
+    pub(crate) fn conn(&self) -> &Connection {
         match self {
             DbRead::Pinned { conn, .. } => conn,
             DbRead::Live(db) => &db.conn,
@@ -10815,9 +10795,9 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                         !roles.is_empty()
                             && roles.iter().collect::<BTreeSet<_>>().len() == roles.len()
                             && declared.is_some_and(|(_, membership)| {
-                                roles.iter().all(|role| {
-                                    membership.vocabulary().any(|known| known == role)
-                                })
+                                roles
+                                    .iter()
+                                    .all(|role| membership.vocabulary().any(|known| known == role))
                             })
                     });
                     if resource.optional
@@ -10855,6 +10835,22 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                     table.name
                 ),
             ));
+        }
+
+        let mut vector_names = BTreeSet::new();
+        for vector in &table.vector_indexes {
+            validate_user_identifier("vector index", &vector.name)?;
+            if !vector_names.insert(vector.name.clone())
+                || indexes.contains(&vector.name)
+                || search_names.contains(&vector.name)
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_VECTOR_INDEX_UNAVAILABLE",
+                    "vector",
+                    format!("duplicate vector/index name {}.{}", table.name, vector.name),
+                ));
+            }
+            crate::vector::sqlite::validate_index_declaration(table, vector)?;
         }
 
         validate_membership_declaration(
@@ -11065,6 +11061,7 @@ fn field_type_name(field_type: &FieldType) -> &'static str {
         FieldType::Real => "Real",
         FieldType::Vector { .. } => "Vector",
         FieldType::Json => "Json",
+        FieldType::Vector { .. } => "Vector",
         FieldType::Principal => "Principal",
         FieldType::Id { .. } => "Id",
         FieldType::RelationIncarnation { .. } => "RelationIncarnation",
@@ -11958,7 +11955,7 @@ fn validate_query_filter_value(
     value: &Value,
 ) -> SnapbackResult<()> {
     if let Some(field) = table.field(field_name) {
-        if field.field_type == FieldType::Json {
+        if matches!(field.field_type, FieldType::Json | FieldType::Vector { .. }) {
             return Err(SnapbackError::error(
                 "SNAPBACK_QUERY_FILTER_UNSUPPORTED_FIELD_TYPE",
                 "query",
@@ -11982,6 +11979,7 @@ fn validate_query_filter_value(
                 FieldType::Real => value.as_f64().is_some(),
                 FieldType::Vector { .. } => false,
                 FieldType::Json => unreachable!("Json filters returned above"),
+                FieldType::Vector { .. } => unreachable!("Vector filters returned above"),
             }
         };
         if compatible {
@@ -12830,8 +12828,7 @@ fn eval_value_map(
     let mut output = Map::new();
     for (key, expr) in values {
         let site_key = key.replace('~', "~0").replace('/', "~1");
-        let value = if settlement_time
-            .is_some_and(|policy| policy.field == *key)
+        let value = if settlement_time.is_some_and(|policy| policy.field == *key)
             && matches!(expr, ValueExpr::RuntimeNow)
         {
             settlement_time_sink_reached.set(true);
@@ -12875,9 +12872,7 @@ fn eval_expr(
     site: &str,
 ) -> SnapbackResult<Value> {
     let default_id = |_path: &str| Ok(new_id());
-    let scoped_id = |path: &str| {
-        runtime_id.unwrap_or(&default_id)(&format!("{site}{path}"))
-    };
+    let scoped_id = |path: &str| runtime_id.unwrap_or(&default_id)(&format!("{site}{path}"));
     let env = crate::value_expr::ExprEnv {
         args: &input.args,
         auth_user_id: input.auth.user_id.as_deref(),
@@ -13037,8 +13032,7 @@ fn seed_into_transaction(
             }
         }
     }
-    let mut changes =
-        seed_rows_into_transaction(tx, schema, seed, version, order_field_bounds)?;
+    let mut changes = seed_rows_into_transaction(tx, schema, seed, version, order_field_bounds)?;
     // @ref LLP 0044#typed-references-and-atomic-attachment — seeds run the
     //   same commit-boundary admission under system authority: restricted
     //   fields verify the asset (owner check waived for system custody),
@@ -13093,15 +13087,8 @@ fn seed_rows_into_transaction(
                 }
             };
             let changed_fields = changed_field_names(&row);
-            let document = insert_document(
-                tx,
-                table,
-                &id,
-                &row,
-                version,
-                now_ms,
-                order_field_bounds,
-            )?;
+            let document =
+                insert_document(tx, table, &id, &row, version, now_ms, order_field_bounds)?;
             // Fixture seats carry the seed writer's provenance per row
             // (LLP 0109 §8's bulk MembershipWriter::Seed primitive; the
             // 0100 §8b routed lane). The declared provenance columns are
@@ -17755,12 +17742,52 @@ fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackR
                     .with_detail("error", error.to_string())
                 })
         }
+        Some(FieldType::Vector { dimensions }) => {
+            let values = value
+                .as_array()
+                .ok_or_else(|| type_error("vector", value))?;
+            let values = values
+                .iter()
+                .map(|component| {
+                    component
+                        .as_f64()
+                        .ok_or_else(|| type_error("vector", value))
+                })
+                .collect::<SnapbackResult<Vec<_>>>()?;
+            let values = crate::vector::admit_stored_vector(&values, *dimensions)?;
+            let mut bytes = Vec::with_capacity(values.len() * 8);
+            for component in values {
+                bytes.extend_from_slice(&component.to_le_bytes());
+            }
+            Ok(SqlValue::Blob(bytes))
+        }
     }
 }
 
 fn normalize_json_value(value: Value, field_type: &FieldType) -> SnapbackResult<Value> {
     match field_type {
         FieldType::Json => Ok(value),
+        FieldType::Vector { dimensions } if !value.is_null() => {
+            let values = value
+                .as_array()
+                .ok_or_else(|| type_error("vector", &value))?
+                .iter()
+                .map(|component| {
+                    component
+                        .as_f64()
+                        .ok_or_else(|| type_error("vector", &value))
+                })
+                .collect::<SnapbackResult<Vec<_>>>()?;
+            crate::vector::admit_stored_vector(&values, *dimensions)?
+                .into_iter()
+                .map(|component| {
+                    Number::from_f64(component)
+                        .map(Value::Number)
+                        .ok_or_else(|| type_error("vector", &value))
+                })
+                .collect::<SnapbackResult<Vec<_>>>()
+                .map(Value::Array)
+        }
         // @ref LLP 0073#authorization-and-result-release — a validator-accepted
         // integral Real (JSON `5`) would otherwise stay an integer in the
         // in-memory document while the same row reloads from a SQLite REAL
@@ -17851,18 +17878,21 @@ fn ensure_field_or_system(table: &TableManifest, field: &str) -> SnapbackResult<
 
 fn ensure_orderable_field(table: &TableManifest, field: &str) -> SnapbackResult<()> {
     ensure_field_or_system(table, field)?;
-    if matches!(field_type(table, field), Some(FieldType::Json)) {
+    if matches!(
+        field_type(table, field),
+        Some(FieldType::Json | FieldType::Vector { .. })
+    ) {
         return Err(SnapbackError::error(
             "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE",
             "query",
             format!(
-                "query order field {}.{field} has non-portable Json type",
+                "query order field {}.{field} has a non-orderable type",
                 table.name
             ),
         )
         .with_detail("table", table.name.clone())
         .with_detail("field", field.to_owned())
-        .with_detail("fieldType", "Json"));
+        .with_detail("fieldType", "JsonOrVector"));
     }
     Ok(())
 }
@@ -18888,11 +18918,8 @@ mod guarded_commit_tests {
             "dry-run/abort burns no value"
         );
 
-        let identity = ClientMutationIdentity::new(
-            "cm-sequence",
-            "allocate",
-            &HandlerInput::default(),
-        );
+        let identity =
+            ClientMutationIdentity::new("cm-sequence", "allocate", &HandlerInput::default());
         let committed = commit_sequence(&mut db, first.clone(), Some(&identity), Vec::new())
             .expect("first allocation commits");
         assert_eq!(committed.sequence_allocations, vec![first.clone()]);
@@ -19198,7 +19225,10 @@ mod guarded_commit_tests {
             version,
             "oversized patch commits no version"
         );
-        assert_eq!(db.get("items", "ordered").unwrap().unwrap()["title"], "éééé");
+        assert_eq!(
+            db.get("items", "ordered").unwrap().unwrap()["title"],
+            "éééé"
+        );
 
         let oversized_insert = db
             .commit_buffered_writes(
@@ -25263,7 +25293,7 @@ mod guarded_commit_tests {
             "SNAPBACK_QUERY_ORDER_UNSUPPORTED_FIELD_TYPE"
         );
         assert_eq!(error.diagnostic.details["field"], "metadata");
-        assert_eq!(error.diagnostic.details["fieldType"], "Json");
+        assert_eq!(error.diagnostic.details["fieldType"], "JsonOrVector");
     }
 }
 
@@ -26191,10 +26221,11 @@ mod membership_write_tests {
         // Partial `from` coverage cannot carry the option: dropping the total
         // carrier leaves only the base schema's partial other-remove.
         let error = mutate(&|membership| {
-            membership
-                .transitions
-                .retain(|transition| transition.from.is_some() || transition.op != MembershipOp::Remove
-                    || transition.target != MembershipTarget::Other);
+            membership.transitions.retain(|transition| {
+                transition.from.is_some()
+                    || transition.op != MembershipOp::Remove
+                    || transition.target != MembershipTarget::Other
+            });
         })
         .expect_err("no total carrier refuses");
         assert_eq!(
@@ -26250,8 +26281,7 @@ mod membership_write_tests {
 
         let before = crate::storage::authorization_version_on(&db.conn)
             .expect("version before present removal");
-        let result =
-            remove_principal(&mut db, "alice", &event_id, "bob").expect("present removal");
+        let result = remove_principal(&mut db, "alice", &event_id, "bob").expect("present removal");
         assert_eq!(result, Value::Null, "present-target result is null");
         assert_eq!(
             db.conn
@@ -26267,17 +26297,15 @@ mod membership_write_tests {
         let after_present = crate::storage::authorization_version_on(&db.conn)
             .expect("version after present removal");
         assert!(
-            after_present.epoch > before.epoch
-                || after_present.incarnation != before.incarnation,
+            after_present.epoch > before.epoch || after_present.incarnation != before.incarnation,
             "a committed membership write is authorization event 1"
         );
 
         // The now-absent pair: byte-identical null, no version advance.
-        let result =
-            remove_principal(&mut db, "alice", &event_id, "bob").expect("absent no-op");
+        let result = remove_principal(&mut db, "alice", &event_id, "bob").expect("absent no-op");
         assert_eq!(result, Value::Null, "absent-target result is the same null");
-        let after_absent = crate::storage::authorization_version_on(&db.conn)
-            .expect("version after absent no-op");
+        let after_absent =
+            crate::storage::authorization_version_on(&db.conn).expect("version after absent no-op");
         assert_eq!(
             after_absent, after_present,
             "the absent-target no-op advances no authorization version"
@@ -26314,10 +26342,19 @@ mod membership_write_tests {
         let absent = db
             .plan_membership_remove_principal(&writer, "event_members", Some(&event_id), "nobody")
             .expect_err("guest caller denied on absent target too");
-        assert_eq!(present.diagnostic.code, "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED");
         assert_eq!(
-            (present.diagnostic.code.clone(), present.diagnostic.message.clone()),
-            (absent.diagnostic.code.clone(), absent.diagnostic.message.clone()),
+            present.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
+        );
+        assert_eq!(
+            (
+                present.diagnostic.code.clone(),
+                present.diagnostic.message.clone()
+            ),
+            (
+                absent.diagnostic.code.clone(),
+                absent.diagnostic.message.clone()
+            ),
             "the denial is byte-identical across target presence"
         );
 
@@ -26330,7 +26367,10 @@ mod membership_write_tests {
                 "bob",
             )
             .expect_err("outsider denied");
-        assert_eq!(outsider.diagnostic.code, "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED");
+        assert_eq!(
+            outsider.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
+        );
 
         // Self-removal remains removeSelf: typed misuse, before target lookup.
         let this_is_me = db
@@ -26341,13 +26381,19 @@ mod membership_write_tests {
                 "alice",
             )
             .expect_err("self target refuses");
-        assert_eq!(this_is_me.diagnostic.code, "SNAPBACK_MEMBERSHIP_TARGET_SELF");
+        assert_eq!(
+            this_is_me.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_TARGET_SELF"
+        );
 
         // Shape-only argument validation.
         let empty = db
             .plan_membership_remove_principal(&user("alice"), "event_members", Some(&event_id), "")
             .expect_err("empty principal refuses");
-        assert_eq!(empty.diagnostic.code, "SNAPBACK_MEMBERSHIP_PRINCIPAL_INVALID");
+        assert_eq!(
+            empty.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_PRINCIPAL_INVALID"
+        );
         let missing_resource = db
             .plan_membership_remove_principal(&user("alice"), "event_members", None, "bob")
             .expect_err("resource-scoped removal needs a resource");
@@ -26431,14 +26477,12 @@ mod membership_write_tests {
         // Expired-but-authorized alice removes the other protected holder:
         // admitted under her still-live role; her own (expired) row is the
         // surviving protected holder, so lastHolder cannot strand.
-        let result =
-            remove_principal(&mut db, "alice", &event_id, "bob").expect("present removal");
+        let result = remove_principal(&mut db, "alice", &event_id, "bob").expect("present removal");
         assert_eq!(result, Value::Null);
         assert!(role_of(&db, &alice_row).is_some(), "alice's row survives");
 
         // The absent branch is uniform for the same caller.
-        let result =
-            remove_principal(&mut db, "alice", &event_id, "bob").expect("absent no-op");
+        let result = remove_principal(&mut db, "alice", &event_id, "bob").expect("absent no-op");
         assert_eq!(result, Value::Null);
     }
 
@@ -26534,8 +26578,8 @@ mod membership_write_tests {
 
         // Reset-install: one cut — every runtime seat retired, exactly the
         // fixture seats restored, the authorization incarnation rotated.
-        let before = crate::storage::authorization_version_on(&db.conn)
-            .expect("version before reset");
+        let before =
+            crate::storage::authorization_version_on(&db.conn).expect("version before reset");
         let incarnation = db
             .ensure_authorization_stream_incarnation()
             .expect("authorization stream");
@@ -26549,12 +26593,9 @@ mod membership_write_tests {
             sessions: Vec::new(),
             superseded_tokens: Vec::new(),
         };
-        let projection = SessionProjection::rebuild_with_fresh_startup_id(
-            source,
-            now_millis(),
-            Instant::now(),
-        )
-        .expect("session projection");
+        let projection =
+            SessionProjection::rebuild_with_fresh_startup_id(source, now_millis(), Instant::now())
+                .expect("session projection");
         let coordinator = Arc::new(AuthCoordinator::new(projection).expect("coordinator"));
         let carrier = coordinator
             .premark_stream_reset_if_drained()
@@ -26599,13 +26640,16 @@ mod membership_write_tests {
 
         // Declared-restore incarnation semantics: one rotated incarnation at
         // epoch 0 — not a stream of per-row event-1 kicks.
-        let after = crate::storage::authorization_version_on(&db.conn)
-            .expect("version after reset");
+        let after =
+            crate::storage::authorization_version_on(&db.conn).expect("version after reset");
         assert_ne!(
             after.incarnation, before.incarnation,
             "the reset rotates the authorization incarnation"
         );
-        assert_eq!(after.epoch, 0, "the successor incarnation starts at epoch 0");
+        assert_eq!(
+            after.epoch, 0,
+            "the successor incarnation starts at epoch 0"
+        );
 
         // The runtime-only principal provably lost authority; fixture
         // authority survives the same cut.
@@ -26677,7 +26721,10 @@ mod membership_write_tests {
         )
         .expect_err("out-of-vocabulary fixture role refuses the install");
         assert!(
-            unknown_role.diagnostic.code.starts_with("SNAPBACK_MEMBERSHIP"),
+            unknown_role
+                .diagnostic
+                .code
+                .starts_with("SNAPBACK_MEMBERSHIP"),
             "declaration validation refuses: {}",
             unknown_role.diagnostic.code
         );

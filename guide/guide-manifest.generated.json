@@ -2,7 +2,11 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
+<<<<<<< HEAD
     "commit": "34cb2a813fb5405e46d1d6cf4a5d71075dbc2340"
+=======
+    "commit": "532d56ee338783fae2b7224f6e971eeaa667f81e"
+>>>>>>> origin/main
   },
   "nav": {
     ".": [
@@ -122,7 +126,11 @@
       },
       {
         "id": "backend.vector-search",
+<<<<<<< HEAD
         "order": 29,
+=======
+        "order": 28,
+>>>>>>> origin/main
         "title": "Portable exact vector search"
       },
       {
@@ -1250,18 +1258,27 @@
     "backend.vector-search": {
       "path": "guide/backend/vector-search.md",
       "title": "Portable exact vector search",
+<<<<<<< HEAD
       "order": 29,
+=======
+      "order": 28,
+>>>>>>> origin/main
       "status": "current",
       "targets": [
         "local"
       ],
+<<<<<<< HEAD
       "maturity": "shipped",
+=======
+      "maturity": "partial",
+>>>>>>> origin/main
       "capabilities": [
         "backend.vector-search"
       ],
       "authorities": [
         "llp/0132-vector-search.spec.md",
         "src/vector/types.rs",
+<<<<<<< HEAD
         "src/vector/query.rs",
         "src/vector/sqlite.rs",
         "src/manifest.rs",
@@ -1275,11 +1292,32 @@
       "reviewed": "2026-08-03",
       "reviewedCommit": "HEAD",
       "sha256": "e4c5f0c16c9222cd4264c2923e5f3db669de2fe6d9195f0221a591b19f34b05c",
+=======
+        "src/vector/sqlite.rs",
+        "packages/snapback-codegen/define.mjs",
+        "packages/snapback-client/vector-search.mjs"
+      ],
+      "examples": [
+        "packages/snapback-codegen/vector-result-contracts.test.mjs"
+      ],
+      "reviewed": "2026-08-02",
+      "reviewedCommit": "HEAD",
+      "sha256": "f7f39f500936ece2725fd22fec575ec0fc7038b48895ab402d40f3de689bf3b9",
+>>>>>>> origin/main
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
+<<<<<<< HEAD
           "source": "packages/snapback-codegen/vector-authoring.test.mjs"
+=======
+          "source": "packages/snapback-codegen/vector-result-contracts.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/vector-result-contracts.test.mjs"
+>>>>>>> origin/main
         },
         {
           "lang": "js",
@@ -1347,7 +1385,11 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "HEAD",
+<<<<<<< HEAD
       "sha256": "deafe81747510ec4ad972d74fedc83cf6d3d7a01e4ed23889ad113071850e3b6",
+=======
+      "sha256": "6e54a48a8058ef2c80d85b29402884955938ab972b7473b6b17ede2a8a42eaca",
+>>>>>>> origin/main
       "snippets": []
     },
     "clients.app-cli": {
@@ -1988,7 +2030,11 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "HEAD",
+<<<<<<< HEAD
       "sha256": "b01f4aae6ded1ea946c166df50b0f20eb4667d3468374ebcf553081028910a07",
+=======
+      "sha256": "68e0cc1adfc0d4c7fb31b8e6c4208a96d36a6e795c6255dca6ea8da6649d001c",
+>>>>>>> origin/main
       "snippets": []
     },
     "operating.admin-console": {
@@ -2695,7 +2741,11 @@
     "gaps": [
       "backend.bounded-children-v1",
       "backend.notifications",
+<<<<<<< HEAD
       "backend.sequences",
+=======
+      "backend.observability-v1",
+>>>>>>> origin/main
       "backend.write-activity-v1",
       "clients.non-js",
       "clients.poll-hosted",
@@ -2708,5 +2758,9 @@
     "routes": 97,
     "hostOps": 35
   },
+<<<<<<< HEAD
   "contentHash": "71d5dccc43e95b0d026279be4ad2abec6cb9a252ff0fbf8d1b3ee949fadbdd2b"
+=======
+  "contentHash": "235b81eeebf9a543ceb0ec4599f3c8bef2af7af6273633801d482421147092f3"
+>>>>>>> origin/main
 }

@@ -21,7 +21,7 @@
 use serde_json::Value;
 
 use crate::assets::{
-    AssetBlobRecordV1, AssetRecordV1, AssetRenditionRecordV1, ASSET_DIGEST_ALGORITHM_SHA256,
+    ASSET_DIGEST_ALGORITHM_SHA256, AssetBlobRecordV1, AssetRecordV1, AssetRenditionRecordV1,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::Transaction;
@@ -231,12 +231,10 @@ fn blob_entry(record: &AssetBlobRecordV1) -> AssetCutBlobV1 {
 }
 
 fn all_asset_records(tx: &Transaction<'_>, app_id: &str) -> SnapbackResult<Vec<AssetRecordV1>> {
-    let mut statement = tx
-        .prepare("SELECT record_json FROM _snapback_asset_records_v1 WHERE app_id = ?1 ORDER BY asset_id")
-        ?;
-    let rows = statement
-        .query_map([app_id], |row| row.get::<_, String>(0))
-        ?;
+    let mut statement = tx.prepare(
+        "SELECT record_json FROM _snapback_asset_records_v1 WHERE app_id = ?1 ORDER BY asset_id",
+    )?;
+    let rows = statement.query_map([app_id], |row| row.get::<_, String>(0))?;
     let mut records = Vec::new();
     for row in rows {
         let json = row?;
@@ -390,7 +388,10 @@ mod tests {
         )
         .expect("write");
         let err = validate_export_dir(dir.path()).expect_err("tampered manifest");
-        assert_eq!(err.diagnostic.code, "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID");
+        assert_eq!(
+            err.diagnostic.code,
+            "SNAPBACK_ASSET_IMPORT_MANIFEST_INVALID"
+        );
     }
 }
 
@@ -493,8 +494,7 @@ pub fn apply_cut(
                 encode(&record)?,
                 now_ms,
             ],
-        )
-        ?;
+        )?;
     }
 
     for asset in &manifest.assets {
@@ -556,13 +556,14 @@ fn insert_imported_record(
             encode(record)?,
             now_ms,
         ],
-    )
-    ?;
+    )?;
     Ok(())
 }
 
 fn count(tx: &Transaction<'_>, table: &str) -> SnapbackResult<u64> {
-    Ok(tx.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
-        row.get::<_, u64>(0)
-    })?)
+    Ok(
+        tx.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+            row.get::<_, u64>(0)
+        })?,
+    )
 }

@@ -873,6 +873,34 @@ fn parse_action_watchdog_timeout(raw: Option<&str>) -> u64 {
 }
 
 const EXPO_PUSH_PRODUCTION_BASE_URL: &str = "https://exp.host";
+// Static v1 pacing: one send attempt owns the provider lane at a time while
+// its <=100-message batches run serially. This is deliberately conservative;
+// adaptive pacing is an explicit later decision (LLP 0143 OQ9).
+static EXPO_PUSH_SEND_PACER: StdMutex<()> = StdMutex::new(());
+
+fn transmit_expo_push_batch(
+    endpoint: &str,
+    access_token: Option<&str>,
+    payload: Value,
+    timeout: Duration,
+    deadline: Option<Instant>,
+) -> crate::push::PushBatchSettlementV1 {
+    match crate::push::post_expo_json(endpoint, access_token, payload, timeout) {
+        Ok(response) => crate::push::classify_expo_send_response(
+            response.status,
+            &response.body,
+            now_millis().saturating_add(60_000),
+        ),
+        Err(_) => {
+            let code = if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+                "timeout"
+            } else {
+                "transport-error"
+            };
+            crate::push::PushBatchSettlementV1::Ambiguous { code: code.into() }
+        }
+    }
+}
 
 fn loopback_provider_base_url(value: &str) -> bool {
     let Some(rest) = value
@@ -912,6 +940,13 @@ fn expo_push_provider_base_url(profile: ServerProfile) -> SnapbackResult<String>
         ));
     }
     Ok(value)
+}
+
+pub(crate) fn expo_push_fixture_clock_allowed(profile: ServerProfile) -> bool {
+    matches!(profile, ServerProfile::Dev | ServerProfile::Test)
+        && std::env::var("SNAPBACK_EXPO_PUSH_BASE_URL")
+            .ok()
+            .is_some_and(|value| loopback_provider_base_url(&value))
 }
 
 /// The action host for detached (off-mutex) Ibex action runs. Raw action
@@ -1506,68 +1541,69 @@ impl IbexActionHost for DetachedActionHost {
                         telemetry.clone(),
                         correlation,
                         || match read {
-                    DetachedMutationRead::Lane(read) => read.execute_detached_ibex_mutation(
-                        module,
-                        input.clone(),
-                        &binding.invocation,
-                        &binding.schema,
-                        self.deadline,
-                            ),
-                    DetachedMutationRead::Snapshot(db) => {
-                        crate::runtime::execute_ibex_mutation_prepared(
-                            module,
-                            input.clone(),
-                            &binding.invocation,
-                            crate::storage::DbRead::Live(db.as_ref()),
-                            None,
-                            Some(self.deadline),
+                            DetachedMutationRead::Lane(read) => read
+                                .execute_detached_ibex_mutation(
+                                    module,
+                                    input.clone(),
+                                    &binding.invocation,
+                                    &binding.schema,
+                                    self.deadline,
+                                ),
+                            DetachedMutationRead::Snapshot(db) => {
+                                crate::runtime::execute_ibex_mutation_prepared(
+                                    module,
+                                    input.clone(),
+                                    &binding.invocation,
+                                    crate::storage::DbRead::Live(db.as_ref()),
+                                    None,
+                                    Some(self.deadline),
                                 )
-                    }
+                            }
                         },
                     )?;
 
-                // The handler ran exactly once off Local. Reenter only to
-                // preview its immutable buffered effects, then release Local
-                // before the potentially blocking room reservation.
-                let mut snapback = self.lock_live("runMutation")?;
-                let preflight = snapback.preview_detached_nested_authorization_mutation(
-                    name, &input, &binding, &executed,
-                )?;
-                let snapshot = snapback.authorization_reservation_snapshot()?;
-                let ephemeral = snapback.ephemeral_api();
-                drop(snapback);
-                let reservation = self.reserve_authorization_commit(ephemeral, preflight)?;
-
-                // Acquire the instance before the independent commit gate. A
-                // wedged writer cannot strand this action worker: lock_live
-                // polls abandonment/deadline without holding either lock. If
-                // this call gets the gate first, the watchdog waits only for
-                // the bounded validation/SQLite commit (ENG-24340).
-                let mut snapback = self.lock_live("runMutation")?;
-                if snapback.authorization_reservation_snapshot()? != snapshot {
+                    // The handler ran exactly once off Local. Reenter only to
+                    // preview its immutable buffered effects, then release Local
+                    // before the potentially blocking room reservation.
+                    let mut snapback = self.lock_live("runMutation")?;
+                    let preflight = snapback.preview_detached_nested_authorization_mutation(
+                        name, &input, &binding, &executed,
+                    )?;
+                    let snapshot = snapback.authorization_reservation_snapshot()?;
+                    let ephemeral = snapback.ephemeral_api();
                     drop(snapback);
-                    reservation.cancel();
-                    return Err(action_authorization_reservation_stale(name));
-                }
-                crate::storage::install_managed_authorization_reservation(reservation);
-                let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    snapback.commit_detached_ibex_mutation_guarded(
-                        name,
-                        input,
-                        binding,
-                        executed,
-                        || self.validate_live("runMutation"),
-                        || self.lock_commit_live("runMutation"),
-                    )
-                }));
-                let unused = crate::storage::take_managed_authorization_reservation();
-                drop(snapback);
-                if let Some(unused) = unused {
-                    unused.cancel();
-                }
+                    let reservation = self.reserve_authorization_commit(ephemeral, preflight)?;
+
+                    // Acquire the instance before the independent commit gate. A
+                    // wedged writer cannot strand this action worker: lock_live
+                    // polls abandonment/deadline without holding either lock. If
+                    // this call gets the gate first, the watchdog waits only for
+                    // the bounded validation/SQLite commit (ENG-24340).
+                    let mut snapback = self.lock_live("runMutation")?;
+                    if snapback.authorization_reservation_snapshot()? != snapshot {
+                        drop(snapback);
+                        reservation.cancel();
+                        return Err(action_authorization_reservation_stale(name));
+                    }
+                    crate::storage::install_managed_authorization_reservation(reservation);
+                    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        snapback.commit_detached_ibex_mutation_guarded(
+                            name,
+                            input,
+                            binding,
+                            executed,
+                            || self.validate_live("runMutation"),
+                            || self.lock_commit_live("runMutation"),
+                        )
+                    }));
+                    let unused = crate::storage::take_managed_authorization_reservation();
+                    drop(snapback);
+                    if let Some(unused) = unused {
+                        unused.cancel();
+                    }
                     match outcome {
-                    Ok(result) => result,
-                    Err(payload) => std::panic::resume_unwind(payload),
+                        Ok(result) => result,
+                        Err(payload) => std::panic::resume_unwind(payload),
                     }
                 })();
                 match &mut output {
@@ -2067,15 +2103,22 @@ impl IbexActionHost for DetachedActionHost {
             (attempt, access_token)
         };
 
+        // @ref LLP 0143#d2-the-send-lane — pacing is host-owned and bounded
+        //   across attempts, never an application convention or hidden
+        //   provider burst. The manifest publishes this exact bound.
+        let _pacing = (!attempt.batches.is_empty()).then(|| {
+            EXPO_PUSH_SEND_PACER
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+        });
+
         for batch in &attempt.batches {
             let Some(claim) = ({
                 let mut snapback = self.lock_live("push.send.claim")?;
                 let _effect = self.authority.effect_guard("push batch claim")?;
-                snapback
-                    .auth_database_mut()
-                    .with_auth_transaction(|tx| {
-                        crate::push::claim_batch_in(tx, &batch.batch_id, now_millis())
-                    })?
+                snapback.auth_database_mut().with_auth_transaction(|tx| {
+                    crate::push::claim_batch_in(tx, &batch.batch_id, now_millis())
+                })?
             }) else {
                 continue;
             };
@@ -2095,11 +2138,9 @@ impl IbexActionHost for DetachedActionHost {
                 let _effect = self
                     .authority
                     .effect_guard("push batch transmitting marker")?;
-                snapback
-                    .auth_database_mut()
-                    .with_auth_transaction(|tx| {
-                        crate::push::mark_batch_transmitting_in(tx, &claim, now_millis())
-                    })?;
+                snapback.auth_database_mut().with_auth_transaction(|tx| {
+                    crate::push::mark_batch_transmitting_in(tx, &claim, now_millis())
+                })?;
             }
 
             let payload = crate::push::expo_send_payload(&claim, &request);
@@ -2113,35 +2154,20 @@ impl IbexActionHost for DetachedActionHost {
                 }
             } else {
                 let timeout = remaining.min(Duration::from_secs(15));
-                match crate::push::post_expo_json(
+                transmit_expo_push_batch(
                     &endpoint,
                     access_token.as_deref(),
                     payload,
                     timeout,
-                ) {
-                    Ok(response) => crate::push::classify_expo_send_response(
-                        response.status,
-                        &response.body,
-                        now_millis().saturating_add(60_000),
-                    ),
-                    Err(_) => {
-                        let code = if Instant::now() >= self.deadline {
-                            "timeout"
-                        } else {
-                            "transport-error"
-                        };
-                        crate::push::PushBatchSettlementV1::Ambiguous { code: code.into() }
-                    }
-                }
+                    Some(self.deadline),
+                )
             };
             {
                 let mut snapback = self.lock_live("push.send.settle")?;
                 let _effect = self.authority.effect_guard("push batch settlement")?;
-                snapback
-                    .auth_database_mut()
-                    .with_auth_transaction(|tx| {
-                        crate::push::settle_batch_in(tx, &claim, &settlement, now_millis())
-                    })?;
+                snapback.auth_database_mut().with_auth_transaction(|tx| {
+                    crate::push::settle_batch_in(tx, &claim, &settlement, now_millis())
+                })?;
             }
         }
         let mut snapback = self.lock_live("push.send.result")?;
@@ -2699,13 +2725,13 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     correlation,
                     || {
                         runtime.invoke_ibex_action_prepared(
-                    &module,
-                    input,
-                    &invocation,
-                    metadata,
-                    &mut host,
-                    grants,
-                    Some(execution_deadline),
+                            &module,
+                            input,
+                            &invocation,
+                            metadata,
+                            &mut host,
+                            grants,
+                            Some(execution_deadline),
                         )
                     },
                 );
@@ -3088,10 +3114,10 @@ async fn dispatch_cron_tick_background(
                 // persist this capacity outcome must not abandon later claims
                 // in the batch; record it and continue draining ownership.
                 if let Err(error) = finish {
-                    state.lock().await.record_cron_tick_error(
-                        error,
-                        crate::local::DiagnosticBoundary::Attached,
-                    );
+                    state
+                        .lock()
+                        .await
+                        .record_cron_tick_error(error, crate::local::DiagnosticBoundary::Attached);
                 }
             }
         }
@@ -3275,13 +3301,9 @@ pub fn spawn_jobs_worker(state: SharedSnapback, autonomy_disabled: bool) -> Join
                 continue;
             }
             let now = now_millis();
-            let _ = jobs_drain_detached(
-                &state,
-                now,
-                1,
-                crate::local::DiagnosticBoundary::Standalone,
-            )
-            .await;
+            let _ =
+                jobs_drain_detached(&state, now, 1, crate::local::DiagnosticBoundary::Standalone)
+                    .await;
         }
     })
 }
@@ -14463,9 +14485,7 @@ fn telemetry_operation_class_for_route(
         RouteClass::SystemStatic => {
             crate::telemetry_contract::OperationClassIdV1::SYSTEM_STATIC_ASSET
         }
-        RouteClass::SystemApi => {
-            crate::telemetry_contract::OperationClassIdV1::SYSTEM_CONTROL_API
-        }
+        RouteClass::SystemApi => crate::telemetry_contract::OperationClassIdV1::SYSTEM_CONTROL_API,
     }
 }
 
@@ -16471,40 +16491,92 @@ const JOURNAL_RETAIN_MS: u64 = 24 * 60 * 60 * 1_000;
 /// @ref LLP 0143#d3-the-handoff-ledger-receipts-honesty-and-crash-safety —
 ///   expired transmit claims recover by the durable marker, and Expo receipts
 ///   settle from bounded allowlisted facts rather than raw provider prose.
-async fn drive_push_maintenance_once(
+struct PushMaintenancePlan {
+    recovered: Option<crate::push::PushRecoveredBatchV1>,
+    receipts: crate::push::PushReceiptPollClaimV1,
+    access_token: Option<String>,
+}
+
+pub(crate) async fn drive_push_maintenance_once(
     state: &SharedSnapback,
     profile: ServerProfile,
     now_ms: u64,
 ) -> SnapbackResult<()> {
     let planned = with_snapback(
         state,
-        move |snapback|
-              -> SnapbackResult<
-            Option<(crate::push::PushReceiptPollClaimV1, Option<String>)>,
-        > {
-        let has_ledger = snapback
-            .auth_database_mut()
-            .schema()
-            .push_seam
-            .as_ref()
-            .is_some_and(|declaration| declaration.ledger.is_some());
-        if !has_ledger {
-            return Ok(None);
-        }
-        let access_token = snapback.push_maintenance_access_token();
-        let claim = snapback
-            .auth_database_mut()
-            .with_auth_transaction(|tx| {
+        move |snapback| -> SnapbackResult<Option<PushMaintenancePlan>> {
+            let has_ledger = snapback
+                .auth_database_mut()
+                .schema()
+                .push_seam
+                .as_ref()
+                .is_some_and(|declaration| declaration.ledger.is_some());
+            if !has_ledger {
+                return Ok(None);
+            }
+            let access_token = snapback.push_maintenance_access_token();
+            let claim = snapback.auth_database_mut().with_auth_transaction(|tx| {
                 crate::push::recover_expired_batches_in(tx, now_ms)?;
-                crate::push::claim_due_receipts_in(tx, now_ms)
+                crate::push::expire_ledger_in(tx, now_ms)?;
+                let recovered = crate::push::claim_recovered_batch_for_transmit_in(tx, now_ms)?;
+                let receipts = crate::push::claim_due_receipts_in(tx, now_ms)?;
+                Ok((recovered, receipts))
             })?;
-        Ok(Some((claim, access_token)))
+            Ok(Some(PushMaintenancePlan {
+                recovered: claim.0,
+                receipts: claim.1,
+                access_token,
+            }))
         },
     )
     .await?;
-    let Some((claim, access_token)) = planned else {
+    let Some(PushMaintenancePlan {
+        recovered,
+        receipts: claim,
+        access_token,
+    }) = planned
+    else {
         return Ok(());
     };
+    if let Some(recovered) = recovered {
+        let crate::push::PushRecoveredBatchV1 {
+            claim: recovered_claim,
+            payload,
+        } = recovered;
+        let endpoint = format!(
+            "{}/--/api/v2/push/send",
+            expo_push_provider_base_url(profile)?.trim_end_matches('/')
+        );
+        let recovered_access_token = access_token.clone();
+        let settlement = tokio::task::spawn_blocking(move || {
+            // @ref LLP 0143#d2-the-send-lane — crash recovery shares the
+            //   exact one-at-a-time provider pacing boundary with live sends.
+            let _pacing = EXPO_PUSH_SEND_PACER
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            transmit_expo_push_batch(
+                &endpoint,
+                recovered_access_token.as_deref(),
+                payload,
+                Duration::from_secs(15),
+                None,
+            )
+        })
+        .await
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_PUSH_MAINTENANCE_WORKER_FAILED",
+                "push",
+                "the recovered push worker terminated before returning a bounded result",
+            )
+        })?;
+        with_snapback(state, move |snapback| {
+            snapback.auth_database_mut().with_auth_transaction(|tx| {
+                crate::push::settle_batch_in(tx, &recovered_claim, &settlement, now_millis())
+            })
+        })
+        .await?;
+    }
     if claim.entries.is_empty() {
         return Ok(());
     }
@@ -16516,12 +16588,9 @@ async fn drive_push_maintenance_once(
     let payload = crate::push::expo_receipt_payload(&claim);
     let outcomes = tokio::task::spawn_blocking(move || -> SnapbackResult<Option<_>> {
         let timeout = Duration::from_secs(15);
-        let Ok(response) = crate::push::post_expo_json(
-            &endpoint,
-            access_token.as_deref(),
-            payload,
-            timeout,
-        ) else {
+        let Ok(response) =
+            crate::push::post_expo_json(&endpoint, access_token.as_deref(), payload, timeout)
+        else {
             return Ok(None);
         };
         if response.status != 200 {
@@ -16544,11 +16613,9 @@ async fn drive_push_maintenance_once(
         return Ok(());
     };
     with_snapback(state, move |snapback| {
-        snapback
-            .auth_database_mut()
-            .with_auth_transaction(|tx| {
-                crate::push::settle_receipt_poll_in(tx, &claim, &outcomes, now_millis())
-            })
+        snapback.auth_database_mut().with_auth_transaction(|tx| {
+            crate::push::settle_receipt_poll_in(tx, &claim, &outcomes, now_millis())
+        })
     })
     .await
 }
@@ -16779,10 +16846,10 @@ pub fn spawn_cron_scheduler(state: SharedSnapback, autonomy_disabled: bool) -> J
                 // Tick-machinery errors go to the diagnostics ring; the
                 // recording is memory-only, so an inline lock is fine (the
                 // same argument as disconnect's inline lock).
-                state.lock().await.record_cron_tick_error(
-                    error,
-                    crate::local::DiagnosticBoundary::Standalone,
-                );
+                state
+                    .lock()
+                    .await
+                    .record_cron_tick_error(error, crate::local::DiagnosticBoundary::Standalone);
             }
         }
     })
@@ -17755,11 +17822,7 @@ async fn host_ops_handler_inner(
             .clone()
             .map(|scope| std::collections::BTreeSet::from([scope]));
         if let Some(scopes) = secret_scopes.as_ref() {
-            crate::admin::preflight_secret_read(
-                &secret_reads,
-                &headers,
-                scopes.clone(),
-            )?;
+            crate::admin::preflight_secret_read(&secret_reads, &headers, scopes.clone())?;
         }
         let (outcome, rows) = match request.operation.as_str() {
             "telemetry.events" => match telemetry_host_operation_input::<
@@ -17786,10 +17849,9 @@ async fn host_ops_handler_inner(
                 crate::telemetry_query::TelemetryAgentExportRequestV1,
             >(&request)
             .and_then(|input| {
-                runtime.telemetry.agent_export_page(
-                    &input,
-                    runtime.telemetry_export_continuation_key.as_ref(),
-                )
+                runtime
+                    .telemetry
+                    .agent_export_page(&input, runtime.telemetry_export_continuation_key.as_ref())
             }) {
                 Ok(response) => {
                     let rows = response.records.len();
@@ -17858,41 +17920,38 @@ async fn host_ops_handler_inner(
             }
             _ => {
                 let outcome = telemetry_host_operation_input::<
-                crate::telemetry_query::TelemetryStatsRequestV1,
-            >(&request)
-            .and_then(|input| runtime.telemetry.query_stats(&input))
-            .and_then(|response| {
-                serde_json::to_value(response).map_err(|_| {
-                    SnapbackError::error(
-                        "SNAPBACK_TELEMETRY_QUERY_SERIALIZATION_FAILED",
-                        "telemetry",
-                        "failed to serialize the telemetry stats response",
-                    )
-                })
-            });
+                    crate::telemetry_query::TelemetryStatsRequestV1,
+                >(&request)
+                .and_then(|input| runtime.telemetry.query_stats(&input))
+                .and_then(|response| {
+                    serde_json::to_value(response).map_err(|_| {
+                        SnapbackError::error(
+                            "SNAPBACK_TELEMETRY_QUERY_SERIALIZATION_FAILED",
+                            "telemetry",
+                            "failed to serialize the telemetry stats response",
+                        )
+                    })
+                });
                 (outcome, 0)
             }
         };
         let mut result = with_snapback(&state, move |snapback| {
             crate::host_ops::telemetry_query_result(
-                snapback,
-                &request,
-                server_url,
-                profile,
-                outcome,
+                snapback, &request, server_url, profile, outcome,
             )
         })
         .await;
         if requested_operation == "telemetry.export" && result.ok {
             let page_bytes = serde_json::to_vec(&result.data).map(|bytes| bytes.len());
             let envelope_bytes = serde_json::to_vec(&result).map(|bytes| bytes.len());
-            let envelope_within_allowance = page_bytes
-                .ok()
-                .zip(envelope_bytes.ok())
-                .is_some_and(|(page, envelope)| {
-                    envelope.saturating_sub(page)
-                        <= crate::host_ops::TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE
-                });
+            let envelope_within_allowance =
+                page_bytes
+                    .ok()
+                    .zip(envelope_bytes.ok())
+                    .is_some_and(|(page, envelope)| {
+                        envelope.saturating_sub(page)
+                            <= crate::host_ops::TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE
+                    });
             if !envelope_within_allowance {
                 result.ok = false;
                 result.data = serde_json::Value::Object(Default::default());
@@ -17907,13 +17966,7 @@ async fn host_ops_handler_inner(
             }
         }
         if let Some(scopes) = secret_scopes.filter(|_| result.ok) {
-            crate::admin::reserve_secret_read_json(
-                &secret_reads,
-                &headers,
-                scopes,
-                rows,
-                &result,
-            )?;
+            crate::admin::reserve_secret_read_json(&secret_reads, &headers, scopes, rows, &result)?;
         }
         return Ok(Json(result));
     }
@@ -18992,13 +19045,12 @@ async fn invoke_query(
         .await
     } else {
         with_snapback(&state, move |snapback| {
-            let invocation = snapback
-                .invoke_query_with_dependencies_prepared_generation(
-                    &name,
-                    input,
-                    authority.clone(),
-                    expected_generation.as_ref(),
-                )?;
+            let invocation = snapback.invoke_query_with_dependencies_prepared_generation(
+                &name,
+                input,
+                authority.clone(),
+                expected_generation.as_ref(),
+            )?;
             authority.validate_admission("query generation facts")?;
             let facts = snapback.function_invocation_facts(authority.active_mode())?;
             Ok((invocation.output, facts))
@@ -20073,35 +20125,35 @@ async fn invoke_mutation(
     let stage_authority = authority.clone();
     let (result, receipt, response_authority_descriptor) =
         with_snapback_staged_authorization_write(
-        &state,
-        move |snapback| {
-            let response_authority_descriptor =
-                snapback.descriptor_for_prepared_authority(&stage_authority)?;
-            let (preflight, staged) = snapback
-                .stage_recorded_authorization_mutation_with_generation_and_settlement(
-                &stage_name,
-                stage_input.clone(),
-                stage_client_mutation_id.clone(),
-                stage_authority_descriptor.clone(),
-                &stage_acknowledgements,
-                "http",
-                stage_authority.clone(),
-                stage_expected_generation.as_ref(),
-                stage_settlement.clone(),
-            )?;
-            Ok((preflight, (response_authority_descriptor, staged)))
-        },
-        move |snapback, (response_authority_descriptor, staged)| {
-            snapback
-                .commit_staged_recorded_authorization_mutation(staged)
-                .map(|(result, receipt)| (result, receipt, response_authority_descriptor))
-        },
-    )
-    .await
-    .map_err(ApiError::from)
-    .map_err(|error| error.with_attribution(attribution.clone()))?
-    .map_err(ApiError::from)
-    .map_err(|error| error.with_attribution(attribution.clone()))?;
+            &state,
+            move |snapback| {
+                let response_authority_descriptor =
+                    snapback.descriptor_for_prepared_authority(&stage_authority)?;
+                let (preflight, staged) = snapback
+                    .stage_recorded_authorization_mutation_with_generation_and_settlement(
+                        &stage_name,
+                        stage_input.clone(),
+                        stage_client_mutation_id.clone(),
+                        stage_authority_descriptor.clone(),
+                        &stage_acknowledgements,
+                        "http",
+                        stage_authority.clone(),
+                        stage_expected_generation.as_ref(),
+                        stage_settlement.clone(),
+                    )?;
+                Ok((preflight, (response_authority_descriptor, staged)))
+            },
+            move |snapback, (response_authority_descriptor, staged)| {
+                snapback
+                    .commit_staged_recorded_authorization_mutation(staged)
+                    .map(|(result, receipt)| (result, receipt, response_authority_descriptor))
+            },
+        )
+        .await
+        .map_err(ApiError::from)
+        .map_err(|error| error.with_attribution(attribution.clone()))?
+        .map_err(ApiError::from)
+        .map_err(|error| error.with_attribution(attribution.clone()))?;
     match result {
         // The mutation envelope carries its attribution member directly
         // (never through the FunctionResponse flatten) so the served bytes
@@ -21184,8 +21236,7 @@ struct TestLiveStreamAbortHook {
 }
 
 #[cfg(test)]
-static TEST_LIVE_STREAM_ABORT_HOOK: StdMutex<Option<TestLiveStreamAbortHook>> =
-    StdMutex::new(None);
+static TEST_LIVE_STREAM_ABORT_HOOK: StdMutex<Option<TestLiveStreamAbortHook>> = StdMutex::new(None);
 
 #[cfg(test)]
 fn install_test_live_stream_abort(
@@ -21195,7 +21246,10 @@ fn install_test_live_stream_abort(
     let mut hook = TEST_LIVE_STREAM_ABORT_HOOK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    assert!(hook.is_none(), "only one live-stream abort hook may be armed");
+    assert!(
+        hook.is_none(),
+        "only one live-stream abort hook may be armed"
+    );
     *hook = Some(TestLiveStreamAbortHook {
         connection_id,
         sender,
@@ -21224,8 +21278,8 @@ async fn run_live_stream(socket: WebSocket, task: LiveStreamTask) {
             hook.sender
                 .send(abort)
                 .expect("live-stream abort test receiver remains present");
-            let _ = futures_util::future::Abortable::new(live_stream(socket, task), registration)
-                .await;
+            let _ =
+                futures_util::future::Abortable::new(live_stream(socket, task), registration).await;
             return;
         }
     }
@@ -23906,12 +23960,14 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
     match code {
         "SNAPBACK_JOB_PUSH_GRANT_INVALID"
         | "SNAPBACK_PUSH_CONFIG_GRANT_MISSING"
+        | "SNAPBACK_PUSH_FIXTURE_CLOCK_REFUSED"
+        | "SNAPBACK_PUSH_LEDGER_ARGS_INVALID"
+        | "SNAPBACK_PUSH_LEDGER_NOT_DECLARED"
+        | "SNAPBACK_PUSH_REDRIVE_REFUSED"
         | "SNAPBACK_PUSH_SEND_INVALID"
         | "SNAPBACK_PUSH_TOKEN_INVALID"
         | "SNAPBACK_PUSH_SEAM_AUTH_REQUIRED"
-        | "SNAPBACK_PUSH_SEAM_NOT_DECLARED" => {
-            StatusCode::BAD_REQUEST
-        }
+        | "SNAPBACK_PUSH_SEAM_NOT_DECLARED" => StatusCode::BAD_REQUEST,
         "SNAPBACK_PUSH_SESSION_STALE" | "SNAPBACK_PUSH_SESSION_REQUIRED" => {
             StatusCode::UNAUTHORIZED
         }
@@ -23924,7 +23980,16 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_PUSH_ATTEMPT_EXHAUSTED"
         | "SNAPBACK_PUSH_SEND_UNAVAILABLE"
         | "SNAPBACK_PUSH_SEND_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
-        "SNAPBACK_PUSH_REGISTRY_CORRUPT" => StatusCode::INTERNAL_SERVER_ERROR,
+        "SNAPBACK_PUSH_BATCH_CLAIM_RACED"
+        | "SNAPBACK_PUSH_BATCH_CLAIM_STALE"
+        | "SNAPBACK_PUSH_BATCH_NOT_CLAIMABLE"
+        | "SNAPBACK_PUSH_CONFIG_GRANT_INVALID"
+        | "SNAPBACK_PUSH_LEDGER_CORRUPT"
+        | "SNAPBACK_PUSH_MAINTENANCE_WORKER_FAILED"
+        | "SNAPBACK_PUSH_PROVIDER_OVERRIDE_REFUSED"
+        | "SNAPBACK_PUSH_RECEIPT_CLAIM_STALE"
+        | "SNAPBACK_PUSH_SEND_FAILED"
+        | "SNAPBACK_PUSH_REGISTRY_CORRUPT" => StatusCode::INTERNAL_SERVER_ERROR,
         // @ref LLP 0132#query-surface — malformed query/value carriers and a
         // mutation that exceeds the fixed maintenance admission ceiling are
         // caller-fixable. Retrying the unchanged request cannot succeed.
@@ -24286,6 +24351,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_SCOPE_BASIS_CORRUPT"
         | "SNAPBACK_EPHEMERAL_AUTHORITY_PENDING"
         | "SNAPBACK_SEARCH_INDEX_UNAVAILABLE"
+        | "SNAPBACK_VECTOR_INDEX_UNAVAILABLE"
         | "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED"
         | "SNAPBACK_AUTH_REVOCATION_UNCERTAIN"
         | "SNAPBACK_AUTH_RETRY_EXHAUSTED"
@@ -24654,6 +24720,13 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_SEARCH_QUERY_PLAN_INVALID"
         | "SNAPBACK_SEARCH_SOURCE_LIMIT"
         | "SNAPBACK_SEARCH_WORK_LIMIT"
+        // @ref LLP 0132#query-surface — malformed/query/value/bound work is a
+        // closed caller/declaration refusal; unavailable and corrupt retain
+        // serving-failure classes below.
+        | "SNAPBACK_VECTOR_CORPUS_BOUND"
+        | "SNAPBACK_VECTOR_QUERY_INVALID"
+        | "SNAPBACK_VECTOR_VALUE_INVALID"
+        | "SNAPBACK_VECTOR_WORK_LIMIT"
         | "SNAPBACK_WRITE_WITH_ACTIVITY_PLAN_INVALID"
         // LLP 0081 §2/§3: malformed/tampered plan artifacts and the
         // deferred retained-work posture are author input.
@@ -24756,7 +24829,7 @@ impl IntoResponse for ApiError {
     }
 }
 
-fn now_millis() -> u64 {
+pub(crate) fn now_millis() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -25097,18 +25170,21 @@ mod tests {
                 None,
                 true,
             ));
-            observation.terminal.record(crate::ephemeral::DeliveryTerminalEvent {
-                code: crate::live_wire::LiveAuthErrorCode::SessionExpired,
-                reason: crate::live_wire::LiveAuthErrorReason::Revoked,
-                authority_disposition: crate::live_wire::LiveAuthorityDisposition::DurableDelete,
-                close_by: Instant::now(),
-            });
+            observation
+                .terminal
+                .record(crate::ephemeral::DeliveryTerminalEvent {
+                    code: crate::live_wire::LiveAuthErrorCode::SessionExpired,
+                    reason: crate::live_wire::LiveAuthErrorReason::Revoked,
+                    authority_disposition:
+                        crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+                    close_by: Instant::now(),
+                });
             observation.finish();
         }
         telemetry.force_flush().expect("flush typed terminal");
-        let raw = rusqlite::Connection::open(
-            crate::telemetry::Telemetry::path_for_database(&database_path),
-        )
+        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+            &database_path,
+        ))
         .expect("open typed socket telemetry");
         let (status, code, details): (i64, String, String) = raw
             .query_row(
@@ -25160,9 +25236,9 @@ mod tests {
             );
         }
         telemetry.force_flush().expect("flush service diagnostic");
-        let raw = rusqlite::Connection::open(
-            crate::telemetry::Telemetry::path_for_database(&database_path),
-        )
+        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+            &database_path,
+        ))
         .expect("open service diagnostic telemetry");
         let count: i64 = raw
             .query_row(
@@ -25186,9 +25262,9 @@ mod tests {
             .expect("bind ready listener");
         let _bound = super::app(state).bind(listener).expect("couple bound app");
         telemetry.force_flush().expect("flush ready lifecycle");
-        let raw = rusqlite::Connection::open(
-            crate::telemetry::Telemetry::path_for_database(&database_path),
-        )
+        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+            &database_path,
+        ))
         .expect("open ready telemetry");
         let count: i64 = raw
             .query_row(
@@ -25225,7 +25301,9 @@ mod tests {
         tower::ServiceExt::ready(&mut direct)
             .await
             .expect("direct service remains ready");
-        direct_telemetry.force_flush().expect("flush direct readiness");
+        direct_telemetry
+            .force_flush()
+            .expect("flush direct readiness");
         let after: i64 = direct_raw
             .query_row(
                 "SELECT count(*) FROM telemetry_events WHERE kind='lifecycle' AND name='process_ready'",
@@ -38474,6 +38552,10 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_SEARCH_QUERY_PLAN_INVALID",
         "SNAPBACK_SEARCH_SOURCE_LIMIT",
         "SNAPBACK_SEARCH_WORK_LIMIT",
+        "SNAPBACK_VECTOR_CORPUS_BOUND",
+        "SNAPBACK_VECTOR_QUERY_INVALID",
+        "SNAPBACK_VECTOR_VALUE_INVALID",
+        "SNAPBACK_VECTOR_WORK_LIMIT",
         "SNAPBACK_WRITE_WITH_ACTIVITY_PLAN_INVALID",
         "SNAPBACK_HOST_OP_CLI_ONLY",
         "SNAPBACK_HOST_OP_FUNCTION_KIND_UNSUPPORTED",
@@ -38648,11 +38730,16 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_ATTACH_UNAVAILABLE",
         "SNAPBACK_ASSET_ATTACH_DENIED",
         "SNAPBACK_ASSET_TTL_INVALID",
-        "SNAPBACK_PUSH_SEAM_AUTH_REQUIRED",
-        "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
+        // LLP 0143 app-authoring and test-only maintenance request refusals.
         "SNAPBACK_JOB_PUSH_GRANT_INVALID",
         "SNAPBACK_PUSH_CONFIG_GRANT_MISSING",
+        "SNAPBACK_PUSH_FIXTURE_CLOCK_REFUSED",
+        "SNAPBACK_PUSH_LEDGER_ARGS_INVALID",
+        "SNAPBACK_PUSH_LEDGER_NOT_DECLARED",
+        "SNAPBACK_PUSH_REDRIVE_REFUSED",
         "SNAPBACK_PUSH_SEND_INVALID",
+        "SNAPBACK_PUSH_SEAM_AUTH_REQUIRED",
+        "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
         "SNAPBACK_PUSH_TOKEN_INVALID",
     ];
 
@@ -38833,11 +38920,12 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_NOT_READY",
         "SNAPBACK_ASSET_REFERENCED",
         "SNAPBACK_SEED_ASSET_FIXTURE_NOT_INGESTED",
-        "SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION",
-        "SNAPBACK_PUSH_APP_SCOPE_CHANGE_BLOCKED",
+        // LLP 0143 dedupe/redrive attempts conflict with durable intent state.
         "SNAPBACK_PUSH_DEDUPE_CONFLICT",
         "SNAPBACK_PUSH_REDRIVE_NOT_AMBIGUOUS",
         "SNAPBACK_PUSH_REDRIVE_RACED",
+        "SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION",
+        "SNAPBACK_PUSH_APP_SCOPE_CHANGE_BLOCKED",
     ];
 
     const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
@@ -38989,6 +39077,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_PUSH_SEND_UNSUPPORTED",
         "SNAPBACK_READ_LANE_UNAVAILABLE",
         "SNAPBACK_SEARCH_INDEX_UNAVAILABLE",
+        "SNAPBACK_VECTOR_INDEX_UNAVAILABLE",
         "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED",
     ];
 
@@ -39202,6 +39291,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_SCHEMA_PHYSICAL_COLUMN_INVALID",
         "SNAPBACK_SEARCH_INDEX_CORRUPT",
         "SNAPBACK_SEARCH_MAINTENANCE_FAILED",
+        "SNAPBACK_VECTOR_INDEX_CORRUPT",
         "SNAPBACK_SQLITE_ERROR",
         "SNAPBACK_TEST_LIVE_SCOPE_REGISTRATION_FAILED",
         "SNAPBACK_TEST_SCOPE_RETIREMENT_AUTH_FAILED",
@@ -40251,8 +40341,8 @@ globalThis.__snapbackHandlers = {
             1,
             crate::local::DiagnosticBoundary::Attached,
         )
-            .await
-            .expect("drain runs");
+        .await
+        .expect("drain runs");
         assert!(drained.is_empty(), "nothing may drain after rollback");
     }
 
@@ -40336,8 +40426,8 @@ globalThis.__snapbackHandlers = {
             1,
             crate::local::DiagnosticBoundary::Attached,
         )
-            .await
-            .expect("early drain");
+        .await
+        .expect("early drain");
         assert!(
             early.is_empty(),
             "the delayed job must not be claimable early"
@@ -40350,8 +40440,8 @@ globalThis.__snapbackHandlers = {
             1,
             crate::local::DiagnosticBoundary::Attached,
         )
-            .await
-            .expect("due drain");
+        .await
+        .expect("due drain");
         assert_eq!(drained.len(), 1, "exactly the one due job is claimed");
         assert_eq!(drained[0].job_id, job_id);
         assert_eq!(drained[0].attempt, 1);
@@ -40366,8 +40456,8 @@ globalThis.__snapbackHandlers = {
             1,
             crate::local::DiagnosticBoundary::Attached,
         )
-            .await
-            .expect("repeat drain");
+        .await
+        .expect("repeat drain");
         assert!(again.is_empty(), "a settled job must not be re-claimed");
 
         // The action's nested mutation committed the durable effect.
@@ -43742,8 +43832,7 @@ globalThis.__snapbackHandlers = {
             retry_capture: capture.clone(),
             task: tokio::spawn(async { panic!("injected retired cleanup panic") }),
         };
-        let retry =
-            super::join_retired_connection_cleanup_batch(vec![failed], &telemetry).await;
+        let retry = super::join_retired_connection_cleanup_batch(vec![failed], &telemetry).await;
         assert_eq!(retry, vec![capture.clone()]);
         let replacement = state
             .connections
@@ -43775,9 +43864,9 @@ globalThis.__snapbackHandlers = {
         );
         state.connections.lock().assert_grant_indexes_consistent();
         telemetry.force_flush().expect("flush cleanup diagnostic");
-        let raw = rusqlite::Connection::open(
-            crate::telemetry::Telemetry::path_for_database(&telemetry_app),
-        )
+        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+            &telemetry_app,
+        ))
         .expect("open cleanup telemetry");
         let count: i64 = raw
             .query_row(
@@ -46841,9 +46930,9 @@ globalThis.__snapbackHandlers = {
         })
         .await
         .expect("typed socket observation completes");
-        let raw = rusqlite::Connection::open(
-            crate::telemetry::Telemetry::path_for_database(&database_path),
-        )
+        let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
+            &database_path,
+        ))
         .expect("open typed socket path telemetry");
         let (count, status, code, details): (i64, i64, String, String) = raw
             .query_row(
@@ -46880,8 +46969,7 @@ globalThis.__snapbackHandlers = {
             .connections
             .open(Some("aborted_socket".to_owned()), None, true)
             .expect("aborted socket grant");
-        let abort_receiver =
-            super::install_test_live_stream_abort(grant.connection_id.clone());
+        let abort_receiver = super::install_test_live_stream_abort(grant.connection_id.clone());
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .expect("bind aborted socket server");
@@ -46907,7 +46995,10 @@ globalThis.__snapbackHandlers = {
         );
         request.headers_mut().insert(
             "x-snapback-connection-token",
-            grant.connection_token.parse().expect("connection token header"),
+            grant
+                .connection_token
+                .parse()
+                .expect("connection token header"),
         );
         let (socket, _) = tokio_tungstenite::connect_async(request)
             .await
@@ -46920,7 +47011,9 @@ globalThis.__snapbackHandlers = {
         })
         .await
         .expect("abortable live stream registers");
-        telemetry.force_flush().expect("flush socket admission before abort");
+        telemetry
+            .force_flush()
+            .expect("flush socket admission before abort");
         assert_eq!(
             telemetry.event_count_for_test(
                 "ws_connect",
@@ -46943,7 +47036,9 @@ globalThis.__snapbackHandlers = {
         tokio::time::timeout(Duration::from_secs(2), async {
             loop {
                 tokio::task::yield_now().await;
-                telemetry.force_flush().expect("flush aborted socket terminal");
+                telemetry
+                    .force_flush()
+                    .expect("flush aborted socket terminal");
                 if telemetry.event_count_for_test(
                     "ws_connect",
                     "/live/{connection_id}/stream",
@@ -46965,10 +47060,7 @@ globalThis.__snapbackHandlers = {
             vec![(Some(499), None)]
         );
         assert_eq!(
-            telemetry.event_details_for_test(
-                "ws_connect",
-                "/live/{connection_id}/stream"
-            )[1]
+            telemetry.event_details_for_test("ws_connect", "/live/{connection_id}/stream")[1]
                 .as_ref()
                 .and_then(|details| details.get("cause")),
             Some(&json!("cancelled"))

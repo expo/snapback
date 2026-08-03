@@ -31,8 +31,7 @@
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
-    FunctionArgsContract, FunctionDefinition, ResultValueContract,
-    SCHEMA_REF_SEARCH_QUERY_AST_V1,
+    FunctionArgsContract, FunctionDefinition, ResultValueContract, SCHEMA_REF_SEARCH_QUERY_AST_V1,
 };
 use crate::search::types::{SearchQueryAstV1, SearchRequestV1};
 use serde_json::{Value, json};
@@ -191,9 +190,7 @@ fn validate_args_root(args: &Value, contract: &FunctionArgsContract) -> Result<(
         match object.get(&field.name) {
             Some(value) => validate_node(value, &field.value, &path, 0, &mut budget)?,
             None if field.required => {
-                return Err(
-                    ArgsViolation::at(&path, node_kind(&field.value), "missing").into(),
-                );
+                return Err(ArgsViolation::at(&path, node_kind(&field.value), "missing").into());
             }
             None => {}
         }
@@ -308,9 +305,8 @@ fn validate_node(
                     Err(delegated @ ArgsFailure::Delegated(_)) => return Err(delegated),
                 }
             }
-            let mut failure = first_failure.unwrap_or_else(|| {
-                ArgsViolation::at(path, "union", json_kind(value))
-            });
+            let mut failure =
+                first_failure.unwrap_or_else(|| ArgsViolation::at(path, "union", json_kind(value)));
             failure.failed_variants = Some(variants.len());
             Err(failure.into())
         }
@@ -534,7 +530,11 @@ mod tests {
         // The Split-Ledger shape: `splits: v.array(v.object({...}), {maxItems})`.
         FunctionArgsContract {
             fields: vec![
-                field("note", false, ResultValueContract::String { max_bytes: 256 }),
+                field(
+                    "note",
+                    false,
+                    ResultValueContract::String { max_bytes: 256 },
+                ),
                 field(
                     "splits",
                     true,
@@ -786,7 +786,11 @@ mod tests {
                         schema: SCHEMA_REF_SEARCH_QUERY_AST_V1.to_owned(),
                     },
                 ),
-                field("limit", false, ResultValueContract::Integer { min: 1, max: 50 }),
+                field(
+                    "limit",
+                    false,
+                    ResultValueContract::Integer { min: 1, max: 50 },
+                ),
                 field(
                     "after",
                     false,
@@ -795,11 +799,9 @@ mod tests {
             ],
         };
         let function = function(contract);
-        let error = validate_function_args(
-            &function,
-            &json!({ "query": { "all": [] }, "limit": 0 }),
-        )
-        .expect_err("limit below bound");
+        let error =
+            validate_function_args(&function, &json!({ "query": { "all": [] }, "limit": 0 }))
+                .expect_err("limit below bound");
         assert_eq!(
             error.diagnostic.code,
             "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION"
@@ -910,7 +912,14 @@ mod tests {
         let scalar = function(FunctionArgsContract {
             fields: vec![
                 field("a", true, ResultValueContract::String { max_bytes: 256 }),
-                field("b", true, ResultValueContract::Integer { min: 0, max: 1_000_000 }),
+                field(
+                    "b",
+                    true,
+                    ResultValueContract::Integer {
+                        min: 0,
+                        max: 1_000_000,
+                    },
+                ),
                 field("c", true, ResultValueContract::Boolean),
                 field(
                     "d",

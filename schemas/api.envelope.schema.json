@@ -826,6 +826,7 @@
         "SearchQuery",
         "VectorQuery",
         "JobStatusQuery",
+        "PushLedgerQuery",
         "Mutation",
         "Action",
         "RelationalQuery",

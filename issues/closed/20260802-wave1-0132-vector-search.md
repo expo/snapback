@@ -151,3 +151,13 @@ This checkpoint does not register `vector_search_v1` and changes no field,
 manifest, storage, runtime, client, target, or capability-support fact. The
 ticket remains open for the complete Accepted LLP 0132 implementation and
 target evidence; the A5 Guide row remains a design-only GAP.
+
+## Parallel landing note — 2026-08-03
+
+A concurrent session landed an independent smaller LLP 0132 implementation
+directly on main (532d56ee) while this program was completing off-branch.
+This reconciliation keeps the full program implementation above; the
+parallel landing is superseded. Its post-close residue remains valid:
+`node scripts/client-bundle-metrology.mjs --check` requires a frozen
+baseline for the `public-subpath-vector-search` export-map subpath, which
+is added with this reconciliation landing.

@@ -1726,11 +1726,7 @@ impl<'a> IbexHostContext<'a> {
                 }
 
                 let stored = self.db().get(&declaration.scope_table, &scope_row_id)?;
-                self.capture_point_read(
-                    &declaration.scope_table,
-                    &scope_row_id,
-                    stored.as_ref(),
-                )?;
+                self.capture_point_read(&declaration.scope_table, &scope_row_id, stored.as_ref())?;
                 let incarnation = self
                     .db()
                     .active_relation_incarnation(&declaration.scope_table, &scope_row_id)?;

@@ -16,6 +16,7 @@ export type FieldType =
   | 'Integer'
   | 'Real'
   | 'Json'
+  | { readonly Vector: { readonly dimensions: number } }
   | 'Principal'
   | { readonly Id: { readonly table: string } }
   | { readonly AppSchemaRef: { readonly authority: 'app'; readonly table: string } }
@@ -567,6 +568,19 @@ export interface VectorIndexSpec<Fields extends Record<string, Validator>> {
   maxIndexedVectorsPerPartition: number;
 }
 
+export interface VectorIndexSpec<Fields extends Record<string, Validator>> {
+  semanticVersion: string;
+  vectorField: keyof Fields & string;
+  metric: 'l2sq' | 'dot';
+  fieldClassifications: Partial<Record<keyof Fields & string, SearchFieldClassification>>;
+  equalityFilters?: Array<keyof Fields & string>;
+  storedFields?: Array<keyof Fields & string>;
+  visibility?: { kind: 'public-read' } | { kind: 'owner'; field: keyof Fields & string };
+  tieBreak?: 'id-asc' | 'id-desc';
+  maxIndexedVectorsPerPartition: number;
+  maintenanceLimits?: { vectorMaintenanceEffects?: number; vectorBytes?: number };
+}
+
 export interface MembershipTableBuilder<
   Fields extends Record<string, Validator> = Record<string, Validator>,
   Role extends string = string,
@@ -612,6 +626,14 @@ export declare function defineLiveQuery(spec: HostPlanQuerySpec): unknown;
  */
 export declare function defineJobStatusQuery(spec?: {
   auth?: AuthRequirement;
+}): unknown;
+/**
+ * Declare the privacy-bounded LLP 0143 handoff-ledger query. The result is
+ * authorized against the intent's stored audience arguments and never
+ * contains token bytes, payloads, or provider prose.
+ */
+export declare function definePushLedgerQuery(spec: {
+  auth: 'authenticated';
 }): unknown;
 export declare function defineJsQuery(spec: JsQuerySpec): unknown;
 export declare function defineJsLiveQuery(spec: JsQuerySpec): unknown;

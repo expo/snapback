@@ -184,6 +184,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'jobs_one_off_v1',
   'live_subscriptions',
   'mutation_read_set_validation',
+  'notifications.expoPushSeam',
   'permission_epoch_resync',
   'registered_bundle_boot_v1',
   'relational_query_v1',
@@ -226,6 +227,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'result_contract_v1',
   'versioned_seed_install_v1',
   'versioned_seed_reset_v1',
+  'vector_search_v1',
   'write_activity_v1',
   'vector_search_v1',
 ]);
@@ -780,7 +782,7 @@ export async function generateInProcess(backendDir, options = {}) {
       seenFields.add(fieldName);
       validateAuthoringValidator(val, `${name}.${fieldName}`, (message) => {
         err('SCHEMA_INVALID_VALIDATOR', 'schema', message, { table: name, field: fieldName });
-      });
+      }, new Set(), 'schema');
       const idTable = idFieldTypeTable(val.fieldType);
       if (idTable !== null && !Object.hasOwn(schemaDef.tables, idTable)) {
         err('SCHEMA_ID_TARGET_UNKNOWN', 'schema', `${name}.${fieldName} references unknown id table ${idTable}`, {
@@ -1000,6 +1002,63 @@ export async function generateInProcess(backendDir, options = {}) {
         `table ${name} searchLiveLimits requires at least one search index`,
         { table: name },
       );
+    }
+
+    const vectorIndexes = [];
+    for (const vector of table.vectorIndexes ?? []) {
+      if (!IDENT.test(vector.name) || vector.name.startsWith('_snapback') || isAuthReservedIdentifier(vector.name)) {
+        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `invalid vector index identifier ${name}.${vector.name}`, { table: name, index: vector.name });
+      }
+      if (seenIndexes.has(vector.name)) {
+        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `duplicate index/vector index name ${name}.${vector.name}`, { table: name, index: vector.name });
+      }
+      seenIndexes.add(vector.name);
+      const vectorField = table.fields[vector.vectorField];
+      if (!vectorField || vectorField.optional || vectorField.fieldType?.Vector?.dimensions !== vector.dimensions) {
+        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector index ${name}.${vector.name} must name one required v.vector() field`, { table: name, index: vector.name, field: vector.vectorField });
+      }
+      const participating = new Set([
+        vector.vectorField,
+        ...(vector.equalityFilters ?? []),
+        ...(vector.storedFields ?? []),
+      ]);
+      const requiredClassifications = [...participating].sort();
+      const declaredClassifications = Object.keys(vector.fieldClassifications ?? {}).sort();
+      if (JSON.stringify(requiredClassifications) !== JSON.stringify(declaredClassifications)) {
+        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector index ${name}.${vector.name} must classify exactly every participating field`, { table: name, index: vector.name, requiredFields: requiredClassifications, declaredFields: declaredClassifications });
+      }
+      for (const [field, classification] of Object.entries(vector.fieldClassifications ?? {})) {
+        if (!table.fields[field]) {
+          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector index ${name}.${vector.name} references unknown field ${field}`, { table: name, index: vector.name, field });
+        } else if (classification === 'sensitive' || classification === 'forbidden') {
+          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector index ${name}.${vector.name} cannot participate with ${classification} field ${field}`, { table: name, index: vector.name, field });
+        } else if (vector.visibility.kind === 'public-read' && classification !== 'public') {
+          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `public vector index ${name}.${vector.name} admits only public participating fields`, { table: name, index: vector.name, field });
+        }
+      }
+      for (const field of vector.equalityFilters ?? []) {
+        const source = table.fields[field];
+        const type = source?.fieldType;
+        const portable = ['String', 'Principal', 'Integer', 'Boolean'].includes(type) || idFieldTypeTable(type) !== null;
+        if (!portable || source?.optional) {
+          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector equality field ${name}.${vector.name}.${field} must be a required exact scalar`, { table: name, index: vector.name, field });
+        }
+      }
+      for (const field of vector.storedFields ?? []) {
+        if (!table.fields[field]) {
+          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector stored field ${name}.${vector.name}.${field} is unknown`, { table: name, index: vector.name, field });
+        }
+      }
+      if (vector.visibility.kind === 'owner') {
+        const owner = table.fields[vector.visibility.field];
+        if (!owner || owner.optional || !['String', 'Principal'].includes(owner.fieldType)) {
+          err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `owner vector index ${name}.${vector.name} requires a required string/principal owner field`, { table: name, index: vector.name, field: vector.visibility.field });
+        }
+      }
+      if (vector.dimensions * vector.maxIndexedVectorsPerPartition > 2 ** 26) {
+        err('SNAPBACK_VECTOR_INDEX_UNAVAILABLE', 'vector', `vector index ${name}.${vector.name} dimensions × corpus exceeds 2^26`, { table: name, index: vector.name });
+      }
+      vectorIndexes.push(vector);
     }
 
     if (table.permissionFields !== undefined && !table.permissionBackingDeclared) {
@@ -1271,6 +1330,13 @@ export async function generateInProcess(backendDir, options = {}) {
   ) {
     schemaRequiredCapabilities.push('vector_search_v1');
   }
+  if (
+    schemaDef.pushSeam?.ledger
+    && !schemaRequiredCapabilities.includes('notifications.expoPushSeam')
+  ) {
+    schemaRequiredCapabilities.push('notifications.expoPushSeam');
+  }
+
   // SQLite index names are database-global and the physical spelling joins
   // table/index with `_`. Reserve the two declaration-derived membership
   // indexes in the same namespace as user indexes before emitting artifacts.
@@ -1950,6 +2016,39 @@ export async function generateInProcess(backendDir, options = {}) {
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
         reads: ['_snapback_jobs'],
+        result: { kind: 'list', row: { shape: 'unknown' } },
+        serverRunnable: true,
+        localRunnable: false,
+        ...contractQueryLivenessFields(def),
+      };
+    } else if (def.__kind === 'Query' && def.pushLedgerPlan) {
+      if (!schemaDef.pushSeam?.ledger) {
+        err(
+          'SNAPBACK_PUSH_LEDGER_NOT_DECLARED',
+          'function',
+          `${name}: definePushLedgerQuery requires definePushSeam with audiences and ledger`,
+          { function: name },
+        );
+      }
+      functions.push({
+        name,
+        kind: def.__kind,
+        ...authoredFunctionManifestFields(def),
+        runtime: { HostPlan: { PushLedgerQuery: {} } },
+        declaredReads: ['_snapback_push_ledger_v1'],
+        declaredWrites: [],
+        authScopeField: null,
+        // The exact audience can differ per stored intent, so the public
+        // invalidation vocabulary records this as opaque authorization while
+        // EffectCeilingV1 retains the narrower host-only dependency name.
+        authorizationDependence: ['opaque'],
+        syncabilityClass: 'online-only',
+      });
+      contractQueries[name] = {
+        name,
+        args: argDescriptors(def.args),
+        argOrder: Object.keys(def.args),
+        reads: ['_snapback_push_ledger_v1'],
         result: { kind: 'list', row: { shape: 'unknown' } },
         serverRunnable: true,
         localRunnable: false,
@@ -4364,6 +4463,24 @@ function validateAuthoringValidator(val, where, report, seen = new Set(), positi
     return typeof val.optional === 'boolean';
   }
   const argument = position === 'argument';
+  const vector = val.fieldType?.Vector;
+  if (argument && vector) {
+    report(`${where} cannot use v.vector() as an argument; use the closed array validator vocabulary`);
+    return false;
+  }
+  if (position === 'schema' && val.primitive === 'vector') {
+    if (
+      Object.keys(val.fieldType ?? {}).length !== 1
+      || !Number.isSafeInteger(vector?.dimensions)
+      || vector.dimensions < 1
+      || vector.dimensions > 4_096
+      || val.optional !== false
+    ) {
+      report(`${where} has an invalid v.vector() declaration`);
+      return false;
+    }
+    return true;
+  }
   if (argument) {
     const recurse = (children) => {
       seen.add(val);
@@ -5542,6 +5659,15 @@ function readSummary(fn) {
       authScopeField: null,
     };
   }
+  const vectorPlan = fn.runtime?.HostPlan?.VectorQuery;
+  if (vectorPlan) {
+    return {
+      mode: 'singleTable',
+      primaryTable: vectorPlan.table,
+      tables: [vectorPlan.table],
+      authScopeField: null,
+    };
+  }
   if (fn.declaredReads) {
     return { mode: fn.runtime?.IbexModule ? 'handlerDeclared' : (fn.declaredReads.length ? 'singleTable' : 'none'), primaryTable: fn.declaredReads[0] ?? null, tables: fn.declaredReads, authScopeField: fn.authScopeField ?? null };
   }
@@ -5663,6 +5789,9 @@ function requiredCapabilities(fn) {
   if (fn.runtime?.HostPlan?.VectorQuery) {
     return [runtimeCapability, 'vector_search_v1', ...contractCapabilities];
   }
+  if (fn.runtime?.HostPlan?.VectorQuery) {
+    return [runtimeCapability, 'vector_search_v1', ...contractCapabilities];
+  }
   // @ref LLP 0070#non-goals-and-claim-boundary — the jobs surface is an
   // experimental registry id while LLP 0070 is Draft; requiring it forces the
   // artifact-level acknowledgment, and it can never imply a
@@ -5672,6 +5801,9 @@ function requiredCapabilities(fn) {
     return fn.kind === 'LiveQuery'
       ? ['live_subscriptions', ...jobs, ...contractCapabilities]
       : [...jobs, ...contractCapabilities];
+  }
+  if (fn.runtime?.HostPlan?.PushLedgerQuery) {
+    return [runtimeCapability, 'notifications.expoPushSeam', ...contractCapabilities];
   }
   // @ref LLP 0080#2-portable-evaluation-semantics — a target that cannot
   //   execute the relational plan refuses at generation with a
@@ -7771,6 +7903,7 @@ function renderApiTypes(
   }
   const typeUnion = (names) => [...names].map((name) => JSON.stringify(name)).join(' | ') || 'never';
   const pushAudiences = Object.entries(schemaDef.pushSeam?.audiences ?? {});
+  const pushAudienceNames = pushAudiences.map(([name]) => name);
   const hasPushSend = schemaDef.pushSeam?.ledger !== undefined && pushAudiences.length > 0;
   const pushAudienceReferenceType = ([name, audience]) => {
     const args = new Map();
@@ -8069,11 +8202,24 @@ function renderApiTypes(
   lines.push(...membershipAliases);
   lines.push('export interface GeneratedMembership {');
   lines.push(...membershipMembers);
+  lines.push('}');
+  if (hasPushSend) {
+    lines.push(
+      `export type GeneratedPushAudienceName = ${typeUnion(new Set(pushAudienceNames))};`,
+      'export interface GeneratedPush {',
+      '  audience<Name extends GeneratedPushAudienceName>(name: Name, args: Extract<GeneratedPushAudienceReference, { readonly audience: Name }>["args"]): Extract<GeneratedPushAudienceReference, { readonly audience: Name }>;',
+      '  readonly audiences: { readonly [Name in GeneratedPushAudienceName]: (args: Extract<GeneratedPushAudienceReference, { readonly audience: Name }>["args"]) => Extract<GeneratedPushAudienceReference, { readonly audience: Name }> };',
+      '  send(request: GeneratedPushSendRequest): Promise<GeneratedPushSendResult>;',
+      '}',
+    );
+  }
+  const generatedPushProperty = hasPushSend
+    ? ' readonly push: GeneratedPush;'
+    : '';
   lines.push(
-    '}',
     'export interface GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly db: GeneratedQueryDatabase; readonly permissions: GeneratedPermissions; readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; isDirectHuman(): boolean; refuse(code: string, details?: unknown): never }',
     'export interface GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> extends GeneratedQueryContext<Auth> { readonly db: GeneratedMutationDatabase; readonly membership: GeneratedMembership; readonly jobs: { enqueue(name: string, args: Readonly<Record<string, unknown>>, options?: Readonly<Record<string, unknown>>): Promise<unknown> } }',
-    `export interface GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; readonly secrets: { get(name: string): any; rotating(name: string): any }; readonly run: unknown; readonly cron: unknown;${hasPushSend ? ' readonly push: { send(request: GeneratedPushSendRequest): Promise<GeneratedPushSendResult> };' : ''} isDirectHuman(): boolean; runMutation(name: string, args: Readonly<Record<string, unknown>>): Promise<unknown>; fetch(request: Readonly<Record<string, unknown>>): Promise<any>; fetchStream(request: Readonly<Record<string, unknown>>): Promise<any>; readonly streamAttempt: any; refuse(code: string, details?: unknown): never }`,
+    `export interface GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; readonly secrets: { get(name: string): any; rotating(name: string): any }; readonly run: unknown; readonly cron: unknown;${generatedPushProperty} isDirectHuman(): boolean; runMutation(name: string, args: Readonly<Record<string, unknown>>): Promise<unknown>; fetch(request: Readonly<Record<string, unknown>>): Promise<any>; fetchStream(request: Readonly<Record<string, unknown>>): Promise<any>; readonly streamAttempt: any; refuse(code: string, details?: unknown): never }`,
     'export interface GeneratedFunctionContexts {',
   );
   for (const fn of functions) {
@@ -8149,7 +8295,9 @@ function renderApiTypes(
         : `SearchRequestV1 & ${typeForGeneratedArgs({
           [search.resourceArg]: def?.args?.[search.resourceArg],
         })}`
-      : typeForGeneratedArgs(def?.args ?? {});
+      : vector
+        ? 'VectorRequestV1'
+        : typeForGeneratedArgs(def?.args ?? {});
     lines.push(`  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${args}, ${result}>;`);
   }
   // Explicit and derived upload intents are api members like functions —

@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/app/pushLedger.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "intentId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "intentId"
+  ],
+  "title": "app:pushLedger arguments",
+  "type": "object"
+}

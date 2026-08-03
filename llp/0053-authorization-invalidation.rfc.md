@@ -5,7 +5,10 @@
 **Systems:** Sync, Realtime, Auth, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-12
-**Revised:** 2026-08-01 (dev-mode scope clarified, per Charlie Cheever's
+**Revised:** 2026-08-03 (Accepted LLP 0157 boundary: a composed materialization
+uses its `qmk1` as this RFC's opaque `query_key` producer, while this RFC keeps
+instance allocation, authorization witnesses, dispositions, and barriers);
+2026-08-01 (dev-mode scope clarified, per Charlie Cheever's
 adjudication of LLP 0145 OQ23 — provisional, recorded as revisitable. §"Auth-scoped"
 is defined fail-closed" classified functions without qualifying which modes
 *deliver* obligations, which read as requiring obligation backing in dev mode
@@ -80,7 +83,7 @@ history and §Changelog; artifacts in
 `reviews/0053-authorization-invalidation.{fable,codex}.md`. Split out of
 [LLP 0039](./0039-auth-vertical-slice.rfc.md) §Permission dependencies on
 2026-07-12.)
-**Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0016, LLP 0020, LLP 0026, LLP 0032, LLP 0039, LLP 0043, LLP 0044, LLP 0051, LLP 0055, LLP 0056, LLP 0074, LLP 0086
+**Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0016, LLP 0020, LLP 0026, LLP 0032, LLP 0039, LLP 0043, LLP 0044, LLP 0051, LLP 0055, LLP 0056, LLP 0074, LLP 0086, LLP 0157
 
 ## Summary
 
@@ -2380,3 +2383,15 @@ LLP 0086 governing constraint 2.
 - **2026-07-12 (initial).** Split out of LLP 0039 §Permission dependencies on
   Charlie's authorization, carrying the four-class model that LLP 0039's round-6
   revision had proposed but never had reviewed.
+
+## LLP 0157 acceptance boundary — 2026-08-03
+
+For an admitted LLP 0157 materialization, its 48-byte `qmk1` spelling is the
+canonical producer of this RFC's otherwise opaque `query_key`. The enclosing
+`client_store_id` and never-reused `query_instance_id` remain distinct scope
+and instance axes owned here. LLP 0157's completeness proof binds the exact
+current `CompositeWitness`; this RFC continues to own witness production,
+minimum commit floors, pending-scope dispositions, terminal retirement, and
+the LLP 0059 participant barrier. `sessionGeneration` remains observability,
+not materialization equality. This boundary promotes no implementation or
+capability fact.

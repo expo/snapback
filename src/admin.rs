@@ -229,10 +229,12 @@ pub(crate) fn operation_profile_requirement(
         // The asset operator surface is developer/operator tooling like the
         // direct runner; hosted production traffic uses the ordinary asset
         // routes.
-        "asset.put" | "asset.ensureSeedFixture" | "asset.inspect" | "asset.list"
-        | "asset.retry" | "asset.delete" => {
-            OperationProfileRequirement::NonProd
-        }
+        "asset.put"
+        | "asset.ensureSeedFixture"
+        | "asset.inspect"
+        | "asset.list"
+        | "asset.retry"
+        | "asset.delete" => OperationProfileRequirement::NonProd,
         // Frozen LLP 0039 deliberately excludes demo from the below-manifest
         // collision-recovery authority, on both ordinary and recovery servers.
         "auth.rescueCollidingTable" => OperationProfileRequirement::DevOrTest,
@@ -896,9 +898,7 @@ impl AppState {
                 ),
                 allow_insecure_dev_auth: false,
                 secret_reads,
-                telemetry_export_continuation_key: Arc::new(
-                    telemetry_export_continuation_key,
-                ),
+                telemetry_export_continuation_key: Arc::new(telemetry_export_continuation_key),
                 recent_invocations: crate::host_ops::RecentInvocationRing::default(),
                 secret_read_mint: None,
                 impersonation_capabilities: None,
@@ -2122,6 +2122,19 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             .with_invocation_authority(InvocationAuthority::System),
             post(admin_jobs_drain),
         ),
+        // LLP 0143 OQ7's deterministic fixture driver. An injected clock is
+        // accepted only while the provider endpoint is a local/test loopback
+        // override; the production Expo endpoint can be driven only at wall
+        // clock, so an admin credential cannot poll real receipts early.
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/push/maintenance",
+                ResponseSensitivity::SensitiveApplicationData,
+            )
+            .with_invocation_authority(InvocationAuthority::System),
+            post(admin_push_maintenance),
+        ),
         RegisteredRoute::new(
             read(
                 "/_snapback/api/jobs",
@@ -2955,6 +2968,43 @@ struct JobsDrainRequest {
     max_waves: Option<usize>,
 }
 
+#[derive(Debug, Default, serde::Deserialize)]
+struct PushMaintenanceRequest {
+    #[serde(rename = "nowMs")]
+    now_ms: Option<u64>,
+}
+
+async fn admin_push_maintenance(
+    State(state): State<AppState>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+    body: Option<Json<PushMaintenanceRequest>>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    authorize(&ctx, &headers, true)?;
+    let request = body.map(|Json(request)| request).unwrap_or_default();
+    if request.now_ms.is_some()
+        && !crate::server::expo_push_fixture_clock_allowed(state.server.profile)
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_PUSH_FIXTURE_CLOCK_REFUSED",
+            "push",
+            "an injected push-maintenance clock requires a local/test loopback Expo endpoint",
+        )
+        .into());
+    }
+    let now_ms = request.now_ms.unwrap_or_else(crate::server::now_millis);
+    crate::server::drive_push_maintenance_once(
+        &state.snapback,
+        state.server.profile,
+        now_ms,
+    )
+    .await?;
+    Ok(Json(serde_json::json!({
+        "artifactKind": "snapback.push-maintenance/v1",
+        "nowMs": now_ms,
+    })))
+}
+
 async fn admin_jobs_drain(
     State(snapback): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
@@ -3357,7 +3407,10 @@ mod tests {
         .unwrap();
         assert_eq!(host_stats["operation"], "telemetry.stats");
         assert_eq!(host_stats["ok"], true);
-        assert_eq!(host_stats["data"]["schemaVersion"], "snapback.telemetry.stats.v1");
+        assert_eq!(
+            host_stats["data"]["schemaVersion"],
+            "snapback.telemetry.stats.v1"
+        );
 
         let host_events_lease = operator
             .mint(SecretReadLeaseRequest {

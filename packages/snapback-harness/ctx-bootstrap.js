@@ -859,7 +859,22 @@
       // @ref LLP 0143#d2-the-send-lane — actions address a generated audience
       // reference; token resolution, authorization, batching, and provider
       // custody stay entirely behind this host operation.
+      var pushAudience = function(name, args) {
+        if (typeof name !== "string" || name.length === 0) {
+          throw snapbackError("SNAPBACK_PUSH_SEND_INVALID", "push audience name is required");
+        }
+        return { audience: name, args: args || {} };
+      };
       ctx.push = {
+        audience: pushAudience,
+        audiences: (typeof Proxy === "function")
+          ? new Proxy(Object.create(null), {
+              get: function(_target, audience) {
+                if (typeof audience !== "string") { return undefined; }
+                return function(args) { return pushAudience(audience, args); };
+              }
+            })
+          : Object.create(null),
         send: function(request) {
           return host("push.send", request || {});
         }
@@ -1031,6 +1046,10 @@
       };
     } else {
       ctx.push = {
+        audience: function() {
+          throw snapbackError("SNAPBACK_PUSH_SEND_UNAVAILABLE", "push audiences are action-only");
+        },
+        audiences: Object.create(null),
         send: function() {
           throw snapbackError("SNAPBACK_PUSH_SEND_UNAVAILABLE", "push.send is action-only");
         }

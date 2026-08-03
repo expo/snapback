@@ -20,6 +20,11 @@ pub use crate::vector::types::{
     VectorIndexManifestV1, VectorItemV1, VectorMaintenanceLimitsV1, VectorMetricV1, VectorPageV1,
     VectorQueryPlanV1, VectorRequestV1, VectorSearchFactsV1, VectorTieBreakV1, VectorVisibilityV1,
 };
+pub use crate::vector::types::{
+    VectorFieldClassV1, VectorFilterOpV1, VectorFilterV1, VectorFilterValueV1,
+    VectorIndexManifestV1, VectorItemV1, VectorMaintenanceLimitsV1, VectorMetricV1, VectorPageV1,
+    VectorQueryPlanV1, VectorRequestV1, VectorSearchFactsV1, VectorTieBreakV1, VectorVisibilityV1,
+};
 
 pub const SNAPBACK_SCHEMA_VERSION: &str = "snapback.v0";
 /// The paired schema/function artifact version reserved for session authority.
@@ -929,6 +934,13 @@ pub enum FieldType {
         dimensions: u32,
     },
     Json,
+    /// `v.vector(dimensions)` — fixed-size admitted binary64 components.
+    ///
+    /// @ref LLP 0132#vector-values-and-declarations — the schema carries the
+    /// fixed dimension so every write and query can enforce one value domain.
+    Vector {
+        dimensions: u32,
+    },
     /// `v.principal()` — nominal typing over the auth-principal id string space
     /// (the same space as `ctx.auth.userId`, including LLP 0055 agent
     /// principals). It stores and compares exactly like [`FieldType::String`];
@@ -1297,6 +1309,10 @@ impl FunctionManifest {
                     FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)),
                 ) => {}
                 (
+                    FunctionKind::Query,
+                    FunctionRuntime::HostPlan(HandlerPlan::PushLedgerQuery(_)),
+                ) => {}
+                (
                     FunctionKind::LiveQuery,
                     FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)),
                 ) => validate_bounded_children_plan_shape(plan)?,
@@ -1355,6 +1371,9 @@ impl FunctionManifest {
                 FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(_)) => {
                     &[crate::vector::VECTOR_CAPABILITY]
                 }
+                FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(_)) => {
+                    &[crate::vector::types::VECTOR_CAPABILITY]
+                }
                 // The declared job-status query requires the experimental
                 // jobs registry id (LLP 0070 is Draft, so the id can never be
                 // stable while the claim boundary stands) plus live delivery
@@ -1365,6 +1384,9 @@ impl FunctionManifest {
                     } else {
                         &["jobs_one_off_v1"]
                     }
+                }
+                FunctionRuntime::HostPlan(HandlerPlan::PushLedgerQuery(_)) => {
+                    &["notifications.expoPushSeam"]
                 }
                 FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(_)) => {
                     &["bounded_children_v1", "live_subscriptions"]
@@ -3161,6 +3183,13 @@ impl ObservedEffects {
                 // A point read of the reserved job-status projection — not an
                 // application schema table.
                 self.read(crate::jobs::JOBS_STATUS_TABLE, "point", None);
+            }
+            HandlerPlan::PushLedgerQuery(_) => {
+                // A point read of the protected platform ledger. Its
+                // audience authorization is evaluated by the Rust-owned
+                // executor against the intent's stored arguments.
+                self.read("_snapback_push_ledger_v1", "point", None);
+                self.authorization_inputs.insert("pushAudienceAuthorization");
             }
             HandlerPlan::RelationalQuery(plan) => {
                 self.read(&plan.root, "query", Some(&plan.root_index));
@@ -6001,6 +6030,7 @@ pub enum PublicHostPlanKind {
     SearchQuery,
     VectorQuery,
     JobStatusQuery,
+    PushLedgerQuery,
     Mutation,
     Action,
     RelationalQuery,
@@ -6203,6 +6233,7 @@ impl From<FunctionRuntime> for PublicFunctionRuntime {
                 HandlerPlan::SearchQuery(_) => PublicHostPlanKind::SearchQuery,
                 HandlerPlan::VectorQuery(_) => PublicHostPlanKind::VectorQuery,
                 HandlerPlan::JobStatusQuery(_) => PublicHostPlanKind::JobStatusQuery,
+                HandlerPlan::PushLedgerQuery(_) => PublicHostPlanKind::PushLedgerQuery,
                 HandlerPlan::Mutation(_) => PublicHostPlanKind::Mutation,
                 HandlerPlan::Action(_) => PublicHostPlanKind::Action,
                 // Plan-level kind only: per-row facts stay off the ordinary
@@ -6245,6 +6276,10 @@ pub enum HandlerPlan {
     /// ordinary subscription machinery — a declared operation with an
     /// ordinary contract, never an ambient system table.
     JobStatusQuery(JobStatusQueryPlanV1),
+    /// The declared, privacy-bounded LLP 0143 handoff-ledger projection.
+    /// It is query-only: receipt upgrades are observed by re-querying rather
+    /// than claiming an app-table live-delta contract for protected rows.
+    PushLedgerQuery(PushLedgerQueryPlanV1),
     Mutation(MutationPlan),
     Action(ActionPlan),
     // @ref LLP 0080#1-closed-relational-plan — closed bounded-join plan.
@@ -6269,6 +6304,12 @@ pub enum HandlerPlan {
 /// is a later vocabulary — see the LLP 0070 amendment note).
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct JobStatusQueryPlanV1 {}
+
+/// The v1 push-ledger plan carries no authored parameters. `intentId` is the
+/// fixed invocation argument and the complete result/authorization contract
+/// is platform-owned.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct PushLedgerQueryPlanV1 {}
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct ActionPlan {
@@ -7749,6 +7790,8 @@ pub enum TargetCapabilityId {
     /// compatibility only.
     #[serde(rename = "jobs_one_off_v1")]
     JobsOneOffV1,
+    #[serde(rename = "notifications.expoPushSeam")]
+    ExpoPushSeamV1,
     #[serde(rename = "live_subscriptions")]
     LiveSubscriptions,
     #[serde(rename = "mutation_read_set_validation")]
@@ -7813,6 +7856,7 @@ impl TargetCapabilityId {
         Self::IbexCtxDbHostBridge,
         Self::InlineHandlerV1,
         Self::JobsOneOffV1,
+        Self::ExpoPushSeamV1,
         Self::LiveSubscriptions,
         Self::MutationReadSetValidation,
         Self::PermissionEpochResync,
@@ -7848,6 +7892,7 @@ impl TargetCapabilityId {
             Self::IbexCtxDbHostBridge => "ibex_ctx_db_host_bridge",
             Self::InlineHandlerV1 => "inline_handler_v1",
             Self::JobsOneOffV1 => "jobs_one_off_v1",
+            Self::ExpoPushSeamV1 => "notifications.expoPushSeam",
             Self::LiveSubscriptions => "live_subscriptions",
             Self::MutationReadSetValidation => "mutation_read_set_validation",
             Self::PermissionEpochResync => "permission_epoch_resync",
@@ -7931,6 +7976,10 @@ impl TargetCapabilityId {
             | Self::RelationalQueryV1
             | Self::MigrationKeysetScanV1
             | Self::FullTextSearchV1
+            // LLP 0143 is Accepted. Its deterministic local support proof
+            // backs this compatibility fact; the separate real-device Exit
+            // witness cannot weaken or upgrade manifest facts.
+            | Self::ExpoPushSeamV1
             | Self::SettlementBoundedSkew => CapabilityMaturity::Stable,
         }
     }
@@ -8020,6 +8069,25 @@ impl TargetCapabilityId {
             // Hosted targets stay false — LLP 0070's hosted candidate is
             // blocked-on and out of this slice (nonclaim).
             Self::JobsOneOffV1 => facts.jobs_one_off_v1_registered,
+            // LLP 0143's accepted seam is local-target support, distinct from
+            // the still-false first-class `notifications` boolean. The
+            // structured descriptor is part of the positive predicate so a
+            // bare registry-string edit cannot manufacture support.
+            Self::ExpoPushSeamV1 => {
+                facts.expo_push_seam_v1_registered
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+                    && manifest.expo_push_seam.as_ref().is_some_and(|descriptor| {
+                        descriptor.capability_id == "notifications.expoPushSeam"
+                            && descriptor.max_concurrent_send_attempts == 1
+                            && descriptor.surfaces
+                                == [
+                                    "push-token-registry",
+                                    "ctx.push.send",
+                                    "handoff-ledger",
+                                    "receipt-maintenance",
+                                ]
+                    })
+            }
             Self::LiveSubscriptions => manifest.live_subscriptions,
             Self::MutationReadSetValidation => {
                 manifest.mutation_isolation_mode == "handler-captured-read-set-validation"
@@ -8350,6 +8418,7 @@ pub struct TargetCapabilityFacts {
     vector_search_v1_registered: bool,
     inline_handler_v1_registered: bool,
     jobs_one_off_v1_registered: bool,
+    expo_push_seam_v1_registered: bool,
     result_contract_v1_registered: bool,
     settlement_bounded_skew_registered: bool,
     args_contract_v1_registered: bool,
@@ -8417,6 +8486,7 @@ impl TargetCapabilityFacts {
             // the local enqueue/drain implementation exists; the id's
             // experimental maturity carries the Draft-status honesty.
             jobs_one_off_v1_registered: true,
+            expo_push_seam_v1_registered: true,
             result_contract_v1_registered: true,
             settlement_bounded_skew_registered: true,
             args_contract_v1_registered: true,
@@ -8449,6 +8519,7 @@ impl TargetCapabilityFacts {
             // The conformance profile has no jobs worker/drain instance;
             // fail closed like the other local-only registrations.
             jobs_one_off_v1_registered: false,
+            expo_push_seam_v1_registered: false,
             write_activity_v1_registered: false,
             local_relation_activity_publication_v1_verified: false,
             ..Self::local_auth_aware()
@@ -8754,6 +8825,8 @@ pub struct ExpoPushSeamFactsV1 {
     pub local_loopback_test_override: bool,
     #[serde(rename = "sendBatchMax")]
     pub send_batch_max: u32,
+    #[serde(rename = "maxConcurrentSendAttempts")]
+    pub max_concurrent_send_attempts: u16,
     #[serde(rename = "receiptBatchMax")]
     pub receipt_batch_max: u32,
     #[serde(rename = "receiptFirstPollMs")]
@@ -8804,6 +8877,7 @@ impl ExpoPushSeamFactsV1 {
             production_endpoint: "https://exp.host".to_owned(),
             local_loopback_test_override: true,
             send_batch_max: crate::push::PUSH_BATCH_MESSAGES_MAX as u32,
+            max_concurrent_send_attempts: 1,
             receipt_batch_max: crate::push::PUSH_RECEIPT_BATCH_MAX as u32,
             receipt_first_poll_ms: crate::push::PUSH_RECEIPT_FIRST_POLL_MS,
             receipt_poll_intervals_ms: vec![1_800_000, 3_600_000, 7_200_000, 14_400_000],
@@ -9300,6 +9374,7 @@ impl CapabilityManifest {
         manifest.target_profile_id = TARGET_PROFILE_REMOTE_SERVICE_SQLITE_IBEX.to_owned();
         manifest.local_server_lifecycle = false;
         manifest.full_text_search = None;
+        manifest.vector_search = None;
         // The asset subsystem's evidence is local-target only (LLP 0044:
         // "local support does not imply hosted support"); the served-origin
         // profile withholds the claim until its own suite runs.
@@ -9319,6 +9394,7 @@ impl CapabilityManifest {
         let mut facts =
             TargetCapabilityFacts::local_auth_aware().with_relation_activity_publication_withheld();
         facts.full_text_search_v1_registered = false;
+        facts.vector_search_v1_registered = false;
         facts.asset_lifecycle_local_fs_registered = false;
         facts.asset_image_finalization_registered = false;
         facts.asset_reference_gc_registered = false;
@@ -9338,6 +9414,7 @@ impl CapabilityManifest {
         manifest.target_profile_id = TARGET_PROFILE_LOCAL_CONFORMANCE_SQLITE_WORKERD_V8.to_owned();
         manifest.runtime_engine = "workerd-v8".to_owned();
         manifest.full_text_search = None;
+        manifest.vector_search = None;
         // Ephemeral, cron, and actions stay on the canonical server; the twin
         // swaps only query/mutation handler execution.
         manifest
@@ -9415,6 +9492,7 @@ impl CapabilityManifest {
         let mut manifest = Self::local_v0(local_v0_default_capability_gaps());
         manifest.target_profile_id = TARGET_PROFILE_CLOUDFLARE_DO_SQLITE_V8.to_owned();
         manifest.full_text_search = None;
+        manifest.vector_search = None;
         // No asset subsystem on the DO target: bytes, staging, and strict
         // delivery are unimplemented there (the committed gap row stands).
         manifest.assets = None;
@@ -10536,6 +10614,10 @@ mod membership_manifest_grammar_tests {
             ),
             (
                 TargetCapabilityId::RegisteredBundleBootV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
+                TargetCapabilityId::VectorSearchV1,
                 CapabilityMaturity::Experimental,
             ),
             (

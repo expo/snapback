@@ -122,7 +122,18 @@ import { computeEffectCeiling } from './effect-ceiling.mjs';
       },
     },
   };
-  assert.throws(() => computeEffectCeiling(unknownPlanField), /unknown query-plan field join/);
+assert.throws(() => computeEffectCeiling(unknownPlanField), /unknown query-plan field join/);
+
+{
+  const ceiling = computeEffectCeiling({
+    runtime: { HostPlan: { PushLedgerQuery: {} } },
+  });
+  assert.deepEqual(ceiling.reads, [{
+    table: '_snapback_push_ledger_v1',
+    access: 'point',
+  }]);
+  assert.deepEqual(ceiling.authorizationInputs, ['pushAudienceAuthorization']);
+}
 }
 
 // Opaque handlers keep author declarations and are marked declared, never

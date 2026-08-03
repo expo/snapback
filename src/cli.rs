@@ -374,12 +374,11 @@ async fn compose_auth_mode_startup_with_embedded(
             };
             auth_runtime.mark_catalog_ready_after_mode_activation();
             drop(maintenance);
-            snapback
-                .publish_preflighted_functions(
-                    carrier.functions.clone(),
-                    publication_generation,
-                    DiagnosticBoundary::Standalone,
-                );
+            snapback.publish_preflighted_functions(
+                carrier.functions.clone(),
+                publication_generation,
+                DiagnosticBoundary::Standalone,
+            );
             Ok(state)
         }
         (AuthMode::Sessions, AuthMode::Dev) => {
@@ -418,12 +417,11 @@ async fn compose_auth_mode_startup_with_embedded(
                 .exclusive_maintenance()
                 .await
                 .clear_mailbox_after_committed_reset();
-            snapback
-                .publish_preflighted_functions(
-                    carrier.functions.clone(),
-                    publication_generation,
-                    DiagnosticBoundary::Standalone,
-                );
+            snapback.publish_preflighted_functions(
+                carrier.functions.clone(),
+                publication_generation,
+                DiagnosticBoundary::Standalone,
+            );
             Ok(result.state)
         }
         _ => Err(crate::auth::mode::mode_corrupt(
@@ -842,10 +840,7 @@ pub struct TelemetryFilterArgs {
 impl TelemetryFilterArgs {
     fn query_pairs(&self, stats: bool) -> Vec<(&'static str, String)> {
         let mut pairs = Vec::new();
-        for (key, value) in [
-            ("kind", self.kind.as_ref()),
-            ("name", self.name.as_ref()),
-        ] {
+        for (key, value) in [("kind", self.kind.as_ref()), ("name", self.name.as_ref())] {
             if let Some(value) = value {
                 pairs.push((key, value.clone()));
             }
@@ -1412,10 +1407,9 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                 &target,
                 json!({ "operation": "asset.gcSweep", "input": { "nowMs": now_ms } }),
             ),
-            AssetsCommand::RotateSigningKey { target } => host_op_via_http(
-                &target,
-                json!({ "operation": "asset.rotateSigningKey" }),
-            ),
+            AssetsCommand::RotateSigningKey { target } => {
+                host_op_via_http(&target, json!({ "operation": "asset.rotateSigningKey" }))
+            }
             AssetsCommand::ExportCut { target, dir } => host_op_via_http(
                 &target,
                 json!({ "operation": "asset.exportCut", "input": { "dir": dir } }),
@@ -3498,7 +3492,9 @@ async fn run_composed(
             server::spawn_asset_maintenance_loop(
                 state.clone(),
                 server::asset_runner_disabled(
-                    std::env::var("SNAPBACK_ASSET_RUNNER_DISABLED").ok().as_deref(),
+                    std::env::var("SNAPBACK_ASSET_RUNNER_DISABLED")
+                        .ok()
+                        .as_deref(),
                 ),
             )
         });
@@ -6147,20 +6143,12 @@ mod tests {
             "the replayed start keeps the current boot marker visible"
         );
         assert_eq!(
-            telemetry.event_count_for_test(
-                "lifecycle",
-                "current_boot_replay_witness",
-                "point",
-            ),
+            telemetry.event_count_for_test("lifecycle", "current_boot_replay_witness", "point",),
             1,
             "the replay leaves already-admitted current-boot evidence buffered"
         );
         assert_eq!(
-            telemetry.event_count_for_test(
-                "lifecycle",
-                "restore_generation_rotation",
-                "point",
-            ),
+            telemetry.event_count_for_test("lifecycle", "restore_generation_rotation", "point",),
             0,
             "AlreadyApplied emits no restore rotation marker"
         );
@@ -6184,11 +6172,7 @@ mod tests {
             .unwrap();
         assert_ne!(generation_after_apply, generation_before);
         assert_eq!(
-            telemetry.event_count_for_test(
-                "lifecycle",
-                "restore_generation_rotation",
-                "point",
-            ),
+            telemetry.event_count_for_test("lifecycle", "restore_generation_rotation", "point",),
             1,
             "only Applied rotates and emits the restore marker"
         );
@@ -7036,7 +7020,10 @@ mod tests {
         std::fs::remove_file(&root).unwrap();
         std::fs::write(&root, b"unrelated replacement").unwrap();
         target.remove_secret_read_root().unwrap();
-        assert!(root.exists(), "a foreign inode at the sidecar path must survive");
+        assert!(
+            root.exists(),
+            "a foreign inode at the sidecar path must survive"
+        );
 
         std::fs::remove_file(&root).unwrap();
         resolve(&target);

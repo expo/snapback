@@ -1421,6 +1421,19 @@
         },
         {
           "additionalProperties": false,
+          "description": "The declared, privacy-bounded LLP 0143 handoff-ledger projection.\nIt is query-only: receipt upgrades are observed by re-querying rather\nthan claiming an app-table live-delta contract for protected rows.",
+          "properties": {
+            "PushLedgerQuery": {
+              "$ref": "#/$defs/PushLedgerQueryPlanV1"
+            }
+          },
+          "required": [
+            "PushLedgerQuery"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "properties": {
             "Mutation": {
               "$ref": "#/$defs/MutationPlan"
@@ -2270,6 +2283,10 @@
           "type": "object"
         }
       ]
+    },
+    "PushLedgerQueryPlanV1": {
+      "description": "The v1 push-ledger plan carries no authored parameters. `intentId` is the\nfixed invocation argument and the complete result/authorization contract\nis platform-owned.",
+      "type": "object"
     },
     "QueryPlan": {
       "properties": {

@@ -26,9 +26,7 @@
 //!   publication record and verified by re-hash). Provider variance is a
 //!   qualification fact, not an assumption.
 
-use crate::assets_store::{
-    AssetObjectDigest, AssetObjectRef, AssetStore, ASSET_OBJECT_HEAD_BYTES,
-};
+use crate::assets_store::{ASSET_OBJECT_HEAD_BYTES, AssetObjectDigest, AssetObjectRef, AssetStore};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use hmac::Mac as _;
 use sha2::Digest as _;
@@ -154,7 +152,11 @@ impl S3Transport for UreqTransport {
                     format!("s3 transport read error: {error}"),
                 )
             })?;
-        Ok(S3Response { status, headers, body })
+        Ok(S3Response {
+            status,
+            headers,
+            body,
+        })
     }
 }
 
@@ -167,8 +169,8 @@ fn sha256_hex(bytes: &[u8]) -> String {
 }
 
 fn hmac_sha256(key: &[u8], data: &[u8]) -> Vec<u8> {
-    let mut mac = hmac::Hmac::<sha2::Sha256>::new_from_slice(key)
-        .expect("hmac accepts any key length");
+    let mut mac =
+        hmac::Hmac::<sha2::Sha256>::new_from_slice(key).expect("hmac accepts any key length");
     mac.update(data);
     mac.finalize().into_bytes().to_vec()
 }
@@ -231,10 +233,12 @@ impl AssetS3Store {
         Self {
             config,
             transport,
-            now_ms: Box::new(|| std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_millis() as i64)
-                .unwrap_or(0)),
+            now_ms: Box::new(|| {
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_millis() as i64)
+                    .unwrap_or(0)
+            }),
         }
     }
 
@@ -243,7 +247,11 @@ impl AssetS3Store {
         transport: Box<dyn S3Transport>,
         now_ms: Box<dyn Fn() -> i64 + Send + Sync>,
     ) -> Self {
-        Self { config, transport, now_ms }
+        Self {
+            config,
+            transport,
+            now_ms,
+        }
     }
 
     fn object_key(&self, object: AssetObjectRef<'_>) -> String {
@@ -388,9 +396,8 @@ impl AssetS3Store {
             .map(|(k, v)| format!("{}={}", sigv4_encode(k, false), sigv4_encode(v, false)))
             .collect::<Vec<_>>()
             .join("&");
-        let canonical_request = format!(
-            "{method}\n{path}\n{canonical_query}\nhost:{host}\n\nhost\nUNSIGNED-PAYLOAD"
-        );
+        let canonical_request =
+            format!("{method}\n{path}\n{canonical_query}\nhost:{host}\n\nhost\nUNSIGNED-PAYLOAD");
         let string_to_sign = format!(
             "AWS4-HMAC-SHA256\n{stamp}\n{scope}\n{}",
             sha256_hex(canonical_request.as_bytes())
@@ -413,12 +420,15 @@ impl AssetS3Store {
         self.transport.execute(request)
     }
 
-    fn get_object(&self, object_key: &str, range: Option<(u64, u64)>) -> SnapbackResult<S3Response> {
+    fn get_object(
+        &self,
+        object_key: &str,
+        range: Option<(u64, u64)>,
+    ) -> SnapbackResult<S3Response> {
         let headers = match range {
-            Some((start, end_inclusive)) => vec![(
-                "range".to_owned(),
-                format!("bytes={start}-{end_inclusive}"),
-            )],
+            Some((start, end_inclusive)) => {
+                vec![("range".to_owned(), format!("bytes={start}-{end_inclusive}"))]
+            }
             None => Vec::new(),
         };
         self.execute(self.sign("GET", object_key, &[], &headers, Vec::new()))
@@ -595,8 +605,7 @@ impl AssetStore for AssetS3Store {
 
     fn write_canonical(&self, key: &str, bytes: &[u8]) -> SnapbackResult<()> {
         let object_key = self.object_key(AssetObjectRef::Canonical(key));
-        let response =
-            self.execute(self.sign("PUT", &object_key, &[], &[], bytes.to_vec()))?;
+        let response = self.execute(self.sign("PUT", &object_key, &[], &[], bytes.to_vec()))?;
         if response.status != 200 {
             return Err(s3_status_error("canonical put", response.status));
         }
@@ -642,8 +651,7 @@ impl AssetStore for AssetS3Store {
             return Ok(Vec::new());
         }
         let end_inclusive = offset + (max_len as u64) - 1;
-        let response =
-            self.get_object(&self.object_key(object), Some((offset, end_inclusive)))?;
+        let response = self.get_object(&self.object_key(object), Some((offset, end_inclusive)))?;
         match response.status {
             200 | 206 => Ok(response.body),
             // Past EOF: the fs store returns empty at EOF; mirror it.
@@ -714,8 +722,7 @@ impl AssetStore for AssetS3Store {
     fn delete_staging_pair(&self, key: &str) -> SnapbackResult<()> {
         for object in [AssetObjectRef::Staging(key), AssetObjectRef::Canonical(key)] {
             let object_key = self.object_key(object);
-            let response =
-                self.execute(self.sign("DELETE", &object_key, &[], &[], Vec::new()))?;
+            let response = self.execute(self.sign("DELETE", &object_key, &[], &[], Vec::new()))?;
             if response.status != 204 && response.status != 404 {
                 return Err(s3_status_error("staging delete", response.status));
             }
@@ -817,13 +824,16 @@ mod tests {
         let mut out = Vec::new();
         let mut i = 0;
         while i < bytes.len() {
-            if bytes[i] == b'%' && i + 2 < bytes.len()
-                && let Ok(byte) =
-                    u8::from_str_radix(std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or("zz"), 16)
+            if bytes[i] == b'%'
+                && i + 2 < bytes.len()
+                && let Ok(byte) = u8::from_str_radix(
+                    std::str::from_utf8(&bytes[i + 1..i + 3]).unwrap_or("zz"),
+                    16,
+                )
             {
-                    out.push(byte);
-                    i += 3;
-                    continue;
+                out.push(byte);
+                i += 3;
+                continue;
             }
             out.push(bytes[i]);
             i += 1;
@@ -948,7 +958,11 @@ mod tests {
                 let (expiry_stamp, _) = amz_date(signed_ms + expires * 1000);
                 expiry_stamp
             } {
-                return S3Response { status: 403, headers: vec![], body: b"expired".to_vec() };
+                return S3Response {
+                    status: 403,
+                    headers: vec![],
+                    body: b"expired".to_vec(),
+                };
             }
             let expected = self.expected_signature(
                 method,
@@ -961,7 +975,11 @@ mod tests {
                 "us-east-1",
             );
             if expected != signature {
-                return S3Response { status: 403, headers: vec![], body: b"bad sig".to_vec() };
+                return S3Response {
+                    status: 403,
+                    headers: vec![],
+                    body: b"bad sig".to_vec(),
+                };
             }
             self.apply(method, &path, &without_sig, &[], body)
         }
@@ -997,7 +1015,11 @@ mod tests {
                     let upload = query_get("uploadId").unwrap_or_default();
                     let part: u32 = query_get("partNumber").unwrap().parse().unwrap();
                     let Some(parts) = state.multiparts.get_mut(&upload) else {
-                        return S3Response { status: 404, headers: vec![], body: vec![] };
+                        return S3Response {
+                            status: 404,
+                            headers: vec![],
+                            body: vec![],
+                        };
                     };
                     parts.insert(part, body.to_vec());
                     S3Response {
@@ -1022,35 +1044,58 @@ mod tests {
                 "POST" if query_get("uploadId").is_some() => {
                     let upload = query_get("uploadId").unwrap();
                     let Some(parts) = state.multiparts.remove(&upload) else {
-                        return S3Response { status: 404, headers: vec![], body: vec![] };
+                        return S3Response {
+                            status: 404,
+                            headers: vec![],
+                            body: vec![],
+                        };
                     };
                     let mut assembled = Vec::new();
                     for (_, part) in parts {
                         assembled.extend_from_slice(&part);
                     }
                     state.objects.insert(key, assembled);
-                    S3Response { status: 200, headers: vec![], body: b"<ok/>".to_vec() }
+                    S3Response {
+                        status: 200,
+                        headers: vec![],
+                        body: b"<ok/>".to_vec(),
+                    }
                 }
                 "PUT" if get_header("x-amz-copy-source").is_some() => {
                     let source = get_header("x-amz-copy-source").unwrap();
                     let source_key = percent_decode(
-                        source
-                            .trim_start_matches(&format!("/{}/", self.bucket_name)),
+                        source.trim_start_matches(&format!("/{}/", self.bucket_name)),
                     );
                     let Some(bytes) = state.objects.get(&source_key).cloned() else {
-                        return S3Response { status: 404, headers: vec![], body: vec![] };
+                        return S3Response {
+                            status: 404,
+                            headers: vec![],
+                            body: vec![],
+                        };
                     };
                     state.objects.insert(key, bytes);
-                    S3Response { status: 200, headers: vec![], body: b"<ok/>".to_vec() }
+                    S3Response {
+                        status: 200,
+                        headers: vec![],
+                        body: b"<ok/>".to_vec(),
+                    }
                 }
                 "PUT" => {
                     if get_header("if-none-match").as_deref() == Some("*")
                         && state.objects.contains_key(&key)
                     {
-                        return S3Response { status: 412, headers: vec![], body: vec![] };
+                        return S3Response {
+                            status: 412,
+                            headers: vec![],
+                            body: vec![],
+                        };
                     }
                     state.objects.insert(key, body.to_vec());
-                    S3Response { status: 200, headers: vec![], body: vec![] }
+                    S3Response {
+                        status: 200,
+                        headers: vec![],
+                        body: vec![],
+                    }
                 }
                 "HEAD" => match state.objects.get(&key) {
                     Some(bytes) => S3Response {
@@ -1058,7 +1103,11 @@ mod tests {
                         headers: vec![("content-length".into(), bytes.len().to_string())],
                         body: vec![],
                     },
-                    None => S3Response { status: 404, headers: vec![], body: vec![] },
+                    None => S3Response {
+                        status: 404,
+                        headers: vec![],
+                        body: vec![],
+                    },
                 },
                 "GET" if query_get("list-type").as_deref() == Some("2") => {
                     let prefix = query_get("prefix").unwrap_or_default();
@@ -1079,7 +1128,11 @@ mod tests {
                 }
                 "GET" => {
                     let Some(bytes) = state.objects.get(&key) else {
-                        return S3Response { status: 404, headers: vec![], body: vec![] };
+                        return S3Response {
+                            status: 404,
+                            headers: vec![],
+                            body: vec![],
+                        };
                     };
                     match get_header("range") {
                         Some(range) => {
@@ -1103,13 +1156,21 @@ mod tests {
                                 body: bytes[start as usize..=end as usize].to_vec(),
                             }
                         }
-                        None => S3Response { status: 200, headers: vec![], body: bytes.clone() },
+                        None => S3Response {
+                            status: 200,
+                            headers: vec![],
+                            body: bytes.clone(),
+                        },
                     }
                 }
                 "DELETE" if query_get("uploadId").is_some() => {
                     let upload = query_get("uploadId").unwrap();
                     state.multiparts.remove(&upload);
-                    S3Response { status: 204, headers: vec![], body: vec![] }
+                    S3Response {
+                        status: 204,
+                        headers: vec![],
+                        body: vec![],
+                    }
                 }
                 "DELETE" => {
                     let existed = state.objects.remove(&key).is_some();
@@ -1119,7 +1180,11 @@ mod tests {
                         body: vec![],
                     }
                 }
-                _ => S3Response { status: 400, headers: vec![], body: vec![] },
+                _ => S3Response {
+                    status: 400,
+                    headers: vec![],
+                    body: vec![],
+                },
             }
         }
     }
@@ -1167,11 +1232,7 @@ mod tests {
                 .find(|(k, _)| k == "authorization")
                 .map(|(_, v)| v.clone())
                 .unwrap_or_default();
-            let signature = auth
-                .split("Signature=")
-                .nth(1)
-                .unwrap_or("")
-                .to_owned();
+            let signature = auth.split("Signature=").nth(1).unwrap_or("").to_owned();
             let signed_names: Vec<&str> = auth
                 .split("SignedHeaders=")
                 .nth(1)
@@ -1197,7 +1258,11 @@ mod tests {
             let date = stamp.split('T').next().unwrap_or("").to_owned();
             let payload_hash = header_value("x-amz-content-sha256");
             if sha256_hex(&request.body) != payload_hash {
-                return Ok(S3Response { status: 403, headers: vec![], body: b"payload".to_vec() });
+                return Ok(S3Response {
+                    status: 403,
+                    headers: vec![],
+                    body: b"payload".to_vec(),
+                });
             }
             let expected = self.expected_signature(
                 request.method,
@@ -1210,7 +1275,11 @@ mod tests {
                 "us-east-1",
             );
             if expected != signature {
-                return Ok(S3Response { status: 403, headers: vec![], body: b"bad sig".to_vec() });
+                return Ok(S3Response {
+                    status: 403,
+                    headers: vec![],
+                    body: b"bad sig".to_vec(),
+                });
             }
             let headers: Vec<(String, String)> = request.headers.clone();
             Ok(self.apply(request.method, &path, &query, &headers, &request.body))
@@ -1224,18 +1293,27 @@ mod tests {
         let bytes = b"canonical-bytes".to_vec();
         store.put_blob_idempotent("blob-1", &bytes).expect("put");
         // Second put converges through the If-None-Match 412 arm.
-        store.put_blob_idempotent("blob-1", &bytes).expect("idempotent");
+        store
+            .put_blob_idempotent("blob-1", &bytes)
+            .expect("idempotent");
         let hashed = store.hash(AssetObjectRef::Blob("blob-1")).expect("hash");
         assert_eq!(hashed.byte_length, bytes.len() as u64);
         assert_eq!(hashed.digest, sha256_hex(&bytes));
         assert_eq!(hashed.head, bytes);
-        assert!(store.exists(AssetObjectRef::Blob("blob-1")).expect("exists"));
+        assert!(
+            store
+                .exists(AssetObjectRef::Blob("blob-1"))
+                .expect("exists")
+        );
         assert_eq!(
             store.len(AssetObjectRef::Blob("blob-1")).expect("len"),
             Some(bytes.len() as u64)
         );
         store.copy_blob("blob-1", "blob-2").expect("copy");
-        assert_eq!(store.read(AssetObjectRef::Blob("blob-2")).expect("read"), bytes);
+        assert_eq!(
+            store.read(AssetObjectRef::Blob("blob-2")).expect("read"),
+            bytes
+        );
         store.delete_blob("blob-1").expect("delete");
         store.delete_blob("blob-1").expect("tolerant re-delete");
         assert!(!store.exists(AssetObjectRef::Blob("blob-1")).expect("gone"));
@@ -1248,22 +1326,30 @@ mod tests {
         let bytes: Vec<u8> = (0u8..100).collect();
         store.put_blob_idempotent("ranged", &bytes).expect("put");
         assert_eq!(
-            store.read_chunk(AssetObjectRef::Blob("ranged"), 0, 100).expect("full"),
+            store
+                .read_chunk(AssetObjectRef::Blob("ranged"), 0, 100)
+                .expect("full"),
             bytes
         );
         assert_eq!(
-            store.read_chunk(AssetObjectRef::Blob("ranged"), 10, 5).expect("mid"),
+            store
+                .read_chunk(AssetObjectRef::Blob("ranged"), 10, 5)
+                .expect("mid"),
             bytes[10..15].to_vec()
         );
         // Past EOF mirrors the fs store: empty, not an error.
-        assert!(store
-            .read_chunk(AssetObjectRef::Blob("ranged"), 200, 5)
-            .expect("past eof")
-            .is_empty());
-        assert!(store
-            .read_chunk(AssetObjectRef::Blob("ranged"), 0, 0)
-            .expect("zero")
-            .is_empty());
+        assert!(
+            store
+                .read_chunk(AssetObjectRef::Blob("ranged"), 200, 5)
+                .expect("past eof")
+                .is_empty()
+        );
+        assert!(
+            store
+                .read_chunk(AssetObjectRef::Blob("ranged"), 0, 0)
+                .expect("zero")
+                .is_empty()
+        );
     }
 
     #[test]
@@ -1287,7 +1373,9 @@ mod tests {
             )
             .expect("complete");
         assert_eq!(
-            store.read(AssetObjectRef::Staging("stage-1")).expect("assembled"),
+            store
+                .read(AssetObjectRef::Staging("stage-1"))
+                .expect("assembled"),
             b"hello world".to_vec()
         );
 
@@ -1318,8 +1406,12 @@ mod tests {
         config_b.key_prefix = "instance-b".into();
         let store_b = fake.store(&config_b);
 
-        store_a.append_staging("s", 0, b"x").expect_err("s3 lane has no proxied append");
-        store_a.write_canonical("stage-a", b"canon").expect("canonical");
+        store_a
+            .append_staging("s", 0, b"x")
+            .expect_err("s3 lane has no proxied append");
+        store_a
+            .write_canonical("stage-a", b"canon")
+            .expect("canonical");
         store_a.put_blob_idempotent("blob-a", b"a").expect("blob a");
         store_b.put_blob_idempotent("blob-b", b"b").expect("blob b");
 
@@ -1328,10 +1420,20 @@ mod tests {
         assert_eq!(keys, vec!["stage-a".to_owned()]);
 
         store_a.wipe_all().expect("wipe a");
-        assert!(!store_a.exists(AssetObjectRef::Blob("blob-a")).expect("a gone"));
-        assert!(store_b.exists(AssetObjectRef::Blob("blob-b")).expect("b survives"));
+        assert!(
+            !store_a
+                .exists(AssetObjectRef::Blob("blob-a"))
+                .expect("a gone")
+        );
+        assert!(
+            store_b
+                .exists(AssetObjectRef::Blob("blob-b"))
+                .expect("b survives")
+        );
 
-        store_a.delete_staging_pair("stage-a").expect("tolerant after wipe");
+        store_a
+            .delete_staging_pair("stage-a")
+            .expect("tolerant after wipe");
     }
 
     #[test]
@@ -1340,7 +1442,13 @@ mod tests {
         let store = fake.store(&config);
         // A request whose signed header changes after signing must refuse:
         // sign for one payload, deliver another.
-        let signed = store.sign("PUT", "instance-a/blobs/tamper", &[], &[], b"honest".to_vec());
+        let signed = store.sign(
+            "PUT",
+            "instance-a/blobs/tamper",
+            &[],
+            &[],
+            b"honest".to_vec(),
+        );
         let mut tampered = signed.clone();
         tampered.body = b"tampered".to_vec();
         let response = fake.execute(tampered).expect("transport");
@@ -1368,17 +1476,20 @@ mod tests {
             region: std::env::var("SNAPBACK_S3_TEST_REGION").unwrap_or_else(|_| "us-east-1".into()),
             key_prefix: format!("snapback-qual-{}", std::process::id()),
             access_key_id: std::env::var("SNAPBACK_S3_TEST_ACCESS_KEY_ID").expect("access key"),
-            secret_access_key: std::env::var("SNAPBACK_S3_TEST_SECRET_ACCESS_KEY")
-                .expect("secret"),
+            secret_access_key: std::env::var("SNAPBACK_S3_TEST_SECRET_ACCESS_KEY").expect("secret"),
         };
         let store = AssetS3Store::new(config, Box::new(UreqTransport));
         let bytes = b"live-qualification-bytes".to_vec();
         store.put_blob_idempotent("qual-blob", &bytes).expect("put");
-        store.put_blob_idempotent("qual-blob", &bytes).expect("idempotent");
+        store
+            .put_blob_idempotent("qual-blob", &bytes)
+            .expect("idempotent");
         let hashed = store.hash(AssetObjectRef::Blob("qual-blob")).expect("hash");
         assert_eq!(hashed.digest, sha256_hex(&bytes));
         assert_eq!(
-            store.read_chunk(AssetObjectRef::Blob("qual-blob"), 5, 8).expect("range"),
+            store
+                .read_chunk(AssetObjectRef::Blob("qual-blob"), 5, 8)
+                .expect("range"),
             bytes[5..13].to_vec()
         );
         let upload = store
@@ -1388,6 +1499,10 @@ mod tests {
             .multipart_abort(AssetObjectRef::Staging("qual-stage"), &upload)
             .expect("mpu abort");
         store.wipe_all().expect("wipe");
-        assert!(!store.exists(AssetObjectRef::Blob("qual-blob")).expect("clean"));
+        assert!(
+            !store
+                .exists(AssetObjectRef::Blob("qual-blob"))
+                .expect("clean")
+        );
     }
 }

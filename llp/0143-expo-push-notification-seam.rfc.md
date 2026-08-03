@@ -6,7 +6,9 @@
 Deployment, Testing, Documentation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-01 (loop CONVERGED dual-family READY — Fable round 3,
+**Revised:** 2026-08-02 (PUSH-01 packaged acceptance, generated ledger
+projection, and safe pre-transmit recovery amendment; the real dev-build
+receipt remains the final exit witness.) 2026-08-01 (loop CONVERGED dual-family READY — Fable round 3,
 Codex round 3, zero unresolved concerns; artifacts
 reviews/0143-expo-push-notification-seam.{fable,codex}.md. Status
 advances Draft -> Review; acceptance is the author's call; two
@@ -111,12 +113,10 @@ grants, crash-safe ledger, bounded ticket/receipt carrier and maintenance,
 explicit ambiguity redrive, shared fake-Expo acceptance, structured local
 capability facts, and guide page recorded. First-class `notifications` stays
 false and hosted stays Missing.)
-**Revised:** 2026-08-03 (the author-ratified OQ2 installation-identity
-default is now recorded precisely: dedicated device-scoped custody outside
-RQS; logout and account switch retain the identity; app-data reset and
-reinstall mint a fresh identity. Stale open-question wording is reconciled.
-This records the lifecycle decision; it does not change the capability claim
-or satisfy PUSH-01's real-device receipt gate.)
+**Revised:** 2026-08-02 (OQ2 ratification implemented after Charlie closed the
+veto window: Expo uses a dedicated device-scoped document-store member,
+logout/account switch preserve it, and only full app-data reset or reinstall
+mints a fresh identity.)
 **Related:** LLP 0000, LLP 0027, LLP 0028, LLP 0036, LLP 0039, LLP 0045,
 LLP 0049, LLP 0053, LLP 0055, LLP 0064, LLP 0070, LLP 0100, LLP 0102,
 LLP 0137,
@@ -292,15 +292,20 @@ setting). They therefore never enter ordinary app tables.
   deployment environment profile. Two Expo projects (or incompatible
   token domains) never share rows, and the tuple is declared once in
   `definePushSeam` (D6), not inferred per registration.
-- `installation` is a **named dependency, not a naming choice**. The
-  author-ratified v1 default is a device-scoped installation identity in a
-  dedicated small store, injected as `pushInstallationStorage` and kept
-  outside the RQS cache. The seam mints the opaque id at first registration.
-  Logout keeps the id and unbinds the principal, so deliveries stop until
-  someone signs in; account switch keeps the id and rebinds it; app-data reset
-  and reinstall mint a fresh id. The user-visible contract is that push works
-  across logins on the same phone, while a wiped or reinstalled app is a new
-  device. A stale predecessor row is often retired promptly — by the
+- `installation` is a **named dependency, not a naming choice** (this
+  supersedes v1's OQ2 framing). The ratified v1 default mints an opaque
+  installation id at first registration and persists it in a dedicated small
+  device store, never in the RQS cache. The Expo carrier uses the app document
+  container member `snapback-push/installation.v1.json` over the app-injected
+  `expo-file-system` module; another native durable key/value adapter may
+  implement the same storage interface. Ordinary logout keeps the id while
+  session termination retires the server binding. Account switch keeps the id
+  and registration under the successor session rebinds it through D1b. A full
+  app-data custody reset explicitly clears the member, and an OS app-data reset
+  or reinstall loses the app container; the next registration then mints a
+  fresh installation. Missing durable custody refuses rather than substituting
+  process memory. The
+  stale predecessor row is often retired promptly — by the
   single-owner rule below when the reinstall re-mints the *same* token
   bytes, by session end, or by `DeviceNotRegistered` on the next send
   — but a reinstall that mints a *different* token under a lingering
@@ -309,7 +314,7 @@ setting). They therefore never enter ordinary app tables.
   **idle-retention window** (a `definePushSeam` fact, D6), and rows
   with no successful handoff and no re-registration inside the window
   are retired by the seam's maintenance lane with the retirement
-  reason recorded.
+  reason recorded. OQ2's final home and reset semantics are therefore closed.
 - Registration is idempotent per key with last-write-wins on token
   bytes, and each registration records the session/authority
   generation that performed it (D1c).
@@ -706,14 +711,17 @@ gate of this witness, not a footnote.
    `notifications` boolean. Future absorption may alias these names but does
    not rename v1 artifacts silently.
 2. **Installation identity home and reset.** The final v1 boundary is the
-   additive registry module's explicitly injected dedicated device-scoped
-   `pushInstallationStorage`, beside but not inside the RQS cache. It mints
-   once. Logout keeps the identity and unbinds the principal; account switch
-   keeps it and rebinds; app-data reset clears it and reinstall loses it, so
-   the next registration mints a fresh identity. Web registration is out of
-   v1. Apps may implement the dedicated small store on Expo's durable files
-   carrier or another native durable key/value store; Snapback refuses missing
-   custody instead of choosing process memory.
+   additive registry module's dedicated device store, beside but not inside
+   the RQS cache. With an app-injected `expo-file-system` module the
+   conventional carrier owns `snapback-push/installation.v1.json`; a custom
+   `pushInstallationStorage` remains available for another native durable
+   key/value store. It mints once and persists through ordinary logout and
+   account switch; session termination retires the old server binding and a
+   successor registration rebinds the same installation. A full custody wipe
+   calls the retained installation adapter's `clear()`, after which the next
+   registration mints a new id; OS app-data reset and reinstall have the same
+   fresh-device result. Snapback refuses missing custody instead of choosing process memory.
+   Web registration is out of v1.
 3. **Receipt ownership and manifest facts.** Local receipt polling belongs to
    the existing host maintenance worker, off the app lock during provider I/O.
    Its batch, first-poll, interval, attempt, and window bounds are published in
@@ -798,23 +806,22 @@ claiming provider handoff:
   from app storage, responses, diagnostics, inspection, and exports.
 - The JS spelling for this slice is `client.push.registerToken`,
   `client.push.registerExpoToken`, and `client.push.unregisterToken`.
-  Installation identity storage is explicitly injected. The client refuses
-  with `SNAPBACK_PUSH_INSTALLATION_CUSTODY_REQUIRED` when it is absent. OQ2's
-  production lifecycle was still an author question when this slice landed;
-  the 2026-08-03 ratification note above resolves it without changing this
-  explicit-injection boundary. Unregister reads existing custody only: when no
-  installation id exists it returns `{ tokenId: null, retired: false }`
-  locally, without minting, writing storage, or making a network request.
+  Installation identity storage is explicitly native: the Expo default takes
+  the app's `expo-file-system` module and owns one dedicated document-store
+  member; another adapter may be injected. The client refuses with
+  `SNAPBACK_PUSH_INSTALLATION_CUSTODY_REQUIRED` when neither is present.
+  Unregister reads existing custody only: when no installation id exists it
+  returns `{ tokenId: null, retired: false }` locally, without minting, writing
+  storage, or making a network request.
 
 Open-question dispositions at this boundary: OQ1 is resolved only for the
 registry spellings (`definePushSeam`, `client.push`); the complete seam's
 manifest capability id waits for the send/ledger shape. OQ6's independent
 sequencing assumption is confirmed. OQ7 begins with deterministic in-process
 registry fixtures, but the shared fake-Expo tickets/receipts/socket-drop kit
-and real dev-build receipt remain completion gates. At this historical slice
-boundary OQ2 was explicitly unresolved; the 2026-08-03 note above resolves it.
-OQ3–OQ5 and OQ8–OQ9 were deferred to later slices and are resolved by the
-D2/D3 amendment below.
+and real dev-build receipt remain completion gates. At this slice boundary OQ2
+still awaited the author ruling; the ratified implementation amendment below
+now closes it. OQ3–OQ5 and OQ8–OQ9 belonged to later slices.
 
 Honesty posture: the capability index advertises a local, partial
 `backend.push-token-registry-v1` GAP with the HTTP route as witness.
@@ -896,11 +903,88 @@ lane without widening custody:
   vocabulary, payload privacy, and hosted boundary.
 
 The seam's protected per-message ledger is exercised through the host and
-operator/test inspection in this slice; the D6 app-readable generated ledger
-projection is still a guide/capability GAP rather than an invented API. The
-real-device receipt required by the repository PUSH-01 exit is an external
-acceptance witness and is recorded separately from the deterministic fixture;
-its absence cannot weaken or upgrade any manifest fact.
+operator/test inspection in this slice. The real-device receipt required by
+the repository PUSH-01 exit is an external acceptance witness and is recorded
+separately from the deterministic fixture; its absence cannot weaken or
+upgrade any manifest fact.
+
+### 2026-08-02 — D3b/D6 closure amendment
+
+The final local acceptance pass closed two implementation gaps without
+widening the provider claim:
+
+- The original reaper moved an expired pre-`transmitting` claim back to
+  `reserved`, but no maintenance worker could subsequently own and send that
+  batch. Recovered batches now retain a nonzero claim-fence witness;
+  maintenance claims only those rows, rebinds current token custody,
+  reconstructs the exact protected payload, and commits a fresh
+  `transmitting` marker before provider I/O. Fresh fence-zero action
+  reservations are ineligible, so the worker does not race their originating
+  action. Live and recovered sends share the published single-attempt pacing
+  boundary. Post-marker loss remains `ambiguous` and is never automatically
+  re-driven.
+- `definePushLedgerQuery({ auth })` now supplies D6's generated app-readable
+  projection. It accepts only an intent id, reloads the stored audience
+  reference, and repeats current host authorization. Returned rows contain
+  lifecycle states and opaque ids/timestamps only; token bytes, payload,
+  dedupe key, audience arguments, config, and provider prose remain absent.
+- The deterministic carrier is also exported as
+  `@expo/snapback-cli/testing/fake-expo-push` and exercised by a committed
+  generated fixture. The package proof covers authorization-before-I/O,
+  tickets and receipt upgrade, idempotent replay, both
+  `DeviceNotRegistered` stages, request-byte socket loss, explicit ambiguous
+  redrive, and zero-target retirement through the production bounded HTTP
+  path. The test is registered in the canonical package inventory.
+- Dev/Test may drive one maintenance cycle with an injected clock only while
+  the Expo endpoint override names loopback. The real endpoint rejects an
+  injected clock; production remains owned by the ordinary maintenance worker.
+- The HTTP diagnostic review classifies malformed app declarations and
+  test-only maintenance requests as `400`, durable dedupe/redrive conflicts as
+  `409`, an Expo response outside the closed provider vocabulary as `502`, and
+  an unavailable, unsupported, or attempt-exhausted send seam as `503`.
+  Host-owned ledger corruption, claim races, staged-config corruption, endpoint
+  override refusal, send serialization, and maintenance-worker failure retain
+  the fail-safe `500` class. `SNAPBACK_EXPO_PUSH_BASE_URL` is an environment
+  variable, not a diagnostic. These transport classes do not widen any delivery
+  claim.
+
+These additions complete the implementation-resolvable OQ dispositions above.
+They do not change D4: local manifests publish the structured
+`notifications.expoPushSeam` descriptor, hosted/conformance profiles withhold
+it, and the broader `notifications` boolean remains `false`. The Accepted
+contract makes the closed capability id a stable compatibility fact; the
+physical dev-build receipt remains a separate repository Exit witness and
+cannot demote or upgrade that manifest fact. It is not evidence of device
+delivery, display, read state, exactly-once behavior, or an SLA.
+
+### 2026-08-02 — OQ2 installation-identity ratification amendment
+
+Charlie closed the author-decision packet's veto window, so the delegated
+device-scoped-store default is now the v1 contract and implementation:
+
+- `@expo/snapback-client/push-installation-expo` constructs the conventional
+  Expo carrier in `Paths.document/snapback-push/installation.v1.json`, which
+  the app passes to `attachPushRegistry` as `pushInstallationStorage`. The app
+  still owns and injects the native module, preserving the registry subpath's
+  frozen no-native-dependency closure. The file is a closed two-field artifact,
+  and corrupt or unavailable custody fails with stable diagnostics; its bytes
+  never enter RQS state, app data, requests, or logs.
+- The factory returns one process writer per file-system module and directory.
+  Its write is first-writer-wins, and the registry re-reads the committed store
+  after minting, so concurrent first use converges on one id. Each later
+  operation also re-reads the store, so a completed reset cannot be masked by
+  an in-memory promise.
+- Logout preserves the file and server-side session termination unbinds its
+  token row. Account switching preserves the same id; registration under the
+  successor session invokes D1b's single-owner rebind. Only the retained
+  storage adapter's `clear()`, an OS app-data reset, or reinstall removes
+  custody; the next registration mints a fresh device identity. Missing
+  custody still refuses, and custom native storage remains supported.
+
+The client package acceptance covers concurrent first use, logout/account
+switch preservation, full reset, RQS separation, and corrupt-store refusal.
+This closes OQ2 without widening D4's capability claim or the real-receipt Exit
+witness.
 
 ## Prior art
 

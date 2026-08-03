@@ -167,6 +167,7 @@ const inventories = [
     packageDir: 'packages/snapback-codegen',
     testDir: '.',
     suffix: '.test.mjs',
+    scriptNames: ['pretest', 'test'],
     expectedFiles: [
       'api-envelope-members.test.mjs',
       'args-contract-goldens.test.mjs',
@@ -207,6 +208,8 @@ const inventories = [
       'seed-asset-fixtures.test.mjs',
       'settlement-bounded-skew.test.mjs',
       'standard-patterns.test.mjs',
+      'vector-authoring.test.mjs',
+      'vector-distance-profile.test.mjs',
     ],
   },
   {
@@ -453,7 +456,10 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // 166 -> 167 (2026-08-02, LLP 0136 live-search authoring):
 // @expo/snapback-codegen gains the maintained live-search declaration,
 // validation, manifest, and type-flow suite.
-assert.equal(total, 167, 'reviewed package/admin test count changed');
+// 167 -> 169 (2026-08-03, LLP 0132 batched reconciliation): the vector
+// authoring and distance-profile suites deferred by the VEC-2 wave policy are
+// registered; the superseded parallel-landing fixture suites are removed.
+assert.equal(total, 169, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
