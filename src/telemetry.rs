@@ -9993,6 +9993,7 @@ mod tests {
             .unwrap();
         assert_eq!(all.issues.len(), 2);
         assert_eq!(all.known_releases, vec!["release-errors-api"]);
+        assert_eq!(all.variance.transition_history_floor_seq, None);
         let structural = serde_json::to_string(&all).unwrap();
         assert!(!structural.contains("titleTemplate"));
         assert!(!structural.contains("stackHead"));
@@ -10005,6 +10006,22 @@ mod tests {
             .unwrap();
         assert_eq!(since.issues.len(), 1);
         assert!(since.issues[0].first_seen_seq >= 2);
+        let first_page = telemetry
+            .query_error_issues(&crate::errors_query::ErrorsIssuesRequestV1 {
+                limit: 1,
+                ..Default::default()
+            })
+            .unwrap();
+        let cursor = first_page.next_cursor.expect("two issues yield a cursor");
+        let spliced = telemetry
+            .query_error_issues(&crate::errors_query::ErrorsIssuesRequestV1 {
+                kind: Some("different-kind".to_owned()),
+                cursor: Some(cursor),
+                limit: 1,
+                ..Default::default()
+            })
+            .unwrap_err();
+        assert_eq!(spliced.diagnostic.code, "SNAPBACK_ERRORS_QUERY_INVALID");
         let detail = telemetry
             .query_error_issue(&crate::errors_query::ErrorsIssueRequestV1 {
                 issue: since.issues[0].issue.clone(),
@@ -10048,6 +10065,16 @@ mod tests {
         assert_eq!(
             unknown.diagnostic.details["knownReleases"],
             json!(["release-errors-api"])
+        );
+        let unknown_release = telemetry
+            .query_error_issues(&crate::errors_query::ErrorsIssuesRequestV1 {
+                release: Some("release-unknown".to_owned()),
+                ..Default::default()
+            })
+            .unwrap_err();
+        assert_eq!(
+            unknown_release.diagnostic.code,
+            "SNAPBACK_ERROR_RELEASE_UNKNOWN_OR_PRUNED"
         );
     }
 
