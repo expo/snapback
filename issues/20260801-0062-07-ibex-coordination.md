@@ -82,3 +82,19 @@ This ticket closes only when the 0028 and 0029 corrections plus the new
 reviewed extension have landed and their document identifiers and commits are
 recorded here. Standalone compilation becoming green by itself is not that
 condition.
+
+## Running log
+
+- **2026-08-02 late — standalone compilation landed ibex-side; the contract
+  documents have not.** The ibex agent reports the LLP 0047 finish line
+  complete: `ca97519a` ("Finish standalone executable support"), static Linux
+  networking `77799377`, and 0029/0039/0047 Accepted after a dual-family loop
+  (`653aa005`). Verified against this ticket's done-when: ibex LLP 0028 is
+  still Draft (last revised 2026-07-18) and still carries the
+  "Snapback requires computed dynamic imports" claim; LLP 0029 (Accepted,
+  revised 2026-08-02) contains no external-script / caller-selected-file
+  lane; no LLP 0048 exists. Per this ticket's own closing condition,
+  standalone compilation green is explicitly not sufficient — asks 1–3
+  (0028 correction, 0029 correction, new reviewed extension contract)
+  remain open and 0062-08 stays blocked on them. A follow-up handoff prompt
+  was given to the ibex maintainer session.
