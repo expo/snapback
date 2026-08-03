@@ -265,7 +265,7 @@ impl BuildRow {
 }
 
 fn load_build(conn: &Connection, operation_id: &str) -> SnapbackResult<BuildRow> {
-    let raw: Option<(
+    type RawBuildRow = (
         String,
         String,
         i64,
@@ -282,7 +282,8 @@ fn load_build(conn: &Connection, operation_id: &str) -> SnapbackResult<BuildRow>
         i64,
         i64,
         i64,
-    )> = conn
+    );
+    let raw: Option<RawBuildRow> = conn
         .query_row(
             "SELECT table_name,index_name,generation,predecessor_generation,
                     plan_digest,approval_digest,plan_json,approval_json,
@@ -511,15 +512,15 @@ pub fn begin_rebuild(
         ));
     }
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    if let Some(existing) = tx
+    if tx
         .query_row(
             "SELECT 1 FROM _snapback_vector_builds WHERE operation_id=?1",
             params![approval.operation_id],
             |_| Ok(()),
         )
         .optional()?
+        .is_some()
     {
-        let _ = existing;
         let existing = load_build(&tx, &approval.operation_id)?;
         if existing.plan.plan_digest != plan.plan_digest
             || existing.approval_digest != sealed_approval

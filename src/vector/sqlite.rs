@@ -246,12 +246,14 @@ pub fn stage_manifest_in_tx(
 /// evidence are returned together, while physical generation identity stays
 /// an internal storage concern.
 #[derive(Clone, Debug, PartialEq)]
+#[allow(dead_code)] // consumed by the VEC runtime-integration lane
 pub(crate) struct VectorSqliteQueryResultV1 {
     pub output: QueryOutput,
     pub counters: VectorWorkCountersV1,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(dead_code)] // carried privately from read lane to writer quarantine
 pub(crate) struct VectorGenerationIdentity {
     pub table: String,
     pub index: String,
@@ -259,6 +261,7 @@ pub(crate) struct VectorGenerationIdentity {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[allow(dead_code)] // consumed by the VEC runtime-integration lane
 pub(crate) struct VectorSqliteQueryFailure {
     pub error: SnapbackError,
     pub quarantine_target: Option<VectorGenerationIdentity>,
@@ -302,7 +305,8 @@ fn active_query_generation(
     table: &TableManifest,
     index: &VectorIndexManifestV1,
 ) -> Result<VectorGenerationIdentity, VectorSqliteQueryFailure> {
-    let active: Option<(i64, String, String, i64, String, String, Option<i64>)> = conn
+    type ActiveGenerationRow = (i64, String, String, i64, String, String, Option<i64>);
+    let active: Option<ActiveGenerationRow> = conn
         .query_row(
             "SELECT generation,semantic_version,manifest_digest,source_head,root_digest,
                     receipt_json,predecessor_generation
@@ -406,6 +410,7 @@ fn load_authoritative_row(
 /// deliberately `query_only`; callers use the private quarantine target on
 /// [`VectorSqliteQueryFailure`] to invoke this helper on the writer lane. The
 /// exact identity prevents a delayed report from poisoning a newer generation.
+#[allow(dead_code)] // invoked by the VEC runtime-integration writer lane
 pub(crate) fn quarantine_generation_on(
     conn: &Connection,
     identity: &VectorGenerationIdentity,
@@ -438,6 +443,7 @@ pub(crate) fn quarantine_generation_on(
 ///
 /// @ref LLP 0132#candidate-to-release-consistency — candidates and their
 ///   authoritative release derivations are read from the same source cut.
+#[allow(dead_code)] // invoked by the VEC runtime-integration read lane
 pub(crate) fn query_vector_on(
     conn: &Connection,
     schema: &SchemaManifest,
@@ -1285,18 +1291,17 @@ pub fn maintain_vector_indexes_in_tx(
         if binding
             .activated_head
             .is_some_and(|activated| source_version > activated)
+            && let Some(predecessor) = binding.predecessor_generation
         {
-            if let Some(predecessor) = binding.predecessor_generation {
-                tx.execute(
-                    "UPDATE _snapback_vector_generations SET rollback_eligible=0
-                     WHERE table_name=?1 AND index_name=?2 AND generation=?3",
-                    params![
-                        binding.table,
-                        binding.index.name,
-                        to_sql_u64(predecessor, "predecessor vector generation")?
-                    ],
-                )?;
-            }
+            tx.execute(
+                "UPDATE _snapback_vector_generations SET rollback_eligible=0
+                 WHERE table_name=?1 AND index_name=?2 AND generation=?3",
+                params![
+                    binding.table,
+                    binding.index.name,
+                    to_sql_u64(predecessor, "predecessor vector generation")?
+                ],
+            )?;
         }
     }
     Ok(())
