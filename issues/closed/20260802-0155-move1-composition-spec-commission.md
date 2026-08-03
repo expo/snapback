@@ -1,15 +1,18 @@
 # Commission tracker: the LLP 0155 Move-1 composition-algebra Spec
 
-**Status:** Open — ACCEPTED 2026-08-03 / PENDING LANDING ON MAIN. Charlie
-explicitly directed "accept and promote" after the review loop converged. The
+**Status:** Closed — ACCEPTED 2026-08-03 and landed on main in merge
+`5db186e06122744f130b63dd7727d6e6589f196a`. Charlie explicitly directed
+"accept and promote" after the review loop converged. The
 commissioned Spec is **LLP 0157**
 (`llp/0157-composition-algebra-and-completeness.spec.md`, v0.7 Accepted).
 It owns the node algebra, plan and materialization identity, completeness
 witness, capability classification, sugar rule, inspection model, Move-2
 store seam, and—now accepted—the shared `sbbc1`/`sbsb1` cursor-family
-registry and `sbsb1` grammar. Accepted LLP 0110/0135 remain the cursor
-authorities until that transition, so the held wave1-0135 implementation has
-not been un-waited prematurely.
+registry and `sbsb1` grammar. LLP 0110 retains bounded-child body semantics
+and LLP 0135 retains snapshot-batch execution semantics; LLP 0157 now owns the
+shared cursor registry and exact `sbsb1` grammar. Its landing releases the
+held wave1-0135 snapshot-batch implementation without registering or
+advertising the capability ahead of its executable gates.
 
 The LLP 0005 super-refine record is complete:
 
@@ -22,8 +25,8 @@ The LLP 0005 super-refine record is complete:
 The actual responses and provenance are preserved in
 `llp/reviews/0157-composition-algebra-and-completeness.{codex,claude}.md`.
 No review accepted the Spec; Charlie did. The six acceptance-gated boundary
-notes are now present. Remaining for this ticket: land this change on main,
-then record the landing commit and close/move the ticket.
+notes are now present. The landing commit is recorded above and this ticket's
+exit is met.
 **Systems:** Relational queries, API, Codegen
 **Related:** LLP 0155 (Accepted v0.4 — its acceptance commissioned this
 Spec; Move 1 recast as LLP 0120 option-3a bounded-node composition), LLP
