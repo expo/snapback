@@ -44,6 +44,11 @@ import {
 import {
   prepareReactBindingForClient,
 } from './react-binding.mjs';
+import { createRegistrationLedger } from './registration-ledger.mjs';
+import {
+  deriveLegacyResumeAnswerV1,
+  deriveQmk1AnswerV1,
+} from './answer-classes.mjs';
 export { parseSearchQueryV1, search } from './search.mjs';
 export {
   CANONICAL_CLIENT_VALUE_V1_LIMITS,
@@ -1656,6 +1661,21 @@ const clientCodedError = (error, code) => {
   return error;
 };
 
+const LEGACY_REGISTRATION_PARTITION = `sha256:${'0'.repeat(64)}`;
+
+function mintVolatileRegistrationId() {
+  const bytes = new Uint8Array(16);
+  if (typeof globalThis.crypto?.getRandomValues !== 'function') {
+    const error = new Error(
+      'SNAPBACK_QUERY_REGISTRATION_RANDOM_UNAVAILABLE: active registration identity requires crypto.getRandomValues',
+    );
+    error.code = 'SNAPBACK_QUERY_REGISTRATION_RANDOM_UNAVAILABLE';
+    throw error;
+  }
+  globalThis.crypto.getRandomValues(bytes);
+  return `qreg1_${[...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+}
+
 export class SnapbackClient {
   constructor(baseUrl, {
     adminToken = (typeof process !== 'undefined' && process.env ? process.env.SNAPBACK_ADMIN_TOKEN : null) ?? null,
@@ -1714,6 +1734,11 @@ export class SnapbackClient {
     // Per-class decoded-byte ingress bounds (LLP 0062); partial overrides
     // merge over DEFAULT_INGRESS_LIMIT_BYTES.
     ingressLimits = null,
+    // LLP 0166 OQ8 keeps authoring private in this slice. These underscored
+    // seams let generated/bootstrap machinery supply admitted qmk1 identity
+    // and L2 establishment without declaring a public registration API.
+    __registrationAddressResolver = null,
+    __materializationStore = null,
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
@@ -1799,6 +1824,18 @@ export class SnapbackClient {
       this.__ownsRqsStore = false;
     }
     this.__rqsStoreClosePromise = null;
+    this.__registrationContextId = mintVolatileRegistrationId();
+    this.__materializationStore = __materializationStore;
+    this.__registrationRevision = 0;
+    this.__activeRegistrations = new Map();
+    this.__registrationLedgerPromise = createRegistrationLedger({
+      storeHandle: typeof this.rqsStore?.materializationTransaction === 'function'
+        ? this.rqsStore
+        : null,
+      clientStoreId: this.clientStoreId,
+      resolveAddress: __registrationAddressResolver,
+      materializationStore: __materializationStore,
+    });
     if (offlineQueue !== 'auto' && typeof offlineQueue != 'boolean') {
       throw new TypeError("offlineQueue must be 'auto', true, or false");
     }
@@ -4383,6 +4420,103 @@ export class SnapbackClient {
     return prepareReactBindingForClient(this, options);
   }
 
+  // @ref LLP 0166#registration-sources-mapped-to-shipped-machinery — each
+  // liveQuery owns one volatile active registration; persistResume maps only
+  // the retention axis and disposal releases that exact demand.
+  async __registerActiveQueryDemand(ref, args, persistResume) {
+    const ledger = await this.__registrationLedgerPromise;
+    if (ledger === null) return () => {};
+    const registrationId = mintVolatileRegistrationId();
+    const functionReference = typeof ref === 'object' && ref !== null
+      ? structuredClone(ref)
+      : { name: functionName(ref) };
+    const registration = {
+      format: 'snapback.query-registration.v1',
+      registrationId,
+      source: 'active',
+      ownerContext: { kind: 'subscription', contextId: this.__registrationContextId },
+      functionReference,
+      canonicalArgs: structuredClone(args),
+      requestedScope: { kind: 'page-set', from: 'first', through: 'terminal' },
+      retentionRequest: persistResume ? 'durable' : 'none',
+      idleTtlClass: 'default',
+    };
+    const partition = typeof functionReference.authorityPartitionDigest === 'string'
+      ? functionReference.authorityPartitionDigest
+      : LEGACY_REGISTRATION_PARTITION;
+    this.__activeRegistrations.set(registrationId, { registration, partition });
+    const demands = [...this.__activeRegistrations.values()]
+      .filter((entry) => entry.partition === partition)
+      .map((entry) => entry.registration);
+    try {
+      ledger.applyContextDemands({
+        contextId: this.__registrationContextId,
+        authorityPartitionDigest: partition,
+        revision: ++this.__registrationRevision,
+        demands,
+      });
+    } catch (error) {
+      this.__activeRegistrations.delete(registrationId);
+      throw error;
+    }
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.__activeRegistrations.delete(registrationId);
+      const remaining = [...this.__activeRegistrations.values()]
+        .filter((entry) => entry.partition === partition)
+        .map((entry) => entry.registration);
+      ledger.applyContextDemands({
+        contextId: this.__registrationContextId,
+        authorityPartitionDigest: partition,
+        revision: ++this.__registrationRevision,
+        demands: remaining,
+      });
+    };
+  }
+
+  // Internal OQ8 seam; intentionally absent from the package type surface.
+  async __registerDurableQuery(registration) {
+    const ledger = await this.__registrationLedgerPromise;
+    return ledger === null
+      ? { refused: { code: 'SNAPBACK_QUERY_REGISTRATION_STORE_DISABLED' } }
+      : ledger.registerDurable(registration);
+  }
+
+  async __releaseDurableQuery(registrationId) {
+    const ledger = await this.__registrationLedgerPromise;
+    return ledger === null ? { released: true } : ledger.releaseDurable({ registrationId });
+  }
+
+  async __readQmk1LocalAnswer({ address, expectedFence, connected, ...ownerFacts }) {
+    if (!this.__materializationStore) {
+      const error = new Error(
+        'SNAPBACK_MATERIALIZATION_STORE_UNAVAILABLE: qmk1 local reads require the L2 store seam',
+      );
+      error.code = 'SNAPBACK_MATERIALIZATION_STORE_UNAVAILABLE';
+      throw error;
+    }
+    let observation = null;
+    const releaseObservation = this.__materializationStore.observeMaterialization(
+      address,
+      (next) => { observation = next; },
+    );
+    releaseObservation();
+    const value = await this.__materializationStore.readRenderable(address, expectedFence);
+    const classification = deriveQmk1AnswerV1({
+      connected,
+      ...ownerFacts,
+      completenessStatus: observation?.status ?? 'unknown',
+      freshness: observation?.freshness ?? null,
+      renderable: value !== null,
+    });
+    return Object.freeze({
+      ...classification,
+      value: classification.answerClass === 'authoritative' ? value : null,
+    });
+  }
+
   async authRequestCode(email) {
     if (this.authCoordinator) await this.authSession();
     const capture = this.authCoordinator?.capture() ?? null;
@@ -4786,6 +4920,11 @@ export class SnapbackClient {
     }
     try { await this.__authParticipantUnregister?.(); } catch (error) { firstError ??= error; }
     this.__authParticipantUnregister = null;
+    try {
+      const ledger = await this.__registrationLedgerPromise;
+      ledger?.releaseContextDemands({ contextId: this.__registrationContextId });
+      this.__activeRegistrations.clear();
+    } catch (error) { firstError ??= error; }
     // @ref LLP 0090#d3-channel-b--persisted-device-snapshot — the client
     // owns stores resolved by the default ladder, so final client cleanup
     // releases their single-writer lease. Injected stores remain caller-owned.
@@ -7261,6 +7400,7 @@ export class SnapbackClient {
     }
     const name = functionName(ref);
     const client = this;
+    let releaseActiveRegistration = () => {};
     // @ref LLP 0053#client-fences — every auth-scoped materialization owns a
     //   never-reused query identity and a synchronous publication fence.
     const authorizationProtocolEnabled = this.authProtocols.authInvalidation != null;
@@ -7366,6 +7506,9 @@ export class SnapbackClient {
       // answer (CurrentAsOf, replay completion, or fresh LiveReplace) makes
       // them 'current'; null while nothing authoritative-or-retained is held.
       freshness: null,
+      // @ref LLP 0166#d4--completeness-honest-local-answers — legacy resume remains
+      // labeled-retained until an authoritative wire answer arrives.
+      answerClass: 'unknown',
       // Retainability fact (LLP 0129 Phase 0 / LLP 0053's retainability
       // invariant): null until the first subscribe response classifies this
       // subscription; then a frozen {retainable, code, reason, store}
@@ -7608,7 +7751,13 @@ export class SnapbackClient {
       // snapshot; replay drains only after it completes), so the retained
       // render can never turn into a resume attempt.
       handle.rqsResume = pendingIntentsAtSeed > 0 ? null : winner.resume;
-      handle.freshness = 'retained';
+      const retainedAnswer = deriveLegacyResumeAnswerV1({
+        connected: false,
+        verified: true,
+        outboxPending: pendingIntentsAtSeed > 0,
+      });
+      handle.freshness = retainedAnswer.freshness;
+      handle.answerClass = retainedAnswer.answerClass;
       handle.pendingIntentsAtSeed = pendingIntentsAtSeed;
       seededFromResumeState = winner === persisted;
       deliverAuthorityObservation(() => {
@@ -7616,6 +7765,7 @@ export class SnapbackClient {
           version: handle.version,
           kind: 'persisted',
           freshness: 'retained',
+          answerClass: 'labeled-retained',
           ...(pendingIntentsAtSeed > 0 ? { pendingIntents: pendingIntentsAtSeed } : {}),
         });
       });
@@ -8495,6 +8645,7 @@ export class SnapbackClient {
         // Purge the persisted RQS copy, not just in-memory state (LLP 0090
         // D3 storage lifecycle). Auth-scoped data is never in the store, so
         // this is belt-and-braces for a query whose declaration changed.
+        handle.answerClass = 'unknown';
         void removePersistedEntry();
         const reportingState = authorizationTaskState(updateCapture);
         void receiveAuthorizationProjection({
@@ -8532,6 +8683,7 @@ export class SnapbackClient {
           // authoritative — retained/pending state ends here.
           if (update.resume) handle.rqsResume = update.resume;
           handle.freshness = 'current';
+          handle.answerClass = 'authoritative';
           schedulePersist();
           deliverAuthorityObservation(() => {
             onUpdate?.(handle.rows, {
@@ -8559,6 +8711,7 @@ export class SnapbackClient {
         // The rung-1 authoritative answer: held (persisted-seeded) rows are
         // proved current without touching them.
         handle.freshness = 'current';
+        handle.answerClass = 'authoritative';
         if (pendingResumeConfirmation) {
           // Least-recently-resumed bookkeeping (LLP 0091 §0A.5): recency is
           // the last SUCCESSFUL authoritative resume of the persisted entry.
@@ -8632,12 +8785,14 @@ export class SnapbackClient {
               }
             } else {
               handle.rqsResume = null;
+              handle.answerClass = 'unknown';
               void removePersistedEntry();
               void resubscribe('rqs_digest_mismatch');
               return;
             }
           }
           handle.freshness = 'current';
+          handle.answerClass = 'authoritative';
           schedulePersist();
           deliverAuthorityObservation(() => {
             onUpdate?.(handle.rows, {
@@ -8662,6 +8817,11 @@ export class SnapbackClient {
         // retained continuity is gone, so relaunch must not resume from it.
         if (update.clear_retained === true || update.clearRetained === true) {
           handle.rqsResume = null;
+          handle.answerClass = deriveLegacyResumeAnswerV1({
+            connected: true,
+            verified: true,
+            clearRetained: true,
+          }).answerClass;
           void removePersistedEntry();
         }
         void resubscribe(resyncReason(update.reason));
@@ -8800,6 +8960,7 @@ export class SnapbackClient {
               // A fresh LiveReplace answer (rung 3 or a plain subscribe) is
               // authoritative (LLP 0090 D1 freshness rule).
               handle.freshness = 'current';
+              handle.answerClass = 'authoritative';
             } else if (heldResume) {
               // Rung-1 or rung-2 answer pending: held rows stay retained
               // until the current_as_of (or replay live_delta) durable
@@ -9159,7 +9320,10 @@ export class SnapbackClient {
           if (pendingResumeConfirmation) {
             pendingResumeConfirmation = false;
             handle.rqsResume = null;
-            if (handle.freshness === 'current') handle.freshness = 'retained';
+            if (handle.freshness === 'current') {
+              handle.freshness = 'retained';
+              handle.answerClass = 'labeled-retained';
+            }
           }
           // EVERY loss requires a fresh subscribe (ENG-23428): the server
           // registers the stream task at upgrade completion, before any
@@ -9232,6 +9396,7 @@ export class SnapbackClient {
         detachStream = null;
         handle.rows = [];
         handle.freshness = null;
+        handle.answerClass = 'unknown';
         handle.authorizationDisposition = 'delete';
         // The custody blank opens a new authority world: a predecessor
         // world's denial fact must not linger into it (0137 A1-Expo f4).
@@ -9323,6 +9488,7 @@ export class SnapbackClient {
       // The bundle snapshot is authoritative (LLP 0053's fresh snapshot,
       // taken once): 'current', never retained/pending.
       handle.freshness = 'current';
+      handle.answerClass = 'authoritative';
       schedulePersist();
       deliverAuthorityObservation(() => {
         onUpdate?.(handle.rows, {
@@ -9643,6 +9809,7 @@ export class SnapbackClient {
           establishTimer = null;
         }
         attempt(unregisterDurable);
+        attempt(releaseActiveRegistration);
         attempt(unregisterAuthMaterialization);
         attempt(unregisterExternalBearerHandle);
         attempt(() => detachStream?.());
@@ -9677,7 +9844,13 @@ export class SnapbackClient {
       // connection ownership.
     };
 
-    await establish();
+    releaseActiveRegistration = await this.__registerActiveQueryDemand(ref, args, persistResume);
+    try {
+      await establish();
+    } catch (error) {
+      releaseActiveRegistration();
+      throw error;
+    }
     return handle;
   }
 }

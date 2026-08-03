@@ -30,3 +30,17 @@ qmk1 family (+ grace + blocker-held + stub carve-outs), grandfathered
 variant, restart legs per source, cap legs (513th and 16 KiB-exceeding
 refuse), grace-retention legs, downgrade-compaction leg; S4 stays
 green.
+
+---
+
+**Progress (2026-08-03):** implemented (Codex, session-supervised) and
+landed: closed QueryRegistrationV1 with source×ownerContext pairing;
+per-source durability with 512/16 KiB caps; two-axis last-snapshot
+pinning; scope serialization; liveQuery active-registration wiring with
+the persistResume mapping; 4-concurrent prioritized hydration scheduler
+over L2 beginEstablishment; the broker-facing seam consumed by L4.
+Open residuals recorded honestly: raw routes-manifest template → 
+registration producer wiring awaits a concrete route-identity boot seam;
+legacy in-process demands use an authority-independent sentinel until
+qmk1 callers supply owner-issued partition digests. Open until the
+umbrella closes.

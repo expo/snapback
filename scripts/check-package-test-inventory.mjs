@@ -68,6 +68,7 @@ const inventories = [
     expectedFiles: [
       'app-data.test.mjs',
       'argument-validation.test.mjs',
+      'answer-classes.test.mjs',
       'assets-watch-authorization.test.mjs',
       'assets.test.mjs',
       'attribution.test.mjs',
@@ -88,6 +89,7 @@ const inventories = [
       'outbox-store.test.mjs',
       'package.test.mjs',
       'push-registry.test.mjs',
+      'registration-ledger.test.mjs',
       'reservation-retry.test.mjs',
       'rqs-digest-parity.test.mjs',
       'rqs-resume-expo.test.mjs',
@@ -476,7 +478,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // the pre-admission evaluation floor and close-predecessor-first crash corpus.
 // 175 -> 177 (2026-08-03, LLP 0166 L4/L5): @expo/snapback-client gains the
 // multi-context demand broker and lifecycle/budget/policy-inspection suites.
-assert.equal(total, 177, 'reviewed package/admin test count changed');
+// 177 -> 179 (2026-08-03, LLP 0166 L3/L6): @expo/snapback-client gains the
+// registration/sync-set and completeness-honest 15-row answer-table suites.
+assert.equal(total, 179, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
