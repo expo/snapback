@@ -2,31 +2,38 @@
 
 **Status:** Open
 **Systems:** Runtime, Storage, API, Wire Protocol
-**Related:** LLP 0135 (Accepted 2026-07-31; handler-tier sequence half
-implemented 2026-08-02, snapshot half held), LLP 0120 (option 3a), LLP 0155
-Move 1 (same option-3a family)
+**Related:** LLP 0135 (Accepted 2026-07-31; handler-tier sequence substrate
+implemented 2026-08-02 but unpublished, snapshot half unblocked), LLP 0120
+(option 3a), LLP 0155 Move 1 and LLP 0157 §D8 (same option-3a family)
 
 Two halves with different readiness:
 
-- **Sequence half — start any time.** `ctx.sequence.allocate` gapless/
-  monotonic allocation (`sequence_allocation_v1`): declared sequences,
-  order-field bounds, per-scope serialization named in the API (the scope is
-  part of the API, not a footnote — LLP 0128 guardrail 2). The A6 demo's
-  hand-rolled read-increment-write is the motivating case and the natural
-  acceptance fixture.
-- **Snapshot-batch half — check first.** `snapshot_batch_v1` (multiple query
-  nodes in one cursored batch, `sbsb1`/`sbbc1` cursors) is the same LLP 0120
-  option-3a family the 0155 Move-1 composition-algebra Spec was recast into.
-  Before building, check that Spec's state: whichever lands first pins the
-  shared cursor grammar; if the Move-1 Spec is in flight, coordinate or hold
-  this half with a dated note.
+- **Sequence half — substrate landed, publication remains.**
+  `ctx.sequence.allocate` gapless/monotonic allocation
+  (`sequence_allocation_v1`) now has declared sequences, order-field bounds,
+  and per-scope serialization named in the API (the scope is part of the API,
+  not a footnote — LLP 0128 guardrail 2). The A6 demo proves the local
+  handler-tier substrate; the combined sequence checkpoint also implements the
+  generated `AllocateSequence` step and lane-Q mutation-atomic withholding.
+  Those additions do not qualify target support: the remaining §5.1
+  disclosure/performance/commit-order corpus is still required before LLP 0113
+  publication. Until then the capability is support-false with a structured
+  GAP.
+- **Snapshot-batch half — unblocked.** `snapshot_batch_v1` (multiple query
+  nodes in one cursored batch with a composite `sbsb1` cursor over
+  bounded-children nodes) is the same LLP 0120 option-3a family the LLP 0155
+  Move-1 composition-algebra Spec adopts. LLP 0157 §D8 resolves the ownership
+  question: LLP 0135 Part 2 is implementable as written and owns the cursor
+  grammar. LLP 0157's identity, completeness, inspection, and store layers
+  attach without changing those execution semantics.
 
 Also due at landing: apply LLP 0135 §4's fold-on amendments ("drafted, not
 applied") to their downstream docs if the hygiene ticket has not already.
 
-**Exit:** the spec's §5 executable acceptance implemented; capability ids
-registered in the manifest enum; demo workaround in the A6 arm replaceable;
-dated implementation-record amendment on the LLP; LLP 0115 board row updated.
+**Exit:** both parts' §5 executable acceptance implemented; capability ids
+registered and honestly published through LLP 0113 only after qualification;
+the A6 arm on the real primitive; dated implementation-record amendment on the
+LLP; LLP 0115 board row updated.
 
 ## Coordination log
 
@@ -36,20 +43,25 @@ dated implementation-record amendment on the LLP; LLP 0115 board row updated.
   and marked §4 folded. This implementation ticket
   must not repeat them; it still owns code, executable acceptance, capability
   registration, demo replacement, and the implementation record.
-- **2026-08-02 — sequence half implemented; ticket intentionally remains
-  open.** The local SQLite/Ibex target now has declared
+- **2026-08-02 — sequence substrate implemented; ticket intentionally remains
+  open.** The local SQLite/Ibex source tree now has declared
   `ctx.sequence.allocate(counterName, scopeId)`, incarnation-scoped serialized
   counters, atomic settlement/replay facts, safe-integer exhaustion,
   membership/public scope reach, explicit brownfield-incarnation activation,
-  UTF-8 order-field bounds, experimental capability registration, and
-  package/runtime/storage acceptance. A6 now
+  UTF-8 order-field bounds, and focused package/runtime/storage substrate
+  evidence. A6 now
   uses the primitive and asserts JOB-4..JOB-9 plus exact receipt allocation
   facts; literal seed and reset/restore histories are bridged with real
-  committed allocations. The generated `AllocateSequence` plan step, lane-Q optimistic
-  withholding, and the remaining §5.1 disclosure/performance vectors are
-  recorded as unbuilt in LLP 0135's dated implementation record.
-- **2026-08-02 — snapshot half held.** LLP 0155 Move 1's
-  composition-algebra Spec is still uncommissioned, so this lane does not pin
-  a competing shared cursor grammar. `snapshot_batch_v1`, `sbsb1`, and
-  `sbbc1` remain unimplemented and unregistered. This is the sole reason the
-  ticket stays Open after the commissioned sequence landing.
+  committed allocations. This does not publish `sequence_allocation_v1`:
+  support remains false with a structured GAP until all of §5.1 and LLP 0113's
+  qualification route are satisfied.
+- **2026-08-02 — sequence integration checkpoint.** The generated
+  `AllocateSequence` plan step and lane-Q mutation-atomic optimistic withholding
+  now extend the implemented substrate with focused proof. They remain
+  insufficient for publication while the other §5.1 vectors are open.
+- **2026-08-02 — snapshot half unblocked.** LLP 0157 now exists, and §D8
+  explicitly adopts LLP 0135 Part 2, calls it implementable as written, and
+  confirms that its `sbsb1` cursor grammar belongs to LLP 0135. The composite
+  remains unimplemented and unregistered; standalone `sbbc1` already exists
+  under the bounded-children profile. The ticket remains Open for the actual
+  snapshot implementation and acceptance, not for a cursor-ownership hold.

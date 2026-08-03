@@ -51,7 +51,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
 | backend.codegen | Generate a digest-verified review manifest, input-hash cache, client API, and Contract bindings with deterministic human/JSON summaries | codegen, generate, artifacts, cache, custody, review manifest | all | shipped | `createReviewManifest` in packages/snapback-codegen/review-surface.mjs | llp/0010, llp/0012, llp/0037, llp/0041 | getting-started/generated-artifacts.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
-| backend.sequences | Experimental declared, incarnation-scoped `ctx.sequence.allocate(counterName, scopeId)` for one atomic gapless/monotonic allocation per mutation, with membership/public scope reach, exact settlement replay, safe-integer exhaustion, and storage-enforced string order-field bounds | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | `sequence.allocate` in packages/snapback-harness/ctx-bootstrap.js + `sequence_allocation_v1` in schemas/capability.manifest.local-dev-sqlite-ibex.json | llp/0135, llp/0128 | backend/sequences.md |
+| backend.sequences | Experimental declared, incarnation-scoped sequences have an in-tree local substrate spanning `ctx.sequence.allocate(counterName, scopeId)`, generated `AllocateSequence`, mutation-atomic lane-Q withholding, membership/public scope reach, exact settlement replay, safe-integer exhaustion, storage-enforced string order-field bounds, and A6 evidence. The capability remains unpublished and support-false until the complete LLP 0135 §5.1 qualification and LLP 0113 publication train | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | none | partial | `sequence.allocate` in packages/snapback-harness/ctx-bootstrap.js + demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs + focused generated-plan/lane-Q proof (substrate evidence only; no capability publication witness) | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (qualified `sequence_allocation_v1` publication; owner: Charlie, review: 2026-08-31; issue: issues/20260802-wave1-0135-sequences-snapshot-batch.md); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
 | backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks, deletion/GC, receipts (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; transcoding and hosted targets remain design-only | files, images, video, upload, object storage, media, browser upload, vite relay | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids in supportedCapabilities; `assets` facts block with Enforced image and video ceilings) + src/assets.rs + src/assets_image.rs + src/assets_video.rs suites + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
 | backend.expo-push-seam | Local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized `ctx.push.send`, crash-safe intent/batch/message ledger, bounded ticket/receipt maintenance, explicit ambiguous redrive risk, and structured `notifications.expoPushSeam` facts. The app-readable ledger projection, a real-device receipt, and the complete hosted conjunction remain GAPs; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (`expoPushSeam`) + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
@@ -324,8 +324,9 @@ you never build around a feature because you didn't know it existed.
   and the ordinary-vs-live boundary.
 - [Mutations](./backend/mutations.md) — buffered writes, one commit version,
   read-set conflict validation, and structured results.
-- [Scoped sequences](./backend/sequences.md) — experimental atomic,
-  incarnation-scoped human-facing numbers and enforced order-field bounds.
+- [Scoped sequences](./backend/sequences.md) — the unpublished local
+  handler-tier substrate for atomic, incarnation-scoped human-facing numbers,
+  its A6 evidence, and the remaining qualification GAP.
 - [Trusted runtime time and identifiers](./backend/trusted-runtime-values.md) —
   server-authored timestamps and IDs in JavaScript handlers, closed operation
   arguments, diagnostics, and transition guidance.
@@ -4618,7 +4619,7 @@ id: backend.sequences
 order: 28
 audience: agent-first
 capabilities: [backend.sequences]
-authorities: [llp/0128-popular-app-storage-scale.research.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, src/manifest.rs, src/runtime.rs, src/storage.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/sequence-authoring.test.mjs, packages/snapback-harness/ctx-bootstrap.js, demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs]
+authorities: [llp/0113-qualification-and-publication-authority.spec.md, llp/0128-popular-app-storage-scale.research.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, src/manifest.rs, src/runtime.rs, src/storage.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/sequence-authoring.test.mjs, packages/snapback-harness/ctx-bootstrap.js, demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs]
 examples: [demos/improvement-sweep/arms/a6-snapback-web/evidence/app]
 status: current
 targets: [local]
@@ -4629,14 +4630,17 @@ reviewed-commit: HEAD
 
 # Scoped sequences
 
-> **Experimental, local target only.** The handler-tier surface ships as
-> `sequence_allocation_v1`. Generated host-plan allocation, local/offline
-> execution, and snapshot-batch composition do not.
+> **Unpublished local substrate; no supporting target yet.** The contributor
+> tree contains handler-tier `ctx.sequence.allocate`, generated
+> `AllocateSequence`, mutation-atomic lane-Q withholding, and A6 evidence, but
+> `sequence_allocation_v1` remains support-false with a structured GAP until the
+> complete LLP 0135 §5.1 qualification and LLP 0113 publication train land. Do
+> not make an application depend on it yet.
 
-Use a scoped sequence for dense, monotonic human-facing numbers such as
-JOB-42 without maintaining an application-owned read/increment/write counter.
-Declare every counter on the JS mutation, including its scope table and the
-exact way the handler may reach that scope:
+The accepted surface is intended for dense, monotonic human-facing numbers such
+as JOB-42 without an application-owned read/increment/write counter. The local
+substrate declares every counter on the JS mutation, including its scope table
+and the exact way the handler may reach that scope:
 
 ```js source=packages/snapback-codegen/sequence-authoring.test.mjs
 const declaration = [{
@@ -4669,11 +4673,13 @@ recreating the row starts a new sequence at 1, even when the application row id
 is reused. The last admitted value is `Number.MAX_SAFE_INTEGER`; later
 allocation refuses with `SNAPBACK_SEQUENCE_EXHAUSTED` and commits nothing.
 
-The declaration automatically emits the experimental capability requirement
-and acknowledgment. Allocation facts are settlement evidence: direct receipts
-carry the exact counter, scope, incarnation, and value, while ordinary live
-fanout strips them. A sequence-only migration mutation may use `writes: []`;
-do not invent an application write merely to advance the framework counter.
+Codegen emits the experimental capability requirement and acknowledgment, but
+because target support remains false, an artifact requiring the capability
+must be refused rather than served. In the observed substrate, allocation
+facts are settlement evidence: direct receipts carry the exact counter, scope,
+incarnation, and value, while ordinary live fanout strips them. A sequence-only
+migration mutation may use `writes: []`; do not invent an application write
+merely to advance the framework counter.
 
 ## Bound string order fields
 
@@ -4686,16 +4692,23 @@ writer rejects oversized values with
 
 ## Current limits
 
-- Only JS/Ibex mutation handlers can allocate; generated `AllocateSequence`
-  plans are not implemented.
+- No target currently publishes `sequence_allocation_v1` support. The local
+  handler implementation and A6 run are substrate evidence only; the full
+  LLP 0135 §5.1 corpus remains the qualification boundary.
+- The generated `AllocateSequence` plan step and lane-Q mutation-atomic
+  optimistic withholding are implemented substrate with focused proof. They do
+  not complete §5.1 or authorize target publication.
 - One mutation can allocate at most once.
 - A counter's current or next value is never readable through the API.
-- Lane-Q optimistic changesets containing sequence-derived placement are not
-  implemented by this slice; do not claim local-execution parity.
+- Lane-L local execution of allocating mutations remains out of scope; do not
+  claim local-execution parity.
 - Historical application counters need an explicit, reviewed migration. The
   A6 fixture records its literal seed and reset/restore history through
   ordinary committed sequence allocations; there is no authored start-value
   escape hatch.
+- Snapshot-batch composition is a separate LLP 0135 Part 2 capability. LLP 0157
+  §D8 has unblocked that implementation lane by confirming LLP 0135 owns the
+  `sbsb1` cursor grammar; no snapshot-batch support is claimed here.
 
 ---
 

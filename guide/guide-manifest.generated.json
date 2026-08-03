@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "26c43b86a845c6f8ed252eabe7f9d92c5f5ccacd"
+    "commit": "eaecfb3a8e8a04cd7c74c528f5a54b3b08ceacba"
   },
   "nav": {
     ".": [
@@ -1029,8 +1029,10 @@
         "backend.sequences"
       ],
       "authorities": [
+        "llp/0113-qualification-and-publication-authority.spec.md",
         "llp/0128-popular-app-storage-scale.research.md",
         "llp/0135-sequence-allocation-and-snapshot-batch.spec.md",
+        "llp/0157-composition-algebra-and-completeness.spec.md",
         "src/manifest.rs",
         "src/runtime.rs",
         "src/storage.rs",
@@ -1044,7 +1046,7 @@
       ],
       "reviewed": "2026-08-02",
       "reviewedCommit": "HEAD",
-      "sha256": "2727fd92048b17900e2bff6b695a916d8cffabd9c6cb68ffbd4a31fb5fd70470",
+      "sha256": "0113921e1034b7c9f2c898513198d05abe676ff8752017bc1c1f717eb0e0cc2f",
       "snippets": [
         {
           "lang": "js",
@@ -1292,7 +1294,7 @@
       "examples": [],
       "reviewed": "2026-08-02",
       "reviewedCommit": "HEAD",
-      "sha256": "935a0278ee52e618be3c9db7d1f31ae8b3db41551d975a3b848d88886eae23b7",
+      "sha256": "318c1a981e9df1f9f9891b9617c3361c38e5ca7149057919a3416c85ff376056",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1933,7 +1935,7 @@
       ],
       "reviewed": "2026-08-02",
       "reviewedCommit": "HEAD",
-      "sha256": "8f55c280ed9e9e5a2918f88d6fefd909ef9b5fb6099ecb1376213f12f51b0018",
+      "sha256": "8672d09e6447d987029ef2854f2d9b7d7f8c85907fdb3141f34ca9f52870e5e0",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2567,7 +2569,6 @@
       "backend.runtime-values",
       "backend.schema",
       "backend.seed",
-      "backend.sequences",
       "backend.standard-patterns",
       "backend.streamed-actions",
       "backend.text-search",
@@ -2609,6 +2610,7 @@
       "backend.error-tracking-v1",
       "backend.notifications",
       "backend.observability-v1",
+      "backend.sequences",
       "backend.vector-search",
       "backend.write-activity-v1",
       "clients.non-js",
@@ -2622,5 +2624,5 @@
     "routes": 94,
     "hostOps": 32
   },
-  "contentHash": "129a386551d02842c95b1b3d93591135200e3f0fda5c9051aba84b8205de4140"
+  "contentHash": "eab77a72606b71c7e87f48cb109358109eef31091c4c82f158c0d2e2bbb13fd4"
 }

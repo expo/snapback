@@ -6,7 +6,10 @@
 Client SDK, Live queries, Wire Protocol, Codegen, Admin console, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-02
-**Revised:** 2026-08-02 (v0.1, initial draft — the Move-1 owning Spec
+**Revised:** 2026-08-02 (consumer-status reconciliation: §D8's existing
+division of labor is applied to the tracking prose — LLP 0135 Part 2 and its
+cursor grammar are implementable without waiting for this Spec's identity,
+completeness, inspection, and store layers); 2026-08-02 (v0.1, initial draft — the Move-1 owning Spec
 commissioned by LLP 0155's acceptance (fc19d8ec) and assigned to a Fable
 authoring session by the 2026-08-02 decision sitting, ruling 11
 (`issues/20260802-author-decision-packet.md`).) 2026-08-02 (v0.2,
@@ -675,7 +678,10 @@ the LLP 0005 loop returned Codex NOT READY (5 BLOCKING / 4 MATERIAL /
 1 NIT); v0.2 applies all ten findings — see the Revised header and
 `reviews/0157-composition-algebra-and-completeness.codex.md`. Next:
 round 2 against v0.2; LLP 0130 SD-4's standing acceptance applies if
-the loop converges within the commission's scope. Consumers waiting:
-LLP 0155 Stage 1, the snapshot-batch half of
-`issues/20260802-wave1-0135-sequences-snapshot-batch.md` (cursor
-grammar already pinned by 0135), and G-02's generated result types.
+the loop converges within the commission's scope. Consumers waiting on this
+Spec's own layers: LLP 0155 Stage 1 and G-02's generated result types. The
+snapshot-batch execution lane in
+`issues/20260802-wave1-0135-sequences-snapshot-batch.md` is not waiting: per
+§D8, LLP 0135 Part 2 is implementable as written and its cursor grammar was
+already pinned there. This Spec's layers attach later without changing those
+semantics.
