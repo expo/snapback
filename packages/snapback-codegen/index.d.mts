@@ -55,6 +55,72 @@ export function crossCheckContractQueryBinding(
   query: string;
 }>>;
 
+export interface OperationSchemaArtifact {
+  readonly file: string;
+  readonly value: Readonly<Record<string, unknown>>;
+}
+
+/** Focused projection seam used by the operation-schema conformance corpus. */
+export function renderOperationSchemas(
+  appId: string,
+  functions: ReadonlyArray<Readonly<{ name: string }>>,
+  functionsModule: Readonly<Record<string, Readonly<{
+    args?: Readonly<Record<string, unknown>>;
+  }>>>,
+): OperationSchemaArtifact[];
+
+/** Closed register-mode predicate shared with the route authoring fixture. */
+export function routeRegisterGroupEligible(
+  queries: ReadonlyArray<Readonly<{
+    function: string;
+    args?: Readonly<Record<string, unknown>>;
+  }>>,
+  functionsModule: Readonly<Record<string, Readonly<{
+    __kind?: string;
+    searchPlan?: unknown;
+    args?: Readonly<Record<string, Readonly<{ primitive?: string }>>>;
+  }>>>,
+): boolean;
+
+export interface ContractMutationDescriptor {
+  readonly name: string;
+  readonly args: unknown;
+  readonly argOrder: readonly string[];
+  readonly writes: readonly string[];
+  readonly invalidates: readonly string[];
+  readonly optimistic: boolean;
+  readonly atomicOptimisticWithholding?: true;
+  readonly plan?: unknown;
+  readonly serverRunnable: true;
+}
+
+/** Builds the Contract projection for a declarative mutation plan. */
+export function buildContractMutationDescriptor(options: Readonly<{
+  name: string;
+  args: unknown;
+  argOrder: readonly string[];
+  writes: readonly string[];
+  plan: unknown;
+  sequenceAllocationCount?: number;
+}>): ContractMutationDescriptor;
+
+/** Builds the Contract projection for a JavaScript mutation handler. */
+export function buildContractJsMutationDescriptor(options: Readonly<{
+  name: string;
+  args: unknown;
+  argOrder: readonly string[];
+  writes: readonly string[];
+  sequenceCount?: number;
+}>): ContractMutationDescriptor;
+
+export function contractCapabilitiesForMutations(
+  contractMutations: Readonly<Record<string, ContractMutationDescriptor>>,
+): Readonly<{
+  optimisticMutations: boolean;
+  derivedOptimisticOverlays: boolean;
+  offlineReplay: boolean;
+}>;
+
 export interface TargetCapabilityManifest {
   readonly targetProfileId?: string;
   readonly supportedArtifactVersions?: readonly string[];

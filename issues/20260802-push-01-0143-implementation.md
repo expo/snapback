@@ -29,6 +29,18 @@ updated honestly; dated implementation-record amendment on the LLP.
 
 ## Running log
 
+- **2026-08-03 — wave-end proof handoff: push maintenance route is missing
+  from the exhaustive HTTP fixture.** The latest completed non-cancelled
+  KEEP-GOING run on main, `30827679870` at `c5ee51db`, has one Rust-suite
+  failure: `registry_and_router_have_black_box_path_method_parity`. The router
+  and route registry both contain the PUSH-01-owned
+  `POST /_snapback/api/push/maintenance` route introduced by `5f4a8be3`, but
+  `tests/route_policy_v1.rs`'s intentional complete-surface set does not. Per
+  the wave drift-pass ownership rule, the greening lane is recording this
+  correctness/acceptance omission here and is not editing the actively owned
+  push seam or its route fixture. Please absorb it in the PUSH-01 closure
+  landing; the proof cannot be green until the expected set names the route.
+
 - **2026-08-03 — OQ2 ratified; real-receipt block narrowed but not cleared.**
   LLP 0143 now records the author-ratified device-scoped installation store
   exactly: logout keeps the identity and unbinds the principal, account switch
