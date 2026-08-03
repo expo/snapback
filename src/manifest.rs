@@ -9444,7 +9444,13 @@ mod membership_manifest_grammar_tests {
             );
         }
 
-        for invalid_name in ["bad/name", "9tasks", "_snapbackTasks", "_auth", "_AUTH_tasks"] {
+        for invalid_name in [
+            "bad/name",
+            "9tasks",
+            "_snapbackTasks",
+            "_auth",
+            "_AUTH_tasks",
+        ] {
             let mut forged = valid.clone();
             forged.sequences[0].name = invalid_name.to_owned();
             let FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(plan)) =
@@ -9452,8 +9458,7 @@ mod membership_manifest_grammar_tests {
             else {
                 unreachable!();
             };
-            let MutationStep::AllocateSequence { counter, .. } = &mut plan.mutation.steps[2]
-            else {
+            let MutationStep::AllocateSequence { counter, .. } = &mut plan.mutation.steps[2] else {
                 unreachable!();
             };
             *counter = invalid_name.to_owned();

@@ -580,8 +580,7 @@ impl LocalDatabase {
             })
         });
         if exact_active_predecessor {
-            predecessor_sequence_declarations
-                .extend(self.sequence_declarations.as_ref().clone());
+            predecessor_sequence_declarations.extend(self.sequence_declarations.as_ref().clone());
             predecessor_sequence_declarations.extend(sequence_declarations.clone());
         }
         let trusted_relation_parent_tables = predecessor
@@ -1087,8 +1086,7 @@ impl LocalDatabase {
         let authorization_interlock = self.authorization_interlock.clone();
         let mut predecessor_sequence_declarations = BTreeMap::new();
         if current.state.active_deployment.as_ref() == Some(&deployment) {
-            predecessor_sequence_declarations
-                .extend(self.sequence_declarations.as_ref().clone());
+            predecessor_sequence_declarations.extend(self.sequence_declarations.as_ref().clone());
             predecessor_sequence_declarations.extend(sequence_declarations.clone());
         }
         let trusted_relation_parent_tables = current
@@ -1262,8 +1260,7 @@ impl LocalDatabase {
         let sequence_declarations =
             super::sequence_declarations_from_function_manifest(&functions);
         if predecessor.state.active_deployment.as_ref() == Some(&deployment) {
-            predecessor_sequence_declarations
-                .extend(self.sequence_declarations.as_ref().clone());
+            predecessor_sequence_declarations.extend(self.sequence_declarations.as_ref().clone());
             predecessor_sequence_declarations.extend(sequence_declarations.clone());
         }
         let trusted_relation_parent_tables = predecessor
