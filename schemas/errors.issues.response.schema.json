@@ -1,0 +1,301 @@
+{
+  "$defs": {
+    "ErrorIssueSummaryV1": {
+      "properties": {
+        "code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "count": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "errorClass": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "failureDisposition": {
+          "type": "string"
+        },
+        "firstRelease": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "firstSeenMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "firstSeenSeq": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "issue": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "lastRegressedSeq": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "lastRelease": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lastSeenMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "lastSeenSeq": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/ErrorsIssueStateV1"
+        },
+        "stateSeq": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "statusClass": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "subsystem": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "suppressedCooldownCount": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "suppressedRolloutCount": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "issue",
+        "title",
+        "state",
+        "stateSeq",
+        "kind",
+        "name",
+        "failureDisposition",
+        "firstSeenMs",
+        "lastSeenMs",
+        "firstSeenSeq",
+        "lastSeenSeq",
+        "count",
+        "suppressedCooldownCount",
+        "suppressedRolloutCount"
+      ],
+      "type": "object"
+    },
+    "ErrorsIssueOrderV1": {
+      "enum": [
+        "lastSeen",
+        "count"
+      ],
+      "type": "string"
+    },
+    "ErrorsIssueStateV1": {
+      "enum": [
+        "open",
+        "resolved",
+        "ignored",
+        "regressed"
+      ],
+      "type": "string"
+    },
+    "ErrorsVarianceV1": {
+      "properties": {
+        "capabilityOutcome": {
+          "$ref": "#/$defs/TelemetryCapabilityOutcomeV1"
+        },
+        "dropsLifetime": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "dropsSinceBoot": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "exemplarDropCounters": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "exemplarStale": {
+          "type": "boolean"
+        },
+        "exemplarTruncated": {
+          "type": "boolean"
+        },
+        "fieldExactness": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "freshnessWatermark": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "groupHorizonStartMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "overflowFoldCount": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "overflowFoldScope": {
+          "type": "string"
+        },
+        "retentionBoundaryMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "samplingFactor": {
+          "format": "double",
+          "type": "number"
+        },
+        "storeBackend": {
+          "type": "string"
+        },
+        "suppressionCounters": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "transitionHistoryFloorSeq": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "transitionHistoryTruncated": {
+          "type": "boolean"
+        },
+        "truncation": {
+          "additionalProperties": true,
+          "type": "object"
+        }
+      },
+      "required": [
+        "storeBackend",
+        "fieldExactness",
+        "samplingFactor",
+        "retentionBoundaryMs",
+        "dropsSinceBoot",
+        "dropsLifetime",
+        "truncation",
+        "capabilityOutcome",
+        "overflowFoldCount",
+        "overflowFoldScope",
+        "groupHorizonStartMs",
+        "exemplarStale",
+        "exemplarTruncated",
+        "exemplarDropCounters",
+        "suppressionCounters",
+        "transitionHistoryTruncated"
+      ],
+      "type": "object"
+    },
+    "TelemetryCapabilityOutcomeV1": {
+      "enum": [
+        "exact",
+        "approximate",
+        "boundedWindow",
+        "unsupported"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/errors.issues.response.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "issues": {
+      "items": {
+        "$ref": "#/$defs/ErrorIssueSummaryV1"
+      },
+      "type": "array"
+    },
+    "knownReleases": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "nextCursor": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "order": {
+      "$ref": "#/$defs/ErrorsIssueOrderV1"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "variance": {
+      "$ref": "#/$defs/ErrorsVarianceV1"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "order",
+    "issues",
+    "knownReleases",
+    "variance"
+  ],
+  "title": "ErrorsIssuesResponseV1",
+  "type": "object"
+}

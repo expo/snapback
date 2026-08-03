@@ -1,0 +1,115 @@
+{
+  "$defs": {
+    "ErrorsIssueOrderV1": {
+      "enum": [
+        "lastSeen",
+        "count"
+      ],
+      "type": "string"
+    },
+    "ErrorsIssueStateV1": {
+      "enum": [
+        "open",
+        "resolved",
+        "ignored",
+        "regressed"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/errors.issues.request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cursor": {
+      "default": null,
+      "maxLength": 4096,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "failureDisposition": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "fromMs": {
+      "default": null,
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "kind": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "limit": {
+      "default": 100,
+      "format": "uint",
+      "maximum": 500,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "name": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "order": {
+      "$ref": "#/$defs/ErrorsIssueOrderV1",
+      "default": "lastSeen"
+    },
+    "release": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "since": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "state": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ErrorsIssueStateV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "subsystem": {
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "toMs": {
+      "default": null,
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "title": "ErrorsIssuesRequestV1",
+  "type": "object"
+}

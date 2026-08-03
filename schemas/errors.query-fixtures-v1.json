@@ -1,0 +1,283 @@
+{
+  "issue": {
+    "authority": "adminSecretRead",
+    "cacheControl": "no-store",
+    "request": {
+      "issue": "issue_00000000000000000000000000"
+    },
+    "response": {
+      "exemplars": [
+        {
+          "observation": "obs_00000000000000000000000000",
+          "recordedSeq": 7,
+          "recordedTsMs": 2000,
+          "release": "release-fixture",
+          "stackHead": "at todos.create (todos.js:10)",
+          "stackTruncated": false,
+          "telemetryEventsQuery": {
+            "input": {
+              "correlation": "corr_fixture",
+              "fromMs": 0,
+              "limit": 100,
+              "order": "asc",
+              "toMs": 62000
+            },
+            "operation": "telemetry.events"
+          },
+          "templateTruncated": false,
+          "titleTemplate": "database timeout after {number}ms"
+        }
+      ],
+      "issue": {
+        "code": "SNAPBACK_HANDLER_FAILED",
+        "count": 2,
+        "errorClass": null,
+        "failureDisposition": "fault",
+        "firstRelease": "release-fixture",
+        "firstSeenMs": 1000,
+        "firstSeenSeq": 4,
+        "issue": "issue_00000000000000000000000000",
+        "kind": "function_run",
+        "lastRegressedSeq": null,
+        "lastRelease": "release-fixture",
+        "lastSeenMs": 2000,
+        "lastSeenSeq": 7,
+        "name": "todos.create",
+        "state": "open",
+        "stateSeq": 0,
+        "statusClass": null,
+        "subsystem": "runtime",
+        "suppressedCooldownCount": 0,
+        "suppressedRolloutCount": 0,
+        "title": "SNAPBACK_HANDLER_FAILED in todos.create"
+      },
+      "schemaVersion": "snapback.errors.issue.v1",
+      "transitions": [],
+      "variance": {
+        "capabilityOutcome": "exact",
+        "dropsLifetime": {},
+        "dropsSinceBoot": {},
+        "exemplarDropCounters": {
+          "bytes": 0,
+          "depth": 0,
+          "flush": 0
+        },
+        "exemplarStale": true,
+        "exemplarTruncated": false,
+        "fieldExactness": {
+          "groups": "exactVisibleRows",
+          "titles": "structuralOnly"
+        },
+        "freshnessWatermark": 2000,
+        "groupHorizonStartMs": 0,
+        "overflowFoldCount": 0,
+        "overflowFoldScope": "cumulativeSinceGenerationStart",
+        "retentionBoundaryMs": 0,
+        "samplingFactor": 1.0,
+        "storeBackend": "local-sqlite-sibling",
+        "suppressionCounters": {
+          "cooldown": 0,
+          "rollout": 0
+        },
+        "transitionHistoryFloorSeq": 0,
+        "transitionHistoryTruncated": false,
+        "truncation": {
+          "exemplars": false,
+          "pageLimit": false,
+          "transitionHistory": false
+        }
+      }
+    }
+  },
+  "issues": {
+    "forbiddenOperatorMetadataFields": [
+      "titleTemplate",
+      "stackHead",
+      "message"
+    ],
+    "request": {
+      "limit": 100,
+      "order": "lastSeen",
+      "since": "release-fixture"
+    },
+    "response": {
+      "issues": [
+        {
+          "code": "SNAPBACK_HANDLER_FAILED",
+          "count": 2,
+          "errorClass": null,
+          "failureDisposition": "fault",
+          "firstRelease": "release-fixture",
+          "firstSeenMs": 1000,
+          "firstSeenSeq": 4,
+          "issue": "issue_00000000000000000000000000",
+          "kind": "function_run",
+          "lastRegressedSeq": null,
+          "lastRelease": "release-fixture",
+          "lastSeenMs": 2000,
+          "lastSeenSeq": 7,
+          "name": "todos.create",
+          "state": "open",
+          "stateSeq": 0,
+          "statusClass": null,
+          "subsystem": "runtime",
+          "suppressedCooldownCount": 0,
+          "suppressedRolloutCount": 0,
+          "title": "SNAPBACK_HANDLER_FAILED in todos.create"
+        }
+      ],
+      "knownReleases": [
+        "release-fixture"
+      ],
+      "nextCursor": null,
+      "order": "lastSeen",
+      "schemaVersion": "snapback.errors.issues.v1",
+      "variance": {
+        "capabilityOutcome": "exact",
+        "dropsLifetime": {},
+        "dropsSinceBoot": {},
+        "exemplarDropCounters": {
+          "bytes": 0,
+          "depth": 0,
+          "flush": 0
+        },
+        "exemplarStale": true,
+        "exemplarTruncated": false,
+        "fieldExactness": {
+          "groups": "exactVisibleRows",
+          "titles": "structuralOnly"
+        },
+        "freshnessWatermark": 2000,
+        "groupHorizonStartMs": 0,
+        "overflowFoldCount": 0,
+        "overflowFoldScope": "cumulativeSinceGenerationStart",
+        "retentionBoundaryMs": 0,
+        "samplingFactor": 1.0,
+        "storeBackend": "local-sqlite-sibling",
+        "suppressionCounters": {
+          "cooldown": 0,
+          "rollout": 0
+        },
+        "transitionHistoryFloorSeq": null,
+        "transitionHistoryTruncated": false,
+        "truncation": {
+          "exemplars": false,
+          "pageLimit": false,
+          "transitionHistory": false
+        }
+      }
+    }
+  },
+  "schemaVersion": "snapback.errors.query-fixtures.v1",
+  "transition": {
+    "bulkRequest": {
+      "selector": {
+        "openBefore": "release-fixture"
+      },
+      "to": "resolved"
+    },
+    "bulkResponse": {
+      "activationFloorSeq": 0,
+      "activationSeq": 10,
+      "release": "release-fixture",
+      "rows": [
+        {
+          "issue": "issue_00000000000000000000000000",
+          "outcome": "applied",
+          "state": "resolved",
+          "stateSeq": 1
+        }
+      ],
+      "schemaVersion": "snapback.errors.transition.v1",
+      "variance": {
+        "capabilityOutcome": "exact",
+        "dropsLifetime": {},
+        "dropsSinceBoot": {},
+        "exemplarDropCounters": {
+          "bytes": 0,
+          "depth": 0,
+          "flush": 0
+        },
+        "exemplarStale": true,
+        "exemplarTruncated": false,
+        "fieldExactness": {
+          "groups": "exactVisibleRows",
+          "titles": "structuralOnly"
+        },
+        "freshnessWatermark": 2000,
+        "groupHorizonStartMs": 0,
+        "overflowFoldCount": 0,
+        "overflowFoldScope": "cumulativeSinceGenerationStart",
+        "retentionBoundaryMs": 0,
+        "samplingFactor": 1.0,
+        "storeBackend": "local-sqlite-sibling",
+        "suppressionCounters": {
+          "cooldown": 0,
+          "rollout": 0
+        },
+        "transitionHistoryFloorSeq": null,
+        "transitionHistoryTruncated": false,
+        "truncation": {
+          "exemplars": false,
+          "pageLimit": false,
+          "transitionHistory": false
+        }
+      }
+    },
+    "bulkSelection": "last_seen_seq < activated_seq",
+    "sinceSelection": "first_seen_seq >= activated_seq OR last_regressed_seq > activated_seq",
+    "singleRequest": {
+      "expectSeq": 0,
+      "issue": "issue_00000000000000000000000000",
+      "to": "resolved"
+    },
+    "singleResponse": {
+      "activationFloorSeq": 0,
+      "activationSeq": null,
+      "release": null,
+      "rows": [
+        {
+          "issue": "issue_00000000000000000000000000",
+          "outcome": "applied",
+          "state": "resolved",
+          "stateSeq": 1
+        }
+      ],
+      "schemaVersion": "snapback.errors.transition.v1",
+      "variance": {
+        "capabilityOutcome": "exact",
+        "dropsLifetime": {},
+        "dropsSinceBoot": {},
+        "exemplarDropCounters": {
+          "bytes": 0,
+          "depth": 0,
+          "flush": 0
+        },
+        "exemplarStale": true,
+        "exemplarTruncated": false,
+        "fieldExactness": {
+          "groups": "exactVisibleRows",
+          "titles": "structuralOnly"
+        },
+        "freshnessWatermark": 2000,
+        "groupHorizonStartMs": 0,
+        "overflowFoldCount": 0,
+        "overflowFoldScope": "cumulativeSinceGenerationStart",
+        "retentionBoundaryMs": 0,
+        "samplingFactor": 1.0,
+        "storeBackend": "local-sqlite-sibling",
+        "suppressionCounters": {
+          "cooldown": 0,
+          "rollout": 0
+        },
+        "transitionHistoryFloorSeq": null,
+        "transitionHistoryTruncated": false,
+        "truncation": {
+          "exemplars": false,
+          "pageLimit": false,
+          "transitionHistory": false
+        }
+      }
+    }
+  }
+}

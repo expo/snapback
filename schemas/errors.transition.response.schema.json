@@ -1,0 +1,218 @@
+{
+  "$defs": {
+    "ErrorTransitionOutcomeV1": {
+      "enum": [
+        "applied",
+        "conflict",
+        "invalid",
+        "missing"
+      ],
+      "type": "string"
+    },
+    "ErrorTransitionResultV1": {
+      "properties": {
+        "issue": {
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/$defs/ErrorTransitionOutcomeV1"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ErrorsIssueStateV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stateSeq": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "issue",
+        "outcome"
+      ],
+      "type": "object"
+    },
+    "ErrorsIssueStateV1": {
+      "enum": [
+        "open",
+        "resolved",
+        "ignored",
+        "regressed"
+      ],
+      "type": "string"
+    },
+    "ErrorsVarianceV1": {
+      "properties": {
+        "capabilityOutcome": {
+          "$ref": "#/$defs/TelemetryCapabilityOutcomeV1"
+        },
+        "dropsLifetime": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "dropsSinceBoot": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "exemplarDropCounters": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "exemplarStale": {
+          "type": "boolean"
+        },
+        "exemplarTruncated": {
+          "type": "boolean"
+        },
+        "fieldExactness": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "freshnessWatermark": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "groupHorizonStartMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "overflowFoldCount": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "overflowFoldScope": {
+          "type": "string"
+        },
+        "retentionBoundaryMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "samplingFactor": {
+          "format": "double",
+          "type": "number"
+        },
+        "storeBackend": {
+          "type": "string"
+        },
+        "suppressionCounters": {
+          "additionalProperties": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "transitionHistoryFloorSeq": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "transitionHistoryTruncated": {
+          "type": "boolean"
+        },
+        "truncation": {
+          "additionalProperties": true,
+          "type": "object"
+        }
+      },
+      "required": [
+        "storeBackend",
+        "fieldExactness",
+        "samplingFactor",
+        "retentionBoundaryMs",
+        "dropsSinceBoot",
+        "dropsLifetime",
+        "truncation",
+        "capabilityOutcome",
+        "overflowFoldCount",
+        "overflowFoldScope",
+        "groupHorizonStartMs",
+        "exemplarStale",
+        "exemplarTruncated",
+        "exemplarDropCounters",
+        "suppressionCounters",
+        "transitionHistoryTruncated"
+      ],
+      "type": "object"
+    },
+    "TelemetryCapabilityOutcomeV1": {
+      "enum": [
+        "exact",
+        "approximate",
+        "boundedWindow",
+        "unsupported"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/errors.transition.response.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "activationFloorSeq": {
+      "format": "int64",
+      "type": "integer"
+    },
+    "activationSeq": {
+      "format": "int64",
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "release": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "rows": {
+      "items": {
+        "$ref": "#/$defs/ErrorTransitionResultV1"
+      },
+      "type": "array"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "variance": {
+      "$ref": "#/$defs/ErrorsVarianceV1"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "activationFloorSeq",
+    "rows",
+    "variance"
+  ],
+  "title": "ErrorsTransitionResponseV1",
+  "type": "object"
+}

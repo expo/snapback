@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/errors.issue.request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "issue": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "issue"
+  ],
+  "title": "ErrorsIssueRequestV1",
+  "type": "object"
+}
