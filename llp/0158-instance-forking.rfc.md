@@ -5,7 +5,18 @@
 **Systems:** Storage, Deployment, Runtime, Scheduling, Assets, Security, Agent experience, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v0.12 — author decisions applied after the
+**Revised:** 2026-08-03 (v0.13 — F0a implementation record: the closed
+custody manifest and unknown-schema gate, transactional scrub-and-mint,
+fresh admin/auth/resume sidecars, rotated auth/data/signing authority,
+S0-S5 local-evidence publication and recovery with minted-sidecar boot
+validation and the 20-point intra-state crash-cut matrix, and fail-loud
+`DenyAll` marker wiring landed together.
+Local F0 chooses asset option (a): an asset-bearing source refuses until
+the fork-private tree copy exists; this prevents copied metadata from
+silently naming absent blobs. Capture-ledger integration remains deferred
+to the shared LLP 0097 prerequisite. The F0a corpus is green; F0b packaging
+and fleet dogfood remain open.)
+2026-08-03 (v0.12 — author decisions applied after the
 converged loop: **OQ9 decided** — same-`appId` derived deployment, with
 the proposed-normative LLP 0018/0012 amendment recorded in-doc per the
 LLP 0097 pattern, effective on acceptance; **first consumer pinned** —
@@ -874,7 +885,19 @@ comes before the CLI verb, and no duration estimates until it exists):
   not silently become the 0097 wiring project. A fork that cannot fetch
   is still safe and still serves the agent-development case.
   This corpus *is* the feature; the verb is packaging. Tickets:
-  `issues/20260803-0158-f0a-*.md`.
+  `issues/closed/20260803-0158-f0a-*.md`.
+  **Implementation record — 2026-08-03:** landed in the dedicated
+  non-promotable `instance_fork` module and shared runtime gates without
+  modifying LLP 0097 branch/promotion paths. The standing custody audit
+  classifies the live SQLite schema and refuses unknown tables; the negative
+  corpus presents parent session/agent residue, resume/search/admin bearers,
+  and a parent-signed asset URL to a minted fork; the publication corpus cuts
+  every S0-S5 durability edge and recovers with absent, stale, and unavailable
+  registry state; the deny corpus records one bounded payload-free row per
+  family and refuses unknown future host operations. Local asset-bearing
+  sources take option (a), `SNAPBACK_FORK_CUSTODY_REFUSED`, until F0b/F1 owns
+  a same-cut private-tree copy. F0a is complete; F0b remains the consumer
+  surface.
 - **F0b — the local fork verb:** `snapback fork create
   [--from <db|ready-file>] [--ttl 2h] [--with-secrets] [--app-root <dir>]`
   → copy (cold or live path), scrub-and-mint, registry row with TTL,
@@ -977,9 +1000,12 @@ structural argument that the capability is priced correctly.
 - **OQ4 — DO fork mechanics.** Can a new coordinator DO actually be
   instantiated from another DO's PITR bookmark, or is export/import the
   only real path? Needs a spike, not an assumption.
-- **OQ5 — Asset custody in F0.** Refuse asset-bearing forks vs
-  fork-private reflinked tree (§Asset plane); the fork-aware shared
-  store with its GC barrier is F2's version of this question.
+- **OQ5 — Asset custody in F0. DECIDED for local v1 F0a 2026-08-03:**
+  refuse asset-bearing forks. A fork-private reflinked tree remains the
+  additive path for F0b/F1 once its same-cut proof exists; the fork-aware
+  shared store with its GC barrier remains F2. This is intentionally the
+  cheapest honest posture: metadata is never published while its physical
+  blob tree is absent.
 - **OQ6 — Where does `fork` live in the surface?** CLI verb, admin API,
   app API (can handlers fork their own app — probably not in v1), and
   what LLP 0024's envelope conventions require of it.

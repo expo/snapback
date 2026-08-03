@@ -18,3 +18,10 @@ path.
 
 Deliverable: a diary entry (LLP 0016 loop) recording the experience, a
 verdict on graduation criteria 1+2, and any guide-gap tickets.
+
+**Dependency update — 2026-08-03:** F0a landed green: custody/fidelity,
+credential negatives, crash-safe publication/recovery, and fail-loud
+deny-all egress are now executable substrate. This ticket remains open because
+F0b's user-facing fork verb does not yet exist; no synthetic diary or
+graduation verdict is recorded in place of the required real multi-session
+dogfood.

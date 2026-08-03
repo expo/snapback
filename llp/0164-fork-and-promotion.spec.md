@@ -5,7 +5,12 @@
 **Systems:** Storage, Runtime, Effects, Auth, Agent experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (initial Draft — extracted from Accepted LLP 0162
+**Revised:** 2026-08-03 (derived-deployment implementation note — LLP 0158
+F0a landed the non-promotable class's scrub-and-mint custody proof and
+`DenyAll` durable attempt-marker corpus. This supplies the substrate for the
+derived-deployment legs of LLP 0162 Acceptance rows 5 and 7; those legs remain
+gated on F0b surface-level acceptance and are not advertised complete.)
+2026-08-03 (initial Draft — extracted from Accepted LLP 0162
 §§3-5 under its OQ14 decision; carries the fork-class, diff, and promotion
 contracts so they can version independently of the profile umbrella)
 **Related:** LLP 0037, LLP 0055, LLP 0066, LLP 0088, LLP 0097, LLP 0148,
@@ -93,6 +98,13 @@ LLP 0162 Acceptance rows 5-10 (core legs) gate these components, plus row
 p99 under contention); the
 derived-deployment legs of rows 5 and 7 gate the 0158-gated additive
 capability. No parallel corpus here.
+
+**Evidence note — 2026-08-03:** LLP 0158 F0a now proves fork-class identity
+separation, credential negatives, fail-closed unknown custody, crash-atomic
+publication, and bounded payload-free `DenyAll` markers for derived
+deployments. This unblocks the implementation dependency for the row-5 and
+row-7 derived legs; it does not close or advertise those legs before the F0b
+consumer surface exercises them end to end.
 
 ## Open items
 

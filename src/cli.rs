@@ -2928,6 +2928,7 @@ async fn run_composed(
             }
         }
     };
+    let derived_fork_boot = snapback.is_derived_fork();
 
     // Assemble exactly one provider before listener bind. This is inspection,
     // not activation: an uninitialized catalog remains dormant and no keyring
@@ -3005,6 +3006,12 @@ async fn run_composed(
     let loopback = bind_ip.is_loopback();
     let mut server_context = ServerContext::new(bind_ip.to_string(), 0, loopback)
         .with_auth_deployment(args.auth_deployment);
+    if derived_fork_boot {
+        // @ref LLP 0158#design-sketch — an inherited process environment is
+        // not credential authority for the new instance; load the freshly
+        // minted fork-local admin sidecar below.
+        server_context.admin_token = None;
+    }
     debug_assert_eq!(server_context.profile, startup_profile);
     let mut minted_token = None;
     if loopback && server_context.admin_token.is_none() {
@@ -3474,7 +3481,8 @@ async fn run_composed(
     // startup publication (operator sidecars, ready descriptor, and console
     // handoff) has succeeded. From this point the only ordinary exit is server
     // shutdown, where all three handles are aborted below.
-    let cron_autonomy_disabled = args.cron_disabled
+    let cron_autonomy_disabled = derived_fork_boot
+        || args.cron_disabled
         || server::cron_autonomy_disabled(std::env::var("SNAPBACK_CRON_DISABLED").ok().as_deref());
     if cron_autonomy_disabled {
         // The switch is meant for suites/dev loops; say so at boot rather
@@ -3491,8 +3499,8 @@ async fn run_composed(
     // (SNAPBACK_JOBS_DISABLED) idles autonomy while the admin forced drain
     // (POST /_snapback/api/jobs/drain) keeps claiming due jobs — the
     // deterministic seam LLP 0115 CV-9 requires (LLP 0070 first slice).
-    let jobs_autonomy_disabled =
-        server::jobs_autonomy_disabled(std::env::var("SNAPBACK_JOBS_DISABLED").ok().as_deref());
+    let jobs_autonomy_disabled = derived_fork_boot
+        || server::jobs_autonomy_disabled(std::env::var("SNAPBACK_JOBS_DISABLED").ok().as_deref());
     let jobs_worker = (auth_mode_state.app_data_availability
         == crate::auth::mode::AppDataAvailability::Available)
         .then(|| server::spawn_jobs_worker(state.clone(), jobs_autonomy_disabled));
@@ -3501,11 +3509,12 @@ async fn run_composed(
         .then(|| {
             server::spawn_asset_maintenance_loop(
                 state.clone(),
-                server::asset_runner_disabled(
-                    std::env::var("SNAPBACK_ASSET_RUNNER_DISABLED")
-                        .ok()
-                        .as_deref(),
-                ),
+                derived_fork_boot
+                    || server::asset_runner_disabled(
+                        std::env::var("SNAPBACK_ASSET_RUNNER_DISABLED")
+                            .ok()
+                            .as_deref(),
+                    ),
             )
         });
     let maintenance_worker = server::spawn_maintenance_worker(app_state);

@@ -1402,6 +1402,10 @@ impl DetachedActionHost {
 
 impl IbexActionHost for DetachedActionHost {
     fn validate_host_call(&mut self, op: &str) -> SnapbackResult<()> {
+        if let Some(family) = crate::instance_fork::EgressFamily::for_derived_host_op(op) {
+            let snapback = self.lock_live(op)?;
+            snapback.deny_derived_fork_egress(family, now_millis())?;
+        }
         // This atomic generation fence keeps ordinary runtime/id/log calls off
         // the global instance mutex. A mutation rechecks while holding that
         // mutex, and detached mutation commit retains its own generation bind.
@@ -16514,6 +16518,13 @@ pub(crate) async fn drive_push_maintenance_once(
             if !has_ledger {
                 return Ok(None);
             }
+            // @ref LLP 0158#the-runtime-plane--where-the-real-design-is —
+            // receipt polling and recovery transmit are denied even when an
+            // inherited environment would otherwise configure the provider.
+            snapback.deny_derived_fork_egress(
+                crate::instance_fork::EgressFamily::PushReceipt,
+                now_ms,
+            )?;
             let access_token = snapback.push_maintenance_access_token();
             let claim = snapback.auth_database_mut().with_auth_transaction(|tx| {
                 crate::push::recover_expired_batches_in(tx, now_ms)?;
@@ -17806,6 +17817,15 @@ async fn host_ops_handler_inner(
             &secret_reads,
             None,
         )?;
+        if request.operation == "telemetry.export" {
+            with_snapback(&state, |snapback| {
+                snapback.deny_derived_fork_egress(
+                    crate::instance_fork::EgressFamily::TelemetryExport,
+                    now_millis(),
+                )
+            })
+            .await?;
+        }
         let secret_scope = match request.operation.as_str() {
             "telemetry.events" => Some(
                 crate::admin_secret_read::SecretReadScope::TelemetryEvents,
@@ -23968,6 +23988,28 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_PUSH_TOKEN_INVALID"
         | "SNAPBACK_PUSH_SEAM_AUTH_REQUIRED"
         | "SNAPBACK_PUSH_SEAM_NOT_DECLARED" => StatusCode::BAD_REQUEST,
+        // @ref LLP 0158#the-runtime-plane--where-the-real-design-is — a
+        // derived deployment may reach a routed request, but the egress family
+        // remains a closed authorization refusal rather than an upstream failure.
+        "SNAPBACK_FORK_EGRESS_DENIED" => StatusCode::FORBIDDEN,
+        // F0a mint/publication diagnostics are local operator and durable
+        // evidence failures, not request-shape classes. If one crosses an
+        // HTTP boundary it therefore retains the fail-safe 500 projection.
+        "SNAPBACK_FORK_CUSTODY_REFUSED"
+        | "SNAPBACK_FORK_CUSTODY_UNCLASSIFIED"
+        | "SNAPBACK_FORK_DESTINATION_EXISTS"
+        | "SNAPBACK_FORK_EGRESS_MARKER_FAILED"
+        | "SNAPBACK_FORK_EVIDENCE_INCOMPLETE"
+        | "SNAPBACK_FORK_EVIDENCE_MISMATCH"
+        | "SNAPBACK_FORK_IO_FAILED"
+        | "SNAPBACK_FORK_KEYRING_MINT_FAILED"
+        | "SNAPBACK_FORK_LINEAGE_INVALID"
+        | "SNAPBACK_FORK_NESTED_REFUSED"
+        | "SNAPBACK_FORK_PATH_INVALID"
+        | "SNAPBACK_FORK_QUARANTINED"
+        | "SNAPBACK_FORK_RECEIPT_INVALID"
+        | "SNAPBACK_FORK_SIDECAR_COLLISION"
+        | "SNAPBACK_FORK_TEST_CRASH_CUT" => StatusCode::INTERNAL_SERVER_ERROR,
         "SNAPBACK_PUSH_SESSION_STALE" | "SNAPBACK_PUSH_SESSION_REQUIRED" => {
             StatusCode::UNAUTHORIZED
         }
@@ -38764,6 +38806,7 @@ globalThis.__snapbackHandlers = {
 
     const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ADMIN_DISABLED",
+        "SNAPBACK_FORK_EGRESS_DENIED",
         "SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED",
         "SNAPBACK_MIGRATION_APPROVAL_REQUIRED",
         // LLP 0092 §0D.1 bundle authorization/sender refusals.
@@ -39109,6 +39152,24 @@ globalThis.__snapbackHandlers = {
         // umbrella, so its truthful HTTP projection is the fail-safe 500 until a
         // producer deliberately splits it into request-classed codes.
         "SNAPBACK_BRANCH_INVALID",
+        // @ref LLP 0158#design-sketch — F0a is a local
+        // operator workflow. Custody, mint, publication, recovery, and marker
+        // failures are durable/control-plane invariants, never caller 4xxs.
+        "SNAPBACK_FORK_CUSTODY_REFUSED",
+        "SNAPBACK_FORK_CUSTODY_UNCLASSIFIED",
+        "SNAPBACK_FORK_DESTINATION_EXISTS",
+        "SNAPBACK_FORK_EGRESS_MARKER_FAILED",
+        "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
+        "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+        "SNAPBACK_FORK_IO_FAILED",
+        "SNAPBACK_FORK_KEYRING_MINT_FAILED",
+        "SNAPBACK_FORK_LINEAGE_INVALID",
+        "SNAPBACK_FORK_NESTED_REFUSED",
+        "SNAPBACK_FORK_PATH_INVALID",
+        "SNAPBACK_FORK_QUARANTINED",
+        "SNAPBACK_FORK_RECEIPT_INVALID",
+        "SNAPBACK_FORK_SIDECAR_COLLISION",
+        "SNAPBACK_FORK_TEST_CRASH_CUT",
         // LLP 0080 §2 keyset invariant: the dispatch layer builds boundaries
         // from validated cursors, so a field/order mismatch reaching storage
         // is a server bug, never a client class.

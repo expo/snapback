@@ -55,6 +55,9 @@ const PASSTHROUGH_CODES = new Set([
   'SNAPBACK_TEST_CRON_ACTION_INTERRUPTED',
   'SNAPBACK_HOST_FETCH_RESPONSE_TOO_LARGE',
   'SNAPBACK_HOST_FETCH_RESPONSE_INVALID_UTF8',
+  // @ref LLP 0158#the-runtime-plane--where-the-real-design-is — parity with
+  // the embedded decoder for fail-loud derived-deployment quarantine.
+  'SNAPBACK_FORK_EGRESS_DENIED',
   // A claimed application refusal survives the fold only so the host can
   // admit it against the function's declared set; an undeclared code is
   // dropped there, exactly as in admit_declared_refusal (src/runtime.rs).

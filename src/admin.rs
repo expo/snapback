@@ -2273,6 +2273,16 @@ async fn admin_telemetry_export(
     headers: HeaderMap,
     Query(request): Query<crate::telemetry_query::TelemetryExportRequestV1>,
 ) -> Result<Response, ApiError> {
+    // @ref LLP 0158#the-runtime-plane--where-the-real-design-is — the direct
+    // streaming carrier is the same data-egress family as telemetry.export
+    // through host ops and must refuse before reading export rows.
+    crate::server::with_snapback(&runtime.snapback, |snapback| {
+        snapback.deny_derived_fork_egress(
+            crate::instance_fork::EgressFamily::TelemetryExport,
+            now_millis(),
+        )
+    })
+    .await?;
     let scopes = BTreeSet::from([SecretReadScope::TelemetryExport]);
     preflight_secret_read(&secret_reads, &headers, scopes.clone())?;
 
