@@ -9,8 +9,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Retrieval eval protocol

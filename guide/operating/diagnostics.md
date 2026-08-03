@@ -9,8 +9,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/a
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-27
-reviewed-commit: 8399da34f8bdebb2776395ee5751b57c2bd2e71f
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Diagnostics and local doctoring
@@ -82,9 +82,12 @@ scripts/ibex-doctor
 It checks the submodule state, prepared Hermes artifacts/framework, CLI,
 required tools, and then the part file-presence checks cannot prove: an exact
 link of this checkout's final `snapback` Cargo target in an automatically
-cleaned temporary target directory, followed by launch of that newly linked
-binary with `DYLD_*` and `LD_LIBRARY_PATH` scrubbed. An older runnable binary
-does not make the current checkout green. On a clean checkout, bootstrap before
+cleaned temporary target directory, followed by launch and restricted
+handler-VM qualification of that newly linked binary with `DYLD_*` and
+`LD_LIBRARY_PATH` scrubbed. It also verifies, read-only, that the served
+binary's persisted readiness receipt (`<binary>.runtime-readiness.json`) is
+digest-coherent with that binary and the current Hermes artifacts. An older
+runnable binary does not make the current checkout green. On a clean checkout, bootstrap before
 Cargo build/test/run:
 
 ```sh
@@ -103,7 +106,9 @@ The stable bootstrap failure vocabulary is:
 `SNAPBACK_IBEX_RUNTIME_LINK_TIMEOUT`,
 `SNAPBACK_IBEX_RUNTIME_LINK_INTERRUPTED`,
 `SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED`,
-`SNAPBACK_IBEX_RUNTIME_LOAD_FAILED`, and
+`SNAPBACK_IBEX_RUNTIME_LOAD_FAILED`,
+`SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED`,
+`SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID`, and
 `SNAPBACK_IBEX_HOST_UNSUPPORTED`.
 
 The doctor additionally distinguishes uninitialized/conflicting/drifted

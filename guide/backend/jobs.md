@@ -9,8 +9,8 @@ examples: [packages/snapback-codegen/jobs-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-01
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # One-off durable jobs
@@ -66,6 +66,14 @@ The complete options vocabulary:
   converge).
 - `maxAttempts` — 1..8, default 1. Unlimited retry is invalid
   (`SNAPBACK_JOB_ATTEMPT_POLICY_INVALID`).
+- `pushGrant` — exactly `{ to, dedupeKey }`, and only when the schema
+  declares the [Expo push seam](./expo-push.md): the mutation captures a
+  narrow producer-principal grant for one deferred send, persisted beside
+  the job and never inside its arguments (any other shape is
+  `SNAPBACK_JOB_PUSH_GRANT_INVALID`; capture requires an authenticated
+  user mutation). The grant joins the idempotency identity — reusing a key
+  with a divergent grant fails `SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED` like
+  divergent args. Semantics live on the push page.
 
 The return value is `{ jobId, availableAtMs, deduplicated }`. Job ids ride
 the ctx-answer ledger, so tests can assert on them across replay.
@@ -193,7 +201,8 @@ The CLI resolves the admin token from `--token`, `SNAPBACK_ADMIN_TOKEN`, or
 the ready-file sibling discovery, and signs a one-shot, startup-bound HMAC
 proof for `POST /_snapback/api/admin-secret-read/mint`. Other scope flags:
 `--receipts`, `--table <name>` (repeatable), `--function <name>`,
-`--explain-function <name>`; budgets: `--ttl-seconds` (60),
+`--explain-function <name>`, `--telemetry-events`, `--telemetry-export`,
+`--errors-issue`; budgets: `--ttl-seconds` (60),
 `--row-budget` (500), `--byte-budget` (1 MiB). There are no wildcard
 scopes.
 
@@ -208,12 +217,13 @@ instead.
 
 ## Design reference
 
-RFC-only (LLP 0070 stays Draft; none of this is claimed by
+RFC-only (LLP 0070 is in Review; none of this is claimed by
 `jobs_one_off_v1`): queue declarations, capacity counters and admission,
 per-key concurrency slots, cancellation, the `ambiguous` terminal state,
 deadlines, operator replay, retention windows, webhook capture/delivery,
 the `revalidatePrincipal`/`capturedGrant` authorization modes (v1 callees
-run as the same system authority cron actions use), artifact-digest
+run as the same system authority cron actions use; the push seam's narrow
+`pushGrant` is LLP 0143's own lane, not this mode), artifact-digest
 pinning, restore fences, Postgres, and every hosted/multi-worker profile.
 
 ## Anti-patterns

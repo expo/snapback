@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Capability index
@@ -40,7 +40,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.schema | Declare tables, fields, indexes, sync | schema, tables, model | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
 | backend.functions | Queries, live queries, mutations, and actions; declarative plans or colocated JS handlers with same-file helpers; explicit document/record/value result contracts including result-side `v.doc(table)` schema references; manifest-derived handler/helper `ctx.db` types with a query-read/mutation-write split; generated exact client references and runtime egress validation | query, mutation, endpoint, api, inline handler, result contract, results.documents, results.records, v.doc, GeneratedHandler, GeneratedQueryDatabase | local | shipped | packages/snapback-codegen/define.mjs | llp/0004, llp/0009, llp/0101, llp/0108, llp/0127 | backend/queries.md |
 | backend.runtime-values | Derive deterministic per-invocation time and fresh identifiers inside JavaScript handlers | server time, server clock, timestamp, generated id, UUID, Date.now, Math.random | local | shipped | `runtime.now` in packages/snapback-harness/ctx-bootstrap.js | llp/0051, llp/0065 | backend/trusted-runtime-values.md |
-| backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
+| backend.standard-patterns | Generate owner CRUD, unique lookup, owner/membership keyset pages | CRUD generator, pagination, callable pagination, membership pages, trusted defaults | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065, llp/0100 | backend/standard-patterns.md |
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.bounded-children-v1 | Experimental one-visible-parent/one-index-bounded-child-page profile with protected relation incarnations and `sbbc1` AEAD keysets; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
 | backend.snapshot-batch-v1 | Experimental local composition of 2–8 complete `bounded-children.v1` nodes: one pinned authoritative snapshot per invocation, structural parent-authorization dedup, a sealed all-or-nothing tuple, one LLP 0157 `sbsb1` continuation, and cursor-free-first-page `live_replace`; hosted and public-package publication remain nonclaims | snapshot batch, board view, multiple child lists, one snapshot, sbsb1, composite query | local | shipped | `snapshot_batch_three_node_cursor_sealing_and_live_acceptance` in src/local.rs + schemas/capability.manifest.local-dev-sqlite-ibex.json (`snapshot_batch_v1`) | llp/0135, llp/0157, llp/0113 | backend/snapshot-batches.md |
@@ -61,7 +61,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.error-tracking-v1 | Local Phase E0/E1 backend failure classification, deterministic grouping, retained raw exemplars, release-aware issue lifecycle, typed CLI/MCP operations, and Errors/Health console projections; multiple-unhandled grouping, hosted grouping, E2 alerts, and E3 client ingest remain unbuilt | error tracking, issues, fingerprints, exceptions, failures | local | partial | route /_snapback/api/errors/issues | llp/0156, llp/0154, llp/0108 | operating/error-tracking.md |
 | backend.vector-search | Experimental bounded exact k-NN over declared fixed-width binary64 vector fields, with pinned `dot`/`l2sq` arithmetic, public/owner visibility partitions, exact equality filters, stored fields, synchronous SQLite maintenance, and digest-recheck quarantine; ANN, embedding computation, live/paginated/offline search, hosted targets, PostgreSQL, and sensitive fields remain nonclaims | vector, embeddings, similarity, semantic search, RAG, exact k-NN | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.json (`vector_search_v1` + `vectorSearch`) + `defineVectorQuery` in packages/snapback-codegen/define.mjs | llp/0132, llp/0073 | backend/vector-search.md |
 | backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | backend/cron.md |
-| backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query (codegen emits the capability requirement and acknowledgment), the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 is Draft | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, drain, job status, secret-read lease | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
+| backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query (codegen emits the capability requirement and acknowledgment), the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 remains pre-Accepted (in Review since 2026-08-03) | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, drain, job status, secret-read lease | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | live, subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
 | realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | realtime/ephemeral-state.md |
@@ -280,7 +280,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -488,8 +488,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Guide conventions
@@ -646,6 +646,12 @@ honest, not the corpus being broken. In a fresh tree, run
 review manifests), or just the per-demo codegen for the demos the failing
 snippets cite, e.g.
 `node packages/snapback-codegen/index.mjs demos/todo-v2/snapback`.
+For demos whose snippets use streamed or outbound actions (currently
+`demos/competitive-checkpoint`), prefix the codegen command with
+`SNAPBACK_OUTBOUND_ACTIONS=1` — codegen selects the outbound-actions
+capability manifest only when that variable is set, and otherwise fails
+with `SNAPBACK_CAPABILITY_UNSUPPORTED` because the base local target does
+not declare `bounded_response_stream_v1`.
 Regeneration writes only gitignored paths; the tracked tree stays clean.
 
 ## Freshness
@@ -669,8 +675,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Retrieval eval protocol
@@ -751,8 +757,8 @@ examples: [demos/card-game]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-26
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Sessions and principals
@@ -996,14 +1002,12 @@ it; teach your tooling to read it. This is the boundary rule this guide
 itself follows: an auth behavior is teachable only when it has an
 acceptance witness or shows as ready here.
 
-**Partial and still an explicit guide gap:** local agent principals and scoped
-grants (LLP 0055) now have real registration/grant routes, scoped-token app
-invocation, the headless `AgentAuthorityFence`, and several terminal lifecycle
-paths. The RFC's owner invitation/re-credentialing/revoke-all and logical
-export/import work is not complete, so this guide does not present the slice as
-a finished end-to-end auth product. The [capability index](../capabilities.md)
-keeps it as an owned GAP until a dedicated page can teach the exact supported
-subset. For the shipped local role-per-resource surface, continue to
+Local agent principals and scoped grants (LLP 0055) — registration, pairing,
+scoped-token app invocation, and the headless `AgentAuthorityFence` — are
+shipped on the local target and have their own page:
+[agent principals and scoped grants](./agent-principals.md). The
+[capability index](../capabilities.md) carries the row with its route
+witnesses. For the shipped local role-per-resource surface, continue to
 [scoped roles and memberships](./scoped-roles.md).
 
 ## Anti-patterns
@@ -1031,8 +1035,8 @@ examples: [demos/card-game, demos/_kit/tests/auth-invalidation-client.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Protecting live and retained data
@@ -1270,8 +1274,8 @@ examples: [demos/rbac, demos/shindig, packages/snapback-codegen/rbac-authoring.t
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-31
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Scoped roles and memberships
@@ -1693,8 +1697,8 @@ examples: [packages/snapback-client/hosted-browser.test.mjs, packages/snapback-c
 status: current
 targets: [all]
 maturity: partial
-reviewed: 2026-07-24
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Targets — what each one claims
@@ -1793,8 +1797,8 @@ examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: f245965ccfdc3addd44554d709c1074adec0834f
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Agent principals and scoped grants
@@ -1914,8 +1918,8 @@ examples: []
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-26
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Authenticate a native app
@@ -2013,8 +2017,8 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-02
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Queries
@@ -2079,11 +2083,22 @@ JS handler for bounded logic the plan cannot express. Both styles return the
 same public query envelope and must use declared indexes for author-facing
 lookup paths.
 
-Inline v1 does not capture imports, sibling helpers, or outer constants: put
-all application logic and locals inside the direct handler expression. Class
-syntax, dynamic import, `eval`, and `Function` are refused during generation.
-The legacy `{ source, exportName }` form remains supported for existing
-handlers, but it cannot be mixed with `handler`.
+Specialized read shapes are their own closed carriers with their own pages —
+cross-reference rather than reimplementing them in a JS handler: bounded
+joins ([relational queries](./relational-queries.md)), index-backed text
+search ([text search](./text-search.md)), exact vector search
+([vector search](./vector-search.md)), several bounded child lists from one
+snapshot ([snapshot batches](./snapshot-batches.md)), and the generated
+job-status and push-ledger queries ([jobs](./jobs.md),
+[Expo push](./expo-push.md)).
+
+An inline handler does not capture imports, top-level `const` bindings, or
+multi-file graphs; statically reachable same-file function declarations are
+resolved and spliced in with the handler, and everything else must live
+inside the direct handler expression. Class syntax, dynamic import, `eval`,
+and `Function` are refused during generation. The legacy
+`{ source, exportName }` form remains supported for existing handlers, but it
+cannot be mixed with `handler`.
 
 Every JS query handler returns an **array of rows**, including point reads:
 return `[]` for missing or `[row]` for present. Returning a single object fails
@@ -2254,8 +2269,8 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-26
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Mutations
@@ -2321,14 +2336,22 @@ export const createIncident = defineJsMutation({
 ```
 
 The handler writes only through `ctx.db`. Server-owned ids, row versions, and
-storage timestamps are never authored by the handler. Inline v1 is
-self-contained: imported or sibling helpers require the legacy
+storage timestamps are never authored by the handler. An inline handler
+captures no imports or top-level `const` bindings; statically reachable
+same-file function declarations are resolved and spliced in with it, while
+imported helpers and multi-file graphs require the legacy
 `{ source, exportName }` form, which remains compatible but cannot be mixed
 with `handler`.
 
 `defineMutation` is the declarative twin: compose `insert`, `patch`,
 `delete`, conditions, and a declared return binding without running a JS
 handler.
+
+Two transactional effects beyond `ctx.db` writes commit or roll back with the
+same mutation and have their own pages: a declared `sequences` counter
+allocated through `ctx.sequence.allocate`
+([sequences](./sequences.md)) and durable follow-up work enqueued through
+`ctx.jobs.enqueue` ([one-off durable jobs](./jobs.md)).
 
 A mutation that declares a write to a `permissionBacking` table is generated
 with `authorityCreating: true`. Authors may explicitly mark an opaque mutation
@@ -2339,8 +2362,11 @@ enforces the exact permission-backing write dynamically.
 ## Consume the structured result
 
 Successful direct mutations return one closed envelope:
-`version`, `changed_count`, `result`, an optional deterministic
-`ctx_ledger`, and the terminal `receipt`. The todo acceptance proves the
+`version`, `changed_count`, `result`, the server-derived
+`authorityDescriptor` (persisted with the ACK proof; it grants no authority),
+an optional deterministic `ctx_ledger`, nullable server-derived `attribution`
+and `facts` (the active artifact generation), and the terminal `receipt`. The
+todo acceptance proves the
 created id, changed count, and server-owned row fields together:
 
 ```js source=demos/todo/tests/acceptance/headless.mjs
@@ -2365,6 +2391,19 @@ still has a terminal receipt on the error envelope so the client store can
 settle it without guessing. A confirmed receipt always carries a non-null
 durable `snapshotVersion`; `null` is allowed only for a rejected invocation
 whose durable cursor could not be read safely.
+
+Application-semantic refusals get typed codes instead of message prose. A
+handler declares a closed set — `refusals: ['STALE_MOVE']` (uppercase
+`A-Z0-9_`, never the reserved `SNAPBACK_` prefix, at most 64 per function) —
+and throws with `ctx.refuse(code, details?)`. The refusal arrives as the
+platform code `SNAPBACK_APP_REFUSAL` with `appCode` and `appDetails` in its
+diagnostic details; it never masks a platform denial, and a refusing mutation
+commits nothing. The host admits the claimed code only when the invoked
+function declared it and folds anything else — undeclared, forged, or bare —
+to `SNAPBACK_HANDLER_FAILED`, dropping the app payload. Queries and actions
+have the same `ctx.refuse` channel. To make a declared code issue-eligible,
+opt it into `trackedRefusals` — see
+[error tracking](../operating/error-tracking.md).
 
 ## Preserve invariants with read sets
 
@@ -2510,8 +2549,8 @@ examples: [demos/all-aboard, demos/competitive-checkpoint]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Actions and outbound fetch
@@ -2671,6 +2710,12 @@ This split prevents a slow or failed network request from holding the write
 lane. Nested mutations inherit the action's server-resolved authority; they do
 not accept a replacement identity.
 
+Two adjacent action surfaces have their own pages: a mutation schedules an
+action to run later, transactionally with its writes, via `ctx.jobs.enqueue`
+([one-off durable jobs](./jobs.md)); and an action sends Expo push
+notifications through the declared seam's `ctx.push` surface
+([Expo push](./expo-push.md)).
+
 ## Enable egress deliberately
 
 Outbound egress is off by default, and the same opt-in is evaluated at two
@@ -2805,8 +2850,8 @@ examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Scheduled execution with cron
@@ -2818,7 +2863,10 @@ reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 Cron jobs are generated manifest entries that ask the target scheduler to run
 an **action**. The action may perform I/O and calls mutations for durable
 effects, so scheduled writes use the same atomic commit and live-delivery path
-as user-triggered work.
+as user-triggered work. Cron owns only recurring, source-declared schedules;
+one-off delayed work — the `runAfter` shape a mutation enqueues at runtime —
+is [one-off durable jobs](./jobs.md), a separate subsystem with a separate
+ledger (LLP 0028's 2026-07-30 boundary amendment).
 
 ## Define the job
 
@@ -2938,6 +2986,9 @@ portable maximum instead of wrapping.
 
 - **Do not schedule a mutation directly.** Cron targets actions; the action
   calls a mutation for durable effects.
+- **Do not emulate one-off delayed work with a cron job.** The run ledger's
+  identity model rejects runtime-created entries by construction; use
+  [one-off durable jobs](./jobs.md) (`ctx.jobs.enqueue`) instead.
 - **Do not sleep in tests.** Force an authenticated tick and inspect its run
   ledger; start the suite's server with `cronDisabled: true` so the live
   scheduler cannot commit a competing run mid-assertion.
@@ -2960,8 +3011,8 @@ examples: [packages/snapback-codegen/jobs-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-01
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # One-off durable jobs
@@ -3017,6 +3068,14 @@ The complete options vocabulary:
   converge).
 - `maxAttempts` — 1..8, default 1. Unlimited retry is invalid
   (`SNAPBACK_JOB_ATTEMPT_POLICY_INVALID`).
+- `pushGrant` — exactly `{ to, dedupeKey }`, and only when the schema
+  declares the [Expo push seam](./expo-push.md): the mutation captures a
+  narrow producer-principal grant for one deferred send, persisted beside
+  the job and never inside its arguments (any other shape is
+  `SNAPBACK_JOB_PUSH_GRANT_INVALID`; capture requires an authenticated
+  user mutation). The grant joins the idempotency identity — reusing a key
+  with a divergent grant fails `SNAPBACK_JOB_IDEMPOTENCY_KEY_REUSED` like
+  divergent args. Semantics live on the push page.
 
 The return value is `{ jobId, availableAtMs, deduplicated }`. Job ids ride
 the ctx-answer ledger, so tests can assert on them across replay.
@@ -3144,7 +3203,8 @@ The CLI resolves the admin token from `--token`, `SNAPBACK_ADMIN_TOKEN`, or
 the ready-file sibling discovery, and signs a one-shot, startup-bound HMAC
 proof for `POST /_snapback/api/admin-secret-read/mint`. Other scope flags:
 `--receipts`, `--table <name>` (repeatable), `--function <name>`,
-`--explain-function <name>`; budgets: `--ttl-seconds` (60),
+`--explain-function <name>`, `--telemetry-events`, `--telemetry-export`,
+`--errors-issue`; budgets: `--ttl-seconds` (60),
 `--row-budget` (500), `--byte-budget` (1 MiB). There are no wildcard
 scopes.
 
@@ -3159,12 +3219,13 @@ instead.
 
 ## Design reference
 
-RFC-only (LLP 0070 stays Draft; none of this is claimed by
+RFC-only (LLP 0070 is in Review; none of this is claimed by
 `jobs_one_off_v1`): queue declarations, capacity counters and admission,
 per-key concurrency slots, cancellation, the `ambiguous` terminal state,
 deadlines, operator replay, retention windows, webhook capture/delivery,
 the `revalidatePrincipal`/`capturedGrant` authorization modes (v1 callees
-run as the same system authority cron actions use), artifact-digest
+run as the same system authority cron actions use; the push seam's narrow
+`pushGrant` is LLP 0143's own lane, not this mode), artifact-digest
 pinning, restore fences, Postgres, and every hosted/multi-worker profile.
 
 ## Anti-patterns
@@ -3199,8 +3260,8 @@ examples: [demos/party-wall]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-31
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Versioned seeds
@@ -3383,8 +3444,8 @@ examples: [demos/party-wall, demos/file-drop]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-02
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Assets
@@ -3729,8 +3790,8 @@ itself is idempotent, and each reclaimed asset receives its canonical
 The acceptance traceability map is
 [`tests/acceptance/asset-lifecycle-v1-evidence.md`](../../tests/acceptance/asset-lifecycle-v1-evidence.md);
 the manifest facts (stores, profiles, integrity grades, enforced limits,
-and the explicit Missing nonclaims — backup/export, video finalization,
-custom read authorizers, deferred length) live in
+and the explicit Missing nonclaims — byte backup, custom read
+authorizers, deferred length) live in
 `schemas/capability.manifest.local-dev-sqlite-ibex.json` under `assets`.
 Live no-polling readiness ships as the reserved `_snapback.assetRecord`
 projection (subscribe via the asset client's `watch`/`watchStore`), and
@@ -3768,8 +3829,8 @@ examples: [demos/competitive-checkpoint/snapback/handlers.mjs, demos/competitive
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-26
-reviewed-commit: 5606ab06
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Trusted runtime time and identifiers
@@ -3809,7 +3870,10 @@ each call:
 The host records these answers and reuses them if it replays the invocation.
 That is why ambient clock and randomness APIs are not interchangeable with the
 context methods. An `id()` result belongs in a plain required string field; it
-is not a principal and does not manufacture a table foreign key.
+is not a principal and does not manufacture a table foreign key. Neither value
+yields a dense per-scope ordinal (JOB-42): `id()` is opaque and `now()` is not
+gap-free. That is the [scoped sequences](./sequences.md) surface, which is not
+yet a published capability — do not hand-roll it from these values either.
 
 For owner-scoped generated CRUD, declare the same policy as
 `createDefaults: { createdAt: 'now', pageKey: 'id' }` instead of writing a
@@ -3850,7 +3914,9 @@ operation schema is closed, while trusted fields such as `attemptId`,
 
 A caller that tries to supply an omitted timestamp or identifier is therefore
 rejected as an additional property instead of silently overriding the server
-value.
+value. Official generated clients check the same closed projection before
+transport and report `SNAPBACK_ARGUMENT_VALIDATION_FAILED`; the server's own
+validation remains authoritative either way.
 
 ## Repair ambient dependency diagnostics
 
@@ -3906,8 +3972,8 @@ examples: [packages/snapback-codegen/standard-patterns.test.mjs, packages/snapba
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-28
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Safe standard data patterns
@@ -4096,6 +4162,10 @@ owned helper's live-query emission, because a subscribable historical page
 would create one authorization-sensitive subscription per visited page.
 The product's separate current-room `live_replace` query owns live
 grant/revocation updates; a fresh first-page call observes a later grant.
+When a Contract product screen needs one of these pages, invoke the
+generated references from a host/client control beside the compiled
+Contract surface — the composition is shown in
+[the Contract adapter](../clients/contract-adapter.md#call-a-paged-query-from-a-contract-screen).
 
 A non-member's first page is empty with no cursor and reveals neither room
 nor membership existence — byte-identical to a nonexistent resource id.
@@ -4185,6 +4255,12 @@ Projection leaves are `_id` or portable scalar fields only. Optional stored
 scalars remain required keys whose value is `null | Scalar`; optional JSON is
 not admitted as a projection leaf.
 
+Two to eight complete bounded-children definitions additionally compose into
+one pinned-snapshot batch via `defineSnapshotBatchQuery` — a further
+experimental capability (`snapshot_batch_v1`, which also requires
+`bounded_children_v1`) with its own page:
+[snapshot batches](./snapshot-batches.md).
+
 The source operation is exactly `insert`, `patch`, or `delete`. Empty and
 storage-identical patches are not effects; missing targets and operation
 mismatches roll the whole transaction back before activity or settlement.
@@ -4235,8 +4311,8 @@ examples: [packages/snapback-codegen/relational-authoring.test.mjs, packages/sna
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-26
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Relational queries (bounded joins)
@@ -4316,7 +4392,12 @@ join over retained rows), and the continuation cursor never rides the
 lease envelope. An all-public plan cannot declare it — anonymous results
 have no admissible v1 retention, refused at generation and again at load
 (`SNAPBACK_AUTH_UNDECLARABLE_RETENTION`). The capability manifest records
-the admitted classes under `relationalQueries.retention`.
+the admitted classes under `relationalQueries.retention`. (Design
+reference: LLP 0080's 2026-08-03 dated amendment, landed with Accepted
+LLP 0166, specifies a third owner-issued class —
+`result-transform-snapshot-v1`, for the local persistent store — but it is
+not yet implemented; authoring and the capability manifest still admit
+exactly the two classes above.)
 
 ## Pagination
 
@@ -4406,8 +4487,8 @@ The contract, all enforced at generation and re-proved at activation:
   to one source row coalesce to one evaluation against the final snapshot.
 
 Author-supplied root filters beyond visibility remain specified by
-LLP 0080 but not yet implemented — see the Step 5 implementation program
-under `issues/`.
+LLP 0080 but are not yet authorable: v1 `defineRelationalQuery` admits no
+residual root filters.
 
 ## Design reference: one bounded child page
 
@@ -4420,10 +4501,10 @@ yet verify `PackageCapabilityAttestationV1`. Do not select it for a deployed
 package based on source-build code presence.
 
 The source-build local executor is not declaration-only:
-`node demos/signal-desk/tests/snapback.mjs` exercises owner, invisible,
-missing, and inactive parents plus a two-page `sbbc1` traversal against the
-persisted server. That local proof is green; the remaining GAP is the Spec's
-publication lifecycle and cross-target evidence.
+`node demos/signal-desk/tests/snapback-extras.mjs` exercises owner,
+invisible, missing, and inactive parents plus a two-page `sbbc1` traversal
+against the persisted server. That local proof is green; the remaining GAP
+is the Spec's publication lifecycle and cross-target evidence.
 
 The reviewed declaration makes the security and work proof explicit:
 
@@ -4461,7 +4542,8 @@ whose parent or authorization stream changed requires a first-page restart.
 - Do not hand-author a relation-incarnation value or expose it as an argument.
 - Do not group an unbounded all-child feed in the client and call it bounded.
 - Do not authorize children after applying the page limit.
-- Do not treat the review-gated builder as a positive target capability.
+- Do not treat the experimentally gated builder as a positive target
+  capability.
 
 ---
 
@@ -4478,7 +4560,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Snapshot batches
@@ -4568,8 +4650,8 @@ examples: [demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-27
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Portable indexed text search
@@ -4660,7 +4742,12 @@ unaccepted.
 
 Export the operation with
 `defineSearchQuery({ table: incidents, index: 'search_incidents' })`. It is an
-ordinary `Query`, deliberately not a `LiveQuery`.
+ordinary `Query`, deliberately not a `LiveQuery`. A separately authored
+`defineLiveSearchQuery` successor exists (Accepted LLP 0136, first-page-only,
+no membership indexes), but it is gated on `live_full_text_search_v1`, which
+the local target declares as a capability gap — codegen refuses such an
+artifact with `SNAPBACK_CAPABILITY_UNSUPPORTED`, and live search remains a
+nonclaim of this page.
 
 ## Search from a client
 
@@ -4733,8 +4820,8 @@ examples: [demos/improvement-sweep/arms/a6-snapback-web/evidence/app]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-02
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Scoped sequences
@@ -4835,7 +4922,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Portable exact vector search
@@ -4972,8 +5059,8 @@ examples: [demos/competitive-checkpoint, cloudflare/test/acceptance.egress.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-25
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Streamed actions
@@ -5010,6 +5097,10 @@ by this page.
 A streamed action needs the same egress enablement as ordinary outbound
 fetch (`SNAPBACK_OUTBOUND_ACTIONS=1`), and its artifact must be admitted by
 a target whose served manifest supports `bounded_response_stream_v1`.
+Codegen selects the outbound-actions capability-manifest variant only when
+that variable is set; the base local manifest declares
+`bounded_response_stream_v1` as a gap, so generation without it fails with
+`SNAPBACK_CAPABILITY_UNSUPPORTED`.
 Codegen detects `ctx.fetchStream` in your handler (AST-derived — aliases and
 destructuring count, comments do not) and adds the requirement to the
 function manifest; every loader then resolves it against the live `/inspect`
@@ -5023,8 +5114,11 @@ acknowledgment is needed. Artifacts generated while the id was
 that entry is a harmless no-op (acknowledging a stable id never refuses), so
 pre-promotion artifacts keep admitting unchanged. The experimental-maturity
 admission rule itself (LLP 0058 §Capability maturity) still applies to ids
-that remain experimental, currently `relational_query_v1` and
-`migration_keyset_scan_v1`.
+that remain experimental; `relational_query_v1` and `migration_keyset_scan_v1`
+have since been promoted too (LLP 0080/0081 flipped Implemented 2026-07-26),
+and the served manifest's `capabilityMaturity` map is the authoritative
+current list (`vector_search_v1`, `jobs_one_off_v1`, the asset ids, and
+others).
 
 ## Consume the body with one pull-driven reader
 
@@ -5248,7 +5342,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Expo push notifications
@@ -5521,12 +5615,12 @@ order: 1
 audience: agent-first
 capabilities: [clients.contract, clients.contract-provider-generation, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
 authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/online-surface.mjs]
-examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
+examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, demos/team-chat/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-20
-reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # The Contract adapter
@@ -5838,6 +5932,56 @@ What the surface does for you:
   [presence recipe](../recipes/presence-cursors.md) and
   [ephemeral-state reference](../realtime/ephemeral-state.md).
 
+## Call a paged query from a Contract screen
+
+Standard-pattern page pairs (`firstRoomMessagePage` / `nextRoomMessagePage`
+and kin) are **callable-only** `Query` definitions — they cannot be
+subscribed, so they are not Contract data links (see
+[why the pair is callable-only](../backend/standard-patterns.md)). The
+intended composition when a Contract product screen needs one: keep the live
+room state and actions in compiled Contract, and invoke the generated page
+references from a small host/client control through the ordinary Snapback
+client. That boundary is deliberate, not a workaround — a subscribable
+historical page would create one authorization-sensitive subscription per
+visited page.
+
+Team Chat's Contract surface is the CI-verified example
+([demos/team-chat/surfaces/contract/main.ts](repo:demos/team-chat/surfaces/contract/main.ts),
+exercised by the contract-browser acceptance). The host control owns
+loading, terminal, and refusal state and gates every settlement on a
+`disposed` flag so a torn-down screen never renders a late page:
+
+```ts source=demos/team-chat/surfaces/contract/main.ts
+  button.addEventListener('click', () => {
+    error.textContent = '';
+    const request = cursor === null
+      ? client.query(api.firstRoomMessagePage, { args: { roomId }, userId })
+      : client.query(api.nextRoomMessagePage, { args: { roomId, after: cursor }, userId });
+    void request.then((page) => {
+      if (disposed) return;
+      rows = cursor === null ? page.rows : [...rows, ...page.rows];
+      cursor = page.cursor ?? null;
+      terminal = cursor === null;
+      render();
+    }, (cause) => {
+      if (disposed) return;
+      rows = [];
+      cursor = null;
+      terminal = false;
+      error.textContent = cause instanceof Error ? cause.message : String(cause);
+      render();
+    });
+  });
+```
+
+A `null` cursor from the server is the terminal signal (`terminal = cursor
+=== null`); a refused call (for example after losing the room seat) lands in
+the rejection path, which clears the accumulated rows rather than showing
+history the caller can no longer read. The same surface pairs the control
+with a membership live query that blanks the page list the moment the seat
+is revoked — fresh grants are observed by simply calling the first page
+again.
+
 ## Checked helper metadata and result shapes
 
 Project-owned TypeScript helpers cross into Contract through a
@@ -5890,8 +6034,8 @@ examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/par
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # The headless client
@@ -6118,6 +6262,12 @@ Successful sessions responses expose the server-derived pair at
 `facts.activeGeneration`. String names and older references carry no assertion
 and remain unchecked for compatibility.
 
+`search(ref, ...)` and `vectorSearch(ref, ...)` are the retrieval calls over
+generated search-plan references; their argument grammar, cursors, and
+digest facts are owned by
+[text search](../backend/text-search.md) and
+[vector search](../backend/vector-search.md).
+
 Mutation responses carry `result`, `changed_count`, `version`, and a
 terminal receipt. The client records receipts before returning or rethrowing;
 read them with `receipts()` or subscribe with `onReceipt(listener)`.
@@ -6213,9 +6363,13 @@ When a generated route group needs one-commit boot, call
 strict projection over the headless client's existing register-mode
 `fetchBundle` owner: it validates the closed response and keeps rows,
 registrations, resume receipts, namespaces, authorization projections, the
-connection handle, and grant in private client custody. Only all-`LiveQuery`
-routes whose `$param` targets are strings receive this
-generated register reference; the broader read-bundle route grammar still
+connection handle, and grant in private client custody. Two route shapes receive a
+generated register reference: all-`LiveQuery` routes (format 1) and format-2
+`mixed-route.v2` routes mixing `Query` and `LiveQuery` children, whose
+register-mode `fetchBundle` request additionally binds
+`formatVersion: 2`, `profile: 'mixed-route.v2'`, and the generated
+`planHash`. In both shapes `$param` targets must be strings and search-plan
+children are excluded; the broader read-bundle route grammar still
 supports server-decoded numeric and boolean parameters. The provider publishes
 registered rows only after the stream returns a positive server readiness
 witness. Only absence of the target-owned `registered_bundle_boot_v1`
@@ -6315,18 +6469,25 @@ intent so source additions cannot hide as “advanced” APIs:
 
 | Area | Methods |
 | --- | --- |
-| Construction/static helpers | `constructor`, `createExternalSessionClient`, `AgentAuthorityFence`, `SnapbackClient.auth`, `SnapbackClient.roomPermission` |
+| Construction/static helpers | `constructor`, `createExternalSessionClient`, `AgentAuthorityFence`, `SnapbackClient.auth`, `SnapbackClient.roomPermission`, `SnapbackClient.mintBundleBootKey` |
 | Discovery | `health`, `inspect` |
-| App/admin lifecycle | `ensureApp`, `loadSchema`, `loadFunctions`, `ensureEphemeralCollections`, `reset`, `seed`, `cronTick` |
-| Function calls | `query`, `authorizedLeaseQuery`, `mutate`, `action`, `acknowledgeMutations` |
-| Durable live | `liveQuery`, `subscribeLive`, `unsubscribeLive`, `openLiveStream`, `liveStreamManager`, `acknowledgeAuthorizationInvalidation` |
-| Ephemeral | `subscribeEphemeral`, `startEphemeralRoom`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral` |
-| Connections/drains | `connectionGrant`, `refreshConnectionGrant`, `disconnect`, `drainEnvelopes`, `drainConnection`, `drainUpdates`, `registerDurableConsumer`, `registerEphemeralConsumer` |
+| App/admin lifecycle | `ensureApp`, `loadSchema`, `loadFunctions`, `ensureEphemeralCollections`, `reset`, `seed`, `cronTick`, `ensureVersionedSeed`, `previewVersionedSeed`, `resetInstallVersionedSeed`, `clearVersionedSeed` |
+| Function calls | `query`, `search`, `vectorSearch`, `authorizedLeaseQuery`, `mutate`, `action`, `acknowledgeMutations` |
+| Route bundles | `fetchBundle` |
+| Durable live | `liveQuery`, `startLiveQuery`, `subscribeLive`, `unsubscribeLive`, `openLiveStream`, `liveStreamManager`, `acknowledgeAuthorizationInvalidation` |
+| Offline queue and settlement | `outboxStatus`, `subscribeOutbox`, `outboxDiagnostics` (getter), `replayQueuedMutations`, `settledMutations`, `markMutationSettlementsConsumed` |
+| Ephemeral | `subscribeEphemeral`, `startEphemeralRoom`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral`, `registerEphemeralRepublisher` |
+| Connections/drains | `connectionGrant`, `refreshConnectionGrant`, `disconnect`, `releaseConnection`, `drainEnvelopes`, `drainConnection`, `drainUpdates`, `registerDurableConsumer`, `registerEphemeralConsumer` |
+| Framework bindings | `prepareReactBinding` |
 | Acceptance inspection | `localResourceInspection` |
 | Receipts and retry evidence | `recordReceipt`, `receipts`, `onReceipt`, `reservationRetryDiagnostics` |
-| Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `captureAuthority`, `authorityCaptureFor`, `registerAuthBarrierParticipant` |
+| Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `authTerminalStatus`, `subscribeAuthTerminal`, `registerAuthBarrierParticipant` |
+| Auth adapter/coordinator seam | `captureAuthority`, `authorityCaptureFor`, `isAuthorityCaptureCurrent`, `allocateLiveQueryNamespace`, `registerAuthMaterialization`, `commitAuthorityPublication`, `commitSenderSocketNonce`, `handleTerminalAuthLoss`, `liveStreamProtocolsFor` |
 
-The overlay returned by `subscribeEphemeral` and the live handle returned by
+Members whose names start with `__` (for example
+`__registerExternalBearerHandle`) are internal composition seams between the
+client and its own arms, not API, and are deliberately excluded. The overlay
+returned by `subscribeEphemeral` and the live handle returned by
 `liveQuery` are separate owned objects with their own methods and disposal
 lifecycle; they are not additional client methods.
 
@@ -6555,7 +6716,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # The React client
@@ -6889,8 +7050,8 @@ examples: [clients/swift/SnapbackClient]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-26
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Swift client
@@ -6991,8 +7152,8 @@ examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/web
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # React Expo Online clients
@@ -7090,7 +7251,7 @@ To use those surfaces on RN, install an RNG polyfill before constructing the
 client — Expo: `expo-crypto` (its `getRandomValues` polyfill), bare RN:
 `react-native-get-random-values`.
 
-## The store: durable on-device once the app registers its filesystem
+## The store: relaunch-durable on-device once the app registers its filesystem
 
 The client package never imports `expo-file-system` (Metro statically
 resolves every literal specifier reachable from the root, so a platform
@@ -7106,18 +7267,24 @@ registerExpoFileSystemRqsFiles(FileSystem);
 
 After that one line, the default persistence ladder (explicit option → env
 kill switch → browser IndexedDB → **React Native registered files** → node
-filesystem → in-memory) resolves the durable file arm for every client on
+filesystem → in-memory) resolves the on-device file arm for every client on
 this carrier: `client.rqsStoreInfo` reports
-`{ source: 'default', implementation: 'file', durable: true }`, blobs live
+`{ source: 'default', implementation: 'file', durable: false, reason:
+'native-files-no-power-loss-cut' }`, blobs live
 under the app's document container (`Paths.document/snapback-rqs/`, one
 blob per server origin), and at-rest protection is the OS container plus
 platform disk encryption (LLP 0090 Q4 posture — no client-side encryption
-is claimed). Without the registration the ladder stays in-memory with the
-actionable fact `{ implementation: 'memory', durable: false, reason:
+is claimed). `durable: false` is the honest LLP 0043 publication-boundary
+fact, not "nothing persists": Expo's synchronous File/Directory API exposes
+no fsync-style cut, so the adapter declares `powerLossDurable: false` while
+the store still survives ordinary relaunch (the Node filesystem arm, which
+has that cut, reports `durable: true`). Without the registration the ladder
+stays in-memory with the actionable fact
+`{ implementation: 'memory', durable: false, reason:
 'no-native-files-registered' }` — do not claim retention over it.
 
-What the durable arm enables (proven on the iOS simulator against a release
-Hermes build — `demos/rn-durable-store-witness/`):
+What the registered file arm enables (proven on the iOS simulator against a
+release Hermes build — `demos/rn-durable-store-witness/`):
 
 - **Cold-boot retained render** for queries that declared `rqsEligible`
   retention (see [offline retention](../sync/offline-and-retention.md)):
@@ -7144,14 +7311,15 @@ AppState.addEventListener('change', (state) => {
 
 Two sharp edges, stated plainly:
 
-- **Construct one client for the app, not one per operation.** The durable
+- **Construct one client for the app, not one per operation.** The on-device
   store is single-writer per origin. If a shell deliberately replaces the
   client, `await client.closeAuth()` performs final cleanup and releases a
   store resolved by the default ladder before the successor is constructed.
   A store passed through `rqsStore` remains caller-owned and must be closed by
   that caller.
-- For bare React Native (no expo-file-system), implement the nine-method
-  files adapter against `createFileRqsResumeStore` yourself, or inject a
+- For bare React Native (no expo-file-system), implement the ten-method
+  files adapter (including `syncDirectory` and the `powerLossDurable`
+  declaration) against `createFileRqsResumeStore` yourself, or inject a
   store per client via the `rqsStore` option
   (`createExpoRqsResumeStore({ fileSystem })` is the packaged convenience
   for Expo modules).
@@ -7163,7 +7331,7 @@ engages on Expo: connectivity is classified by transport provenance — the
 fetch dispatch itself rejected, with no HTTP status, diagnostic, or receipt
 — independent of the rejection's constructor, so Expo's plain-`Error` fetch
 rejections queue exactly like undici's `TypeError` shape. Server-answered
-refusals and caller aborts never queue. With the registered durable store
+refusals and caller aborts never queue. With the registered file store
 above, the queue is also restart-durable. See
 [offline and retention](../sync/offline-and-retention.md) for the mechanics
 and `useSnapbackOutbox()` for rendering the queued state.
@@ -7256,9 +7424,10 @@ honestly rather than assuming the cycle away.
 - **Do not polyfill RNG with `Math.random`.** When
   `SNAPBACK_CLIENT_WEBCRYPTO_RNG_MISSING` names a missing primitive, install
   a real RNG polyfill (`expo-crypto`).
-- **Do not claim cold-boot retention without the registered durable
+- **Do not claim cold-boot retention without the registered file
   store.** Unregistered, the store is in-memory; either way
-  `client.rqsStoreInfo` is the honest fact to render.
+  `client.rqsStoreInfo` is the honest fact to render — including its
+  `durable: false` power-loss caveat on this carrier.
 - **Do not transfer evidence between operating systems.** Native evidence is
   per immutable surface/OS profile.
 - **Do not call Online local-first or Parity.** No local handler execution is
@@ -7282,8 +7451,8 @@ examples: [demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-26
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Framework bindings
@@ -7366,13 +7535,13 @@ id: deploying.releases
 order: 1
 audience: agent-first
 capabilities: [deploy.release-build, deploy.target-control]
-authorities: [llp/0072-trusted-single-tenant-control-plane.rfc.md, packages/snapback-cli/index.mjs, packages/snapback-cli/deployment-control.mjs, src/auth/deployment.rs, schemas/release.manifest.schema.json, schemas/target.descriptor.schema.json, schemas/remote-drill.plan.schema.json, schemas/deploy.plan.schema.json, schemas/vm-adapter.lifecycle-request.schema.json, schemas/vm-adapter.lifecycle-response.schema.json, schemas/backup.manifest.schema.json, schemas/backup.plan.schema.json, schemas/control.audit-event.schema.json, schemas/deploy.receipt.schema.json, schemas/adapter.qualification.schema.json, schemas/hosted-auth.drill-receipt.schema.json, schemas/auth.hosted-admission-envelope.schema.json, schemas/auth.hosted-admission-key.schema.json, schemas/prepared-release.manifest.schema.json, schemas/rollback.plan.schema.json, schemas/restore.plan.schema.json, schemas/restore.activation-plan.schema.json, schemas/maintenance.receipt.schema.json, schemas/vm-adapter.query-request.schema.json, schemas/vm-adapter.query-response.schema.json]
+authorities: [llp/0072-trusted-single-tenant-control-plane.rfc.md, llp/0098-hosted-edge-adapter.spec.md, packages/snapback-cli/index.mjs, packages/snapback-cli/deployment-control.mjs, src/auth/deployment.rs, src/auth/hosted_edge.rs, schemas/release.manifest.schema.json, schemas/target.descriptor.schema.json, schemas/remote-drill.plan.schema.json, schemas/deploy.plan.schema.json, schemas/vm-adapter.lifecycle-request.schema.json, schemas/vm-adapter.lifecycle-response.schema.json, schemas/backup.manifest.schema.json, schemas/backup.plan.schema.json, schemas/control.audit-event.schema.json, schemas/deploy.receipt.schema.json, schemas/adapter.qualification.schema.json, schemas/hosted-auth.drill-receipt.schema.json, schemas/auth.hosted-admission-envelope.schema.json, schemas/auth.hosted-admission-key.schema.json, schemas/prepared-release.manifest.schema.json, schemas/rollback.plan.schema.json, schemas/restore.plan.schema.json, schemas/restore.activation-plan.schema.json, schemas/maintenance.receipt.schema.json, schemas/vm-adapter.query-request.schema.json, schemas/vm-adapter.query-response.schema.json]
 examples: [demos/competitive-checkpoint]
 status: current
 targets: [all]
 maturity: partial
-reviewed: 2026-07-22
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Build an immutable release
@@ -7633,26 +7802,40 @@ comes from the target's provider secret manager and conforms to
 `schemas/auth.hosted-admission-key.schema.json`; it is never an application
 config value or release, backup, log, or receipt component.
 
-The adapter starts the runtime with both strict owner-only files:
+No `snapback start` flag consumes those two files today. The native
+MAC-envelope consumer verifies the closed envelope shape, key identity,
+canonical MAC, canonical HTTPS origin, five-minute admission lifetime, exact
+finite throttle policy, positive hosted facts, and a nonzero external replay
+floor — but it is reachable only through the native test harness, not the
+serving path. A refresh of that envelope may advance admission, limiter, and
+invalidation epochs; it cannot change deployment, handler incarnation, the
+canonical origin, or the boot's replay floor. A bad or missing refresh never
+extends authority: new work fails closed when the last authenticated
+admission expires.
+
+What `snapback start --auth-deployment hosted` accepts today is the LLP 0098
+hosted-edge admission seam. Without an adapter attestation it refuses with
+`SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED`. With one, the adapter supplies an
+edge configuration — which carries no authority, only the identities and
+verification key to check against — plus an Ed25519-signed admission
+envelope, both verified before the database opens or a listener binds:
 
 ```sh
 snapback start \
   --host 0.0.0.0 \
   --db /var/lib/snapback/app.sqlite3 \
   --auth-deployment hosted \
-  --hosted-admission /run/snapback/hosted-admission.json \
-  --hosted-admission-key /run/secrets/snapback-hosted-admission-key.json
+  --hosted-edge /run/snapback/hosted-edge.json \
+  --hosted-admission /run/snapback/hosted-admission.json
 ```
 
-Before it opens the database or binds a listener, the runtime verifies the
-closed envelope shape, key identity, canonical MAC, canonical HTTPS origin,
-five-minute admission lifetime, exact finite throttle policy, and positive
-hosted facts. It then reconciles the external replay floor into SQLite before
-publishing hosted posture. Every 15 seconds it re-authenticates the envelope;
-a live refresh may advance admission, limiter, and invalidation epochs, but
-cannot change deployment, handler incarnation, or the boot's replay floor. A
-bad or missing refresh never extends authority: new work fails closed when the
-last authenticated admission expires.
+`--hosted-edge` and `--hosted-admission` require each other. Installation
+reconciles the admission epoch and external replay floor into a durable
+SQLite watermark, so a correctly signed but older replayed snapshot is
+refused. A verified admission lives at most five minutes; a renewal loop
+re-reads the envelope document every 30 seconds and only ever installs
+another independently verified successor — when the document stops covering
+the clock, the incumbent expires and serving withdraws.
 
 `refreshHostedAdmissionProjection` authenticates the current envelope with the
 provider key before replacing it atomically. It constructs the next admission
@@ -7894,8 +8077,8 @@ examples: [demos/all-aboard, cloudflare/app/all-aboard.app.js]
 status: current
 targets: [cloudflare]
 maturity: partial
-reviewed: 2026-07-27
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Deploying the Cloudflare proof
@@ -7920,7 +8103,7 @@ volta run --node 24.18.0 -- node cloudflare/test/local-suite.mjs
 volta run --node 24.18.0 -- node cloudflare/test/measure.mjs
 ```
 
-The suite inventories every non-remote gate and currently runs 21 checks.
+The suite inventories every non-remote gate and currently runs 26 checks.
 Miniflare validates protocol, storage, handlers, secrets, egress, cron, and
 hibernation-event behavior, but it cannot prove platform eviction, placement,
 or billing. Those require a real Cloudflare run.
@@ -7982,8 +8165,9 @@ SNAPBACK_ADMIN_TOKEN=... node cloudflare/config-set.mjs \
 
 `config-set.mjs` reads the current generation, writes changed bindings plus a
 new `SNAPBACK_CONFIG_GENERATION` in one `wrangler secret bulk` activation, then
-polls authenticated `/config/status` until that generation and member counts
-are attested as applied. It refuses value-bearing argv flags. Status returns
+polls authenticated `/_snapback/api/config/status` (the hosted system surface
+lives under `/_snapback/*`) until that generation and member counts are
+attested as applied. It refuses value-bearing argv flags. Status returns
 names, set/missing state, counts, and grant relationships—never values.
 
 App actions receive descriptor handles only. Values unwrap at the coordinator's
@@ -8101,8 +8285,8 @@ examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapba
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-31
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Your first backend
@@ -8163,9 +8347,13 @@ export default defineSchema({
 });
 ```
 
-The complete validator set: `v.string()`, `v.principal()`, `v.id(table)`,
+The core validators: `v.string()`, `v.principal()`, `v.id(table)`,
 `v.boolean()`, `v.integer()`, `v.real()` / `v.number()`, `v.json()`,
-`v.object({...})`, and `v.optional(inner)`. `defineSchema` also takes an
+`v.object({...})`, and `v.optional(inner)`. This inventory is deliberately
+partial: specialized validators — typed asset references (`v.assetRef`,
+[assets](../backend/assets.md)), result-side `v.doc(table)` references
+([queries](../backend/queries.md)) — are taught with their features.
+`defineSchema` also takes an
 options object:
 `ephemeral:` (a `defineEphemeral(...)` — see the
 [presence recipe](../recipes/presence-cursors.md) and complete
@@ -8464,8 +8652,8 @@ examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-28
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # The authoring loop
@@ -8517,8 +8705,13 @@ public React path: `snapback new --template react`, `bun install`,
 lifecycle, template live acceptance with real handler execution, and a clean
 stop — proven from a clean external directory by the LLP 0137 G1
 qualification arm
-(`demos/improvement-sweep/arms/g1-public-package-qualification/`). Treat that
-version as the public-registry React path.
+(`demos/improvement-sweep/arms/g1-public-package-qualification/`). Treat
+0.1.7 as the newest closure carrying that proof. The registry's `latest` tag
+now selects the 0.1.8 closure, published 2026-08-01 as a deliberate
+pre-consumer fast-path release with no qualification-arm receipt of its own
+(the "Fast-path pre-consumer release" section of
+[LLP 0041](repo:llp/0041-packaged-dev-loop.rfc.md)); pin `0.1.7` when you
+need the proven closure.
 
 Still do not infer that a published closure contains every surface in the
 current source tree: source lands continuously, and a packaged consumer has
@@ -8701,8 +8894,8 @@ examples: [packages/snapback-codegen/review-surface.test.mjs, packages/snapback-
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-27
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Generated artifact custody and review
@@ -8809,8 +9002,8 @@ examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Secrets and deployment config
@@ -8848,7 +9041,7 @@ Values never belong in source, manifests, seed data, LLPs, or demo diaries.
 
 Use `/_snapback/admin/setup` for the browser wizard or the admin-gated config
 API/host operations for automation. The core operations are `status`,
-`set`, `unset`, and `verify`.
+`set`, `unset`, and `verify`, plus the read-only `plan` dry-run.
 
 `status` reports declaration, set state, member count, source, generation,
 and verification—never value bytes:
@@ -8878,10 +9071,15 @@ blessed remote path.
 | Operation | Request | Body |
 | --- | --- | --- |
 | status | `GET /_snapback/api/config/status` | — |
+| plan | `GET /_snapback/api/config/plan?entry=<name>` | — |
 | set | `POST /_snapback/api/config/set` | `{ "entry": "<name>", "value": "<string>" }` |
 | set (pool) | `POST /_snapback/api/config/set` | `{ "entry": "<name>", "values": ["a", "b"], "append": true }` |
 | unset | `POST /_snapback/api/config/unset` | `{ "entry": "<name>" }` |
 | verify | `POST /_snapback/api/config/verify` | `{ "entry": "<name>" }` |
+
+`plan` is a read-only dry-run: it reports the write locus, apply boundary,
+and whether this transport would accept a value write, without writing
+anything (the `entry` query parameter is optional).
 
 Exactly one of `value` or `values` must be present: sending both, neither, or
 the plausible-but-wrong `{ entry, member }` spelling refuses with
@@ -8915,7 +9113,10 @@ The acceptance proves accidental materialization stays redacted:
 
 Queries and mutations have no `ctx.secrets`; actions cannot access an entry
 outside `uses`. Missing and undeclared entries fail with stable
-`SNAPBACK_CONFIG_*` diagnostics.
+`SNAPBACK_CONFIG_*` diagnostics. Besides actions, the declared push seam
+(`definePushSeam`) may also name entries in `uses`; that grant feeds the
+engine-owned send lane, never a handler handle, and unknown names fail at
+codegen with `CONFIG_USES_UNKNOWN` just as for actions.
 
 ## Anti-patterns
 
@@ -8942,8 +9143,8 @@ examples: [demos/todo]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: a9440ba09eb469c308a46d0c5139e5ca5a9165ff
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Host operations
@@ -8983,7 +9184,7 @@ carries the storage diagnostic; tooling must not substitute zero.
 
 ## Served request operations
 
-The endpoint serves twelve request spellings:
+The endpoint serves twenty-eight request spellings:
 
 | Request operation | Purpose |
 | --- | --- |
@@ -8999,15 +9200,36 @@ The endpoint serves twelve request spellings:
 | `function.explain` | Explain a supported kind; currently `mutationDryRun` is implemented. |
 | `auth.mintSession` | Dev/test session mint requiring the process-bound impersonation capability. |
 | `auth.rescueCollidingTable` | Operator-only pre-auth catalog collision recovery. |
+| `asset.put` | Put asset bytes/metadata through the same machinery as the asset routes. |
+| `asset.ensureSeedFixture` | Install or observe a deterministic seed-fixture asset. |
+| `asset.inspect` | Inspect one asset record. |
+| `asset.list` | List asset records. |
+| `asset.retry` | Retry a failed asset processing step. |
+| `asset.gcSweep` | Deterministic receipted GC sweep with an injected clock. |
+| `asset.delete` | Delete one asset through the authorized deletion path. |
+| `asset.rotateSigningKey` | Rotate the delivery signing key, invalidating outstanding signed URLs. |
+| `asset.exportCut` | Export a consistent asset cut to an absolute directory. |
+| `asset.importCut` | Import a previously exported consistent asset cut. |
+| `telemetry.stats` | Aggregated telemetry statistics (structural metadata). |
+| `telemetry.events` | Bounded filtered raw telemetry events (secret-read lease). |
+| `telemetry.export` | Bounded NDJSON telemetry export (secret-read lease). |
+| `errors.issues` | Structural error-issue listing. |
+| `errors.issue` | Raw detail for one error issue (secret-read lease). |
+| `errors.transition` | Resolve/ignore state transition for one issue. |
 
 `host.start`, `host.stop`, and `host.restart` are CLI-only lifecycle
-verbs—a running server cannot safely own starting/stopping itself.
+verbs—a running server cannot safely own starting/stopping itself; over
+HTTP they fail as `SNAPBACK_HOST_OP_CLI_ONLY`.
 `schema.reload`, `functions.reload`, and `acceptance.run` are pinned but
-unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`.
+unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`. Both families are
+registered at AdminWrite so an authenticated request reaches that structured
+envelope; unknown names stay unregistered and fail closed before dispatch.
 
-## The exact 17 registry identities
+## The exact 39 registry identities
 
-The HTTP request names above expand into these 17 audited operation identities:
+The HTTP request names above expand into these 39 audited operation
+identities (the last six are the registered CLI-only and pinned-unbuilt
+verbs):
 
 1. `host_ops.app.inspect`
 2. `host_ops.function.explain`
@@ -9026,6 +9248,28 @@ The HTTP request names above expand into these 17 audited operation identities:
 15. `host_ops.function.run.action`
 16. `host_ops.function.run.unknown`
 17. `host_ops.function.run.impersonated`
+18. `host_ops.asset.put`
+19. `host_ops.asset.ensureSeedFixture`
+20. `host_ops.asset.inspect`
+21. `host_ops.asset.list`
+22. `host_ops.asset.retry`
+23. `host_ops.asset.gcSweep`
+24. `host_ops.asset.delete`
+25. `host_ops.asset.rotateSigningKey`
+26. `host_ops.asset.exportCut`
+27. `host_ops.asset.importCut`
+28. `host_ops.telemetry.stats`
+29. `host_ops.telemetry.events`
+30. `host_ops.telemetry.export`
+31. `host_ops.errors.issues`
+32. `host_ops.errors.issue`
+33. `host_ops.errors.transition`
+34. `host_ops.schema.reload`
+35. `host_ops.functions.reload`
+36. `host_ops.acceptance.run`
+37. `host_ops.host.start`
+38. `host_ops.host.stop`
+39. `host_ops.host.restart`
 
 Query/explain reads, durable writes, credential-producing operations, and
 dev impersonation therefore keep distinct `RoutePolicy`, authority, effect,
@@ -9073,8 +9317,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/a
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-27
-reviewed-commit: 8399da34f8bdebb2776395ee5751b57c2bd2e71f
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Diagnostics and local doctoring
@@ -9146,9 +9390,12 @@ scripts/ibex-doctor
 It checks the submodule state, prepared Hermes artifacts/framework, CLI,
 required tools, and then the part file-presence checks cannot prove: an exact
 link of this checkout's final `snapback` Cargo target in an automatically
-cleaned temporary target directory, followed by launch of that newly linked
-binary with `DYLD_*` and `LD_LIBRARY_PATH` scrubbed. An older runnable binary
-does not make the current checkout green. On a clean checkout, bootstrap before
+cleaned temporary target directory, followed by launch and restricted
+handler-VM qualification of that newly linked binary with `DYLD_*` and
+`LD_LIBRARY_PATH` scrubbed. It also verifies, read-only, that the served
+binary's persisted readiness receipt (`<binary>.runtime-readiness.json`) is
+digest-coherent with that binary and the current Hermes artifacts. An older
+runnable binary does not make the current checkout green. On a clean checkout, bootstrap before
 Cargo build/test/run:
 
 ```sh
@@ -9167,7 +9414,9 @@ The stable bootstrap failure vocabulary is:
 `SNAPBACK_IBEX_RUNTIME_LINK_TIMEOUT`,
 `SNAPBACK_IBEX_RUNTIME_LINK_INTERRUPTED`,
 `SNAPBACK_IBEX_RUNTIME_LINK_PROBE_FAILED`,
-`SNAPBACK_IBEX_RUNTIME_LOAD_FAILED`, and
+`SNAPBACK_IBEX_RUNTIME_LOAD_FAILED`,
+`SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED`,
+`SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID`, and
 `SNAPBACK_IBEX_HOST_UNSUPPORTED`.
 
 The doctor additionally distinguishes uninitialized/conflicting/drifted
@@ -9299,8 +9548,8 @@ examples: [admin-ui]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Admin console
@@ -9310,9 +9559,9 @@ reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 > [auth/targets](../auth/targets.md).
 
 The admin console is Snapback's browser debugger over
-`/_snapback/api/*`. Its Contract app exposes Overview, Schema, Data,
-Functions, Secrets, Capabilities, Realtime, and Diagnostics views from the same
-inspect/scan/runner/config boundaries used by tests and tools. Its Docs tab
+`/_snapback/api/*`. Its Contract app exposes Overview, Health, Errors, Logs,
+Schema, Data, Functions, Secrets, Capabilities, Realtime, and Diagnostics views
+from the same inspect/scan/runner/config boundaries used by tests and tools. Its Docs tab
 renders the build-matched served guide from the generated manifest; the
 console's text renderer never injects guide HTML.
 
@@ -9390,6 +9639,14 @@ runtime exceptions, zero console errors, and zero policy violations.
 
 - **Overview/Capabilities/Realtime/Diagnostics:** inspect target, artifacts,
   capability gaps, delivery state, receipts, and stable codes.
+- **Health:** telemetry stat tiles, requests over time, per-route/function
+  latency, top volume/error-rate entries, lifecycle markers, and coverage,
+  with a link into Errors when issues need attention.
+- **Errors:** triage open/regressed issues and resolve or ignore them;
+  structural metadata is ordinary admin authority, while raw detail spends a
+  scoped `errors.issue` secret-read lease.
+- **Logs:** filter the same bounded `telemetry.events` operation agents use;
+  raw rows require a `telemetry.events` secret-read lease.
 - **Schema/Data:** inspect declared tables and page through rows; private reads
   remain subject to secret-read scope/budgets.
 - **Functions:** run queries, mutations, and actions through the classified
@@ -9442,7 +9699,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Backend observability
@@ -9599,7 +9856,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Backend error tracking
@@ -9751,8 +10008,8 @@ examples: [clients/swift/SnapbackClient]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Client protocol
@@ -9899,13 +10156,13 @@ id: realtime.live-queries
 order: 1
 audience: agent-first
 capabilities: [realtime.live-queries, realtime.durable-push]
-authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, demos/_kit/client.mjs]
+authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-client/index.mjs]
 examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta-e2e.mjs, demos/all-aboard/surfaces/react/src/main.tsx, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/party-wall]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-02
-reviewed-commit: e24d3df0cd10d668d2f04a2708afbf30ff7485bd
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Live queries
@@ -10091,13 +10348,13 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/_kit/client.mjs, packages/snapback-contract/index.mjs]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs]
 examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Ephemeral realtime state
@@ -10291,7 +10548,7 @@ status: current
 targets: [local, cloudflare]
 maturity: partial
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Route snapshot bundles
@@ -10418,13 +10675,13 @@ id: recipes.presence-cursors
 order: 1
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, packages/snapback-codegen/define.mjs, demos/_kit/client.mjs]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-client/index.mjs]
 examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Recipe: presence cursors
@@ -10556,8 +10813,8 @@ examples: [demos/card-game]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Recipe: hidden hands
@@ -10662,8 +10919,8 @@ examples: [demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashbo
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-02
-reviewed-commit: 63d980b654664d2c990f454cbcb78958d87d27b8
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Offline retention and mutation replay
@@ -10867,8 +11124,11 @@ Two neighbors that are **not** this opt-in:
 Pass a durable `clientStore` (localStorage on web; memory only for tests) and
 a complete retained identity: app id, database id, target-profile id, and
 version-stream id. The generated Contract data manifest must claim
-`offlineReplay`, and every mutation exposed by the surface must have a
-derivable declarative plan.
+`offlineReplay`, and every mutation exposed by the surface must carry its
+generated declarative plan — plan presence is the replayability predicate.
+Whether an optimistic overlay is derived from that plan is a separate axis:
+a sequence-withheld mutation is replayable with no overlay at all (see the
+withholding rule below).
 
 If any identity or replay proof is missing, queued writes and retention are
 disabled instead of being rebound to a guessed backend. A changed artifact or
@@ -10953,8 +11213,10 @@ allocates:
 - one deterministic `ctxLedger` containing generated time/id answers.
 
 The derived optimistic overlay consumes the **same** ledger, so a replayed
-insert uses the id the UI already rendered. If durable enqueue fails, the
-optimistic change is rolled back before any server contact.
+insert uses the id the UI already rendered. (A withheld sequence mutation
+mints this ledger with no overlay consumer — see the withholding rule
+below.) If durable enqueue fails, the optimistic change is rolled back
+before any server contact.
 
 The test queues create → toggle → delete and proves durable ordering:
 
@@ -11078,6 +11340,26 @@ reducer. Server rows remain authoritative:
 - an artifact or authority change clears/quarantines old rows and writes before
   publishing the successor scope.
 
+One declared exception: a generated sequence write-with-activity mutation is
+marked `atomicOptimisticWithholding` and derives **no** overlay — fresh or
+restored after relaunch (LLP 0043's LLP 0135 fold: the client may not guess,
+locally allocate, or show the unaffected subset of a sequence-projected
+changeset). The intent still queues durably and replays: enqueue pre-mints
+the plan's fixed host row-id ledger (the activity row, plus the source row
+for an insert source) without evaluating `AllocateSequence`, and rows appear
+only from authoritative delivery after settlement returns the allocation.
+The sequence surface itself is unpublished substrate — see
+[scoped sequences](../backend/sequences.md).
+
+```js source=packages/snapback-contract/offline-replay.test.mjs
+  assert.equal(queuedResult.queued, true);
+  assert.equal(
+    withheldOnline.boundary.current('todos')[0].completed,
+    false,
+    'fresh atomic withholding queues intent without presenting app reducer rows',
+  );
+```
+
 ## Anti-patterns
 
 - **Do not call a surface Parity because it has localStorage.** The manifest,
@@ -11092,6 +11374,9 @@ reducer. Server rows remain authoritative:
   authorized-retention path or keep the surface online-only.
 - **Do not key an agent outbox by token id.** Tokens are live carriers; the
   server-issued descriptor and durable grant tuple own replay identity.
+- **Do not fake an optimistic row for a withheld sequence mutation.**
+  Sequence-projected placement is settlement's answer; render the queued
+  state, never a guessed allocation or the changeset's unaffected subset.
 
 ---
 
@@ -11107,8 +11392,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/accep
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
 ---
 
 # Acceptance testing

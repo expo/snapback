@@ -9,8 +9,8 @@ examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Secrets and deployment config
@@ -48,7 +48,7 @@ Values never belong in source, manifests, seed data, LLPs, or demo diaries.
 
 Use `/_snapback/admin/setup` for the browser wizard or the admin-gated config
 API/host operations for automation. The core operations are `status`,
-`set`, `unset`, and `verify`.
+`set`, `unset`, and `verify`, plus the read-only `plan` dry-run.
 
 `status` reports declaration, set state, member count, source, generation,
 and verification—never value bytes:
@@ -78,10 +78,15 @@ blessed remote path.
 | Operation | Request | Body |
 | --- | --- | --- |
 | status | `GET /_snapback/api/config/status` | — |
+| plan | `GET /_snapback/api/config/plan?entry=<name>` | — |
 | set | `POST /_snapback/api/config/set` | `{ "entry": "<name>", "value": "<string>" }` |
 | set (pool) | `POST /_snapback/api/config/set` | `{ "entry": "<name>", "values": ["a", "b"], "append": true }` |
 | unset | `POST /_snapback/api/config/unset` | `{ "entry": "<name>" }` |
 | verify | `POST /_snapback/api/config/verify` | `{ "entry": "<name>" }` |
+
+`plan` is a read-only dry-run: it reports the write locus, apply boundary,
+and whether this transport would accept a value write, without writing
+anything (the `entry` query parameter is optional).
 
 Exactly one of `value` or `values` must be present: sending both, neither, or
 the plausible-but-wrong `{ entry, member }` spelling refuses with
@@ -115,7 +120,10 @@ The acceptance proves accidental materialization stays redacted:
 
 Queries and mutations have no `ctx.secrets`; actions cannot access an entry
 outside `uses`. Missing and undeclared entries fail with stable
-`SNAPBACK_CONFIG_*` diagnostics.
+`SNAPBACK_CONFIG_*` diagnostics. Besides actions, the declared push seam
+(`definePushSeam`) may also name entries in `uses`; that grant feeds the
+engine-owned send lane, never a handler handle, and unknown names fail at
+codegen with `CONFIG_USES_UNKNOWN` just as for actions.
 
 ## Anti-patterns
 

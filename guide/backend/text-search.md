@@ -9,8 +9,8 @@ examples: [demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-27
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Portable indexed text search
@@ -101,7 +101,12 @@ unaccepted.
 
 Export the operation with
 `defineSearchQuery({ table: incidents, index: 'search_incidents' })`. It is an
-ordinary `Query`, deliberately not a `LiveQuery`.
+ordinary `Query`, deliberately not a `LiveQuery`. A separately authored
+`defineLiveSearchQuery` successor exists (Accepted LLP 0136, first-page-only,
+no membership indexes), but it is gated on `live_full_text_search_v1`, which
+the local target declares as a capability gap — codegen refuses such an
+artifact with `SNAPBACK_CAPABILITY_UNSUPPORTED`, and live search remains a
+nonclaim of this page.
 
 ## Search from a client
 

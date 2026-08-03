@@ -9,8 +9,8 @@ examples: [demos/party-wall, demos/file-drop]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-02
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Assets
@@ -355,8 +355,8 @@ itself is idempotent, and each reclaimed asset receives its canonical
 The acceptance traceability map is
 [`tests/acceptance/asset-lifecycle-v1-evidence.md`](../../tests/acceptance/asset-lifecycle-v1-evidence.md);
 the manifest facts (stores, profiles, integrity grades, enforced limits,
-and the explicit Missing nonclaims — backup/export, video finalization,
-custom read authorizers, deferred length) live in
+and the explicit Missing nonclaims — byte backup, custom read
+authorizers, deferred length) live in
 `schemas/capability.manifest.local-dev-sqlite-ibex.json` under `assets`.
 Live no-polling readiness ships as the reserved `_snapback.assetRecord`
 projection (subscribe via the asset client's `watch`/`watchStore`), and

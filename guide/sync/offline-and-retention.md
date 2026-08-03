@@ -9,8 +9,8 @@ examples: [demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashbo
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-02
-reviewed-commit: 63d980b654664d2c990f454cbcb78958d87d27b8
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Offline retention and mutation replay
@@ -214,8 +214,11 @@ Two neighbors that are **not** this opt-in:
 Pass a durable `clientStore` (localStorage on web; memory only for tests) and
 a complete retained identity: app id, database id, target-profile id, and
 version-stream id. The generated Contract data manifest must claim
-`offlineReplay`, and every mutation exposed by the surface must have a
-derivable declarative plan.
+`offlineReplay`, and every mutation exposed by the surface must carry its
+generated declarative plan — plan presence is the replayability predicate.
+Whether an optimistic overlay is derived from that plan is a separate axis:
+a sequence-withheld mutation is replayable with no overlay at all (see the
+withholding rule below).
 
 If any identity or replay proof is missing, queued writes and retention are
 disabled instead of being rebound to a guessed backend. A changed artifact or
@@ -300,8 +303,10 @@ allocates:
 - one deterministic `ctxLedger` containing generated time/id answers.
 
 The derived optimistic overlay consumes the **same** ledger, so a replayed
-insert uses the id the UI already rendered. If durable enqueue fails, the
-optimistic change is rolled back before any server contact.
+insert uses the id the UI already rendered. (A withheld sequence mutation
+mints this ledger with no overlay consumer — see the withholding rule
+below.) If durable enqueue fails, the optimistic change is rolled back
+before any server contact.
 
 The test queues create → toggle → delete and proves durable ordering:
 
@@ -425,6 +430,26 @@ reducer. Server rows remain authoritative:
 - an artifact or authority change clears/quarantines old rows and writes before
   publishing the successor scope.
 
+One declared exception: a generated sequence write-with-activity mutation is
+marked `atomicOptimisticWithholding` and derives **no** overlay — fresh or
+restored after relaunch (LLP 0043's LLP 0135 fold: the client may not guess,
+locally allocate, or show the unaffected subset of a sequence-projected
+changeset). The intent still queues durably and replays: enqueue pre-mints
+the plan's fixed host row-id ledger (the activity row, plus the source row
+for an insert source) without evaluating `AllocateSequence`, and rows appear
+only from authoritative delivery after settlement returns the allocation.
+The sequence surface itself is unpublished substrate — see
+[scoped sequences](../backend/sequences.md).
+
+```js source=packages/snapback-contract/offline-replay.test.mjs
+  assert.equal(queuedResult.queued, true);
+  assert.equal(
+    withheldOnline.boundary.current('todos')[0].completed,
+    false,
+    'fresh atomic withholding queues intent without presenting app reducer rows',
+  );
+```
+
 ## Anti-patterns
 
 - **Do not call a surface Parity because it has localStorage.** The manifest,
@@ -439,3 +464,6 @@ reducer. Server rows remain authoritative:
   authorized-retention path or keep the surface online-only.
 - **Do not key an agent outbox by token id.** Tokens are live carriers; the
   server-issued descriptor and durable grant tuple own replay identity.
+- **Do not fake an optimistic row for a withheld sequence mutation.**
+  Sequence-projected placement is settlement's answer; render the queued
+  state, never a guessed allocation or the changeset's unaffected subset.

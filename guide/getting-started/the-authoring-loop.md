@@ -9,8 +9,8 @@ examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-28
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # The authoring loop
@@ -62,8 +62,13 @@ public React path: `snapback new --template react`, `bun install`,
 lifecycle, template live acceptance with real handler execution, and a clean
 stop — proven from a clean external directory by the LLP 0137 G1
 qualification arm
-(`demos/improvement-sweep/arms/g1-public-package-qualification/`). Treat that
-version as the public-registry React path.
+(`demos/improvement-sweep/arms/g1-public-package-qualification/`). Treat
+0.1.7 as the newest closure carrying that proof. The registry's `latest` tag
+now selects the 0.1.8 closure, published 2026-08-01 as a deliberate
+pre-consumer fast-path release with no qualification-arm receipt of its own
+(the "Fast-path pre-consumer release" section of
+[LLP 0041](repo:llp/0041-packaged-dev-loop.rfc.md)); pin `0.1.7` when you
+need the proven closure.
 
 Still do not infer that a published closure contains every surface in the
 current source tree: source lands continuously, and a packaged consumer has

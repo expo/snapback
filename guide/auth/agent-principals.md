@@ -9,8 +9,8 @@ examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-01
-reviewed-commit: f245965ccfdc3addd44554d709c1074adec0834f
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Agent principals and scoped grants

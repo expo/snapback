@@ -9,8 +9,8 @@ examples: [demos/competitive-checkpoint/snapback/handlers.mjs, demos/competitive
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-26
-reviewed-commit: 5606ab06
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Trusted runtime time and identifiers
@@ -50,7 +50,10 @@ each call:
 The host records these answers and reuses them if it replays the invocation.
 That is why ambient clock and randomness APIs are not interchangeable with the
 context methods. An `id()` result belongs in a plain required string field; it
-is not a principal and does not manufacture a table foreign key.
+is not a principal and does not manufacture a table foreign key. Neither value
+yields a dense per-scope ordinal (JOB-42): `id()` is opaque and `now()` is not
+gap-free. That is the [scoped sequences](./sequences.md) surface, which is not
+yet a published capability — do not hand-roll it from these values either.
 
 For owner-scoped generated CRUD, declare the same policy as
 `createDefaults: { createdAt: 'now', pageKey: 'id' }` instead of writing a
@@ -91,7 +94,9 @@ operation schema is closed, while trusted fields such as `attemptId`,
 
 A caller that tries to supply an omitted timestamp or identifier is therefore
 rejected as an additional property instead of silently overriding the server
-value.
+value. Official generated clients check the same closed projection before
+transport and report `SNAPBACK_ARGUMENT_VALIDATION_FAILED`; the server's own
+validation remains authoritative either way.
 
 ## Repair ambient dependency diagnostics
 

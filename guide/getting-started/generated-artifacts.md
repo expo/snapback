@@ -9,8 +9,8 @@ examples: [packages/snapback-codegen/review-surface.test.mjs, packages/snapback-
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-27
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Generated artifact custody and review

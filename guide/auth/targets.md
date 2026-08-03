@@ -9,8 +9,8 @@ examples: [packages/snapback-client/hosted-browser.test.mjs, packages/snapback-c
 status: current
 targets: [all]
 maturity: partial
-reviewed: 2026-07-24
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Targets — what each one claims

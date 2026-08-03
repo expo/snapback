@@ -9,8 +9,8 @@ examples: [packages/snapback-codegen/standard-patterns.test.mjs, packages/snapba
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-28
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Safe standard data patterns
@@ -199,6 +199,10 @@ owned helper's live-query emission, because a subscribable historical page
 would create one authorization-sensitive subscription per visited page.
 The product's separate current-room `live_replace` query owns live
 grant/revocation updates; a fresh first-page call observes a later grant.
+When a Contract product screen needs one of these pages, invoke the
+generated references from a host/client control beside the compiled
+Contract surface — the composition is shown in
+[the Contract adapter](../clients/contract-adapter.md#call-a-paged-query-from-a-contract-screen).
 
 A non-member's first page is empty with no cursor and reveals neither room
 nor membership existence — byte-identical to a nonexistent resource id.
@@ -287,6 +291,12 @@ the projected parent, the bounded child page, and a nullable continuation.
 Projection leaves are `_id` or portable scalar fields only. Optional stored
 scalars remain required keys whose value is `null | Scalar`; optional JSON is
 not admitted as a projection leaf.
+
+Two to eight complete bounded-children definitions additionally compose into
+one pinned-snapshot batch via `defineSnapshotBatchQuery` — a further
+experimental capability (`snapshot_batch_v1`, which also requires
+`bounded_children_v1`) with its own page:
+[snapshot batches](./snapshot-batches.md).
 
 The source operation is exactly `insert`, `patch`, or `delete`. Empty and
 storage-identical patches are not effects; missing targets and operation

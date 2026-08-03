@@ -9,8 +9,8 @@ examples: [packages/snapback-codegen/relational-authoring.test.mjs, packages/sna
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-26
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Relational queries (bounded joins)
@@ -90,7 +90,12 @@ join over retained rows), and the continuation cursor never rides the
 lease envelope. An all-public plan cannot declare it — anonymous results
 have no admissible v1 retention, refused at generation and again at load
 (`SNAPBACK_AUTH_UNDECLARABLE_RETENTION`). The capability manifest records
-the admitted classes under `relationalQueries.retention`.
+the admitted classes under `relationalQueries.retention`. (Design
+reference: LLP 0080's 2026-08-03 dated amendment, landed with Accepted
+LLP 0166, specifies a third owner-issued class —
+`result-transform-snapshot-v1`, for the local persistent store — but it is
+not yet implemented; authoring and the capability manifest still admit
+exactly the two classes above.)
 
 ## Pagination
 
@@ -180,8 +185,8 @@ The contract, all enforced at generation and re-proved at activation:
   to one source row coalesce to one evaluation against the final snapshot.
 
 Author-supplied root filters beyond visibility remain specified by
-LLP 0080 but not yet implemented — see the Step 5 implementation program
-under `issues/`.
+LLP 0080 but are not yet authorable: v1 `defineRelationalQuery` admits no
+residual root filters.
 
 ## Design reference: one bounded child page
 
@@ -194,10 +199,10 @@ yet verify `PackageCapabilityAttestationV1`. Do not select it for a deployed
 package based on source-build code presence.
 
 The source-build local executor is not declaration-only:
-`node demos/signal-desk/tests/snapback.mjs` exercises owner, invisible,
-missing, and inactive parents plus a two-page `sbbc1` traversal against the
-persisted server. That local proof is green; the remaining GAP is the Spec's
-publication lifecycle and cross-target evidence.
+`node demos/signal-desk/tests/snapback-extras.mjs` exercises owner,
+invisible, missing, and inactive parents plus a two-page `sbbc1` traversal
+against the persisted server. That local proof is green; the remaining GAP
+is the Spec's publication lifecycle and cross-target evidence.
 
 The reviewed declaration makes the security and work proof explicit:
 
@@ -235,4 +240,5 @@ whose parent or authorization stream changed requires a first-page restart.
 - Do not hand-author a relation-incarnation value or expose it as an argument.
 - Do not group an unbounded all-child feed in the client and call it bounded.
 - Do not authorize children after applying the page limit.
-- Do not treat the review-gated builder as a positive target capability.
+- Do not treat the experimentally gated builder as a positive target
+  capability.

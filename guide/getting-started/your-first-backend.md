@@ -9,8 +9,8 @@ examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapba
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-31
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 ---
 
 # Your first backend
@@ -71,9 +71,13 @@ export default defineSchema({
 });
 ```
 
-The complete validator set: `v.string()`, `v.principal()`, `v.id(table)`,
+The core validators: `v.string()`, `v.principal()`, `v.id(table)`,
 `v.boolean()`, `v.integer()`, `v.real()` / `v.number()`, `v.json()`,
-`v.object({...})`, and `v.optional(inner)`. `defineSchema` also takes an
+`v.object({...})`, and `v.optional(inner)`. This inventory is deliberately
+partial: specialized validators — typed asset references (`v.assetRef`,
+[assets](../backend/assets.md)), result-side `v.doc(table)` references
+([queries](../backend/queries.md)) — are taught with their features.
+`defineSchema` also takes an
 options object:
 `ephemeral:` (a `defineEphemeral(...)` — see the
 [presence recipe](../recipes/presence-cursors.md) and complete

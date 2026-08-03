@@ -9,8 +9,8 @@ examples: [demos/rbac, demos/shindig, packages/snapback-codegen/rbac-authoring.t
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-31
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Scoped roles and memberships

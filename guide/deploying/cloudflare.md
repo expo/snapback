@@ -9,8 +9,8 @@ examples: [demos/all-aboard, cloudflare/app/all-aboard.app.js]
 status: current
 targets: [cloudflare]
 maturity: partial
-reviewed: 2026-07-27
-reviewed-commit: HEAD
+reviewed: 2026-08-03
+reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 ---
 
 # Deploying the Cloudflare proof
@@ -35,7 +35,7 @@ volta run --node 24.18.0 -- node cloudflare/test/local-suite.mjs
 volta run --node 24.18.0 -- node cloudflare/test/measure.mjs
 ```
 
-The suite inventories every non-remote gate and currently runs 21 checks.
+The suite inventories every non-remote gate and currently runs 26 checks.
 Miniflare validates protocol, storage, handlers, secrets, egress, cron, and
 hibernation-event behavior, but it cannot prove platform eviction, placement,
 or billing. Those require a real Cloudflare run.
@@ -97,8 +97,9 @@ SNAPBACK_ADMIN_TOKEN=... node cloudflare/config-set.mjs \
 
 `config-set.mjs` reads the current generation, writes changed bindings plus a
 new `SNAPBACK_CONFIG_GENERATION` in one `wrangler secret bulk` activation, then
-polls authenticated `/config/status` until that generation and member counts
-are attested as applied. It refuses value-bearing argv flags. Status returns
+polls authenticated `/_snapback/api/config/status` (the hosted system surface
+lives under `/_snapback/*`) until that generation and member counts are
+attested as applied. It refuses value-bearing argv flags. Status returns
 names, set/missing state, counts, and grant relationships—never values.
 
 App actions receive descriptor handles only. Values unwrap at the coordinator's
