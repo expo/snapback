@@ -50,3 +50,50 @@ the closed greening ticket: current main's reconciliation and zero-failure
 proof supersede their generated-artifact state. Recorded here because the open
 ticket carrying the original note was closed while the vector lane was still
 off-branch.
+
+## Wave-end batch drift pass — 2026-08-03
+
+The first completed, non-cancelled main proof after the closing wave landings
+was KEEP-GOING run `30827679870` at `c5ee51db`. Its summary reported six failed
+gates:
+
+- package export declarations;
+- the relation-activity publication carrier;
+- deployment identity generation;
+- the Linux telemetry Phase 1 receipt check;
+- the Rust suite; and
+- the Cloudflare local suite, whose only failure was the same stale deployment
+  identity reported by the dedicated generator gate.
+
+The package test-inventory gate was already green at 170 declared files. The
+Rust failure was the PUSH-01-owned maintenance route missing from the
+intentional complete-route fixture. Per the ownership rule above, this pass did
+not edit the push seam or fixture: it recorded the dated handoff in the PUSH-01
+ticket. The owner absorbed it in the PUSH-01 closure landing, and the full route
+parity test is green in the closing suite. No F0a fork-code correctness failure
+was observed.
+
+The remaining failures were mechanical wave drift and were fixed forward:
+
+- `76b48612` reconciled the declaration additions from the sequence, vector,
+  live-search, and route-bundle landings, regenerated both deployment
+  identities, and regenerated the relation-activity publication carrier.
+- `8f2aef04` repeated that carrier batch after later wave landings. After main
+  advanced again, `46b614ef`, `cd572f59`, `25755c48`, and `cc7b90c3` absorbed
+  the final mixed-route, snapshot-batch, and agent-safe-step0 residue: the new
+  declaration export, two strict-Clippy findings, exhaustive capability and
+  diagnostic inventories, and the closed target-capability registry fixture.
+- The telemetry receipt was proven once on the Linux EPYC host using the coded
+  bootstrap and a job-private unpacked SQLite CLI, without sudo or host
+  mutation. Because subsequent main merges changed the digest-bound source,
+  that intermediate receipt is intentionally superseded; the closing receipt
+  is reminted only after this source record is committed.
+
+At the pre-receipt freeze, the coded bootstrap qualifies the exact clean
+checkout and the complete Rust suite is green (`1908` library tests passed,
+`2` ignored, every integration suite and doctest passed). Strict Clippy, all 74
+published declaration surfaces, the 170-file package test inventory, generated
+artifacts, guide checks, publication conformance, both deployment identities,
+capability-maturity audit, and all 3,620 LLP refs are also green. The GitHub
+run that supplies the final zero-failure exit receipt is recorded after the
+digest-bound Linux evidence lands on main.
