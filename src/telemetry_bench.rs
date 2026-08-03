@@ -553,6 +553,11 @@ fn measure_queries(config: &Phase1BenchmarkConfig) -> SnapbackResult<QueryLatenc
                 .collect();
             store.flush(events, BTreeMap::new(), wall_now_ms(), false)?;
         }
+        // Roll the complete source set before timing stats. The production
+        // endpoint deliberately caps its unaggregated tail, so a benchmark
+        // that left several chunks raw would measure the work-limit refusal
+        // rather than the shipped query path.
+        store.flush(Vec::new(), BTreeMap::new(), wall_now_ms(), true)?;
     }
     let event_request = crate::telemetry_query::TelemetryEventsRequestV1 {
         limit: 100,
