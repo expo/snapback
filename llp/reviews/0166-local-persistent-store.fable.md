@@ -317,3 +317,24 @@ dual-family loop on the revised draft. Nothing here challenges the
 commission's shape or the §D1 physical answer; this is convergence work,
 not redesign, and I would expect a clean round 2 if the
 registration-record semantics come back closed.
+
+---
+
+## Round 2 — 2026-08-03
+
+**Reviewer family:** Anthropic Claude (Fable 5)
+**Provider / runtime:** Claude Code `general-purpose` subagent, model
+`claude-fable-5`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author Fable session (subagent with no authoring
+context) over the working tree at 34bddf62 (v0.2); instructed to read the
+revised document in full, audit both round-1 artifacts for actual
+resolution in the current text, hunt fix-introduced defects in the new
+machinery, and re-verify every load-bearing repo/owner fact against the
+tree (all verified accurate — see the review's own verification preamble).
+Orchestrated by the authoring session, which does not count as a reviewer;
+recorded verbatim below.
+
+---
+
