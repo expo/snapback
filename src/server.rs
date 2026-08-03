@@ -873,6 +873,34 @@ fn parse_action_watchdog_timeout(raw: Option<&str>) -> u64 {
 }
 
 const EXPO_PUSH_PRODUCTION_BASE_URL: &str = "https://exp.host";
+// Static v1 pacing: one send attempt owns the provider lane at a time while
+// its <=100-message batches run serially. This is deliberately conservative;
+// adaptive pacing is an explicit later decision (LLP 0143 OQ9).
+static EXPO_PUSH_SEND_PACER: StdMutex<()> = StdMutex::new(());
+
+fn transmit_expo_push_batch(
+    endpoint: &str,
+    access_token: Option<&str>,
+    payload: Value,
+    timeout: Duration,
+    deadline: Option<Instant>,
+) -> crate::push::PushBatchSettlementV1 {
+    match crate::push::post_expo_json(endpoint, access_token, payload, timeout) {
+        Ok(response) => crate::push::classify_expo_send_response(
+            response.status,
+            &response.body,
+            now_millis().saturating_add(60_000),
+        ),
+        Err(_) => {
+            let code = if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+                "timeout"
+            } else {
+                "transport-error"
+            };
+            crate::push::PushBatchSettlementV1::Ambiguous { code: code.into() }
+        }
+    }
+}
 
 fn loopback_provider_base_url(value: &str) -> bool {
     let Some(rest) = value
@@ -912,6 +940,13 @@ fn expo_push_provider_base_url(profile: ServerProfile) -> SnapbackResult<String>
         ));
     }
     Ok(value)
+}
+
+pub(crate) fn expo_push_fixture_clock_allowed(profile: ServerProfile) -> bool {
+    matches!(profile, ServerProfile::Dev | ServerProfile::Test)
+        && std::env::var("SNAPBACK_EXPO_PUSH_BASE_URL")
+            .ok()
+            .is_some_and(|value| loopback_provider_base_url(&value))
 }
 
 /// The action host for detached (off-mutex) Ibex action runs. Raw action
@@ -2068,15 +2103,22 @@ impl IbexActionHost for DetachedActionHost {
             (attempt, access_token)
         };
 
+        // @ref LLP 0143#d2-the-send-lane — pacing is host-owned and bounded
+        //   across attempts, never an application convention or hidden
+        //   provider burst. The manifest publishes this exact bound.
+        let _pacing = (!attempt.batches.is_empty()).then(|| {
+            EXPO_PUSH_SEND_PACER
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+        });
+
         for batch in &attempt.batches {
             let Some(claim) = ({
                 let mut snapback = self.lock_live("push.send.claim")?;
                 let _effect = self.authority.effect_guard("push batch claim")?;
-                snapback
-                    .auth_database_mut()
-                    .with_auth_transaction(|tx| {
-                        crate::push::claim_batch_in(tx, &batch.batch_id, now_millis())
-                    })?
+                snapback.auth_database_mut().with_auth_transaction(|tx| {
+                    crate::push::claim_batch_in(tx, &batch.batch_id, now_millis())
+                })?
             }) else {
                 continue;
             };
@@ -2114,35 +2156,20 @@ impl IbexActionHost for DetachedActionHost {
                 }
             } else {
                 let timeout = remaining.min(Duration::from_secs(15));
-                match crate::push::post_expo_json(
+                transmit_expo_push_batch(
                     &endpoint,
                     access_token.as_deref(),
                     payload,
                     timeout,
-                ) {
-                    Ok(response) => crate::push::classify_expo_send_response(
-                        response.status,
-                        &response.body,
-                        now_millis().saturating_add(60_000),
-                    ),
-                    Err(_) => {
-                        let code = if Instant::now() >= self.deadline {
-                            "timeout"
-                        } else {
-                            "transport-error"
-                        };
-                        crate::push::PushBatchSettlementV1::Ambiguous { code: code.into() }
-                    }
-                }
+                    Some(self.deadline),
+                )
             };
             {
                 let mut snapback = self.lock_live("push.send.settle")?;
                 let _effect = self.authority.effect_guard("push batch settlement")?;
-                snapback
-                    .auth_database_mut()
-                    .with_auth_transaction(|tx| {
-                        crate::push::settle_batch_in(tx, &claim, &settlement, now_millis())
-                    })?;
+                snapback.auth_database_mut().with_auth_transaction(|tx| {
+                    crate::push::settle_batch_in(tx, &claim, &settlement, now_millis())
+                })?;
             }
         }
         let mut snapback = self.lock_live("push.send.result")?;
@@ -16427,40 +16454,92 @@ const JOURNAL_RETAIN_MS: u64 = 24 * 60 * 60 * 1_000;
 /// @ref LLP 0143#d3-the-handoff-ledger-receipts-honesty-and-crash-safety —
 ///   expired transmit claims recover by the durable marker, and Expo receipts
 ///   settle from bounded allowlisted facts rather than raw provider prose.
-async fn drive_push_maintenance_once(
+struct PushMaintenancePlan {
+    recovered: Option<crate::push::PushRecoveredBatchV1>,
+    receipts: crate::push::PushReceiptPollClaimV1,
+    access_token: Option<String>,
+}
+
+pub(crate) async fn drive_push_maintenance_once(
     state: &SharedSnapback,
     profile: ServerProfile,
     now_ms: u64,
 ) -> SnapbackResult<()> {
     let planned = with_snapback(
         state,
-        move |snapback|
-              -> SnapbackResult<
-            Option<(crate::push::PushReceiptPollClaimV1, Option<String>)>,
-        > {
-        let has_ledger = snapback
-            .auth_database_mut()
-            .schema()
-            .push_seam
-            .as_ref()
-            .is_some_and(|declaration| declaration.ledger.is_some());
-        if !has_ledger {
-            return Ok(None);
-        }
-        let access_token = snapback.push_maintenance_access_token();
-        let claim = snapback
-            .auth_database_mut()
-            .with_auth_transaction(|tx| {
+        move |snapback| -> SnapbackResult<Option<PushMaintenancePlan>> {
+            let has_ledger = snapback
+                .auth_database_mut()
+                .schema()
+                .push_seam
+                .as_ref()
+                .is_some_and(|declaration| declaration.ledger.is_some());
+            if !has_ledger {
+                return Ok(None);
+            }
+            let access_token = snapback.push_maintenance_access_token();
+            let claim = snapback.auth_database_mut().with_auth_transaction(|tx| {
                 crate::push::recover_expired_batches_in(tx, now_ms)?;
-                crate::push::claim_due_receipts_in(tx, now_ms)
+                crate::push::expire_ledger_in(tx, now_ms)?;
+                let recovered = crate::push::claim_recovered_batch_for_transmit_in(tx, now_ms)?;
+                let receipts = crate::push::claim_due_receipts_in(tx, now_ms)?;
+                Ok((recovered, receipts))
             })?;
-        Ok(Some((claim, access_token)))
+            Ok(Some(PushMaintenancePlan {
+                recovered: claim.0,
+                receipts: claim.1,
+                access_token,
+            }))
         },
     )
     .await?;
-    let Some((claim, access_token)) = planned else {
+    let Some(PushMaintenancePlan {
+        recovered,
+        receipts: claim,
+        access_token,
+    }) = planned
+    else {
         return Ok(());
     };
+    if let Some(recovered) = recovered {
+        let crate::push::PushRecoveredBatchV1 {
+            claim: recovered_claim,
+            payload,
+        } = recovered;
+        let endpoint = format!(
+            "{}/--/api/v2/push/send",
+            expo_push_provider_base_url(profile)?.trim_end_matches('/')
+        );
+        let recovered_access_token = access_token.clone();
+        let settlement = tokio::task::spawn_blocking(move || {
+            // @ref LLP 0143#d2-the-send-lane — crash recovery shares the
+            //   exact one-at-a-time provider pacing boundary with live sends.
+            let _pacing = EXPO_PUSH_SEND_PACER
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            transmit_expo_push_batch(
+                &endpoint,
+                recovered_access_token.as_deref(),
+                payload,
+                Duration::from_secs(15),
+                None,
+            )
+        })
+        .await
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_PUSH_MAINTENANCE_WORKER_FAILED",
+                "push",
+                "the recovered push worker terminated before returning a bounded result",
+            )
+        })?;
+        with_snapback(state, move |snapback| {
+            snapback.auth_database_mut().with_auth_transaction(|tx| {
+                crate::push::settle_batch_in(tx, &recovered_claim, &settlement, now_millis())
+            })
+        })
+        .await?;
+    }
     if claim.entries.is_empty() {
         return Ok(());
     }
@@ -23803,12 +23882,14 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
     match code {
         "SNAPBACK_JOB_PUSH_GRANT_INVALID"
         | "SNAPBACK_PUSH_CONFIG_GRANT_MISSING"
+        | "SNAPBACK_PUSH_FIXTURE_CLOCK_REFUSED"
+        | "SNAPBACK_PUSH_LEDGER_ARGS_INVALID"
+        | "SNAPBACK_PUSH_LEDGER_NOT_DECLARED"
+        | "SNAPBACK_PUSH_REDRIVE_REFUSED"
         | "SNAPBACK_PUSH_SEND_INVALID"
         | "SNAPBACK_PUSH_TOKEN_INVALID"
         | "SNAPBACK_PUSH_SEAM_AUTH_REQUIRED"
-        | "SNAPBACK_PUSH_SEAM_NOT_DECLARED" => {
-            StatusCode::BAD_REQUEST
-        }
+        | "SNAPBACK_PUSH_SEAM_NOT_DECLARED" => StatusCode::BAD_REQUEST,
         "SNAPBACK_PUSH_SESSION_STALE" | "SNAPBACK_PUSH_SESSION_REQUIRED" => {
             StatusCode::UNAUTHORIZED
         }
@@ -23821,7 +23902,16 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_PUSH_ATTEMPT_EXHAUSTED"
         | "SNAPBACK_PUSH_SEND_UNAVAILABLE"
         | "SNAPBACK_PUSH_SEND_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
-        "SNAPBACK_PUSH_REGISTRY_CORRUPT" => StatusCode::INTERNAL_SERVER_ERROR,
+        "SNAPBACK_PUSH_BATCH_CLAIM_RACED"
+        | "SNAPBACK_PUSH_BATCH_CLAIM_STALE"
+        | "SNAPBACK_PUSH_BATCH_NOT_CLAIMABLE"
+        | "SNAPBACK_PUSH_CONFIG_GRANT_INVALID"
+        | "SNAPBACK_PUSH_LEDGER_CORRUPT"
+        | "SNAPBACK_PUSH_MAINTENANCE_WORKER_FAILED"
+        | "SNAPBACK_PUSH_PROVIDER_OVERRIDE_REFUSED"
+        | "SNAPBACK_PUSH_RECEIPT_CLAIM_STALE"
+        | "SNAPBACK_PUSH_SEND_FAILED"
+        | "SNAPBACK_PUSH_REGISTRY_CORRUPT" => StatusCode::INTERNAL_SERVER_ERROR,
         "SNAPBACK_UNKNOWN_FUNCTION" | "SNAPBACK_UNKNOWN_TABLE" | "SNAPBACK_UNKNOWN_FIELD" => {
             StatusCode::NOT_FOUND
         }
@@ -24608,7 +24698,7 @@ impl IntoResponse for ApiError {
     }
 }
 
-fn now_millis() -> u64 {
+pub(crate) fn now_millis() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -38475,11 +38565,16 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_ATTACH_UNAVAILABLE",
         "SNAPBACK_ASSET_ATTACH_DENIED",
         "SNAPBACK_ASSET_TTL_INVALID",
-        "SNAPBACK_PUSH_SEAM_AUTH_REQUIRED",
-        "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
+        // LLP 0143 app-authoring and test-only maintenance request refusals.
         "SNAPBACK_JOB_PUSH_GRANT_INVALID",
         "SNAPBACK_PUSH_CONFIG_GRANT_MISSING",
+        "SNAPBACK_PUSH_FIXTURE_CLOCK_REFUSED",
+        "SNAPBACK_PUSH_LEDGER_ARGS_INVALID",
+        "SNAPBACK_PUSH_LEDGER_NOT_DECLARED",
+        "SNAPBACK_PUSH_REDRIVE_REFUSED",
         "SNAPBACK_PUSH_SEND_INVALID",
+        "SNAPBACK_PUSH_SEAM_AUTH_REQUIRED",
+        "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
         "SNAPBACK_PUSH_TOKEN_INVALID",
     ];
 
@@ -38656,11 +38751,12 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ASSET_NOT_READY",
         "SNAPBACK_ASSET_REFERENCED",
         "SNAPBACK_SEED_ASSET_FIXTURE_NOT_INGESTED",
-        "SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION",
-        "SNAPBACK_PUSH_APP_SCOPE_CHANGE_BLOCKED",
+        // LLP 0143 dedupe/redrive attempts conflict with durable intent state.
         "SNAPBACK_PUSH_DEDUPE_CONFLICT",
         "SNAPBACK_PUSH_REDRIVE_NOT_AMBIGUOUS",
         "SNAPBACK_PUSH_REDRIVE_RACED",
+        "SNAPBACK_PUSH_TOKEN_SCOPE_COLLISION",
+        "SNAPBACK_PUSH_APP_SCOPE_CHANGE_BLOCKED",
     ];
 
     const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[

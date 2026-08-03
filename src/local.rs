@@ -22749,6 +22749,19 @@ fn validate_function_schema_references(
             // The job-status plan reads no application schema table: nothing
             // to validate against the schema here (its shape is Rust-owned).
             FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)) => {}
+            FunctionRuntime::HostPlan(HandlerPlan::PushLedgerQuery(_)) => {
+                if !schema
+                    .push_seam
+                    .as_ref()
+                    .is_some_and(|declaration| declaration.ledger.is_some())
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_PUSH_LEDGER_NOT_DECLARED",
+                        "push",
+                        "the push ledger query requires an active send/ledger declaration",
+                    ));
+                }
+            }
             FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)) => {
                 crate::manifest::validate_search_query_plan_shape(plan)?;
                 let declared = table(&plan.table)?;
@@ -23225,13 +23238,20 @@ fn validate_function_schema_references(
                     FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_))
                 )
         };
+        let reserved_push_ledger_read = |name: &str| {
+            name == "_snapback_push_ledger_v1"
+                && matches!(
+                    function.runtime,
+                    FunctionRuntime::HostPlan(HandlerPlan::PushLedgerQuery(_))
+                )
+        };
         for dependency in function
             .read_set_summary
             .tables
             .iter()
             .chain(function.read_set_summary.primary_table.iter())
         {
-            if reserved_job_status_read(dependency) {
+            if reserved_job_status_read(dependency) || reserved_push_ledger_read(dependency) {
                 continue;
             }
             table(dependency)?;
@@ -24257,6 +24277,49 @@ fn execute_query_invocation(
                 read_dependencies,
             })
         }
+        (
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::PushLedgerQuery(_)),
+        ) => {
+            let Some(intent_id) = input.args.get("intentId").and_then(Value::as_str) else {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_PUSH_LEDGER_ARGS_INVALID",
+                    "push",
+                    "the push ledger query requires a string intentId argument",
+                ));
+            };
+            let schema = db.schema();
+            let declaration = schema.push_seam.as_ref().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_PUSH_LEDGER_NOT_DECLARED",
+                    "push",
+                    "the application does not declare the push ledger",
+                )
+            })?;
+            let (projection, authorization_dependency) =
+                crate::push::read_ledger_projection(
+                    &db,
+                    declaration,
+                    schema,
+                    prepared.authority(),
+                    intent_id,
+                )?;
+            let version = db.current_version()?;
+            let rows = projection
+                .iter()
+                .map(crate::push::PushLedgerRowV1::to_row_value)
+                .collect();
+            let mut read_dependencies = authorization_dependency.into_iter().collect::<Vec<_>>();
+            add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
+            Ok(QueryInvocation {
+                output: QueryOutput {
+                    version,
+                    cursor: None,
+                    rows,
+                },
+                read_dependencies,
+            })
+        }
         (FunctionKind::Query, FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan))) => {
             // @ref LLP 0073#authorization-and-result-release — the search
             // executor receives only server-resolved authority and evaluates
@@ -24940,6 +25003,9 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
         }
         FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)) => {
             (vec![crate::jobs::JOBS_STATUS_TABLE.to_owned()], Vec::new())
+        }
+        FunctionRuntime::HostPlan(HandlerPlan::PushLedgerQuery(_)) => {
+            (vec!["_snapback_push_ledger_v1".to_owned()], Vec::new())
         }
         FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => {
             (vec![plan.root.clone(), plan.joined.clone()], Vec::new())

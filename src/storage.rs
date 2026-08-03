@@ -8643,7 +8643,7 @@ impl DbRead<'_> {
         new_id()
     }
 
-    fn conn(&self) -> &Connection {
+    pub(crate) fn conn(&self) -> &Connection {
         match self {
             DbRead::Pinned { conn, .. } => conn,
             DbRead::Live(db) => &db.conn,

@@ -186,6 +186,9 @@ pub(crate) fn live_subscription_may_be_affected(
         FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)) => changes
             .iter()
             .any(|change| change.table == crate::jobs::JOBS_STATUS_TABLE),
+        // Push-ledger reads are query-only in v1, so this arm is exhaustive
+        // defense rather than a live-subscription claim.
+        FunctionRuntime::HostPlan(HandlerPlan::PushLedgerQuery(_)) => false,
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(_))
         | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(_))
         | FunctionRuntime::HostPlan(HandlerPlan::Action(_)) => true,

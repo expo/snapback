@@ -103,6 +103,11 @@ pub(crate) struct PushBatchClaimV1 {
     pub(crate) messages: Vec<ReservedPushMessageV1>,
 }
 
+pub(crate) struct PushRecoveredBatchV1 {
+    pub(crate) claim: PushBatchClaimV1,
+    pub(crate) payload: Value,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct PushReceiptPollEntryV1 {
     pub(crate) message_id: String,
@@ -205,9 +210,15 @@ pub(crate) fn post_expo_json(
     Ok(ExpoHttpResponseV1 { status, body })
 }
 
-pub(crate) fn expo_send_payload(
+pub(crate) fn expo_send_payload(claim: &PushBatchClaimV1, request: &PushSendRequestV1) -> Value {
+    expo_send_payload_from_parts(claim, &request.title, &request.body, request.data.as_ref())
+}
+
+fn expo_send_payload_from_parts(
     claim: &PushBatchClaimV1,
-    request: &PushSendRequestV1,
+    title: &str,
+    body: &str,
+    data: Option<&Map<String, Value>>,
 ) -> Value {
     Value::Array(
         claim
@@ -216,9 +227,9 @@ pub(crate) fn expo_send_payload(
             .map(|message| {
                 json!({
                     "to": message.token,
-                    "title": request.title,
-                    "body": request.body,
-                    "data": request.data,
+                    "title": title,
+                    "body": body,
+                    "data": data,
                 })
             })
             .collect(),
@@ -242,55 +253,54 @@ pub(crate) fn classify_expo_send_response(
                     "Expo returned invalid ticket JSON",
                 )
             })?;
-            let tickets = value
-                .get("data")
-                .and_then(Value::as_array)
-                .ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
-                        "push",
-                        "Expo ticket response omitted its data array",
-                    )
-                })?;
+            let tickets = value.get("data").and_then(Value::as_array).ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
+                    "push",
+                    "Expo ticket response omitted its data array",
+                )
+            })?;
             tickets
                 .iter()
-                .map(|ticket| match ticket.get("status").and_then(Value::as_str) {
-                    Some("ok") => {
-                        let id = ticket.get("id").and_then(Value::as_str).ok_or_else(|| {
-                            SnapbackError::error(
-                                "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
-                                "push",
-                                "Expo ok ticket omitted its id",
-                            )
-                        })?;
-                        validate_provider_id(id)?;
-                        Ok(PushTicketOutcomeV1::Ok {
-                            ticket_id: id.to_owned(),
-                        })
-                    }
-                    Some("error") => {
-                        let code = ticket
-                            .get("details")
-                            .and_then(|details| details.get("error"))
-                            .and_then(Value::as_str)
-                            .ok_or_else(|| {
+                .map(
+                    |ticket| match ticket.get("status").and_then(Value::as_str) {
+                        Some("ok") => {
+                            let id = ticket.get("id").and_then(Value::as_str).ok_or_else(|| {
                                 SnapbackError::error(
                                     "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
                                     "push",
-                                    "Expo error ticket omitted its allowlisted code",
+                                    "Expo ok ticket omitted its id",
                                 )
                             })?;
-                        validate_ticket_error_code(code)?;
-                        Ok(PushTicketOutcomeV1::Error {
-                            code: code.to_owned(),
-                        })
-                    }
-                    _ => Err(SnapbackError::error(
-                        "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
-                        "push",
-                        "Expo ticket status is outside the closed vocabulary",
-                    )),
-                })
+                            validate_provider_id(id)?;
+                            Ok(PushTicketOutcomeV1::Ok {
+                                ticket_id: id.to_owned(),
+                            })
+                        }
+                        Some("error") => {
+                            let code = ticket
+                                .get("details")
+                                .and_then(|details| details.get("error"))
+                                .and_then(Value::as_str)
+                                .ok_or_else(|| {
+                                    SnapbackError::error(
+                                        "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
+                                        "push",
+                                        "Expo error ticket omitted its allowlisted code",
+                                    )
+                                })?;
+                            validate_ticket_error_code(code)?;
+                            Ok(PushTicketOutcomeV1::Error {
+                                code: code.to_owned(),
+                            })
+                        }
+                        _ => Err(SnapbackError::error(
+                            "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
+                            "push",
+                            "Expo ticket status is outside the closed vocabulary",
+                        )),
+                    },
+                )
                 .collect()
         };
         return match parse() {
@@ -305,16 +315,18 @@ pub(crate) fn classify_expo_send_response(
     }
 
     let unauthorized = (http_status == 400 || http_status == 401)
-        && serde_json::from_slice::<Value>(body).ok().is_some_and(|value| {
-            value
-                .get("errors")
-                .and_then(Value::as_array)
-                .is_some_and(|errors| {
-                    errors.iter().any(|error| {
-                        error.get("code").and_then(Value::as_str) == Some("UNAUTHORIZED")
+        && serde_json::from_slice::<Value>(body)
+            .ok()
+            .is_some_and(|value| {
+                value
+                    .get("errors")
+                    .and_then(Value::as_array)
+                    .is_some_and(|errors| {
+                        errors.iter().any(|error| {
+                            error.get("code").and_then(Value::as_str) == Some("UNAUTHORIZED")
+                        })
                     })
-                })
-        });
+            });
     if unauthorized || http_status == 401 {
         PushBatchSettlementV1::FailedConfig {
             http_status: Some(http_status),
@@ -419,7 +431,12 @@ pub struct PushLedgerDeclarationV1 {
 /// The closed v1 resolver vocabulary: all current rows of one LLP 0100
 /// membership declaration, optionally narrowed to declared roles.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
 pub enum PushAudienceResolverV1 {
     ExplicitPrincipals {
         principals_arg: String,
@@ -437,7 +454,12 @@ pub enum PushAudienceResolverV1 {
 /// the resolved caller at execution; `system` is an explicit declaration,
 /// never an inference from a cron/job action.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
 pub enum PushAudienceAuthorizeV1 {
     Membership {
         declaration: String,
@@ -522,9 +544,7 @@ impl PushSeamDeclarationV1 {
                     max_items,
                 } => {
                     if !is_push_identifier(principals_arg) || !(1..=1_000).contains(max_items) {
-                        return Err(invalid(
-                            "push explicit-principals resolver is invalid",
-                        ));
+                        return Err(invalid("push explicit-principals resolver is invalid"));
                     }
                     None
                 }
@@ -718,6 +738,59 @@ pub struct PushRegistryInspectionV1 {
     pub retirement_reasons: BTreeMap<String, u64>,
 }
 
+/// One privacy-bounded row from the declared push handoff ledger. The
+/// projection is deliberately flat (one row per provider message, or one
+/// intent-only row for a zero-target send) so every generated client can
+/// express it without platform-owned nested types. Token bytes, payloads,
+/// audience arguments, and provider prose never enter this carrier.
+///
+/// @ref LLP 0143#d6-activation-migration-and-the-no-op-posture — the packaged
+///   read contract exposes lifecycle facts and opaque ids only.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PushLedgerRowV1 {
+    #[serde(skip)]
+    pub(crate) id: String,
+    pub(crate) intent_id: String,
+    pub(crate) trigger_mode: String,
+    pub(crate) intent_state: String,
+    pub(crate) attempt_count: u32,
+    pub(crate) created_at_ms: u64,
+    pub(crate) updated_at_ms: u64,
+    pub(crate) expires_at_ms: u64,
+    pub(crate) batch_id: Option<String>,
+    pub(crate) attempt_number: Option<u32>,
+    pub(crate) batch_index: Option<u32>,
+    pub(crate) batch_state: Option<String>,
+    pub(crate) transmitting_at_ms: Option<u64>,
+    pub(crate) settled_at_ms: Option<u64>,
+    pub(crate) http_status: Option<u16>,
+    pub(crate) request_error_code: Option<String>,
+    pub(crate) previous_ambiguous: Option<bool>,
+    pub(crate) message_id: Option<String>,
+    pub(crate) token_id: Option<String>,
+    pub(crate) message_state: Option<String>,
+    pub(crate) ticket_id: Option<String>,
+    pub(crate) receipt_poll_count: Option<u8>,
+    pub(crate) next_receipt_poll_at_ms: Option<u64>,
+    pub(crate) receipt_window_closes_at_ms: Option<u64>,
+    pub(crate) handed_to_expo_at_ms: Option<u64>,
+    pub(crate) expo_accepted_at_ms: Option<u64>,
+    pub(crate) expo_error_code: Option<String>,
+    pub(crate) retirement_effect: Option<bool>,
+}
+
+impl PushLedgerRowV1 {
+    pub(crate) fn to_row_value(&self) -> Value {
+        let mut value = serde_json::to_value(self).expect("push ledger row is serializable");
+        value
+            .as_object_mut()
+            .expect("push ledger row serializes as an object")
+            .insert("_id".to_owned(), Value::String(self.id.clone()));
+        value
+    }
+}
+
 const SESSION_TERMINAL_TRIGGER_SQL: &str = "
 CREATE TRIGGER IF NOT EXISTS _snapback_push_session_terminal_v1
   AFTER UPDATE OF generation, revoked_at_ms ON _auth_sessions
@@ -906,6 +979,16 @@ pub(crate) fn require_secure_delete(conn: &Connection) -> SnapbackResult<()> {
     Ok(())
 }
 
+fn auth_lifecycle_catalog_present(conn: &Connection) -> SnapbackResult<bool> {
+    let count: u8 = conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_schema
+         WHERE type = 'table' AND name IN ('_auth_sessions', '_snapback_meta')",
+        [],
+        |row| row.get(0),
+    )?;
+    Ok(count == 2)
+}
+
 pub(crate) fn create_infra(conn: &Connection) -> SnapbackResult<()> {
     require_secure_delete(conn)?;
     conn.execute_batch(REGISTRY_TABLE_SQL)?;
@@ -913,10 +996,17 @@ pub(crate) fn create_infra(conn: &Connection) -> SnapbackResult<()> {
     conn.execute_batch(BYTES_LIVE_INDEX_SQL)?;
     conn.execute_batch(SESSION_LIVE_INDEX_SQL)?;
     conn.execute_batch(IDLE_LIVE_INDEX_SQL)?;
-    conn.execute_batch(SESSION_TERMINAL_TRIGGER_SQL)?;
-    conn.execute_batch(CLOCK_FLOOR_INSERT_TRIGGER_SQL)?;
-    conn.execute_batch(CLOCK_FLOOR_UPDATE_TRIGGER_SQL)?;
-    validate_exact_schema(conn)?;
+    if auth_lifecycle_catalog_present(conn)? {
+        conn.execute_batch(SESSION_TERMINAL_TRIGGER_SQL)?;
+        conn.execute_batch(CLOCK_FLOOR_INSERT_TRIGGER_SQL)?;
+        conn.execute_batch(CLOCK_FLOOR_UPDATE_TRIGGER_SQL)?;
+        validate_exact_schema(conn)?;
+    } else {
+        // Sessions deployments stage their app schema before the auth catalog
+        // exists. Validate the protected table/index shape now; the sessions
+        // consume transaction installs and revalidates the lifecycle triggers.
+        validate_exact_staged_schema(conn)?;
+    }
     Ok(())
 }
 
@@ -935,6 +1025,37 @@ pub(crate) fn validate_exact_schema(conn: &Connection) -> SnapbackResult<()> {
     if actual != *expected {
         return Err(corrupt(
             "push-token custody catalog differs from the exact protected shape",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_exact_staged_schema(conn: &Connection) -> SnapbackResult<()> {
+    let actual = registry_shape(conn)
+        .map_err(|_| corrupt("push-token custody catalog physical shape could not be inspected"))?;
+    let expected = expected_registry_shape()
+        .map_err(|_| corrupt("push-token custody reference catalog could not be constructed"))?;
+    let actual_objects = actual
+        .objects
+        .iter()
+        .filter(|(_, object)| object.kind != "trigger")
+        .collect::<Vec<_>>();
+    let expected_objects = expected
+        .objects
+        .iter()
+        .filter(|(_, object)| object.kind != "trigger")
+        .collect::<Vec<_>>();
+    if actual
+        .objects
+        .values()
+        .any(|object| object.kind == "trigger")
+        || actual_objects != expected_objects
+        || actual.columns != expected.columns
+        || actual.foreign_keys != expected.foreign_keys
+        || actual.indexes != expected.indexes
+    {
+        return Err(corrupt(
+            "staged push-token custody catalog differs from the exact protected shape",
         ));
     }
     Ok(())
@@ -1080,8 +1201,7 @@ fn ledger_shape(conn: &Connection) -> SnapbackResult<LedgerShape> {
                     break;
                 }
             }
-            let mut column_statement =
-                conn.prepare(&format!("PRAGMA index_xinfo('{index}')"))?;
+            let mut column_statement = conn.prepare(&format!("PRAGMA index_xinfo('{index}')"))?;
             let columns = column_statement
                 .query_map([], |row| {
                     Ok(IndexColumnShape {
@@ -1402,6 +1522,173 @@ pub(crate) fn inspect(conn: &Connection) -> SnapbackResult<PushRegistryInspectio
     })
 }
 
+/// Read one intent's lifecycle projection under the authorization declaration
+/// attached to its audience. The audience name and arguments are taken from
+/// the durable intent, never from the caller, so membership authorization
+/// cannot be checked against one resource and then used to inspect another.
+///
+/// @ref LLP 0143#d2-the-send-lane — the same host-enforced audience authority
+///   that admits a send gates its ledger read against current membership.
+/// @ref LLP 0143#d6-activation-migration-and-the-no-op-posture — this is the
+///   Rust-owned half of `definePushLedgerQuery`, not an ambient system-table
+///   escape hatch.
+pub(crate) fn read_ledger_projection(
+    db: &crate::storage::DbRead<'_>,
+    declaration: &PushSeamDeclarationV1,
+    schema: &crate::manifest::SchemaManifest,
+    authority: &crate::auth::invocation::PreparedAuthority,
+    intent_id: &str,
+) -> SnapbackResult<(
+    Vec<PushLedgerRowV1>,
+    Option<crate::storage::CapturedReadDependency>,
+)> {
+    validate_declaration_against_schema(declaration, schema)?;
+    if declaration.ledger.is_none() {
+        return Err(push_unavailable(
+            "the application declares registry custody only",
+        ));
+    }
+    if !ids::looks_like(Kind::PushIntent, intent_id) {
+        return Err(push_invalid(
+            "the push ledger query requires a push intent id",
+        ));
+    }
+    let app_scope = declaration.app_scope.identity();
+    let intent: Option<(String, String)> = db
+        .conn()
+        .query_row(
+            "SELECT audience_name, audience_args_json
+             FROM _snapback_push_intents_v1
+             WHERE id = ?1 AND app_scope = ?2",
+            params![intent_id, app_scope],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let Some((audience_name, audience_args_json)) = intent else {
+        return Ok((Vec::new(), None));
+    };
+    let audience = declaration.audiences.get(&audience_name).ok_or_else(|| {
+        corrupt("push ledger intent names an audience absent from its active declaration")
+    })?;
+    let audience_args = serde_json::from_str::<Value>(&audience_args_json)
+        .ok()
+        .and_then(|value| value.as_object().cloned())
+        .ok_or_else(|| corrupt("push ledger intent carries invalid audience arguments"))?;
+    validate_audience_args(audience, &audience_args)?;
+
+    let authorization_dependency = match &audience.authorize {
+        PushAudienceAuthorizeV1::System => {
+            if !matches!(
+                authority.resolved(),
+                crate::auth::invocation::ResolvedAppAuthority::System
+            ) {
+                return Err(crate::membership_rules::role_denial());
+            }
+            None
+        }
+        PushAudienceAuthorizeV1::Membership {
+            declaration,
+            resource_arg,
+            roles,
+        } => {
+            let principal = authority
+                .projection()
+                .user_id()
+                .ok_or_else(crate::membership_rules::role_denial)?;
+            let (table, membership) =
+                crate::membership_rules::find_declaration(schema, declaration)
+                    .ok_or_else(|| corrupt("push ledger authorization declaration is missing"))?;
+            let resource = membership_clause_resource(membership, resource_arg, &audience_args)?;
+            let binding = match resource {
+                Some(value) => {
+                    crate::membership_rules::ResourceBinding::Fixed(Value::String(value.into()))
+                }
+                None => crate::membership_rules::ResourceBinding::AppSingleton,
+            };
+            let outcome = crate::membership_rules::membership_read(
+                db,
+                membership,
+                &table.name,
+                principal,
+                binding,
+                roles,
+            )?;
+            if !outcome.present {
+                return Err(crate::membership_rules::role_denial());
+            }
+            Some(outcome.dependency)
+        }
+    };
+
+    let mut statement = db.conn().prepare(
+        "SELECT
+           intent.id, intent.trigger_mode, intent.state, intent.attempt_count,
+           intent.created_at_ms, intent.updated_at_ms, intent.expires_at_ms,
+           batch.id, batch.attempt_number, batch.batch_index, batch.state,
+           batch.transmitting_at_ms, batch.settled_at_ms, batch.http_status,
+           batch.request_error_code, batch.previous_ambiguous,
+           message.id, message.token_id, message.state, message.ticket_id,
+           message.receipt_poll_count, message.next_receipt_poll_at_ms,
+           message.receipt_window_closes_at_ms, message.handed_to_expo_at_ms,
+           message.expo_accepted_at_ms, message.expo_error_code,
+           message.retirement_effect
+         FROM _snapback_push_intents_v1 AS intent
+         LEFT JOIN _snapback_push_batches_v1 AS batch ON batch.intent_id = intent.id
+         LEFT JOIN _snapback_push_messages_v1 AS message ON message.batch_id = batch.id
+         WHERE intent.id = ?1 AND intent.app_scope = ?2
+         ORDER BY batch.attempt_number, batch.batch_index, message.id",
+    )?;
+    let rows = statement
+        .query_map(params![intent_id, app_scope], |row| {
+            let intent_id: String = row.get(0)?;
+            let batch_id: Option<String> = row.get(7)?;
+            let message_id: Option<String> = row.get(16)?;
+            Ok(PushLedgerRowV1 {
+                id: message_id
+                    .clone()
+                    .or_else(|| batch_id.clone())
+                    .unwrap_or_else(|| intent_id.clone()),
+                intent_id,
+                trigger_mode: row.get(1)?,
+                intent_state: row.get(2)?,
+                attempt_count: u32::try_from(row.get::<_, u64>(3)?).unwrap_or(u32::MAX),
+                created_at_ms: row.get(4)?,
+                updated_at_ms: row.get(5)?,
+                expires_at_ms: row.get(6)?,
+                batch_id,
+                attempt_number: row
+                    .get::<_, Option<u64>>(8)?
+                    .map(|value| u32::try_from(value).unwrap_or(u32::MAX)),
+                batch_index: row
+                    .get::<_, Option<u64>>(9)?
+                    .map(|value| u32::try_from(value).unwrap_or(u32::MAX)),
+                batch_state: row.get(10)?,
+                transmitting_at_ms: row.get(11)?,
+                settled_at_ms: row.get(12)?,
+                http_status: row
+                    .get::<_, Option<u64>>(13)?
+                    .map(|value| u16::try_from(value).unwrap_or(u16::MAX)),
+                request_error_code: row.get(14)?,
+                previous_ambiguous: row.get::<_, Option<u64>>(15)?.map(|value| value != 0),
+                message_id,
+                token_id: row.get(17)?,
+                message_state: row.get(18)?,
+                ticket_id: row.get(19)?,
+                receipt_poll_count: row
+                    .get::<_, Option<u64>>(20)?
+                    .map(|value| u8::try_from(value).unwrap_or(u8::MAX)),
+                next_receipt_poll_at_ms: row.get(21)?,
+                receipt_window_closes_at_ms: row.get(22)?,
+                handed_to_expo_at_ms: row.get(23)?,
+                expo_accepted_at_ms: row.get(24)?,
+                expo_error_code: row.get(25)?,
+                retirement_effect: row.get::<_, Option<u64>>(26)?.map(|value| value != 0),
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok((rows, authorization_dependency))
+}
+
 /// Reserve one normalized intent and its per-token handoff rows before any
 /// provider work. The caller receives token bytes only in this private value;
 /// no handler/wire/inspection projection serializes it.
@@ -1433,9 +1720,19 @@ pub(crate) fn reserve_send_in(
     } = reservation;
     validate_declaration_against_schema(declaration, schema)?;
     if declaration.ledger.is_none() {
-        return Err(push_unavailable("the application declares registry custody only"));
+        return Err(push_unavailable(
+            "the application declares registry custody only",
+        ));
     }
     validate_send_request(request)?;
+    if request.redrive_ambiguous && trigger_mode == PushTriggerModeV1::Deferred {
+        return Err(SnapbackError::error(
+            "SNAPBACK_PUSH_REDRIVE_REFUSED",
+            "push",
+            "a deferred push grant cannot authorize an ambiguous re-drive",
+        )
+        .into_trusted_permission_denial());
+    }
     crate::manifest::validate_portable_timestamp_millis(now_ms)?;
     let audience = declaration
         .audiences
@@ -1526,6 +1823,15 @@ pub(crate) fn reserve_send_in(
                     "the push intent attempt counter exceeds the public range",
                 )
             })?;
+            let retention_ms = declaration
+                .ledger
+                .as_ref()
+                .expect("checked send declaration")
+                .retention_ms;
+            let expires_at_ms = now_ms.checked_add(retention_ms).ok_or_else(|| {
+                push_invalid("push ledger retention exceeds the portable timestamp range")
+            })?;
+            crate::manifest::validate_portable_timestamp_millis(expires_at_ms)?;
             let next_state = if tokens.is_empty() {
                 "zero-target"
             } else {
@@ -1533,9 +1839,17 @@ pub(crate) fn reserve_send_in(
             };
             let changed = tx.execute(
                 "UPDATE _snapback_push_intents_v1
-                 SET state = ?1, attempt_count = ?2, updated_at_ms = ?3
-                 WHERE id = ?4 AND state = 'ambiguous' AND attempt_count = ?5",
-                params![next_state, next_attempt, now_ms as i64, intent_id, attempt],
+                 SET state = ?1, attempt_count = ?2, updated_at_ms = ?3,
+                     expires_at_ms = ?4
+                 WHERE id = ?5 AND state = 'ambiguous' AND attempt_count = ?6",
+                params![
+                    next_state,
+                    next_attempt,
+                    now_ms as i64,
+                    expires_at_ms as i64,
+                    intent_id,
+                    attempt,
+                ],
             )?;
             if changed != 1 {
                 return Err(SnapbackError::error(
@@ -1544,26 +1858,7 @@ pub(crate) fn reserve_send_in(
                     "the ambiguous push intent changed before explicit redrive",
                 ));
             }
-            let mut batches = Vec::new();
-            for (batch_index, chunk) in tokens.chunks(PUSH_BATCH_MESSAGES_MAX).enumerate() {
-                let batch_id = ids::mint_time_ordered(Kind::PushBatch);
-                tx.execute(
-                    "INSERT INTO _snapback_push_batches_v1(
-                       id, intent_id, attempt_number, batch_index, state, previous_ambiguous
-                     ) VALUES(?1, ?2, ?3, ?4, 'reserved', 1)",
-                    params![batch_id, intent_id, next_attempt, batch_index as i64],
-                )?;
-                for (token_id, token, token_hash) in chunk {
-                    let message_id = ids::mint_time_ordered(Kind::PushMessage);
-                    tx.execute(
-                        "INSERT INTO _snapback_push_messages_v1(
-                           id, batch_id, token_id, token_hash, token_bytes, state
-                         ) VALUES(?1, ?2, ?3, ?4, ?5, 'reserved')",
-                        params![message_id, batch_id, token_id, token_hash, token],
-                    )?;
-                }
-                batches.push(ReservedPushBatchV1 { batch_id });
-            }
+            let batches = reserve_attempt_batches_in(tx, &intent_id, next_attempt, &tokens, true)?;
             return Ok(ReservedPushAttemptV1 {
                 response: PushSendReservationResponseV1 {
                     intent_id,
@@ -1643,14 +1938,42 @@ pub(crate) fn reserve_send_in(
         ],
     )?;
 
+    let batches = reserve_attempt_batches_in(tx, &intent_id, 1, &tokens, false)?;
+    Ok(ReservedPushAttemptV1 {
+        response: PushSendReservationResponseV1 {
+            intent_id,
+            attempt: 1,
+            target_count: tokens.len(),
+            batch_count: batches.len(),
+            state: initial_state.to_owned(),
+            deduplicated: false,
+        },
+        batches,
+    })
+}
+
+fn reserve_attempt_batches_in(
+    tx: &Transaction<'_>,
+    intent_id: &str,
+    attempt: i64,
+    tokens: &[(String, String, Vec<u8>)],
+    previous_ambiguous: bool,
+) -> SnapbackResult<Vec<ReservedPushBatchV1>> {
     let mut batches = Vec::new();
     for (batch_index, chunk) in tokens.chunks(PUSH_BATCH_MESSAGES_MAX).enumerate() {
         let batch_id = ids::mint_time_ordered(Kind::PushBatch);
         tx.execute(
             "INSERT INTO _snapback_push_batches_v1(
-               id, intent_id, attempt_number, batch_index, state
-             ) VALUES(?1, ?2, 1, ?3, 'reserved')",
-            params![batch_id, intent_id, batch_index as i64],
+               id, intent_id, attempt_number, batch_index, state,
+               previous_ambiguous
+             ) VALUES(?1, ?2, ?3, ?4, 'reserved', ?5)",
+            params![
+                batch_id,
+                intent_id,
+                attempt,
+                batch_index as i64,
+                i64::from(previous_ambiguous),
+            ],
         )?;
         for (token_id, token, token_hash) in chunk {
             let message_id = ids::mint_time_ordered(Kind::PushMessage);
@@ -1663,17 +1986,7 @@ pub(crate) fn reserve_send_in(
         }
         batches.push(ReservedPushBatchV1 { batch_id });
     }
-    Ok(ReservedPushAttemptV1 {
-        response: PushSendReservationResponseV1 {
-            intent_id,
-            attempt: 1,
-            target_count: tokens.len(),
-            batch_count: batches.len(),
-            state: initial_state.to_owned(),
-            deduplicated: false,
-        },
-        batches,
-    })
+    Ok(batches)
 }
 
 pub(crate) fn claim_batch_in(
@@ -1782,10 +2095,7 @@ pub(crate) fn claim_batch_in(
     }))
 }
 
-fn refresh_reserved_batch_tokens_in(
-    tx: &Transaction<'_>,
-    batch_id: &str,
-) -> SnapbackResult<()> {
+fn refresh_reserved_batch_tokens_in(tx: &Transaction<'_>, batch_id: &str) -> SnapbackResult<()> {
     struct ReservedTokenSnapshot {
         message_id: String,
         snapshot_hash: Vec<u8>,
@@ -1937,12 +2247,12 @@ pub(crate) fn settle_batch_in(
                 match outcome {
                     PushTicketOutcomeV1::Ok { ticket_id } => {
                         validate_provider_id(ticket_id)?;
-                        let next_poll = now_ms.checked_add(PUSH_RECEIPT_FIRST_POLL_MS).ok_or_else(
-                            || push_invalid("push receipt schedule overflowed"),
-                        )?;
-                        let window_close = now_ms.checked_add(PUSH_RECEIPT_WINDOW_MS).ok_or_else(
-                            || push_invalid("push receipt window overflowed"),
-                        )?;
+                        let next_poll = now_ms
+                            .checked_add(PUSH_RECEIPT_FIRST_POLL_MS)
+                            .ok_or_else(|| push_invalid("push receipt schedule overflowed"))?;
+                        let window_close = now_ms
+                            .checked_add(PUSH_RECEIPT_WINDOW_MS)
+                            .ok_or_else(|| push_invalid("push receipt window overflowed"))?;
                         let changed = tx.execute(
                             "UPDATE _snapback_push_messages_v1
                              SET state = 'handed-to-expo', ticket_id = ?1,
@@ -2294,6 +2604,77 @@ pub(crate) fn recover_expired_batches_in(
     Ok((safely_redriven, transmitting.len()))
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct StoredPushPayloadV1 {
+    title: String,
+    body: String,
+    #[serde(default)]
+    data: Option<Map<String, Value>>,
+}
+
+/// Claim one batch that recovery proved never crossed the transmit marker,
+/// reconstruct its provider payload from the protected intent row, and commit
+/// the new transmit marker in the same transaction. Fresh action reservations
+/// have fence zero and are deliberately ineligible, so maintenance cannot race
+/// the action that created them.
+///
+/// @ref LLP 0143#d3-the-handoff-ledger-receipts-honesty-and-crash-safety — a
+///   pre-transmit crash is safely re-driven from its exact durable binding;
+///   every later crash remains ambiguous.
+pub(crate) fn claim_recovered_batch_for_transmit_in(
+    tx: &Transaction<'_>,
+    now_ms: u64,
+) -> SnapbackResult<Option<PushRecoveredBatchV1>> {
+    loop {
+        let batch_id: Option<String> = tx
+            .query_row(
+                "SELECT id FROM _snapback_push_batches_v1
+                 WHERE state = 'reserved' AND claim_fence > 0
+                 ORDER BY id LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let Some(batch_id) = batch_id else {
+            return Ok(None);
+        };
+        let Some(claim) = claim_batch_in(tx, &batch_id, now_ms)? else {
+            continue;
+        };
+        let payload_json: String = tx.query_row(
+            "SELECT intent.payload_json
+             FROM _snapback_push_batches_v1 AS batch
+             JOIN _snapback_push_intents_v1 AS intent ON intent.id = batch.intent_id
+             WHERE batch.id = ?1",
+            params![batch_id],
+            |row| row.get(0),
+        )?;
+        let stored: StoredPushPayloadV1 = serde_json::from_str(&payload_json).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_PUSH_LEDGER_CORRUPT",
+                "push",
+                "the protected push intent payload binding is invalid",
+            )
+        })?;
+        let payload =
+            expo_send_payload_from_parts(&claim, &stored.title, &stored.body, stored.data.as_ref());
+        mark_batch_transmitting_in(tx, &claim, now_ms)?;
+        return Ok(Some(PushRecoveredBatchV1 { claim, payload }));
+    }
+}
+
+/// Enforce the declaration-bound ledger retention window. Foreign-key
+/// cascades erase batch/message rows in the same transaction; no provider or
+/// application payload survives beyond its intent chain.
+pub(crate) fn expire_ledger_in(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<usize> {
+    crate::manifest::validate_portable_timestamp_millis(now_ms)?;
+    Ok(tx.execute(
+        "DELETE FROM _snapback_push_intents_v1 WHERE expires_at_ms <= ?1",
+        params![now_ms as i64],
+    )?)
+}
+
 fn receipt_poll_delay_after(poll_count: u8) -> u64 {
     match poll_count {
         0 => PUSH_RECEIPT_FIRST_POLL_MS,
@@ -2415,13 +2796,16 @@ pub(crate) fn parse_expo_receipt_response(
             "Expo returned invalid receipt JSON",
         )
     })?;
-    let receipts = value.get("data").and_then(Value::as_object).ok_or_else(|| {
-        SnapbackError::error(
-            "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
-            "push",
-            "Expo receipt response omitted its data object",
-        )
-    })?;
+    let receipts = value
+        .get("data")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
+                "push",
+                "Expo receipt response omitted its data object",
+            )
+        })?;
     receipts
         .iter()
         .map(|(ticket_id, receipt)| {
@@ -2464,10 +2848,12 @@ pub(crate) fn settle_receipt_poll_in(
     outcomes: &BTreeMap<String, PushReceiptOutcomeV1>,
     now_ms: u64,
 ) -> SnapbackResult<()> {
-    if outcomes
-        .keys()
-        .any(|ticket_id| !claim.entries.iter().any(|entry| &entry.ticket_id == ticket_id))
-    {
+    if outcomes.keys().any(|ticket_id| {
+        !claim
+            .entries
+            .iter()
+            .any(|entry| &entry.ticket_id == ticket_id)
+    }) {
         return Err(SnapbackError::error(
             "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
             "push",
@@ -2631,7 +3017,9 @@ fn validate_send_request(request: &PushSendRequestV1) -> SnapbackResult<()> {
             .as_ref()
             .is_some_and(|data| canonical_json(&Value::Object(data.clone())).is_err())
     {
-        return Err(push_invalid("ctx.push.send received an invalid bounded request"));
+        return Err(push_invalid(
+            "ctx.push.send received an invalid bounded request",
+        ));
     }
     let payload_bytes = serde_json::to_vec(&json!({
         "title": request.title,
@@ -2673,9 +3061,10 @@ fn membership_clause_resource<'a>(
             let name = resource_arg.as_deref().ok_or_else(|| {
                 push_invalid("resource push audience is missing its declared argument")
             })?;
-            args.get(name).and_then(Value::as_str).map(Some).ok_or_else(|| {
-                push_invalid("push audience resource argument must be a string id")
-            })
+            args.get(name)
+                .and_then(Value::as_str)
+                .map(Some)
+                .ok_or_else(|| push_invalid("push audience resource argument must be a string id"))
         }
     }
 }
@@ -2705,7 +3094,10 @@ fn validate_audience_args(
     if let PushAudienceAuthorizeV1::Membership { resource_arg, .. } = &audience.authorize {
         declared.extend(resource_arg.iter().map(String::as_str));
     }
-    let supplied = args.keys().map(String::as_str).collect::<std::collections::BTreeSet<_>>();
+    let supplied = args
+        .keys()
+        .map(String::as_str)
+        .collect::<std::collections::BTreeSet<_>>();
     if supplied != declared {
         return Err(push_invalid(
             "push audience args must contain exactly the resolver and authorization arguments",
@@ -2758,25 +3150,31 @@ pub(crate) fn capture_deferred_grant(
     to: &PushAudienceReferenceV1,
     dedupe_key: &str,
 ) -> SnapbackResult<(PushDeferredGrantV1, crate::storage::CapturedReadDependency)> {
-    if dedupe_key.is_empty()
-        || dedupe_key.len() > 200
-        || dedupe_key.chars().any(char::is_control)
-    {
-        return Err(push_invalid("deferred push dedupeKey must be 1..200 bounded characters"));
+    if dedupe_key.is_empty() || dedupe_key.len() > 200 || dedupe_key.chars().any(char::is_control) {
+        return Err(push_invalid(
+            "deferred push dedupeKey must be 1..200 bounded characters",
+        ));
     }
     let schema = db.schema();
-    let declaration = schema.push_seam.as_ref().ok_or_else(|| {
-        push_unavailable("the application does not declare the push send seam")
-    })?;
+    let declaration = schema
+        .push_seam
+        .as_ref()
+        .ok_or_else(|| push_unavailable("the application does not declare the push send seam"))?;
     validate_declaration_against_schema(declaration, schema)?;
     if declaration.ledger.is_none() {
-        return Err(push_unavailable("the application declares registry custody only"));
+        return Err(push_unavailable(
+            "the application declares registry custody only",
+        ));
     }
-    let audience = declaration.audiences.get(&to.audience).ok_or_else(|| {
-        push_invalid("deferred push grant names an undeclared audience")
-    })?;
+    let audience = declaration
+        .audiences
+        .get(&to.audience)
+        .ok_or_else(|| push_invalid("deferred push grant names an undeclared audience"))?;
     validate_audience_args(audience, &to.args)?;
-    if matches!(audience.resolve, PushAudienceResolverV1::ExplicitPrincipals { .. }) {
+    if matches!(
+        audience.resolve,
+        PushAudienceResolverV1::ExplicitPrincipals { .. }
+    ) {
         return Err(push_invalid(
             "explicit-principals audiences cannot be captured for deferred push",
         ));
@@ -2858,20 +3256,21 @@ fn authorize_send_in(
                             grant.to == request.to
                                 && grant.dedupe_key == request.dedupe_key
                                 && !request.redrive_ambiguous
-                        })
+                    })
                     .map(|grant| grant.producer_principal.as_str()),
                 PushTriggerModeV1::System | PushTriggerModeV1::Immediate | PushTriggerModeV1::Deferred => None,
             };
             if trigger_mode == PushTriggerModeV1::Deferred
-                && matches!(audience.resolve, PushAudienceResolverV1::ExplicitPrincipals { .. })
+                && matches!(
+                    audience.resolve,
+                    PushAudienceResolverV1::ExplicitPrincipals { .. }
+                )
             {
                 false
             } else if let Some(principal) = principal {
-                let (table, membership) = crate::membership_rules::find_declaration(
-                    schema,
-                    declaration,
-                )
-                .ok_or_else(|| push_invalid("push authorization declaration is missing"))?;
+                let (table, membership) =
+                    crate::membership_rules::find_declaration(schema, declaration)
+                        .ok_or_else(|| push_invalid("push authorization declaration is missing"))?;
                 let resource = membership_clause_resource(membership, resource_arg, args)?;
                 membership_exists_in(tx, table, membership, principal, resource, roles)?
             } else {
@@ -2927,7 +3326,9 @@ fn resolve_audience_in(
                     .filter(|principal| ids::looks_like(Kind::User, principal))
                     .map(str::to_owned)
                     .ok_or_else(|| {
-                        push_invalid("explicit-principals audience contains an invalid principal id")
+                        push_invalid(
+                            "explicit-principals audience contains an invalid principal id",
+                        )
                     })
             })
             .collect::<SnapbackResult<Vec<_>>>()?;
@@ -2945,7 +3346,10 @@ fn resolve_audience_in(
     );
     let mut values = Vec::new();
     if let (Some(field), Some(resource)) = (membership.resource.as_deref(), resource) {
-        sql.push_str(&format!("{} = ?1 AND ", crate::storage::quote_ident(field)?));
+        sql.push_str(&format!(
+            "{} = ?1 AND ",
+            crate::storage::quote_ident(field)?
+        ));
         values.push(rusqlite::types::Value::Text(resource.to_owned()));
     }
     let role_offset = values.len() + 1;
@@ -3341,8 +3745,8 @@ mod tests {
     };
     use crate::auth::session_projection::RevocationReason;
     use crate::manifest::{AuthMode, MembershipManifest, MembershipScope, TableManifest};
-    use crate::storage::LocalDatabase;
     use super::fake_expo::{FakeExpo, FakeExpoStep};
+    use crate::storage::{DbRead, LocalDatabase};
 
     fn declaration(environment: &str, idle_retention_ms: u64) -> PushSeamDeclarationV1 {
         PushSeamDeclarationV1 {
@@ -3384,6 +3788,24 @@ mod tests {
         db.activate_push_registry_for_test(declaration)
             .expect("push registry activation");
         db
+    }
+
+    fn system_ledger_declaration() -> PushSeamDeclarationV1 {
+        let mut declaration = declaration("test", 86_400_000);
+        declaration.audiences.insert(
+            "selectedGuests".into(),
+            PushAudienceDeclarationV1 {
+                resolve: PushAudienceResolverV1::ExplicitPrincipals {
+                    principals_arg: "principalIds".into(),
+                    max_items: 10,
+                },
+                authorize: PushAudienceAuthorizeV1::System,
+            },
+        );
+        declaration.ledger = Some(PushLedgerDeclarationV1 {
+            retention_ms: 2_592_000_000,
+        });
+        declaration
     }
 
     fn app_membership_schema() -> crate::manifest::SchemaManifest {
@@ -3617,6 +4039,89 @@ mod tests {
     }
 
     #[test]
+    fn ledger_projection_is_authorized_and_never_releases_payload_or_token_bytes() {
+        let mut db = LocalDatabase::memory().expect("database");
+        db.activate_current_auth_catalog().expect("auth catalog");
+        let declaration = system_ledger_declaration();
+        db.activate_push_registry_for_test(declaration.clone())
+            .expect("push ledger");
+        let intent_id = ids::mint_time_ordered(Kind::PushIntent);
+        let batch_id = ids::mint_time_ordered(Kind::PushBatch);
+        let message_id = ids::mint_time_ordered(Kind::PushMessage);
+        let token_id = ids::mint_time_ordered(Kind::PushToken);
+        let principal_id = ids::mint(Kind::User).expect("principal id");
+        let audience_args = serde_json::to_string(&json!({
+            "principalIds": [principal_id],
+        }))
+        .unwrap();
+        db.with_auth_transaction(|tx| {
+            tx.execute(
+                "INSERT INTO _snapback_push_intents_v1(
+                   id, app_scope, dedupe_key, binding_hash, audience_name,
+                   audience_args_json, payload_json, trigger_mode, state,
+                   attempt_count, created_at_ms, updated_at_ms, expires_at_ms
+                 ) VALUES(?1, ?2, 'dedupe-secret', zeroblob(32), 'selectedGuests',
+                          ?3, '{\"body\":\"payload-secret\"}', 'system',
+                          'handed-to-expo', 1, 1, 2, 100000000)",
+                params![intent_id, declaration.app_scope.identity(), audience_args],
+            )?;
+            tx.execute(
+                "INSERT INTO _snapback_push_batches_v1(
+                   id, intent_id, attempt_number, batch_index, state,
+                   transmitting_at_ms, settled_at_ms, http_status
+                 ) VALUES(?1, ?2, 1, 0, 'settled', 3, 4, 200)",
+                params![batch_id, intent_id],
+            )?;
+            tx.execute(
+                "INSERT INTO _snapback_push_messages_v1(
+                   id, batch_id, token_id, token_hash, token_bytes, state,
+                   ticket_id, receipt_poll_count, next_receipt_poll_at_ms,
+                   receipt_window_closes_at_ms, handed_to_expo_at_ms
+                 ) VALUES(?1, ?2, ?3, zeroblob(32),
+                          'ExponentPushToken[token-secret]', 'handed-to-expo',
+                          'ticket-fixture', 0, 900003, 86400003, 3)",
+                params![message_id, batch_id, token_id],
+            )?;
+            Ok(())
+        })
+        .expect("ledger fixture");
+
+        let system = system_authority();
+        let (rows, dependency) = read_ledger_projection(
+            &DbRead::Live(&db),
+            &declaration,
+            db.schema(),
+            &system,
+            &intent_id,
+        )
+        .expect("system ledger read");
+        assert!(dependency.is_none());
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].message_id.as_deref(), Some(message_id.as_str()));
+        assert_eq!(rows[0].token_id.as_deref(), Some(token_id.as_str()));
+        assert_eq!(rows[0].message_state.as_deref(), Some("handed-to-expo"));
+        let wire = serde_json::to_string(&rows[0].to_row_value()).unwrap();
+        assert!(!wire.contains("payload-secret"));
+        assert!(!wire.contains("token-secret"));
+        assert!(!wire.contains("dedupe-secret"));
+
+        let user = session_authority(&principal_id);
+        assert_eq!(
+            read_ledger_projection(
+                &DbRead::Live(&db),
+                &declaration,
+                db.schema(),
+                &user,
+                &intent_id,
+            )
+            .expect_err("system audience is not session-readable")
+            .diagnostic
+            .code,
+            "SNAPBACK_AUTH_PERMISSION_DENIED",
+        );
+    }
+
+    #[test]
     fn provider_error_allowlists_are_stage_specific() {
         validate_ticket_error_code("DeviceNotRegistered").expect("ticket retirement code");
         for receipt_code in [
@@ -3662,6 +4167,28 @@ mod tests {
                 code: "UNAUTHORIZED".into(),
             }
         );
+    }
+
+    #[test]
+    fn packaged_push_schema_stages_before_the_sessions_catalog_exists() {
+        let schema = serde_json::from_str(include_str!(
+            "../packages/snapback-cli/fixtures/push-seam/app/snapback/generated/schema.manifest.json"
+        ))
+        .unwrap();
+        let functions = serde_json::from_str(include_str!(
+            "../packages/snapback-cli/fixtures/push-seam/app/snapback/generated/functions.manifest.json"
+        ))
+        .unwrap();
+        let mut snapback = crate::local::LocalSnapback::memory().unwrap();
+        let prepared = snapback
+            .prepare_auth_provision(
+                crate::local::EnsureAppMode::Sessions,
+                Some(schema),
+                Some(functions),
+                None,
+            )
+            .unwrap();
+        snapback.commit_auth_provision(prepared, "test").unwrap();
     }
 
     #[test]
@@ -4200,8 +4727,11 @@ mod tests {
             .code,
             "SNAPBACK_AUTH_PERMISSION_DENIED"
         );
-        tx.execute("DELETE FROM app_members WHERE principal = ?1", params![producer])
-            .expect("revoke producer membership");
+        tx.execute(
+            "DELETE FROM app_members WHERE principal = ?1",
+            params![producer],
+        )
+        .expect("revoke producer membership");
         assert_eq!(
             authorize_send_in(
                 &tx,
@@ -4412,13 +4942,9 @@ mod tests {
                           'system', 'reserved', 1, 1, 1, 100000000)",
                 params![intent_id],
             )?;
-            for (index, batch_id) in [
-                &ambiguous_batch,
-                &pending_batch,
-                &failed_batch,
-            ]
-            .into_iter()
-            .enumerate()
+            for (index, batch_id) in [&ambiguous_batch, &pending_batch, &failed_batch]
+                .into_iter()
+                .enumerate()
             {
                 tx.execute(
                     "INSERT INTO _snapback_push_batches_v1(
@@ -4429,8 +4955,18 @@ mod tests {
             }
             for (message_id, batch_id, token_id, state) in [
                 (&ambiguous_message, &ambiguous_batch, "token-a", "ambiguous"),
-                (&pending_message, &pending_batch, "token-b", "handed-to-expo"),
-                (&failed_message, &failed_batch, "token-c", "failed-permanent"),
+                (
+                    &pending_message,
+                    &pending_batch,
+                    "token-b",
+                    "handed-to-expo",
+                ),
+                (
+                    &failed_message,
+                    &failed_batch,
+                    "token-c",
+                    "failed-permanent",
+                ),
             ] {
                 tx.execute(
                     "INSERT INTO _snapback_push_messages_v1(
@@ -4492,12 +5028,13 @@ mod tests {
                 params![token_id, installation_id, first_hash],
             )?;
             tx.execute(
-                "INSERT INTO _snapback_push_intents_v1(
+                r#"INSERT INTO _snapback_push_intents_v1(
                    id, app_scope, dedupe_key, binding_hash, audience_name,
                    audience_args_json, payload_json, trigger_mode, state,
                    attempt_count, created_at_ms, updated_at_ms, expires_at_ms
                  ) VALUES(?1, 'scope', 'dedupe', zeroblob(32), 'guests', '{}',
-                          '{}', 'system', 'reserved', 1, 1, 1, 100000000)",
+                          '{"title":"hello","body":"world","data":null}',
+                          'system', 'reserved', 1, 1, 1, 100000000)"#,
                 params![intent_id],
             )?;
             tx.execute(
@@ -4510,11 +5047,25 @@ mod tests {
                 "INSERT INTO _snapback_push_messages_v1(
                    id, batch_id, token_id, token_hash, token_bytes, state
                  ) VALUES(?1, ?2, ?3, ?4, 'ExponentPushToken[first]', 'reserved')",
-                params![message_id, batch_id, token_id, Sha256::digest(b"ExponentPushToken[first]").to_vec()],
+                params![
+                    message_id,
+                    batch_id,
+                    token_id,
+                    Sha256::digest(b"ExponentPushToken[first]").to_vec()
+                ],
             )?;
             Ok(())
         })
         .unwrap();
+
+        assert!(
+            db.with_auth_transaction(|tx| {
+                claim_recovered_batch_for_transmit_in(tx, 9)
+            })
+            .unwrap()
+            .is_none(),
+            "maintenance must not race a fresh fence-zero action reservation"
+        );
 
         let first_claim = db
             .with_auth_transaction(|tx| claim_batch_in(tx, &batch_id, 10))
@@ -4533,22 +5084,30 @@ mod tests {
             Ok(())
         })
         .unwrap();
-        let rotated_claim = db
-            .with_auth_transaction(|tx| claim_batch_in(tx, &batch_id, 31_001))
+        let recovered = db
+            .with_auth_transaction(|tx| claim_recovered_batch_for_transmit_in(tx, 31_001))
             .unwrap()
             .expect("safe recovery claim");
-        assert_eq!(rotated_claim.messages[0].token, "ExponentPushToken[rotated]");
+        assert_eq!(
+            recovered.claim.messages[0].token,
+            "ExponentPushToken[rotated]"
+        );
+        assert_eq!(
+            recovered.payload,
+            json!([{
+                "to": "ExponentPushToken[rotated]",
+                "title": "hello",
+                "body": "world",
+                "data": null,
+            }])
+        );
 
-        db.with_auth_transaction(|tx| {
-            // A crash after the durable transmit cut is never redriven.
-            mark_batch_transmitting_in(tx, &rotated_claim, 31_002)?;
-            Ok(())
-        })
-        .unwrap();
+        // Recovery committed the durable transmit cut with the new claim; a
+        // second crash from this point is never redriven.
         db.with_auth_transaction(|tx| {
             assert_eq!(recover_expired_batches_in(tx, 62_000)?, (0, 1));
-            let (batch_state, message_state, token_snapshot): (String, String, String) =
-                tx.query_row(
+            let (batch_state, message_state, token_snapshot): (String, String, String) = tx
+                .query_row(
                     "SELECT batch.state, message.state, message.token_bytes
                      FROM _snapback_push_batches_v1 AS batch
                      JOIN _snapback_push_messages_v1 AS message ON message.batch_id = batch.id
@@ -4556,7 +5115,10 @@ mod tests {
                     params![batch_id],
                     |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
                 )?;
-            assert_eq!((batch_state.as_str(), message_state.as_str()), ("ambiguous", "ambiguous"));
+            assert_eq!(
+                (batch_state.as_str(), message_state.as_str()),
+                ("ambiguous", "ambiguous")
+            );
             assert!(token_snapshot.is_empty());
             Ok(())
         })

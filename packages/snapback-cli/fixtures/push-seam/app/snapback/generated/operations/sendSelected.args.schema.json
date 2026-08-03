@@ -1,0 +1,33 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/app/sendSelected.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "body": {
+      "type": "string"
+    },
+    "dedupeKey": {
+      "type": "string"
+    },
+    "principalIds": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "redriveAmbiguous": {
+      "type": "boolean"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "principalIds",
+    "title",
+    "body",
+    "dedupeKey"
+  ],
+  "title": "app:sendSelected arguments",
+  "type": "object"
+}

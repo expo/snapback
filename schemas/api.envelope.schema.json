@@ -825,6 +825,7 @@
         "Query",
         "SearchQuery",
         "JobStatusQuery",
+        "PushLedgerQuery",
         "Mutation",
         "Action",
         "RelationalQuery",

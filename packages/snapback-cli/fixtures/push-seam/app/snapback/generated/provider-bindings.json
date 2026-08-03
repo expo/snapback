@@ -1,0 +1,84 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "actions": [
+      {
+        "argumentsType": "{ \"body\": string; \"dedupeKey\": string; \"principalIds\": ReadonlyArray<string>; \"redriveAmbiguous\"?: boolean; \"title\": string }",
+        "effects": {
+          "writes": []
+        },
+        "name": "sendSelected",
+        "resultType": "{ \"intentId\": string; \"attempt\": number; \"targetCount\": number; \"batchCount\": number; \"state\": string; \"deduplicated\": boolean }"
+      }
+    ],
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "Record<string, never>",
+        "effects": {
+          "invalidates": [
+            "appMembers"
+          ],
+          "writes": [
+            "appMembers"
+          ]
+        },
+        "name": "joinAsHost",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "null"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "effects": {
+          "invalidates": [
+            "appMembers"
+          ],
+          "writes": [
+            "appMembers"
+          ]
+        },
+        "name": "leaveHost",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "null"
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"intentId\": string }",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "_snapback_push_ledger_v1"
+          ]
+        },
+        "name": "pushLedger",
+        "resultType": "ReadonlyArray<{ \"_id\": string; \"attemptCount\": number; \"attemptNumber\": null | number; \"batchId\": null | string; \"batchIndex\": null | number; \"batchState\": null | string; \"createdAtMs\": number; \"expiresAtMs\": number; \"expoAcceptedAtMs\": null | number; \"expoErrorCode\": null | string; \"handedToExpoAtMs\": null | number; \"httpStatus\": null | number; \"intentId\": string; \"intentState\": string; \"messageId\": null | string; \"messageState\": null | string; \"nextReceiptPollAtMs\": null | number; \"previousAmbiguous\": null | boolean; \"receiptPollCount\": null | number; \"receiptWindowClosesAtMs\": null | number; \"requestErrorCode\": null | string; \"retirementEffect\": null | boolean; \"settledAtMs\": null | number; \"ticketId\": null | string; \"tokenId\": null | string; \"transmittingAtMs\": null | number; \"triggerMode\": \"immediate\" | \"system\" | \"deferred\"; \"updatedAtMs\": number }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:20f3dd5db16515847e7b001c7e7daf9b1e78ca7456d637bf73ac4246e3b59293",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

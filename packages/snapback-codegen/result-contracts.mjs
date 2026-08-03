@@ -609,6 +609,59 @@ function jobStatusRowsValue() {
   };
 }
 
+// @ref LLP 0143#d6-activation-migration-and-the-no-op-posture — the generated
+// ledger query is platform-shaped so packaged types cannot accidentally grow
+// token bytes, payload fields, or raw provider prose.
+function pushLedgerRowsValue() {
+  const text = () => scalar('string', { maxBytes: RESULT_MAX_STRING_BYTES });
+  const integer = () => scalar('integer', { min: 0, max: JS_SAFE_INTEGER });
+  const literalUnion = (values) => scalar('union', {
+    variants: values.map((value) => scalar('literal', { value })),
+  });
+  const field = (name, value) => ({ name, required: true, value });
+  const optionalText = () => nullable(text());
+  const optionalInteger = () => nullable(integer());
+  return {
+    kind: 'records',
+    record: {
+      kind: 'object',
+      allowExtra: false,
+      fields: [
+        field('_id', text()),
+        field('intentId', text()),
+        field('triggerMode', literalUnion(['immediate', 'system', 'deferred'])),
+        // The closed result grammar caps a literal union at eight variants;
+        // the host projection still owns and tests the ten-state vocabulary.
+        field('intentState', text()),
+        field('attemptCount', integer()),
+        field('createdAtMs', integer()),
+        field('updatedAtMs', integer()),
+        field('expiresAtMs', integer()),
+        field('batchId', optionalText()),
+        field('attemptNumber', optionalInteger()),
+        field('batchIndex', optionalInteger()),
+        field('batchState', optionalText()),
+        field('transmittingAtMs', optionalInteger()),
+        field('settledAtMs', optionalInteger()),
+        field('httpStatus', optionalInteger()),
+        field('requestErrorCode', optionalText()),
+        field('previousAmbiguous', nullable(scalar('boolean'))),
+        field('messageId', optionalText()),
+        field('tokenId', optionalText()),
+        field('messageState', optionalText()),
+        field('ticketId', optionalText()),
+        field('receiptPollCount', optionalInteger()),
+        field('nextReceiptPollAtMs', optionalInteger()),
+        field('receiptWindowClosesAtMs', optionalInteger()),
+        field('handedToExpoAtMs', optionalInteger()),
+        field('expoAcceptedAtMs', optionalInteger()),
+        field('expoErrorCode', optionalText()),
+        field('retirementEffect', nullable(scalar('boolean'))),
+      ],
+    },
+  };
+}
+
 export function effectiveResultContract({
   def,
   functionKind,
@@ -648,6 +701,9 @@ export function effectiveResultContract({
     && runtime?.HostPlan?.JobStatusQuery
   ) {
     return validateEffectiveResultContract(jobStatusRowsValue());
+  }
+  if (functionKind === 'Query' && runtime?.HostPlan?.PushLedgerQuery) {
+    return validateEffectiveResultContract(pushLedgerRowsValue());
   }
   const returnedDocument = runtime?.HostPlan?.Mutation?.return_value?.Document?.table;
   if (functionKind === 'Mutation' && returnedDocument) {

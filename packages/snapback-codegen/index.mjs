@@ -181,6 +181,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'jobs_one_off_v1',
   'live_subscriptions',
   'mutation_read_set_validation',
+  'notifications.expoPushSeam',
   'permission_epoch_resync',
   'registered_bundle_boot_v1',
   'relational_query_v1',
@@ -1179,6 +1180,12 @@ export async function generateInProcess(backendDir, options = {}) {
   ) {
     schemaRequiredCapabilities.push('full_text_search_v1');
   }
+  if (
+    schemaDef.pushSeam?.ledger
+    && !schemaRequiredCapabilities.includes('notifications.expoPushSeam')
+  ) {
+    schemaRequiredCapabilities.push('notifications.expoPushSeam');
+  }
 
   // SQLite index names are database-global and the physical spelling joins
   // table/index with `_`. Reserve the two declaration-derived membership
@@ -1784,6 +1791,39 @@ export async function generateInProcess(backendDir, options = {}) {
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
         reads: ['_snapback_jobs'],
+        result: { kind: 'list', row: { shape: 'unknown' } },
+        serverRunnable: true,
+        localRunnable: false,
+        ...contractQueryLivenessFields(def),
+      };
+    } else if (def.__kind === 'Query' && def.pushLedgerPlan) {
+      if (!schemaDef.pushSeam?.ledger) {
+        err(
+          'SNAPBACK_PUSH_LEDGER_NOT_DECLARED',
+          'function',
+          `${name}: definePushLedgerQuery requires definePushSeam with audiences and ledger`,
+          { function: name },
+        );
+      }
+      functions.push({
+        name,
+        kind: def.__kind,
+        ...authoredFunctionManifestFields(def),
+        runtime: { HostPlan: { PushLedgerQuery: {} } },
+        declaredReads: ['_snapback_push_ledger_v1'],
+        declaredWrites: [],
+        authScopeField: null,
+        // The exact audience can differ per stored intent, so the public
+        // invalidation vocabulary records this as opaque authorization while
+        // EffectCeilingV1 retains the narrower host-only dependency name.
+        authorizationDependence: ['opaque'],
+        syncabilityClass: 'online-only',
+      });
+      contractQueries[name] = {
+        name,
+        args: argDescriptors(def.args),
+        argOrder: Object.keys(def.args),
+        reads: ['_snapback_push_ledger_v1'],
         result: { kind: 'list', row: { shape: 'unknown' } },
         serverRunnable: true,
         localRunnable: false,
@@ -5296,6 +5336,9 @@ function requiredCapabilities(fn) {
       ? ['live_subscriptions', ...jobs, ...contractCapabilities]
       : [...jobs, ...contractCapabilities];
   }
+  if (fn.runtime?.HostPlan?.PushLedgerQuery) {
+    return [runtimeCapability, 'notifications.expoPushSeam', ...contractCapabilities];
+  }
   // @ref LLP 0080#2-portable-evaluation-semantics — a target that cannot
   //   execute the relational plan refuses at generation with a
   //   machine-readable capability gap, never at runtime.
@@ -7388,6 +7431,7 @@ function renderApiTypes(
   }
   const typeUnion = (names) => [...names].map((name) => JSON.stringify(name)).join(' | ') || 'never';
   const pushAudiences = Object.entries(schemaDef.pushSeam?.audiences ?? {});
+  const pushAudienceNames = pushAudiences.map(([name]) => name);
   const hasPushSend = schemaDef.pushSeam?.ledger !== undefined && pushAudiences.length > 0;
   const pushAudienceReferenceType = ([name, audience]) => {
     const args = new Map();
@@ -7679,11 +7723,24 @@ function renderApiTypes(
   lines.push(...membershipAliases);
   lines.push('export interface GeneratedMembership {');
   lines.push(...membershipMembers);
+  lines.push('}');
+  if (hasPushSend) {
+    lines.push(
+      `export type GeneratedPushAudienceName = ${typeUnion(new Set(pushAudienceNames))};`,
+      'export interface GeneratedPush {',
+      '  audience<Name extends GeneratedPushAudienceName>(name: Name, args: Extract<GeneratedPushAudienceReference, { readonly audience: Name }>["args"]): Extract<GeneratedPushAudienceReference, { readonly audience: Name }>;',
+      '  readonly audiences: { readonly [Name in GeneratedPushAudienceName]: (args: Extract<GeneratedPushAudienceReference, { readonly audience: Name }>["args"]) => Extract<GeneratedPushAudienceReference, { readonly audience: Name }> };',
+      '  send(request: GeneratedPushSendRequest): Promise<GeneratedPushSendResult>;',
+      '}',
+    );
+  }
+  const generatedPushProperty = hasPushSend
+    ? ' readonly push: GeneratedPush;'
+    : '';
   lines.push(
-    '}',
     'export interface GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly db: GeneratedQueryDatabase; readonly permissions: GeneratedPermissions; readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; isDirectHuman(): boolean; refuse(code: string, details?: unknown): never }',
     'export interface GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> extends GeneratedQueryContext<Auth> { readonly db: GeneratedMutationDatabase; readonly membership: GeneratedMembership; readonly jobs: { enqueue(name: string, args: Readonly<Record<string, unknown>>, options?: Readonly<Record<string, unknown>>): Promise<unknown> } }',
-    `export interface GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; readonly secrets: { get(name: string): any; rotating(name: string): any }; readonly run: unknown; readonly cron: unknown;${hasPushSend ? ' readonly push: { send(request: GeneratedPushSendRequest): Promise<GeneratedPushSendResult> };' : ''} isDirectHuman(): boolean; runMutation(name: string, args: Readonly<Record<string, unknown>>): Promise<unknown>; fetch(request: Readonly<Record<string, unknown>>): Promise<any>; fetchStream(request: Readonly<Record<string, unknown>>): Promise<any>; readonly streamAttempt: any; refuse(code: string, details?: unknown): never }`,
+    `export interface GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; readonly secrets: { get(name: string): any; rotating(name: string): any }; readonly run: unknown; readonly cron: unknown;${generatedPushProperty} isDirectHuman(): boolean; runMutation(name: string, args: Readonly<Record<string, unknown>>): Promise<unknown>; fetch(request: Readonly<Record<string, unknown>>): Promise<any>; fetchStream(request: Readonly<Record<string, unknown>>): Promise<any>; readonly streamAttempt: any; refuse(code: string, details?: unknown): never }`,
     'export interface GeneratedFunctionContexts {',
   );
   for (const fn of functions) {
