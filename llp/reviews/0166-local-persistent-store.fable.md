@@ -338,3 +338,79 @@ recorded verbatim below.
 
 ---
 
+**Provenance correction (2026-08-03):** the round-2 body below was
+appended after Codex round 3 flagged that this artifact had been
+truncated at the provenance separator — the orchestrating session had
+recorded the header but not the body. The text below is the reviewer's
+round-2 final message, verbatim and unedited; the v0.3 revision was
+applied from this same text.
+
+---
+
+# LLP 0166 v0.2 — Round 2 review (author-family / Fable)
+
+Reviewed fresh over the worktree at `/Users/ccheever/projects/snapback-0166` (HEAD 34bddf62, v0.2). All repo citations below are worktree-relative. Every load-bearing shipped-code fact restated by v0.2 was re-verified against the tree: `snapback-rqs-store.v1` / `DATABASE_VERSION = 2` / 32 MiB / 256 entries (`packages/snapback-client/rqs-store.mjs:30-43`), the `{rows, meta, token}` byte formula (`rqs-store.mjs:202`), the `resumedAt`-then-`savedAt` comparator with never-resumed-first (`rqs-store.mjs:212-215`), `SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE` (`rqs-store.mjs:251`), `entries`/`outbox` object stores (`rqs-store.mjs:169-172`), `snapback-rqs-store-file.v2` (`packages/snapback-client/rqs-store-file.mjs:75`), outbox caps 1,024/4,096 (`packages/snapback-client/outbox-shared.mjs:23-25`), `persistResume = true` default and `pendingIntentsAtSeed` (`packages/snapback-client/index.mjs:7213,7537`), `routes.manifest.json` (`packages/snapback-codegen/authoring-validation.test.mjs:862`), the LLP 0157 closed retention unions (`llp/0157-...spec.md:322-324,342`), the LLP 0157 golden/near-miss vectors (`llp/0157:625`), the 0043 M1 conditions and LLP 0157/LLP 0162 boundary sections (`llp/0043:110-163,536-572`), the 0080 no-anonymous-retention rule and dated note (`llp/0080:373-396`), the 0090 D3 outbox-rendering note and indefinite-offline rule (`llp/0090:742-788`), and DK-9 plus its dated note (`llp/0008:458-521`). All accurate.
+
+## 1. Overall assessment
+
+**NOT READY — confidence 0.78.** This is a genuinely strong revision: all nine Codex BLOCKING findings are structurally repaired (the LLP 0157 classification amendment with a correct rotation crosswalk, a coherent closed `result-transform.v1` model, a closed registration record with a per-axis merge lattice, a real multi-tab broker, a total two-axis lifecycle, an executable 15-row answer table, fresh-sync-only lease convergence, canonical budget formulas with a deterministic tie-break), and every owner-document fact I checked is now cited correctly. What keeps it out of READY is one residual instance of a round-1 BLOCKING and two fix-introduced exactness defects in the new machinery: the §D5 legacy grandfathering (the Codex-7 repair) directly contradicts §D2's sync-set rule, Guardrail 1, and oracle S1 as written — S1 and S4 cannot both pass on a store containing grandfathered legacy entries — so the "declared unchanged and normatively changed" defect survives in narrower form; the gated evaluation profile silently pulls optimistic-overlay-over-retained-base behind per-plan reclassification (which rotates plan identity) without stating that consequence or the boundary against the ungated 0107/0114 layer surface; and the release-grace lattice is ambiguous at exactly the point S3 tests. All three are one-to-three-sentence repairs, not redesign — this is a convergence round away from READY, not a structural round.
+
+## 2. Round-1 resolution audit
+
+| Finding | Verdict | Note |
+| --- | --- | --- |
+| Codex-1 (B, 0157-unrepresentable class) | resolved | dated 0157 amendment carried (§D7), acceptance path names it, §D3 cond. 2 names the class, crosswalk covers rotation |
+| Codex-2 (B, evaluation semantics) | resolved | closed `result-transform.v1`; changed-args, no-witness-digest, closed refusals; residue is new concern 2 |
+| Codex-3 (B, registration record) | resolved | identity, ownerContext, per-source durability, merge lattice, scope serialization, custody all closed; residue is NIT 8 |
+| Codex-4 (B, multi-tab) | resolved | writer ledger, liveness reaping, forwarding, handoff window, S1 two-tab legs |
+| Codex-5 (B, lifecycle not total) | resolved | orthogonal axes, total precedence, retiring/retired per 0157, qmk1 grace-vs-guardrail fixed |
+| Codex-6 (B, no answer matrix) | resolved | 15-row closed table, `refused` restored per 0157, legacy-lease row assigned; residue is NIT 6 |
+| Codex-7 (B, legacy lifecycle contradicted) | **partial** | the 0090 contradiction itself is fixed (shipped comparator, no TTL, no 0090 amendment), but the grandfathering now contradicts §D2/Guardrail 1/S1 — see new concern 1 |
+| Codex-8 (B, lease migration atomicity) | resolved | fresh-sync-then-fenced-retirement only; atomic arm declared not exercisable; S5 rewritten; OQ5 |
+| Codex-9 (B, budget determinism) | resolved | canonical formulas, address-byte tie-break, values marked provisional under OQ4 |
+| Codex-10 (M, wipe scope) | resolved | §D1 exact scope; client-wide vs grant/query; strand rules; S7 grant leg |
+| Codex-11 (M, P8 conflation) | resolved | split verified against `llp/0043:549-572`; "Move 2 does not depend" stated |
+| Codex-12 (M, P9 overstated) | resolved | reclassified partial; OQ11 |
+| Fable-1 (M, class unbindable) | resolved | same repair as Codex-1 |
+| Fable-2 (M, registration cross-fields) | resolved | `priorityClass` deleted, priority derived, lattice closed, lease-family exclusion explicit |
+| Fable-3 (M, multi-tab) | resolved | broker + S1 legs |
+| Fable-4 (M, 0157 §Migration tension) | resolved | explicit reconciliation sentence, rides the dated boundary note |
+| Fable-5 (M, OQ1 anonymous retention) | resolved | precondition in §D3 and OQ1 |
+| Fable-6 (M, outbox-cap attribution) | resolved | re-cited as shipped constants under 0043's posture |
+| Fable-7 (M, wipe survivals/handle key) | resolved | allocator + high-waters survive, handle key rotates |
+| Fable-8 (N, persist:false wording) | resolved | exact requested wording |
+| Fable-9 (N, S2 table) | resolved | table exists; S2 executes it |
+| Fable-10 (N, concurrency bound / §D8 parenthetical) | resolved | dated-amendable; amendments named exactly |
+| Fable-11 (N, grace anchor) | resolved | release-anchored, explicit |
+
+## 3. New concerns
+
+1. **MATERIAL — grandfathered legacy entries contradict the sync-set rule, Guardrail 1, and S1.** §D2 includes the legacy-resume family in the v1 registration set and rules "nothing unregistered is retained beyond grace"; Guardrail 1 repeats it document-wide; S1's oracle asserts "the hydrated and retained set equals the registration set plus in-grace releases at every step". But §D5's grandfathering — correctly added to resolve Codex-7 — gives legacy entries "no release grace, no 14-day TTL" under LLP 0090's indefinite rule, and S4 asserts "legacy entries never acquire grace, TTL, or demand semantics". The shipped store's normal steady state — an entry persisted by a since-ended subscription (`persistResume` default true, no TTL in `rqs-store.mjs`) — is unregistered, not in grace, and retained indefinitely. §D2/Guardrail/S1 require it GC'd after grace; §D5/S4 forbid that. S1 and S4 cannot both pass on any store containing grandfathered content, and an implementer must guess which rule governs. **Resolve:** scope §D2's retention/grace clause, Guardrail 1's middle clause, and S1's equality to the `qmk1` family (or "governed families"), and name "grandfathered legacy entry under LLP 0090's lifecycle" as the nameable retaining reason so the inspection obligation stays total.
+
+2. **MATERIAL — the gated profile silently captures optimistic-overlay-over-retained-base, and the adoption cost is unstated.** §D7's closed operator set includes "optimistic-overlay application … recomputed over the retained base", and the contract admits a plan "only by carrying the `fragment-evaluated-snapshot-v1` retention class". Under the current-law paragraph (opaque decode only), that composition is the *only* path to rendering optimistic layers over retained fragments — so any future optimistic-over-retained UX (the Move 3/4 direction) requires per-plan reclassification, which by this Spec's own crosswalk rotates `NodePlanHashV1` → `PlanHashV1` → `QueryMaterializationKeyV1` and forces fresh establishment at a new address. That is a heavy, correct-but-nowhere-stated consequence; alternatively, if overlay application was not meant to be class-gated, the operator set contradicts the admission rule. The shipped behavior (retained render is PRE-intent, no overlay — `llp/0090:742-762`) is consistent with the gate, so the text is coherent; the boundary and the cost are what's missing. **Resolve:** one §D7 sentence drawing the boundary (overlay application over live/current in-memory results remains the 0107/0114 owners' ungated surface; overlay recomputation over a *retained* base is inside this gate) and naming the reclassification-rotates-identity adoption cost — or remove overlay application from the gated operator set with an explicit rationale.
+
+3. **MATERIAL — the release-grace lattice is ambiguous at exactly the point S3 tests.** "The governing `idleTtlClass` is the maximum the releasing registrations held" does not pin the evaluation set: the registrations live immediately before the final release, or every registration that released since the address was last demanded? (Address holds A=`pinned`, B=`default`; A releases at t0, B at t1 — the two readings give "exempt from GC forever" vs "14 days".) And the `pinned` arm's parenthetical "(held until explicitly unregistered)" describes a registration that has, by definition, just been unregistered — the actual end state (released-`pinned` records are immortal against background GC yet first in line under pressure as `undemanded` step 1) must be reverse-engineered from three sentences. Divergent implementations produce different S3/carrier-parity outcomes, against the Spec's own identical-on-every-carrier bar. **Resolve:** pin the evaluation set (e.g., the merge in force immediately before the final release) and restate `pinned`'s post-release meaning in one direct sentence.
+
+4. **NIT — `wipe` "clears … all three families' sections in this domain" is internally contradictory:** the legacy lease family has no section in this domain — §D1's composition table lists none and the lease store is "deliberately not absorbed in v1." Say "both resident families' sections plus the outbox," and note the lease artifact is cleared by its own owner as an LLP 0059 coordinator participant (per 0157 op 7).
+
+5. **NIT — the handoff-deferral scope is worded differently in §D2 and §D5.** §D2 defers "eviction of `undemanded` records" then states over-budget commits "refuse instead of evicting"; §D5 says "step 1 is deferred and over-budget commits refuse instead." The full-refusal reading (no pressure eviction of any step during the window) is the safe one — a record that is really `demanded-active` but not yet re-announced, while holding a `programmatic` registration, presents as `demanded-idle` and would be exposed to step-2/3 eviction under the partial reading. State the full-refusal rule once, explicitly.
+
+6. **NIT — answer-table rows 11 and 15 put "no render" in the answer/freshness column** instead of a closed class (`unknown`); S2 executes this table, so every row's answer cell should be total over the closed class set.
+
+7. **NIT — the eviction algebra is total only for materialization commits.** §D5 gives materialization commits a cross-section order into the legacy section (after steps 1-2), but a legacy commit "evicts within the legacy section" with no stated branch for exhaustion — the derivable reading (evict-within-legacy, then refuse per §D3; never reclaim `qmk1` records) should be one explicit sentence, since it also implies legacy commits can starve behind undemanded `qmk1` bytes.
+
+8. **NIT — `source` × `ownerContext.kind` coupling is unstated.** The producers table implies `active`↔`subscription`, `preload`↔`route`, `programmatic`↔`api`, but `QueryRegistrationV1`'s refusal rules cover only unknown fields and out-of-set values, not cross-field mismatches (`source:"programmatic"` with `ownerContext:{kind:"subscription"}`). One validity sentence.
+
+9. **NIT — §D6's lease-convergence sentence shifts the owners' non-renderability window while claiming to restate it.** LLP 0043's boundary note and LLP 0157 §Migration have the non-adoptable record "coexist[ing] non-renderably **until** fresh sync creates the new address, then retires"; 0166 keeps it renderable under M1 (answer row 14) until the fresh sync lands, going non-renderable **once** the new address establishes. Defensible — v1 attempts no adoption, so no record enters the migration-pending state — but the dated LLP 0043 boundary note at acceptance should pin the window explicitly so the three texts don't read as conflicting.
+
+## 4. Suggestions
+
+- Name who supplies `result-transform.v1` programs (the LLP 0051 widget-refresh/hook seam; Move 3 consumers), or fold the transform authoring surface into OQ8 — the model is closed but its invoker is implied only.
+- Pair concern 1's fix with an S1 variant run against a store pre-populated with grandfathered legacy entries, asserting they are excluded from the sync-set equality while remaining inspectable with their grandfathering reason.
+- State explicitly that the legacy section's address-byte tie-break composes *after* the shipped comparator (S3 implies it; §D5's "byte-unchanged" invites the opposite reading for exact-timestamp ties).
+- §D2's honest-degradation bullet covers the non-writer side only; add the writer's obligation when the cross-context channel is down but the lock is held (ledger treats unreachable contexts as reaped after the liveness rule, not silently live).
+- In the LLP 0157 amendment text, consider stating that the served-manifest/codegen producers emit the new value only for owner-reclassified plans — the crosswalk implies it; one clause would close Codex-1's original "manifest/codegen mapping" ask completely.
+
+## 5. Recommended next step
+
+Keep Draft; apply the three MATERIAL repairs — concern 1 (scope §D2/Guardrail 1/S1 to governed families and name the grandfathered retaining reason: this also finishes Codex-7), concern 2 (one boundary-and-cost sentence in §D7), concern 3 (pin the grace-lattice evaluation set and restate `pinned` post-release) — plus whichever NITs are cheap in the same pass, then run round 3 as a focused delta review of §D2's rule/Guardrails/S1, §D5's grace-and-eviction text, and §D7's operator-set paragraph rather than another full-document round. Nothing here reopens the amendment set, the broker, the answer table, or the §D1 physical answer; with concern 1 closed I would expect round 3 to converge READY.
