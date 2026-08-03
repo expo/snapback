@@ -29,16 +29,49 @@ updated honestly; dated implementation-record amendment on the LLP.
 
 ## Running log
 
-- **2026-08-02 — real-device Exit witness is externally blocked.** The local
-  machine is authenticated to EAS, but neither repository Expo demo is linked
-  to an EAS project or configured with `expo-notifications`; the only attached
-  physical iPhone reports offline, no Android device is attached, and the
-  available simulators cannot mint an Expo push token. The local secrets file
-  contains no pre-provisioned Expo project or push token. Completing the last
-  Exit witness therefore requires a human to reconnect a physical device and
-  select/configure an EAS project plus development build. No external project
-  was created and no demo was expanded merely to manufacture the receipt;
-  this ticket remains Open until the real receipt is recorded.
+- **2026-08-02 — canonical local proof isolates the external receipt
+  blocker.** Under the repository-pinned Node 24.18.0 toolchain, the push
+  package fixture, all 26 push-module tests, capability-maturity check,
+  generated-artifact gate, guide check, package inventory, publication
+  carrier, Cloudflare identity, client/codegen/contract suites, demo workouts,
+  and Swift suite pass. The exhaustive HTTP inventory contains every PUSH-01
+  code. The first keep-going run also exposed concurrent proof-lane failures;
+  after rebasing their repairs, current main records all-target Clippy, the
+  1,779-test Rust library suite, every integration suite, and the LLP audit as
+  green. The app-CLI custody test intentionally rejects this recovery
+  worktree's `/private/tmp` credential ancestor, while the complete suite
+  passes with an owner-only private test root. A final required rebase onto
+  D-05 commit `96f56cb6` then introduced eight non-push diagnostic-inventory
+  omissions and four `src/telemetry.rs` Clippy findings; the concurrent D-05
+  lane owns those semantics, while all 26 push tests and both established
+  diagnostic-mapping tests remain green. The real-device Exit receipt remains
+  blocked solely on human Apple signing setup, so this ticket remains Open.
+
+- **2026-08-02 — packaged fake-Expo exit is green; physical receipt remains.**
+  The shared `@expo/snapback-cli/testing/fake-expo-push` export now drives the
+  packaged fixture through authorization-before-provider-I/O, ticket and
+  receipt success, same-key no-op, ticket- and receipt-stage
+  `DeviceNotRegistered`, socket-drop ambiguity, explicit duplicate-risk
+  re-drive, and zero-target retirement. The generated ledger query repeats the
+  current audience authorization and exposes lifecycle facts only. During the
+  D3b reconciliation, the pre-transmit recovery path was found to reset an
+  expired claim without giving a worker ownership of it; maintenance now
+  claims only fence-proven recovered batches, rebuilds the exact protected
+  payload, shares live-send pacing, and commits a fresh transmit marker before
+  I/O. Fresh action reservations cannot race that lane. The local capability
+  descriptor and guide page name `notifications.expoPushSeam`; per LLP 0143
+  D4, the distinct LLP 0045 `notifications` boolean remains `false`. All nine
+  implementation-resolvable OQs have dated dispositions in the LLP. The ticket
+  stays open for the real dev-build Expo receipt and final proof sweep.
+
+- **2026-08-02 — real-device Exit witness awaits Apple signing setup.** A
+  temporary, repository-external Expo development-client probe is linked to
+  `@expo/snapback-ci`, and two enabled physical iPhones are registered for the
+  Apple team. EAS is authenticated, but no usable internal-distribution
+  signing credentials exist yet; non-interactive build refuses and the
+  browser-only Tuft/Apple setup requires a human account step. No Apple
+  password or push token was requested or logged. This ticket remains Open
+  until the build is installed and a real Expo receipt is recorded.
 
 - **2026-08-02 — deterministic seam acceptance and publication facts now
   complete.** The shared fake-Expo carrier runs the production bounded HTTP
@@ -53,9 +86,8 @@ updated honestly; dated implementation-record amendment on the LLP.
   honest local/partial page, and the local capability manifest has a distinct
   structured `notifications.expoPushSeam` descriptor while
   `notifications: false` remains. Remaining PUSH-01 Exit work is the external
-  real-device receipt. The D6 app-readable ledger projection is also retained
-  as an explicit partial-capability GAP rather than being implied by the
-  protected internal ledger.
+  real-device receipt. Its then-open D6 app-readable-ledger GAP is closed by
+  the later packaged fixture/projection entry above.
 
 - **2026-08-02 — send/ledger recovery branch completed through the local
   deterministic proof.** `ctx.push.send` now owns reserve → claim → durable

@@ -1332,6 +1332,12 @@
         "localLoopbackTestOverride": {
           "type": "boolean"
         },
+        "maxConcurrentSendAttempts": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
         "neverClaims": {
           "items": {
             "type": "string"
@@ -1401,6 +1407,7 @@
         "productionEndpoint",
         "localLoopbackTestOverride",
         "sendBatchMax",
+        "maxConcurrentSendAttempts",
         "receiptBatchMax",
         "receiptFirstPollMs",
         "receiptPollIntervalsMs",
@@ -2878,6 +2885,7 @@
         "SearchQuery",
         "VectorQuery",
         "JobStatusQuery",
+        "PushLedgerQuery",
         "Mutation",
         "Action",
         "RelationalQuery",
@@ -3164,7 +3172,7 @@
               "const": "membership",
               "type": "string"
             },
-            "resource_arg": {
+            "resourceArg": {
               "type": [
                 "string",
                 "null"
@@ -3225,20 +3233,20 @@
               "const": "explicitPrincipals",
               "type": "string"
             },
-            "max_items": {
+            "maxItems": {
               "format": "uint16",
               "maximum": 65535,
               "minimum": 0,
               "type": "integer"
             },
-            "principals_arg": {
+            "principalsArg": {
               "type": "string"
             }
           },
           "required": [
             "kind",
-            "principals_arg",
-            "max_items"
+            "principalsArg",
+            "maxItems"
           ],
           "type": "object"
         },
@@ -3252,7 +3260,7 @@
               "const": "membership",
               "type": "string"
             },
-            "resource_arg": {
+            "resourceArg": {
               "type": [
                 "string",
                 "null"
@@ -4329,6 +4337,7 @@
             "host_plan_runtime",
             "ibex_ctx_db_host_bridge",
             "inline_handler_v1",
+            "notifications.expoPushSeam",
             "live_subscriptions",
             "mutation_read_set_validation",
             "permission_epoch_resync",

@@ -2767,6 +2767,12 @@
         "localLoopbackTestOverride": {
           "type": "boolean"
         },
+        "maxConcurrentSendAttempts": {
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
         "neverClaims": {
           "items": {
             "type": "string"
@@ -2836,6 +2842,7 @@
         "productionEndpoint",
         "localLoopbackTestOverride",
         "sendBatchMax",
+        "maxConcurrentSendAttempts",
         "receiptBatchMax",
         "receiptFirstPollMs",
         "receiptPollIntervalsMs",
@@ -3659,6 +3666,19 @@
           },
           "required": [
             "JobStatusQuery"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "description": "The declared, privacy-bounded LLP 0143 handoff-ledger projection.\nIt is query-only: receipt upgrades are observed by re-querying rather\nthan claiming an app-table live-delta contract for protected rows.",
+          "properties": {
+            "PushLedgerQuery": {
+              "$ref": "#/$defs/PushLedgerQueryPlanV1"
+            }
+          },
+          "required": [
+            "PushLedgerQuery"
           ],
           "type": "object"
         },
@@ -5041,7 +5061,7 @@
               "const": "membership",
               "type": "string"
             },
-            "resource_arg": {
+            "resourceArg": {
               "type": [
                 "string",
                 "null"
@@ -5102,20 +5122,20 @@
               "const": "explicitPrincipals",
               "type": "string"
             },
-            "max_items": {
+            "maxItems": {
               "format": "uint16",
               "maximum": 65535,
               "minimum": 0,
               "type": "integer"
             },
-            "principals_arg": {
+            "principalsArg": {
               "type": "string"
             }
           },
           "required": [
             "kind",
-            "principals_arg",
-            "max_items"
+            "principalsArg",
+            "maxItems"
           ],
           "type": "object"
         },
@@ -5129,7 +5149,7 @@
               "const": "membership",
               "type": "string"
             },
-            "resource_arg": {
+            "resourceArg": {
               "type": [
                 "string",
                 "null"
@@ -5163,6 +5183,10 @@
       "required": [
         "retentionMs"
       ],
+      "type": "object"
+    },
+    "PushLedgerQueryPlanV1": {
+      "description": "The v1 push-ledger plan carries no authored parameters. `intentId` is the\nfixed invocation argument and the complete result/authorization contract\nis platform-owned.",
       "type": "object"
     },
     "PushRegistryDeclarationV1": {
@@ -6805,6 +6829,7 @@
             "host_plan_runtime",
             "ibex_ctx_db_host_bridge",
             "inline_handler_v1",
+            "notifications.expoPushSeam",
             "live_subscriptions",
             "mutation_read_set_validation",
             "permission_epoch_resync",

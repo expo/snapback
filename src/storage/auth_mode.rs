@@ -787,6 +787,10 @@ impl LocalDatabase {
             )?;
         }
         crate::storage::auth::activate_current_auth_catalog_in(&tx)?;
+        // @ref LLP 0143#d1-device-token-custody — schema staging precedes the
+        // sessions catalog. Install the generation-fenced token-retirement
+        // triggers after their auth tables exist, in this same activation cut.
+        crate::push::activate_manifest_in(&tx, staged.schema_manifest.push_seam.as_ref())?;
         // @ref LLP 0055#grants — initial sessions activation seeds the durable
         //   exact-function basis rows in the same cut as the existing LLP 0053
         //   activation event. No grant can observe an empty/intermediate set.

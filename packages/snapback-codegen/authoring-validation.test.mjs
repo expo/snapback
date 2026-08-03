@@ -133,10 +133,11 @@ export default defineSchema({ events: defineTable({ name: v.string() }), eventMe
 });
 `,
     functions: `
-import { defineConfig } from '${defineUrl}';
+import { defineConfig, definePushLedgerQuery } from '${defineUrl}';
 export const config = defineConfig({
   expoPushAccessToken: { required: false, description: 'fixture Expo access token' },
 });
+export const pushLedger = definePushLedgerQuery({ auth: 'authenticated' });
 `,
   });
   const manifest = JSON.parse(readFileSync(join(result.outDir, 'schema.manifest.json'), 'utf8'));
@@ -150,6 +151,20 @@ export const config = defineConfig({
   });
   assert.deepEqual(manifest.pushSeam.uses, ['expoPushAccessToken']);
   assert.deepEqual(manifest.pushSeam.ledger, { retentionMs: 2_592_000_000 });
+  assert(manifest.requiredCapabilities.includes('notifications.expoPushSeam'));
+  const functions = JSON.parse(readFileSync(join(result.outDir, 'functions.manifest.json'), 'utf8'));
+  const ledger = functions.functions.find((fn) => fn.name === 'pushLedger');
+  assert.deepEqual(ledger.runtime, { HostPlan: { PushLedgerQuery: {} } });
+  assert.deepEqual(ledger.readSetSummary.tables, ['_snapback_push_ledger_v1']);
+  assert.deepEqual(ledger.effectCeiling.authorizationInputs, ['pushAudienceAuthorization']);
+  assert(ledger.requiredCapabilities.includes('notifications.expoPushSeam'));
+  assert.equal(ledger.resultContract.kind, 'records');
+  const fields = ledger.resultContract.record.fields.map((field) => field.name);
+  assert(fields.includes('handedToExpoAtMs'));
+  assert(fields.includes('expoAcceptedAtMs'));
+  assert(fields.includes('expoErrorCode'));
+  assert(!fields.includes('tokenBytes'));
+  assert(!fields.includes('payload'));
   const apiTypes = readFileSync(join(result.outDir, 'api.d.ts'), 'utf8');
   assert(apiTypes.includes(
     'Readonly<{ audience: "guests"; args: Readonly<{ "eventId": string }> }>',
@@ -157,9 +172,9 @@ export const config = defineConfig({
   assert(apiTypes.includes(
     'Readonly<{ audience: "selectedGuests"; args: Readonly<{ "principalIds": readonly Principal[] }> }>',
   ));
-  assert(apiTypes.includes(
-    'readonly push: { send(request: GeneratedPushSendRequest): Promise<GeneratedPushSendResult> };',
-  ));
+  assert(apiTypes.includes('export type GeneratedPushAudienceName = "guests" | "selectedGuests";'));
+  assert(apiTypes.includes('readonly push: GeneratedPush;'));
+  assert(apiTypes.includes('send(request: GeneratedPushSendRequest): Promise<GeneratedPushSendResult>;'));
   assert(apiTypes.includes('readonly redriveAmbiguous?: boolean'));
 }
 

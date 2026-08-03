@@ -47,6 +47,9 @@ run node packages/snapback-codegen/index.mjs demos/file-drop/snapback
 # here fails the staged cold-install proof with
 # SNAPBACK_COMPARATOR_RECEIPT_INVALID (recurrences: d5ad77c0, 345cb070).
 run node packages/snapback-codegen/index.mjs packages/snapback-cli/fixtures/comparator/app/snapback
+# LLP 0143 OQ7's packaged fixture closes the generated authoring surface and
+# requires the same local outbound-actions capability the send lane consumes.
+run env SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs packages/snapback-cli/fixtures/push-seam/app/snapback
 run node admin-ui/generate-contract-bindings.mjs
 
 REVIEW_ROOTS=(
@@ -87,6 +90,8 @@ REVIEW_PATHS+=(demos/team-chat/snapback/generated)
 # fixture is committed and shipped, so the whole directory (not just review
 # manifests) must reproduce from the committed state.
 REVIEW_PATHS+=(packages/snapback-cli/fixtures/comparator/app/snapback/generated)
+# The shared push acceptance kit is likewise a complete packaged closure.
+REVIEW_PATHS+=(packages/snapback-cli/fixtures/push-seam/app/snapback/generated)
 
 if ! git diff --exit-code -- "${REVIEW_PATHS[@]}"; then
     echo "[check-generated-artifacts] FAIL: committed review manifests or policy projections are stale" >&2

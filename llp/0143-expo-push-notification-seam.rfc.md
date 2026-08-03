@@ -6,7 +6,9 @@
 Deployment, Testing, Documentation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-01 (loop CONVERGED dual-family READY — Fable round 3,
+**Revised:** 2026-08-02 (PUSH-01 packaged acceptance, generated ledger
+projection, and safe pre-transmit recovery amendment; the real dev-build
+receipt remains the final exit witness.) 2026-08-01 (loop CONVERGED dual-family READY — Fable round 3,
 Codex round 3, zero unresolved concerns; artifacts
 reviews/0143-expo-push-notification-seam.{fable,codex}.md. Status
 advances Draft -> Review; acceptance is the author's call; two
@@ -876,11 +878,59 @@ lane without widening custody:
   vocabulary, payload privacy, and hosted boundary.
 
 The seam's protected per-message ledger is exercised through the host and
-operator/test inspection in this slice; the D6 app-readable generated ledger
-projection is still a guide/capability GAP rather than an invented API. The
-real-device receipt required by the repository PUSH-01 exit is an external
-acceptance witness and is recorded separately from the deterministic fixture;
-its absence cannot weaken or upgrade any manifest fact.
+operator/test inspection in this slice. The real-device receipt required by
+the repository PUSH-01 exit is an external acceptance witness and is recorded
+separately from the deterministic fixture; its absence cannot weaken or
+upgrade any manifest fact.
+
+### 2026-08-02 — D3b/D6 closure amendment
+
+The final local acceptance pass closed two implementation gaps without
+widening the provider claim:
+
+- The original reaper moved an expired pre-`transmitting` claim back to
+  `reserved`, but no maintenance worker could subsequently own and send that
+  batch. Recovered batches now retain a nonzero claim-fence witness;
+  maintenance claims only those rows, rebinds current token custody,
+  reconstructs the exact protected payload, and commits a fresh
+  `transmitting` marker before provider I/O. Fresh fence-zero action
+  reservations are ineligible, so the worker does not race their originating
+  action. Live and recovered sends share the published single-attempt pacing
+  boundary. Post-marker loss remains `ambiguous` and is never automatically
+  re-driven.
+- `definePushLedgerQuery({ auth })` now supplies D6's generated app-readable
+  projection. It accepts only an intent id, reloads the stored audience
+  reference, and repeats current host authorization. Returned rows contain
+  lifecycle states and opaque ids/timestamps only; token bytes, payload,
+  dedupe key, audience arguments, config, and provider prose remain absent.
+- The deterministic carrier is also exported as
+  `@expo/snapback-cli/testing/fake-expo-push` and exercised by a committed
+  generated fixture. The package proof covers authorization-before-I/O,
+  tickets and receipt upgrade, idempotent replay, both
+  `DeviceNotRegistered` stages, request-byte socket loss, explicit ambiguous
+  redrive, and zero-target retirement through the production bounded HTTP
+  path. The test is registered in the canonical package inventory.
+- Dev/Test may drive one maintenance cycle with an injected clock only while
+  the Expo endpoint override names loopback. The real endpoint rejects an
+  injected clock; production remains owned by the ordinary maintenance worker.
+- The HTTP diagnostic review classifies malformed app declarations and
+  test-only maintenance requests as `400`, durable dedupe/redrive conflicts as
+  `409`, an Expo response outside the closed provider vocabulary as `502`, and
+  an unavailable, unsupported, or attempt-exhausted send seam as `503`.
+  Host-owned ledger corruption, claim races, staged-config corruption, endpoint
+  override refusal, send serialization, and maintenance-worker failure retain
+  the fail-safe `500` class. `SNAPBACK_EXPO_PUSH_BASE_URL` is an environment
+  variable, not a diagnostic. These transport classes do not widen any delivery
+  claim.
+
+These additions complete the implementation-resolvable OQ dispositions above.
+They do not change D4: local manifests publish the structured
+`notifications.expoPushSeam` descriptor, hosted/conformance profiles withhold
+it, and the broader `notifications` boolean remains `false`. The Accepted
+contract makes the closed capability id a stable compatibility fact; the
+physical dev-build receipt remains a separate repository Exit witness and
+cannot demote or upgrade that manifest fact. It is not evidence of device
+delivery, display, read state, exactly-once behavior, or an SLA.
 
 ## Prior art
 

@@ -2244,6 +2244,19 @@
         },
         {
           "additionalProperties": false,
+          "description": "The declared, privacy-bounded LLP 0143 handoff-ledger projection.\nIt is query-only: receipt upgrades are observed by re-querying rather\nthan claiming an app-table live-delta contract for protected rows.",
+          "properties": {
+            "PushLedgerQuery": {
+              "$ref": "#/$defs/PushLedgerQueryPlanV1"
+            }
+          },
+          "required": [
+            "PushLedgerQuery"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "properties": {
             "Mutation": {
               "$ref": "#/$defs/MutationPlan"
@@ -3389,7 +3402,7 @@
               "const": "membership",
               "type": "string"
             },
-            "resource_arg": {
+            "resourceArg": {
               "type": [
                 "string",
                 "null"
@@ -3450,20 +3463,20 @@
               "const": "explicitPrincipals",
               "type": "string"
             },
-            "max_items": {
+            "maxItems": {
               "format": "uint16",
               "maximum": 65535,
               "minimum": 0,
               "type": "integer"
             },
-            "principals_arg": {
+            "principalsArg": {
               "type": "string"
             }
           },
           "required": [
             "kind",
-            "principals_arg",
-            "max_items"
+            "principalsArg",
+            "maxItems"
           ],
           "type": "object"
         },
@@ -3477,7 +3490,7 @@
               "const": "membership",
               "type": "string"
             },
-            "resource_arg": {
+            "resourceArg": {
               "type": [
                 "string",
                 "null"
@@ -3511,6 +3524,10 @@
       "required": [
         "retentionMs"
       ],
+      "type": "object"
+    },
+    "PushLedgerQueryPlanV1": {
+      "description": "The v1 push-ledger plan carries no authored parameters. `intentId` is the\nfixed invocation argument and the complete result/authorization contract\nis platform-owned.",
       "type": "object"
     },
     "PushRegistryDeclarationV1": {

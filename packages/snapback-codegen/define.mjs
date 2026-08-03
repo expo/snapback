@@ -109,6 +109,7 @@ const TARGET_CAPABILITIES = new Set([
   'ibex_ctx_db_host_bridge',
   'live_subscriptions',
   'mutation_read_set_validation',
+  'notifications.expoPushSeam',
   'settlement.bounded_skew',
   'permission_epoch_resync',
   'full_text_search_v1',
@@ -1709,6 +1710,26 @@ export function defineJobStatusQuery(spec = {}) {
     ...authoredFunctionAuth(spec, 'JobStatusQuery'),
     args: { jobId: v.string() },
     jobStatusPlan: true,
+  };
+}
+
+/**
+ * The LLP 0143 handoff-ledger projection. The platform fixes the `intentId`
+ * argument and complete privacy-bounded row shape, then re-evaluates the
+ * stored audience's current authorization before releasing any rows.
+ */
+export function definePushLedgerQuery(spec = {}) {
+  assertKnownSpecFields(spec, 'PushLedgerQuery', new Set(['auth']));
+  assert(
+    spec.auth === 'authenticated',
+    'definePushLedgerQuery requires auth: authenticated',
+  );
+  return {
+    [FN]: true,
+    __kind: 'Query',
+    ...authoredFunctionAuth(spec, 'Query'),
+    args: { intentId: v.string() },
+    pushLedgerPlan: true,
   };
 }
 

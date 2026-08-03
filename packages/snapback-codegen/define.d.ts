@@ -601,6 +601,14 @@ export declare function defineLiveQuery(spec: HostPlanQuerySpec): unknown;
 export declare function defineJobStatusQuery(spec?: {
   auth?: AuthRequirement;
 }): unknown;
+/**
+ * Declare the privacy-bounded LLP 0143 handoff-ledger query. The result is
+ * authorized against the intent's stored audience arguments and never
+ * contains token bytes, payloads, or provider prose.
+ */
+export declare function definePushLedgerQuery(spec: {
+  auth: 'authenticated';
+}): unknown;
 export declare function defineJsQuery(spec: JsQuerySpec): unknown;
 export declare function defineJsLiveQuery(spec: JsQuerySpec): unknown;
 export declare function defineSearchQuery(spec: {

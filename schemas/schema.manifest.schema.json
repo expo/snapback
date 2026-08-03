@@ -763,7 +763,7 @@
               "const": "membership",
               "type": "string"
             },
-            "resource_arg": {
+            "resourceArg": {
               "type": [
                 "string",
                 "null"
@@ -824,20 +824,20 @@
               "const": "explicitPrincipals",
               "type": "string"
             },
-            "max_items": {
+            "maxItems": {
               "format": "uint16",
               "maximum": 65535,
               "minimum": 0,
               "type": "integer"
             },
-            "principals_arg": {
+            "principalsArg": {
               "type": "string"
             }
           },
           "required": [
             "kind",
-            "principals_arg",
-            "max_items"
+            "principalsArg",
+            "maxItems"
           ],
           "type": "object"
         },
@@ -851,7 +851,7 @@
               "const": "membership",
               "type": "string"
             },
-            "resource_arg": {
+            "resourceArg": {
               "type": [
                 "string",
                 "null"

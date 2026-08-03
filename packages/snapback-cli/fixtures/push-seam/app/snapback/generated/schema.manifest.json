@@ -1,0 +1,101 @@
+{
+  "appId": "app",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions"
+  },
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:20f3dd5db16515847e7b001c7e7daf9b1e78ca7456d637bf73ac4246e3b59293",
+  "portabilityFlags": [],
+  "pushSeam": {
+    "appScope": {
+      "applicationId": "dev.expo.snapback.push-seam",
+      "easProjectId": "fake-expo-push-seam",
+      "environment": "test"
+    },
+    "audiences": {
+      "selectedGuests": {
+        "authorize": {
+          "declaration": "appMembers",
+          "kind": "membership",
+          "roles": [
+            "host"
+          ]
+        },
+        "resolve": {
+          "kind": "explicitPrincipals",
+          "maxItems": 10,
+          "principalsArg": "principalIds"
+        }
+      }
+    },
+    "ledger": {
+      "retentionMs": 86400000
+    },
+    "registry": {
+      "idleRetentionMs": 86400000
+    },
+    "uses": [
+      "expoPushAccessToken"
+    ]
+  },
+  "requiredCapabilities": [
+    "auth.sessions.v1",
+    "notifications.expoPushSeam"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:0818bac7dd0dcdfcc5c59c68cd86552bdb0c179a8e784e6d5ce1c029c2035b80",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "principal",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "membership": {
+        "principal": "principal",
+        "provenance": "full",
+        "role": "role",
+        "roles": [
+          "host"
+        ],
+        "scope": "app",
+        "transitions": [
+          {
+            "by": [
+              "none"
+            ],
+            "op": "insert",
+            "target": "self",
+            "to": [
+              "host"
+            ]
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "host"
+            ],
+            "op": "remove",
+            "target": "self"
+          }
+        ]
+      },
+      "name": "appMembers",
+      "syncable": false
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}
