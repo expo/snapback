@@ -3484,6 +3484,65 @@ impl LocalDatabase {
         })
     }
 
+    /// Snapshot-pinned preview facts for LLP 0081's separately digested
+    /// observation. Each current v1 plan step declares at most one read table;
+    /// its row summary inspects no more than `max_affected_rows + 1` rows. The
+    /// extra row is the bounded signal that the reviewed ceiling is already
+    /// exceeded, without turning preview into an unbounded application scan.
+    ///
+    /// @ref LLP 0081#2-canonical-plan-and-approval — preview observations
+    /// carry the target head and bounded aggregate preconditions from one
+    /// snapshot, but never add authority to the sealed plan.
+    pub(crate) fn migration_preview_observation_facts(
+        &self,
+        steps: &[crate::migration::MigrationStepRecord],
+        max_affected_rows: u64,
+    ) -> SnapbackResult<(u64, BTreeMap<String, u64>)> {
+        self.with_pinned_read_view(|view| {
+            let head = view.current_version()?;
+            let limit = max_affected_rows
+                .saturating_add(1)
+                .min(i64::MAX as u64) as i64;
+            let mut table_rows = BTreeMap::<String, u64>::new();
+            let mut precondition_rows = BTreeMap::new();
+            for record in steps {
+                let [table] = record.reads.as_slice() else {
+                    // The v1 planner currently emits zero or one read table.
+                    // A later multi-source step needs a versioned observation
+                    // shape instead of collapsing several counts into one.
+                    continue;
+                };
+                let rows = match table_rows.get(table) {
+                    Some(rows) => *rows,
+                    None => {
+                        let _ = schema_table(view.schema(), table)?;
+                        let quoted = quote_ident(table)?;
+                        let observed: i64 = view.conn().query_row(
+                            &format!(
+                                "SELECT COUNT(*) FROM (SELECT 1 FROM {quoted} LIMIT ?1)"
+                            ),
+                            params![limit],
+                            |row| row.get(0),
+                        )?;
+                        let rows = u64::try_from(observed).map_err(|_| {
+                            SnapbackError::error(
+                                "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
+                                "storage",
+                                format!(
+                                    "preview row summary for {table} was outside the non-negative integer domain"
+                                ),
+                            )
+                        })?;
+                        table_rows.insert(table.clone(), rows);
+                        rows
+                    }
+                };
+                precondition_rows.insert(record.id.clone(), rows);
+            }
+            Ok((head, precondition_rows))
+        })
+    }
+
     /// Resume an interrupted migration-cleanup tail at reopen (LLP 0081
     /// §4: a crash after release reopens only the successor and resumes
     /// cleanup). Inventory-driven — no artifact required.
@@ -18613,6 +18672,54 @@ mod guarded_commit_tests {
             checkpoint = Some(serde_json::from_str(&serialized).expect("checkpoint parses"));
         }
         panic!("scan did not complete within 64 batches");
+    }
+
+    // @ref LLP 0160#2-the-ideal-experience-moment-by-moment — Moment 3's
+    // estimate comes from snapshot-pinned, bounded observation facts, not the
+    // sealed plan. A count stops one row beyond the approval ceiling so an
+    // already-oversized target is visible without an unbounded preview scan.
+    #[test]
+    fn migration_preview_populates_bounded_precondition_rows() {
+        let db = migration_scan_database();
+        let mut successor = db.schema().clone();
+        successor.tables[0].fields.push(FieldManifest {
+            name: "required_later".to_owned(),
+            field_type: FieldType::String,
+            optional: false,
+        });
+        let steps = crate::migration::derive_plan_steps(
+            &successor,
+            &[crate::migration::MigrationIntent::AddRequiredField {
+                table: "scanned".to_owned(),
+                field: "required_later".to_owned(),
+                field_type: FieldType::String,
+                backfill: ValueExpr::Literal(json!("default")),
+            }],
+        )
+        .expect("derive reviewed backfill steps");
+
+        let (head, bounded) = db
+            .migration_preview_observation_facts(&steps, 2)
+            .expect("bounded observation");
+        assert_eq!(head, db.current_version().unwrap());
+        assert_eq!(bounded.len(), 2, "backfill and validation read rows");
+        assert!(
+            bounded.values().all(|rows| *rows == 3),
+            "ceiling plus one is the bounded oversize signal"
+        );
+
+        let (_, complete) = db
+            .migration_preview_observation_facts(&steps, 10)
+            .expect("complete observation below its ceiling");
+        assert_eq!(complete.len(), 2);
+        assert!(complete.values().all(|rows| *rows == 7));
+        assert!(
+            steps
+                .iter()
+                .filter(|step| step.reads.is_empty())
+                .all(|step| !complete.contains_key(&step.id)),
+            "steps without a declared read table have no inferred estimate"
+        );
     }
 
     // @ref LLP 0081#3-typed-migration-steps — the privileged scan reads in

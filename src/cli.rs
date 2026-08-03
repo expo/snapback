@@ -8468,7 +8468,6 @@ pub(crate) fn migrate_command(command: MigrateCommand, json_only: bool) -> anyho
                 };
                 let snapback = crate::local::LocalSnapback::open(&db)?;
                 let predecessor = snapback.migrate_predecessor_schema();
-                let head = snapback.migrate_head_version()?;
                 // Explicit intents win; a schema-diff derivation covers exactly
                 // the unambiguous changes (LLP 0081 §2 — the derivation refuses
                 // anything needing a declared backfill/rename/conversion).
@@ -8477,6 +8476,12 @@ pub(crate) fn migrate_command(command: MigrateCommand, json_only: bool) -> anyho
                     None => crate::migration::derive_intents(&predecessor, &successor)?,
                 };
                 let steps = crate::migration::derive_plan_steps(&successor, &intents)?;
+                // @ref LLP 0160#2-the-ideal-experience-moment-by-moment —
+                // Moment 3's estimate line is sourced only from the separately
+                // digested, snapshot-pinned observation; it adds no plan
+                // authority and is omitted when no step declares a read table.
+                let (head, precondition_rows) = snapback
+                    .migrate_preview_observation_facts(&steps, max_affected_rows)?;
                 let body = crate::migration::MigrationPlanBody {
                     schema_version: crate::migration::MIGRATION_PLAN_SCHEMA_VERSION.to_owned(),
                     app: snapback.migrate_app_id(),
@@ -8531,7 +8536,7 @@ pub(crate) fn migrate_command(command: MigrateCommand, json_only: bool) -> anyho
                     plan_digest: artifact.plan_digest.clone(),
                     target_head_version: head,
                     observed_at_ms: wall_clock_now_ms(),
-                    precondition_rows: Default::default(),
+                    precondition_rows,
                     capability_health: Default::default(),
                 };
                 let file = MigratePreviewFile {

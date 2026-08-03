@@ -1,8 +1,13 @@
+use std::collections::BTreeMap;
 use std::process::Command;
 
 use serde_json::Value;
-use snapback::manifest::{FieldManifest, FieldType, SchemaManifest, TableManifest};
-use snapback::migration::{MigrationPlanArtifactV1, MigrationPreviewObservationV1};
+use snapback::manifest::{
+    FieldManifest, FieldType, SchemaManifest, SeedData, TableManifest, ValueExpr,
+};
+use snapback::migration::{
+    MigrationIntent, MigrationPlanArtifactV1, MigrationPreviewObservationV1,
+};
 use snapback::storage::LocalDatabase;
 
 fn schema(include_provider: bool) -> SchemaManifest {
@@ -38,6 +43,103 @@ fn schema(include_provider: bool) -> SchemaManifest {
 
 fn snapback() -> Command {
     Command::new(env!("CARGO_BIN_EXE_snapback"))
+}
+
+#[test]
+fn migrate_preview_renders_bounded_precondition_observations() {
+    let directory = tempfile::tempdir().expect("tempdir");
+    let db = directory.path().join("app.sqlite");
+    let successor_path = directory.path().join("successor.json");
+    let intents_path = directory.path().join("intents.json");
+    let preview_path = directory.path().join("preview.json");
+
+    let mut predecessor = schema(false);
+    predecessor.tables[0].fields[0].optional = false;
+    let mut successor = predecessor.clone();
+    successor.tables[0].fields.push(FieldManifest {
+        name: "provider".to_owned(),
+        field_type: FieldType::String,
+        optional: false,
+    });
+    let intents = vec![MigrationIntent::AddRequiredField {
+        table: "models".to_owned(),
+        field: "provider".to_owned(),
+        field_type: FieldType::String,
+        backfill: ValueExpr::Literal(serde_json::json!("openai")),
+    }];
+    {
+        let mut database = LocalDatabase::open(&db).expect("open predecessor");
+        database
+            .apply_schema(predecessor)
+            .expect("apply predecessor");
+        let rows = (0..7)
+            .map(|index| {
+                serde_json::json!({
+                    "_id": format!("model-{index}"),
+                    "name": format!("Model {index}"),
+                })
+                .as_object()
+                .cloned()
+                .unwrap()
+            })
+            .collect();
+        database
+            .seed(SeedData {
+                tables: BTreeMap::from([("models".to_owned(), rows)]),
+            })
+            .expect("seed predecessor rows");
+    }
+    std::fs::write(
+        &successor_path,
+        serde_json::to_string_pretty(&successor).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(
+        &intents_path,
+        serde_json::to_string_pretty(&intents).unwrap(),
+    )
+    .unwrap();
+
+    let preview = snapback()
+        .args([
+            "migrate",
+            "preview",
+            "--db",
+            db.to_str().unwrap(),
+            "--schema",
+            successor_path.to_str().unwrap(),
+            "--intents",
+            intents_path.to_str().unwrap(),
+            "--publication-timestamp-ms",
+            "2000000000000",
+            "--max-affected-rows",
+            "2",
+            "--out",
+            preview_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("run preview");
+    assert!(
+        preview.status.success(),
+        "{}",
+        String::from_utf8_lossy(&preview.stderr)
+    );
+    let stderr = String::from_utf8(preview.stderr).expect("utf8 stderr");
+    assert!(stderr.contains("preflight: ~3 rows"));
+    assert!(stderr.contains("review context, not plan authority"));
+
+    let preview_file: Value =
+        serde_json::from_str(&std::fs::read_to_string(&preview_path).unwrap()).unwrap();
+    let observation: MigrationPreviewObservationV1 =
+        serde_json::from_value(preview_file["observation"].clone()).unwrap();
+    assert_eq!(observation.precondition_rows.len(), 2);
+    assert!(
+        observation
+            .precondition_rows
+            .values()
+            .all(|rows| *rows == 3),
+        "preview stops at the reviewed ceiling plus one"
+    );
 }
 
 #[test]

@@ -18684,6 +18684,17 @@ impl LocalSnapback {
         self.functions.app_id.clone()
     }
 
+    /// Read the non-authoritative preview observation from one pinned target
+    /// snapshot. The sealed plan remains the sole execution authority.
+    pub(crate) fn migrate_preview_observation_facts(
+        &self,
+        steps: &[crate::migration::MigrationStepRecord],
+        max_affected_rows: u64,
+    ) -> SnapbackResult<(u64, BTreeMap<String, u64>)> {
+        self.db
+            .migration_preview_observation_facts(steps, max_affected_rows)
+    }
+
     pub fn migrate_request_cancel(&mut self, operation_id: &str) -> SnapbackResult<()> {
         self.db.migrate_request_cancel(operation_id)
     }
