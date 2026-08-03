@@ -498,3 +498,54 @@ reviewer; recorded verbatim below.
 5. **Recommended next step**.
 
 Keep LLP 0166 in Draft. Repair the overflow cases, partition-key successful-release tombstones, remove or fail-close the unsafe handoff timeout, and complete pair accounting plus inspection fields. Then run another micro-delta round confined to those sentences and S1.
+---
+
+## Round 7 — 2026-08-03
+
+**Reviewer family:** OpenAI Codex
+**Provider / runtime:** `codex-cli` 0.146.0, `codex exec`, model
+`gpt-5.6-sol`, `model_reasoning_effort=xhigh`, sandbox `read-only`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author `codex exec` context over the working tree at
+b58b3c5f (v0.7); micro-delta round confined to the round-6 repairs.
+Orchestrated by the authoring session, which does not count as a
+reviewer; recorded verbatim below.
+
+---
+
+1. **Overall assessment**: **NOT READY — confidence 0.99.** V0.7 resolves M1, M2, and M4, but M3 remains partial: handoff reconciliation is pair-scoped while heartbeat expiry is context-scoped, so one partition pair can keep a context alive indefinitely while another pair never re-announces or reaps. OQ4 also retains the deleted 30-second handoff window, regressing Fable round-5’s inspection-constants repair. These are MATERIAL protocol inconsistencies. The LLP 0155 OQ9 and LLP 0055 owner spot-checks support the cited budget and multi-grant premises but supply no missing pair-liveness rule.
+
+2. **Round-6 resolution audit**:
+
+| Finding id | Status | Explanation (partial/unresolved only) |
+| --- | --- | --- |
+| Codex M1 | resolved | |
+| Codex M2 | resolved | |
+| Codex M3 | partial | Any well-formed message refreshes the context-wide heartbeat. Pair A can therefore keep the context live while pair B remains unreconciled forever; B has no independent 45-second reap. |
+| Codex M4 | resolved | |
+| Suggestion 1 — boundary legs | resolved | |
+| Suggestion 2 — live-pair metrics | resolved | |
+| Suggestion 3 — timeout branch | partial | S1 adds the branch but assumes a silent pair receives a liveness reap that §D2 defines only for the whole context. |
+| Fable R5 C1 — released-registration window | resolved | |
+| Fable R5 C2 — refusal granularity | resolved | |
+| Fable R5 C3 — inspection constants | partial | OQ4 still declares a 30-second handoff constant, while `handoffWindowMs` was correctly removed from inspection. |
+| Fable R5 C4 — reason precedence | resolved | |
+| Fable R5 C5 — `in` operand | resolved | |
+
+3. **New concerns** —
+
+1. **MATERIAL — The claimed 45-second handoff bound is false for multi-partition contexts.** Because heartbeat refresh is context-wide, repeated re-announcements for one pair prevent the context from being reaped even if another persisted pair never re-announces. Suppression can therefore remain active indefinitely, contradicting §D2 and S1. The protocol needs pair-level heartbeat/reap semantics or another affirmative, fail-closed reconciliation mechanism.
+
+2. **MATERIAL — OQ4 still lists the removed “30-second handoff window.”** This contradicts the normative no-timeout rule and falsely claims that every listed constant surfaces in inspection. It also reopens the exact safety ambiguity M3 was meant to close.
+
+3. **NIT — The overflow paragraph calls the durable-registration residue “not self-healing, like the reaped-context window,” while the context window was explicitly defined as self-healing.** Remove the comparison or state that only boundedness is shared.
+
+4. **Suggestions** (non-blocking).
+
+- Split S1’s memory-boundary coverage into explicitly named release-before-first-forward and previously-consumed-forward schedules.
+- Clarify the earlier “same validation for both” sentence with the release-of-unknown partition-only exception already defined later.
+
+5. **Recommended next step**.
+
+Keep LLP 0166 in Draft. Define pair-level reconciliation expiry and exercise the case where pair A continues heartbeating while pair B remains silent; remove the stale OQ4 handoff constant; then run one final micro-delta round over §D2 liveness/handoff, S1, and OQ4.

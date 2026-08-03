@@ -6,7 +6,26 @@
 Live queries, Relational queries, Optimistic updates, Auth, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v0.7, round-6 fixes: Codex round 6 returned
+**Revised:** 2026-08-03 (v0.8, round-7 fixes: Fable round 7 returned
+**READY** (0.87, two editorial NITs); Codex round 7 returned NOT READY
+(2 MATERIAL, 1 NIT), catching a real pair-liveness hole the READY missed.
+Applied all: handoff reconciliation gains **pair-level deadlines** — each
+roster pair must re-announce within the 45-second expiry of
+`WriterHelloV1` or is affirmatively reaped *as a pair*, even while its
+context stays live through another pair's traffic (full-set announce
+semantics make a pair's non-re-announcement an affirmative absence
+signal), so suppression is genuinely bounded and one partition can never
+hold the store's lifecycle hostage; ordinary (non-handoff) liveness
+remains context-scoped, and the split is stated; the phantom "30-second
+handoff window" is deleted from OQ4 with a parenthetical noting the
+suppression bound is the heartbeat expiry, not an independent constant;
+the overflow simile is restructured ("unlike the reaped-context window,
+not self-healing"); the "same validation for both" sentence names the
+release-of-unknown partition-only exception up front; S1 names the
+release-before-first-forward and previously-consumed-forward schedules
+separately, updates the partial-handoff leg to the pair-deadline reap
+(pair A heartbeating while pair B stays silent), and adds the
+129th-live-pair ceiling leg.) 2026-08-03 (v0.7, round-6 fixes: Codex round 6 returned
 NOT READY (4 MATERIAL); the Fable round-6 run was interrupted before
 producing a review and none is recorded. Applied all four: the overflow
 analysis is corrected — the release-before-first-forward residue depends
@@ -674,7 +693,9 @@ Rules, normative:
   non-writer context rides `RegisterForwardV1`, and release rides
   `RegisterReleaseV1` (or the writer-local API when the caller is the
   writer); both carry the caller's partition digest, and the writer
-  validates the same way for both: the named registration's address must
+  validates the same way for both — with one stated exception, a release
+  naming an unknown id, whose validation is necessarily partition-only
+  (detailed below): the named registration's address must
   belong to that partition, and the partition's authority state must
   admit the commit — a partition mismatch, or a partition with a pending
   store-wide barrier or blocking disposition, refuses with a stable code
@@ -713,8 +734,8 @@ Rules, normative:
   additionally requires its consumed-request entry to have evicted. The
   residue in either shape is a re-created durable registration that is
   inspection-visible and recoverable by an ordinary release — bounded
-  and recoverable, though not self-healing, like the reaped-context
-  window. All broker identifiers (`contextId`, `requestId`,
+  and recoverable like the reaped-context window, though, unlike that
+  window, not self-healing. All broker identifiers (`contextId`, `requestId`,
   `registrationId`) are at most 64 UTF-8 bytes, refusal codes are
   registered stable codes, and any broker message over 256 KiB refuses —
   broker state and traffic are byte-bounded, not only count-bounded.
@@ -733,16 +754,27 @@ Rules, normative:
   provisional under OQ4) — plus the reaped-context memory, the
   consumed-request memory, and the released-registration memory, and
   rebuilds the volatile ledger from re-announcements. Until
-  reconciliation completes — **every roster pair** re-announces or its
-  context is **affirmatively reaped by the liveness rule** — **every
+  reconciliation completes — **every roster pair** re-announces or is
+  **affirmatively reaped** — **every
   demand-derived transition is suppressed**: no
   release-grace starts, no grace GC, no budget-pressure compaction of
   any step; a commit that would exceed budget during suppression refuses
-  instead. There is no independent timeout exit: a silent pair keeps
-  suppression until its heartbeat expiry reaps it, so suppression is
-  bounded by the 45-second expiry from `WriterHelloV1` and can never end
-  while a live pair's demands are absent from the rebuilt ledger. A
-  release whose grace would
+  instead. Reconciliation reaping is **pair-scoped**, deliberately
+  unlike ordinary liveness: each roster pair carries its own deadline —
+  the heartbeat expiry (45 seconds) from `WriterHelloV1` — and a pair
+  that has not re-announced by its deadline is reaped *as a pair*, its
+  volatile demands released, even while its context remains live through
+  another pair's traffic. This is sound because announces are full-set
+  per pair: a live context re-announces every pair it still demands, so
+  a pair left silent through the whole window is an affirmative absence
+  signal, not an unknown. There is no independent timeout exit and no
+  context-wide hostage state: suppression is bounded by the 45-second
+  expiry from `WriterHelloV1` and can never end while a live pair's
+  demands are absent from the rebuilt ledger. (Outside handoff,
+  liveness stays context-scoped as defined above — pair-scoped deadlines
+  exist only for reconciliation, where the new writer cannot otherwise
+  distinguish a still-demanded pair from a departed one.) A release
+  whose grace would
   begin during suppression anchors its grace clock at suppression end.
 - **Per-carrier qualification and honest degradation.** The browser
   carrier qualifies the protocol over its cross-tab channel plus Web
@@ -1730,16 +1762,21 @@ store-policy oracles:
    partition, so the later-arriving original forward refuses
    (release-before-first-forward reordering) while a forward for the
    same id in a *different* partition is unaffected; a refused release
-   leaves no tombstone; the exact tombstone and consumed-outcome memory
-   boundaries are exercised (the 1,024th entry still refuses/replays,
-   the 1,025th-oldest has evicted and the corpus verifies the documented
-   residue behavior rather than assuming it); a
+   leaves no tombstone; the two overflow schedules are exercised by
+   name at the exact 1,024/1,025 boundaries —
+   *release-before-first-forward* (the tombstone alone governs: at the
+   1,024th tombstone the delayed forward still refuses; once the
+   1,025th-oldest tombstone evicts, the corpus verifies the documented
+   recreate-and-recover residue) and *previously-consumed-forward
+   replay* (requires the consumed-outcome entry evicted too); a
    stale-`writerGeneration` forward refuses; requestId
    uniqueness is per-context (two contexts reusing the same requestId do
-   not collide); a partial multi-partition handoff — one pair
-   re-announced, the other not — keeps suppression active until the
-   silent pair re-announces or its 45-second liveness reap fires (no
-   timeout ends suppression early); a malformed announce (one bad entry)
+   not collide); a partial multi-partition handoff — pair A re-announcing
+   and heartbeating while pair B stays silent — keeps suppression active
+   until pair B re-announces or its own pair deadline (the 45-second
+   expiry from `WriterHelloV1`) reaps it as a pair, with the context
+   remaining live and pair A's demands intact; the 129th live pair
+   refuses and runs volatile-online; a malformed announce (one bad entry)
    applies nothing and consumes no revision; a delayed announce from a
    reaped `contextId` in memory is ignored after writer restart;
    `retentionRequest` downgrade to effective `"none"` compacts the
@@ -1892,16 +1929,19 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
 3. **A `warm` sync class for idle registrations** — standing subscriptions
    for preloaded-but-unmounted queries; needs fan-out cost evidence before
    any obligation is created.
-4. **Budget, TTL, window, cap, and cadence values** — the v1 provisional
+4. **Budget, TTL, cap, and cadence values** — the v1 provisional
    constants (32 MiB / 256 records / 1,024 fragments materialization
    envelope; 512 durable registrations at 16 KiB each; 14-day grace;
-   15/45-second heartbeat/expiry; 30-second handoff window; 4 concurrent
+   15/45-second heartbeat/expiry; 4 concurrent
    establishments; 64 live contexts / 128 live pairs / 256
    reaped-context memory / 1,024 consumed-request outcomes / 1,024
    released-registration tombstones / 64-byte identifiers / 256 KiB
    broker messages) await LLP 0155 OQ9's frozen Triage/Fleet custody and
    hydration budgets for their first measured revision; they surface in
-   the policy record so revision is observable.
+   the policy record so revision is observable. (The handoff-suppression
+   bound is deliberately not an independent constant: it is the
+   heartbeat expiry, applied per roster pair during reconciliation —
+   §D2.)
 5. **Contract-arm convergence** (LLP 0155 OQ16) — identical materialization
    contract or deliberately narrower profile; and the prerequisite
    question of whether/when the lease store moves into the shared
@@ -1936,9 +1976,10 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
 
 ## Status
 
-Draft, v0.7 — authored 2026-08-03 by the wave-3 Track A session under the
+Draft, v0.8 — authored 2026-08-03 by the wave-3 Track A session under the
 commission in `issues/20260803-0155-move2-spec-commission.md`; revised
-six times across 2026-08-03 after review rounds 1–6 (eleven reviews, all
+seven times across 2026-08-03 after review rounds 1–7 (thirteen reviews:
+Fable round 7 READY, all others
 NOT READY; every finding applied — see the Revised header; artifacts in
 `llp/reviews/0166-local-persistent-store.{fable,codex}.md`, including the
 restored round-2 Fable body with its dated provenance-correction note).

@@ -621,3 +621,69 @@ One more micro-delta spot-repair pass: concerns 1–3 are each sentence-scale wi
 The round-6 Fable review run over ac606e5c (v0.6) was interrupted before
 producing any assessment; per LLP 0005, no review is recorded and none is
 counted. The Fable family's next actual review is Round 7.
+
+---
+
+## Round 7 — 2026-08-03
+
+**Reviewer family:** Anthropic Claude (Fable 5)
+**Provider / runtime:** Claude Code `general-purpose` subagent, model
+`claude-fable-5`
+**Date:** 2026-08-03
+**Redacted:** no
+**Method:** fresh non-author Fable session (subagent with no authoring
+context) over the working tree at b58b3c5f (v0.7); micro-delta round
+confined to the round-6 repairs, plus re-verification of the Fable
+round-5 findings across the intervening revisions. Orchestrated by the
+authoring session, which does not count as a reviewer; recorded verbatim
+below.
+
+---
+
+All verification is complete. Here is my round-7 review.
+
+---
+
+# LLP 0166 v0.7 — Round 7 review (Fable family)
+
+**Reviewer:** fresh non-author Fable session over the worktree at `/Users/ccheever/projects/snapback-0166`; micro-delta round confined to the round-6 repairs, plus re-verification of the Fable round-5 findings. Owner facts: the v0.7-changed text relies on no owner fact not already verified in prior rounds (the tombstone/pair machinery is document-internal; the multi-grant multi-partition premise and the LLP 0043/0053/0157 boundaries are unchanged from v0.6); no new spot-checks were required.
+
+1. **Overall assessment**: **READY — confidence 0.87.** V0.7 is a complete and correct application of Codex round 6. The overflow analysis is now the true one — the release-before-first-forward residue is stated as depending only on tombstone eviction, with the two-memory condition correctly confined to replay of a previously consumed forward, and S1 no longer repeats the false bound and instead exercises the exact 1,024/1,025 boundaries; tombstones are keyed `(authorityPartitionDigest, registrationId)`, created only atomically with a successful `released` outcome (refused releases leave none), release-of-unknown is honestly partition-only, and the no-cross-partition-preemption property both follows from the key shape and is oracle-backed in S1; the unsafe 30-second suppression exit is gone from the normative text — suppression ends only on per-pair re-announce or affirmative liveness reap, bounded by the 45-second expiry from `WriterHelloV1`, with the partial-handoff/no-early-timeout S1 leg present; and pair accounting closes (64-context/128-pair ceilings with refuse-and-run-volatile, `livePairCount`/`livePairCeiling`, `identifierByteCeiling`, `messageByteCeiling` in inspection, and the §D3 `storeMeta` bounds sentence enumerating every broker ceiling). All five Fable round-5 findings remain resolved in v0.7, with M1's resolution actually strengthened by the corrected analysis. What remains is two genuine NITs — a stale "30-second handoff window" phrase surviving in OQ4's constants list (the only reference left to the removed mechanism) and one ambiguous simile in the rewritten overflow sentence — both single-phrase repairs with no implementable divergence: §D2's normative prohibition, the closed inspection record, and S1's timeout leg are unambiguous and mutually consistent. Under the stated bar — no BLOCKING, no unresolved MATERIAL from any round, remainder honestly NIT-class — this document is READY.
+
+2. **Round-6 resolution audit**
+
+| Finding id | Status | Explanation |
+| --- | --- | --- |
+| Codex R6 M1 (overflow analysis false) | resolved | §D2 (`llp/0166-local-persistent-store.spec.md:708-717`): residue "depends **only on the tombstone window**"; two-memory condition confined to replay of a previously consumed forward; S1 (`:1733-1736`) exercises the 1,024th/1,025th-oldest boundaries and verifies documented residue behavior rather than assuming it. |
+| Codex R6 M2 (release-of-unknown / tombstone keying) | resolved | Tombstones keyed `(authorityPartitionDigest, registrationId)` (`:694-700`), created only atomically with a successful `released` outcome; refused releases leave none (`:696-697`, `:1732-1733`); release-of-unknown validation explicitly partition-only with its rationale (`:698-699`); different-partition forwards unaffected — no preemption (`:703-705`), with the S1 same-id-different-partition leg (`:1730-1732`). |
+| Codex R6 M3 (timeout ends suppression early) | resolved | The 30-second exit is removed from §D2: "There is no independent timeout exit" (`:738-744`), suppression bounded by the 45-second expiry from `WriterHelloV1`; S1 partial-handoff leg pins no-early-timeout (`:1738-1742`); `heartbeatExpiryMs` is annotated as the suppression bound (`:1168`). One stale *reference* to the removed mechanism survives in OQ4 — see new concern 1 (NIT; the normative repair itself is complete). |
+| Codex R6 M4 (pair/inspection bounds not total) | resolved | 64-context/128-pair roster ceilings with refuse-and-run-volatile (`:730-733`); `livePairCount`/`livePairCeiling` beside the context metrics (`:1155-1156`); `identifierByteCeiling`/`messageByteCeiling` in the `constants` object (`:1170-1171`); §D3's `storeMeta` bounds sentence enumerates all broker ceilings (`:922-926`). |
+| Codex R6 suggestion 1 (boundary legs) | applied | S1 `:1733-1736`. |
+| Codex R6 suggestion 2 (livePair metrics) | applied | `:1155-1156`. |
+| Codex R6 suggestion 3 (S1 timeout branch) | applied | `:1738-1742`. |
+
+**Fable round-5 findings, re-verified in v0.7** (all were addressed in v0.6; this confirms they survive the v0.7 edits):
+
+| Finding | Status | Explanation |
+| --- | --- | --- |
+| F-R5 M1 (no-resurrection guarantee outran bounded state) | resolved | The bounded released-registration memory (1,024, OQ4-provisional) exists with overflow honesty; v0.7's corrected analysis (`:708-717`) supersedes v0.6's incorrect two-memory bound, so the resolution is now also *true*, not just present. |
+| F-R5 M2 (entry-level vs whole-message refusal) | resolved | The announce bullet reads "a cross-partition demand refuses the whole message (the message-level rule above)" (`:660-661`); grep confirms no surviving "refuses the entry" outside the header's historical changelog. |
+| F-R5 M3 (constants-surface claim false) | resolved | All broker memory counts/ceilings, `perRecordByteCeiling`, and the `constants` cadence object now exist in `StorePolicyInspectionV1` (`:1147-1172`); every OQ4-listed constant surfaces except the phantom 30-second value, which should be deleted, not surfaced (new concern 1). |
+| F-R5 N4 (retaining-reason precedence) | resolved | Fixed precedence `registrations > release-grace > safety-blocker > instance-bookkeeping` with the `"none"`-pinned elapsed-deadline transient (`:1197-1205`). |
+| F-R5 N5 (`in` operand formally non-scalar) | resolved | "the `in` container is the **sole permitted array operand**", per-element scalar rule (`:1400-1407`); S6 exercises the non-scalar-element-refuses / container-admitted split (`:1811-1813`). |
+| F-R5 suggestions ×4 | applied | Additive inspection direction taken and completed in v0.7; overflow phrasing mirrored with S1 coverage; transient reason folded into the precedence sentence; malformed-announce S1 leg present (`:1742-1743`). |
+
+3. **New concerns**
+
+1. **NIT — OQ4 still lists the removed "30-second handoff window" among the v1 provisional constants** (`llp/0166-local-persistent-store.spec.md:1898`). This is the only surviving reference to the mechanism v0.7 removed: §D2 now forbids any independent timeout exit, the inspection `constants` object correctly has no field for it, and no conforming implementation can diverge — but OQ4's closing sentence ("they surface in the policy record so revision is observable") is false for this one phantom value, and enumerating it as a dated-amendable tunable quietly keeps the removed mechanism nameable. Fix: delete the phrase "30-second handoff window;" (the suppression bound is already the listed 45-second expiry, as `heartbeatExpiryMs`'s comment records).
+
+2. **NIT — the rewritten overflow sentence's trailing simile is misattachable** (`:715-717`): "bounded and recoverable, though not self-healing, like the reaped-context window" grammatically lets "like the reaped-context window" attach to "not self-healing," contradicting that bullet's own "a bounded, self-healing window" (`:649-651`). Intended reading is clearly "bounded and recoverable like the reaped-context window, though — unlike it — not self-healing." One word ("unlike the reaped-context window" after "not self-healing," or a comma-restructure) closes it.
+
+4. **Suggestions** (non-blocking)
+
+- When deleting OQ4's phantom constant, consider a parenthetical in OQ4 noting the handoff-suppression bound is not an independent constant but the heartbeat expiry — it preempts a future reader "restoring" the missing value.
+- S1's pair-ceiling behavior (the 129th live pair refusing and running volatile-online) is normative at `:730-733` but has no explicit oracle leg; the existing cap-leg pattern (513th registration) extends naturally if the author wants the ceiling oracle-backed.
+
+5. **Recommended next step**
+
+Land the two one-phrase NIT repairs (OQ4 phrase deletion; the "unlike" restructure) as editorial fixes — no re-review round is warranted for them. This is the Fable family's READY; per the loop's convergence rule, pair it with the Codex family's round-7 verdict: if Codex also returns READY on this micro-delta, the loop has converged and LLP 0130 SD-4's standing rule (or Charlie's decision) governs acceptance, which then lands the four §D7 carried amendments and the three boundary notes in their owning documents.
