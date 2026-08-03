@@ -1668,33 +1668,43 @@ impl<'a> IbexHostContext<'a> {
                         )
                     })?;
 
-                if let SequenceScopeAccess::Membership {
-                    declaration: membership_id,
-                    roles,
-                } = &declaration.scope_access
-                {
-                    let Some(principal) = self.input.auth.user_id.clone() else {
-                        return Err(sequence_parent_unavailable());
-                    };
-                    let (membership_table, membership) = crate::membership_rules::find_declaration(
-                        self.db().schema(),
-                        membership_id,
-                    )
-                    .map(|(table, membership)| (table.name.clone(), membership.clone()))
-                    .ok_or_else(sequence_parent_unavailable)?;
-                    let outcome = crate::membership_rules::membership_read(
-                        self.db(),
-                        &membership,
-                        &membership_table,
-                        &principal,
-                        crate::membership_rules::ResourceBinding::Fixed(Value::String(
-                            scope_row_id.clone(),
-                        )),
+                match &declaration.scope_access {
+                    SequenceScopeAccess::Membership {
+                        declaration: membership_id,
                         roles,
-                    )?;
-                    self.push_read_dependency(outcome.dependency);
-                    if !outcome.present {
-                        return Err(sequence_parent_unavailable());
+                    } => {
+                        let Some(principal) = self.input.auth.user_id.clone() else {
+                            return Err(sequence_parent_unavailable());
+                        };
+                        let (membership_table, membership) =
+                            crate::membership_rules::find_declaration(
+                                self.db().schema(),
+                                membership_id,
+                            )
+                            .map(|(table, membership)| (table.name.clone(), membership.clone()))
+                            .ok_or_else(sequence_parent_unavailable)?;
+                        let outcome = crate::membership_rules::membership_read(
+                            self.db(),
+                            &membership,
+                            &membership_table,
+                            &principal,
+                            crate::membership_rules::ResourceBinding::Fixed(Value::String(
+                                scope_row_id.clone(),
+                            )),
+                            roles,
+                        )?;
+                        self.push_read_dependency(outcome.dependency);
+                        if !outcome.present {
+                            return Err(sequence_parent_unavailable());
+                        }
+                    }
+                    SequenceScopeAccess::Public(profile) if profile == "public.v1" => {}
+                    SequenceScopeAccess::ExistingOwner(_) | SequenceScopeAccess::Public(_) => {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+                            "runtime",
+                            "ctx.sequence.allocate received a non-handler sequence access profile",
+                        ));
                     }
                 }
 
@@ -4119,6 +4129,11 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED"
         | "SNAPBACK_OVERLOADED"
         | "SNAPBACK_VALUE_TOO_LARGE"
+        // @ref LLP 0135#3-capability-ids-and-diagnostics — sequence runtime
+        // outcomes remain typed across both handler-envelope decoders.
+        | "SNAPBACK_SEQUENCE_EXHAUSTED"
+        | "SNAPBACK_SEQUENCE_UNDECLARED"
+        | "SNAPBACK_RELATION_PARENT_UNAVAILABLE"
         // LLP 0051 D1: ledger divergence and the ledger-length limit are
         // typed results, not generic handler failures.
         | "SNAPBACK_CTX_LEDGER_EXHAUSTED"
@@ -4528,6 +4543,18 @@ mod parse_handler_output_tests {
             parse(r#"{"r":{"__snapbackOk":false,"code":"SNAPBACK_VALUE_TOO_LARGE"}}"#),
             Err("SNAPBACK_VALUE_TOO_LARGE".to_owned())
         );
+        for code in [
+            "SNAPBACK_SEQUENCE_EXHAUSTED",
+            "SNAPBACK_SEQUENCE_UNDECLARED",
+            "SNAPBACK_RELATION_PARENT_UNAVAILABLE",
+        ] {
+            assert_eq!(
+                parse(&format!(
+                    r#"{{"r":{{"__snapbackOk":false,"code":"{code}"}}}}"#
+                )),
+                Err(code.to_owned()),
+            );
+        }
         assert_eq!(
             parse(r#"{"r":{"__snapbackOk":false,"code":"SNAPBACK_ACTION_TIMEOUT"}}"#),
             Err("SNAPBACK_ACTION_TIMEOUT".to_owned())

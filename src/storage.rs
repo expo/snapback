@@ -893,6 +893,11 @@ pub struct LocalDatabase {
     /// the brownfield rows; all shared application writers consult this map.
     /// @ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02
     order_field_bounds: Arc<BTreeMap<(String, String), u64>>,
+    /// Reconciled per-function sequence declarations for the active function
+    /// generation. Host plans use this immutable map to resolve the counter's
+    /// scope table; handler calls retain their exact function-local access
+    /// proof in the runtime context.
+    sequence_declarations: Arc<BTreeMap<String, crate::manifest::SequenceDeclaration>>,
 }
 
 fn reset_and_seed_transaction(
@@ -1688,6 +1693,7 @@ impl LocalDatabase {
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
             order_field_bounds: Arc::new(BTreeMap::new()),
+            sequence_declarations: Arc::new(BTreeMap::new()),
         };
         db.configure(false)?;
         db.create_infra()?;
@@ -1725,6 +1731,7 @@ impl LocalDatabase {
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
             order_field_bounds: Arc::new(BTreeMap::new()),
+            sequence_declarations: Arc::new(BTreeMap::new()),
         };
         db.configure(true)?;
         db.create_infra()?;
@@ -1783,7 +1790,7 @@ impl LocalDatabase {
             let backup = rusqlite::backup::Backup::new(&self.conn, &mut conn)?;
             backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
         }
-        Ok(Self {
+        let restored = Self {
             conn,
             path: None,
             schema: self.schema.clone(),
@@ -1794,7 +1801,14 @@ impl LocalDatabase {
             app_state_graph_claimed: false,
             projections: Arc::new(Vec::new()),
             order_field_bounds: self.order_field_bounds.clone(),
-        })
+            sequence_declarations: self.sequence_declarations.clone(),
+        };
+        validate_sequence_activation(
+            &restored.conn,
+            &restored.schema,
+            restored.sequence_declarations.as_ref(),
+        )?;
+        Ok(restored)
     }
 
     pub(crate) fn install_authorization_interlock(
@@ -2328,6 +2342,8 @@ impl LocalDatabase {
                     "error": error.to_string(),
                 }))
             })?;
+            validate_retained_sequence_allocations(&output.settlement_sequence_allocations)
+                .map_err(|error| error.with_detail("clientMutationId", identity.id.clone()))?;
             debug_assert_eq!(output.version, output_version);
             Ok(Some(output))
         })
@@ -3566,11 +3582,94 @@ impl LocalDatabase {
         Ok(())
     }
 
+    /// Pure activation preflight used before projection rebuilds. Missing
+    /// markers are provisionally admissible only for an already-active
+    /// predecessor scope or a physically empty table; the final installer
+    /// persists that authority transactionally after all other preflight work.
+    pub(crate) fn validate_sequence_declaration_preflight(
+        &self,
+        declarations: &BTreeMap<String, crate::manifest::SequenceDeclaration>,
+        trusted_active_generation: bool,
+    ) -> SnapbackResult<()> {
+        let mut predecessor_tables =
+            sequence_scope_tables_from_declarations(self.sequence_declarations.as_ref());
+        let successor_tables = sequence_scope_tables_from_declarations(declarations);
+        if trusted_active_generation {
+            predecessor_tables.extend(successor_tables.iter().copied());
+        }
+        for table in &successor_tables {
+            let enrolled = self
+                .conn
+                .query_row(
+                    "SELECT 1 FROM _snapback_sequence_scope_enrollments_v1 WHERE table_name = ?1",
+                    params![table],
+                    |_| Ok(()),
+                )
+                .optional()?
+                .is_some();
+            if !enrolled
+                && !predecessor_tables.contains(table)
+                && !schema_relation_parent_tables(&self.schema).contains(table)
+            {
+                let existing_rows = self.conn.query_row(
+                    &format!("SELECT COUNT(*) FROM {}", quote_ident(table)?),
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )?;
+                if existing_rows != 0 {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
+                        "schema",
+                        "a newly enrolled sequence scope has pre-existing rows without reviewed backfill authority",
+                    )
+                    .with_details(json!({
+                        "parentTable": table,
+                        "existingRows": existing_rows,
+                        "enrollmentMarker": false,
+                    })));
+                }
+            }
+        }
+        self.validate_sequence_scope_activation(
+            &successor_tables.into_iter().map(ToOwned::to_owned).collect(),
+        )?;
+        validate_sequence_counter_rows(&self.conn, declarations)
+    }
+
     pub(crate) fn set_order_field_bounds(
         &mut self,
         bounds: BTreeMap<(String, String), u64>,
     ) {
         self.order_field_bounds = Arc::new(bounds);
+    }
+
+    pub(crate) fn install_sequence_declarations(
+        &mut self,
+        declarations: BTreeMap<String, crate::manifest::SequenceDeclaration>,
+        trusted_active_generation: bool,
+    ) -> SnapbackResult<()> {
+        let mut predecessor = self.sequence_declarations.as_ref().clone();
+        if trusted_active_generation {
+            predecessor.extend(declarations.clone());
+        }
+        let trusted_relation_parent_tables = schema_relation_parent_tables(&self.schema)
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect();
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        preflight_sequence_enrollments(
+            &tx,
+            &self.schema,
+            &trusted_relation_parent_tables,
+            &predecessor,
+            &declarations,
+        )?;
+        validate_sequence_activation(&tx, &self.schema, &declarations)?;
+        tx.commit()?;
+        self.sequence_declarations = Arc::new(declarations);
+        Ok(())
     }
 
     /// Execute a closed relational plan under `root-window-v1`.
@@ -4035,7 +4134,9 @@ impl LocalDatabase {
                 | MutationStep::Get { table, .. }
                 | MutationStep::AssertCurrentRelation { table, .. }
                 | MutationStep::AssertSourceChanged { table, .. } => Some(table.as_str()),
-                MutationStep::Guard { .. } | MutationStep::Let { .. } => None,
+                MutationStep::AllocateSequence { .. }
+                | MutationStep::Guard { .. }
+                | MutationStep::Let { .. } => None,
             };
             if let Some(target) = target {
                 touched_tables.insert(target.to_owned());
@@ -4065,6 +4166,7 @@ impl LocalDatabase {
         });
         let mut direct_bindings = direct_input.as_ref().map(|_| BTreeMap::new());
         let mut changes = Vec::new();
+        let mut sequence_allocation_facts = Vec::new();
         let mut read_dependencies: Vec<CapturedReadDependency> = Vec::new();
         // Every host-generated id in answer order — the IR half of the
         // ctx-answer ledger (LLP 0051 D1's `generatedIds`), reported by
@@ -4081,6 +4183,57 @@ impl LocalDatabase {
             check_live()?;
             let step_site = format!("plan/steps/{step_index}");
             match step {
+                MutationStep::AllocateSequence {
+                    counter,
+                    scope,
+                    into,
+                } => {
+                    let declaration = self
+                        .sequence_declarations
+                        .get(counter)
+                        .filter(|declaration| {
+                            matches!(
+                                declaration.scope_access,
+                                crate::manifest::SequenceScopeAccess::ExistingOwner(_)
+                            )
+                        })
+                        .ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_SEQUENCE_UNDECLARED",
+                                "runtime",
+                                "HostPlan names a sequence absent from the active function generation",
+                            )
+                        })?;
+                    let scope_row_id = expect_string(
+                        eval_expr(
+                            scope,
+                            input,
+                            &bindings,
+                            now_ms,
+                            Some(&next_id),
+                            &format!("{step_site}/allocate-sequence/scope"),
+                        )?,
+                        "sequence scope id",
+                    )?;
+                    let allocation = preview_sequence_allocation_on(
+                        &tx,
+                        &schema,
+                        counter,
+                        &declaration.scope_table,
+                        &scope_row_id,
+                    )?;
+                    apply_sequence_allocations_in_tx(
+                        &tx,
+                        &schema,
+                        std::slice::from_ref(&allocation),
+                    )?;
+                    let value = json!(allocation.value);
+                    bindings.insert(into.clone(), value.clone());
+                    if let Some(direct) = direct_bindings.as_mut() {
+                        direct.insert(into.clone(), value);
+                    }
+                    sequence_allocation_facts.push(allocation);
+                }
                 MutationStep::Insert {
                     table,
                     values,
@@ -4323,16 +4476,15 @@ impl LocalDatabase {
                         }
                         None => {
                             if let Some(code) = else_error {
-                                return Err(SnapbackError::error(
-                                    code.clone(),
-                                    "handler",
+                                return Err(mutation_plan_refusal(
+                                    code,
                                     format!("get on {} {id} found no row", table.name),
-                                )
-                                .with_details(json!({
-                                    "table": table.name,
-                                    "id": id,
-                                    "step": "Get",
-                                })));
+                                    json!({
+                                        "table": table.name,
+                                        "id": id,
+                                        "step": "Get",
+                                    }),
+                                ));
                             }
                             bindings.insert(bind_as.clone(), Value::Null);
                             if let Some(direct) = direct_bindings.as_mut() {
@@ -4418,12 +4570,11 @@ impl LocalDatabase {
                     .iter()
                     .all(crate::value_expr::truthy);
                     if !admitted {
-                        return Err(SnapbackError::error(
-                            else_error.clone(),
-                            "handler",
+                        return Err(mutation_plan_refusal(
+                            else_error,
                             "mutation guard failed",
-                        )
-                        .with_details(json!({ "step": "Guard" })));
+                            json!({ "step": "Guard" }),
+                        ));
                     }
                 }
                 MutationStep::Let { bind_as, expr } => {
@@ -4726,7 +4877,7 @@ impl LocalDatabase {
             },
             now_ms,
         )?;
-        if !changes.is_empty() {
+        if !changes.is_empty() || !sequence_allocation_facts.is_empty() {
             set_version(&tx, next_version)?;
         }
 
@@ -4764,7 +4915,7 @@ impl LocalDatabase {
         plan_ids.borrow().ensure_exact_consumption()?;
         let generated_ids = plan_ids.borrow().generated.clone();
 
-        let version = if changes.is_empty() {
+        let version = if changes.is_empty() && sequence_allocation_facts.is_empty() {
             current_version
         } else {
             next_version
@@ -4795,7 +4946,7 @@ impl LocalDatabase {
                     accepted: settlement_time_within_bound && sink_reached,
                 }
             }),
-            settlement_sequence_allocations: Vec::new(),
+            settlement_sequence_allocations: sequence_allocation_facts.clone(),
         };
         let authorization_predecessor = if apply {
             auth_stream::read_authorization_version_on(&tx)?
@@ -4860,7 +5011,7 @@ impl LocalDatabase {
                 // note's callee/producer scoping).
                 job_enqueues: Vec::new(),
                 job_changes: Vec::new(),
-                sequence_allocations: Vec::new(),
+                sequence_allocations: sequence_allocation_facts,
                 authorization,
             },
             generated_ids,
@@ -5682,6 +5833,12 @@ impl LocalDatabase {
               _snapback_relation_incarnations_v1_active
               ON _snapback_relation_incarnations_v1(table_name, row_id)
               WHERE active = 1;
+            -- Enrollment is migration authority, distinct from incidental
+            -- incarnation rows produced by the universal central writer.
+            CREATE TABLE IF NOT EXISTS _snapback_sequence_scope_enrollments_v1 (
+              table_name TEXT PRIMARY KEY,
+              enrolled_by TEXT NOT NULL
+            );
             -- @ref LLP 0135#11-counter-identity-and-scope — counter state is
             -- protected and keyed by the complete scope-incarnation identity;
             -- delete/recreate therefore starts a distinct counter at 1.
@@ -13277,6 +13434,24 @@ impl MembershipPlan {
     }
 }
 
+fn mutation_plan_refusal(
+    code: &str,
+    message: impl Into<String>,
+    details: Value,
+) -> SnapbackError {
+    // A generated WWA scope read deliberately collapses a missing parent and
+    // a present-but-hidden parent to one byte-identical public refusal. The
+    // builder assigns this code to both the Get and owner Guard; do not leak
+    // which step failed through the message or details carrier.
+    //
+    // @ref LLP 0135#17-allocation-authority-and-information-flow
+    if code == "SNAPBACK_RELATION_PARENT_UNAVAILABLE" {
+        return SnapbackError::error(code, "handler", "relation parent unavailable")
+            .with_details(json!({ "step": "ScopeAuthority" }));
+    }
+    SnapbackError::error(code, "handler", message).with_details(details)
+}
+
 fn membership_refusal(code: &str, message: impl Into<String>) -> SnapbackError {
     SnapbackError::error(code, "auth", message)
 }
@@ -15982,6 +16157,325 @@ fn deactivate_relation_incarnation(
     Ok(())
 }
 
+/// Read the one allocation that a generated host plan will advance inside its
+/// already-open immediate transaction. Unlike the handler path, there is no
+/// await window here: preview and compare-and-swap both happen on `tx`.
+///
+/// @ref LLP 0135#12-allocation-surfaces — generated write-with-activity plans
+///   allocate only after their admitted existing-owner proof and commit the
+///   counter beside the application writes.
+fn preview_sequence_allocation_on(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    counter: &str,
+    scope_table: &str,
+    scope_row_id: &str,
+) -> SnapbackResult<SequenceAllocationFact> {
+    let scope = schema_table(schema, scope_table)?;
+    let scope_exists = tx
+        .query_row(
+            &format!("SELECT 1 FROM {} WHERE _id = ?1", quote_ident(&scope.name)?),
+            params![scope_row_id],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    let scope_incarnation = tx
+        .query_row(
+            "SELECT incarnation
+               FROM _snapback_relation_incarnations_v1
+              WHERE table_name = ?1 AND row_id = ?2 AND active = 1",
+            params![scope_table, scope_row_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    if !scope_exists || scope_incarnation.is_none() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_RELATION_PARENT_UNAVAILABLE",
+            "storage",
+            "relation parent is missing or inactive",
+        ));
+    }
+    let scope_incarnation = scope_incarnation.expect("checked above");
+    let stored = tx
+        .query_row(
+            "SELECT next_value
+               FROM _snapback_sequence_counters_v1
+              WHERE counter_name = ?1
+                AND scope_table = ?2
+                AND scope_row_id = ?3
+                AND scope_incarnation = ?4",
+            params![counter, scope_table, scope_row_id, scope_incarnation],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()?
+        .unwrap_or(1);
+    let value = u64::try_from(stored).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_SEQUENCE_DECLARATION_INVALID",
+            "storage",
+            "sequence counter state is outside the non-negative integer domain",
+        )
+    })?;
+    if value > SEQUENCE_MAX_SAFE_INTEGER {
+        return Err(SnapbackError::error(
+            "SNAPBACK_SEQUENCE_EXHAUSTED",
+            "storage",
+            "sequence counter has exhausted the JavaScript-safe integer domain",
+        ));
+    }
+    Ok(SequenceAllocationFact {
+        counter: counter.to_owned(),
+        scope_table: scope_table.to_owned(),
+        scope_row_id: scope_row_id.to_owned(),
+        scope_incarnation,
+        value,
+    })
+}
+
+fn sequence_scope_tables_from_declarations(
+    declarations: &BTreeMap<String, crate::manifest::SequenceDeclaration>,
+) -> BTreeSet<&str> {
+    declarations
+        .values()
+        .map(|declaration| declaration.scope_table.as_str())
+        .collect()
+}
+
+pub(super) fn schema_relation_parent_tables(schema: &SchemaManifest) -> BTreeSet<&str> {
+    schema
+        .tables
+        .iter()
+        .flat_map(|table| table.fields.iter())
+        .filter_map(|field| match &field.field_type {
+            FieldType::RelationIncarnation { parent_table, .. } => Some(parent_table.as_str()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Establish durable adoption authority for function-declared sequence scope
+/// tables. A table already participating in the in-memory predecessor may be
+/// grandfathered during this additive migration; a genuinely new scope can
+/// auto-enroll only while physically empty. Incidental incarnation rows from
+/// ordinary writes never constitute reviewed adoption authority.
+///
+/// @ref LLP 0135#11-counter-identity-and-scope — brownfield sequence scopes
+///   require a reviewed enrollment marker before activation.
+pub(super) fn preflight_sequence_enrollments(
+    tx: &Transaction<'_>,
+    successor_schema: &SchemaManifest,
+    trusted_relation_parent_tables: &BTreeSet<String>,
+    predecessor: &BTreeMap<String, crate::manifest::SequenceDeclaration>,
+    successor: &BTreeMap<String, crate::manifest::SequenceDeclaration>,
+) -> SnapbackResult<()> {
+    let predecessor_tables = sequence_scope_tables_from_declarations(predecessor);
+    let successor_tables = sequence_scope_tables_from_declarations(successor);
+    for table in &successor_tables {
+        schema_table(successor_schema, table)?;
+        let enrolled = tx
+            .query_row(
+                "SELECT 1 FROM _snapback_sequence_scope_enrollments_v1 WHERE table_name = ?1",
+                params![table],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some();
+        if enrolled {
+            continue;
+        }
+        let existing_rows = tx.query_row(
+            &format!("SELECT COUNT(*) FROM {}", quote_ident(table)?),
+            [],
+            |row| row.get::<_, i64>(0),
+        )?;
+        let enrolled_by = if predecessor_tables.contains(table) {
+            "predecessor-function-manifest"
+        } else if trusted_relation_parent_tables.contains(*table) {
+            "relation-manifest"
+        } else if existing_rows == 0 {
+            "empty-table"
+        } else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
+                "schema",
+                "a newly enrolled sequence scope has pre-existing rows without reviewed backfill authority",
+            )
+            .with_details(json!({
+                "parentTable": table,
+                "existingRows": existing_rows,
+                "enrollmentMarker": false,
+            })));
+        };
+        tx.execute(
+            "INSERT INTO _snapback_sequence_scope_enrollments_v1(table_name, enrolled_by)
+             VALUES(?1, ?2)",
+            params![table, enrolled_by],
+        )?;
+    }
+
+    let mut statement =
+        tx.prepare("SELECT table_name FROM _snapback_sequence_scope_enrollments_v1")?;
+    let existing = statement
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?;
+    drop(statement);
+    for table in existing {
+        if !successor_tables.contains(table.as_str()) {
+            tx.execute(
+                "DELETE FROM _snapback_sequence_scope_enrollments_v1 WHERE table_name = ?1",
+                params![table],
+            )?;
+        }
+    }
+    Ok(())
+}
+
+/// Validate both directions of current scope/incarnation state plus every
+/// protected counter row against the exact active function declaration set.
+/// This runs at activation and detached restore; removed or retargeted
+/// counters require an explicit reviewed migration and cannot be re-adopted.
+pub(super) fn validate_sequence_activation(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    declarations: &BTreeMap<String, crate::manifest::SequenceDeclaration>,
+) -> SnapbackResult<()> {
+    for table in sequence_scope_tables_from_declarations(declarations) {
+        schema_table(schema, table)?;
+        let enrolled = conn
+            .query_row(
+                "SELECT 1 FROM _snapback_sequence_scope_enrollments_v1 WHERE table_name = ?1",
+                params![table],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some();
+        if !enrolled {
+            return Err(SnapbackError::error(
+                "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
+                "schema",
+                "sequence scope lacks a reviewed enrollment marker",
+            )
+            .with_detail("parentTable", table.to_owned()));
+        }
+        let table_sql = quote_ident(table)?;
+        let missing_or_duplicate_active = conn
+            .query_row(
+                &format!(
+                    "SELECT s._id
+                       FROM {table_sql} s
+                  LEFT JOIN _snapback_relation_incarnations_v1 r
+                         ON r.table_name = ?1
+                        AND r.row_id = s._id
+                        AND r.active = 1
+                   GROUP BY s._id
+                     HAVING count(r.incarnation) != 1
+                      LIMIT 1"
+                ),
+                params![table],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        if let Some(row_id) = missing_or_duplicate_active {
+            return Err(SnapbackError::error(
+                "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
+                "schema",
+                "each sequence scope row must have exactly one active incarnation",
+            )
+            .with_details(json!({
+                "parentTable": table,
+                "rowId": row_id,
+                "direction": "scope-to-registry",
+            })));
+        }
+        let dangling_active = conn
+            .query_row(
+                &format!(
+                    "SELECT r.row_id
+                       FROM _snapback_relation_incarnations_v1 r
+                  LEFT JOIN {table_sql} s ON s._id = r.row_id
+                      WHERE r.table_name = ?1
+                        AND r.active = 1
+                        AND s._id IS NULL
+                      LIMIT 1"
+                ),
+                params![table],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        if let Some(row_id) = dangling_active {
+            return Err(SnapbackError::error(
+                "SNAPBACK_RELATION_ACTIVATION_BACKFILL_REQUIRED",
+                "schema",
+                "an active sequence scope incarnation has no present row",
+            )
+            .with_details(json!({
+                "parentTable": table,
+                "rowId": row_id,
+                "direction": "registry-to-scope",
+            })));
+        }
+    }
+
+    validate_sequence_counter_rows(conn, declarations)
+}
+
+fn validate_sequence_counter_rows(
+    conn: &Connection,
+    declarations: &BTreeMap<String, crate::manifest::SequenceDeclaration>,
+) -> SnapbackResult<()> {
+    let declared = declarations
+        .values()
+        .map(|declaration| (declaration.name.as_str(), declaration.scope_table.as_str()))
+        .collect::<BTreeSet<_>>();
+    let mut statement = conn.prepare(
+        "SELECT counter_name, scope_table, scope_row_id, scope_incarnation, next_value
+           FROM _snapback_sequence_counters_v1",
+    )?;
+    let rows = statement.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, String>(3)?,
+            row.get::<_, i64>(4)?,
+        ))
+    })?;
+    for row in rows {
+        let (counter, scope_table, scope_row_id, scope_incarnation, next_value) = row?;
+        let declared = declared.contains(&(counter.as_str(), scope_table.as_str()));
+        let successor_in_domain = u64::try_from(next_value)
+            .is_ok_and(|value| (1..=SEQUENCE_MAX_SAFE_INTEGER + 1).contains(&value));
+        if !declared || !successor_in_domain {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SEQUENCE_ACTIVATION_STATE_INVALID",
+                "schema",
+                "protected sequence state does not match the active function declaration scope",
+            )
+            .with_details(json!({
+                "counter": counter,
+                "scopeTable": scope_table,
+                "scopeRowId": scope_row_id,
+                "scopeIncarnation": scope_incarnation,
+                "nextValue": next_value,
+                "declared": declared,
+            })));
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn sequence_declarations_from_function_manifest(
+    manifest: &crate::manifest::FunctionManifest,
+) -> BTreeMap<String, crate::manifest::SequenceDeclaration> {
+    manifest
+        .functions
+        .iter()
+        .flat_map(|function| function.sequences.iter().cloned())
+        .map(|declaration| (declaration.name.clone(), declaration))
+        .collect()
+}
+
 /// Validate and advance every tentative sequence value under the same
 /// immediate transaction as its application writes. SQLite's writer
 /// serialization is the local target's per-scope serialization mechanism;
@@ -16890,6 +17384,36 @@ fn validate_user_identifier(kind: &str, value: &str) -> SnapbackResult<()> {
             "schema",
             format!("invalid {kind} identifier {value}"),
         ));
+    }
+    Ok(())
+}
+
+fn validate_retained_sequence_allocations(
+    facts: &[SequenceAllocationFact],
+) -> SnapbackResult<()> {
+    let invalid = || {
+        SnapbackError::error(
+            "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
+            "storage",
+            "stored client mutation sequence facts are invalid",
+        )
+    };
+    if facts.len() > 1 {
+        return Err(invalid());
+    }
+    for fact in facts {
+        if !is_identifier(&fact.counter)
+            || fact.counter.starts_with("_snapback")
+            || is_auth_reserved_identifier(&fact.counter)
+            || !is_identifier(&fact.scope_table)
+            || fact.scope_table.starts_with("_snapback")
+            || is_auth_reserved_identifier(&fact.scope_table)
+            || !replay_opaque_id_is_valid(&fact.scope_row_id)
+            || !crate::ids::is_canonical_uuid_v7(&fact.scope_incarnation)
+            || !(1..=SEQUENCE_MAX_SAFE_INTEGER).contains(&fact.value)
+        {
+            return Err(invalid());
+        }
     }
     Ok(())
 }

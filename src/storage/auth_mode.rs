@@ -478,7 +478,13 @@ impl LocalDatabase {
         schema_manifest: SchemaManifest,
         seed: Option<SeedData>,
     ) -> SnapbackResult<AuthModeStateRecord> {
-        self.stage_auth_mode_inner(requested_deployment, schema_manifest, seed)
+        self.stage_auth_mode_inner(
+            requested_deployment,
+            schema_manifest,
+            BTreeMap::new(),
+            None,
+            seed,
+        )
             .into_result()
     }
 
@@ -490,7 +496,13 @@ impl LocalDatabase {
         seed: Option<SeedData>,
     ) -> SnapbackResult<AuthModeStateRecord> {
         require_complete_deployment_pair(&requested_deployment, &schema_manifest, functions)?;
-        self.stage_auth_mode_inner(requested_deployment, schema_manifest, seed)
+        self.stage_auth_mode_inner(
+            requested_deployment,
+            schema_manifest,
+            super::sequence_declarations_from_function_manifest(functions),
+            Some(functions.clone()),
+            seed,
+        )
             .into_result()
     }
 
@@ -501,7 +513,13 @@ impl LocalDatabase {
         schema_manifest: SchemaManifest,
         seed: Option<SeedData>,
     ) -> DurableModeCommit<AuthModeStateRecord> {
-        self.stage_auth_mode_inner(requested_deployment, schema_manifest, seed)
+        self.stage_auth_mode_inner(
+            requested_deployment,
+            schema_manifest,
+            BTreeMap::new(),
+            None,
+            seed,
+        )
     }
 
     pub(crate) fn stage_auth_mode_with_functions_classified(
@@ -516,13 +534,21 @@ impl LocalDatabase {
         {
             return DurableModeCommit::RolledBack(error);
         }
-        self.stage_auth_mode_inner(requested_deployment, schema_manifest, seed)
+        self.stage_auth_mode_inner(
+            requested_deployment,
+            schema_manifest,
+            super::sequence_declarations_from_function_manifest(functions),
+            Some(functions.clone()),
+            seed,
+        )
     }
 
     fn stage_auth_mode_inner(
         &mut self,
         requested_deployment: DeploymentIdentity,
         schema_manifest: SchemaManifest,
+        sequence_declarations: BTreeMap<String, crate::manifest::SequenceDeclaration>,
+        trusted_predecessor_functions: Option<FunctionManifest>,
         seed: Option<SeedData>,
     ) -> DurableModeCommit<AuthModeStateRecord> {
         let predecessor = match (|| -> SnapbackResult<_> {
@@ -544,6 +570,26 @@ impl LocalDatabase {
         };
         let authorization_interlock = self.authorization_interlock.clone();
         let order_field_bounds = self.order_field_bounds.clone();
+        let mut predecessor_sequence_declarations = self.sequence_declarations.as_ref().clone();
+        let exact_active_predecessor = trusted_predecessor_functions.as_ref().is_some_and(|functions| {
+            predecessor.active_manifest.as_ref().is_some_and(|schema| {
+                DeploymentIdentity::from_manifests(predecessor.state.active, schema, functions)
+                    .ok()
+                    .as_ref()
+                    == predecessor.state.active_deployment.as_ref()
+            })
+        });
+        if exact_active_predecessor {
+            predecessor_sequence_declarations.extend(sequence_declarations.clone());
+        }
+        let trusted_relation_parent_tables = predecessor
+            .active_manifest
+            .as_ref()
+            .map(super::schema_relation_parent_tables)
+            .unwrap_or_default()
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect();
         let track_data_marker = seed.is_some();
         commit_mode_transaction(
             &mut self.conn,
@@ -575,6 +621,13 @@ impl LocalDatabase {
                 // must precede raw SQLite constraint failures.
                 // @ref LLP 0056#declaring-a-membership-table
                 apply_schema_tables(tx, &schema_manifest)?;
+                super::preflight_sequence_enrollments(
+                    tx,
+                    &schema_manifest,
+                    &trusted_relation_parent_tables,
+                    &predecessor_sequence_declarations,
+                    &sequence_declarations,
+                )?;
                 transaction_step_completed(0)?;
 
                 let authorization = if let Some(seed) = seed {
@@ -605,6 +658,11 @@ impl LocalDatabase {
                     tx,
                     &schema_manifest,
                     current_version_on(tx)?,
+                )?;
+                super::validate_sequence_activation(
+                    tx,
+                    &schema_manifest,
+                    &sequence_declarations,
                 )?;
                 apply_schema_indexes(tx, &schema_manifest)?;
                 crate::search::sqlite::activate_manifest_in_tx(
@@ -970,7 +1028,7 @@ impl LocalDatabase {
         manifest: SchemaManifest,
         seed: Option<SeedData>,
     ) -> SnapbackResult<()> {
-        self.apply_same_mode_deployment_inner(deployment, manifest, seed)
+        self.apply_same_mode_deployment_inner(deployment, manifest, BTreeMap::new(), seed)
     }
 
     /// Cold-start same-mode dev deployment. The complete function half is
@@ -997,13 +1055,19 @@ impl LocalDatabase {
                 "same-mode dev artifacts differ from their deployment identity",
             ));
         }
-        self.apply_same_mode_deployment_inner(deployment, manifest, seed)
+        self.apply_same_mode_deployment_inner(
+            deployment,
+            manifest,
+            super::sequence_declarations_from_function_manifest(functions),
+            seed,
+        )
     }
 
     fn apply_same_mode_deployment_inner(
         &mut self,
         deployment: DeploymentIdentity,
         manifest: SchemaManifest,
+        sequence_declarations: BTreeMap<String, crate::manifest::SequenceDeclaration>,
         seed: Option<SeedData>,
     ) -> SnapbackResult<()> {
         deployment.validate()?;
@@ -1019,6 +1083,18 @@ impl LocalDatabase {
         }
 
         let authorization_interlock = self.authorization_interlock.clone();
+        let mut predecessor_sequence_declarations = self.sequence_declarations.as_ref().clone();
+        if current.state.active_deployment.as_ref() == Some(&deployment) {
+            predecessor_sequence_declarations.extend(sequence_declarations.clone());
+        }
+        let trusted_relation_parent_tables = current
+            .active_manifest
+            .as_ref()
+            .map(super::schema_relation_parent_tables)
+            .unwrap_or_default()
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -1034,6 +1110,13 @@ impl LocalDatabase {
         let predecessor_head = current_version_on(&tx)?;
         super::preflight_membership_activation_sources(&tx, &manifest, predecessor_head)?;
         apply_schema_tables(&tx, &manifest)?;
+        super::preflight_sequence_enrollments(
+            &tx,
+            &manifest,
+            &trusted_relation_parent_tables,
+            &predecessor_sequence_declarations,
+            &sequence_declarations,
+        )?;
         let mut seeded_changes = Vec::new();
         if let Some(seed) = seed {
             require_fresh_seed_target(&tx, &current.state)?;
@@ -1050,6 +1133,7 @@ impl LocalDatabase {
             }
         }
         super::validate_membership_activation(&tx, &manifest, current_version_on(&tx)?)?;
+        super::validate_sequence_activation(&tx, &manifest, &sequence_declarations)?;
         apply_schema_indexes(&tx, &manifest)?;
         crate::search::sqlite::activate_manifest_in_tx(&tx, &manifest, current_version_on(&tx)?)?;
         let raw = serialize_json(&manifest)?;
@@ -1170,6 +1254,20 @@ impl LocalDatabase {
         };
         let authorization_interlock = self.authorization_interlock.clone();
         let order_field_bounds = self.order_field_bounds.clone();
+        let mut predecessor_sequence_declarations = self.sequence_declarations.as_ref().clone();
+        let sequence_declarations =
+            super::sequence_declarations_from_function_manifest(&functions);
+        if predecessor.state.active_deployment.as_ref() == Some(&deployment) {
+            predecessor_sequence_declarations.extend(sequence_declarations.clone());
+        }
+        let trusted_relation_parent_tables = predecessor
+            .active_manifest
+            .as_ref()
+            .map(super::schema_relation_parent_tables)
+            .unwrap_or_default()
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect();
         let track_data_marker = seed.is_some();
         let committed = commit_mode_transaction(
             &mut self.conn,
@@ -1193,6 +1291,13 @@ impl LocalDatabase {
                 let predecessor_head = current_version_on(tx)?;
                 super::preflight_membership_activation_sources(tx, &manifest, predecessor_head)?;
                 apply_schema_tables(tx, &manifest)?;
+                super::preflight_sequence_enrollments(
+                    tx,
+                    &manifest,
+                    &trusted_relation_parent_tables,
+                    &predecessor_sequence_declarations,
+                    &sequence_declarations,
+                )?;
                 if deployment.auth_mode == AuthMode::Sessions {
                     // @ref LLP 0055#grants — basis changes and the activation
                     //   authorization event share this transaction; the
@@ -1241,6 +1346,7 @@ impl LocalDatabase {
                     }
                 };
                 super::validate_membership_activation(tx, &manifest, current_version_on(tx)?)?;
+                super::validate_sequence_activation(tx, &manifest, &sequence_declarations)?;
                 apply_schema_indexes(tx, &manifest)?;
                 crate::search::sqlite::activate_manifest_in_tx(
                     tx,

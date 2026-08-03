@@ -4634,6 +4634,8 @@ impl LocalSnapback {
             return vec![diagnostic];
         }
 
+        let sequence_declarations = sequence_declarations_from_functions(&manifest);
+
         let mut preflight = Vec::new();
         if let Some(push_seam) = &self.db.schema().push_seam
             && let Err(error) = crate::push::validate_config_uses(push_seam, &manifest)
@@ -4648,9 +4650,10 @@ impl LocalSnapback {
                     if let Err(error) = self.db.validate_order_field_bounds(&bounds) {
                         preflight.push(error.diagnostic);
                     }
-                    if let Err(error) = self.db.validate_sequence_scope_activation(
-                        &sequence_scope_tables(&manifest),
-                    ) {
+                    if let Err(error) = self
+                        .db
+                        .validate_sequence_declaration_preflight(&sequence_declarations, false)
+                    {
                         preflight.push(error.diagnostic);
                     }
                     Some(bounds)
@@ -4708,6 +4711,15 @@ impl LocalSnapback {
                     return preflight;
                 }
             }
+        }
+
+        if let Err(error) = self
+            .db
+            .install_sequence_declarations(sequence_declarations, false)
+        {
+            preflight.push(error.diagnostic);
+            self.record_attached_diagnostics(preflight.clone());
+            return preflight;
         }
 
         self.functions = manifest;
@@ -4854,6 +4866,17 @@ impl LocalSnapback {
             )
         }));
 
+        let sequence_declarations = sequence_declarations_from_functions(&manifest);
+        let trusted_active_generation = self.db.auth_mode_snapshot().ok().is_some_and(|snapshot| {
+            crate::auth::mode::DeploymentIdentity::from_manifests(
+                snapshot.state.active,
+                self.db.schema(),
+                &manifest,
+            )
+            .ok()
+            .as_ref()
+                == snapshot.state.active_deployment.as_ref()
+        });
         let order_field_bounds = order_field_bounds_from_functions(&manifest, self.db.schema())
             .expect("preflighted generation reconciles order-field bounds");
         if let Err(error) = self.db.validate_order_field_bounds(&order_field_bounds) {
@@ -4863,13 +4886,15 @@ impl LocalSnapback {
         }
         if let Err(error) = self
             .db
-            .validate_sequence_scope_activation(&sequence_scope_tables(&manifest))
+            .validate_sequence_declaration_preflight(
+                &sequence_declarations,
+                trusted_active_generation,
+            )
         {
             let diagnostics = vec![error.diagnostic];
             self.record_diagnostics_at_boundary(diagnostics.clone(), diagnostic_boundary);
             return diagnostics;
         }
-
         let ephemeral = self.ephemeral.clone();
         let ephemeral_collections = self.db.schema().ephemeral_collections.clone();
         crate::exec_guard::run_or_defer_after_local(move || {
@@ -4899,6 +4924,14 @@ impl LocalSnapback {
                     return diagnostics;
                 }
             }
+        }
+        if let Err(error) = self
+            .db
+            .install_sequence_declarations(sequence_declarations, trusted_active_generation)
+        {
+            diagnostics.push(error.diagnostic);
+            self.record_diagnostics_at_boundary(diagnostics.clone(), diagnostic_boundary);
+            return diagnostics;
         }
         self.functions = manifest;
         // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds —
@@ -22571,12 +22604,14 @@ fn order_field_bounds_from_functions(
     Ok(bounds)
 }
 
-fn sequence_scope_tables(manifest: &FunctionManifest) -> BTreeSet<String> {
+fn sequence_declarations_from_functions(
+    manifest: &FunctionManifest,
+) -> BTreeMap<String, crate::manifest::SequenceDeclaration> {
     manifest
         .functions
         .iter()
-        .flat_map(|function| function.sequences.iter())
-        .map(|sequence| sequence.scope_table.clone())
+        .flat_map(|function| function.sequences.iter().cloned())
+        .map(|declaration| (declaration.name.clone(), declaration))
         .collect()
 }
 
@@ -22960,7 +22995,9 @@ fn validate_function_schema_references(
                                 field(name, &filter.field)?;
                             }
                         }
-                        MutationStep::Guard { .. } | MutationStep::Let { .. } => {}
+                        MutationStep::AllocateSequence { .. }
+                        | MutationStep::Guard { .. }
+                        | MutationStep::Let { .. } => {}
                     }
                 }
                 if let Some(crate::manifest::ReturnValue::Document { table: name, .. }) =
@@ -23672,6 +23709,7 @@ fn validate_function_against_projection_outputs(
                     MutationStep::Get { .. }
                     | MutationStep::AssertCurrentRelation { .. }
                     | MutationStep::AssertSourceChanged { .. }
+                    | MutationStep::AllocateSequence { .. }
                     | MutationStep::Guard { .. }
                     | MutationStep::Let { .. } => None,
                 };
@@ -24977,7 +25015,9 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
                     MutationStep::AssertSourceChanged { table, .. } => {
                         reads.insert(table.clone());
                     }
-                    MutationStep::Guard { .. } | MutationStep::Let { .. } => {}
+                    MutationStep::AllocateSequence { .. }
+                    | MutationStep::Guard { .. }
+                    | MutationStep::Let { .. } => {}
                 }
             }
             (reads.into_iter().collect(), writes.into_iter().collect())
