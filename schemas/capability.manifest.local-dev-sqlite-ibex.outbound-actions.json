@@ -132,6 +132,7 @@
     "cloudflare",
     "hosted_untrusted_code",
     "external_auth",
+    "snapshot_batch_v1",
     "notifications",
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing",

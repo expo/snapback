@@ -898,6 +898,7 @@
             "registered_bundle_boot_v1",
             "relational_query_v1",
             "sequence_allocation_v1",
+            "snapshot_batch_v1",
             "migration_keyset_scan_v1",
             "full_text_search_v1",
             "result_contract_v1",

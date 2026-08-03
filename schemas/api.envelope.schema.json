@@ -829,6 +829,7 @@
         "Action",
         "RelationalQuery",
         "BoundedChildrenQuery",
+        "SnapshotBatch",
         "WriteWithActivity"
       ],
       "type": "string"

@@ -3574,6 +3574,19 @@
         },
         {
           "additionalProperties": false,
+          "description": "Unpublished static bounded-child tuple. The carrier and admission\nanalysis exist, but whole-manifest load remains fail-closed until the\nexact tuple result contract is owner-pinned; no executor is registered.",
+          "properties": {
+            "SnapshotBatch": {
+              "$ref": "#/$defs/SnapshotBatchPlanV1"
+            }
+          },
+          "required": [
+            "SnapshotBatch"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "Closed source/scope/activity transaction.",
           "properties": {
             "WriteWithActivity": {
@@ -6430,6 +6443,26 @@
       ],
       "type": "string"
     },
+    "SnapshotBatchPlanV1": {
+      "additionalProperties": false,
+      "description": "The unpublished normalized carrier for LLP 0135 Part 2. The only authored\nmembers are the profile discriminator and declaration-ordered complete\nbounded-child nodes. Merged argument identities and parent-authorization\nequivalence classes are host-derived; they are never trusted from an\nartifact.\n\n@ref LLP 0135#21-composite-plan-shape — v1 composes a static tuple of\n  complete bounded-children plans and no other node kind.",
+      "properties": {
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/BoundedChildrenQueryPlan"
+          },
+          "type": "array"
+        },
+        "profile": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "nodes"
+      ],
+      "type": "object"
+    },
     "SourceSpan": {
       "properties": {
         "column": {
@@ -6667,6 +6700,7 @@
             "registered_bundle_boot_v1",
             "relational_query_v1",
             "sequence_allocation_v1",
+            "snapshot_batch_v1",
             "migration_keyset_scan_v1",
             "full_text_search_v1",
             "result_contract_v1",

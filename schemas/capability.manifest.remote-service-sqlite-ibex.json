@@ -15,6 +15,7 @@
     "external_auth",
     "outbound_actions",
     "bounded_response_stream_v1",
+    "snapshot_batch_v1",
     "bounded_children_v1",
     "notifications",
     "ephemeral_hosted_adapter",

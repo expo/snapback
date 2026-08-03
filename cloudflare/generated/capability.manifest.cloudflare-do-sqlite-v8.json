@@ -85,6 +85,7 @@
     "outbound_actions",
     "bounded_response_stream_v1",
     "bounded_children_v1",
+    "snapshot_batch_v1",
     "notifications",
     "notifications.expoPushSeam",
     "cron",
