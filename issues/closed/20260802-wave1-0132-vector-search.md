@@ -51,3 +51,14 @@ and pagination. LLP 0132's four open questions remain underdetermined by the
 commission: whether to add a cosine metric id, what evidence opens an ANN
 door, whether to design a live profile, and whether qualification data should
 retune the ceilings. None blocks the bounded exact local v1 capability.
+
+## Post-close correctness residue — 2026-08-03
+
+PUSH-01's post-rebase package proof found that
+`node scripts/client-bundle-metrology.mjs --check` fails on current main with
+`public-subpath-vector-search has no frozen baseline`. The export-map subpath
+is automatically measured, but the vector landing did not declare and freeze
+its prospective supplemental ledger. This is vector-lane acceptance residue,
+not PUSH-01 drift; the push registry and Expo installation ledgers remain
+within their frozen ceilings. The vector owner should add the prospective
+profile/receipt without rewriting any earlier baseline.

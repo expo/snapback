@@ -236,6 +236,7 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "sequence_allocation_v1",
             "migration_keyset_scan_v1",
             "full_text_search_v1",
+            "vector_search_v1",
             "result_contract_v1",
             "settlement.bounded_skew",
             "args_contract_v1",
@@ -251,7 +252,7 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "asset_video_finalization_v1",
         ]
     );
-    assert_eq!(TargetCapabilityId::ALL.len(), 29);
+    assert_eq!(TargetCapabilityId::ALL.len(), 30);
     for capability in TargetCapabilityId::ALL {
         assert_eq!(
             capability.as_str().parse::<TargetCapabilityId>(),
