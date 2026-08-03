@@ -12,6 +12,18 @@ build = "build.rs"
 name = "snapback"
 path = "src/lib.rs"
 
+[features]
+default = []
+# Internal evidence harness for LLP 0154 Phase 1. This is deliberately absent
+# from ordinary contributor/server builds and is enabled only by the bounded
+# proof script.
+telemetry-phase1-proof = ["dep:tower"]
+
+[[bin]]
+name = "snapback-telemetry-bench"
+path = "src/bin/snapback-telemetry-bench.rs"
+required-features = ["telemetry-phase1-proof"]
+
 [dependencies]
 anyhow = "1.0"
 axum = { version = "0.8.9", features = ["ws"] }
@@ -40,6 +52,7 @@ sha2 = "0.10"
 subtle = "2"
 tokio = { version = "1.48", features = ["full"] }
 tower-service = "0.3"
+tower = { version = "0.5", features = ["util"], optional = true }
 unicode-normalization = "0.1"
 unicode-segmentation = "1.12"
 ureq = { version = "2", features = ["json"] }

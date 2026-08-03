@@ -408,6 +408,19 @@ pub(crate) fn configured() -> crate::diagnostic::SnapbackResult<LocalSnapback> {
     Ok(snapback)
 }
 
+/// File-backed twin used only by the internal telemetry evidence harness.
+/// Keeping the schema/function construction here makes the proof exercise the
+/// same finite Ibex fixture without widening those definitions themselves.
+#[cfg(feature = "telemetry-phase1-proof")]
+pub(crate) fn configured_file(
+    path: impl AsRef<std::path::Path>,
+) -> crate::diagnostic::SnapbackResult<LocalSnapback> {
+    let mut snapback = LocalSnapback::open(path)?;
+    snapback.apply_schema(schema())?;
+    snapback.load_functions(functions());
+    Ok(snapback)
+}
+
 fn auth() -> AuthInput {
     AuthInput {
         principal: Some("bench".to_owned()),

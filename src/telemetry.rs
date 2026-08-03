@@ -30,8 +30,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+#[cfg(feature = "telemetry-phase1-proof")]
 #[path = "telemetry_bench.rs"]
 mod phase1_bench;
+#[cfg(feature = "telemetry-phase1-proof")]
 pub use phase1_bench::{Phase1BenchmarkConfig, Phase1BenchmarkReport, run_phase1_benchmark};
 
 const DAY_MS: i64 = 86_400_000;

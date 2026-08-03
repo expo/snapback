@@ -656,6 +656,7 @@ async function launchServerAttempt(plan, {
           let stopPromise = null;
           return serverHandle({
             baseUrl,
+            pid: child.pid,
             adminToken,
             reused: false,
             startupNonce: ready.startupNonce,
@@ -732,6 +733,7 @@ async function launchServerAttempt(plan, {
 
 function serverHandle({
   baseUrl,
+  pid = null,
   adminToken,
   reused,
   stop,
@@ -745,6 +747,7 @@ function serverHandle({
   const credentials = Object.freeze({ adminToken });
   return {
     baseUrl,
+    pid,
     adminToken,
     credentials,
     clientOptions: credentials,
