@@ -12,7 +12,7 @@
 # Base image: ubuntu:24.04 in BOTH stages, deliberately matching the
 # ubuntu-latest runner the bundle was built on (the bundle's hermesc and
 # libhermesvm.so need its glibc; Debian bookworm's 2.36 cannot run them).
-# Toolchain: rust-toolchain.toml pins 1.93.1 as the single compiler authority;
+# Toolchain: rust-toolchain.toml pins 1.97.0 as the single compiler authority;
 # rustup installs exactly that.
 
 FROM ubuntu:24.04 AS build
@@ -24,9 +24,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo PATH=/opt/cargo/bin:$PATH
 RUN curl -fsSL https://sh.rustup.rs | sh -s -- -y --no-modify-path \
-        --profile minimal --default-toolchain 1.93.1
+        --profile minimal --default-toolchain 1.97.0
 
 WORKDIR /src
+
+# Docker build contexts deliberately exclude .git, so the operator must bind
+# the exact clean source identity instead of letting build.rs fall back to an
+# unknown commit. The runbook passes both arguments from a verified clean tree.
+ARG SNAPBACK_BUILD_GIT_COMMIT
+ARG SNAPBACK_BUILD_GIT_DIRTY=0
+RUN printf '%s' "$SNAPBACK_BUILD_GIT_COMMIT" | grep -Eq '^[0-9a-f]{40}$' \
+    && [ "$SNAPBACK_BUILD_GIT_DIRTY" = 0 ]
+ENV SNAPBACK_BUILD_GIT_COMMIT=$SNAPBACK_BUILD_GIT_COMMIT
+ENV SNAPBACK_BUILD_GIT_DIRTY=$SNAPBACK_BUILD_GIT_DIRTY
+LABEL org.opencontainers.image.revision=$SNAPBACK_BUILD_GIT_COMMIT
 
 # Stage the prebuilt patched Hermes bundle into the vendored layout the ibex
 # build.rs resolves on Linux (linux/hermes-headers, linux/lib, tools/hermes).
@@ -53,6 +64,18 @@ RUN set -eu; \
 
 RUN cargo build --release --bin snapback
 
+# Package the exact release-mode lib-test executable as a qualification
+# instrument. Tests remain opt-in at runtime; the served binary and entrypoint
+# are unchanged. The LLP 0132 scale gate invokes one exact ignored test inside
+# this independently built Linux/container adapter.
+RUN set -eu; \
+    touch /tmp/snapback-lib-test-start; \
+    cargo test --release --lib --no-run; \
+    set -- $(find target/release/deps -maxdepth 1 -type f -name 'snapback-*' \
+        -perm /111 -newer /tmp/snapback-lib-test-start); \
+    [ "$#" -eq 1 ] || { echo "expected exactly one snapback lib-test executable, found $#" >&2; exit 1; }; \
+    cp "$1" /src/target/release/snapback-lib-tests
+
 RUN rustc -O demos/competitive-checkpoint/acceptance/drill/stream-source.rs \
         -o /src/target/release/drill-stream-source
 
@@ -64,6 +87,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY --from=build /src/target/release/snapback /app/bin/snapback
+COPY --from=build /src/target/release/snapback-lib-tests /app/bin/snapback-lib-tests
 COPY --from=build /src/target/release/drill-stream-source /app/bin/drill-stream-source
 COPY --from=build /src/vendor/ibex/linux/lib/ /app/lib/
 COPY demos/competitive-checkpoint/acceptance/drill/entrypoint.sh /app/bin/entrypoint.sh

@@ -261,7 +261,7 @@ import { documents } from './schema.mjs';
 export const nearestDocuments = defineVectorQuery({ table: documents, index: 'by_embedding' });
 `);
   const refused = await generate(backend);
-  assert.equal(refused.ok, false, 'static authoring cannot mint target runtime support');
+  assert.equal(refused.ok, false, 'authoring without target facts cannot mint runtime support');
   assert(
     refused.diagnostics.some(({ code, capability }) => (
       code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
@@ -274,4 +274,4 @@ export const nearestDocuments = defineVectorQuery({ table: documents, index: 'by
   rmSync(backend, { recursive: true, force: true });
 }
 
-console.log('vector-authoring.test.mjs: exact static authoring and support=false pass');
+console.log('vector-authoring.test.mjs: exact authoring and target-gated support pass');

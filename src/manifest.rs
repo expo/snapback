@@ -517,8 +517,9 @@ pub struct TableManifest {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub search_indexes: Vec<SearchIndexManifestV1>,
-    /// Portable exact-vector index declarations. This is static carrier
-    /// vocabulary only until a target reports qualified `vector_search_v1`.
+    /// Portable exact-vector index declarations. A declaration is authoring
+    /// vocabulary, not support by itself: execution additionally requires a
+    /// target that reports qualified `vector_search_v1`.
     ///
     /// @ref LLP 0132#index-declarations
     #[serde(

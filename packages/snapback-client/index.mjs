@@ -5043,7 +5043,7 @@ export class SnapbackClient {
 
   /** Project the ordinary QueryOutput carrier of one generated vector query
    * to the public items-only VectorPageV1. Target capability admission still
-   * refuses every current target before this method can reach an executor.
+   * refuses any target that has not independently qualified the exact profile.
    * @ref LLP 0132#query-surface */
   async vectorSearch(ref, {
     vector,

@@ -1,7 +1,7 @@
 # Build context filter for the single-instance-container-vm.v1 remote drill
 # image (demos/competitive-checkpoint/acceptance/drill/Dockerfile). Whitelist
-# style: exclude everything, then admit exactly what `cargo build --release
-# --bin snapback` and the drill image staging need.
+# style: exclude everything, then admit exactly what the release server build,
+# the opt-in release lib-test qualification instrument, and image staging need.
 *
 
 # Rust crate inputs. build.rs embeds the checked guide corpus into every
@@ -12,6 +12,9 @@
 !build.rs
 !src/
 !guide/
+# The vector-scale qualification is packaged as the crate's release-mode lib
+# test binary. Its test-only modules compile committed corpora from tests/.
+!tests/
 # The lib embeds harness/client/contract JS and brand assets via include_str.
 !packages/
 !brand/
@@ -40,6 +43,18 @@ demos/competitive-checkpoint/acceptance/*
 # configuration carrying the control-plane PUBLIC key.
 !demos/competitive-checkpoint/acceptance/hosted-edge/
 !demos/competitive-checkpoint/snapback/
+# Release-mode lib-test compilation embeds the two generated schema fixtures
+# used by storage/seed tests even when only the vector qualification executes.
+!demos/todo/
+demos/todo/*
+!demos/todo/snapback/
+demos/todo/snapback/*
+!demos/todo/snapback/generated/
+!demos/rbac/
+demos/rbac/*
+!demos/rbac/snapback/
+demos/rbac/snapback/*
+!demos/rbac/snapback/generated/
 
 # Never ship credentials or scratch state.
 .agent-local-secrets.md

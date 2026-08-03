@@ -9,7 +9,7 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-02
+reviewed: 2026-08-03
 reviewed-commit: HEAD
 ---
 
@@ -75,6 +75,10 @@ you never build around a feature because you didn't know it existed.
 - [Portable indexed text search](./backend/text-search.md) — weighted
   term/phrase/prefix search with structured ASTs, deterministic ranking,
   authorization partitions, highlights, and current-keyset cursors
+  (experimental).
+- [Portable exact vector search](./backend/vector-search.md) — declared
+  fixed-width embeddings, pinned `dot`/`l2sq` arithmetic, bounded exact k-NN,
+  authorization partitions, and explicit ANN/live/hosted nonclaims
   (experimental).
 - [Assets](./backend/assets.md) — generated upload intents, TUS resumable
   transfer, trusted SHA-256 finalization, typed `v.assetRef` attachment,

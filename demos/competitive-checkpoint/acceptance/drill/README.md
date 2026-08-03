@@ -52,6 +52,8 @@ LLP 0074 gate 2, including the durable-row secret scans.
    fly deploy . \
      --config demos/competitive-checkpoint/acceptance/drill/fly.toml \
      --dockerfile demos/competitive-checkpoint/acceptance/drill/Dockerfile \
+     --build-arg SNAPBACK_BUILD_GIT_COMMIT="$(git rev-parse HEAD)" \
+     --build-arg SNAPBACK_BUILD_GIT_DIRTY=0 \
      --remote-only --ha=false --yes
    ```
 
@@ -96,6 +98,26 @@ LLP 0074 gate 2, including the durable-row secret scans.
    honestly run on this target (sessions refuse
    `SNAPBACK_AUTH_TRANSPORT_INSECURE` on a plaintext non-loopback bind, with
    no override, by design).
+
+6. LLP 0132 exact-vector scale qualification: the image also contains the
+   release-mode library-test instrument. Invoke only the ignored D=1,536 ×
+   43,690 acceptance by its exact name, bind the code revision and concrete
+   machine identity, and copy its emitted JSON receipt back into the committed
+   conformance corpus:
+
+   ```sh
+   fly ssh console -a snapback-drill -C \
+     "env SNAPBACK_VECTOR_QUALIFICATION_REVISION=<commit> SNAPBACK_VECTOR_QUALIFICATION_MACHINE=single-instance-container-vm.v1:fly.io/sjc/<machine-id> SNAPBACK_VECTOR_QUALIFICATION_RECEIPT_OUT=/tmp/vector-search-v1.scale.json /app/bin/snapback-lib-tests --ignored --exact vector::acceptance::realistic_scale_d1536_filled_partition_emits_budget_receipt --nocapture"
+   fly ssh console -a snapback-drill -C \
+     "cat /tmp/vector-search-v1.scale.json"
+   ```
+
+   This qualifies the same local SQLite exact-scan adapter inside the Linux
+   single-instance container/VM. It does not make the served target advertise
+   a hosted vector capability: the receipt records the served local profile,
+   container adapter, exact machine shape, and the unchanged hosted/ANN/live
+   nonclaims. Size the one machine from the retained peak-RSS evidence and
+   record any temporary resize; do not infer a memory claim from this runbook.
 
 All receipts were produced 2026-07-25; protocol amendment v0.7 pins the
 provisioned identities, tool versions, and instrument digests.

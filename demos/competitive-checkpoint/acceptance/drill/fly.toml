@@ -6,6 +6,8 @@
 #   fly deploy . \
 #     --config demos/competitive-checkpoint/acceptance/drill/fly.toml \
 #     --dockerfile demos/competitive-checkpoint/acceptance/drill/Dockerfile \
+#     --build-arg SNAPBACK_BUILD_GIT_COMMIT="$(git rev-parse HEAD)" \
+#     --build-arg SNAPBACK_BUILD_GIT_DIRTY=0 \
 #     --remote-only --ha=false
 #
 # Machine sizing: shared-cpu-1x with 512 MB first (amendment v0.6 posture:

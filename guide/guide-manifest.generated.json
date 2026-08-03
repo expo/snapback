@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "e24d3df0cd10d668d2f04a2708afbf30ff7485bd"
+    "commit": "dd8d4ee7a50d97e38ba97c020f80313099fdc079"
   },
   "nav": {
     ".": [
@@ -119,6 +119,11 @@
         "id": "backend.sequences",
         "order": 28,
         "title": "Scoped sequences"
+      },
+      {
+        "id": "backend.vector-search",
+        "order": 29,
+        "title": "Portable exact vector search"
       },
       {
         "id": "backend.streamed-actions",
@@ -1237,6 +1242,47 @@
         }
       ]
     },
+    "backend.vector-search": {
+      "path": "guide/backend/vector-search.md",
+      "title": "Portable exact vector search",
+      "order": 29,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "backend.vector-search"
+      ],
+      "authorities": [
+        "llp/0132-vector-search.spec.md",
+        "src/vector/types.rs",
+        "src/vector/query.rs",
+        "src/vector/sqlite.rs",
+        "src/manifest.rs",
+        "packages/snapback-codegen/define.mjs",
+        "packages/snapback-client/index.mjs"
+      ],
+      "examples": [
+        "packages/snapback-codegen/vector-authoring.test.mjs",
+        "packages/snapback-client/package.test.mjs"
+      ],
+      "reviewed": "2026-08-03",
+      "reviewedCommit": "HEAD",
+      "sha256": "e4c5f0c16c9222cd4264c2923e5f3db669de2fe6d9195f0221a591b19f34b05c",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/vector-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-client/package.test.mjs"
+        }
+      ]
+    },
     "backend.versioned-seed": {
       "path": "guide/backend/versioned-seeds.md",
       "title": "Versioned seeds",
@@ -1294,7 +1340,7 @@
       "examples": [],
       "reviewed": "2026-08-02",
       "reviewedCommit": "HEAD",
-      "sha256": "318c1a981e9df1f9f9891b9617c3361c38e5ca7149057919a3416c85ff376056",
+      "sha256": "3e0b21d8a33be57b5891d475e265a57eba431840aa23930695e5340e4816a143",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1933,9 +1979,9 @@
         "demos/card-game",
         "demos/partiful-matrix"
       ],
-      "reviewed": "2026-08-02",
+      "reviewed": "2026-08-03",
       "reviewedCommit": "HEAD",
-      "sha256": "8672d09e6447d987029ef2854f2d9b7d7f8c85907fdb3141f34ca9f52870e5e0",
+      "sha256": "b443e852c0f06461f4ee8b05866ef0d5886520f176a818c5ad70bed91468222e",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2572,6 +2618,7 @@
       "backend.standard-patterns",
       "backend.streamed-actions",
       "backend.text-search",
+      "backend.vector-search",
       "backend.versioned-seed",
       "clients.app-cli",
       "clients.contract",
@@ -2611,7 +2658,6 @@
       "backend.notifications",
       "backend.observability-v1",
       "backend.sequences",
-      "backend.vector-search",
       "backend.write-activity-v1",
       "clients.non-js",
       "clients.poll-hosted",
@@ -2621,8 +2667,8 @@
     ]
   },
   "surfaces": {
-    "routes": 94,
-    "hostOps": 32
+    "routes": 97,
+    "hostOps": 35
   },
-  "contentHash": "2b1f7c0efda4f9ea26ae9355e1205fdecc022caf39dfc62b4e4aef7134ab1506"
+  "contentHash": "e9af42c7b12ce35f98a6fc242a9f39ca8aa09f7d9ab6860a5d88fc39d2af9f19"
 }

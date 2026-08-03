@@ -135,16 +135,16 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(crate::search::types::SearchRequestV1),
         ),
         // @ref LLP 0132#capabilities-targets-and-staging — the numeric
-        // profile is a Rust-owned, generated, committed carrier even while no
-        // target capability or invocation surface is published.
+        // profile is a Rust-owned, generated, committed carrier consumed by
+        // every independently qualified target.
         finish(
             "vector.distance-profile.schema.json",
             schemars::schema_for!(crate::vector::profile::VectorDistanceProfileArtifactV1),
         ),
-        // LLP 0132's public static carrier is independently consumable by
-        // client/codegen adapters even while every current target reports a
-        // capability GAP. Operation-specific argument/result contracts add
-        // the index's exact dimension and stored-field projection.
+        // LLP 0132's public carrier is independently consumable by
+        // client/codegen adapters. Operation-specific argument/result
+        // contracts add the index's exact dimension and stored-field
+        // projection; target capability admission remains separate.
         finish(
             "vector.request.schema.json",
             schemars::schema_for!(crate::vector::VectorRequestV1),
