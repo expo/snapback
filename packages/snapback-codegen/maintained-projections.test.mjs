@@ -10,6 +10,12 @@ import { generate } from './index.mjs';
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
 
+assert.deepEqual(
+  defineSchema({}, { requiredCapabilities: ['snapshot_batch_v1'] }).requiredCapabilities,
+  ['snapshot_batch_v1'],
+  'the closed schema capability vocabulary includes the static snapshot-batch carrier',
+);
+
 // Authoring validation mirrors activation (LLP 0080 §5/§3): everything the
 // server would refuse at load refuses at generation with the same rules.
 

@@ -22522,6 +22522,67 @@ fn validate_bounded_children_schema_plan(
     Ok(())
 }
 
+/// The complete schema-reference portion of bounded-child admission, shared
+/// by standalone plans and the unpublished snapshot-batch carrier. Result
+/// contract validation remains at the enclosing function because standalone
+/// and composite envelopes differ.
+fn validate_bounded_children_node_schema_references(
+    plan: &crate::manifest::BoundedChildrenQueryPlan,
+    parent: &crate::manifest::TableManifest,
+    child: &crate::manifest::TableManifest,
+    projection_outputs: &BTreeSet<String>,
+) -> SnapbackResult<()> {
+    use crate::manifest::FieldType;
+
+    validate_bounded_children_schema_plan(plan, parent, child, projection_outputs)?;
+    let invalid_projection = |side: &str, table: &str, field: &str| {
+        SnapbackError::error(
+            "SNAPBACK_BOUNDED_CHILDREN_PROJECTION_INVALID",
+            "query",
+            format!(
+                "bounded {side} projection {table}.{field} is not an LLP 0110 portable scalar"
+            ),
+        )
+    };
+    for (side, table, projections) in [
+        ("parent", parent, plan.parent_projection.as_slice()),
+        ("child", child, plan.child_projection.as_slice()),
+    ] {
+        for projection in projections {
+            let portable = projection.field == "_id"
+                || table.field(&projection.field).is_some_and(|declared| {
+                    matches!(
+                        declared.field_type,
+                        FieldType::String
+                            | FieldType::Boolean
+                            | FieldType::Integer
+                            | FieldType::Real
+                            | FieldType::Principal
+                            | FieldType::Id { .. }
+                    )
+                });
+            if !portable {
+                return Err(invalid_projection(side, &table.name, &projection.field));
+            }
+        }
+    }
+    let mut exact = vec![
+        plan.child_foreign_key.clone(),
+        plan.child_relation_incarnation.clone(),
+    ];
+    exact.extend(plan.order.iter().map(|order| order.field.clone()));
+    if !child.indexes.iter().any(|index| {
+        index.name == plan.child_index && !index.unique && index.fields == exact
+    }) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_BOUNDED_CHILDREN_INDEX_INVALID",
+            "query",
+            "bounded children requires the exact declared child index",
+        ));
+    }
+    Ok(())
+}
+
 /// Reconcile authored order uses into the one schema-level UTF-8 ceiling for
 /// each `(table, field)`. The authoring member lives on `OrderExpr` because a
 /// cursor profile is what needs the bound, but storage must never receive two
@@ -22597,6 +22658,11 @@ fn order_field_bounds_from_functions(
             }
             FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => {
                 register(&plan.child_table, &plan.order)?;
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) => {
+                for node in &plan.nodes {
+                    register(&node.child_table, &node.order)?;
+                }
             }
             _ => {}
         }
@@ -23031,7 +23097,12 @@ fn validate_function_schema_references(
                     .iter()
                     .map(|projection| projection.output_table.clone())
                     .collect();
-                validate_bounded_children_schema_plan(plan, parent, child, &projection_outputs)?;
+                validate_bounded_children_node_schema_references(
+                    plan,
+                    parent,
+                    child,
+                    &projection_outputs,
+                )?;
                 field(&plan.child_table, &plan.child_foreign_key)?;
                 field(&plan.child_table, &plan.child_relation_incarnation)?;
                 for projection in &plan.parent_projection {
@@ -23231,6 +23302,27 @@ fn validate_function_schema_references(
                         "query",
                         "bounded children requires the exact declared child index",
                     ));
+                }
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) => {
+                // @ref LLP 0135#21-composite-plan-shape — every node retains
+                // its complete bounded-child schema admission unchanged. A
+                // composite cannot smuggle an ineligible table, projection,
+                // order field, or index through its outer carrier.
+                let snapshot_projection_outputs = manifest
+                    .projections
+                    .iter()
+                    .map(|projection| projection.output_table.clone())
+                    .collect();
+                for node in &plan.nodes {
+                    let parent = table(&node.parent_table)?;
+                    let child = table(&node.child_table)?;
+                    validate_bounded_children_node_schema_references(
+                        node,
+                        parent,
+                        child,
+                        &snapshot_projection_outputs,
+                    )?;
                 }
             }
             FunctionRuntime::HostPlan(HandlerPlan::Action(_)) | FunctionRuntime::IbexModule(_) => {}
@@ -24509,6 +24601,14 @@ fn execute_query_invocation(
         }
         (
             FunctionKind::Query | FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(_)),
+        ) => Err(SnapbackError::error(
+            "SNAPBACK_CAPABILITY_UNSUPPORTED",
+            "capability",
+            "snapshot_batch_v1 has no registered executor in this static carrier checkpoint",
+        )),
+        (
+            FunctionKind::Query | FunctionKind::LiveQuery,
             FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)),
         ) => {
             let parent_id = input
@@ -24986,6 +25086,14 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
             vec![plan.parent_table.clone(), plan.child_table.clone()],
             Vec::new(),
         ),
+        FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) => {
+            let reads = plan
+                .nodes
+                .iter()
+                .flat_map(|node| [node.parent_table.clone(), node.child_table.clone()])
+                .collect::<BTreeSet<_>>();
+            (reads.into_iter().collect(), Vec::new())
+        }
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
         | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
             crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
@@ -25775,8 +25883,9 @@ mod tests {
         RetryReservationKind, SnapbackError, SnapbackResult, StagedMutationExecution,
         StagedNestedMutation, StagedRecordedMutation, next_secret_read_reset_generation,
         now_millis, refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
-        settlement_id_map, telemetry_correlation, validate_bounded_children_schema_plan,
-        validate_function_schema_references,
+        order_field_bounds_from_functions, settlement_id_map, telemetry_correlation,
+        validate_bounded_children_node_schema_references,
+        validate_bounded_children_schema_plan, validate_function_schema_references,
     };
     use crate::admin::ServerProfile;
     use crate::auth::admission::AdmissionController;
@@ -36592,6 +36701,102 @@ globalThis.__snapbackHandlers = {
         assert!(
             duplicate_projection.validate_artifact().is_err(),
             "a direct artifact cannot collapse two bounded leaves into one JSON output key",
+        );
+    }
+
+    #[test]
+    fn snapshot_batch_reuses_node_schema_admission_and_registers_all_order_bounds() {
+        let (schema, functions) = bounded_children_publication_fixture(16);
+        let mut first = match &functions.functions[0].runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => plan.clone(),
+            _ => panic!("bounded fixture"),
+        };
+        let mut second = first.clone();
+        second.parent_id_arg = "otherParentId".to_owned();
+        first
+            .order
+            .iter_mut()
+            .find(|order| order.field == "label")
+            .expect("string order")
+            .max_encoded_bytes = Some(64);
+        second
+            .order
+            .iter_mut()
+            .find(|order| order.field == "label")
+            .expect("string order")
+            .max_encoded_bytes = Some(64);
+        let plan = crate::manifest::SnapshotBatchPlanV1 {
+            profile: "snapshot-batch.v1".to_owned(),
+            nodes: vec![first, second],
+        };
+        let projection_outputs = BTreeSet::new();
+        for node in &plan.nodes {
+            validate_bounded_children_node_schema_references(
+                node,
+                schema.table(&node.parent_table).expect("parent"),
+                schema.table(&node.child_table).expect("child"),
+                &projection_outputs,
+            )
+            .expect("each composite node keeps standalone schema admission");
+        }
+
+        let mut batch = FunctionDefinition::new(
+            "batch",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan.clone())),
+        );
+        batch.args_contract = Some(crate::manifest::FunctionArgsContract {
+            fields: vec![
+                crate::manifest::ResultObjectFieldContract {
+                    name: "parentId".to_owned(),
+                    required: true,
+                    value: crate::manifest::ResultValueContract::Id {
+                        table: "parents".to_owned(),
+                    },
+                },
+                crate::manifest::ResultObjectFieldContract {
+                    name: "otherParentId".to_owned(),
+                    required: true,
+                    value: crate::manifest::ResultValueContract::Id {
+                        table: "parents".to_owned(),
+                    },
+                },
+                crate::manifest::ResultObjectFieldContract {
+                    name: "cursor".to_owned(),
+                    required: false,
+                    value: crate::manifest::ResultValueContract::String { max_bytes: 8_192 },
+                },
+            ],
+        });
+        let manifest = FunctionManifest {
+            functions: vec![batch],
+            ..FunctionManifest::default()
+        };
+        let bounds = order_field_bounds_from_functions(&manifest, &schema)
+            .expect("snapshot batch contributes every node order declaration");
+        assert_eq!(
+            bounds.get(&("children".to_owned(), "label".to_owned())),
+            Some(&64),
+        );
+
+        let mut bad_schema = schema.clone();
+        bad_schema
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "children")
+            .and_then(|table| table.indexes.iter_mut().find(|index| index.name == "by_parent_boundary"))
+            .expect("child index")
+            .fields
+            .pop();
+        assert!(
+            validate_bounded_children_node_schema_references(
+                &plan.nodes[0],
+                bad_schema.table("parents").unwrap(),
+                bad_schema.table("children").unwrap(),
+                &projection_outputs,
+            )
+            .is_err(),
+            "a composite node cannot weaken the standalone exact-index proof",
         );
     }
 

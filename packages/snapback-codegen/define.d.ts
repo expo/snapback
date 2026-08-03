@@ -269,6 +269,7 @@ export type TargetCapabilityId =
   | 'live_subscriptions'
   | 'mutation_read_set_validation'
   | 'sequence_allocation_v1'
+  | 'snapshot_batch_v1'
   | 'settlement.bounded_skew'
   | 'permission_epoch_resync'
   | 'full_text_search_v1';

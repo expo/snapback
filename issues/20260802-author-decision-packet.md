@@ -214,3 +214,28 @@ and ratified all of them. Deltas and additions from the review:
 - Ruling 11 execution: the LLP 0157 authoring session is being kicked off
   following this ratification (tracker:
   `issues/20260802-0155-move1-composition-spec-commission.md`).
+
+## Questions appended during LLP 0135 Part 2 implementation
+
+- **2026-08-02 — snapshot-batch heterogeneous tuple result contract.**
+  Accepted LLP 0135 §2.3 requires the visible sealed row's `nodes` member to
+  be the declaration-ordered tuple of each bounded-child node's own distinct
+  cursor-free page contract. LLP 0108's current `ResultValueContract` can
+  express only homogeneous arrays; neither LLP 0135 nor Draft LLP 0157 pins
+  the public tuple-contract node/member spelling. Accepting `Json`, a
+  homogeneous array, or a union would weaken per-position validation and
+  make a malformed direct artifact admissible. Author ruling requested: pin
+  the closed heterogeneous tuple contract carrier (including its manifest
+  member spelling and hashing/canonicalization behavior). The static Rust
+  carrier checkpoint remains unpublished and whole-manifest admission stays
+  fail-closed until that ruling lands.
+- **2026-08-02 — `ParentAuthorizationKeyV1` canonical record encoding.**
+  LLP 0135 §2.2 fully determines semantic equality — parent table, typed
+  parent-id argument binding, and the complete visibility declaration with
+  policy/version identity — and requires RFC 8785 canonical bytes plus
+  cross-language golden vectors. It does not pin the closed key record's
+  member names/encoding, and LLP 0157 only says those future canonical bytes
+  enter the plan-hash preimage. Author ruling requested: pin the exact closed
+  record encoding. The checkpoint derives the specified equivalence classes
+  internally from typed Rust values, but exposes no canonical bytes and makes
+  no `PlanHashV1` or cross-language identity claim.

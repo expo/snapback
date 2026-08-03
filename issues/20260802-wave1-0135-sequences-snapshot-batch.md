@@ -65,3 +65,18 @@ LLP; LLP 0115 board row updated.
   remains unimplemented and unregistered; standalone `sbbc1` already exists
   under the bounded-children profile. The ticket remains Open for the actual
   snapshot implementation and acceptance, not for a cursor-ownership hold.
+- **2026-08-02 — static snapshot carrier checkpoint, still unpublished.**
+  The Rust manifest now has a closed `SnapshotBatchPlanV1` carrier and
+  standalone admission analysis for the 2–8 bounded-child tuple, summed
+  `take <= 1024`, exact merged parent-id arguments, per-node schema/index/
+  projection validation, order-bound registration, read/effect summaries,
+  and internally derived structural parent-authorization groups.
+  `snapshot_batch_v1` is registered at experimental maturity but its positive
+  support predicate is false on every target and every target reports the
+  structured GAP. Whole-function admission deliberately still refuses: the
+  existing result-contract vocabulary cannot exactly represent the visible
+  heterogeneous node tuple, and LLP 0135 does not pin
+  `ParentAuthorizationKeyV1`'s closed canonical record bytes. Both owner
+  questions are recorded in `issues/20260802-author-decision-packet.md`.
+  No executor, `sbsb1` runtime integration, live delivery, canonical plan hash,
+  cross-language key bytes, or publication claim lands in this checkpoint.

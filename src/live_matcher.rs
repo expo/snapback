@@ -177,6 +177,11 @@ pub(crate) fn live_subscription_may_be_affected(
         FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => changes
             .iter()
             .any(|change| change.table == plan.parent_table || change.table == plan.child_table),
+        // Unreachable while the static snapshot-batch carrier remains
+        // support-false and whole-manifest admission refuses. Keep the
+        // matcher conservative rather than accidentally claiming §2.5's
+        // future live dependency implementation in this checkpoint.
+        FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(_)) => true,
         FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)) => {
             changes.iter().any(|change| change.table == plan.table)
         }

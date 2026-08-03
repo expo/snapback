@@ -121,6 +121,7 @@ const TARGET_CAPABILITIES = new Set([
   'permission_epoch_resync',
   'full_text_search_v1',
   'bounded_children_v1',
+  'snapshot_batch_v1',
   'write_activity_v1',
 ]);
 const SEARCH_INDEX_SPEC_FIELDS = new Set([

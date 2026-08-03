@@ -1202,6 +1202,13 @@ impl FunctionManifest {
                     FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)),
                 ) => validate_bounded_children_plan_shape(plan)?,
                 (
+                    FunctionKind::Query | FunctionKind::LiveQuery,
+                    FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)),
+                ) => {
+                    validate_snapshot_batch_plan_shape(plan)?;
+                    validate_snapshot_batch_argument_bindings(function, plan)?;
+                }
+                (
                     FunctionKind::Mutation,
                     FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)),
                 ) => crate::value_expr::validate_mutation_plan(plan)?,
@@ -1252,6 +1259,17 @@ impl FunctionManifest {
                 FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(_)) => {
                     &["bounded_children_v1", "live_subscriptions"]
                 }
+                FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(_)) => {
+                    if function.kind == FunctionKind::LiveQuery {
+                        &[
+                            "snapshot_batch_v1",
+                            "bounded_children_v1",
+                            "live_subscriptions",
+                        ]
+                    } else {
+                        &["snapshot_batch_v1", "bounded_children_v1"]
+                    }
+                }
                 FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(_)) => {
                     &["write_activity_v1"]
                 }
@@ -1285,6 +1303,22 @@ impl FunctionManifest {
             validate_declared_refusals(function)?;
             validate_bounded_skew_definition(function)?;
             validate_sequence_declarations(function)?;
+            if let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) = &function.runtime {
+                validate_snapshot_batch_outer_result_contract(function, plan)?;
+                // @ref LLP 0135#23-seal-entirely-partial-refusal — the
+                // visible row contains a heterogeneous declaration-ordered
+                // tuple. LLP 0108's current result vocabulary has only a
+                // homogeneous array, so accepting any existing node here
+                // would weaken the sealed contract. Keep the normalized
+                // carrier unpublished until its owner pins the tuple node.
+                return Err(unsupported_capability_error(
+                    "snapshot_batch_v1",
+                    format!(
+                        "function {} cannot admit snapshot_batch_v1 until the exact heterogeneous tuple result-contract carrier is registered",
+                        function.name
+                    ),
+                ));
+            }
             for declaration in &function.sequences {
                 match sequence_declarations.get(&declaration.name) {
                     Some(previous) if previous != declaration => {
@@ -2924,6 +2958,18 @@ impl ObservedEffects {
                 self.read(&plan.child_table, "query", Some(&plan.child_index));
                 self.authorization_inputs.insert("parentVisibility");
             }
+            HandlerPlan::SnapshotBatch(plan) => {
+                // @ref LLP 0135#25-work-ceiling-identity-and-live-classification
+                //   — the static composite summary is the union of node
+                //   dependencies. EffectCeilingV1 records access classes,
+                //   not quantitative reads; the separately derived group
+                //   carrier retains the structural dedup count.
+                for node in &plan.nodes {
+                    self.read(&node.parent_table, "point", None);
+                    self.read(&node.child_table, "query", Some(&node.child_index));
+                }
+                self.authorization_inputs.insert("parentVisibility");
+            }
             HandlerPlan::Mutation(plan) => {
                 for step in &plan.steps {
                     match step {
@@ -3445,6 +3491,256 @@ pub fn validate_bounded_children_plan_shape(plan: &BoundedChildrenQueryPlan) -> 
             "query",
             "bounded children plan is outside the closed v1 profile",
         ));
+    }
+    Ok(())
+}
+
+/// Structural admission for the unpublished `snapshot-batch.v1` normalized
+/// carrier. This proves only the static tuple and its bounded-child members;
+/// execution, cursor custody, live delivery, and capability publication are
+/// deliberately outside this checkpoint.
+///
+/// @ref LLP 0135#21-composite-plan-shape — v1 is exactly two through eight
+///   complete bounded-children plans with a summed `take` ceiling of 1,024.
+pub fn validate_snapshot_batch_plan_shape(plan: &SnapshotBatchPlanV1) -> SnapbackResult<()> {
+    let invalid = |message: String| {
+        SnapbackError::error("SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID", "query", message)
+    };
+    if plan.profile != "snapshot-batch.v1" || !(2..=8).contains(&plan.nodes.len()) {
+        return Err(invalid(
+            "snapshot batch requires profile snapshot-batch.v1 and two through eight nodes"
+                .to_owned(),
+        ));
+    }
+    let mut total_take = 0_u32;
+    for node in &plan.nodes {
+        validate_bounded_children_plan_shape(node).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_NODE_INELIGIBLE",
+                "query",
+                "snapshot batch nodes must be complete bounded-children.v1 plans",
+            )
+        })?;
+        total_take = total_take.checked_add(node.take).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED",
+                "query",
+                "snapshot batch node take sum overflowed the closed ceiling",
+            )
+        })?;
+    }
+    if total_take > 1_024 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED",
+            "query",
+            "snapshot batch node take sum exceeds 1,024",
+        ));
+    }
+    Ok(())
+}
+
+/// One internally derived structural parent-authorization identity. It is
+/// intentionally not serialized: LLP 0135 fixes the semantic tuple but does
+/// not yet pin the closed record member spellings needed for its RFC 8785
+/// cross-language byte identity. The eventual canonical carrier must replace
+/// this checkpoint rather than treating Rust field names as wire authority.
+///
+/// @ref LLP 0135#22-one-snapshot-execution-and-parent-authorization-dedup —
+///   equality includes parent table, typed argument binding, and the complete
+///   versioned visibility declaration, never runtime argument values.
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct SnapshotBatchParentAuthorizationIdentityV1 {
+    pub parent_table: String,
+    pub parent_id_argument: String,
+    pub parent_id_table: String,
+    pub visibility: BoundedParentVisibility,
+}
+
+/// One equivalence class in declaration order, with node positions retained
+/// for deterministic internal planning. No canonical bytes or plan-hash claim
+/// attaches to this unpublished representation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SnapshotBatchParentAuthorizationGroupV1 {
+    pub identity: SnapshotBatchParentAuthorizationIdentityV1,
+    pub node_indices: Vec<usize>,
+}
+
+/// Validate and derive the merged argument identities and parent-auth groups.
+/// A bounded-child parent binding must name a required `id<parentTable>` field
+/// in the function's existing LLP 0131 argument contract. Reusing one argument
+/// name for incompatible parent types therefore refuses structurally.
+pub fn snapshot_batch_parent_authorization_groups(
+    function: &FunctionDefinition,
+    plan: &SnapshotBatchPlanV1,
+) -> SnapbackResult<Vec<SnapshotBatchParentAuthorizationGroupV1>> {
+    let contract = function.args_contract.as_ref().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+            "query",
+            "snapshot batch requires a closed typed argument contract",
+        )
+    })?;
+    let mut group_positions =
+        BTreeMap::<SnapshotBatchParentAuthorizationIdentityV1, usize>::new();
+    let mut groups: Vec<SnapshotBatchParentAuthorizationGroupV1> = Vec::new();
+    for (node_index, node) in plan.nodes.iter().enumerate() {
+        let argument = contract
+            .fields
+            .iter()
+            .find(|field| field.name == node.parent_id_arg)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                    "query",
+                    format!(
+                        "snapshot batch node {node_index} names undeclared parent argument {}",
+                        node.parent_id_arg
+                    ),
+                )
+            })?;
+        if !argument.required
+            || argument.value
+                != (ResultValueContract::Id {
+                    table: node.parent_table.clone(),
+                })
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                "query",
+                format!(
+                    "snapshot batch node {node_index} parent argument {} must be a required id<{}>",
+                    node.parent_id_arg, node.parent_table
+                ),
+            ));
+        }
+        let identity = SnapshotBatchParentAuthorizationIdentityV1 {
+            parent_table: node.parent_table.clone(),
+            parent_id_argument: node.parent_id_arg.clone(),
+            parent_id_table: node.parent_table.clone(),
+            visibility: node.parent_visibility.clone(),
+        };
+        if let Some(group_index) = group_positions.get(&identity).copied() {
+            groups[group_index].node_indices.push(node_index);
+        } else {
+            group_positions.insert(identity.clone(), groups.len());
+            groups.push(SnapshotBatchParentAuthorizationGroupV1 {
+                identity,
+                node_indices: vec![node_index],
+            });
+        }
+    }
+    Ok(groups)
+}
+
+fn validate_snapshot_batch_argument_bindings(
+    function: &FunctionDefinition,
+    plan: &SnapshotBatchPlanV1,
+) -> SnapbackResult<()> {
+    snapshot_batch_parent_authorization_groups(function, plan)?;
+    let contract = function
+        .args_contract
+        .as_ref()
+        .expect("group derivation requires the argument contract");
+    let mut expected = plan
+        .nodes
+        .iter()
+        .map(|node| node.parent_id_arg.as_str())
+        .collect::<BTreeSet<_>>();
+    expected.insert("cursor");
+    let actual = contract
+        .fields
+        .iter()
+        .map(|field| field.name.as_str())
+        .collect::<BTreeSet<_>>();
+    let cursor = contract.fields.iter().find(|field| field.name == "cursor");
+    if actual != expected
+        || !cursor.is_some_and(|field| {
+            !field.required && field.value == ResultValueContract::String { max_bytes: 8_192 }
+        })
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+            "query",
+            "snapshot batch arguments must be exactly the merged required parent ids plus optional cursor:string(maxBytes=8192)",
+        ));
+    }
+    Ok(())
+}
+
+/// Check exactly the portion of LLP 0135's sealed one-row result that the
+/// current result-contract vocabulary can represent: row cardinality, the
+/// two closed discriminator objects, exact absent values, and the composite
+/// continuation bound. The visible `nodes` member is intentionally left
+/// uninterpreted here; whole-manifest admission always refuses immediately
+/// after this check until an owner-pinned heterogeneous tuple node exists.
+fn validate_snapshot_batch_outer_result_contract(
+    function: &FunctionDefinition,
+    _plan: &SnapshotBatchPlanV1,
+) -> SnapbackResult<()> {
+    let invalid = || {
+        SnapbackError::error(
+            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+            "query",
+            "snapshot batch requires the exact one-row sealed outer result envelope",
+        )
+    };
+    let FunctionResultContract::Records {
+        record: ResultValueContract::Union { variants },
+        rows: Some(ResultRowsBound {
+            min_items: 1,
+            max_items: 1,
+        }),
+    } = &function.result_contract
+    else {
+        return Err(invalid());
+    };
+    if variants.len() != 2 {
+        return Err(invalid());
+    }
+    fn object_fields(
+        variant: &ResultValueContract,
+    ) -> Option<&Vec<ResultObjectFieldContract>> {
+        let ResultValueContract::Object {
+            fields,
+            allow_extra: false,
+        } = variant
+        else {
+            return None;
+        };
+        if fields.len() != 3
+            || fields.iter().any(|field| !field.required)
+            || fields[0].name != "kind"
+            || fields[1].name != "nodes"
+            || fields[2].name != "continuation"
+        {
+            return None;
+        }
+        Some(fields)
+    }
+    let absent = object_fields(&variants[0]).ok_or_else(invalid)?;
+    if absent[0].value
+        != (ResultValueContract::Literal {
+            value: Value::String("absent".to_owned()),
+        })
+        || absent[1].value != ResultValueContract::Null
+        || absent[2].value != ResultValueContract::Null
+    {
+        return Err(invalid());
+    }
+    let visible = object_fields(&variants[1]).ok_or_else(invalid)?;
+    if visible[0].value
+        != (ResultValueContract::Literal {
+            value: Value::String("visible".to_owned()),
+        })
+        || visible[2].value
+            != (ResultValueContract::Union {
+                variants: vec![
+                    ResultValueContract::Null,
+                    ResultValueContract::String { max_bytes: 8_192 },
+                ],
+            })
+    {
+        return Err(invalid());
     }
     Ok(())
 }
@@ -4589,7 +4885,32 @@ pub struct BoundedChildrenQueryPlan {
     pub parent_deletion: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+/// The unpublished normalized carrier for LLP 0135 Part 2. The only authored
+/// members are the profile discriminator and declaration-ordered complete
+/// bounded-child nodes. Merged argument identities and parent-authorization
+/// equivalence classes are host-derived; they are never trusted from an
+/// artifact.
+///
+/// @ref LLP 0135#21-composite-plan-shape — v1 composes a static tuple of
+///   complete bounded-children plans and no other node kind.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SnapshotBatchPlanV1 {
+    pub profile: String,
+    pub nodes: Vec<BoundedChildrenQueryPlan>,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Deserialize,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub enum BoundedParentVisibility {
     PublicRead,
@@ -4958,6 +5279,7 @@ pub enum PublicHostPlanKind {
     Action,
     RelationalQuery,
     BoundedChildrenQuery,
+    SnapshotBatch,
     WriteWithActivity,
 }
 
@@ -5160,6 +5482,7 @@ impl From<FunctionRuntime> for PublicFunctionRuntime {
                 // inspection surface (LLP 0080 §7).
                 HandlerPlan::RelationalQuery(_) => PublicHostPlanKind::RelationalQuery,
                 HandlerPlan::BoundedChildrenQuery(_) => PublicHostPlanKind::BoundedChildrenQuery,
+                HandlerPlan::SnapshotBatch(_) => PublicHostPlanKind::SnapshotBatch,
                 HandlerPlan::WriteWithActivity(_) => PublicHostPlanKind::WriteWithActivity,
             }),
             // `source: _` is the redaction this projection exists for.
@@ -5198,6 +5521,10 @@ pub enum HandlerPlan {
     RelationalQuery(RelationalQueryPlan),
     /// Protected one-parent bounded child page.
     BoundedChildrenQuery(BoundedChildrenQueryPlan),
+    /// Unpublished static bounded-child tuple. The carrier and admission
+    /// analysis exist, but whole-manifest load remains fail-closed until the
+    /// exact tuple result contract is owner-pinned; no executor is registered.
+    SnapshotBatch(SnapshotBatchPlanV1),
     /// Closed source/scope/activity transaction.
     WriteWithActivity(WriteWithActivityPlan),
 }
@@ -6709,6 +7036,8 @@ pub enum TargetCapabilityId {
     RelationalQueryV1,
     #[serde(rename = "sequence_allocation_v1")]
     SequenceAllocationV1,
+    #[serde(rename = "snapshot_batch_v1")]
+    SnapshotBatchV1,
     #[serde(rename = "migration_keyset_scan_v1")]
     MigrationKeysetScanV1,
     #[serde(rename = "full_text_search_v1")]
@@ -6738,7 +7067,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 28] = [
+    pub const ALL: [Self; 29] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -6754,6 +7083,7 @@ impl TargetCapabilityId {
         Self::RegisteredBundleBootV1,
         Self::RelationalQueryV1,
         Self::SequenceAllocationV1,
+        Self::SnapshotBatchV1,
         Self::MigrationKeysetScanV1,
         Self::FullTextSearchV1,
         Self::ResultContractV1,
@@ -6786,6 +7116,7 @@ impl TargetCapabilityId {
             Self::RegisteredBundleBootV1 => "registered_bundle_boot_v1",
             Self::RelationalQueryV1 => "relational_query_v1",
             Self::SequenceAllocationV1 => "sequence_allocation_v1",
+            Self::SnapshotBatchV1 => "snapshot_batch_v1",
             Self::MigrationKeysetScanV1 => "migration_keyset_scan_v1",
             Self::FullTextSearchV1 => "full_text_search_v1",
             Self::ResultContractV1 => "result_contract_v1",
@@ -6835,6 +7166,7 @@ impl TargetCapabilityId {
             | Self::JobsOneOffV1
             | Self::RegisteredBundleBootV1
             | Self::SequenceAllocationV1
+            | Self::SnapshotBatchV1
             | Self::ResultContractV1
             | Self::ArgsContractV1
             | Self::VersionedSeedInstallV1
@@ -6973,6 +7305,12 @@ impl TargetCapabilityId {
             //   target advertises only the code-owned registered execution
             //   seam; maturity remains experimental until LLP 0134 promotion.
             Self::SequenceAllocationV1 => facts.sequence_allocation_v1_registered,
+            // @ref LLP 0135#26-maturity-and-the-experimental-dependency-acknowledgment
+            //   — registry assignment and support are separate. This static
+            //   carrier checkpoint has no executor, cursor/live proof, tuple
+            //   contract, or LLP 0113 publication family, so every target's
+            //   positive predicate is intentionally false.
+            Self::SnapshotBatchV1 => false,
             // Fail-closed dedicated fact (LLP 0081 §3): the privileged
             // migration scan is a target capability; a target without it
             // cannot claim migration proofs.
@@ -7878,6 +8216,7 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "outbound_actions".to_owned(),
         "bounded_response_stream_v1".to_owned(),
         "bounded_children_v1".to_owned(),
+        "snapshot_batch_v1".to_owned(),
         "notifications".to_owned(),
         "ephemeral_hosted_adapter".to_owned(),
         "ephemeral_multi_instance_sticky_routing".to_owned(),
@@ -7896,6 +8235,12 @@ fn ensure_relation_activity_capability_gaps(gaps: &mut Vec<String>) {
     }
     if !gaps.iter().any(|gap| gap == "write_activity_v1") {
         gaps.push("write_activity_v1".to_owned());
+    }
+}
+
+fn ensure_snapshot_batch_capability_gap(gaps: &mut Vec<String>) {
+    if !gaps.iter().any(|gap| gap == "snapshot_batch_v1") {
+        gaps.push("snapshot_batch_v1".to_owned());
     }
 }
 
@@ -8314,6 +8659,7 @@ impl CapabilityManifest {
             "outbound_actions".to_owned(),
             "bounded_response_stream_v1".to_owned(),
             "bounded_children_v1".to_owned(),
+            "snapshot_batch_v1".to_owned(),
             "notifications".to_owned(),
             "notifications.expoPushSeam".to_owned(),
             "cron".to_owned(),
@@ -8374,6 +8720,20 @@ impl CapabilityManifest {
         {
             self.capability_gaps
                 .push("sequence_allocation_v1".to_owned());
+        }
+        // @ref LLP 0135#26-maturity-and-the-experimental-dependency-acknowledgment
+        //   — this checkpoint registers static maturity only. Until the
+        //   executor, cursor/live corpus, exact tuple contract, and LLP 0113
+        //   publication exist, every target reports the named GAP regardless
+        //   of which constructor supplied its initial gap list.
+        if self
+            .supported_capabilities
+            .contains(&TargetCapabilityId::SnapshotBatchV1)
+        {
+            self.capability_gaps
+                .retain(|gap| gap != "snapshot_batch_v1");
+        } else {
+            ensure_snapshot_batch_capability_gap(&mut self.capability_gaps);
         }
         // @ref LLP 0058#capability-maturity — the maturity map annotates
         // exactly the emitted support set; stable ids are omitted, so a
@@ -8667,6 +9027,257 @@ mod membership_manifest_grammar_tests {
         );
     }
 
+    fn snapshot_node_fixture(
+        parent_id_arg: &str,
+        visibility: BoundedParentVisibility,
+        take: u32,
+    ) -> BoundedChildrenQueryPlan {
+        BoundedChildrenQueryPlan {
+            profile: "bounded-children.v1".to_owned(),
+            required_capability: "bounded_children_v1".to_owned(),
+            parent_table: "boards".to_owned(),
+            parent_id_arg: parent_id_arg.to_owned(),
+            parent_visibility: visibility,
+            parent_projection: vec![BoundedProjectionField {
+                name: "id".to_owned(),
+                field: "_id".to_owned(),
+            }],
+            child_table: "cards".to_owned(),
+            child_foreign_key: "boardId".to_owned(),
+            child_relation_incarnation: "boardIncarnation".to_owned(),
+            child_index: "by_board_position".to_owned(),
+            order: vec![OrderExpr {
+                field: "position".to_owned(),
+                direction: OrderDirection::Asc,
+                max_encoded_bytes: None,
+            }],
+            take,
+            child_projection: vec![
+                BoundedProjectionField {
+                    name: "id".to_owned(),
+                    field: "_id".to_owned(),
+                },
+                BoundedProjectionField {
+                    name: "position".to_owned(),
+                    field: "position".to_owned(),
+                },
+            ],
+            parent_deletion: "hide-orphans.v1".to_owned(),
+        }
+    }
+
+    fn snapshot_function_fixture(plan: SnapshotBatchPlanV1) -> FunctionDefinition {
+        let mut parent_arguments = plan
+            .nodes
+            .iter()
+            .map(|node| (node.parent_id_arg.clone(), node.parent_table.clone()))
+            .collect::<BTreeMap<_, _>>()
+            .into_iter()
+            .map(|(name, table)| ResultObjectFieldContract {
+                name,
+                required: true,
+                value: ResultValueContract::Id { table },
+            })
+            .collect::<Vec<_>>();
+        parent_arguments.push(ResultObjectFieldContract {
+            name: "cursor".to_owned(),
+            required: false,
+            value: ResultValueContract::String { max_bytes: 8_192 },
+        });
+        let args_contract = FunctionArgsContract {
+            fields: parent_arguments,
+        };
+        let outer = |kind: &str,
+                     nodes: ResultValueContract,
+                     continuation: ResultValueContract| {
+            ResultValueContract::Object {
+                fields: vec![
+                    ResultObjectFieldContract {
+                        name: "kind".to_owned(),
+                        required: true,
+                        value: ResultValueContract::Literal { value: json!(kind) },
+                    },
+                    ResultObjectFieldContract {
+                        name: "nodes".to_owned(),
+                        required: true,
+                        value: nodes,
+                    },
+                    ResultObjectFieldContract {
+                        name: "continuation".to_owned(),
+                        required: true,
+                        value: continuation,
+                    },
+                ],
+                allow_extra: false,
+            }
+        };
+        // Deliberately only an outer-envelope fixture. Whole-manifest
+        // admission below must refuse before this homogeneous placeholder can
+        // be mistaken for LLP 0135's heterogeneous per-position tuple.
+        let result_contract = FunctionResultContract::Records {
+            record: ResultValueContract::Union {
+                variants: vec![
+                    outer(
+                        "absent",
+                        ResultValueContract::Null,
+                        ResultValueContract::Null,
+                    ),
+                    outer(
+                        "visible",
+                        ResultValueContract::Array {
+                            element: Box::new(ResultValueContract::Json {
+                                max_depth: 16,
+                                max_bytes: 1_048_576,
+                            }),
+                            max_items: plan.nodes.len(),
+                        },
+                        ResultValueContract::Union {
+                            variants: vec![
+                                ResultValueContract::Null,
+                                ResultValueContract::String { max_bytes: 8_192 },
+                            ],
+                        },
+                    ),
+                ],
+            },
+            rows: Some(ResultRowsBound {
+                min_items: 1,
+                max_items: 1,
+            }),
+        };
+        let mut function = FunctionDefinition::new(
+            "boardView",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)),
+        );
+        function.args_contract_hash = Some(args_contract_hash(&args_contract).expect("args hash"));
+        function.args_contract = Some(args_contract);
+        function.result_contract_hash =
+            Some(result_contract_hash(&result_contract).expect("result hash"));
+        function.result_contract = result_contract;
+        function.required_capabilities = vec![
+            "snapshot_batch_v1".to_owned(),
+            "bounded_children_v1".to_owned(),
+            "args_contract_v1".to_owned(),
+            "result_contract_v1".to_owned(),
+        ];
+        function
+    }
+
+    #[test]
+    fn snapshot_batch_static_tuple_ceiling_arguments_and_structural_groups_are_closed() {
+        let owner = BoundedParentVisibility::Owner {
+            field: "ownerId".to_owned(),
+        };
+        let plan = SnapshotBatchPlanV1 {
+            profile: "snapshot-batch.v1".to_owned(),
+            nodes: vec![
+                snapshot_node_fixture("boardId", owner.clone(), 512),
+                snapshot_node_fixture("boardId", owner.clone(), 512),
+            ],
+        };
+        validate_snapshot_batch_plan_shape(&plan).expect("closed 2-node plan");
+        let function = snapshot_function_fixture(plan.clone());
+        validate_snapshot_batch_argument_bindings(&function, &plan)
+            .expect("exact merged args");
+        let groups = snapshot_batch_parent_authorization_groups(&function, &plan)
+            .expect("derive parent groups");
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].node_indices, vec![0, 1]);
+
+        let mut different_argument = plan.clone();
+        different_argument.nodes[1].parent_id_arg = "otherBoardId".to_owned();
+        let different_argument_function = snapshot_function_fixture(different_argument.clone());
+        assert_eq!(
+            snapshot_batch_parent_authorization_groups(
+                &different_argument_function,
+                &different_argument,
+            )
+            .expect("different typed binding remains valid")
+            .len(),
+            2,
+            "equal runtime ids under different bindings never dedup",
+        );
+
+        let mut different_visibility = plan.clone();
+        different_visibility.nodes[1].parent_visibility = BoundedParentVisibility::PublicRead;
+        let different_visibility_function = snapshot_function_fixture(different_visibility.clone());
+        assert_eq!(
+            snapshot_batch_parent_authorization_groups(
+                &different_visibility_function,
+                &different_visibility,
+            )
+            .expect("different visibility remains a valid plan")
+            .len(),
+            2,
+            "different visibility declarations never dedup",
+        );
+
+        let mut exceeded = plan.clone();
+        exceeded.nodes[1].take = 513;
+        assert_eq!(
+            validate_snapshot_batch_plan_shape(&exceeded)
+                .expect_err("sum take must be bounded")
+                .diagnostic
+                .code,
+            "SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED",
+        );
+
+        let mut extra_argument = function.clone();
+        extra_argument
+            .args_contract
+            .as_mut()
+            .expect("args")
+            .fields
+            .push(ResultObjectFieldContract {
+                name: "unbound".to_owned(),
+                required: true,
+                value: ResultValueContract::Boolean,
+            });
+        assert_eq!(
+            validate_snapshot_batch_argument_bindings(&extra_argument, &plan)
+                .expect_err("composite args are exactly the merged node args plus cursor")
+                .diagnostic
+                .code,
+            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+        );
+    }
+
+    #[test]
+    fn snapshot_batch_direct_artifact_and_public_kind_exist_but_load_stays_fail_closed() {
+        let plan = SnapshotBatchPlanV1 {
+            profile: "snapshot-batch.v1".to_owned(),
+            nodes: vec![
+                snapshot_node_fixture("boardId", BoundedParentVisibility::PublicRead, 8),
+                snapshot_node_fixture("boardId", BoundedParentVisibility::PublicRead, 8),
+            ],
+        };
+        let function = snapshot_function_fixture(plan);
+        let runtime = serde_json::to_value(&function.runtime).expect("serialize private carrier");
+        assert!(runtime.get("HostPlan").is_some());
+        let public = PublicFunctionDefinition::from(function.clone());
+        assert!(matches!(
+            public.runtime,
+            PublicFunctionRuntime::HostPlan(PublicHostPlanKind::SnapshotBatch)
+        ));
+        let manifest = FunctionManifest {
+            schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
+            functions: vec![function],
+            acknowledged_experimental_capabilities: vec![
+                "snapshot_batch_v1".to_owned(),
+                "bounded_children_v1".to_owned(),
+                "args_contract_v1".to_owned(),
+                "result_contract_v1".to_owned(),
+            ],
+            ..FunctionManifest::default()
+        };
+        let refusal = manifest
+            .validate_artifact()
+            .expect_err("the unpinned heterogeneous tuple must not load approximately");
+        assert_eq!(refusal.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
+        assert!(refusal.diagnostic.message.contains("heterogeneous tuple"));
+    }
+
     #[test]
     fn bounded_stream_capability_requires_both_implementation_and_live_egress() {
         let declared = CapabilityManifest::local_v0_declared();
@@ -8953,6 +9564,44 @@ mod membership_manifest_grammar_tests {
                     .capability_maturity
                     .contains_key(&TargetCapabilityId::SequenceAllocationV1),
                 "unsupported ids do not receive maturity annotations",
+            );
+        }
+    }
+
+    #[test]
+    fn snapshot_batch_registry_is_experimental_but_all_targets_stay_gap_only() {
+        assert_eq!(
+            TargetCapabilityId::SnapshotBatchV1.maturity(),
+            CapabilityMaturity::Experimental,
+        );
+        for manifest in [
+            CapabilityManifest::local_v0_declared(),
+            CapabilityManifest::local_v0_instance(Vec::new(), true),
+            CapabilityManifest::remote_service_sqlite_ibex_declared(),
+            CapabilityManifest::conformance_workerd_v8(json!({})),
+            CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+        ] {
+            assert!(
+                !manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::SnapshotBatchV1),
+                "{} must not advertise the static carrier as runtime support",
+                manifest.target_profile_id,
+            );
+            assert!(
+                !manifest
+                    .capability_maturity
+                    .contains_key(&TargetCapabilityId::SnapshotBatchV1),
+                "{} must not annotate maturity for an unsupported id",
+                manifest.target_profile_id,
+            );
+            assert!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "snapshot_batch_v1"),
+                "{} must report the structured snapshot_batch_v1 GAP",
+                manifest.target_profile_id,
             );
         }
     }
