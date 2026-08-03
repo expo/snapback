@@ -728,17 +728,16 @@ fn validate_allocation_binding_order(
     allocation_bindings: &std::collections::BTreeSet<String>,
     declared_bindings: &std::collections::BTreeSet<String>,
 ) -> Result<(), SnapbackError> {
-    if let ValueExpr::Binding(binding) = expr {
-        if allocation_bindings.contains(binding.as_str())
-            && !declared_bindings.contains(binding.as_str())
-        {
-            return Err(SnapbackError::error(
-                "SNAPBACK_BINDING_MISSING",
-                "runtime",
-                format!("sequence allocation binding {binding:?} is used before allocation"),
-            )
-            .with_details(json!({ "binding": binding, "reason": "usedBeforeAllocation" })));
-        }
+    if let ValueExpr::Binding(binding) = expr
+        && allocation_bindings.contains(binding.as_str())
+        && !declared_bindings.contains(binding.as_str())
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_BINDING_MISSING",
+            "runtime",
+            format!("sequence allocation binding {binding:?} is used before allocation"),
+        )
+        .with_details(json!({ "binding": binding, "reason": "usedBeforeAllocation" })));
     }
     let children: Vec<&ValueExpr> = match expr {
         ValueExpr::Field { base, .. } => vec![base],
