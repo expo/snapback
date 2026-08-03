@@ -62,8 +62,9 @@ you never build around a feature because you didn't know it existed.
   and the ordinary-vs-live boundary.
 - [Mutations](./backend/mutations.md) — buffered writes, one commit version,
   read-set conflict validation, and structured results.
-- [Scoped sequences](./backend/sequences.md) — experimental atomic,
-  incarnation-scoped human-facing numbers and enforced order-field bounds.
+- [Scoped sequences](./backend/sequences.md) — the unpublished local
+  handler-tier substrate for atomic, incarnation-scoped human-facing numbers,
+  its A6 evidence, and the remaining qualification GAP.
 - [Trusted runtime time and identifiers](./backend/trusted-runtime-values.md) —
   server-authored timestamps and IDs in JavaScript handlers, closed operation
   arguments, diagnostics, and transition guidance.

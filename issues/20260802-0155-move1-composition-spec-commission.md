@@ -2,7 +2,7 @@
 
 **Status:** Open — DRAFTED 2026-08-02: the commissioned Spec exists as
 **LLP 0157** (`llp/0157-composition-algebra-and-completeness.spec.md`,
-v0.1 Draft) with the dated LLP 0080 boundary note landed in the same
+v0.2 Draft) with the dated LLP 0080 boundary note landed in the same
 change. Key structural choice: LLP 0135 Part 2 already specifies the
 option-3a execution substrate (cursor grammar `sbsb1`, one-snapshot,
 seal-entirely, dedup), so 0157 adopts it verbatim and owns the layers
@@ -31,10 +31,11 @@ refusal reason; the dated LLP 0080 boundary note (0155 OQ1's recommended
 shape: successor Spec, not an 0080 amendment). Aggregates stay out —
 deferred to LLP 0130 SD-2's evidence branch.
 
-Consumers waiting on it: 0155 Stage 1 (the flagship), the snapshot-batch
-half of the wave1-0135 ticket (shared cursor grammar — whoever lands first
-pins it), G-02's generated result types, and possibly the register-cliff
-ticket's path (b).
+Consumers waiting on its identity/completeness layers: 0155 Stage 1 (the
+flagship), G-02's generated result types, and possibly the register-cliff
+ticket's path (b). The wave1-0135 snapshot-batch execution lane is no longer a
+waiting consumer: LLP 0157 §D8 confirms LLP 0135 Part 2 is implementable as
+written and already owns the cursor grammar.
 
 Process: next available LLP number at authoring time; llp-create + the
 LLP 0005 review loop scaled to its cross-subsystem stakes; acceptance is

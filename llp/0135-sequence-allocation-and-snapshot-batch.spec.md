@@ -6,10 +6,15 @@
 generation, Authorization, Live Queries, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-02 (the commissioned handler-tier sequence slice landed:
-declarations, `ctx.sequence.allocate`, authoritative commit/replay facts,
-order-field bounds, capability registration, and the A6 fixture; snapshot
-batch remains held pending LLP 0155 Move 1); 2026-08-02 (the §4 acceptance folds landed as dated owner
+**Revised:** 2026-08-02 (publication-honesty reconciliation: the commissioned
+handler-tier sequence substrate landed — declarations,
+`ctx.sequence.allocate`, authoritative commit/replay facts, order-field bounds,
+and the A6 fixture — and the combined integration checkpoint adds generated
+`AllocateSequence` plus mutation-atomic lane-Q withholding. This remains an
+unpublished, support-false substrate pending the complete §5.1 qualification
+train. LLP 0157 §D8 confirms Part 2 is
+implementable as written and that LLP 0135 owns the cursor grammar, so the
+snapshot-batch lane is unblocked rather than held); 2026-08-02 (the §4 acceptance folds landed as dated owner
 amendments; implementation/capability claims remain gated); 2026-07-31 (ACCEPTED under LLP 0130 SD-4's standing
 authorization: dual-family READY — Fable round 3, Codex round 4 —
 with the three conditions checked and satisfied: (1) zero unresolved
@@ -1013,8 +1018,9 @@ witnesses.
 
 ## Implementation record — 2026-08-02
 
-The local SQLite/Ibex target implements the commissioned **handler-tier
-sequence half** at experimental maturity. `defineJsMutation.sequences`
+The source tree contains the commissioned local SQLite/Ibex **handler-tier
+sequence substrate**. This is implementation evidence, not a published target
+support claim. `defineJsMutation.sequences`
 declares each counter's name, ordinary scope table, and either the exact
 membership declaration/roles that make the scope reachable or the explicit
 `public.v1` reach declaration. `ctx.sequence.allocate(counterName, scopeId)`
@@ -1026,14 +1032,17 @@ executes a second advance; ordinary live fanout strips that settlement-only
 fact. Sequence-only mutations are admitted without a fictitious application
 write.
 
-The capability registry now advertises `sequence_allocation_v1` on the local
-target at Experimental. `OrderExpr.maxEncodedBytes` is the single declaration
-surface for string ordering bounds. Admission reconciles it to one value per
-`(table, field)`, scans existing rows, and every central insert/patch/seed path
-enforces UTF-8 byte length with
+The code-owned capability vocabulary includes `sequence_allocation_v1` at
+Experimental maturity, but no target support is published. The required
+posture remains support false with a structured GAP until the complete §5.1
+corpus and LLP 0113 qualification/publication machinery are satisfied.
+`OrderExpr.maxEncodedBytes` is the single declaration surface for string
+ordering bounds. Admission reconciles it to one value per `(table, field)`,
+scans existing rows, and every central insert/patch/seed path enforces UTF-8
+byte length with
 `SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED`.
 
-Executable evidence is:
+Executable substrate evidence is:
 
 - `sequence_host_bridge_is_declared_scoped_and_commits_with_the_mutation` in
   `src/runtime.rs` for the ctx boundary, explicit public scope, undeclared
@@ -1052,15 +1061,23 @@ Executable evidence is:
   allocation and receipt facts, and no longer patch an application-owned
   counter. Its three literal-seed allocations, and every historical export
   allocation before reset/restore, are recorded through the real primitive by
-  a sequence-only brownfield bridge.
+  a sequence-only brownfield bridge; and
+- the combined sequence integration proof for the closed generated
+  `AllocateSequence` plan step and mutation-atomic lane-Q withholding across
+  projections.
 
-This is deliberately not a whole-Spec `Implemented` claim. The generated
-`AllocateSequence` host-plan step, lane-Q mutation-atomic optimistic
-withholding, the two app-authored abort-disclosure vectors, and the complete
-multi-writer performance/commit-order corpus remain unbuilt. The entire
-snapshot-batch half (`snapshot_batch_v1`, `sbsb1`, and `sbbc1`) is held because
-LLP 0155 Move 1's composition-algebra Spec has not been commissioned to pin
-the shared cursor grammar. No snapshot capability is registered or advertised.
+This is deliberately not a whole-Spec `Implemented` claim or a capability
+publication. Generated allocation and lane-Q withholding extend the implemented
+substrate, but do not close the two app-authored abort-disclosure vectors, the
+complete multi-writer performance/commit-order corpus, or the other unlisted
+§5.1 qualification rows.
+
+The snapshot-batch half is no longer held on composition ownership. LLP 0157
+§D8 adopts LLP 0135 Part 2 verbatim, states that it is implementable as written,
+and confirms that `sbsb1` is LLP 0135's cursor grammar. `snapshot_batch_v1` and
+`sbsb1` remain unimplemented, unregistered, and unwitnessed in this record;
+the already-existing standalone `sbbc1` bounded-children cursor is a dependency,
+not the composite implementation. No snapshot capability is advertised.
 
 ## Nonclaims
 
@@ -1078,12 +1095,17 @@ the shared cursor grammar. No snapshot capability is registered or advertised.
   surface presents one (§1.4). Admission of allocating operations to
   local execution is out of scope pending LLP 0129 row 2's admission
   vocabulary (open question 6).
-- **Partial implementation; experimental terminus.** The dated record above
-  is the complete claim for `sequence_allocation_v1`: local handler-tier
-  support exists and remains Experimental. Generated allocation and the named
-  unexercised vectors are not implied. `snapshot_batch_v1` remains reserved,
-  unsupported, and wholly unwitnessed. Any future promotion still follows
-  LLP 0134; this Spec cannot and does not shorten that path.
+- **Unpublished substrate; experimental terminus.** The dated record above
+  claims only the observed local handler-tier substrate, not target support for
+  `sequence_allocation_v1`. The capability remains Experimental,
+  support-false, and represented as a structured GAP until the complete §5.1
+  qualification and LLP 0113 publication requirements land. Generated
+  allocation and lane-Q withholding are substrate evidence only; they do not
+  imply the remaining unexercised vectors. `snapshot_batch_v1` remains
+  reserved, unsupported, and wholly unwitnessed, but its implementation lane
+  is unblocked by LLP 0157 §D8. Any
+  future promotion still follows LLP 0134; this Spec cannot and does not
+  shorten that path.
 - **No performance results.** §1.6's statements are named empirical
   expectations; LLP 0125's burst work owns the measurement.
 - **No general query language, and no relational nodes in v1.**
