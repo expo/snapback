@@ -1476,7 +1476,21 @@ impl LocalDatabase {
                     "backup database could not enable secure token deletion",
                 ));
             }
-            output.execute("DELETE FROM _snapback_push_tokens_v1", [])?;
+            for table in [
+                "_snapback_push_messages_v1",
+                "_snapback_push_batches_v1",
+                "_snapback_push_intents_v1",
+                "_snapback_push_tokens_v1",
+            ] {
+                let exists: bool = output.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?1)",
+                    params![table],
+                    |row| row.get(0),
+                )?;
+                if exists {
+                    output.execute(&format!("DELETE FROM {table}"), [])?;
+                }
+            }
             output.close().map_err(|(_, error)| error)?;
             normalize_backup_image_format(image).map_err(|_| {
                 backup_invalid("backup database image could not be made self-contained")
@@ -2648,6 +2662,9 @@ mod tests {
             registry: crate::push::PushRegistryDeclarationV1 {
                 idle_retention_ms: 86_400_000,
             },
+            audiences: std::collections::BTreeMap::new(),
+            uses: Vec::new(),
+            ledger: None,
         })
         .expect("push registry");
         db.conn

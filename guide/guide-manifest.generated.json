@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "e8f4405b160f1fc2876c5fe0a1ed27dfac8941a3"
+    "commit": "26fc05b063394c0d3d7667a819f552ba12c3afca"
   },
   "nav": {
     ".": [
@@ -119,6 +119,11 @@
         "id": "backend.streamed-actions",
         "order": 35,
         "title": "Streamed actions"
+      },
+      {
+        "id": "backend.expo-push-seam",
+        "order": 46,
+        "title": "Expo push notifications"
       }
     ],
     "clients": [
@@ -768,6 +773,45 @@
         }
       ]
     },
+    "backend.expo-push-seam": {
+      "path": "guide/backend/expo-push.md",
+      "title": "Expo push notifications",
+      "order": 46,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "backend.expo-push-seam"
+      ],
+      "authorities": [
+        "llp/0143-expo-push-notification-seam.rfc.md",
+        "src/push.rs",
+        "src/server.rs",
+        "packages/snapback-codegen/define.mjs",
+        "packages/snapback-harness/ctx-bootstrap.js",
+        "packages/snapback-client/push-registry.mjs"
+      ],
+      "examples": [],
+      "reviewed": "2026-08-02",
+      "reviewedCommit": "HEAD",
+      "sha256": "e864f35f7973e88aac378e8e7548a3df130cf9b3adc6353350d6bc6c673d95f2",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
+        }
+      ]
+    },
     "backend.jobs": {
       "path": "guide/backend/jobs.md",
       "title": "One-off durable jobs",
@@ -1199,7 +1243,7 @@
       "examples": [],
       "reviewed": "2026-08-02",
       "reviewedCommit": "63d980b654664d2c990f454cbcb78958d87d27b8",
-      "sha256": "d6ad56702e8c08bfe358c62e15c8a42b96f939e3ad11bde572699322912025ae",
+      "sha256": "1826ea724f34be5851b2c946281ff3f74243c87cfd2c0d6d2af387c685921d94",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1840,7 +1884,7 @@
       ],
       "reviewed": "2026-08-01",
       "reviewedCommit": "f245965ccfdc3addd44554d709c1074adec0834f",
-      "sha256": "354862be75f2b23a7e4c3ef03397f1006adbceb41721ed986e23e1c8054c26a8",
+      "sha256": "b091e83402c512c7c283abea7a684d506c33a06b6f75f63978ac1d9d21b935e0",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2436,6 +2480,7 @@
       "backend.assets",
       "backend.codegen",
       "backend.cron",
+      "backend.expo-push-seam",
       "backend.functions",
       "backend.jobs-one-off",
       "backend.provisioning",
@@ -2485,7 +2530,6 @@
       "backend.error-tracking-v1",
       "backend.notifications",
       "backend.observability-v1",
-      "backend.push-token-registry-v1",
       "backend.vector-search",
       "backend.write-activity-v1",
       "clients.non-js",
@@ -2499,5 +2543,5 @@
     "routes": 94,
     "hostOps": 32
   },
-  "contentHash": "9185f103323820d2f19793a94993b63a92ab3226be4976a97e7d8c8dd4fb523b"
+  "contentHash": "930444836ed596ade7b64a9aa159c7cd47029924d10f8bfa5ca306109ce6b553"
 }

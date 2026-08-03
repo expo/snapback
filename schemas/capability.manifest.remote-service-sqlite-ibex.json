@@ -20,6 +20,7 @@
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing",
     "assets",
+    "notifications.expoPushSeam",
     "write_activity_v1"
   ],
   "capabilityMaturity": {

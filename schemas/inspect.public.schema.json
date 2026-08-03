@@ -809,6 +809,17 @@
           "default": false,
           "type": "boolean"
         },
+        "expoPushSeam": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExpoPushSeamFactsV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Local Expo integration-seam facts. This is deliberately distinct from\nthe first-class `notifications` capability owned by LLP 0045.\nPresence reports target support; use still requires a session-auth app\ndeclaration and an instance with outbound actions enabled."
+        },
         "fullTextSearch": {
           "anyOf": [
             {
@@ -998,6 +1009,30 @@
         "stable"
       ],
       "type": "string"
+    },
+    "CapabilityRangeV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maxMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "minMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "minMs",
+        "maxMs"
+      ],
+      "type": "object"
     },
     "CapabilityState": {
       "enum": [
@@ -1267,6 +1302,104 @@
         "dispatchMs",
         "publish",
         "subscribe"
+      ],
+      "type": "object"
+    },
+    "ExpoPushSeamFactsV1": {
+      "additionalProperties": false,
+      "description": "Machine-readable honesty and operating bounds for LLP 0143's local Expo\nprovider seam. These are target facts, not app-supplied declarations.",
+      "properties": {
+        "adaptivePacing": {
+          "type": "boolean"
+        },
+        "capabilityId": {
+          "type": "string"
+        },
+        "ledgerRetentionMs": {
+          "$ref": "#/$defs/CapabilityRangeV1"
+        },
+        "localLoopbackTestOverride": {
+          "type": "boolean"
+        },
+        "neverClaims": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pacingClass": {
+          "type": "string"
+        },
+        "productionEndpoint": {
+          "type": "string"
+        },
+        "receiptBatchMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "receiptFirstPollMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "receiptPollIntervalsMs": {
+          "items": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "receiptPollMaxAttempts": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "receiptWindowMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "registryIdleRetentionMs": {
+          "$ref": "#/$defs/CapabilityRangeV1"
+        },
+        "requiresOutboundActions": {
+          "type": "boolean"
+        },
+        "requiresSessionAuth": {
+          "type": "boolean"
+        },
+        "sendBatchMax": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "surfaces": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "capabilityId",
+        "surfaces",
+        "requiresSessionAuth",
+        "requiresOutboundActions",
+        "productionEndpoint",
+        "localLoopbackTestOverride",
+        "sendBatchMax",
+        "receiptBatchMax",
+        "receiptFirstPollMs",
+        "receiptPollIntervalsMs",
+        "receiptPollMaxAttempts",
+        "receiptWindowMs",
+        "registryIdleRetentionMs",
+        "ledgerRetentionMs",
+        "pacingClass",
+        "adaptivePacing",
+        "neverClaims"
       ],
       "type": "object"
     },
@@ -2976,6 +3109,143 @@
       ],
       "type": "object"
     },
+    "PushAudienceAuthorizeV1": {
+      "description": "Host-enforced send authorization. Membership checks are evaluated against\nthe resolved caller at execution; `system` is an explicit declaration,\nnever an inference from a cron/job action.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "declaration": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "membership",
+              "type": "string"
+            },
+            "resource_arg": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "roles": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "declaration",
+            "roles"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "system",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "PushAudienceDeclarationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "authorize": {
+          "$ref": "#/$defs/PushAudienceAuthorizeV1"
+        },
+        "resolve": {
+          "$ref": "#/$defs/PushAudienceResolverV1"
+        }
+      },
+      "required": [
+        "resolve",
+        "authorize"
+      ],
+      "type": "object"
+    },
+    "PushAudienceResolverV1": {
+      "description": "The closed v1 resolver vocabulary: all current rows of one LLP 0100\nmembership declaration, optionally narrowed to declared roles.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "explicitPrincipals",
+              "type": "string"
+            },
+            "max_items": {
+              "format": "uint16",
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "principals_arg": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "principals_arg",
+            "max_items"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "declaration": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "membership",
+              "type": "string"
+            },
+            "resource_arg": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "roles": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "kind",
+            "declaration",
+            "roles"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "PushLedgerDeclarationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "retentionMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "retentionMs"
+      ],
+      "type": "object"
+    },
     "PushRegistryDeclarationV1": {
       "additionalProperties": false,
       "properties": {
@@ -2996,8 +3266,30 @@
         "appScope": {
           "$ref": "#/$defs/PushAppScopeV1"
         },
+        "audiences": {
+          "additionalProperties": {
+            "$ref": "#/$defs/PushAudienceDeclarationV1"
+          },
+          "type": "object"
+        },
+        "ledger": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PushLedgerDeclarationV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "registry": {
           "$ref": "#/$defs/PushRegistryDeclarationV1"
+        },
+        "uses": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         }
       },
       "required": [

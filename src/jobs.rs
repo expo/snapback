@@ -68,6 +68,10 @@ pub struct BufferedJobEnqueue {
     pub idempotency_key: Option<String>,
     pub max_attempts: u32,
     pub available_at_ms: u64,
+    /// Optional host-minted grant for one exact deferred push. It is persisted
+    /// beside the job in the same producing mutation transaction and never
+    /// enters the action's arguments or metadata.
+    pub(crate) push_grant: Option<crate::push::PushDeferredGrantV1>,
 }
 
 /// Producer provenance recorded on every job row inserted by one mutation
@@ -229,6 +233,7 @@ pub struct ClaimedJob {
     pub claimed_at_ms: u64,
     pub lease_expires_at_ms: u64,
     pub idempotency_key: Option<String>,
+    pub(crate) push_grant: Option<crate::push::PushDeferredGrantV1>,
 }
 
 impl ClaimedJob {
@@ -339,6 +344,12 @@ pub fn create_jobs_infra(conn: &Connection) -> SnapbackResult<()> {
           diagnostic_code TEXT,
           PRIMARY KEY (job_id, attempt)
         );
+        CREATE TABLE IF NOT EXISTS _snapback_job_push_grants_v1 (
+          job_id TEXT NOT NULL PRIMARY KEY,
+          grant_json TEXT NOT NULL,
+          grant_digest TEXT NOT NULL,
+          FOREIGN KEY(job_id) REFERENCES _snapback_jobs_v1(job_id) ON DELETE CASCADE
+        );
         ",
     )?;
     Ok(())
@@ -374,6 +385,32 @@ pub fn canonical_args(args: &Value) -> SnapbackResult<(String, String)> {
     digest.update(b"snapback:job-args:v1\n");
     digest.update(encoded.as_bytes());
     Ok((encoded, format!("sha256:{:x}", digest.finalize())))
+}
+
+pub(crate) fn canonical_push_grant(
+    grant: Option<&crate::push::PushDeferredGrantV1>,
+) -> SnapbackResult<(Option<String>, Option<String>)> {
+    let Some(grant) = grant else {
+        return Ok((None, None));
+    };
+    let value = serde_json::to_value(grant).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_JOB_PUSH_GRANT_INVALID",
+            "jobs",
+            "the deferred push grant could not be serialized",
+        )
+    })?;
+    let canonical = serde_json::to_string(&canonical_json_value(value)).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_JOB_PUSH_GRANT_INVALID",
+            "jobs",
+            "the deferred push grant could not be canonically serialized",
+        )
+    })?;
+    let mut hasher = Sha256::new();
+    hasher.update(b"snapback-job-push-grant-v1\0");
+    hasher.update(canonical.as_bytes());
+    Ok((Some(canonical), Some(format!("{:x}", hasher.finalize()))))
 }
 
 fn canonical_json_value(value: Value) -> Value {
@@ -418,6 +455,7 @@ pub struct ExistingIdempotentJob {
     pub args_digest: String,
     pub max_attempts: u32,
     pub available_at_ms: u64,
+    pub push_grant_digest: Option<String>,
 }
 
 pub fn find_job_by_scoped_idempotency(
@@ -428,9 +466,11 @@ pub fn find_job_by_scoped_idempotency(
 ) -> SnapbackResult<Option<ExistingIdempotentJob>> {
     Ok(conn
         .query_row(
-            "SELECT job_id, args_digest, max_attempts, available_at_ms
-               FROM _snapback_jobs_v1
-              WHERE queue = ?1 AND action = ?2 AND idempotency_key = ?3",
+            "SELECT job.job_id, job.args_digest, job.max_attempts, job.available_at_ms,
+                    grant.grant_digest
+               FROM _snapback_jobs_v1 AS job
+               LEFT JOIN _snapback_job_push_grants_v1 AS grant ON grant.job_id = job.job_id
+              WHERE job.queue = ?1 AND job.action = ?2 AND job.idempotency_key = ?3",
             params![queue, action, idempotency_key],
             |row| {
                 Ok(ExistingIdempotentJob {
@@ -438,6 +478,7 @@ pub fn find_job_by_scoped_idempotency(
                     args_digest: row.get(1)?,
                     max_attempts: row.get(2)?,
                     available_at_ms: row.get(3)?,
+                    push_grant_digest: row.get(4)?,
                 })
             },
         )
@@ -475,11 +516,15 @@ pub fn insert_enqueued_jobs_in_tx(
     let mut rows = Vec::with_capacity(enqueues.len());
     for enqueue in enqueues {
         let (canonical, digest) = canonical_args(&enqueue.args)?;
+        let (grant_json, grant_digest) = canonical_push_grant(enqueue.push_grant.as_ref())?;
         if let Some(key) = enqueue.idempotency_key.as_deref()
             && let Some(existing) =
                 find_job_by_scoped_idempotency(tx, &enqueue.queue, &enqueue.action, key)?
         {
-            if existing.args_digest == digest && existing.max_attempts == enqueue.max_attempts {
+            if existing.args_digest == digest
+                && existing.max_attempts == enqueue.max_attempts
+                && existing.push_grant_digest == grant_digest
+            {
                 return Err(SnapbackError::error(
                     "SNAPBACK_JOB_IDEMPOTENCY_KEY_RACED",
                     "jobs",
@@ -515,6 +560,13 @@ pub fn insert_enqueued_jobs_in_tx(
                 producer.principal,
             ],
         )?;
+        if let (Some(grant_json), Some(grant_digest)) = (grant_json, grant_digest) {
+            tx.execute(
+                "INSERT INTO _snapback_job_push_grants_v1 (job_id, grant_json, grant_digest)
+                 VALUES (?1, ?2, ?3)",
+                params![enqueue.job_id, grant_json, grant_digest],
+            )?;
+        }
         rows.push(JobStatusRow {
             job_id: enqueue.job_id.clone(),
             queue: enqueue.queue.clone(),
@@ -563,17 +615,19 @@ pub fn claim_due_jobs_in_tx(
         current_claim_id: Option<String>,
         claim_expires_at_ms: Option<u64>,
         idempotency_key: Option<String>,
+        push_grant_json: Option<String>,
     }
     let mut statement = tx.prepare(
-        "SELECT job_id, queue, action, args_json, max_attempts, state,
-                state_version, attempt_count, current_fence, current_claim_id,
-                claim_expires_at_ms, idempotency_key
-           FROM _snapback_jobs_v1
-          WHERE available_at_ms <= ?1
-            AND (state = 'pending'
-                 OR (state = 'claimed' AND claim_expires_at_ms IS NOT NULL
-                     AND claim_expires_at_ms <= ?1))
-          ORDER BY available_at_ms ASC, job_id ASC
+        "SELECT job.job_id, job.queue, job.action, job.args_json, job.max_attempts, job.state,
+                job.state_version, job.attempt_count, job.current_fence, job.current_claim_id,
+                job.claim_expires_at_ms, job.idempotency_key, grant.grant_json
+           FROM _snapback_jobs_v1 AS job
+           LEFT JOIN _snapback_job_push_grants_v1 AS grant ON grant.job_id = job.job_id
+          WHERE job.available_at_ms <= ?1
+            AND (job.state = 'pending'
+                 OR (job.state = 'claimed' AND job.claim_expires_at_ms IS NOT NULL
+                     AND job.claim_expires_at_ms <= ?1))
+          ORDER BY job.available_at_ms ASC, job.job_id ASC
           LIMIT ?2",
     )?;
     let due = statement
@@ -591,6 +645,7 @@ pub fn claim_due_jobs_in_tx(
                 current_claim_id: row.get(9)?,
                 claim_expires_at_ms: row.get(10)?,
                 idempotency_key: row.get(11)?,
+                push_grant_json: row.get(12)?,
             })
         })?
         .collect::<Result<Vec<_>, _>>()?;
@@ -696,6 +751,19 @@ pub fn claim_due_jobs_in_tx(
             claimed_at_ms: now_ms,
             lease_expires_at_ms,
             idempotency_key: job.idempotency_key,
+            push_grant: job
+                .push_grant_json
+                .map(|value| {
+                    serde_json::from_str(&value).map_err(|error| {
+                        SnapbackError::error(
+                            "SNAPBACK_JOB_STATE_INVALID",
+                            "jobs",
+                            "stored deferred push grant is not valid JSON",
+                        )
+                        .with_details(json!({ "error": error.to_string() }))
+                    })
+                })
+                .transpose()?,
         });
     }
     Ok(claims)
@@ -955,6 +1023,7 @@ mod tests {
             idempotency_key: None,
             max_attempts: 1,
             available_at_ms,
+            push_grant: None,
         }
     }
 
@@ -984,6 +1053,36 @@ mod tests {
             retry_delay_ms("job_b", 1) - JOBS_BACKOFF_BASE_MS,
             "jitter framing must include the canonical job id"
         );
+    }
+
+    #[test]
+    fn deferred_push_grant_commits_and_claims_as_host_only_job_authority() {
+        let conn = memory_conn();
+        let mut job = enqueue("job_push", 0);
+        job.push_grant = Some(crate::push::PushDeferredGrantV1 {
+            producer_principal: "user_producer".into(),
+            to: crate::push::PushAudienceReferenceV1 {
+                audience: "eventGuests".into(),
+                args: serde_json::Map::from_iter([("eventId".into(), json!("event_1"))]),
+            },
+            dedupe_key: "event:1:reminder".into(),
+        });
+        insert_enqueued_jobs_in_tx(&conn, &producer(), 1, &[job.clone()], 0)
+            .expect("job and grant commit together");
+        let stored: String = conn
+            .query_row(
+                "SELECT grant_json FROM _snapback_job_push_grants_v1 WHERE job_id = ?1",
+                params![job.job_id],
+                |row| row.get(0),
+            )
+            .expect("host-only grant row");
+        assert!(!stored.contains("ExponentPushToken"));
+
+        let mut ids = || "claim_push".to_owned();
+        let claims = claim_due_jobs_in_tx(&conn, 0, 1, "forced-drain", &mut ids)
+            .expect("claim deferred job");
+        assert_eq!(claims.len(), 1);
+        assert_eq!(claims[0].push_grant, job.push_grant);
     }
 
     #[test]

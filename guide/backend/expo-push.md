@@ -1,0 +1,239 @@
+---
+title: Expo push notifications
+id: backend.expo-push-seam
+order: 46
+audience: agent-first
+capabilities: [backend.expo-push-seam]
+authorities: [llp/0143-expo-push-notification-seam.rfc.md, src/push.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, packages/snapback-client/push-registry.mjs]
+examples: []
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-02
+reviewed-commit: HEAD
+---
+
+# Expo push notifications
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+<!-- @ref LLP 0143#d0-the-decided-frame-seam-not-capability — this page
+teaches the Expo provider seam without turning it into a delivery claim. -->
+
+Snapback's Expo seam keeps device tokens out of application tables, resolves
+declared audiences inside the host, and records what happened at Expo's ticket
+and receipt boundaries. It is not the first-class notification outbox designed
+by [LLP 0045](repo:llp/0045-notifications-outbox.rfc.md), and the target still
+reports `notifications: false`.
+
+The local capability manifest reports the separate structured capability
+`notifications.expoPushSeam`. Using it requires all of these:
+
+- session auth and a `definePushSeam` declaration;
+- the additive `@expo/snapback-client/push-registry` client subpath;
+- `SNAPBACK_OUTBOUND_ACTIONS=1` on both generation and the serving process;
+- a declared audience whose host-enforced `authorize` clause admits the
+  invocation; and
+- Expo project credentials and native permission setup owned by the app.
+
+Hosted targets omit the structured capability. There is no hosted native-auth
+entry, authenticated token-registration path, provider custody, or durable
+receipt-poll home yet.
+
+## Declare custody, audiences, and retention
+
+`definePushSeam` is installed on a session-auth schema. `appScope` must bind
+the EAS project, native application identity, and deployment environment.
+Registry and ledger retention are explicit app facts between one day and one
+year. Audience declarations are closed: membership resolution, or a bounded
+explicit-principal resolver for immediate/system use, plus either membership
+authorization or an explicit `system` authorization.
+
+```js fragment reason="Representative declaration; no complete push demo has landed yet"
+export const pushSeam = definePushSeam({
+  appScope: {
+    easProjectId: 'your-eas-project-id',
+    applicationId: 'com.example.app',
+    environment: 'development',
+  },
+  registry: { idleRetentionMs: 30 * 24 * 60 * 60 * 1000 },
+  audiences: {
+    guests: {
+      resolve: {
+        membership: eventMembers,
+        resourceArg: 'eventId',
+        roles: ['guest'],
+      },
+      authorize: {
+        membership: eventMembers,
+        resourceArg: 'eventId',
+        roles: ['host'],
+      },
+    },
+  },
+  uses: ['expoPushAccessToken'],
+  ledger: { retentionMs: 30 * 24 * 60 * 60 * 1000 },
+});
+
+export default defineSchema({ events, eventMembers }, {
+  auth: { mode: 'sessions' },
+  pushSeam,
+});
+```
+
+Declare `expoPushAccessToken` as an optional deployment config entry and grant
+it in every sending action's `uses`. Accounts without enhanced push security
+may leave it unset. Snapback then attempts the request without a bearer; if
+Expo requires one, `UNAUTHORIZED` settles as `failed-config` rather than being
+retried. Config values never enter source, handler arguments, or the ledger.
+See [Secrets and deployment config](../operating/secrets-and-config.md).
+
+## Register the current installation
+
+Importing the root client adds no push code or property. Attach the explicit
+subpath and supply durable installation custody:
+
+```js fragment reason="Apps choose their native durable-storage adapter"
+import { SnapbackClient } from '@expo/snapback-client';
+import { attachPushRegistry } from '@expo/snapback-client/push-registry';
+
+const client = attachPushRegistry(new SnapbackClient(origin, { bearerToken }), {
+  pushInstallationStorage: {
+    read: () => durableStore.get('snapback.push.installation.v1'),
+    write: (value) => durableStore.set('snapback.push.installation.v1', value),
+    clear: () => durableStore.delete('snapback.push.installation.v1'),
+  },
+});
+
+await client.push.registerExpoToken({
+  projectId: 'your-eas-project-id',
+  getExpoPushTokenAsync: Notifications.getExpoPushTokenAsync,
+});
+```
+
+The installation id lives in this injected native custody, not in the RQS
+cache. Ordinary logout does not need to erase it: the server retires the exact
+session generation's token row transactionally. A full client-custody wipe
+must call the storage adapter's `clear`; the next registration mints a new id.
+Web push registration is outside v1.
+
+The app still owns `expo-notifications` setup: OS permission prompts,
+`projectId`, foreground behavior, and `addPushTokenListener`. On a rotation
+signal, reacquire the Expo token with `getExpoPushTokenAsync` and call
+`registerExpoToken` again. Registration is idempotent, rotation is atomic, and
+the same token bytes have one live owner per app scope. Explicit logout flows
+may also call `client.push.unregisterToken()`; server-side session termination
+is the authoritative cleanup if they do not.
+
+Never put Expo token bytes in an application table, query result, log, or
+action argument. The protected registry exposes only bounded cardinalities and
+retirement facts to operator inspection.
+
+## Send to a declared audience
+
+Generated action contexts expose `ctx.push.send` only when the schema declares
+the send/ledger half of the seam. Pass a reference produced by the declared
+audience function, not token bytes:
+
+```js fragment reason="Representative action; generated audience names and args are app-specific"
+export async function notifyGuests(ctx, { eventId }) {
+  return ctx.push.send({
+    to: pushSeam.audiences.guests({ eventId }),
+    title: 'The plan changed',
+    body: 'Open the app for the latest details.',
+    data: { eventId },
+    dedupeKey: `event:${eventId}:plan-change:v1`,
+  });
+}
+```
+
+The host validates the reference, authorizes it against current membership,
+resolves current members and live registry rows, reserves the durable ledger,
+marks `transmitting` before the first provider byte, and sends serial batches
+of at most 100 messages. A zero-row audience records `zero-target`; it is not
+an error. Reusing a dedupe key with the same binding is a no-op. Reusing it
+with a different audience or payload refuses.
+
+Authority depends on the trigger:
+
+- A directly invoked action uses its server-resolved user and must satisfy the
+  audience's membership `authorize` clause.
+- Cron/system actions may use only audiences declaring `{ system: true }`.
+- A mutation may enqueue a deferred action with
+  `ctx.jobs.enqueue(action, args, { pushGrant: { to, dedupeKey } })`. Capture
+  checks producer membership inside the mutation transaction; the job stores
+  only the exact audience reference and dedupe key. At system-authority
+  execution the host rechecks that producer's current membership and
+  re-resolves recipients. Explicit-principal audiences are refused here.
+
+The return value contains `intentId`, `attempt`, `targetCount`, `batchCount`,
+the current aggregate `state`, and `deduplicated`. The per-message ledger is
+host-owned; an app-readable generated ledger projection has not shipped, so
+do not build product UI by querying protected tables.
+
+## Treat ambiguity as possible duplicate display
+
+After a durable `transmitting` marker, a socket drop or timeout means Expo may
+have accepted the request even though Snapback did not receive tickets. The
+attempt becomes `ambiguous` and is never automatically re-driven.
+
+An explicit operator/app decision may send the same bound intent again with
+`redriveAmbiguous: true`. It creates a new attempt marked with an ambiguous
+predecessor. **The device may receive the notification twice.** The flag
+refuses if no matching ambiguous predecessor exists, and deferred grants may
+not authorize it.
+
+HTTP 429/5xx request failures are retryable because the provider refused the
+request. `DeviceNotRegistered` at either the ticket or receipt stage retires
+and erases the token row. Raw provider prose is always dropped; only the
+closed error vocabulary crosses into settlement.
+
+## Interpret receipts narrowly
+
+The local maintenance worker polls at 15 minutes after handoff, then 30
+minutes, 1 hour, 2 hours, and 4-hour-capped intervals, for at most seven polls
+inside a roughly 24-hour window. It requests at most 1,000 ticket ids at once.
+
+- `handed-to-expo` means the send endpoint returned a successful ticket.
+- `expo-accepted` means Expo's receipt says it handed the message to APNs/FCM.
+- `expo-error`, `expo-error-config`, and `expo-error-rate` are closed provider
+  classifications.
+- `ambiguous` means request response certainty was lost.
+- `ambiguous-receipt` means the bounded receipt window ended without an
+  answer.
+
+The seam does not and will not claim: device delivery; notification display;
+read or interaction state; OS permission state; exactly-once sending or
+duplicate suppression; ordering across recipients or across intents; delivery
+latency, availability, or any SLA; continued token validity or current
+registration beyond the recorded retirement facts. A product string such as
+"invitations sent" is product copy, not a fact this seam backs.
+
+Push payloads pass through Expo and APNs/FCM as plaintext from Snapback's
+perspective. Do not put protected row data in `title`, `body`, or `data`.
+Prefer an opaque id that the app resolves through an authorized read when the
+user opens it.
+
+## Test without exfiltrating tokens
+
+Production sends are pinned to `https://exp.host`. Only a dev/test-profile
+server accepts `SNAPBACK_EXPO_PUSH_BASE_URL`, and the value must be a loopback
+HTTP(S) origin. The shared conformance fixture scripts ticket responses,
+receipt responses, both `DeviceNotRegistered` stages, and a socket close after
+request bytes; it uses the same bounded HTTP carrier as production.
+
+iOS simulators cannot mint Expo push tokens. Android emulators with Play
+services generally can, but deterministic acceptance should still use fixture
+tokens and the loopback provider. A real-device receipt is a separate release
+witness, not permission to claim delivery or display.
+
+## Anti-patterns
+
+- Do not store push tokens in app rows or expose them to handlers.
+- Do not accept a provider URL in an app argument or config entry.
+- Do not equate a ticket or receipt with device delivery.
+- Do not retry an ambiguous attempt without the explicit duplicate-risk flag.
+- Do not defer an arbitrary principal list under system authority.
+- Do not put sensitive content in a notification payload.

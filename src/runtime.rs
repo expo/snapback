@@ -313,6 +313,16 @@ pub trait IbexActionHost {
              lane as ctx.fetchStream)",
         ))
     }
+    fn push_send(
+        &mut self,
+        _request: crate::push::PushSendRequestV1,
+    ) -> SnapbackResult<crate::push::PushSendReservationResponseV1> {
+        Err(SnapbackError::error(
+            "SNAPBACK_PUSH_SEND_UNSUPPORTED",
+            "runtime",
+            "this invocation target does not implement the Expo push send seam",
+        ))
+    }
 }
 
 /// A mutation handler's completed, still-uncommitted effect buffer. Detached
@@ -1719,9 +1729,45 @@ impl<'a> IbexHostContext<'a> {
                         ));
                     }
                 };
+                // @ref LLP 0143#d2-the-send-lane — capture a narrow
+                //   producer-principal grant in the mutation, bind it to one
+                //   audience reference + dedupe key, and keep it out of job
+                //   arguments/application metadata.
+                let push_grant = match options.get("pushGrant") {
+                    None | Some(Value::Null) => None,
+                    Some(value) => {
+                        let requested = serde_json::from_value::<
+                            crate::push::PushDeferredGrantRequestV1,
+                        >(value.clone())
+                        .map_err(|_| {
+                            SnapbackError::error(
+                                "SNAPBACK_JOB_PUSH_GRANT_INVALID",
+                                "jobs",
+                                "pushGrant must be exactly { to, dedupeKey }",
+                            )
+                        })?;
+                        let principal = self.handler_auth.user_id().ok_or_else(|| {
+                            SnapbackError::error(
+                                "SNAPBACK_AUTH_PERMISSION_DENIED",
+                                "auth",
+                                "only an authenticated user mutation can capture a deferred push grant",
+                            )
+                        })?;
+                        let (grant, dependency) = crate::push::capture_deferred_grant(
+                            self.db(),
+                            principal,
+                            &requested.to,
+                            &requested.dedupe_key,
+                        )?;
+                        self.push_read_dependency(dependency);
+                        Some(grant)
+                    }
+                };
                 // Canonicalize (and size-check) once here so the digest the
                 // reuse paths compare equals what commit will store.
                 let (_canonical, digest) = crate::jobs::canonical_args(&job_args)?;
+                let (_, push_grant_digest) =
+                    crate::jobs::canonical_push_grant(push_grant.as_ref())?;
                 let queue = crate::jobs::JOBS_DEFAULT_QUEUE.to_owned();
                 if let Some(key) = idempotency_key.as_deref() {
                     // Read-your-enqueues: an identical buffered intent under
@@ -1732,7 +1778,12 @@ impl<'a> IbexHostContext<'a> {
                             && enqueue.idempotency_key.as_deref() == Some(key)
                     }) {
                         let (_, buffered_digest) = crate::jobs::canonical_args(&buffered.args)?;
-                        if buffered_digest == digest && buffered.max_attempts == max_attempts {
+                        let (_, buffered_grant_digest) =
+                            crate::jobs::canonical_push_grant(buffered.push_grant.as_ref())?;
+                        if buffered_digest == digest
+                            && buffered.max_attempts == max_attempts
+                            && buffered_grant_digest == push_grant_digest
+                        {
                             return Ok(json!({
                                 "jobId": buffered.job_id,
                                 "availableAtMs": buffered.available_at_ms,
@@ -1746,7 +1797,10 @@ impl<'a> IbexHostContext<'a> {
                         .db()
                         .find_job_by_scoped_idempotency(&queue, &action, key)?
                     {
-                        if existing.args_digest == digest && existing.max_attempts == max_attempts {
+                        if existing.args_digest == digest
+                            && existing.max_attempts == max_attempts
+                            && existing.push_grant_digest == push_grant_digest
+                        {
                             return Ok(json!({
                                 "jobId": existing.job_id,
                                 "availableAtMs": existing.available_at_ms,
@@ -1765,6 +1819,7 @@ impl<'a> IbexHostContext<'a> {
                     idempotency_key,
                     max_attempts,
                     available_at_ms,
+                    push_grant,
                 });
                 Ok(json!({
                     "jobId": job_id,
@@ -2274,6 +2329,35 @@ impl<'a> IbexHostContext<'a> {
                         "SNAPBACK_HOST_FETCH_FAILED",
                         "runtime",
                         "the host fetch response could not be serialized",
+                    )
+                })
+            }
+            "push.send" => {
+                self.ensure_action("push.send")?;
+                if !outbound_actions_enabled() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED",
+                        "runtime",
+                        "ctx.push.send requires the deployment's outbound-actions capability",
+                    ));
+                }
+                let request = serde_json::from_value::<crate::push::PushSendRequestV1>(args)
+                    .map_err(|_error| {
+                        SnapbackError::error(
+                            "SNAPBACK_PUSH_SEND_INVALID",
+                            "push",
+                            "ctx.push.send received an invalid request shape",
+                        )
+                    })?;
+                let host = self
+                    .action_host
+                    .as_deref_mut()
+                    .ok_or_else(action_host_missing)?;
+                serde_json::to_value(host.push_send(request)?).map_err(|_error| {
+                    SnapbackError::error(
+                        "SNAPBACK_PUSH_SEND_FAILED",
+                        "push",
+                        "the push send response could not be serialized",
                     )
                 })
             }

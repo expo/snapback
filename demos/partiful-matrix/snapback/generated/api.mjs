@@ -49,9 +49,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "partiful-matrix",
-      "bundleHash": "sha256:8c2614e99eb6eaaf",
-      "inputsHash": "563dae878a7eb79bb8cc1e8a490fdb098e7cbfe7a2e3a7a02f4d62ccc8bf5da8",
-      "schemaHash": "sha256:b4db471263cdd104",
+      "bundleHash": "sha256:85907e7f33a4cee0",
+      "inputsHash": "168fc8cf66680afdf0ee6dec867f2eb023eadbd4ba7bc528c3fb0dada86438bf",
+      "schemaHash": "sha256:3f6b05805eaa5be6",
       "schemaVersion": "snapback.v0"
     },
     "id": "partiful-matrix:createEvent",
@@ -80,9 +80,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "partiful-matrix",
-      "bundleHash": "sha256:8c2614e99eb6eaaf",
-      "inputsHash": "563dae878a7eb79bb8cc1e8a490fdb098e7cbfe7a2e3a7a02f4d62ccc8bf5da8",
-      "schemaHash": "sha256:b4db471263cdd104",
+      "bundleHash": "sha256:85907e7f33a4cee0",
+      "inputsHash": "168fc8cf66680afdf0ee6dec867f2eb023eadbd4ba7bc528c3fb0dada86438bf",
+      "schemaHash": "sha256:3f6b05805eaa5be6",
       "schemaVersion": "snapback.v0"
     },
     "id": "partiful-matrix:eventDetails",
@@ -110,9 +110,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "partiful-matrix",
-      "bundleHash": "sha256:8c2614e99eb6eaaf",
-      "inputsHash": "563dae878a7eb79bb8cc1e8a490fdb098e7cbfe7a2e3a7a02f4d62ccc8bf5da8",
-      "schemaHash": "sha256:b4db471263cdd104",
+      "bundleHash": "sha256:85907e7f33a4cee0",
+      "inputsHash": "168fc8cf66680afdf0ee6dec867f2eb023eadbd4ba7bc528c3fb0dada86438bf",
+      "schemaHash": "sha256:3f6b05805eaa5be6",
       "schemaVersion": "snapback.v0"
     },
     "id": "partiful-matrix:eventWall",
@@ -141,9 +141,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "partiful-matrix",
-      "bundleHash": "sha256:8c2614e99eb6eaaf",
-      "inputsHash": "563dae878a7eb79bb8cc1e8a490fdb098e7cbfe7a2e3a7a02f4d62ccc8bf5da8",
-      "schemaHash": "sha256:b4db471263cdd104",
+      "bundleHash": "sha256:85907e7f33a4cee0",
+      "inputsHash": "168fc8cf66680afdf0ee6dec867f2eb023eadbd4ba7bc528c3fb0dada86438bf",
+      "schemaHash": "sha256:3f6b05805eaa5be6",
       "schemaVersion": "snapback.v0"
     },
     "id": "partiful-matrix:guestList",
@@ -164,9 +164,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "partiful-matrix",
-      "bundleHash": "sha256:8c2614e99eb6eaaf",
-      "inputsHash": "563dae878a7eb79bb8cc1e8a490fdb098e7cbfe7a2e3a7a02f4d62ccc8bf5da8",
-      "schemaHash": "sha256:b4db471263cdd104",
+      "bundleHash": "sha256:85907e7f33a4cee0",
+      "inputsHash": "168fc8cf66680afdf0ee6dec867f2eb023eadbd4ba7bc528c3fb0dada86438bf",
+      "schemaHash": "sha256:3f6b05805eaa5be6",
       "schemaVersion": "snapback.v0"
     },
     "id": "partiful-matrix:listEvents",
@@ -202,9 +202,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "partiful-matrix",
-      "bundleHash": "sha256:8c2614e99eb6eaaf",
-      "inputsHash": "563dae878a7eb79bb8cc1e8a490fdb098e7cbfe7a2e3a7a02f4d62ccc8bf5da8",
-      "schemaHash": "sha256:b4db471263cdd104",
+      "bundleHash": "sha256:85907e7f33a4cee0",
+      "inputsHash": "168fc8cf66680afdf0ee6dec867f2eb023eadbd4ba7bc528c3fb0dada86438bf",
+      "schemaHash": "sha256:3f6b05805eaa5be6",
       "schemaVersion": "snapback.v0"
     },
     "id": "partiful-matrix:postMessage",
@@ -240,9 +240,9 @@ export const api = Object.freeze({
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "partiful-matrix",
-      "bundleHash": "sha256:8c2614e99eb6eaaf",
-      "inputsHash": "563dae878a7eb79bb8cc1e8a490fdb098e7cbfe7a2e3a7a02f4d62ccc8bf5da8",
-      "schemaHash": "sha256:b4db471263cdd104",
+      "bundleHash": "sha256:85907e7f33a4cee0",
+      "inputsHash": "168fc8cf66680afdf0ee6dec867f2eb023eadbd4ba7bc528c3fb0dada86438bf",
+      "schemaHash": "sha256:3f6b05805eaa5be6",
       "schemaVersion": "snapback.v0"
     },
     "id": "partiful-matrix:rsvp",

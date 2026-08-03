@@ -95,6 +95,72 @@ export default defineSchema(
     },
     registry: { idleRetentionMs: 2_592_000_000 },
   });
+  const apiTypes = readFileSync(join(result.outDir, 'api.d.ts'), 'utf8');
+  assert(!apiTypes.includes('readonly push:'), 'registry-only declaration has no send surface');
+}
+
+// The send lane admits only generated audience references. Membership
+// resolvers bind to an installed declaration; explicit-principal resolvers
+// are declaration-bounded and cannot become a deferred raw-list escape hatch.
+{
+  const result = await validCase({
+    schema: `
+import { definePushSeam, defineSchema, defineTable, v } from '${defineUrl}';
+const eventMembers = defineTable({
+  principal: v.principal(), eventId: v.id('events'), role: v.string(),
+}).membership({
+  id: 'event_members', principal: 'principal', resource: 'eventId', role: 'role',
+  roles: ['host', 'guest'], transitions: [],
+});
+export const pushSeam = definePushSeam({
+  appScope: { easProjectId: 'eas', applicationId: 'app', environment: 'test' },
+  registry: { idleRetentionMs: 86400000 },
+  audiences: {
+    guests: {
+      resolve: { membership: eventMembers, resourceArg: 'eventId', roles: ['guest'] },
+      authorize: { membership: eventMembers, resourceArg: 'eventId', roles: ['host'] },
+    },
+    selectedGuests: {
+      resolve: { principalsArg: 'principalIds', maxItems: 12 },
+      authorize: { system: true },
+    },
+  },
+  uses: ['expoPushAccessToken'],
+  ledger: { retentionMs: 2592000000 },
+});
+export default defineSchema({ events: defineTable({ name: v.string() }), eventMembers }, {
+  auth: { mode: 'sessions' }, pushSeam,
+});
+`,
+    functions: `
+import { defineConfig } from '${defineUrl}';
+export const config = defineConfig({
+  expoPushAccessToken: { required: false, description: 'fixture Expo access token' },
+});
+`,
+  });
+  const manifest = JSON.parse(readFileSync(join(result.outDir, 'schema.manifest.json'), 'utf8'));
+  assert.deepEqual(manifest.pushSeam.audiences.guests, {
+    resolve: { kind: 'membership', declaration: 'event_members', resourceArg: 'eventId', roles: ['guest'] },
+    authorize: { kind: 'membership', declaration: 'event_members', resourceArg: 'eventId', roles: ['host'] },
+  });
+  assert.deepEqual(manifest.pushSeam.audiences.selectedGuests, {
+    resolve: { kind: 'explicitPrincipals', principalsArg: 'principalIds', maxItems: 12 },
+    authorize: { kind: 'system' },
+  });
+  assert.deepEqual(manifest.pushSeam.uses, ['expoPushAccessToken']);
+  assert.deepEqual(manifest.pushSeam.ledger, { retentionMs: 2_592_000_000 });
+  const apiTypes = readFileSync(join(result.outDir, 'api.d.ts'), 'utf8');
+  assert(apiTypes.includes(
+    'Readonly<{ audience: "guests"; args: Readonly<{ "eventId": string }> }>',
+  ));
+  assert(apiTypes.includes(
+    'Readonly<{ audience: "selectedGuests"; args: Readonly<{ "principalIds": readonly Principal[] }> }>',
+  ));
+  assert(apiTypes.includes(
+    'readonly push: { send(request: GeneratedPushSendRequest): Promise<GeneratedPushSendResult> };',
+  ));
+  assert(apiTypes.includes('readonly redriveAmbiguous?: boolean'));
 }
 
 {

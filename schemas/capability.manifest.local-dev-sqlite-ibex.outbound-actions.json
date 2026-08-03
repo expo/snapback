@@ -157,6 +157,52 @@
   "ephemeralLocalRoomAuthority": true,
   "ephemeralRealtime": true,
   "ephemeralWebSocketPublish": true,
+  "expoPushSeam": {
+    "adaptivePacing": false,
+    "capabilityId": "notifications.expoPushSeam",
+    "ledgerRetentionMs": {
+      "maxMs": 31536000000,
+      "minMs": 86400000,
+      "source": "app-declared"
+    },
+    "localLoopbackTestOverride": true,
+    "neverClaims": [
+      "device-delivery",
+      "notification-display",
+      "read-or-interaction-state",
+      "os-permission-state",
+      "exactly-once-or-duplicate-suppression",
+      "ordering-across-recipients-or-intents",
+      "delivery-latency-availability-or-sla",
+      "continued-token-validity-or-current-registration"
+    ],
+    "pacingClass": "serial-batches-per-action-attempt",
+    "productionEndpoint": "https://exp.host",
+    "receiptBatchMax": 1000,
+    "receiptFirstPollMs": 900000,
+    "receiptPollIntervalsMs": [
+      1800000,
+      3600000,
+      7200000,
+      14400000
+    ],
+    "receiptPollMaxAttempts": 7,
+    "receiptWindowMs": 86400000,
+    "registryIdleRetentionMs": {
+      "maxMs": 31536000000,
+      "minMs": 86400000,
+      "source": "app-declared"
+    },
+    "requiresOutboundActions": true,
+    "requiresSessionAuth": true,
+    "sendBatchMax": 100,
+    "surfaces": [
+      "push-token-registry",
+      "ctx.push.send",
+      "handoff-ledger",
+      "receipt-maintenance"
+    ]
+  },
   "fullTextSearch": {
     "accelerator": "none",
     "analyzer": "snapback-category-unicode17-v1",

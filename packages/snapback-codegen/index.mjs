@@ -2271,7 +2271,12 @@ export async function generateInProcess(backendDir, options = {}) {
   validateActionPlans(functions, err);
   const cronJobs = buildCronJobs(cronDefs, functions, err);
   const projections = buildMaintainedProjections(projectionDefs, functions, err);
-  const configEntries = buildConfigEntries(configDefs, functions, err);
+  const configEntries = buildConfigEntries(
+    configDefs,
+    functions,
+    err,
+    schemaDef.pushSeam?.uses ?? [],
+  );
   // @ref LLP 0080#7-generated-authoring-surface — a maintained projection
   // has no function carrier, so its dependence on the relational engine
   // rides the schema-level requirement: a target without
@@ -3908,7 +3913,7 @@ function buildCronJobs(cronDefs, functions, err) {
 // validated the way cron jobs are: duplicates, bad identifiers, unknown or
 // non-action probes, and (v1) non-secret entries all fail closed here, before
 // the server validates the same facts again at manifest load.
-function buildConfigEntries(configDefs, functions, err) {
+function buildConfigEntries(configDefs, functions, err, pushUses = []) {
   const functionKinds = new Map(functions.map((fn) => [fn.name, fn.kind]));
   const declared = new Set();
   const entries = [];
@@ -3965,6 +3970,11 @@ function buildConfigEntries(configDefs, functions, err) {
       if (!declared.has(name)) {
         err('CONFIG_USES_UNKNOWN', 'config', `${fn.name}: uses names ${name}, which is not a declared config entry`, { function: fn.name, entry: name });
       }
+    }
+  }
+  for (const name of pushUses) {
+    if (!declared.has(name)) {
+      err('CONFIG_USES_UNKNOWN', 'config', `definePushSeam uses names ${name}, which is not a declared config entry`, { surface: 'definePushSeam', entry: name });
     }
   }
   return entries;
@@ -7282,6 +7292,22 @@ function renderApiTypes(
     if (resourceTable !== null) lastHolderResourceTableNames.add(resourceTable);
   }
   const typeUnion = (names) => [...names].map((name) => JSON.stringify(name)).join(' | ') || 'never';
+  const pushAudiences = Object.entries(schemaDef.pushSeam?.audiences ?? {});
+  const hasPushSend = schemaDef.pushSeam?.ledger !== undefined && pushAudiences.length > 0;
+  const pushAudienceReferenceType = ([name, audience]) => {
+    const args = new Map();
+    for (const clause of [audience.resolve, audience.authorize]) {
+      if (clause?.kind === 'explicitPrincipals') {
+        args.set(clause.principalsArg, 'readonly Principal[]');
+      } else if (clause?.kind === 'membership' && clause.resourceArg !== undefined) {
+        args.set(clause.resourceArg, 'string');
+      }
+    }
+    const argsType = args.size === 0
+      ? 'Record<string, never>'
+      : `Readonly<{ ${[...args].map(([key, type]) => `${JSON.stringify(key)}: ${type}`).join('; ')} }>`;
+    return `Readonly<{ audience: ${JSON.stringify(name)}; args: ${argsType} }>`;
+  };
   const storageWriteValueType = (validator) => {
     const type = typeForGeneratedValidator(validator).replace(/ \| undefined$/, '');
     return validator.optional ? `null | ${type}` : type;
@@ -7474,8 +7500,15 @@ function renderApiTypes(
     'export interface GeneratedAuthenticatedAuthContext { readonly userId: Principal; readonly sessionId: string | null; readonly isAuthenticated: true; readonly provider?: string; readonly roles: readonly string[]; readonly kind: "human" | "agent"; readonly actor?: { readonly userId: Principal; readonly kind: "agent"; readonly grantId: string } }',
     'export type GeneratedAuthContext = GeneratedAnonymousAuthContext | GeneratedAuthenticatedAuthContext;',
     'export interface GeneratedRuntimeContext { now(): number; id(): string }',
-    'export interface GeneratedPermissions {',
   );
+  if (hasPushSend) {
+    lines.push(
+      `export type GeneratedPushAudienceReference = ${pushAudiences.map(pushAudienceReferenceType).join(' | ')};`,
+      'export interface GeneratedPushSendRequest { readonly to: GeneratedPushAudienceReference; readonly title: string; readonly body: string; readonly data?: Readonly<Record<string, unknown>>; readonly dedupeKey: string; /** Explicit duplicate-risk acknowledgement; accepted only for an ambiguous predecessor. */ readonly redriveAmbiguous?: boolean }',
+      'export interface GeneratedPushSendResult { readonly intentId: string; readonly attempt: number; readonly targetCount: number; readonly batchCount: number; readonly state: string; readonly deduplicated: boolean }',
+    );
+  }
+  lines.push('export interface GeneratedPermissions {');
   for (const [tableName, table] of Object.entries(schemaDef.tables ?? {})) {
     const membership = table.membershipDeclaration;
     if (!membership) continue;
@@ -7555,7 +7588,7 @@ function renderApiTypes(
     '}',
     'export interface GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly db: GeneratedQueryDatabase; readonly permissions: GeneratedPermissions; readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; isDirectHuman(): boolean; refuse(code: string, details?: unknown): never }',
     'export interface GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> extends GeneratedQueryContext<Auth> { readonly db: GeneratedMutationDatabase; readonly membership: GeneratedMembership; readonly jobs: { enqueue(name: string, args: Readonly<Record<string, unknown>>, options?: Readonly<Record<string, unknown>>): Promise<unknown> } }',
-    'export interface GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; readonly secrets: { get(name: string): any; rotating(name: string): any }; readonly run: unknown; readonly cron: unknown; isDirectHuman(): boolean; runMutation(name: string, args: Readonly<Record<string, unknown>>): Promise<unknown>; fetch(request: Readonly<Record<string, unknown>>): Promise<any>; fetchStream(request: Readonly<Record<string, unknown>>): Promise<any>; readonly streamAttempt: any; refuse(code: string, details?: unknown): never }',
+    `export interface GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; readonly secrets: { get(name: string): any; rotating(name: string): any }; readonly run: unknown; readonly cron: unknown;${hasPushSend ? ' readonly push: { send(request: GeneratedPushSendRequest): Promise<GeneratedPushSendResult> };' : ''} isDirectHuman(): boolean; runMutation(name: string, args: Readonly<Record<string, unknown>>): Promise<unknown>; fetch(request: Readonly<Record<string, unknown>>): Promise<any>; fetchStream(request: Readonly<Record<string, unknown>>): Promise<any>; readonly streamAttempt: any; refuse(code: string, details?: unknown): never }`,
     'export interface GeneratedFunctionContexts {',
   );
   for (const fn of functions) {

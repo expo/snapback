@@ -170,6 +170,21 @@
     },
     {
       "body": "timeOrdered",
+      "kind": "PushIntent",
+      "prefix": "pint"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "PushBatch",
+      "prefix": "pbat"
+    },
+    {
+      "body": "timeOrdered",
+      "kind": "PushMessage",
+      "prefix": "pmsg"
+    },
+    {
+      "body": "timeOrdered",
       "kind": "Opaque",
       "prefix": "id"
     }

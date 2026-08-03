@@ -964,16 +964,88 @@ export function defineTable(fields) {
   return new TableBuilder(fields);
 }
 
+const PUSH_AUDIENCE_REF = Symbol('snapback.pushAudienceRef');
+
+const pushMembershipReference = (value, where) => {
+  assert(
+    value?.__table === true && value.membershipDeclaration != null,
+    `${where}.membership must be a table with membership(...)`,
+  );
+  return value;
+};
+
+const pushMembershipClause = (spec, where, { allowSystem = false } = {}) => {
+  assert(spec && typeof spec === 'object' && !Array.isArray(spec), `${where} must be an object`);
+  if (allowSystem && spec.system === true) {
+    exactObject(spec, where, new Set(['system']));
+    return { kind: 'system' };
+  }
+  exactObject(spec, where, new Set(['membership', 'resourceArg', 'roles']));
+  const membership = pushMembershipReference(spec.membership, where);
+  const declaration = membership.membershipDeclaration;
+  const resourceArg = spec.resourceArg ?? null;
+  if (declaration.scope === 'resource') {
+    assert(
+      typeof resourceArg === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/u.test(resourceArg),
+      `${where}.resourceArg is required for resource membership`,
+    );
+  } else {
+    assert(resourceArg === null, `${where}.resourceArg is forbidden for app membership`);
+  }
+  const roles = stringArray(spec.roles, `${where}.roles`);
+  const vocabulary = new Set([
+    ...declaration.roles,
+    ...(declaration.pendingRoles ?? []),
+  ]);
+  for (const role of roles) assert(vocabulary.has(role), `${where}.roles names undeclared role ${role}`);
+  return { kind: 'membership', membership, resourceArg, roles };
+};
+
+const pushResolverClause = (spec, where) => {
+  assert(spec && typeof spec === 'object' && !Array.isArray(spec), `${where} must be an object`);
+  if (spec.principalsArg !== undefined || spec.maxItems !== undefined) {
+    exactObject(spec, where, new Set(['principalsArg', 'maxItems']));
+    assert(
+      typeof spec.principalsArg === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/u.test(spec.principalsArg),
+      `${where}.principalsArg is invalid`,
+    );
+    assert(
+      Number.isSafeInteger(spec.maxItems) && spec.maxItems >= 1 && spec.maxItems <= 1_000,
+      `${where}.maxItems must be between 1 and 1,000`,
+    );
+    return { kind: 'explicitPrincipals', principalsArg: spec.principalsArg, maxItems: spec.maxItems };
+  }
+  return pushMembershipClause(spec, where);
+};
+
+const serializePushMembershipClause = (clause, tables, where) => {
+  if (clause.kind === 'system') return { kind: 'system' };
+  if (clause.kind === 'explicitPrincipals') {
+    return { kind: 'explicitPrincipals', principalsArg: clause.principalsArg, maxItems: clause.maxItems };
+  }
+  const table = clause.membership;
+  assert(
+    typeof table.__tableName === 'string' && tables[table.__tableName] === table,
+    `${where}.membership must be installed in this defineSchema()`,
+  );
+  return {
+    kind: 'membership',
+    declaration: table.membershipDeclaration.id ?? table.__tableName,
+    ...(clause.resourceArg === null ? {} : { resourceArg: clause.resourceArg }),
+    roles: [...clause.roles],
+  };
+};
+
 /**
- * Declare the registry-only first slice of the Expo push seam. Audience
- * resolution, sending, and receipts intentionally have no authoring spelling
- * until their implementation slices land.
+ * Declare the Expo push seam. Audience references are generated functions;
+ * handlers can address only a named declaration plus its bounded argument
+ * object, never token bytes or an arbitrary recipient list.
  *
- * @ref LLP 0143#d1-device-token-custody — app scope is declared once; a
- * registration request can never choose or widen it.
+ * @ref LLP 0143#d2-the-send-lane — membership resolution and its
+ * authorize clause are declaration-bound and host enforced.
  */
 export function definePushSeam(spec) {
-  exactObject(spec, 'definePushSeam', new Set(['appScope', 'registry']));
+  exactObject(spec, 'definePushSeam', new Set(['appScope', 'registry', 'audiences', 'uses', 'ledger']));
   exactObject(spec.appScope, 'definePushSeam appScope', new Set([
     'easProjectId', 'applicationId', 'environment',
   ]));
@@ -992,10 +1064,60 @@ export function definePushSeam(spec) {
       && spec.registry.idleRetentionMs <= 31_536_000_000,
     'definePushSeam registry.idleRetentionMs must be between one day and one year',
   );
+  const hasSendLane = spec.audiences !== undefined || spec.uses !== undefined || spec.ledger !== undefined;
+  assert(
+    !hasSendLane || (spec.audiences !== undefined && spec.uses !== undefined && spec.ledger !== undefined),
+    'definePushSeam audiences, uses, and ledger must be declared together',
+  );
+  if (hasSendLane) {
+    exactObject(spec.ledger, 'definePushSeam ledger', new Set(['retentionMs']));
+    assert(
+      Number.isSafeInteger(spec.ledger.retentionMs)
+        && spec.ledger.retentionMs >= 86_400_000
+        && spec.ledger.retentionMs <= 31_536_000_000,
+      'definePushSeam ledger.retentionMs must be between one day and one year',
+    );
+  }
+  const uses = hasSendLane
+    ? stringArray(spec.uses, 'definePushSeam uses', { allowEmpty: true })
+    : [];
+  assert(new Set(uses).size === uses.length, 'definePushSeam uses must not contain duplicates');
+  assert(
+    !hasSendLane || (spec.audiences && typeof spec.audiences === 'object' && !Array.isArray(spec.audiences)),
+    'definePushSeam audiences must be an object',
+  );
+  const audienceSpecs = {};
+  const audienceRefs = {};
+  for (const [name, audience] of Object.entries(spec.audiences ?? {})) {
+    assert(/^[A-Za-z_][A-Za-z0-9_]{0,63}$/u.test(name), `definePushSeam audience name ${name} is invalid`);
+    exactObject(audience, `definePushSeam audiences.${name}`, new Set(['resolve', 'authorize']));
+    const resolve = pushResolverClause(audience.resolve, `definePushSeam audiences.${name}.resolve`);
+    const authorize = pushMembershipClause(
+      audience.authorize,
+      `definePushSeam audiences.${name}.authorize`,
+      { allowSystem: true },
+    );
+    assert(
+      resolve.kind !== 'explicitPrincipals'
+        || authorize.kind !== 'membership'
+        || resolve.principalsArg !== authorize.resourceArg,
+      `definePushSeam audiences.${name} resolver and authorization arguments have incompatible shapes`,
+    );
+    audienceSpecs[name] = { resolve, authorize };
+    audienceRefs[name] = (args = {}) => {
+      assert(args && typeof args === 'object' && !Array.isArray(args), `push audience ${name} args must be an object`);
+      return Object.freeze({ [PUSH_AUDIENCE_REF]: true, audience: name, args: { ...args } });
+    };
+  }
+  assert(!hasSendLane || Object.keys(audienceSpecs).length > 0, 'definePushSeam requires at least one audience');
   return {
     [PUSH_SEAM]: true,
     appScope: { ...spec.appScope },
     registry: { ...spec.registry },
+    ledger: spec.ledger === undefined ? null : { ...spec.ledger },
+    uses: [...uses],
+    audienceSpecs,
+    audiences: Object.freeze(audienceRefs),
   };
 }
 
@@ -1053,6 +1175,14 @@ export function defineSchema(tables, options = {}) {
     pushSeam = {
       appScope: { ...options.pushSeam.appScope },
       registry: { ...options.pushSeam.registry },
+      ...(options.pushSeam.ledger === null ? {} : {
+        ledger: { ...options.pushSeam.ledger },
+        uses: [...options.pushSeam.uses],
+        audiences: Object.fromEntries(Object.entries(options.pushSeam.audienceSpecs).map(([name, audience]) => [name, {
+          resolve: serializePushMembershipClause(audience.resolve, tables, `definePushSeam audiences.${name}.resolve`),
+          authorize: serializePushMembershipClause(audience.authorize, tables, `definePushSeam audiences.${name}.authorize`),
+        }])),
+      }),
     };
   }
   return {

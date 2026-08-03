@@ -98,6 +98,11 @@ pub enum Kind {
     /// One app installation, persisted by the client independently of a user
     /// session so account switches can transfer token ownership atomically.
     Installation,
+    /// One durable Expo push intent chain, batch handoff, or per-token message
+    /// evidence row (LLP 0143 D3's normalized ledger).
+    PushIntent,
+    PushBatch,
+    PushMessage,
     /// An id minted inside a field expression, where no target table is in
     /// scope. Deliberately generic: guessing a table here would produce a
     /// prefix that lies, which §D6 forbids more strongly than it requires a
@@ -167,6 +172,9 @@ impl Kind {
             Kind::Generation => ("gen", Random),
             Kind::PushToken => ("ptok", TimeOrdered),
             Kind::Installation => ("inst", Random),
+            Kind::PushIntent => ("pint", TimeOrdered),
+            Kind::PushBatch => ("pbat", TimeOrdered),
+            Kind::PushMessage => ("pmsg", TimeOrdered),
             Kind::Opaque => ("id", TimeOrdered),
         };
         Spec { prefix, body }
@@ -213,6 +221,9 @@ pub const ALL: &[Kind] = &[
     Kind::Generation,
     Kind::PushToken,
     Kind::Installation,
+    Kind::PushIntent,
+    Kind::PushBatch,
+    Kind::PushMessage,
     Kind::Opaque,
 ];
 
@@ -534,7 +545,11 @@ mod tests {
             );
             assert!(!prefix.is_empty() && prefix.len() <= MAX_PREFIX_LEN);
             assert!(prefix.starts_with(|c: char| c.is_ascii_lowercase()));
-            assert!(prefix.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()));
+            assert!(
+                prefix
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+            );
         }
     }
 

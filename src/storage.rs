@@ -1701,12 +1701,15 @@ impl LocalDatabase {
             validate_existing_storage_ordering(conn, head)
         })?;
         db.schema = stored_schema.unwrap_or_default();
-        if db.schema.push_seam.is_some() {
+        if let Some(push_seam) = &db.schema.push_seam {
             // @ref LLP 0143#d1-device-token-custody — every reopened writer
             // re-arms physical deletion and refuses a non-exact protected
             // catalog before auth adoption can trust attached triggers.
             crate::push::require_secure_delete(&db.conn)?;
             crate::push::validate_exact_schema(&db.conn)?;
+            if push_seam.ledger.is_some() {
+                crate::push::validate_exact_ledger_schema(&db.conn)?;
+            }
         }
         auth_mode::adopt_after_infra(&mut db, mode_inspection)?;
         // The pool is created after configure/create_infra so readers open an

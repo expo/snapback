@@ -836,6 +836,14 @@
       ctx.runMutation = function(mutationName, mutationArgs) {
         return host("action.runMutation", { name: mutationName, args: mutationArgs || {} });
       };
+      // @ref LLP 0143#d2-the-send-lane — actions address a generated audience
+      // reference; token resolution, authorization, batching, and provider
+      // custody stay entirely behind this host operation.
+      ctx.push = {
+        send: function(request) {
+          return host("push.send", request || {});
+        }
+      };
       // Host-mediated fetch with secret placement slots (LLP 0049 §Action
       // Egress): the action passes URL/method/headers/body/timeout plus
       // slots that reference DESCRIPTOR handles; the hosted profile resolves
@@ -1002,6 +1010,11 @@
         }
       };
     } else {
+      ctx.push = {
+        send: function() {
+          throw snapbackError("SNAPBACK_PUSH_SEND_UNAVAILABLE", "push.send is action-only");
+        }
+      };
       ctx.runMutation = function() {
         throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "runMutation");
       };

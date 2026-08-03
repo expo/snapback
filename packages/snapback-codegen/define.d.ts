@@ -265,9 +265,32 @@ export type TargetCapabilityId =
   | 'permission_epoch_resync'
   | 'full_text_search_v1';
 
-export interface PushSeamDefinition {
-  readonly __pushSeamDefinition: true;
+export interface PushAudienceReference<Name extends string = string> {
+  readonly audience: Name;
+  readonly args: Readonly<Record<string, unknown>>;
 }
+
+export interface PushSeamDefinition<AudienceName extends string = string> {
+  readonly __pushSeamDefinition: true;
+  readonly audiences: Readonly<Record<AudienceName, (
+    args?: Readonly<Record<string, unknown>>,
+  ) => PushAudienceReference<AudienceName>>>;
+}
+
+type PushMembershipClause = {
+  readonly membership: MembershipTableBuilder;
+  readonly resourceArg?: string;
+  readonly roles: readonly string[];
+};
+
+type PushResolverClause = PushMembershipClause | {
+  /** Runtime principal ids are allowed only through this declared, bounded
+   * resolver and are refused for deferred sends. */
+  readonly principalsArg: string;
+  readonly maxItems: number;
+};
+
+type PushAuthorizeClause = PushMembershipClause | { readonly system: true };
 
 export declare function definePushSeam(spec: {
   readonly appScope: {
@@ -278,7 +301,26 @@ export declare function definePushSeam(spec: {
   readonly registry: {
     readonly idleRetentionMs: number;
   };
-}): PushSeamDefinition;
+}): PushSeamDefinition<never>;
+
+export declare function definePushSeam<const Audiences extends Record<string, {
+  readonly resolve: PushResolverClause;
+  readonly authorize: PushAuthorizeClause;
+}>>(spec: {
+  readonly appScope: {
+    readonly easProjectId: string;
+    readonly applicationId: string;
+    readonly environment: string;
+  };
+  readonly registry: {
+    readonly idleRetentionMs: number;
+  };
+  readonly audiences: Audiences;
+  readonly uses: readonly string[];
+  readonly ledger: {
+    readonly retentionMs: number;
+  };
+}): PushSeamDefinition<keyof Audiences & string>;
 
 export interface FunctionAuthOptions {
   /** Controls whether the resolved server authority must carry a user. */

@@ -872,6 +872,48 @@ fn parse_action_watchdog_timeout(raw: Option<&str>) -> u64 {
         .unwrap_or(ACTION_WATCHDOG_DEFAULT_MS)
 }
 
+const EXPO_PUSH_PRODUCTION_BASE_URL: &str = "https://exp.host";
+
+fn loopback_provider_base_url(value: &str) -> bool {
+    let Some(rest) = value
+        .strip_prefix("http://")
+        .or_else(|| value.strip_prefix("https://"))
+    else {
+        return false;
+    };
+    if rest.contains(['/', '?', '#', '@']) {
+        return false;
+    }
+    let host = if let Some(ipv6) = rest.strip_prefix('[') {
+        let Some((host, suffix)) = ipv6.split_once(']') else {
+            return false;
+        };
+        if !suffix.is_empty() && !suffix.starts_with(':') {
+            return false;
+        }
+        host
+    } else {
+        rest.split_once(':').map_or(rest, |(host, _port)| host)
+    };
+    matches!(host, "localhost" | "127.0.0.1" | "::1")
+}
+
+fn expo_push_provider_base_url(profile: ServerProfile) -> SnapbackResult<String> {
+    let Ok(value) = std::env::var("SNAPBACK_EXPO_PUSH_BASE_URL") else {
+        return Ok(EXPO_PUSH_PRODUCTION_BASE_URL.into());
+    };
+    if !matches!(profile, ServerProfile::Dev | ServerProfile::Test)
+        || !loopback_provider_base_url(&value)
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_PUSH_PROVIDER_OVERRIDE_REFUSED",
+            "push",
+            "the Expo provider override is local/test-only and must name a loopback base URL",
+        ));
+    }
+    Ok(value)
+}
+
 /// The action host for detached (off-mutex) Ibex action runs. Raw action
 /// `ctx.db` operations are rejected before host dispatch; the trait's read
 /// methods retain a short-lock defense in depth. Ibex mutations execute into
@@ -897,6 +939,11 @@ struct DetachedActionHost {
     app_generation: u64,
     app_generation_fence: Arc<AtomicU64>,
     authority: PreparedAuthority,
+    /// The exact per-function config grant staged with this invocation. Push
+    /// may consume only seam-declared entries that the action also named in
+    /// `uses`; no app argument can widen this set.
+    push_grants: Value,
+    deferred_push_grant: Option<crate::push::PushDeferredGrantV1>,
     external_effect_open: bool,
     external_effect_permit: Option<ServiceAuthorityExternalEffectPermit>,
     response_streams: BTreeMap<String, OpenActionResponseStream>,
@@ -966,6 +1013,61 @@ impl Drop for ScopedLocalSnapbackGuard {
 }
 
 impl DetachedActionHost {
+    fn push_access_token(
+        &self,
+        declaration: &crate::push::PushSeamDeclarationV1,
+    ) -> SnapbackResult<Option<String>> {
+        let entries = self
+            .push_grants
+            .get("entries")
+            .and_then(Value::as_object)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_PUSH_CONFIG_GRANT_MISSING",
+                    "push",
+                    "the action has no staged config grants for the push seam",
+                )
+            })?;
+        if declaration
+            .uses
+            .iter()
+            .any(|name| !entries.contains_key(name))
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_PUSH_CONFIG_GRANT_MISSING",
+                "push",
+                "the action must declare every push-seam config entry in its uses list",
+            ));
+        }
+        if !declaration
+            .uses
+            .iter()
+            .any(|name| name == "expoPushAccessToken")
+        {
+            return Ok(None);
+        }
+        let Some(grant) = entries.get("expoPushAccessToken") else {
+            return Ok(None);
+        };
+        if grant.get("set").and_then(Value::as_bool) != Some(true) {
+            return Ok(None);
+        }
+        grant
+            .get("values")
+            .and_then(Value::as_array)
+            .and_then(|values| values.first())
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty() && !value.contains(['\r', '\n']))
+            .map(|value| Some(value.to_owned()))
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_PUSH_CONFIG_GRANT_INVALID",
+                    "push",
+                    "the staged Expo access-token grant has an invalid bounded shape",
+                )
+            })
+    }
+
     /// Retire a cursor everywhere at once: the read-side closed set (so a
     /// post-cancel read returns EOF) and the attempt registry's child record
     /// (so the parent's certainty fold stops treating it as in flight). The
@@ -1914,6 +2016,145 @@ impl IbexActionHost for DetachedActionHost {
         })
     }
 
+    fn push_send(
+        &mut self,
+        request: crate::push::PushSendRequestV1,
+    ) -> SnapbackResult<crate::push::PushSendReservationResponseV1> {
+        self.validate_host_call("push.send")?;
+        let trigger_mode = if self.deferred_push_grant.is_some()
+            && matches!(self.authority.resolved(), ResolvedAppAuthority::System)
+        {
+            crate::push::PushTriggerModeV1::Deferred
+        } else if matches!(self.authority.resolved(), ResolvedAppAuthority::System) {
+            crate::push::PushTriggerModeV1::System
+        } else {
+            crate::push::PushTriggerModeV1::Immediate
+        };
+        let provider_base = expo_push_provider_base_url(self.authority.profile())?;
+        let endpoint = format!(
+            "{}/--/api/v2/push/send",
+            provider_base.trim_end_matches('/')
+        );
+        let now_ms = now_millis();
+        let (mut attempt, access_token) = {
+            let mut snapback = self.lock_live("push.send.reserve")?;
+            let _effect = self
+                .authority
+                .effect_guard("push send durable reservation")?;
+            let database = snapback.auth_database_mut();
+            let schema = database.schema().clone();
+            let declaration = schema.push_seam.clone().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_PUSH_SEAM_NOT_DECLARED",
+                    "push",
+                    "the app schema does not declare the push send seam",
+                )
+            })?;
+            let access_token = self.push_access_token(&declaration)?;
+            let attempt = database.with_auth_transaction(|tx| {
+                crate::push::reserve_send_in(
+                    tx,
+                    &declaration,
+                    &schema,
+                    &self.authority,
+                    trigger_mode,
+                    self.deferred_push_grant.as_ref(),
+                    &request,
+                    now_ms,
+                )
+            })?;
+            (attempt, access_token)
+        };
+
+        for batch in &attempt.batches {
+            let Some(claim) = ({
+                let mut snapback = self.lock_live("push.send.claim")?;
+                let _effect = self.authority.effect_guard("push batch claim")?;
+                snapback
+                    .auth_database_mut()
+                    .with_auth_transaction(|tx| {
+                        crate::push::claim_batch_in(tx, &batch.batch_id, now_millis())
+                    })?
+            }) else {
+                continue;
+            };
+
+            // Service-token authority is checked before the durable transmit
+            // marker. From the marker commit onward every loss of process or
+            // response certainty settles (or recovers) as ambiguous.
+            {
+                let mut snapback = self.lock_live("push.send.preflight")?;
+                snapback.persist_service_deadline_if_due(&self.authority)?;
+            }
+            let permit = self
+                .authority
+                .begin_service_external_effect(now_millis(), Instant::now())?;
+            {
+                let mut snapback = self.lock_live("push.send.transmitting")?;
+                let _effect = self
+                    .authority
+                    .effect_guard("push batch transmitting marker")?;
+                snapback
+                    .auth_database_mut()
+                    .with_auth_transaction(|tx| {
+                        crate::push::mark_batch_transmitting_in(tx, &claim, now_millis())
+                    })?;
+            }
+
+            let payload = crate::push::expo_send_payload(&claim, &request);
+            if let Some(permit) = permit {
+                permit.initiated();
+            }
+            let remaining = self.deadline.saturating_duration_since(Instant::now());
+            let settlement = if remaining.is_zero() {
+                crate::push::PushBatchSettlementV1::Ambiguous {
+                    code: "timeout".into(),
+                }
+            } else {
+                let timeout = remaining.min(Duration::from_secs(15));
+                match crate::push::post_expo_json(
+                    &endpoint,
+                    access_token.as_deref(),
+                    payload,
+                    timeout,
+                ) {
+                    Ok(response) => crate::push::classify_expo_send_response(
+                        response.status,
+                        &response.body,
+                        now_millis().saturating_add(60_000),
+                    ),
+                    Err(_) => {
+                        let code = if Instant::now() >= self.deadline {
+                            "timeout"
+                        } else {
+                            "transport-error"
+                        };
+                        crate::push::PushBatchSettlementV1::Ambiguous { code: code.into() }
+                    }
+                }
+            };
+            {
+                let mut snapback = self.lock_live("push.send.settle")?;
+                let _effect = self.authority.effect_guard("push batch settlement")?;
+                snapback
+                    .auth_database_mut()
+                    .with_auth_transaction(|tx| {
+                        crate::push::settle_batch_in(tx, &claim, &settlement, now_millis())
+                    })?;
+            }
+        }
+        let mut snapback = self.lock_live("push.send.result")?;
+        let intent_id = attempt.response.intent_id.clone();
+        attempt.response.state = snapback.auth_database_mut().with_auth_read(|conn| {
+            Ok(conn.query_row(
+                "SELECT state FROM _snapback_push_intents_v1 WHERE id = ?1",
+                rusqlite::params![intent_id],
+                |row| row.get(0),
+            )?)
+        })?;
+        Ok(attempt.response)
+    }
+
     fn read_response_stream(&mut self, stream_id: &str) -> SnapbackResult<ActionStreamChunk> {
         let Some(mut stream) = self.response_streams.remove(stream_id) else {
             // @ref LLP 0076#diagnostics — a read after cancellation returns
@@ -2416,7 +2657,9 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     invocation,
                     app_generation,
                     app_generation_fence,
+                    deferred_push_grant,
                 } = *action;
+                let push_grants = grants.clone();
                 let correlation = input
                     .correlation
                     .as_ref()
@@ -2437,6 +2680,8 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     app_generation,
                     app_generation_fence,
                     authority: invocation.authority().clone(),
+                    push_grants,
+                    deferred_push_grant,
                     external_effect_open: false,
                     external_effect_permit: None,
                     response_streams: BTreeMap::new(),
@@ -2967,11 +3212,16 @@ pub(crate) async fn execute_job_claim_detached(
     let input = LocalSnapback::job_claim_input(&claim);
     let metadata = LocalSnapback::job_claim_metadata(&claim);
     let action = claim.action.clone();
+    let deferred_push_grant = claim.push_grant.clone();
     let staged = {
         let action = action.clone();
         let admission = claim.admission_lease().clone();
         with_snapback(state, move |snapback| {
-            snapback.stage_action_invocation_with_admission(&action, admission)
+            snapback.stage_job_action_invocation_with_admission(
+                &action,
+                admission,
+                deferred_push_grant,
+            )
         })
         .await
     };
@@ -16165,6 +16415,97 @@ const MAINTENANCE_TICKS_PER_SWEEP: u64 = MAINTENANCE_INTERVAL_MS / ROOM_REAUTHOR
 const JOURNAL_RETAIN_VERSIONS: u64 = 10_000;
 const JOURNAL_RETAIN_MS: u64 = 24 * 60 * 60 * 1_000;
 
+/// Drive the host-owned push recovery and receipt lane without holding the
+/// app mutex across provider I/O. Claiming advances the durable poll schedule;
+/// transport, non-200, oversized, or malformed responses remain unsettled and
+/// are retried by that schedule. Only a closed-vocabulary parsed response may
+/// mutate message/intent state.
+///
+/// @ref LLP 0143#d3-the-handoff-ledger-receipts-honesty-and-crash-safety —
+///   expired transmit claims recover by the durable marker, and Expo receipts
+///   settle from bounded allowlisted facts rather than raw provider prose.
+async fn drive_push_maintenance_once(
+    state: &SharedSnapback,
+    profile: ServerProfile,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    let planned = with_snapback(
+        state,
+        move |snapback|
+              -> SnapbackResult<
+            Option<(crate::push::PushReceiptPollClaimV1, Option<String>)>,
+        > {
+        let has_ledger = snapback
+            .auth_database_mut()
+            .schema()
+            .push_seam
+            .as_ref()
+            .is_some_and(|declaration| declaration.ledger.is_some());
+        if !has_ledger {
+            return Ok(None);
+        }
+        let access_token = snapback.push_maintenance_access_token();
+        let claim = snapback
+            .auth_database_mut()
+            .with_auth_transaction(|tx| {
+                crate::push::recover_expired_batches_in(tx, now_ms)?;
+                crate::push::claim_due_receipts_in(tx, now_ms)
+            })?;
+        Ok(Some((claim, access_token)))
+        },
+    )
+    .await?;
+    let Some((claim, access_token)) = planned else {
+        return Ok(());
+    };
+    if claim.entries.is_empty() {
+        return Ok(());
+    }
+
+    let endpoint = format!(
+        "{}/--/api/v2/push/getReceipts",
+        expo_push_provider_base_url(profile)?.trim_end_matches('/')
+    );
+    let payload = crate::push::expo_receipt_payload(&claim);
+    let outcomes = tokio::task::spawn_blocking(move || -> SnapbackResult<Option<_>> {
+        let timeout = Duration::from_secs(15);
+        let Ok(response) = crate::push::post_expo_json(
+            &endpoint,
+            access_token.as_deref(),
+            payload,
+            timeout,
+        ) else {
+            return Ok(None);
+        };
+        if response.status != 200 {
+            return Ok(None);
+        }
+        match crate::push::parse_expo_receipt_response(&response.body) {
+            Ok(outcomes) => Ok(Some(outcomes)),
+            Err(_) => Ok(None),
+        }
+    })
+    .await
+    .map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_PUSH_MAINTENANCE_WORKER_FAILED",
+            "push",
+            "the push receipt worker terminated before returning a bounded result",
+        )
+    })??;
+    let Some(outcomes) = outcomes else {
+        return Ok(());
+    };
+    with_snapback(state, move |snapback| {
+        snapback
+            .auth_database_mut()
+            .with_auth_transaction(|tx| {
+                crate::push::settle_receipt_poll_in(tx, &claim, &outcomes, now_millis())
+            })
+    })
+    .await
+}
+
 /// Periodic lifecycle maintenance: reap connections idle past the TTL (L2) so an
 /// abandoned HTTP-polling client's subscriptions and ephemeral state do not live
 /// forever, prune the change journal to its retention window (L3) so it does
@@ -16292,6 +16633,13 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
             .await;
             for (room_id, generation, resolutions) in planned {
                 let _ = ephemeral.complete_room_reauthorization(&room_id, generation, resolutions);
+            }
+            if run_maintenance {
+                // Provider outages and malformed responses deliberately leave
+                // the durable receipt schedule pending. Storage/worker errors
+                // are likewise retried on the next sweep; no raw provider
+                // response enters diagnostics.
+                let _ = drive_push_maintenance_once(&state, runtime.server.profile, now).await;
             }
         }
     })
@@ -34234,6 +34582,9 @@ globalThis.__snapbackHandlers = {
                     registry: crate::push::PushRegistryDeclarationV1 {
                         idle_retention_ms: 86_400_000,
                     },
+                    audiences: BTreeMap::new(),
+                    uses: Vec::new(),
+                    ledger: None,
                 })
         })
         .await
@@ -39951,6 +40302,8 @@ globalThis.__snapbackHandlers = {
             app_generation: action.app_generation,
             app_generation_fence: action.app_generation_fence.clone(),
             authority: action.invocation.authority().clone(),
+            push_grants: action.grants.clone(),
+            deferred_push_grant: action.deferred_push_grant.clone(),
             external_effect_open: false,
             external_effect_permit: None,
             response_streams: BTreeMap::new(),

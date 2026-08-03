@@ -81,6 +81,9 @@ you never build around a feature because you didn't know it existed.
   migration boundaries (experimental).
 - [Actions and outbound fetch](./backend/actions-and-fetch.md) — gated
   egress, config grants, and mutation-owned durable effects.
+- [Expo push notifications](./backend/expo-push.md) — protected token
+  custody, declared audiences, crash-honest Expo tickets and receipts, and
+  the local/hosted boundary (partial).
 - [Streamed actions](./backend/streamed-actions.md) — bounded pull-driven
   response streaming, the attempt control plane, and durable progress.
 - [Scheduled execution](./backend/cron.md) — action-backed jobs,

@@ -1884,6 +1884,9 @@ pub(crate) struct DetachedIbexAction {
     /// observe this exact generation.
     pub app_generation: u64,
     pub app_generation_fence: Arc<AtomicU64>,
+    /// Host-only authority captured by the mutation that enqueued this exact
+    /// job. Ordinary actions and cron runs always carry `None`.
+    pub deferred_push_grant: Option<crate::push::PushDeferredGrantV1>,
 }
 
 // As above, the prepared arm is the ordinary in-lock path; keep its stable
@@ -4008,6 +4011,18 @@ impl LocalSnapback {
         &mut self.db
     }
 
+    pub(crate) fn push_maintenance_access_token(&self) -> Option<String> {
+        let declaration = self.db.schema().push_seam.as_ref()?;
+        declaration
+            .uses
+            .iter()
+            .any(|name| name == "expoPushAccessToken")
+            .then(|| self.config.values("expoPushAccessToken"))
+            .flatten()
+            .and_then(|values| values.first())
+            .cloned()
+    }
+
     /// Revalidate the exact finite service carrier while the caller owns the
     /// app lock. Terminal auth writers use that same outer lock and premark
     /// the process fence before commit, so a successful check linearizes every
@@ -4336,6 +4351,9 @@ impl LocalSnapback {
     ) -> SnapbackResult<DeploymentIdentity> {
         artifacts.schema.validate_artifact()?;
         artifacts.functions.validate_artifact()?;
+        if let Some(push_seam) = &artifacts.schema.push_seam {
+            crate::push::validate_config_uses(push_seam, &artifacts.functions)?;
+        }
         validate_collection_definitions(&artifacts.schema.ephemeral_collections)
             .map_err(ephemeral_manifest_error)?;
         validate_collection_permission_backing(
@@ -4519,6 +4537,11 @@ impl LocalSnapback {
 
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
         manifest.validate_artifact()?;
+        if self.functions_loaded
+            && let Some(push_seam) = &manifest.push_seam
+        {
+            crate::push::validate_config_uses(push_seam, &self.functions)?;
+        }
         validate_collection_definitions(&manifest.ephemeral_collections)
             .map_err(ephemeral_manifest_error)?;
         validate_collection_permission_backing(
@@ -4612,6 +4635,11 @@ impl LocalSnapback {
         }
 
         let mut preflight = Vec::new();
+        if let Some(push_seam) = &self.db.schema().push_seam
+            && let Err(error) = crate::push::validate_config_uses(push_seam, &manifest)
+        {
+            preflight.push(error.diagnostic);
+        }
         if let Err(error) = validate_function_schema_references(&manifest, self.db.schema()) {
             preflight.push(error.diagnostic);
         }
@@ -16419,7 +16447,7 @@ impl LocalSnapback {
             }));
         }
 
-        let mode = self.staged_mode(&definition, prepared);
+        let mode = self.staged_mode(&definition, prepared, None);
         StagedAppAction::Ready(AppActionStage {
             reads,
             writes,
@@ -16455,13 +16483,37 @@ impl LocalSnapback {
             ResolvedAppAuthority::System,
         )?;
         let prepared = InvocationGate::prepare_function(authority, &function)?;
-        Ok(self.staged_mode(&function, prepared))
+        Ok(self.staged_mode(&function, prepared, None))
+    }
+
+    pub(crate) fn stage_job_action_invocation_with_admission(
+        &mut self,
+        name: &str,
+        admission: AdmissionLease,
+        deferred_push_grant: Option<crate::push::PushDeferredGrantV1>,
+    ) -> SnapbackResult<StagedAction> {
+        let function = self.function(name)?.clone();
+        admission.validate("job action staging")?;
+        let active_mode = admission
+            .active_mode()
+            .expect("LocalSnapback admissions are always controller-managed");
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::Cron,
+            active_mode,
+            ServerProfile::Dev,
+            admission,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::System,
+        )?;
+        let prepared = InvocationGate::prepare_function(authority, &function)?;
+        Ok(self.staged_mode(&function, prepared, deferred_push_grant))
     }
 
     fn staged_mode(
         &mut self,
         definition: &FunctionDefinition,
         invocation: PreparedInvocation,
+        deferred_push_grant: Option<crate::push::PushDeferredGrantV1>,
     ) -> StagedAction {
         match &definition.runtime {
             FunctionRuntime::IbexModule(module) => {
@@ -16481,6 +16533,7 @@ impl LocalSnapback {
                     invocation,
                     app_generation: self.app_generation,
                     app_generation_fence: self.app_generation_fence.clone(),
+                    deferred_push_grant,
                 }))
             }
             _ => StagedAction::HostPlan(invocation),

@@ -105,6 +105,12 @@ the send lane, ledger, receipts, and full capability identity remain open.)
 explicit additive subpath. Root imports and ordinary clients now retain no
 push-shaped runtime, export, property, or type; a prospective bundle ledger
 freezes both positive attachment and root-negative proofs.)
+**Revised:** 2026-08-02 (D2/D3 local implementation amendment: all nine
+implementation questions resolved; generated action send types, deferred
+grants, crash-safe ledger, bounded ticket/receipt carrier and maintenance,
+explicit ambiguity redrive, shared fake-Expo acceptance, structured local
+capability facts, and guide page recorded. First-class `notifications` stays
+false and hosted stays Missing.)
 **Related:** LLP 0000, LLP 0027, LLP 0028, LLP 0036, LLP 0039, LLP 0045,
 LLP 0049, LLP 0053, LLP 0055, LLP 0064, LLP 0070, LLP 0100, LLP 0102,
 LLP 0137,
@@ -363,7 +369,8 @@ Sends happen **from actions**, composing with the landed egress seam —
 but apps do not hand-roll the Expo POST, because that would require
 handing them token bytes.
 
-**D2a. Surface.** `ctx.push.send({ to, title, body, data?, dedupeKey })`
+**D2a. Surface.** `ctx.push.send({ to, title, body, data?, dedupeKey,
+redriveAmbiguous? })`
 where `to` names a declared audience (D2c), never raw tokens. The host
 resolves the audience to registry rows, chunks into ≤100-message Expo
 requests, and performs the POST over the same `host.fetch` boundary
@@ -677,39 +684,58 @@ gate of this witness, not a footnote.
 - LLP 0045's scope is unchanged; this RFC adds a provider-shaped
   down-payment it can absorb.
 
-## Open questions
+## Implementation questions — resolved 2026-08-02
 
-1. Surface naming: `ctx.push` vs `ctx.notifications.expo`; capability id
-   `notifications.expoPushSeam` vs a `push.*` family; `definePushSeam`
-   vs folding into a future `defineNotifications`. (Guide and manifest
-   naming review.)
-2. The installation identity's final home and reset semantics (its
-   existence is now a D1a dependency with a default proposal): minted
-   beside auth custody vs carried by the B1 RN durable-store files
-   adapter; what a custody wipe does to the id; whether web carriers
-   get installation identities or web registration is out of v1 scope.
-3. Receipt-poll ownership on hosted once that lane exists; and whether
-   the local poll's schedule belongs in the manifest next to pacing.
-4. Config posture when the Expo account requires enhanced security and
-   the grant is absent: refuse at send (this RFC's lean) vs attempt and
-   record the request-level `UNAUTHORIZED` as `failed-config`.
-5. Whether to document the interim app-authored bridge recipe with
-   warnings before the seam ships, or hold the guide silent until the
-   seam is the story (guide-gap tickets 20260728 and a4expo-f1 both
-   press for *some* documented posture now).
-6. Sequencing against LLP 0045's email-first slice: does the seam land
-   independently (this RFC's assumption) or ride the outbox's first
-   provider-adapter milestone?
-7. Should the acceptance kit ship the fake-Expo fixture (tickets +
-   receipts + scripted ticket-stage and receipt-stage
-   `DeviceNotRegistered` + socket-drop ambiguity) as a shared harness,
-   the way the A4 arms shipped scripted providers ad hoc?
-8. Audience-resolver vocabulary beyond explicit principals: membership
-   resources ("all seated guests of event X with role guest") resolved
-   host-side at execution time; which membership shapes are declarable
-   in v1, and how a resolver's own authorization is declared.
-9. Whether `expo-error-rate` receipts should feed back into the pacing
-   facts (adaptive pacing) or stay a static published limit in v1.
+1. **Surface and capability naming.** The shipped names are
+   `definePushSeam`, the additive `client.push` registry surface, and
+   action-only `ctx.push.send`. The structured target fact's id is
+   `notifications.expoPushSeam`; it remains distinct from LLP 0045's
+   `notifications` boolean. Future absorption may alias these names but does
+   not rename v1 artifacts silently.
+2. **Installation identity home and reset.** The final v1 boundary is the
+   additive registry module's explicitly injected
+   `pushInstallationStorage`, beside but not inside the RQS cache. It mints
+   once and persists through ordinary logout; session termination retires the
+   server binding. A full custody wipe calls the adapter's `clear`, after
+   which the next registration mints a new id. Web registration is out of v1.
+   Apps may implement the storage on Expo's durable files carrier or another
+   native durable key/value store; Snapback refuses missing custody instead of
+   choosing process memory.
+3. **Receipt ownership and manifest facts.** Local receipt polling belongs to
+   the existing host maintenance worker, off the app lock during provider I/O.
+   Its batch, first-poll, interval, attempt, and window bounds are published in
+   `expoPushSeam`. Hosted omits the descriptor until it has its own durable
+   poll home and the rest of D4's conjunction; local ownership is not inferred
+   for it.
+4. **Enhanced-security config.** The access token is optional in both seam
+   and deployment config. When it is absent Snapback attempts the send without
+   a bearer; Expo `UNAUTHORIZED` settles `failed-config`. No retry occurs until
+   an app/operator makes a new attempt under corrected config. A token grant
+   can be consumed only when both the seam and action declare it.
+5. **Guide posture.** The guide ships the protected seam only. It does not
+   teach the app-table/argument-provider-URL bridge, even as an interim recipe.
+6. **LLP 0045 sequencing.** The seam lands independently. It remains a
+   provider-shaped input that the later outbox can absorb; `notifications`
+   stays false now.
+7. **Fixture ownership.** A shared in-process fake Expo carrier ships with the
+   push subsystem conformance suite. The send and receipt stages use the same
+   production bounded HTTP carrier and cover tickets, receipts, both
+   `DeviceNotRegistered` stages, provider-prose dropping, request-byte socket
+   loss, no automatic ambiguity retry, explicit duplicate-risk redrive,
+   dedupe/zero-target, and authorization refusal. It is test infrastructure,
+   not a public provider package.
+8. **Audience vocabulary.** V1 admits (a) membership resolvers over app or
+   resource membership declarations and declared role subsets, and (b)
+   explicitly bounded principal arrays. Authorization is independently either
+   membership-addressed (app/resource plus roles) or explicit system. The host
+   evaluates authorization and resolves recipients at execution. Deferred
+   grants admit membership resolvers only, are transaction-captured with the
+   exact audience arguments and dedupe key, and revalidate the producer's
+   current membership before use.
+9. **Rate feedback.** V1 publishes static pacing: serial ≤100-message batches
+   per action attempt. `MessageRateExceeded` records `expo-error-rate` but does
+   not adapt global pacing. Adaptive feedback requires a later design and its
+   own convergence evidence.
 
 ## Implementation record
 
@@ -788,6 +814,63 @@ that never selected notifications. Commit `91a0a718` corrects that D6 defect:
 This correction changes no registry storage or wire contract. The send lane,
 audience authorization, handoff ledger, provider tickets/receipts, and full
 capability claim remain open exactly as recorded above.
+
+### 2026-08-02 — D2/D3 local send, ledger, receipt, and acceptance amendment
+
+The independently landed registry is now connected to a local-target provider
+lane without widening custody:
+
+- `definePushSeam`'s installed audiences generate exact-name references and
+  app-specific `GeneratedPushAudienceReference` unions. Send-capable generated
+  action contexts expose `ctx.push.send`; registry-only schemas do not. The
+  host still treats TypeScript as ergonomics rather than authority: it
+  revalidates the declaration, exact argument union, trigger authority,
+  membership roles, payload bound, and dedupe key before reserving.
+- Immediate membership sends, explicit system audiences, and mutation-produced
+  deferred grants are distinct. A deferred `pushGrant` is captured with an
+  ordinary mutation read dependency, digested into job idempotency, persisted
+  atomically with the job, and carried only into that job's action. Execution
+  revalidates current producer membership and re-resolves recipients; raw
+  principal arrays and duplicate-risk redrives refuse in this mode.
+- The exact protected ledger stores intent, batch-attempt, and per-token rows.
+  Reservation precedes a fenced claim; `transmitting` commits before provider
+  bytes; token rotation is rebound only on the safe pre-transmit side. Lost
+  certainty settles `ambiguous`, erases token snapshots, and never enters the
+  recovery redrive path. `redriveAmbiguous: true` is the only v1 explicit
+  duplicate-risk redrive: it requires an identical ambiguous predecessor,
+  increments the intent attempt, mints new batch/message rows, and records
+  `previous_ambiguous`.
+- Send tickets and receipt polling share one 1 MiB-bounded HTTP carrier.
+  Persisted outcomes come only from closed request/ticket/receipt vocabularies;
+  provider prose is dropped. Ticket- and receipt-stage
+  `DeviceNotRegistered` both transactionally retire and erase registry rows.
+  The ordinary host maintenance sweep recovers expired claims and claims due
+  receipt ids, releases the app lock across provider I/O, and settles only a
+  bounded HTTP-200 response that passes the receipt parser. The seventh lost
+  poll remains durably due so the next sweep terminalizes it rather than
+  stranding it.
+- `src/push/fake_expo.rs` is the shared deterministic carrier. Its acceptance
+  uses the production HTTP function for a mixed ticket batch and receipt poll,
+  proves both provider retirement stages, dedupe and zero-target behavior,
+  direct authorization refusal, and a socket close after request bytes. The
+  latter proves no automatic redrive and the explicit attempt-2
+  `previous_ambiguous` marker. Separate parser fixtures cover every allowlisted
+  receipt code and refuse unknown codes or prose-only errors.
+- The local capability manifest carries structured
+  `notifications.expoPushSeam` facts: surfaces, dependencies, endpoint posture,
+  send/receipt bounds, retention declaration bounds, static pacing, and the
+  never-claims vocabulary. Hosted/remote profiles withhold it and retain an
+  explicit GAP. The first-class `notifications` boolean remains `false`.
+  `guide/backend/expo-push.md` teaches the additive registry, declared
+  audiences, config and egress requirements, ambiguity risk, receipt
+  vocabulary, payload privacy, and hosted boundary.
+
+The seam's protected per-message ledger is exercised through the host and
+operator/test inspection in this slice; the D6 app-readable generated ledger
+projection is still a guide/capability GAP rather than an invented API. The
+real-device receipt required by the repository PUSH-01 exit is an external
+acceptance witness and is recorded separately from the deterministic fixture;
+its absence cannot weaken or upgrade any manifest fact.
 
 ## Prior art
 

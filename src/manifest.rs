@@ -350,7 +350,7 @@ impl SchemaManifest {
                     "the push-token registry requires schema auth.mode sessions",
                 ));
             }
-            push_seam.validate()?;
+            crate::push::validate_declaration_against_schema(push_seam, self)?;
         }
 
         Ok(())
@@ -7072,6 +7072,17 @@ pub struct CapabilityManifest {
     pub outbound_actions: bool,
     pub cron: bool,
     pub notifications: bool,
+    /// Local Expo integration-seam facts. This is deliberately distinct from
+    /// the first-class `notifications` capability owned by LLP 0045.
+    /// Presence reports target support; use still requires a session-auth app
+    /// declaration and an instance with outbound actions enabled.
+    #[serde(
+        default,
+        rename = "expoPushSeam",
+        alias = "expo_push_seam",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub expo_push_seam: Option<ExpoPushSeamFactsV1>,
     #[serde(rename = "supportedQueryForms", alias = "supported_query_forms")]
     pub supported_query_forms: Vec<String>,
     #[serde(rename = "portabilityOptOuts", alias = "portability_opt_outs")]
@@ -7154,6 +7165,113 @@ pub struct CapabilityManifest {
     /// URL or a correlated capability.
     #[serde(default, rename = "appCliTarget", skip_serializing_if = "Option::is_none")]
     pub app_cli_target: Option<AppCliTargetFactsV1>,
+}
+
+/// Machine-readable honesty and operating bounds for LLP 0143's local Expo
+/// provider seam. These are target facts, not app-supplied declarations.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ExpoPushSeamFactsV1 {
+    #[serde(rename = "capabilityId")]
+    pub capability_id: String,
+    pub surfaces: Vec<String>,
+    #[serde(rename = "requiresSessionAuth")]
+    pub requires_session_auth: bool,
+    #[serde(rename = "requiresOutboundActions")]
+    pub requires_outbound_actions: bool,
+    #[serde(rename = "productionEndpoint")]
+    pub production_endpoint: String,
+    #[serde(rename = "localLoopbackTestOverride")]
+    pub local_loopback_test_override: bool,
+    #[serde(rename = "sendBatchMax")]
+    pub send_batch_max: u32,
+    #[serde(rename = "receiptBatchMax")]
+    pub receipt_batch_max: u32,
+    #[serde(rename = "receiptFirstPollMs")]
+    pub receipt_first_poll_ms: u64,
+    #[serde(rename = "receiptPollIntervalsMs")]
+    pub receipt_poll_intervals_ms: Vec<u64>,
+    #[serde(rename = "receiptPollMaxAttempts")]
+    pub receipt_poll_max_attempts: u32,
+    #[serde(rename = "receiptWindowMs")]
+    pub receipt_window_ms: u64,
+    #[serde(rename = "registryIdleRetentionMs")]
+    pub registry_idle_retention_ms: CapabilityRangeV1,
+    #[serde(rename = "ledgerRetentionMs")]
+    pub ledger_retention_ms: CapabilityRangeV1,
+    #[serde(rename = "pacingClass")]
+    pub pacing_class: String,
+    #[serde(rename = "adaptivePacing")]
+    pub adaptive_pacing: bool,
+    #[serde(rename = "neverClaims")]
+    pub never_claims: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CapabilityRangeV1 {
+    pub source: String,
+    #[serde(rename = "minMs")]
+    pub min_ms: u64,
+    #[serde(rename = "maxMs")]
+    pub max_ms: u64,
+}
+
+impl ExpoPushSeamFactsV1 {
+    pub fn local_v1() -> Self {
+        Self {
+            capability_id: "notifications.expoPushSeam".to_owned(),
+            surfaces: [
+                "push-token-registry",
+                "ctx.push.send",
+                "handoff-ledger",
+                "receipt-maintenance",
+            ]
+            .iter()
+            .map(|value| (*value).to_owned())
+            .collect(),
+            requires_session_auth: true,
+            requires_outbound_actions: true,
+            production_endpoint: "https://exp.host".to_owned(),
+            local_loopback_test_override: true,
+            send_batch_max: crate::push::PUSH_BATCH_MESSAGES_MAX as u32,
+            receipt_batch_max: crate::push::PUSH_RECEIPT_BATCH_MAX as u32,
+            receipt_first_poll_ms: crate::push::PUSH_RECEIPT_FIRST_POLL_MS,
+            receipt_poll_intervals_ms: vec![
+                1_800_000,
+                3_600_000,
+                7_200_000,
+                14_400_000,
+            ],
+            receipt_poll_max_attempts: 7,
+            receipt_window_ms: crate::push::PUSH_RECEIPT_WINDOW_MS,
+            registry_idle_retention_ms: CapabilityRangeV1 {
+                source: "app-declared".to_owned(),
+                min_ms: 86_400_000,
+                max_ms: 31_536_000_000,
+            },
+            ledger_retention_ms: CapabilityRangeV1 {
+                source: "app-declared".to_owned(),
+                min_ms: 86_400_000,
+                max_ms: 31_536_000_000,
+            },
+            pacing_class: "serial-batches-per-action-attempt".to_owned(),
+            adaptive_pacing: false,
+            never_claims: [
+                "device-delivery",
+                "notification-display",
+                "read-or-interaction-state",
+                "os-permission-state",
+                "exactly-once-or-duplicate-suppression",
+                "ordering-across-recipients-or-intents",
+                "delivery-latency-availability-or-sla",
+                "continued-token-validity-or-current-registration",
+            ]
+            .iter()
+            .map(|value| (*value).to_owned())
+            .collect(),
+        }
+    }
 }
 
 /// The declared standard-pattern live posture (LLP 0065 §4).
@@ -7448,6 +7566,7 @@ impl CapabilityManifest {
             outbound_actions: false,
             cron: true,
             notifications: false,
+            expo_push_seam: Some(ExpoPushSeamFactsV1::local_v1()),
             migration: Some(MigrationTargetFacts::local_v1()),
             relational_queries: Some(RelationalQueryFacts::local_v1()),
             standard_patterns: Some(StandardPatternFacts::local_v1()),
@@ -7616,6 +7735,10 @@ impl CapabilityManifest {
         // engine must treat it as capability-absent, so the descriptor is
         // withheld rather than inherited from the local declaration.
         manifest.app_cli_target = None;
+        manifest.expo_push_seam = None;
+        manifest
+            .capability_gaps
+            .push("notifications.expoPushSeam".to_owned());
         ensure_relation_activity_capability_gaps(&mut manifest.capability_gaps);
         let mut facts =
             TargetCapabilityFacts::local_auth_aware().with_relation_activity_publication_withheld();
@@ -7652,6 +7775,10 @@ impl CapabilityManifest {
         // The conformance twin proves handler execution, not the app-CLI
         // surface: it serves no envelopes and has no row in §4's matrix.
         manifest.app_cli_target = None;
+        manifest.expo_push_seam = None;
+        manifest
+            .capability_gaps
+            .push("notifications.expoPushSeam".to_owned());
         for withheld in [
             TargetCapabilityId::AssetLifecycleV1,
             TargetCapabilityId::AssetImageFinalizationV1,
@@ -7723,6 +7850,7 @@ impl CapabilityManifest {
         // advertise principal classes and an envelope surface this target
         // does not have.
         manifest.app_cli_target = None;
+        manifest.expo_push_seam = None;
         manifest.supported_artifact_versions = vec![ArtifactVersion::V0];
         manifest.supported_auth_modes = vec![AuthMode::Dev];
         manifest.supported_artifact_auth_pairs = vec![SupportedArtifactAuthPair {
@@ -7792,6 +7920,7 @@ impl CapabilityManifest {
             "bounded_response_stream_v1".to_owned(),
             "bounded_children_v1".to_owned(),
             "notifications".to_owned(),
+            "notifications.expoPushSeam".to_owned(),
             "cron".to_owned(),
             "ephemeral_realtime".to_owned(),
             "code_hot_load".to_owned(),

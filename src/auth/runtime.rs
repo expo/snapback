@@ -1335,6 +1335,9 @@ mod tests {
                 registry: crate::push::PushRegistryDeclarationV1 {
                     idle_retention_ms: retention_ms,
                 },
+                audiences: std::collections::BTreeMap::new(),
+                uses: Vec::new(),
+                ledger: None,
             })
             .unwrap();
         let user_id = crate::ids::mint(crate::ids::Kind::User).unwrap();

@@ -29,6 +29,49 @@ updated honestly; dated implementation-record amendment on the LLP.
 
 ## Running log
 
+- **2026-08-02 — real-device Exit witness is externally blocked.** The local
+  machine is authenticated to EAS, but neither repository Expo demo is linked
+  to an EAS project or configured with `expo-notifications`; the only attached
+  physical iPhone reports offline, no Android device is attached, and the
+  available simulators cannot mint an Expo push token. The local secrets file
+  contains no pre-provisioned Expo project or push token. Completing the last
+  Exit witness therefore requires a human to reconnect a physical device and
+  select/configure an EAS project plus development build. No external project
+  was created and no demo was expanded merely to manufacture the receipt;
+  this ticket remains Open until the real receipt is recorded.
+
+- **2026-08-02 — deterministic seam acceptance and publication facts now
+  complete.** The shared fake-Expo carrier runs the production bounded HTTP
+  path across a mixed ticket batch and receipt poll, including ticket- and
+  receipt-stage `DeviceNotRegistered`, provider-prose dropping, dedupe,
+  zero-target, direct authorization refusal, and a socket close after request
+  bytes. The lost response settles ambiguous, never auto-redrives, and requires
+  `redriveAmbiguous: true` to mint attempt 2 with `previous_ambiguous` evidence.
+  Generated send-capable action contexts now carry declaration-derived
+  audience/reference types; registry-only schemas do not. LLP 0143 resolves
+  all nine implementation questions in a dated amendment, the guide has an
+  honest local/partial page, and the local capability manifest has a distinct
+  structured `notifications.expoPushSeam` descriptor while
+  `notifications: false` remains. Remaining PUSH-01 Exit work is the external
+  real-device receipt. The D6 app-readable ledger projection is also retained
+  as an explicit partial-capability GAP rather than being implied by the
+  protected internal ledger.
+
+- **2026-08-02 — send/ledger recovery branch completed through the local
+  deterministic proof.** `ctx.push.send` now owns reserve → claim → durable
+  transmit marker → bounded Expo handoff → allowlisted settlement. Deferred
+  job sends capture an exact host-only grant from
+  `ctx.jobs.enqueue(..., { pushGrant: { to, dedupeKey } })`, persist it in the
+  producing mutation, and revalidate the producer's current declared
+  membership before the system-authority job may consume it; explicit
+  principal lists remain unavailable in that lane. The ordinary maintenance
+  sweep recovers expired claims and polls/settles Expo receipts without holding
+  the app lock over network I/O. Receipt fixtures cover the closed success/error
+  vocabulary and refusal of raw prose/unknown codes. This is still a progress
+  checkpoint, not Exit: the shared fake-Expo ticket + receipt + socket-drop
+  acceptance kit, one real dev-build receipt, the guide page, and the honest
+  capability-manifest update remain open, so `notifications: false` stays put.
+
 - **2026-08-02 — main-proof greening handoff.** Gate 8 currently reports
   `clippy::too_many_arguments` on the test-only `register` helper in
   `src/push.rs` (landed by `769e7139`). The main-proof lane is leaving this
