@@ -1,0 +1,74 @@
+{
+  "$defs": {
+    "ErrorsBulkTransitionRequestV1": {
+      "additionalProperties": false,
+      "properties": {
+        "selector": {
+          "$ref": "#/$defs/ErrorsTransitionSelectorV1"
+        },
+        "to": {
+          "$ref": "#/$defs/ErrorsIssueStateV1"
+        }
+      },
+      "required": [
+        "selector",
+        "to"
+      ],
+      "type": "object"
+    },
+    "ErrorsIssueStateV1": {
+      "enum": [
+        "open",
+        "resolved",
+        "ignored",
+        "regressed"
+      ],
+      "type": "string"
+    },
+    "ErrorsSingleTransitionRequestV1": {
+      "additionalProperties": false,
+      "properties": {
+        "expectSeq": {
+          "format": "int64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "issue": {
+          "type": "string"
+        },
+        "to": {
+          "$ref": "#/$defs/ErrorsIssueStateV1"
+        }
+      },
+      "required": [
+        "issue",
+        "to",
+        "expectSeq"
+      ],
+      "type": "object"
+    },
+    "ErrorsTransitionSelectorV1": {
+      "additionalProperties": false,
+      "properties": {
+        "openBefore": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "openBefore"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/errors.transition.request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "$ref": "#/$defs/ErrorsSingleTransitionRequestV1"
+    },
+    {
+      "$ref": "#/$defs/ErrorsBulkTransitionRequestV1"
+    }
+  ],
+  "title": "ErrorsTransitionRequestV1"
+}
