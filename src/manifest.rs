@@ -1348,6 +1348,7 @@ impl FunctionManifest {
             validate_standard_pattern_identity(function)?;
             validate_result_contract_definition(function)?;
             validate_args_contract_definition(function)?;
+            validate_live_search_contracts(function)?;
             validate_declared_refusals(function)?;
             validate_bounded_skew_definition(function)?;
             validate_sequence_declarations(function)?;
@@ -2264,6 +2265,55 @@ fn validate_args_contract_definition(function: &FunctionDefinition) -> SnapbackR
                 "function {} carries an argument contract without args_contract_v1",
                 function.name
             ),
+        ));
+    }
+    Ok(())
+}
+
+/// The live-search author contract is narrower than the reusable SearchQuery
+/// plan carrier: first-page-only args and a concrete SearchItem row contract.
+/// Schema expansion of that row is checked again against the named index at
+/// pair activation in `local.rs`.
+fn validate_live_search_contracts(function: &FunctionDefinition) -> SnapbackResult<()> {
+    if !matches!(
+        (&function.kind, &function.runtime),
+        (
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(_))
+        )
+    ) {
+        return Ok(());
+    }
+    let expected_args = FunctionArgsContract {
+        fields: vec![
+            ResultObjectFieldContract {
+                name: "query".to_owned(),
+                required: true,
+                value: ResultValueContract::PlatformSchemaRef {
+                    authority: SchemaRefAuthority::Platform,
+                    schema: SCHEMA_REF_SEARCH_QUERY_AST_V1.to_owned(),
+                },
+            },
+            ResultObjectFieldContract {
+                name: "limit".to_owned(),
+                required: false,
+                value: ResultValueContract::Integer { min: 1, max: 50 },
+            },
+        ],
+    };
+    if function.args_contract.as_ref() != Some(&expected_args) {
+        return Err(invalid_args_contract(
+            function,
+            "live search requires exactly query: PlatformSchemaRef(search AST) and optional limit: integer 1..50",
+        ));
+    }
+    if !matches!(
+        function.result_contract,
+        FunctionResultContract::Records { .. }
+    ) {
+        return Err(invalid_result_contract(
+            function,
+            "live search requires a concrete schema-derived SearchItem records contract",
         ));
     }
     Ok(())
@@ -3532,6 +3582,145 @@ pub fn validate_search_query_plan_shape(plan: &SearchQueryPlanV1) -> SnapbackRes
         ));
     }
     Ok(())
+}
+
+/// Rust projection of codegen's schema-derived `SearchItemV1` records
+/// contract. Pair activation compares this exact value, so a direct artifact
+/// cannot retain the right plan while weakening or reshaping its rows.
+pub(crate) fn expected_search_result_contract(
+    table: &TableManifest,
+    index: &SearchIndexManifestV1,
+) -> SnapbackResult<FunctionResultContract> {
+    let object_field = |name: &str, value: ResultValueContract| ResultObjectFieldContract {
+        name: name.to_owned(),
+        required: true,
+        value,
+    };
+    let stored_value = |field: &FieldManifest| {
+        let value = match &field.field_type {
+            FieldType::String => ResultValueContract::String {
+                max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
+            },
+            FieldType::Boolean => ResultValueContract::Boolean,
+            FieldType::Integer => ResultValueContract::Integer {
+                min: -RESULT_CONTRACT_JS_SAFE_INTEGER,
+                max: RESULT_CONTRACT_JS_SAFE_INTEGER,
+            },
+            FieldType::Real => ResultValueContract::FiniteReal {
+                min: -f64::MAX,
+                max: f64::MAX,
+            },
+            FieldType::Json => ResultValueContract::Json {
+                max_depth: RESULT_CONTRACT_MAX_DEPTH,
+                max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
+            },
+            FieldType::Principal => ResultValueContract::Principal,
+            FieldType::Id { table } => ResultValueContract::Id {
+                table: table.clone(),
+            },
+            FieldType::RelationIncarnation { .. } => {
+                ResultValueContract::String { max_bytes: 64 }
+            }
+            FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
+        };
+        if field.optional && !matches!(&field.field_type, FieldType::Json) {
+            ResultValueContract::Union {
+                variants: vec![ResultValueContract::Null, value],
+            }
+        } else {
+            value
+        }
+    };
+    let mut stored_fields = Vec::with_capacity(index.stored_fields.len());
+    for name in &index.stored_fields {
+        let field = table.field(name).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_SEARCH_INDEX_DECLARATION_INVALID",
+                "search",
+                format!(
+                    "search result contract references unknown stored field {}.{name}",
+                    table.name
+                ),
+            )
+        })?;
+        stored_fields.push(object_field(name, stored_value(field)));
+    }
+    let match_range = ResultValueContract::Object {
+        allow_extra: false,
+        fields: vec![
+            object_field(
+                "start",
+                ResultValueContract::Integer {
+                    min: 0,
+                    max: RESULT_CONTRACT_JS_SAFE_INTEGER,
+                },
+            ),
+            object_field(
+                "end",
+                ResultValueContract::Integer {
+                    min: 0,
+                    max: RESULT_CONTRACT_JS_SAFE_INTEGER,
+                },
+            ),
+        ],
+    };
+    let highlight = ResultValueContract::Object {
+        allow_extra: false,
+        fields: vec![
+            object_field(
+                "field",
+                ResultValueContract::String {
+                    max_bytes: RESULT_CONTRACT_MAX_VALUE_BYTES,
+                },
+            ),
+            object_field(
+                "text",
+                ResultValueContract::String { max_bytes: 256 },
+            ),
+            object_field(
+                "matches",
+                ResultValueContract::Array {
+                    element: Box::new(match_range),
+                    max_items: 8,
+                },
+            ),
+        ],
+    };
+    Ok(FunctionResultContract::Records {
+        rows: None,
+        record: ResultValueContract::Object {
+            allow_extra: false,
+            fields: vec![
+                object_field(
+                    "rowId",
+                    ResultValueContract::Id {
+                        table: table.name.clone(),
+                    },
+                ),
+                object_field(
+                    "score",
+                    ResultValueContract::Integer {
+                        min: 0,
+                        max: 22_937_600,
+                    },
+                ),
+                object_field(
+                    "fields",
+                    ResultValueContract::Object {
+                        fields: stored_fields,
+                        allow_extra: false,
+                    },
+                ),
+                object_field(
+                    "highlights",
+                    ResultValueContract::Array {
+                        element: Box::new(highlight),
+                        max_items: 3,
+                    },
+                ),
+            ],
+        },
+    })
 }
 
 pub fn validate_bounded_children_plan_shape(plan: &BoundedChildrenQueryPlan) -> SnapbackResult<()> {

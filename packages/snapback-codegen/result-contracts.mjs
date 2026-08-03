@@ -640,7 +640,10 @@ export function effectiveResultContract({
       document: tableDocumentValue(queryTable, tables),
     });
   }
-  if (functionKind === 'Query' && runtime?.HostPlan?.SearchQuery) {
+  if (
+    (functionKind === 'Query' || functionKind === 'LiveQuery')
+    && runtime?.HostPlan?.SearchQuery
+  ) {
     return validateEffectiveResultContract(searchRowsValue(runtime, tables));
   }
   if (

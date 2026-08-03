@@ -12,6 +12,10 @@ import {
   v,
 } from './define.mjs';
 import { generate, routeRegisterGroupEligible } from './index.mjs';
+import {
+  effectiveResultContract,
+  searchPageResultType,
+} from './result-contracts.mjs';
 
 const packageRoot = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageRoot, 'define.mjs')).href;
@@ -114,6 +118,34 @@ try {
   assert.deepEqual(incidents.searchLiveLimitsDeclaration, {
     maxLiveSubscriptionsPerTable: 96,
   });
+  const liveResult = effectiveResultContract({
+    def: live,
+    functionKind: 'LiveQuery',
+    runtime: { HostPlan: { SearchQuery: live.searchPlan } },
+    tables: {
+      incidents: {
+        fields: Object.entries(incidents.fields).map(([name, field]) => ({
+          name,
+          field_type: field.fieldType,
+          optional: field.optional,
+        })),
+        searchIndexes: incidents.searchIndexes,
+      },
+    },
+  });
+  assert.equal(liveResult.kind, 'records');
+  const liveResultFields = Object.fromEntries(
+    liveResult.record.fields.map((field) => [field.name, field]),
+  );
+  assert.deepEqual(liveResultFields.rowId.value, { kind: 'id', table: 'incidents' });
+  assert.deepEqual(
+    liveResultFields.fields.value.fields.map(({ name }) => name),
+    ['status', 'title'],
+  );
+  assert.equal(
+    searchPageResultType(liveResult),
+    'SearchPageV1<{ "status": string; "title": string }, Id<"incidents">>',
+  );
   assert.equal(
     routeRegisterGroupEligible(
       [{ function: 'liveIncidents', args: { query: {} } }],

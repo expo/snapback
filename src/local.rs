@@ -22927,6 +22927,18 @@ fn validate_function_schema_references(
                             ),
                         ));
                     }
+                    let expected_result =
+                        crate::manifest::expected_search_result_contract(declared, index)?;
+                    if function.result_contract != expected_result {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID",
+                            "search",
+                            format!(
+                                "live search {} result contract must exactly match the schema-derived SearchItem projection",
+                                function.name
+                            ),
+                        ));
+                    }
                 }
                 if membership_visibility != plan.resource_arg.is_some() {
                     return Err(SnapbackError::error(
@@ -25965,13 +25977,14 @@ mod tests {
         BoundedSkewDeclaration, ConfigEntryDefinition, CronActivationPolicy, CronJitterPolicy,
         CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule,
         CtxAnswerLedger, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition,
-        FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
-        IndexManifest, MembershipManifest, MembershipPredicate, MembershipResourceRef,
-        MembershipScope, MutationOutput, MutationPlan, MutationSettlement, MutationStep,
-        PermissionScopeExpr, QueryPlan, ResultObjectFieldContract, ResultValueContract,
-        ReturnValue, SchemaManifest, SeedData, SettlementClaimSet, SettlementIdentityClaims,
-        SettlementLane, SettlementMintClaim, SettlementMintObservation, TableManifest, ValueExpr,
-        FunctionResultContract, ctx_ledger_version,
+        FunctionArgsContract, FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput,
+        HandlerPlan, IbexModule, IndexManifest, MembershipManifest, MembershipPredicate,
+        MembershipResourceRef, MembershipScope, MutationOutput, MutationPlan, MutationSettlement,
+        MutationStep, PermissionScopeExpr, QueryPlan, ResultObjectFieldContract,
+        ResultValueContract, ReturnValue, SchemaManifest, SchemaRefAuthority, SeedData,
+        SettlementClaimSet, SettlementIdentityClaims, SettlementLane, SettlementMintClaim,
+        SettlementMintObservation, TableManifest, ValueExpr, FunctionResultContract,
+        ctx_ledger_version,
     };
     use crate::runtime::ExecutedIbexMutation;
     use crate::search::types::{
@@ -26344,7 +26357,100 @@ mod tests {
             "full_text_search_v1".to_owned(),
             "live_subscriptions".to_owned(),
             "live_full_text_search_v1".to_owned(),
+            "args_contract_v1".to_owned(),
+            "result_contract_v1".to_owned(),
         ];
+        let args_contract = FunctionArgsContract {
+            fields: vec![
+                ResultObjectFieldContract {
+                    name: "query".to_owned(),
+                    required: true,
+                    value: ResultValueContract::PlatformSchemaRef {
+                        authority: SchemaRefAuthority::Platform,
+                        schema: crate::manifest::SCHEMA_REF_SEARCH_QUERY_AST_V1.to_owned(),
+                    },
+                },
+                ResultObjectFieldContract {
+                    name: "limit".to_owned(),
+                    required: false,
+                    value: ResultValueContract::Integer { min: 1, max: 50 },
+                },
+            ],
+        };
+        function.args_contract_hash = Some(
+            crate::manifest::args_contract_hash(&args_contract).expect("args contract hashes"),
+        );
+        function.args_contract = Some(args_contract);
+        function.result_contract = crate::manifest::expected_search_result_contract(
+            &schema.tables[0],
+            &schema.tables[0].search_indexes[0],
+        )
+        .expect("schema derives the exact SearchItem contract");
+        function.result_contract_hash = Some(
+            crate::manifest::result_contract_hash(&function.result_contract)
+                .expect("result contract hashes"),
+        );
+
+        for (label, mutate) in [
+            (
+                "empty",
+                None,
+            ),
+            (
+                "extra",
+                Some(ResultObjectFieldContract {
+                    name: "extra".to_owned(),
+                    required: false,
+                    value: ResultValueContract::String { max_bytes: 16 },
+                }),
+            ),
+            (
+                "after",
+                Some(ResultObjectFieldContract {
+                    name: "after".to_owned(),
+                    required: false,
+                    value: ResultValueContract::String { max_bytes: 2_048 },
+                }),
+            ),
+        ] {
+            let mut forged = function.clone();
+            let contract = forged.args_contract.as_mut().expect("args contract");
+            if let Some(field) = mutate {
+                contract.fields.push(field);
+            } else {
+                contract.fields.clear();
+            }
+            forged.args_contract_hash = Some(
+                crate::manifest::args_contract_hash(contract).expect("forged args hash"),
+            );
+            assert_eq!(
+                FunctionManifest {
+                    functions: vec![forged],
+                    ..FunctionManifest::default()
+                }
+                .validate_artifact()
+                .expect_err("live search args near-miss must refuse")
+                .diagnostic
+                .code,
+                "SNAPBACK_FUNCTION_ARGS_CONTRACT_INVALID",
+                "{label}",
+            );
+        }
+
+        let mut unknown_result = function.clone();
+        unknown_result.result_contract = FunctionResultContract::Unknown;
+        unknown_result.result_contract_hash = None;
+        assert_eq!(
+            FunctionManifest {
+                functions: vec![unknown_result],
+                ..FunctionManifest::default()
+            }
+            .validate_artifact()
+            .expect_err("live search cannot retain an unknown result contract")
+            .diagnostic
+            .code,
+            "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID",
+        );
         let valid = FunctionManifest {
             functions: vec![function.clone()],
             ..FunctionManifest::default()
@@ -26354,6 +26460,31 @@ mod tests {
             .expect("LiveQuery + SearchQuery is a structurally valid unpublished carrier");
         validate_function_schema_references(&valid, &schema)
             .expect("public-read binds authorityIndependent at pair activation");
+
+        let mut wrong_result = valid.clone();
+        let FunctionResultContract::Records { record, .. } =
+            &mut wrong_result.functions[0].result_contract
+        else {
+            unreachable!();
+        };
+        let ResultValueContract::Object { fields, .. } = record else {
+            unreachable!();
+        };
+        fields.retain(|field| field.name != "highlights");
+        wrong_result.functions[0].result_contract_hash = Some(
+            crate::manifest::result_contract_hash(&wrong_result.functions[0].result_contract)
+                .expect("forged result hashes"),
+        );
+        wrong_result
+            .validate_artifact()
+            .expect("the forged row remains generically well-formed");
+        assert_eq!(
+            validate_function_schema_references(&wrong_result, &schema)
+                .expect_err("schema pair must reject a weakened SearchItem contract")
+                .diagnostic
+                .code,
+            "SNAPBACK_HANDLER_RESULT_CONTRACT_INVALID",
+        );
 
         let mut omitted = valid.clone();
         omitted.functions[0].authority_independent = false;
