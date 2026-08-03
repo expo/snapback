@@ -1,7 +1,7 @@
 # Build context filter for the single-instance-container-vm.v1 remote drill
-# image (demos/competitive-checkpoint/acceptance/drill/Dockerfile). Whitelist
-# style: exclude everything, then admit exactly what the release server build,
-# the opt-in release lib-test qualification instrument, and image staging need.
+# images (Dockerfile and Dockerfile.prebuilt under the drill directory).
+# Whitelist style: exclude everything, then admit exactly what the release
+# server build, opt-in qualification instrument, and image staging need.
 *
 
 # Rust crate inputs. build.rs embeds the checked guide corpus into every
