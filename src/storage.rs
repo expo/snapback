@@ -3801,20 +3801,23 @@ impl LocalDatabase {
 
     #[cfg(test)]
     pub(crate) fn inject_vector_release_drift_for_test(
-        &self,
+        &mut self,
         table: &str,
         row_id: &str,
     ) -> SnapbackResult<()> {
         let next = next_storage_version(current_version_on(&self.conn)?)?;
         let table = quote_ident(table)?;
-        let changed = self.conn.execute(
+        let tx = self.conn.transaction()?;
+        let changed = tx.execute(
             &format!("UPDATE {table} SET \"_version\"=?2 WHERE \"_id\"=?1"),
             params![row_id, version_to_sql_integer(next)?],
         )?;
         if changed != 1 {
             return Err(crate::vector::diagnostics::index_corrupt());
         }
-        set_version(&self.conn, next)
+        set_version(&tx, next)?;
+        tx.commit()?;
+        Ok(())
     }
 
     #[cfg(test)]

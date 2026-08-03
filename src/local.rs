@@ -49566,7 +49566,7 @@ globalThis.__snapbackHandlers = {
             "result_contract_v1".to_owned(),
         ];
         function.auth_requirement = Some(AuthRequirement::Authenticated);
-        function.authorization_dependence = vec![AuthorizationInputDimension::AuthUserId];
+        function.authorization_dependence = vec![AuthorizationInputDimension::UserId];
 
         // Capability publication is a later checkpoint. Install the already
         // validated function directly so this runtime acceptance test cannot
