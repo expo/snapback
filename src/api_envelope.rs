@@ -723,8 +723,7 @@ mod tests {
             cron_jobs: Vec::new(),
             config: Vec::new(),
         };
-        let refusal =
-            verify_correspondence(&envelope, &projection).expect_err("wrong app refuses");
+        let refusal = verify_correspondence(&envelope, &projection).expect_err("wrong app refuses");
         assert_eq!(refusal.code, "SNAPBACK_API_ENVELOPE_CORRESPONDENCE_FAILED");
     }
 }
@@ -821,9 +820,10 @@ mod compose_tests {
                 args_schema,
             },
         );
-        extra
-            .member_digests
-            .insert(operation_member_key("demo:ghost"), member_digest(&canonical));
+        extra.member_digests.insert(
+            operation_member_key("demo:ghost"),
+            member_digest(&canonical),
+        );
         let refusal =
             compose_api_envelope(&projection(), &extra, "sessions").expect_err("ghost refuses");
         assert_eq!(refusal.code, "SNAPBACK_API_ENVELOPE_CORRESPONDENCE_FAILED");

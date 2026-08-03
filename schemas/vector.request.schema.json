@@ -1,0 +1,77 @@
+{
+  "$defs": {
+    "VectorFilterOpV1": {
+      "enum": [
+        "eq"
+      ],
+      "type": "string"
+    },
+    "VectorFilterV1": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "type": "string"
+        },
+        "op": {
+          "$ref": "#/$defs/VectorFilterOpV1"
+        },
+        "value": {
+          "$ref": "#/$defs/VectorFilterValueV1"
+        }
+      },
+      "required": [
+        "field",
+        "op",
+        "value"
+      ],
+      "type": "object"
+    },
+    "VectorFilterValueV1": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        }
+      ]
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/vector.request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "filters": {
+      "items": {
+        "$ref": "#/$defs/VectorFilterV1"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "k": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "vector": {
+      "items": {
+        "format": "double",
+        "type": "number"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "vector"
+  ],
+  "title": "VectorRequestV1",
+  "type": "object"
+}

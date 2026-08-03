@@ -205,10 +205,7 @@ pub(crate) fn post_expo_json(
     Ok(ExpoHttpResponseV1 { status, body })
 }
 
-pub(crate) fn expo_send_payload(
-    claim: &PushBatchClaimV1,
-    request: &PushSendRequestV1,
-) -> Value {
+pub(crate) fn expo_send_payload(claim: &PushBatchClaimV1, request: &PushSendRequestV1) -> Value {
     Value::Array(
         claim
             .messages
@@ -242,55 +239,54 @@ pub(crate) fn classify_expo_send_response(
                     "Expo returned invalid ticket JSON",
                 )
             })?;
-            let tickets = value
-                .get("data")
-                .and_then(Value::as_array)
-                .ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
-                        "push",
-                        "Expo ticket response omitted its data array",
-                    )
-                })?;
+            let tickets = value.get("data").and_then(Value::as_array).ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
+                    "push",
+                    "Expo ticket response omitted its data array",
+                )
+            })?;
             tickets
                 .iter()
-                .map(|ticket| match ticket.get("status").and_then(Value::as_str) {
-                    Some("ok") => {
-                        let id = ticket.get("id").and_then(Value::as_str).ok_or_else(|| {
-                            SnapbackError::error(
-                                "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
-                                "push",
-                                "Expo ok ticket omitted its id",
-                            )
-                        })?;
-                        validate_provider_id(id)?;
-                        Ok(PushTicketOutcomeV1::Ok {
-                            ticket_id: id.to_owned(),
-                        })
-                    }
-                    Some("error") => {
-                        let code = ticket
-                            .get("details")
-                            .and_then(|details| details.get("error"))
-                            .and_then(Value::as_str)
-                            .ok_or_else(|| {
+                .map(
+                    |ticket| match ticket.get("status").and_then(Value::as_str) {
+                        Some("ok") => {
+                            let id = ticket.get("id").and_then(Value::as_str).ok_or_else(|| {
                                 SnapbackError::error(
                                     "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
                                     "push",
-                                    "Expo error ticket omitted its allowlisted code",
+                                    "Expo ok ticket omitted its id",
                                 )
                             })?;
-                        validate_ticket_error_code(code)?;
-                        Ok(PushTicketOutcomeV1::Error {
-                            code: code.to_owned(),
-                        })
-                    }
-                    _ => Err(SnapbackError::error(
-                        "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
-                        "push",
-                        "Expo ticket status is outside the closed vocabulary",
-                    )),
-                })
+                            validate_provider_id(id)?;
+                            Ok(PushTicketOutcomeV1::Ok {
+                                ticket_id: id.to_owned(),
+                            })
+                        }
+                        Some("error") => {
+                            let code = ticket
+                                .get("details")
+                                .and_then(|details| details.get("error"))
+                                .and_then(Value::as_str)
+                                .ok_or_else(|| {
+                                    SnapbackError::error(
+                                        "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
+                                        "push",
+                                        "Expo error ticket omitted its allowlisted code",
+                                    )
+                                })?;
+                            validate_ticket_error_code(code)?;
+                            Ok(PushTicketOutcomeV1::Error {
+                                code: code.to_owned(),
+                            })
+                        }
+                        _ => Err(SnapbackError::error(
+                            "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
+                            "push",
+                            "Expo ticket status is outside the closed vocabulary",
+                        )),
+                    },
+                )
                 .collect()
         };
         return match parse() {
@@ -305,16 +301,18 @@ pub(crate) fn classify_expo_send_response(
     }
 
     let unauthorized = (http_status == 400 || http_status == 401)
-        && serde_json::from_slice::<Value>(body).ok().is_some_and(|value| {
-            value
-                .get("errors")
-                .and_then(Value::as_array)
-                .is_some_and(|errors| {
-                    errors.iter().any(|error| {
-                        error.get("code").and_then(Value::as_str) == Some("UNAUTHORIZED")
+        && serde_json::from_slice::<Value>(body)
+            .ok()
+            .is_some_and(|value| {
+                value
+                    .get("errors")
+                    .and_then(Value::as_array)
+                    .is_some_and(|errors| {
+                        errors.iter().any(|error| {
+                            error.get("code").and_then(Value::as_str) == Some("UNAUTHORIZED")
+                        })
                     })
-                })
-        });
+            });
     if unauthorized || http_status == 401 {
         PushBatchSettlementV1::FailedConfig {
             http_status: Some(http_status),
@@ -522,9 +520,7 @@ impl PushSeamDeclarationV1 {
                     max_items,
                 } => {
                     if !is_push_identifier(principals_arg) || !(1..=1_000).contains(max_items) {
-                        return Err(invalid(
-                            "push explicit-principals resolver is invalid",
-                        ));
+                        return Err(invalid("push explicit-principals resolver is invalid"));
                     }
                     None
                 }
@@ -1080,8 +1076,7 @@ fn ledger_shape(conn: &Connection) -> SnapbackResult<LedgerShape> {
                     break;
                 }
             }
-            let mut column_statement =
-                conn.prepare(&format!("PRAGMA index_xinfo('{index}')"))?;
+            let mut column_statement = conn.prepare(&format!("PRAGMA index_xinfo('{index}')"))?;
             let columns = column_statement
                 .query_map([], |row| {
                     Ok(IndexColumnShape {
@@ -1433,7 +1428,9 @@ pub(crate) fn reserve_send_in(
     } = reservation;
     validate_declaration_against_schema(declaration, schema)?;
     if declaration.ledger.is_none() {
-        return Err(push_unavailable("the application declares registry custody only"));
+        return Err(push_unavailable(
+            "the application declares registry custody only",
+        ));
     }
     validate_send_request(request)?;
     crate::manifest::validate_portable_timestamp_millis(now_ms)?;
@@ -1782,10 +1779,7 @@ pub(crate) fn claim_batch_in(
     }))
 }
 
-fn refresh_reserved_batch_tokens_in(
-    tx: &Transaction<'_>,
-    batch_id: &str,
-) -> SnapbackResult<()> {
+fn refresh_reserved_batch_tokens_in(tx: &Transaction<'_>, batch_id: &str) -> SnapbackResult<()> {
     struct ReservedTokenSnapshot {
         message_id: String,
         snapshot_hash: Vec<u8>,
@@ -1937,12 +1931,12 @@ pub(crate) fn settle_batch_in(
                 match outcome {
                     PushTicketOutcomeV1::Ok { ticket_id } => {
                         validate_provider_id(ticket_id)?;
-                        let next_poll = now_ms.checked_add(PUSH_RECEIPT_FIRST_POLL_MS).ok_or_else(
-                            || push_invalid("push receipt schedule overflowed"),
-                        )?;
-                        let window_close = now_ms.checked_add(PUSH_RECEIPT_WINDOW_MS).ok_or_else(
-                            || push_invalid("push receipt window overflowed"),
-                        )?;
+                        let next_poll = now_ms
+                            .checked_add(PUSH_RECEIPT_FIRST_POLL_MS)
+                            .ok_or_else(|| push_invalid("push receipt schedule overflowed"))?;
+                        let window_close = now_ms
+                            .checked_add(PUSH_RECEIPT_WINDOW_MS)
+                            .ok_or_else(|| push_invalid("push receipt window overflowed"))?;
                         let changed = tx.execute(
                             "UPDATE _snapback_push_messages_v1
                              SET state = 'handed-to-expo', ticket_id = ?1,
@@ -2353,9 +2347,10 @@ pub(crate) fn claim_due_receipts_in(
              LIMIT ?2",
         )?;
         statement
-            .query_map(params![now_ms as i64, PUSH_RECEIPT_BATCH_MAX as i64], |row| {
-                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
-            })?
+            .query_map(
+                params![now_ms as i64, PUSH_RECEIPT_BATCH_MAX as i64],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )?
             .collect::<Result<Vec<_>, _>>()?
     };
     let mut entries = Vec::with_capacity(due.len());
@@ -2415,13 +2410,16 @@ pub(crate) fn parse_expo_receipt_response(
             "Expo returned invalid receipt JSON",
         )
     })?;
-    let receipts = value.get("data").and_then(Value::as_object).ok_or_else(|| {
-        SnapbackError::error(
-            "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
-            "push",
-            "Expo receipt response omitted its data object",
-        )
-    })?;
+    let receipts = value
+        .get("data")
+        .and_then(Value::as_object)
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
+                "push",
+                "Expo receipt response omitted its data object",
+            )
+        })?;
     receipts
         .iter()
         .map(|(ticket_id, receipt)| {
@@ -2464,10 +2462,12 @@ pub(crate) fn settle_receipt_poll_in(
     outcomes: &BTreeMap<String, PushReceiptOutcomeV1>,
     now_ms: u64,
 ) -> SnapbackResult<()> {
-    if outcomes
-        .keys()
-        .any(|ticket_id| !claim.entries.iter().any(|entry| &entry.ticket_id == ticket_id))
-    {
+    if outcomes.keys().any(|ticket_id| {
+        !claim
+            .entries
+            .iter()
+            .any(|entry| &entry.ticket_id == ticket_id)
+    }) {
         return Err(SnapbackError::error(
             "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
             "push",
@@ -2631,7 +2631,9 @@ fn validate_send_request(request: &PushSendRequestV1) -> SnapbackResult<()> {
             .as_ref()
             .is_some_and(|data| canonical_json(&Value::Object(data.clone())).is_err())
     {
-        return Err(push_invalid("ctx.push.send received an invalid bounded request"));
+        return Err(push_invalid(
+            "ctx.push.send received an invalid bounded request",
+        ));
     }
     let payload_bytes = serde_json::to_vec(&json!({
         "title": request.title,
@@ -2673,9 +2675,10 @@ fn membership_clause_resource<'a>(
             let name = resource_arg.as_deref().ok_or_else(|| {
                 push_invalid("resource push audience is missing its declared argument")
             })?;
-            args.get(name).and_then(Value::as_str).map(Some).ok_or_else(|| {
-                push_invalid("push audience resource argument must be a string id")
-            })
+            args.get(name)
+                .and_then(Value::as_str)
+                .map(Some)
+                .ok_or_else(|| push_invalid("push audience resource argument must be a string id"))
         }
     }
 }
@@ -2705,7 +2708,10 @@ fn validate_audience_args(
     if let PushAudienceAuthorizeV1::Membership { resource_arg, .. } = &audience.authorize {
         declared.extend(resource_arg.iter().map(String::as_str));
     }
-    let supplied = args.keys().map(String::as_str).collect::<std::collections::BTreeSet<_>>();
+    let supplied = args
+        .keys()
+        .map(String::as_str)
+        .collect::<std::collections::BTreeSet<_>>();
     if supplied != declared {
         return Err(push_invalid(
             "push audience args must contain exactly the resolver and authorization arguments",
@@ -2758,25 +2764,31 @@ pub(crate) fn capture_deferred_grant(
     to: &PushAudienceReferenceV1,
     dedupe_key: &str,
 ) -> SnapbackResult<(PushDeferredGrantV1, crate::storage::CapturedReadDependency)> {
-    if dedupe_key.is_empty()
-        || dedupe_key.len() > 200
-        || dedupe_key.chars().any(char::is_control)
-    {
-        return Err(push_invalid("deferred push dedupeKey must be 1..200 bounded characters"));
+    if dedupe_key.is_empty() || dedupe_key.len() > 200 || dedupe_key.chars().any(char::is_control) {
+        return Err(push_invalid(
+            "deferred push dedupeKey must be 1..200 bounded characters",
+        ));
     }
     let schema = db.schema();
-    let declaration = schema.push_seam.as_ref().ok_or_else(|| {
-        push_unavailable("the application does not declare the push send seam")
-    })?;
+    let declaration = schema
+        .push_seam
+        .as_ref()
+        .ok_or_else(|| push_unavailable("the application does not declare the push send seam"))?;
     validate_declaration_against_schema(declaration, schema)?;
     if declaration.ledger.is_none() {
-        return Err(push_unavailable("the application declares registry custody only"));
+        return Err(push_unavailable(
+            "the application declares registry custody only",
+        ));
     }
-    let audience = declaration.audiences.get(&to.audience).ok_or_else(|| {
-        push_invalid("deferred push grant names an undeclared audience")
-    })?;
+    let audience = declaration
+        .audiences
+        .get(&to.audience)
+        .ok_or_else(|| push_invalid("deferred push grant names an undeclared audience"))?;
     validate_audience_args(audience, &to.args)?;
-    if matches!(audience.resolve, PushAudienceResolverV1::ExplicitPrincipals { .. }) {
+    if matches!(
+        audience.resolve,
+        PushAudienceResolverV1::ExplicitPrincipals { .. }
+    ) {
         return Err(push_invalid(
             "explicit-principals audiences cannot be captured for deferred push",
         ));
@@ -2853,25 +2865,31 @@ fn authorize_send_in(
                     if matches!(
                         authority.resolved(),
                         crate::auth::invocation::ResolvedAppAuthority::System
-                    ) => deferred_grant
+                    ) =>
+                {
+                    deferred_grant
                         .filter(|grant| {
                             grant.to == request.to
                                 && grant.dedupe_key == request.dedupe_key
                                 && !request.redrive_ambiguous
                         })
-                    .map(|grant| grant.producer_principal.as_str()),
-                PushTriggerModeV1::System | PushTriggerModeV1::Immediate | PushTriggerModeV1::Deferred => None,
+                        .map(|grant| grant.producer_principal.as_str())
+                }
+                PushTriggerModeV1::System
+                | PushTriggerModeV1::Immediate
+                | PushTriggerModeV1::Deferred => None,
             };
             if trigger_mode == PushTriggerModeV1::Deferred
-                && matches!(audience.resolve, PushAudienceResolverV1::ExplicitPrincipals { .. })
+                && matches!(
+                    audience.resolve,
+                    PushAudienceResolverV1::ExplicitPrincipals { .. }
+                )
             {
                 false
             } else if let Some(principal) = principal {
-                let (table, membership) = crate::membership_rules::find_declaration(
-                    schema,
-                    declaration,
-                )
-                .ok_or_else(|| push_invalid("push authorization declaration is missing"))?;
+                let (table, membership) =
+                    crate::membership_rules::find_declaration(schema, declaration)
+                        .ok_or_else(|| push_invalid("push authorization declaration is missing"))?;
                 let resource = membership_clause_resource(membership, resource_arg, args)?;
                 membership_exists_in(tx, table, membership, principal, resource, roles)?
             } else {
@@ -2927,7 +2945,9 @@ fn resolve_audience_in(
                     .filter(|principal| ids::looks_like(Kind::User, principal))
                     .map(str::to_owned)
                     .ok_or_else(|| {
-                        push_invalid("explicit-principals audience contains an invalid principal id")
+                        push_invalid(
+                            "explicit-principals audience contains an invalid principal id",
+                        )
                     })
             })
             .collect::<SnapbackResult<Vec<_>>>()?;
@@ -2945,7 +2965,10 @@ fn resolve_audience_in(
     );
     let mut values = Vec::new();
     if let (Some(field), Some(resource)) = (membership.resource.as_deref(), resource) {
-        sql.push_str(&format!("{} = ?1 AND ", crate::storage::quote_ident(field)?));
+        sql.push_str(&format!(
+            "{} = ?1 AND ",
+            crate::storage::quote_ident(field)?
+        ));
         values.push(rusqlite::types::Value::Text(resource.to_owned()));
     }
     let role_offset = values.len() + 1;
@@ -3334,6 +3357,7 @@ mod fake_expo;
 
 #[cfg(test)]
 mod tests {
+    use super::fake_expo::{FakeExpo, FakeExpoStep};
     use super::*;
     use crate::admin::ServerProfile;
     use crate::auth::invocation::{
@@ -3342,7 +3366,6 @@ mod tests {
     use crate::auth::session_projection::RevocationReason;
     use crate::manifest::{AuthMode, MembershipManifest, MembershipScope, TableManifest};
     use crate::storage::LocalDatabase;
-    use super::fake_expo::{FakeExpo, FakeExpoStep};
 
     fn declaration(environment: &str, idle_retention_ms: u64) -> PushSeamDeclarationV1 {
         PushSeamDeclarationV1 {
@@ -3393,6 +3416,7 @@ mod tests {
             fields: Vec::new(),
             indexes: Vec::new(),
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             syncable: true,
             permission_backing: false,
             permission_fields: None,
@@ -3418,7 +3442,9 @@ mod tests {
         schema
     }
 
-    fn push_acceptance_schema(declaration: PushSeamDeclarationV1) -> crate::manifest::SchemaManifest {
+    fn push_acceptance_schema(
+        declaration: PushSeamDeclarationV1,
+    ) -> crate::manifest::SchemaManifest {
         let mut schema = crate::manifest::SchemaManifest {
             push_seam: Some(declaration),
             ..Default::default()
@@ -3432,6 +3458,7 @@ mod tests {
                 fields: Vec::new(),
                 indexes: Vec::new(),
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 syncable: true,
                 permission_backing: false,
                 permission_fields: None,
@@ -3751,11 +3778,7 @@ mod tests {
                        principal TEXT NOT NULL, event_id TEXT NOT NULL, role TEXT NOT NULL
                      );",
                 )?;
-                for principal in [
-                    &principal_ok,
-                    &principal_ticket_dnr,
-                    &principal_receipt_dnr,
-                ] {
+                for principal in [&principal_ok, &principal_ticket_dnr, &principal_receipt_dnr] {
                     tx.execute(
                         "INSERT INTO event_members(principal, event_id, role)
                          VALUES(?1, 'event-main', 'guest')",
@@ -3860,11 +3883,8 @@ mod tests {
             std::time::Duration::from_secs(5),
         )
         .expect("fixture ticket response");
-        let settlement = classify_expo_send_response(
-            send_response.status,
-            &send_response.body,
-            60_000,
-        );
+        let settlement =
+            classify_expo_send_response(send_response.status, &send_response.body, 60_000);
         db.with_auth_transaction(|tx| settle_batch_in(tx, &claim, &settlement, 103))
             .expect("settle fixture tickets");
 
@@ -3977,25 +3997,22 @@ mod tests {
         assert!(zero_attempt.batches.is_empty());
 
         let unauthorized = ids::mint(Kind::User).expect("unauthorized principal");
-        let unauthorized_request = acceptance_request(
-            "authorizedGuests",
-            "event-main",
-            "acceptance-unauthorized",
-        );
+        let unauthorized_request =
+            acceptance_request("authorizedGuests", "event-main", "acceptance-unauthorized");
         let authorization_error = match db.with_auth_transaction(|tx| {
-                reserve_send_in(
-                    tx,
-                    PushSendReservation {
-                        declaration: &declaration,
-                        schema: &schema,
-                        authority: &session_authority(&unauthorized),
-                        trigger_mode: PushTriggerModeV1::Immediate,
-                        deferred_grant: None,
-                        request: &unauthorized_request,
-                        now_ms: receipt_due + 4,
-                    },
-                )
-            }) {
+            reserve_send_in(
+                tx,
+                PushSendReservation {
+                    declaration: &declaration,
+                    schema: &schema,
+                    authority: &session_authority(&unauthorized),
+                    trigger_mode: PushTriggerModeV1::Immediate,
+                    deferred_grant: None,
+                    request: &unauthorized_request,
+                    now_ms: receipt_due + 4,
+                },
+            )
+        }) {
             Ok(_) => panic!("unauthorized push send must refuse"),
             Err(error) => error,
         };
@@ -4045,9 +4062,8 @@ mod tests {
             .expect("drop batch exists");
         db.with_auth_transaction(|tx| mark_batch_transmitting_in(tx, &drop_claim, 2_000_002))
             .expect("drop fixture transmit cut");
-        let dropping_provider = FakeExpo::start(vec![FakeExpoStep::DropAfterRequest {
-            path: SEND_PATH,
-        }]);
+        let dropping_provider =
+            FakeExpo::start(vec![FakeExpoStep::DropAfterRequest { path: SEND_PATH }]);
         let uncertainty = post_expo_json(
             &dropping_provider.endpoint(SEND_PATH),
             None,
@@ -4200,8 +4216,11 @@ mod tests {
             .code,
             "SNAPBACK_AUTH_PERMISSION_DENIED"
         );
-        tx.execute("DELETE FROM app_members WHERE principal = ?1", params![producer])
-            .expect("revoke producer membership");
+        tx.execute(
+            "DELETE FROM app_members WHERE principal = ?1",
+            params![producer],
+        )
+        .expect("revoke producer membership");
         assert_eq!(
             authorize_send_in(
                 &tx,
@@ -4412,13 +4431,9 @@ mod tests {
                           'system', 'reserved', 1, 1, 1, 100000000)",
                 params![intent_id],
             )?;
-            for (index, batch_id) in [
-                &ambiguous_batch,
-                &pending_batch,
-                &failed_batch,
-            ]
-            .into_iter()
-            .enumerate()
+            for (index, batch_id) in [&ambiguous_batch, &pending_batch, &failed_batch]
+                .into_iter()
+                .enumerate()
             {
                 tx.execute(
                     "INSERT INTO _snapback_push_batches_v1(
@@ -4429,8 +4444,18 @@ mod tests {
             }
             for (message_id, batch_id, token_id, state) in [
                 (&ambiguous_message, &ambiguous_batch, "token-a", "ambiguous"),
-                (&pending_message, &pending_batch, "token-b", "handed-to-expo"),
-                (&failed_message, &failed_batch, "token-c", "failed-permanent"),
+                (
+                    &pending_message,
+                    &pending_batch,
+                    "token-b",
+                    "handed-to-expo",
+                ),
+                (
+                    &failed_message,
+                    &failed_batch,
+                    "token-c",
+                    "failed-permanent",
+                ),
             ] {
                 tx.execute(
                     "INSERT INTO _snapback_push_messages_v1(
@@ -4510,7 +4535,12 @@ mod tests {
                 "INSERT INTO _snapback_push_messages_v1(
                    id, batch_id, token_id, token_hash, token_bytes, state
                  ) VALUES(?1, ?2, ?3, ?4, 'ExponentPushToken[first]', 'reserved')",
-                params![message_id, batch_id, token_id, Sha256::digest(b"ExponentPushToken[first]").to_vec()],
+                params![
+                    message_id,
+                    batch_id,
+                    token_id,
+                    Sha256::digest(b"ExponentPushToken[first]").to_vec()
+                ],
             )?;
             Ok(())
         })
@@ -4537,7 +4567,10 @@ mod tests {
             .with_auth_transaction(|tx| claim_batch_in(tx, &batch_id, 31_001))
             .unwrap()
             .expect("safe recovery claim");
-        assert_eq!(rotated_claim.messages[0].token, "ExponentPushToken[rotated]");
+        assert_eq!(
+            rotated_claim.messages[0].token,
+            "ExponentPushToken[rotated]"
+        );
 
         db.with_auth_transaction(|tx| {
             // A crash after the durable transmit cut is never redriven.
@@ -4547,8 +4580,8 @@ mod tests {
         .unwrap();
         db.with_auth_transaction(|tx| {
             assert_eq!(recover_expired_batches_in(tx, 62_000)?, (0, 1));
-            let (batch_state, message_state, token_snapshot): (String, String, String) =
-                tx.query_row(
+            let (batch_state, message_state, token_snapshot): (String, String, String) = tx
+                .query_row(
                     "SELECT batch.state, message.state, message.token_bytes
                      FROM _snapback_push_batches_v1 AS batch
                      JOIN _snapback_push_messages_v1 AS message ON message.batch_id = batch.id
@@ -4556,7 +4589,10 @@ mod tests {
                     params![batch_id],
                     |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
                 )?;
-            assert_eq!((batch_state.as_str(), message_state.as_str()), ("ambiguous", "ambiguous"));
+            assert_eq!(
+                (batch_state.as_str(), message_state.as_str()),
+                ("ambiguous", "ambiguous")
+            );
             assert!(token_snapshot.is_empty());
             Ok(())
         })

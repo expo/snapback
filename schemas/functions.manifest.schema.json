@@ -1395,6 +1395,19 @@
         },
         {
           "additionalProperties": false,
+          "description": "Non-live exact vector retrieval. ANN is deliberately not a v1 plan.\n\n@ref LLP 0132#query-surface — one bounded exact k-NN page,\nnever a live query and never a cursor-bearing operation.",
+          "properties": {
+            "VectorQuery": {
+              "$ref": "#/$defs/VectorQueryPlanV1"
+            }
+          },
+          "required": [
+            "VectorQuery"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
           "description": "The generated declared job-status query (LLP 0121 option 3, decided in\nLLP 0070's first slice): a Rust-owned plan serving the privacy-bounded\njob lifecycle projection for one job id, live-capable through the\nordinary subscription machinery — a declared operation with an\nordinary contract, never an ambient system table.",
           "properties": {
             "JobStatusQuery": {
@@ -3171,6 +3184,34 @@
           "type": "object"
         }
       ]
+    },
+    "VectorQueryPlanV1": {
+      "additionalProperties": false,
+      "properties": {
+        "distanceProfile": {
+          "type": "string"
+        },
+        "index": {
+          "type": "string"
+        },
+        "requiredCapability": {
+          "type": "string"
+        },
+        "resultProjection": {
+          "type": "string"
+        },
+        "table": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "table",
+        "index",
+        "distanceProfile",
+        "resultProjection",
+        "requiredCapability"
+      ],
+      "type": "object"
     },
     "WriteActivityProvenanceFields": {
       "additionalProperties": false,

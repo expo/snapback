@@ -15,6 +15,11 @@ pub use crate::search::types::{
     SearchQueryAstV1, SearchQueryLimitsV1, SearchQueryPlanV1, SearchRequestV1,
     SearchSourceLimitsV1, SearchTermV1, SearchTextFieldV1, SearchVisibilityV1,
 };
+pub use crate::vector::types::{
+    VectorFieldClassV1, VectorFilterOpV1, VectorFilterV1, VectorFilterValueV1,
+    VectorIndexManifestV1, VectorItemV1, VectorMaintenanceLimitsV1, VectorMetricV1, VectorPageV1,
+    VectorQueryPlanV1, VectorRequestV1, VectorSearchFactsV1, VectorTieBreakV1, VectorVisibilityV1,
+};
 
 pub const SNAPBACK_SCHEMA_VERSION: &str = "snapback.v0";
 /// The paired schema/function artifact version reserved for session authority.
@@ -459,6 +464,18 @@ pub struct TableManifest {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub search_indexes: Vec<SearchIndexManifestV1>,
+    /// Portable exact vector indexes. The declaration owns the arithmetic,
+    /// visibility, work, and maintenance bounds as one versioned contract.
+    ///
+    /// @ref LLP 0132#vector-values-and-declarations — vector behavior is
+    /// declared table-locally and cannot be widened by a handler.
+    #[serde(
+        default,
+        rename = "vectorIndexes",
+        alias = "vector_indexes",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub vector_indexes: Vec<VectorIndexManifestV1>,
     #[serde(default)]
     pub syncable: bool,
     /// This table contains facts that grant or revoke authority. This axis is
@@ -834,6 +851,13 @@ pub enum FieldType {
     Integer,
     Real,
     Json,
+    /// `v.vector(dimensions)` — fixed-size admitted binary64 components.
+    ///
+    /// @ref LLP 0132#vector-values-and-declarations — the schema carries the
+    /// fixed dimension so every write and query can enforce one value domain.
+    Vector {
+        dimensions: u32,
+    },
     /// `v.principal()` — nominal typing over the auth-principal id string space
     /// (the same space as `ctx.auth.userId`, including LLP 0055 agent
     /// principals). It stores and compares exactly like [`FieldType::String`];
@@ -1194,6 +1218,10 @@ impl FunctionManifest {
                     FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)),
                 ) => validate_search_query_plan_shape(plan)?,
                 (
+                    FunctionKind::Query,
+                    FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(plan)),
+                ) => validate_vector_query_plan_shape(plan)?,
+                (
                     FunctionKind::Query | FunctionKind::LiveQuery,
                     FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)),
                 ) => {}
@@ -1237,6 +1265,9 @@ impl FunctionManifest {
                 }
                 FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(_)) => {
                     &[crate::search::types::SEARCH_CAPABILITY]
+                }
+                FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(_)) => {
+                    &[crate::vector::types::VECTOR_CAPABILITY]
                 }
                 // The declared job-status query requires the experimental
                 // jobs registry id (LLP 0070 is Draft, so the id can never be
@@ -2442,9 +2473,7 @@ fn validate_bounded_skew_definition(function: &FunctionDefinition) -> SnapbackRe
         .iter()
         .any(|capability| capability == "settlement.bounded_skew")
     {
-        return Err(invalid(
-            "the declaration requires settlement.bounded_skew",
-        ));
+        return Err(invalid("the declaration requires settlement.bounded_skew"));
     }
     let plan = match &function.runtime {
         FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
@@ -2452,7 +2481,11 @@ fn validate_bounded_skew_definition(function: &FunctionDefinition) -> SnapbackRe
             mutation: plan,
             ..
         })) => plan,
-        _ => return Err(invalid("only HostPlan mutations can prove a direct time sink")),
+        _ => {
+            return Err(invalid(
+                "only HostPlan mutations can prove a direct time sink",
+            ));
+        }
     };
     let matching = plan.steps.iter().filter_map(|step| match step {
         MutationStep::Insert { values, .. }
@@ -2808,6 +2841,9 @@ impl ObservedEffects {
             }
             HandlerPlan::SearchQuery(plan) => {
                 self.read(&plan.table, "search", Some(&plan.index));
+            }
+            HandlerPlan::VectorQuery(plan) => {
+                self.read(&plan.table, "vector-search", Some(&plan.index));
             }
             HandlerPlan::JobStatusQuery(_) => {
                 // A point read of the reserved job-status projection — not an
@@ -3300,6 +3336,27 @@ pub fn validate_search_query_plan_shape(plan: &SearchQueryPlanV1) -> SnapbackRes
             "SNAPBACK_SEARCH_QUERY_PLAN_INVALID",
             "search",
             "search plan must name one table/index and the exact v1 parser, result, and capability profiles",
+        ));
+    }
+    Ok(())
+}
+
+/// Structural admission for the exact vector carrier. Schema binding and
+/// classification completeness are checked during schema activation.
+///
+/// @ref LLP 0132#vector-values-and-declarations — the host plan
+/// must pin the distance/result/capability profiles before storage work.
+pub fn validate_vector_query_plan_shape(plan: &VectorQueryPlanV1) -> SnapbackResult<()> {
+    if plan.table.trim().is_empty()
+        || plan.index.trim().is_empty()
+        || plan.distance_profile != crate::vector::types::VECTOR_DISTANCE_PROFILE
+        || plan.result_projection != "vector-page-v1"
+        || plan.required_capability != crate::vector::types::VECTOR_CAPABILITY
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_VECTOR_QUERY_INVALID",
+            "vector",
+            "vector plan must name one table/index and the exact v1 distance, result, and capability profiles",
         ));
     }
     Ok(())
@@ -4809,6 +4866,7 @@ pub enum PublicFunctionRuntime {
 pub enum PublicHostPlanKind {
     Query,
     SearchQuery,
+    VectorQuery,
     JobStatusQuery,
     Mutation,
     Action,
@@ -5009,6 +5067,7 @@ impl From<FunctionRuntime> for PublicFunctionRuntime {
             FunctionRuntime::HostPlan(plan) => PublicFunctionRuntime::HostPlan(match plan {
                 HandlerPlan::Query(_) => PublicHostPlanKind::Query,
                 HandlerPlan::SearchQuery(_) => PublicHostPlanKind::SearchQuery,
+                HandlerPlan::VectorQuery(_) => PublicHostPlanKind::VectorQuery,
                 HandlerPlan::JobStatusQuery(_) => PublicHostPlanKind::JobStatusQuery,
                 HandlerPlan::Mutation(_) => PublicHostPlanKind::Mutation,
                 HandlerPlan::Action(_) => PublicHostPlanKind::Action,
@@ -5039,6 +5098,11 @@ pub enum HandlerPlan {
     /// @ref LLP 0073#rust-owned-artifacts-and-operation-carrier — search is a
     /// Query-kind HostPlan and never gains live semantics by implication.
     SearchQuery(SearchQueryPlanV1),
+    /// Non-live exact vector retrieval. ANN is deliberately not a v1 plan.
+    ///
+    /// @ref LLP 0132#query-surface — one bounded exact k-NN page,
+    /// never a live query and never a cursor-bearing operation.
+    VectorQuery(VectorQueryPlanV1),
     /// The generated declared job-status query (LLP 0121 option 3, decided in
     /// LLP 0070's first slice): a Rust-owned plan serving the privacy-bounded
     /// job lifecycle projection for one job id, live-capable through the
@@ -5953,15 +6017,7 @@ pub const AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION: u64 = 9_007_199_254_740_9
 /// @ref LLP 0133#the-two-settlement-lanes — the label selects replay acceptance
 ///   or server re-derivation without granting authority.
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Deserialize,
-    Eq,
-    PartialEq,
-    Serialize,
-    schemars::JsonSchema,
+    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum SettlementLane {
@@ -6561,6 +6617,8 @@ pub enum TargetCapabilityId {
     MigrationKeysetScanV1,
     #[serde(rename = "full_text_search_v1")]
     FullTextSearchV1,
+    #[serde(rename = "vector_search_v1")]
+    VectorSearchV1,
     #[serde(rename = "result_contract_v1")]
     ResultContractV1,
     #[serde(rename = "settlement.bounded_skew")]
@@ -6586,7 +6644,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 28] = [
+    pub const ALL: [Self; 29] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -6604,6 +6662,7 @@ impl TargetCapabilityId {
         Self::SequenceAllocationV1,
         Self::MigrationKeysetScanV1,
         Self::FullTextSearchV1,
+        Self::VectorSearchV1,
         Self::ResultContractV1,
         Self::SettlementBoundedSkew,
         Self::ArgsContractV1,
@@ -6636,6 +6695,7 @@ impl TargetCapabilityId {
             Self::SequenceAllocationV1 => "sequence_allocation_v1",
             Self::MigrationKeysetScanV1 => "migration_keyset_scan_v1",
             Self::FullTextSearchV1 => "full_text_search_v1",
+            Self::VectorSearchV1 => "vector_search_v1",
             Self::ResultContractV1 => "result_contract_v1",
             Self::SettlementBoundedSkew => "settlement.bounded_skew",
             Self::ArgsContractV1 => "args_contract_v1",
@@ -6683,6 +6743,7 @@ impl TargetCapabilityId {
             | Self::JobsOneOffV1
             | Self::RegisteredBundleBootV1
             | Self::SequenceAllocationV1
+            | Self::VectorSearchV1
             | Self::ResultContractV1
             | Self::ArgsContractV1
             | Self::VersionedSeedInstallV1
@@ -6831,6 +6892,22 @@ impl TargetCapabilityId {
                         facts.capability_id == "full_text_search_v1"
                             && facts.maturity == "stable"
                             && facts.storage_engines == ["sqlite"]
+                    })
+            }
+            Self::VectorSearchV1 => {
+                facts.vector_search_v1_registered
+                    && manifest.vector_search.as_ref().is_some_and(|vector| {
+                        vector.capability_id == crate::vector::types::VECTOR_CAPABILITY
+                            && vector.maturity == "experimental"
+                            && vector.exact
+                            && vector.distance_profile
+                                == crate::vector::types::VECTOR_DISTANCE_PROFILE
+                            && vector.distance_profile_digest
+                                == crate::vector::fixtures::vector_distance_fixture_digest()
+                            && vector.ordering_profile
+                                == crate::vector::types::VECTOR_ORDERING_PROFILE
+                            && vector.accelerator == "none"
+                            && vector.storage_engines == ["sqlite"]
                     })
             }
             Self::ResultContractV1 => facts.result_contract_v1_registered,
@@ -7075,6 +7152,7 @@ pub struct TargetCapabilityFacts {
     sequence_allocation_v1_registered: bool,
     migration_keyset_scan_v1_registered: bool,
     full_text_search_v1_registered: bool,
+    vector_search_v1_registered: bool,
     inline_handler_v1_registered: bool,
     jobs_one_off_v1_registered: bool,
     result_contract_v1_registered: bool,
@@ -7126,6 +7204,9 @@ impl TargetCapabilityFacts {
             sequence_allocation_v1_registered: true,
             migration_keyset_scan_v1_registered: true,
             full_text_search_v1_registered: true,
+            // @ref LLP 0132#capabilities-targets-and-staging — exact vector
+            // search is qualified only on the local SQLite implementation.
+            vector_search_v1_registered: true,
             inline_handler_v1_registered: true,
             // @ref LLP 0070#non-goals-and-claim-boundary — registered means
             // the local enqueue/drain implementation exists; the id's
@@ -7391,6 +7472,15 @@ pub struct CapabilityManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub full_text_search: Option<FullTextSearchFactsV1>,
+    /// Exact local vector-search posture. Its explicit `accelerator: none`
+    /// keeps the ANN successor door closed for v1.
+    #[serde(
+        default,
+        rename = "vectorSearch",
+        alias = "vector_search",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub vector_search: Option<VectorSearchFactsV1>,
     /// Declared asset facts (LLP 0044; LLP 0012 dated registration
     /// 2026-07-31). Presence with a qualified store list is half the
     /// `asset_lifecycle_v1` predicate; absence is the honest Missing report
@@ -7401,7 +7491,11 @@ pub struct CapabilityManifest {
     /// 0058 amendment 2026-08-01). Absence is capability-absent: the engine
     /// refuses credentialed lanes rather than inferring eligibility from a
     /// URL or a correlated capability.
-    #[serde(default, rename = "appCliTarget", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "appCliTarget",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub app_cli_target: Option<AppCliTargetFactsV1>,
 }
 
@@ -7475,12 +7569,7 @@ impl ExpoPushSeamFactsV1 {
             send_batch_max: crate::push::PUSH_BATCH_MESSAGES_MAX as u32,
             receipt_batch_max: crate::push::PUSH_RECEIPT_BATCH_MAX as u32,
             receipt_first_poll_ms: crate::push::PUSH_RECEIPT_FIRST_POLL_MS,
-            receipt_poll_intervals_ms: vec![
-                1_800_000,
-                3_600_000,
-                7_200_000,
-                14_400_000,
-            ],
+            receipt_poll_intervals_ms: vec![1_800_000, 3_600_000, 7_200_000, 14_400_000],
             receipt_poll_max_attempts: 7,
             receipt_window_ms: crate::push::PUSH_RECEIPT_WINDOW_MS,
             registry_idle_retention_ms: CapabilityRangeV1 {
@@ -7809,6 +7898,7 @@ impl CapabilityManifest {
             relational_queries: Some(RelationalQueryFacts::local_v1()),
             standard_patterns: Some(StandardPatternFacts::local_v1()),
             full_text_search: Some(FullTextSearchFactsV1::local_v1()),
+            vector_search: Some(VectorSearchFactsV1::local_v1()),
             assets: Some(crate::assets::AssetTargetFactsV1::local_v1()),
             app_cli_target: Some(AppCliTargetFactsV1::local_v1()),
             supported_query_forms: vec![
@@ -7962,6 +8052,7 @@ impl CapabilityManifest {
         manifest.target_profile_id = TARGET_PROFILE_REMOTE_SERVICE_SQLITE_IBEX.to_owned();
         manifest.local_server_lifecycle = false;
         manifest.full_text_search = None;
+        manifest.vector_search = None;
         // The asset subsystem's evidence is local-target only (LLP 0044:
         // "local support does not imply hosted support"); the served-origin
         // profile withholds the claim until its own suite runs.
@@ -7981,6 +8072,7 @@ impl CapabilityManifest {
         let mut facts =
             TargetCapabilityFacts::local_auth_aware().with_relation_activity_publication_withheld();
         facts.full_text_search_v1_registered = false;
+        facts.vector_search_v1_registered = false;
         facts.asset_lifecycle_local_fs_registered = false;
         facts.asset_image_finalization_registered = false;
         facts.asset_reference_gc_registered = false;
@@ -8000,6 +8092,7 @@ impl CapabilityManifest {
         manifest.target_profile_id = TARGET_PROFILE_LOCAL_CONFORMANCE_SQLITE_WORKERD_V8.to_owned();
         manifest.runtime_engine = "workerd-v8".to_owned();
         manifest.full_text_search = None;
+        manifest.vector_search = None;
         // Ephemeral, cron, and actions stay on the canonical server; the twin
         // swaps only query/mutation handler execution.
         manifest
@@ -8077,6 +8170,7 @@ impl CapabilityManifest {
         let mut manifest = Self::local_v0(local_v0_default_capability_gaps());
         manifest.target_profile_id = TARGET_PROFILE_CLOUDFLARE_DO_SQLITE_V8.to_owned();
         manifest.full_text_search = None;
+        manifest.vector_search = None;
         // No asset subsystem on the DO target: bytes, staging, and strict
         // delivery are unimplemented there (the committed gap row stands).
         manifest.assets = None;

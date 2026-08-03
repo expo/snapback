@@ -1689,19 +1689,19 @@ fn rederived_claim_ledger(
         .mints
         .iter()
         .fold(BTreeMap::new(), |mut counts, mint| {
-        *counts
-            .entry((mint.site.clone(), mint.occurrence))
-            .or_insert(0_usize) += 1;
-        counts
-    });
+            *counts
+                .entry((mint.site.clone(), mint.occurrence))
+                .or_insert(0_usize) += 1;
+            counts
+        });
     claims.extend(recorded.mints.iter().map(|mint| {
         SettlementClaim {
-        field_or_slot: format!("{}[{}]", mint.site, mint.occurrence),
-        claimed: Value::String(mint.claimed.clone()),
-        authoritative: exact_authoritative_mint(mint, &claim_counts, &authoritative)
-            .map_or(Value::Null, |id| Value::String(id.to_owned())),
-        disposition: SettlementClaimDisposition::ReDerived,
-        skew_ms: None,
+            field_or_slot: format!("{}[{}]", mint.site, mint.occurrence),
+            claimed: Value::String(mint.claimed.clone()),
+            authoritative: exact_authoritative_mint(mint, &claim_counts, &authoritative)
+                .map_or(Value::Null, |id| Value::String(id.to_owned())),
+            disposition: SettlementClaimDisposition::ReDerived,
+            skew_ms: None,
         }
     }));
     claims
@@ -1713,12 +1713,12 @@ fn authoritative_mints_by_key(
     observations
         .iter()
         .fold(BTreeMap::new(), |mut by_key, mint| {
-        by_key
-            .entry((mint.site.clone(), mint.occurrence))
-            .or_insert_with(Vec::new)
-            .push(mint.id.clone());
-        by_key
-    })
+            by_key
+                .entry((mint.site.clone(), mint.occurrence))
+                .or_insert_with(Vec::new)
+                .push(mint.id.clone());
+            by_key
+        })
 }
 
 fn exact_authoritative_mint<'a>(
@@ -3309,6 +3309,10 @@ fn delta_documents_contract_matches_schema(
                 max_depth: 16,
                 max_bytes: 1024 * 1024,
             },
+            FieldType::Vector { .. } => ResultValueContract::Json {
+                max_depth: 1,
+                max_bytes: 32 * 1024,
+            },
             FieldType::Principal => ResultValueContract::Principal,
             FieldType::Id { table } => ResultValueContract::Id {
                 table: table.clone(),
@@ -3983,10 +3987,7 @@ impl LocalSnapback {
         Ok(())
     }
 
-    fn finish_telemetry_generation_transition(
-        &mut self,
-        incarnation: &str,
-    ) -> SnapbackResult<()> {
+    fn finish_telemetry_generation_transition(&mut self, incarnation: &str) -> SnapbackResult<()> {
         let Some(current) = self.telemetry_store_identity.as_ref() else {
             return self.telemetry.finish_generation_transition(incarnation);
         };
@@ -4648,9 +4649,10 @@ impl LocalSnapback {
                     if let Err(error) = self.db.validate_order_field_bounds(&bounds) {
                         preflight.push(error.diagnostic);
                     }
-                    if let Err(error) = self.db.validate_sequence_scope_activation(
-                        &sequence_scope_tables(&manifest),
-                    ) {
+                    if let Err(error) = self
+                        .db
+                        .validate_sequence_scope_activation(&sequence_scope_tables(&manifest))
+                    {
                         preflight.push(error.diagnostic);
                     }
                     Some(bounds)
@@ -4892,10 +4894,7 @@ impl LocalSnapback {
                 Ok(None) => {}
                 Err(error) => {
                     diagnostics.push(error.diagnostic);
-                    self.record_diagnostics_at_boundary(
-                        diagnostics.clone(),
-                        diagnostic_boundary,
-                    );
+                    self.record_diagnostics_at_boundary(diagnostics.clone(), diagnostic_boundary);
                     return diagnostics;
                 }
             }
@@ -5073,8 +5072,7 @@ impl LocalSnapback {
             .attempt_reset_and_seed_with_authorization_stream(seed, predecessor, successor)
         {
             AuthTransactionAttempt::Committed(seeded) => {
-                if let Err(error) =
-                    self.finish_telemetry_generation_transition(successor.as_str())
+                if let Err(error) = self.finish_telemetry_generation_transition(successor.as_str())
                 {
                     // The app reset is already durable. Keep telemetry closed
                     // if its independent sibling cannot rebind; reporting a
@@ -5162,8 +5160,7 @@ impl LocalSnapback {
             .attempt_versioned_seed_reset_with_authorization_stream(request, predecessor, successor)
         {
             AuthTransactionAttempt::Committed((seeded, receipt)) => {
-                if let Err(error) =
-                    self.finish_telemetry_generation_transition(successor.as_str())
+                if let Err(error) = self.finish_telemetry_generation_transition(successor.as_str())
                 {
                     self.record_attached_diagnostics(vec![error.diagnostic]);
                 } else {
@@ -6319,33 +6316,31 @@ impl LocalSnapback {
         let prepared = InvocationGate::prepare_function(authority, function)?;
         let input = prepared.canonicalize_input(input);
         let correlation = telemetry_correlation(&input.correlation);
-        let span =
-            self.telemetry
-                .start_classified_span(
-                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_QUERY,
-                    name,
-                    correlation.as_deref(),
-                    None,
-                );
+        let span = self.telemetry.start_classified_span(
+            crate::telemetry_contract::OperationClassIdV1::FUNCTION_QUERY,
+            name,
+            correlation.as_deref(),
+            None,
+        );
         let result =
             crate::runtime::with_runtime_log_telemetry(self.telemetry.clone(), correlation, || {
-        execute_query_invocation(
-            function,
-            name,
-            DbRead::Live(&self.db),
-            &self.permission_epochs,
-            input,
-            &prepared,
-            Some(&self.warm_vms),
-            Some(RelationalCursorAuthority {
-                app_id: &self.functions.app_id,
-                keyring: &self.resume_keyring,
-                schema_hash: self.db.schema().schema_hash.as_deref(),
-                function_bundle_hash: self.functions.bundle_hash.as_deref(),
-                function_publication_generation: self.app_generation,
-                target_profile: self.db.schema().target_profile.as_deref(),
-            }),
-        )
+                execute_query_invocation(
+                    function,
+                    name,
+                    DbRead::Live(&self.db),
+                    &self.permission_epochs,
+                    input,
+                    &prepared,
+                    Some(&self.warm_vms),
+                    Some(RelationalCursorAuthority {
+                        app_id: &self.functions.app_id,
+                        keyring: &self.resume_keyring,
+                        schema_hash: self.db.schema().schema_hash.as_deref(),
+                        function_bundle_hash: self.functions.bundle_hash.as_deref(),
+                        function_publication_generation: self.app_generation,
+                        target_profile: self.db.schema().target_profile.as_deref(),
+                    }),
+                )
             });
         finish_function_observation(span, &result);
         result
@@ -12032,135 +12027,135 @@ impl LocalSnapback {
                 telemetry_correlation,
                 || {
                     (|| -> SnapbackResult<_> {
-            let client_mutation_digest = identity
-                .as_ref()
-                .map(ClientMutationIdentity::activity_digest);
-            if settlement.lane == SettlementLane::ReDerive {
-                // The client ledger remains part of immutable request
-                // identity, but it cannot answer the authoritative run. The
-                // host-plan preview below records one server-owned clock/id
-                // sample and the commit replays only that internal sample.
-                // @ref LLP 0133#re-derivation-semantics-lane-l — lane L
-                //   discards client ctx answers before authoritative execution.
-                input.ctx_ledger = None;
-            }
-            input.auth = input
-                .auth
-                .with_client_mutation_digest(client_mutation_digest.as_deref());
-            let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
-            let (preflight, execution) = match &function.runtime {
-                FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
-                | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
-                    crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
-                )) => {
-                    let preview = self.db.dry_run_mutation_with_settlement_time(
-                        plan,
-                        &input,
-                        settlement_time.as_ref(),
-                    )?;
-                    crate::result_contract::validate_handler_result(
-                        &function,
-                        &preview.commit.output.result,
-                    )?;
-                    input.ctx_ledger = Some(CtxAnswerLedger {
-                        version: ctx_ledger_version(),
-                        ids: preview.generated_ids,
-                        now: preview.now_ms,
-                        auth_fingerprint: None,
-                    });
-                    (
+                        let client_mutation_digest = identity
+                            .as_ref()
+                            .map(ClientMutationIdentity::activity_digest);
+                        if settlement.lane == SettlementLane::ReDerive {
+                            // The client ledger remains part of immutable request
+                            // identity, but it cannot answer the authoritative run. The
+                            // host-plan preview below records one server-owned clock/id
+                            // sample and the commit replays only that internal sample.
+                            // @ref LLP 0133#re-derivation-semantics-lane-l — lane L
+                            //   discards client ctx answers before authoritative execution.
+                            input.ctx_ledger = None;
+                        }
+                        input.auth = input
+                            .auth
+                            .with_client_mutation_digest(client_mutation_digest.as_deref());
+                        let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
+                        let (preflight, execution) = match &function.runtime {
+                            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
+                            | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
+                                crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
+                            )) => {
+                                let preview = self.db.dry_run_mutation_with_settlement_time(
+                                    plan,
+                                    &input,
+                                    settlement_time.as_ref(),
+                                )?;
+                                crate::result_contract::validate_handler_result(
+                                    &function,
+                                    &preview.commit.output.result,
+                                )?;
+                                input.ctx_ledger = Some(CtxAnswerLedger {
+                                    version: ctx_ledger_version(),
+                                    ids: preview.generated_ids,
+                                    now: preview.now_ms,
+                                    auth_fingerprint: None,
+                                });
+                                (
                                     self.authorization_commit_preflight_for_changes(
                                         preview.commit.changes,
                                     ),
-                        StagedMutationExecution::HostPlan(plan.clone()),
-                    )
-                }
-                FunctionRuntime::IbexModule(module) => {
-                    let executed = crate::runtime::execute_ibex_mutation_prepared(
-                        module,
-                        input.clone(),
-                        &prepared,
-                        DbRead::Live(&self.db),
-                        Some(&self.warm_vms),
-                        None,
-                    )?;
-                    let membership_plans = self
-                        .db
-                        .authorize_membership_commands(executed.membership_commands)?;
-                    // Callee admission for buffered enqueues happens before
-                    // any commit work: an inadmissible callee fails the whole
-                    // mutation (rollback schedules nothing).
-                    let (job_enqueues, job_producer) = admit_job_enqueues(
-                        &self.functions,
-                        executed.job_enqueues,
-                        &receipt_mutation_id,
-                        name,
-                        input.auth.user_id.clone(),
-                    )?;
-                    let payload = BufferedCommitPayload {
-                        writes: executed.writes,
-                        sequence_allocations: executed.sequence_allocations,
-                        membership_plans,
-                        read_dependencies: executed.reads,
-                        result: executed.result,
-                        ctx_ledger: executed.ctx_ledger,
-                        job_enqueues,
-                        job_producer,
-                        asset_admissions: executed.asset_admissions,
-                    };
+                                    StagedMutationExecution::HostPlan(plan.clone()),
+                                )
+                            }
+                            FunctionRuntime::IbexModule(module) => {
+                                let executed = crate::runtime::execute_ibex_mutation_prepared(
+                                    module,
+                                    input.clone(),
+                                    &prepared,
+                                    DbRead::Live(&self.db),
+                                    Some(&self.warm_vms),
+                                    None,
+                                )?;
+                                let membership_plans = self
+                                    .db
+                                    .authorize_membership_commands(executed.membership_commands)?;
+                                // Callee admission for buffered enqueues happens before
+                                // any commit work: an inadmissible callee fails the whole
+                                // mutation (rollback schedules nothing).
+                                let (job_enqueues, job_producer) = admit_job_enqueues(
+                                    &self.functions,
+                                    executed.job_enqueues,
+                                    &receipt_mutation_id,
+                                    name,
+                                    input.auth.user_id.clone(),
+                                )?;
+                                let payload = BufferedCommitPayload {
+                                    writes: executed.writes,
+                                    sequence_allocations: executed.sequence_allocations,
+                                    membership_plans,
+                                    read_dependencies: executed.reads,
+                                    result: executed.result,
+                                    ctx_ledger: executed.ctx_ledger,
+                                    job_enqueues,
+                                    job_producer,
+                                    asset_admissions: executed.asset_admissions,
+                                };
                                 crate::result_contract::validate_handler_result(
                                     &function,
                                     &payload.result,
                                 )?;
-                    let preview = self.db.dry_run_buffered_writes_with_jobs(
-                        &input,
-                        payload.writes.clone(),
-                        payload.sequence_allocations.clone(),
-                        payload.membership_plans.clone(),
-                        payload.read_dependencies.clone(),
-                        payload.result.clone(),
-                        payload.ctx_ledger.clone(),
-                        payload.job_enqueues.clone(),
-                        payload.job_producer.clone(),
-                        payload.asset_admissions.clone(),
-                    )?;
-                    (
+                                let preview = self.db.dry_run_buffered_writes_with_jobs(
+                                    &input,
+                                    payload.writes.clone(),
+                                    payload.sequence_allocations.clone(),
+                                    payload.membership_plans.clone(),
+                                    payload.read_dependencies.clone(),
+                                    payload.result.clone(),
+                                    payload.ctx_ledger.clone(),
+                                    payload.job_enqueues.clone(),
+                                    payload.job_producer.clone(),
+                                    payload.asset_admissions.clone(),
+                                )?;
+                                (
                                     self.authorization_commit_preflight_for_changes(
                                         preview.changes,
                                     ),
-                        StagedMutationExecution::Buffered(Box::new(payload)),
-                    )
-                }
-                _ => {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_FUNCTION_KIND_MISMATCH",
-                        "runtime",
-                        format!("{name} is not a mutation"),
-                    ));
-                }
-            };
-            Ok((
-                preflight,
-                StagedRecordedMutation::Ready(Box::new(StagedRecordedMutationCommit {
-                    name: name.to_owned(),
-                    transport: transport.to_owned(),
-                    correlation,
-                    receipt_mutation_id,
-                    input,
-                    settlement: settlement.clone(),
-                    prepared,
-                    identity,
-                    settlement_time,
-                    epoch_scopes,
-                    execution,
+                                    StagedMutationExecution::Buffered(Box::new(payload)),
+                                )
+                            }
+                            _ => {
+                                return Err(SnapbackError::error(
+                                    "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                                    "runtime",
+                                    format!("{name} is not a mutation"),
+                                ));
+                            }
+                        };
+                        Ok((
+                            preflight,
+                            StagedRecordedMutation::Ready(Box::new(StagedRecordedMutationCommit {
+                                name: name.to_owned(),
+                                transport: transport.to_owned(),
+                                correlation,
+                                receipt_mutation_id,
+                                input,
+                                settlement: settlement.clone(),
+                                prepared,
+                                identity,
+                                settlement_time,
+                                epoch_scopes,
+                                execution,
                                 // @ref LLP 0154#d2--the-observation-span-classification-registry-and-phase-1-kinds
                                 // Staging is admission, not a successful terminal.
                                 // The authoritative guarded commit owns completion.
                                 observation: observation
                                     .take()
                                     .expect("fresh staged mutation observation"),
-                })),
-            ))
+                            })),
+                        ))
                     })()
                 },
             );
@@ -12223,12 +12218,12 @@ impl LocalSnapback {
             StagedMutationExecution::HostPlan(plan) => match identity.as_ref() {
                 Some(identity) => self
                     .db
-                        .execute_mutation_idempotent_guarded_with_settlement_time(
-                            &plan,
-                            &input,
-                            identity,
-                            settlement_time.as_ref(),
-                            || prepared.effect_guard("idempotent mutation transaction"),
+                    .execute_mutation_idempotent_guarded_with_settlement_time(
+                        &plan,
+                        &input,
+                        identity,
+                        settlement_time.as_ref(),
+                        || prepared.effect_guard("idempotent mutation transaction"),
                     ),
                 None => self.db.execute_mutation_guarded_with_settlement_time(
                     &plan,
@@ -12386,13 +12381,13 @@ impl LocalSnapback {
         } = publication;
         match admission.effect_guard(effect) {
             Ok(_publication) => self.record_mutation_commit(
-                    name,
-                    transport,
-                    correlation,
-                    mutation_id,
-                    &settlement,
-                    result,
-                    true,
+                name,
+                transport,
+                correlation,
+                mutation_id,
+                &settlement,
+                result,
+                true,
             ),
             Err(publication_error) => {
                 self.record_attached_diagnostics(vec![publication_error.diagnostic.clone()]);
@@ -12582,109 +12577,107 @@ impl LocalSnapback {
         let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
         self.ensure_permission_epoch_capacity(&epoch_scopes)?;
         let correlation = telemetry_correlation(&input.correlation);
-        let span =
-            self.telemetry
-                .start_classified_span(
-                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
-                    name,
-                    correlation.as_deref(),
-                    None,
-                );
+        let span = self.telemetry.start_classified_span(
+            crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
+            name,
+            correlation.as_deref(),
+            None,
+        );
         let result = (|| {
-        let commit = match &function.runtime {
-            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
-            | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
-                crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
-            )) => {
-                // Validate the exact dry-run result while all writes remain
-                // provisional. Reuse its ctx ledger so generated ids/time are
-                // identical when the guarded transaction executes.
-                let preview = self.db.dry_run_mutation(plan, &input)?;
-                crate::result_contract::validate_handler_result(
-                    &function,
-                    &preview.commit.output.result,
-                )?;
-                input.ctx_ledger = Some(CtxAnswerLedger {
-                    version: ctx_ledger_version(),
-                    ids: preview.generated_ids,
-                    now: preview.now_ms,
-                    auth_fingerprint: None,
-                });
-                match identity.as_ref() {
-                    Some(identity) => self.db.execute_mutation_idempotent_guarded(
-                        plan,
-                        &input,
-                        identity,
-                        || prepared.effect_guard("idempotent mutation transaction"),
-                    )?,
-                    None => self.db.execute_mutation_guarded(
-                        plan,
-                        &input,
-                        || Ok(()),
-                        || prepared.effect_guard("mutation transaction"),
-                    )?,
+            let commit = match &function.runtime {
+                FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
+                | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
+                    crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
+                )) => {
+                    // Validate the exact dry-run result while all writes remain
+                    // provisional. Reuse its ctx ledger so generated ids/time are
+                    // identical when the guarded transaction executes.
+                    let preview = self.db.dry_run_mutation(plan, &input)?;
+                    crate::result_contract::validate_handler_result(
+                        &function,
+                        &preview.commit.output.result,
+                    )?;
+                    input.ctx_ledger = Some(CtxAnswerLedger {
+                        version: ctx_ledger_version(),
+                        ids: preview.generated_ids,
+                        now: preview.now_ms,
+                        auth_fingerprint: None,
+                    });
+                    match identity.as_ref() {
+                        Some(identity) => self.db.execute_mutation_idempotent_guarded(
+                            plan,
+                            &input,
+                            identity,
+                            || prepared.effect_guard("idempotent mutation transaction"),
+                        )?,
+                        None => self.db.execute_mutation_guarded(
+                            plan,
+                            &input,
+                            || Ok(()),
+                            || prepared.effect_guard("mutation transaction"),
+                        )?,
+                    }
                 }
-            }
-            FunctionRuntime::IbexModule(module) => {
+                FunctionRuntime::IbexModule(module) => {
                     let executed = crate::runtime::with_runtime_log_telemetry(
                         self.telemetry.clone(),
                         correlation.clone(),
                         || {
                             crate::runtime::execute_ibex_mutation_prepared(
-                    module,
-                    input.clone(),
-                    &prepared,
-                    DbRead::Live(&self.db),
-                    Some(&self.warm_vms),
-                    None,
+                                module,
+                                input.clone(),
+                                &prepared,
+                                DbRead::Live(&self.db),
+                                Some(&self.warm_vms),
+                                None,
                             )
                         },
-                )?;
-                crate::result_contract::validate_handler_result(&function, &executed.result)?;
-                let membership_plans = self
-                    .db
-                    .authorize_membership_commands(executed.membership_commands)?;
-                let producer_mutation_id = receipt_mutation_id
-                    .map(ToOwned::to_owned)
-                    .or_else(|| identity.as_ref().map(|identity| identity.id.clone()))
+                    )?;
+                    crate::result_contract::validate_handler_result(&function, &executed.result)?;
+                    let membership_plans = self
+                        .db
+                        .authorize_membership_commands(executed.membership_commands)?;
+                    let producer_mutation_id = receipt_mutation_id
+                        .map(ToOwned::to_owned)
+                        .or_else(|| identity.as_ref().map(|identity| identity.id.clone()))
                         .unwrap_or_else(|| {
                             crate::ids::mint_time_ordered(crate::ids::Kind::Mutation)
                         });
-                let (job_enqueues, job_producer) = admit_job_enqueues(
-                    &self.functions,
-                    executed.job_enqueues,
-                    &producer_mutation_id,
-                    name,
-                    input.auth.user_id.clone(),
-                )?;
-                self.db.commit_buffered_writes_idempotent_guarded(
-                    &input,
-                    BufferedCommitPayload {
-                        writes: executed.writes,
-                        sequence_allocations: executed.sequence_allocations,
-                        membership_plans,
-                        read_dependencies: executed.reads,
-                        result: executed.result,
-                        ctx_ledger: executed.ctx_ledger,
-                        job_enqueues,
-                        job_producer,
-                        asset_admissions: executed.asset_admissions,
-                    },
-                    identity.as_ref(),
-                    || Ok(()),
-                    || prepared.effect_guard("ibex mutation transaction"),
-                )?
-            }
-            _ => {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_FUNCTION_KIND_MISMATCH",
-                    "runtime",
-                    format!("{name} is not a mutation"),
-                ));
-            }
-        };
+                    let (job_enqueues, job_producer) = admit_job_enqueues(
+                        &self.functions,
+                        executed.job_enqueues,
+                        &producer_mutation_id,
+                        name,
+                        input.auth.user_id.clone(),
+                    )?;
+                    self.db.commit_buffered_writes_idempotent_guarded(
+                        &input,
+                        BufferedCommitPayload {
+                            writes: executed.writes,
+                            sequence_allocations: executed.sequence_allocations,
+                            membership_plans,
+                            read_dependencies: executed.reads,
+                            result: executed.result,
+                            ctx_ledger: executed.ctx_ledger,
+                            job_enqueues,
+                            job_producer,
+                            asset_admissions: executed.asset_admissions,
+                        },
+                        identity.as_ref(),
+                        || Ok(()),
+                        || prepared.effect_guard("ibex mutation transaction"),
+                    )?
+                }
+                _ => {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                        "runtime",
+                        format!("{name} is not a mutation"),
+                    ));
+                }
+            };
 
-        self.finish_mutation_commit(epoch_scopes, commit, &admission)
+            self.finish_mutation_commit(epoch_scopes, commit, &admission)
         })();
         finish_function_observation(span, &result);
         result
@@ -12738,22 +12731,19 @@ impl LocalSnapback {
             correlation.as_deref(),
             None,
         );
-        let result = crate::runtime::with_runtime_log_telemetry(
-            self.telemetry.clone(),
-            correlation,
-            || {
-        let commit = self
-            .db
-            .execute_mutation_guarded(plan, &input, check_live, || {
-                let admission_guard = prepared
-                    .admission_lease()
-                    .effect_guard("nested host-plan transaction")?;
-                let caller_guard = before_commit()?;
-                Ok((admission_guard, caller_guard))
-            })?;
-        self.finish_mutation_commit(epoch_scopes, commit, prepared.admission_lease())
-            },
-        );
+        let result =
+            crate::runtime::with_runtime_log_telemetry(self.telemetry.clone(), correlation, || {
+                let commit = self
+                    .db
+                    .execute_mutation_guarded(plan, &input, check_live, || {
+                        let admission_guard = prepared
+                            .admission_lease()
+                            .effect_guard("nested host-plan transaction")?;
+                        let caller_guard = before_commit()?;
+                        Ok((admission_guard, caller_guard))
+                    })?;
+                self.finish_mutation_commit(epoch_scopes, commit, prepared.admission_lease())
+            });
         finish_function_observation(span, &result);
         result
     }
@@ -14506,22 +14496,22 @@ impl LocalSnapback {
                 self.telemetry.clone(),
                 correlation,
                 || {
-            execute_query_invocation(
-                &function,
-                name,
-                DbRead::Live(&self.db),
-                &self.permission_epochs,
-                subscription_input.clone(),
-                &prepared_invocation,
-                Some(&self.warm_vms),
-                Some(RelationalCursorAuthority {
-                    app_id: &self.functions.app_id,
-                    keyring: &self.resume_keyring,
-                    schema_hash: self.db.schema().schema_hash.as_deref(),
-                    function_bundle_hash: self.functions.bundle_hash.as_deref(),
-                    function_publication_generation: self.app_generation,
-                    target_profile: self.db.schema().target_profile.as_deref(),
-                }),
+                    execute_query_invocation(
+                        &function,
+                        name,
+                        DbRead::Live(&self.db),
+                        &self.permission_epochs,
+                        subscription_input.clone(),
+                        &prepared_invocation,
+                        Some(&self.warm_vms),
+                        Some(RelationalCursorAuthority {
+                            app_id: &self.functions.app_id,
+                            keyring: &self.resume_keyring,
+                            schema_hash: self.db.schema().schema_hash.as_deref(),
+                            function_bundle_hash: self.functions.bundle_hash.as_deref(),
+                            function_publication_generation: self.app_generation,
+                            target_profile: self.db.schema().target_profile.as_deref(),
+                        }),
                     )
                 },
             );
@@ -17732,17 +17722,16 @@ impl LocalSnapback {
         let mut admissions = vec![first_admission];
         for _ in 1..claims.len() {
             #[cfg(test)]
-            let next_admission = if FAIL_NEXT_ADDITIONAL_JOB_ADMISSION
-                .with(|fail| fail.replace(false))
-            {
-                Err(SnapbackError::error(
-                    "SNAPBACK_AUTH_MODE_PENDING",
-                    "auth",
-                    "closed partial-claim admission fixture",
-                ))
-            } else {
-                self.admission.admit()
-            };
+            let next_admission =
+                if FAIL_NEXT_ADDITIONAL_JOB_ADMISSION.with(|fail| fail.replace(false)) {
+                    Err(SnapbackError::error(
+                        "SNAPBACK_AUTH_MODE_PENDING",
+                        "auth",
+                        "closed partial-claim admission fixture",
+                    ))
+                } else {
+                    self.admission.admit()
+                };
             #[cfg(not(test))]
             let next_admission = self.admission.admit();
             match next_admission {
@@ -18745,72 +18734,72 @@ impl LocalSnapback {
         rehearsal: Option<&crate::migration::MigrationRehearsalPlanV1>,
     ) -> SnapbackResult<crate::storage::migration_executor::MigrationReceiptV1> {
         let result = (|| {
-        // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
-        //   publication fires LLP 0053's activation obligations for
-        //   auth-scoped state: every auth-scoped subscription gets a durable
-        //   Delete obligation with the publication witness, a terminal
-        //   resolution with acknowledgement semantics, and an authenticated
-        //   scope retirement (see retire_live_subscriptions_for_publication).
-        //   The only refusal left here is the inconsistent state where
-        //   auth-scoped subscriptions exist without installed invalidation —
-        //   no durable disposition could be recorded, so publishing would
-        //   silently substitute a resync for 0053's machinery.
-        if self.auth_invalidation.is_none()
-            && self
-                .subscriptions
-                .values()
-                .any(|subscription| subscription.authorization.is_some())
-        {
-            return Err(SnapbackError::error(
-                "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED",
-                "storage",
-                "migration publication found auth-scoped subscriptions without installed \
+            // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
+            //   publication fires LLP 0053's activation obligations for
+            //   auth-scoped state: every auth-scoped subscription gets a durable
+            //   Delete obligation with the publication witness, a terminal
+            //   resolution with acknowledgement semantics, and an authenticated
+            //   scope retirement (see retire_live_subscriptions_for_publication).
+            //   The only refusal left here is the inconsistent state where
+            //   auth-scoped subscriptions exist without installed invalidation —
+            //   no durable disposition could be recorded, so publishing would
+            //   silently substitute a resync for 0053's machinery.
+            if self.auth_invalidation.is_none()
+                && self
+                    .subscriptions
+                    .values()
+                    .any(|subscription| subscription.authorization.is_some())
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_MIGRATION_PROFILE_UNSUPPORTED",
+                    "storage",
+                    "migration publication found auth-scoped subscriptions without installed \
                  authorization-invalidation state; no durable disposition can be recorded",
-            ));
-        }
-        // @ref LLP 0081#4-execution-journaling-and-crash-recovery — what
-        //   publishes with the storage is the staged generated-function and
-        //   schema identity set. On the local profile the serving manifest
-        //   is that staged set, so publication refuses when it does not
-        //   bind against the successor schema — a released database whose
-        //   functions reference retired shape is exactly the ambiguity the
-        //   receipt exists to prevent.
-        if self.functions_loaded
-            && let Err(error) =
-                validate_function_schema_references(&self.functions, successor_schema)
-        {
-            // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
-            //   posture is proven from generated function/schema facts,
-            //   never inferred: a dual-compatible or predeploy-compatible
-            //   declaration claims the installed predecessor artifact
-            //   remains valid against the successor schema, so a failed
-            //   binding proof refuses the declared ordering by name.
-            let message = match artifact.body.compatibility_posture {
-                crate::migration::CompatibilityPosture::SuccessorOnly => format!(
-                    "the staged function set does not bind against the successor schema; \
+                ));
+            }
+            // @ref LLP 0081#4-execution-journaling-and-crash-recovery — what
+            //   publishes with the storage is the staged generated-function and
+            //   schema identity set. On the local profile the serving manifest
+            //   is that staged set, so publication refuses when it does not
+            //   bind against the successor schema — a released database whose
+            //   functions reference retired shape is exactly the ambiguity the
+            //   receipt exists to prevent.
+            if self.functions_loaded
+                && let Err(error) =
+                    validate_function_schema_references(&self.functions, successor_schema)
+            {
+                // @ref LLP 0081#6-compatibility-and-deployment-ordering — the
+                //   posture is proven from generated function/schema facts,
+                //   never inferred: a dual-compatible or predeploy-compatible
+                //   declaration claims the installed predecessor artifact
+                //   remains valid against the successor schema, so a failed
+                //   binding proof refuses the declared ordering by name.
+                let message = match artifact.body.compatibility_posture {
+                    crate::migration::CompatibilityPosture::SuccessorOnly => format!(
+                        "the staged function set does not bind against the successor schema; \
                      stage a successor-compatible pair before publishing ({})",
-                    error.diagnostic.message
-                ),
-                crate::migration::CompatibilityPosture::DualCompatible => format!(
-                    "the declared dual-compatible ordering is unproven: the installed \
+                        error.diagnostic.message
+                    ),
+                    crate::migration::CompatibilityPosture::DualCompatible => format!(
+                        "the declared dual-compatible ordering is unproven: the installed \
                      predecessor artifact does not remain valid against the successor \
                      schema ({})",
-                    error.diagnostic.message
-                ),
-                crate::migration::CompatibilityPosture::PredeployCompatible => format!(
-                    "the declared predeploy-compatible ordering is unproven: the \
+                        error.diagnostic.message
+                    ),
+                    crate::migration::CompatibilityPosture::PredeployCompatible => format!(
+                        "the declared predeploy-compatible ordering is unproven: the \
                      predecessor artifact's reads and writes do not remain valid against \
                      the successor schema ({})",
-                    error.diagnostic.message
-                ),
-            };
-            return Err(SnapbackError::error(
-                "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
-                "storage",
-                message,
-            ));
-        }
-        let audience = self.migrate_resolved_audience()?;
+                        error.diagnostic.message
+                    ),
+                };
+                return Err(SnapbackError::error(
+                    "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
+                    "storage",
+                    message,
+                ));
+            }
+            let audience = self.migrate_resolved_audience()?;
             let receipt = self.db.migrate_apply(
                 crate::storage::migration_executor::MigrationApplyRequest {
                     artifact,
@@ -18821,14 +18810,14 @@ impl LocalSnapback {
                     rehearsal,
                 },
             )?;
-        // The successor is authoritative: refresh every schema projection
-        // the serving process holds, then retire every retained live
-        // subscription with a clear-retained resync — no predecessor
-        // result, retained row, or pre-publication cursor survives the
-        // raised floor.
-        self.refresh_read_manifests();
-        self.retire_live_subscriptions_for_publication()?;
-        Ok(receipt)
+            // The successor is authoritative: refresh every schema projection
+            // the serving process holds, then retire every retained live
+            // subscription with a clear-retained resync — no predecessor
+            // result, retained row, or pre-publication cursor survives the
+            // raised floor.
+            self.refresh_read_manifests();
+            self.retire_live_subscriptions_for_publication()?;
+            Ok(receipt)
         })();
         let (name, status, code, priority) = match &result {
             Ok(_) => (
@@ -18863,17 +18852,16 @@ impl LocalSnapback {
         artifact: &crate::migration::MigrationPlanArtifactV1,
         approval: &crate::migration::MigrationApprovalV1,
     ) -> SnapbackResult<crate::storage::migration_executor::MigrationRollbackReceiptV1> {
-        let result: SnapbackResult<
-            crate::storage::migration_executor::MigrationRollbackReceiptV1,
-        > = (|| {
-        let audience = self.migrate_resolved_audience()?;
-        let receipt = self
-            .db
-            .migrate_rollback(artifact, approval, &audience, now_millis())?;
-        // The republished predecessor is authoritative again.
-        self.refresh_read_manifests();
-        Ok(receipt)
-        })();
+        let result: SnapbackResult<crate::storage::migration_executor::MigrationRollbackReceiptV1> =
+            (|| {
+                let audience = self.migrate_resolved_audience()?;
+                let receipt =
+                    self.db
+                        .migrate_rollback(artifact, approval, &audience, now_millis())?;
+                // The republished predecessor is authoritative again.
+                self.refresh_read_manifests();
+                Ok(receipt)
+            })();
         let (name, status, code) = match &result {
             Ok(_) => ("migration_success", 200, None),
             Err(error) => (
@@ -19201,14 +19189,12 @@ impl LocalSnapback {
         };
         let input = prepared.canonicalize_input(input);
         let correlation = telemetry_correlation(&input.correlation);
-        let observation =
-            self.telemetry
-                .start_classified_span(
-                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_ACTION,
-                    name,
-                    correlation.as_deref(),
-                    None,
-                );
+        let observation = self.telemetry.start_classified_span(
+            crate::telemetry_contract::OperationClassIdV1::FUNCTION_ACTION,
+            name,
+            correlation.as_deref(),
+            None,
+        );
         Ok(ManagedHostPlanAction {
             plan: plan.clone(),
             input,
@@ -19294,50 +19280,46 @@ impl LocalSnapback {
         // external effect.
         crate::args_contract::validate_function_args(&function, &input.args)?;
         let correlation = telemetry_correlation(&input.correlation);
-        let span =
-            self.telemetry
-                .start_classified_span(
-                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_ACTION,
-                    name,
-                    correlation.as_deref(),
-                    None,
-                );
+        let span = self.telemetry.start_classified_span(
+            crate::telemetry_contract::OperationClassIdV1::FUNCTION_ACTION,
+            name,
+            correlation.as_deref(),
+            None,
+        );
         let invocation_redactor = self.config.secret_redactor_for(&function.uses);
         let telemetry = self.telemetry.clone();
-        let result =
-            crate::runtime::with_runtime_log_telemetry(telemetry, correlation, || {
-                match (&function.kind, &function.runtime) {
-                    (
-                        FunctionKind::Action,
-                        FunctionRuntime::HostPlan(HandlerPlan::Action(plan)),
-                    ) => self.invoke_action_plan(plan, input, metadata, &prepared),
-            (FunctionKind::Action, FunctionRuntime::IbexModule(module)) => {
-                let runtime = self.runtime.clone();
-                // @ref LLP 0036#runtime-exposure-d5-d8 — grants are computed
-                // per invocation from the function's `uses` declaration; the
-                // store is read through on every run (no caching), leaving VM
-                // reuse questions to the DK-4 machinery.
-                let grants = self.config_grants(&function);
-                // One provenance root: runMutation (and the trait's unreachable
-                // raw-read defense) derives a reference from this *mut for one
-                // synchronous call, so no borrow outlives a later write.
-                let snapback = self as *mut LocalSnapback;
-                let mut host = LocalIbexActionHost {
-                    snapback,
-                    authority: prepared.authority().clone(),
-                    _marker: PhantomData,
-                };
-                runtime.invoke_ibex_action_prepared(
-                    module, input, &prepared, metadata, &mut host, grants, None,
-                )
-            }
-            _ => Err(SnapbackError::error(
-                "SNAPBACK_FUNCTION_KIND_MISMATCH",
-                "runtime",
-                format!("{name} is not an action"),
-            )),
+        let result = crate::runtime::with_runtime_log_telemetry(telemetry, correlation, || {
+            match (&function.kind, &function.runtime) {
+                (FunctionKind::Action, FunctionRuntime::HostPlan(HandlerPlan::Action(plan))) => {
+                    self.invoke_action_plan(plan, input, metadata, &prepared)
                 }
-            });
+                (FunctionKind::Action, FunctionRuntime::IbexModule(module)) => {
+                    let runtime = self.runtime.clone();
+                    // @ref LLP 0036#runtime-exposure-d5-d8 — grants are computed
+                    // per invocation from the function's `uses` declaration; the
+                    // store is read through on every run (no caching), leaving VM
+                    // reuse questions to the DK-4 machinery.
+                    let grants = self.config_grants(&function);
+                    // One provenance root: runMutation (and the trait's unreachable
+                    // raw-read defense) derives a reference from this *mut for one
+                    // synchronous call, so no borrow outlives a later write.
+                    let snapback = self as *mut LocalSnapback;
+                    let mut host = LocalIbexActionHost {
+                        snapback,
+                        authority: prepared.authority().clone(),
+                        _marker: PhantomData,
+                    };
+                    runtime.invoke_ibex_action_prepared(
+                        module, input, &prepared, metadata, &mut host, grants, None,
+                    )
+                }
+                _ => Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                    "runtime",
+                    format!("{name} is not an action"),
+                )),
+            }
+        });
         let result = result.map_err(|error| {
             // In-lock actions cannot race config rotation, but scrub at the
             // creation boundary so no public envelope observes raw secret
@@ -21768,57 +21750,52 @@ impl ReadLane {
         let prepared = InvocationGate::prepare_function(authority, function)?;
         let input = prepared.canonicalize_input(input);
         let correlation = telemetry_correlation(&input.correlation);
-        let span =
-            self.telemetry
-                .start_classified_span(
-                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_QUERY,
-                    name,
-                    correlation.as_deref(),
-                    None,
-                );
+        let span = self.telemetry.start_classified_span(
+            crate::telemetry_contract::OperationClassIdV1::FUNCTION_QUERY,
+            name,
+            correlation.as_deref(),
+            None,
+        );
         let result = (|| {
-        let reader = pool.checkout()?;
-        let tx = reader.conn().unchecked_transaction()?;
-        // Pin the WAL snapshot now (the first read fixes it), before any
-        // handler work, so rows, captured read versions, and the reported
-        // version all come from this snapshot.
-        crate::storage::current_version_on(&tx)?;
+            let reader = pool.checkout()?;
+            let tx = reader.conn().unchecked_transaction()?;
+            // Pin the WAL snapshot now (the first read fixes it), before any
+            // handler work, so rows, captured read versions, and the reported
+            // version all come from this snapshot.
+            crate::storage::current_version_on(&tx)?;
             let invocation = crate::runtime::with_runtime_log_telemetry(
                 self.telemetry.clone(),
                 correlation,
                 || {
                     execute_query_invocation(
-            function,
-            name,
-            DbRead::Pinned {
-                conn: &tx,
-                schema: &manifests.schema,
-            },
-            epochs.as_ref(),
-            input,
-            &prepared,
-            Some(&self.warm_vms),
-            Some(RelationalCursorAuthority {
-                app_id: &manifests.functions.app_id,
-                keyring: &self.resume_keyring,
-                schema_hash: manifests.schema.schema_hash.as_deref(),
-                function_bundle_hash: manifests.functions.bundle_hash.as_deref(),
-                function_publication_generation: manifests.app_generation,
-                target_profile: manifests.schema.target_profile.as_deref(),
-            }),
+                        function,
+                        name,
+                        DbRead::Pinned {
+                            conn: &tx,
+                            schema: &manifests.schema,
+                        },
+                        epochs.as_ref(),
+                        input,
+                        &prepared,
+                        Some(&self.warm_vms),
+                        Some(RelationalCursorAuthority {
+                            app_id: &manifests.functions.app_id,
+                            keyring: &self.resume_keyring,
+                            schema_hash: manifests.schema.schema_hash.as_deref(),
+                            function_bundle_hash: manifests.functions.bundle_hash.as_deref(),
+                            function_publication_generation: manifests.app_generation,
+                            target_profile: manifests.schema.target_profile.as_deref(),
+                        }),
                     )
                 },
-        )?;
-        Ok(invocation.output)
+            )?;
+            Ok(invocation.output)
         })();
         finish_function_observation(span, &result);
         let output = result?;
         facts_authority.validate_admission("query generation facts")?;
-        let facts = invocation_facts_from_manifests(
-            facts_mode,
-            &manifests.schema,
-            &manifests.functions,
-        )?;
+        let facts =
+            invocation_facts_from_manifests(facts_mode, &manifests.schema, &manifests.functions)?;
         Ok((output, facts))
     }
 
@@ -22501,58 +22478,59 @@ fn order_field_bounds_from_functions(
     schema: &SchemaManifest,
 ) -> SnapbackResult<BTreeMap<(String, String), u64>> {
     let mut bounds = BTreeMap::new();
-    let mut register =
-        |table_name: &str, order: &[crate::manifest::OrderExpr]| -> SnapbackResult<()> {
-            let table = schema.table(table_name).ok_or_else(|| {
+    let mut register = |table_name: &str,
+                        order: &[crate::manifest::OrderExpr]|
+     -> SnapbackResult<()> {
+        let table = schema.table(table_name).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                "runtime",
+                format!("order-field bound references unknown table {table_name}"),
+            )
+        })?;
+        for declaration in order {
+            let Some(max_encoded_bytes) = declaration.max_encoded_bytes else {
+                continue;
+            };
+            let field = table.field(&declaration.field).ok_or_else(|| {
                 SnapbackError::error(
                     "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
                     "runtime",
-                    format!("order-field bound references unknown table {table_name}"),
+                    format!(
+                        "order-field bound references unknown field {table_name}.{}",
+                        declaration.field
+                    ),
                 )
             })?;
-            for declaration in order {
-                let Some(max_encoded_bytes) = declaration.max_encoded_bytes else {
-                    continue;
-                };
-                let field = table.field(&declaration.field).ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
-                        "runtime",
-                        format!(
-                            "order-field bound references unknown field {table_name}.{}",
-                            declaration.field
-                        ),
-                    )
-                })?;
-                if max_encoded_bytes == 0
-                    || max_encoded_bytes > 9_007_199_254_740_991
-                    || field.field_type != crate::manifest::FieldType::String
-                {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
-                        "runtime",
-                        format!(
-                            "order-field maxEncodedBytes requires a positive bound on string field {table_name}.{}",
-                            declaration.field
-                        ),
-                    ));
-                }
-                let key = (table_name.to_owned(), declaration.field.clone());
-                if let Some(previous) = bounds.insert(key.clone(), max_encoded_bytes)
-                    && previous != max_encoded_bytes
-                {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
-                        "runtime",
-                        format!(
-                            "order-field bound for {}.{} conflicts: {previous} versus {max_encoded_bytes}",
-                            key.0, key.1
-                        ),
-                    ));
-                }
+            if max_encoded_bytes == 0
+                || max_encoded_bytes > 9_007_199_254_740_991
+                || field.field_type != crate::manifest::FieldType::String
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                    "runtime",
+                    format!(
+                        "order-field maxEncodedBytes requires a positive bound on string field {table_name}.{}",
+                        declaration.field
+                    ),
+                ));
             }
-            Ok(())
-        };
+            let key = (table_name.to_owned(), declaration.field.clone());
+            if let Some(previous) = bounds.insert(key.clone(), max_encoded_bytes)
+                && previous != max_encoded_bytes
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                    "runtime",
+                    format!(
+                        "order-field bound for {}.{} conflicts: {previous} versus {max_encoded_bytes}",
+                        key.0, key.1
+                    ),
+                ));
+            }
+        }
+        Ok(())
+    };
 
     for function in &manifest.functions {
         match &function.runtime {
@@ -22701,10 +22679,8 @@ fn validate_function_schema_references(
                     ),
                 ));
             }
-            if let crate::manifest::SequenceScopeAccess::Membership {
-                declaration,
-                roles,
-            } = &sequence.scope_access
+            if let crate::manifest::SequenceScopeAccess::Membership { declaration, roles } =
+                &sequence.scope_access
             {
                 let Some((membership_table, membership)) =
                     crate::membership_rules::find_declaration(schema, declaration)
@@ -22718,9 +22694,10 @@ fn validate_function_schema_references(
                         ),
                     ));
                 };
-                let resource_field = membership.resource.as_ref().and_then(|name| {
-                    membership_table.field(name)
-                });
+                let resource_field = membership
+                    .resource
+                    .as_ref()
+                    .and_then(|name| membership_table.field(name));
                 let resource_matches = matches!(
                     resource_field.map(|field| &field.field_type),
                     Some(crate::manifest::FieldType::Id { table })
@@ -22794,6 +22771,24 @@ fn validate_function_schema_references(
                             ),
                         ));
                     }
+                }
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(plan)) => {
+                crate::manifest::validate_vector_query_plan_shape(plan)?;
+                let declared = table(&plan.table)?;
+                if !declared
+                    .vector_indexes
+                    .iter()
+                    .any(|candidate| candidate.name == plan.index)
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_VECTOR_INDEX_UNAVAILABLE",
+                        "vector",
+                        format!(
+                            "vector query {} references unknown vector index {}.{}",
+                            function.name, plan.table, plan.index
+                        ),
+                    ));
                 }
             }
             // @ref LLP 0080#1-closed-relational-plan — activation validates
@@ -22892,15 +22887,15 @@ fn validate_function_schema_references(
                     });
                     let target = target.expect("manifest structural validation found the sink");
                     let declared = table(target)?.field(&declaration.field).ok_or_else(|| {
-                            SnapbackError::error(
-                                "SNAPBACK_BOUNDED_SKEW_DECLARATION_INVALID",
-                                "runtime",
-                                format!(
-                                    "function {} boundedSkew names unknown field {target}.{}",
-                                    function.name, declaration.field
-                                ),
-                            )
-                        })?;
+                        SnapbackError::error(
+                            "SNAPBACK_BOUNDED_SKEW_DECLARATION_INVALID",
+                            "runtime",
+                            format!(
+                                "function {} boundedSkew names unknown field {target}.{}",
+                                function.name, declaration.field
+                            ),
+                        )
+                    })?;
                     if declared.field_type != crate::manifest::FieldType::Integer {
                         return Err(SnapbackError::error(
                             "SNAPBACK_BOUNDED_SKEW_DECLARATION_INVALID",
@@ -23090,7 +23085,9 @@ fn validate_function_schema_references(
                                         // admission, not shape, is what
                                         // protects the field (LLP 0044).
                                         FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
-                                        FieldType::Json | FieldType::RelationIncarnation { .. } => {
+                                        FieldType::Json
+                                        | FieldType::Vector { .. }
+                                        | FieldType::RelationIncarnation { .. } => {
                                             unreachable!("non-portable projections refused above")
                                         }
                                     };
@@ -24352,6 +24349,43 @@ fn execute_query_invocation(
                 read_dependencies,
             })
         }
+        (FunctionKind::Query, FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(plan))) => {
+            // @ref LLP 0132#candidate-to-release-consistency — the resolved
+            // authority on HandlerInput chooses the owner partition; authored
+            // arguments can never provide a partition identity.
+            let output = db.vector_search(plan, &input)?;
+            let mut read_dependencies = vec![CapturedReadDependency {
+                kind: CapturedReadKind::Query,
+                table: Some(plan.table.clone()),
+                id: None,
+                version: Some(output.version),
+                predicate: None,
+                rows: output
+                    .rows
+                    .iter()
+                    .filter_map(|row| {
+                        row.get("rowId")
+                            .and_then(Value::as_str)
+                            .map(ToOwned::to_owned)
+                    })
+                    .collect(),
+                field: None,
+                value: None,
+                order: Some(json!(crate::vector::types::VECTOR_ORDERING_PROFILE)),
+                limit: input
+                    .args
+                    .get("k")
+                    .and_then(Value::as_u64)
+                    .map(|value| value as usize),
+                result_count: Some(output.rows.len()),
+                boundary: None,
+            }];
+            add_permission_dependencies_with(permission_epochs, &input, &mut read_dependencies);
+            Ok(QueryInvocation {
+                output,
+                read_dependencies,
+            })
+        }
         (
             FunctionKind::Query | FunctionKind::LiveQuery,
             FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
@@ -24936,6 +24970,9 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
             (vec![plan.table.clone()], Vec::new())
         }
         FunctionRuntime::HostPlan(HandlerPlan::SearchQuery(plan)) => {
+            (vec![plan.table.clone()], Vec::new())
+        }
+        FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(plan)) => {
             (vec![plan.table.clone()], Vec::new())
         }
         FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(_)) => {
@@ -25728,13 +25765,13 @@ mod tests {
         BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation, DetachedMutationRead,
         DiagnosticBoundary, EnsureAppMode, FAIL_NEXT_ADDITIONAL_JOB_ADMISSION,
         FAIL_NEXT_LIVE_SCOPE_REGISTRATION, FAIL_NEXT_SCOPE_RETIREMENT_AUTH,
-        INJECT_NEXT_PUBLICATION_WARNING,
-        LiveInvalidationAdmission, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput,
-        LocalSnapback, MAX_LIVE_SUBSCRIPTIONS, MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION,
-        MY_MEMBERSHIPS_LIVE_FUNCTION, MaintenanceOperation, PublicInspect, RetryEpisodeKey,
-        RetryReservationKind, SnapbackError, SnapbackResult, StagedMutationExecution,
-        StagedNestedMutation, StagedRecordedMutation, next_secret_read_reset_generation,
-        now_millis, refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
+        INJECT_NEXT_PUBLICATION_WARNING, LiveInvalidationAdmission, LiveResumeInput,
+        LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
+        MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MY_MEMBERSHIPS_LIVE_FUNCTION, MaintenanceOperation,
+        PublicInspect, RetryEpisodeKey, RetryReservationKind, SnapbackError, SnapbackResult,
+        StagedMutationExecution, StagedNestedMutation, StagedRecordedMutation,
+        next_secret_read_reset_generation, now_millis,
+        refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
         settlement_id_map, telemetry_correlation, validate_bounded_children_schema_plan,
         validate_function_schema_references,
     };
@@ -25759,13 +25796,13 @@ mod tests {
         BoundedSkewDeclaration, ConfigEntryDefinition, CronActivationPolicy, CronJitterPolicy,
         CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule,
         CtxAnswerLedger, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition,
-        FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
-        IndexManifest, MembershipManifest, MembershipPredicate, MembershipResourceRef,
-        MembershipScope, MutationOutput, MutationPlan, MutationSettlement, MutationStep,
-        PermissionScopeExpr, QueryPlan, ResultObjectFieldContract, ResultValueContract,
-        ReturnValue, SchemaManifest, SeedData, SettlementClaimSet, SettlementIdentityClaims,
-        SettlementLane, SettlementMintClaim, SettlementMintObservation, TableManifest, ValueExpr,
-        FunctionResultContract, ctx_ledger_version,
+        FunctionKind, FunctionManifest, FunctionResultContract, FunctionRuntime, HandlerInput,
+        HandlerPlan, IbexModule, IndexManifest, MembershipManifest, MembershipPredicate,
+        MembershipResourceRef, MembershipScope, MutationOutput, MutationPlan, MutationSettlement,
+        MutationStep, PermissionScopeExpr, QueryPlan, ResultObjectFieldContract,
+        ResultValueContract, ReturnValue, SchemaManifest, SeedData, SettlementClaimSet,
+        SettlementIdentityClaims, SettlementLane, SettlementMintClaim, SettlementMintObservation,
+        TableManifest, ValueExpr, ctx_ledger_version,
     };
     use crate::runtime::ExecutedIbexMutation;
     use crate::search::types::{
@@ -25844,6 +25881,7 @@ mod tests {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: Some(MembershipManifest {
                     id: None,
                     principal: "userId".to_owned(),
@@ -25903,6 +25941,7 @@ mod tests {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         };
@@ -25932,6 +25971,7 @@ mod tests {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: Some(MembershipManifest {
                 id: Some("event_members".to_owned()),
                 principal: "userId".to_owned(),
@@ -26038,6 +26078,7 @@ mod tests {
                 ],
                 indexes: Vec::new(),
                 search_indexes: vec![search],
+                vector_indexes: Vec::new(),
                 syncable: false,
                 permission_backing: false,
                 permission_fields: None,
@@ -27186,6 +27227,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: sharing,
             }
@@ -27730,6 +27772,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         };
@@ -28550,6 +28593,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -28565,6 +28609,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -28594,6 +28639,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: Some(crate::manifest::MembershipManifest {
                         id: Some("channelSeats".to_owned()),
                         principal: "userId".to_owned(),
@@ -30071,6 +30117,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -32227,6 +32274,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -32298,6 +32346,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         }];
@@ -32756,6 +32805,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -32917,21 +32967,20 @@ globalThis.__snapbackHandlers = {
         let rollback_error = snapback
             .migrate_rollback_artifact(&artifact, &fresh)
             .expect_err("a released artifact refuses fast rollback");
-        snapback.telemetry.force_flush().expect("flush migration lifecycle");
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("flush migration lifecycle");
         assert_eq!(
-            snapback.telemetry.event_outcomes_for_test(
-                "lifecycle",
-                "migration_success",
-                "point"
-            ),
+            snapback
+                .telemetry
+                .event_outcomes_for_test("lifecycle", "migration_success", "point"),
             vec![(Some(200), None)]
         );
         assert_eq!(
-            snapback.telemetry.event_outcomes_for_test(
-                "lifecycle",
-                "migration_failure",
-                "point"
-            ),
+            snapback
+                .telemetry
+                .event_outcomes_for_test("lifecycle", "migration_failure", "point"),
             vec![
                 (
                     Some(500),
@@ -32956,11 +33005,7 @@ globalThis.__snapbackHandlers = {
         let rollback_approval = approve(&mut rollback_snapback, &artifact);
         crate::storage::migration_executor::arm_migration_kill_point("released", 0);
         let published_held = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            rollback_snapback.migrate_apply_artifact(
-                &artifact,
-                &rollback_approval,
-                &successor,
-            )
+            rollback_snapback.migrate_apply_artifact(&artifact, &rollback_approval, &successor)
         }));
         crate::storage::migration_executor::disarm_migration_kill_point();
         assert!(published_held.is_err(), "fixture stops at published-held");
@@ -33021,6 +33066,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -33241,6 +33287,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -34734,6 +34781,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         });
@@ -34918,9 +34966,8 @@ globalThis.__snapbackHandlers = {
     fn failed_cron_keeps_attached_diagnostic_without_standalone_duplicate() {
         let directory = tempfile::tempdir().expect("failed cron telemetry directory");
         let database_path = directory.path().join("failed-cron.sqlite3");
-        let mut snapback = install_cron_gate(
-            LocalSnapback::open(&database_path).expect("failed cron fixture"),
-        );
+        let mut snapback =
+            install_cron_gate(LocalSnapback::open(&database_path).expect("failed cron fixture"));
         let claim = snapback
             .claim_manual_cron_run("gatedCron", 10)
             .expect("claim failed cron fixture");
@@ -34942,13 +34989,14 @@ globalThis.__snapbackHandlers = {
                 .iter()
                 .any(|diagnostic| diagnostic.code == "SNAPBACK_CRON_TEST_FAILURE")
         );
-        snapback.telemetry.force_flush().expect("flush failed cron telemetry");
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("flush failed cron telemetry");
         assert_eq!(
-            snapback.telemetry.event_outcomes_for_test(
-                "job_run",
-                "gatedCron",
-                "joined"
-            ),
+            snapback
+                .telemetry
+                .event_outcomes_for_test("job_run", "gatedCron", "joined"),
             vec![(Some(500), Some("SNAPBACK_CRON_TEST_FAILURE".to_owned()))]
         );
         assert_eq!(
@@ -35214,6 +35262,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35233,6 +35282,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35362,6 +35412,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             },
@@ -35381,6 +35432,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             },
@@ -35440,6 +35492,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35459,6 +35512,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35726,6 +35780,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35745,6 +35800,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35892,6 +35948,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -35911,6 +35968,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -36124,6 +36182,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             };
@@ -37185,6 +37244,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             };
@@ -37970,6 +38030,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             };
@@ -38042,6 +38103,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: Some(MembershipManifest {
                         id: Some("roomSeats".to_owned()),
                         principal: "userId".to_owned(),
@@ -38966,6 +39028,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -39343,6 +39406,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         };
@@ -39768,6 +39832,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         }];
@@ -39784,6 +39849,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             });
@@ -40400,7 +40466,9 @@ globalThis.__snapbackHandlers = {
         assert_eq!(successor_meta.1, successor_app_id);
         assert_eq!(successor_meta.2, environment_id);
         let total: i64 = raw
-            .query_row("SELECT count(*) FROM telemetry_events", [], |row| row.get(0))
+            .query_row("SELECT count(*) FROM telemetry_events", [], |row| {
+                row.get(0)
+            })
             .unwrap();
         let visible: i64 = raw
             .query_row("SELECT count(*) FROM telemetry_events_visible", [], |row| {
@@ -40598,6 +40666,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -40620,6 +40689,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: Some(vec!["ownerId".to_owned()]),
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 },
@@ -41585,6 +41655,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -41889,6 +41960,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: Some(vec!["gameId".to_owned()]),
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -42026,8 +42098,8 @@ globalThis.__snapbackHandlers = {
         let diagnostics = snapback.load_functions(FunctionManifest::default());
         assert!(
             diagnostics.iter().all(|diagnostic| {
-                    diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
-                }),
+                diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+            }),
             "{diagnostics:?}"
         );
 
@@ -42211,6 +42283,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -42441,7 +42514,10 @@ globalThis.__snapbackHandlers = {
                 },
             )
             .expect("finish resumed successor");
-        snapback.telemetry.force_flush().expect("flush resume spans");
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("flush resume spans");
         let raw = rusqlite::Connection::open(crate::telemetry::Telemetry::path_for_database(
             &database_path,
         ))
@@ -43298,6 +43374,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -43404,6 +43481,7 @@ globalThis.__snapbackHandlers = {
                     permission_backing: true,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 }],
@@ -43632,6 +43710,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         };
@@ -43664,6 +43743,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         };
@@ -43695,6 +43775,7 @@ globalThis.__snapbackHandlers = {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         };
@@ -44669,6 +44750,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: true,
                 permission_fields: Some(vec!["ownerId".to_owned()]),
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -46491,6 +46573,7 @@ globalThis.__snapbackHandlers = {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             }],
@@ -46549,6 +46632,10 @@ globalThis.__snapbackHandlers = {
                     min: -f64::MAX,
                     max: f64::MAX,
                 },
+                FieldType::Vector { .. } => ResultValueContract::Json {
+                    max_depth: 1,
+                    max_bytes: 32 * 1024,
+                },
                 FieldType::Json => ResultValueContract::Json {
                     max_depth: 16,
                     max_bytes: 1024 * 1024,
@@ -46562,9 +46649,7 @@ globalThis.__snapbackHandlers = {
                 }
                 FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
             };
-            let value = if field.optional
-                && !matches!(value, ResultValueContract::Json { .. })
-            {
+            let value = if field.optional && !matches!(value, ResultValueContract::Json { .. }) {
                 ResultValueContract::Union {
                     variants: vec![ResultValueContract::Null, value],
                 }
@@ -46968,13 +47053,14 @@ globalThis.__snapbackHandlers = {
                 .any(|diagnostic| diagnostic.code == "SNAPBACK_JOB_TEST_FAILURE"),
             "the attached diagnostic remains in the bounded operator ring"
         );
-        snapback.telemetry.force_flush().expect("flush dead job telemetry");
+        snapback
+            .telemetry
+            .force_flush()
+            .expect("flush dead job telemetry");
         assert_eq!(
-            snapback.telemetry.event_outcomes_for_test(
-                "job_run",
-                "failOnce",
-                "joined"
-            ),
+            snapback
+                .telemetry
+                .event_outcomes_for_test("job_run", "failOnce", "joined"),
             vec![(Some(500), Some("SNAPBACK_JOB_TEST_FAILURE".to_owned()))]
         );
         assert_eq!(

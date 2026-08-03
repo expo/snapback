@@ -452,7 +452,7 @@ pub fn function_route_arg_types(
             FieldType::Integer => Some(RouteParamType::Integer),
             FieldType::Real => Some(RouteParamType::Number),
             FieldType::Boolean => Some(RouteParamType::Boolean),
-            FieldType::Json => None,
+            FieldType::Json | FieldType::Vector { .. } => None,
         };
         match types.get(name.as_str()) {
             None => {

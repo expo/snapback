@@ -3947,6 +3947,7 @@ mod tests {
             permission_backing: false,
             permission_fields: None,
             search_indexes: Vec::new(),
+            vector_indexes: Vec::new(),
             membership: None,
             asset_sharing: None,
         }

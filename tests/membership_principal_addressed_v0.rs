@@ -70,6 +70,7 @@ fn schema() -> SchemaManifest {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             },
@@ -92,6 +93,7 @@ fn schema() -> SchemaManifest {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: None,
                 asset_sharing: None,
             },
@@ -121,6 +123,7 @@ fn schema() -> SchemaManifest {
                 permission_backing: false,
                 permission_fields: None,
                 search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
                 membership: Some(MembershipManifest {
                     id: Some("roomMembers".to_owned()),
                     principal: "userId".to_owned(),
@@ -272,7 +275,10 @@ fn owner_removes_member_with_identical_null_and_branch_insensitive_companions() 
     let ghost = snapback
         .invoke_mutation(
             "ownerRemove",
-            input("alice", json!({ "roomId": room, "principal": "user_never_seen" })),
+            input(
+                "alice",
+                json!({ "roomId": room, "principal": "user_never_seen" }),
+            ),
         )
         .expect("nonexistent principal no-op");
     assert_eq!(ghost.result, Value::Null);
@@ -322,7 +328,10 @@ fn refusals_are_invariant_typed_and_closed_by_default() {
             input("dave", json!({ "roomId": room, "principal": "bob" })),
         )
         .expect_err("cross-room owner denied");
-    assert_eq!(cross.diagnostic.code, "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED");
+    assert_eq!(
+        cross.diagnostic.code,
+        "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
+    );
 
     // Self target is a typed misuse; self-removal remains removeSelf.
     let this_is_me = snapback

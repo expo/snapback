@@ -145,6 +145,11 @@ export interface ResultContractTable {
     storedFields?: readonly string[];
     [fact: string]: unknown;
   }>>;
+  readonly vectorIndexes?: ReadonlyArray<Readonly<{
+    name: string;
+    storedFields?: readonly string[];
+    [fact: string]: unknown;
+  }>>;
   readonly [fact: string]: unknown;
 }
 
@@ -169,6 +174,7 @@ export function effectiveResultContract(options: Readonly<{
     HostPlan?: Readonly<{
       Query?: Readonly<{ table?: string; [fact: string]: unknown }>;
       SearchQuery?: Readonly<{ table: string; index: string; [fact: string]: unknown }>;
+      VectorQuery?: Readonly<{ table: string; index: string; [fact: string]: unknown }>;
       Mutation?: Readonly<{
         return_value?: Readonly<{
           Document?: Readonly<{ table?: string; [fact: string]: unknown }>;
@@ -191,5 +197,10 @@ export function resultContractType(
 
 /** Renders the `SearchPageV1<...>` type for a search records contract. */
 export function searchPageResultType(
+  contract: ResultContractDescriptor | null | undefined,
+): string;
+
+/** Renders the `VectorPageV1<...>` type for a vector records contract. */
+export function vectorPageResultType(
   contract: ResultContractDescriptor | null | undefined,
 ): string;

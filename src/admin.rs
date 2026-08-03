@@ -229,10 +229,12 @@ pub(crate) fn operation_profile_requirement(
         // The asset operator surface is developer/operator tooling like the
         // direct runner; hosted production traffic uses the ordinary asset
         // routes.
-        "asset.put" | "asset.ensureSeedFixture" | "asset.inspect" | "asset.list"
-        | "asset.retry" | "asset.delete" => {
-            OperationProfileRequirement::NonProd
-        }
+        "asset.put"
+        | "asset.ensureSeedFixture"
+        | "asset.inspect"
+        | "asset.list"
+        | "asset.retry"
+        | "asset.delete" => OperationProfileRequirement::NonProd,
         // Frozen LLP 0039 deliberately excludes demo from the below-manifest
         // collision-recovery authority, on both ordinary and recovery servers.
         "auth.rescueCollidingTable" => OperationProfileRequirement::DevOrTest,
@@ -896,9 +898,7 @@ impl AppState {
                 ),
                 allow_insecure_dev_auth: false,
                 secret_reads,
-                telemetry_export_continuation_key: Arc::new(
-                    telemetry_export_continuation_key,
-                ),
+                telemetry_export_continuation_key: Arc::new(telemetry_export_continuation_key),
                 recent_invocations: crate::host_ops::RecentInvocationRing::default(),
                 secret_read_mint: None,
                 impersonation_capabilities: None,
@@ -3264,7 +3264,10 @@ mod tests {
         .unwrap();
         assert_eq!(host_stats["operation"], "telemetry.stats");
         assert_eq!(host_stats["ok"], true);
-        assert_eq!(host_stats["data"]["schemaVersion"], "snapback.telemetry.stats.v1");
+        assert_eq!(
+            host_stats["data"]["schemaVersion"],
+            "snapback.telemetry.stats.v1"
+        );
 
         let host_events_lease = operator
             .mint(SecretReadLeaseRequest {
@@ -3439,6 +3442,7 @@ mod tests {
                     permission_backing: false,
                     permission_fields: None,
                     search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
                     membership: None,
                     asset_sharing: None,
                 }],

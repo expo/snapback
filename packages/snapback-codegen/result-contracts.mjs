@@ -327,6 +327,13 @@ export function validatorResultValue(validator, {
     }
     else if (fieldType && typeof fieldType === 'object' && fieldType.Id) {
       value = scalar('id', { table: fieldType.Id.table });
+    } else if (fieldType && typeof fieldType === 'object' && fieldType.Vector) {
+      // The storage field is structurally fixed by the schema manifest; the
+      // shared LLP 0108 result vocabulary caps ordinary arrays at 1,024, while
+      // vector storage admits 4,096 dimensions. Preserve safe validation as a
+      // bounded JSON value here; VectorPageV1 never releases source vectors.
+      if (args) throw new TypeError('v.vector() is a schema validator, not an argument validator');
+      value = scalar('json', { maxDepth: 1, maxBytes: 32 * 1024 });
     } else if (fieldType === 'Json') {
       value = scalar('json', {
         maxDepth: options.maxDepth ?? RESULT_MAX_DEPTH,
@@ -494,6 +501,35 @@ function searchRowsValue(runtime, tables) {
   };
 }
 
+// @ref LLP 0132#query-surface — the runtime rows close over the
+// row id, finite distance, and exactly the declared stored projection.
+function vectorRowsValue(runtime, tables) {
+  const plan = runtime?.HostPlan?.VectorQuery;
+  if (!plan) return null;
+  const table = tables[plan.table];
+  if (!table) throw new TypeError(`vector result contract references unknown table ${plan.table}`);
+  const index = (table.vectorIndexes ?? []).find(({ name }) => name === plan.index);
+  if (!index) throw new TypeError(`vector result contract references unknown index ${plan.table}.${plan.index}`);
+  const sourceFields = new Map((table.fields ?? []).map((field) => [field.name, field]));
+  const storedFields = (index.storedFields ?? []).map((name) => {
+    const field = sourceFields.get(name);
+    if (!field) throw new TypeError(`vector result contract references unknown stored field ${plan.table}.${name}`);
+    return { name, required: true, value: tableFieldValue(field) };
+  });
+  return {
+    kind: 'records',
+    record: scalar('object', {
+      allowExtra: false,
+      fields: [
+        { name: 'rowId', required: true, value: scalar('id', { table: plan.table }) },
+        { name: 'distance', required: true, value: scalar('finiteReal', { min: -Number.MAX_VALUE, max: Number.MAX_VALUE }) },
+        { name: 'fields', required: true, value: scalar('object', { allowExtra: false, fields: storedFields }) },
+      ],
+    }),
+    rows: { minItems: 0, maxItems: 64 },
+  };
+}
+
 function authoredContract(spec, tables) {
   if (!spec) return null;
   if (spec.kind === 'documents') {
@@ -643,6 +679,9 @@ export function effectiveResultContract({
   if (functionKind === 'Query' && runtime?.HostPlan?.SearchQuery) {
     return validateEffectiveResultContract(searchRowsValue(runtime, tables));
   }
+  if (functionKind === 'Query' && runtime?.HostPlan?.VectorQuery) {
+    return validateEffectiveResultContract(vectorRowsValue(runtime, tables));
+  }
   if (
     (functionKind === 'Query' || functionKind === 'LiveQuery')
     && runtime?.HostPlan?.JobStatusQuery
@@ -684,6 +723,16 @@ export function searchPageResultType(contract) {
   const rowId = contract.record.fields.find(({ name }) => name === 'rowId')?.value;
   if (fields?.kind !== 'object' || rowId === undefined) return 'SearchPageV1';
   return `SearchPageV1<${resultValueType(fields)}, ${resultValueType(rowId)}>`;
+}
+
+export function vectorPageResultType(contract) {
+  if (contract?.kind !== 'records' || contract.record?.kind !== 'object') {
+    return 'VectorPageV1';
+  }
+  const fields = contract.record.fields.find(({ name }) => name === 'fields')?.value;
+  const rowId = contract.record.fields.find(({ name }) => name === 'rowId')?.value;
+  if (fields?.kind !== 'object' || rowId === undefined) return 'VectorPageV1';
+  return `VectorPageV1<${resultValueType(fields)}, ${resultValueType(rowId)}>`;
 }
 
 function resultValueType(value) {
