@@ -4,7 +4,6 @@
 // their bindings and applies the supplied store effects.
 
 import { compileResultContractValidator } from '@expo/snapback-contract/result-contract-validator';
-import { createPublicKey, verify as verifySignature } from 'node:crypto';
 
 import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
 import { refuseLocalEvaluation } from './evaluation-floor.mjs';
@@ -16,9 +15,7 @@ const fatalUtf8 = new TextDecoder('utf-8', { fatal: true });
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
 const QMK = /^qmk1\.[A-Za-z0-9_-]{43}$/u;
 const BASE64URL = /^[A-Za-z0-9_-]*$/u;
-const ED25519_SPKI_PREFIX = Uint8Array.from([
-  0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
-]);
+const BASE64URL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 
 const DEFAULT_MATERIALIZATION_LIMITS = Object.freeze({
   byteCeiling: 32 * 1024 * 1024,
@@ -112,19 +109,43 @@ function hashRecord(domain, value) {
 }
 
 function decodeBase64url(value, length, where) {
-  if (typeof value !== 'string' || !BASE64URL.test(value) || value.includes('=')) {
+  if (
+    typeof value !== 'string'
+    || !BASE64URL.test(value)
+    || value.includes('=')
+    || value.length % 4 === 1
+  ) {
     refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', `${where} is not canonical base64url`);
   }
-  let bytes;
-  try {
-    bytes = new Uint8Array(Buffer.from(value, 'base64url'));
-  } catch {
-    refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', `${where} is not base64url`);
+  const bytes = new Uint8Array(Math.floor(value.length * 6 / 8));
+  let accumulator = 0;
+  let bits = 0;
+  let offset = 0;
+  for (const character of value) {
+    const digit = BASE64URL_ALPHABET.indexOf(character);
+    if (digit < 0) refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', `${where} is not base64url`);
+    accumulator = (accumulator << 6) | digit;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      bytes[offset] = (accumulator >>> bits) & 0xff;
+      offset += 1;
+    }
   }
   if (bytes.length !== length || base64UrlNoPad(bytes) !== value) {
     refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', `${where} has the wrong byte length or spelling`);
   }
   return bytes;
+}
+
+function compareUtf8(left, right) {
+  const leftBytes = utf8.encode(left);
+  const rightBytes = utf8.encode(right);
+  const shared = Math.min(leftBytes.length, rightBytes.length);
+  for (let index = 0; index < shared; index += 1) {
+    if (leftBytes[index] !== rightBytes[index]) return leftBytes[index] - rightBytes[index];
+  }
+  return leftBytes.length - rightBytes.length;
 }
 
 function prepareAddress(address) {
@@ -416,7 +437,16 @@ function decodeRecord(value) {
     if (typeof fragment?.bytes !== 'string' || !fragment.bytes.startsWith('u8.')) return null;
     const spelling = fragment.bytes.slice(3);
     if (!BASE64URL.test(spelling)) return null;
-    const bytes = new Uint8Array(Buffer.from(spelling, 'base64url'));
+    let bytes;
+    try {
+      bytes = decodeBase64url(
+        spelling,
+        Math.floor(spelling.length * 6 / 8),
+        'fragment bytes',
+      );
+    } catch {
+      return null;
+    }
     if (base64UrlNoPad(bytes) !== spelling) return null;
     fragment.bytes = bytes;
   }
@@ -479,7 +509,7 @@ function prepareTrustedActivation(value) {
     boundedId(key.proofKeyId, `proofKeys.keys[${index}].proofKeyId`);
     if (key.algorithm !== 'Ed25519') refuse('SNAPBACK_COMPLETENESS_TRUST_INVALID', 'proof key algorithm is not Ed25519');
     decodeBase64url(key.publicKeyBase64url, 32, `proofKeys.keys[${index}].publicKeyBase64url`);
-    if (prior !== null && Buffer.compare(Buffer.from(prior), Buffer.from(key.proofKeyId)) >= 0) {
+    if (prior !== null && compareUtf8(prior, key.proofKeyId) >= 0) {
       refuse('SNAPBACK_COMPLETENESS_TRUST_INVALID', 'proof keys are not ascending and unique');
     }
     prior = key.proofKeyId;
@@ -516,6 +546,60 @@ function proofPreimage(proof) {
   return concat(utf8.encode('snapback:completeness-proof:v1:'), jcsBytes(unsigned));
 }
 
+function signatureReceiptId(rawKey, proof) {
+  return hex(sha256(concat(
+    utf8.encode('snapback:completeness-proof-signature-receipt:v1:'),
+    rawKey,
+    proofPreimage(proof),
+    decodeBase64url(proof.signature, 64, 'proof.signature'),
+  )));
+}
+
+async function verifySignatureCandidate(proofInput, trustedActivationInput) {
+  const proof = requireProof(proofInput);
+  const trusted = prepareTrustedActivation(trustedActivationInput);
+  const key = trusted.proofKeys.keys.find((candidate) => candidate.proofKeyId === proof.proofKeyId);
+  if (!key) return null;
+  const rawKey = decodeBase64url(key.publicKeyBase64url, 32, 'proof public key');
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) {
+    refuse(
+      'SNAPBACK_COMPLETENESS_CRYPTO_UNAVAILABLE',
+      'proof verification requires WebCrypto Ed25519 support',
+    );
+  }
+  let publicKey;
+  try {
+    publicKey = await subtle.importKey('raw', rawKey, 'Ed25519', false, ['verify']);
+  } catch {
+    refuse(
+      'SNAPBACK_COMPLETENESS_CRYPTO_UNAVAILABLE',
+      'proof verification requires WebCrypto Ed25519 support',
+    );
+  }
+  let verified;
+  try {
+    verified = await subtle.verify(
+      'Ed25519',
+      publicKey,
+      decodeBase64url(proof.signature, 64, 'proof.signature'),
+      proofPreimage(proof),
+    );
+  } catch {
+    verified = false;
+  }
+  return verified ? signatureReceiptId(rawKey, proof) : null;
+}
+
+async function verifySignatureCandidates(candidates) {
+  const receipts = new Set();
+  for (const { proof, trustedActivation } of candidates) {
+    const receipt = await verifySignatureCandidate(proof, trustedActivation);
+    if (receipt !== null) receipts.add(receipt);
+  }
+  return receipts;
+}
+
 function validateResultBytes(fragment, context) {
   if (fragment.resultContractHash !== context.resultContractHash) {
     refuse('SNAPBACK_COMPLETENESS_RESULT_INVALID', 'fragment result contract hash does not match the trusted plan');
@@ -541,7 +625,7 @@ function validateResultBytes(fragment, context) {
   return value;
 }
 
-function validateProof(record, fragment, suppliedProof, context) {
+function validateProof(record, fragment, suppliedProof, context, signatureReceipts) {
   const proof = requireProof(suppliedProof);
   const trusted = prepareTrustedActivation(context?.trustedActivation);
   const witness = prepareWitness(context?.authorizationWitness);
@@ -583,12 +667,7 @@ function validateProof(record, fragment, suppliedProof, context) {
   const key = trusted.proofKeys.keys.find((candidate) => candidate.proofKeyId === proof.proofKeyId);
   if (!key) refuse('SNAPBACK_COMPLETENESS_TRUST_MISSING', 'proof key is not in the trusted activation');
   const rawKey = decodeBase64url(key.publicKeyBase64url, 32, 'proof public key');
-  const publicKey = createPublicKey({
-    key: Buffer.from(concat(ED25519_SPKI_PREFIX, rawKey)),
-    format: 'der',
-    type: 'spki',
-  });
-  if (!verifySignature(null, Buffer.from(proofPreimage(proof)), publicKey, Buffer.from(decodeBase64url(proof.signature, 64, 'proof.signature')))) {
+  if (!signatureReceipts?.has(signatureReceiptId(rawKey, proof))) {
     refuse('SNAPBACK_COMPLETENESS_SIGNATURE_INVALID', 'proof signature is invalid');
   }
   return proof;
@@ -877,7 +956,7 @@ function requireContext(resolveValidationContext, address, record, phase) {
   return context;
 }
 
-function validatePageSet(record, manifest, context) {
+function validatePageSet(record, manifest, context, signatureReceipts) {
   const fragments = new Map(record.fragments.map((fragment) => [
     completenessProofDigestV1(fragment.proof), fragment,
   ]));
@@ -885,7 +964,9 @@ function validatePageSet(record, manifest, context) {
   if (ordered.some((entry) => entry === undefined)) {
     refuse('SNAPBACK_PAGE_SET_INVALID', 'page set references an absent fragment proof');
   }
-  for (const fragment of ordered) validateProof(record, fragment, fragment.proof, context);
+  for (const fragment of ordered) {
+    validateProof(record, fragment, fragment.proof, context, signatureReceipts);
+  }
   const proofs = ordered.map((fragment) => fragment.proof);
   const first = proofs[0];
   const shared = {
@@ -965,7 +1046,14 @@ function witnessFailureReason(record, context) {
     : 'witness-invalid';
 }
 
-function revalidateRetainedRecord(view, key, record, resolveValidationContext, phase) {
+function revalidateRetainedRecord(
+  view,
+  key,
+  record,
+  resolveValidationContext,
+  phase,
+  signatureReceipts,
+) {
   let context = null;
   try {
     context = resolveValidationContext?.({
@@ -1006,7 +1094,7 @@ function revalidateRetainedRecord(view, key, record, resolveValidationContext, p
       continue;
     }
     try {
-      validateProof(record, fragment, fragment.proof, context);
+      validateProof(record, fragment, fragment.proof, context, signatureReceipts);
     } catch (error) {
       if (error?.code === 'SNAPBACK_COMPLETENESS_WITNESS_INVALID') {
         const input = context.ownerTransitionForRetainedFailure?.(
@@ -1021,7 +1109,7 @@ function revalidateRetainedRecord(view, key, record, resolveValidationContext, p
   }
   for (const manifest of [...record.pageSets]) {
     try {
-      validatePageSet(record, manifest, context);
+      validatePageSet(record, manifest, context, signatureReceipts);
     } catch {
       record.pageSets = record.pageSets.filter((entry) => entry.identity !== manifest.identity);
       view.pageSets.delete(manifest.identity);
@@ -1049,12 +1137,54 @@ export async function createMaterializationStore(storeHandle, {
     ...DEFAULT_MATERIALIZATION_LIMITS,
     ...(policyLimits ?? {}),
   });
+
+  const loadFrom = (view, key) => {
+    const stored = view.materializations.get(key);
+    if (stored === undefined) return null;
+    const record = decodeRecord(stored);
+    if (record === null) refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', 'stored materialization is invalid');
+    return record;
+  };
+
+  const bootCandidates = await storeHandle.materializationTransaction('readonly', (view) => {
+    const candidates = [];
+    for (const [key] of view.materializations) {
+      const record = loadFrom(view, key);
+      if (record.productState.freshness !== 'retained') continue;
+      let context = null;
+      try {
+        context = resolveValidationContext?.({
+          address: clone(record.address),
+          record: clone(record),
+          phase: 'retained-boot',
+        }) ?? null;
+      } catch {
+        context = null;
+      }
+      if (!plain(context) || context.trustedActivation === null || context.retentionEligible === false) {
+        continue;
+      }
+      try { prepareTrustedActivation(context.trustedActivation); } catch { continue; }
+      for (const fragment of record.fragments) {
+        candidates.push({ proof: fragment.proof, trustedActivation: context.trustedActivation });
+      }
+    }
+    return candidates;
+  });
+  const bootSignatureReceipts = await verifySignatureCandidates(bootCandidates);
   await storeHandle.materializationTransaction('readwrite', (view) => {
     for (const [key, stored] of view.materializations) {
       const record = decodeRecord(stored);
       if (record === null) refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', `stored materialization ${key} is invalid`);
       const validated = record.productState.freshness === 'retained'
-        ? revalidateRetainedRecord(view, key, record, resolveValidationContext, 'retained-boot').record
+        ? revalidateRetainedRecord(
+          view,
+          key,
+          record,
+          resolveValidationContext,
+          'retained-boot',
+          bootSignatureReceipts,
+        ).record
         : record;
       cache.set(key, snapshotFor(validated));
     }
@@ -1067,12 +1197,23 @@ export async function createMaterializationStore(storeHandle, {
     }
   };
 
-  const loadFrom = (view, key) => {
-    const stored = view.materializations.get(key);
-    if (stored === undefined) return null;
-    const record = decodeRecord(stored);
-    if (record === null) refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', 'stored materialization is invalid');
-    return record;
+  // @ref LLP 0157#d7--the-move-2-store-interface — WebCrypto verification is
+  // asynchronous while every carrier transaction callback is deliberately
+  // synchronous. Preflight receipts bind the exact key/message/signature;
+  // the committing callback recomputes that receipt after rechecking the
+  // current fence and owner context, before publishing one atomic successor.
+  const preverifyAddressProofs = async (address, phase, selectProofs) => {
+    const admittedAddress = prepareAddress(address);
+    const key = jcs(admittedAddress);
+    const candidates = await storeHandle.materializationTransaction('readonly', (view) => {
+      const record = loadFrom(view, key);
+      if (record === null) return [];
+      const proofs = selectProofs(record);
+      if (proofs.length === 0) return [];
+      const context = requireContext(resolveValidationContext, admittedAddress, record, phase);
+      return proofs.map((proof) => ({ proof, trustedActivation: context.trustedActivation }));
+    });
+    return verifySignatureCandidates(candidates);
   };
 
   const write = async (address, operation) => {
@@ -1208,9 +1349,19 @@ export async function createMaterializationStore(storeHandle, {
     },
   );
 
-  const commitPage = async (address, fragmentInput, proofInput, resolutionBundle, expectedFence) => write(
+  const commitPage = async (
     address,
-    (view, key, admittedAddress) => {
+    fragmentInput,
+    proofInput,
+    resolutionBundle,
+    expectedFence,
+  ) => {
+    const signatureReceipts = await preverifyAddressProofs(address, 'commit', (record) => {
+      assertActive(record);
+      assertFence(record, expectedFence);
+      return [proofInput];
+    });
+    return write(address, (view, key, admittedAddress) => {
       const record = loadFrom(view, key);
       if (record === null) refuse('SNAPBACK_MATERIALIZATION_NOT_INITIALIZED', 'page commit cannot allocate an instance');
       assertActive(record);
@@ -1240,7 +1391,7 @@ export async function createMaterializationStore(storeHandle, {
         authorizedLeaseHash: fragmentInput.authorizedLeaseHash,
       });
       const context = requireContext(resolveValidationContext, admittedAddress, record, 'commit');
-      fragment.proof = validateProof(record, fragment, proofInput, context);
+      fragment.proof = validateProof(record, fragment, proofInput, context, signatureReceipts);
       const memberships = fragmentInput.memberships.map((entry, index) => prepareMembership(entry, `fragment.memberships[${index}]`));
       for (const membership of memberships) {
         if (
@@ -1278,12 +1429,25 @@ export async function createMaterializationStore(storeHandle, {
       return budgetError
         ? { error: budgetError, snapshot: snapshotFor(storedAfterBudget) }
         : { value: clone(storedAfterBudget), snapshot: snapshotFor(storedAfterBudget) };
-    },
-  );
+    });
+  };
 
-  const commitPageSet = async (address, set, expectedFence) => write(
-    address,
-    (view, key, admittedAddress) => {
+  const commitPageSet = async (address, set, expectedFence) => {
+    const signatureReceipts = await preverifyAddressProofs(address, 'commit-page-set', (record) => {
+      assertActive(record);
+      assertFence(record, expectedFence);
+      const manifest = preparePageSetManifestV1(set);
+      if (manifest === null) refuse('SNAPBACK_PAGE_SET_INVALID', 'page-set manifest is invalid');
+      const fragments = new Map(record.fragments.map((fragment) => [
+        completenessProofDigestV1(fragment.proof), fragment,
+      ]));
+      const ordered = manifest.orderedProofDigests.map((entry) => fragments.get(entry));
+      if (ordered.some((entry) => entry === undefined)) {
+        refuse('SNAPBACK_PAGE_SET_INVALID', 'page set references an absent fragment proof');
+      }
+      return ordered.map((fragment) => fragment.proof);
+    });
+    return write(address, (view, key, admittedAddress) => {
       const record = loadFrom(view, key);
       if (record === null) refuse('SNAPBACK_MATERIALIZATION_NOT_INITIALIZED', 'page-set commit cannot allocate an instance');
       assertActive(record);
@@ -1291,7 +1455,7 @@ export async function createMaterializationStore(storeHandle, {
       const manifest = preparePageSetManifestV1(set);
       if (manifest === null) refuse('SNAPBACK_PAGE_SET_INVALID', 'page-set manifest is invalid');
       const context = requireContext(resolveValidationContext, admittedAddress, record, 'commit-page-set');
-      validatePageSet(record, manifest, context);
+      validatePageSet(record, manifest, context, signatureReceipts);
       record.pageSets = record.pageSets.filter((entry) => entry.identity !== manifest.identity);
       record.pageSets.push(manifest);
       record.productState.attempt = 'idle';
@@ -1302,8 +1466,8 @@ export async function createMaterializationStore(storeHandle, {
       return budgetError
         ? { error: budgetError, snapshot: snapshotFor(storedAfterBudget) }
         : { value: clone(storedAfterBudget), snapshot: snapshotFor(storedAfterBudget) };
-    },
-  );
+    });
+  };
 
   const recordAttemptOutcome = async (address, outcome, expectedFence) => write(
     address,
@@ -1415,6 +1579,37 @@ export async function createMaterializationStore(storeHandle, {
   const readRenderable = async (address, expectedFence) => {
     const admittedAddress = prepareAddress(address);
     const key = jcs(admittedAddress);
+    const signatureCandidates = await storeHandle.materializationTransaction('readonly', (view) => {
+      const record = loadFrom(view, key);
+      if (record === null || !same(fenceOf(record), prepareFence(expectedFence))) return [];
+      if (
+        record.productState.freshness !== 'retained'
+        && (
+          record.productState.lifecycle !== 'active'
+          || record.productState.effectiveDisposition !== 'retain'
+          || deriveCompletenessStatusV1(record) !== 'complete'
+        )
+      ) return [];
+      let context = null;
+      try {
+        context = resolveValidationContext?.({
+          address: clone(admittedAddress),
+          record: clone(record),
+          phase: 'render',
+        }) ?? null;
+      } catch {
+        context = null;
+      }
+      if (!plain(context) || context.trustedActivation === null || context.retentionEligible === false) {
+        return [];
+      }
+      try { prepareTrustedActivation(context.trustedActivation); } catch { return []; }
+      return record.fragments.map((fragment) => ({
+        proof: fragment.proof,
+        trustedActivation: context.trustedActivation,
+      }));
+    });
+    const signatureReceipts = await verifySignatureCandidates(signatureCandidates);
     const result = await storeHandle.materializationTransaction('readwrite', (view) => {
       let record = loadFrom(view, key);
       if (record === null || !same(fenceOf(record), prepareFence(expectedFence))) return { bytes: null };
@@ -1425,6 +1620,7 @@ export async function createMaterializationStore(storeHandle, {
           record,
           resolveValidationContext,
           'render',
+          signatureReceipts,
         );
         record = validation.record;
         if (validation.changed) return { bytes: null, snapshot: snapshotFor(record) };
@@ -1469,7 +1665,7 @@ export async function createMaterializationStore(storeHandle, {
         if (manifest) {
           try {
             const context = requireContext(resolveValidationContext, admittedAddress, record, 'render');
-            validatePageSet(record, manifest, context);
+            validatePageSet(record, manifest, context, signatureReceipts);
           } catch {
             record.pageSets = record.pageSets.filter((entry) => entry.identity !== manifest.identity);
             view.pageSets.delete(manifest.identity);
@@ -1480,7 +1676,9 @@ export async function createMaterializationStore(storeHandle, {
       }
       if (fragments.length === 0 || fragments.some((entry) => entry === undefined)) return { bytes: null };
       try {
-        for (const fragment of fragments) validateProof(record, fragment, fragment.proof, context);
+        for (const fragment of fragments) {
+          validateProof(record, fragment, fragment.proof, context, signatureReceipts);
+        }
       } catch (error) {
         if (error?.code === 'SNAPBACK_COMPLETENESS_WITNESS_INVALID') {
           const reason = witnessFailureReason(record, context);

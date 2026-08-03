@@ -58,3 +58,19 @@ including L2/L7/L8, so this is specifically the shipped browser closure, not
 the store semantics exercised by the Node tests. Per the wave ownership rule,
 the greening lane did not edit F0a fork code; L2 owns the fix and a rerun of the
 bundle-metrology gate.
+
+**Browser-closure repair (2026-08-03):** the static `node:crypto` edge and
+incidental `Buffer` uses are removed. Ed25519 verification now runs through
+browser-native WebCrypto before the carrier transaction and produces a digest
+receipt over the exact public key, proof preimage, and signature; the
+synchronous transaction recomputes and consumes that receipt only after it
+rechecks the current fence and owner context, preserving LLP 0157 §D7's atomic
+publication rule without a check/write gap. The fast browser-closure proof now
+bundles both the root and the materialization public subpath. The complete
+client suite and A5/A7/A8/S3 carrier matrix are green. The Node-24 bundle run
+then exposed separate pre-existing program-exit debt: the three newly public
+LLP 0166 subpaths lack the prospective additive ledger required by LLP 0145,
+and the L1/L3/L6 closure growth exceeds several immutable primary-profile
+ceilings. This repair does not weaken or rewrite those frozen baselines; the
+0166 bundle-attribution/closure reconciliation remains a distinct program
+blocker.

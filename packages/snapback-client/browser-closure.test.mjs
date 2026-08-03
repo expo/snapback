@@ -13,33 +13,35 @@
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 
-const result = await build({
-  entryPoints: [new URL('./index.mjs', import.meta.url).pathname],
-  bundle: true,
-  write: false,
-  platform: 'browser',
-  format: 'esm',
-  target: 'es2022',
-  logLevel: 'silent',
-});
-const bundled = result.outputFiles[0].text;
-assert.ok(bundled.length > 0, 'the browser bundle must not be empty');
-const builtinReference = bundled.match(
-  /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)['"]node:[^'"]+/u,
-);
-assert.equal(
-  builtinReference,
-  null,
-  `the client root browser closure references a Node builtin: ${builtinReference?.[0]?.trim()}`,
-);
-const expoFileSystemReference = bundled.match(
-  /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)['"]expo-file-system['"]/u,
-);
-assert.equal(
-  expoFileSystemReference,
-  null,
-  `the client root browser closure imports expo-file-system: ${expoFileSystemReference?.[0]?.trim()}`,
-);
+for (const entry of ['index.mjs', 'materialization-store.mjs']) {
+  const result = await build({
+    entryPoints: [new URL(`./${entry}`, import.meta.url).pathname],
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'esm',
+    target: 'es2022',
+    logLevel: 'silent',
+  });
+  const bundled = result.outputFiles[0].text;
+  assert.ok(bundled.length > 0, `${entry}: the browser bundle must not be empty`);
+  const builtinReference = bundled.match(
+    /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)['"]node:[^'"]+/u,
+  );
+  assert.equal(
+    builtinReference,
+    null,
+    `${entry}: the browser closure references a Node builtin: ${builtinReference?.[0]?.trim()}`,
+  );
+  const expoFileSystemReference = bundled.match(
+    /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)['"]expo-file-system['"]/u,
+  );
+  assert.equal(
+    expoFileSystemReference,
+    null,
+    `${entry}: the browser closure imports expo-file-system: ${expoFileSystemReference?.[0]?.trim()}`,
+  );
+}
 assert.doesNotMatch(
   'process.getBuiltinModule("node:crypto")',
   /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)['"]node:[^'"]+/u,
