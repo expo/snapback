@@ -22995,6 +22995,26 @@ fn validate_function_schema_references(
                     ));
                 };
                 crate::manifest::validate_vector_index_manifest(declared, index)?;
+                // @ref LLP 0132#vector-values-and-declarations — an owner.v1
+                //   posting partition is selected only from a resolved
+                //   effective user. Codegen enforces this authoring default,
+                //   and pair activation repeats it so a direct manifest cannot
+                //   expose an owner index through a public/optional function.
+                if matches!(
+                    index.visibility,
+                    crate::vector::VectorVisibilityV1::Owner { .. }
+                ) && function.effective_auth_requirement()
+                    != crate::manifest::AuthRequirement::Authenticated
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_VECTOR_QUERY_PLAN_INVALID",
+                        "vector",
+                        format!(
+                            "owner-visible vector query {} must require authenticated authority",
+                            function.name
+                        ),
+                    ));
+                }
                 let expected_args = crate::manifest::expected_vector_args_contract(index);
                 if function.args_contract.as_ref() != Some(&expected_args) {
                     return Err(SnapbackError::error(
@@ -26125,18 +26145,18 @@ mod tests {
     };
     use crate::live_wire::{Receipt, SettlementIdMapDisposition};
     use crate::manifest::{
-        ActionPlan, ArtifactGeneration, AuthInput, AuthManifest, AuthMode, AuthorityDescriptor,
-        BoundedSkewDeclaration, ConfigEntryDefinition, CronActivationPolicy, CronJitterPolicy,
-        CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule,
-        CtxAnswerLedger, FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition,
-        FunctionArgsContract, FunctionKind, FunctionManifest, FunctionRuntime, HandlerInput,
-        HandlerPlan, IbexModule, IndexManifest, MembershipManifest, MembershipPredicate,
-        MembershipResourceRef, MembershipScope, MutationOutput, MutationPlan, MutationSettlement,
-        MutationStep, PermissionScopeExpr, QueryPlan, ResultObjectFieldContract,
-        ResultValueContract, ReturnValue, SchemaManifest, SchemaRefAuthority, SeedData,
-        SettlementClaimSet, SettlementIdentityClaims, SettlementLane, SettlementMintClaim,
-        SettlementMintObservation, TableManifest, ValueExpr, FunctionResultContract,
-        ctx_ledger_version,
+        ActionPlan, ArtifactGeneration, AuthInput, AuthManifest, AuthMode, AuthRequirement,
+        AuthorityDescriptor, BoundedSkewDeclaration, ConfigEntryDefinition, CronActivationPolicy,
+        CronJitterPolicy, CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy,
+        CronSchedule, CtxAnswerLedger, FieldManifest, FieldType, FilterExpr, FilterOp,
+        FunctionArgsContract, FunctionDefinition, FunctionKind, FunctionManifest,
+        FunctionResultContract, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
+        IndexManifest, MembershipManifest, MembershipPredicate, MembershipResourceRef,
+        MembershipScope, MutationOutput, MutationPlan, MutationSettlement, MutationStep,
+        PermissionScopeExpr, QueryPlan, ResultObjectFieldContract, ResultValueContract,
+        ReturnValue, SchemaManifest, SchemaRefAuthority, SeedData, SettlementClaimSet,
+        SettlementIdentityClaims, SettlementLane, SettlementMintClaim, SettlementMintObservation,
+        TableManifest, ValueExpr, ctx_ledger_version,
     };
     use crate::runtime::ExecutedIbexMutation;
     use crate::search::types::{
@@ -26145,6 +26165,12 @@ mod tests {
     };
     use crate::storage::BufferedWrite;
     use crate::storage::auth_grants::{ExactGrantScope, ScopedFunctionKind};
+    use crate::vector::{
+        VECTOR_CAPABILITY, VECTOR_DISTANCE_PROFILE_ID, VECTOR_ORDERING_PROFILE_ID,
+        VECTOR_RESULT_PROJECTION, VectorFieldClassV1, VectorIndexManifestV1,
+        VectorMaintenanceLimitsV1, VectorMetricV1, VectorQueryPlanV1, VectorTieBreakV1,
+        VectorVisibilityV1,
+    };
     use serde_json::{Map, Value, json};
     use std::collections::{BTreeMap, BTreeSet};
     use std::sync::Arc;
@@ -26697,6 +26723,114 @@ mod tests {
                 .code,
             "SNAPBACK_PUBLIC_INLINE_INVALID",
         );
+    }
+
+    #[test]
+    fn owner_vector_query_requires_authenticated_pair_authority() {
+        let index = VectorIndexManifestV1 {
+            format_version: 1,
+            name: "by_embedding".to_owned(),
+            semantic_version: "documents.embedding.v1".to_owned(),
+            vector_field: "embedding".to_owned(),
+            dimensions: 2,
+            metric: VectorMetricV1::L2sq,
+            distance_profile: VECTOR_DISTANCE_PROFILE_ID.to_owned(),
+            ordering_profile: VECTOR_ORDERING_PROFILE_ID.to_owned(),
+            field_classifications: BTreeMap::from([
+                ("embedding".to_owned(), VectorFieldClassV1::Private),
+                ("ownerId".to_owned(), VectorFieldClassV1::Private),
+            ]),
+            equality_filters: Vec::new(),
+            stored_fields: Vec::new(),
+            visibility: VectorVisibilityV1::Owner {
+                field: "ownerId".to_owned(),
+            },
+            tie_break: VectorTieBreakV1::IdAsc,
+            max_indexed_vectors_per_partition: 4,
+            max_scalar_pairs: 8,
+            maintenance_limits: VectorMaintenanceLimitsV1::default(),
+        };
+        let schema = SchemaManifest {
+            tables: vec![TableManifest {
+                name: "documents".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "embedding".to_owned(),
+                        field_type: FieldType::Vector { dimensions: 2 },
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "ownerId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                search_indexes: Vec::new(),
+                vector_indexes: vec![index],
+                search_live_limits: None,
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+                asset_sharing: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let mut function = FunctionDefinition::new(
+            "nearest-documents",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::VectorQuery(VectorQueryPlanV1 {
+                table: "documents".to_owned(),
+                index: "by_embedding".to_owned(),
+                distance_profile: VECTOR_DISTANCE_PROFILE_ID.to_owned(),
+                result_projection: VECTOR_RESULT_PROJECTION.to_owned(),
+                required_capability: VECTOR_CAPABILITY.to_owned(),
+            })),
+        );
+        let index = &schema.tables[0].vector_indexes[0];
+        let args = crate::manifest::expected_vector_args_contract(index);
+        function.args_contract_hash = Some(
+            crate::manifest::args_contract_hash(&args).expect("vector args contract hashes"),
+        );
+        function.args_contract = Some(args);
+        function.result_contract = crate::manifest::expected_vector_result_contract(
+            &schema.tables[0],
+            index,
+        )
+        .expect("vector result contract derives");
+        function.result_contract_hash = Some(
+            crate::manifest::result_contract_hash(&function.result_contract)
+                .expect("vector result contract hashes"),
+        );
+
+        for requirement in [AuthRequirement::Public, AuthRequirement::OptionalUser] {
+            let mut forged = function.clone();
+            forged.auth_requirement = Some(requirement);
+            assert_eq!(
+                validate_function_schema_references(
+                    &FunctionManifest {
+                        functions: vec![forged],
+                        ..FunctionManifest::default()
+                    },
+                    &schema,
+                )
+                .expect_err("owner vector query must not admit missing effective-user authority")
+                .diagnostic
+                .code,
+                "SNAPBACK_VECTOR_QUERY_PLAN_INVALID",
+            );
+        }
+
+        function.auth_requirement = Some(AuthRequirement::Authenticated);
+        validate_function_schema_references(
+            &FunctionManifest {
+                functions: vec![function],
+                ..FunctionManifest::default()
+            },
+            &schema,
+        )
+        .expect("authenticated owner vector query admits");
     }
 
     #[test]
