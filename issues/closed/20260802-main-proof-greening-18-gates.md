@@ -91,9 +91,12 @@ The remaining failures were mechanical wave drift and were fixed forward:
 
 At the pre-receipt freeze, the coded bootstrap qualifies the exact clean
 checkout and the complete Rust suite is green (`1908` library tests passed,
-`2` ignored, every integration suite and doctest passed). Strict Clippy, all 74
-published declaration surfaces, the 170-file package test inventory, generated
-artifacts, guide checks, publication conformance, both deployment identities,
-capability-maturity audit, and all 3,620 LLP refs are also green. The GitHub
-run that supplies the final zero-failure exit receipt is recorded after the
-digest-bound Linux evidence lands on main.
+`2` ignored, every integration suite and doctest passed). Main then advanced
+with the F0a-owned LLP 0166 L1 client-store landing (`6537ebb4`); its complete
+client-package suite, declaration check, and expanded 172-file inventory are
+green, so it required no ownership handoff. Strict Clippy, all 74 published
+declaration surfaces, generated artifacts, guide checks, publication
+conformance, both deployment identities, capability-maturity audit, and the
+LLP ref audit are also green. The GitHub run that supplies the final
+zero-failure exit receipt is recorded after the digest-bound Linux evidence
+lands on main.
