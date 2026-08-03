@@ -5,7 +5,13 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-03 (terminology note: "cold process" in this document
+**Revised:** 2026-08-03 (recorded design, awaiting author ratification —
+JS-arm sessions-custody offline queue: capture-at-enqueue authority
+descriptors + strand-on-authority-change, per the commissioned design pass
+at author sitting #2; see §Auth posture's dated subsection. No claim,
+capability, or behavior change until the author ratifies the recording; the
+JS arm's `SNAPBACK_OFFLINE_QUEUE_CUSTODY_UNSUPPORTED` fence stands.)
+2026-08-03 (terminology note: "cold process" in this document
 names the fresh-wrappers-over-retained-state-in-one-process proof class;
 no claim change.) 2026-08-03 (Accepted LLP 0166 boundary: v1 lease-family
 convergence is fresh-sync-only, close-predecessor-first via terminal
@@ -446,6 +452,191 @@ record whose new bit was erased by an older writer. Older readers reject v6.
 Every tab/process sharing the physical client-store key must be drained and
 upgraded together; if an old writer later replaces v6 with v5, the next v6 read
 performs the same deletion-only migration instead of trusting the downgrade.
+
+#### JS-arm sessions-custody queue — Recorded design (2026-08-03, commissioned at author sitting #2) — awaiting author ratification; no implementation authorized by this recording
+
+Commissioned by `issues/20260803-0043-sessions-custody-design.md` (leg 2 of
+`issues/20260731-js-arm-lease-custody-and-sessions-outbox.md`). Today the JS
+arm (`packages/snapback-client`) deliberately refuses to queue under
+browser-session (`AuthCoordinator`) or agent (`AgentAuthorityFence`) custody:
+`#offlineQueueStore()` returns null when an authority fence is present, and a
+required call fails with `SNAPBACK_OFFLINE_QUEUE_CUSTODY_UNSUPPORTED`. This
+recording lands on the working hypothesis — **capture-at-enqueue authority
+descriptors + strand-on-authority-change**, the discipline this section
+already states and the Contract arm already ships — realized per durable
+outbox record on the JS arm's RQS store, not by porting the Contract store's
+format-6 epoch machinery wholesale. Until the author ratifies this recording
+and an implementation lands, the refusal above remains the shipped behavior;
+nothing in this subsection changes a claim.
+
+**Captured at enqueue.** A sessions-custody enqueue is admitted only while the
+authority fence is settled (a clearing/unsettled fence —
+`SNAPBACK_CLIENT_AUTHORITY_CLEARING` — refuses enqueue, and the caller then
+surfaces the original connectivity error; intent is never queued under unknown
+authority). The durable record captures, at the enqueue slot, exactly:
+
+- **`authorityDescriptor`** `{ descriptorVersion: 1, authorityInstanceId,
+  sessionGeneration }` — the server-issued descriptor from the settled
+  session, verbatim. This is the replay-identity axis (this section's queue
+  axis) and the value transmitted at replay. `sessionGeneration` is recorded
+  observability, not a stranding-equality axis, per the rule above.
+- **`principalScope`** `{ authMode, authorizationStreamIncarnation, userId }`
+  — the server-proven principal from the settled authority (the same triple
+  format 6 uses). Local stranding/attribution axis only; it is never sent as
+  authority. Under agent custody the durable principal identity is the grant
+  tuple (LLP 0055): token id and carrier generation deliberately do not enter
+  queued-replay identity.
+- **`custody`** `{ authorityEpoch, authorityKey }` from the fence's capture —
+  the local custody fence, persisted so a relaunch can detect records that
+  predate a custody transition. `custodyRevision` is excluded: revision churn
+  (refresh, sender rotation) must not perturb queue identity.
+- The existing arm-neutral fields (`id`/`clientMutationId`, function, args,
+  readSet, sequence, `capturedNow` as a labeled claim, optional caller
+  ledger). **Never captured:** bearer or any credential material, sender
+  keys/nonces, DPoP material, lease state.
+
+The enqueue commits only if the fence capture taken before the write is still
+current at the write (capture–validate–commit); a fence transition racing the
+enqueue loses, and the caller sees the original delivery error, not queued
+success.
+
+**Persistence and privacy at rest.** The descriptor triple and custody pair
+are opaque non-credential identifiers. `principalScope.userId` and the
+mutation args/ledger are app data in the same at-rest exposure class as the
+retained rows already in the same RQS blob; encryption at rest remains this
+RFC's open question, unchanged by this design. At every cross-principal
+boundary (below) payload-bearing fields (`args`, ledger, readSet, settlement
+claims) are stripped before the successor authority can read the store.
+
+**Strand-on-authority-change — the matrix.** Stranding is a durable, visible,
+never-replayable disposition: a stranded record is surfaced through
+`outboxStatus()` (which gains a `stranded` count) and `subscribeOutbox`, is
+never silently dropped from the current principal's own view, and is never
+transmitted under a changed authority. The triggers, reconciled with the
+Contract arm's shipped format-6 transitions:
+
+1. **Same principal, new authority instance** (re-login as the same user, a
+   replacement session): pending and failed records strand **rerecordable** —
+   full bytes retained, tagged with the predecessor `principalScope`, reason
+   `authority_instance_changed`, `replayable: false`. This mirrors
+   `strandCurrentQueue(..., { rerecordable: true })` on the Contract arm.
+2. **Principal change, logout to anonymous, auth-mode change, or
+   stream-incarnation change:** a privacy boundary, not a stranding. Queue
+   namespaces are cleared before the successor can observe them (Contract
+   parity: `clearAllQueueNamespaces` on principal change), and the cut is
+   recorded as an outbox diagnostic visible to the process that performed it.
+   Predecessor content is never retained for, attributed to, or replayed
+   under the successor. Privacy deliberately wins over cross-principal
+   observability here; the "never silent drop" guarantee is scoped to a
+   principal's own view of its own queue.
+3. **Terminal authority loss** (`authTerminalStatus().terminated === true`):
+   records stay pending but the drain is inadmissible (below); the eventual
+   successor bind resolves them through row 1 or row 2.
+4. **Permission-epoch advance (LLP 0053) under an unchanged authority
+   instance: does not strand.** The descriptor is unchanged; the server
+   re-validates authorization at replay and refuses or admits each mutation
+   on its own merits. v1 of this design carries no client-side ingestion of
+   LLP 0053 mutation-queue obligations (see open point 1 — this is the named
+   asymmetry with the Contract arm's `pendingByScope` suspension).
+5. **Lease expiry: does not strand.** The lease bounds retained *display*
+   (M1); the queue axis is the descriptor. Queue custody neither requires nor
+   consumes leases.
+6. **Bearer refresh of the same opaque instance: never strands** — the client
+   already hard-fails a refresh response that changes
+   `authorityInstanceId` (`SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID`), and
+   this section already pins refresh-preserves-both.
+
+**Replay admission.** The drain adds one custody gate ahead of the existing
+resync-first/sequence-order/single-flight discipline: it runs only while the
+fence is settled and current, and at each record's submission slot it
+compares the stored `authorityDescriptor` and `principalScope` against the
+current settled authority **before transport**. A mismatch strands locally
+(row 1 semantics) without a round trip — a record must never be marked
+`failed` by a refusal the client could prove in advance was an authority
+change, and must never be transmitted under an authority other than the one
+that captured it. Records that pass the gate replay with the **stored**
+descriptor, per this milestone's normative rule (never a newly observed one).
+
+The server remains authoritative regardless of captured claims — captured
+facts are claims, and possessing a descriptor never authenticates a caller.
+At replay the server, in its owned precedence order: resolves the request
+credential (invalid/expired/revoked/superseded fail here with their
+credential-preparation codes); prepares the invocation authority; compares
+the transmitted descriptor — a valid credential whose prepared authority
+differs from the queued descriptor, and every absent/malformed/
+unknown-version descriptor, refuses `SNAPBACK_AUTH_STALE_RESULT` with zero
+dispatch — then performs settlement lookup and ordinary execution, where
+handler and authorization refusals produce their own typed outcomes. On the
+client, `SNAPBACK_AUTH_STALE_RESULT` on a replayed record is recorded as
+**stranded** (authority changed), while content refusals keep
+drop-and-mark-**failed**; both are terminal and never retried, so the
+exactly-once discipline is unchanged (see open point 2 for the taxonomy
+ratification).
+
+**Settlement presentation and recovery affordances.** The shipped
+descriptor-cohort discipline extends unchanged: `settledMutations()` /
+`markMutationSettlementsConsumed()` re-attest the current authority and
+expose only the matching user/descriptor cohort, and acknowledgement remains
+one authority cohort per request (`SNAPBACK_OUTBOX_ACK_AUTHORITY_UNKNOWN` /
+`_MIXED`). Recovery for stranded records is explicit and app-driven: a read
+surface listing stranded records (the current principal's own, rerecordable
+ones with full bytes), an explicit discard, and — for rerecordable records
+only — explicit re-recording, which mints a **new** `clientMutationId` under
+the current descriptor. Re-recording is a new intent, not a replay: the old
+settlement identity is bound to the old descriptor and carries no
+exactly-once bridge across authorities (open point 4 owns the affordance
+shape).
+
+**Interaction boundaries.**
+
+- **M1 lease custody (leg 1, unbuilt):** independent axes. This queue design
+  neither requires nor provides leases; protected retained display keeps
+  refusing on this arm (`SNAPBACK_RETENTION_NOT_RETAINABLE`) until leg 1
+  lands, and sessions-custody queueing v1 therefore ships without a
+  protected-retained optimistic baseline. Queue-before-lease is already this
+  arm's shipped shape under dev custody.
+- **LLP 0090 retained snapshots:** the D3 outbox rule is unchanged — token
+  resume only over an empty outbox, fail-closed. Sessions-custody **pending**
+  records hold that gate exactly like dev-custody ones; **stranded** records
+  are terminal and do not.
+- **Contract arm (deliberate asymmetries, named):** (a) no client-side
+  LLP 0053 queue-obligation suspension in v1 (matrix row 4); (b) no port of
+  format-6 `bindAuthority`/`transitionAuthority`/`terminallyUnbound` store
+  machinery — the JS arm fences through the coordinator plus per-record
+  descriptor/principal/custody equality, and its terminal cut is the
+  authority fence's custody clear plus `authTerminalStatus`, not a store
+  format bit; (c) queue suspension codes
+  (`SNAPBACK_CLIENT_QUEUE_SUSPENDED`) therefore have no JS-arm counterpart
+  in v1. Everything else — capture-at-enqueue requirement, stranding
+  dispositions, cohort-scoped ACK — matches the Contract arm's semantics.
+- **LLP 0166 (Accepted):** the store Spec consumes this RFC's custody,
+  outbox, and settlement contracts unchanged; its pending-intent
+  precondition applies to sessions-custody pending records identically.
+  Nothing in this design imports LLP 0166 machinery as a built dependency.
+
+**Open points for author ratification** (each a genuine under-determination
+of the hypothesis; everything above is the recorded design):
+
+1. **LLP 0053 queue-obligation ingestion.** v1 relies on server re-validation
+   at replay (matrix row 4) instead of porting `pendingByScope` queue
+   suspension. Consequence: a delete-disposition invalidation strands a
+   queued record only at replay time, not at obligation delivery. Ratify
+   server-refusal-only for v1, or require the suspension port.
+2. **Stranded-vs-failed taxonomy for `SNAPBACK_AUTH_STALE_RESULT` on
+   replay.** This design records authority-change refusals as *stranded*
+   rather than *failed*, refining (not weakening — still terminal,
+   never retried) the drop-and-mark-failed rule. Ratify the refinement, or
+   keep every server refusal in `failed`.
+3. **Cross-principal disposition.** Recorded: delete-with-diagnostic
+   (Contract parity, matrix row 2). Alternative: retain payload-free
+   redacted tombstones (`id`, function, sequence, reason) for the
+   predecessor principal's possible return. The Contract arm keeps such
+   tombstones only in its stranded-sanitization flows, not on principal
+   change; parity argues for delete.
+4. **Rerecord affordance shape.** Recorded: explicit
+   read/discard/re-record-as-new-intent. Alternative: read+discard only,
+   with re-creation left entirely to the application. Either way there is no
+   automatic re-submission and no exactly-once bridge across authorities.
 
 ## Non-goals
 

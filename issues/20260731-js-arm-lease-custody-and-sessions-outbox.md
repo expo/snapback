@@ -101,6 +101,13 @@ composition chores:
   with capture-at-enqueue authority descriptors + strand-on-authority-change
   as the working hypothesis; the author ratifies the recorded design, not
   the hypothesis. Do not implement leg 2 ahead of that ratification.
+  **2026-08-03 — design recorded.** LLP 0043 §Auth posture now carries the
+  dated subsection "JS-arm sessions-custody queue — Recorded design
+  (2026-08-03, commissioned at author sitting #2)": capture-at-enqueue
+  descriptor set, six-row stranding matrix, pre-flight replay gate with
+  server-authoritative admission, and the leg-1/0090/Contract-arm/0166
+  boundaries, with four open points for the author. Still awaiting
+  ratification; leg 2 remains unimplementable until then.
 
 Next owner: leg 1 with its acceptance rows first (it unblocks the
 restart-witness conjunction), then leg 2's decision.
