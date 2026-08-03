@@ -73,6 +73,37 @@ expression kind "ident"
 So there are at least two production-artifact faults, not one. The fix must
 be validated by a green 34/34 acceptance, not by clearing the first error.
 
+## Retested against 0.1.10 — 2026-08-03
+
+Exact published 0.1.8, 0.1.9 and 0.1.10 on the evening of 2026-08-02. **The
+first fault is fixed, the second is not, and the app still does not boot.**
+
+`@ccheever/exact-contract@0.1.10`'s `src/runtime/production.ts` now re-exports
+`isCompiledComponent` alongside `defineComponent`. Bumping every `@exact/*`
+pin in the surface to 0.1.10 and rebuilding gets past the route loader and
+straight into the second fault:
+
+```
+Boot failed: [contract] production artifact omitted the AOT closure for
+expression kind "ident"
+```
+
+Verified by building the surface on 0.1.10 and loading `dist/web` in headless
+Chrome, not by reading the diff. The pin bump is reverted; it does not help
+on its own.
+
+The second fault is a compiler emit gap rather than a runtime one.
+`evalRuntimeExpr` (`src/runtime/execution.ts:46`) requires every expression to
+carry a precompiled AOT closure when `CONTRACT_PRODUCTION_BUILD` is set; the
+interpreter fallbacks are deliberately excluded from production bundles, so an
+expression without a closure has nowhere to go and throws. The emitter did not
+produce one for an expression of kind `ident` — a plain identifier reference,
+about the most basic kind there is, which is consistent with no route booting
+at all rather than an exotic edge case failing.
+
+This is the case the exit criterion was written for: three releases shipped
+against the first error message, and the surface is still dead in production.
+
 ## Why this is Exact work, not Snapback work
 
 Both faults live in published Exact packages and in Exact's source. Snapback
