@@ -964,7 +964,13 @@ export async function generateInProcess(backendDir, options = {}) {
         if (!table.fields[field]) fail(`references unknown field ${field}`, { field });
       }
       for (const field of vector.equalityFilters ?? []) {
-        if (!['String', 'Boolean', 'Integer', 'Real'].includes(table.fields[field]?.fieldType)) fail(`equality filter ${field} has a non-portable scalar type`, { field });
+        const fieldType = table.fields[field]?.fieldType;
+        const stringLike = ['String', 'Principal'].includes(fieldType)
+          || (fieldType !== null
+            && typeof fieldType === 'object'
+            && !Array.isArray(fieldType)
+            && (Object.hasOwn(fieldType, 'Id') || Object.hasOwn(fieldType, 'AssetRef')));
+        if (!stringLike && !['Boolean', 'Integer'].includes(fieldType)) fail(`equality filter ${field} has a non-portable scalar type`, { field });
       }
       for (const field of vector.storedFields ?? []) {
         if (table.fields[field]?.fieldType?.Vector) fail(`storedFields must not expose vector field ${field}`, { field });

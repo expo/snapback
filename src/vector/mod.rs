@@ -10,6 +10,7 @@
 
 pub mod diagnostics;
 pub mod profile;
+pub mod query;
 pub mod storage;
 pub mod types;
 
@@ -18,4 +19,5 @@ pub use profile::{
     VECTOR_PROFILE_DIMENSIONS_MAX, VECTOR_PROFILE_DIMENSIONS_MIN, admit_vector_components,
     strict_distance,
 };
+pub use query::*;
 pub use types::*;

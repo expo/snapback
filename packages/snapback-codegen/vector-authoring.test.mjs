@@ -210,6 +210,39 @@ try {
   assert.throws(() => v.vector(0), /1\.\.4096/u);
   assert.throws(() => v.vector(4_097), /1\.\.4096/u);
 
+  const declarationOrder = defineTable({
+    embedding: v.vector(2),
+    second: v.string(),
+    first: v.integer(),
+  }).vectorIndex('ordered_filters', {
+    semanticVersion: 'ordered-filters.v1',
+    vectorField: 'embedding',
+    metric: 'l2sq',
+    fieldClassifications: {
+      embedding: 'public',
+      second: 'public',
+      first: 'public',
+    },
+    equalityFilters: ['second', 'first'],
+    maxIndexedVectorsPerPartition: 2,
+  });
+  assert.deepEqual(
+    declarationOrder.vectorIndexes[0].equalityFilters,
+    ['second', 'first'],
+    'logical filter work follows authored declaration order, not sorted field names',
+  );
+  assert.throws(
+    () => defineTable({ embedding: v.vector(2), approximate: v.real() }).vectorIndex('float_filter', {
+      semanticVersion: 'float-filter.v1',
+      vectorField: 'embedding',
+      metric: 'l2sq',
+      fieldClassifications: { embedding: 'public', approximate: 'public' },
+      equalityFilters: ['approximate'],
+      maxIndexedVectorsPerPartition: 2,
+    }),
+    /LLP 0080 portable exact scalar equality/u,
+  );
+
   writeFileSync(join(backend, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from ${JSON.stringify(defineUrl)};
 export const documents = defineTable({

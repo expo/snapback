@@ -929,11 +929,24 @@ class TableBuilder {
       assert(Array.isArray(fields), `vector index ${name} ${label} must be an array`);
       assert(fields.every((field) => typeof field === 'string' && field.length > 0), `vector index ${name} ${label} must contain field names`);
       assert(new Set(fields).size === fields.length, `vector index ${name} ${label} must not contain duplicates`);
-      return [...fields].sort();
+      return [...fields];
     };
     const equalityFilters = stringSet(spec.equalityFilters, 'equalityFilters');
     const storedFields = stringSet(spec.storedFields, 'storedFields');
     assert(equalityFilters.length <= 8, `vector index ${name} admits at most eight equality filters`);
+    for (const field of equalityFilters) {
+      const fieldType = this.fields[field]?.fieldType;
+      const stringLike = fieldType === 'String'
+        || fieldType === 'Principal'
+        || (fieldType !== null
+          && typeof fieldType === 'object'
+          && !Array.isArray(fieldType)
+          && (Object.hasOwn(fieldType, 'Id') || Object.hasOwn(fieldType, 'AssetRef')));
+      assert(
+        stringLike || fieldType === 'Boolean' || fieldType === 'Integer',
+        `vector index ${name} equality filter ${field} must use LLP 0080 portable exact scalar equality`,
+      );
+    }
     for (const field of storedFields) {
       assert(!this.fields[field]?.fieldType?.Vector, `vector index ${name} storedFields must not expose vector field ${field}`);
     }

@@ -3761,7 +3761,12 @@ pub fn validate_vector_index_manifest(
         };
         if !matches!(
             filter.field_type,
-            FieldType::String | FieldType::Boolean | FieldType::Integer | FieldType::Real
+            FieldType::String
+                | FieldType::Boolean
+                | FieldType::Integer
+                | FieldType::Principal
+                | FieldType::Id { .. }
+                | FieldType::AssetRef { .. }
         ) {
             return Err(vector_manifest_invalid(format!(
                 "vector index {} equality-filter field {name} must use the closed scalar vocabulary",
@@ -9986,6 +9991,30 @@ mod membership_manifest_grammar_tests {
         let (table, index) = vector_index_fixture();
         validate_vector_index_manifest(&table, &index)
             .expect("optional equality source fields are admitted");
+
+        let mut principal_table = table.clone();
+        principal_table
+            .fields
+            .iter_mut()
+            .find(|field| field.name == "category")
+            .unwrap()
+            .field_type = FieldType::Principal;
+        validate_vector_index_manifest(&principal_table, &index)
+            .expect("nominal string-like equality fields inherit LLP 0080 exact semantics");
+        let mut real_table = table.clone();
+        real_table
+            .fields
+            .iter_mut()
+            .find(|field| field.name == "category")
+            .unwrap()
+            .field_type = FieldType::Real;
+        assert_eq!(
+            validate_vector_index_manifest(&real_table, &index)
+                .expect_err("floating-point equality is outside LLP 0080's closed scalar set")
+                .diagnostic
+                .code,
+            "SNAPBACK_VECTOR_INDEX_INVALID"
+        );
 
         let args = expected_vector_args_contract(&index);
         let filters = args
