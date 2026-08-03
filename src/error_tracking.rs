@@ -562,7 +562,7 @@ fn lower_hex(bytes: &[u8]) -> String {
     output
 }
 
-const EXISTING_ALLOWLIST_PRIORITY: &[&str] = &[
+pub(crate) const EXISTING_ALLOWLIST_PRIORITY: &[&str] = &[
     "attempt",
     "cause",
     "level",
@@ -574,18 +574,20 @@ const EXISTING_ALLOWLIST_PRIORITY: &[&str] = &[
     "userAgent",
 ];
 
-#[cfg(test)]
-const RESERVED_DETAIL_KEYS: &[&str] = &[
+pub(crate) const FAILURE_DETAIL_KEYS: &[&str] = &[
     "platformCode",
+    "statusClass",
     "failure_disposition",
     "issue_eligible",
     "classifier_version",
+    "fp_branch",
     "fp_version",
     "fp_hash",
     "predecessor_fp_version",
     "predecessor_fp_hash",
     "appCode",
     "errorClass",
+    "subsystem",
     "function",
     "name",
     "appDetails",
@@ -595,17 +597,55 @@ const RESERVED_DETAIL_KEYS: &[&str] = &[
     "detailFlags",
 ];
 
+/// Closed structural discriminator for the fingerprint tuple already chosen
+/// at the emission seam. The flusher validates the carrier against this stamp
+/// but never chooses or recomputes a branch.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FingerprintBranchV1 {
+    TypedRefusal,
+    AppRefusal,
+    Exception,
+    Transport,
+    Diagnostic,
+}
+
+pub(crate) fn is_failure_detail_key(key: &str) -> bool {
+    FAILURE_DETAIL_KEYS.contains(&key) || EXISTING_ALLOWLIST_PRIORITY.contains(&key)
+}
+
+const FAILURE_DETAIL_FLAG_KEYS: &[&str] = &[
+    "functionTruncated",
+    "nameTruncated",
+    "messageTemplateTruncated",
+    "messageTruncated",
+    "stackTruncated",
+    "appDetailsDropped",
+    "attemptDropped",
+    "causeDropped",
+    "levelDropped",
+    "methodDropped",
+    "rawPathDropped",
+    "refererDropped",
+    "severityDropped",
+    "triggerDropped",
+    "userAgentDropped",
+];
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct FailureDetailsInputV1 {
-    pub platform_code: String,
+    pub platform_code: Option<String>,
     pub classification: FailureClassificationV1,
+    pub fingerprint_branch: FingerprintBranchV1,
     pub fingerprint_version: Option<u32>,
     pub fingerprint_hash: Option<String>,
     pub predecessor_fingerprint_version: Option<u32>,
     pub predecessor_fingerprint_hash: Option<String>,
+    pub status_class: Option<u16>,
     pub app_code: Option<String>,
     pub error_class: Option<String>,
+    pub subsystem: Option<String>,
     pub function: Option<String>,
     pub name: Option<String>,
     #[serde(default)]
@@ -625,6 +665,262 @@ pub enum DetailsAllocationErrorV1 {
 pub struct AllocatedFailureDetailsV1 {
     pub details: Value,
     pub serialized_bytes: usize,
+}
+
+/// The already-decided subset of an eligible failure row that the telemetry
+/// flusher is allowed to materialize. Classification and fingerprinting stay
+/// at the emission seam; this parser only validates their closed carrier.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct MaterializedFailureStampV1 {
+    pub platform_code: Option<String>,
+    pub failure_disposition: FailureDispositionV1,
+    pub classifier_version: u32,
+    pub fingerprint_branch: FingerprintBranchV1,
+    pub fingerprint_version: u32,
+    pub fingerprint_hash: [u8; 16],
+    pub predecessor_fingerprint: Option<(u32, [u8; 16])>,
+    pub status_class: Option<u16>,
+    pub app_code: Option<String>,
+    pub error_class: Option<String>,
+    pub subsystem: Option<String>,
+    pub message_template: Option<String>,
+    pub stack_head: Option<String>,
+    pub template_truncated: bool,
+    pub stack_truncated: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum FailureStampMaterializationV1 {
+    NotEligible,
+    MalformedEligible,
+    Eligible(MaterializedFailureStampV1),
+}
+
+impl FailureDispositionV1 {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Fault => "fault",
+            Self::AppRefusal => "app_refusal",
+            Self::CallerError => "caller_error",
+            Self::Cancellation => "cancellation",
+            Self::Timeout => "timeout",
+            Self::Overload => "overload",
+        }
+    }
+}
+
+fn parse_lower_hex_16(value: &str) -> Option<[u8; 16]> {
+    if value.len() != 32
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+    {
+        return None;
+    }
+    let mut decoded = [0_u8; 16];
+    for (index, slot) in decoded.iter_mut().enumerate() {
+        let pair = &value[index * 2..index * 2 + 2];
+        *slot = u8::from_str_radix(pair, 16).ok()?;
+    }
+    Some(decoded)
+}
+
+fn optional_string(object: &Map<String, Value>, key: &str) -> Option<Option<String>> {
+    match object.get(key) {
+        None | Some(Value::Null) => Some(None),
+        Some(Value::String(value)) => Some(Some(value.clone())),
+        Some(_) => None,
+    }
+}
+
+fn detail_flag(object: &Map<String, Value>, key: &str) -> Option<bool> {
+    let Value::Object(flags) = object.get("detailFlags")? else {
+        return None;
+    };
+    flags.get(key)?.as_bool()
+}
+
+fn platform_code_is_valid(code: &str) -> bool {
+    !code.is_empty()
+        && code.len() <= 256
+        && code
+            .bytes()
+            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_')
+}
+
+fn subsystem_is_valid(subsystem: &str) -> bool {
+    !subsystem.is_empty()
+        && subsystem.len() <= 64
+        && subsystem
+            .bytes()
+            .next()
+            .is_some_and(|byte| byte.is_ascii_lowercase())
+        && subsystem.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'-' | b'_')
+        })
+}
+
+fn detail_flags_are_closed(object: &Map<String, Value>) -> bool {
+    let Some(Value::Object(flags)) = object.get("detailFlags") else {
+        return false;
+    };
+    flags.len() == FAILURE_DETAIL_FLAG_KEYS.len()
+        && FAILURE_DETAIL_FLAG_KEYS
+            .iter()
+            .all(|key| flags.get(*key).is_some_and(Value::is_boolean))
+}
+
+/// Validate one failure-details object without deriving missing semantics.
+/// A literal `issue_eligible: true` opts into strict validation; malformed
+/// eligible carriers remain raw telemetry and are counted by the store.
+pub(crate) fn materialize_failure_stamp_v1(
+    details: Option<&Value>,
+) -> FailureStampMaterializationV1 {
+    let Some(Value::Object(object)) = details else {
+        return FailureStampMaterializationV1::NotEligible;
+    };
+    if object.get("issue_eligible") != Some(&Value::Bool(true)) {
+        return FailureStampMaterializationV1::NotEligible;
+    }
+
+    let parsed = (|| {
+        if !object.keys().all(|key| is_failure_detail_key(key)) || !detail_flags_are_closed(object)
+        {
+            return None;
+        }
+        let platform_code = optional_string(object, "platformCode")?;
+        if platform_code
+            .as_deref()
+            .is_some_and(|code| !platform_code_is_valid(code))
+        {
+            return None;
+        }
+        let failure_disposition = serde_json::from_value::<FailureDispositionV1>(
+            object.get("failure_disposition")?.clone(),
+        )
+        .ok()?;
+        if matches!(
+            failure_disposition,
+            FailureDispositionV1::CallerError | FailureDispositionV1::Cancellation
+        ) {
+            return None;
+        }
+        let classifier_version = u32::try_from(object.get("classifier_version")?.as_u64()?).ok()?;
+        if classifier_version != CLASSIFIER_VERSION {
+            return None;
+        }
+        let fingerprint_branch =
+            serde_json::from_value::<FingerprintBranchV1>(object.get("fp_branch")?.clone()).ok()?;
+        let status_class = match object.get("statusClass") {
+            None => None,
+            Some(value) => Some(u16::try_from(value.as_u64()?).ok()?),
+        };
+        let fingerprint_version = u32::try_from(object.get("fp_version")?.as_u64()?).ok()?;
+        if fingerprint_version == 0 {
+            return None;
+        }
+        let fingerprint_hash = parse_lower_hex_16(object.get("fp_hash")?.as_str()?)?;
+        let predecessor_version = match object.get("predecessor_fp_version") {
+            None => None,
+            Some(value) => Some(u32::try_from(value.as_u64()?).ok()?),
+        };
+        let predecessor_hash = match object.get("predecessor_fp_hash") {
+            None => None,
+            Some(value) => Some(parse_lower_hex_16(value.as_str()?)?),
+        };
+        let predecessor_fingerprint = match (predecessor_version, predecessor_hash) {
+            (None, None) => None,
+            (Some(version), Some(hash)) if version > 0 => Some((version, hash)),
+            _ => return None,
+        };
+        let app_code = optional_string(object, "appCode")?;
+        if app_code
+            .as_deref()
+            .is_some_and(|code| !app_refusal_code_is_valid(code))
+            || (failure_disposition == FailureDispositionV1::AppRefusal && app_code.is_none())
+        {
+            return None;
+        }
+        let error_class = optional_string(object, "errorClass")?;
+        if error_class.as_deref().is_some_and(|class| {
+            class != UNCLASSIFIED_ERROR_CLASS && validated_error_class(Some(class)) != class
+        }) {
+            return None;
+        }
+        let subsystem = optional_string(object, "subsystem")?;
+        if subsystem
+            .as_deref()
+            .is_some_and(|subsystem| !subsystem_is_valid(subsystem))
+        {
+            return None;
+        }
+        let branch_is_valid = match fingerprint_branch {
+            FingerprintBranchV1::TypedRefusal => {
+                platform_code.is_some()
+                    && failure_disposition != FailureDispositionV1::AppRefusal
+                    && status_class.is_none()
+                    && app_code.is_none()
+                    && error_class.is_none()
+                    && subsystem.is_none()
+            }
+            FingerprintBranchV1::AppRefusal => {
+                platform_code.as_deref() == Some("SNAPBACK_APP_REFUSAL")
+                    && failure_disposition == FailureDispositionV1::AppRefusal
+                    && status_class.is_none()
+                    && app_code.is_some()
+                    && error_class.is_none()
+                    && subsystem.is_none()
+            }
+            FingerprintBranchV1::Exception => {
+                platform_code.is_some()
+                    && failure_disposition != FailureDispositionV1::AppRefusal
+                    && status_class.is_none()
+                    && app_code.is_none()
+                    && error_class.is_some()
+                    && subsystem.is_none()
+            }
+            FingerprintBranchV1::Transport => {
+                platform_code.is_none()
+                    && failure_disposition == FailureDispositionV1::Fault
+                    && status_class == Some(5)
+                    && app_code.is_none()
+                    && error_class.is_none()
+                    && subsystem.is_none()
+            }
+            FingerprintBranchV1::Diagnostic => {
+                platform_code.is_some()
+                    && failure_disposition != FailureDispositionV1::AppRefusal
+                    && status_class.is_none()
+                    && app_code.is_none()
+                    && error_class.is_none()
+                    && subsystem.is_some()
+            }
+        };
+        if !branch_is_valid {
+            return None;
+        }
+        Some(MaterializedFailureStampV1 {
+            platform_code,
+            failure_disposition,
+            classifier_version,
+            fingerprint_branch,
+            fingerprint_version,
+            fingerprint_hash,
+            predecessor_fingerprint,
+            status_class,
+            app_code,
+            error_class,
+            subsystem,
+            message_template: optional_string(object, "messageTemplate")?,
+            stack_head: optional_string(object, "stack")?,
+            template_truncated: detail_flag(object, "messageTemplateTruncated")?,
+            stack_truncated: detail_flag(object, "stackTruncated")?,
+        })
+    })();
+    parsed.map_or(
+        FailureStampMaterializationV1::MalformedEligible,
+        FailureStampMaterializationV1::Eligible,
+    )
 }
 
 fn flag_name(key: &str, suffix: &str) -> String {
@@ -727,9 +1023,15 @@ pub fn allocate_failure_details(
             "issue_eligible".to_owned(),
             json!(input.classification.issue_eligible),
         ),
-        ("platformCode".to_owned(), json!(input.platform_code)),
+        ("fp_branch".to_owned(), json!(input.fingerprint_branch)),
         ("detailFlags".to_owned(), flags_value(&flags)),
     ]);
+    if let Some(platform_code) = input.platform_code.as_deref() {
+        details.insert("platformCode".to_owned(), json!(platform_code));
+    }
+    if let Some(status_class) = input.status_class {
+        details.insert("statusClass".to_owned(), json!(status_class));
+    }
     for (key, value) in [
         ("fp_version", input.fingerprint_version.map(Value::from)),
         ("fp_hash", input.fingerprint_hash.clone().map(Value::String)),
@@ -756,6 +1058,7 @@ pub fn allocate_failure_details(
     for (key, value) in [
         ("appCode", input.app_code.as_deref()),
         ("errorClass", input.error_class.as_deref()),
+        ("subsystem", input.subsystem.as_deref()),
     ] {
         if let Some(value) = value
             && !try_insert_whole(&mut details, key, Value::String(value.to_owned()))
@@ -1113,18 +1416,21 @@ pub fn fingerprint_vector_artifact() -> Value {
 pub fn carrier_fixture_artifact() -> Value {
     let large = "☃".repeat(4_000);
     let allocation = allocate_failure_details(&FailureDetailsInputV1 {
-        platform_code: "SNAPBACK_HANDLER_FAILED".to_owned(),
+        platform_code: Some("SNAPBACK_HANDLER_FAILED".to_owned()),
         classification: FailureClassificationV1 {
             failure_disposition: FailureDispositionV1::Fault,
             issue_eligible: true,
             classifier_version: 1,
         },
+        fingerprint_branch: FingerprintBranchV1::Exception,
         fingerprint_version: Some(1),
         fingerprint_hash: Some("0123456789abcdef0123456789abcdef".to_owned()),
         predecessor_fingerprint_version: None,
         predecessor_fingerprint_hash: None,
+        status_class: None,
         app_code: None,
         error_class: Some("TypeError".to_owned()),
+        subsystem: None,
         function: Some("messages.send".to_owned()),
         name: Some("messages.send".to_owned()),
         existing_allowlist: BTreeMap::from([("attempt".to_owned(), json!(3))]),
@@ -1172,6 +1478,35 @@ pub fn artifact_instances() -> Vec<(&'static str, Value)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn eligible_failure_details() -> Value {
+        allocate_failure_details(&FailureDetailsInputV1 {
+            platform_code: Some("SNAPBACK_HANDLER_FAILED".to_owned()),
+            classification: FailureClassificationV1 {
+                failure_disposition: FailureDispositionV1::Fault,
+                issue_eligible: true,
+                classifier_version: CLASSIFIER_VERSION,
+            },
+            fingerprint_branch: FingerprintBranchV1::Exception,
+            fingerprint_version: Some(FINGERPRINT_VERSION),
+            fingerprint_hash: Some("0123456789abcdef0123456789abcdef".to_owned()),
+            predecessor_fingerprint_version: None,
+            predecessor_fingerprint_hash: None,
+            status_class: None,
+            app_code: None,
+            error_class: Some("TypeError".to_owned()),
+            subsystem: None,
+            function: Some("messages.send".to_owned()),
+            name: Some("messages.send".to_owned()),
+            existing_allowlist: BTreeMap::new(),
+            app_details: None,
+            message_template: Some("failed for <email>".to_owned()),
+            message: None,
+            stack: Some("at messages.send".to_owned()),
+        })
+        .expect("eligible fixture fits the closed carrier")
+        .details
+    }
 
     #[test]
     fn closed_memberships_are_sorted_unique_and_disjoint() {
@@ -1330,18 +1665,21 @@ mod tests {
     #[test]
     fn allocator_is_utf8_safe_whole_drop_and_deterministic() {
         let input = FailureDetailsInputV1 {
-            platform_code: "SNAPBACK_HANDLER_FAILED".to_owned(),
+            platform_code: Some("SNAPBACK_HANDLER_FAILED".to_owned()),
             classification: FailureClassificationV1 {
                 failure_disposition: FailureDispositionV1::Fault,
                 issue_eligible: true,
                 classifier_version: 1,
             },
+            fingerprint_branch: FingerprintBranchV1::Exception,
             fingerprint_version: Some(1),
             fingerprint_hash: Some("f".repeat(32)),
             predecessor_fingerprint_version: None,
             predecessor_fingerprint_hash: None,
+            status_class: None,
             app_code: None,
             error_class: Some("TypeError".to_owned()),
+            subsystem: None,
             function: Some("functions/very-long".repeat(800)),
             name: Some("name".to_owned()),
             existing_allowlist: BTreeMap::from([
@@ -1367,10 +1705,253 @@ mod tests {
     }
 
     #[test]
+    fn flusher_materializes_only_a_complete_closed_eligible_stamp() {
+        let details = eligible_failure_details();
+        let FailureStampMaterializationV1::Eligible(stamp) =
+            materialize_failure_stamp_v1(Some(&details))
+        else {
+            panic!("allocator output must be accepted without recomputation");
+        };
+        assert_eq!(
+            stamp.platform_code.as_deref(),
+            Some("SNAPBACK_HANDLER_FAILED")
+        );
+        assert_eq!(stamp.failure_disposition, FailureDispositionV1::Fault);
+        assert_eq!(stamp.classifier_version, CLASSIFIER_VERSION);
+        assert_eq!(stamp.fingerprint_version, FINGERPRINT_VERSION);
+        assert_eq!(
+            stamp.fingerprint_hash,
+            [
+                0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab,
+                0xcd, 0xef,
+            ]
+        );
+        assert_eq!(stamp.subsystem, None);
+
+        let mut seam_decided = details;
+        seam_decided["platformCode"] = json!("SNAPBACK_DIFFERENT_FAULT");
+        let FailureStampMaterializationV1::Eligible(stamp) =
+            materialize_failure_stamp_v1(Some(&seam_decided))
+        else {
+            panic!("a valid closed stamp remains materializable");
+        };
+        assert_eq!(
+            stamp.platform_code.as_deref(),
+            Some("SNAPBACK_DIFFERENT_FAULT")
+        );
+        assert_eq!(
+            stamp.fingerprint_hash,
+            [
+                0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab,
+                0xcd, 0xef,
+            ],
+            "the store validates the emitted hash; it never recomputes it"
+        );
+    }
+
+    #[test]
+    fn malformed_eligible_stamps_fail_closed_without_impersonation() {
+        let base = eligible_failure_details();
+        let malformed = |mutate: fn(&mut Value)| {
+            let mut candidate = base.clone();
+            mutate(&mut candidate);
+            assert_eq!(
+                materialize_failure_stamp_v1(Some(&candidate)),
+                FailureStampMaterializationV1::MalformedEligible
+            );
+        };
+
+        for code in ["", "snapback_lowercase", "SNAPBACK-BAD"] {
+            let mut candidate = base.clone();
+            candidate["platformCode"] = json!(code);
+            assert_eq!(
+                materialize_failure_stamp_v1(Some(&candidate)),
+                FailureStampMaterializationV1::MalformedEligible,
+                "invalid platform code {code:?}"
+            );
+        }
+        for version in [0, CLASSIFIER_VERSION + 1] {
+            let mut candidate = base.clone();
+            candidate["classifier_version"] = json!(version);
+            assert_eq!(
+                materialize_failure_stamp_v1(Some(&candidate)),
+                FailureStampMaterializationV1::MalformedEligible
+            );
+        }
+        malformed(|value| value["fp_version"] = json!(0));
+        malformed(|value| value["fp_hash"] = json!("ABCDEF0123456789ABCDEF0123456789"));
+        malformed(|value| value["errorClass"] = json!("bad-class"));
+        malformed(|value| value["errorClass"] = json!(""));
+        malformed(|value| value["subsystem"] = json!("Functions"));
+        malformed(|value| value["predecessor_fp_version"] = json!(1));
+        malformed(|value| value["predecessor_fp_hash"] = json!("f".repeat(32)));
+        malformed(|value| value["failure_disposition"] = json!("caller_error"));
+        malformed(|value| value["failure_disposition"] = json!("cancellation"));
+        malformed(|value| value["detailFlags"] = json!(false));
+        malformed(|value| value["detailFlags"]["stackTruncated"] = json!("false"));
+        malformed(|value| value["detailFlags"]["unknownFlag"] = json!(false));
+        malformed(|value| value["arbitraryClassifierStamp"] = json!(true));
+        malformed(|value| value["fp_branch"] = json!("typed_refusal"));
+        malformed(|value| value["fp_branch"] = json!("diagnostic"));
+        malformed(|value| value["fp_branch"] = json!("transport"));
+        malformed(|value| {
+            value["fp_branch"] = json!("app_refusal");
+            value["failure_disposition"] = json!("app_refusal");
+            value["platformCode"] = json!("SNAPBACK_APP_REFUSAL");
+            value["appCode"] = json!("STALE_MOVE");
+        });
+
+        let mut code_less_transport = base.clone();
+        code_less_transport
+            .as_object_mut()
+            .unwrap()
+            .remove("platformCode");
+        code_less_transport
+            .as_object_mut()
+            .unwrap()
+            .remove("errorClass");
+        code_less_transport
+            .as_object_mut()
+            .unwrap()
+            .remove("subsystem");
+        code_less_transport["fp_branch"] = json!("transport");
+        code_less_transport["statusClass"] = json!(5);
+        let FailureStampMaterializationV1::Eligible(transport) =
+            materialize_failure_stamp_v1(Some(&code_less_transport))
+        else {
+            panic!("a code-less 5xx transport fault is a complete eligible branch");
+        };
+        assert_eq!(transport.platform_code, None);
+        assert_eq!(transport.status_class, Some(5));
+        assert_eq!(transport.fingerprint_branch, FingerprintBranchV1::Transport);
+
+        let mut typed = base.clone();
+        typed.as_object_mut().unwrap().remove("errorClass");
+        typed["fp_branch"] = json!("typed_refusal");
+        assert!(matches!(
+            materialize_failure_stamp_v1(Some(&typed)),
+            FailureStampMaterializationV1::Eligible(_)
+        ));
+        let mut diagnostic = typed.clone();
+        diagnostic["fp_branch"] = json!("diagnostic");
+        diagnostic["subsystem"] = json!("telemetry");
+        assert!(matches!(
+            materialize_failure_stamp_v1(Some(&diagnostic)),
+            FailureStampMaterializationV1::Eligible(_)
+        ));
+        let mut app_refusal = typed.clone();
+        app_refusal["fp_branch"] = json!("app_refusal");
+        app_refusal["failure_disposition"] = json!("app_refusal");
+        app_refusal["platformCode"] = json!("SNAPBACK_APP_REFUSAL");
+        app_refusal["appCode"] = json!("STALE_MOVE");
+        assert!(matches!(
+            materialize_failure_stamp_v1(Some(&app_refusal)),
+            FailureStampMaterializationV1::Eligible(_)
+        ));
+
+        for (branch, valid, forbidden) in [
+            (
+                "typed_refusal",
+                &typed,
+                vec![
+                    ("appCode", json!("STALE_MOVE")),
+                    ("errorClass", json!("TypeError")),
+                    ("subsystem", json!("functions")),
+                    ("statusClass", json!(5)),
+                ],
+            ),
+            (
+                "app_refusal",
+                &app_refusal,
+                vec![
+                    ("errorClass", json!("TypeError")),
+                    ("subsystem", json!("functions")),
+                    ("statusClass", json!(5)),
+                ],
+            ),
+            (
+                "exception",
+                &base,
+                vec![
+                    ("appCode", json!("STALE_MOVE")),
+                    ("subsystem", json!("functions")),
+                    ("statusClass", json!(5)),
+                ],
+            ),
+            (
+                "transport",
+                &code_less_transport,
+                vec![
+                    ("platformCode", json!("SNAPBACK_HANDLER_FAILED")),
+                    ("appCode", json!("STALE_MOVE")),
+                    ("errorClass", json!("TypeError")),
+                    ("subsystem", json!("functions")),
+                ],
+            ),
+            (
+                "diagnostic",
+                &diagnostic,
+                vec![
+                    ("appCode", json!("STALE_MOVE")),
+                    ("errorClass", json!("TypeError")),
+                    ("statusClass", json!(5)),
+                ],
+            ),
+        ] {
+            for (key, value) in forbidden {
+                let mut confused = valid.clone();
+                confused[key] = value;
+                assert_eq!(
+                    materialize_failure_stamp_v1(Some(&confused)),
+                    FailureStampMaterializationV1::MalformedEligible,
+                    "{branch} must reject foreign facet {key}"
+                );
+            }
+        }
+        let mut diagnostic_without_subsystem = diagnostic.clone();
+        diagnostic_without_subsystem
+            .as_object_mut()
+            .unwrap()
+            .remove("subsystem");
+        assert_eq!(
+            materialize_failure_stamp_v1(Some(&diagnostic_without_subsystem)),
+            FailureStampMaterializationV1::MalformedEligible
+        );
+
+        let mut missing_non_transport_code = base.clone();
+        missing_non_transport_code
+            .as_object_mut()
+            .unwrap()
+            .remove("platformCode");
+        assert_eq!(
+            materialize_failure_stamp_v1(Some(&missing_non_transport_code)),
+            FailureStampMaterializationV1::MalformedEligible
+        );
+        code_less_transport["statusClass"] = json!(4);
+        assert_eq!(
+            materialize_failure_stamp_v1(Some(&code_less_transport)),
+            FailureStampMaterializationV1::MalformedEligible
+        );
+
+        let mut sentinel = base.clone();
+        sentinel["errorClass"] = json!(UNCLASSIFIED_ERROR_CLASS);
+        assert!(matches!(
+            materialize_failure_stamp_v1(Some(&sentinel)),
+            FailureStampMaterializationV1::Eligible(_)
+        ));
+        let mut not_eligible = base;
+        not_eligible["issue_eligible"] = json!(false);
+        assert_eq!(
+            materialize_failure_stamp_v1(Some(&not_eligible)),
+            FailureStampMaterializationV1::NotEligible
+        );
+    }
+
+    #[test]
     fn reserved_detail_vocabulary_is_unique() {
         assert_eq!(
-            RESERVED_DETAIL_KEYS.iter().collect::<BTreeSet<_>>().len(),
-            RESERVED_DETAIL_KEYS.len()
+            FAILURE_DETAIL_KEYS.iter().collect::<BTreeSet<_>>().len(),
+            FAILURE_DETAIL_KEYS.len()
         );
     }
 }

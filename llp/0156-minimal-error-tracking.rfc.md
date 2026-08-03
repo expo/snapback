@@ -222,6 +222,13 @@ implementation time; the 2026-08-02 admission-identity amendment to
 0154 (fixed `release` column, meta-pinned app/environment) already
 supplies the per-row release identity this document's E1.2 group folds
 and `release_activations` consume.)
+**Revised:** 2026-08-02 (dated E1 store implementation amendment — the
+accepted schema is made mechanically complete with exemplar acceptance
+sequences and separate depth/byte/per-flush drop counters; strict closed
+branch stamps cover code-less 5xx transport faults without synthesis;
+release-activation floor, rollout, retention, direct-transition
+linearization, checked sequence exhaustion, and historical resolve-field
+rules are pinned to the store behavior and acceptance corpus.)
 **Related:** LLP 0154 (minimal observability; the substrate this layers
 on — spans, the telemetry sibling store, flush-path maintenance, typed
 operations, the variance envelope; this RFC amends its registry, D2
@@ -825,6 +832,9 @@ CREATE TABLE error_groups (            -- classification tier (CE2)
   count          INTEGER NOT NULL,
   suppressed_cooldown_count INTEGER NOT NULL DEFAULT 0,  -- E2, atomic with the decision
   suppressed_rollout_count  INTEGER NOT NULL DEFAULT 0,
+  exemplar_depth_drop_count INTEGER NOT NULL DEFAULT 0,
+  exemplar_byte_drop_count  INTEGER NOT NULL DEFAULT 0,
+  exemplar_flush_drop_count INTEGER NOT NULL DEFAULT 0,
   state          TEXT NOT NULL,        -- 'open'|'resolved'|'ignored'|'regressed'
   state_seq      INTEGER NOT NULL DEFAULT 0,  -- monotone per-row transition
                                        -- counter (CAS token); groups are
@@ -844,6 +854,7 @@ CREATE TABLE error_exemplars (         -- raw tier (CE3): retention = raw floor
   generation       TEXT NOT NULL,
   observation      TEXT NOT NULL,      -- obs_… correlation root
   recorded_ts_ms   INTEGER NOT NULL,   -- same clock as telemetry_events
+  recorded_seq     INTEGER NOT NULL,   -- source row's enqueue acceptance order
   release          TEXT,
   title_template   TEXT,               -- normalized message template
   template_truncated INTEGER NOT NULL DEFAULT 0,
@@ -874,6 +885,71 @@ CREATE TABLE release_activations (     -- classification tier: release order
   PRIMARY KEY (generation, release)
 );
 ```
+
+#### Amendment 2026-08-02: E1 store mechanical clarifications
+
+The flusher accepts only a complete emission-seam stamp. The stamp includes
+the closed fingerprint branch discriminator
+`typed_refusal | app_refusal | exception | transport | diagnostic`; each
+branch admits only its fingerprint tuple's facets. In particular, a
+transport-only eligible fault has `failure_disposition = fault`,
+`statusClass = 5`, and no `platformCode` — the store does not synthesize a
+code from HTTP status. Every non-transport branch requires a grammar-valid
+platform code; diagnostic requires `subsystem`; exception requires a
+validated `errorClass`; app-refusal requires its grammar-valid `appCode`.
+Foreign facets, partial predecessor stamps, unknown flags, wrong versions,
+and wrong types are malformed eligible carriers: the raw telemetry row still
+commits, grouping is skipped, and `malformed_error_stamp_count` advances in
+that transaction. The flusher never reclassifies or recomputes a fingerprint.
+
+`error_exemplars.recorded_seq` is the source row's enqueue sequence and is
+the ring's oldest-first authority. The 32 KiB budget counts exact UTF-8 bytes
+of `title_template + stack_head` (SQLite BLOB lengths for retained rows,
+UTF-8 byte lengths for the incoming row). An individually oversized exemplar
+is rejected before any eviction. The per-flush limit counts successful
+inserts only; duplicate or oversized candidates do not consume one of the
+five insertion slots. Depth replacement, byte-budget rejection/eviction, and
+per-flush suppression advance the three separate per-group counters shown
+above.
+
+`telemetry_meta` carries the cumulative-current-generation
+`overflow_fold_count`, `classifier_disposition_mismatch_count`, and
+`malformed_error_stamp_count`, plus `release_activation_floor_seq`. Group
+capacity is fold-only: an over-cap fingerprint creates no issue row and
+increments overflow once per eligible occurrence. Release activations come
+from the already-authoritative `lifecycle/release_activation` publication
+rows; same-hash republication is a genuine later activation, while replaying
+the exact same sequence is idempotent. First activation fields are immutable;
+last activation fields advance only on a greater sequence. Horizon and
+2,000-row cap pruning advance the floor to the greatest removed first
+activation sequence; generation rotation resets it. Unknown and below-floor
+selectors fail closed.
+
+Every `*_visible` view uses the current generation, `max_days > 0`, and a
+strict `>` horizon. Group, transition, and activation views use the group
+horizon; exemplar views use the same strict
+`max(raw boundary, retention_floor)` as raw events. A stale key is absent at
+read time even before maintenance physically deletes it.
+
+Direct state transitions share the telemetry owner's serialization gate with
+flushes. Lock order is `flush gate → buffer sequence capture → store`; the
+gate remains held through the short SQLite transaction, so a flush cannot
+overtake barrier capture and commit. Producer admissions retain their D3
+non-blocking critical section and may receive later sequences while that
+transaction runs. `state_seq` and the admission sequence advance with checked
+arithmetic and fail closed at their persisted integer boundary — saturation
+is forbidden. A single resolve records the telemetry owner's current release.
+`resolved_seq` and `resolved_release` survive reopen and ignore transitions;
+a later successful re-resolve replaces both. Bulk resolve uses the named
+release's immutable first `activated_seq`, applies exactly to groups with
+`last_seen_seq < activated_seq`, and returns per-row results in one
+transaction.
+
+Fingerprint rollout suppression consumes the complete persisted tuple
+`(from, to, started, expires)` only when
+`started <= event.ts_ms < expires`; incomplete or invalid bounds fail closed.
+The successor's dual-stamped predecessor lookup is classification-tier and
+therefore continues to work after predecessor exemplars have aged out.
 
 **Acceptance order is the enqueue sequence, not the clock.** 0154's
 observation clock stamps every row of a flush batch identically, so

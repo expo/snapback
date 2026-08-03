@@ -14,6 +14,10 @@
 //!   rollups are post-flush work, never a periodic app-database job.
 
 use crate::diagnostic::{DiagnosticSeverity, SnapbackError, SnapbackResult};
+use crate::error_tracking::{
+    FailureDispositionV1, FailureStampMaterializationV1, MaterializedFailureStampV1,
+    is_failure_detail_key, materialize_failure_stamp_v1,
+};
 use crate::ids::{self, Kind as IdKind};
 use crate::telemetry_contract::{
     AdmittedObservationClassV1, OperationClassIdV1, TelemetryProjectionModeV1,
@@ -44,6 +48,12 @@ const CORRELATION_MAX_BYTES: usize = 512;
 const CODE_MAX_BYTES: usize = 256;
 const LARGE_SWEEP_ROWS: usize = 1_000;
 const FILE_CAP_FIXED_RESERVE_BYTES: u64 = 128 * 1024;
+const ERROR_GROUP_CAP: usize = 1_000;
+const ERROR_EXEMPLAR_DEPTH: usize = 5;
+const ERROR_EXEMPLAR_BYTES: usize = 32 * 1024;
+const ERROR_TRANSITIONS_PER_GROUP: usize = 100;
+const ERROR_TRANSITIONS_GLOBAL: usize = 10_000;
+const RELEASE_ACTIVATION_CAP: usize = 2_000;
 
 pub const DEFAULT_MAX_DAYS: u32 = 7;
 pub const MAX_MAX_DAYS: u32 = 365;
@@ -264,6 +274,106 @@ struct Event {
     enqueued_at: Instant,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ErrorIssueState {
+    Open,
+    Resolved,
+    Ignored,
+    Regressed,
+}
+
+impl ErrorIssueState {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Open => "open",
+            Self::Resolved => "resolved",
+            Self::Ignored => "ignored",
+            Self::Regressed => "regressed",
+        }
+    }
+
+    fn parse(value: &str) -> Option<Self> {
+        match value {
+            "open" => Some(Self::Open),
+            "resolved" => Some(Self::Resolved),
+            "ignored" => Some(Self::Ignored),
+            "regressed" => Some(Self::Regressed),
+            _ => None,
+        }
+    }
+}
+
+fn authored_transition_allowed(from: ErrorIssueState, to: ErrorIssueState) -> bool {
+    matches!(
+        (from, to),
+        (
+            ErrorIssueState::Open,
+            ErrorIssueState::Resolved | ErrorIssueState::Ignored
+        ) | (
+            ErrorIssueState::Resolved,
+            ErrorIssueState::Open | ErrorIssueState::Ignored
+        ) | (ErrorIssueState::Ignored, ErrorIssueState::Open)
+            | (
+                ErrorIssueState::Regressed,
+                ErrorIssueState::Open | ErrorIssueState::Resolved | ErrorIssueState::Ignored
+            )
+    )
+}
+
+fn advance_error_state_seq(state_seq: i64) -> SnapbackResult<i64> {
+    if state_seq < 0 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_ERROR_STATE_SEQUENCE_INVALID",
+            "telemetry",
+            "error issue state sequence must be nonnegative",
+        ));
+    }
+    state_seq.checked_add(1).ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_ERROR_STATE_SEQUENCE_EXHAUSTED",
+            "telemetry",
+            "error issue state sequence exhausted SQLite's integer range",
+        )
+    })
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ErrorTransitionResult {
+    Applied {
+        issue: String,
+        state: ErrorIssueState,
+        state_seq: i64,
+    },
+    Conflict {
+        issue: String,
+        state: ErrorIssueState,
+        state_seq: i64,
+    },
+    Invalid {
+        issue: String,
+        state: ErrorIssueState,
+        state_seq: i64,
+    },
+    Missing {
+        issue: String,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ErrorBulkTransitionResult {
+    pub release: String,
+    pub activation_seq: Option<i64>,
+    pub activation_floor_seq: i64,
+    pub known_release: bool,
+    pub rows: Vec<ErrorTransitionResult>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct ErrorTransitionHistoryFloor {
+    pub floor_seq: i64,
+    pub history_truncated: bool,
+}
+
 #[derive(Debug)]
 pub struct ObservationSpan {
     telemetry: Telemetry,
@@ -462,6 +572,7 @@ struct FlushOutcome {
     watermark: Option<i64>,
     cap_drops: BTreeMap<String, u64>,
     replacement_generation: Option<String>,
+    enqueue_high_water: Option<u64>,
 }
 
 struct Producer {
@@ -631,10 +742,12 @@ impl Telemetry {
         let generation = store.generation.clone();
         let unclean_predecessor = store.unclean_predecessor;
         let enabled = config.max_days > 0;
+        let enqueue_seed = store.enqueue_sequence_seed()?;
         let shared = Arc::new(Shared {
             buffer: Mutex::new(Buffer {
                 current_generation: generation,
                 accepting: config.max_days > 0,
+                next_sequence: enqueue_seed,
                 ..Buffer::default()
             }),
             wake: Condvar::new(),
@@ -837,6 +950,85 @@ impl Telemetry {
             .read()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone()
+    }
+
+    /// Apply one authored issue transition directly on the telemetry owner.
+    /// The admission lock is held only long enough to capture the resolve
+    /// barrier; SQLite remains entirely off the producer critical section.
+    ///
+    /// @ref LLP 0156#e13--the-issue-state-machine — resolve barriers use the
+    ///   live enqueue counter and advance its durable high-water atomically.
+    #[allow(dead_code)] // The E1 typed surface lands in the following tranche.
+    pub(crate) fn transition_error_issue(
+        &self,
+        issue: &str,
+        to: ErrorIssueState,
+        expect_seq: i64,
+    ) -> SnapbackResult<ErrorTransitionResult> {
+        let _flush = self
+            .producer
+            .shared
+            .flush_gate
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let barrier = if to == ErrorIssueState::Resolved {
+            Some(self.capture_enqueue_sequence()?)
+        } else {
+            None
+        };
+        let release = self.current_release();
+        self.producer
+            .shared
+            .store
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .transition_error_issue(
+                issue,
+                to,
+                expect_seq,
+                barrier,
+                release.as_deref(),
+                "admin",
+                wall_now_ms(),
+            )
+    }
+
+    /// Resolve the release-selector snapshot in one serialized transaction.
+    #[allow(dead_code)] // The E1 typed surface lands in the following tranche.
+    pub(crate) fn resolve_errors_open_before(
+        &self,
+        release: &str,
+    ) -> SnapbackResult<ErrorBulkTransitionResult> {
+        let _flush = self
+            .producer
+            .shared
+            .flush_gate
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let barrier = self.capture_enqueue_sequence()?;
+        self.producer
+            .shared
+            .store
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .resolve_errors_open_before(release, barrier, wall_now_ms())
+    }
+
+    fn capture_enqueue_sequence(&self) -> SnapbackResult<i64> {
+        let sequence = self
+            .producer
+            .shared
+            .buffer
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .next_sequence;
+        i64::try_from(sequence).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_TELEMETRY_SEQUENCE_EXHAUSTED",
+                "telemetry",
+                "telemetry enqueue sequence exceeded SQLite's integer range",
+            )
+        })
     }
 
     /// Publish process readiness once at the authoritative surface cut. Both
@@ -1163,7 +1355,7 @@ impl Telemetry {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .max_days
             > 0;
-        let replacement_generation = {
+        let (replacement_generation, enqueue_seed) = {
             let mut store = self
                 .producer
                 .shared
@@ -1182,7 +1374,10 @@ impl Telemetry {
                 self.producer.shared.wake.notify_all();
                 return Err(error);
             }
-            store.replacement_generation.take()
+            (
+                store.replacement_generation.take(),
+                store.enqueue_sequence_seed()?,
+            )
         };
         *self
             .producer
@@ -1199,6 +1394,7 @@ impl Telemetry {
         if let Some(generation) = replacement_generation {
             buffer.current_generation = generation;
         }
+        buffer.next_sequence = buffer.next_sequence.max(enqueue_seed);
         buffer.config_fenced = false;
         buffer.accepting = config.max_days > 0 && !buffer.generation_fenced;
         drop(buffer);
@@ -1366,12 +1562,7 @@ impl Telemetry {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         let connection = store.ensure_connection(wall_now_ms())?;
-        crate::telemetry_query::agent_export_page(
-            connection,
-            request,
-            &context,
-            continuation_key,
-        )
+        crate::telemetry_query::agent_export_page(connection, request, &context, continuation_key)
     }
 
     #[cfg(test)]
@@ -1473,7 +1664,11 @@ impl Telemetry {
 }
 
 fn enqueue_locked(buffer: &mut Buffer, config: &TelemetryConfig, mut event: Event) -> bool {
-    buffer.next_sequence = buffer.next_sequence.saturating_add(1);
+    if buffer.next_sequence >= i64::MAX as u64 {
+        buffer.count_drop(&event, "sequenceExhausted");
+        return true;
+    }
+    buffer.next_sequence += 1;
     event.sequence = buffer.next_sequence;
     let normal_limit = config
         .buffer_capacity
@@ -1487,7 +1682,7 @@ fn enqueue_locked(buffer: &mut Buffer, config: &TelemetryConfig, mut event: Even
             if (buffer.normal.len() >= normal_limit || buffer.len() >= config.buffer_capacity)
                 && let Some(dropped) = buffer.normal.pop_front()
             {
-                    buffer.count_drop(&dropped, "bufferFullDropOldest");
+                buffer.count_drop(&dropped, "bufferFullDropOldest");
             }
             buffer.normal.push_back(event);
         }
@@ -1623,6 +1818,9 @@ fn flush_shared(shared: &Arc<Shared>, force_maintenance: bool) -> SnapbackResult
                     shared.shutdown_flush_failed.store(true, Ordering::Release);
                 }
             }
+            if let Some(enqueue_high_water) = outcome.enqueue_high_water {
+                buffer.next_sequence = buffer.next_sequence.max(enqueue_high_water);
+            }
             if let Some(watermark) = outcome.watermark {
                 buffer.last_flush_watermark = Some(
                     buffer
@@ -1666,6 +1864,16 @@ fn wall_now_ms() -> i64 {
         .min(i64::MAX as u128) as i64
 }
 
+fn sqlite_enqueue_sequence(sequence: u64) -> SnapbackResult<i64> {
+    i64::try_from(sequence).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_TELEMETRY_SEQUENCE_EXHAUSTED",
+            "telemetry",
+            "telemetry enqueue sequence exceeded SQLite's integer range",
+        )
+    })
+}
+
 fn cap(value: &str, maximum: usize) -> String {
     if value.len() <= maximum {
         return value.to_owned();
@@ -1681,7 +1889,7 @@ fn scrub_details(details: Option<Value>) -> Option<Value> {
     let Value::Object(input) = details? else {
         return None;
     };
-    let allowed = BTreeSet::from([
+    let legacy_allowed = BTreeSet::from([
         "attempt",
         "cause",
         "level",
@@ -1693,9 +1901,18 @@ fn scrub_details(details: Option<Value>) -> Option<Value> {
         "trigger",
         "userAgent",
     ]);
+    let failure_shaped = input.contains_key("issue_eligible")
+        || input.contains_key("failure_disposition")
+        || input.contains_key("fp_hash");
     let mut output = Map::new();
     for (key, mut value) in input {
-        if !allowed.contains(key.as_str()) {
+        if !legacy_allowed.contains(key.as_str())
+            && !(failure_shaped && is_failure_detail_key(&key))
+        {
+            continue;
+        }
+        if failure_shaped {
+            output.insert(key, value);
             continue;
         }
         cap_json_strings(
@@ -1714,6 +1931,19 @@ fn scrub_details(details: Option<Value>) -> Option<Value> {
         output.insert(key, value);
     }
     let mut value = Value::Object(output);
+    if failure_shaped {
+        // @ref LLP 0154#amendment-2026-08-02-error-classifier-vocabulary-and-failure-details-allocation —
+        //   the closed failure allocator has already applied its canonical
+        //   byte budget and per-field flags. Re-truncating here would make the
+        //   carrier contradict those stamps.
+        if serde_json::to_vec(&value).map_or(usize::MAX, |bytes| bytes.len()) <= DETAILS_MAX_BYTES {
+            return Some(value);
+        }
+        // Preserve only the opt-in marker so the flush transaction records a
+        // malformed eligible carrier instead of silently treating it as an
+        // ordinary raw event.
+        return Some(json!({ "issue_eligible": true }));
+    }
     while serde_json::to_vec(&value).map_or(0, |bytes| bytes.len()) > DETAILS_MAX_BYTES {
         let Value::Object(map) = &mut value else {
             break;
@@ -1957,14 +2187,35 @@ impl Store {
         Ok(self.conn.as_mut().expect("connection initialized"))
     }
 
+    fn enqueue_sequence_seed(&self) -> SnapbackResult<u64> {
+        let Some(conn) = self.conn.as_ref() else {
+            // Preserve D1's absent-until-first-write behavior for a new file.
+            return Ok(0);
+        };
+        let seed: i64 = conn.query_row(
+            "SELECT max(
+               enqueue_high_water,
+               coalesce((SELECT max(resolved_seq) FROM error_groups WHERE generation=telemetry_meta.generation),0)
+             ) FROM telemetry_meta WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )?;
+        u64::try_from(seed).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_TELEMETRY_SEQUENCE_INVALID",
+                "telemetry",
+                "telemetry enqueue high-water must be nonnegative",
+            )
+        })
+    }
+
     fn bind_existing_or_initialize(&mut self, now_ms: i64) -> SnapbackResult<()> {
         let config = self.config.clone();
         let current_generation = self.generation.clone();
         let current_incarnation = self.app_db_incarnation.clone();
         let current_identity = self.identity.clone();
         let conn = self.conn.as_mut().expect("existing telemetry connection");
-        type TelemetryMetaIdentityRow =
-            (String, String, Option<String>, Option<String>, i64, i64);
+        type TelemetryMetaIdentityRow = (String, String, Option<String>, Option<String>, i64, i64);
         let row: Option<TelemetryMetaIdentityRow> = conn
             .query_row(
                 "SELECT generation, app_db_incarnation, app_id, environment, observation_clock_ms, clean_shutdown FROM telemetry_meta WHERE singleton = 1",
@@ -2014,7 +2265,7 @@ impl Store {
                     .as_ref()
                     .map(|identity| identity.environment_id.as_str());
                 conn.execute(
-                    "UPDATE telemetry_meta SET generation=?1, app_db_incarnation=?2, app_id=?3, environment=?4, max_days_mirror=?5, observation_clock_ms=?6, retention_floor=max(retention_floor, ?7), rollup_watermark_id=0, last_sweep_ms=0, aggregate_floor_hourly=0, aggregate_floor_daily=0 WHERE singleton=1",
+                    "UPDATE telemetry_meta SET generation=?1, app_db_incarnation=?2, app_id=?3, environment=?4, max_days_mirror=?5, observation_clock_ms=?6, retention_floor=max(retention_floor, ?7), rollup_watermark_id=0, last_sweep_ms=0, aggregate_floor_hourly=0, aggregate_floor_daily=0, overflow_fold_count=0, classifier_disposition_mismatch_count=0, malformed_error_stamp_count=0, release_activation_floor_seq=0 WHERE singleton=1",
                     params![generation, current_incarnation, app_id, environment, config.max_days, clock, boundary_for(&config, clock)],
                 )?;
                 self.generation = generation;
@@ -2050,7 +2301,7 @@ impl Store {
                 .as_ref()
                 .map(|identity| identity.environment_id.as_str());
             conn.execute(
-                "UPDATE telemetry_meta SET generation=?1, app_db_incarnation=?2, app_id=?3, environment=?4, max_days_mirror=?5, observation_clock_ms=?6, retention_floor=max(retention_floor,?7), rollup_watermark_id=0, last_sweep_ms=0, aggregate_floor_hourly=0, aggregate_floor_daily=0, clean_shutdown=0 WHERE singleton=1",
+                "UPDATE telemetry_meta SET generation=?1, app_db_incarnation=?2, app_id=?3, environment=?4, max_days_mirror=?5, observation_clock_ms=?6, retention_floor=max(retention_floor,?7), rollup_watermark_id=0, last_sweep_ms=0, aggregate_floor_hourly=0, aggregate_floor_daily=0, overflow_fold_count=0, classifier_disposition_mismatch_count=0, malformed_error_stamp_count=0, release_activation_floor_seq=0, clean_shutdown=0 WHERE singleton=1",
                 params![generation, incarnation, app_id, environment, config.max_days, clock, boundary_for(&config, clock)],
             )?;
         } else {
@@ -2167,7 +2418,7 @@ impl Store {
             .as_ref()
             .map(|identity| identity.environment_id.as_str());
         conn.execute(
-            "UPDATE telemetry_meta SET generation=?1, app_db_incarnation=?2, app_id=?3, environment=?4, max_days_mirror=?5, observation_clock_ms=?6, retention_floor=max(retention_floor, ?7), rollup_watermark_id=0, last_sweep_ms=0, aggregate_floor_hourly=0, aggregate_floor_daily=0 WHERE singleton=1",
+            "UPDATE telemetry_meta SET generation=?1, app_db_incarnation=?2, app_id=?3, environment=?4, max_days_mirror=?5, observation_clock_ms=?6, retention_floor=max(retention_floor, ?7), rollup_watermark_id=0, last_sweep_ms=0, aggregate_floor_hourly=0, aggregate_floor_daily=0, overflow_fold_count=0, classifier_disposition_mismatch_count=0, malformed_error_stamp_count=0, release_activation_floor_seq=0 WHERE singleton=1",
             params![generation, incarnation, app_id, environment, config.max_days, clock, boundary_for(&config, clock)],
         )?;
         self.generation = generation;
@@ -2213,6 +2464,265 @@ impl Store {
         Ok(())
     }
 
+    fn transition_error_issue(
+        &mut self,
+        issue: &str,
+        to: ErrorIssueState,
+        expect_seq: i64,
+        barrier: Option<i64>,
+        release: Option<&str>,
+        actor: &str,
+        now_ms: i64,
+    ) -> SnapbackResult<ErrorTransitionResult> {
+        let generation = self.generation.clone();
+        let conn = self.ensure_connection(now_ms)?;
+        let tx = conn.transaction()?;
+        let clock: i64 = tx.query_row(
+            "SELECT observation_clock_ms FROM telemetry_meta WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )?;
+        let at_ms = now_ms.max(clock);
+        let row: Option<(String, i64)> = tx
+            .query_row(
+                "SELECT state,state_seq FROM error_groups
+                 WHERE generation=?1 AND issue=?2
+                   AND (SELECT max_days_mirror FROM telemetry_meta WHERE singleton=1)>0
+                   AND last_seen_ms > (
+                     SELECT observation_clock_ms-daily_days*86400000
+                     FROM telemetry_meta WHERE singleton=1
+                   )",
+                params![generation, issue],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        let Some((state, state_seq)) = row else {
+            tx.commit()?;
+            return Ok(ErrorTransitionResult::Missing {
+                issue: issue.to_owned(),
+            });
+        };
+        let state = ErrorIssueState::parse(&state).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_ERROR_GROUP_STATE_INVALID",
+                "telemetry",
+                "error group contains an invalid state",
+            )
+        })?;
+        if state_seq != expect_seq {
+            tx.commit()?;
+            return Ok(ErrorTransitionResult::Conflict {
+                issue: issue.to_owned(),
+                state,
+                state_seq,
+            });
+        }
+        if !authored_transition_allowed(state, to) {
+            tx.commit()?;
+            return Ok(ErrorTransitionResult::Invalid {
+                issue: issue.to_owned(),
+                state,
+                state_seq,
+            });
+        }
+        if to == ErrorIssueState::Resolved {
+            let barrier = barrier.ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ERROR_RESOLVE_BARRIER_MISSING",
+                    "telemetry",
+                    "resolving an error issue requires an enqueue barrier",
+                )
+            })?;
+            tx.execute(
+                "UPDATE telemetry_meta SET enqueue_high_water=max(enqueue_high_water,?1) WHERE singleton=1",
+                params![barrier],
+            )?;
+        }
+        let next_seq = advance_error_state_seq(state_seq)?;
+        let changed = tx.execute(
+            "UPDATE error_groups SET
+               state=?1,state_seq=?2,state_ms=?3,
+               resolved_seq=CASE WHEN ?1='resolved' THEN ?4 ELSE resolved_seq END,
+               resolved_release=CASE WHEN ?1='resolved' THEN ?5 ELSE resolved_release END
+             WHERE generation=?6 AND issue=?7 AND state_seq=?8",
+            params![
+                to.as_str(),
+                next_seq,
+                at_ms,
+                barrier,
+                release,
+                generation,
+                issue,
+                state_seq
+            ],
+        )?;
+        if changed != 1 {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ERROR_TRANSITION_SERIALIZATION_FAILED",
+                "telemetry",
+                "serialized issue transition lost its state sequence",
+            ));
+        }
+        append_error_transition(
+            &tx,
+            &generation,
+            issue,
+            next_seq,
+            state,
+            to,
+            at_ms,
+            actor,
+            release,
+        )?;
+        enforce_global_transition_cap(&tx)?;
+        tx.commit()?;
+        Ok(ErrorTransitionResult::Applied {
+            issue: issue.to_owned(),
+            state: to,
+            state_seq: next_seq,
+        })
+    }
+
+    #[allow(dead_code)] // Consumed by the E1 typed issue-detail surface tranche.
+    fn error_transition_history_floor(
+        &mut self,
+        issue: &str,
+        now_ms: i64,
+    ) -> SnapbackResult<Option<ErrorTransitionHistoryFloor>> {
+        let conn = self.ensure_connection(now_ms)?;
+        let row: Option<(i64, Option<i64>)> = conn
+            .query_row(
+                "SELECT g.state_seq,min(t.seq)
+                 FROM error_groups_visible g
+                 LEFT JOIN error_transitions_visible t
+                   ON t.generation=g.generation AND t.issue=g.issue
+                 WHERE g.issue=?1 GROUP BY g.generation,g.issue,g.state_seq",
+                params![issue],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        Ok(row.map(|(state_seq, minimum)| ErrorTransitionHistoryFloor {
+            floor_seq: minimum.unwrap_or(state_seq),
+            history_truncated: state_seq > 0 && minimum.is_none_or(|minimum| minimum > 1),
+        }))
+    }
+
+    fn resolve_errors_open_before(
+        &mut self,
+        release: &str,
+        barrier: i64,
+        now_ms: i64,
+    ) -> SnapbackResult<ErrorBulkTransitionResult> {
+        let generation = self.generation.clone();
+        let conn = self.ensure_connection(now_ms)?;
+        let tx = conn.transaction()?;
+        let (clock, floor): (i64, i64) = tx.query_row(
+            "SELECT observation_clock_ms,release_activation_floor_seq FROM telemetry_meta WHERE singleton=1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        let activation_seq: Option<i64> = tx
+            .query_row(
+                "SELECT activated_seq FROM release_activations
+                 WHERE generation=?1 AND release=?2 AND activated_seq>?3
+                   AND (SELECT max_days_mirror FROM telemetry_meta WHERE singleton=1)>0
+                   AND last_activated_ms>(
+                     SELECT observation_clock_ms-daily_days*86400000
+                     FROM telemetry_meta WHERE singleton=1
+                   )",
+                params![generation, release, floor],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let Some(activation_seq) = activation_seq else {
+            tx.commit()?;
+            return Ok(ErrorBulkTransitionResult {
+                release: release.to_owned(),
+                activation_seq: None,
+                activation_floor_seq: floor,
+                known_release: false,
+                rows: Vec::new(),
+            });
+        };
+        let rows = {
+            let mut statement = tx.prepare(
+                "SELECT issue,state,state_seq FROM error_groups
+                 WHERE generation=?1 AND last_seen_seq<?2
+                   AND last_seen_ms>(
+                     SELECT observation_clock_ms-daily_days*86400000
+                     FROM telemetry_meta WHERE singleton=1
+                   )
+                 ORDER BY last_seen_seq,issue",
+            )?;
+            statement
+                .query_map(params![generation, activation_seq], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, i64>(2)?,
+                    ))
+                })?
+                .collect::<Result<Vec<_>, _>>()?
+        };
+        tx.execute(
+            "UPDATE telemetry_meta SET enqueue_high_water=max(enqueue_high_water,?1) WHERE singleton=1",
+            params![barrier],
+        )?;
+        let at_ms = now_ms.max(clock);
+        let mut outcomes = Vec::with_capacity(rows.len());
+        for (issue, state, state_seq) in rows {
+            let state = ErrorIssueState::parse(&state).ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ERROR_GROUP_STATE_INVALID",
+                    "telemetry",
+                    "error group contains an invalid state",
+                )
+            })?;
+            if !matches!(state, ErrorIssueState::Open | ErrorIssueState::Regressed) {
+                outcomes.push(ErrorTransitionResult::Invalid {
+                    issue,
+                    state,
+                    state_seq,
+                });
+                continue;
+            }
+            let next_seq = advance_error_state_seq(state_seq)?;
+            tx.execute(
+                "UPDATE error_groups SET state='resolved',state_seq=?1,state_ms=?2,
+                   resolved_seq=?3,resolved_release=?4
+                 WHERE generation=?5 AND issue=?6 AND state_seq=?7",
+                params![
+                    next_seq, at_ms, barrier, release, generation, issue, state_seq
+                ],
+            )?;
+            append_error_transition(
+                &tx,
+                &generation,
+                &issue,
+                next_seq,
+                state,
+                ErrorIssueState::Resolved,
+                at_ms,
+                "deploy-hook",
+                Some(release),
+            )?;
+            outcomes.push(ErrorTransitionResult::Applied {
+                issue,
+                state: ErrorIssueState::Resolved,
+                state_seq: next_seq,
+            });
+        }
+        enforce_global_transition_cap(&tx)?;
+        tx.commit()?;
+        Ok(ErrorBulkTransitionResult {
+            release: release.to_owned(),
+            activation_seq: Some(activation_seq),
+            activation_floor_seq: floor,
+            known_release: true,
+            rows: outcomes,
+        })
+    }
+
     fn flush(
         &mut self,
         events: Vec<Event>,
@@ -2221,6 +2731,12 @@ impl Store {
         force_maintenance: bool,
     ) -> SnapbackResult<FlushOutcome> {
         let config = self.config.clone();
+        let drained_enqueue_high_water = events
+            .iter()
+            .map(|event| sqlite_enqueue_sequence(event.sequence))
+            .collect::<SnapbackResult<Vec<_>>>()?
+            .into_iter()
+            .max();
         if config.max_days == 0 && events.is_empty() && drops.is_empty() {
             return Ok(FlushOutcome::default());
         }
@@ -2278,6 +2794,15 @@ impl Store {
             [],
             |row| row.get(0),
         )?;
+        if let Some(enqueue_high_water) = drained_enqueue_high_water {
+            // @ref LLP 0156#e13--the-issue-state-machine — durable sequence
+            //   authority covers every drained admission, including rows the
+            //   file-cap policy sheds before persistence.
+            tx.execute(
+                "UPDATE telemetry_meta SET enqueue_high_water=max(enqueue_high_water,?1) WHERE singleton=1",
+                params![enqueue_high_water],
+            )?;
+        }
         let high_water: i64 = tx.query_row(
             "SELECT observation_clock_ms FROM telemetry_meta WHERE singleton=1",
             [],
@@ -2289,6 +2814,7 @@ impl Store {
         let mut inserted = false;
         if !events.is_empty() && config.max_days > 0 {
             insert_batch(&tx, &events, stamp, flush_sequence)?;
+            materialize_error_tracking(&tx, &events, &config, stamp)?;
             inserted = true;
         }
         merge_drop_counters(&tx, &drops)?;
@@ -2317,6 +2843,11 @@ impl Store {
                 "injected failure before telemetry flush commit",
             ));
         }
+        let durable_enqueue_high_water: i64 = tx.query_row(
+            "SELECT enqueue_high_water FROM telemetry_meta WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )?;
         tx.commit()?;
         if swept >= LARGE_SWEEP_ROWS {
             // Large retention/compaction sweeps can strand many WAL frames.
@@ -2336,6 +2867,13 @@ impl Store {
             watermark: inserted.then_some(stamp),
             cap_drops: committed_cap_drops,
             replacement_generation,
+            enqueue_high_water: Some(u64::try_from(durable_enqueue_high_water).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_TELEMETRY_SEQUENCE_INVALID",
+                    "telemetry",
+                    "telemetry enqueue high-water must be nonnegative",
+                )
+            })?),
         })
     }
 }
@@ -2505,6 +3043,15 @@ fn create_schema(conn: &Connection) -> SnapbackResult<()> {
           aggregate_floor_daily INTEGER NOT NULL,
           rollup_watermark_id INTEGER NOT NULL,
           flush_commit_sequence INTEGER NOT NULL DEFAULT 0,
+          enqueue_high_water INTEGER NOT NULL DEFAULT 0,
+          overflow_fold_count INTEGER NOT NULL DEFAULT 0,
+          classifier_disposition_mismatch_count INTEGER NOT NULL DEFAULT 0,
+          malformed_error_stamp_count INTEGER NOT NULL DEFAULT 0,
+          release_activation_floor_seq INTEGER NOT NULL DEFAULT 0,
+          rollout_from_version INTEGER,
+          rollout_to_version INTEGER,
+          rollout_started_ms INTEGER,
+          rollout_expires_ms INTEGER,
           last_sweep_ms INTEGER NOT NULL,
           drop_counters_lifetime TEXT NOT NULL,
           hourly_days INTEGER NOT NULL,
@@ -2563,6 +3110,81 @@ fn create_schema(conn: &Connection) -> SnapbackResult<()> {
           folded_count INTEGER NOT NULL,
           PRIMARY KEY(generation, bucket_start_ms, kind, name)
         );
+        CREATE TABLE IF NOT EXISTS error_groups (
+          issue TEXT NOT NULL,
+          generation TEXT NOT NULL,
+          fp_version INTEGER NOT NULL,
+          fp_hash BLOB NOT NULL CHECK(length(fp_hash)=16),
+          kind TEXT NOT NULL,
+          name TEXT NOT NULL,
+          code TEXT,
+          error_class TEXT,
+          status_class INTEGER,
+          subsystem TEXT,
+          failure_disposition TEXT NOT NULL,
+          classifier_v INTEGER NOT NULL,
+          first_seen_ms INTEGER NOT NULL,
+          last_seen_ms INTEGER NOT NULL,
+          first_seen_seq INTEGER NOT NULL,
+          last_seen_seq INTEGER NOT NULL,
+          last_regressed_seq INTEGER,
+          first_release TEXT,
+          last_release TEXT,
+          count INTEGER NOT NULL,
+          suppressed_cooldown_count INTEGER NOT NULL DEFAULT 0,
+          suppressed_rollout_count INTEGER NOT NULL DEFAULT 0,
+          exemplar_depth_drop_count INTEGER NOT NULL DEFAULT 0,
+          exemplar_byte_drop_count INTEGER NOT NULL DEFAULT 0,
+          exemplar_flush_drop_count INTEGER NOT NULL DEFAULT 0,
+          state TEXT NOT NULL CHECK(state IN ('open','resolved','ignored','regressed')),
+          state_seq INTEGER NOT NULL DEFAULT 0,
+          state_ms INTEGER,
+          resolved_seq INTEGER,
+          resolved_release TEXT,
+          PRIMARY KEY(generation, issue),
+          UNIQUE(generation, fp_version, fp_hash)
+        );
+        CREATE INDEX IF NOT EXISTS error_groups_horizon
+          ON error_groups(generation, last_seen_ms);
+        CREATE TABLE IF NOT EXISTS error_exemplars (
+          issue TEXT NOT NULL,
+          generation TEXT NOT NULL,
+          observation TEXT NOT NULL,
+          recorded_ts_ms INTEGER NOT NULL,
+          recorded_seq INTEGER NOT NULL,
+          release TEXT,
+          title_template TEXT,
+          template_truncated INTEGER NOT NULL DEFAULT 0 CHECK(template_truncated IN (0,1)),
+          stack_head TEXT,
+          stack_truncated INTEGER NOT NULL DEFAULT 0 CHECK(stack_truncated IN (0,1)),
+          PRIMARY KEY(generation, issue, observation),
+          FOREIGN KEY(generation, issue) REFERENCES error_groups(generation, issue) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS error_exemplars_order
+          ON error_exemplars(generation, issue, recorded_seq);
+        CREATE TABLE IF NOT EXISTS error_transitions (
+          generation TEXT NOT NULL,
+          issue TEXT NOT NULL,
+          seq INTEGER NOT NULL,
+          from_state TEXT NOT NULL,
+          to_state TEXT NOT NULL,
+          at_ms INTEGER NOT NULL,
+          actor TEXT NOT NULL CHECK(actor IN ('admin','flusher','deploy-hook')),
+          release TEXT,
+          PRIMARY KEY(generation, issue, seq),
+          FOREIGN KEY(generation, issue) REFERENCES error_groups(generation, issue) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS release_activations (
+          generation TEXT NOT NULL,
+          release TEXT NOT NULL,
+          activated_ms INTEGER NOT NULL,
+          activated_seq INTEGER NOT NULL,
+          last_activated_ms INTEGER NOT NULL,
+          last_activated_seq INTEGER NOT NULL,
+          PRIMARY KEY(generation, release)
+        );
+        CREATE INDEX IF NOT EXISTS release_activations_order
+          ON release_activations(generation, activated_seq);
         DROP VIEW IF EXISTS telemetry_events_visible;
         CREATE VIEW telemetry_events_visible AS
           SELECT e.id, e.observation, e.phase, e.generation, e.class_v,
@@ -2633,6 +3255,27 @@ fn create_schema(conn: &Connection) -> SnapbackResult<()> {
             [],
         )?;
     }
+    for (column, definition) in [
+        ("enqueue_high_water", "INTEGER NOT NULL DEFAULT 0"),
+        ("overflow_fold_count", "INTEGER NOT NULL DEFAULT 0"),
+        (
+            "classifier_disposition_mismatch_count",
+            "INTEGER NOT NULL DEFAULT 0",
+        ),
+        ("malformed_error_stamp_count", "INTEGER NOT NULL DEFAULT 0"),
+        ("release_activation_floor_seq", "INTEGER NOT NULL DEFAULT 0"),
+        ("rollout_from_version", "INTEGER"),
+        ("rollout_to_version", "INTEGER"),
+        ("rollout_started_ms", "INTEGER"),
+        ("rollout_expires_ms", "INTEGER"),
+    ] {
+        if !meta_columns.contains(column) {
+            conn.execute(
+                &format!("ALTER TABLE telemetry_meta ADD COLUMN {column} {definition}"),
+                [],
+            )?;
+        }
+    }
     let event_columns = conn
         .prepare("PRAGMA table_info(telemetry_events)")?
         .query_map([], |row| row.get::<_, String>(1))?
@@ -2646,6 +3289,49 @@ fn create_schema(conn: &Connection) -> SnapbackResult<()> {
             [],
         )?;
     }
+    conn.execute_batch(
+        "
+        DROP VIEW IF EXISTS error_groups_visible;
+        CREATE VIEW error_groups_visible AS
+          SELECT g.*
+          FROM error_groups g, telemetry_meta m
+          WHERE m.singleton=1
+            AND m.max_days_mirror > 0
+            AND g.generation=m.generation
+            AND g.last_seen_ms > m.observation_clock_ms - m.daily_days * 86400000;
+        DROP VIEW IF EXISTS error_exemplars_visible;
+        CREATE VIEW error_exemplars_visible AS
+          SELECT x.*
+          FROM error_exemplars x
+          JOIN error_groups g ON g.generation=x.generation AND g.issue=x.issue
+          JOIN telemetry_meta m ON m.singleton=1
+          WHERE m.max_days_mirror > 0
+            AND x.generation=m.generation
+            AND g.last_seen_ms > m.observation_clock_ms - m.daily_days * 86400000
+            AND x.recorded_ts_ms > max(
+              m.observation_clock_ms - m.max_days_mirror * 86400000,
+              m.retention_floor
+            );
+        DROP VIEW IF EXISTS error_transitions_visible;
+        CREATE VIEW error_transitions_visible AS
+          SELECT t.*
+          FROM error_transitions t
+          JOIN error_groups g ON g.generation=t.generation AND g.issue=t.issue
+          JOIN telemetry_meta m ON m.singleton=1
+          WHERE m.max_days_mirror > 0
+            AND t.generation=m.generation
+            AND g.last_seen_ms > m.observation_clock_ms - m.daily_days * 86400000;
+        DROP VIEW IF EXISTS release_activations_visible;
+        CREATE VIEW release_activations_visible AS
+          SELECT a.*
+          FROM release_activations a, telemetry_meta m
+          WHERE m.singleton=1
+            AND m.max_days_mirror > 0
+            AND a.generation=m.generation
+            AND a.last_activated_ms > m.observation_clock_ms - m.daily_days * 86400000
+            AND a.activated_seq > m.release_activation_floor_seq;
+        ",
+    )?;
     Ok(())
 }
 
@@ -2742,6 +3428,574 @@ fn insert_batch(
     }
     tx.execute(&sql, params_from_iter(values))?;
     Ok(())
+}
+
+#[derive(Clone, Debug)]
+struct PersistedErrorGroup {
+    issue: String,
+    failure_disposition: String,
+    state: ErrorIssueState,
+    state_seq: i64,
+    resolved_seq: Option<i64>,
+}
+
+fn error_group_boundary(config: &TelemetryConfig, clock: i64) -> i64 {
+    clock.saturating_sub(i64::from(config.daily_days).saturating_mul(DAY_MS))
+}
+
+/// Materialize only already-decided eligible stamps. Raw telemetry insertion,
+/// group counts, exemplars, activations, and regression edges share the one
+/// OBS flush transaction, so a crash cannot split their evidence.
+///
+/// @ref LLP 0156#e11--fingerprint-at-the-seam-group-in-the-flush-transaction —
+///   classification and fingerprinting are emission-seam decisions; the
+///   flusher validates and folds their closed stamps without recomputation.
+fn materialize_error_tracking(
+    tx: &Transaction<'_>,
+    events: &[Event],
+    config: &TelemetryConfig,
+    stamp: i64,
+) -> SnapbackResult<()> {
+    let generation: String = tx.query_row(
+        "SELECT generation FROM telemetry_meta WHERE singleton=1",
+        [],
+        |row| row.get(0),
+    )?;
+    let horizon = error_group_boundary(config, stamp);
+    sweep_error_groups(tx, &generation, horizon)?;
+    sweep_release_activations(tx, &generation, horizon)?;
+
+    for event in events {
+        if event.generation == generation
+            && event.admission.telemetry_kind == "lifecycle"
+            && event.name == "release_activation"
+            && let Some(release) = event.release.as_deref()
+        {
+            upsert_release_activation(tx, &generation, release, event, stamp)?;
+        }
+    }
+    enforce_release_activation_cap(tx, &generation)?;
+
+    let mut exemplar_attempts = BTreeMap::<String, usize>::new();
+    for event in events {
+        if event.generation != generation {
+            continue;
+        }
+        let failure = match materialize_failure_stamp_v1(event.details.as_ref()) {
+            FailureStampMaterializationV1::NotEligible => continue,
+            FailureStampMaterializationV1::MalformedEligible => {
+                tx.execute(
+                    "UPDATE telemetry_meta SET malformed_error_stamp_count=malformed_error_stamp_count+1 WHERE singleton=1",
+                    [],
+                )?;
+                continue;
+            }
+            FailureStampMaterializationV1::Eligible(failure) => failure,
+        };
+        fold_eligible_failure(
+            tx,
+            &generation,
+            event,
+            &failure,
+            stamp,
+            &mut exemplar_attempts,
+        )?;
+    }
+    enforce_global_transition_cap(tx)?;
+    Ok(())
+}
+
+fn persisted_error_group(
+    tx: &Transaction<'_>,
+    generation: &str,
+    failure: &MaterializedFailureStampV1,
+) -> SnapbackResult<Option<PersistedErrorGroup>> {
+    tx.query_row(
+        "SELECT issue,failure_disposition,state,state_seq,resolved_seq
+         FROM error_groups
+         WHERE generation=?1 AND fp_version=?2 AND fp_hash=?3",
+        params![
+            generation,
+            i64::from(failure.fingerprint_version),
+            failure.fingerprint_hash.as_slice()
+        ],
+        |row| {
+            let state = row.get::<_, String>(2)?;
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                state,
+                row.get::<_, i64>(3)?,
+                row.get::<_, Option<i64>>(4)?,
+            ))
+        },
+    )
+    .optional()?
+    .map(
+        |(issue, failure_disposition, state, state_seq, resolved_seq)| {
+            let state = ErrorIssueState::parse(&state).ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ERROR_GROUP_STATE_INVALID",
+                    "telemetry",
+                    "error group contains an invalid state",
+                )
+            })?;
+            Ok(PersistedErrorGroup {
+                issue,
+                failure_disposition,
+                state,
+                state_seq,
+                resolved_seq,
+            })
+        },
+    )
+    .transpose()
+}
+
+fn fold_eligible_failure(
+    tx: &Transaction<'_>,
+    generation: &str,
+    event: &Event,
+    failure: &MaterializedFailureStampV1,
+    stamp: i64,
+    exemplar_attempts: &mut BTreeMap<String, usize>,
+) -> SnapbackResult<()> {
+    let sequence = sqlite_enqueue_sequence(event.sequence)?;
+    let disposition = failure.failure_disposition.as_str();
+    let mut group = persisted_error_group(tx, generation, failure)?;
+    if let Some(existing) = group.as_ref()
+        && existing.failure_disposition != disposition
+    {
+        tx.execute(
+            "UPDATE telemetry_meta SET classifier_disposition_mismatch_count=classifier_disposition_mismatch_count+1 WHERE singleton=1",
+            [],
+        )?;
+        return Ok(());
+    }
+
+    if group.is_none() {
+        let count: i64 = tx.query_row(
+            "SELECT count(*) FROM error_groups WHERE generation=?1",
+            params![generation],
+            |row| row.get(0),
+        )?;
+        if count >= ERROR_GROUP_CAP as i64 {
+            tx.execute(
+                "UPDATE telemetry_meta SET overflow_fold_count=overflow_fold_count+1 WHERE singleton=1",
+                [],
+            )?;
+            return Ok(());
+        }
+        let issue = ids::mint(IdKind::Issue)?;
+        let rollout_suppressed = rollout_predecessor_exists(tx, generation, event, failure)?;
+        let code = if failure.failure_disposition == FailureDispositionV1::AppRefusal {
+            failure.app_code.as_deref()
+        } else {
+            failure.platform_code.as_deref()
+        };
+        let status_class = failure.status_class;
+        tx.execute(
+            "INSERT INTO error_groups(
+               issue,generation,fp_version,fp_hash,kind,name,code,error_class,status_class,subsystem,
+               failure_disposition,classifier_v,first_seen_ms,last_seen_ms,first_seen_seq,last_seen_seq,
+               first_release,last_release,count,suppressed_rollout_count,state,state_seq
+             ) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?13,?14,?14,?15,?15,1,?16,'open',0)",
+            params![
+                issue,
+                generation,
+                i64::from(failure.fingerprint_version),
+                failure.fingerprint_hash.as_slice(),
+                event.admission.telemetry_kind,
+                event.name,
+                code,
+                failure.error_class,
+                status_class,
+                failure.subsystem,
+                disposition,
+                i64::from(failure.classifier_version),
+                stamp,
+                sequence,
+                event.release,
+                i64::from(rollout_suppressed),
+            ],
+        )?;
+        group = Some(PersistedErrorGroup {
+            issue,
+            failure_disposition: disposition.to_owned(),
+            state: ErrorIssueState::Open,
+            state_seq: 0,
+            resolved_seq: None,
+        });
+    } else {
+        tx.execute(
+            "UPDATE error_groups
+             SET last_seen_ms=max(last_seen_ms,?1), last_seen_seq=max(last_seen_seq,?2),
+                 last_release=?3, count=count+1
+             WHERE generation=?4 AND issue=?5",
+            params![
+                stamp,
+                sequence,
+                event.release,
+                generation,
+                group.as_ref().unwrap().issue
+            ],
+        )?;
+    }
+
+    let mut group = group.expect("group inserted or loaded");
+    if group.state == ErrorIssueState::Resolved
+        && group.resolved_seq.is_some_and(|barrier| sequence > barrier)
+    {
+        let next_seq = advance_error_state_seq(group.state_seq)?;
+        let changed = tx.execute(
+            "UPDATE error_groups
+             SET state='regressed',state_seq=?1,state_ms=?2,last_regressed_seq=?3
+             WHERE generation=?4 AND issue=?5 AND state='resolved' AND state_seq=?6",
+            params![
+                next_seq,
+                stamp,
+                sequence,
+                generation,
+                group.issue,
+                group.state_seq
+            ],
+        )?;
+        if changed == 1 {
+            append_error_transition(
+                tx,
+                generation,
+                &group.issue,
+                next_seq,
+                ErrorIssueState::Resolved,
+                ErrorIssueState::Regressed,
+                stamp,
+                "flusher",
+                event.release.as_deref(),
+            )?;
+            group.state = ErrorIssueState::Regressed;
+            group.state_seq = next_seq;
+        }
+    }
+    insert_error_exemplar(
+        tx,
+        generation,
+        &group.issue,
+        event,
+        failure,
+        stamp,
+        exemplar_attempts,
+    )?;
+    Ok(())
+}
+
+fn rollout_predecessor_exists(
+    tx: &Transaction<'_>,
+    generation: &str,
+    event: &Event,
+    failure: &MaterializedFailureStampV1,
+) -> SnapbackResult<bool> {
+    type Rollout = (Option<i64>, Option<i64>, Option<i64>, Option<i64>);
+    let rollout: Rollout = tx.query_row(
+        "SELECT rollout_from_version,rollout_to_version,rollout_started_ms,rollout_expires_ms
+         FROM telemetry_meta WHERE singleton=1",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+    )?;
+    let (from, to, started, expires) = match rollout {
+        (None, None, None, None) => return Ok(false),
+        (Some(from), Some(to), Some(started), Some(expires))
+            if from > 0 && to > 0 && from != to && started < expires =>
+        {
+            (from, to, started, expires)
+        }
+        _ => {
+            return Err(SnapbackError::error(
+                "SNAPBACK_ERROR_ROLLOUT_INVALID",
+                "telemetry",
+                "fingerprint rollout bounds must be complete and ordered",
+            ));
+        }
+    };
+    let Some((predecessor_version, predecessor_hash)) = failure.predecessor_fingerprint else {
+        return Ok(false);
+    };
+    if i64::from(failure.fingerprint_version) != to
+        || i64::from(predecessor_version) != from
+        || event.ts_ms < started
+        || event.ts_ms >= expires
+    {
+        return Ok(false);
+    }
+    let exists: bool = tx.query_row(
+        "SELECT EXISTS(
+           SELECT 1 FROM error_groups
+           WHERE generation=?1 AND fp_version=?2 AND fp_hash=?3
+         )",
+        params![generation, from, predecessor_hash.as_slice()],
+        |row| row.get(0),
+    )?;
+    Ok(exists)
+}
+
+fn insert_error_exemplar(
+    tx: &Transaction<'_>,
+    generation: &str,
+    issue: &str,
+    event: &Event,
+    failure: &MaterializedFailureStampV1,
+    stamp: i64,
+    attempts: &mut BTreeMap<String, usize>,
+) -> SnapbackResult<()> {
+    let duplicate: bool = tx.query_row(
+        "SELECT EXISTS(SELECT 1 FROM error_exemplars WHERE generation=?1 AND issue=?2 AND observation=?3)",
+        params![generation, issue, event.admission.observation_id],
+        |row| row.get(0),
+    )?;
+    if duplicate {
+        return Ok(());
+    }
+
+    let (mut depth, mut bytes): (i64, i64) = tx.query_row(
+        "SELECT count(*),coalesce(sum(
+           coalesce(length(CAST(title_template AS BLOB)),0) +
+           coalesce(length(CAST(stack_head AS BLOB)),0)
+         ),0)
+         FROM error_exemplars WHERE generation=?1 AND issue=?2",
+        params![generation, issue],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    let incoming_bytes = failure
+        .message_template
+        .as_ref()
+        .map_or(0, |value| value.len())
+        .saturating_add(failure.stack_head.as_ref().map_or(0, |value| value.len()));
+
+    if incoming_bytes > ERROR_EXEMPLAR_BYTES {
+        tx.execute(
+            "UPDATE error_groups SET exemplar_byte_drop_count=exemplar_byte_drop_count+1
+             WHERE generation=?1 AND issue=?2",
+            params![generation, issue],
+        )?;
+        return Ok(());
+    }
+
+    let inserted = attempts.entry(issue.to_owned()).or_default();
+    if *inserted >= ERROR_EXEMPLAR_DEPTH {
+        tx.execute(
+            "UPDATE error_groups SET exemplar_flush_drop_count=exemplar_flush_drop_count+1
+             WHERE generation=?1 AND issue=?2",
+            params![generation, issue],
+        )?;
+        return Ok(());
+    }
+
+    if depth >= ERROR_EXEMPLAR_DEPTH as i64 {
+        if let Some(removed) = delete_oldest_exemplar(tx, generation, issue)? {
+            depth -= 1;
+            bytes = bytes.saturating_sub(removed);
+            tx.execute(
+                "UPDATE error_groups SET exemplar_depth_drop_count=exemplar_depth_drop_count+1
+                 WHERE generation=?1 AND issue=?2",
+                params![generation, issue],
+            )?;
+        }
+    }
+    while depth > 0 && bytes.saturating_add(incoming_bytes as i64) > ERROR_EXEMPLAR_BYTES as i64 {
+        let Some(removed) = delete_oldest_exemplar(tx, generation, issue)? else {
+            break;
+        };
+        depth -= 1;
+        bytes = bytes.saturating_sub(removed);
+        tx.execute(
+            "UPDATE error_groups SET exemplar_byte_drop_count=exemplar_byte_drop_count+1
+             WHERE generation=?1 AND issue=?2",
+            params![generation, issue],
+        )?;
+    }
+    tx.execute(
+        "INSERT INTO error_exemplars(
+           issue,generation,observation,recorded_ts_ms,recorded_seq,release,title_template,
+           template_truncated,stack_head,stack_truncated
+         ) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
+        params![
+            issue,
+            generation,
+            event.admission.observation_id,
+            stamp,
+            sqlite_enqueue_sequence(event.sequence)?,
+            event.release,
+            failure.message_template,
+            i64::from(failure.template_truncated),
+            failure.stack_head,
+            i64::from(failure.stack_truncated),
+        ],
+    )?;
+    *inserted += 1;
+    Ok(())
+}
+
+fn delete_oldest_exemplar(
+    tx: &Transaction<'_>,
+    generation: &str,
+    issue: &str,
+) -> SnapbackResult<Option<i64>> {
+    let oldest: Option<(String, i64)> = tx
+        .query_row(
+            "SELECT observation,
+                    coalesce(length(CAST(title_template AS BLOB)),0) +
+                    coalesce(length(CAST(stack_head AS BLOB)),0)
+             FROM error_exemplars
+             WHERE generation=?1 AND issue=?2
+             ORDER BY recorded_seq,observation LIMIT 1",
+            params![generation, issue],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let Some((observation, bytes)) = oldest else {
+        return Ok(None);
+    };
+    tx.execute(
+        "DELETE FROM error_exemplars WHERE generation=?1 AND issue=?2 AND observation=?3",
+        params![generation, issue, observation],
+    )?;
+    Ok(Some(bytes))
+}
+
+fn upsert_release_activation(
+    tx: &Transaction<'_>,
+    generation: &str,
+    release: &str,
+    event: &Event,
+    stamp: i64,
+) -> SnapbackResult<()> {
+    let sequence = sqlite_enqueue_sequence(event.sequence)?;
+    tx.execute(
+        "INSERT INTO release_activations(
+           generation,release,activated_ms,activated_seq,last_activated_ms,last_activated_seq
+         ) VALUES(?1,?2,?3,?4,?3,?4)
+         ON CONFLICT(generation,release) DO UPDATE SET
+           last_activated_ms=CASE
+             WHEN excluded.last_activated_seq>release_activations.last_activated_seq
+             THEN excluded.last_activated_ms ELSE release_activations.last_activated_ms END,
+           last_activated_seq=max(release_activations.last_activated_seq,excluded.last_activated_seq)",
+        params![generation, release, stamp, sequence],
+    )?;
+    Ok(())
+}
+
+fn sweep_error_groups(
+    tx: &Transaction<'_>,
+    generation: &str,
+    horizon: i64,
+) -> SnapbackResult<usize> {
+    Ok(tx.execute(
+        "DELETE FROM error_groups WHERE generation<>?1 OR (generation=?1 AND last_seen_ms<=?2)",
+        params![generation, horizon],
+    )?)
+}
+
+fn sweep_release_activations(
+    tx: &Transaction<'_>,
+    generation: &str,
+    horizon: i64,
+) -> SnapbackResult<usize> {
+    let floor: i64 = tx.query_row(
+        "SELECT coalesce(max(activated_seq),-1) FROM release_activations
+         WHERE generation=?1 AND last_activated_ms<=?2",
+        params![generation, horizon],
+        |row| row.get(0),
+    )?;
+    let mut swept = tx.execute(
+        "DELETE FROM release_activations WHERE generation<>?1",
+        params![generation],
+    )?;
+    swept = swept.saturating_add(tx.execute(
+        "DELETE FROM release_activations WHERE generation=?1 AND last_activated_ms<=?2",
+        params![generation, horizon],
+    )?);
+    if floor >= 0 {
+        tx.execute(
+            "UPDATE telemetry_meta SET release_activation_floor_seq=max(release_activation_floor_seq,?1) WHERE singleton=1",
+            params![floor],
+        )?;
+    }
+    Ok(swept)
+}
+
+fn enforce_release_activation_cap(tx: &Transaction<'_>, generation: &str) -> SnapbackResult<usize> {
+    let count: i64 = tx.query_row(
+        "SELECT count(*) FROM release_activations WHERE generation=?1",
+        params![generation],
+        |row| row.get(0),
+    )?;
+    if count <= RELEASE_ACTIVATION_CAP as i64 {
+        return Ok(0);
+    }
+    let excess = count - RELEASE_ACTIVATION_CAP as i64;
+    let floor: i64 = tx.query_row(
+        "SELECT max(activated_seq) FROM (
+           SELECT activated_seq FROM release_activations
+           WHERE generation=?1 ORDER BY activated_seq,release LIMIT ?2
+         )",
+        params![generation, excess],
+        |row| row.get(0),
+    )?;
+    let swept = tx.execute(
+        "DELETE FROM release_activations
+         WHERE generation=?1 AND release IN (
+           SELECT release FROM release_activations
+           WHERE generation=?1 ORDER BY activated_seq,release LIMIT ?2
+         )",
+        params![generation, excess],
+    )?;
+    tx.execute(
+        "UPDATE telemetry_meta SET release_activation_floor_seq=max(release_activation_floor_seq,?1) WHERE singleton=1",
+        params![floor],
+    )?;
+    Ok(swept)
+}
+
+fn append_error_transition(
+    tx: &Transaction<'_>,
+    generation: &str,
+    issue: &str,
+    seq: i64,
+    from: ErrorIssueState,
+    to: ErrorIssueState,
+    at_ms: i64,
+    actor: &str,
+    release: Option<&str>,
+) -> SnapbackResult<()> {
+    tx.execute(
+        "INSERT INTO error_transitions(generation,issue,seq,from_state,to_state,at_ms,actor,release)
+         VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
+        params![generation, issue, seq, from.as_str(), to.as_str(), at_ms, actor, release],
+    )?;
+    tx.execute(
+        "DELETE FROM error_transitions
+         WHERE generation=?1 AND issue=?2 AND seq IN (
+           SELECT seq FROM error_transitions WHERE generation=?1 AND issue=?2
+           ORDER BY seq DESC LIMIT -1 OFFSET ?3
+         )",
+        params![generation, issue, ERROR_TRANSITIONS_PER_GROUP as i64],
+    )?;
+    Ok(())
+}
+
+fn enforce_global_transition_cap(tx: &Transaction<'_>) -> SnapbackResult<usize> {
+    let count: i64 = tx.query_row("SELECT count(*) FROM error_transitions", [], |row| {
+        row.get(0)
+    })?;
+    if count <= ERROR_TRANSITIONS_GLOBAL as i64 {
+        return Ok(0);
+    }
+    let excess = count - ERROR_TRANSITIONS_GLOBAL as i64;
+    Ok(tx.execute(
+        "DELETE FROM error_transitions WHERE rowid IN (
+           SELECT rowid FROM error_transitions ORDER BY rowid LIMIT ?1
+         )",
+        params![excess],
+    )?)
 }
 
 fn merge_drop_counters(
@@ -2884,6 +4138,24 @@ fn maintain(tx: &Transaction<'_>, config: &TelemetryConfig, clock: i64) -> Snapb
     swept = swept.saturating_add(enforce_rollup_cap(tx, &generation, config.rollup_row_cap)?);
 
     let boundary = boundary_for(config, clock);
+    swept = swept.saturating_add(sweep_error_groups(
+        tx,
+        &generation,
+        error_group_boundary(config, clock),
+    )?);
+    swept = swept.saturating_add(sweep_release_activations(
+        tx,
+        &generation,
+        error_group_boundary(config, clock),
+    )?);
+    swept = swept.saturating_add(enforce_release_activation_cap(tx, &generation)?);
+    swept = swept.saturating_add(tx.execute(
+        "DELETE FROM error_exemplars
+         WHERE generation<>?1 OR (generation=?1 AND recorded_ts_ms<=max(
+           ?2,(SELECT retention_floor FROM telemetry_meta WHERE singleton=1)
+         ))",
+        params![generation, boundary],
+    )?);
     swept = swept.saturating_add(tx.execute(
         "DELETE FROM telemetry_events WHERE generation<>?2 OR (generation=?2 AND id<=?1 AND recorded_ts_ms<=?3)",
         params![maximum_id, generation, boundary],
@@ -3308,6 +4580,10 @@ fn file_cap_recovery_step(
             params![generation, interval_end],
         )?;
         tx.execute(
+            "DELETE FROM error_exemplars WHERE generation=?1 AND recorded_ts_ms<=?2",
+            params![generation, interval_end],
+        )?;
+        tx.execute(
             "UPDATE telemetry_meta SET retention_floor=max(retention_floor,?1) WHERE singleton=1",
             params![interval_end],
         )?;
@@ -3397,6 +4673,10 @@ fn telemetry_file_bytes(path: &Path) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error_tracking::{
+        CLASSIFIER_VERSION, FINGERPRINT_VERSION, FailureClassificationV1, FailureDetailsInputV1,
+        allocate_failure_details,
+    };
 
     fn config() -> TelemetryConfig {
         TelemetryConfig {
@@ -3441,6 +4721,54 @@ mod tests {
     fn joined_named(generation: &str, kind: &str, name: &str, sequence: u64) -> Event {
         let mut event = joined(generation, kind, sequence);
         event.name = name.to_owned();
+        event
+    }
+
+    fn eligible_failure_event(
+        generation: &str,
+        sequence: u64,
+        fingerprint_version: u32,
+        fingerprint_hash: &str,
+        disposition: FailureDispositionV1,
+        predecessor: Option<(u32, &str)>,
+        message_template: Option<String>,
+    ) -> Event {
+        let allocation = allocate_failure_details(&FailureDetailsInputV1 {
+            platform_code: Some("SNAPBACK_HANDLER_FAILED".to_owned()),
+            classification: FailureClassificationV1 {
+                failure_disposition: disposition,
+                issue_eligible: true,
+                classifier_version: CLASSIFIER_VERSION,
+            },
+            fingerprint_branch: crate::error_tracking::FingerprintBranchV1::Diagnostic,
+            fingerprint_version: Some(fingerprint_version),
+            fingerprint_hash: Some(fingerprint_hash.to_owned()),
+            predecessor_fingerprint_version: predecessor.map(|value| value.0),
+            predecessor_fingerprint_hash: predecessor.map(|value| value.1.to_owned()),
+            status_class: None,
+            app_code: None,
+            error_class: None,
+            subsystem: Some("functions".to_owned()),
+            function: Some("messages.send".to_owned()),
+            name: Some("messages.send".to_owned()),
+            existing_allowlist: BTreeMap::new(),
+            app_details: None,
+            message_template,
+            message: None,
+            stack: Some("at messages.send".to_owned()),
+        })
+        .expect("eligible failure fixture fits the carrier");
+        let mut event = joined_named(generation, "diagnostic", "messages.send", sequence);
+        event.status = Some(500);
+        event.code = Some("SNAPBACK_HANDLER_FAILED".to_owned());
+        event.details = Some(allocation.details);
+        event
+    }
+
+    fn release_activation_event(generation: &str, sequence: u64, release: &str) -> Event {
+        let mut event = joined_named(generation, "lifecycle", "release_activation", sequence);
+        event.phase = Phase::Point;
+        event.release = Some(release.to_owned());
         event
     }
 
@@ -3668,9 +4996,14 @@ mod tests {
                 ..Default::default()
             })
             .unwrap();
-        assert_eq!(newest.order, crate::telemetry_query::TelemetryEventOrderV1::Desc);
+        assert_eq!(
+            newest.order,
+            crate::telemetry_query::TelemetryEventOrderV1::Desc
+        );
         assert_eq!(newest.events[0].id, second.events[0].id);
-        let older_cursor = newest.next_cursor.expect("newest-first page continues older");
+        let older_cursor = newest
+            .next_cursor
+            .expect("newest-first page continues older");
         let older = telemetry
             .query_events(&crate::telemetry_query::TelemetryEventsRequestV1 {
                 filter: crate::telemetry_query::TelemetryFilterV1 {
@@ -3725,12 +5058,7 @@ mod tests {
             .export_page(&export_request, &header, None, 1)
             .unwrap();
         let second_page = telemetry
-            .export_page(
-                &export_request,
-                &header,
-                first_page.next_cursor.as_ref(),
-                1,
-            )
+            .export_page(&export_request, &header, first_page.next_cursor.as_ref(), 1)
             .unwrap();
         assert_eq!(first_page.records.len(), 1);
         assert_eq!(second_page.records.len(), 1);
@@ -3867,15 +5195,7 @@ mod tests {
         )
         .unwrap();
         for name in ["before-reset-one", "before-reset-two"] {
-            telemetry.point(
-                "log",
-                name,
-                None,
-                None,
-                None,
-                None,
-                Priority::Normal,
-            );
+            telemetry.point("log", name, None, None, None, None, Priority::Normal);
         }
         let request = crate::telemetry_query::TelemetryExportRequestV1::default();
         let header = telemetry.begin_export(&request).unwrap();
@@ -4055,7 +5375,12 @@ mod tests {
             stats.variance.truncation["snappedToBucketBoundaries"],
             json!(true)
         );
-        assert!(stats.coverage.start_ms.is_some_and(|start| start <= first_recorded));
+        assert!(
+            stats
+                .coverage
+                .start_ms
+                .is_some_and(|start| start <= first_recorded)
+        );
         assert_eq!(
             stats.variance.truncation["reportedWindow"]["startMs"],
             json!(stats.coverage.start_ms)
@@ -4159,16 +5484,14 @@ mod tests {
             "exactDisjointRollupsPlusRawTailAndRetainedEdges"
         );
         assert_eq!(
-            stats.named_counts
+            stats
+                .named_counts
                 .iter()
                 .find(|entry| entry.name == "edge-route")
                 .map(|entry| entry.count),
             Some(2)
         );
-        assert_eq!(
-            stats.series.iter().map(|point| point.count).sum::<u64>(),
-            2
-        );
+        assert_eq!(stats.series.iter().map(|point| point.count).sum::<u64>(), 2);
     }
 
     #[test]
@@ -4183,12 +5506,7 @@ mod tests {
         let (from, to) = {
             let mut store = telemetry.producer.shared.store.lock().unwrap();
             let generation = store.generation.clone();
-            for (name, offset) in [
-                ("wide", 0),
-                ("narrow", 1),
-                ("narrow", 2),
-                ("wide", 3),
-            ] {
+            for (name, offset) in [("wide", 0), ("narrow", 1), ("narrow", 2), ("wide", 3)] {
                 store
                     .flush(
                         vec![joined_named(&generation, "http_request", name, offset + 1)],
@@ -4899,7 +6217,7 @@ mod tests {
     }
 
     #[test]
-    fn legacy_store_migration_adds_identity_and_release_without_relabeling_rows() {
+    fn legacy_store_migration_adds_observability_and_error_store_without_relabeling_rows() {
         let dir = tempfile::tempdir().unwrap();
         let app_path = dir.path().join("legacy.sqlite3");
         let telemetry_path = Telemetry::path_for_database(&app_path);
@@ -4976,6 +6294,19 @@ mod tests {
         assert!(meta_columns.contains("app_id"));
         assert!(meta_columns.contains("environment"));
         assert!(meta_columns.contains("flush_commit_sequence"));
+        for column in [
+            "enqueue_high_water",
+            "overflow_fold_count",
+            "classifier_disposition_mismatch_count",
+            "malformed_error_stamp_count",
+            "release_activation_floor_seq",
+            "rollout_from_version",
+            "rollout_to_version",
+            "rollout_started_ms",
+            "rollout_expires_ms",
+        ] {
+            assert!(meta_columns.contains(column), "missing migrated {column}");
+        }
         let event_columns = conn
             .prepare("PRAGMA table_info(telemetry_events)")
             .unwrap()
@@ -4985,6 +6316,49 @@ mod tests {
             .unwrap();
         assert!(event_columns.contains("release"));
         assert!(event_columns.contains("flush_sequence"));
+        for relation in [
+            "error_groups",
+            "error_exemplars",
+            "error_transitions",
+            "release_activations",
+            "error_groups_visible",
+            "error_exemplars_visible",
+            "error_transitions_visible",
+            "release_activations_visible",
+        ] {
+            assert_eq!(
+                conn.query_row(
+                    "SELECT count(*) FROM sqlite_master WHERE name=?1",
+                    params![relation],
+                    |row| row.get::<_, i64>(0),
+                )
+                .unwrap(),
+                1,
+                "missing migrated relation {relation}"
+            );
+        }
+        let exemplar_columns = conn
+            .prepare("PRAGMA table_info(error_exemplars)")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .collect::<Result<BTreeSet<_>, _>>()
+            .unwrap();
+        assert!(exemplar_columns.contains("recorded_seq"));
+        let group_columns = conn
+            .prepare("PRAGMA table_info(error_groups)")
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .collect::<Result<BTreeSet<_>, _>>()
+            .unwrap();
+        for column in [
+            "exemplar_depth_drop_count",
+            "exemplar_byte_drop_count",
+            "exemplar_flush_drop_count",
+        ] {
+            assert!(group_columns.contains(column));
+        }
         let visible_columns = conn
             .prepare("PRAGMA table_info(telemetry_events_visible)")
             .unwrap()
@@ -6279,7 +7653,10 @@ mod tests {
             2,
             "a reopened reader composes the durable rollup and raw tail once each"
         );
-        assert_eq!((before.coverage.rollup_rows, before.coverage.raw_tail_rows), (1, 1));
+        assert_eq!(
+            (before.coverage.rollup_rows, before.coverage.raw_tail_rows),
+            (1, 1)
+        );
         store
             .flush(Vec::new(), BTreeMap::new(), base + 3, true)
             .unwrap();
@@ -6324,7 +7701,10 @@ mod tests {
             2,
             "advancing the watermark after restart preserves the total"
         );
-        assert_eq!((after.coverage.rollup_rows, after.coverage.raw_tail_rows), (2, 0));
+        assert_eq!(
+            (after.coverage.rollup_rows, after.coverage.raw_tail_rows),
+            (2, 0)
+        );
     }
 
     #[test]
@@ -6888,6 +8268,1364 @@ mod tests {
         assert!(
             lifetime.keys().all(|key| !key.ends_with(":flushFailed")),
             "lifetime accounting must not contain a false precommit failure"
+        );
+    }
+
+    #[test]
+    fn error_group_fold_is_atomic_and_malformed_or_mismatched_stamps_do_not_mutate_it() {
+        let mut store =
+            Store::memory_unbound("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let generation = store.generation.clone();
+        let hash = "0123456789abcdef0123456789abcdef";
+        let first = eligible_failure_event(
+            &generation,
+            1,
+            FINGERPRINT_VERSION,
+            hash,
+            FailureDispositionV1::Fault,
+            None,
+            Some("failure <digits>".to_owned()),
+        );
+        store.fail_before_commit = true;
+        assert!(
+            store
+                .flush(vec![first.clone()], BTreeMap::new(), 10_000, false)
+                .is_err()
+        );
+        {
+            let conn = store.conn.as_ref().unwrap();
+            assert_eq!(
+                conn.query_row("SELECT count(*) FROM telemetry_events", [], |row| row
+                    .get::<_, i64>(0))
+                    .unwrap(),
+                0
+            );
+            assert_eq!(
+                conn.query_row("SELECT count(*) FROM error_groups", [], |row| row
+                    .get::<_, i64>(0))
+                    .unwrap(),
+                0
+            );
+            let witness: (i64, i64) = conn
+                .query_row(
+                    "SELECT flush_commit_sequence,enqueue_high_water FROM telemetry_meta WHERE singleton=1",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .unwrap();
+            assert_eq!(witness, (0, 0));
+        }
+
+        store.fail_before_commit = false;
+        store
+            .flush(vec![first], BTreeMap::new(), 10_001, false)
+            .unwrap();
+        store
+            .flush(
+                vec![eligible_failure_event(
+                    &generation,
+                    2,
+                    FINGERPRINT_VERSION,
+                    hash,
+                    FailureDispositionV1::Fault,
+                    None,
+                    Some("failure <digits>".to_owned()),
+                )],
+                BTreeMap::new(),
+                10_002,
+                false,
+            )
+            .unwrap();
+        store
+            .flush(
+                vec![eligible_failure_event(
+                    &generation,
+                    3,
+                    FINGERPRINT_VERSION,
+                    hash,
+                    FailureDispositionV1::Timeout,
+                    None,
+                    Some("timeout <digits>".to_owned()),
+                )],
+                BTreeMap::new(),
+                10_003,
+                false,
+            )
+            .unwrap();
+        let mut malformed = eligible_failure_event(
+            &generation,
+            4,
+            FINGERPRINT_VERSION,
+            &"1".repeat(32),
+            FailureDispositionV1::Fault,
+            None,
+            None,
+        );
+        malformed.details.as_mut().unwrap()["classifier_version"] = json!(0);
+        store
+            .flush(vec![malformed], BTreeMap::new(), 10_004, false)
+            .unwrap();
+
+        let conn = store.conn.as_ref().unwrap();
+        let group: (i64, i64, i64, String, String) = conn
+            .query_row(
+                "SELECT count,first_seen_seq,last_seen_seq,failure_disposition,subsystem
+                 FROM error_groups",
+                [],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
+            )
+            .unwrap();
+        assert_eq!(group, (2, 1, 2, "fault".to_owned(), "functions".to_owned()));
+        let counters: (i64, i64, i64) = conn
+            .query_row(
+                "SELECT classifier_disposition_mismatch_count,malformed_error_stamp_count,enqueue_high_water
+                 FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(counters, (1, 1, 4));
+        assert_eq!(
+            conn.query_row("SELECT count(*) FROM telemetry_events", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            4,
+            "malformed and mismatched carriers remain available as raw telemetry"
+        );
+        assert_eq!(
+            conn.query_row("SELECT count(*) FROM error_exemplars", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            2
+        );
+    }
+
+    #[test]
+    fn code_less_transport_fault_materializes_from_its_stamped_status_branch() {
+        let mut store =
+            Store::memory_unbound("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let generation = store.generation.clone();
+        let mut event = eligible_failure_event(
+            &generation,
+            1,
+            1,
+            "0123456789abcdef0123456789abcdef",
+            FailureDispositionV1::Fault,
+            None,
+            None,
+        );
+        event.admission.telemetry_kind = "http_request".to_owned();
+        event.name = "/hooks/:provider".to_owned();
+        event.code = None;
+        let details = event.details.as_mut().unwrap().as_object_mut().unwrap();
+        details.remove("platformCode");
+        details.remove("subsystem");
+        details.insert("fp_branch".to_owned(), json!("transport"));
+        details.insert("statusClass".to_owned(), json!(5));
+        store
+            .flush(vec![event], BTreeMap::new(), 15_000, false)
+            .unwrap();
+        let group: (Option<String>, Option<i64>, String, String) = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT code,status_class,kind,name FROM error_groups",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            group,
+            (
+                None,
+                Some(5),
+                "http_request".to_owned(),
+                "/hooks/:provider".to_owned(),
+            )
+        );
+    }
+
+    #[test]
+    fn release_activation_order_uses_sequences_and_same_hash_republication_is_genuine() {
+        let mut store =
+            Store::memory_unbound("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let generation = store.generation.clone();
+        let first_a = release_activation_event(&generation, 1, "release-a");
+        let first_b = release_activation_event(&generation, 2, "release-b");
+        let second_a = release_activation_event(&generation, 3, "release-a");
+        store
+            .flush(
+                vec![first_a.clone(), first_b, second_a],
+                BTreeMap::new(),
+                20_000,
+                false,
+            )
+            .unwrap();
+        let first_activation_ms = {
+            let conn = store.conn.as_ref().unwrap();
+            let a: (i64, i64, i64, i64) = conn
+                .query_row(
+                    "SELECT activated_ms,activated_seq,last_activated_ms,last_activated_seq
+                     FROM release_activations WHERE release='release-a'",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                )
+                .unwrap();
+            assert_eq!((a.1, a.3), (1, 3));
+            assert_eq!(a.0, a.2, "one flush has one observation-clock stamp");
+            let order = conn
+                .prepare(
+                    "SELECT release,activated_seq FROM release_activations ORDER BY activated_seq",
+                )
+                .unwrap()
+                .query_map([], |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+                })
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
+            assert_eq!(
+                order,
+                vec![("release-a".to_owned(), 1), ("release-b".to_owned(), 2)]
+            );
+            a.0
+        };
+
+        let conn = store.conn.as_mut().unwrap();
+        let tx = conn.transaction().unwrap();
+        upsert_release_activation(&tx, &generation, "release-a", &first_a, 99_000).unwrap();
+        tx.commit().unwrap();
+        let replayed: (i64, i64) = conn
+            .query_row(
+                "SELECT last_activated_ms,last_activated_seq FROM release_activations
+                 WHERE release='release-a'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            replayed,
+            (first_activation_ms, 3),
+            "re-applying the exact older row cannot move last activation backward or restamp it"
+        );
+    }
+
+    #[test]
+    fn rollout_suppression_uses_the_exact_half_open_event_time_window() {
+        let mut store =
+            Store::memory_unbound("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let generation = store.generation.clone();
+        let predecessor_hash = "0123456789abcdef0123456789abcdef";
+        store
+            .flush(
+                vec![eligible_failure_event(
+                    &generation,
+                    1,
+                    1,
+                    predecessor_hash,
+                    FailureDispositionV1::Fault,
+                    None,
+                    None,
+                )],
+                BTreeMap::new(),
+                30_000,
+                false,
+            )
+            .unwrap();
+        store
+            .conn
+            .as_ref()
+            .unwrap()
+            .execute("DELETE FROM error_exemplars", [])
+            .unwrap();
+        store
+            .conn
+            .as_ref()
+            .unwrap()
+            .execute(
+                "UPDATE telemetry_meta SET rollout_from_version=1,rollout_to_version=2,
+                   rollout_started_ms=100,rollout_expires_ms=200 WHERE singleton=1",
+                [],
+            )
+            .unwrap();
+
+        let mut at_start = eligible_failure_event(
+            &generation,
+            2,
+            2,
+            &"1".repeat(32),
+            FailureDispositionV1::Fault,
+            Some((1, predecessor_hash)),
+            None,
+        );
+        at_start.ts_ms = 100;
+        let mut at_end = eligible_failure_event(
+            &generation,
+            3,
+            2,
+            &"2".repeat(32),
+            FailureDispositionV1::Fault,
+            Some((1, predecessor_hash)),
+            None,
+        );
+        at_end.ts_ms = 200;
+        store
+            .flush(vec![at_start, at_end], BTreeMap::new(), 30_001, false)
+            .unwrap();
+
+        let conn = store.conn.as_ref().unwrap();
+        let counts = conn
+            .prepare(
+                "SELECT hex(fp_hash),suppressed_rollout_count FROM error_groups
+                 WHERE fp_version=2 ORDER BY fp_hash",
+            )
+            .unwrap()
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            counts,
+            vec![("11".repeat(16), 1), ("22".repeat(16), 0)],
+            "the predecessor group survives raw exemplar aging; started_ms is inclusive and expires_ms is exclusive on event.ts_ms"
+        );
+        let versions = conn
+            .prepare(
+                "SELECT fp_version,count(*) FROM error_groups
+                 GROUP BY fp_version ORDER BY fp_version",
+            )
+            .unwrap()
+            .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            versions,
+            vec![(1, 1), (2, 2)],
+            "fingerprint-version rollout creates successor groups without relabeling the predecessor"
+        );
+    }
+
+    #[test]
+    fn exemplar_limits_count_flush_depth_and_utf8_byte_decisions_separately() {
+        let mut store =
+            Store::memory_unbound("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let generation = store.generation.clone();
+        let hash = "0123456789abcdef0123456789abcdef";
+        let one_batch = (1..=6)
+            .map(|sequence| {
+                eligible_failure_event(
+                    &generation,
+                    sequence,
+                    1,
+                    hash,
+                    FailureDispositionV1::Fault,
+                    None,
+                    Some("small".to_owned()),
+                )
+            })
+            .collect();
+        store
+            .flush(one_batch, BTreeMap::new(), 40_000, false)
+            .unwrap();
+        store
+            .flush(
+                vec![eligible_failure_event(
+                    &generation,
+                    7,
+                    1,
+                    hash,
+                    FailureDispositionV1::Fault,
+                    None,
+                    Some("small".to_owned()),
+                )],
+                BTreeMap::new(),
+                40_001,
+                false,
+            )
+            .unwrap();
+        {
+            let conn = store.conn.as_ref().unwrap();
+            let limits: (i64, i64, i64, i64) = conn
+                .query_row(
+                    "SELECT exemplar_flush_drop_count,exemplar_depth_drop_count,
+                            exemplar_byte_drop_count,
+                            (SELECT count(*) FROM error_exemplars)
+                     FROM error_groups",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                )
+                .unwrap();
+            assert_eq!(limits, (1, 1, 0, 5));
+            let sequences = conn
+                .prepare("SELECT recorded_seq FROM error_exemplars ORDER BY recorded_seq")
+                .unwrap()
+                .query_map([], |row| row.get::<_, i64>(0))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
+            assert_eq!(sequences, vec![2, 3, 4, 5, 7]);
+        }
+
+        let byte_hash = "fedcba9876543210fedcba9876543210";
+        for sequence in 8..=12 {
+            store
+                .flush(
+                    vec![eligible_failure_event(
+                        &generation,
+                        sequence,
+                        1,
+                        byte_hash,
+                        FailureDispositionV1::Fault,
+                        None,
+                        Some("é".repeat(3_500)),
+                    )],
+                    BTreeMap::new(),
+                    40_000 + sequence as i64,
+                    false,
+                )
+                .unwrap();
+        }
+        let conn = store.conn.as_ref().unwrap();
+        let bytes: (i64, i64, i64) = conn
+            .query_row(
+                "SELECT exemplar_byte_drop_count,
+                        (SELECT count(*) FROM error_exemplars x
+                         WHERE x.generation=g.generation AND x.issue=g.issue),
+                        (SELECT coalesce(sum(length(CAST(title_template AS BLOB))+
+                                              length(CAST(stack_head AS BLOB))),0)
+                         FROM error_exemplars x
+                         WHERE x.generation=g.generation AND x.issue=g.issue)
+                 FROM error_groups g WHERE fp_hash=?1",
+                params![vec![
+                    0xfe_u8, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10, 0xfe, 0xdc, 0xba, 0x98,
+                    0x76, 0x54, 0x32, 0x10,
+                ]],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert!(bytes.0 >= 1);
+        assert!(bytes.1 <= ERROR_EXEMPLAR_DEPTH as i64);
+        assert!(
+            bytes.2 <= ERROR_EXEMPLAR_BYTES as i64,
+            "SQLite BLOB length counts UTF-8 bytes"
+        );
+
+        let mixed_hash = "00112233445566778899aabbccddeeff";
+        let mut oversized = eligible_failure_event(
+            &generation,
+            13,
+            1,
+            mixed_hash,
+            FailureDispositionV1::Fault,
+            None,
+            Some("small".to_owned()),
+        );
+        oversized.details.as_mut().unwrap()["messageTemplate"] =
+            json!("x".repeat(ERROR_EXEMPLAR_BYTES + 1));
+        let valid = eligible_failure_event(
+            &generation,
+            14,
+            1,
+            mixed_hash,
+            FailureDispositionV1::Fault,
+            None,
+            Some("valid".to_owned()),
+        );
+        let mut duplicate = valid.clone();
+        duplicate.sequence = 15;
+        let mut mixed = vec![oversized, valid, duplicate];
+        mixed.extend((16..=19).map(|sequence| {
+            eligible_failure_event(
+                &generation,
+                sequence,
+                1,
+                mixed_hash,
+                FailureDispositionV1::Fault,
+                None,
+                Some("valid".to_owned()),
+            )
+        }));
+        store.flush(mixed, BTreeMap::new(), 40_020, false).unwrap();
+        let mixed_limits: (i64, i64, i64) = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT exemplar_byte_drop_count,exemplar_flush_drop_count,
+                        (SELECT count(*) FROM error_exemplars x
+                         WHERE x.generation=g.generation AND x.issue=g.issue)
+                 FROM error_groups g WHERE fp_hash=?1",
+                params![vec![
+                    0x00_u8, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb,
+                    0xcc, 0xdd, 0xee, 0xff,
+                ]],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            mixed_limits,
+            (1, 0, 5),
+            "oversized and duplicate attempts do not consume the five successful-insert slots"
+        );
+    }
+
+    #[test]
+    fn sequence_exhaustion_fails_closed_before_tokens_repeat() {
+        assert_eq!(
+            advance_error_state_seq(-1).unwrap_err().diagnostic.code,
+            "SNAPBACK_ERROR_STATE_SEQUENCE_INVALID"
+        );
+        assert_eq!(
+            advance_error_state_seq(i64::MAX)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_ERROR_STATE_SEQUENCE_EXHAUSTED"
+        );
+
+        let generation = "gen_sequence_fixture";
+        let policy = config();
+        let mut buffer = Buffer {
+            current_generation: generation.to_owned(),
+            next_sequence: i64::MAX as u64 - 1,
+            ..Buffer::default()
+        };
+        enqueue_locked(&mut buffer, &policy, joined(generation, "function_run", 0));
+        enqueue_locked(&mut buffer, &policy, joined(generation, "function_run", 0));
+        assert_eq!(buffer.len(), 1);
+        assert_eq!(buffer.normal.front().unwrap().sequence, i64::MAX as u64);
+        assert_eq!(buffer.next_sequence, i64::MAX as u64);
+        assert_eq!(
+            buffer
+                .pending_drop_counters
+                .get("function_run:normal:sequenceExhausted"),
+            Some(&1)
+        );
+    }
+
+    #[test]
+    fn resolve_barrier_orders_unflushed_admissions_and_preserves_history_until_reresolve() {
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app-errors", "preview-errors"),
+            config(),
+        )
+        .unwrap();
+        let generation = telemetry
+            .producer
+            .shared
+            .buffer
+            .lock()
+            .unwrap()
+            .current_generation
+            .clone();
+        let hash = "0123456789abcdef0123456789abcdef";
+        telemetry.enqueue(
+            eligible_failure_event(
+                &generation,
+                0,
+                1,
+                hash,
+                FailureDispositionV1::Fault,
+                None,
+                None,
+            ),
+            true,
+        );
+        telemetry.force_flush().unwrap();
+        let issue: String = telemetry
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap()
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row("SELECT issue FROM error_groups", [], |row| row.get(0))
+            .unwrap();
+
+        telemetry.enqueue(
+            eligible_failure_event(
+                &generation,
+                0,
+                1,
+                hash,
+                FailureDispositionV1::Fault,
+                None,
+                None,
+            ),
+            true,
+        );
+        telemetry.set_release(Some("release-resolve-a"));
+        assert!(matches!(
+            telemetry
+                .transition_error_issue(&issue, ErrorIssueState::Resolved, 0)
+                .unwrap(),
+            ErrorTransitionResult::Applied { state_seq: 1, .. }
+        ));
+        telemetry.enqueue(
+            eligible_failure_event(
+                &generation,
+                0,
+                1,
+                hash,
+                FailureDispositionV1::Fault,
+                None,
+                None,
+            ),
+            true,
+        );
+        telemetry.force_flush().unwrap();
+        let first_resolve: (String, i64, i64, String) = telemetry
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap()
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT state,state_seq,resolved_seq,resolved_release FROM error_groups",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            first_resolve,
+            ("regressed".to_owned(), 2, 2, "release-resolve-a".to_owned())
+        );
+
+        assert!(matches!(
+            telemetry
+                .transition_error_issue(&issue, ErrorIssueState::Ignored, 2)
+                .unwrap(),
+            ErrorTransitionResult::Applied { state_seq: 3, .. }
+        ));
+        assert!(matches!(
+            telemetry
+                .transition_error_issue(&issue, ErrorIssueState::Open, 3)
+                .unwrap(),
+            ErrorTransitionResult::Applied { state_seq: 4, .. }
+        ));
+        telemetry.set_release(Some("release-resolve-b"));
+        assert!(matches!(
+            telemetry
+                .transition_error_issue(&issue, ErrorIssueState::Resolved, 4)
+                .unwrap(),
+            ErrorTransitionResult::Applied { state_seq: 5, .. }
+        ));
+        let final_state: (String, i64, i64, String) = telemetry
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap()
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT state,state_seq,resolved_seq,resolved_release FROM error_groups",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(final_state.0, "resolved");
+        assert_eq!(final_state.1, 5);
+        assert!(final_state.2 >= first_resolve.2);
+        assert_eq!(final_state.3, "release-resolve-b");
+    }
+
+    #[test]
+    fn direct_transition_gate_keeps_a_post_capture_enqueue_ahead_of_the_next_flush() {
+        let telemetry = Telemetry::in_memory_with_identity(
+            "01900000-0000-7000-8000-000000000001",
+            identity("app-gate", "preview-gate"),
+            config(),
+        )
+        .unwrap();
+        let generation = telemetry
+            .producer
+            .shared
+            .buffer
+            .lock()
+            .unwrap()
+            .current_generation
+            .clone();
+        let hash = "0123456789abcdef0123456789abcdef";
+        telemetry.enqueue(
+            eligible_failure_event(
+                &generation,
+                0,
+                1,
+                hash,
+                FailureDispositionV1::Fault,
+                None,
+                None,
+            ),
+            true,
+        );
+        telemetry.force_flush().unwrap();
+        let issue: String = telemetry
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap()
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row("SELECT issue FROM error_groups", [], |row| row.get(0))
+            .unwrap();
+
+        let gate = telemetry.producer.shared.flush_gate.lock().unwrap();
+        let barrier = telemetry.capture_enqueue_sequence().unwrap();
+        {
+            let policy = telemetry.producer.shared.config.read().unwrap().clone();
+            let mut buffer = telemetry.producer.shared.buffer.lock().unwrap();
+            enqueue_locked(
+                &mut buffer,
+                &policy,
+                eligible_failure_event(
+                    &generation,
+                    0,
+                    1,
+                    hash,
+                    FailureDispositionV1::Fault,
+                    None,
+                    None,
+                ),
+            );
+            assert_eq!(buffer.next_sequence, u64::try_from(barrier).unwrap() + 1);
+        }
+        telemetry
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap()
+            .transition_error_issue(
+                &issue,
+                ErrorIssueState::Resolved,
+                0,
+                Some(barrier),
+                Some("release-gate"),
+                "admin",
+                wall_now_ms(),
+            )
+            .unwrap();
+        drop(gate);
+        telemetry.force_flush().unwrap();
+
+        let state: (String, i64, i64) = telemetry
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap()
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT state,resolved_seq,last_regressed_seq FROM error_groups",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(state, ("regressed".to_owned(), barrier, barrier + 1));
+    }
+
+    #[test]
+    fn bulk_resolve_uses_the_exact_activation_sequence_and_reports_unknown_selectors() {
+        let mut store =
+            Store::memory_unbound("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let generation = store.generation.clone();
+        let before_hash = "0123456789abcdef0123456789abcdef";
+        let after_hash = "fedcba9876543210fedcba9876543210";
+        store
+            .flush(
+                vec![
+                    eligible_failure_event(
+                        &generation,
+                        1,
+                        1,
+                        before_hash,
+                        FailureDispositionV1::Fault,
+                        None,
+                        None,
+                    ),
+                    release_activation_event(&generation, 2, "release-bulk"),
+                    eligible_failure_event(
+                        &generation,
+                        3,
+                        1,
+                        after_hash,
+                        FailureDispositionV1::Fault,
+                        None,
+                        None,
+                    ),
+                ],
+                BTreeMap::new(),
+                50_000,
+                false,
+            )
+            .unwrap();
+        let result = store
+            .resolve_errors_open_before("release-bulk", 3, 50_001)
+            .unwrap();
+        assert!(result.known_release);
+        assert_eq!(result.activation_seq, Some(2));
+        assert_eq!(result.rows.len(), 1);
+        assert!(matches!(
+            result.rows[0],
+            ErrorTransitionResult::Applied {
+                state: ErrorIssueState::Resolved,
+                ..
+            }
+        ));
+        let states = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .prepare("SELECT last_seen_seq,state,resolved_release FROM error_groups ORDER BY last_seen_seq")
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                ))
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(
+            states,
+            vec![
+                (1, "resolved".to_owned(), Some("release-bulk".to_owned())),
+                (3, "open".to_owned(), None),
+            ]
+        );
+        let unknown = store
+            .resolve_errors_open_before("unknown-release", 3, 50_002)
+            .unwrap();
+        assert!(!unknown.known_release);
+        assert!(unknown.rows.is_empty());
+    }
+
+    #[test]
+    fn error_views_enforce_disable_generation_group_horizon_and_raw_floor_strictly() {
+        let mut store =
+            Store::memory_unbound("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let generation = store.generation.clone();
+        store
+            .flush(
+                vec![
+                    eligible_failure_event(
+                        &generation,
+                        1,
+                        1,
+                        "0123456789abcdef0123456789abcdef",
+                        FailureDispositionV1::Fault,
+                        None,
+                        None,
+                    ),
+                    release_activation_event(&generation, 2, "release-visible"),
+                ],
+                BTreeMap::new(),
+                60_000,
+                false,
+            )
+            .unwrap();
+        let conn = store.conn.as_ref().unwrap();
+        for view in [
+            "error_groups_visible",
+            "error_exemplars_visible",
+            "error_transitions_visible",
+            "release_activations_visible",
+        ] {
+            let count: i64 = conn
+                .query_row(&format!("SELECT count(*) FROM {view}"), [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            if view != "error_transitions_visible" {
+                assert_eq!(count, 1, "{view}");
+            }
+        }
+        conn.execute(
+            "UPDATE telemetry_meta SET max_days_mirror=0 WHERE singleton=1",
+            [],
+        )
+        .unwrap();
+        for view in [
+            "error_groups_visible",
+            "error_exemplars_visible",
+            "error_transitions_visible",
+            "release_activations_visible",
+        ] {
+            assert_eq!(
+                conn.query_row(&format!("SELECT count(*) FROM {view}"), [], |row| row
+                    .get::<_, i64>(0))
+                    .unwrap(),
+                0,
+                "disabled {view}"
+            );
+        }
+
+        let clock: i64 = conn
+            .query_row(
+                "SELECT observation_clock_ms FROM telemetry_meta WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let group_boundary = clock - i64::from(config().daily_days) * DAY_MS;
+        let raw_boundary = clock - i64::from(config().max_days) * DAY_MS;
+        conn.execute(
+            "UPDATE telemetry_meta SET max_days_mirror=?1,retention_floor=?2 WHERE singleton=1",
+            params![config().max_days, raw_boundary],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE error_groups SET last_seen_ms=?1",
+            params![group_boundary],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE release_activations SET last_activated_ms=?1",
+            params![group_boundary],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE error_exemplars SET recorded_ts_ms=?1",
+            params![raw_boundary],
+        )
+        .unwrap();
+        assert_eq!(
+            conn.query_row("SELECT count(*) FROM error_groups_visible", [], |row| row
+                .get::<_, i64>(
+                0
+            ))
+            .unwrap(),
+            0
+        );
+        assert_eq!(
+            conn.query_row("SELECT count(*) FROM error_exemplars_visible", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .unwrap(),
+            0
+        );
+        assert_eq!(
+            conn.query_row(
+                "SELECT count(*) FROM release_activations_visible",
+                [],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            0
+        );
+        assert_eq!(
+            conn.query_row("SELECT count(*) FROM error_groups", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            1,
+            "strict read boundaries hide stale keys before the maintenance sweep"
+        );
+        let expired_issue: String = conn
+            .query_row("SELECT issue FROM error_groups", [], |row| row.get(0))
+            .unwrap();
+        store
+            .flush(
+                vec![eligible_failure_event(
+                    &generation,
+                    3,
+                    1,
+                    "0123456789abcdef0123456789abcdef",
+                    FailureDispositionV1::Fault,
+                    None,
+                    None,
+                )],
+                BTreeMap::new(),
+                clock + 1,
+                false,
+            )
+            .unwrap();
+        let recurrent_issue: String = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row("SELECT issue FROM error_groups", [], |row| row.get(0))
+            .unwrap();
+        assert_ne!(
+            recurrent_issue, expired_issue,
+            "a recurrence after the group horizon mints a fresh issue identity"
+        );
+    }
+
+    #[test]
+    fn restart_seed_makes_the_first_post_crash_failure_regress_past_a_lost_admission() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("restart.telemetry");
+        let policy = config();
+        let incarnation = "01900000-0000-7000-8000-000000000001";
+        let hash = "0123456789abcdef0123456789abcdef";
+        let base = wall_now_ms();
+        let issue = {
+            let mut store = Store::open(path.clone(), incarnation, policy.clone()).unwrap();
+            let generation = store.generation.clone();
+            store
+                .flush(
+                    vec![eligible_failure_event(
+                        &generation,
+                        1,
+                        1,
+                        hash,
+                        FailureDispositionV1::Fault,
+                        None,
+                        None,
+                    )],
+                    BTreeMap::new(),
+                    base,
+                    false,
+                )
+                .unwrap();
+            let issue: String = store
+                .conn
+                .as_ref()
+                .unwrap()
+                .query_row("SELECT issue FROM error_groups", [], |row| row.get(0))
+                .unwrap();
+            store
+                .transition_error_issue(
+                    &issue,
+                    ErrorIssueState::Resolved,
+                    0,
+                    Some(2),
+                    Some("release-before-crash"),
+                    "admin",
+                    base + 1,
+                )
+                .unwrap();
+            assert_eq!(store.enqueue_sequence_seed().unwrap(), 2);
+            issue
+        };
+
+        let store = Store::open(path, incarnation, policy.clone()).unwrap();
+        assert_eq!(store.enqueue_sequence_seed().unwrap(), 2);
+        let generation = store.generation.clone();
+        let telemetry = Telemetry::from_store(store, policy).unwrap();
+        telemetry.enqueue(
+            eligible_failure_event(
+                &generation,
+                0,
+                1,
+                hash,
+                FailureDispositionV1::Fault,
+                None,
+                None,
+            ),
+            true,
+        );
+        telemetry.force_flush().unwrap();
+        let state: (String, i64, i64, i64) = telemetry
+            .producer
+            .shared
+            .store
+            .lock()
+            .unwrap()
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT state,resolved_seq,last_regressed_seq,count FROM error_groups WHERE issue=?1",
+                params![issue],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(state.0, "regressed");
+        assert_eq!(state.1, 2);
+        assert!(
+            state.2 > state.1,
+            "the first post-restart failure follows both the durable barrier and any boot marker"
+        );
+        assert_eq!(state.3, 2);
+    }
+
+    #[test]
+    fn group_and_activation_caps_fold_or_prune_with_visible_counters_and_floor() {
+        let mut store =
+            Store::memory_unbound("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let generation = store.generation.clone();
+        let group_events = (0..=ERROR_GROUP_CAP)
+            .map(|index| {
+                eligible_failure_event(
+                    &generation,
+                    index as u64 + 1,
+                    1,
+                    &format!("{index:032x}"),
+                    FailureDispositionV1::Fault,
+                    None,
+                    None,
+                )
+            })
+            .collect::<Vec<_>>();
+        let activation_start = group_events.len() as u64 + 1;
+        store
+            .flush(group_events, BTreeMap::new(), 80_000, false)
+            .unwrap();
+        let activation_events = (0..=RELEASE_ACTIVATION_CAP)
+            .map(|index| {
+                release_activation_event(
+                    &generation,
+                    activation_start + index as u64,
+                    &format!("release-{index:04}"),
+                )
+            })
+            .collect::<Vec<_>>();
+        store
+            .flush(activation_events, BTreeMap::new(), 80_001, false)
+            .unwrap();
+        let conn = store.conn.as_ref().unwrap();
+        assert_eq!(
+            conn.query_row("SELECT count(*) FROM error_groups", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            ERROR_GROUP_CAP as i64
+        );
+        let meta: (i64, i64) = conn
+            .query_row(
+                "SELECT overflow_fold_count,release_activation_floor_seq FROM telemetry_meta",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(meta.0, 1);
+        assert_eq!(meta.1, activation_start as i64);
+        assert_eq!(
+            conn.query_row("SELECT count(*) FROM release_activations", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            RELEASE_ACTIVATION_CAP as i64
+        );
+        assert_eq!(
+            conn.query_row(
+                "SELECT count(*) FROM error_groups WHERE fp_hash=?1",
+                params![
+                    vec![0_u8; 14]
+                        .into_iter()
+                        .chain([0x03, 0xe8])
+                        .collect::<Vec<_>>()
+                ],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap(),
+            0,
+            "the over-cap fingerprint has no group row"
+        );
+        let _ = conn;
+        let below_floor = store
+            .resolve_errors_open_before("release-0000", activation_start as i64, 80_002)
+            .unwrap();
+        assert!(!below_floor.known_release);
+        assert_eq!(below_floor.activation_floor_seq, activation_start as i64);
+    }
+
+    #[test]
+    fn generation_rotation_isolates_then_sweeps_error_state_and_resets_floors() {
+        let mut store =
+            Store::memory_unbound("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let old_generation = store.generation.clone();
+        let hash = "0123456789abcdef0123456789abcdef";
+        store
+            .flush(
+                vec![
+                    eligible_failure_event(
+                        &old_generation,
+                        1,
+                        1,
+                        hash,
+                        FailureDispositionV1::Fault,
+                        None,
+                        None,
+                    ),
+                    release_activation_event(&old_generation, 2, "release-old"),
+                ],
+                BTreeMap::new(),
+                90_000,
+                false,
+            )
+            .unwrap();
+        let old_issue: String = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row("SELECT issue FROM error_groups", [], |row| row.get(0))
+            .unwrap();
+        store
+            .conn
+            .as_ref()
+            .unwrap()
+            .execute(
+                "UPDATE telemetry_meta SET overflow_fold_count=7,release_activation_floor_seq=2",
+                [],
+            )
+            .unwrap();
+        store
+            .rebind("01900000-0000-7000-8000-000000000002", 90_001)
+            .unwrap();
+        let new_generation = store.generation.clone();
+        assert_ne!(old_generation, new_generation);
+        let visible: (i64, i64, i64, i64) = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row(
+                "SELECT (SELECT count(*) FROM error_groups_visible),
+                        (SELECT count(*) FROM release_activations_visible),
+                        overflow_fold_count,release_activation_floor_seq FROM telemetry_meta",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(visible, (0, 0, 0, 0));
+        store
+            .flush(
+                vec![eligible_failure_event(
+                    &new_generation,
+                    3,
+                    1,
+                    hash,
+                    FailureDispositionV1::Fault,
+                    None,
+                    None,
+                )],
+                BTreeMap::new(),
+                90_002,
+                false,
+            )
+            .unwrap();
+        let conn = store.conn.as_ref().unwrap();
+        let new_issue: String = conn
+            .query_row("SELECT issue FROM error_groups", [], |row| row.get(0))
+            .unwrap();
+        assert_ne!(old_issue, new_issue);
+        assert_eq!(
+            conn.query_row(
+                "SELECT count(*) FROM error_groups WHERE generation<>?1",
+                params![new_generation],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap(),
+            0
+        );
+        assert_eq!(
+            conn.query_row("SELECT count(*) FROM release_activations", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn transition_history_cap_has_a_derived_non_drifting_floor() {
+        let mut store =
+            Store::memory_unbound("01900000-0000-7000-8000-000000000001", config()).unwrap();
+        let generation = store.generation.clone();
+        store
+            .flush(
+                vec![eligible_failure_event(
+                    &generation,
+                    1,
+                    1,
+                    "0123456789abcdef0123456789abcdef",
+                    FailureDispositionV1::Fault,
+                    None,
+                    None,
+                )],
+                BTreeMap::new(),
+                100_000,
+                false,
+            )
+            .unwrap();
+        let issue: String = store
+            .conn
+            .as_ref()
+            .unwrap()
+            .query_row("SELECT issue FROM error_groups", [], |row| row.get(0))
+            .unwrap();
+        let mut state = ErrorIssueState::Open;
+        for state_seq in 0..102 {
+            let to = if state == ErrorIssueState::Open {
+                ErrorIssueState::Resolved
+            } else {
+                ErrorIssueState::Open
+            };
+            store
+                .transition_error_issue(
+                    &issue,
+                    to,
+                    state_seq,
+                    (to == ErrorIssueState::Resolved).then_some(1),
+                    Some("release-history"),
+                    "admin",
+                    100_001 + state_seq,
+                )
+                .unwrap();
+            state = to;
+        }
+        let conn = store.conn.as_ref().unwrap();
+        let history: (i64, i64, i64) = conn
+            .query_row(
+                "SELECT count(*),min(seq),max(seq) FROM error_transitions WHERE issue=?1",
+                params![issue],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(history, (ERROR_TRANSITIONS_PER_GROUP as i64, 3, 102));
+        let floor = store
+            .error_transition_history_floor(&issue, 100_200)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            floor,
+            ErrorTransitionHistoryFloor {
+                floor_seq: 3,
+                history_truncated: true,
+            }
+        );
+        store
+            .conn
+            .as_ref()
+            .unwrap()
+            .execute(
+                "DELETE FROM error_transitions WHERE issue=?1",
+                params![issue],
+            )
+            .unwrap();
+        assert_eq!(
+            store
+                .error_transition_history_floor(&issue, 100_201)
+                .unwrap()
+                .unwrap(),
+            ErrorTransitionHistoryFloor {
+                floor_seq: 102,
+                history_truncated: true,
+            }
         );
     }
 

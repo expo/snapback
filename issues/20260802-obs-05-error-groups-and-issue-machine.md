@@ -96,3 +96,39 @@ authoring authority:
 This tranche still does not change refusal admission or wire envelopes, emit
 telemetry, project the field publicly, or touch `runtime.rs`, `telemetry.rs`,
 `server.rs`, `local.rs`, guide/capability publication, or D-06.
+
+### 2026-08-02 — tranche 3: E1 store checkpoint
+
+The store-only E1 slice now lives in `telemetry.rs`, with no runtime, server,
+local-publication, host-op, CLI, MCP, or console surface changes:
+
+- legacy-safe schema migration creates the four E1 tables and strict
+  current-generation visible views; `telemetry_meta` carries the enqueue
+  high-water, rollout tuple, fold/malformed/mismatch counters, and activation
+  floor;
+- the OBS flush transaction inserts raw rows and folds complete closed
+  failure stamps atomically, preserving OBS-04's flush-commit witness order;
+  malformed eligible carriers remain raw and are counted rather than
+  reclassified;
+- branch validation now distinguishes code-less 5xx transport fingerprints
+  from code-bearing typed/app/exception/diagnostic tuples, including closed
+  `subsystem`, `errorClass`, `appCode`, and `statusClass` facets;
+- group folding is cap-bounded without eviction, exemplar rings have separate
+  UTF-8 byte/depth/per-flush accounting, rollout predecessor lookup survives
+  raw exemplar aging, and activation cap/horizon pruning advances a visible
+  floor;
+- direct single and bulk transitions serialize with flush, use checked
+  monotone sequences, persist restart-safe resolve barriers, preserve resolve
+  provenance through reopen/ignore, replace it on re-resolve, and expose a
+  transition-history floor derived from bounded rows plus group authority.
+
+Focused Air evidence at this checkpoint covers fail-before-commit rollback,
+closed-branch confusion and code-less transport, same-batch and same-hash
+activation ordering, rollout's half-open event-time window, all exemplar
+budgets, signed/SQLite sequence exhaustion, direct-transition/flush ordering,
+bulk selector ordering, strict disabled/horizon/floor visibility, the exact
+resolve-after-lost-admission restart crash schedule, group and activation
+caps/floors, generation rotation, fingerprint-version split with exemplars
+absent, and transition-history pruning/derived floor. The checkpoint remains
+open because E0 runtime carrier wiring and the later E1 public surface are
+separate D-05/D-06 tranches.

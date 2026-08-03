@@ -214,6 +214,13 @@ protocol. The witness is excluded from every public typed projection and
 visibility view; the carrier validator binds the measured clean ancestor,
 the complete proof-source byte closure, and the exact receipt bytes tracked
 at current HEAD.)
+**Revised:** 2026-08-02 (dated D-05 store amendment, post-acceptance —
+admission sequences, their durable high-water and exhaustion behavior,
+fingerprint-rollout bounds, and the closed failure-stamp carrier are pinned
+for LLP 0156 E1. The amendment also records branch-specific code/status
+optionality, `subsystem`, malformed-stamp accounting, and the rule that the
+ordinary telemetry redactor preserves allocator-owned failure fields without
+reclassification.)
 **Related:** LLP 0000 (explainer; reserves Observability as an undrafted
 subsystem), LLP 0003 (storage core; app write lane), LLP 0010 (inspect
 loop; explicitly defers production observability), LLP 0012 (headless
@@ -820,15 +827,25 @@ issue eligibility. That opt-in is the separate LLP 0108 authoring amendment
 and does not follow merely from declaring a refusal.
 
 Failure records allocate D2 `details` under one 8 KiB canonical-JSON budget.
-The closed new keys are `platformCode`, `failure_disposition`,
-`issue_eligible`, `classifier_version`, `fp_version`, `fp_hash`,
+The closed new keys are `platformCode`, `statusClass`,
+`failure_disposition`, `issue_eligible`, `classifier_version`, `fp_branch`,
+`fp_version`, `fp_hash`,
 `predecessor_fp_version`, `predecessor_fp_hash`, `appCode`, `errorClass`,
-`function`, `name`, `appDetails`, `messageTemplate`, `message`, `stack`, and
-`detailFlags`. Priority is total: (1) platform/classifier/fingerprint stamps;
-(2) `appCode`; (3) `errorClass`; (4) decoder `function` then `name`; (5) the
+`subsystem`, `function`, `name`, `appDetails`, `messageTemplate`, `message`,
+`stack`, and `detailFlags`. `fp_branch` is the closed
+`typed_refusal | app_refusal | exception | transport | diagnostic`
+discriminator chosen by the emission seam. `platformCode` is grammar-valid
+and required on every branch except transport; the transport tuple instead
+requires `statusClass = 5`, `failure_disposition = fault`, and no platform
+code. Diagnostic tuples require the validated `subsystem` facet. Foreign
+branch facets make an eligible stamp malformed rather than inviting the
+flusher to reinterpret it. Priority is total: (1)
+branch/platform/status/classifier/fingerprint stamps;
+(2) the branch-required `appCode`, `errorClass`, or `subsystem` facet, in that
+order when present; (3) decoder `function` then `name`; (4) the
 pre-existing keys, individually, in `attempt`, `cause`, `level`, `method`,
-`rawPath`, `referer`, `severity`, `trigger`, `userAgent` order; (6)
-`appDetails`, kept or dropped whole; (7) `messageTemplate`; (8) `message`; (9)
+`rawPath`, `referer`, `severity`, `trigger`, `userAgent` order; (5)
+`appDetails`, kept or dropped whole; (6) `messageTemplate`; (7) `message`; (8)
 the stack head. Strings truncate only at UTF-8 character boundaries. The
 allocator reserves `detailFlags` before optional occupants and always carries
 `functionTruncated`, `nameTruncated`, `messageTemplateTruncated`,
@@ -889,6 +906,39 @@ A bounded in-memory buffer with a dedicated flusher:
   land invisibly behind the view and are swept by D4.
 - `telemetry.max_days = 0` disables persistence entirely (the buffer
   short-circuits), mirroring PocketBase's `MaxDays == 0` semantics.
+
+### Amendment 2026-08-02: D-05 admission sequencing and failure-stamp state
+
+LLP 0156 E1 uses the D3 admission critical section as its sole acceptance
+order. Every accepted record receives a strictly increasing unsigned
+in-memory sequence whose durable domain is SQLite's nonnegative `INTEGER`
+range. At `i64::MAX`, admission fails closed before increment or insertion
+and advances the ordinary kind/priority/reason drop counter under the stable
+reason `sequenceExhausted`; a sequence is never repeated or admitted in a
+form the store cannot flush.
+
+`telemetry_meta` gains `enqueue_high_water`, advanced in the same transaction
+as every drained batch, including admissions shed later by file-cap policy.
+Resolve transactions also advance it to their captured barrier. Boot seeds
+the live counter from
+`max(enqueue_high_water, max(resolved_seq) for the current generation)`, so a
+crash after resolve and before flush cannot reissue a barriered sequence. The
+same meta row carries the all-or-none rollout tuple
+`rollout_from_version`, `rollout_to_version`, `rollout_started_ms`, and
+`rollout_expires_ms`; matching is exactly
+`started_ms <= event.ts_ms < expires_ms` and never uses the flush clock.
+Generation rebind resets rollout-derived/fold counters and the release
+activation floor with the new generation.
+
+The D2 redactor recognizes failure-shaped details only through the closed
+allowlist above. It preserves allocator-owned values and `detailFlags`
+exactly within the 8 KiB carrier budget; it neither truncates them a second
+time nor derives missing classifier/fingerprint values. A literal
+`issue_eligible: true` with an incomplete, unknown, branch-confused, or
+wrongly typed stamp remains available on the raw row, is skipped by E1
+materialization, and increments `malformed_error_stamp_count` in the flush
+transaction. Non-eligible and ordinary D2 details retain the prior redaction
+rules.
 
 ### D4 — Maintenance rides the flush path (no cron)
 
