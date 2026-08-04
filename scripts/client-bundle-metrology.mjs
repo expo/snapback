@@ -207,6 +207,10 @@ const OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS = Object.freeze([
   'push-registry-attach',
   'push-registry-root-negative',
 ]);
+const FINITE_CARRIER_COMPLETENESS_ROLLOVER_PROFILE_IDS = Object.freeze([
+  ...OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS,
+  'public-subpath-materialization-store',
+]);
 const ROLLOVER_LEDGER_SPECS = Object.freeze([
   Object.freeze({
     filename: 'baseline.local-persistent-store.v1.json',
@@ -336,6 +340,34 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-react/package.test.mjs']],
       ['node', ['packages/snapback-client/argument-validation.test.mjs']],
       ['node', ['packages/snapback-client/materialization-bridge.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.finite-carrier-completeness.v1.json',
+    profileFilename: 'finite-carrier-completeness-profiles.v1.json',
+    workloadVersion: 'llp-0093-0094-finite-carrier-completeness.v1',
+    profileIds: FINITE_CARRIER_COMPLETENESS_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.offline-unavailable.v1.json',
+        profileIds: OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS,
+      }),
+      Object.freeze({
+        filename: 'baseline.local-read-admission.v1.json',
+        profileIds: Object.freeze(['public-subpath-materialization-store']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0093#finite-carrier-completeness-amendment--2026-08-04',
+      'LLP 0094#llp-0157-finite-carrier-completeness-amendment--2026-08-04',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/materialization-store.test.mjs']],
     ]),
   }),
 ]);
