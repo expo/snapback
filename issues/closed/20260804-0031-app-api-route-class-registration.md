@@ -26,3 +26,11 @@ records the server/engine landing and its green registry/digest-matrix proof;
 `llp/0012-headless-integration-contract.spec.md` already registers
 `AppApiDiscoveryV1`, the content-addressed envelope, and
 `SNAPBACK_APP_API_*`.
+
+## Resolution (2026-08-04)
+
+Landed the dated LLP 0031 registration: both `/app-api/*` routes join
+the system HTTP matrix (`PublicNoStore` discovery / `PublicProjection`
+envelope, credential-free, registry-enforced) with the Revised entry,
+and LLP 0062's stale "remain future work" parenthetical now records the
+landing. ref-check green.
