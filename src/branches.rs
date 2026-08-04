@@ -11,12 +11,13 @@
 use std::path::{Path, PathBuf};
 
 use rusqlite::{Connection, OptionalExtension, Row, params};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 
 /// Stable identity of an ephemeral branch within one logical app.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct BranchId(pub String);
 
 /// Identity of a branch's typed ephemeral **child version-stream**.
@@ -26,11 +27,11 @@ pub struct BranchId(pub String);
 /// plus zero-or-more typed ephemeral child streams. A child stream's versions are
 /// never numerically comparable to the canonical stream; `base_version` is a fork
 /// pointer, not a shared coordinate.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ChildStreamId(pub String);
 
 /// Lifecycle state of a branch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub enum BranchState {
     /// Live: divergent reads/writes resolve against the branch overlay.
     Active,
@@ -56,7 +57,7 @@ impl BranchState {
 }
 
 /// A registered ephemeral branch.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct BranchRecord {
     pub branch_id: BranchId,
     pub child_stream_id: ChildStreamId,
@@ -338,18 +339,26 @@ pub fn set_child_replay_floor(
 // API; teardown = drop the handle + delete the file.
 // ---------------------------------------------------------------------------
 
-/// An isolated, writable copy of the source database seeded from a consistent
-/// snapshot at `base_version`. Overlay writes (P0.4) land in this database's own
-/// change journal; canonical is never touched.
+/// A branch workspace with a query-only immutable base and a separate writable
+/// head seeded from the same consistent snapshot.
+///
+/// The original P0.3 substrate used one writable copy as both "base" and head,
+/// which could not prove an exact net diff after a revert. The comparison base
+/// is private and SQLite-enforced query-only; callers mutate only [`Self::conn`].
+///
+/// @ref LLP 0164#contract-summary-normative-details-per-llp-0162-3-5 — exact
+///   net diff requires an immutable retained base or first-write preimages.
 pub struct MaterializedBase {
-    /// The branch's own database connection (base + future overlay).
+    /// The branch's writable materialized overlay head.
     pub conn: Connection,
+    immutable_base: Connection,
     /// The canonical head captured in this snapshot — the CAS anchor for
     /// promotion (P3). Read back FROM the snapshot, so it is exactly consistent
     /// with the captured pages regardless of concurrent writers on the source.
     pub base_version: u64,
     /// The on-disk location, or `None` for an in-memory base (ephemeral/tests).
     pub path: Option<PathBuf>,
+    immutable_base_path: Option<PathBuf>,
 }
 
 impl MaterializedBase {
@@ -360,52 +369,69 @@ impl MaterializedBase {
     /// the snapshot itself, making it atomically consistent with the copied
     /// pages even if the source advances mid-backup.
     pub fn materialize(source: &Connection, target: Option<&Path>) -> SnapbackResult<Self> {
-        let mut conn = match target {
+        let immutable_base_path = target.map(|path| {
+            let mut value = path.as_os_str().to_os_string();
+            value.push(".immutable-base");
+            PathBuf::from(value)
+        });
+        let mut immutable_base = match immutable_base_path.as_deref() {
             Some(p) => Connection::open(p)?,
             None => Connection::open_in_memory()?,
         };
         {
             // @ref LLP 0028 — same backup primitive used by detached_read_snapshot.
-            let backup = rusqlite::backup::Backup::new(source, &mut conn)?;
+            let backup = rusqlite::backup::Backup::new(source, &mut immutable_base)?;
             backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
         }
-        let base_version = crate::storage::current_version_on(&conn)?;
+        let base_version = crate::storage::current_version_on(&immutable_base)?;
+        immutable_base.execute_batch("PRAGMA query_only = ON;")?;
+        let mut conn = match target {
+            Some(p) => Connection::open(p)?,
+            None => Connection::open_in_memory()?,
+        };
+        {
+            let backup = rusqlite::backup::Backup::new(&immutable_base, &mut conn)?;
+            backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
+        }
         Ok(Self {
             conn,
+            immutable_base,
             base_version,
             path: target.map(|p| p.to_path_buf()),
+            immutable_base_path,
         })
+    }
+
+    /// The retained comparison base. SQLite enforces query-only access.
+    pub fn immutable_base(&self) -> &Connection {
+        &self.immutable_base
     }
 
     /// Tear down the base: drop the connection and delete the backing file (if
     /// any). Idempotent — a missing file is not an error.
     pub fn teardown(self) -> SnapbackResult<()> {
-        let path = self.path.clone();
+        let paths = [self.path.clone(), self.immutable_base_path.clone()];
         drop(self); // close the connection before unlinking
-        if let Some(p) = path {
+        for p in paths.into_iter().flatten() {
             match std::fs::remove_file(&p) {
-                Ok(()) => Ok(()),
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-                Err(e) => Err(invalid(format!(
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(invalid(format!(
                     "failed to delete branch base {:?}: {e}",
                     p
                 ))),
             }
-        } else {
-            Ok(())
         }
+        Ok(())
     }
 }
 
 // ---------------------------------------------------------------------------
 // COW overlay ledger (LLP 0097 P0.4) — the enumerable divergence of a branch.
 //
-// The materialized base (P0.3) is a writable fork, so ordinary reads on the
-// branch connection already resolve overlay-over-base (read-your-writes) and are
-// structurally isolated from canonical and from sibling branches. This ledger
-// makes the divergence ENUMERABLE — every branch-local logical write is recorded
-// against the branch's own child version-stream, so promotion (P3) can replay
-// exactly the diverged writes in order.
+// The writable head starts as a byte-equivalent copy of the immutable retained
+// base. This legacy ledger remains attributed change inventory only; it is never
+// a promotion input. `fork_promotion` accepts only replay-sufficient invocations.
 //
 // @ref LLP 0097#design — materialized base + operation/command log + COW overlay.
 // ---------------------------------------------------------------------------
@@ -905,6 +931,13 @@ pub fn ensure_promotion_pending(conn: &Connection) -> SnapbackResult<()> {
 /// over-approximation): any overlay write ordered at/after the first captured
 /// effect may have observed a simulated outcome, so it commits provisionally.
 /// Writes strictly before any effect commit unconditionally.
+/// Disabled in every build: promotion from `OverlayWrite` post-images violates
+/// Accepted LLP 0097. `fork_promotion::promote_by_reexecution` is the sole
+/// replacement surface.
+///
+/// @ref LLP 0164#contract-summary-normative-details-per-llp-0162-3-5 — no
+///   product path may promote branch post-images.
+#[cfg(any())]
 pub fn promote<F>(
     canonical: &mut Connection,
     base: &Connection,
@@ -1564,6 +1597,7 @@ mod tests {
     // ---- P2 + P3: promotion ------------------------------------------------
 
     /// Reference physical applier over the demo `widgets(id, name)` table.
+    #[cfg(any())]
     fn apply_widget(tx: &rusqlite::Transaction, w: &OverlayWrite) -> SnapbackResult<()> {
         let id: i64 = w.row_id.parse().expect("widget id");
         match w.op {
@@ -1581,6 +1615,7 @@ mod tests {
         Ok(())
     }
 
+    #[cfg(any())]
     fn canonical_version(c: &Connection) -> u64 {
         c.query_row(
             "SELECT version FROM _snapback_version WHERE id = 1",
@@ -1600,6 +1635,7 @@ mod tests {
         }
     }
 
+    #[cfg(any())]
     #[test]
     fn promote_applies_writes_and_bumps_version_once() {
         let mut canonical = source_with_head(5);
@@ -1645,6 +1681,7 @@ mod tests {
         );
     }
 
+    #[cfg(any())]
     #[test]
     fn promote_marks_effect_dependent_writes_provisional() {
         let mut canonical = source_with_head(2);
@@ -1726,6 +1763,7 @@ mod tests {
         );
     }
 
+    #[cfg(any())]
     #[test]
     fn promote_refuses_when_canonical_advanced() {
         let mut canonical = source_with_head(5);
@@ -1751,6 +1789,7 @@ mod tests {
         assert_eq!(canonical_version(&canonical), 6, "canonical untouched");
     }
 
+    #[cfg(any())]
     #[test]
     fn promote_refuses_authority_not_revalidated() {
         let mut canonical = source_with_head(1);
@@ -1804,6 +1843,7 @@ mod tests {
         assert!(matches!(log[2], BranchOp::Write(3, _)));
     }
 
+    #[cfg(any())]
     #[test]
     fn transitive_effect_dependence_taints_all_later_writes() {
         // w1 (pre-effect) | effect | w2 | w3 (both post-effect) — transitive
@@ -1853,6 +1893,7 @@ mod tests {
         );
     }
 
+    #[cfg(any())]
     #[test]
     fn staged_settlement_is_never_rolled_back_after_initiation() {
         // Once promoted, a provisional write stays in canonical even if its

@@ -1,6 +1,7 @@
 # `branches::promote` applies overlay post-images — deviation from Accepted LLP 0097 §5
 
 **Opened:** 2026-08-03
+**Resolved:** 2026-08-03
 **Source:** LLP 0162 super-refine loop (both review families, rounds 1–2)
 **Systems:** Storage, Runtime
 
@@ -53,3 +54,23 @@ This ticket exists so the correction is not hostage to LLP 0162's acceptance;
 it is a deviation from an already-Accepted RFC. Coordinate with LLP 0158 F0a
 (which deliberately excludes promotion) and LLP 0097's mediation prerequisite
 before wiring anything.
+
+## Resolution — 2026-08-03
+
+LLP 0164's first in-app implementation slice corrected both deviations:
+
+- `branches::promote` and its post-image-specific tests are compile-disabled;
+  the sole replacement surface is `fork_promotion::promote_by_reexecution`,
+  which accepts a sealed request and replay-sufficient operation log, performs
+  strict base/head CAS, re-executes inside one hidden canonical transaction,
+  and refuses if reproduced approved facts diverge. A source guard proves no
+  compiled product path exposes the old surface or an `apply_write` input.
+- `MaterializedBase` now captures one source snapshot into a private
+  SQLite-enforced query-only base and seeds a distinct writable branch head
+  from it. Independent base/head diff tests include sibling/canonical
+  isolation and add/update/delete/revert folding.
+
+This ticket's deviation is closed. LLP 0097/0162 acceptance and capability
+advertisement remain gated on the larger corpus; in particular, exhaustive
+host-egress mediation, `CaptureOnly`, provisional effect settlement, and the
+full concurrent-promotion corpus are not claimed by this correction.

@@ -5,7 +5,13 @@
 **Systems:** Storage, Runtime, Effects, Auth, Agent experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (derived-deployment implementation note — LLP 0158
+**Revised:** 2026-08-03 (first in-app implementation slice — immutable
+current-head bases, replay-sufficient branch operations, independent exact
+diffs, bounded durable `DenyAll` markers, sealed strict-CAS promotion by
+re-execution, aggregate envelope/source joins, FIFO admission/rebase/re-seal,
+resource reap, generated schemas, and absolute-latency instrumentation landed;
+the row matrix below records the remaining corpus gaps and all capability axes
+stay `Missing`); 2026-08-03 (derived-deployment implementation note — LLP 0158
 F0a landed the non-promotable class's scrub-and-mint custody proof and
 `DenyAll` durable attempt-marker corpus. This supplies the substrate for the
 derived-deployment legs of LLP 0162 Acceptance rows 5 and 7; those legs remain
@@ -105,6 +111,33 @@ publication, and bounded payload-free `DenyAll` markers for derived
 deployments. This unblocks the implementation dependency for the row-5 and
 row-7 derived legs; it does not close or advertise those legs before the F0b
 consumer surface exercises them end to end.
+
+### Implementation record — 2026-08-03
+
+The first core in-app slice lives in `src/fork_promotion.rs`. The superseded
+`branches::promote` post-image entry point is compile-disabled, while
+`MaterializedBase` now retains a SQLite-enforced query-only base distinct from
+its writable head. Rust is the source of truth for the nine committed
+branch/promotion schemas registered in `schema_export`.
+
+This is intentionally a progress record, not a capability advertisement:
+
+| LLP 0162 row | Evidence in this slice | Status after this slice |
+| --- | --- | --- |
+| 5 — fork isolation | current-head base, canonical/sibling isolation, and immutable-base fixture | Partial — the product/runtime consumer surface and derived F0b leg are not closed |
+| 6 — effect quarantine | bounded payload-free `DenyAll` marker, crash/reopen persistence, promotion foreclosure | Partial — exhaustive host-egress-family mediation/bypass coverage and `CaptureOnly` are missing |
+| 7 — identity/authority | closed branch grant allowlists and promotion-time authority revalidation | Partial — product auth wiring, stale/revoked corpus breadth, later settlement, and derived F0b remain |
+| 8 — resources | principal/app counts, operation/byte/diff/TTL bounds and reap-without-canonical-change fixture | Partial — replay-floor/envelope-clock joint corpus remains |
+| 9 — exact diff | independent immutable-base/head comparison, attributed sequence, deterministic 32-seed add/update/delete/revert corpus | Partial — schema/system-field coverage and the complete journal-completeness corpus owned with LLP 0165 remain |
+| 10 — strict promotion | sealed head/log/diff/manifest/facts request; unchanged-base re-execution; changed-head refusal; receipt retry; rebase/re-seal divergence; FIFO/reservation mechanics; negative post-image-source guard | Partial — full concurrent-writer fairness/crash matrix, provisional effect chains, frozen production contention terms, and the LLP 0163/0165 integration seams remain |
+| 13 — applicable performance | `snapback-fork-promotion-bench` instruments release-mode absolute fork/diff/promotion/reap latency with the step-0 11-run median/MAD protocol | Missing — the quiescent dated run, author-ratified absolute bounds, and p99 contention evidence are not complete |
+
+The runner refuses measurement while another Cargo/Rust compiler is active,
+retains every raw run, and writes the missing bound-ratification fact into its
+output artifact. The implementation machine was carrying other Wave-3 builds,
+so this landing does not mislabel a contaminated run as dated evidence.
+`CaptureOnly`, exhaustive product egress mediation, and capability manifest
+publication are explicitly outside this slice.
 
 ## Open items
 

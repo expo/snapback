@@ -1,0 +1,47 @@
+{
+  "$defs": {
+    "BranchId": {
+      "description": "Stable identity of an ephemeral branch within one logical app.",
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/branch.attempt-marker-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attemptedAtMs": {
+      "format": "int64",
+      "type": "integer"
+    },
+    "branchId": {
+      "$ref": "#/$defs/BranchId"
+    },
+    "egressClass": {
+      "type": "string"
+    },
+    "markerId": {
+      "type": "string"
+    },
+    "operationId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schemaVersion": {
+      "format": "uint32",
+      "maximum": 1,
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "markerId",
+    "branchId",
+    "egressClass",
+    "attemptedAtMs"
+  ],
+  "title": "DenyAllAttemptMarkerV1",
+  "type": "object"
+}

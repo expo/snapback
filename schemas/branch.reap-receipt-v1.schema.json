@@ -1,0 +1,37 @@
+{
+  "$defs": {
+    "BranchId": {
+      "description": "Stable identity of an ephemeral branch within one logical app.",
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/branch.reap-receipt-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "branchId": {
+      "$ref": "#/$defs/BranchId"
+    },
+    "reapedAtMs": {
+      "format": "int64",
+      "type": "integer"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "format": "uint32",
+      "maximum": 1,
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "branchId",
+    "reason",
+    "reapedAtMs"
+  ],
+  "title": "BranchReapReceiptV1",
+  "type": "object"
+}

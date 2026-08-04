@@ -59,12 +59,13 @@ release needed.
    OQ13 narrows LLP 0165 to budgeted pin or stable refusal; neither artifact
    by itself passes Acceptance 13 or advertises a capability.
 3. **0163 → 0164 → 0165** implementation in 0162's dependency order
-   (**0163 in progress:** initial Rust-owned operation-identity and
-   `CommitEnvelopeV1` generated-schema substrate landed; storage/corpus rows
-   remain unpassed),
+   (**0163 initial substrate landed; 0164 first core in-app slice landed:**
+   immutable base/head isolation, replay-only strict promotion, generated
+   artifacts, focused corpus, and dated absolute-latency instrumentation;
+   the per-row gaps recorded in LLP 0164 remain unpassed),
    against 0162's single acceptance corpus (rows split per Spec).
-   `issues/20260803-branches-promote-postimage-deviation.md` rides with
-   0164. Capabilities stay `Missing` until corpus rows pass — no early
+   `issues/closed/20260803-branches-promote-postimage-deviation.md` closed with
+   0164's replacement/disable correction. Capabilities stay `Missing` until corpus rows pass — no early
    claims.
 
 ## Track C — experience and cadence

@@ -1,0 +1,427 @@
+{
+  "$defs": {
+    "BranchId": {
+      "description": "Stable identity of an ephemeral branch within one logical app.",
+      "type": "string"
+    },
+    "ChildStreamId": {
+      "description": "Identity of a branch's typed ephemeral **child version-stream**.\n\n@ref LLP 0097#1-the-branch-is-an-ephemeral-child-of-a-logical-app — the\nnormative amendment to LLP 0007/0018: a logical app owns one canonical stream\nplus zero-or-more typed ephemeral child streams. A child stream's versions are\nnever numerically comparable to the canonical stream; `base_version` is a fork\npointer, not a shared coordinate.",
+      "type": "string"
+    },
+    "OperationBoundFactsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "audience": {
+          "type": "string"
+        },
+        "authorityInstanceId": {
+          "type": "string"
+        },
+        "functionOrCommand": {
+          "type": "string"
+        },
+        "inputFingerprint": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "operationKind": {
+          "type": "string"
+        },
+        "principalFingerprint": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "audience",
+        "principalFingerprint",
+        "authorityInstanceId",
+        "operationKind",
+        "functionOrCommand",
+        "inputFingerprint"
+      ],
+      "type": "object"
+    },
+    "OperationIdentityV1": {
+      "additionalProperties": false,
+      "description": "`operationId` widens the shipped client-mutation id; this struct preserves\nevery bound fact the existing collision check already owns.",
+      "properties": {
+        "boundFacts": {
+          "$ref": "#/$defs/OperationBoundFactsV1"
+        },
+        "issuance": {
+          "$ref": "#/$defs/OperationIssuanceV1"
+        },
+        "key": {
+          "$ref": "#/$defs/OperationKeyV1"
+        },
+        "schemaVersion": {
+          "format": "uint32",
+          "maximum": 1,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "key",
+        "issuance",
+        "boundFacts"
+      ],
+      "type": "object"
+    },
+    "OperationIssuanceV1": {
+      "description": "Issuance facts are structurally disjoint across client and host namespaces.\nThe authenticator is represented by its non-secret digest; admission later\nverifies the underlying server-issued artifact before constructing this\nvalue.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "authority_authenticator_digest": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "counter": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "epoch_id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "clientRange",
+              "type": "string"
+            },
+            "range_end_exclusive": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "range_start": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "epoch_id",
+            "counter",
+            "range_start",
+            "range_end_exclusive",
+            "authority_authenticator_digest"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "authority_authenticator_digest": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "commit_ordinal": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "epoch_id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "hostIncarnation",
+              "type": "string"
+            },
+            "upstream_identity": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "epoch_id",
+            "upstream_identity",
+            "commit_ordinal",
+            "authority_authenticator_digest"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "OperationKeyV1": {
+      "additionalProperties": false,
+      "description": "The physical key for suppression and envelope storage. Audience and all\nother semantic facts are compared facts, never key components.",
+      "properties": {
+        "operationId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$",
+          "type": "string"
+        },
+        "originatorClass": {
+          "$ref": "#/$defs/OperationOriginatorClassV1"
+        },
+        "streamId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "streamId",
+        "originatorClass",
+        "operationId"
+      ],
+      "type": "object"
+    },
+    "OperationOriginatorClassV1": {
+      "enum": [
+        "client",
+        "host"
+      ],
+      "type": "string"
+    },
+    "PromotionAdmissionTicketV1": {
+      "additionalProperties": false,
+      "properties": {
+        "branchId": {
+          "$ref": "#/$defs/BranchId"
+        },
+        "canonicalStreamId": {
+          "type": "string"
+        },
+        "contentionPolicy": {
+          "$ref": "#/$defs/PromotionContentionPolicyV1"
+        },
+        "expiresAtMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "fifoSequence": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "initialQueuePosition": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "losses": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "observedConcurrentForks": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rebaseBudget": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "schemaVersion": {
+          "format": "uint32",
+          "maximum": 1,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "ticketIdentity": {
+          "$ref": "#/$defs/OperationIdentityV1"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "ticketIdentity",
+        "canonicalStreamId",
+        "branchId",
+        "fifoSequence",
+        "initialQueuePosition",
+        "observedConcurrentForks",
+        "rebaseBudget",
+        "losses",
+        "expiresAtMs",
+        "contentionPolicy"
+      ],
+      "type": "object"
+    },
+    "PromotionApprovalV1": {
+      "additionalProperties": false,
+      "properties": {
+        "approvedAtMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "approverGrantId": {
+          "type": "string"
+        },
+        "approverPrincipalId": {
+          "type": "string"
+        },
+        "authorityFingerprint": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "expiresAtMs": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "approverPrincipalId",
+        "approverGrantId",
+        "authorityFingerprint",
+        "approvedAtMs",
+        "expiresAtMs"
+      ],
+      "type": "object"
+    },
+    "PromotionContentionPolicyV1": {
+      "additionalProperties": false,
+      "properties": {
+        "maximumCommitDurationMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "reservationAfterLosses": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "reservationIntervalMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "reservationQuota": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "reservationAfterLosses",
+        "reservationIntervalMs",
+        "reservationQuota",
+        "maximumCommitDurationMs"
+      ],
+      "type": "object"
+    },
+    "RebaseEngineAttestationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "attestedAtMs": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "engineIdentity": {
+          "type": "string"
+        },
+        "preservedApprovalDigest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "priorBranchId": {
+          "$ref": "#/$defs/BranchId"
+        },
+        "priorChildStreamId": {
+          "$ref": "#/$defs/ChildStreamId"
+        }
+      },
+      "required": [
+        "engineIdentity",
+        "priorBranchId",
+        "priorChildStreamId",
+        "preservedApprovalDigest",
+        "attestedAtMs"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/promotion.request-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "admissionTicket": {
+      "$ref": "#/$defs/PromotionAdmissionTicketV1"
+    },
+    "aggregateIdentity": {
+      "$ref": "#/$defs/OperationIdentityV1"
+    },
+    "approval": {
+      "$ref": "#/$defs/PromotionApprovalV1"
+    },
+    "approvedFactsDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "baseStream": {
+      "type": "string"
+    },
+    "baseVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "branchId": {
+      "$ref": "#/$defs/BranchId"
+    },
+    "childStreamId": {
+      "$ref": "#/$defs/ChildStreamId"
+    },
+    "diffDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "manifestDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "operationLogDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "rebaseAttestation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RebaseEngineAttestationV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reviewedChildHead": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schemaVersion": {
+      "format": "uint32",
+      "maximum": 1,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "seal": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "branchId",
+    "childStreamId",
+    "reviewedChildHead",
+    "baseStream",
+    "baseVersion",
+    "operationLogDigest",
+    "diffDigest",
+    "manifestDigest",
+    "approvedFactsDigest",
+    "approval",
+    "admissionTicket",
+    "aggregateIdentity",
+    "seal"
+  ],
+  "title": "PromotionRequestV1",
+  "type": "object"
+}

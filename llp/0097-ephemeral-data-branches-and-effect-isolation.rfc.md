@@ -5,7 +5,7 @@
 **Systems:** Storage, Sync, Effects, API, Auth, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-07-25 (initial draft); 2026-07-25 (super-refine R1→R2: promotion staged not cross-system-atomic; branch-egress-mediation as a prerequisite, not the 0036 seam; materialized branch-base primitive, 0075/0090 de-cited as the base; command/operation-log replay + simulated-effect revalidation; firm version-substream contract); 2026-07-25 (R2→R3: decide the version-stream question — propose LLP 0007/0018 typed-child-stream amendment; promotion provisional/pending-state machine for effect-outcome-dependent writes; host-mediated vs end-to-end isolation-scope split; 0083 bookmark-fork marked unverified; editorial: Status Review, inbound-webhook reclassified as ingress, red-team qualified); 2026-07-25 (R3→R4: promotion commit model pinned — re-execute into a staging overlay, commit one canonical transaction/version, drop "ordinary serialized mutations"/"fresh versions"; authority revalidated at promotion + each effect attempt, not preserved from fork); 2026-07-25 (R4→R5: 0007/0018 amendment made normative in-doc, not "to ratify"; v1 promotion requires exact base equality — refuse on any canonical advance, since "re-executes cleanly" ≠ meaning-preserved; effect-outcome dependence made transitive through downstream reads/writes/effects)
+**Revised:** 2026-07-25 (initial draft); 2026-07-25 (super-refine R1→R2: promotion staged not cross-system-atomic; branch-egress-mediation as a prerequisite, not the 0036 seam; materialized branch-base primitive, 0075/0090 de-cited as the base; command/operation-log replay + simulated-effect revalidation; firm version-substream contract); 2026-07-25 (R2→R3: decide the version-stream question — propose LLP 0007/0018 typed-child-stream amendment; promotion provisional/pending-state machine for effect-outcome-dependent writes; host-mediated vs end-to-end isolation-scope split; 0083 bookmark-fork marked unverified; editorial: Status Review, inbound-webhook reclassified as ingress, red-team qualified); 2026-07-25 (R3→R4: promotion commit model pinned — re-execute into a staging overlay, commit one canonical transaction/version, drop "ordinary serialized mutations"/"fresh versions"; authority revalidated at promotion + each effect attempt, not preserved from fork); 2026-07-25 (R4→R5: 0007/0018 amendment made normative in-doc, not "to ratify"; v1 promotion requires exact base equality — refuse on any canonical advance, since "re-executes cleanly" ≠ meaning-preserved; effect-outcome dependence made transitive through downstream reads/writes/effects); 2026-08-03 (LLP 0164 implementation note — the named post-image promotion and mutable-base deviations are corrected; acceptance and every capability claim remain gated)
 **Related:** LLP 0088 (record history and branching — defers this capability), LLP 0008 (local-first sync, journal, retention/replay-floor), LLP 0007 (storage portability, per-app version stream — **amended** here for typed ephemeral child streams), LLP 0018 (app-instance boundaries — **amended** here for child streams), LLP 0066 (effect lessons — settlement taxonomy), LLP 0070 (durable background work — `CaptureOnly`, fencing/idempotency), LLP 0036 (secrets & `uses` grants — the egress boundary), LLP 0069 (payment provider boundary — conformance provider), LLP 0045 (notifications outbox — capture adapter), LLP 0028 (cron/actions — egress-bearing execution + `--cron-disabled`), LLP 0043 (offline replay & receipts), LLP 0055 (agent principals & scoped grants), LLP 0075 / LLP 0090 (query/read & checkpoint snapshots — related read primitives, NOT the branch-base), LLP 0083 (Cloudflare DO/D1 prior art — PITR/bookmarks), [Exact LLP 0390 (Design Mode as a Live Canvas)](../../exact/llp/0390-design-mode-live-canvas.rfc.md)
 
 ## Summary
@@ -185,8 +185,11 @@ contracts.
   concurrency-scaled rebase budget, quotaed bounded head reservation), and
   **rebase-by-replay** — re-executing the recorded log into a fresh fork
   from the new head — is the paved recovery after a strict-CAS refusal.
-- **Known code deviations** (independent of LLP 0162):
-  `issues/20260803-branches-promote-postimage-deviation.md` records that the
-  landed `branches::promote` applies post-images (forbidden by §5) and that
-  the landed `MaterializedBase` is a writable copy, not this RFC's
-  immutable-base reading.
+- **Code-deviation resolution (2026-08-03).**
+  `issues/closed/20260803-branches-promote-postimage-deviation.md` records the
+  correction: the legacy post-image `branches::promote` surface is
+  compile-disabled, LLP 0164's replacement accepts only replay-sufficient
+  operations and re-executes them under strict CAS, and `MaterializedBase`
+  retains a separate SQLite-enforced query-only comparison base. This removes
+  the named implementation deviation; it does not pass the Acceptance corpus
+  or raise any branch capability above `Missing`.

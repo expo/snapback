@@ -1,0 +1,2815 @@
+//! Agent-safe in-app forks, exact diffs, and strict promotion by re-execution.
+//!
+//! This module is the LLP 0164 replacement for the disabled post-image P3
+//! spike in [`crate::branches`]. A promotable branch retains replay inputs and
+//! independently observed facts. Promotion invokes application commands again
+//! inside one hidden canonical transaction; no API accepts an `OverlayWrite`
+//! or other branch post-image as a promotion input.
+//!
+//! The first shipped slice is deliberately `DenyAll`/`Promotable(noEffects)`.
+//! `CaptureOnly` remains a separately disclosed residual and is rejected at
+//! profile creation, sealing, and promotion.
+//!
+//! @ref LLP 0164#contract-summary-normative-details-per-llp-0162-3-5 — the
+//!   in-app branch, diff, sealed request, strict-CAS replay, and contention
+//!   contracts implemented here.
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::time::Instant;
+
+use rusqlite::{Connection, OptionalExtension, Transaction, params};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
+
+use crate::branches::{
+    BranchId, BranchRecord, BranchState, ChildStreamId, MaterializedBase, allocate_child_version,
+    child_current_version, create_branch, ensure_branch_registry, get_branch,
+};
+use crate::commit_envelope::{
+    CommitEnvelopeV1, EffectEgressFamilyV1, EnvelopeAuthorityFactsV1, EnvelopeCoverageV1,
+    EnvelopeEffectFactsV1, EnvelopeFactSetV1, FactProvenanceV1, LaneFactV1, OperationIdentityV1,
+    OperationOriginatorClassV1, OperationReceiptStateV1, OperationReceiptV1,
+    RetainedEnvelopeDetailV1, SnapshotAssociationKindV1, StreamQualifiedVersionV1,
+};
+use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
+
+const SHA256_PATTERN: &str = "^sha256:[0-9a-f]{64}$";
+
+fn error(code: &'static str, message: impl Into<String>) -> SnapbackError {
+    SnapbackError::new(Diagnostic::error(code, "storage", message))
+}
+
+fn json_bytes<T: Serialize>(value: &T, what: &str) -> SnapbackResult<Vec<u8>> {
+    let value = serde_json::to_value(value).map_err(|cause| {
+        error(
+            "SNAPBACK_BRANCH_ARTIFACT_INVALID",
+            format!("serialize {what}: {cause}"),
+        )
+    })?;
+    serde_json::to_vec(&canonicalize_json(value)).map_err(|cause| {
+        error(
+            "SNAPBACK_BRANCH_ARTIFACT_INVALID",
+            format!("encode {what}: {cause}"),
+        )
+    })
+}
+
+fn decode_json<T: for<'de> Deserialize<'de>>(bytes: &[u8], what: &str) -> SnapbackResult<T> {
+    serde_json::from_slice(bytes).map_err(|cause| {
+        error(
+            "SNAPBACK_BRANCH_ARTIFACT_INVALID",
+            format!("decode {what}: {cause}"),
+        )
+    })
+}
+
+fn canonicalize_json(value: Value) -> Value {
+    match value {
+        Value::Array(values) => Value::Array(values.into_iter().map(canonicalize_json).collect()),
+        Value::Object(values) => {
+            let sorted: BTreeMap<_, _> = values
+                .into_iter()
+                .map(|(key, value)| (key, canonicalize_json(value)))
+                .collect();
+            Value::Object(sorted.into_iter().collect())
+        }
+        scalar => scalar,
+    }
+}
+
+fn digest_bytes(domain: &[u8], bytes: &[u8]) -> String {
+    let mut digest = Sha256::new();
+    digest.update(b"snapback:fork-promotion:v1\n");
+    digest.update((domain.len() as u64).to_be_bytes());
+    digest.update(domain);
+    digest.update((bytes.len() as u64).to_be_bytes());
+    digest.update(bytes);
+    format!("sha256:{:x}", digest.finalize())
+}
+
+fn digest_json<T: Serialize>(domain: &[u8], value: &T) -> SnapbackResult<String> {
+    Ok(digest_bytes(domain, &json_bytes(value, "digest input")?))
+}
+
+fn hmac_sha256(key: &[u8], message: &[u8]) -> String {
+    // RFC 2104 HMAC, kept local to avoid adding a second crypto dependency.
+    const BLOCK: usize = 64;
+    let mut normalized = [0_u8; BLOCK];
+    if key.len() > BLOCK {
+        normalized[..32].copy_from_slice(&Sha256::digest(key));
+    } else {
+        normalized[..key.len()].copy_from_slice(key);
+    }
+    let mut inner_pad = [0x36_u8; BLOCK];
+    let mut outer_pad = [0x5c_u8; BLOCK];
+    for index in 0..BLOCK {
+        inner_pad[index] ^= normalized[index];
+        outer_pad[index] ^= normalized[index];
+    }
+    let mut inner = Sha256::new();
+    inner.update(inner_pad);
+    inner.update(message);
+    let inner = inner.finalize();
+    let mut outer = Sha256::new();
+    outer.update(outer_pad);
+    outer.update(inner);
+    format!("sha256:{:x}", outer.finalize())
+}
+
+#[derive(Clone, Debug)]
+pub struct PromotionSealKey(Vec<u8>);
+
+impl PromotionSealKey {
+    pub fn from_server_secret(secret: impl AsRef<[u8]>) -> SnapbackResult<Self> {
+        let secret = secret.as_ref();
+        if secret.len() < 32 {
+            return Err(error(
+                "SNAPBACK_PROMOTION_SEAL_KEY_INVALID",
+                "promotion seal keys must contain at least 32 bytes",
+            ));
+        }
+        Ok(Self(secret.to_vec()))
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ForkEgressPolicyV1 {
+    DenyAll,
+    CaptureOnly,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BranchGrantV1 {
+    pub principal_id: String,
+    pub grant_id: String,
+    pub audience: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub authority_fingerprint: String,
+    /// Closed allowlists inherited from the creator's current grant. Empty
+    /// means no authority, never wildcard authority.
+    pub allowed_functions: Vec<String>,
+    pub allowed_lanes: Vec<String>,
+    pub expires_at_ms: i64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BranchLimitsV1 {
+    pub max_live_branches_per_principal: u64,
+    pub max_live_branches_per_app: u64,
+    pub max_operations: u64,
+    pub max_retained_bytes: u64,
+    pub max_diff_rows: u64,
+    pub ttl_ms: i64,
+}
+
+impl BranchLimitsV1 {
+    fn validate(&self) -> SnapbackResult<()> {
+        if self.max_live_branches_per_principal == 0
+            || self.max_live_branches_per_app == 0
+            || self.max_operations == 0
+            || self.max_retained_bytes == 0
+            || self.max_diff_rows == 0
+            || self.ttl_ms <= 0
+        {
+            return Err(error(
+                "SNAPBACK_BRANCH_LIMIT_INVALID",
+                "branch operation, byte, diff-row, and TTL limits must be positive",
+            ));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForkCoverageV1 {
+    pub covered_lanes: Vec<String>,
+    pub uncovered_lanes: Vec<String>,
+    pub schema_covered: bool,
+    pub system_fields_covered: bool,
+    pub assets_covered: bool,
+    pub effects_covered: bool,
+}
+
+impl ForkCoverageV1 {
+    fn normalized(mut self) -> Self {
+        self.covered_lanes.sort();
+        self.covered_lanes.dedup();
+        self.uncovered_lanes.sort();
+        self.uncovered_lanes.dedup();
+        self
+    }
+
+    pub fn digest(&self) -> SnapbackResult<String> {
+        digest_json(b"coverage-manifest", &self.clone().normalized())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct InAppBranchCreateV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub branch_id: BranchId,
+    pub child_stream_id: ChildStreamId,
+    pub base_stream: String,
+    pub base_version: u64,
+    pub grant: BranchGrantV1,
+    pub limits: BranchLimitsV1,
+    pub coverage: ForkCoverageV1,
+    pub egress_policy: ForkEgressPolicyV1,
+    pub created_at_ms: i64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct InAppBranchReceiptV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub branch: BranchRecord,
+    pub grant: BranchGrantV1,
+    pub limits: BranchLimitsV1,
+    pub coverage: ForkCoverageV1,
+    pub egress_policy: ForkEgressPolicyV1,
+    pub promotable: bool,
+    pub foreclosed_by_operation_id: Option<String>,
+    pub retained_operation_count: u64,
+    pub retained_operation_bytes: u64,
+    pub deny_all_attempt_count: u64,
+}
+
+pub fn ensure_in_app_branch_tables(conn: &Connection) -> SnapbackResult<()> {
+    ensure_branch_registry(conn)?;
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS _snapback_in_app_branch_profiles (
+            branch_id                       TEXT PRIMARY KEY
+                                              REFERENCES _snapback_branches(branch_id)
+                                              ON DELETE CASCADE,
+            owner_principal_id              TEXT NOT NULL,
+            audience                        TEXT NOT NULL,
+            profile_json                    BLOB NOT NULL,
+            promotable                      INTEGER NOT NULL,
+            foreclosed_by_operation_id      TEXT,
+            retained_operation_count        INTEGER NOT NULL DEFAULT 0,
+            retained_operation_bytes        INTEGER NOT NULL DEFAULT 0,
+            deny_all_attempt_count           INTEGER NOT NULL DEFAULT 0
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_in_app_branch_by_owner
+           ON _snapback_in_app_branch_profiles(owner_principal_id);
+         CREATE INDEX IF NOT EXISTS _snapback_in_app_branch_by_audience
+           ON _snapback_in_app_branch_profiles(audience);
+         CREATE TABLE IF NOT EXISTS _snapback_branch_operations (
+            child_version  INTEGER PRIMARY KEY,
+            branch_id      TEXT NOT NULL,
+            operation_id   TEXT NOT NULL,
+            record_json    BLOB NOT NULL,
+            record_bytes   INTEGER NOT NULL,
+            recorded_at_ms INTEGER NOT NULL,
+            UNIQUE(branch_id, operation_id)
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_branch_operations_by_branch_version
+           ON _snapback_branch_operations(branch_id, child_version);
+         CREATE TABLE IF NOT EXISTS _snapback_branch_egress_attempts (
+            marker_id      TEXT PRIMARY KEY,
+            branch_id      TEXT NOT NULL,
+            operation_id   TEXT,
+            egress_class   TEXT NOT NULL,
+            attempted_at_ms INTEGER NOT NULL
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_branch_egress_by_branch
+           ON _snapback_branch_egress_attempts(branch_id, attempted_at_ms);",
+    )?;
+    Ok(())
+}
+
+/// Create the only promotable fork class: a current-head, in-app, bounded,
+/// branch-scoped `DenyAll` fork. CaptureOnly is refused until its ledger and
+/// settlement corpus land.
+pub fn create_in_app_branch(
+    conn: &mut Connection,
+    request: &InAppBranchCreateV1,
+) -> SnapbackResult<InAppBranchReceiptV1> {
+    if request.schema_version != 1 {
+        return Err(error(
+            "SNAPBACK_BRANCH_SCHEMA_VERSION_UNSUPPORTED",
+            "in-app branch request schemaVersion must be 1",
+        ));
+    }
+    request.limits.validate()?;
+    if request.egress_policy != ForkEgressPolicyV1::DenyAll {
+        return Err(error(
+            "SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING",
+            "CaptureOnly remains Missing; in-app promotable v1 accepts DenyAll only",
+        ));
+    }
+    if request.grant.expires_at_ms <= request.created_at_ms {
+        return Err(error(
+            "SNAPBACK_BRANCH_GRANT_STALE",
+            "branch grant is expired at creation",
+        ));
+    }
+    let current = crate::storage::current_version_on(conn)?;
+    if request.base_version != current {
+        return Err(error(
+            "SNAPBACK_BRANCH_BASE_NOT_CURRENT",
+            format!(
+                "in-app branches must fork current head: requested {}, current {current}",
+                request.base_version
+            ),
+        ));
+    }
+    ensure_in_app_branch_tables(conn)?;
+    let live_for_principal: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM _snapback_in_app_branch_profiles p
+          JOIN _snapback_branches b ON b.branch_id = p.branch_id
+         WHERE p.owner_principal_id = ?1 AND b.state = 'active'",
+        params![request.grant.principal_id],
+        |row| row.get(0),
+    )?;
+    let live_for_app: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM _snapback_in_app_branch_profiles p
+          JOIN _snapback_branches b ON b.branch_id = p.branch_id
+         WHERE p.audience = ?1 AND b.state = 'active'",
+        params![request.grant.audience],
+        |row| row.get(0),
+    )?;
+    if live_for_principal.max(0) as u64 >= request.limits.max_live_branches_per_principal
+        || live_for_app.max(0) as u64 >= request.limits.max_live_branches_per_app
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_LIVE_LIMIT_EXCEEDED",
+            "per-principal or per-app live branch limit reached",
+        ));
+    }
+    let tx = conn.transaction()?;
+    let branch = create_branch(
+        &tx,
+        &request.branch_id,
+        &request.child_stream_id,
+        &request.base_stream,
+        request.base_version,
+        request.created_at_ms,
+        Some(request.limits.ttl_ms),
+    )?;
+    let profile_json = json_bytes(request, "branch profile")?;
+    tx.execute(
+        "INSERT INTO _snapback_in_app_branch_profiles
+           (branch_id, owner_principal_id, audience, profile_json, promotable)
+         VALUES (?1, ?2, ?3, ?4, 1)",
+        params![
+            request.branch_id.0,
+            request.grant.principal_id,
+            request.grant.audience,
+            profile_json,
+        ],
+    )?;
+    tx.commit()?;
+    Ok(InAppBranchReceiptV1 {
+        schema_version: 1,
+        branch,
+        grant: request.grant.clone(),
+        limits: request.limits.clone(),
+        coverage: request.coverage.clone().normalized(),
+        egress_policy: request.egress_policy,
+        promotable: true,
+        foreclosed_by_operation_id: None,
+        retained_operation_count: 0,
+        retained_operation_bytes: 0,
+        deny_all_attempt_count: 0,
+    })
+}
+
+fn branch_profile(
+    conn: &Connection,
+    branch_id: &BranchId,
+) -> SnapbackResult<(InAppBranchCreateV1, InAppBranchReceiptV1)> {
+    ensure_in_app_branch_tables(conn)?;
+    let row: Option<(Vec<u8>, i64, Option<String>, i64, i64, i64)> = conn
+        .query_row(
+            "SELECT profile_json, promotable, foreclosed_by_operation_id,
+                    retained_operation_count, retained_operation_bytes,
+                    deny_all_attempt_count
+               FROM _snapback_in_app_branch_profiles WHERE branch_id = ?1",
+            params![branch_id.0],
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                ))
+            },
+        )
+        .optional()?;
+    let (bytes, promotable, foreclosed, operations, retained_bytes, attempts) =
+        row.ok_or_else(|| {
+            error(
+                "SNAPBACK_BRANCH_PROFILE_MISSING",
+                format!("in-app branch profile {:?} is missing", branch_id.0),
+            )
+        })?;
+    let profile: InAppBranchCreateV1 = decode_json(&bytes, "branch profile")?;
+    let branch = get_branch(conn, branch_id)?.ok_or_else(|| {
+        error(
+            "SNAPBACK_BRANCH_NOT_FOUND",
+            format!("branch {:?} is not registered", branch_id.0),
+        )
+    })?;
+    Ok((
+        profile.clone(),
+        InAppBranchReceiptV1 {
+            schema_version: 1,
+            branch,
+            grant: profile.grant,
+            limits: profile.limits,
+            coverage: profile.coverage.normalized(),
+            egress_policy: profile.egress_policy,
+            promotable: promotable != 0,
+            foreclosed_by_operation_id: foreclosed,
+            retained_operation_count: operations.max(0) as u64,
+            retained_operation_bytes: retained_bytes.max(0) as u64,
+            deny_all_attempt_count: attempts.max(0) as u64,
+        },
+    ))
+}
+
+pub fn inspect_in_app_branch(
+    conn: &Connection,
+    branch_id: &BranchId,
+) -> SnapbackResult<InAppBranchReceiptV1> {
+    branch_profile(conn, branch_id).map(|(_, receipt)| receipt)
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ReplayCustodyClassV1 {
+    InlineRedacted,
+    ProtectedReference,
+    Unretainable,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RetainedReplayInputV1 {
+    pub name: String,
+    pub custody: ReplayCustodyClassV1,
+    pub value: Value,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct LogicalWriteFactV1 {
+    pub table_name: String,
+    pub row_id: String,
+    pub after: Option<Value>,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApprovedOperationFactsV1 {
+    pub read_facts: Value,
+    pub ctx_answers: Value,
+    pub decision: Value,
+    pub result: Value,
+    pub writes: Vec<LogicalWriteFactV1>,
+    pub effects: Vec<Value>,
+    pub coverage: ForkCoverageV1,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BranchOperationDraftV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub identity: OperationIdentityV1,
+    pub artifact_identity: String,
+    pub function_or_command: String,
+    pub canonical_arguments: Value,
+    pub principal_id: String,
+    pub grant_id: String,
+    pub read_baseline: Value,
+    pub replay_inputs: Vec<RetainedReplayInputV1>,
+    pub causal_predecessors: Vec<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BranchOperationV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub branch_id: BranchId,
+    pub child_version: u64,
+    pub identity: OperationIdentityV1,
+    pub artifact_identity: String,
+    pub function_or_command: String,
+    pub canonical_arguments: Value,
+    pub principal_id: String,
+    pub grant_id: String,
+    pub read_baseline: Value,
+    pub replay_inputs: Vec<RetainedReplayInputV1>,
+    pub causal_predecessors: Vec<u64>,
+    pub approved_facts: ApprovedOperationFactsV1,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub approved_facts_digest: String,
+    pub recorded_at_ms: i64,
+}
+
+fn validate_operation_draft(
+    profile: &InAppBranchCreateV1,
+    branch: &BranchRecord,
+    draft: &BranchOperationDraftV1,
+    now_ms: i64,
+) -> SnapbackResult<()> {
+    if draft.schema_version != 1 || draft.identity.validate().is_err() {
+        return Err(error(
+            "SNAPBACK_BRANCH_OPERATION_INVALID",
+            "branch operation identity or schemaVersion is invalid",
+        ));
+    }
+    if branch.state != BranchState::Active {
+        return Err(error(
+            "SNAPBACK_BRANCH_NOT_ACTIVE",
+            "branch admits no work while tearing down",
+        ));
+    }
+    let expiry = profile
+        .created_at_ms
+        .checked_add(profile.limits.ttl_ms)
+        .ok_or_else(|| error("SNAPBACK_BRANCH_LIMIT_INVALID", "branch TTL overflow"))?;
+    if now_ms >= expiry {
+        return Err(error(
+            "SNAPBACK_BRANCH_EXPIRED",
+            "branch TTL expired before operation admission",
+        ));
+    }
+    if now_ms >= profile.grant.expires_at_ms
+        || draft.principal_id != profile.grant.principal_id
+        || draft.grant_id != profile.grant.grant_id
+        || draft.identity.bound_facts.audience != profile.grant.audience
+        || !profile
+            .grant
+            .allowed_functions
+            .iter()
+            .any(|function| function == &draft.function_or_command)
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_AUTHORITY_DENIED",
+            "branch operation is outside the live branch-scoped grant",
+        ));
+    }
+    if draft.identity.key.stream_id != branch.child_stream_id.0 {
+        return Err(error(
+            "SNAPBACK_BRANCH_STREAM_MISMATCH",
+            "branch operation identity is not scoped to the child stream",
+        ));
+    }
+    Ok(())
+}
+
+/// Execute a branch command and retain its replay inputs and observed facts in
+/// the same child-stream transaction as its physical branch writes.
+pub fn execute_branch_operation<F>(
+    conn: &mut Connection,
+    branch_id: &BranchId,
+    draft: &BranchOperationDraftV1,
+    now_ms: i64,
+    execute: F,
+) -> SnapbackResult<BranchOperationV1>
+where
+    F: FnOnce(
+        &Transaction<'_>,
+        &BranchOperationDraftV1,
+    ) -> SnapbackResult<ApprovedOperationFactsV1>,
+{
+    let (profile, receipt) = branch_profile(conn, branch_id)?;
+    validate_operation_draft(&profile, &receipt.branch, draft, now_ms)?;
+    if receipt.retained_operation_count >= profile.limits.max_operations {
+        return Err(error(
+            "SNAPBACK_BRANCH_OPERATION_LIMIT_EXCEEDED",
+            "branch operation limit reached",
+        ));
+    }
+    let tx = conn.transaction()?;
+    let child_version = allocate_child_version(&tx, branch_id)?;
+    let approved_facts = execute(&tx, draft)?;
+    if approved_facts.coverage.covered_lanes.iter().any(|lane| {
+        !profile
+            .grant
+            .allowed_lanes
+            .iter()
+            .any(|allowed| allowed == lane)
+    }) {
+        return Err(error(
+            "SNAPBACK_BRANCH_AUTHORITY_DENIED",
+            "operation produced facts outside the branch grant's lane allowlist",
+        ));
+    }
+    let approved_facts_digest = digest_json(b"approved-operation-facts", &approved_facts)?;
+    let operation = BranchOperationV1 {
+        schema_version: 1,
+        branch_id: branch_id.clone(),
+        child_version,
+        identity: draft.identity.clone(),
+        artifact_identity: draft.artifact_identity.clone(),
+        function_or_command: draft.function_or_command.clone(),
+        canonical_arguments: draft.canonical_arguments.clone(),
+        principal_id: draft.principal_id.clone(),
+        grant_id: draft.grant_id.clone(),
+        read_baseline: draft.read_baseline.clone(),
+        replay_inputs: draft.replay_inputs.clone(),
+        causal_predecessors: draft.causal_predecessors.clone(),
+        approved_facts,
+        approved_facts_digest,
+        recorded_at_ms: now_ms,
+    };
+    let bytes = json_bytes(&operation, "branch operation")?;
+    let next_bytes = receipt
+        .retained_operation_bytes
+        .checked_add(bytes.len() as u64)
+        .ok_or_else(|| {
+            error(
+                "SNAPBACK_BRANCH_BYTE_LIMIT_EXCEEDED",
+                "retained byte count overflow",
+            )
+        })?;
+    if next_bytes > profile.limits.max_retained_bytes {
+        return Err(error(
+            "SNAPBACK_BRANCH_BYTE_LIMIT_EXCEEDED",
+            "branch retained-operation byte limit reached",
+        ));
+    }
+    tx.execute(
+        "INSERT INTO _snapback_branch_operations
+           (child_version, branch_id, operation_id, record_json, record_bytes, recorded_at_ms)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![
+            child_version as i64,
+            branch_id.0,
+            operation.identity.key.operation_id,
+            bytes,
+            bytes.len() as i64,
+            now_ms,
+        ],
+    )?;
+    let unretainable = operation
+        .replay_inputs
+        .iter()
+        .any(|input| input.custody == ReplayCustodyClassV1::Unretainable);
+    let uncovered = !operation.approved_facts.coverage.uncovered_lanes.is_empty();
+    tx.execute(
+        "UPDATE _snapback_in_app_branch_profiles
+            SET retained_operation_count = retained_operation_count + 1,
+                retained_operation_bytes = retained_operation_bytes + ?2,
+                promotable = CASE WHEN ?3 OR ?4 THEN 0 ELSE promotable END,
+                foreclosed_by_operation_id = CASE
+                  WHEN (?3 OR ?4) AND foreclosed_by_operation_id IS NULL THEN ?5
+                  ELSE foreclosed_by_operation_id END
+          WHERE branch_id = ?1",
+        params![
+            branch_id.0,
+            bytes.len() as i64,
+            unretainable,
+            uncovered,
+            operation.identity.key.operation_id,
+        ],
+    )?;
+    tx.commit()?;
+    Ok(operation)
+}
+
+pub fn branch_operation_log(
+    conn: &Connection,
+    branch_id: &BranchId,
+) -> SnapbackResult<Vec<BranchOperationV1>> {
+    ensure_in_app_branch_tables(conn)?;
+    let mut statement = conn.prepare(
+        "SELECT record_json FROM _snapback_branch_operations
+          WHERE branch_id = ?1 ORDER BY child_version",
+    )?;
+    let rows = statement.query_map(params![branch_id.0], |row| row.get::<_, Vec<u8>>(0))?;
+    let mut operations = Vec::new();
+    for row in rows {
+        operations.push(decode_json(&row?, "branch operation")?);
+    }
+    Ok(operations)
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DenyAllAttemptMarkerV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub marker_id: String,
+    pub branch_id: BranchId,
+    pub operation_id: Option<String>,
+    pub egress_class: String,
+    pub attempted_at_ms: i64,
+}
+
+/// Durably record a payload-free marker and then fail loudly. The function does
+/// not accept a target or payload, so sensitive egress material cannot enter the
+/// marker table accidentally.
+pub fn deny_egress_attempt(
+    conn: &mut Connection,
+    branch_id: &BranchId,
+    operation_id: Option<&str>,
+    egress_class: &str,
+    now_ms: i64,
+) -> SnapbackResult<()> {
+    let (profile, receipt) = branch_profile(conn, branch_id)?;
+    if profile.egress_policy != ForkEgressPolicyV1::DenyAll {
+        return Err(error(
+            "SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING",
+            "CaptureOnly mediation is not implemented by this lane",
+        ));
+    }
+    let marker_id = digest_json(
+        b"deny-all-attempt-marker",
+        &(branch_id, operation_id, egress_class, now_ms),
+    )?;
+    let tx = conn.transaction()?;
+    if receipt.deny_all_attempt_count < profile.limits.max_operations {
+        tx.execute(
+            "INSERT OR IGNORE INTO _snapback_branch_egress_attempts
+               (marker_id, branch_id, operation_id, egress_class, attempted_at_ms)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![marker_id, branch_id.0, operation_id, egress_class, now_ms],
+        )?;
+    }
+    tx.execute(
+        "UPDATE _snapback_in_app_branch_profiles
+            SET deny_all_attempt_count = deny_all_attempt_count + 1,
+                promotable = 0,
+                foreclosed_by_operation_id = COALESCE(foreclosed_by_operation_id, ?2)
+          WHERE branch_id = ?1",
+        params![branch_id.0, operation_id],
+    )?;
+    tx.commit()?;
+    Err(error(
+        "SNAPBACK_BRANCH_EGRESS_DENIED",
+        format!("DenyAll branch refused host egress class {egress_class:?}"),
+    ))
+}
+
+pub fn deny_all_attempt_markers(
+    conn: &Connection,
+    branch_id: &BranchId,
+) -> SnapbackResult<Vec<DenyAllAttemptMarkerV1>> {
+    ensure_in_app_branch_tables(conn)?;
+    let mut statement = conn.prepare(
+        "SELECT marker_id, operation_id, egress_class, attempted_at_ms
+           FROM _snapback_branch_egress_attempts
+          WHERE branch_id = ?1 ORDER BY attempted_at_ms, marker_id",
+    )?;
+    let rows = statement.query_map(params![branch_id.0], |row| {
+        Ok(DenyAllAttemptMarkerV1 {
+            schema_version: 1,
+            marker_id: row.get(0)?,
+            branch_id: branch_id.clone(),
+            operation_id: row.get(1)?,
+            egress_class: row.get(2)?,
+            attempted_at_ms: row.get(3)?,
+        })
+    })?;
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SnapshotRowV1 {
+    pub table_name: String,
+    pub row_id: String,
+    pub row: Value,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum NetDiffDispositionV1 {
+    Added,
+    Updated,
+    Deleted,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NetDiffRowV1 {
+    pub table_name: String,
+    pub row_id: String,
+    pub disposition: NetDiffDispositionV1,
+    pub before: Option<Value>,
+    pub after: Option<Value>,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AttributedChangeV1 {
+    pub child_version: u64,
+    pub operation_identity: OperationIdentityV1,
+    pub principal_id: String,
+    pub write_ordinal: u64,
+    pub write: LogicalWriteFactV1,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum NetDiffSubstrateV1 {
+    ImmutableMaterializedBase,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForkDiffReceiptV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub branch_id: BranchId,
+    pub base_stream: String,
+    pub base_version: u64,
+    pub child_stream_id: ChildStreamId,
+    pub child_head: u64,
+    pub substrate: NetDiffSubstrateV1,
+    pub coverage: ForkCoverageV1,
+    pub attributed_changes: Vec<AttributedChangeV1>,
+    pub net_diff: Vec<NetDiffRowV1>,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub diff_digest: String,
+}
+
+fn keyed_rows(rows: Vec<SnapshotRowV1>) -> SnapbackResult<BTreeMap<(String, String), Value>> {
+    let mut keyed = BTreeMap::new();
+    for row in rows {
+        let key = (row.table_name, row.row_id);
+        if keyed
+            .insert(key.clone(), canonicalize_json(row.row))
+            .is_some()
+        {
+            return Err(error(
+                "SNAPBACK_BRANCH_DIFF_DUPLICATE_ROW",
+                format!("snapshot scanner emitted duplicate row {key:?}"),
+            ));
+        }
+    }
+    Ok(keyed)
+}
+
+/// Compute the net diff by independently scanning the retained immutable base
+/// and writable head. The operation log supplies attribution only; it is not
+/// trusted to derive net state.
+pub fn exact_fork_diff<F>(
+    workspace: &MaterializedBase,
+    branch_id: &BranchId,
+    scan: F,
+) -> SnapbackResult<ForkDiffReceiptV1>
+where
+    F: Fn(&Connection) -> SnapbackResult<Vec<SnapshotRowV1>>,
+{
+    let (_, receipt) = branch_profile(&workspace.conn, branch_id)?;
+    let base = keyed_rows(scan(workspace.immutable_base())?)?;
+    let head = keyed_rows(scan(&workspace.conn)?)?;
+    let keys: BTreeSet<_> = base.keys().chain(head.keys()).cloned().collect();
+    let mut net_diff = Vec::new();
+    for (table_name, row_id) in keys {
+        let before = base.get(&(table_name.clone(), row_id.clone()));
+        let after = head.get(&(table_name.clone(), row_id.clone()));
+        let disposition = match (before, after) {
+            (None, Some(_)) => Some(NetDiffDispositionV1::Added),
+            (Some(_), None) => Some(NetDiffDispositionV1::Deleted),
+            (Some(before), Some(after)) if before != after => Some(NetDiffDispositionV1::Updated),
+            _ => None,
+        };
+        if let Some(disposition) = disposition {
+            net_diff.push(NetDiffRowV1 {
+                table_name,
+                row_id,
+                disposition,
+                before: before.cloned(),
+                after: after.cloned(),
+            });
+        }
+    }
+    if net_diff.len() as u64 > receipt.limits.max_diff_rows {
+        return Err(error(
+            "SNAPBACK_BRANCH_DIFF_LIMIT_EXCEEDED",
+            "exact diff exceeds the branch's declared row bound",
+        ));
+    }
+    let operations = branch_operation_log(&workspace.conn, branch_id)?;
+    let attributed_changes = operations
+        .iter()
+        .flat_map(|operation| {
+            operation
+                .approved_facts
+                .writes
+                .iter()
+                .enumerate()
+                .map(move |(ordinal, write)| AttributedChangeV1 {
+                    child_version: operation.child_version,
+                    operation_identity: operation.identity.clone(),
+                    principal_id: operation.principal_id.clone(),
+                    write_ordinal: ordinal as u64,
+                    write: write.clone(),
+                })
+        })
+        .collect::<Vec<_>>();
+    let child_head = child_current_version(&workspace.conn, branch_id)?.ok_or_else(|| {
+        error(
+            "SNAPBACK_BRANCH_STREAM_MISSING",
+            "branch child stream disappeared before diff",
+        )
+    })?;
+    let coverage = receipt.coverage.clone().normalized();
+    let digest_input = (
+        &receipt.branch.base_stream,
+        receipt.branch.base_version,
+        &receipt.branch.child_stream_id,
+        child_head,
+        &coverage,
+        &attributed_changes,
+        &net_diff,
+    );
+    let diff_digest = digest_json(b"exact-fork-diff", &digest_input)?;
+    Ok(ForkDiffReceiptV1 {
+        schema_version: 1,
+        branch_id: branch_id.clone(),
+        base_stream: receipt.branch.base_stream,
+        base_version: receipt.branch.base_version,
+        child_stream_id: receipt.branch.child_stream_id,
+        child_head,
+        substrate: NetDiffSubstrateV1::ImmutableMaterializedBase,
+        coverage,
+        attributed_changes,
+        net_diff,
+        diff_digest,
+    })
+}
+
+pub fn sibling_diffs_share_base(
+    left: &ForkDiffReceiptV1,
+    right: &ForkDiffReceiptV1,
+) -> SnapbackResult<()> {
+    if left.base_stream != right.base_stream || left.base_version != right.base_version {
+        return Err(error(
+            "SNAPBACK_BRANCH_NO_COMMON_BASE",
+            "sibling comparison requires the same stream-qualified base",
+        ));
+    }
+    Ok(())
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PromotionContentionPolicyV1 {
+    pub reservation_after_losses: u64,
+    pub reservation_interval_ms: u64,
+    pub reservation_quota: u64,
+    pub maximum_commit_duration_ms: u64,
+}
+
+impl PromotionContentionPolicyV1 {
+    fn validate(&self) -> SnapbackResult<()> {
+        if self.reservation_after_losses == 0
+            || self.reservation_interval_ms == 0
+            || self.reservation_quota == 0
+            || self.maximum_commit_duration_ms == 0
+            || self.maximum_commit_duration_ms > self.reservation_interval_ms
+        {
+            return Err(error(
+                "SNAPBACK_PROMOTION_CONTENTION_POLICY_INVALID",
+                "contention terms must be positive and commit duration must fit the reservation",
+            ));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PromotionAdmissionTicketV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub ticket_identity: OperationIdentityV1,
+    pub canonical_stream_id: String,
+    pub branch_id: BranchId,
+    pub fifo_sequence: u64,
+    pub initial_queue_position: u64,
+    pub observed_concurrent_forks: u64,
+    pub rebase_budget: u64,
+    pub losses: u64,
+    pub expires_at_ms: i64,
+    pub contention_policy: PromotionContentionPolicyV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PromotionApprovalV1 {
+    pub approver_principal_id: String,
+    pub approver_grant_id: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub authority_fingerprint: String,
+    pub approved_at_ms: i64,
+    pub expires_at_ms: i64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RebaseEngineAttestationV1 {
+    pub engine_identity: String,
+    pub prior_branch_id: BranchId,
+    pub prior_child_stream_id: ChildStreamId,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub preserved_approval_digest: String,
+    pub attested_at_ms: i64,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PromotionRequestV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub branch_id: BranchId,
+    pub child_stream_id: ChildStreamId,
+    pub reviewed_child_head: u64,
+    pub base_stream: String,
+    pub base_version: u64,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub operation_log_digest: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub diff_digest: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub manifest_digest: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub approved_facts_digest: String,
+    pub approval: PromotionApprovalV1,
+    pub admission_ticket: PromotionAdmissionTicketV1,
+    pub aggregate_identity: OperationIdentityV1,
+    pub rebase_attestation: Option<RebaseEngineAttestationV1>,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub seal: String,
+}
+
+fn promotion_request_seal(
+    request: &PromotionRequestV1,
+    key: &PromotionSealKey,
+) -> SnapbackResult<String> {
+    let mut body = request.clone();
+    body.seal.clear();
+    Ok(hmac_sha256(
+        &key.0,
+        &json_bytes(&body, "promotion request")?,
+    ))
+}
+
+fn operation_log_digest(operations: &[BranchOperationV1]) -> SnapbackResult<String> {
+    digest_json(b"replay-sufficient-operation-log", &operations)
+}
+
+fn approved_facts_digest(operations: &[BranchOperationV1]) -> SnapbackResult<String> {
+    let facts = operations
+        .iter()
+        .map(|operation| (&operation.artifact_identity, &operation.approved_facts))
+        .collect::<Vec<_>>();
+    digest_json(b"promotion-approved-facts", &facts)
+}
+
+pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS _snapback_promotion_admission (
+            canonical_stream_id TEXT NOT NULL,
+            ticket_id          TEXT PRIMARY KEY,
+            branch_id          TEXT NOT NULL,
+            fifo_sequence      INTEGER NOT NULL,
+            ticket_json        BLOB NOT NULL,
+            state              TEXT NOT NULL,
+            losses             INTEGER NOT NULL DEFAULT 0,
+            reserved_until_ms  INTEGER,
+            completed_at_ms    INTEGER
+         );
+         CREATE UNIQUE INDEX IF NOT EXISTS _snapback_promotion_fifo
+           ON _snapback_promotion_admission(canonical_stream_id, fifo_sequence);
+         CREATE TABLE IF NOT EXISTS _snapback_promotion_receipts (
+            ticket_id          TEXT PRIMARY KEY,
+            aggregate_identity_json BLOB NOT NULL,
+            approved_facts_digest TEXT NOT NULL,
+            receipt_json       BLOB NOT NULL
+         );
+         CREATE TABLE IF NOT EXISTS _snapback_promotion_source_joins (
+            ticket_id          TEXT NOT NULL,
+            source_ordinal     INTEGER NOT NULL,
+            write_ordinal      INTEGER NOT NULL,
+            source_operation_json BLOB NOT NULL,
+            PRIMARY KEY(ticket_id, source_ordinal, write_ordinal)
+         );
+         CREATE TABLE IF NOT EXISTS _snapback_promotion_envelopes (
+            ticket_id          TEXT PRIMARY KEY,
+            envelope_json      BLOB NOT NULL
+         );",
+    )?;
+    Ok(())
+}
+
+/// Mint one FIFO ticket. The budget formula is explicit and inspectable:
+/// `max(observedConcurrentForks, queuePosition + R)`. Values remain supplied by
+/// the caller until LLP 0164 freezes production defaults from contention data.
+pub fn issue_promotion_ticket(
+    canonical: &mut Connection,
+    ticket_identity: OperationIdentityV1,
+    branch_id: &BranchId,
+    canonical_stream_id: &str,
+    observed_concurrent_forks: u64,
+    expires_at_ms: i64,
+    now_ms: i64,
+    contention_policy: PromotionContentionPolicyV1,
+) -> SnapbackResult<PromotionAdmissionTicketV1> {
+    contention_policy.validate()?;
+    if ticket_identity.validate().is_err()
+        || ticket_identity.key.originator_class != OperationOriginatorClassV1::Host
+        || ticket_identity.key.stream_id != canonical_stream_id
+    {
+        return Err(error(
+            "SNAPBACK_PROMOTION_TICKET_IDENTITY_INVALID",
+            "promotion tickets require a server-authenticated host identity on the canonical stream",
+        ));
+    }
+    ensure_promotion_tables(canonical)?;
+    if let Some(bytes) = canonical
+        .query_row(
+            "SELECT ticket_json FROM _snapback_promotion_admission WHERE ticket_id = ?1",
+            params![ticket_identity.key.operation_id],
+            |row| row.get::<_, Vec<u8>>(0),
+        )
+        .optional()?
+    {
+        return decode_json(&bytes, "promotion ticket");
+    }
+    let tx = canonical.transaction()?;
+    let fifo_sequence: i64 = tx.query_row(
+        "SELECT COALESCE(MAX(fifo_sequence), 0) + 1
+           FROM _snapback_promotion_admission WHERE canonical_stream_id = ?1",
+        params![canonical_stream_id],
+        |row| row.get(0),
+    )?;
+    let initial_queue_position: i64 = tx.query_row(
+        "SELECT COUNT(*) + 1 FROM _snapback_promotion_admission
+          WHERE canonical_stream_id = ?1 AND state = 'queued'",
+        params![canonical_stream_id],
+        |row| row.get(0),
+    )?;
+    let queue = initial_queue_position.max(1) as u64;
+    let rebase_budget = observed_concurrent_forks
+        .max(queue.saturating_add(contention_policy.reservation_after_losses));
+    let minimum_lifetime = contention_policy
+        .maximum_commit_duration_ms
+        .saturating_mul(queue) as i64;
+    if expires_at_ms <= now_ms.saturating_add(minimum_lifetime) {
+        return Err(error(
+            "SNAPBACK_PROMOTION_TICKET_TTL_INSUFFICIENT",
+            "ticket lifetime cannot cover its queue-position service bound",
+        ));
+    }
+    let ticket = PromotionAdmissionTicketV1 {
+        schema_version: 1,
+        ticket_identity,
+        canonical_stream_id: canonical_stream_id.to_owned(),
+        branch_id: branch_id.clone(),
+        fifo_sequence: fifo_sequence.max(1) as u64,
+        initial_queue_position: queue,
+        observed_concurrent_forks,
+        rebase_budget,
+        losses: 0,
+        expires_at_ms,
+        contention_policy,
+    };
+    let bytes = json_bytes(&ticket, "promotion ticket")?;
+    tx.execute(
+        "INSERT INTO _snapback_promotion_admission
+           (canonical_stream_id, ticket_id, branch_id, fifo_sequence, ticket_json, state)
+         VALUES (?1, ?2, ?3, ?4, ?5, 'queued')",
+        params![
+            canonical_stream_id,
+            ticket.ticket_identity.key.operation_id,
+            branch_id.0,
+            ticket.fifo_sequence as i64,
+            bytes,
+        ],
+    )?;
+    tx.commit()?;
+    Ok(ticket)
+}
+
+pub fn seal_promotion_request(
+    workspace: &MaterializedBase,
+    diff: &ForkDiffReceiptV1,
+    approval: PromotionApprovalV1,
+    admission_ticket: PromotionAdmissionTicketV1,
+    aggregate_identity: OperationIdentityV1,
+    key: &PromotionSealKey,
+    now_ms: i64,
+) -> SnapbackResult<PromotionRequestV1> {
+    let (_, receipt) = branch_profile(&workspace.conn, &diff.branch_id)?;
+    if receipt.egress_policy != ForkEgressPolicyV1::DenyAll
+        || receipt.deny_all_attempt_count != 0
+        || !receipt.promotable
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_NOT_PROMOTABLE",
+            "only a promotable DenyAll branch with zero egress attempts can be sealed",
+        ));
+    }
+    if now_ms >= approval.expires_at_ms
+        || approval.approver_principal_id != receipt.grant.principal_id
+        || approval.approver_grant_id != receipt.grant.grant_id
+        || approval.authority_fingerprint != receipt.grant.authority_fingerprint
+    {
+        return Err(error(
+            "SNAPBACK_PROMOTION_APPROVAL_INVALID",
+            "promotion approval does not match the current branch-scoped grant",
+        ));
+    }
+    if admission_ticket.branch_id != diff.branch_id
+        || admission_ticket.ticket_identity != aggregate_identity
+        || aggregate_identity.key.stream_id != diff.base_stream
+    {
+        return Err(error(
+            "SNAPBACK_PROMOTION_TICKET_MISMATCH",
+            "admission ticket, aggregate identity, branch, or stream diverged",
+        ));
+    }
+    let head = child_current_version(&workspace.conn, &diff.branch_id)?.ok_or_else(|| {
+        error(
+            "SNAPBACK_BRANCH_STREAM_MISSING",
+            "child stream missing at seal",
+        )
+    })?;
+    if head != diff.child_head {
+        return Err(error(
+            "SNAPBACK_PROMOTION_DIFF_STALE",
+            "branch head advanced after the reviewed diff",
+        ));
+    }
+    let operations = branch_operation_log(&workspace.conn, &diff.branch_id)?;
+    let mut request = PromotionRequestV1 {
+        schema_version: 1,
+        branch_id: diff.branch_id.clone(),
+        child_stream_id: diff.child_stream_id.clone(),
+        reviewed_child_head: head,
+        base_stream: diff.base_stream.clone(),
+        base_version: diff.base_version,
+        operation_log_digest: operation_log_digest(&operations)?,
+        diff_digest: diff.diff_digest.clone(),
+        manifest_digest: diff.coverage.digest()?,
+        approved_facts_digest: approved_facts_digest(&operations)?,
+        approval,
+        admission_ticket,
+        aggregate_identity,
+        rebase_attestation: None,
+        seal: String::new(),
+    };
+    request.seal = promotion_request_seal(&request, key)?;
+    Ok(request)
+}
+
+pub fn reseal_after_rebase(
+    prior: &PromotionRequestV1,
+    rebased_workspace: &MaterializedBase,
+    rebased_diff: &ForkDiffReceiptV1,
+    engine_identity: impl Into<String>,
+    key: &PromotionSealKey,
+    now_ms: i64,
+) -> SnapbackResult<PromotionRequestV1> {
+    if promotion_request_seal(prior, key)? != prior.seal {
+        return Err(error(
+            "SNAPBACK_PROMOTION_REQUEST_SEAL_INVALID",
+            "prior promotion request seal is invalid",
+        ));
+    }
+    let operations = branch_operation_log(&rebased_workspace.conn, &rebased_diff.branch_id)?;
+    let rebased_facts = approved_facts_digest(&operations)?;
+    if rebased_facts != prior.approved_facts_digest {
+        return Err(error(
+            "SNAPBACK_PROMOTION_REBASE_DIVERGED",
+            "rebased reads, decisions, results, writes, effects, artifact, or coverage diverged; fresh approval required",
+        ));
+    }
+    if prior.admission_ticket.ticket_identity != prior.aggregate_identity {
+        return Err(error(
+            "SNAPBACK_PROMOTION_TICKET_MISMATCH",
+            "aggregate identity is not the inherited admission ticket identity",
+        ));
+    }
+    let approval_digest = digest_json(b"preserved-promotion-approval", &prior.approval)?;
+    let mut request = PromotionRequestV1 {
+        schema_version: 1,
+        branch_id: rebased_diff.branch_id.clone(),
+        child_stream_id: rebased_diff.child_stream_id.clone(),
+        reviewed_child_head: rebased_diff.child_head,
+        base_stream: rebased_diff.base_stream.clone(),
+        base_version: rebased_diff.base_version,
+        operation_log_digest: operation_log_digest(&operations)?,
+        diff_digest: rebased_diff.diff_digest.clone(),
+        manifest_digest: rebased_diff.coverage.digest()?,
+        approved_facts_digest: rebased_facts,
+        approval: prior.approval.clone(),
+        admission_ticket: prior.admission_ticket.clone(),
+        aggregate_identity: prior.aggregate_identity.clone(),
+        rebase_attestation: Some(RebaseEngineAttestationV1 {
+            engine_identity: engine_identity.into(),
+            prior_branch_id: prior.branch_id.clone(),
+            prior_child_stream_id: prior.child_stream_id.clone(),
+            preserved_approval_digest: approval_digest,
+            attested_at_ms: now_ms,
+        }),
+        seal: String::new(),
+    };
+    request.seal = promotion_request_seal(&request, key)?;
+    Ok(request)
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub enum PromotionAuthorityDecisionV1 {
+    Revalidated {
+        grant_id: String,
+        #[schemars(pattern(SHA256_PATTERN))]
+        authority_fingerprint: String,
+    },
+    Denied,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PromotionReceiptV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub aggregate_identity: OperationIdentityV1,
+    pub branch_id: BranchId,
+    pub canonical_stream_id: String,
+    pub canonical_version: u64,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub approved_facts_digest: String,
+    pub source_operation_count: u64,
+    pub source_write_fact_count: u64,
+    pub state: String,
+    pub committed_at_ms: i64,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PromotionResultV1 {
+    pub receipt: PromotionReceiptV1,
+    pub aggregate_envelope: CommitEnvelopeV1,
+}
+
+fn active_fifo_ticket(canonical: &Connection, stream: &str) -> SnapbackResult<Option<String>> {
+    Ok(canonical
+        .query_row(
+            "SELECT ticket_id FROM _snapback_promotion_admission
+              WHERE canonical_stream_id = ?1 AND state = 'queued'
+              ORDER BY fifo_sequence LIMIT 1",
+            params![stream],
+            |row| row.get(0),
+        )
+        .optional()?)
+}
+
+fn note_ticket_loss(
+    canonical: &Connection,
+    ticket: &PromotionAdmissionTicketV1,
+) -> SnapbackResult<()> {
+    canonical.execute(
+        "UPDATE _snapback_promotion_admission SET losses = losses + 1
+          WHERE ticket_id = ?1 AND state = 'queued'",
+        params![ticket.ticket_identity.key.operation_id],
+    )?;
+    Ok(())
+}
+
+fn stored_promotion_result(
+    canonical: &Connection,
+    aggregate_identity: &OperationIdentityV1,
+    approved_facts: &str,
+) -> SnapbackResult<Option<PromotionResultV1>> {
+    let row: Option<(Vec<u8>, String, Vec<u8>)> = canonical
+        .query_row(
+            "SELECT aggregate_identity_json, approved_facts_digest, receipt_json
+               FROM _snapback_promotion_receipts WHERE ticket_id = ?1",
+            params![aggregate_identity.key.operation_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    let Some((identity_bytes, stored_facts, receipt_bytes)) = row else {
+        return Ok(None);
+    };
+    let identity: OperationIdentityV1 = decode_json(&identity_bytes, "stored aggregate identity")?;
+    if &identity != aggregate_identity || stored_facts != approved_facts {
+        return Err(error(
+            "SNAPBACK_PROMOTION_IDENTITY_REUSED",
+            "aggregate identity was reused with divergent bound or approved facts",
+        ));
+    }
+    let receipt: PromotionReceiptV1 = decode_json(&receipt_bytes, "promotion receipt")?;
+    let envelope_bytes: Vec<u8> = canonical.query_row(
+        "SELECT envelope_json FROM _snapback_promotion_envelopes WHERE ticket_id = ?1",
+        params![aggregate_identity.key.operation_id],
+        |row| row.get(0),
+    )?;
+    let aggregate_envelope = decode_json(&envelope_bytes, "promotion envelope")?;
+    Ok(Some(PromotionResultV1 {
+        receipt,
+        aggregate_envelope,
+    }))
+}
+
+fn aggregate_fact_set(domain: &[u8], values: Vec<Value>) -> SnapbackResult<EnvelopeFactSetV1> {
+    Ok(EnvelopeFactSetV1 {
+        digest: digest_json(domain, &values)?,
+        count: values.len() as u64,
+        provenance: FactProvenanceV1::ServerCaptured,
+        detail: RetainedEnvelopeDetailV1::InlineRedacted {
+            detail: json!({ "count": values.len() }),
+        },
+    })
+}
+
+fn build_aggregate_envelope(
+    request: &PromotionRequestV1,
+    operations: &[BranchOperationV1],
+    canonical_version: u64,
+    receipt_digest: String,
+    now_ms: i64,
+) -> SnapbackResult<CommitEnvelopeV1> {
+    let reads = operations
+        .iter()
+        .map(|operation| operation.approved_facts.read_facts.clone())
+        .collect();
+    let writes = operations
+        .iter()
+        .flat_map(|operation| operation.approved_facts.writes.iter())
+        .map(|write| serde_json::to_value(write).unwrap_or(Value::Null))
+        .collect();
+    let ctx = operations
+        .iter()
+        .map(|operation| operation.approved_facts.ctx_answers.clone())
+        .collect();
+    let arguments = operations
+        .iter()
+        .map(|operation| operation.canonical_arguments.clone())
+        .collect::<Vec<_>>();
+    let envelope = CommitEnvelopeV1 {
+        schema_version: 1,
+        identity: request.aggregate_identity.clone(),
+        snapshot: StreamQualifiedVersionV1 {
+            stream_id: request.base_stream.clone(),
+            version: canonical_version,
+            association: SnapshotAssociationKindV1::ProducedCommit,
+        },
+        principal_session_or_invocation_id: request.approval.approver_principal_id.clone(),
+        authority: EnvelopeAuthorityFactsV1 {
+            audience: request.aggregate_identity.bound_facts.audience.clone(),
+            grant_or_policy_identity: LaneFactV1::Defined(
+                request.approval.approver_grant_id.clone(),
+            ),
+            fencing_token_or_epoch: LaneFactV1::Defined(
+                request
+                    .admission_ticket
+                    .ticket_identity
+                    .key
+                    .operation_id
+                    .clone(),
+            ),
+        },
+        executable_artifact_digest: LaneFactV1::Defined(digest_json(
+            b"promotion-artifacts",
+            &operations
+                .iter()
+                .map(|operation| &operation.artifact_identity)
+                .collect::<Vec<_>>(),
+        )?),
+        argument_digest: digest_json(b"promotion-arguments", &arguments)?,
+        plan_digest: LaneFactV1::NotDefinedForLane,
+        base_version: LaneFactV1::Defined(StreamQualifiedVersionV1 {
+            stream_id: request.base_stream.clone(),
+            version: request.base_version,
+            association: SnapshotAssociationKindV1::ObservedSnapshot,
+        }),
+        read_set: aggregate_fact_set(b"promotion-read-facts", reads)?,
+        write_set: aggregate_fact_set(b"promotion-write-facts", writes)?,
+        ctx_answers: aggregate_fact_set(b"promotion-ctx-facts", ctx)?,
+        effects: EnvelopeEffectFactsV1 {
+            facts: aggregate_fact_set(b"promotion-effect-facts", Vec::new())?,
+            egress_families: Vec::<EffectEgressFamilyV1>::new(),
+            settlement_capabilities: Vec::new(),
+        },
+        receipt: OperationReceiptV1 {
+            state: OperationReceiptStateV1::Committed,
+            receipt_digest,
+            payload: RetainedEnvelopeDetailV1::InlineRedacted {
+                detail: json!({ "canonicalVersion": canonical_version }),
+            },
+        },
+        coverage: EnvelopeCoverageV1 {
+            covered_lanes: operations
+                .iter()
+                .flat_map(|operation| operation.approved_facts.coverage.covered_lanes.clone())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect(),
+            uncovered_lanes: Vec::new(),
+            coverage_digest: request.manifest_digest.clone(),
+        },
+        recorded_at_ms: now_ms.max(0) as u64,
+    };
+    envelope.validate().map_err(|cause| {
+        error(
+            "SNAPBACK_PROMOTION_ENVELOPE_INVALID",
+            format!("aggregate envelope validation failed: {cause:?}"),
+        )
+    })?;
+    Ok(envelope)
+}
+
+/// The sole promotion entry point. `reexecute` receives retained invocation
+/// inputs and runs the command against a hidden canonical transaction. It may
+/// not receive branch row post-images. Any fact divergence aborts the entire
+/// transaction before the single version publication.
+pub fn promote_by_reexecution<F>(
+    canonical: &mut Connection,
+    workspace: &MaterializedBase,
+    diff: &ForkDiffReceiptV1,
+    request: &PromotionRequestV1,
+    key: &PromotionSealKey,
+    authority: &PromotionAuthorityDecisionV1,
+    now_ms: i64,
+    mut reexecute: F,
+) -> SnapbackResult<PromotionResultV1>
+where
+    F: FnMut(&Transaction<'_>, &BranchOperationV1) -> SnapbackResult<ApprovedOperationFactsV1>,
+{
+    ensure_promotion_tables(canonical)?;
+    if let Some(stored) = stored_promotion_result(
+        canonical,
+        &request.aggregate_identity,
+        &request.approved_facts_digest,
+    )? {
+        return Ok(stored);
+    }
+    if request.schema_version != 1 || promotion_request_seal(request, key)? != request.seal {
+        return Err(error(
+            "SNAPBACK_PROMOTION_REQUEST_SEAL_INVALID",
+            "promotion request seal or schemaVersion is invalid",
+        ));
+    }
+    let revalidated = matches!(
+        authority,
+        PromotionAuthorityDecisionV1::Revalidated {
+            grant_id,
+            authority_fingerprint,
+        } if grant_id == &request.approval.approver_grant_id
+            && authority_fingerprint == &request.approval.authority_fingerprint
+    );
+    if !revalidated || now_ms >= request.approval.expires_at_ms {
+        return Err(error(
+            "SNAPBACK_PROMOTION_AUTHORITY_DENIED",
+            "current promotion authority was not revalidated",
+        ));
+    }
+    if now_ms >= request.admission_ticket.expires_at_ms {
+        return Err(error(
+            "SNAPBACK_PROMOTION_TICKET_EXPIRED",
+            "promotion ticket expired before admission",
+        ));
+    }
+    let (_, branch) = branch_profile(&workspace.conn, &request.branch_id)?;
+    if !branch.promotable
+        || branch.egress_policy != ForkEgressPolicyV1::DenyAll
+        || branch.deny_all_attempt_count != 0
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_NOT_PROMOTABLE",
+            "branch is foreclosed, attempted egress, or is not DenyAll",
+        ));
+    }
+    let current_child_head = child_current_version(&workspace.conn, &request.branch_id)?
+        .ok_or_else(|| error("SNAPBACK_BRANCH_STREAM_MISSING", "child stream missing"))?;
+    if current_child_head != request.reviewed_child_head
+        || diff.child_head != request.reviewed_child_head
+    {
+        return Err(error(
+            "SNAPBACK_PROMOTION_HEAD_CHANGED",
+            "branch changed after approval; request is invalid",
+        ));
+    }
+    let operations = branch_operation_log(&workspace.conn, &request.branch_id)?;
+    if operation_log_digest(&operations)? != request.operation_log_digest
+        || approved_facts_digest(&operations)? != request.approved_facts_digest
+        || diff.diff_digest != request.diff_digest
+        || diff.coverage.digest()? != request.manifest_digest
+    {
+        return Err(error(
+            "SNAPBACK_PROMOTION_REQUEST_FACTS_DIVERGED",
+            "sealed log, diff, manifest, or approved facts no longer match",
+        ));
+    }
+    let active = active_fifo_ticket(canonical, &request.base_stream)?;
+    if active.as_deref() != Some(&request.admission_ticket.ticket_identity.key.operation_id) {
+        return Err(error(
+            "SNAPBACK_PROMOTION_NOT_FIFO_HEAD",
+            "promotion admission is serialized in inherited FIFO order",
+        ));
+    }
+    let head = crate::storage::current_version_on(canonical)?;
+    if head != request.base_version {
+        note_ticket_loss(canonical, &request.admission_ticket)?;
+        return Err(error(
+            "SNAPBACK_PROMOTION_BASE_ADVANCED",
+            format!(
+                "strict CAS refused: canonical head {head} != base {}",
+                request.base_version
+            ),
+        ));
+    }
+    let stored_losses: i64 = canonical.query_row(
+        "SELECT losses FROM _snapback_promotion_admission WHERE ticket_id = ?1",
+        params![request.admission_ticket.ticket_identity.key.operation_id],
+        |row| row.get(0),
+    )?;
+    if stored_losses.max(0) as u64 >= request.admission_ticket.rebase_budget {
+        return Err(error(
+            "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED",
+            "promotion exhausted its declared rebase budget",
+        ));
+    }
+
+    let started = Instant::now();
+    let new_version = crate::storage::next_storage_version(head)?;
+    let tx = canonical.transaction()?;
+    let transactional_head: i64 = tx.query_row(
+        "SELECT version FROM _snapback_version WHERE id = 1",
+        [],
+        |row| row.get(0),
+    )?;
+    if transactional_head.max(0) as u64 != request.base_version {
+        return Err(error(
+            "SNAPBACK_PROMOTION_BASE_ADVANCED",
+            "canonical head advanced at transaction admission",
+        ));
+    }
+    for operation in &operations {
+        let replayed = reexecute(&tx, operation)?;
+        if replayed != operation.approved_facts {
+            return Err(error(
+                "SNAPBACK_PROMOTION_REPLAY_DIVERGED",
+                format!(
+                    "re-execution facts diverged for operation {:?}",
+                    operation.identity.key.operation_id
+                ),
+            ));
+        }
+    }
+    if started.elapsed().as_millis()
+        > request
+            .admission_ticket
+            .contention_policy
+            .maximum_commit_duration_ms as u128
+    {
+        return Err(error(
+            "SNAPBACK_PROMOTION_COMMIT_TIMEOUT",
+            "staged promotion exceeded its declared maximum commit duration",
+        ));
+    }
+    tx.execute(
+        "UPDATE _snapback_version SET version = ?1 WHERE id = 1",
+        params![new_version as i64],
+    )?;
+    let source_write_fact_count = operations
+        .iter()
+        .map(|operation| operation.approved_facts.writes.len() as u64)
+        .sum();
+    let receipt = PromotionReceiptV1 {
+        schema_version: 1,
+        aggregate_identity: request.aggregate_identity.clone(),
+        branch_id: request.branch_id.clone(),
+        canonical_stream_id: request.base_stream.clone(),
+        canonical_version: new_version,
+        approved_facts_digest: request.approved_facts_digest.clone(),
+        source_operation_count: operations.len() as u64,
+        source_write_fact_count,
+        state: "committedNoEffects".to_owned(),
+        committed_at_ms: now_ms,
+    };
+    let receipt_digest = digest_json(b"promotion-receipt", &receipt)?;
+    let envelope =
+        build_aggregate_envelope(request, &operations, new_version, receipt_digest, now_ms)?;
+    for (source_ordinal, operation) in operations.iter().enumerate() {
+        let operation_json = json_bytes(operation, "source operation join")?;
+        if operation.approved_facts.writes.is_empty() {
+            tx.execute(
+                "INSERT INTO _snapback_promotion_source_joins
+                   (ticket_id, source_ordinal, write_ordinal, source_operation_json)
+                 VALUES (?1, ?2, -1, ?3)",
+                params![
+                    request.aggregate_identity.key.operation_id,
+                    source_ordinal as i64,
+                    operation_json,
+                ],
+            )?;
+        } else {
+            for write_ordinal in 0..operation.approved_facts.writes.len() {
+                tx.execute(
+                    "INSERT INTO _snapback_promotion_source_joins
+                       (ticket_id, source_ordinal, write_ordinal, source_operation_json)
+                     VALUES (?1, ?2, ?3, ?4)",
+                    params![
+                        request.aggregate_identity.key.operation_id,
+                        source_ordinal as i64,
+                        write_ordinal as i64,
+                        operation_json,
+                    ],
+                )?;
+            }
+        }
+    }
+    tx.execute(
+        "INSERT INTO _snapback_promotion_receipts
+           (ticket_id, aggregate_identity_json, approved_facts_digest, receipt_json)
+         VALUES (?1, ?2, ?3, ?4)",
+        params![
+            request.aggregate_identity.key.operation_id,
+            json_bytes(&request.aggregate_identity, "aggregate identity")?,
+            request.approved_facts_digest,
+            json_bytes(&receipt, "promotion receipt")?,
+        ],
+    )?;
+    tx.execute(
+        "INSERT INTO _snapback_promotion_envelopes (ticket_id, envelope_json)
+         VALUES (?1, ?2)",
+        params![
+            request.aggregate_identity.key.operation_id,
+            json_bytes(&envelope, "aggregate promotion envelope")?,
+        ],
+    )?;
+    tx.execute(
+        "UPDATE _snapback_promotion_admission
+            SET state = 'completed', completed_at_ms = ?2
+          WHERE ticket_id = ?1",
+        params![request.aggregate_identity.key.operation_id, now_ms],
+    )?;
+    tx.commit()?;
+    Ok(PromotionResultV1 {
+        receipt,
+        aggregate_envelope: envelope,
+    })
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CanonicalAdmissionV1 {
+    Admit,
+    DeferredByPromotionReservation { until_ms: i64 },
+}
+
+/// Ordinary canonical writers consult this gate when a losing FIFO ticket has
+/// escalated to its bounded reservation. The production numeric values remain
+/// open; the mechanism is explicit and quota-bounded.
+pub fn canonical_mutation_admission(
+    conn: &Connection,
+    canonical_stream_id: &str,
+    now_ms: i64,
+) -> SnapbackResult<CanonicalAdmissionV1> {
+    ensure_promotion_tables(conn)?;
+    let until: Option<i64> = conn
+        .query_row(
+            "SELECT MAX(reserved_until_ms) FROM _snapback_promotion_admission
+              WHERE canonical_stream_id = ?1 AND state = 'queued'
+                AND reserved_until_ms > ?2",
+            params![canonical_stream_id, now_ms],
+            |row| row.get(0),
+        )
+        .optional()?
+        .flatten();
+    Ok(match until {
+        Some(until_ms) => CanonicalAdmissionV1::DeferredByPromotionReservation { until_ms },
+        None => CanonicalAdmissionV1::Admit,
+    })
+}
+
+pub fn request_head_reservation(
+    conn: &Connection,
+    ticket: &PromotionAdmissionTicketV1,
+    now_ms: i64,
+) -> SnapbackResult<i64> {
+    ensure_promotion_tables(conn)?;
+    let losses: i64 = conn.query_row(
+        "SELECT losses FROM _snapback_promotion_admission WHERE ticket_id = ?1",
+        params![ticket.ticket_identity.key.operation_id],
+        |row| row.get(0),
+    )?;
+    if (losses.max(0) as u64) < ticket.contention_policy.reservation_after_losses {
+        return Err(error(
+            "SNAPBACK_PROMOTION_RESERVATION_NOT_ELIGIBLE",
+            "ticket has not reached the declared consecutive-loss threshold",
+        ));
+    }
+    let active: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM _snapback_promotion_admission
+          WHERE canonical_stream_id = ?1 AND state = 'queued' AND reserved_until_ms > ?2",
+        params![ticket.canonical_stream_id, now_ms],
+        |row| row.get(0),
+    )?;
+    if active.max(0) as u64 >= ticket.contention_policy.reservation_quota {
+        return Err(error(
+            "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED",
+            "bounded head-reservation quota is exhausted",
+        ));
+    }
+    let until = now_ms.saturating_add(ticket.contention_policy.reservation_interval_ms as i64);
+    conn.execute(
+        "UPDATE _snapback_promotion_admission SET reserved_until_ms = ?2
+          WHERE ticket_id = ?1 AND state = 'queued'",
+        params![ticket.ticket_identity.key.operation_id, until],
+    )?;
+    Ok(until)
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RebaseReplayReceiptV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub prior_branch_id: BranchId,
+    pub rebased_branch_id: BranchId,
+    pub prior_base_version: u64,
+    pub rebased_base_version: u64,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub prior_approved_facts_digest: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub rebased_approved_facts_digest: String,
+    pub meaning_preserved: bool,
+    pub divergent_operation_ids: Vec<String>,
+}
+
+/// Re-execute the retained log into a fresh current-head branch. The inherited
+/// admission ticket is intentionally not rewritten here; `reseal_after_rebase`
+/// carries it forward only when the complete approved-facts digest is equal.
+pub fn rebase_by_replay<F>(
+    canonical: &mut Connection,
+    prior_workspace: &MaterializedBase,
+    prior_branch_id: &BranchId,
+    create: &InAppBranchCreateV1,
+    now_ms: i64,
+    mut reexecute: F,
+) -> SnapbackResult<(MaterializedBase, RebaseReplayReceiptV1)>
+where
+    F: FnMut(&Transaction<'_>, &BranchOperationV1) -> SnapbackResult<ApprovedOperationFactsV1>,
+{
+    let prior_operations = branch_operation_log(&prior_workspace.conn, prior_branch_id)?;
+    let recorded_prior_branch_id = prior_operations
+        .first()
+        .map(|operation| operation.branch_id.clone())
+        .ok_or_else(|| {
+            error(
+                "SNAPBACK_PROMOTION_REBASE_LOG_EMPTY",
+                "rebase requires at least one replay-sufficient operation",
+            )
+        })?;
+    let prior_base_version = prior_workspace.base_version;
+    create_in_app_branch(canonical, create)?;
+    let mut rebased = MaterializedBase::materialize(canonical, None)?;
+    let mut divergent_operation_ids = Vec::new();
+    for prior in &prior_operations {
+        let mut identity = prior.identity.clone();
+        identity.key.stream_id = create.child_stream_id.0.clone();
+        let draft = BranchOperationDraftV1 {
+            schema_version: 1,
+            identity,
+            artifact_identity: prior.artifact_identity.clone(),
+            function_or_command: prior.function_or_command.clone(),
+            canonical_arguments: prior.canonical_arguments.clone(),
+            principal_id: create.grant.principal_id.clone(),
+            grant_id: create.grant.grant_id.clone(),
+            read_baseline: prior.read_baseline.clone(),
+            replay_inputs: prior.replay_inputs.clone(),
+            causal_predecessors: prior.causal_predecessors.clone(),
+        };
+        let replayed = execute_branch_operation(
+            &mut rebased.conn,
+            &create.branch_id,
+            &draft,
+            now_ms,
+            |tx, _| reexecute(tx, prior),
+        )?;
+        if replayed.approved_facts != prior.approved_facts {
+            divergent_operation_ids.push(prior.identity.key.operation_id.clone());
+        }
+    }
+    let rebased_operations = branch_operation_log(&rebased.conn, &create.branch_id)?;
+    let prior_digest = approved_facts_digest(&prior_operations)?;
+    let rebased_digest = approved_facts_digest(&rebased_operations)?;
+    let receipt = RebaseReplayReceiptV1 {
+        schema_version: 1,
+        prior_branch_id: recorded_prior_branch_id,
+        rebased_branch_id: create.branch_id.clone(),
+        prior_base_version,
+        rebased_base_version: rebased.base_version,
+        prior_approved_facts_digest: prior_digest.clone(),
+        rebased_approved_facts_digest: rebased_digest.clone(),
+        meaning_preserved: prior_digest == rebased_digest && divergent_operation_ids.is_empty(),
+        divergent_operation_ids,
+    };
+    Ok((rebased, receipt))
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BranchReapReceiptV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub branch_id: BranchId,
+    pub reason: String,
+    pub reaped_at_ms: i64,
+}
+
+/// Reap expired registry/profile rows. It does not read or write the canonical
+/// journal or replay-floor state; workspace files are separately destroyed by
+/// `MaterializedBase::teardown`.
+pub fn reap_expired_in_app_branches(
+    conn: &mut Connection,
+    now_ms: i64,
+) -> SnapbackResult<Vec<BranchReapReceiptV1>> {
+    ensure_in_app_branch_tables(conn)?;
+    let mut statement = conn.prepare(
+        "SELECT p.branch_id, p.profile_json
+           FROM _snapback_in_app_branch_profiles p
+           JOIN _snapback_branches b ON b.branch_id = p.branch_id",
+    )?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    drop(statement);
+    let expired = rows
+        .into_iter()
+        .filter_map(|(branch_id, bytes)| {
+            let profile: InAppBranchCreateV1 = decode_json(&bytes, "branch profile").ok()?;
+            let expiry = profile.created_at_ms.checked_add(profile.limits.ttl_ms)?;
+            (now_ms >= expiry).then_some(BranchId(branch_id))
+        })
+        .collect::<Vec<_>>();
+    let tx = conn.transaction()?;
+    let mut receipts = Vec::new();
+    for branch_id in expired {
+        tx.execute(
+            "DELETE FROM _snapback_branches WHERE branch_id = ?1",
+            params![branch_id.0],
+        )?;
+        receipts.push(BranchReapReceiptV1 {
+            schema_version: 1,
+            branch_id,
+            reason: "ttlExpired".to_owned(),
+            reaped_at_ms: now_ms,
+        });
+    }
+    tx.commit()?;
+    Ok(receipts)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commit_envelope::{OperationBoundFactsV1, OperationIssuanceV1, OperationKeyV1};
+
+    fn sha(character: char) -> String {
+        format!("sha256:{}", character.to_string().repeat(64))
+    }
+
+    fn source(head: u64) -> Connection {
+        let conn = Connection::open_in_memory().expect("source");
+        conn.execute_batch(
+            "CREATE TABLE _snapback_version (id INTEGER PRIMARY KEY, version INTEGER NOT NULL);
+             CREATE TABLE widgets (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+             INSERT INTO widgets VALUES (1, 'alpha'), (2, 'beta');",
+        )
+        .expect("schema");
+        conn.execute(
+            "INSERT INTO _snapback_version VALUES (1, ?1)",
+            params![head as i64],
+        )
+        .expect("head");
+        conn
+    }
+
+    fn host_identity(stream: &str, id: &str, audience: &str) -> OperationIdentityV1 {
+        OperationIdentityV1 {
+            schema_version: 1,
+            key: OperationKeyV1 {
+                stream_id: stream.to_owned(),
+                originator_class: OperationOriginatorClassV1::Host,
+                operation_id: id.to_owned(),
+            },
+            issuance: OperationIssuanceV1::HostIncarnation {
+                epoch_id: "host-epoch-1".to_owned(),
+                upstream_identity: format!("upstream:{id}"),
+                commit_ordinal: 0,
+                authority_authenticator_digest: sha('a'),
+            },
+            bound_facts: OperationBoundFactsV1 {
+                audience: audience.to_owned(),
+                principal_fingerprint: sha('b'),
+                authority_instance_id: "authority-1".to_owned(),
+                operation_kind: "promotion".to_owned(),
+                function_or_command: "widgets.rename".to_owned(),
+                input_fingerprint: sha('c'),
+            },
+        }
+    }
+
+    fn create_request(branch: &str, stream: &str, head: u64, now: i64) -> InAppBranchCreateV1 {
+        InAppBranchCreateV1 {
+            schema_version: 1,
+            branch_id: BranchId(branch.to_owned()),
+            child_stream_id: ChildStreamId(stream.to_owned()),
+            base_stream: "canonical".to_owned(),
+            base_version: head,
+            grant: BranchGrantV1 {
+                principal_id: "agent-1".to_owned(),
+                grant_id: "grant-1".to_owned(),
+                audience: "app-1".to_owned(),
+                authority_fingerprint: sha('d'),
+                allowed_functions: vec!["widgets.rename".to_owned()],
+                allowed_lanes: vec!["ordinaryMutation".to_owned()],
+                expires_at_ms: now + 60_000,
+            },
+            limits: BranchLimitsV1 {
+                max_live_branches_per_principal: 8,
+                max_live_branches_per_app: 32,
+                max_operations: 16,
+                max_retained_bytes: 128 * 1024,
+                max_diff_rows: 32,
+                ttl_ms: 30_000,
+            },
+            coverage: ForkCoverageV1 {
+                covered_lanes: vec!["ordinaryMutation".to_owned()],
+                uncovered_lanes: Vec::new(),
+                schema_covered: false,
+                system_fields_covered: false,
+                assets_covered: false,
+                effects_covered: false,
+            },
+            egress_policy: ForkEgressPolicyV1::DenyAll,
+            created_at_ms: now,
+        }
+    }
+
+    fn draft(stream: &str, id: &str) -> BranchOperationDraftV1 {
+        BranchOperationDraftV1 {
+            schema_version: 1,
+            identity: host_identity(stream, id, "app-1"),
+            artifact_identity: sha('e'),
+            function_or_command: "widgets.rename".to_owned(),
+            canonical_arguments: json!({ "id": 1, "name": "ALPHA" }),
+            principal_id: "agent-1".to_owned(),
+            grant_id: "grant-1".to_owned(),
+            read_baseline: json!({ "widgets/1": "alpha" }),
+            replay_inputs: vec![RetainedReplayInputV1 {
+                name: "ctx.locale".to_owned(),
+                custody: ReplayCustodyClassV1::InlineRedacted,
+                value: json!("en-US"),
+            }],
+            causal_predecessors: Vec::new(),
+        }
+    }
+
+    fn facts(name: &str) -> ApprovedOperationFactsV1 {
+        ApprovedOperationFactsV1 {
+            read_facts: json!({ "widgets/1": "alpha" }),
+            ctx_answers: json!({ "locale": "en-US" }),
+            decision: json!({ "rename": true }),
+            result: json!({ "ok": true }),
+            writes: vec![LogicalWriteFactV1 {
+                table_name: "widgets".to_owned(),
+                row_id: "1".to_owned(),
+                after: Some(json!({ "id": 1, "name": name })),
+            }],
+            effects: Vec::new(),
+            coverage: create_request("unused", "unused", 1, 0).coverage,
+        }
+    }
+
+    fn scan_widgets(conn: &Connection) -> SnapbackResult<Vec<SnapshotRowV1>> {
+        let mut statement = conn.prepare("SELECT id, name FROM widgets ORDER BY id")?;
+        let rows = statement.query_map([], |row| {
+            let id = row.get::<_, i64>(0)?;
+            let name = row.get::<_, String>(1)?;
+            Ok(SnapshotRowV1 {
+                table_name: "widgets".to_owned(),
+                row_id: id.to_string(),
+                row: json!({ "id": id, "name": name }),
+            })
+        })?;
+        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    fn branch_with_rename() -> (Connection, MaterializedBase, ForkDiffReceiptV1) {
+        let mut canonical = source(5);
+        let request = create_request("branch-a", "child-a", 5, 1_000);
+        create_in_app_branch(&mut canonical, &request).expect("branch");
+        let mut workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        let operation = draft("child-a", "branch-op-1");
+        execute_branch_operation(
+            &mut workspace.conn,
+            &request.branch_id,
+            &operation,
+            1_001,
+            |tx, _| {
+                tx.execute("UPDATE widgets SET name='ALPHA' WHERE id=1", [])?;
+                Ok(facts("ALPHA"))
+            },
+        )
+        .expect("execute");
+        let diff = exact_fork_diff(&workspace, &request.branch_id, scan_widgets).expect("diff");
+        (canonical, workspace, diff)
+    }
+
+    #[test]
+    fn immutable_base_and_siblings_isolate_and_exact_diff_folds_reverts() {
+        let mut canonical = source(5);
+        let left_request = create_request("left", "child-left", 5, 100);
+        let right_request = create_request("right", "child-right", 5, 100);
+        create_in_app_branch(&mut canonical, &left_request).expect("left");
+        create_in_app_branch(&mut canonical, &right_request).expect("right");
+        let mut left = MaterializedBase::materialize(&canonical, None).expect("left workspace");
+        let right = MaterializedBase::materialize(&canonical, None).expect("right workspace");
+        canonical
+            .execute("UPDATE widgets SET name='CANONICAL' WHERE id=2", [])
+            .expect("canonical drift");
+        let d1 = draft("child-left", "left-1");
+        execute_branch_operation(
+            &mut left.conn,
+            &left_request.branch_id,
+            &d1,
+            101,
+            |tx, _| {
+                tx.execute("UPDATE widgets SET name='ALPHA' WHERE id=1", [])?;
+                Ok(facts("ALPHA"))
+            },
+        )
+        .expect("rename");
+        let mut d2 = draft("child-left", "left-2");
+        d2.canonical_arguments = json!({ "id": 1, "name": "alpha" });
+        execute_branch_operation(
+            &mut left.conn,
+            &left_request.branch_id,
+            &d2,
+            102,
+            |tx, _| {
+                tx.execute("UPDATE widgets SET name='alpha' WHERE id=1", [])?;
+                Ok(facts("alpha"))
+            },
+        )
+        .expect("revert");
+        assert!(
+            exact_fork_diff(&left, &left_request.branch_id, scan_widgets)
+                .expect("left diff")
+                .net_diff
+                .is_empty()
+        );
+        assert_eq!(
+            scan_widgets(&right.conn).expect("right")[1].row["name"],
+            "beta",
+            "canonical drift and sibling writes are invisible"
+        );
+        assert!(
+            left.immutable_base()
+                .execute("UPDATE widgets SET name='forbidden'", [])
+                .is_err(),
+            "retained base is SQLite-enforced query-only"
+        );
+    }
+
+    #[test]
+    fn deny_all_marker_is_payload_free_durable_and_forecloses_promotion() {
+        let mut canonical = source(1);
+        let request = create_request("deny", "child-deny", 1, 100);
+        create_in_app_branch(&mut canonical, &request).expect("branch");
+        let mut workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        let error = deny_egress_attempt(
+            &mut workspace.conn,
+            &request.branch_id,
+            Some("op-1"),
+            "payment",
+            101,
+        )
+        .expect_err("deny loudly");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_BRANCH_EGRESS_DENIED");
+        let markers =
+            deny_all_attempt_markers(&workspace.conn, &request.branch_id).expect("markers");
+        assert_eq!(markers.len(), 1);
+        let encoded = serde_json::to_string(&markers[0]).expect("marker json");
+        assert!(!encoded.contains("target"));
+        assert!(!encoded.contains("payload"));
+        assert!(
+            !inspect_in_app_branch(&workspace.conn, &request.branch_id)
+                .expect("inspect")
+                .promotable
+        );
+    }
+
+    #[test]
+    fn deny_all_marker_survives_workspace_reopen() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("deny-branch.sqlite3");
+        let mut canonical = source(1);
+        let request = create_request("deny-reopen", "child-deny-reopen", 1, 100);
+        create_in_app_branch(&mut canonical, &request).expect("branch");
+        let mut workspace =
+            MaterializedBase::materialize(&canonical, Some(&path)).expect("workspace");
+        let error = deny_egress_attempt(
+            &mut workspace.conn,
+            &request.branch_id,
+            Some("op-reopen"),
+            "network",
+            101,
+        )
+        .expect_err("deny loudly");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_BRANCH_EGRESS_DENIED");
+        drop(workspace);
+
+        let reopened = Connection::open(&path).expect("reopen branch");
+        let markers = deny_all_attempt_markers(&reopened, &request.branch_id).expect("markers");
+        assert_eq!(markers.len(), 1);
+        assert_eq!(markers[0].operation_id.as_deref(), Some("op-reopen"));
+        assert!(
+            !inspect_in_app_branch(&reopened, &request.branch_id)
+                .expect("inspect")
+                .promotable
+        );
+    }
+
+    #[test]
+    fn exact_diff_model_corpus_covers_add_update_delete_and_folding() {
+        for seed in 0_u64..32 {
+            let mut canonical = source(1);
+            let request = create_request(
+                &format!("diff-model-{seed}"),
+                &format!("child-diff-model-{seed}"),
+                1,
+                100,
+            );
+            create_in_app_branch(&mut canonical, &request).expect("branch");
+            let workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+            let mut expected =
+                BTreeMap::from([(1_i64, "alpha".to_owned()), (2_i64, "beta".to_owned())]);
+            let mut state = seed.wrapping_add(1);
+            for step in 0..48_u64 {
+                state = state
+                    .wrapping_mul(6_364_136_223_846_793_005)
+                    .wrapping_add(1_442_695_040_888_963_407);
+                let id = 1 + ((state >> 17) % 8) as i64;
+                match (state >> 5) % 3 {
+                    0 => {
+                        workspace
+                            .conn
+                            .execute("DELETE FROM widgets WHERE id=?1", params![id])
+                            .expect("delete");
+                        expected.remove(&id);
+                    }
+                    _ => {
+                        let name = if step % 11 == 0 && id == 1 {
+                            "alpha".to_owned()
+                        } else if step % 13 == 0 && id == 2 {
+                            "beta".to_owned()
+                        } else {
+                            format!("seed-{seed}-step-{step}")
+                        };
+                        workspace
+                            .conn
+                            .execute(
+                                "INSERT INTO widgets(id, name) VALUES (?1, ?2)
+                                 ON CONFLICT(id) DO UPDATE SET name=excluded.name",
+                                params![id, name],
+                            )
+                            .expect("upsert");
+                        expected.insert(id, name);
+                    }
+                }
+            }
+
+            let receipt =
+                exact_fork_diff(&workspace, &request.branch_id, scan_widgets).expect("exact diff");
+            let actual = scan_widgets(&workspace.conn)
+                .expect("head")
+                .into_iter()
+                .map(|row| {
+                    (
+                        row.row_id.parse::<i64>().expect("row id"),
+                        row.row["name"].as_str().expect("name").to_owned(),
+                    )
+                })
+                .collect::<BTreeMap<_, _>>();
+            assert_eq!(actual, expected, "seed {seed}");
+
+            let expected_changed = (1_i64..=8)
+                .filter(|id| {
+                    expected.get(id).map(String::as_str)
+                        != match *id {
+                            1 => Some("alpha"),
+                            2 => Some("beta"),
+                            _ => None,
+                        }
+                })
+                .count();
+            assert_eq!(receipt.net_diff.len(), expected_changed, "seed {seed}");
+            for row in &receipt.net_diff {
+                match row.disposition {
+                    NetDiffDispositionV1::Added => {
+                        assert!(row.before.is_none() && row.after.is_some())
+                    }
+                    NetDiffDispositionV1::Updated => {
+                        assert!(row.before.is_some() && row.after.is_some())
+                    }
+                    NetDiffDispositionV1::Deleted => {
+                        assert!(row.before.is_some() && row.after.is_none())
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn sealed_strict_promotion_reexecutes_once_and_retries_from_receipt() {
+        let (mut canonical, workspace, diff) = branch_with_rename();
+        let key = PromotionSealKey::from_server_secret([7_u8; 32]).expect("key");
+        let ticket_identity = host_identity("canonical", "promotion-ticket-1", "app-1");
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            ticket_identity.clone(),
+            &diff.branch_id,
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1 {
+                reservation_after_losses: 2,
+                reservation_interval_ms: 1_000,
+                reservation_quota: 1,
+                maximum_commit_duration_ms: 500,
+            },
+        )
+        .expect("ticket");
+        let request = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+                approved_at_ms: 2_001,
+                expires_at_ms: 50_000,
+            },
+            ticket,
+            ticket_identity,
+            &key,
+            2_001,
+        )
+        .expect("seal");
+        let mut replay_count = 0;
+        let promoted = promote_by_reexecution(
+            &mut canonical,
+            &workspace,
+            &diff,
+            &request,
+            &key,
+            &PromotionAuthorityDecisionV1::Revalidated {
+                grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+            },
+            2_002,
+            |tx, operation| {
+                replay_count += 1;
+                let id = operation.canonical_arguments["id"].as_i64().expect("id");
+                let name = operation.canonical_arguments["name"]
+                    .as_str()
+                    .expect("name");
+                tx.execute("UPDATE widgets SET name=?2 WHERE id=?1", params![id, name])?;
+                Ok(facts(name))
+            },
+        )
+        .expect("promote");
+        assert_eq!(replay_count, 1);
+        assert_eq!(promoted.receipt.canonical_version, 6);
+        assert_eq!(
+            crate::storage::current_version_on(&canonical).expect("head"),
+            6
+        );
+        assert_eq!(
+            scan_widgets(&canonical).expect("rows")[0].row["name"],
+            "ALPHA"
+        );
+        let retry = promote_by_reexecution(
+            &mut canonical,
+            &workspace,
+            &diff,
+            &request,
+            &key,
+            &PromotionAuthorityDecisionV1::Denied,
+            2_003,
+            |_, _| panic!("stored retry must not reexecute"),
+        )
+        .expect("stored receipt");
+        assert_eq!(retry, promoted);
+        let joins: i64 = canonical
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_promotion_source_joins",
+                [],
+                |row| row.get(0),
+            )
+            .expect("joins");
+        assert_eq!(
+            joins, 1,
+            "write-fact-granularity source join survives branch teardown"
+        );
+    }
+
+    #[test]
+    fn branch_write_after_review_and_advanced_canonical_both_refuse() {
+        let (mut canonical, mut workspace, diff) = branch_with_rename();
+        let key = PromotionSealKey::from_server_secret([8_u8; 32]).expect("key");
+        let ticket_identity = host_identity("canonical", "promotion-ticket-2", "app-1");
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            ticket_identity.clone(),
+            &diff.branch_id,
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1 {
+                reservation_after_losses: 2,
+                reservation_interval_ms: 1_000,
+                reservation_quota: 1,
+                maximum_commit_duration_ms: 500,
+            },
+        )
+        .expect("ticket");
+        let request = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+                approved_at_ms: 2_001,
+                expires_at_ms: 50_000,
+            },
+            ticket,
+            ticket_identity,
+            &key,
+            2_001,
+        )
+        .expect("seal");
+        let late = draft("child-a", "branch-op-late");
+        execute_branch_operation(
+            &mut workspace.conn,
+            &diff.branch_id,
+            &late,
+            2_002,
+            |tx, _| {
+                tx.execute("UPDATE widgets SET name='late' WHERE id=2", [])?;
+                let mut facts = facts("late");
+                facts.writes[0].row_id = "2".to_owned();
+                Ok(facts)
+            },
+        )
+        .expect("late write");
+        let error = promote_by_reexecution(
+            &mut canonical,
+            &workspace,
+            &diff,
+            &request,
+            &key,
+            &PromotionAuthorityDecisionV1::Revalidated {
+                grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+            },
+            2_003,
+            |_, _| unreachable!(),
+        )
+        .expect_err("head changed");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_PROMOTION_HEAD_CHANGED");
+
+        let (mut canonical, workspace, diff) = branch_with_rename();
+        let ticket_identity = host_identity("canonical", "promotion-ticket-3", "app-1");
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            ticket_identity.clone(),
+            &diff.branch_id,
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1 {
+                reservation_after_losses: 2,
+                reservation_interval_ms: 1_000,
+                reservation_quota: 1,
+                maximum_commit_duration_ms: 500,
+            },
+        )
+        .expect("ticket");
+        let request = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+                approved_at_ms: 2_001,
+                expires_at_ms: 50_000,
+            },
+            ticket,
+            ticket_identity,
+            &key,
+            2_001,
+        )
+        .expect("seal");
+        canonical
+            .execute("UPDATE _snapback_version SET version=6 WHERE id=1", [])
+            .expect("advance");
+        let error = promote_by_reexecution(
+            &mut canonical,
+            &workspace,
+            &diff,
+            &request,
+            &key,
+            &PromotionAuthorityDecisionV1::Revalidated {
+                grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+            },
+            2_003,
+            |_, _| unreachable!(),
+        )
+        .expect_err("strict CAS");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_PROMOTION_BASE_ADVANCED");
+    }
+
+    #[test]
+    fn replay_divergence_rolls_back_and_fifo_is_deterministic() {
+        let (mut canonical, workspace, diff) = branch_with_rename();
+        let key = PromotionSealKey::from_server_secret([9_u8; 32]).expect("key");
+        let first_identity = host_identity("canonical", "ticket-first", "app-1");
+        let second_identity = host_identity("canonical", "ticket-second", "app-1");
+        let policy = PromotionContentionPolicyV1 {
+            reservation_after_losses: 2,
+            reservation_interval_ms: 1_000,
+            reservation_quota: 1,
+            maximum_commit_duration_ms: 500,
+        };
+        let first = issue_promotion_ticket(
+            &mut canonical,
+            first_identity.clone(),
+            &diff.branch_id,
+            "canonical",
+            2,
+            60_000,
+            2_000,
+            policy.clone(),
+        )
+        .expect("first");
+        let second = issue_promotion_ticket(
+            &mut canonical,
+            second_identity,
+            &BranchId("other".to_owned()),
+            "canonical",
+            2,
+            60_000,
+            2_000,
+            policy,
+        )
+        .expect("second");
+        assert!(first.fifo_sequence < second.fifo_sequence);
+        let request = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+                approved_at_ms: 2_001,
+                expires_at_ms: 50_000,
+            },
+            first,
+            first_identity,
+            &key,
+            2_001,
+        )
+        .expect("seal");
+        let error = promote_by_reexecution(
+            &mut canonical,
+            &workspace,
+            &diff,
+            &request,
+            &key,
+            &PromotionAuthorityDecisionV1::Revalidated {
+                grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+            },
+            2_002,
+            |tx, _| {
+                tx.execute("UPDATE widgets SET name='WRONG' WHERE id=1", [])?;
+                Ok(facts("WRONG"))
+            },
+        )
+        .expect_err("facts diverge");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_PROMOTION_REPLAY_DIVERGED");
+        assert_eq!(
+            scan_widgets(&canonical).expect("canonical")[0].row["name"],
+            "alpha"
+        );
+        assert_eq!(
+            crate::storage::current_version_on(&canonical).expect("head"),
+            5
+        );
+    }
+
+    #[test]
+    fn rebase_reexecutes_into_fresh_branch_and_reseals_only_equal_facts() {
+        let (mut canonical, workspace, diff) = branch_with_rename();
+        let key = PromotionSealKey::from_server_secret([10_u8; 32]).expect("key");
+        let ticket_identity = host_identity("canonical", "ticket-rebase", "app-1");
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            ticket_identity.clone(),
+            &diff.branch_id,
+            "canonical",
+            2,
+            80_000,
+            2_000,
+            PromotionContentionPolicyV1 {
+                reservation_after_losses: 2,
+                reservation_interval_ms: 1_000,
+                reservation_quota: 1,
+                maximum_commit_duration_ms: 500,
+            },
+        )
+        .expect("ticket");
+        let prior = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+                approved_at_ms: 2_001,
+                expires_at_ms: 70_000,
+            },
+            ticket,
+            ticket_identity,
+            &key,
+            2_001,
+        )
+        .expect("seal");
+        canonical
+            .execute("UPDATE _snapback_version SET version=6 WHERE id=1", [])
+            .expect("advance unrelated head");
+        let rebased_create = create_request("branch-rebased", "child-rebased", 6, 3_000);
+        let (rebased, replay) = rebase_by_replay(
+            &mut canonical,
+            &workspace,
+            &diff.branch_id,
+            &rebased_create,
+            3_001,
+            |tx, operation| {
+                let id = operation.canonical_arguments["id"].as_i64().expect("id");
+                let name = operation.canonical_arguments["name"]
+                    .as_str()
+                    .expect("name");
+                tx.execute("UPDATE widgets SET name=?2 WHERE id=?1", params![id, name])?;
+                Ok(facts(name))
+            },
+        )
+        .expect("rebase");
+        assert!(replay.meaning_preserved);
+        let rebased_diff = exact_fork_diff(&rebased, &rebased_create.branch_id, scan_widgets)
+            .expect("rebased diff");
+        let resealed = reseal_after_rebase(
+            &prior,
+            &rebased,
+            &rebased_diff,
+            "promotion-engine-1",
+            &key,
+            3_002,
+        )
+        .expect("engine reseal");
+        assert_eq!(resealed.aggregate_identity, prior.aggregate_identity);
+        assert_eq!(resealed.approval, prior.approval);
+        assert!(resealed.rebase_attestation.is_some());
+    }
+
+    #[test]
+    fn live_count_and_operation_bounds_refuse_before_mutation() {
+        let mut canonical = source(1);
+        let mut first = create_request("bounded-a", "bounded-child-a", 1, 100);
+        first.limits.max_live_branches_per_principal = 1;
+        create_in_app_branch(&mut canonical, &first).expect("first");
+        let mut second = create_request("bounded-b", "bounded-child-b", 1, 100);
+        second.limits.max_live_branches_per_principal = 1;
+        let error = create_in_app_branch(&mut canonical, &second).expect_err("principal limit");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_BRANCH_LIVE_LIMIT_EXCEEDED");
+
+        let mut workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        let mut limited: InAppBranchCreateV1 = first.clone();
+        limited.limits.max_operations = 1;
+        let bytes = json_bytes(&limited, "limited profile").expect("profile");
+        workspace
+            .conn
+            .execute(
+                "UPDATE _snapback_in_app_branch_profiles SET profile_json=?2 WHERE branch_id=?1",
+                params![first.branch_id.0, bytes],
+            )
+            .expect("tighten test bound");
+        execute_branch_operation(
+            &mut workspace.conn,
+            &first.branch_id,
+            &draft("bounded-child-a", "bounded-op-1"),
+            101,
+            |tx, _| {
+                tx.execute("UPDATE widgets SET name='one' WHERE id=1", [])?;
+                Ok(facts("one"))
+            },
+        )
+        .expect("first op");
+        let error = execute_branch_operation(
+            &mut workspace.conn,
+            &first.branch_id,
+            &draft("bounded-child-a", "bounded-op-2"),
+            102,
+            |tx, _| {
+                tx.execute("UPDATE widgets SET name='two' WHERE id=1", [])?;
+                Ok(facts("two"))
+            },
+        )
+        .expect_err("operation bound");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_BRANCH_OPERATION_LIMIT_EXCEEDED"
+        );
+        assert_eq!(
+            scan_widgets(&workspace.conn).expect("rows")[0].row["name"],
+            "one"
+        );
+    }
+
+    #[test]
+    fn ttl_reap_leaves_canonical_head_and_data_untouched() {
+        let mut canonical = source(7);
+        let request = create_request("expired", "child-expired", 7, 100);
+        create_in_app_branch(&mut canonical, &request).expect("branch");
+        let before = scan_widgets(&canonical).expect("before");
+        let receipts = reap_expired_in_app_branches(&mut canonical, 100 + 30_000).expect("reap");
+        assert_eq!(receipts.len(), 1);
+        assert_eq!(
+            crate::storage::current_version_on(&canonical).expect("head"),
+            7
+        );
+        assert_eq!(scan_widgets(&canonical).expect("after"), before);
+        assert!(
+            get_branch(&canonical, &request.branch_id)
+                .expect("get")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn committed_artifact_schemas_accept_representative_values() {
+        let branch = create_request("schema", "child-schema", 1, 1);
+        let values = [
+            serde_json::to_value(branch).expect("branch value"),
+            serde_json::to_value(draft("child-schema", "schema-op")).expect("op value"),
+        ];
+        let schemas = [
+            serde_json::to_value(schemars::schema_for!(InAppBranchCreateV1)).expect("schema"),
+            serde_json::to_value(schemars::schema_for!(BranchOperationDraftV1)).expect("schema"),
+        ];
+        for (value, schema) in values.into_iter().zip(schemas) {
+            let validator = jsonschema::validator_for(&schema).expect("compile schema");
+            assert!(validator.is_valid(&value));
+        }
+    }
+
+    #[test]
+    fn post_image_promotion_is_compile_disabled_and_reexecution_is_the_only_surface() {
+        let legacy = include_str!("branches.rs");
+        assert!(legacy.contains("#[cfg(any())]\npub fn promote<F>("));
+        let replacement = include_str!("fork_promotion.rs");
+        assert!(replacement.contains("pub fn promote_by_reexecution<F>("));
+        let product_source = replacement
+            .split("#[cfg(test)]")
+            .next()
+            .expect("product source");
+        assert!(!product_source.contains("apply_write"));
+    }
+}

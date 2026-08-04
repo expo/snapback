@@ -1,0 +1,371 @@
+{
+  "$defs": {
+    "AttributedChangeV1": {
+      "additionalProperties": false,
+      "properties": {
+        "childVersion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "operationIdentity": {
+          "$ref": "#/$defs/OperationIdentityV1"
+        },
+        "principalId": {
+          "type": "string"
+        },
+        "write": {
+          "$ref": "#/$defs/LogicalWriteFactV1"
+        },
+        "writeOrdinal": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "childVersion",
+        "operationIdentity",
+        "principalId",
+        "writeOrdinal",
+        "write"
+      ],
+      "type": "object"
+    },
+    "BranchId": {
+      "description": "Stable identity of an ephemeral branch within one logical app.",
+      "type": "string"
+    },
+    "ChildStreamId": {
+      "description": "Identity of a branch's typed ephemeral **child version-stream**.\n\n@ref LLP 0097#1-the-branch-is-an-ephemeral-child-of-a-logical-app — the\nnormative amendment to LLP 0007/0018: a logical app owns one canonical stream\nplus zero-or-more typed ephemeral child streams. A child stream's versions are\nnever numerically comparable to the canonical stream; `base_version` is a fork\npointer, not a shared coordinate.",
+      "type": "string"
+    },
+    "ForkCoverageV1": {
+      "additionalProperties": false,
+      "properties": {
+        "assetsCovered": {
+          "type": "boolean"
+        },
+        "coveredLanes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "effectsCovered": {
+          "type": "boolean"
+        },
+        "schemaCovered": {
+          "type": "boolean"
+        },
+        "systemFieldsCovered": {
+          "type": "boolean"
+        },
+        "uncoveredLanes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "coveredLanes",
+        "uncoveredLanes",
+        "schemaCovered",
+        "systemFieldsCovered",
+        "assetsCovered",
+        "effectsCovered"
+      ],
+      "type": "object"
+    },
+    "LogicalWriteFactV1": {
+      "additionalProperties": false,
+      "properties": {
+        "after": true,
+        "rowId": {
+          "type": "string"
+        },
+        "tableName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tableName",
+        "rowId"
+      ],
+      "type": "object"
+    },
+    "NetDiffDispositionV1": {
+      "enum": [
+        "added",
+        "updated",
+        "deleted"
+      ],
+      "type": "string"
+    },
+    "NetDiffRowV1": {
+      "additionalProperties": false,
+      "properties": {
+        "after": true,
+        "before": true,
+        "disposition": {
+          "$ref": "#/$defs/NetDiffDispositionV1"
+        },
+        "rowId": {
+          "type": "string"
+        },
+        "tableName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tableName",
+        "rowId",
+        "disposition"
+      ],
+      "type": "object"
+    },
+    "NetDiffSubstrateV1": {
+      "enum": [
+        "immutableMaterializedBase"
+      ],
+      "type": "string"
+    },
+    "OperationBoundFactsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "audience": {
+          "type": "string"
+        },
+        "authorityInstanceId": {
+          "type": "string"
+        },
+        "functionOrCommand": {
+          "type": "string"
+        },
+        "inputFingerprint": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "operationKind": {
+          "type": "string"
+        },
+        "principalFingerprint": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "audience",
+        "principalFingerprint",
+        "authorityInstanceId",
+        "operationKind",
+        "functionOrCommand",
+        "inputFingerprint"
+      ],
+      "type": "object"
+    },
+    "OperationIdentityV1": {
+      "additionalProperties": false,
+      "description": "`operationId` widens the shipped client-mutation id; this struct preserves\nevery bound fact the existing collision check already owns.",
+      "properties": {
+        "boundFacts": {
+          "$ref": "#/$defs/OperationBoundFactsV1"
+        },
+        "issuance": {
+          "$ref": "#/$defs/OperationIssuanceV1"
+        },
+        "key": {
+          "$ref": "#/$defs/OperationKeyV1"
+        },
+        "schemaVersion": {
+          "format": "uint32",
+          "maximum": 1,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "key",
+        "issuance",
+        "boundFacts"
+      ],
+      "type": "object"
+    },
+    "OperationIssuanceV1": {
+      "description": "Issuance facts are structurally disjoint across client and host namespaces.\nThe authenticator is represented by its non-secret digest; admission later\nverifies the underlying server-issued artifact before constructing this\nvalue.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "authority_authenticator_digest": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "counter": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "epoch_id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "clientRange",
+              "type": "string"
+            },
+            "range_end_exclusive": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "range_start": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "epoch_id",
+            "counter",
+            "range_start",
+            "range_end_exclusive",
+            "authority_authenticator_digest"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "authority_authenticator_digest": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "commit_ordinal": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "epoch_id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "hostIncarnation",
+              "type": "string"
+            },
+            "upstream_identity": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "epoch_id",
+            "upstream_identity",
+            "commit_ordinal",
+            "authority_authenticator_digest"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "OperationKeyV1": {
+      "additionalProperties": false,
+      "description": "The physical key for suppression and envelope storage. Audience and all\nother semantic facts are compared facts, never key components.",
+      "properties": {
+        "operationId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$",
+          "type": "string"
+        },
+        "originatorClass": {
+          "$ref": "#/$defs/OperationOriginatorClassV1"
+        },
+        "streamId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "streamId",
+        "originatorClass",
+        "operationId"
+      ],
+      "type": "object"
+    },
+    "OperationOriginatorClassV1": {
+      "enum": [
+        "client",
+        "host"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/branch.diff-receipt-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attributedChanges": {
+      "items": {
+        "$ref": "#/$defs/AttributedChangeV1"
+      },
+      "type": "array"
+    },
+    "baseStream": {
+      "type": "string"
+    },
+    "baseVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "branchId": {
+      "$ref": "#/$defs/BranchId"
+    },
+    "childHead": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "childStreamId": {
+      "$ref": "#/$defs/ChildStreamId"
+    },
+    "coverage": {
+      "$ref": "#/$defs/ForkCoverageV1"
+    },
+    "diffDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "netDiff": {
+      "items": {
+        "$ref": "#/$defs/NetDiffRowV1"
+      },
+      "type": "array"
+    },
+    "schemaVersion": {
+      "format": "uint32",
+      "maximum": 1,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "substrate": {
+      "$ref": "#/$defs/NetDiffSubstrateV1"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "branchId",
+    "baseStream",
+    "baseVersion",
+    "childStreamId",
+    "childHead",
+    "substrate",
+    "coverage",
+    "attributedChanges",
+    "netDiff",
+    "diffDigest"
+  ],
+  "title": "ForkDiffReceiptV1",
+  "type": "object"
+}

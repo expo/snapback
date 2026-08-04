@@ -1,0 +1,65 @@
+{
+  "$defs": {
+    "BranchId": {
+      "description": "Stable identity of an ephemeral branch within one logical app.",
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/branch.rebase-receipt-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "divergentOperationIds": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "meaningPreserved": {
+      "type": "boolean"
+    },
+    "priorApprovedFactsDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "priorBaseVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "priorBranchId": {
+      "$ref": "#/$defs/BranchId"
+    },
+    "rebasedApprovedFactsDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "rebasedBaseVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "rebasedBranchId": {
+      "$ref": "#/$defs/BranchId"
+    },
+    "schemaVersion": {
+      "format": "uint32",
+      "maximum": 1,
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "priorBranchId",
+    "rebasedBranchId",
+    "priorBaseVersion",
+    "rebasedBaseVersion",
+    "priorApprovedFactsDigest",
+    "rebasedApprovedFactsDigest",
+    "meaningPreserved",
+    "divergentOperationIds"
+  ],
+  "title": "RebaseReplayReceiptV1",
+  "type": "object"
+}

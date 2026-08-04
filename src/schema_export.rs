@@ -52,6 +52,11 @@ use crate::ephemeral::{
     DeleteRequest, EphemeralAuthorityInstanceV1, EphemeralMessage, HostedEphemeralFactsV1,
     PublishOutcome, PublishRequest, RealtimeEnvelope, SubscribeRequest,
 };
+use crate::fork_promotion::{
+    BranchOperationV1, BranchReapReceiptV1, DenyAllAttemptMarkerV1, ForkDiffReceiptV1,
+    InAppBranchReceiptV1, PromotionAdmissionTicketV1, PromotionReceiptV1, PromotionRequestV1,
+    RebaseReplayReceiptV1,
+};
 use crate::handler_wire::{HandlerHostCallRequest, HandlerInvokeRequest, HandlerInvokeResponse};
 use crate::host_ops::{DryRunReport, HostOpsResult, HostReadyDescriptor};
 use crate::live_wire::{
@@ -209,6 +214,45 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "history.record-page-v1.schema.json",
             schemars::schema_for!(RecordHistoryPageV1),
+        ),
+        // @ref LLP 0164#owned-artifacts — Rust owns every fork/promotion
+        // carrier. Artifact presence remains substrate evidence, not a
+        // capability advertisement.
+        finish(
+            "branch.operation-v1.schema.json",
+            schemars::schema_for!(BranchOperationV1),
+        ),
+        finish(
+            "branch.receipt-v1.schema.json",
+            schemars::schema_for!(InAppBranchReceiptV1),
+        ),
+        finish(
+            "branch.attempt-marker-v1.schema.json",
+            schemars::schema_for!(DenyAllAttemptMarkerV1),
+        ),
+        finish(
+            "branch.diff-receipt-v1.schema.json",
+            schemars::schema_for!(ForkDiffReceiptV1),
+        ),
+        finish(
+            "promotion.request-v1.schema.json",
+            schemars::schema_for!(PromotionRequestV1),
+        ),
+        finish(
+            "promotion.admission-ticket-v1.schema.json",
+            schemars::schema_for!(PromotionAdmissionTicketV1),
+        ),
+        finish(
+            "promotion.receipt-v1.schema.json",
+            schemars::schema_for!(PromotionReceiptV1),
+        ),
+        finish(
+            "branch.reap-receipt-v1.schema.json",
+            schemars::schema_for!(BranchReapReceiptV1),
+        ),
+        finish(
+            "branch.rebase-receipt-v1.schema.json",
+            schemars::schema_for!(RebaseReplayReceiptV1),
         ),
         // The one exported search request schema (LLP 0131 §The search
         // fixture / LLP 0115 CV-5): the Rust parser owns the AST grammar and

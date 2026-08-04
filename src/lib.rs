@@ -79,6 +79,8 @@ pub mod errors_query;
 #[doc(hidden)]
 pub mod exec_guard;
 #[doc(hidden)]
+pub mod fork_promotion;
+#[doc(hidden)]
 pub mod guide;
 #[doc(hidden)]
 pub mod guide_mcp;
