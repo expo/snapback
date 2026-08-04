@@ -1,7 +1,10 @@
 // Type declarations for rqs-preload.mjs — Channel A boot-payload consumption
 // (LLP 0090 D2) and the register-mode registry (LLP 0090 D4).
 
-import type { RqsRegisteredRegistry } from './index.mjs';
+import type {
+  RqsMixedRegisteredRegistry,
+  RqsRegisteredRegistry,
+} from './index.mjs';
 
 export const RQS_BOOT_ELEMENT_ID: string;
 
@@ -64,4 +67,16 @@ export function readRqsPreloadRegistry(options?: {
 /** Build a registered-boot registry from a register-mode bundle response
  * (LLP 0090 D4; contract LLP 0092 §0D.1). */
 export function createRqsRegisteredRegistry(bundle: unknown): RqsRegisteredRegistry;
-export type { RqsRegisteredRegistry, RqsRegisteredSubscription } from './index.mjs';
+export function createRqsRegisteredRegistry(
+  bundle: unknown,
+  reference: Readonly<Record<string, unknown>>,
+  params?: Readonly<Record<string, string>>,
+): RqsMixedRegisteredRegistry;
+export type {
+  RqsMixedBootEntry,
+  RqsMixedReadOnlyResult,
+  RqsMixedRegisteredRegistry,
+  RqsMixedRegisteredSubscription,
+  RqsRegisteredRegistry,
+  RqsRegisteredSubscription,
+} from './index.mjs';

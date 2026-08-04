@@ -605,11 +605,29 @@ const mixedRoutes = Object.freeze({
         normalizedCompositePlan: Object.freeze({
           nodes: Object.freeze([
             Object.freeze({
-              nodePlan: Object.freeze({ capability: Object.freeze({ exportKind: 'LiveQuery' }) }),
+              nodePlan: Object.freeze({
+                capability: Object.freeze({
+                  exportKind: 'LiveQuery',
+                  live: Object.freeze({
+                    kind: 'admitted',
+                    delivery: 'live_replace',
+                    pageDomain: 'whole-result',
+                  }),
+                  retention: 'none',
+                  requiredCapabilityIds: Object.freeze([]),
+                }),
+              }),
               nodePlanHash: `sha256:${'1'.repeat(64)}`,
             }),
             Object.freeze({
-              nodePlan: Object.freeze({ capability: Object.freeze({ exportKind: 'Query' }) }),
+              nodePlan: Object.freeze({
+                capability: Object.freeze({
+                  exportKind: 'Query',
+                  live: Object.freeze({ kind: 'none' }),
+                  retention: 'none',
+                  requiredCapabilityIds: Object.freeze([]),
+                }),
+              }),
               nodePlanHash: `sha256:${'2'.repeat(64)}`,
             }),
           ]),

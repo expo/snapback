@@ -101,6 +101,33 @@ function deepFreeze(value, seen = new Set()) {
   return Object.freeze(value);
 }
 
+function mixedChildLiveness(nodePlan, reference, route) {
+  const capability = nodePlan?.capability;
+  const liveness = capability?.live;
+  const livenessKeys = Object.keys(liveness ?? {}).sort();
+  const none = liveness?.kind === 'none'
+    && livenessKeys.length === 1
+    && livenessKeys[0] === 'kind';
+  const admitted = liveness?.kind === 'admitted'
+    && liveness?.delivery === 'live_replace'
+    && liveness?.pageDomain === 'whole-result'
+    && livenessKeys.join(',') === 'delivery,kind,pageDomain';
+  if (
+    Object.keys(capability ?? {}).sort().join(',')
+      !== 'exportKind,live,requiredCapabilityIds,retention'
+    || capability.exportKind !== reference?.kind
+    || (reference?.kind === 'Query' && !none)
+    || (reference?.kind === 'LiveQuery' && !admitted)
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_REACT_MANIFEST_INVALID',
+      'mixed query group lacks a consistent explicit child liveness binding',
+      { route, function: reference?.name ?? null },
+    );
+  }
+  return deepFreeze(structuredClone(liveness));
+}
+
 function publicReference(
   definition,
   fallbackAppId,
@@ -698,6 +725,11 @@ async function prepareReactBindingOnce(
             )),
             nodePlanHash: routeEntry.mixedProfile
               ?.normalizedCompositePlan?.nodes?.[queries.length]?.nodePlanHash,
+            liveness: mixedChildLiveness(
+              routeEntry.mixedProfile?.normalizedCompositePlan?.nodes?.[queries.length]?.nodePlan,
+              reference,
+              routeEntry.route,
+            ),
           } : {}),
         }));
       }
@@ -1102,6 +1134,7 @@ export async function prepareReactQueryGroupForBinding(
     ...(mixed ? {
       nodePlan: query.nodePlan,
       nodePlanHash: query.nodePlanHash,
+      liveness: query.liveness,
     } : {}),
     registeredSubscription: null,
     readOnlySnapshot: null,
@@ -1201,7 +1234,7 @@ export async function prepareReactQueryGroupForBinding(
   const authorizationNamespaces = prepared.authMode === 'sessions'
     && prepared.client.authProtocols?.authInvalidation === 1
     ? entries.map((entry) => (
-        entry.ref.kind === 'Query'
+        (mixed && entry.liveness.kind === 'none')
           || prepared.authorityIndependentById.get(entry.ref.id) === true
           ? null
           : prepared.client.allocateLiveQueryNamespace(entry.ref, entry.args)
@@ -1249,9 +1282,9 @@ export async function prepareReactQueryGroupForBinding(
       || bundle.aggregate?.kind !== 'mixed'
       || bundle.aggregate?.weakest !== 'read-only'
       || bundle.aggregate?.liveChildren
-        !== entries.filter((entry) => entry.ref.kind === 'LiveQuery').length
+        !== entries.filter((entry) => entry.liveness.kind === 'admitted').length
       || bundle.aggregate?.readOnlyChildren
-        !== entries.filter((entry) => entry.ref.kind === 'Query').length
+        !== entries.filter((entry) => entry.liveness.kind === 'none').length
       || Object.keys(bundle.aggregate ?? {}).sort().join(',')
         !== 'kind,liveChildren,readOnlyChildren,weakest'
     ))
@@ -1291,7 +1324,13 @@ export async function prepareReactQueryGroupForBinding(
     let sawAuthorization = false;
     resolvedEntries = entries.map((entry, index) => {
       const response = bundle.entries[index];
-      const childLive = entry.ref.kind === 'LiveQuery';
+      // @ref LLP 0157#d2--plan-identity — the hash-bound capability fact is
+      // the sole classifier. The generated reference kind was cross-checked
+      // during binding admission but is never consulted as the liveness
+      // oracle at bundle consumption.
+      const childLive = mixed
+        ? entry.liveness.kind === 'admitted'
+        : true;
       const responseKeys = Object.keys(response ?? {}).sort();
       const allowedKeys = [
         'args',

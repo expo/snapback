@@ -17,3 +17,7 @@ in `packages/snapback-codegen/index.d.mts` (line 86 on origin/main,
 "Closed mixed-route v2 predicate shared with the route authoring
 fixture"), landed with the mixed-route work in 46b614efd. Verified
 present at close time; the runtime export and declaration match.
+
+The LLP 0090 successor pass reverified the declaration while adding the
+format-2 emission golden and retained this ticket under `issues/closed/`.
+No runtime-only export exception or declaration shim was introduced.

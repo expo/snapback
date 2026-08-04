@@ -358,6 +358,24 @@ export interface RqsRegisteredSubscription {
   readonly authorization?: unknown;
 }
 
+export interface RqsMixedRegisteredSubscription extends RqsRegisteredSubscription {
+  readonly bootDelivery: 'registered-live';
+}
+
+export interface RqsMixedReadOnlyResult {
+  readonly bootDelivery: 'read-only';
+  readonly subscriptionId: null;
+  readonly rows: readonly unknown[];
+  readonly version: number;
+  readonly resume: null | Readonly<Record<string, unknown> & { readonly token: string }>;
+  readonly freshness: 'snapshot';
+  readonly attachDeadline: null;
+}
+
+export type RqsMixedBootEntry =
+  | RqsMixedRegisteredSubscription
+  | RqsMixedReadOnlyResult;
+
 export interface RqsRegisteredRegistry {
   readonly connection: null | Readonly<{
     connectionId: string;
@@ -371,7 +389,34 @@ export interface RqsRegisteredRegistry {
   consume(name: string, args?: Readonly<Record<string, unknown>>): RqsRegisteredSubscription | null;
 }
 
+export interface RqsMixedRegisteredRegistry {
+  readonly formatVersion: 2;
+  readonly profile: 'mixed-route.v2';
+  readonly planHash: `sha256:${string}`;
+  readonly aggregate: Readonly<{
+    kind: 'mixed';
+    weakest: 'read-only';
+    liveChildren: number;
+    readOnlyChildren: number;
+  }>;
+  readonly connection: Readonly<{
+    connectionId: string;
+    grant: string;
+    attachDeadline: number;
+  }>;
+  readonly generation: string;
+  readonly versionStream: string;
+  readonly size: number;
+  lookup(name: string, args?: Readonly<Record<string, unknown>>): RqsMixedBootEntry | null;
+  consume(name: string, args?: Readonly<Record<string, unknown>>): RqsMixedBootEntry | null;
+}
+
 export function createRqsRegisteredRegistry(bundle: unknown): RqsRegisteredRegistry;
+export function createRqsRegisteredRegistry(
+  bundle: unknown,
+  reference: Readonly<Record<string, unknown>>,
+  params?: Readonly<Record<string, string>>,
+): RqsMixedRegisteredRegistry;
 
 export type LiveQueryRegistrationOptions =
   | Readonly<{

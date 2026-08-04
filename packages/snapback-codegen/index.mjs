@@ -7598,6 +7598,12 @@ function renderQueryGroupReferences(appId, functions, routesManifest, expectedGe
         ...(mixed ? {
           nodePlan: routeEntry.mixedProfile.normalizedCompositePlan.nodes[position].nodePlan,
           nodePlanHash: routeEntry.mixedProfile.normalizedCompositePlan.nodes[position].nodePlanHash,
+          // @ref LLP 0157#d2--plan-identity — mixed consumers classify the
+          // child only from this explicit, hash-bound owner fact. `ref.kind`
+          // and the normalized storage plan are validation cross-checks,
+          // never substitute liveness oracles.
+          liveness: routeEntry.mixedProfile
+            .normalizedCompositePlan.nodes[position].nodePlan.capability.live,
         } : {}),
       };
     });
@@ -8545,7 +8551,9 @@ function renderApiTypes(
       const refType = `FunctionReference<'${query.function}', '${fn?.kind ?? 'Query'}', ${argsType}, ${resultType}>`;
       const entryName = queryGroupEntryName(query.function, occurrences, usedNames);
       const identityFields = routeEntry.mixedGroupEligible === true
-        ? '; nodePlan: Readonly<Record<string, unknown>>; nodePlanHash: `sha256:${string}`'
+        ? `; nodePlan: Readonly<Record<string, unknown>>; nodePlanHash: \`sha256:\${string}\`; liveness: ${fn?.kind === 'LiveQuery'
+          ? "Readonly<{ kind: 'admitted'; delivery: 'live_replace'; pageDomain: 'whole-result' }>"
+          : "Readonly<{ kind: 'none' }>"}`
         : '';
       queryTypes.push(`Readonly<{ name: ${JSON.stringify(entryName)}; ref: ${refType}; args: ${typeForQueryGroupTemplate(query.args ?? {})}${identityFields} }>`);
     }

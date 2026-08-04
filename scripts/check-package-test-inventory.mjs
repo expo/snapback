@@ -85,6 +85,7 @@ const inventories = [
       'lease-convergence.test.mjs',
       'logout-v3-bridge.test.mjs',
       'materialization-store.test.mjs',
+      'mixed-route-v2.test.mjs',
       'micro-operational.test.mjs',
       'micro.test.mjs',
       'outbox-store.test.mjs',
@@ -199,6 +200,7 @@ const inventories = [
       'maintained-projections.test.mjs',
       'membership-search-authoring.test.mjs',
       'micro-profile.test.mjs',
+      'mixed-route-v2.test.mjs',
       'operation-schemas.test.mjs',
       'provider-introspection.test.mjs',
       'protected-query-profile.test.mjs',
@@ -487,7 +489,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // hosted/sessions refusal suite.
 // 180 -> 181 (2026-08-03, LLP 0166 logout bridge): @expo/snapback-client gains
 // the public AuthCoordinator-to-v3-store logout transition suite.
-assert.equal(total, 181, 'reviewed package/admin test count changed');
+// 181 -> 183 (2026-08-03, LLP 0090 mixed-route successor): codegen and client
+// gain the version-2 artifact, explicit-liveness, and refusal witnesses.
+assert.equal(total, 183, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

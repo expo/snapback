@@ -7390,6 +7390,24 @@ export class SnapbackClient {
     if (this.__externalBearerTransition) {
       await this.__externalBearerTransition;
     }
+    if (registeredSubscription?.bootDelivery === 'read-only') {
+      const error = new TypeError(
+        'SNAPBACK_RQS_READ_ONLY_RESULT: a mixed read-only child is an ordinary one-shot result and cannot be adopted as a subscription',
+      );
+      error.code = 'SNAPBACK_RQS_READ_ONLY_RESULT';
+      throw error;
+    }
+    if (
+      registeredSubscription
+      && Object.hasOwn(registeredSubscription, 'bootDelivery')
+      && registeredSubscription.bootDelivery !== 'registered-live'
+    ) {
+      const error = new TypeError(
+        'SNAPBACK_RQS_MIXED_GROUP_INVALID: registeredSubscription carries an unknown mixed delivery kind',
+      );
+      error.code = 'SNAPBACK_RQS_MIXED_GROUP_INVALID';
+      throw error;
+    }
     if (registeredSubscription && transport !== 'stream') {
       const error = new Error(
         "SNAPBACK_REGISTERED_SUBSCRIPTION_STREAM_REQUIRED: registered bundle adoption requires transport:'stream'",

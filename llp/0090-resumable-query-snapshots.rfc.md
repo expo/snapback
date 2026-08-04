@@ -5,9 +5,10 @@
 **Systems:** Sync, Realtime, API, Client integration, Deployment, Auth
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-08-03 (mixed-route v2 implementation amendment: one pinned
-snapshot, identity-derived per-child registration, and an honestly read-only
-weakest aggregate — see Revision history and D1.2); 2026-08-03 (Accepted LLP
+**Revised:** 2026-08-03 (**DRAFT**, non-normative pending orchestrator/author
+review: mixed-route v2 successor amendment — one pinned snapshot,
+binding-derived per-child registration, and an honestly read-only weakest
+aggregate; see Revision history and D1.2); 2026-08-03 (Accepted LLP
 0166 boundary: LLP 0166 is the
 Channel-B store's declared domain/lifecycle successor; this RFC's
 machinery and the legacy population's lifecycle and budget envelope are
@@ -56,8 +57,8 @@ Revision history); 2026-07-24 (v0.6 — see Revision history)
   cross-check LLP 0157 plan/materialization identity without making plan
   shape imply liveness. Until author review accepts such a profile, D1.2 and
   LLP 0112's all-live contract remain unchanged.
-- **Implementation amendment (2026-08-03 — mixed-route v2).** The proposal's
-  successor is accepted and implemented on the contributor local target as
+- **DRAFT amendment (2026-08-03 — mixed-route v2; non-normative pending
+  orchestrator/author review).** The proposal's successor is specified as
   generated artifact/wire format 2 and LLP 0157 profile `mixed-route.v2`.
   Every child is evaluated in one pinned read transaction; only children
   whose admitted `NodeCapabilityBindingV1.live.kind` is `admitted` become
@@ -65,7 +66,9 @@ Revision history); 2026-07-24 (v0.6 — see Revision history)
   read-only snapshots. The response carries per-child delivery provenance and
   the group's weakest `read-only` aggregate. LLP 0112 format 1 is byte-
   compatible and unchanged. The exact contract, failure/authority/cleanup
-  rules, bounds, capability, and executable evidence are recorded in D1.2.
+  rules, bounds, nonclaim boundary, and executable evidence are recorded in
+  D1.2. This entry does not become document law merely because implementation
+  witnesses exist; review must promote it explicitly.
 
 ## Summary
 
@@ -539,16 +542,68 @@ authenticated identity exactly like a subscription (LLP 0011). Modes:
 
 ##### Mixed-route v2 implementation amendment (2026-08-03)
 
-The accepted successor is a separate generated artifact and wire profile,
-never an alternate interpretation of the LLP 0112 format-1 all-live group.
-Codegen emits `queryGroupReference` format 2 with
-`profile:"mixed-route.v2"`, a distinct `query-group-v2` id and definition
-hash domain, the LLP 0157 `PlanHashV1`, and each ordered child's exact
-`NodePlanRecordV1`/`NodePlanHashV1`. The request repeats
-`formatVersion:2`, `profile`, and `planHash`; omission continues to select the
-existing format-1 request. The v2 response repeats those three facts and adds:
+**Dated normative amendment** — executes the wave-3 program's mixed-route
+assignment, designed against Accepted LLP 0157 and reviewed at landing;
+it converts the non-normative 2026-08-02 register-gradient proposal in
+the Revised header into this profile's contract.
+
+**Artifact decision.** Use
+`artifactKind:"queryGroupReference"` with `formatVersion:2`, not a second
+top-level artifact kind. The generated `groups[route]` lookup and route-param
+typing remain one authoring surface, while the numeric discriminator, required
+`profile:"mixed-route.v2"`, distinct `query-group-v2` id, and v2 definition-
+hash domain make the decoder and identity domains disjoint. This is therefore
+a new artifact version, never an alternate interpretation of the LLP 0112
+format-1 all-live group. A decoder that does not explicitly implement format 2
+refuses it; format 1 never gains optional mixed semantics.
+
+Codegen emits the LLP 0157 `PlanHashV1` and, in route order, each child's exact
+generated function reference, `NodePlanRecordV1`, `NodePlanHashV1`, and an
+explicit `liveness` field byte-equal to that node plan's owner-issued
+`capability.live`. All artifact records are closed: an unknown field, missing
+field, unsupported liveness member, hash mismatch, repeated child identity, or
+disagreement among `ref.kind`, `nodePlan.capability.exportKind`, `liveness`,
+and the node hash refuses; no consumer repairs or narrows it. The request
+repeats `formatVersion:2`, `profile`, and `planHash`; omission continues to
+select the existing format-1 request. Any partial discriminator or unknown
+version refuses before evaluation. The v2 response repeats those three facts
+and adds:
 
 ```ts
+type GeneratedFunctionReference = {
+  artifactKind: "functionReference",
+  schemaVersion: string,
+  appId: string,
+  id: string,
+  name: string,
+  kind: "Query" | "LiveQuery",
+  implementationHash: `sha256:${string}`,
+  argsContractHash: `sha256:${string}`,
+  resultContractHash: `sha256:${string}`,
+  expectedGeneration: ExpectedGenerationV1
+}
+
+type MixedQueryGroupReferenceV2 = {
+  artifactKind: "queryGroupReference",
+  formatVersion: 2,
+  profile: "mixed-route.v2",
+  schemaVersion: string,
+  appId: string,
+  id: `${string}:query-group-v2:${string}`,
+  route: string,
+  definitionHash: `sha256:${string}`,
+  planHash: `sha256:${string}`,
+  queries: readonly {
+    name: string,
+    ref: GeneratedFunctionReference,
+    args: Readonly<Record<string, unknown>>,
+    nodePlan: NodePlanRecordV1,
+    nodePlanHash: `sha256:${string}`,
+    liveness: NodeCapabilityBindingV1["live"]
+  }[],
+  persist?: false
+}
+
 type MixedDeliveryV2 =
   | { kind: "registered-live", nodePlanHash: string }
   | { kind: "read-only", nodePlanHash: string }
@@ -567,12 +622,14 @@ and one generated `LiveQuery`. It retains D1.2's 1–32 child, 5,000-row,
 rebuilds the LLP 0157 `exported_query_v1` nodes and `mixed-route.v2`
 composite from the served function and route manifests and exact-compares
 every argument contract hash, node hash, merged route/argument hash, and plan
-hash before the pinned read begins. `NodeCapabilityBindingV1` is the sole
+hash before the pinned read begins. `NodeCapabilityBindingV1.live` is the sole
 liveness authority: an otherwise byte-identical plan declared `Query` remains
 read-only; a declared `LiveQuery` with the admitted whole-result
-`live_replace` binding registers. Runtime/plan shape, table set, cursor
-presence, and the generated reference's TypeScript kind are never liveness
-oracles.
+`live_replace` binding registers. The generated-reference kind is checked for
+consistency with the binding but is not itself the classifier. Runtime/plan
+shape, table set, cursor presence, reference kind, response shape, and the
+presence of `subscriptionId` are never liveness oracles. If the explicit bound
+fact is absent or inconsistent, the operation refuses rather than inferring.
 
 Execution is one all-or-nothing pinned read transaction. Every child invokes
 under the requester's current authority and observes the same
@@ -583,6 +640,15 @@ authorization obligation, or attach cleanup work and returns
 `subscriptionId` absent with `delivery.kind:"read-only"`. An auth-scoped live
 child retains D1.2's namespace and complete LLP 0053 authorization projection;
 authority-independent live children retain the existing null-namespace rule.
+Every position, including a read-only child, resolves its own LLP 0157
+`QueryMaterializationKeyV1` from that child's generated reference, the shared
+plan hash, canonical materialized args, exact activation, and owner-issued
+authority partition, and installs a distinct read-only materialization record.
+The record's boot delivery is not authority evidence: a read-only child is an
+ordinary one-shot result with `freshness:"snapshot"`; a live child becomes
+`freshness:"current"` only through registered adoption. Absence of the exact
+activation/authority inputs refuses QMK installation; no default partition or
+parallel route-local key is permitted.
 
 Any admission, argument, authority, query, result-contract, row/byte/time, or
 registration failure refuses the entire response and purges every freshly
@@ -594,16 +660,27 @@ plan hash, so a format-1 attempt or changed plan cannot replay a v2 owner.
 Only explicit live children count against subscription capacity; every child
 continues to count against bundle width/rows/bytes/time.
 
+The pre-existing `mixed_bundle_boot_v2` **experimental** registry rows
+cover exactly the pinned-read bundle execution surface (the native
+fixture below); they are compatible with this amendment and are not
+promoted by it. Any maturity promotion beyond experimental — and any
+claim that mixed boot installs LLP 0166 store records — additionally
+requires the QMK installation gate above, owner-bound and exercised end
+to end.
+
 The prepared client exposes each child's `bootDelivery`; live children adopt
 their registered subscription, while read-only children install a static
 `freshness:"snapshot"` store and never start an ordinary subscription. The
 group reports the weakest honest state (`connection:"idle"`, aggregate
 `weakest:"read-only"`) while live siblings continue to report `live` and
-receive updates. Capability `mixed_bundle_boot_v2` is Experimental and
-support-true only on the contributor local target; hosted/public-package
-publication is not claimed. Executable witnesses are
-`mixed_bundle_v2_pins_rows_and_registers_only_identity_live_children`, the
-codegen mixed identity fixture, and the React package mixed-group acceptance.
+receive updates. This amendment makes no target capability, maturity,
+hosted, or public-package publication claim; an unimplemented profile or unsupported
+target refuses explicitly. Executable witnesses inform review but do not
+promote the amendment: the native pinned-read fixture, the codegen v2/format-1
+goldens, the client liveness near-miss/refusal suite, and the React mixed-group
+acceptance. Those are partial implementation witnesses, not evidence that the
+QMK installation gate above is satisfied; a target may not advertise this
+profile until that installation is owner-bound and exercised end to end.
 
 #### D1.3 Replay admission ladder
 
