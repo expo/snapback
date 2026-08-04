@@ -33,3 +33,25 @@ harness remain open, so this ticket stays open.
 
 This is LLP 0158 F1. It is intentionally not folded into F0b's implementation
 landing and does not authorize an early capability claim.
+
+## Resolution — 2026-08-04
+
+Closed by the F1 guide-and-harness landing:
+
+- `guide/operating/instance-forks.md` now documents the local-only,
+  finite-TTL fork-per-worktree workflow, ready-file custody, bounded diff
+  receipts, exact cleanup, and the security/nonclaim boundary;
+- `demos/_kit/instance-fork.mjs` and the opt-in `forkFrom` path in
+  `demos/_kit/headless-app.mjs` consume the product CLI lifecycle without
+  replacing realistic parent rows with demo seed;
+- `demos/todo/tests/acceptance/forked-parent.mjs` proves parent-state
+  preservation, quarantine facts, bounded fork-only diff attribution,
+  parent-write isolation, and registry-bound cleanup; and
+- the capability row remains target `none`, maturity `partial`, and explicitly
+  GAP-gated while LLP 0158 is Draft. This resolution is not a capability
+  advertisement.
+
+Verification: the focused fork-aware Todo journey, an ordinary seeded
+Access Desk journey, `cargo test --lib instance_fork`, the guide checker,
+generated artifact checker, reference checker, JavaScript syntax checks, and
+diff whitespace checks.

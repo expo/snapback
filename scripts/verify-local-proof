@@ -307,6 +307,10 @@ run node tests/acceptance/asset-conformance-v1.mjs
 run node tests/acceptance/app-cli-served-journey.mjs
 run node tests/acceptance/app-cli-settlement-goldens.mjs
 run node demos/todo/tests/acceptance/headless.mjs
+# @ref LLP 0158#implementation-path-local-v1-explored-2026-08-03 — the F1
+# acceptance-harness option preserves realistic parent state, verifies fork
+# isolation, and tears down through the exact registry-bound drop lifecycle.
+run node demos/todo/tests/acceptance/forked-parent.mjs
 run node demos/todo-v2/tests/acceptance/headless.mjs
 # Five deliberately different app kernels keep relational reads, trusted
 # runtime values, cron/live demand, route bundles, and membership authority in

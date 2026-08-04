@@ -5,7 +5,16 @@
 **Systems:** Storage, Deployment, Runtime, Scheduling, Assets, Security, Agent experience, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v0.14 — F0b implementation and first-consumer
+**Revised:** 2026-08-04 (v0.15 — F1 implementation record: the local-only
+partial guide now teaches fork-per-worktree creation, quarantine, bounded diff
+receipts, exact disposal, and explicit nonclaims; the shared headless harness
+has an opt-in fork-instead-of-seed path that preserves parent rows and loads
+the current worktree's manifests; and the maintained Todo acceptance journey
+proves parent-state preservation, fork-only diff attribution, and parent-write
+isolation. The capability-index row remains target `none` and GAP-gated on
+author acceptance/publication; this implementation record does not change
+Draft status or advertise the capability.)
+2026-08-03 (v0.14 — F0b implementation and first-consumer
 record: the finite-TTL local `fork create/list/diff/drop/reap` surface now
 packages the green F0a substrate, boots a same-`appId` derived server with
 cron/jobs/assets inert and fail-closed egress, emits a ready descriptor and
@@ -937,6 +946,16 @@ comes before the CLI verb, and no duration estimates until it exists):
 - **F1 — agent ergonomics:** fork-per-worktree conventions, the diff
   receipt as a first-class review artifact, guide page + capability
   index row, acceptance-suite fork-instead-of-seed option.
+  **Implementation record — 2026-08-04:** `guide/operating/instance-forks.md`
+  teaches the finite-TTL worktree workflow and its quarantine, custody, diff,
+  lifecycle, and threat-model limits. `demos/_kit/instance-fork.mjs` consumes
+  the exact CLI lifecycle and `openHeadlessApp({ forkFrom, forkRoot,
+  forkTtl })` opts out of seeding while loading the current worktree's
+  generated manifests. The maintained Todo fork-aware acceptance suite proves
+  parent-state preservation, inert/deny-all creation facts, one bounded
+  fork-only app-row diff, live-parent invisibility, and cleanup through
+  registry-bound `fork drop`. The capability row deliberately remains an
+  unpublished target-`none` GAP while this RFC is Draft.
 - **F2 — hosted:** the OQ4 DO-bookmark spike decides bookmark-fork vs
   export/import on Cloudflare; container-VM rides Fly volume forks
   (LLP 0099) and adds the ProcessContained tier (§Threat model);
@@ -1097,8 +1116,8 @@ structural argument that the capability is priced correctly.
 ## Status
 
 Draft, **experimental**. Authored 2026-08-03 from a brainstorming session;
-F0a and F0b now implement the local safety substrate and CLI consumer with
-dated fleet dogfood, while F1 ergonomics and F2 hosted work remain open. This
+F0a, F0b, and F1 now implement the local safety substrate, CLI consumer,
+dated fleet dogfood, guide, and fork-aware harness, while F2 hosted work remains open. This
 status records implementation progress but stays Draft until the author makes
 the LLP 0005 transition; it is not a capability advertisement. The earliest
 local-only `clonefile` validation and its corrected claim remain in §Spike
