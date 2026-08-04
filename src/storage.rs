@@ -18723,6 +18723,7 @@ fn record_covered_client_mutation_envelope_in(
         identity,
         crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
     );
+    let history_operation_id = operation_identity.key.operation_id.clone();
     let manifest =
         crate::operation_ledger::active_coverage_manifest(tx, &stream_id)?.ok_or_else(|| {
             SnapbackError::error(
@@ -18842,7 +18843,17 @@ fn record_covered_client_mutation_envelope_in(
         },
         recorded_at_ms: now_millis(),
     };
-    crate::operation_ledger::record_operation_in(tx, &envelope)
+    crate::operation_ledger::record_operation_in(tx, &envelope)?;
+    // @ref LLP 0162#6-bounded-history-and-named-checkpoints — retained row
+    // versions join to the operation identity inside the same physical commit;
+    // tables without an active finite history policy have no rows to update.
+    tx.execute(
+        "UPDATE _snapback_record_history_v1
+            SET operation_id = ?1
+          WHERE version = ?2 AND operation_id IS NULL",
+        params![history_operation_id, version_to_sql_integer(output.version)?],
+    )?;
+    Ok(())
 }
 
 /// A generic host-minted id, for the paths where no table is in scope.
@@ -23303,6 +23314,12 @@ mod guarded_commit_tests {
         };
 
         let mut db = database();
+        db.configure_history_policy(&crate::proof_checkpoint::HistoryRetentionPolicyV1 {
+            table: "items".to_owned(),
+            retain_ms: 60_000,
+            max_rows: 32,
+        })
+        .expect("finite history policy");
         let tx = db.conn.transaction().expect("stream authority tx");
         let stream = auth_invalidation::ensure_data_version_stream_in(&tx)
             .expect("initialize operation stream");
@@ -23435,6 +23452,26 @@ mod guarded_commit_tests {
             )
             .expect("envelope count");
         assert_eq!(envelope_count, 2);
+        let history_operation_ids = db
+            .conn
+            .prepare(
+                "SELECT operation_id FROM _snapback_record_history_v1
+                  WHERE table_name='items' ORDER BY version,id",
+            )
+            .expect("history query")
+            .query_map([], |row| row.get::<_, Option<String>>(0))
+            .expect("history rows")
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .expect("history identities");
+        assert_eq!(
+            history_operation_ids,
+            vec![
+                Some("operation-0".to_owned()),
+                Some("operation-0".to_owned()),
+                Some("operation-1".to_owned()),
+            ],
+            "history rows join to the covered operation in the same commit"
+        );
     }
 
     fn buffered_writes() -> Vec<BufferedWrite> {

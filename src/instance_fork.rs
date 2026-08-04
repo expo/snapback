@@ -72,6 +72,68 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         name: "_snapback_checkpoint_registry_v1",
         disposition: CustodyDisposition::Scrub,
     },
+    // LLP 0163 identities and receipts belong to the parent stream. A derived
+    // deployment mints a new stream/authority and must never replay inherited
+    // suppression or envelope state as if it originated there.
+    CustodyRule {
+        name: "_snapback_operation_epochs_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_operation_ranges_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_operation_floors_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_commit_envelopes_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_operation_suppression_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_operation_tombstones_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_operation_coverage_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    // In-app branch and promotion registries are canonical coordination state,
+    // not application data. Derived deployments start without live tickets,
+    // retained branch operations, or canonical promotion receipts.
+    CustodyRule {
+        name: "_snapback_in_app_branch_profiles",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_branch_operations",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_branch_egress_attempts",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_promotion_admission",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_promotion_receipts",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_promotion_source_joins",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
+        name: "_snapback_promotion_envelopes",
+        disposition: CustodyDisposition::Scrub,
+    },
     CustodyRule {
         name: "_snapback_membership_transitions",
         disposition: CustodyDisposition::Copy,

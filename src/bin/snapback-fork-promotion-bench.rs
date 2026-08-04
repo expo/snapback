@@ -30,6 +30,7 @@ use snapback::fork_promotion::{
     create_in_app_branch, exact_fork_diff, execute_branch_operation, issue_promotion_ticket,
     promote_by_reexecution, reap_expired_in_app_branches, seal_promotion_request,
 };
+use snapback::proof_checkpoint::BoundaryRowV1;
 
 const RECORDED_RUNS: usize = 11;
 const LOCAL_WARMUPS: usize = 4;
@@ -227,6 +228,8 @@ fn run_once(seed: u64) -> anyhow::Result<Run> {
             authority_fingerprint: sha('d'),
         },
         now + 4,
+        &sha('f'),
+        scan_widget_boundary,
         rename_replay,
     )?;
     let promotion_us = micros(started);
@@ -398,6 +401,17 @@ fn scan_widgets(conn: &Connection) -> SnapbackResult<Vec<SnapshotRowV1>> {
         })
     })?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
+fn scan_widget_boundary(conn: &Connection) -> SnapbackResult<Vec<BoundaryRowV1>> {
+    Ok(scan_widgets(conn)?
+        .into_iter()
+        .map(|row| BoundaryRowV1 {
+            qualified_table: row.table_name,
+            row_id: row.row_id,
+            value: row.row,
+        })
+        .collect())
 }
 
 fn summarize(runs: &[Run]) -> BTreeMap<&'static str, Statistics> {

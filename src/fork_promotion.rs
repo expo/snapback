@@ -34,6 +34,10 @@ use crate::commit_envelope::{
     RetainedEnvelopeDetailV1, SnapshotAssociationKindV1, StreamQualifiedVersionV1,
 };
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
+use crate::proof_checkpoint::{
+    BoundaryProofV1, BoundaryRowV1, PromotionApprovedWriteV1, PromotionDigestHeaderV1,
+    PromotionWriteKindV1, derive_promotion_expected_digest, promotion_boundary_digest,
+};
 
 const SHA256_PATTERN: &str = "^sha256:[0-9a-f]{64}$";
 
@@ -1354,6 +1358,7 @@ pub struct PromotionReceiptV1 {
     pub approved_facts_digest: String,
     pub source_operation_count: u64,
     pub source_write_fact_count: u64,
+    pub boundary_proof: BoundaryProofV1,
     pub state: String,
     pub committed_at_ms: i64,
 }
@@ -1545,6 +1550,8 @@ pub fn promote_by_reexecution<F>(
     key: &PromotionSealKey,
     authority: &PromotionAuthorityDecisionV1,
     now_ms: i64,
+    schema_hash: &str,
+    scan_boundary: impl Fn(&Connection) -> SnapbackResult<Vec<BoundaryRowV1>>,
     mut reexecute: F,
 ) -> SnapbackResult<PromotionResultV1>
 where
@@ -1646,6 +1653,41 @@ where
     }
 
     let started = Instant::now();
+    if schema_hash.trim().is_empty() {
+        return Err(error(
+            "SNAPBACK_PROMOTION_SCHEMA_IDENTITY_MISSING",
+            "promotion boundary proof requires a schema identity",
+        ));
+    }
+    let boundary_header = PromotionDigestHeaderV1 {
+        algorithm_version: 1,
+        promotion_identity: request.aggregate_identity.key.operation_id.clone(),
+        parent_stream_id: request.base_stream.clone(),
+        child_stream_id: request.child_stream_id.0.clone(),
+        base_version: request.base_version,
+        reviewed_head_version: request.reviewed_child_head,
+        schema_hash: schema_hash.to_owned(),
+        coverage_manifest_digest: request.manifest_digest.clone(),
+        operation_log_digest: request.operation_log_digest.clone(),
+        approved_facts_digest: request.approved_facts_digest.clone(),
+    };
+    let base_rows = scan_boundary(workspace.immutable_base())?;
+    let approved_writes = diff
+        .net_diff
+        .iter()
+        .map(|row| PromotionApprovedWriteV1 {
+            qualified_table: row.table_name.clone(),
+            row_id: row.row_id.clone(),
+            kind: match row.disposition {
+                NetDiffDispositionV1::Added => PromotionWriteKindV1::Insert,
+                NetDiffDispositionV1::Updated => PromotionWriteKindV1::Update,
+                NetDiffDispositionV1::Deleted => PromotionWriteKindV1::Delete,
+            },
+            post_image: row.after.clone(),
+        })
+        .collect::<Vec<_>>();
+    let expected_boundary =
+        derive_promotion_expected_digest(&boundary_header, &base_rows, &approved_writes)?;
     let new_version = crate::storage::next_storage_version(head)?;
     let tx = canonical.transaction()?;
     let transactional_head: i64 = tx.query_row(
@@ -1670,6 +1712,19 @@ where
                 ),
             ));
         }
+    }
+    let actual_rows = scan_boundary(&tx)?;
+    let actual_boundary = promotion_boundary_digest(&boundary_header, &actual_rows)?;
+    let boundary_proof = BoundaryProofV1::independent(
+        expected_boundary,
+        actual_boundary,
+        "immutable materialized base plus sealed exact-diff final writes",
+    )?;
+    if !boundary_proof.matches {
+        return Err(error(
+            "SNAPBACK_PROMOTION_BOUNDARY_MISMATCH",
+            "staged canonical state does not match the independently derived approved boundary",
+        ));
     }
     if started.elapsed().as_millis()
         > request
@@ -1699,6 +1754,7 @@ where
         approved_facts_digest: request.approved_facts_digest.clone(),
         source_operation_count: operations.len() as u64,
         source_write_fact_count,
+        boundary_proof,
         state: "committedNoEffects".to_owned(),
         committed_at_ms: now_ms,
     };
@@ -2114,6 +2170,17 @@ mod tests {
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
+    fn scan_widget_boundary(conn: &Connection) -> SnapbackResult<Vec<BoundaryRowV1>> {
+        Ok(scan_widgets(conn)?
+            .into_iter()
+            .map(|row| BoundaryRowV1 {
+                qualified_table: row.table_name,
+                row_id: row.row_id,
+                value: row.row,
+            })
+            .collect())
+    }
+
     fn branch_with_rename() -> (Connection, MaterializedBase, ForkDiffReceiptV1) {
         let mut canonical = source(5);
         let request = create_request("branch-a", "child-a", 5, 1_000);
@@ -2389,6 +2456,8 @@ mod tests {
                 authority_fingerprint: sha('d'),
             },
             2_002,
+            &sha('f'),
+            scan_widget_boundary,
             |tx, operation| {
                 replay_count += 1;
                 let id = operation.canonical_arguments["id"].as_i64().expect("id");
@@ -2402,6 +2471,11 @@ mod tests {
         .expect("promote");
         assert_eq!(replay_count, 1);
         assert_eq!(promoted.receipt.canonical_version, 6);
+        assert!(promoted.receipt.boundary_proof.matches);
+        assert_eq!(
+            promoted.receipt.boundary_proof.proof_class,
+            crate::proof_checkpoint::ProofClassV1::IndependentBoundaryProof
+        );
         assert_eq!(
             crate::storage::current_version_on(&canonical).expect("head"),
             6
@@ -2418,6 +2492,8 @@ mod tests {
             &key,
             &PromotionAuthorityDecisionV1::Denied,
             2_003,
+            &sha('f'),
+            scan_widget_boundary,
             |_, _| panic!("stored retry must not reexecute"),
         )
         .expect("stored receipt");
@@ -2433,6 +2509,86 @@ mod tests {
             joins, 1,
             "write-fact-granularity source join survives branch teardown"
         );
+    }
+
+    #[test]
+    fn promotion_boundary_mismatch_rolls_back_before_publication() {
+        let (mut canonical, workspace, diff) = branch_with_rename();
+        let key = PromotionSealKey::from_server_secret([17_u8; 32]).expect("key");
+        let aggregate = host_identity("canonical", "promotion-proof-negative", "app-1");
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            aggregate.clone(),
+            &diff.branch_id,
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1 {
+                reservation_after_losses: 2,
+                reservation_interval_ms: 1_000,
+                reservation_quota: 1,
+                maximum_commit_duration_ms: 500,
+            },
+        )
+        .expect("ticket");
+        let request = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+                approved_at_ms: 2_001,
+                expires_at_ms: 50_000,
+            },
+            ticket,
+            aggregate,
+            &key,
+            2_001,
+        )
+        .expect("seal");
+        let scans = std::cell::Cell::new(0_u8);
+        let error = promote_by_reexecution(
+            &mut canonical,
+            &workspace,
+            &diff,
+            &request,
+            &key,
+            &PromotionAuthorityDecisionV1::Revalidated {
+                grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+            },
+            2_002,
+            &sha('f'),
+            |conn| {
+                let mut rows = scan_widget_boundary(conn)?;
+                let call = scans.get();
+                scans.set(call + 1);
+                if call == 1 {
+                    rows[0].value["name"] = json!("tampered-scan");
+                }
+                Ok(rows)
+            },
+            |tx, operation| {
+                let id = operation.canonical_arguments["id"].as_i64().expect("id");
+                let name = operation.canonical_arguments["name"]
+                    .as_str()
+                    .expect("name");
+                tx.execute("UPDATE widgets SET name=?2 WHERE id=?1", params![id, name])?;
+                Ok(facts(name))
+            },
+        )
+        .expect_err("independent boundary mismatch");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_PROMOTION_BOUNDARY_MISMATCH"
+        );
+        assert_eq!(
+            crate::storage::current_version_on(&canonical).expect("head"),
+            5
+        );
+        assert_eq!(scan_widgets(&canonical).expect("rows")[0].row["name"], "alpha");
     }
 
     #[test]
@@ -2497,6 +2653,8 @@ mod tests {
                 authority_fingerprint: sha('d'),
             },
             2_003,
+            &sha('f'),
+            scan_widget_boundary,
             |_, _| unreachable!(),
         )
         .expect_err("head changed");
@@ -2550,6 +2708,8 @@ mod tests {
                 authority_fingerprint: sha('d'),
             },
             2_003,
+            &sha('f'),
+            scan_widget_boundary,
             |_, _| unreachable!(),
         )
         .expect_err("strict CAS");
@@ -2618,6 +2778,8 @@ mod tests {
                 authority_fingerprint: sha('d'),
             },
             2_002,
+            &sha('f'),
+            scan_widget_boundary,
             |tx, _| {
                 tx.execute("UPDATE widgets SET name='WRONG' WHERE id=1", [])?;
                 Ok(facts("WRONG"))
