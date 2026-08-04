@@ -66,7 +66,9 @@ const origin = `http://127.0.0.1:${port}`;
 const serverStateDir = mkdtempSync(join(tmpdir(), 'snapback-admin-server-'));
 const readyFile = join(serverStateDir, 'ready.json');
 const server = spawn(snapbackBin, [
-  '--host', '0.0.0.0',
+  // LLP 0017 permits browser-console credential minting only on a loopback
+  // local target; non-loopback refusal has dedicated route/unit coverage.
+  '--host', '127.0.0.1',
   '--port', String(port),
   '--memory',
   '--ready-file', readyFile,
@@ -186,36 +188,24 @@ try {
 
   const setup = await cdp.newPage();
   await setup.navigate(`${origin}/_snapback/admin/setup`);
-  const setupPrompt = await setup.eval(`(async () => {
-    const deadline = Date.now() + 20000;
-    for (;;) {
-      const auth = document.querySelector('#auth');
-      if (auth && !auth.hidden) return document.querySelector('#authmsg')?.textContent || '';
-      if (Date.now() > deadline) throw new Error('setup credential prompt did not render');
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-  })()`);
-  assert.match(setupPrompt, /admin API is disabled|admin token/i);
-  await setup.eval(`(() => {
-    const input = document.querySelector('#tokenInput');
-    input.value = ${JSON.stringify(MASTER)};
-    document.querySelector('#tokenSave').click();
-  })()`);
-  const setupSummary = await setup.eval(`(async () => {
+  const setupBoot = await setup.eval(`(async () => {
     const deadline = Date.now() + 20000;
     for (;;) {
       const summary = document.querySelector('#summary');
       const auth = document.querySelector('#auth');
-      if (summary && !summary.hidden && auth?.hidden) return summary.textContent.trim();
-      if (Date.now() > deadline) throw new Error('setup did not refresh after credential exchange');
+      if (summary && !summary.hidden) {
+        return { summary: summary.textContent.trim(), prompted: !auth?.hidden };
+      }
+      if (Date.now() > deadline) throw new Error('setup summary did not render');
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
   })()`);
-  assert.ok(setupSummary.length > 0);
+  assert.ok(setupBoot.summary.length > 0);
+  assert.equal(setupBoot.prompted, false);
   const setupCustody = await browserCustodyProjection(setup);
   assert.equal(setupCustody.text.includes(MASTER), false);
   assert.equal(setupCustody.storage.includes(MASTER), false);
-  assert.equal(setupCustody.storage.includes('sbcc_'), true);
+  assert.equal(setupCustody.storage.includes('sbcc_'), false);
   const setupEvents = await setup.events();
   assertCleanBoot('setup', setupEvents);
   const setupTrustedTypes = await proveTrustedTypesEnforcement(setup);
@@ -235,7 +225,7 @@ try {
       trustedTypes: adminTrustedTypes,
     },
     setup: {
-      prompted: true,
+      prompted: setupBoot.prompted,
       summaryRendered: true,
       runtimeExceptions: setupEvents.runtimeExceptions.length,
       consoleErrors: setupEvents.consoleErrors.length,

@@ -139,13 +139,13 @@ impl NetworkConditionProfile {
         // A built-in name is a contract: an inline profile may reuse it only
         // when field-identical, so a marker naming "normal"/"optimistic"
         // cannot lie about the delays actually applied.
-        if let Ok(reserved) = Self::named(&self.name) {
-            if reserved != self {
-                return Err(invalid_profile_error(
-                    "inline network profile reuses a built-in name with different fields",
-                )
-                .with_details(json!({ "name": self.name })));
-            }
+        if let Ok(reserved) = Self::named(&self.name)
+            && reserved != self
+        {
+            return Err(invalid_profile_error(
+                "inline network profile reuses a built-in name with different fields",
+            )
+            .with_details(json!({ "name": self.name })));
         }
         Ok(self)
     }

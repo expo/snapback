@@ -1,0 +1,790 @@
+{
+  "schemaVersion": "snapback.local-persistent-store.carrier-exit.v1",
+  "date": "2026-08-04",
+  "authority": [
+    "LLP 0157#move-2-carrier-exit-llp-0155-normative-transcription",
+    "LLP 0166#executable-acceptance",
+    "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
+  ],
+  "startedAt": "2026-08-04T19:31:07.559Z",
+  "completedAt": "2026-08-04T19:34:28.603Z",
+  "runtime": {
+    "node": "v24.18.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "hostnameClass": "local-evidence-machine"
+  },
+  "source": {
+    "revision": "13f026cd31af3886e5e68512fd58912adf88eb29",
+    "dirty": false,
+    "dirtyPaths": [],
+    "files": [
+      {
+        "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
+        "sha256": "38f5a0a0673e6e56d9717a272a4385fa7c8d5af74c0aa1ba86d1ce72c8cc5aed"
+      },
+      {
+        "path": "packages/snapback-client/materialization-store.mjs",
+        "sha256": "bd7e4935d031af165c4cdfe57d25a89e871f0eff72932b02240b846163471063"
+      },
+      {
+        "path": "packages/snapback-client/materialization-bridge.mjs",
+        "sha256": "3c5a4038feb347718e78385767c5cc867ab871e7410f1c335378c10d6d5af259"
+      },
+      {
+        "path": "packages/snapback-client/registration-ledger.mjs",
+        "sha256": "9b872e8852855beb6122f58cecb28e236ca196e68b4051a9bf0f93e1cb6e8074"
+      },
+      {
+        "path": "packages/snapback-client/demand-broker.mjs",
+        "sha256": "cdfb914e2c03ea6ea50b00ea63b48ec3105bdb08dcb757007c9af5dd121e483c"
+      },
+      {
+        "path": "packages/snapback-client/store-policy.mjs",
+        "sha256": "03345c9e942c6247eb95ec58f657fec360d7baa7d77233ee96e6c4529ff23a4f"
+      },
+      {
+        "path": "packages/snapback-client/answer-classes.mjs",
+        "sha256": "e994d0287c66b5319a7c62a10e7a66ccc4157b081ea0a61dff2d8c2b92fd214c"
+      },
+      {
+        "path": "packages/snapback-client/evaluation-floor.mjs",
+        "sha256": "3c03c3be6f2e58e8cc6c54dcad8a636e7f5a153ba127e3d6e0ad8dc95df3c016"
+      },
+      {
+        "path": "packages/snapback-client/lease-convergence.mjs",
+        "sha256": "38125180a494fa272051002cdf62a839840212a4c9b3a4a5c8d705047dfde9d1"
+      },
+      {
+        "path": "packages/snapback-client/rqs-store-meta.mjs",
+        "sha256": "ccba1d6faaae5a7ece09e0871835eea99bd28a1959d252373163fc4562c54e22"
+      },
+      {
+        "path": "packages/snapback-client/index.mjs",
+        "sha256": "0ba8dd2b9886f304edea2e37fd89ba98f76b9aef014fa95dca275a863b5072e1"
+      },
+      {
+        "path": "packages/snapback-client/rqs-store.mjs",
+        "sha256": "9c27319ed28037c2549c2741763f06a9f82abd77e896a2ec93c77e1c3eaf740f"
+      },
+      {
+        "path": "packages/snapback-client/rqs-store-file.mjs",
+        "sha256": "486b8c743ca807b051ec45042b6715cc141e1a0d3d2ca5a83cee75d53c8c3e3e"
+      },
+      {
+        "path": "packages/snapback-contract/auth-coordinator.mjs",
+        "sha256": "34dbfb48bb70f9bfeed02d9cc6b7dcfb4b9c56c0e4f5ed3ca64a473b11c0e4c3"
+      },
+      {
+        "path": "packages/snapback-contract/client-store.mjs",
+        "sha256": "f8324a2039e35d92a0d6bdadf48faeed056c62e3c86226ea894752ad03f75585"
+      },
+      {
+        "path": "demos/_kit/chrome-process.mjs",
+        "sha256": "88b945747108253fb3c3020560bce59e540aeac0ffb3b945dc7a26e23f9dbb64"
+      },
+      {
+        "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-03.v1.json",
+        "sha256": "18edbe117f8801ed22e8f3bcae80e63b4559b2d57d54816075b31a99ac66d7ba"
+      },
+      {
+        "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-03.v1.json",
+        "sha256": "2e3822997c5d8d51e12269168f6f54cafd56e09b68efab9f6edb29e9c6e08b6e"
+      },
+      {
+        "path": "demos/triage-graph/snapback/trusted-composition-activation.json",
+        "sha256": "691354ec47c8a7032fe66b7992e4e9821d2e79d7ca46760f740c372b989bd812"
+      },
+      {
+        "path": "demos/triage-graph/snapback/generated/artifacts.json",
+        "sha256": "57ba0f2731bfa999a617d92d51aabdd51f617253cde1911a627b72a5a2890b44"
+      },
+      {
+        "path": "demos/triage-graph/demo.snapback.json",
+        "sha256": "4cefa0af8fab9471ef867dc6ec0ecd67f1289e94d72f451aa580754e721ff8af"
+      }
+    ]
+  },
+  "partial": false,
+  "summary": {
+    "pass": 16,
+    "gap": 1,
+    "skipped": 0,
+    "capabilityClaimsChanged": false
+  },
+  "legs": [
+    {
+      "leg": "browser-terminate-relaunch",
+      "carrier": "browser-indexeddb-v3",
+      "status": "PASS",
+      "evidence": {
+        "resumeEntryVerifiedBeforeKill": true,
+        "resumeEntryVerifiedAfterRelaunch": true,
+        "materializationProofVerifiedInBrowser": true,
+        "retainedBootProofRevalidated": true,
+        "committedBytes": [
+          91,
+          123,
+          34,
+          95,
+          105,
+          100,
+          34,
+          58,
+          34,
+          98,
+          114,
+          111,
+          119,
+          115,
+          101,
+          114,
+          45,
+          114,
+          101,
+          115,
+          116,
+          97,
+          114,
+          116,
+          34,
+          44,
+          34,
+          118,
+          97,
+          108,
+          117,
+          101,
+          34,
+          58,
+          34,
+          114,
+          101,
+          116,
+          97,
+          105,
+          110,
+          101,
+          100,
+          45,
+          98,
+          114,
+          111,
+          119,
+          115,
+          101,
+          114,
+          45,
+          98,
+          121,
+          116,
+          101,
+          115,
+          34,
+          125,
+          93
+        ],
+        "retainedBytes": [
+          91,
+          123,
+          34,
+          95,
+          105,
+          100,
+          34,
+          58,
+          34,
+          98,
+          114,
+          111,
+          119,
+          115,
+          101,
+          114,
+          45,
+          114,
+          101,
+          115,
+          116,
+          97,
+          114,
+          116,
+          34,
+          44,
+          34,
+          118,
+          97,
+          108,
+          117,
+          101,
+          34,
+          58,
+          34,
+          114,
+          101,
+          116,
+          97,
+          105,
+          110,
+          101,
+          100,
+          45,
+          98,
+          114,
+          111,
+          119,
+          115,
+          101,
+          114,
+          45,
+          98,
+          121,
+          116,
+          101,
+          115,
+          34,
+          125,
+          93
+        ],
+        "durableRegistrationRetained": true,
+        "allocator": [
+          2,
+          3
+        ],
+        "relaunchToReadableMs": 2139.454,
+        "browser": {
+          "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+          "version": "Google Chrome 150.0.7871.187",
+          "executableSha256": "a1d93d90e7ebb90245d225d70334ca6b37b1cbf65ba2f37dd01d3eba0fdd8331"
+        },
+        "profile": {
+          "callerRetained": true,
+          "reused": true,
+          "removedAfterAttestedExits": true
+        },
+        "cleanup": {
+          "firstBrowser": {
+            "pid": 6248,
+            "requestedSignal": "SIGKILL",
+            "processTreeExitAttested": true
+          },
+          "finalBrowser": {
+            "pid": 6907,
+            "requestedSignal": "SIGTERM",
+            "processTreeExitAttested": true
+          },
+          "harnessServerClosed": true
+        }
+      }
+    },
+    {
+      "leg": "two-tabs-one-profile",
+      "carrier": "browser-indexeddb-web-locks-broadcastchannel",
+      "status": "PASS",
+      "evidence": {
+        "suppressionBeforeHello": true,
+        "suppressionAfter": false,
+        "legacyDemandState": "demanded-active",
+        "materializationDemandState": "demanded-active",
+        "retainedMaterializationBytes": [
+          91,
+          123,
+          34,
+          95,
+          105,
+          100,
+          34,
+          58,
+          34,
+          98,
+          114,
+          111,
+          119,
+          115,
+          101,
+          114,
+          45,
+          114,
+          101,
+          115,
+          116,
+          97,
+          114,
+          116,
+          34,
+          44,
+          34,
+          118,
+          97,
+          108,
+          117,
+          101,
+          34,
+          58,
+          34,
+          114,
+          101,
+          116,
+          97,
+          105,
+          110,
+          101,
+          100,
+          45,
+          98,
+          114,
+          111,
+          119,
+          115,
+          101,
+          114,
+          45,
+          98,
+          121,
+          116,
+          101,
+          115,
+          34,
+          125,
+          93
+        ],
+        "retainedFragmentsUnderPressure": 1,
+        "pressure": {
+          "compacted": [],
+          "refused": true,
+          "suppressionActive": false
+        },
+        "writerGeneration": 2
+      }
+    },
+    {
+      "leg": "file-process-terminate-relaunch",
+      "carrier": "node-file-v3-outbox",
+      "status": "PASS",
+      "evidence": {
+        "directoryCarrier": "file-v3-atomic-replace",
+        "boundaries": [
+          {
+            "type": "boundary",
+            "boundary": "before-rename",
+            "pid": 52732,
+            "exit": {
+              "code": null,
+              "signal": "SIGKILL"
+            },
+            "leaderExitObserved": true,
+            "detachedChildHadNoDescendants": true
+          },
+          {
+            "type": "boundary",
+            "boundary": "after-rename-before-directory-sync",
+            "pid": 52782,
+            "exit": {
+              "code": null,
+              "signal": "SIGKILL"
+            },
+            "leaderExitObserved": true,
+            "detachedChildHadNoDescendants": true
+          }
+        ],
+        "priorCut": {
+          "observedVersion": 1,
+          "pendingIntentIds": [
+            "intent-prior"
+          ],
+          "nextAllocatedQueryInstanceId": 2
+        },
+        "successorCut": {
+          "observedVersion": 1,
+          "pendingIntentIds": [
+            "intent-prior",
+            "intent-successor"
+          ],
+          "nextAllocatedQueryInstanceId": 3
+        },
+        "physicalBlobBytes": 1989
+      }
+    },
+    {
+      "leg": "retained-render-server-unreachable",
+      "carrier": "live-backend-plus-node-file-v3",
+      "status": "PASS",
+      "evidence": {
+        "serverBinary": "target/debug/snapback",
+        "serverBinarySha256": "e9f85d8b3761ae6a6a4cc2b10fb001a6720df2babc6751b4bbb4c24a9767fc6a",
+        "launchRung": "configured",
+        "backendStoppedBeforeRelaunch": true,
+        "activationPreparation": {
+          "format": "snapback.composition-activation-preparation.v1",
+          "activationHash": "sha256:9f40994077e2475c6a36edadd2fb36bbe71270a56954bf99563167afe07755e3",
+          "sourceClass": "temporary-backend-source",
+          "next": "rerun Snapback codegen for this backend"
+        },
+        "generatedArtifactGraph": {
+          "trustedActivationPresent": true,
+          "directReferenceIdentity": true
+        },
+        "live": {
+          "answerClass": "authoritative",
+          "freshness": "current",
+          "rows": [
+            {
+              "title": "proof-backed",
+              "authorName": "Ada"
+            }
+          ],
+          "retention": {
+            "retainable": true,
+            "code": null,
+            "reason": null,
+            "store": {
+              "source": "injected",
+              "implementation": "file",
+              "durable": true,
+              "reason": null
+            }
+          }
+        },
+        "relaunch": {
+          "answerClass": "authoritative",
+          "freshness": "retained",
+          "rows": [
+            {
+              "authorName": "Ada",
+              "title": "proof-backed"
+            }
+          ],
+          "firstUpdate": null
+        },
+        "materialization": {
+          "records": 1,
+          "qmk1": "qmk1.4mtXkk3-Lw9DsFsEyA30HOaF3ICbwdEyVQdTFCKqiXU",
+          "freshness": "retained",
+          "fragments": 1,
+          "leaseCustody": 1
+        },
+        "endToEndRenderedByPublicClient": true
+      }
+    },
+    {
+      "leg": "authority-logout",
+      "carrier": "node-public-client-to-file-v3",
+      "status": "PASS",
+      "evidence": {
+        "publicMethod": "SnapbackClient.authLogout",
+        "transitionParticipant": "AuthCoordinator.commitDurable",
+        "nodeLevelBridge": true,
+        "pageLevelBridge": false,
+        "wipeCallsDuringLogout": 1,
+        "retainedAndOutboxClearedBeforeAnonymousResume": true,
+        "clientStoreIdPreserved": true,
+        "allocatorHighWaterPreserved": true,
+        "generationHighWatersPreserved": true,
+        "fenceTombstoneBarrierHighWatersPreserved": true,
+        "storeMetaPolicyProjectionCleared": true,
+        "handleKeyRotated": true,
+        "nextAllocatedQueryInstanceId": 3,
+        "siblingIdentityBlobs": {
+          "before": 2,
+          "after": 1
+        },
+        "destroyedSiblingReopenedWithFreshIdentity": true
+      }
+    },
+    {
+      "leg": "authority-user-switch",
+      "carrier": "node-file-v3-multi-identity",
+      "status": "PASS",
+      "evidence": {
+        "blobsBefore": 2,
+        "blobsAfter": 1,
+        "wipingIdentityPreserved": true,
+        "handleKeyRotated": true,
+        "destroyedSiblingReopenedWithFreshIdentity": true
+      }
+    },
+    {
+      "leg": "authority-revocation",
+      "carrier": "node-file-v3-materialization",
+      "status": "PASS",
+      "evidence": {
+        "effectiveDisposition": "quarantine",
+        "queryGeneration": 2
+      }
+    },
+    {
+      "leg": "authority-lease-expiry",
+      "carrier": "browser-indexeddb-v3-materialization",
+      "status": "PASS",
+      "evidence": {
+        "suppliedLeaseStatus": "expired",
+        "deleteAppliedAtRetainedBoot": true,
+        "fragments": 0,
+        "renderedBytes": 0
+      }
+    },
+    {
+      "leg": "authority-artifact-change",
+      "carrier": "browser-indexeddb-v3-materialization",
+      "status": "PASS",
+      "evidence": {
+        "mismatchedTrustedActivation": true,
+        "deleteAppliedAtRetainedBoot": true,
+        "fragments": 0,
+        "renderedBytes": 0
+      }
+    },
+    {
+      "leg": "authority-corrupt-store-recovery",
+      "carrier": "node-file-v3",
+      "status": "PASS",
+      "evidence": {
+        "refusal": "SNAPBACK_RQS_STORE_CORRUPT",
+        "ordinaryWipeRefused": true,
+        "originalBytesSeenByBarrierHook": true,
+        "storeIdentityRotated": true,
+        "replacementFormat": "snapback-rqs-store-file.v3"
+      }
+    },
+    {
+      "leg": "authority-corrupt-store-recovery",
+      "carrier": "browser-indexeddb-v3",
+      "status": "PASS",
+      "evidence": {
+        "refusal": "SNAPBACK_RQS_STORE_CORRUPT",
+        "hookSawMalformed": true,
+        "reset": {
+          "reset": true,
+          "previousClientStoreId": "browser-corrupt-predecessor",
+          "clientStoreId": "cs1_02020202020202020202020202020202"
+        },
+        "formatVersion": 3
+      }
+    },
+    {
+      "leg": "authority-revocation",
+      "carrier": "browser-indexeddb-v3-materialization",
+      "status": "PASS",
+      "evidence": {
+        "disposition": "delete",
+        "fragments": 0,
+        "renderedBytes": 0
+      }
+    },
+    {
+      "leg": "bounded-custody-query-churn",
+      "carrier": "node-file-v3",
+      "status": "PASS",
+      "evidence": {
+        "limits": {
+          "materializationByteCeiling": 33554432,
+          "materializationRecordCeiling": 256,
+          "materializationFragmentCeiling": 1024,
+          "durableRegistrationCeiling": 512,
+          "registrationByteCeiling": 16384,
+          "graceDefaultMs": 1209600000,
+          "establishmentConcurrency": 4,
+          "heartbeatIntervalMs": 15000,
+          "heartbeatExpiryMs": 45000,
+          "liveContextCeiling": 64,
+          "livePairCeiling": 128,
+          "reapedContextCeiling": 256,
+          "consumedRequestCeiling": 1024,
+          "releasedRegistrationCeiling": 1024,
+          "identifierByteCeiling": 64,
+          "messageByteCeiling": 262144
+        },
+        "attemptedMaterializations": 257,
+        "retainedMaterializationRecords": 256,
+        "recordCapRefusal": "SNAPBACK_MATERIALIZATION_BUDGET_EXCEEDED",
+        "logicalBytesBefore": 38804851,
+        "logicalBytesAfter": 32506933,
+        "physicalBytesBefore": 52174492,
+        "physicalBytesAfter": 43897233,
+        "compactedAddressKeys": [
+          "qmk1.CysAIfWyF3jTx0wqKc4pYMwIlIjX44GpNadmi3iUe3A",
+          "qmk1.Jk32Yja9SmdgljkWdOmeZfMA5vz5sbyHRurF7ezyeNs",
+          "qmk1.ZMVmFhS3mUdzLuNBhEzlVz__MYx0tZKhNTz96L8LyXI",
+          "qmk1.veJXKVBkpggsacdvjJnYnX00hT3zerRRib41vtYDyKY",
+          "qmk1.T7YjSIWML2-9bbJ_pMEe3YVZEZhp0QNOK9M5D9krGgQ",
+          "qmk1.P6tcGBvSigm2Q5ffdq4r-vHqwYKXm1_bejQoWABPNq8"
+        ],
+        "compactionOrder": {
+          "undemandedAddressByteOrder": [
+            "qmk1.CysAIfWyF3jTx0wqKc4pYMwIlIjX44GpNadmi3iUe3A",
+            "qmk1.Jk32Yja9SmdgljkWdOmeZfMA5vz5sbyHRurF7ezyeNs",
+            "qmk1.ZMVmFhS3mUdzLuNBhEzlVz__MYx0tZKhNTz96L8LyXI",
+            "qmk1.veJXKVBkpggsacdvjJnYnX00hT3zerRRib41vtYDyKY"
+          ],
+          "thenIdle": "qmk1.T7YjSIWML2-9bbJ_pMEe3YVZEZhp0QNOK9M5D9krGgQ",
+          "thenPinned": "qmk1.P6tcGBvSigm2Q5ffdq4r-vHqwYKXm1_bejQoWABPNq8",
+          "activePreserved": "qmk1.loeWEWUPgKgTkqUuDbmwI3ZpCHxFGOHBMOVBpQXg7u8"
+        },
+        "activePayloadBytes": 32506933,
+        "membershipRecordsAfter": 0,
+        "legacyEnvelope": {
+          "verified": true,
+          "version": 7,
+          "token": "sbrt1.carrier-exit.7"
+        },
+        "maintenanceMs": 158299.897
+      }
+    },
+    {
+      "leg": "bounded-custody-query-churn",
+      "carrier": "browser-indexeddb-v3",
+      "status": "PASS",
+      "evidence": {
+        "injectedLimits": {
+          "byteCeiling": 1048576,
+          "recordCeiling": 32,
+          "fragmentCeiling": 2
+        },
+        "committedRecords": 6,
+        "retainedPayloadRecords": 2,
+        "retainedFragments": 2,
+        "compactedStubs": 4,
+        "durableRegistrations": 6,
+        "compactionCount": 4,
+        "allocatorHighWater": 6,
+        "commits": [
+          {
+            "queryInstanceId": 1,
+            "registration": {
+              "committed": true
+            }
+          },
+          {
+            "queryInstanceId": 2,
+            "registration": {
+              "committed": true
+            }
+          },
+          {
+            "queryInstanceId": 3,
+            "registration": {
+              "committed": true
+            }
+          },
+          {
+            "queryInstanceId": 4,
+            "registration": {
+              "committed": true
+            }
+          },
+          {
+            "queryInstanceId": 5,
+            "registration": {
+              "committed": true
+            }
+          },
+          {
+            "queryInstanceId": 6,
+            "registration": {
+              "committed": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "leg": "footprint-hydration-triage",
+      "carrier": "move-1-successor-app",
+      "status": "PASS",
+      "evidence": {
+        "applicationExists": true,
+        "controlledRun": {
+          "receipt": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-03.v1.json",
+          "sourceRevision": "f47abcfb982a61a003da2f45a42864f622d279df",
+          "activationHash": "sha256:b8a2d109d816b0ef55000e56ee40cfe06a1556a0ec61263253f5573a25074dc1",
+          "gatesPassed": 8
+        },
+        "currentSuccessorActivation": {
+          "artifact": "demos/triage-graph/snapback/trusted-composition-activation.json",
+          "activationHash": "sha256:24a7913ae52d4face25a851fb39b8c4dd09ae9bb810d9878417863b1a753043d",
+          "deploymentId": "triage-graph-p3-controlled-run"
+        },
+        "budgetFreeze": {
+          "artifact": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-03.v1.json",
+          "controlledWorkload": {
+            "baselineEvents": 249000,
+            "updateBurst": 1000,
+            "totalEvents": 250000
+          },
+          "measured": {
+            "custody": {
+              "materializationRecords": 21,
+              "payloadBearingRecords": 21,
+              "volatileSnapshotRecords": 20,
+              "fragments": 21,
+              "storedResultRows": 120,
+              "authoritativeRetainedRows": 100,
+              "logicalBytes": 48016,
+              "resultBytes": 21561,
+              "proofBytes": 26455,
+              "durableRegistrations": 1,
+              "registrationBytes": 612,
+              "leaseRecords": 1,
+              "physicalCarrierBytes": 124572
+            },
+            "hydration": {
+              "attempts": 1,
+              "rowsInstalled": 100,
+              "payloadBytes": 14981,
+              "elapsedMs": 122.919
+            }
+          },
+          "frozenCeilings": {
+            "custody": {
+              "materializationRecords": 21,
+              "payloadBearingRecords": 21,
+              "volatileSnapshotRecords": 20,
+              "fragments": 21,
+              "storedResultRows": 120,
+              "authoritativeRetainedRows": 100,
+              "logicalBytes": 48016,
+              "durableRegistrations": 1,
+              "registrationBytes": 612,
+              "leaseRecords": 1
+            },
+            "hydration": {
+              "attempts": 1,
+              "rowsInstalled": 100,
+              "payloadBytes": 14981,
+              "elapsedMs": 1000
+            }
+          }
+        }
+      }
+    },
+    {
+      "leg": "footprint-hydration-fleet",
+      "carrier": "move-1-successor-app",
+      "status": "GAP",
+      "evidence": {
+        "applicationExists": false,
+        "measurements": null,
+        "blocker": "LLP 0135 OQ5 relational-node successor"
+      },
+      "reason": "SNAPBACK_CARRIER_EXIT_FLEET_SUCCESSOR_BLOCKED: the Move-1 Fleet application does not exist and remains blocked on LLP 0135 OQ5 relational-node admission"
+    },
+    {
+      "leg": "bundle-attribution",
+      "carrier": "full-client-store-closure",
+      "status": "PASS",
+      "evidence": {
+        "artifact": "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json",
+        "minifiedBytes": 592353,
+        "measuredModuleOwnBytes": 112093,
+        "modules": 9,
+        "browserClosureQualification": {
+          "status": "PASS",
+          "materializationStoreResolved": true,
+          "resolved": true,
+          "outputBytes": 69657,
+          "externalImports": []
+        }
+      }
+    }
+  ]
+}

@@ -5,7 +5,11 @@
 **Systems:** Application data API, Client SDK, Client integration, Realtime, Local sync, Offline sync, Relational queries, Optimistic updates, Storage, Auth, Conflict handling, Developer experience, Testing, Competitive analysis
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-02
-**Revised:** 2026-08-03 (§Move 2 Query-execution dated note landed with
+**Revised:** 2026-08-04 (Move 3's generated-mutation-IR exit deliberately
+evolves the shipped Full/root bundle workload. LLP 0063's immutable-baseline
+rule therefore applies through a prospective workload-version rollover of the
+exact affected profiles, retaining the local-read-admission receipt as the
+hashed predecessor; no historical ceiling is loosened.) 2026-08-03 (§Move 2 Query-execution dated note landed with
 Accepted LLP 0166, the Move-2 owning Spec: v1 local evaluation is the
 closed `result-transform.v1` profile; same-plan source-row evaluation is
 deliberately deferred behind this RFC's OQ2 gate.) 2026-08-02 (Accepted by Charlie Cheever at v0.4 after the
@@ -877,6 +881,12 @@ Latency Kanban is the common-path witness:
 - reload during pending settlement is loss-free; and
 - source identity, local evaluation, server settlement, and observer
   convergence are separately receipted.
+
+The generated-mutation-IR exit is also a deliberate bundle workload-version
+change under LLP 0063 and LLP 0145. Its first attributed run freezes a new
+prospective ceiling for exactly the Full/root profiles whose closure now
+contains generated mutation execution; every unaffected profile remains
+bound to its prior ceiling, and the predecessor receipt remains immutable.
 
 ## Move 4 — Typed optimistic creation and intent reconciliation
 

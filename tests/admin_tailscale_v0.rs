@@ -274,12 +274,11 @@ fn tailscale_receipts_are_reference_counted_compare_deleted_and_stale_swept() {
         count_lines(&fake.log(), |line| line.contains("serve --bg")),
         1
     );
-    assert_eq!(
+    assert!(
         fake.state()["Web"][format!("{DNS_NAME}:443")]["Handlers"]["/_snapback"]["Proxy"]
             .as_str()
             .unwrap()
-            .starts_with("http://127.0.0.1:"),
-        true
+            .starts_with("http://127.0.0.1:")
     );
 
     let directory_mode = std::fs::metadata(&fake.receipts)

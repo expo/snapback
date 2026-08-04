@@ -9449,13 +9449,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:0a5a9704526ef083bde6c0ec997936013487746d511c2f7115b22803c1c8a16a";
+    "sha256:ed55bd2b1b800594ad9e4b9e955ee9fce18c4f857237b1b32516865dcf02919e";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:1df7a947b6a71e100dccce45b8e65eff40c28f6e51c2d1b797630e3a775d0d46";
+    "sha256:6560a24997dd07101f131f3f9e677a69da96866f56981577258d227fd67f20f9";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 
@@ -9549,12 +9549,12 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:ff2c78e315ce1fbb786cb0b700f6df5bf3651e03b609a300d1ca7a565212a6aa"
+                    "sha256:0e805dc28080ee8b3930ed998bc2931e1933d61ae6a50b420e4b92bf8ed7f241"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:79df8cce872e8bfb62b3e9702cddb96a97bea28a87d185d311c7c3430cbab728"
+                    "sha256:046f2a9e2274825b7c85ded21dd6cad9c0d0f67e77dd2105efd2cec5f2d3fd63"
                         .to_owned(),
                 ),
             ])
@@ -9617,7 +9617,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:79df8cce872e8bfb62b3e9702cddb96a97bea28a87d185d311c7c3430cbab728"
+                    "sha256:046f2a9e2274825b7c85ded21dd6cad9c0d0f67e77dd2105efd2cec5f2d3fd63"
                         .to_owned(),
                 ),
             ])

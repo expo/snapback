@@ -162,6 +162,58 @@ const LOCAL_STORE_PRIMARY_PREDECESSOR_PROFILE_IDS = Object.freeze(
     ...LOCAL_STORE_SUPPLEMENTAL_PREDECESSOR_PROFILE_IDS,
   ].includes(id)),
 );
+const LOCAL_READ_ADMISSION_ROLLOVER_PROFILE_IDS = Object.freeze([
+  ...LOCAL_STORE_ROLLOVER_PROFILE_IDS,
+  'public-subpath-ir-evaluator',
+  'public-subpath-local-read-admission',
+  'public-subpath-optimistic-rebase',
+  'public-subpath-outbox-shared',
+]);
+const GENERATED_MUTATION_IR_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'app-data-operation-live',
+  'external-react-application',
+  'full-operation-call',
+  'full-operation-live',
+  'full-public-surface',
+  'full-sessions',
+  'micro-root-negative',
+  'online-operation-live',
+  'public-subpath-app-data',
+  'public-subpath-hosted-browser',
+  'public-subpath-local-read-admission',
+  'public-subpath-online',
+  'public-subpath-optimistic-rebase',
+  'public-subpath-push-registry',
+  'public-subpath-root',
+  'public-subpath-vector-search',
+  'push-registry-attach',
+  'push-registry-root-negative',
+  'react-external',
+]);
+const OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'app-data-operation-live',
+  'full-operation-call',
+  'full-operation-live',
+  'full-public-surface',
+  'full-sessions',
+  'micro-root-negative',
+  'online-operation-live',
+  'public-subpath-app-data',
+  'public-subpath-hosted-browser',
+  'public-subpath-online',
+  'public-subpath-push-registry',
+  'public-subpath-root',
+  'public-subpath-vector-search',
+  'push-registry-attach',
+  'push-registry-root-negative',
+]);
+const FINITE_CARRIER_COMPLETENESS_ROLLOVER_PROFILE_IDS = Object.freeze([
+  ...OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS,
+  'public-subpath-materialization-store',
+]);
+const ROWLESS_RQS_RESUME_ROLLOVER_PROFILE_IDS = Object.freeze([
+  ...OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS,
+]);
 const ROLLOVER_LEDGER_SPECS = Object.freeze([
   Object.freeze({
     filename: 'baseline.local-persistent-store.v1.json',
@@ -205,6 +257,148 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/answer-classes.test.mjs']],
       ['node', ['packages/snapback-client/evaluation-floor.test.mjs']],
       ['node', ['packages/snapback-client/lease-convergence.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.local-read-admission.v1.json',
+    profileFilename: 'local-read-admission-profiles.v1.json',
+    workloadVersion: 'llp-0155-move3-phase1.v1',
+    profileIds: LOCAL_READ_ADMISSION_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.local-persistent-store.v1.json',
+        profileIds: LOCAL_STORE_ROLLOVER_PROFILE_IDS,
+      }),
+      Object.freeze({
+        filename: 'baseline.v1.json',
+        profileIds: Object.freeze(['public-subpath-outbox-shared']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0155#execution-contract',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/ir-evaluator.test.mjs']],
+      ['node', ['packages/snapback-client/optimistic-rebase.test.mjs']],
+      ['node', ['packages/snapback-client/optimistic-rebase-acceptance.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store-v3.test.mjs']],
+      ['node', ['packages/snapback-client/materialization-store.test.mjs']],
+      ['node', ['packages/snapback-client/registration-ledger.test.mjs']],
+      ['node', ['packages/snapback-client/answer-classes.test.mjs']],
+      ['node', ['packages/snapback-client/evaluation-floor.test.mjs']],
+      ['node', ['packages/snapback-client/lease-convergence.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.generated-mutation-ir.v1.json',
+    profileFilename: 'generated-mutation-ir-profiles.v1.json',
+    workloadVersion: 'llp-0155-generated-mutation-ir.v1',
+    profileIds: GENERATED_MUTATION_IR_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.local-read-admission.v1.json',
+        profileIds: GENERATED_MUTATION_IR_ROLLOVER_PROFILE_IDS,
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0155#execution-contract',
+      'LLP 0155#acceptance-gate',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/generated-mutation-ir.test.mjs']],
+      ['node', ['packages/snapback-client/local-read-admission.test.mjs']],
+      ['node', ['packages/snapback-client/optimistic-rebase.test.mjs']],
+      ['node', ['packages/snapback-client/optimistic-rebase-acceptance.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.offline-unavailable.v1.json',
+    profileFilename: 'offline-unavailable-profiles.v1.json',
+    workloadVersion: 'llp-0166-offline-unavailable.v1',
+    profileIds: OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.generated-mutation-ir.v1.json',
+        profileIds: OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS,
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0166#d4--completeness-honest-local-answers',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/argument-validation.test.mjs']],
+      ['node', ['packages/snapback-client/materialization-bridge.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.finite-carrier-completeness.v1.json',
+    profileFilename: 'finite-carrier-completeness-profiles.v1.json',
+    workloadVersion: 'llp-0093-0094-finite-carrier-completeness.v1',
+    profileIds: FINITE_CARRIER_COMPLETENESS_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.offline-unavailable.v1.json',
+        profileIds: OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS,
+      }),
+      Object.freeze({
+        filename: 'baseline.local-read-admission.v1.json',
+        profileIds: Object.freeze(['public-subpath-materialization-store']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0093#finite-carrier-completeness-amendment--2026-08-04',
+      'LLP 0094#llp-0157-finite-carrier-completeness-amendment--2026-08-04',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/materialization-store.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.rowless-rqs-resume.v1.json',
+    profileFilename: 'rowless-rqs-resume-profiles.v1.json',
+    workloadVersion: 'llp-0091-rowless-rqs-resume-ordering.v1',
+    profileIds: ROWLESS_RQS_RESUME_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.finite-carrier-completeness.v1.json',
+        profileIds: ROWLESS_RQS_RESUME_ROLLOVER_PROFILE_IDS,
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0091#0b2-currentasof-envelope',
+      'LLP 0091#0b3-client-transition-table',
+      'LLP 0091#0b4-token-resume-wire-naming-and-dispatch-against-the-reattach-route',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-resume.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-resume-memory.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-resume-expo.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-resume-native.test.mjs']],
     ]),
   }),
 ]);
@@ -943,7 +1137,13 @@ function activeBaselineEntries(
   rollovers,
   { retireSpecs = rollovers.map(({ spec }) => spec) } = {},
 ) {
-  const historical = historicalBaselineEntries(baseline, supplementals);
+  const historical = [
+    ...historicalBaselineEntries(baseline, supplementals),
+    ...rollovers.map(({ spec, baseline: rollover }) => ({
+      filename: spec.filename,
+      baseline: rollover,
+    })),
+  ];
   const historicalByFilename = new Map(historical.map((entry) => [entry.filename, entry]));
   const supersededByFilename = new Map();
   for (const spec of retireSpecs) {
@@ -972,10 +1172,6 @@ function activeBaselineEntries(
           (profile) => !supersededByFilename.get(entry.filename)?.has(profile.id),
         ),
       },
-    })),
-    ...rollovers.map(({ spec, baseline: rollover }) => ({
-      filename: spec.filename,
-      baseline: rollover,
     })),
   ];
 }
@@ -1015,12 +1211,17 @@ function withSavings(report, baseline, supplementals, rollovers) {
   };
 }
 
-function readSupplementalBaselines() {
-  return SUPPLEMENTAL_LEDGER_SPECS.map((spec) => {
+function readSupplementalBaselines({ allowMissing = false } = {}) {
+  const entries = [];
+  for (const spec of SUPPLEMENTAL_LEDGER_SPECS) {
     const path = join(FIXTURE_DIR, spec.filename);
-    if (!existsSync(path)) fail(`${spec.filename} is missing`);
-    return { spec, baseline: readJson(path) };
-  });
+    if (!existsSync(path)) {
+      if (allowMissing) continue;
+      fail(`${spec.filename} is missing`);
+    }
+    entries.push({ spec, baseline: readJson(path) });
+  }
+  return entries;
 }
 
 function readRolloverBaselines({ allowMissing = false } = {}) {
@@ -1088,13 +1289,17 @@ if (!existsSync(BASELINE_PATH)) fail('baseline.v1.json is missing');
 const baseline = readJson(BASELINE_PATH);
 validateMainBaseline(report, baseline);
 if (mode === '--check-primary') {
+  const supplementals = readSupplementalBaselines({ allowMissing: true });
+  for (const { spec, baseline: supplemental } of supplementals) {
+    validateSupplementalBaseline(report, spec, supplemental);
+  }
   const rollovers = readRolloverBaselines({ allowMissing: true });
   for (const { spec, baseline: rollover } of rollovers) {
     validateRolloverBaseline(report, spec, rollover);
   }
   compareProfiles(
     report,
-    activeBaselineEntries(baseline, [], rollovers).map((entry) => entry.baseline),
+    activeBaselineEntries(baseline, supplementals, rollovers).map((entry) => entry.baseline),
     { requireComplete: false },
   );
   const additions = assertExactProspectiveAdditions(report, baseline);
@@ -1102,13 +1307,17 @@ if (mode === '--check-primary') {
   process.exit(0);
 }
 if (mode === '--write-supplemental-baseline') {
+  const supplementals = readSupplementalBaselines({ allowMissing: true });
+  for (const { spec, baseline: supplemental } of supplementals) {
+    validateSupplementalBaseline(report, spec, supplemental);
+  }
   const rollovers = readRolloverBaselines({ allowMissing: true });
   for (const { spec, baseline: rollover } of rollovers) {
     validateRolloverBaseline(report, spec, rollover);
   }
   compareProfiles(
     report,
-    activeBaselineEntries(baseline, [], rollovers).map((entry) => entry.baseline),
+    activeBaselineEntries(baseline, supplementals, rollovers).map((entry) => entry.baseline),
     { requireComplete: false },
   );
   const additions = assertExactProspectiveAdditions(report, baseline);
@@ -1122,8 +1331,8 @@ if (mode === '--write-supplemental-baseline') {
   const selected = additions.filter((profile) => spec.profileIds.includes(profile.id));
   const supplemental = compactSupplementalBaseline(report, spec, selected);
   writeFileSync(join(FIXTURE_DIR, spec.filename), stableJson(supplemental));
-  const supplementals = readSupplementalBaselines();
-  writeFileSync(CURRENT_PATH, stableJson(withSavings(report, baseline, supplementals, rollovers)));
+  const frozenSupplementals = readSupplementalBaselines();
+  writeFileSync(CURRENT_PATH, stableJson(withSavings(report, baseline, frozenSupplementals, rollovers)));
   console.log(`client bundle additive baseline frozen in ${spec.filename}: ${selected.length} profiles`);
   process.exit(0);
 }

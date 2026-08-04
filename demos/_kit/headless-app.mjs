@@ -37,12 +37,20 @@ export async function openHeadlessApp(metaUrl, {
   });
   const provisioner = new SnapbackClient(server.baseUrl, server.clientOptions);
   const routesPath = join(generatedDir, 'routes.manifest.json');
-  const provisioned = await provisioner.ensureApp({
-    schema: generated('schema.manifest.json'),
-    functions: generated('functions.manifest.json'),
-    seed: readJson(join(backendDir, 'seed.json')),
-    ...(existsSync(routesPath) ? { routes: readJson(routesPath) } : {}),
-  });
+  let provisioned;
+  try {
+    provisioned = await provisioner.ensureApp({
+      schema: generated('schema.manifest.json'),
+      functions: generated('functions.manifest.json'),
+      seed: readJson(join(backendDir, 'seed.json')),
+      ...(existsSync(routesPath) ? { routes: readJson(routesPath) } : {}),
+    });
+  } finally {
+    // @ref LLP 0166#writer-discipline-and-format-versioning — the fresh
+    // product client may not write until the provisioning client's owned
+    // file-store lease has been released.
+    await provisioner.closeAuth();
+  }
   // Provisioning changes the app/auth generation. Start product traffic from
   // a fresh client so no pre-provision handshake or connection cache can cross
   // that boundary.
@@ -60,6 +68,9 @@ export async function openHeadlessApp(metaUrl, {
     provisioned,
     repoRoot,
     server,
-    close: () => server.stop(),
+    close: async () => {
+      await client.closeAuth();
+      await server.stop();
+    },
   };
 }

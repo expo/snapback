@@ -212,8 +212,7 @@ fn preferred_interface_address(candidates: &[LanCandidate]) -> Option<LanCandida
     }
     candidates
         .iter()
-        .filter(|candidate| matches!(candidate.address, IpAddr::V4(_)))
-        .next()
+        .find(|candidate| matches!(candidate.address, IpAddr::V4(_)))
         .or_else(|| candidates.first())
         .cloned()
 }
@@ -474,10 +473,10 @@ fn relay_path_policy(
             "the master console-credential exchange is not published by the LAN relay",
         ));
     }
-    if method == Method::OPTIONS {
-        if path == RELAY_CLAIM_EXCHANGE_PATH || path.starts_with("/_snapback/api/") {
-            return Ok(RelayPathPolicy::Preflight);
-        }
+    if method == Method::OPTIONS
+        && (path == RELAY_CLAIM_EXCHANGE_PATH || path.starts_with("/_snapback/api/"))
+    {
+        return Ok(RelayPathPolicy::Preflight);
     }
     if (path == "/_snapback/admin" || path.starts_with("/_snapback/admin/"))
         && matches!(*method, Method::GET | Method::HEAD)
@@ -1308,8 +1307,8 @@ fn sweep_stale_tailscale_owners(
             "{}.owner-{owner}",
             tailscale_receipt_identity(&receipt.host_port)
         ));
-        match open_owner_for_sweep(&path)? {
-            Some(file) => match fs2::FileExt::try_lock_exclusive(&file) {
+        if let Some(file) = open_owner_for_sweep(&path)? {
+            match fs2::FileExt::try_lock_exclusive(&file) {
                 Ok(()) => {
                     let _ = fs2::FileExt::unlock(&file);
                     drop(file);
@@ -1321,8 +1320,7 @@ fn sweep_stale_tailscale_owners(
                         "SNAPBACK_ADMIN_TAILSCALE_RECEIPT_UNAVAILABLE: could not inspect owner lock: {error}"
                     ));
                 }
-            },
-            None => {}
+            }
         }
     }
     receipt.owners = live;
@@ -1432,6 +1430,6 @@ mod tests {
         let url = "http://192.168.1.4:49152/_snapback/admin/#claim=sbcl_Aa00";
         let rendered = render_terminal_qr(url).unwrap();
         assert!(rendered.contains(['▀', '▄', '█', ' ']));
-        assert_eq!(QrCode::new(url.as_bytes()).unwrap().width() > 0, true);
+        assert!(QrCode::new(url.as_bytes()).unwrap().width() > 0);
     }
 }

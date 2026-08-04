@@ -62,6 +62,27 @@ store is the first such workload version; its declarative inventory lives in
 `local-persistent-store-profiles.v1.json` and its frozen receipt lives in
 `baseline.local-persistent-store.v1.json`.
 
+Move 3's local-read-admission workload is the next rollover, followed by the
+generated-mutation-IR workload that changed the shipped Full/root closures at
+the M4 exit. Their declarative inventories are
+`local-read-admission-profiles.v1.json` and
+`generated-mutation-ir-profiles.v1.json`; each receipt retains its complete
+predecessor by digest rather than rewriting an earlier ceiling.
+
+The typed offline-unavailable refusal that implements LLP 0166 D4 changes
+only the Full/root profiles that contain the public client entry. Its
+`offline-unavailable-profiles.v1.json` declaration rolls those exact profiles
+forward from the generated-mutation-IR receipt; the M4-only and unaffected
+ceilings remain active.
+
+The LLP 0093/0094 finite-carrier completeness implementation then adds client
+proof verification to those same Full/root closures and to the public
+materialization-store subpath. Its
+`finite-carrier-completeness-profiles.v1.json` declaration rolls the shared
+closures forward from the offline-unavailable receipt and the store-only
+closure forward from the local-read-admission receipt. Both predecessors stay
+immutable and independently provenance-valid.
+
 The OQ2 extension is `baseline.push-installation-expo.v1.json`, backed by
 `push-installation-expo-profiles.v1.json`. It freezes the optional Expo
 installation-storage subpath independently, including a closure assertion that

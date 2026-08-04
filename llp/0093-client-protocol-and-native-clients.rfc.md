@@ -789,6 +789,17 @@ absent for old callers; a caller sends it only when it is prepared to consume
 the proof contract. No capability row or wire-version identity moves in this
 amendment.
 
+### 2026-08-04 bundle-metrology receipt boundary
+
+The shipped client verifier intentionally changes the measured Full/root
+closures that already contain the public client entry and the public
+materialization-store subpath. LLP 0063 and LLP 0145 therefore require a
+prospective workload-version rollover for exactly those 16 profiles. The 15
+shared closures name the typed offline-unavailable receipt as predecessor; the
+store-only closure names the local-read-admission receipt. Both historical
+receipts remain immutable, and every unaffected profile retains its existing
+active ceiling.
+
 ## Alternatives considered
 
 - **Extend LLP 0064 instead of a new RFC.** 0064 defines surface

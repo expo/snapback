@@ -16,6 +16,21 @@ export { formatCodegenSummary } from './codegen-summary.mjs';
 /** Canonical sorted projection of Rust's registry-owned experimental ids. */
 export function experimentalTargetCapabilityIdsCanonicalJson(): string;
 
+/**
+ * Validates the closed, server-prepared trust root before codegen publishes it.
+ * The returned value is the same candidate, preserving its caller-known shape.
+ */
+export function validateTrustedCompositionActivationV1<
+  const Activation extends Readonly<Record<string, unknown>>,
+>(
+  candidate: Activation,
+  options: Readonly<{
+    expectedGeneration: unknown;
+    targetProfileId: string;
+    authMode: string;
+  }>,
+): Activation;
+
 export interface CodegenDiagnostic {
   readonly code: string;
   readonly severity: 'error' | 'warning' | 'info';

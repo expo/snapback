@@ -30,3 +30,34 @@ edit LLP 0166 or change a capability/status claim.
 The build diary is `diaries/0054-triage-graph-successor.diary.md`. Follow-ups
 are `issues/20260803-guide-gap-p2-materialization-retention.md` and
 `issues/20260803-relational-query-projection-result-typing.md`.
+
+## 2026-08-04 wave-drift note
+
+The batched main-proof regeneration pass added Triage Graph to
+`scripts/check-generated-artifacts`, where a clean regeneration now refuses
+before writing with `TRUSTED_COMPOSITION_ACTIVATION_INVALID`: the committed
+`trusted-composition-activation.json` no longer binds the generation derived
+at main `640bae8db90b9fc6f4b9acef6dfbad9d9dad7b11` after the
+relational-result-contract and later sessions-callback landings. This is an active Triage/P1–P3 authority artifact, not a
+mechanical review-manifest refresh, so the drift pass has not reminted or
+weakened it. Its owner must prepare the successor activation through the
+existing trusted-composition machinery; until then the generated-artifact gate
+and therefore local-proof remain honestly red.
+
+## 2026-08-04 wave-drift resolution
+
+After P3 closed, the batch drift pass used that exact machinery rather than
+editing or weakening the trusted record. The coded Ibex bootstrap linked,
+launched, and handler-VM-qualified the current clean source at `610b21105`.
+Codegen then produced the unactivated current manifest pair; the built
+`snapback composition-activation-prepare` command created a server-owned key
+in a task-local database and prepared the successor for deployment
+`triage-graph-p3-controlled-run`; ordinary codegen validated and published the
+result. The task-local database and private keyring were deleted afterward;
+only the public trusted activation and its review manifest are retained.
+
+The successor activation hash is
+`sha256:24a7913ae52d4face25a851fb39b8c4dd09ae9bb810d9878417863b1a753043d`.
+Triage generation and the 22-demo provisioning inventory now pass. This
+closes the dated handoff above without fabricating authority or bypassing the
+P1/P3 preparation boundary.
