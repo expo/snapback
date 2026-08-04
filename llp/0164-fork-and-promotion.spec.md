@@ -5,14 +5,29 @@
 **Systems:** Storage, Runtime, Effects, Auth, Agent experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (contention/rebase acceptance-tail increment — v1
+**Revised:** 2026-08-04 (real strict-promotion contention corpus — concurrent
+host ticket issuance now serializes identity revalidation, FIFO allocation,
+and lease custody under `BEGIN IMMEDIATE`; promotion automatically takes the
+bounded reservation after R fresh losses, rechecks FIFO/head/ticket authority
+inside its immediate canonical transaction, records an admission-race loss
+durably, and rolls back if the ticket, reservation, or maximum commit interval
+expires. File-backed k=2–4 fixtures issue approvals, run every reviewed fork
+against concurrent ordinary canonical writers, inherit tickets and approvals
+through fresh-fork replay, and reach all-k progress in FIFO order under the
+declared finite-replay/arrival/TTL/quota terms. Reservation, admission,
+commit-before-response, and release crash/reopen cuts are green. This closes
+the real concurrency/fairness/crash leg only: provisional/transitive effect
+settlement, global coverage, p99/absolute performance gates, review,
+publication, and author acceptance remain open; status stays Draft and all
+capabilities stay `Missing`); 2026-08-04 (contention/rebase acceptance-tail increment — v1
 admission now requires one frozen production policy: R=2 consecutive losses,
 a 1,000-ms reservation, quota=1, and a 500-ms maximum commit duration. The
 corpus covers drifted-policy refusal, FIFO quota/defer/release, exhausted-budget
 refusal before canonical mutation, and identical-write divergence in read or
-result facts. Real concurrent-writer fairness/crash evidence, conditional
-progress, provisional/transitive effects, p99, and publication remain open;
-status stays Draft and capabilities stay `Missing`); 2026-08-04 (managed runtime
+result facts. This increment froze the policy terms; the later same-day record
+above supplies the real concurrent-writer fairness/crash evidence. Provisional
+effects, p99, and publication remain open; status stays Draft and capabilities
+stay `Missing`); 2026-08-04 (managed runtime
 and acceptance-tail checkpoint — the local target now has server-owned,
 crash-reconciled branch custody behind the production `AdminWrite` gate,
 executable-head credential scrubbing, deterministic TTL reap, and exhaustive
@@ -315,11 +330,53 @@ and rebase re-seal refusal when identical writes mask changed read or result
 facts. This freezes the terms but does not itself prove conditional progress
 under real concurrent writers, the crash matrix, or p99 latency.
 
+### Real contention and crash/reopen increment — 2026-08-04
+
+Ticket issuance is now one immediate transaction across host-identity
+authentication, idempotent reuse, FIFO sequence allocation, and host-lease
+registration. A durable `reservation_loss_floor` separates total rebase-budget
+losses from losses since the prior reservation: expiry alone cannot let one
+ticket continuously reacquire writer-deferral authority. The FIFO head
+automatically reserves after R new losses; promotion then rechecks live FIFO
+authority and the canonical head under `BEGIN IMMEDIATE`, records a writer-won
+admission race as a durable loss, and refuses before commit if its ticket,
+reservation, or maximum interval expires.
+
+`concurrent_ticket_issuance_serializes_into_one_durable_fifo` launches four
+file-backed issuers and reopens a contiguous durable FIFO.
+`concurrent_reviewed_forks_make_bounded_fifo_progress_with_ordinary_writers`
+runs k=2, 3, and 4. Each population has approvals and review seals before
+admission; two independently opened ordinary canonical writer transactions run
+during every successful cycle through the same in-transaction production
+reservation gate used by HostPlan and Buffered writers. Losing forks rebase
+into fresh branches, preserve the original approval and admission identity only
+when the full approved-facts digest matches, incur real advanced-head losses,
+and the later FIFO heads automatically consume the bounded reservation. Every
+population completes in FIFO order in at most k success cycles under the
+declared finite-replay, below-capacity-arrival, sufficient-TTL, and sufficient-
+quota fixture terms.
+
+`promotion_crash_reopen_matrix_retains_admission_then_replays_committed_release`
+and `reservation_expiry_mid_attempt_rolls_back_and_retains_the_fifo_ticket`
+cover durable reservation reopen, process death during transactional replay,
+commit-before-response retry, atomic completed-state writer release, and
+mid-attempt expiry rollback. `expired_reservation_needs_fresh_losses_before_the_ticket_can_defer_again`
+closes the repeated-deferral negative. Exhausted budget still refuses before
+canonical mutation.
+
+This completes LLP 0162 Acceptance 10's real concurrent-writer fairness and
+crash/reopen leg under its declared conditional assumptions. Row 10 remains
+Partial because `CaptureOnly` settlement and its provisional/transitive effect
+chain are not implemented here; the separately owned atomic execution-carrier
+retention and global coverage/performance gates also remain. LLP 0164 stays
+Draft and every capability stays `Missing`.
+
 ## Open items
 
-1. *(Implemented 2026-08-04.)* The declared numeric terms are frozen above.
-   The reservation quota remains fairness-coupled: the still-open real
-   contention corpus must prove its sufficiency before any progress claim.
+1. *(Implemented 2026-08-04.)* The declared numeric terms are frozen above and
+   the real k=2–4 corpus proves quota sufficiency for its declared loss
+   patterns. Different observed patterns remain outside that evidence and must
+   refuse contention-exhausted rather than inherit this progress claim.
 2. *(Executed in LLP 0162.)* Divergence surfaces through the stable refusal
    diagnostics and receipt fields already named by the accepted umbrella; no
    separate OQ10 vocabulary decision remains open here.
