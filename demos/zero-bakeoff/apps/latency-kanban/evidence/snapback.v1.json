@@ -1,6 +1,6 @@
 {
   "schemaVersion": "snapback.zero-bakeoff.arm-receipt.v1",
-  "observedAt": "2026-08-04T14:48:19.049Z",
+  "observedAt": "2026-08-04T16:05:16.203Z",
   "app": "latency-kanban",
   "provider": "snapback",
   "expectedChecks": 8,
@@ -20,18 +20,18 @@
     {
       "id": "lk.one-frame-local-paint",
       "outcome": "pass",
-      "durationMs": 1068.3675830000002,
+      "durationMs": 1064.648083,
       "details": {},
       "value": {
-        "inputToPaintMs": 0.018708000000060565,
-        "acknowledgementMs": 1031.6870829999998,
+        "inputToPaintMs": 0.016499999999723514,
+        "acknowledgementMs": 1030.2471669999995,
         "concurrent": false
       }
     },
     {
       "id": "lk.rapid-move-integrity",
       "outcome": "pass",
-      "durationMs": 11499.970167,
+      "durationMs": 12887.287416999998,
       "details": {},
       "value": {
         "cards": 500,
@@ -42,7 +42,7 @@
     {
       "id": "lk.locked-card-correction",
       "outcome": "pass",
-      "durationMs": 1076.3531249999996,
+      "durationMs": 1090.9847499999996,
       "details": {},
       "value": {
         "diagnostic": "SNAPBACK_HANDLER_FAILED",
@@ -52,7 +52,7 @@
     {
       "id": "lk.pending-reload",
       "outcome": "pass",
-      "durationMs": 1085.1834580000013,
+      "durationMs": 1109.4290419999998,
       "details": {},
       "value": {
         "behavior": "pending HTTP request is not reconstructed; reload reads old authority, then settled authority without loss"
@@ -61,20 +61,20 @@
     {
       "id": "lk.concurrent-move-convergence",
       "outcome": "pass",
-      "durationMs": 2164.096207999999,
+      "durationMs": 2222.264542000001,
       "details": {},
       "value": {
-        "winner": "c1",
+        "winner": "c2",
         "revision": 1
       }
     },
     {
       "id": "lk.independent-observer",
       "outcome": "pass",
-      "durationMs": 1100.9155409999985,
+      "durationMs": 1113.9556249999987,
       "details": {},
       "value": {
-        "observerConvergenceMs": 1038.6421669999982,
+        "observerConvergenceMs": 1042.9632089999977,
         "transport": "live_replace",
         "networkProfile": "optimistic"
       }
@@ -82,153 +82,153 @@
     {
       "id": "lk.latency-axes",
       "outcome": "pass",
-      "durationMs": 2942.292875000003,
+      "durationMs": 4003.0623749999977,
       "details": {},
       "value": {
         "samples": [
           {
-            "inputToPaintMs": 0.018708000000060565,
-            "acknowledgementMs": 1031.6870829999998,
+            "inputToPaintMs": 0.016499999999723514,
+            "acknowledgementMs": 1030.2471669999995,
             "concurrent": false
           },
           {
-            "inputToPaintMs": 0.004292000000077678,
-            "acknowledgementMs": 1449.3994589999998,
+            "inputToPaintMs": 0.004999999999199645,
+            "acknowledgementMs": 2248.6252079999995,
             "concurrent": true
           },
           {
-            "inputToPaintMs": 0.00016700000014679972,
-            "acknowledgementMs": 2596.5319580000005,
+            "inputToPaintMs": 0.00016699999832781032,
+            "acknowledgementMs": 3808.20025,
             "concurrent": true
           },
           {
-            "inputToPaintMs": 0.0001249999995707185,
-            "acknowledgementMs": 2851.029083,
+            "inputToPaintMs": 0.0002920000006270129,
+            "acknowledgementMs": 4174.397334000001,
             "concurrent": true
           },
           {
-            "inputToPaintMs": 0.00016699999969205237,
-            "acknowledgementMs": 3777.756,
+            "inputToPaintMs": 0.0005830000009154901,
+            "acknowledgementMs": 5363.333958000001,
             "concurrent": true
           },
           {
-            "inputToPaintMs": 0.00016700000014679972,
-            "acknowledgementMs": 4027.3129580000004,
-            "concurrent": true
-          },
-          {
-            "inputToPaintMs": 0.0004170000001977314,
-            "acknowledgementMs": 4214.452625,
-            "concurrent": true
-          },
-          {
-            "inputToPaintMs": 0.0006659999999101274,
-            "acknowledgementMs": 5264.468583,
-            "concurrent": true
-          },
-          {
-            "inputToPaintMs": 0.00020799999992959783,
-            "acknowledgementMs": 5481.233624999999,
-            "concurrent": true
-          },
-          {
-            "inputToPaintMs": 0.00016700000014679972,
-            "acknowledgementMs": 5547.906250000001,
-            "concurrent": true
-          },
-          {
-            "inputToPaintMs": 0.00016599999980826396,
-            "acknowledgementMs": 6784.525625,
-            "concurrent": true
-          },
-          {
-            "inputToPaintMs": 0.0002500000000509317,
-            "acknowledgementMs": 6855.8763340000005,
-            "concurrent": true
-          },
-          {
-            "inputToPaintMs": 0.00020799999992959783,
-            "acknowledgementMs": 7968.020832999999,
-            "concurrent": true
-          },
-          {
-            "inputToPaintMs": 0.00016599999980826396,
-            "acknowledgementMs": 8072.065708,
-            "concurrent": true
-          },
-          {
-            "inputToPaintMs": 0.00012500000002546585,
-            "acknowledgementMs": 9059.26175,
-            "concurrent": true
-          },
-          {
-            "inputToPaintMs": 0.00016600000026301132,
-            "acknowledgementMs": 9183.548750000002,
-            "concurrent": true
-          },
-          {
-            "inputToPaintMs": 0.00016700000014679972,
-            "acknowledgementMs": 9229.715292,
-            "concurrent": true
-          },
-          {
-            "inputToPaintMs": 0.0002500000000509317,
-            "acknowledgementMs": 10297.734875,
-            "concurrent": true
-          },
-          {
-            "inputToPaintMs": 0.00037500000007639755,
-            "acknowledgementMs": 10344.515125,
-            "concurrent": true
-          },
-          {
-            "inputToPaintMs": 0.00016700000014679972,
-            "acknowledgementMs": 11404.338708,
+            "inputToPaintMs": 0.0002500000009604264,
+            "acknowledgementMs": 5577.938791000002,
             "concurrent": true
           },
           {
             "inputToPaintMs": 0.00020899999981338624,
-            "acknowledgementMs": 11438.010417,
+            "acknowledgementMs": 6543.605334,
             "concurrent": true
           },
           {
-            "inputToPaintMs": 0.006166999999550171,
-            "acknowledgementMs": 1026.585083,
+            "inputToPaintMs": 0.00041600000076869037,
+            "acknowledgementMs": 6707.876458000001,
+            "concurrent": true
+          },
+          {
+            "inputToPaintMs": 0.0002500000009604264,
+            "acknowledgementMs": 6914.637708,
+            "concurrent": true
+          },
+          {
+            "inputToPaintMs": 0.00016700000014679972,
+            "acknowledgementMs": 7801.790874999999,
+            "concurrent": true
+          },
+          {
+            "inputToPaintMs": 0.0002920000006270129,
+            "acknowledgementMs": 8087.326042000002,
+            "concurrent": true
+          },
+          {
+            "inputToPaintMs": 0.0001250000004802132,
+            "acknowledgementMs": 8200.994292000001,
+            "concurrent": true
+          },
+          {
+            "inputToPaintMs": 0.000249999999141437,
+            "acknowledgementMs": 9280.072208000001,
+            "concurrent": true
+          },
+          {
+            "inputToPaintMs": 0.0005000000001018634,
+            "acknowledgementMs": 9416.322959000001,
+            "concurrent": true
+          },
+          {
+            "inputToPaintMs": 0.00016700000014679972,
+            "acknowledgementMs": 10420.865167,
+            "concurrent": true
+          },
+          {
+            "inputToPaintMs": 0.0002500000009604264,
+            "acknowledgementMs": 10491.036541000001,
+            "concurrent": true
+          },
+          {
+            "inputToPaintMs": 0.00016700000014679972,
+            "acknowledgementMs": 10584.773249999998,
+            "concurrent": true
+          },
+          {
+            "inputToPaintMs": 0.000249999999141437,
+            "acknowledgementMs": 11656.217541999999,
+            "concurrent": true
+          },
+          {
+            "inputToPaintMs": 0.0001249999986612238,
+            "acknowledgementMs": 11705.360292,
+            "concurrent": true
+          },
+          {
+            "inputToPaintMs": 0.00020899999981338624,
+            "acknowledgementMs": 12774.688375,
+            "concurrent": true
+          },
+          {
+            "inputToPaintMs": 0.00016599999980826396,
+            "acknowledgementMs": 12808.615833,
+            "concurrent": true
+          },
+          {
+            "inputToPaintMs": 0.01166699999885168,
+            "acknowledgementMs": 1029.2321249999986,
             "rejected": true,
             "concurrent": false
           },
           {
-            "inputToPaintMs": 0.0003749999996216502,
-            "acknowledgementMs": 1038.1189589999976,
+            "inputToPaintMs": 0.0008340000022144523,
+            "acknowledgementMs": 1046.5290840000016,
             "concurrent": false
           },
           {
-            "inputToPaintMs": 0.0141250000015134,
-            "acknowledgementMs": 1042.2861669999984,
+            "inputToPaintMs": 0.010624999998981366,
+            "acknowledgementMs": 1052.1310000000012,
             "concurrent": true
           },
           {
-            "inputToPaintMs": 0.021999999997206032,
-            "acknowledgementMs": 2112.5522089999977,
+            "inputToPaintMs": 0.006124999999883585,
+            "acknowledgementMs": 2158.3157920000012,
             "rejected": true,
             "concurrent": true
           },
           {
-            "inputToPaintMs": 0.0003749999996216502,
-            "acknowledgementMs": 1024.395207999998,
+            "inputToPaintMs": 0.0007499999992433004,
+            "acknowledgementMs": 1027.8861670000006,
             "concurrent": false
           },
           {
-            "observerConvergenceMs": 1038.6421669999982,
+            "observerConvergenceMs": 1042.9632089999977,
             "transport": "live_replace",
             "networkProfile": "optimistic"
           }
         ],
         "profile": "optimistic",
         "injectionPoint": "post-commit",
-        "markedMutationResponses": 110,
+        "markedMutationResponses": 112,
         "measuredMoves": 26,
-        "retryAmplification": 4.23,
+        "retryAmplification": 4.31,
         "openLoopCommitFacts": {
           "settlementVersions": [
             3,
@@ -422,7 +422,7 @@
     {
       "id": "lk.cleanup",
       "outcome": "pass",
-      "durationMs": 0.34991700000318815,
+      "durationMs": 0.41583299999911105,
       "details": {},
       "value": {
         "owned": [
@@ -443,14 +443,14 @@
       "verdict": "unpinned-binary",
       "mismatches": [],
       "binary": {
-        "gitCommit": "d4d480492edba67df798ad12ddd01c090b9a1277",
+        "gitCommit": "96631e45ed387f19ad0bb11f43e6812572115ebe",
         "gitDirty": true,
         "crateVersion": "0.1.0",
         "buildProfile": "debug",
-        "startupNonce": "019fcd3e-dc12-7993-8d69-d090e4a677f6"
+        "startupNonce": "019fcd85-44eb-7bb1-b853-e19095c4474a"
       },
       "expected": {
-        "gitCommit": "d4d480492edba67df798ad12ddd01c090b9a1277",
+        "gitCommit": "96631e45ed387f19ad0bb11f43e6812572115ebe",
         "gitDirty": true,
         "crateVersion": "0.1.0"
       }

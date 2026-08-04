@@ -355,7 +355,13 @@ ban points at — but the reconciliation must be explicit:
   timestamp-free projection; row timestamps necessarily differ across
   runs) are identical to a `normal` run of the same open-loop fixture
   (scripted arrivals — a request schedule that does not react to response
-  timing) — observation moved, state did not.
+  timing) — observation moved, state did not. *Clarification
+  (2026-08-04, implementation):* for the CONCURRENT portion of an
+  open-loop corpus, which commit version lands on which racing request
+  is kernel arrival scheduling — nondeterministic even between two
+  `normal` runs — so the canonical projection compares per-request
+  effects, the consumed version multiset, and final rows; sequential
+  (paced) operations still settle in issue order and compare exactly.
 - Under identical open-loop arrivals, commit admission order under a
   non-`normal` profile matches `normal`, commit throughput matches within
   a manifest-declared tolerance over a declared measurement interval, and

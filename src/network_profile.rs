@@ -136,6 +136,17 @@ impl NetworkConditionProfile {
                 "ceilingMs": NETWORK_PROFILE_DELAY_CEILING_MS,
             })));
         }
+        // A built-in name is a contract: an inline profile may reuse it only
+        // when field-identical, so a marker naming "normal"/"optimistic"
+        // cannot lie about the delays actually applied.
+        if let Ok(reserved) = Self::named(&self.name) {
+            if reserved != self {
+                return Err(invalid_profile_error(
+                    "inline network profile reuses a built-in name with different fields",
+                )
+                .with_details(json!({ "name": self.name })));
+            }
+        }
         Ok(self)
     }
 
@@ -598,6 +609,21 @@ mod tests {
         );
         // The pinned built-ins stay comfortably valid under the combined rule.
         NetworkConditionProfile::demo_slow().validate().unwrap();
+    }
+
+    #[test]
+    fn inline_profiles_cannot_spoof_built_in_names() {
+        let spoof = NetworkConditionProfile {
+            name: "normal".to_owned(),
+            mutation_ack_delay_ms: 5_000,
+            live_delta_delay_ms: 0,
+            query_response_delay_ms: 0,
+            jitter_ms: 0,
+        };
+        let error = spoof.validate().unwrap_err();
+        assert_eq!(error.diagnostic.code, NETWORK_PROFILE_INVALID_CODE);
+        // Field-identical restatements of a built-in remain valid.
+        NetworkConditionProfile::optimistic().validate().unwrap();
     }
 
     #[test]

@@ -202,6 +202,8 @@ try {
       `ack/live shared deadline skew exceeded scheduler noise: ${Math.abs(deltaResult.observedAt - ackResult.observedAt)}ms`,
     );
     assert.equal(deltaResult.frame.version, ackResult.body.version);
+    assert.equal(deltaResult.frame.network_profile ?? deltaResult.frame.networkProfile, 'optimistic',
+      'delayed live frame carries the network-profile marker from its admission snapshot');
   } finally {
     socket.close();
   }

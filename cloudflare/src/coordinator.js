@@ -5563,6 +5563,13 @@ export class Coordinator {
         // Frame shape follows the socket's wire protocol: the kit client
         // consumes the local server's snake_case `kind` frames; the proof
         // acceptance suite pins the original camelCase `type` frames.
+        // @ref LLP 0167#honesty-requirements — a delayed frame names its
+        // profile from the immutable admission snapshot (kit snake_case
+        // matches the Rust arm's generated wire field; proof frames carry
+        // the same optional member on the legacy camelCase shape).
+        const profileMarker = liveEgress && liveEgress.snapshot?.profile?.name !== 'normal'
+          ? liveEgress.snapshot.profile.name
+          : null;
         const frame = member.protocol === 'kit'
           ? {
               kind: 'live_replace',
@@ -5571,6 +5578,7 @@ export class Coordinator {
               version,
               rows: result.value,
               ...(groupResume ? { resume: groupResume } : {}),
+              ...(profileMarker ? { network_profile: profileMarker } : {}),
             }
           : {
               type: 'live_replace',
@@ -5579,6 +5587,7 @@ export class Coordinator {
               version,
               rows: result.value,
               ...(groupResume ? { resume: groupResume } : {}),
+              ...(profileMarker ? { networkProfile: profileMarker } : {}),
             };
         return { member, encoded: JSON.stringify(frame) };
       });

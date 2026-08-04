@@ -125,6 +125,15 @@ export function parseNetworkProfile(selection) {
       { maxLaneDelayMs, jitterMs: profile.jitterMs, ceilingMs: NETWORK_PROFILE_DELAY_CEILING_MS },
     );
   }
+  // A built-in name is a contract: an inline profile may reuse it only when
+  // it is field-identical, so a marker naming "normal"/"optimistic" cannot
+  // lie about the delays actually applied.
+  const reserved = BUILT_INS[profile.name];
+  if (reserved && PROFILE_FIELDS.slice(1).some((field) => profile[field] !== reserved[field])) {
+    invalid('inline network profile reuses a built-in name with different fields', {
+      name: profile.name,
+    });
+  }
   return cloneProfile(profile);
 }
 

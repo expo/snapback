@@ -85,3 +85,29 @@ HTTP marker, telemetry snapshot). Honest residue, in rough order:
 
 The capability row `operating.network-profiles` is `partial` with a GAP
 naming this ticket's scope; flip it when the corpus above closes.
+
+## Residue after the 2026-08-04 residue program (integration review findings)
+
+Landed that day: Cloudflare arm (two-phase release, classification,
+OQ4 fold), socket wire marker (both arms; CF kit `network_profile` /
+proof `networkProfile` members), `debug.networkProfile{Get,Set}`
+host-ops + MCP projection (proposed OQ2 ruling), console Developer
+panel + banner, Latency Kanban server-side swap with environment.v2.
+Still open, from the integrated-diff adversarial review:
+
+1. **HTTP poll-lane frames are delayed but unmarked** — `drain_outbox`
+   poll batches honor `is_network_ready` but carry no marker
+   (`DurableMessage.network_egress` is serde-skipped). Mark at the
+   drain handoff like the socket path.
+2. **Provenance fidelity** — console PUTs record as `api`, MCP as
+   `host-ops`; `principal` is never threaded even where host-ops has an
+   authenticated operator context. Add Console/Mcp source hints and
+   thread the principal.
+3. **CF action-route refusal parity** — Rust delays+marks pre-handler
+   action refusals (query lane); the CF `/action/:name` route does not.
+   Pick one behavior and record it.
+4. **MCP tool schema drift guards** — the inline builtin enum and
+   per-field maxima in the MCP tool schema will drift if built-ins
+   change; the server remains authoritative, but add a pin test.
+5. Timer coalescing (item 4 above) and the OQ3 fork exception remain
+   open as before.
