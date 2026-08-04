@@ -184,3 +184,37 @@ the 120-second idle window at zero storage mutations, zero process write bytes,
 is: land the receipt carrier, obtain a zero-failure main proof after the two
 owner-held artifacts land, and only then evaluate the npm capstone
 prerequisites.
+
+### Latest completed main checkpoint — run 30914877171
+
+Run `30914877171` at P1 landing `f466c0501` completed after the checkpoint
+above and is therefore the authoritative KEEP-GOING input for this closing
+pass. It reported the same 11 gate names as run `30912256255`: bundle
+metrology, package exports, relation carrier, sequence carrier, demo inventory,
+Linux telemetry, strict Clippy, local-store carrier, workout apps, codegen, and
+the admin chain. The already recorded declaration, publication, inventory,
+Clippy, and admin fixes remain the introducing-landing dispositions. P1 added
+one further legitimate metrology workload change and three fixture failures
+now have exact causes:
+
+- P1's finite-carrier verifier enlarged the 15 Full/root closures from the
+  typed-offline receipt plus the public materialization-store closure. A
+  prospective 16-profile rollover now names the two immutable predecessors;
+  exact Node 24.18.0 replays all 43 profiles without a ceiling regression.
+- `catalog-lens` exposed the LLP 0166 single-writer rule because the shared
+  headless helper constructed its product client before closing the provisioning
+  client's owned file-store lease. The helper now releases that lease and its
+  product lease during cleanup; the exact workout aggregate passes 6/6.
+- The asset-authoring policy-hash fixture inferred its app identity from the
+  host temp path (`T` on macOS, `tmp` on Linux), so its supposedly frozen hash
+  was platform-specific. The fixture now declares one portable app identity;
+  the focused test passes under two deliberately different temp roots and the
+  complete codegen package suite passes.
+
+The full admin build/unit/Chrome-150-CSP/audit chain passes with the earlier
+loopback-bind fixture correction, and its production audit reports zero
+vulnerabilities. No new push-seam, F0a fork-code, or P1 correctness failure was
+observed: the P1 proof verifier behavior suite and its Rust-minted golden-vector
+cases pass. Only the two intentionally source-bound closing receipts—Linux
+telemetry and the updated local-store carrier—remain before the final main
+proof run.
