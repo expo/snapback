@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Runtime, Storage, Realtime, Security, Client integration, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-08-03 (designed the one-time operator claim link — `snapback admin link` mints a single-use thirty-minute process-ephemeral claim code redeemed from a `#claim=` URL, loopback-only, for one `sbcc_` credential with distinct provenance that slides within a ninety-minute absolute cap, a master-readable redemption record, and master revocation; the thirty/ninety windows are an author ruling widening the review round's five-minute/non-renewable-ten-minute bounds for parallel long-running sessions; added the "only ephemeral authority transits the human" design principle complementing LLP 0150, with the 401 master-paste prompt named as the acknowledged pre-existing exception; revised same day after a dual-family delta review round — both families NOT READY on the initial amendment (non-loopback contradiction, notification underspecification, renewal inheritance) — this text incorporates those fixes and is itself review-unreviewed). Same day: (`snapback admin` performs trusted ready-file discovery and hands only a derived `sbcc_` credential to the browser in a URL fragment; active dev/loopback credentials slide within an eight-hour cap and digest-only state reattaches beside file-backed databases; a short-TTL, rate-limited, single-use RFC-8628-shaped terminal approval flow covers remote browsers).
+**Revised:** 2026-08-03 (implemented the one-time operator claim link end to end: bounded process-ephemeral digest-only claims, atomic single-winner exchange, provenance-capped renewal, durable digest-only redemption/status/revocation binding, attached/default and reattach CLI observation, console fragment exchange, loopback/hosted refusal, and planted-link acceptance proof). Same day: (designed the one-time operator claim link — `snapback admin link` mints a single-use thirty-minute process-ephemeral claim code redeemed from a `#claim=` URL, loopback-only, for one `sbcc_` credential with distinct provenance that slides within a ninety-minute absolute cap, a master-readable redemption record, and master revocation; the thirty/ninety windows are an author ruling widening the review round's five-minute/non-renewable-ten-minute bounds for parallel long-running sessions; added the "only ephemeral authority transits the human" design principle complementing LLP 0150, with the 401 master-paste prompt named as the acknowledged pre-existing exception; revised same day after a dual-family delta review round — both families NOT READY on the initial amendment (non-loopback contradiction, notification underspecification, renewal inheritance) — this text incorporates those fixes and is itself review-unreviewed). Same day: (`snapback admin` performs trusted ready-file discovery and hands only a derived `sbcc_` credential to the browser in a URL fragment; active dev/loopback credentials slide within an eight-hour cap and digest-only state reattaches beside file-backed databases; a short-TTL, rate-limited, single-use RFC-8628-shaped terminal approval flow covers remote browsers).
 **Revised:** 2026-08-02 (0137 G1 follow-on: descriptor-scoped `P.secret-read-root` custody now retains an open handle to the adopted inode until teardown, preventing immediate inode-number reuse from making an identity-only guard delete a foreign replacement). 2026-08-01 (0137 G1: the `P.secret-read-root` sibling is descriptor-scoped custody — the serve process removes it identity-guarded with the ready descriptor at shutdown/teardown instead of orphaning it; the database-scoped `<db>.admin-token` reattach custody is unchanged). 2026-07-15 (the instance home now discovers the build-bound Snapback Guide for humans and its one-request flat projection for agent clients in every negotiated rendering). 2026-07-13 (ENG-24595: browsers exchange the master admin token for a short-lived, non-renewable console credential and never persist the master; config status exposes only closed verification state; the browser runner no longer manufactures app identity; earlier: ENG-24338 review follow-up: the readiness descriptor itself is atomically published owner-only at 0600, and CLI URL/token resolution uses one validated descriptor snapshot; ENG-24359 review follow-up: filesystem static assets are opened by a root-directory capability plus component-relative no-follow handles and read from the verified final descriptor; platforms without that primitive fail closed instead of retaining a canonicalize/read race; ENG-24338/ENG-24346/ENG-24359: trusted token discovery, owner-only no-follow capability files, and canonical static-asset containment; earlier: 2026-07-04 admin serving now has a single UI implementation: the Contract/Exact `admin-ui/dist` snapshot. The server auto-discovers a built repo-local dist when `SNAPBACK_ADMIN_DIST` is unset; if no dist is available, `/_snapback/admin` returns a missing-dist diagnostic instead of the deleted handwritten fallback console. Earlier: 2026-07-03 instance home is embedded-only again: the short-lived `home-ui/` Contract surface, `SNAPBACK_HOME_DIST`, and `/_snapback/home/*` lane were removed because `/` is a recovery/status page whose value is zero-toolchain reliability, while the admin dashboard remains the useful Contract/Exact dogfooding surface. Earlier: 2026-07-02 instance home briefly gained a Contract surface and shared-build-preset notes; this revision supersedes that slice. Earlier same day: added §Instance home page: the root `/` is now content-negotiated — a branded, embedded HTML homepage for browsers over the same public metadata object served as YAML/JSON/Markdown; app identity comes from the schema manifest's optional `app` block. Earlier same day: ENG-22598: Secrets surface was added to the then-existing admin consoles over the LLP 0036 config ops. Earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the console and admin API shipped per this RFC, hosted access still future; LLP 0032 R3: layout-kernel diagnosis corrected per LLP 0023/ENG-22199; "local safe by default" annotated with the S0 root-alias gating; LLP 0032 S1: v0-alias retirement completed per LLP 0031)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0024, LLP 0036, LLP 0150
 
@@ -550,7 +550,7 @@ Local defaults:
   initial minting, and renewal all refuse non-loopback and hosted targets.
 
   The reverse handoff — terminal to browser — is the **one-time operator claim
-  link** (designed; not yet landed). It serves the remote-development posture
+  link** (implemented). It serves the remote-development posture
   where the master-holding terminal is a cloud machine (often driven by an
   agent session) and the human's browser cannot share its filesystem, so
   neither fragment handoff nor `snapback admin approve` is convenient.
@@ -735,12 +735,10 @@ Landed (steps 1–7 of the sketch):
   — so no HTTP-served
   instance accepts tokenless admin writes;
 - `snapback admin`, fragment-only browser handoff, restart-stable digest-only
-  console credentials, capped dev-only sliding renewal, and the bounded
-  terminal approval flow described in *Security Defaults*;
+  console credentials, capped dev-only sliding renewal, the bounded terminal
+  approval flow, and the one-time operator claim link described in *Security
+  Defaults*;
 - the one safe ephemeral control: token-gated cleanup of expired entries.
-
-Designed in *Security Defaults* but not yet landed: the one-time operator
-claim link (`snapback admin link`).
 
 Reported as honest capability gaps in the `admin` block, not as placeholder
 controls: direct admin row edits, raw SQL, and the remaining ephemeral mutating
@@ -824,7 +822,7 @@ The accepted local contract must keep the following acceptance proofs green:
 - non-loopback and hosted targets cannot mint, renew, device-approve, or
   claim-mint/claim-exchange browser console credentials even when another
   admin bearer is present;
-- (claim link, once landed) claim codes are single-use under concurrent
+- claim-link codes are single-use under concurrent
   redemption — exactly one exchange wins; invalid, expired, and consumed
   claims share one status and body; the code travels only in a `POST` body
   (never a URL or log line) and comparison is constant-time against the

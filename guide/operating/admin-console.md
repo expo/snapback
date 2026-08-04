@@ -4,13 +4,13 @@ id: operating.admin-console
 order: 4
 audience: agent-first
 capabilities: [operating.admin-console]
-authorities: [llp/0017-admin-console-inspection-surface.rfc.md, src/admin.rs, src/cli.rs, packages/snapback-admin-client/index.mjs, admin-ui/auth-prompt.mjs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs]
+authorities: [llp/0017-admin-console-inspection-surface.rfc.md, src/admin.rs, src/cli.rs, packages/snapback-admin-client/index.mjs, admin-ui/auth-prompt.mjs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs, tests/admin_claim_link_v0.rs]
 examples: [admin-ui]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
+reviewed-commit: 259c8b70f
 ---
 
 # Admin console
@@ -127,6 +127,49 @@ The browser polls for its derived credential. Codes expire after ten minutes,
 are single-use, and the request, approval, poll, and pending-state lanes are
 bounded. Non-loopback binds, hosted targets, and non-dev profiles cannot use
 this flow.
+
+### Hand a one-time link from an agent terminal to a remote browser
+
+When the token-holding terminal is remote or agent-driven, keep Snapback bound
+to loopback and forward the console origin through SSH or another tunnel. Mint
+the browser handoff from the trusted ready file, substituting only the tunnel's
+public origin in the printed link:
+
+```sh
+cargo run -- admin link \
+  --ready-file .snapback/dev.ready.json \
+  --url-base https://snapback-console.example
+```
+
+The command prints
+`https://snapback-console.example/_snapback/admin/#claim=sbcl_…` and stays
+attached by default. Opening it removes the fragment before boot, sends the
+claim only in a `POST` body, and stores the resulting `sbcc_` credential through
+the ordinary console-credential path. Exactly one exchange wins. The link is a
+bearer until its thirty-minute claim expiry, so keep it private while pending;
+after redemption or expiry it is inert and may safely remain in agent
+transcripts or scrollback. The master `sbat_` token must never enter those
+channels.
+
+The attached command reports redemption time and the direct transport peer.
+Behind a tunnel that address is usually the tunnel endpoint, not the human's
+browser. For detached automation, print and exit, then reattach or revoke with
+the raw claim code:
+
+```sh
+cargo run -- admin link --no-wait --ready-file .snapback/dev.ready.json
+cargo run -- admin link --status sbcl_… --ready-file .snapback/dev.ready.json
+cargo run -- admin link --revoke sbcl_… --ready-file .snapback/dev.ready.json
+```
+
+Claim-derived credentials have distinct provenance. Active use renews their
+ten-minute sliding expiry, but the server fixes their absolute deadline at
+ninety minutes from redemption rather than the ordinary eight-hour ceiling.
+Status and revocation require the master bearer; neither the browser nor an
+anonymous loopback caller can read the redemption record. Claim mint and
+exchange refuse hosted or non-loopback targets even when another admin bearer
+is present—remote access is always a tunnel terminating on loopback plus
+`--url-base`.
 
 ## Debug through declared views
 

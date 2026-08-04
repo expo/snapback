@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "27b317240a88422e502044616b4545ed6c82dc0b"
+    "commit": "259c8b70f921226e4b3be56f029eb1be8b691780"
   },
   "nav": {
     ".": [
@@ -15,6 +15,11 @@
         "id": "meta.capabilities",
         "order": 2,
         "title": "Capability index"
+      },
+      {
+        "id": "meta.surface-map",
+        "order": 3,
+        "title": "Surface map"
       },
       {
         "id": "meta.conventions",
@@ -1400,7 +1405,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "fa602771e450bbe794c2f1d6e30e9f3076d373f96146542d5b7d502975421e9a",
+      "sha256": "4412ffed72a3d132fd84471065fcf8dfbafaee014ade4d905e39f4f8697426dc",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1783,7 +1788,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "f9ae0083ef41bfc9d07f033da440f96048919613",
-      "sha256": "dbc7b336a9a43d3b8541bfe4c0eb03ed8d8f290da017ad03eec9fa1a9b0c2fa1",
+      "sha256": "b805e180deaa21eda00a0dcbfb85dcaf65daedcc5d9b1864900d332029de568f",
       "snippets": []
     },
     "deploying.cloudflare": {
@@ -2053,7 +2058,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "c280b107251636c63ddfbef1d5d8b073367262e37ad1867818bb9dc046a67801",
+      "sha256": "12ecf33a7dd815acad4a58215f1011526d2d9dea9ee4dbe8b65a5ddd623effe7",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2078,14 +2083,15 @@
         "admin-ui/build.mjs",
         "admin-ui/dev.mjs",
         "packages/snapback-contract/build-preset.mjs",
-        "admin-ui/tests/fatal-rendering.mjs"
+        "admin-ui/tests/fatal-rendering.mjs",
+        "tests/admin_claim_link_v0.rs"
       ],
       "examples": [
         "admin-ui"
       ],
       "reviewed": "2026-08-03",
-      "reviewedCommit": "3109a3b4f5068595a71448b10788b56b4fa358f5",
-      "sha256": "b3fb878ac2605409bd0c45543d3dec80d461cd232c2a40e5e374b9814eb5cfc3",
+      "reviewedCommit": "259c8b70f",
+      "sha256": "95b6454dd2f1fc50fc94b440b3af62d8e206721f3e2b3e740b9ff1d4e90b476e",
       "snippets": [
         {
           "lang": "js",
@@ -2614,6 +2620,29 @@
       "sha256": "16348b4e472f6302e8802aad9a010afea53a314b1f9a59737cbb9749fbec73cf",
       "snippets": []
     },
+    "meta.surface-map": {
+      "path": "guide/surface-map.md",
+      "title": "Surface map",
+      "order": 3,
+      "status": "current",
+      "targets": [
+        "all"
+      ],
+      "maturity": "shipped",
+      "capabilities": [],
+      "authorities": [
+        "llp/0024-agent-operating-surface.spec.md",
+        "llp/0031-server-route-taxonomy.spec.md",
+        "llp/0061-agent-first-snapback-guide.rfc.md",
+        "src/server.rs",
+        "src/admin.rs"
+      ],
+      "examples": [],
+      "reviewed": "2026-08-03",
+      "reviewedCommit": "259c8b70f",
+      "sha256": "1e3d6258bd05f10c62467b8415880dfc4f1764b7e1cfa9dbe0b536af3d14c82e",
+      "snippets": []
+    },
     "sync.offline-and-retention": {
       "path": "guide/sync/offline-and-retention.md",
       "title": "Offline retention and mutation replay",
@@ -2838,8 +2867,8 @@
     ]
   },
   "surfaces": {
-    "routes": 101,
+    "routes": 105,
     "hostOps": 35
   },
-  "contentHash": "12e834a0f058d37b3799681ef2fca9fa4abcd51023d8e03f7bc9a77ee71891d7"
+  "contentHash": "1ea28687a2dcde0e45aab672005c6074926e111a8192ec551074d395010f75b5"
 }

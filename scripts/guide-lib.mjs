@@ -10,6 +10,7 @@ export const GUIDE_DIR = 'guide';
 export const MANIFEST_PATH = join(GUIDE_DIR, 'guide-manifest.generated.json');
 export const FLAT_PATH = join(GUIDE_DIR, 'guide-flat.generated.md');
 export const CAPABILITIES_PATH = join(GUIDE_DIR, 'capabilities.md');
+export const SURFACE_MAP_PATH = join(GUIDE_DIR, 'surface-map.md');
 export const INDEX_PATH = join(GUIDE_DIR, 'index.md');
 export const GUIDE_MCP_MANIFEST_URI = 'snapback-guide://manifest';
 export const GUIDE_MCP_FLAT_URI = 'snapback-guide://flat';
@@ -17,6 +18,7 @@ export const GUIDE_MCP_PAGE_URI_PREFIX = 'snapback-guide://page/';
 const CLASSED_LANGS = new Set(['js', 'mjs', 'ts', 'tsx', 'json', 'contract']);
 const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 const CAPABILITIES_SIZE_BUDGET_BYTES = 40960;
+const SURFACE_MAP_SIZE_BUDGET_BYTES = 16384;
 // Vacuous-pass guards for the source scans: extraction returning fewer
 // entries than these floors means the scan broke, not that surface shrank.
 const MIN_ROUTE_PATHS = 50;
@@ -289,8 +291,14 @@ export function parseCapabilityIndex(root, errors) {
   const lines = text.split('\n');
   const section = (heading) => lines.findIndex((l) => l.startsWith(heading));
   const capRows = parseTable(lines, section('## Capabilities'));
-  const routeRows = parseTable(lines, section('### Server routes'));
-  const hostOpRows = parseTable(lines, section('### Host operations'));
+  const surfaceText = readFileSync(join(root, SURFACE_MAP_PATH), 'utf8');
+  if (Buffer.byteLength(surfaceText) > SURFACE_MAP_SIZE_BUDGET_BYTES) {
+    errors.push(`${SURFACE_MAP_PATH}: exceeds its size budget (${Buffer.byteLength(surfaceText)} > ${SURFACE_MAP_SIZE_BUDGET_BYTES} bytes)`);
+  }
+  const surfaceLines = surfaceText.split('\n');
+  const surfaceSection = (heading) => surfaceLines.findIndex((l) => l.startsWith(heading));
+  const routeRows = parseTable(surfaceLines, surfaceSection('## Server routes'));
+  const hostOpRows = parseTable(surfaceLines, surfaceSection('## Host operations'));
   const capabilities = new Map();
   for (const row of capRows) {
     if (row.length !== 8) {
@@ -304,7 +312,7 @@ export function parseCapabilityIndex(root, errors) {
     const map = new Map();
     for (const row of rows) {
       if (row.length !== 2) {
-        errors.push(`${CAPABILITIES_PATH}: ${label} row needs 2 cells: ${row.join(' | ')}`);
+        errors.push(`${SURFACE_MAP_PATH}: ${label} row needs 2 cells: ${row.join(' | ')}`);
         continue;
       }
       map.set(row[0], row[1]);
@@ -420,12 +428,12 @@ export function checkCapabilityIndex(root, index, pageInfo, errors) {
   ];
   for (const [label, enumerated, map] of joins) {
     for (const entry of enumerated) {
-      if (!map.has(entry)) errors.push(`${CAPABILITIES_PATH}: ${label} '${entry}' is not classified in the surface map — map it to a capability or notAuthorFacing`);
+      if (!map.has(entry)) errors.push(`${SURFACE_MAP_PATH}: ${label} '${entry}' is not classified in the surface map — map it to a capability or notAuthorFacing`);
     }
     for (const [entry, cls] of map) {
-      if (!enumerated.has(entry)) errors.push(`${CAPABILITIES_PATH}: surface map lists ${label} '${entry}' which no longer exists in the code`);
+      if (!enumerated.has(entry)) errors.push(`${SURFACE_MAP_PATH}: surface map lists ${label} '${entry}' which no longer exists in the code`);
       if (!cls.startsWith('notAuthorFacing') && !capabilities.has(cls)) {
-        errors.push(`${CAPABILITIES_PATH}: ${label} '${entry}' maps to unknown capability '${cls}'`);
+        errors.push(`${SURFACE_MAP_PATH}: ${label} '${entry}' maps to unknown capability '${cls}'`);
       }
     }
   }
