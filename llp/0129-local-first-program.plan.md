@@ -5,7 +5,11 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-03 (OQ7 ruled — the Phase-0 evidence gate splits;
+**Revised:** 2026-08-04 (OQ5 dated ruling — write rung 2 (LLP 0155
+Move 4) opened: owner/timebox recorded, Candidate-A framing and the
+Calendar shipping-vs-lab disposition stated;
+`issues/20260804-0129-write-rung2-ruling.md`.)
+2026-08-03 (OQ7 ruled — the Phase-0 evidence gate splits;
 author decision sitting #2,
 `issues/20260803-author-decision-sitting-2.md`; see §Open questions 7.)
 2026-08-02 (ledger row 1 implementation record — LLP 0133's
@@ -1742,6 +1746,31 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    > in the program ticket. **Phase-2 scheduling returns to this
    > document's machinery**: no phase is open; opening Phase 2 is a
    > future author act with its own owner/timebox ruling.
+   >
+   > **Dated ruling (2026-08-04, Charlie Cheever) — write rung 2 only.**
+   > Recorded from `issues/20260804-0129-write-rung2-ruling.md`. This
+   > ruling opens exactly LLP 0155 write rung 2 (Move 4's entry point)
+   > as the write lane's next phase under this Plan's machinery. Owner:
+   > Charlie Cheever as deciding author, executing through the current
+   > session's codex-implemented lane under session supervision.
+   > Evidence gate, presented to the author by **2026-08-11**: (a) a
+   > widened-ceiling sizing spike — the measured browser-evaluator
+   > closure delta for exactly the verb subset Contention Calendar's
+   > common path needs (candidate set `AllocateSequence`, `Delete`,
+   > `Let`; widened further only with measurement) — and (b) the LLP
+   > 0051 D5 conformance corpus extended to cover every newly exported
+   > verb, passing Rust-vs-JS exactly. Exit: the Calendar-gate exit
+   > presentation by **2026-08-18**. Advancement stays author-presented;
+   > a missed timebox returns here for a fresh dated ruling rather than
+   > sliding silently. Two explicit dispositions: verb widening is
+   > Candidate-A substrate work under rung 1's authority per LLP 0155 —
+   > it is not a detection of open question 4's Option-C trigger and
+   > makes no admission claim (LLP 0130 ER-1 reserves that to the
+   > author); Contention Calendar serves as this rung's shipping exit
+   > application while remaining the decision lab's frozen manifest —
+   > the lab is untouched and Field Notebook, the rung-3 discriminator,
+   > is not used or repurposed. The browser-WASM ladder (Phase 2a) and
+   > desktop ladder (Phase 2b) remain unassigned.
 6. **The ephemeral no-sync pin.** Does the proposed LLP 0013
    amendment (0126 OQ8; constraint 4) land with Phase 0 or
    independently, and who writes it?
