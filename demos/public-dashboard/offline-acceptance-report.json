@@ -48,12 +48,12 @@
       "details": {
         "queuedCreate": {
           "queued": true,
-          "clientMutationId": "mut_01kz6n0ysae43t13ry4c3yjxkj",
+          "clientMutationIdPresent": true,
           "sequence": 1
         },
         "queuedUpdate": {
           "queued": true,
-          "clientMutationId": "mut_01kz6n0yttenjtgkmhe4f3a6z7",
+          "clientMutationIdPresent": true,
           "sequence": 2
         }
       }
@@ -73,28 +73,19 @@
       "details": {
         "rows": [
           {
-            "_id": "metrics_01kz6n0zz2f08rsfpcq92f7qxb",
             "_version": 2,
-            "_createdAt": 1785856032738,
-            "_updatedAt": 1785856032738,
             "dashboardId": "ops",
             "label": "error_rate",
             "value": 3
           },
           {
-            "_id": "metric_ops_latency",
             "_version": 1,
-            "_createdAt": 1785856031327,
-            "_updatedAt": 1785856031327,
             "dashboardId": "ops",
             "label": "latency_ms",
             "value": 42
           },
           {
-            "_id": "metric_ops_uptime",
             "_version": 3,
-            "_createdAt": 1785856031327,
-            "_updatedAt": 1785856032762,
             "dashboardId": "ops",
             "label": "uptime_pct",
             "value": 98
@@ -114,37 +105,22 @@
       "details": {
         "duplicate": {
           "version": 2,
-          "changed_count": 1,
-          "result": "metrics_01kz6n0zz2f08rsfpcq92f7qxb",
-          "ctx_ledger": {
-            "version": 1,
-            "ids": [
-              "metrics_01kz6n0zz2f08rsfpcq92f7qxb"
-            ],
-            "now": 1785856032738
-          },
-          "authorityDescriptor": {
-            "descriptorVersion": 1,
-            "authorityInstanceId": "019fcd50-7960-7993-82d3-5b0a69b25247",
-            "sessionGeneration": 0
-          },
+          "changedCount": 1,
+          "resultMatchesSettledCreate": true,
+          "authorityDescriptorVersion": 1,
+          "authoritySessionGeneration": 0,
           "receipt": {
             "kind": "mutation",
-            "mutationId": "mut_01kz6n0ysae43t13ry4c3yjxkj",
             "mutation": "recordMetric",
             "outcome": "confirmed",
             "settlementLane": "replay-accept",
-            "claimLedger": [
+            "claimFields": [
               {
                 "fieldOrSlot": "runtime.now",
-                "claimed": 1785856032738,
-                "authoritative": 1785856032738,
                 "disposition": "accepted"
               },
               {
                 "fieldOrSlot": "runtime.id[0]",
-                "claimed": "metrics_01kz6n0zz2f08rsfpcq92f7qxb",
-                "authoritative": "metrics_01kz6n0zz2f08rsfpcq92f7qxb",
                 "disposition": "accepted"
               }
             ],
@@ -154,8 +130,7 @@
             ],
             "snapshotVersion": 2,
             "transport": "http",
-            "correlation": null,
-            "receivedAtMs": 1785856032830
+            "correlation": null
           }
         }
       }

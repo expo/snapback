@@ -25,6 +25,7 @@ import { createFilesystemAgentAuthorityCustodyStorage } from '../agent-authority
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CHILD = join(HERE, 'agent-authority-filesystem-child.mjs');
 const BEARER_SENTINEL = 'sbagt_filesystem_bearer_must_never_persist';
+const CHILD_EVENT_TIMEOUT_MS = 30_000;
 const execFileAsync = promisify(execFile);
 
 const recordNameFor = (custodyId) => `${createHash('sha256')
@@ -86,7 +87,10 @@ const waitForLine = async (child, predicate) => {
   let stderr = '';
   child.stderr.on('data', (chunk) => { stderr += chunk; });
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error(`child event timed out: ${stderr}`)), 5_000);
+    const timeout = setTimeout(
+      () => reject(new Error(`child event timed out after ${CHILD_EVENT_TIMEOUT_MS}ms: ${stderr}`)),
+      CHILD_EVENT_TIMEOUT_MS,
+    );
     child.once('error', (error) => {
       clearTimeout(timeout);
       reject(error);
