@@ -1694,6 +1694,18 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    needs a named owner and a timebox before it starts; whether those
    land as revisions here or as filesystem tickets per phase is an
    author call.
+
+   > **Dated ruling (2026-08-03, Charlie Cheever) — Phase 1 only.**
+   > Owner: Charlie Cheever as deciding author, executing through the
+   > wave-3 Track A fleet lane under session supervision. Timebox: the
+   > Phase-1 evidence gate — the browser-safe IR-evaluator sizing spike
+   > plus the LLP 0051 D5 conformance-corpus evidence — is presented to
+   > the author by **2026-08-10**; the phase's Kanban-gate exit
+   > presentation by **2026-08-17**. Per this Plan's standing rule,
+   > advancement remains author-presented (never automatic) while OQ8
+   > pends, and a missed timebox returns here for a fresh dated ruling
+   > rather than sliding silently. Later phases remain unassigned; this
+   > ruling opens exactly Phase 1 (LLP 0155 Move 3's entry point).
 6. **The ephemeral no-sync pin.** Does the proposed LLP 0013
    amendment (0126 OQ8; constraint 4) land with Phase 0 or
    independently, and who writes it?
