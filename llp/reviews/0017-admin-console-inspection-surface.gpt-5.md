@@ -120,3 +120,80 @@ Keep LLP 0017 in `Draft` while reconciling the 0012 schema-version question and 
 local admin token lifecycle. With the Claude review plus this GPT-5 review, the
 multi-family critique loop is now adequate for a Draft RFC of this scope; the next
 work should be author decisions and implementation spikes, not another review pass.
+
+---
+
+## Round: 2026-08-03 — amendment delta review (one-time operator claim link)
+
+**Provenance:** reviewer = codex exec (OpenAI family, default model,
+model_reasoning_effort=xhigh), mutually blind to the concurrent Claude-family
+reviewer; orchestrator/reviser = Claude Fable 5 session (wrote the amendment;
+did not review). Target revision sha256
+`b632aad74c998f982ef3744e8b3005a755c421869ea724e7fe217b7cff3c51a2`
+(uncommitted amendment atop 52383ce4b). Capsule: target + LLP 0150 context +
+delta instructions, structurally excluding llp/reviews/* and orchestrator
+notes. Scope: the four amendment edits only (target is Accepted; single delta
+round authorized by the author — no status transition). Verdict binds to the
+delta, not the whole document. Review body verbatim below.
+
+1. **MATERIAL — IN-DELTA**
+
+   **Exact text:**
+
+   > “Opening the link exchanges the claim atomically for one newly derived `sbcc_` console credential…”
+
+   > “Minting refuses hosted targets; a non-loopback local bind may mint claims only when an explicit `SNAPBACK_ADMIN_TOKEN` enabled admin on that bind.”
+
+   > “non-loopback and hosted targets cannot mint, renew, or device-approve browser console credentials even when another admin bearer is present;”
+
+   The amendment permits a non-loopback target to exchange a claim for a newly minted browser credential, directly contradicting the existing acceptance requirement. This leaves implementations and tests with incompatible normative rules.
+
+   **Suggested fix:** Decide the rule explicitly. If the claim link is the intended exception, revise the validation requirement to say that hosted targets always refuse, while non-loopback local targets may mint a claim-derived credential only when enabled by an explicit `SNAPBACK_ADMIN_TOKEN`. Add acceptance tests for that exception. Otherwise, remove the non-loopback claim allowance.
+
+2. **MATERIAL — IN-DELTA**
+
+   **Exact text:**
+
+   > “Opening the link exchanges the claim atomically for one newly derived `sbcc_` console credential through the ordinary credential path (`no-store`, fragment removed before boot, same storage rules)…”
+
+   > “An active derived credential may renew itself only on a loopback local target in the `dev` profile and dev auth policy. Renewal slides the ten-minute expiry but never moves the absolute eight-hour deadline established at first mint…”
+
+   > “the minting terminal prints a claim notification … so a raced or stolen link is visible…”
+
+   Atomic consumption prevents replay but makes a race strictly first-wins. In the common loopback-server-plus-tunnel deployment, the winning claim-derived credential inherits sliding renewal and can retain `AdminWrite` for up to eight hours. The design provides notification but no way to revoke or contain the credential won by an attacker, so the five-minute claim lifetime does not bound the resulting compromise.
+
+   **Suggested fix:** Mark claim-derived credentials with distinct provenance, make them non-renewable with a short absolute lifetime, and bind the redemption record to the issued credential so the minting terminal can revoke it immediately. If renewable claim sessions are required, specify an authenticated terminal confirmation before renewal becomes available.
+
+3. **MATERIAL — IN-DELTA**
+
+   **Exact text:**
+
+   > “`--url-base` substitutes the operator's tunnel or reverse-proxy origin…”
+
+   > “the minting terminal prints a claim notification (time and requesting address) when the code is redeemed…”
+
+   The notification is not specified well enough to implement reliably. A command that has returned cannot later print, while no blocking, polling, streaming, reattachment, or delivery-loss behavior is defined. Moreover, through the expressly supported tunnel/reverse-proxy path, the server usually sees the proxy or loopback peer rather than the browser address; trusting arbitrary forwarding headers would create spoofable audit output. Consequently, the promised security signal may either never arrive or report a misleading address.
+
+   **Suggested fix:** Specify that `snapback admin link` remains attached until redemption, expiry, or interruption and observes an atomically recorded redemption event using a separate status receipt unavailable to the browser. Define disconnect behavior and whether observation can reattach. Define the address as the direct transport peer by default, and derive a browser address from forwarding headers only through explicitly configured trusted proxies, labeling which address is shown.
+
+4. **minor — IN-DELTA**
+
+   **Exact text:**
+
+   > “held server-side only as a digest alongside the device-approval registry and sharing its pending cap and rate windows.”
+
+   Sharing budgets couples an unauthenticated claim-exchange endpoint to device approval. Invalid exchange traffic or unauthenticated device-request floods can exhaust a common window or pending pool and prevent an operator from redeeming a legitimate claim. The uniform refusal and unguessable code adequately address enumeration, but they do not prevent cross-flow starvation.
+
+   **Suggested fix:** Retain a global work ceiling but partition quotas between authenticated claim creation, claim exchange, and device approval; apply per-effective-source limits to unauthenticated attempts so one lane cannot consume the others’ entire budget.
+
+5. **altitude:detail — IN-DELTA**
+
+   **Exact text:**
+
+   > “Opening the link exchanges the claim atomically…”
+
+   The wire details belong to implementation, but the security tests should ensure the code is submitted by `POST` in a body rather than a URL, is never logged, receives `no-store`, uses constant-time digest comparison, and preserves the same status/body for invalid, expired, and consumed claims.
+
+   **Suggested fix:** Record these as implementation acceptance cases rather than adding further RFC-level protocol machinery.
+
+VERDICT: NOT READY
