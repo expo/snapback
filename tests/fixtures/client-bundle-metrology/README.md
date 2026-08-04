@@ -62,6 +62,13 @@ store is the first such workload version; its declarative inventory lives in
 `local-persistent-store-profiles.v1.json` and its frozen receipt lives in
 `baseline.local-persistent-store.v1.json`.
 
+Move 3's local-read-admission workload is the next rollover, followed by the
+generated-mutation-IR workload that changed the shipped Full/root closures at
+the M4 exit. Their declarative inventories are
+`local-read-admission-profiles.v1.json` and
+`generated-mutation-ir-profiles.v1.json`; each receipt retains its complete
+predecessor by digest rather than rewriting an earlier ceiling.
+
 The OQ2 extension is `baseline.push-installation-expo.v1.json`, backed by
 `push-installation-expo-profiles.v1.json`. It freezes the optional Expo
 installation-storage subpath independently, including a closure assertion that

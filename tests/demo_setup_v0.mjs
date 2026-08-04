@@ -19,6 +19,7 @@ assert.deepEqual([...demos.keys()].sort(), [
   'dispatch-board',
   'file-drop',
   'graffiti',
+  'latency-kanban',
   'partiful-matrix',
   'party-wall',
   'public-dashboard',

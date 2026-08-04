@@ -169,6 +169,27 @@ const LOCAL_READ_ADMISSION_ROLLOVER_PROFILE_IDS = Object.freeze([
   'public-subpath-optimistic-rebase',
   'public-subpath-outbox-shared',
 ]);
+const GENERATED_MUTATION_IR_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'app-data-operation-live',
+  'external-react-application',
+  'full-operation-call',
+  'full-operation-live',
+  'full-public-surface',
+  'full-sessions',
+  'micro-root-negative',
+  'online-operation-live',
+  'public-subpath-app-data',
+  'public-subpath-hosted-browser',
+  'public-subpath-local-read-admission',
+  'public-subpath-online',
+  'public-subpath-optimistic-rebase',
+  'public-subpath-push-registry',
+  'public-subpath-root',
+  'public-subpath-vector-search',
+  'push-registry-attach',
+  'push-registry-root-negative',
+  'react-external',
+]);
 const ROLLOVER_LEDGER_SPECS = Object.freeze([
   Object.freeze({
     filename: 'baseline.local-persistent-store.v1.json',
@@ -247,6 +268,33 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/answer-classes.test.mjs']],
       ['node', ['packages/snapback-client/evaluation-floor.test.mjs']],
       ['node', ['packages/snapback-client/lease-convergence.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.generated-mutation-ir.v1.json',
+    profileFilename: 'generated-mutation-ir-profiles.v1.json',
+    workloadVersion: 'llp-0155-generated-mutation-ir.v1',
+    profileIds: GENERATED_MUTATION_IR_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.local-read-admission.v1.json',
+        profileIds: GENERATED_MUTATION_IR_ROLLOVER_PROFILE_IDS,
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0155#execution-contract',
+      'LLP 0155#acceptance-gate',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/generated-mutation-ir.test.mjs']],
+      ['node', ['packages/snapback-client/local-read-admission.test.mjs']],
+      ['node', ['packages/snapback-client/optimistic-rebase.test.mjs']],
+      ['node', ['packages/snapback-client/optimistic-rebase-acceptance.test.mjs']],
     ]),
   }),
 ]);
