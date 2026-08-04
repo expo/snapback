@@ -1,13 +1,15 @@
 //! Dated absolute-latency instrument for LLP 0164's novel operations.
 //!
 //! Build in release mode, wait for build quiescence, then invoke the binary
-//! directly with the output path. The record is evidence for ratifying bounds;
-//! it is not itself a capability claim.
+//! directly with the output path, accepted baseline path, and exact expected
+//! revision. The record is evidence for ratifying bounds; it is not itself a
+//! capability claim.
 //!
 //! @ref LLP 0162#measurement-gate — fork creation, exact diff, promotion, and
 //!   reap have no pre-profile comparator and require dated absolute evidence.
 
 use std::collections::BTreeMap;
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
@@ -16,6 +18,7 @@ use anyhow::{Context, bail};
 use rusqlite::{Connection, Transaction, params};
 use serde::Serialize;
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use snapback::branches::{BranchId, ChildStreamId, MaterializedBase};
 use snapback::commit_envelope::{
     IdentityEpochStateV1, IdentityEpochV1, OperationBoundFactsV1, OperationIdentityV1,
@@ -43,6 +46,10 @@ struct Artifact {
     artifact_name: &'static str,
     date: &'static str,
     source_revision: String,
+    source_tree_clean: bool,
+    executable_sha256: String,
+    baseline_artifact: BaselineBinding,
+    toolchain: Toolchain,
     hardware_class: Hardware,
     fixture: Fixture,
     protocol: Protocol,
@@ -50,6 +57,21 @@ struct Artifact {
     summary_us: BTreeMap<&'static str, Statistics>,
     bound_ratification: &'static str,
     claim_boundary: &'static str,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BaselineBinding {
+    artifact_name: String,
+    schema_version: String,
+    sha256: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Toolchain {
+    rustc: String,
+    cargo: String,
 }
 
 #[derive(Serialize)]
@@ -106,11 +128,86 @@ fn main() -> anyhow::Result<()> {
     if cfg!(debug_assertions) {
         bail!("benchmark must be built with --release");
     }
-    let output = std::env::args_os()
-        .nth(1)
-        .map(PathBuf::from)
-        .context("usage: snapback-fork-promotion-bench OUTPUT.json")?;
+    let mut arguments = std::env::args_os().skip(1);
+    let output = arguments.next().map(PathBuf::from).context(
+        "usage: snapback-fork-promotion-bench OUTPUT.json BASELINE.json EXPECTED_REVISION",
+    )?;
+    let baseline_path = arguments.next().map(PathBuf::from).context(
+        "usage: snapback-fork-promotion-bench OUTPUT.json BASELINE.json EXPECTED_REVISION",
+    )?;
+    let expected_revision = arguments
+        .next()
+        .and_then(|value| value.into_string().ok())
+        .context(
+            "usage: snapback-fork-promotion-bench OUTPUT.json BASELINE.json EXPECTED_REVISION",
+        )?;
+    if arguments.next().is_some() {
+        bail!("usage: snapback-fork-promotion-bench OUTPUT.json BASELINE.json EXPECTED_REVISION");
+    }
     ensure_machine_quiescent()?;
+    let source_revision = checked_command(&["git", "rev-parse", "HEAD"])?;
+    if source_revision != expected_revision {
+        bail!(
+            "benchmark revision mismatch: expected {expected_revision}, checked out {source_revision}"
+        );
+    }
+    let dirty = checked_command(&["git", "status", "--porcelain", "--untracked-files=all"])?;
+    if !dirty.is_empty() {
+        bail!("benchmark requires a clean tracked source tree; found:\n{dirty}");
+    }
+    let baseline_bytes = std::fs::read(&baseline_path)
+        .with_context(|| format!("read baseline artifact {}", baseline_path.display()))?;
+    let baseline: serde_json::Value =
+        serde_json::from_slice(&baseline_bytes).context("decode baseline artifact")?;
+    let baseline_artifact_name = baseline["artifactName"]
+        .as_str()
+        .context("baseline artifactName is missing")?;
+    let baseline_schema_version = baseline["schemaVersion"]
+        .as_str()
+        .context("baseline schemaVersion is missing")?;
+    if baseline_artifact_name != "agent-safe-step0-pre-profile-2026-08-03"
+        || baseline_schema_version != "snapback.agent-safe-step0-baseline.v1"
+    {
+        bail!("benchmark requires the accepted LLP 0162 step-0 baseline artifact");
+    }
+    let hardware = Hardware {
+        os: checked_command(&["sw_vers", "-productVersion"])?,
+        architecture: std::env::consts::ARCH,
+        model: sysctl("hw.model")?,
+        cpu: sysctl("machdep.cpu.brand_string")?,
+        logical_cpus: std::thread::available_parallelism()
+            .map(usize::from)
+            .unwrap_or(0),
+        memory_bytes: sysctl("hw.memsize")?.parse().unwrap_or(0),
+    };
+    if hardware.architecture != "aarch64"
+        || hardware.model != "Mac17,3"
+        || hardware.cpu != "Apple M5"
+        || hardware.logical_cpus != 10
+        || hardware.memory_bytes != 34_359_738_368
+    {
+        bail!(
+            "benchmark hardware does not match the accepted Mac17,3 / Apple M5 / 10 CPU / 32 GiB baseline class"
+        );
+    }
+    if baseline["hardwareClass"]["os"].as_str() != Some(hardware.os.as_str())
+        || baseline["hardwareClass"]["architecture"].as_str() != Some(hardware.architecture)
+        || baseline["hardwareClass"]["model"].as_str() != Some(hardware.model.as_str())
+        || baseline["hardwareClass"]["cpu"].as_str() != Some(hardware.cpu.as_str())
+        || baseline["hardwareClass"]["logicalCpus"].as_u64() != Some(hardware.logical_cpus as u64)
+        || baseline["hardwareClass"]["memoryBytes"].as_u64() != Some(hardware.memory_bytes)
+    {
+        bail!("step-0 baseline hardware binding diverges from the measurement host");
+    }
+    let toolchain = Toolchain {
+        rustc: checked_command(&["rustc", "--version"])?,
+        cargo: checked_command(&["cargo", "--version"])?,
+    };
+    if baseline["source"]["rustcVersion"].as_str() != Some(toolchain.rustc.as_str())
+        || baseline["source"]["cargoVersion"].as_str() != Some(toolchain.cargo.as_str())
+    {
+        bail!("step-0 baseline toolchain binding diverges from the measurement host");
+    }
 
     run_once(0)?;
     for index in 0..LOCAL_WARMUPS {
@@ -121,20 +218,19 @@ fn main() -> anyhow::Result<()> {
         raw_runs.push(run_once(20_000 + index as u64)?);
     }
     let artifact = Artifact {
-        schema_version: "snapback.fork-promotion-performance.v1",
-        artifact_name: "agent-safe-fork-promotion-absolute-integrated-2026-08-03",
-        date: "2026-08-03",
-        source_revision: command(&["git", "rev-parse", "HEAD"]),
-        hardware_class: Hardware {
-            os: command(&["sw_vers", "-productVersion"]),
-            architecture: std::env::consts::ARCH,
-            model: sysctl("hw.model"),
-            cpu: sysctl("machdep.cpu.brand_string"),
-            logical_cpus: std::thread::available_parallelism()
-                .map(usize::from)
-                .unwrap_or(0),
-            memory_bytes: sysctl("hw.memsize").parse().unwrap_or(0),
+        schema_version: "snapback.fork-promotion-performance.v2",
+        artifact_name: "agent-safe-fork-promotion-absolute-2026-08-04",
+        date: "2026-08-04",
+        source_revision,
+        source_tree_clean: true,
+        executable_sha256: digest_file(&std::env::current_exe()?)?,
+        baseline_artifact: BaselineBinding {
+            artifact_name: baseline_artifact_name.to_owned(),
+            schema_version: baseline_schema_version.to_owned(),
+            sha256: format!("sha256:{:x}", Sha256::digest(&baseline_bytes)),
         },
+        toolchain,
+        hardware_class: hardware,
         fixture: Fixture {
             logical_rows: ROWS,
             changed_rows: 1,
@@ -155,12 +251,21 @@ fn main() -> anyhow::Result<()> {
         bound_ratification: "Missing: LLP 0162 author has not ratified absolute bounds beside the step-0 artifact",
         claim_boundary: "instrumentation evidence only; fork and promotion capabilities remain Missing",
     };
-    std::fs::write(
-        &output,
-        format!("{}\n", serde_json::to_string_pretty(&artifact)?),
-    )?;
+    let mut output_file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&output)
+        .with_context(|| format!("create new dated artifact {}", output.display()))?;
+    writeln!(output_file, "{}", serde_json::to_string_pretty(&artifact)?)?;
+    output_file.sync_all()?;
     println!("wrote {}", output.display());
     Ok(())
+}
+
+fn digest_file(path: &std::path::Path) -> anyhow::Result<String> {
+    let bytes = std::fs::read(path)
+        .with_context(|| format!("read executable for digest {}", path.display()))?;
+    Ok(format!("sha256:{:x}", Sha256::digest(bytes)))
 }
 
 fn run_once(seed: u64) -> anyhow::Result<Run> {
@@ -333,6 +438,7 @@ fn create_request(seed: u64, ordinal: u64, base_version: u64, now: i64) -> InApp
             max_operations: 8,
             max_retained_bytes: 128 * 1024,
             max_diff_rows: 16,
+            max_digest_work_bytes: 512 * 1024,
             ttl_ms: 30_000,
         },
         coverage: coverage(),
@@ -496,7 +602,7 @@ fn micros(started: Instant) -> f64 {
 }
 
 fn ensure_machine_quiescent() -> anyhow::Result<()> {
-    let output = command(&["ps", "-axo", "comm="]);
+    let output = checked_command(&["ps", "-axo", "comm="])?;
     let offenders = output
         .lines()
         .filter(|line| {
@@ -510,16 +616,22 @@ fn ensure_machine_quiescent() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn command(arguments: &[&str]) -> String {
-    Command::new(arguments[0])
+fn checked_command(arguments: &[&str]) -> anyhow::Result<String> {
+    let output = Command::new(arguments[0])
         .args(&arguments[1..])
         .output()
-        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_owned())
-        .unwrap_or_default()
+        .with_context(|| format!("run measurement prerequisite {arguments:?}"))?;
+    if !output.status.success() {
+        bail!(
+            "measurement prerequisite {arguments:?} failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
 }
 
-fn sysctl(name: &str) -> String {
-    command(&["sysctl", "-n", name])
+fn sysctl(name: &str) -> anyhow::Result<String> {
+    checked_command(&["sysctl", "-n", name])
 }
 
 fn sha(character: char) -> String {

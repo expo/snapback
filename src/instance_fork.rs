@@ -1991,6 +1991,60 @@ mod tests {
     }
 
     #[test]
+    fn derived_fork_keeps_its_pinned_copy_when_parent_writes_after_publication() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let parent = Connection::open(&source).unwrap();
+        parent
+            .execute_batch(
+                "CREATE TABLE notes(id TEXT PRIMARY KEY, body TEXT NOT NULL);
+                 INSERT INTO notes(id,body) VALUES('before','fork point');",
+            )
+            .unwrap();
+
+        let destination = directory.path().join("fork");
+        publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
+
+        parent
+            .execute(
+                "UPDATE notes SET body='parent advanced' WHERE id='before'",
+                [],
+            )
+            .unwrap();
+        parent
+            .execute(
+                "INSERT INTO notes(id,body) VALUES('after','parent only')",
+                [],
+            )
+            .unwrap();
+
+        let fork = Connection::open(destination.join("app.sqlite3")).unwrap();
+        assert_eq!(
+            fork.query_row("SELECT body FROM notes WHERE id='before'", [], |row| {
+                row.get::<_, String>(0)
+            })
+            .unwrap(),
+            "fork point"
+        );
+        assert_eq!(
+            fork.query_row("SELECT COUNT(*) FROM notes WHERE id='after'", [], |row| {
+                row.get::<_, u64>(0)
+            })
+            .unwrap(),
+            0,
+            "a derived deployment is a copied instance, not a view of parent head"
+        );
+        assert_eq!(
+            parent
+                .query_row("SELECT body FROM notes WHERE id='before'", [], |row| {
+                    row.get::<_, String>(0)
+                })
+                .unwrap(),
+            "parent advanced"
+        );
+    }
+
+    #[test]
     fn parent_credential_and_cursor_corpus_is_refused_by_minted_fork() {
         let directory = tempfile::tempdir().unwrap();
         let source = source_database(directory.path());

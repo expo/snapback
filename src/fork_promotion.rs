@@ -15,6 +15,7 @@
 //!   contracts implemented here.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::io::{self, Write};
 use std::time::Instant;
 
 use rusqlite::types::{Value as SqlValue, ValueRef};
@@ -61,6 +62,47 @@ fn json_bytes<T: Serialize>(value: &T, what: &str) -> SnapbackResult<Vec<u8>> {
             format!("encode {what}: {cause}"),
         )
     })
+}
+
+struct DigestWorkCounter {
+    limit: u64,
+    written: u64,
+    exceeded: bool,
+}
+
+impl Write for DigestWorkCounter {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        let next = self.written.checked_add(bytes.len() as u64);
+        if next.is_none_or(|next| next > self.limit) {
+            self.exceeded = true;
+            return Err(io::Error::other("fork diff digest-work limit exceeded"));
+        }
+        self.written = next.expect("checked above");
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+fn bounded_digest_work_bytes<T: Serialize>(value: &T, limit: u64) -> SnapbackResult<u64> {
+    let mut counter = DigestWorkCounter {
+        limit,
+        written: 0,
+        exceeded: false,
+    };
+    match serde_json::to_writer(&mut counter, value) {
+        Ok(()) => Ok(counter.written),
+        Err(_) if counter.exceeded => Err(error(
+            "SNAPBACK_BRANCH_DIGEST_WORK_LIMIT_EXCEEDED",
+            "exact diff exceeds the branch's declared digest-work byte bound",
+        )),
+        Err(cause) => Err(error(
+            "SNAPBACK_BRANCH_ARTIFACT_INVALID",
+            format!("serialize exact fork diff work set: {cause}"),
+        )),
+    }
 }
 
 fn decode_json<T: for<'de> Deserialize<'de>>(bytes: &[u8], what: &str) -> SnapbackResult<T> {
@@ -171,6 +213,10 @@ pub struct BranchLimitsV1 {
     pub max_operations: u64,
     pub max_retained_bytes: u64,
     pub max_diff_rows: u64,
+    /// Maximum canonical JSON bytes admitted to one exact-diff derivation.
+    /// This bounds the base/head oracle, retained journal, attribution, and
+    /// net-diff inputs before the receipt digest is computed.
+    pub max_digest_work_bytes: u64,
     pub ttl_ms: i64,
 }
 
@@ -181,11 +227,12 @@ impl BranchLimitsV1 {
             || self.max_operations == 0
             || self.max_retained_bytes == 0
             || self.max_diff_rows == 0
+            || self.max_digest_work_bytes == 0
             || self.ttl_ms <= 0
         {
             return Err(error(
                 "SNAPBACK_BRANCH_LIMIT_INVALID",
-                "branch operation, byte, diff-row, and TTL limits must be positive",
+                "branch operation, retained-byte, diff-row, digest-work, and TTL limits must be positive",
             ));
         }
         Ok(())
@@ -833,7 +880,7 @@ pub struct AttributedChangeV1 {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum NetDiffSubstrateV1 {
-    ImmutableMaterializedBase,
+    JournalDerivedWithIndependentOracle,
 }
 
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
@@ -850,6 +897,7 @@ pub struct ForkDiffReceiptV1 {
     pub coverage: ForkCoverageV1,
     pub attributed_changes: Vec<AttributedChangeV1>,
     pub net_diff: Vec<NetDiffRowV1>,
+    pub digest_work_bytes: u64,
     #[schemars(pattern(SHA256_PATTERN))]
     pub diff_digest: String,
 }
@@ -871,9 +919,13 @@ fn keyed_rows(rows: Vec<SnapshotRowV1>) -> SnapbackResult<BTreeMap<(String, Stri
     Ok(keyed)
 }
 
-/// Compute the net diff by independently scanning the retained immutable base
-/// and writable head. The operation log supplies attribution only; it is not
-/// trusted to derive net state.
+/// Derive the net diff from the retained operation journal, then independently
+/// compare that derivation with scans of the immutable base and writable head.
+/// A missing or divergent journal fact refuses rather than publishing a
+/// partial diff as complete.
+// @ref LLP 0162#4-journal-diff-instead-of-maintained-merkle-state — the
+// runtime result is journal-derived; the base/head scan is an independent
+// completeness oracle and declared digest work is bounded before hashing.
 pub fn exact_fork_diff<F>(
     workspace: &MaterializedBase,
     branch_id: &BranchId,
@@ -883,13 +935,62 @@ where
     F: Fn(&Connection) -> SnapbackResult<Vec<SnapshotRowV1>>,
 {
     let (_, receipt) = branch_profile(&workspace.conn, branch_id)?;
-    let base = keyed_rows(scan(workspace.immutable_base())?)?;
-    let head = keyed_rows(scan(&workspace.conn)?)?;
-    let keys: BTreeSet<_> = base.keys().chain(head.keys()).cloned().collect();
+    let base_scan = scan(workspace.immutable_base())?;
+    let head_scan = scan(&workspace.conn)?;
+    let base = keyed_rows(base_scan.clone())?;
+    let head_oracle = keyed_rows(head_scan.clone())?;
+    let operations = branch_operation_log(&workspace.conn, branch_id)?;
+    let coverage = receipt.coverage.clone().normalized();
+    let mut journal_head = base.clone();
+    let mut attributed_changes = Vec::new();
+    for operation in &operations {
+        if operation.approved_facts.coverage.clone().normalized() != coverage {
+            return Err(error(
+                "SNAPBACK_BRANCH_DIFF_JOURNAL_INCOMPLETE",
+                "operation journal coverage diverges from the branch coverage manifest",
+            ));
+        }
+        for (ordinal, write) in operation.approved_facts.writes.iter().enumerate() {
+            if write.table_name.trim().is_empty() || write.row_id.trim().is_empty() {
+                return Err(error(
+                    "SNAPBACK_BRANCH_DIFF_JOURNAL_INCOMPLETE",
+                    "operation journal contains an unclassifiable write identity",
+                ));
+            }
+            let key = (write.table_name.clone(), write.row_id.clone());
+            match &write.after {
+                Some(after) => {
+                    journal_head.insert(key, canonicalize_json(after.clone()));
+                }
+                None => {
+                    if journal_head.remove(&key).is_none() {
+                        return Err(error(
+                            "SNAPBACK_BRANCH_DIFF_JOURNAL_INCOMPLETE",
+                            "operation journal records deletion of an absent row",
+                        ));
+                    }
+                }
+            }
+            attributed_changes.push(AttributedChangeV1 {
+                child_version: operation.child_version,
+                operation_identity: operation.identity.clone(),
+                principal_id: operation.principal_id.clone(),
+                write_ordinal: ordinal as u64,
+                write: write.clone(),
+            });
+        }
+    }
+    if journal_head != head_oracle {
+        return Err(error(
+            "SNAPBACK_BRANCH_DIFF_JOURNAL_INCOMPLETE",
+            "journal-derived head diverges from the independent writable-head scan",
+        ));
+    }
+    let keys: BTreeSet<_> = base.keys().chain(journal_head.keys()).cloned().collect();
     let mut net_diff = Vec::new();
     for (table_name, row_id) in keys {
         let before = base.get(&(table_name.clone(), row_id.clone()));
-        let after = head.get(&(table_name.clone(), row_id.clone()));
+        let after = journal_head.get(&(table_name.clone(), row_id.clone()));
         let disposition = match (before, after) {
             (None, Some(_)) => Some(NetDiffDispositionV1::Added),
             (Some(_), None) => Some(NetDiffDispositionV1::Deleted),
@@ -912,31 +1013,22 @@ where
             "exact diff exceeds the branch's declared row bound",
         ));
     }
-    let operations = branch_operation_log(&workspace.conn, branch_id)?;
-    let attributed_changes = operations
-        .iter()
-        .flat_map(|operation| {
-            operation
-                .approved_facts
-                .writes
-                .iter()
-                .enumerate()
-                .map(move |(ordinal, write)| AttributedChangeV1 {
-                    child_version: operation.child_version,
-                    operation_identity: operation.identity.clone(),
-                    principal_id: operation.principal_id.clone(),
-                    write_ordinal: ordinal as u64,
-                    write: write.clone(),
-                })
-        })
-        .collect::<Vec<_>>();
+    let digest_work_bytes = bounded_digest_work_bytes(
+        &(
+            &base_scan,
+            &head_scan,
+            &operations,
+            &attributed_changes,
+            &net_diff,
+        ),
+        receipt.limits.max_digest_work_bytes,
+    )?;
     let child_head = child_current_version(&workspace.conn, branch_id)?.ok_or_else(|| {
         error(
             "SNAPBACK_BRANCH_STREAM_MISSING",
             "branch child stream disappeared before diff",
         )
     })?;
-    let coverage = receipt.coverage.clone().normalized();
     let digest_input = (
         &receipt.branch.base_stream,
         receipt.branch.base_version,
@@ -945,6 +1037,7 @@ where
         &coverage,
         &attributed_changes,
         &net_diff,
+        digest_work_bytes,
     );
     let diff_digest = digest_json(b"exact-fork-diff", &digest_input)?;
     Ok(ForkDiffReceiptV1 {
@@ -954,10 +1047,11 @@ where
         base_version: receipt.branch.base_version,
         child_stream_id: receipt.branch.child_stream_id,
         child_head,
-        substrate: NetDiffSubstrateV1::ImmutableMaterializedBase,
+        substrate: NetDiffSubstrateV1::JournalDerivedWithIndependentOracle,
         coverage,
         attributed_changes,
         net_diff,
+        digest_work_bytes,
         diff_digest,
     })
 }
@@ -3065,6 +3159,7 @@ mod tests {
                 max_operations: 16,
                 max_retained_bytes: 128 * 1024,
                 max_diff_rows: 32,
+                max_digest_work_bytes: 512 * 1024,
                 ttl_ms: 30_000,
             },
             coverage: ForkCoverageV1 {
@@ -3374,29 +3469,33 @@ mod tests {
     fn exact_diff_model_corpus_covers_add_update_delete_and_folding() {
         for seed in 0_u64..32 {
             let mut canonical = source(1);
-            let request = create_request(
+            let mut request = create_request(
                 &format!("diff-model-{seed}"),
                 &format!("child-diff-model-{seed}"),
                 1,
                 100,
             );
+            request.limits.max_operations = 64;
+            request.limits.max_retained_bytes = 512 * 1024;
+            request.limits.max_digest_work_bytes = 2 * 1024 * 1024;
             create_in_app_branch(&mut canonical, &request).expect("branch");
-            let workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+            let mut workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
             let mut expected =
                 BTreeMap::from([(1_i64, "alpha".to_owned()), (2_i64, "beta".to_owned())]);
+            let mut expected_attribution = Vec::new();
             let mut state = seed.wrapping_add(1);
             for step in 0..48_u64 {
                 state = state
                     .wrapping_mul(6_364_136_223_846_793_005)
                     .wrapping_add(1_442_695_040_888_963_407);
                 let id = 1 + ((state >> 17) % 8) as i64;
-                match (state >> 5) % 3 {
+                let mut operation_draft = draft(
+                    &format!("child-diff-model-{seed}"),
+                    &format!("diff-model-{seed}-{step}"),
+                );
+                operation_draft.canonical_arguments = match (state >> 5) % 3 {
                     0 => {
-                        workspace
-                            .conn
-                            .execute("DELETE FROM widgets WHERE id=?1", params![id])
-                            .expect("delete");
-                        expected.remove(&id);
+                        json!({ "kind": "delete", "id": id })
                     }
                     _ => {
                         let name = if step % 11 == 0 && id == 1 {
@@ -3406,16 +3505,67 @@ mod tests {
                         } else {
                             format!("seed-{seed}-step-{step}")
                         };
-                        workspace
-                            .conn
-                            .execute(
-                                "INSERT INTO widgets(id, name) VALUES (?1, ?2)
-                                 ON CONFLICT(id) DO UPDATE SET name=excluded.name",
-                                params![id, name],
-                            )
-                            .expect("upsert");
-                        expected.insert(id, name);
+                        json!({ "kind": "upsert", "id": id, "name": name })
                     }
+                };
+                let arguments = operation_draft.canonical_arguments.clone();
+                let prior = expected.get(&id).cloned();
+                let operation = execute_branch_operation(
+                    &mut workspace.conn,
+                    &request.branch_id,
+                    &operation_draft,
+                    101 + step as i64,
+                    |tx, _| {
+                        let mut observed = facts("journalized");
+                        observed.result = json!({ "step": step });
+                        match arguments["kind"].as_str().expect("kind") {
+                            "delete" => {
+                                tx.execute("DELETE FROM widgets WHERE id=?1", params![id])?;
+                                observed.writes = prior
+                                    .as_ref()
+                                    .map(|_| LogicalWriteFactV1 {
+                                        table_name: "widgets".to_owned(),
+                                        row_id: id.to_string(),
+                                        after: None,
+                                    })
+                                    .into_iter()
+                                    .collect();
+                            }
+                            "upsert" => {
+                                let name = arguments["name"].as_str().expect("name");
+                                tx.execute(
+                                    "INSERT INTO widgets(id, name) VALUES (?1, ?2)
+                                     ON CONFLICT(id) DO UPDATE SET name=excluded.name",
+                                    params![id, name],
+                                )?;
+                                observed.writes = vec![LogicalWriteFactV1 {
+                                    table_name: "widgets".to_owned(),
+                                    row_id: id.to_string(),
+                                    after: Some(json!({ "id": id, "name": name })),
+                                }];
+                            }
+                            _ => unreachable!(),
+                        }
+                        Ok(observed)
+                    },
+                )
+                .expect("journalized mutation");
+                match arguments["kind"].as_str().expect("kind") {
+                    "delete" => {
+                        expected.remove(&id);
+                    }
+                    "upsert" => {
+                        expected.insert(id, arguments["name"].as_str().expect("name").to_owned());
+                    }
+                    _ => unreachable!(),
+                }
+                for (write_ordinal, write) in operation.approved_facts.writes.iter().enumerate() {
+                    expected_attribution.push((
+                        operation.child_version,
+                        operation.identity.key.operation_id.clone(),
+                        write_ordinal as u64,
+                        write.clone(),
+                    ));
                 }
             }
 
@@ -3444,6 +3594,20 @@ mod tests {
                 })
                 .count();
             assert_eq!(receipt.net_diff.len(), expected_changed, "seed {seed}");
+            assert_eq!(
+                receipt
+                    .attributed_changes
+                    .iter()
+                    .map(|change| (
+                        change.child_version,
+                        change.operation_identity.key.operation_id.clone(),
+                        change.write_ordinal,
+                        change.write.clone(),
+                    ))
+                    .collect::<Vec<_>>(),
+                expected_attribution,
+                "attributed sequence must independently match the emitted journal, seed {seed}"
+            );
             for row in &receipt.net_diff {
                 match row.disposition {
                     NetDiffDispositionV1::Added => {
@@ -3458,6 +3622,43 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn exact_diff_refuses_unjournaled_writes_and_exhausted_digest_work() {
+        let mut canonical = source(1);
+        let direct = create_request("direct-bypass", "child-direct", 1, 100);
+        create_in_app_branch(&mut canonical, &direct).expect("branch");
+        let workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        workspace
+            .conn
+            .execute("UPDATE widgets SET name='unjournaled' WHERE id=1", [])
+            .expect("bypass write");
+        assert_eq!(
+            exact_fork_diff(&workspace, &direct.branch_id, scan_widgets)
+                .expect_err("independent oracle catches missing journal fact")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_DIFF_JOURNAL_INCOMPLETE"
+        );
+
+        let mut canonical = source(1);
+        let mut bounded = create_request("digest-bound", "child-digest-bound", 1, 100);
+        bounded.limits.max_digest_work_bytes = 1;
+        create_in_app_branch(&mut canonical, &bounded).expect("branch");
+        let workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        assert_eq!(
+            exact_fork_diff(&workspace, &bounded.branch_id, scan_widgets)
+                .expect_err("even an empty diff accounts for its oracle and journal inputs")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_DIGEST_WORK_LIMIT_EXCEEDED"
+        );
+        assert_eq!(
+            crate::storage::current_version_on(&canonical).expect("canonical head"),
+            1,
+            "read-side work refusal cannot mutate canonical state"
+        );
     }
 
     #[test]
