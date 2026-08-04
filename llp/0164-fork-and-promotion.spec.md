@@ -5,7 +5,14 @@
 **Systems:** Storage, Runtime, Effects, Auth, Agent experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (acceptance-tail checkpoint — in-app net diff is now
+**Revised:** 2026-08-04 (contention/rebase acceptance-tail increment — v1
+admission now requires one frozen production policy: R=2 consecutive losses,
+a 1,000-ms reservation, quota=1, and a 500-ms maximum commit duration. The
+corpus covers drifted-policy refusal, FIFO quota/defer/release, exhausted-budget
+refusal before canonical mutation, and identical-write divergence in read or
+result facts. Real concurrent-writer fairness/crash evidence, conditional
+progress, provisional/transitive effects, p99, and publication remain open;
+status stays Draft and capabilities stay `Missing`); 2026-08-04 (acceptance-tail checkpoint — in-app net diff is now
 journal-derived and independently checked against immutable-base/head scans,
 with a streaming digest-work byte bound and a separate attributed-sequence
 oracle; the derived deployment has an explicit post-fork parent-write
@@ -156,7 +163,7 @@ This is intentionally a progress record, not a capability advertisement:
 | 7 — identity/authority | closed branch grant allowlists, promotion-time authority revalidation, and F0b scrub-and-mint/credential negatives | Partial — product auth wiring, stale/revoked corpus breadth, and later settlement remain |
 | 8 — resources | principal/app counts, operation/byte/diff/TTL bounds and reap-without-canonical-change fixture | Partial — the digest-work limit and replay-floor/envelope-clock joint corpus remain |
 | 9 — exact diff | independent immutable-base/head comparison, emitted attributed sequence, and deterministic 32-seed add/update/delete/revert folding corpus | Partial — the randomized corpus mutates the fixture directly rather than comparing a journal-derived net diff; a separate attributed-sequence oracle, schema/system-field coverage, and the complete journal-completeness corpus owned with LLP 0165 remain |
-| 10 — strict promotion | sealed head/log/diff/manifest/facts/schema request; unchanged-base read-only re-execution; exact durable ticket and retry binding; changed-head refusal; rebase/re-seal divergence; FIFO/reservation mechanics; forged-post-image and unjournaled-trigger refusal; aggregate envelope/source joins; independently derived expected-versus-staged-actual boundary comparison with mismatch rollback | Partial — the enumerated ordinary-mutation promotion seam is creditable, but its envelope honestly marks the active canonical coverage manifest as uncovered; global generated-writer/SQLite-authorizer coverage, the full concurrent-writer fairness/crash matrix, exhausted-budget fixture, identical-write/divergent-read-or-result re-seal negatives, provisional effect chains, and frozen production contention terms remain |
+| 10 — strict promotion | sealed head/log/diff/manifest/facts/schema request; unchanged-base read-only re-execution; exact durable ticket and retry binding; changed-head refusal; rebase/re-seal divergence including identical writes with divergent read/result facts; frozen R=2 / 1,000-ms / quota=1 / 500-ms contention policy; FIFO quota/defer/release; exhausted-budget refusal before canonical mutation; forged-post-image and unjournaled-trigger refusal; aggregate envelope/source joins; independently derived expected-versus-staged-actual boundary comparison with mismatch rollback | Partial — the enumerated ordinary-mutation promotion seam is creditable, but its envelope honestly marks the active canonical coverage manifest as uncovered; global generated-writer/SQLite-authorizer coverage, the real concurrent-writer fairness/crash matrix, conditional-progress evidence, and provisional/transitive effect chains remain |
 | 13 — applicable performance | historical and final-integrated dated release-mode records follow the step-0 11-run median/MAD protocol for fork/diff/promotion/reap | Partial — the integrated record closes the final-revision rerun only; author-ratified absolute bounds, p99 contention evidence, and applicable correctness gates remain incomplete |
 
 The runner refuses measurement while another Cargo/Rust compiler is active,
@@ -219,13 +226,20 @@ release-executable digest. It uses create-new publication so a
 dated record cannot be overwritten. No 2026-08-04 Air artifact, p99 contention
 record, or author-ratified bound is claimed by this checkpoint.
 
+The v1 production contention policy is now a wire/schema-enforced constant:
+R=2 consecutive losses, a 1,000-ms head reservation, quota=1, and a 500-ms
+maximum commit duration. Admission refuses any drifted terms. Focused tests
+cover FIFO ordering, threshold eligibility, ordinary-writer defer and release,
+quota exhaustion, exhausted rebase-budget refusal before canonical mutation,
+and rebase re-seal refusal when identical writes mask changed read or result
+facts. This freezes the terms but does not itself prove conditional progress
+under real concurrent writers, the crash matrix, or p99 latency.
+
 ## Open items
 
-1. The declared numeric terms (R, reservation interval and quota, budget
-   formula, maximum promotion-commit duration). The reservation quota is
-   fairness-coupled: quota sufficiency is one of LLP 0162 §5's declared
-   conditional-fairness terms, so its value bounds the progress claim, not
-   just resource use.
+1. *(Implemented 2026-08-04.)* The declared numeric terms are frozen above.
+   The reservation quota remains fairness-coupled: the still-open real
+   contention corpus must prove its sufficiency before any progress claim.
 2. *(Executed in LLP 0162.)* Divergence surfaces through the stable refusal
    diagnostics and receipt fields already named by the accepted umbrella; no
    separate OQ10 vocabulary decision remains open here.

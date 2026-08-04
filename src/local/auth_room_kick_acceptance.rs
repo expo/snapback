@@ -1006,6 +1006,7 @@ fn game_schema() -> SchemaManifest {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             },
             TableManifest {
                 name: "moves".to_owned(),
@@ -1039,6 +1040,7 @@ fn game_schema() -> SchemaManifest {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             },
         ],
         ephemeral_collections: vec![

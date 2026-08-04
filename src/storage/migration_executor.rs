@@ -3307,6 +3307,12 @@ fn run_data_proof(
         tables_proof.insert(
             (*table).clone(),
             json!({
+                "expectedLogicalDigest": expected_logical,
+                "actualLogicalDigest": actual_logical,
+                "expectedSystemDigest": expected_system,
+                "actualSystemDigest": actual_system,
+                "matches": true,
+                // Retain the original compact fields for v1 receipt readers.
                 "logicalDigest": actual_logical,
                 "systemDigest": actual_system,
                 "rows": rows_proven,
@@ -3352,6 +3358,27 @@ fn run_data_proof(
     }
 
     Ok(json!({
+        "proofClass": match proof_method {
+            MigrationProofMethod::Full => "fullTableVerification",
+            MigrationProofMethod::SampledAudit => "inventory",
+        },
+        "boundaryDomain": "migration",
+        "expectedEvaluatorIndependence": match proof_method {
+            MigrationProofMethod::Full => "sharedImplementation",
+            MigrationProofMethod::SampledAudit => "notApplicable",
+        },
+        "independenceLimitation": match proof_method {
+            MigrationProofMethod::Full => Some(
+                "expected and actual paths share eval_expr; this receipt is not an independent boundary proof"
+            ),
+            MigrationProofMethod::SampledAudit => None,
+        },
+        "expectedDerivation": match proof_method {
+            MigrationProofMethod::Full => Some(
+                "predecessor rows plus the closed typed MigrationPlanV1 expected-value evaluator"
+            ),
+            MigrationProofMethod::SampledAudit => None,
+        },
         "proofMethod": match proof_method {
             MigrationProofMethod::Full => "full",
             MigrationProofMethod::SampledAudit => "sampled-audit",
@@ -3951,6 +3978,7 @@ mod tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         }
     }
 
@@ -4854,12 +4882,34 @@ mod tests {
             .get("§5-data-proof")
             .expect("data proof on the receipt");
         assert_eq!(proof["proofMethod"], json!("full"));
+        assert_eq!(proof["proofClass"], json!("fullTableVerification"));
+        assert_eq!(proof["boundaryDomain"], json!("migration"));
+        assert_eq!(
+            proof["expectedEvaluatorIndependence"],
+            json!("sharedImplementation")
+        );
+        assert!(
+            proof["independenceLimitation"]
+                .as_str()
+                .is_some_and(|limitation| limitation.contains("not an independent")),
+            "{proof}"
+        );
+        assert!(proof["expectedDerivation"].as_str().is_some());
         assert!(
             proof["tables"]["items"]["logicalDigest"]
                 .as_str()
                 .is_some_and(|digest| digest.starts_with("cdv1:")),
             "{proof}"
         );
+        assert_eq!(
+            proof["tables"]["items"]["expectedLogicalDigest"],
+            proof["tables"]["items"]["actualLogicalDigest"]
+        );
+        assert_eq!(
+            proof["tables"]["items"]["expectedSystemDigest"],
+            proof["tables"]["items"]["actualSystemDigest"]
+        );
+        assert_eq!(proof["tables"]["items"]["matches"], json!(true));
         assert_eq!(proof["tables"]["items"]["rejects"], json!(0));
 
         // Published by swap: live rows carry the transform; every row's
@@ -4912,6 +4962,14 @@ mod tests {
         let receipt = staged_apply(&mut db, &plan, &approval).expect("sampled apply");
         let proof = receipt.step_results.get("§5-data-proof").expect("proof");
         assert_eq!(proof["proofMethod"], json!("sampled-audit"));
+        assert_eq!(proof["proofClass"], json!("inventory"));
+        assert_eq!(proof["boundaryDomain"], json!("migration"));
+        assert_eq!(
+            proof["expectedEvaluatorIndependence"],
+            json!("notApplicable")
+        );
+        assert_eq!(proof["independenceLimitation"], Value::Null);
+        assert_eq!(proof["expectedDerivation"], Value::Null);
         assert!(
             proof["proofLabel"]
                 .as_str()

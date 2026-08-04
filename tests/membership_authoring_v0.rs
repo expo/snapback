@@ -124,6 +124,7 @@ fn schema() -> SchemaManifest {
                 principal_addressed_writes: None,
             }),
             asset_sharing: None,
+            history: None,
         }],
         ..SchemaManifest::default()
     }

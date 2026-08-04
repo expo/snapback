@@ -24,6 +24,7 @@ pub const CHECKPOINT_DIGEST_DOMAIN_V1: &str = "snapback:checkpoint-boundary:v1";
 const BOUNDARY_DIGEST_TRAILER_V1: &str = "snapback:boundary-digest:v1:trailer";
 const CHECKPOINT_REGISTRY_TABLE: &str = "_snapback_checkpoint_registry_v1";
 const HISTORY_POLICY_TABLE: &str = "_snapback_history_policies_v1";
+const HISTORY_POLICY_TABLE_V2: &str = "_snapback_history_policies_v2";
 const RECORD_HISTORY_TABLE: &str = "_snapback_record_history_v1";
 const CHECKPOINT_SENTINEL: &str = ".snapback-checkpoint-staging.v1";
 const CHECKPOINT_RECEIPT_FILE: &str = "checkpoint-receipt.v1.json";
@@ -32,6 +33,7 @@ pub const CHECKPOINT_MAX_COPY_BYTES: u64 = 64 * 1024 * 1024 * 1024;
 pub const CHECKPOINT_MAX_RETAINED_WAL_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 pub const CHECKPOINT_MAX_LEASE_MS: u64 = 30 * 24 * 60 * 60 * 1_000;
 pub const HISTORY_MAX_RETENTION_MS: u64 = 30 * 24 * 60 * 60 * 1_000;
+pub const HISTORY_MAX_VERSIONS_PER_RECORD: u64 = 1_000;
 pub const HISTORY_MAX_ROWS_PER_TABLE: u64 = 100_000;
 pub const HISTORY_PAGE_MAX: u32 = 1_000;
 
@@ -605,7 +607,12 @@ pub enum CheckpointPublicationCut {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HistoryRetentionPolicyV1 {
     pub table: String,
+    #[schemars(range(min = 1_u64, max = 2_592_000_000_u64))]
     pub retain_ms: u64,
+    /// Legacy v1 table-wide row bound. Schema-declared per-record retention is
+    /// projected into the distinct durable v2 policy table and never changes
+    /// this committed `maxRows` meaning.
+    #[schemars(range(min = 1, max = 100000))]
     pub max_rows: u64,
 }
 
@@ -648,6 +655,11 @@ pub(crate) fn create_infra(conn: &Connection) -> SnapbackResult<()> {
            table_name TEXT PRIMARY KEY,
            retain_ms INTEGER NOT NULL CHECK(retain_ms > 0),
            max_rows INTEGER NOT NULL CHECK(max_rows > 0)
+         );
+         CREATE TABLE IF NOT EXISTS {HISTORY_POLICY_TABLE_V2} (
+           table_name TEXT PRIMARY KEY,
+           retain_ms INTEGER NOT NULL CHECK(retain_ms > 0),
+           max_versions_per_record INTEGER NOT NULL CHECK(max_versions_per_record > 0)
          );
          CREATE TABLE IF NOT EXISTS {RECORD_HISTORY_TABLE} (
            id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -705,7 +717,8 @@ pub(crate) fn record_history_change(
                version,table_name,row_id,op,row_json,changed_at_ms,operation_id
              )
              SELECT ?1,?2,?3,?4,?5,?6,?7
-             WHERE EXISTS(SELECT 1 FROM {HISTORY_POLICY_TABLE} WHERE table_name=?2)"
+             WHERE EXISTS(SELECT 1 FROM {HISTORY_POLICY_TABLE} WHERE table_name=?2)
+                OR EXISTS(SELECT 1 FROM {HISTORY_POLICY_TABLE_V2} WHERE table_name=?2)"
         ),
         params![
             version,
@@ -747,6 +760,20 @@ pub(crate) fn configure_history_policy(
             "history can be enabled only for a declared application table",
         ));
     }
+    let schema_policy_exists = conn
+        .query_row(
+            &format!("SELECT 1 FROM {HISTORY_POLICY_TABLE_V2} WHERE table_name=?1"),
+            [&policy.table],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if schema_policy_exists {
+        return Err(proof_error(
+            "SNAPBACK_HISTORY_POLICY_VERSION_CONFLICT",
+            "legacy maxRows policy cannot replace active schema-declared per-record history",
+        ));
+    }
     conn.execute(
         &format!(
             "INSERT INTO {HISTORY_POLICY_TABLE}(table_name,retain_ms,max_rows)
@@ -759,11 +786,86 @@ pub(crate) fn configure_history_policy(
     Ok(())
 }
 
+/// Project schema authority into the distinct durable v2 policy table inside
+/// the schema publication transaction. Declaring v2 is an explicit atomic
+/// upgrade from any legacy v1 table-wide policy. Removed declarations disable
+/// reads/writes and erase their retained detail in that same commit.
+pub(crate) fn activate_history_policies_in_tx(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+) -> SnapbackResult<()> {
+    let declared = schema
+        .tables
+        .iter()
+        .filter_map(|table| table.history.as_ref().map(|history| (table, history)))
+        .collect::<Vec<_>>();
+    for (table, history) in &declared {
+        if table.name.is_empty()
+            || history.retain_ms == 0
+            || history.retain_ms > HISTORY_MAX_RETENTION_MS
+            || history.max_versions_per_record == 0
+            || history.max_versions_per_record > HISTORY_MAX_VERSIONS_PER_RECORD
+        {
+            return Err(proof_error(
+                "SNAPBACK_HISTORY_POLICY_INVALID",
+                "schema-declared history exceeds the finite v2 per-record bounds",
+            ));
+        }
+        tx.execute(
+            &format!("DELETE FROM {HISTORY_POLICY_TABLE} WHERE table_name=?1"),
+            [&table.name],
+        )?;
+        tx.execute(
+            &format!(
+                "INSERT INTO {HISTORY_POLICY_TABLE_V2}(
+                   table_name,retain_ms,max_versions_per_record
+                 )
+                 VALUES(?1,?2,?3)
+                 ON CONFLICT(table_name) DO UPDATE SET
+                   retain_ms=excluded.retain_ms,
+                   max_versions_per_record=excluded.max_versions_per_record"
+            ),
+            params![
+                table.name,
+                history.retain_ms,
+                history.max_versions_per_record
+            ],
+        )?;
+    }
+    let declared_names = declared
+        .iter()
+        .map(|(table, _)| table.name.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut statement = tx.prepare(&format!(
+        "SELECT table_name FROM {HISTORY_POLICY_TABLE_V2} ORDER BY table_name"
+    ))?;
+    let existing = statement
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    drop(statement);
+    for table in existing {
+        if !declared_names.contains(table.as_str()) {
+            tx.execute(
+                &format!("DELETE FROM {RECORD_HISTORY_TABLE} WHERE table_name=?1"),
+                [&table],
+            )?;
+            tx.execute(
+                &format!("DELETE FROM {HISTORY_POLICY_TABLE_V2} WHERE table_name=?1"),
+                [&table],
+            )?;
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn prune_record_history(conn: &Connection, now_ms: u64) -> SnapbackResult<u64> {
     crate::manifest::validate_portable_timestamp_millis(now_ms)?;
     let tx = conn.unchecked_transaction()?;
+
+    // Schema-declared v2 policy: finite age plus per-record version count.
     let mut policies = tx.prepare(&format!(
-        "SELECT table_name,retain_ms,max_rows FROM {HISTORY_POLICY_TABLE} ORDER BY table_name"
+        "SELECT table_name,retain_ms,max_versions_per_record
+         FROM {HISTORY_POLICY_TABLE_V2} ORDER BY table_name"
     ))?;
     let rows = policies.query_map([], |row| {
         Ok((
@@ -773,6 +875,47 @@ pub(crate) fn prune_record_history(conn: &Connection, now_ms: u64) -> SnapbackRe
         ))
     })?;
     let mut total = 0_u64;
+    for row in rows {
+        let (table, retain_ms, max_versions_per_record) = row?;
+        let age_floor = now_ms.saturating_sub(retain_ms);
+        total += tx.execute(
+            &format!(
+                "DELETE FROM {RECORD_HISTORY_TABLE}
+                 WHERE table_name=?1 AND changed_at_ms < ?2"
+            ),
+            params![table, age_floor],
+        )? as u64;
+        total += tx.execute(
+            &format!(
+                "DELETE FROM {RECORD_HISTORY_TABLE} AS candidate
+                 WHERE candidate.table_name=?1 AND (
+                   SELECT COUNT(*) FROM {RECORD_HISTORY_TABLE} AS newer
+                   WHERE newer.table_name=candidate.table_name
+                     AND newer.row_id=candidate.row_id
+                     AND (newer.version > candidate.version OR
+                          (newer.version = candidate.version AND newer.id >= candidate.id))
+                 ) > ?2"
+            ),
+            params![table, max_versions_per_record],
+        )? as u64;
+    }
+    drop(policies);
+
+    // Legacy v1 policy: preserve the committed table-wide `maxRows` meaning.
+    // An explicit schema v2 declaration atomically removes its v1 predecessor,
+    // and this exclusion is defense in depth for stores produced by older code.
+    let mut policies = tx.prepare(&format!(
+        "SELECT table_name,retain_ms,max_rows FROM {HISTORY_POLICY_TABLE}
+         WHERE table_name NOT IN (SELECT table_name FROM {HISTORY_POLICY_TABLE_V2})
+         ORDER BY table_name"
+    ))?;
+    let rows = policies.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, u64>(1)?,
+            row.get::<_, u64>(2)?,
+        ))
+    })?;
     for row in rows {
         let (table, retain_ms, max_rows) = row?;
         let age_floor = now_ms.saturating_sub(retain_ms);
@@ -820,7 +963,11 @@ pub(crate) fn read_record_history(
     }
     let policy_exists = conn
         .query_row(
-            &format!("SELECT 1 FROM {HISTORY_POLICY_TABLE} WHERE table_name=?1"),
+            &format!(
+                "SELECT 1 WHERE
+                   EXISTS(SELECT 1 FROM {HISTORY_POLICY_TABLE} WHERE table_name=?1)
+                   OR EXISTS(SELECT 1 FROM {HISTORY_POLICY_TABLE_V2} WHERE table_name=?1)"
+            ),
             [table],
             |_| Ok(()),
         )
@@ -1634,6 +1781,34 @@ pub(crate) fn inspect_checkpoint(
             "registry authority refuses this checkpoint",
         ));
     }
+    let receipt_shape_valid = record.receipt.format_version == 1
+        && record.receipt.checkpoint_id == checkpoint_id
+        && record.receipt.source_digest.domain == BoundaryDomainV1::Checkpoint
+        && !record.receipt.source_digest.header_digest.is_empty()
+        && !record.receipt.source_digest.content_digest.is_empty()
+        && match record.receipt.substrate {
+            CheckpointSubstrateV1::ReceiptOnly => {
+                record.destination.is_none()
+                    && record.staging.is_none()
+                    && record.receipt.proof_class == ProofClassV1::Inventory
+                    && record.receipt.copied_digest.is_none()
+                    && record.receipt.copy_disposition.is_none()
+                    && record.receipt.copied_bytes == 0
+            }
+            CheckpointSubstrateV1::Materialized => {
+                record.destination.is_some()
+                    && record.receipt.proof_class == ProofClassV1::VerifiedCopyFidelity
+                    && record.receipt.copied_digest.as_ref() == Some(&record.receipt.source_digest)
+                    && record.receipt.copy_disposition
+                        == Some(CheckpointCopyDispositionV1::Reachable)
+            }
+        };
+    if !receipt_shape_valid {
+        return Err(proof_error(
+            "SNAPBACK_CHECKPOINT_EVIDENCE_MISMATCH",
+            "published checkpoint evidence is inconsistent with its substrate",
+        ));
+    }
     if let Some(destination) = &record.destination {
         let destination = Path::new(destination);
         if !is_directory_without_symlink(destination)
@@ -1958,6 +2133,10 @@ mod tests {
                 permission_fields: None,
                 membership: None,
                 asset_sharing: None,
+                history: Some(crate::manifest::HistoryRetentionManifestV1 {
+                    retain_ms: 10_000,
+                    max_versions_per_record: 10,
+                }),
             }],
             ..SchemaManifest::default()
         }
@@ -2137,13 +2316,18 @@ mod tests {
         let database_path = temp.path().join("history.sqlite");
         let mut database = LocalDatabase::open(&database_path).expect("open database");
         database.apply_schema(schema()).expect("apply schema");
-        database
-            .configure_history_policy(&HistoryRetentionPolicyV1 {
-                table: "items".to_owned(),
-                retain_ms: 10_000,
-                max_rows: 10,
-            })
-            .expect("enable history");
+        let projected: (u64, u64) = Connection::open(&database_path)
+            .expect("open projected policy reader")
+            .query_row(
+                &format!(
+                    "SELECT retain_ms,max_versions_per_record
+                     FROM {HISTORY_POLICY_TABLE_V2} WHERE table_name='items'"
+                ),
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("schema publication projects its finite policy");
+        assert_eq!(projected, (10_000, 10));
         database
             .seed(SeedData {
                 tables: BTreeMap::from([(
@@ -2155,40 +2339,85 @@ mod tests {
                 )]),
             })
             .expect("seed row");
-        database
-            .commit_buffered_writes(
-                &HandlerInput::default(),
-                vec![BufferedWrite::Patch {
-                    table: "items".to_owned(),
-                    id: "item-a".to_owned(),
-                    values: Map::from_iter([("visibility".to_owned(), json!("secret"))]),
-                }],
-                Vec::new(),
-                Value::Null,
-            )
-            .expect("patch row");
+        for visibility in ["secret", "public-two", "secret-two", "public-three"] {
+            database
+                .commit_buffered_writes(
+                    &HandlerInput::default(),
+                    vec![BufferedWrite::Patch {
+                        table: "items".to_owned(),
+                        id: "item-a".to_owned(),
+                        values: Map::from_iter([("visibility".to_owned(), json!(visibility))]),
+                    }],
+                    Vec::new(),
+                    Value::Null,
+                )
+                .expect("patch row");
+        }
         drop(database);
 
         let database = LocalDatabase::open(&database_path).expect("reopen database");
-        let page = database
+        let page_one = database
             .record_history(
                 "items",
                 "item-a",
                 0,
-                10,
+                1,
+                |current| {
+                    current
+                        .and_then(|row| row.get("visibility"))
+                        .and_then(Value::as_str)
+                        == Some("public-three")
+                },
+                |post_image| {
+                    post_image
+                        .and_then(|row| row.get("visibility"))
+                        .and_then(Value::as_str)
+                        .is_some_and(|visibility| visibility.starts_with("public"))
+                },
+            )
+            .expect("first authorized history page");
+        assert_eq!(page_one.entries.len(), 1);
+        assert_eq!(page_one.entries[0].disposition, "insert");
+        assert_eq!(page_one.next_visible_offset, Some(1));
+        assert!(page_one.horizon.predecessor_anchor_complete);
+
+        let page_two = database
+            .record_history(
+                "items",
+                "item-a",
+                1,
+                1,
                 |_| true,
                 |post_image| {
                     post_image
                         .and_then(|row| row.get("visibility"))
                         .and_then(Value::as_str)
-                        == Some("public")
+                        .is_some_and(|visibility| visibility.starts_with("public"))
                 },
             )
-            .expect("authorized history");
-        assert_eq!(page.entries.len(), 1);
-        assert_eq!(page.entries[0].disposition, "insert");
-        assert_eq!(page.next_visible_offset, None);
-        assert!(page.horizon.predecessor_anchor_complete);
+            .expect("second authorized history page");
+        assert_eq!(page_two.entries.len(), 1);
+        assert_eq!(page_two.next_visible_offset, Some(2));
+        assert_eq!(page_two.horizon, page_one.horizon);
+
+        let page_three = database
+            .record_history(
+                "items",
+                "item-a",
+                2,
+                1,
+                |_| true,
+                |post_image| {
+                    post_image
+                        .and_then(|row| row.get("visibility"))
+                        .and_then(Value::as_str)
+                        .is_some_and(|visibility| visibility.starts_with("public"))
+                },
+            )
+            .expect("third authorized history page");
+        assert_eq!(page_three.entries.len(), 1);
+        assert_eq!(page_three.next_visible_offset, None);
+        assert_eq!(page_three.horizon, page_one.horizon);
 
         let denied = database
             .record_history("items", "item-a", 0, 10, |_| false, |_| true)
@@ -2202,13 +2431,204 @@ mod tests {
             database
                 .prune_record_history(9_000_000_000_000_000)
                 .expect("prune history"),
-            2
+            5
         );
         assert_eq!(
             database.journal_floor_version().expect("replay floor"),
             replay_floor,
             "history has an independent retention clock"
         );
+    }
+
+    #[test]
+    fn history_prunes_per_record_and_schema_removal_erases_retained_detail() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let database_path = temp.path().join("history-policy.sqlite");
+        let mut finite = schema();
+        finite.schema_hash = Some("sha256:proof-checkpoint-history-two".to_owned());
+        finite.tables[0]
+            .history
+            .as_mut()
+            .expect("history declaration")
+            .max_versions_per_record = 2;
+        let mut database = LocalDatabase::open(&database_path).expect("open database");
+        database.apply_schema(finite.clone()).expect("apply schema");
+        database
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![
+                        Map::from_iter([
+                            ("_id".to_owned(), json!("item-a")),
+                            ("visibility".to_owned(), json!("a-0")),
+                        ]),
+                        Map::from_iter([
+                            ("_id".to_owned(), json!("item-b")),
+                            ("visibility".to_owned(), json!("b-0")),
+                        ]),
+                    ],
+                )]),
+            })
+            .expect("seed rows");
+        for ordinal in 1..=3 {
+            for id in ["item-a", "item-b"] {
+                database
+                    .commit_buffered_writes(
+                        &HandlerInput::default(),
+                        vec![BufferedWrite::Patch {
+                            table: "items".to_owned(),
+                            id: id.to_owned(),
+                            values: Map::from_iter([(
+                                "visibility".to_owned(),
+                                json!(format!("{id}-{ordinal}")),
+                            )]),
+                        }],
+                        Vec::new(),
+                        Value::Null,
+                    )
+                    .expect("patch row");
+            }
+        }
+        let reader = Connection::open(&database_path).expect("open history reader");
+        let newest_change_ms: u64 = reader
+            .query_row(
+                &format!("SELECT MAX(changed_at_ms) FROM {RECORD_HISTORY_TABLE}"),
+                [],
+                |row| row.get(0),
+            )
+            .expect("newest retained change");
+        assert_eq!(
+            database
+                .prune_record_history(newest_change_ms)
+                .expect("prune"),
+            4
+        );
+        let retained = reader
+            .prepare(&format!(
+                "SELECT row_id,COUNT(*) FROM {RECORD_HISTORY_TABLE} \
+                 WHERE table_name='items' GROUP BY row_id ORDER BY row_id"
+            ))
+            .expect("prepare retained counts")
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, u64>(1)?))
+            })
+            .expect("query retained counts")
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .expect("collect retained counts");
+        assert_eq!(
+            retained,
+            vec![("item-a".to_owned(), 2), ("item-b".to_owned(), 2)]
+        );
+
+        let mut removed = finite;
+        removed.schema_hash = Some("sha256:proof-checkpoint-history-removed".to_owned());
+        removed.tables[0].history = None;
+        database
+            .apply_schema(removed)
+            .expect("publish schema without history");
+        let retained_after_removal: u64 = Connection::open(&database_path)
+            .expect("open removed-policy reader")
+            .query_row(
+                &format!("SELECT COUNT(*) FROM {RECORD_HISTORY_TABLE}"),
+                [],
+                |row| row.get(0),
+            )
+            .expect("history count");
+        assert_eq!(retained_after_removal, 0);
+        assert_eq!(
+            database
+                .record_history("items", "item-a", 0, 10, |_| true, |_| true)
+                .expect_err("removed declaration disables history")
+                .diagnostic
+                .code,
+            "SNAPBACK_HISTORY_NOT_ENABLED"
+        );
+    }
+
+    #[test]
+    fn legacy_v1_max_rows_remains_table_wide_and_wire_compatible() {
+        let decoded: HistoryRetentionPolicyV1 = serde_json::from_value(json!({
+            "table": "items",
+            "retainMs": 10_000,
+            "maxRows": 2
+        }))
+        .expect("legacy v1 policy decodes");
+        assert_eq!(decoded.max_rows, 2);
+        assert_eq!(
+            serde_json::to_value(&decoded).expect("legacy v1 policy encodes")["maxRows"],
+            json!(2)
+        );
+
+        let temp = tempfile::tempdir().expect("tempdir");
+        let database_path = temp.path().join("history-v1.sqlite");
+        let mut legacy_schema = schema();
+        legacy_schema.schema_hash = Some("sha256:proof-checkpoint-history-v1".to_owned());
+        legacy_schema.tables[0].history = None;
+        let mut database = LocalDatabase::open(&database_path).expect("open database");
+        database
+            .apply_schema(legacy_schema)
+            .expect("apply legacy schema");
+        database
+            .configure_history_policy(&decoded)
+            .expect("configure legacy policy");
+        database
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![
+                        Map::from_iter([
+                            ("_id".to_owned(), json!("item-a")),
+                            ("visibility".to_owned(), json!("a-0")),
+                        ]),
+                        Map::from_iter([
+                            ("_id".to_owned(), json!("item-b")),
+                            ("visibility".to_owned(), json!("b-0")),
+                        ]),
+                    ],
+                )]),
+            })
+            .expect("seed rows");
+        for ordinal in 1..=2 {
+            for id in ["item-a", "item-b"] {
+                database
+                    .commit_buffered_writes(
+                        &HandlerInput::default(),
+                        vec![BufferedWrite::Patch {
+                            table: "items".to_owned(),
+                            id: id.to_owned(),
+                            values: Map::from_iter([(
+                                "visibility".to_owned(),
+                                json!(format!("{id}-{ordinal}")),
+                            )]),
+                        }],
+                        Vec::new(),
+                        Value::Null,
+                    )
+                    .expect("patch row");
+            }
+        }
+        let reader = Connection::open(&database_path).expect("open legacy history reader");
+        let newest_change_ms: u64 = reader
+            .query_row(
+                &format!("SELECT MAX(changed_at_ms) FROM {RECORD_HISTORY_TABLE}"),
+                [],
+                |row| row.get(0),
+            )
+            .expect("newest retained change");
+        assert_eq!(
+            database
+                .prune_record_history(newest_change_ms)
+                .expect("prune legacy history"),
+            4
+        );
+        let retained: u64 = reader
+            .query_row(
+                &format!("SELECT COUNT(*) FROM {RECORD_HISTORY_TABLE}"),
+                [],
+                |row| row.get(0),
+            )
+            .expect("legacy retained count");
+        assert_eq!(retained, 2, "v1 maxRows remains table-wide");
     }
 
     fn checkpoint_request(now_ms: u64) -> NamedCheckpointRequestV1 {
@@ -2224,6 +2644,37 @@ mod tests {
             max_copy_bytes: 64 * 1024 * 1024,
             max_retained_wal_bytes: 64 * 1024 * 1024,
         }
+    }
+
+    #[test]
+    fn receipt_only_checkpoint_stays_inventory_and_cannot_be_upcast() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let database_path = temp.path().join("receipt-only.sqlite");
+        let mut database = seeded_file_database(&database_path);
+        let mut request = checkpoint_request(900);
+        request.substrate = CheckpointSubstrateV1::ReceiptOnly;
+        let receipt = database
+            .create_named_checkpoint(None, &request)
+            .expect("create receipt-only checkpoint");
+        assert_eq!(receipt.proof_class, ProofClassV1::Inventory);
+        assert!(receipt.copied_digest.is_none());
+        assert!(receipt.copy_disposition.is_none());
+        assert_eq!(receipt.copied_bytes, 0);
+
+        let registry = Connection::open(&database_path).expect("open checkpoint registry");
+        let mut forged = registry_record(&registry, &receipt.checkpoint_id)
+            .expect("registry lookup")
+            .expect("registry record");
+        forged.receipt.proof_class = ProofClassV1::IndependentBoundaryProof;
+        save_registry_record(&registry, &forged).expect("forge privileged registry bytes");
+        assert_eq!(
+            database
+                .inspect_named_checkpoint(&receipt.checkpoint_id, 901)
+                .expect_err("receipt-only inventory cannot be upcast")
+                .diagnostic
+                .code,
+            "SNAPBACK_CHECKPOINT_EVIDENCE_MISMATCH"
+        );
     }
 
     #[test]

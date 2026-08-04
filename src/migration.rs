@@ -1696,6 +1696,7 @@ pub fn migration_vector_fixture() -> SnapbackResult<(
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
     let string_field = |name: &str, optional: bool| FieldManifest {
         name: name.to_owned(),
@@ -1926,6 +1927,7 @@ mod tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }
         };
         let predecessor = crate::manifest::SchemaManifest {
@@ -2116,6 +2118,7 @@ mod tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "users".to_owned(),
@@ -2144,6 +2147,7 @@ mod tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()

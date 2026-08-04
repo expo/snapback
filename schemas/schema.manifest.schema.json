@@ -426,6 +426,29 @@
         }
       ]
     },
+    "HistoryRetentionManifestV1": {
+      "additionalProperties": false,
+      "description": "Finite product-history retention declared beside the table it governs.\nThis is authoring authority; storage projects it into the durable policy\ntable in the same transaction that publishes the schema manifest.",
+      "properties": {
+        "maxVersionsPerRecord": {
+          "format": "uint64",
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "retainMs": {
+          "format": "uint64",
+          "maximum": 2592000000,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "retainMs",
+        "maxVersionsPerRecord"
+      ],
+      "type": "object"
+    },
     "IndexManifest": {
       "properties": {
         "fields": {
@@ -1347,6 +1370,17 @@
             "$ref": "#/$defs/FieldManifest"
           },
           "type": "array"
+        },
+        "history": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HistoryRetentionManifestV1"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional bounded record-history policy. Absence disables product\nhistory for this table; v1 deliberately has no unbounded spelling."
         },
         "indexes": {
           "default": [],

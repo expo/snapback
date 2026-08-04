@@ -2195,6 +2195,7 @@ mod tests {
                     permission_fields: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "rooms".to_owned(),
@@ -2212,6 +2213,7 @@ mod tests {
                     permission_fields: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "room_members".to_owned(),
@@ -2266,6 +2268,7 @@ mod tests {
                         principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -3353,6 +3356,7 @@ mod tests {
                 permission_fields: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         }

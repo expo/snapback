@@ -5039,6 +5039,7 @@ mod membership_bridge_tests {
                         principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "custom_acl".to_owned(),
@@ -5056,6 +5057,7 @@ mod membership_bridge_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "scopes".to_owned(),
@@ -5073,6 +5075,7 @@ mod membership_bridge_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "events".to_owned(),
@@ -5090,6 +5093,7 @@ mod membership_bridge_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "event_members".to_owned(),
@@ -5139,6 +5143,7 @@ mod membership_bridge_tests {
                         principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()

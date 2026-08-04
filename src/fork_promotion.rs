@@ -44,6 +44,14 @@ use crate::proof_checkpoint::{
 const SHA256_PATTERN: &str = "^sha256:[0-9a-f]{64}$";
 const PROMOTION_WRITER_LANE_V1: &str = "ordinaryMutation";
 const PROMOTION_COVERAGE_GAP_V1: &str = "promotionCoverageManifest";
+/// A legacy branch receipt that predates explicit digest-work accounting is
+/// admitted only under this finite ceiling. New issuers always serialize the
+/// caller's explicit value, and no v1 request may exceed this hard cap.
+pub const BRANCH_MAX_DIGEST_WORK_BYTES_V1: u64 = 64 * 1024 * 1024;
+
+fn legacy_branch_max_digest_work_bytes_v1() -> u64 {
+    BRANCH_MAX_DIGEST_WORK_BYTES_V1
+}
 
 fn error(code: &'static str, message: impl Into<String>) -> SnapbackError {
     SnapbackError::new(Diagnostic::error(code, "storage", message))
@@ -216,6 +224,8 @@ pub struct BranchLimitsV1 {
     /// Maximum canonical JSON bytes admitted to one exact-diff derivation.
     /// This bounds the base/head oracle, retained journal, attribution, and
     /// net-diff inputs before the receipt digest is computed.
+    #[serde(default = "legacy_branch_max_digest_work_bytes_v1")]
+    #[schemars(range(min = 1, max = 67108864))]
     pub max_digest_work_bytes: u64,
     pub ttl_ms: i64,
 }
@@ -228,11 +238,12 @@ impl BranchLimitsV1 {
             || self.max_retained_bytes == 0
             || self.max_diff_rows == 0
             || self.max_digest_work_bytes == 0
+            || self.max_digest_work_bytes > BRANCH_MAX_DIGEST_WORK_BYTES_V1
             || self.ttl_ms <= 0
         {
             return Err(error(
                 "SNAPBACK_BRANCH_LIMIT_INVALID",
-                "branch operation, retained-byte, diff-row, digest-work, and TTL limits must be positive",
+                "branch operation, retained-byte, diff-row, digest-work, and TTL limits must be positive and digest work must fit the v1 hard ceiling",
             ));
         }
         Ok(())
@@ -880,6 +891,10 @@ pub struct AttributedChangeV1 {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum NetDiffSubstrateV1 {
+    /// Legacy pre-accounting receipt value. It remains decode/schema-visible
+    /// for v1 compatibility but is never emitted by `exact_fork_diff` and is
+    /// not admissible for strict promotion.
+    ImmutableMaterializedBase,
     JournalDerivedWithIndependentOracle,
 }
 
@@ -897,6 +912,10 @@ pub struct ForkDiffReceiptV1 {
     pub coverage: ForkCoverageV1,
     pub attributed_changes: Vec<AttributedChangeV1>,
     pub net_diff: Vec<NetDiffRowV1>,
+    /// Zero is reserved for decoded legacy receipts whose work was not
+    /// accounted. New exact diffs always emit a positive admitted byte count.
+    #[serde(default)]
+    #[schemars(range(min = 0, max = 67108864))]
     pub digest_work_bytes: u64,
     #[schemars(pattern(SHA256_PATTERN))]
     pub diff_digest: String,
@@ -1072,23 +1091,43 @@ pub fn sibling_diffs_share_base(
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PromotionContentionPolicyV1 {
+    #[schemars(range(min = 2, max = 2))]
     pub reservation_after_losses: u64,
+    #[schemars(range(min = 1000, max = 1000))]
     pub reservation_interval_ms: u64,
+    #[schemars(range(min = 1, max = 1))]
     pub reservation_quota: u64,
+    #[schemars(range(min = 500, max = 500))]
     pub maximum_commit_duration_ms: u64,
+}
+
+/// Frozen conservative v1 contention terms. These values are part of the
+/// admission wire contract rather than caller-tunable hints: every durable
+/// ticket binds the same loss threshold, reservation window/quota, and maximum
+/// commit duration.
+///
+/// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — conditional progress is meaningful only
+/// when its numeric fairness terms are stable and inspectable.
+pub const PRODUCTION_PROMOTION_CONTENTION_POLICY_V1: PromotionContentionPolicyV1 =
+    PromotionContentionPolicyV1 {
+        reservation_after_losses: 2,
+        reservation_interval_ms: 1_000,
+        reservation_quota: 1,
+        maximum_commit_duration_ms: 500,
+    };
+
+impl Default for PromotionContentionPolicyV1 {
+    fn default() -> Self {
+        PRODUCTION_PROMOTION_CONTENTION_POLICY_V1
+    }
 }
 
 impl PromotionContentionPolicyV1 {
     fn validate(&self) -> SnapbackResult<()> {
-        if self.reservation_after_losses == 0
-            || self.reservation_interval_ms == 0
-            || self.reservation_quota == 0
-            || self.maximum_commit_duration_ms == 0
-            || self.maximum_commit_duration_ms > self.reservation_interval_ms
-        {
+        if self != &PRODUCTION_PROMOTION_CONTENTION_POLICY_V1 {
             return Err(error(
                 "SNAPBACK_PROMOTION_CONTENTION_POLICY_INVALID",
-                "contention terms must be positive and commit duration must fit the reservation",
+                "contention terms must equal the frozen production v1 policy",
             ));
         }
         Ok(())
@@ -1200,6 +1239,10 @@ fn approved_facts_digest(operations: &[BranchOperationV1]) -> SnapbackResult<Str
 }
 
 pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
+    // Promotion may be invoked on a pre-v2 store through the lower-level Rust
+    // surface. Upgrade the proof/history infrastructure before replay writes
+    // enter storage's central history seam.
+    crate::proof_checkpoint::create_infra(conn)?;
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS _snapback_promotion_admission (
             canonical_stream_id TEXT NOT NULL,
@@ -1249,8 +1292,8 @@ pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
 }
 
 /// Mint one FIFO ticket. The budget formula is explicit and inspectable:
-/// `max(observedConcurrentForks, queuePosition + R)`. Values remain supplied by
-/// the caller until LLP 0164 freezes production defaults from contention data.
+/// `max(observedConcurrentForks, queuePosition + R)`. The caller-supplied
+/// policy must equal the frozen production v1 constants before admission.
 pub fn issue_promotion_ticket(
     canonical: &mut Connection,
     ticket_identity: OperationIdentityV1,
@@ -1412,6 +1455,14 @@ pub fn seal_promotion_request(
     key: &PromotionSealKey,
     now_ms: i64,
 ) -> SnapbackResult<PromotionRequestV1> {
+    if diff.substrate != NetDiffSubstrateV1::JournalDerivedWithIndependentOracle
+        || diff.digest_work_bytes == 0
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_DIGEST_WORK_UNACCOUNTED",
+            "strict promotion requires a journal-derived diff with explicit bounded digest-work accounting",
+        ));
+    }
     if !is_sha256_digest(schema_hash) {
         return Err(error(
             "SNAPBACK_PROMOTION_SCHEMA_IDENTITY_MISSING",
@@ -2814,8 +2865,8 @@ pub enum CanonicalAdmissionV1 {
 }
 
 /// Ordinary canonical writers consult this gate when a losing FIFO ticket has
-/// escalated to its bounded reservation. The production numeric values remain
-/// open; the mechanism is explicit and quota-bounded.
+/// escalated to its bounded reservation. The v1 numeric terms are frozen by
+/// `PRODUCTION_PROMOTION_CONTENTION_POLICY_V1` and the admission validator.
 pub fn canonical_mutation_admission(
     conn: &Connection,
     canonical_stream_id: &str,
@@ -3243,6 +3294,82 @@ mod tests {
         .expect("execute");
         let diff = exact_fork_diff(&workspace, &request.branch_id, scan_widgets).expect("diff");
         (canonical, workspace, diff)
+    }
+
+    #[test]
+    fn legacy_v1_branch_receipts_decode_but_cannot_bypass_new_diff_accounting() {
+        let limits: BranchLimitsV1 = serde_json::from_value(json!({
+            "maxLiveBranchesPerPrincipal": 1,
+            "maxLiveBranchesPerApp": 1,
+            "maxOperations": 1,
+            "maxRetainedBytes": 1024,
+            "maxDiffRows": 1,
+            "ttlMs": 1000
+        }))
+        .expect("pre-accounting v1 limits remain decodable");
+        assert_eq!(
+            limits.max_digest_work_bytes,
+            BRANCH_MAX_DIGEST_WORK_BYTES_V1
+        );
+        limits
+            .validate()
+            .expect("legacy default is finite and valid");
+
+        let (mut canonical, workspace, diff) = branch_with_rename();
+        let mut legacy_json = serde_json::to_value(&diff).expect("diff JSON");
+        legacy_json
+            .as_object_mut()
+            .expect("diff object")
+            .remove("digestWorkBytes");
+        legacy_json["substrate"] = json!("immutableMaterializedBase");
+        let legacy: ForkDiffReceiptV1 =
+            serde_json::from_value(legacy_json).expect("legacy v1 diff remains decodable");
+        assert_eq!(legacy.digest_work_bytes, 0);
+        assert_eq!(
+            legacy.substrate,
+            NetDiffSubstrateV1::ImmutableMaterializedBase
+        );
+
+        let key = PromotionSealKey::from_server_secret([9_u8; 32]).expect("key");
+        let ticket_identity = host_identity("canonical", "legacy-diff-ticket", "app-1");
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            ticket_identity.clone(),
+            &legacy.branch_id,
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1 {
+                reservation_after_losses: 2,
+                reservation_interval_ms: 1_000,
+                reservation_quota: 1,
+                maximum_commit_duration_ms: 500,
+            },
+        )
+        .expect("ticket");
+        assert_eq!(
+            seal_promotion_request(
+                &workspace,
+                &legacy,
+                PromotionApprovalV1 {
+                    approver_principal_id: "agent-1".to_owned(),
+                    approver_grant_id: "grant-1".to_owned(),
+                    authority_fingerprint: sha('d'),
+                    approved_at_ms: 2_001,
+                    expires_at_ms: 50_000,
+                },
+                ticket,
+                ticket_identity,
+                &sha('f'),
+                &key,
+                2_001,
+            )
+            .expect_err("legacy unaccounted diff cannot enter strict promotion")
+            .diagnostic
+            .code,
+            "SNAPBACK_BRANCH_DIGEST_WORK_UNACCOUNTED"
+        );
     }
 
     #[test]
@@ -4315,6 +4442,87 @@ mod tests {
     }
 
     #[test]
+    fn production_contention_terms_bound_reservation_quota_and_writer_admission() {
+        assert_eq!(
+            PromotionContentionPolicyV1::default(),
+            PRODUCTION_PROMOTION_CONTENTION_POLICY_V1
+        );
+        let mut canonical = source(1);
+        let mut drifted = PromotionContentionPolicyV1::default();
+        drifted.reservation_interval_ms += 1;
+        assert_eq!(
+            issue_promotion_ticket(
+                &mut canonical,
+                host_identity("canonical", "ticket-drifted-policy", "app-1"),
+                &BranchId("branch-drifted-policy".to_owned()),
+                "canonical",
+                2,
+                60_000,
+                2_000,
+                drifted,
+            )
+            .expect_err("production admission refuses drifted contention terms")
+            .diagnostic
+            .code,
+            "SNAPBACK_PROMOTION_CONTENTION_POLICY_INVALID"
+        );
+
+        let first = issue_promotion_ticket(
+            &mut canonical,
+            host_identity("canonical", "ticket-reservation-first", "app-1"),
+            &BranchId("branch-reservation-first".to_owned()),
+            "canonical",
+            2,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("first ticket");
+        let second = issue_promotion_ticket(
+            &mut canonical,
+            host_identity("canonical", "ticket-reservation-second", "app-1"),
+            &BranchId("branch-reservation-second".to_owned()),
+            "canonical",
+            2,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("second ticket");
+        assert!(first.fifo_sequence < second.fifo_sequence);
+        assert_eq!(
+            request_head_reservation(&canonical, &first, 2_500)
+                .expect_err("loss threshold is mandatory")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROMOTION_RESERVATION_NOT_ELIGIBLE"
+        );
+        for _ in 0..PRODUCTION_PROMOTION_CONTENTION_POLICY_V1.reservation_after_losses {
+            note_ticket_loss(&canonical, &first).expect("record first loss");
+            note_ticket_loss(&canonical, &second).expect("record second loss");
+        }
+        let until = request_head_reservation(&canonical, &first, 3_000)
+            .expect("eligible FIFO head reserves once");
+        assert_eq!(until, 4_000);
+        assert_eq!(
+            canonical_mutation_admission(&canonical, "canonical", 3_001).expect("writer admission"),
+            CanonicalAdmissionV1::DeferredByPromotionReservation { until_ms: 4_000 }
+        );
+        assert_eq!(
+            request_head_reservation(&canonical, &second, 3_001)
+                .expect_err("frozen quota admits no second active reservation")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED"
+        );
+        assert_eq!(
+            canonical_mutation_admission(&canonical, "canonical", 4_000)
+                .expect("expired reservation releases ordinary writer"),
+            CanonicalAdmissionV1::Admit
+        );
+    }
+
+    #[test]
     fn rebase_reexecutes_into_fresh_branch_and_reseals_only_equal_facts() {
         let (mut canonical, workspace, diff) = branch_with_rename();
         let key = PromotionSealKey::from_server_secret([10_u8; 32]).expect("key");
@@ -4355,6 +4563,59 @@ mod tests {
         canonical
             .execute("UPDATE _snapback_version SET version=6 WHERE id=1", [])
             .expect("advance unrelated head");
+
+        for divergent_fact in ["read", "result"] {
+            let branch_id = format!("branch-rebased-{divergent_fact}-divergent");
+            let child_stream = format!("child-rebased-{divergent_fact}-divergent");
+            let divergent_create = create_request(&branch_id, &child_stream, 6, 2_500);
+            let (divergent_workspace, divergent_replay) = rebase_by_replay(
+                &mut canonical,
+                &workspace,
+                &diff.branch_id,
+                &divergent_create,
+                2_501,
+                |tx, operation| {
+                    let id = operation.canonical_arguments["id"].as_i64().expect("id");
+                    let name = operation.canonical_arguments["name"]
+                        .as_str()
+                        .expect("name");
+                    tx.execute("UPDATE widgets SET name=?2 WHERE id=?1", params![id, name])?;
+                    let mut replayed = facts(name);
+                    match divergent_fact {
+                        "read" => replayed.read_facts = json!({ "widgets/1": "changed-read" }),
+                        "result" => replayed.result = json!({ "ok": true, "changed": true }),
+                        _ => unreachable!(),
+                    }
+                    Ok(replayed)
+                },
+            )
+            .expect("divergent rebase executes identical write");
+            assert!(!divergent_replay.meaning_preserved);
+            assert_eq!(divergent_replay.divergent_operation_ids.len(), 1);
+            let divergent_diff = exact_fork_diff(
+                &divergent_workspace,
+                &divergent_create.branch_id,
+                scan_widgets,
+            )
+            .expect("divergent diff");
+            assert_eq!(
+                reseal_after_rebase(
+                    &prior,
+                    &divergent_workspace,
+                    &divergent_diff,
+                    "promotion-engine-1",
+                    &sha('f'),
+                    &key,
+                    2_502,
+                )
+                .expect_err("identical writes cannot mask divergent approved facts")
+                .diagnostic
+                .code,
+                "SNAPBACK_PROMOTION_REBASE_DIVERGED",
+                "{divergent_fact} divergence"
+            );
+        }
+
         let rebased_create = create_request("branch-rebased", "child-rebased", 6, 3_000);
         let (rebased, replay) = rebase_by_replay(
             &mut canonical,
@@ -4403,6 +4664,74 @@ mod tests {
         assert_eq!(resealed.aggregate_identity, prior.aggregate_identity);
         assert_eq!(resealed.approval, prior.approval);
         assert!(resealed.rebase_attestation.is_some());
+    }
+
+    #[test]
+    fn exhausted_rebase_budget_refuses_before_canonical_mutation() {
+        let (mut canonical, workspace, diff) = branch_with_rename();
+        let key = PromotionSealKey::from_server_secret([11_u8; 32]).expect("key");
+        let ticket_identity = host_identity("canonical", "ticket-exhausted", "app-1");
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            ticket_identity.clone(),
+            &diff.branch_id,
+            "canonical",
+            1,
+            80_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("ticket");
+        let request = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+                approved_at_ms: 2_001,
+                expires_at_ms: 70_000,
+            },
+            ticket.clone(),
+            ticket_identity,
+            &sha('f'),
+            &key,
+            2_001,
+        )
+        .expect("seal");
+        for _ in 0..ticket.rebase_budget {
+            note_ticket_loss(&canonical, &ticket).expect("record bounded loss");
+        }
+        let before = scan_widgets(&canonical).expect("canonical before refusal");
+        let before_version = crate::storage::current_version_on(&canonical).expect("version");
+        assert_eq!(
+            promote_by_reexecution(
+                &mut canonical,
+                &workspace,
+                &diff,
+                &request,
+                &key,
+                &PromotionAuthorityDecisionV1::Revalidated {
+                    grant_id: "grant-1".to_owned(),
+                    authority_fingerprint: sha('d'),
+                },
+                2_002,
+                &sha('f'),
+                |_, _| unreachable!(),
+            )
+            .expect_err("exhausted budget refuses")
+            .diagnostic
+            .code,
+            "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED"
+        );
+        assert_eq!(
+            scan_widgets(&canonical).expect("canonical after refusal"),
+            before
+        );
+        assert_eq!(
+            crate::storage::current_version_on(&canonical).expect("version"),
+            before_version
+        );
     }
 
     #[test]

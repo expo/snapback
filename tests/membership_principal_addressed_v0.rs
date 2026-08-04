@@ -74,6 +74,7 @@ fn schema() -> SchemaManifest {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             },
             TableManifest {
                 name: "kickAttempts".to_owned(),
@@ -98,6 +99,7 @@ fn schema() -> SchemaManifest {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             },
             TableManifest {
                 name: "room_members".to_owned(),
@@ -169,6 +171,7 @@ fn schema() -> SchemaManifest {
                     }),
                 }),
                 asset_sharing: None,
+                history: None,
             },
         ],
         ..SchemaManifest::default()

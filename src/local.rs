@@ -27977,6 +27977,7 @@ mod tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -28167,6 +28168,7 @@ mod tests {
                     principal_addressed_writes: None,
                 }),
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -28212,6 +28214,7 @@ mod tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
         let members = TableManifest {
             name: "event_members".to_owned(),
@@ -28259,6 +28262,7 @@ mod tests {
                 principal_addressed_writes: None,
             }),
             asset_sharing: None,
+            history: None,
         };
         let schema = SchemaManifest {
             tables: vec![events, members],
@@ -28355,6 +28359,7 @@ mod tests {
                 permission_fields: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -28425,6 +28430,7 @@ mod tests {
                 permission_fields: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -28677,6 +28683,7 @@ mod tests {
                 permission_fields: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -29926,6 +29933,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: sharing,
+                history: None,
             }
         };
         let string_field = |name: &str| crate::manifest::FieldManifest {
@@ -30539,6 +30547,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
         snapback
             .db
@@ -31361,6 +31370,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 crate::manifest::TableManifest {
                     name: "notes".to_owned(),
@@ -31378,6 +31388,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 crate::manifest::TableManifest {
                     name: "channel_members".to_owned(),
@@ -31425,6 +31436,7 @@ globalThis.__snapbackHandlers = {
                         principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -32888,6 +32900,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         }
@@ -35046,6 +35059,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -35119,6 +35133,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         }];
         functions.bundle_hash = Some(format!(
             "{}{}",
@@ -35579,6 +35594,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -35841,6 +35857,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -36063,6 +36080,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -37558,6 +37576,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         });
         let function = functions
             .functions
@@ -38040,6 +38059,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "authors".to_owned(),
@@ -38061,6 +38081,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -38192,6 +38213,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             },
             TableManifest {
                 name: "authors".to_owned(),
@@ -38213,6 +38235,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             },
         ];
         unproven_schema_snapback
@@ -38274,6 +38297,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "authors".to_owned(),
@@ -38295,6 +38319,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -38564,6 +38589,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "authors".to_owned(),
@@ -38585,6 +38611,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -38734,6 +38761,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "authors".to_owned(),
@@ -38755,6 +38783,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -39112,6 +39141,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             };
         let schema = SchemaManifest {
             tables: vec![
@@ -40827,6 +40857,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             };
         let schema = SchemaManifest {
             tables: vec![
@@ -41614,6 +41645,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             };
         let schema = SchemaManifest {
             tables: vec![
@@ -41721,6 +41753,7 @@ globalThis.__snapbackHandlers = {
                         principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -42614,6 +42647,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -42993,6 +43027,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
         let schema = SchemaManifest {
             tables: vec![
@@ -43420,6 +43455,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         }];
         if include_extra {
             tables.push(TableManifest {
@@ -43438,6 +43474,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             });
         }
         SchemaManifest {
@@ -44256,6 +44293,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "permissions".to_owned(),
@@ -44280,6 +44318,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -45247,6 +45286,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -45553,6 +45593,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -45877,6 +45918,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -46969,6 +47011,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -47077,6 +47120,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -47307,6 +47351,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
 
         let books = TableManifest {
@@ -47341,6 +47386,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
         let authors = TableManifest {
             name: "authors".to_owned(),
@@ -47374,6 +47420,7 @@ globalThis.__snapbackHandlers = {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
         snapback
@@ -48350,6 +48397,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -50174,6 +50222,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         }
@@ -52242,6 +52291,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             required_capabilities: vec![VECTOR_CAPABILITY.to_owned()],
             ..SchemaManifest::default()

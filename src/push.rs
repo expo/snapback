@@ -3844,6 +3844,7 @@ mod tests {
                 resource_table: None,
             }),
             asset_sharing: None,
+            history: None,
         });
         schema
     }
@@ -3887,6 +3888,7 @@ mod tests {
                     resource_table: Some("events".into()),
                 }),
                 asset_sharing: None,
+                history: None,
             });
         }
         schema

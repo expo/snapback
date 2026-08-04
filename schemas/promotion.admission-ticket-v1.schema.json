@@ -178,22 +178,26 @@
       "properties": {
         "maximumCommitDurationMs": {
           "format": "uint64",
-          "minimum": 0,
+          "maximum": 500,
+          "minimum": 500,
           "type": "integer"
         },
         "reservationAfterLosses": {
           "format": "uint64",
-          "minimum": 0,
+          "maximum": 2,
+          "minimum": 2,
           "type": "integer"
         },
         "reservationIntervalMs": {
           "format": "uint64",
-          "minimum": 0,
+          "maximum": 1000,
+          "minimum": 1000,
           "type": "integer"
         },
         "reservationQuota": {
           "format": "uint64",
-          "minimum": 0,
+          "maximum": 1,
+          "minimum": 1,
           "type": "integer"
         }
       },

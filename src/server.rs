@@ -25814,6 +25814,7 @@ mod tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -26029,6 +26030,7 @@ mod tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ephemeral_collections: vec![collection],
             ..SchemaManifest::default()
@@ -26931,6 +26933,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -29274,6 +29277,7 @@ globalThis.__snapbackHandlers = {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         };
@@ -30202,6 +30206,7 @@ globalThis.__snapbackHandlers = {
                         search_live_limits: None,
                         membership: None,
                         asset_sharing: None,
+                        history: None,
                     }],
                     ..SchemaManifest::default()
                 })
@@ -31479,6 +31484,7 @@ globalThis.__snapbackHandlers = {
                         search_live_limits: None,
                         membership: None,
                         asset_sharing: None,
+                        history: None,
                     }],
                     ..SchemaManifest::default()
                 })
@@ -40415,6 +40421,7 @@ globalThis.__snapbackHandlers = {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -40700,6 +40707,7 @@ globalThis.__snapbackHandlers = {
                         search_live_limits: None,
                         membership: None,
                         asset_sharing: None,
+                        history: None,
                     }],
                     ..SchemaManifest::default()
                 })

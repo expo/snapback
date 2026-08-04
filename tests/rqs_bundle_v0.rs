@@ -42,6 +42,7 @@ fn bundle_schema() -> SchemaManifest {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             },
             TableManifest {
                 name: "todos".to_owned(),
@@ -70,6 +71,7 @@ fn bundle_schema() -> SchemaManifest {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             },
         ],
         ..SchemaManifest::default()
