@@ -1148,7 +1148,10 @@ await expiredProvider.dispose();
 assert.equal(expiredFake.inspection().disconnects, 0);
 
 const sharedExpiredFake = createFakeClient({
-  attachDeadlineOffsetMs: 20,
+  // Leave enough time for provider construction even when this package test
+  // runs behind the bundle-metrology behavior suite under host load. The
+  // explicit wait below still crosses the deadline before observation.
+  attachDeadlineOffsetMs: 1_000,
   managerSocketDemand: 1,
 });
 const sharedExpiredBinding = await prepareReactBindingForClient(sharedExpiredFake, {
@@ -1167,7 +1170,7 @@ const sharedExpiredSiblingObserver = observeSnapbackQueries(sharedExpiredSibling
 const sharedExpiredProvider = createSnapbackReactProvider(sharedExpiredBinding, {
   preparedGroup: sharedExpiredGroup,
 });
-await new Promise((resolve) => setTimeout(resolve, 30));
+await new Promise((resolve) => setTimeout(resolve, 1_100));
 const sharedExpiredObserver = observeSnapbackQueries(
   sharedExpiredProvider,
   sharedExpiredGroup,
