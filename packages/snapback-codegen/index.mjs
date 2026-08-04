@@ -2453,7 +2453,10 @@ export async function generateInProcess(backendDir, options = {}) {
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
         reads: [plan.root, plan.joined],
-        result: { kind: 'list', row: relationalRowDescriptor(plan, tables) },
+        // The canonical effective-result pass below derives this from the
+        // closed plan and overwrites the placeholder before introspection or
+        // any generated TypeScript is emitted.
+        result: { kind: 'list', row: { shape: 'unknown' } },
         serverRunnable: true,
         localRunnable: false,
         ...contractQueryLivenessFields(def),
@@ -5530,52 +5533,6 @@ function rowDescriptor(table) {
     const descriptor = prim ? { shape: 'primitive', name: prim } : { shape: 'unknown' };
     if (f.optional) descriptor.optional = true;
     fields[f.name] = descriptor;
-  }
-  return { shape: 'object', fields };
-}
-
-// The projected relational row: declared leaves only — no system fields ride
-// along (LLP 0080 §2's result is the projection, and the opaque cursor, not
-// the row, carries pagination identity). Joined leaves are optional under a
-// left join because an unmatched or invisible joined row nulls them.
-function relationalRowDescriptor(plan, tables) {
-  const primOf = (tableName, fieldName) => {
-    const field = (tables[tableName]?.fields ?? []).find((f) => f.name === fieldName);
-    if (!field) return { shape: 'unknown' };
-    if (field.field_type?.Vector) {
-      return {
-        shape: 'array',
-        items: {
-          shape: 'primitive',
-          name: 'number',
-          minimum: -VECTOR_COMPONENT_ABS_MAX,
-          maximum: VECTOR_COMPONENT_ABS_MAX,
-        },
-        minItems: field.field_type.Vector.dimensions,
-        maxItems: field.field_type.Vector.dimensions,
-        ...(field.optional ? { optional: true } : {}),
-      };
-    }
-    const prim = field.field_type === 'Principal' || idFieldTypeTable(field.field_type) !== null
-      ? 'string'
-      : { String: 'string', Boolean: 'boolean', Integer: 'number', Real: 'number' }[field.field_type];
-    const descriptor = prim ? { shape: 'primitive', name: prim } : { shape: 'unknown' };
-    if (field.optional) descriptor.optional = true;
-    return descriptor;
-  };
-  const fields = dict();
-  for (const leaf of plan.projection) {
-    if (leaf.source.RootField) {
-      fields[leaf.name] = primOf(plan.root, leaf.source.RootField);
-    } else if (leaf.source.JoinedField) {
-      const descriptor = primOf(plan.joined, leaf.source.JoinedField);
-      if (plan.joinKind === 'Left') descriptor.optional = true;
-      fields[leaf.name] = descriptor;
-    } else {
-      const literal = leaf.source.Literal;
-      const prim = { string: 'string', number: 'number', boolean: 'boolean' }[typeof literal];
-      fields[leaf.name] = prim ? { shape: 'primitive', name: prim } : { shape: 'unknown' };
-    }
   }
   return { shape: 'object', fields };
 }

@@ -2132,6 +2132,34 @@ function relationalJoinKeyClass(validator, where) {
   return undefined;
 }
 
+function relationalProjectionScalar(validator, where) {
+  const type = validator?.fieldType;
+  const scalar = (
+    type === 'String'
+    || type === 'Principal'
+    || type === 'Boolean'
+    || type === 'Integer'
+    || type === 'Real'
+    || (type && typeof type === 'object' && (type.Id || type.AssetRef))
+  );
+  assert(
+    scalar,
+    `${where} must be a portable scalar field (string, principal, id, asset reference, boolean, integer, or real)`,
+  );
+  return validator;
+}
+
+function relationalProjectionLiteral(value, where) {
+  assert(
+    value === null
+      || typeof value === 'string'
+      || typeof value === 'boolean'
+      || (typeof value === 'number' && Number.isFinite(value)),
+    `${where} must be a finite JSON scalar literal`,
+  );
+  return value;
+}
+
 function relationalVisibility(facts, visibility, where) {
   assert(
     visibility && typeof visibility === 'object' && !Array.isArray(visibility),
@@ -2276,18 +2304,25 @@ export function defineRelationalQuery(spec) {
       `projection.${leafName} must be exactly one of { root }, { joined }, { literal }`,
     );
     if (typeof source.root === 'string') {
-      assert(rootFacts.fields[source.root], `projection.${leafName} names unknown field ${rootFacts.name}.${source.root}`);
+      const field = rootFacts.fields[source.root];
+      assert(field, `projection.${leafName} names unknown field ${rootFacts.name}.${source.root}`);
+      relationalProjectionScalar(field, `projection.${leafName} source ${rootFacts.name}.${source.root}`);
       return { name: leafName, source: { RootField: source.root } };
     }
     if (typeof source.joined === 'string') {
-      assert(joinedFacts.fields[source.joined], `projection.${leafName} names unknown field ${joinedFacts.name}.${source.joined}`);
+      const field = joinedFacts.fields[source.joined];
+      assert(field, `projection.${leafName} names unknown field ${joinedFacts.name}.${source.joined}`);
+      relationalProjectionScalar(field, `projection.${leafName} source ${joinedFacts.name}.${source.joined}`);
       return { name: leafName, source: { JoinedField: source.joined } };
     }
     assert(
       Object.hasOwn(source, 'literal'),
       `projection.${leafName} must be exactly one of { root }, { joined }, { literal }`,
     );
-    return { name: leafName, source: { Literal: source.literal ?? null } };
+    return {
+      name: leafName,
+      source: { Literal: relationalProjectionLiteral(source.literal, `projection.${leafName}`) },
+    };
   });
 
   const visibilityFilters = (visibility) => (

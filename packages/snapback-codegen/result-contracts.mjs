@@ -430,6 +430,80 @@ function tableFieldValue(field) {
     : value;
 }
 
+function nullableValue(value) {
+  if (value.kind === 'null') return value;
+  if (
+    value.kind === 'union'
+    && value.variants.some((variant) => variant.kind === 'null')
+  ) return value;
+  return scalar('union', { variants: [scalar('null'), value] });
+}
+
+// @ref LLP 0080#1-closed-relational-plan — the projection is closed data,
+// so its result contract is derivable from the two schema declarations plus
+// literal leaves; there is no handler body whose return shape must be guessed.
+// @ref LLP 0080#2-portable-evaluation-semantics — left joins materialize an
+// absent or invisible joined row as present `null` leaves, never omitted keys.
+function relationalRowsValue(runtime, tables) {
+  const plan = runtime?.HostPlan?.RelationalQuery;
+  if (!plan) return null;
+  const sourceFields = (tableName) => {
+    const table = tables[tableName];
+    if (!table) {
+      throw new TypeError(`relational result contract references unknown table ${tableName}`);
+    }
+    return new Map((table.fields ?? []).map((field) => [field.name, field]));
+  };
+  const rootFields = sourceFields(plan.root);
+  const joinedFields = sourceFields(plan.joined);
+  const projected = (fields, tableName, fieldName, nullable) => {
+    const field = fields.get(fieldName);
+    if (!field) {
+      throw new TypeError(
+        `relational result contract references unknown field ${tableName}.${fieldName}`,
+      );
+    }
+    const value = tableFieldValue(field);
+    return nullable ? nullableValue(value) : value;
+  };
+  const fields = plan.projection.map((leaf) => {
+    if (Object.hasOwn(leaf.source, 'RootField')) {
+      return {
+        name: leaf.name,
+        required: true,
+        value: projected(rootFields, plan.root, leaf.source.RootField, false),
+      };
+    }
+    if (Object.hasOwn(leaf.source, 'JoinedField')) {
+      return {
+        name: leaf.name,
+        required: true,
+        value: projected(
+          joinedFields,
+          plan.joined,
+          leaf.source.JoinedField,
+          plan.joinKind === 'Left',
+        ),
+      };
+    }
+    if (Object.hasOwn(leaf.source, 'Literal')) {
+      return {
+        name: leaf.name,
+        required: true,
+        value: scalar('literal', { value: leaf.source.Literal }),
+      };
+    }
+    throw new TypeError(
+      `relational result contract has unknown projection source for ${leaf.name}`,
+    );
+  });
+  return {
+    kind: 'records',
+    rows: { minItems: 0, maxItems: plan.take },
+    record: scalar('object', { fields, allowExtra: false }),
+  };
+}
+
 // @ref LLP 0073#ranking-order-and-cursors — the operation contract closes
 // `fields` over exactly the declared stored projection. It is not an
 // application-authored JSON escape hatch.
@@ -765,6 +839,12 @@ export function effectiveResultContract({
     && runtime?.HostPlan?.SearchQuery
   ) {
     return validateEffectiveResultContract(searchRowsValue(runtime, tables));
+  }
+  if (
+    (functionKind === 'Query' || functionKind === 'LiveQuery')
+    && runtime?.HostPlan?.RelationalQuery
+  ) {
+    return validateEffectiveResultContract(relationalRowsValue(runtime, tables));
   }
   if (functionKind === 'Query' && runtime?.HostPlan?.VectorQuery) {
     return validateEffectiveResultContract(vectorRowsValue(runtime, tables));

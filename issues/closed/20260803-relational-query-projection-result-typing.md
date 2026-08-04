@@ -34,3 +34,14 @@ a follow-up.
 `packages/snapback-codegen/index.mjs`, which the in-flight
 single_table_v1 adoption lane owns; dispatch this after that lane
 lands.
+
+## Resolution (2026-08-04)
+
+Landed: the closed relational projection derives its result contract
+(schema-typed scalars, required-but-nullable left-join fields, exact
+literal preservation, take-bounded cardinality). Non-scalar projections
+fail authoring with a legal repair instead of degrading; the profile
+still rejects a declared `result`.
+PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED no longer fires for any
+admitted relational class. Triage's retainedInbox is fully typed and
+App.tsx dropped its casts.

@@ -208,7 +208,7 @@ export interface GeneratedApi {
   cancelReply: FunctionReference<'cancelReply', 'Mutation', { attemptId: string }, unknown>;
   completeReply: FunctionReference<'completeReply', 'Mutation', { attemptId: string; sequence: number; tail: string }, unknown>;
   conversationBySlug: FunctionReference<'conversationBySlug', 'LiveQuery', { slug: string }, ReadonlyArray<GeneratedDataModel["conversations"]>>;
-  conversationsWithModel: FunctionReference<'conversationsWithModel', 'LiveQuery', { cursor?: string }, unknown>;
+  conversationsWithModel: FunctionReference<'conversationsWithModel', 'LiveQuery', { cursor?: string }, ReadonlyArray<{ "slug": string; "title": string; "model": string; "modelName": null | string; "modelProvider": null | string }>>;
   createConversation: FunctionReference<'createConversation', 'Mutation', { slug: string; title: string; model: string }, GeneratedDataModel["conversations"]>;
   deleteConversation: FunctionReference<'deleteConversation', 'Mutation', { id: Id<'conversations'> }, unknown>;
   firstConversationPage: FunctionReference<'firstConversationPage', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["conversations"]>>;
