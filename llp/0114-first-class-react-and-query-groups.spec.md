@@ -5,7 +5,12 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-03 (bounded local-development binding synchronization:
+**Revised:** 2026-08-04 (bounded subscribe-failure window: a live-query
+subscribe whose admission rejects before any transport exists holds its
+`error` snapshot behind a per-store timer-owned failure window on the
+client's 250 ms → 10 s reconnect ladder, held at the cap while demanded;
+render cadence never drives attempt cadence — see the dated section);
+2026-08-03 (bounded local-development binding synchronization:
 only a live-inspected `local-dev-sqlite-ibex` target in `dev` auth mode turns
 a binding mismatch into a 10-second retry state; every attempt re-runs full
 admission without offline-receipt fallback, timeout retains the stable code
@@ -1448,3 +1453,26 @@ tenant, provider, fingerprint, and delegation axes; callers still cannot
 author a partition. Prepared binding must exact-match the LLP 0157 activation
 and generated-reference facts before creating a materialization. This note
 does not accept this Review-status Spec or advertise a new capability.
+
+## Bounded subscribe-failure window — 2026-08-04
+
+A query store whose subscribe rejects before any transport exists (a
+synchronous admission/demand failure — the RN carrier storm of
+`issues/closed/20260803-rn-carrier-bricked-tosorted-registration-ledger.md`,
+which the stream manager's socket backoff can never reach) enters a held
+failure state: the rejection is published once through the existing `error`
+snapshot, and re-subscription is owned by a per-store timer on the client's
+reconnect ladder (`LIVE_RECONNECT_BASE_DELAY_MS` 250 ms doubling to
+`LIVE_RECONNECT_MAX_DELAY_MS` 10 s). While the window is armed, render-,
+mutation-, and re-subscribe-driven start attempts are inert, so render
+frequency is fully decoupled from attempt frequency. At the cap the store
+keeps retrying at 10 s while demanded — the stream manager's own convention
+for demanded-but-unreachable state; the provider has no terminal-failure
+latch, and the held `error` snapshot keeps the failure visible the whole
+time, so the retry is bounded-rate, never silent. A successful subscribe
+resets the ladder; one-for-one supersession (an explicit invalidation that
+must carry its predecessor witness immediately) and every store stop
+(idle release, custody quiesce/blank, prepared-frame supersession, disposal)
+clear the window. Healthy subscribes and async transport failures below this
+layer are untouched. Regression witness:
+`packages/snapback-react/subscribe-retry.test.mjs`.

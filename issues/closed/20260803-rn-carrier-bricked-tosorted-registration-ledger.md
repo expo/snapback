@@ -93,7 +93,7 @@ the fixed tree it passes (37 shipped runtime files scanned).
 `registration-ledger.test.mjs` assertions included) and
 `packages/snapback-react` suite exit 0 on the fixed tree.
 
-**Still OPEN — the no-backoff retry storm (secondary defect):** the react
+**Was still OPEN — the no-backoff retry storm (secondary defect):** the react
 provider has no retry/backoff seam on the registration-demand subscribe
 path. The storm is the render-loop resubscribe cycle
 (`useSnapbackQuery` → `useSyncExternalStore` subscribe → `startStore` →
@@ -107,3 +107,43 @@ path failure latch), owned by the 0166 / snapback-react owners — not
 snuck into an unbrick fix. With the trigger fixed, the storm is no longer
 reachable via this defect, but any future synchronous subscribe failure
 would still thrash.
+
+## 2026-08-04: retry storm FIXED — bounded per-store failure window; RESOLVED
+
+**Design (LLP 0114 §Bounded subscribe-failure window — 2026-08-04):** the
+provider's `startStore` rejection handler now arms a per-store, timer-owned
+failure window after publishing the `error` snapshot. While armed, every
+render-, mutation-, or re-subscribe-driven `startStore` call is inert — the
+held error snapshot is what renders read — so render frequency is fully
+decoupled from subscribe-attempt frequency (the storm's
+`useSnapbackQuery` → `useSyncExternalStore` → `startStore` → failure →
+publish → re-render cycle can no longer mint attempts). Attempts are owned
+by the window timer on the client's existing reconnect ladder
+(`LIVE_RECONNECT_BASE_DELAY_MS` 250 ms doubling to
+`LIVE_RECONNECT_MAX_DELAY_MS` 10 s, imported from `@expo/snapback-client`
+rather than re-declared). At the cap the store holds the failure and keeps
+retrying at 10 s while demanded — deliberately matching
+`LiveStreamManager#scheduleReconnect`'s convention for
+demanded-but-unreachable state (the provider has no terminal-failure latch
+to match, and the visible held `error` snapshot means the bounded-rate retry
+is never silent). A successful subscribe resets the ladder; supersession
+(explicit invalidation carrying a predecessor witness) and every `stopStore`
+lifecycle event (idle release, custody quiesce, prepared-frame supersession,
+dispose — dispose/idle also cancel the pending timer) clear the window.
+Healthy subscribes and async transport failures below this layer are
+untouched: the window arms only in the `started()` rejection path.
+
+**Evidence:** `packages/snapback-react/subscribe-retry.test.mjs` (mocked
+timers): 500 superseding re-subscribes during the window produce zero new
+attempts; the attempt schedule fires exactly at the 250/500/1000/2000/4000/
+8000 ms boundaries and then exactly six times across a simulated minute at
+the 10 s cap (with 25 re-subscribes per simulated second the whole time);
+the error snapshot is stable across all of it; the next scheduled attempt
+under a recovered backend publishes `ready` with authoritative rows and
+resets the ladder; a healthy store never re-attempts across 100 renders +
+120 simulated seconds; idle release cancels the scheduled retry. Full
+`packages/snapback-react` suite exit 0 and full `packages/snapback-client`
+suite exit 0 on the fixed tree.
+
+Both halves (brick trigger 2026-08-03, retry storm 2026-08-04) are now
+fixed; RESOLVED and closed.

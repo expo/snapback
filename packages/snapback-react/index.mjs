@@ -20,6 +20,8 @@ import {
   isPreparedReactQueryGroup,
   consumePreparedReactQueryGroup,
   abandonConsumedReactQueryGroup,
+  LIVE_RECONNECT_BASE_DELAY_MS,
+  LIVE_RECONNECT_MAX_DELAY_MS,
 } from '@expo/snapback-client';
 export { bindSnapbackAppLifecycle } from '@expo/snapback-client';
 import { createAssetClient } from '@expo/snapback-client/assets';
@@ -588,8 +590,42 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     }), generation);
   };
 
+  // @ref LLP 0114#bounded-subscribe-failure-window--2026-08-04 — a store whose
+  // subscribe rejects holds its error snapshot behind a timer-owned failure
+  // window (the client's 250ms→10s reconnect ladder, held at the cap while
+  // demanded). Render- and mutation-driven startStore calls during the window
+  // are inert, so render cadence can never set subscribe-attempt cadence
+  // (RN carrier storm, issues/closed/20260803-rn-carrier-bricked-tosorted-
+  // registration-ledger.md). Success, supersession, or any stopStore
+  // lifecycle event (idle release, custody movement, dispose) clears it.
+  const clearSubscribeFailureWindow = (store) => {
+    if (store.subscribeFailureRetryTimer !== null) {
+      clearTimeout(store.subscribeFailureRetryTimer);
+      store.subscribeFailureRetryTimer = null;
+    }
+    store.subscribeFailureAttempts = 0;
+  };
+
+  const scheduleSubscribeRetry = (store) => {
+    if (terminal || custodyPaused || store.subscribeFailureRetryTimer !== null) return;
+    if (store.consumers === 0 && store.pins === 0) return;
+    const delay = Math.min(
+      LIVE_RECONNECT_BASE_DELAY_MS * 2 ** Math.min(store.subscribeFailureAttempts, 30),
+      LIVE_RECONNECT_MAX_DELAY_MS,
+    );
+    store.subscribeFailureAttempts += 1;
+    store.subscribeFailureRetryTimer = setTimeout(() => {
+      store.subscribeFailureRetryTimer = null;
+      if (terminal || custodyPaused || store.handle) return;
+      if (store.consumers === 0 && store.pins === 0) return;
+      startStore(store);
+    }, delay);
+    store.subscribeFailureRetryTimer.unref?.();
+  };
+
   const stopStore = (store, { blank = false } = {}) => {
     store.generation += 1;
+    clearSubscribeFailureWindow(store);
     const handle = store.handle;
     store.handle = null;
     if (blank) {
@@ -613,6 +649,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   const startStore = (store, supersedes = null) => {
     if (terminal || custodyPaused || store.handle || (store.consumers === 0 && store.pins === 0)) return;
     if (store.readOnlySnapshot !== null) return null;
+    // A one-for-one supersession must carry its exact predecessor witness to
+    // the server now; it is an explicit invalidation, so it resets any held
+    // failure window rather than waiting behind it.
+    if (supersedes !== null) clearSubscribeFailureWindow(store);
+    else if (store.subscribeFailureRetryTimer !== null) return;
     if (
       store.registeredSubscription !== null
       && !registeredConnectionAttached
@@ -688,6 +729,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     allHandles.add(handle);
     void handle.started().then(() => {
       if (store.generation !== generation || store.handle !== handle) return;
+      store.subscribeFailureAttempts = 0;
       if (store.blockedPreparedPublication) return;
       if (store.unadoptedSubscriptionId !== null) {
         unadoptedPreparedSubscriptions.delete(store.unadoptedSubscriptionId);
@@ -736,6 +778,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         freshness: 'unknown',
         retention: store.retention,
       }), generation);
+      scheduleSubscribeRetry(store);
     });
     void handle.settled().finally(() => allHandles.delete(handle));
     notifyConnection();
@@ -779,6 +822,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       generation: 0,
       idleEpoch: 0,
       handoffPending: 0,
+      subscribeFailureAttempts: 0,
+      subscribeFailureRetryTimer: null,
       resultContract: descriptor.resultContract,
       authoritativeData: readOnlySnapshot?.rows ?? Object.freeze([]),
       authoritativeRevision: readOnlySnapshot === null ? 0 : 1,
