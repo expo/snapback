@@ -22,11 +22,13 @@ reviewed-commit: 67bcac6316606055130fc63bfc61f9351e0fcf91
 > atoms blanked in place, no transcoding) all ship on the local target
 > with the filesystem store, TUS resumable transfer, and
 > `private-strict` delivery. Location-bearing media require an explicit
-> `location` declaration either way: a `"strip"` **image or video**
-> intent admits and publishes here with location metadata provably
-> absent from served bytes; `"retain"` preserves the source bytes
-> identically and records the choice in lifecycle evidence. Hosted
-> targets report the whole capability Missing.
+> media-specific location declaration either way: images use
+> `image: { location }`, while videos use the distinct sibling
+> `video: { location }`. A `"strip"` image or video intent admits and
+> publishes here with location metadata provably absent from served
+> bytes; `"retain"` preserves the source bytes identically and records
+> the choice in lifecycle evidence. Hosted targets report the whole
+> capability Missing.
 
 Use an asset when your app stores a file: bytes live outside document rows
 under a Snapback-owned lifecycle — upload, trusted finalization, typed
@@ -308,6 +310,22 @@ and a hostile file (decompression bomb, dimension lie, truncated stream)
 rejects the asset with a structured `SNAPBACK_ASSET_IMAGE_*` diagnostic.
 Retain-declared intents (`location: 'retain'`) keep metadata intact and
 record that policy in the asset's lifecycle evidence.
+
+## Video
+
+Video location policy is a sibling declaration, not an alias through the
+image block. Use `video.location` for accepted video types; an intent that
+accepts both location-bearing images and videos declares both blocks. On the
+local target, `strip` blanks MP4/QuickTime location atoms in place without
+transcoding, while `retain` publishes the received bytes unchanged.
+
+```js source=packages/snapback-codegen/asset-upload-authoring.test.mjs
+export const clipUpload = defineAssetUpload({
+  accept: { mediaTypes: ['video/mp4'], maxBytes: 100_000_000 },
+  video: { location: 'strip' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
 
 ## Operate
 

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "0d2b7046c2d078a8249988e333e0af42e20e1045"
+    "commit": "df77cbcbf588504d9c7201fa5b2621469b770f91"
   },
   "nav": {
     ".": [
@@ -721,7 +721,7 @@
       ],
       "reviewed": "2026-08-04",
       "reviewedCommit": "67bcac6316606055130fc63bfc61f9351e0fcf91",
-      "sha256": "043608ddcd1d0ddca79136911bf8d98385e57e93e03473b845976ccd8cd8939f",
+      "sha256": "6652b17c878899d98bf73d83fcfef061f417e926499106621f451aacad441c90",
       "snippets": [
         {
           "lang": "js",
@@ -763,6 +763,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/file-drop/tests/acceptance/browser-relay.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/asset-upload-authoring.test.mjs"
         },
         {
           "lang": "js",
@@ -2936,5 +2941,5 @@
     "routes": 105,
     "hostOps": 35
   },
-  "contentHash": "dcbdebf2d083e07a1e9e57a5485f0ef15dbdfb195814cf72f88e986f8be5c42a"
+  "contentHash": "793921ef5ce277ec70253df98494c2fc053e63b7469f5030b8fde40d5303e1f9"
 }

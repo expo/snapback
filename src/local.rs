@@ -8596,15 +8596,11 @@ impl LocalSnapback {
             ));
         }
 
-        // Defense in depth for the location policy: without the
-        // image-finalization fact, generation refuses strip-declared media,
-        // so bytes carrying this policy can only arrive through a
-        // hand-built manifest — and finalization still refuses. With the
-        // fact, the strip canonicalization below is the policy's
-        // enforcement. The refusal is a policy the intent can never satisfy
-        // on this target, so the asset is rejected, not left retry-eligible.
+        // @ref LLP 0044#video-location-policy-the-video--location--sibling-block-dated-decision-2026-08-03 —
+        //   trusted detection selects the matching image/video sibling; the
+        //   two declarations never alias at finalization.
         let image_location = intent.image.as_ref().map(|image| image.location);
-        let strip_declared = image_location == Some(crate::manifest::AssetLocationPolicy::Strip);
+        let video_location = intent.video.as_ref().map(|video| video.location);
         // The capability defense for strip-declared media is keyed by the
         // *detected* type below — image bytes need the image-finalization
         // fact, video bytes the video one — so it runs after detection.
@@ -8665,6 +8661,32 @@ impl LocalSnapback {
         // digested, deduplicated, and published.
         let mut image_media_facts = serde_json::Map::new();
         let detected_video_container = matches!(detected, "video/mp4" | "video/quicktime");
+        let location_policy = if detected_video_container {
+            video_location
+        } else {
+            image_location
+        };
+        if location_policy.is_none()
+            && (detected_video_container || detected.starts_with("image/"))
+        {
+            // A pre-amendment or hand-built video manifest may still put its
+            // policy under `image`. The sibling split is not an alias: refuse
+            // rather than silently retaining location-bearing bytes.
+            return self.asset_fail_attempt(
+                &attempt,
+                assets::AssetAvailability::Rejected,
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED",
+                    "assets",
+                    format!(
+                        "detected {detected} requires the deployed intent's {}.location policy; the image and video blocks do not alias",
+                        if detected_video_container { "video" } else { "image" },
+                    ),
+                ),
+            );
+        }
+        let strip_declared =
+            location_policy == Some(crate::manifest::AssetLocationPolicy::Strip);
         let strip_capability_missing = if detected_video_container {
             !self.asset_video_finalization_enabled()
         } else {
@@ -8804,7 +8826,7 @@ impl LocalSnapback {
                         );
                     }
                 }
-            } else if image_location.is_some()
+            } else if video_location.is_some()
                 && self.asset_video_finalization_enabled()
                 && detected_video_container
             {
@@ -8839,7 +8861,7 @@ impl LocalSnapback {
                 policy: assets::ASSET_CANONICALIZATION_NONE,
             }
         };
-        if image_location.is_some() {
+        if location_policy.is_some() {
             image_media_facts.insert(
                 "locationPolicy".into(),
                 if strip_declared { "strip" } else { "retain" }.into(),
@@ -29175,6 +29197,7 @@ globalThis.__snapbackHandlers = {
                 read: crate::assets::AssetReadAccessPolicy::OwnerOnly,
             },
             image: None,
+            video: None,
             on: None,
             declared_reads: Vec::new(),
             runtime: FunctionRuntime::IbexModule(IbexModule {
@@ -33498,9 +33521,8 @@ globalThis.__snapbackHandlers = {
             "application/octet-stream".to_owned(),
         ];
         intent.accept.max_bytes = 64 * 1024;
-        intent.image = Some(crate::manifest::AssetImagePolicy {
+        intent.video = Some(crate::manifest::AssetVideoPolicy {
             location,
-            variants: Vec::new(),
         });
         intent
     }
@@ -33598,6 +33620,31 @@ globalThis.__snapbackHandlers = {
             .expect("retained object");
         // Retain is honest: the declared policy keeps the location atom.
         assert!(kept_bytes.windows(gps.len()).any(|window| window == gps));
+    }
+
+    #[test]
+    fn asset_finalize_video_does_not_alias_image_location_policy() {
+        let mut intent = asset_video_intent(crate::manifest::AssetLocationPolicy::Retain);
+        intent.video = None;
+        intent.image = Some(crate::manifest::AssetImagePolicy {
+            location: crate::manifest::AssetLocationPolicy::Retain,
+            variants: Vec::new(),
+        });
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback.load_functions(FunctionManifest {
+            asset_upload_intents: vec![intent],
+            ..FunctionManifest::default()
+        });
+        let fixture = crate::assets_video::fixtures::mp4_with_gps();
+        let created = asset_upload(&mut snapback, "user_a", &fixture, true);
+        let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect_err("image.location must never satisfy video finalization");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_ASSET_LOCATION_POLICY_UNSUPPORTED"
+        );
+        assert!(error.diagnostic.message.contains("video.location"));
+        assert!(error.diagnostic.message.contains("do not alias"));
     }
 
     #[test]

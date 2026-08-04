@@ -728,8 +728,9 @@ export declare function defineAction(spec: HostPlanActionSpec | JsActionSpec): u
 /** One generated upload intent (LLP 0044 §Generated upload intents): the
  * declaration fixes accepted types, byte bounds, delivery profile,
  * read-access policy, and processing recipe; the client cannot supply or
- * widen any of them. Location-bearing media (image/*, video/*) require an
- * explicit `image.location` — omission refuses at generation. */
+ * widen any of them. Location-bearing image media require explicit
+ * `image.location`; video media require the distinct `video.location`
+ * sibling — omission refuses at generation. */
 export interface AssetUploadSpec {
   args?: Record<string, Validator>;
   auth?: 'public' | 'optional-user' | 'authenticated';
@@ -740,6 +741,9 @@ export interface AssetUploadSpec {
   image?: {
     location: 'strip' | 'retain';
     variants?: ReadonlyArray<{ key: string; width: number }>;
+  };
+  video?: {
+    location: 'strip' | 'retain';
   };
   /** Declared lifecycle callbacks: each names a declared mutation whose
    * args are exactly `{ event: v.string(), assetId: v.string(),

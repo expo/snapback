@@ -450,13 +450,14 @@ await runAcceptance(suite, async () => {
     const gpsSurvives = servedLocation.includes('+37.7749-122.4194');
     assertEqual(servedDigest, geoDigest, 'served bytes are canonical-identical to the source');
     suiteAssert(gpsSurvives, `expected: GPS survives under the retain-only video policy: ${servedLocation}`);
-    // Mitigation probe: a strip-declared video intent must refuse at generation.
+    // Mitigation probe: generate the same app under strip-declared video
+    // policy, then prove either capability-honest refusal or runtime removal.
     const probeDir = join(mkdtempSync(join(tmpdir(), 'clip-strip-probe-')), 'snapback');
     cpSync(backendDir, probeDir, { recursive: true });
     writeFileSync(
       join(probeDir, 'functions.mjs'),
       readFileSync(join(probeDir, 'functions.mjs'), 'utf8')
-        .replaceAll("image: { location: 'retain' }", "image: { location: 'strip' }")
+        .replaceAll("video: { location: 'retain' }", "video: { location: 'strip' }")
         .replaceAll("'../../../../_kit/define.mjs'", `'${join(repoRoot, 'demos', '_kit', 'define.mjs')}'`),
     );
     writeFileSync(

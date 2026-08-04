@@ -24,9 +24,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "app",
-      "bundleHash": "snapback.v1:sessions:function:sha256:9ebfd4c965ac5be3c7f505f7b0c139c91efb8561a18b7b6b736b78dcba1aae4f",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:1d05176e46ecc4796814c20ae2d6b75b86d4a4ef6be807b05d2a7e401151c37f",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:0cbec8cf3537931b2a68fada4f7cf68e55d24f9466020b8553ea97bffae41f49",
+      "bundleHash": "snapback.v1:sessions:function:sha256:4f71f3cec62603b480a1743f1b82f6e7f2e9d1cb4777b774592fea6a73ea06e7",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:49dc4b5c7228c78bdbf58f14d75570f7a94d2b57019914085978a52328bd04dc",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:e4e5d5100b9b53b5a23e5e6376bee0e26705f323c82768633548b658ada37521",
       "schemaVersion": "snapback.v1"
     },
     "id": "app:joinAsHost",
@@ -47,9 +47,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "app",
-      "bundleHash": "snapback.v1:sessions:function:sha256:9ebfd4c965ac5be3c7f505f7b0c139c91efb8561a18b7b6b736b78dcba1aae4f",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:1d05176e46ecc4796814c20ae2d6b75b86d4a4ef6be807b05d2a7e401151c37f",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:0cbec8cf3537931b2a68fada4f7cf68e55d24f9466020b8553ea97bffae41f49",
+      "bundleHash": "snapback.v1:sessions:function:sha256:4f71f3cec62603b480a1743f1b82f6e7f2e9d1cb4777b774592fea6a73ea06e7",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:49dc4b5c7228c78bdbf58f14d75570f7a94d2b57019914085978a52328bd04dc",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:e4e5d5100b9b53b5a23e5e6376bee0e26705f323c82768633548b658ada37521",
       "schemaVersion": "snapback.v1"
     },
     "id": "app:leaveHost",
@@ -77,9 +77,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "app",
-      "bundleHash": "snapback.v1:sessions:function:sha256:9ebfd4c965ac5be3c7f505f7b0c139c91efb8561a18b7b6b736b78dcba1aae4f",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:1d05176e46ecc4796814c20ae2d6b75b86d4a4ef6be807b05d2a7e401151c37f",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:0cbec8cf3537931b2a68fada4f7cf68e55d24f9466020b8553ea97bffae41f49",
+      "bundleHash": "snapback.v1:sessions:function:sha256:4f71f3cec62603b480a1743f1b82f6e7f2e9d1cb4777b774592fea6a73ea06e7",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:49dc4b5c7228c78bdbf58f14d75570f7a94d2b57019914085978a52328bd04dc",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:e4e5d5100b9b53b5a23e5e6376bee0e26705f323c82768633548b658ada37521",
       "schemaVersion": "snapback.v1"
     },
     "id": "app:pushLedger",
@@ -125,9 +125,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "app",
-      "bundleHash": "snapback.v1:sessions:function:sha256:9ebfd4c965ac5be3c7f505f7b0c139c91efb8561a18b7b6b736b78dcba1aae4f",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:1d05176e46ecc4796814c20ae2d6b75b86d4a4ef6be807b05d2a7e401151c37f",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:0cbec8cf3537931b2a68fada4f7cf68e55d24f9466020b8553ea97bffae41f49",
+      "bundleHash": "snapback.v1:sessions:function:sha256:4f71f3cec62603b480a1743f1b82f6e7f2e9d1cb4777b774592fea6a73ea06e7",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:49dc4b5c7228c78bdbf58f14d75570f7a94d2b57019914085978a52328bd04dc",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:e4e5d5100b9b53b5a23e5e6376bee0e26705f323c82768633548b658ada37521",
       "schemaVersion": "snapback.v1"
     },
     "id": "app:sendSelected",

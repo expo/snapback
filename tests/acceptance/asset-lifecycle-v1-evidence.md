@@ -18,7 +18,7 @@ background loop.
 | Acceptance row | Evidence |
 |---|---|
 | Generated reference cannot be widened; stale reference refuses before staging | `packages/snapback-codegen/asset-upload-authoring.test.mjs` (declaration fixes the policy; refusals are generation-time) plus `asset_attempt_refusals_are_structured` (`SNAPBACK_ASSET_INTENT_STALE` before any reservation) and `manifest` validation `asset_upload_intent_manifest_*` (4 tests). |
-| Location policy mandatory; strip requires the finalization fact; retain admits | `asset-upload-authoring.test.mjs`: `SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED` (omission refuses), strip **admits on local** since the image-pipeline flip (the local manifest advertises `asset_image_finalization_v1`) and **refuses on the remote profile** which withholds the fact; video strip refuses everywhere; retain admits. Defense in depth at the finalizer for a fact-less target: `asset_finalize_strip_policy_defense_rejects_the_asset` (override-pinned disabled posture). |
+| Location policy mandatory; strip requires the finalization fact; retain admits | `asset-upload-authoring.test.mjs`: `SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED` names `image.location` or the distinct `video.location` sibling from accepted media types; omission refuses; image and video strip **admit on local** under their respective finalization facts and **refuse on the remote profile** which withholds them; retain admits. Defense in depth at the finalizer for a fact-less target: `asset_finalize_strip_policy_defense_rejects_the_asset` and `asset_finalize_strip_video_refuses_without_capability_or_classification`. |
 
 ## Client task and SDKs
 

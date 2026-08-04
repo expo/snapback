@@ -1,6 +1,6 @@
 # Video location policy is declared under a block named `image`
 
-**Status:** OPEN — RULED 2026-08-03, now implementable (was an
+**Status:** CLOSED — IMPLEMENTED 2026-08-04 (ruled 2026-08-03; was an
 author-facing naming question from the round-2 clip-locker rebuild,
 diary 0048-clip-locker, round-2 entry)
 
@@ -35,3 +35,21 @@ decision note is landed in LLP 0044's amendment collection (§Video
 location policy: the `video: { location }` sibling block). The ticket is
 now implementable; policy-identity care applies as stated above
 (existing hashes must not silently move).
+
+## Resolution (2026-08-04)
+
+Implemented option (b) end to end. `defineAssetUpload` now accepts a
+distinct `video: { location }` sibling, generated manifests carry it
+separately, and trusted finalization selects `image.location` or
+`video.location` from the detected media class without treating either
+block as an alias. Generation diagnostics name the required block from
+the accepted media types, and invalid image/video policy blocks are
+rejected independently.
+
+The policy-hash preimage adds `video` only when that sibling is present,
+so existing image intent spellings and hashes do not move. The codegen
+suite pins the pre-change image-only hash and covers video-only and mixed
+media diagnostics; Rust finalizer tests cover strip, retain, and refusal
+of a video upload backed only by `image.location`. The asset guide,
+acceptance evidence, and clip-locker demo declarations now teach and use
+the documented split.

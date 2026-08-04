@@ -1331,8 +1331,8 @@ pub struct AssetUploadIntentDefinition {
     pub implementation_hash: Option<String>,
     #[serde(default, rename = "argsContractHash", alias = "args_contract_hash")]
     pub args_contract_hash: Option<String>,
-    /// Hash over the declared accept/delivery/access/image/auth facts — the
-    /// admitted policy identity an attempt finalizes under.
+    /// Hash over the declared accept/delivery/access/image/video/auth facts —
+    /// the admitted policy identity an attempt finalizes under.
     #[serde(rename = "intentPolicyHash", alias = "intent_policy_hash")]
     pub intent_policy_hash: String,
     #[serde(default, rename = "authRequirement", alias = "auth_requirement")]
@@ -1342,6 +1342,11 @@ pub struct AssetUploadIntentDefinition {
     pub access: AssetAccessPolicy,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image: Option<AssetImagePolicy>,
+    /// @ref LLP 0044#video-location-policy-the-video--location--sibling-block-dated-decision-2026-08-03 —
+    /// video location policy has its own manifest carrier rather than
+    /// overloading or aliasing the frozen image-policy spelling.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub video: Option<AssetVideoPolicy>,
     /// Declared lifecycle callbacks; absent stays canonical so pre-existing
     /// intent policy hashes are unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1413,6 +1418,14 @@ pub struct AssetImagePolicy {
     pub location: AssetLocationPolicy,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub variants: Vec<AssetImageVariant>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetVideoPolicy {
+    /// Mandatory-explicit for location-bearing video; there is no implicit
+    /// fallback (LLP 0044 §Video location policy).
+    pub location: AssetLocationPolicy,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -12852,6 +12865,7 @@ mod asset_upload_intent_manifest_tests {
                 read: crate::assets::AssetReadAccessPolicy::OwnerOnly,
             },
             image: None,
+            video: None,
             on: None,
             declared_reads: Vec::new(),
             runtime: FunctionRuntime::IbexModule(IbexModule {

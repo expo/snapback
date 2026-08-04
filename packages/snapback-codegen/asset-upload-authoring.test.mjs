@@ -176,15 +176,60 @@ async function refusalCase(functions, expectedCode) {
   );
 }
 
-// Location-bearing media without a declared location policy refuses at
-// generation — there is no implicit fallback (LLP 0044).
-await refusalCase(`
+// Location-bearing media without the media-specific location policy refuses
+// at generation — there is no implicit fallback (LLP 0044 §Video location
+// policy). Diagnostics name the block the accepted media types require.
+{
+  const { result } = await runCase({ schema: baseSchema, functions: `
 import { defineAssetUpload } from '${defineUrl}';
 export const photoUpload = defineAssetUpload({
   accept: { mediaTypes: ['image/jpeg'], maxBytes: 1_000_000 },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
-`, 'SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED');
+` });
+  const diagnostic = result.diagnostics.find(
+    (entry) => entry.code === 'SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED',
+  );
+  assert.ok(diagnostic, JSON.stringify(result.diagnostics));
+  assert.match(diagnostic.message, /declare image\.location/);
+  assert.doesNotMatch(diagnostic.message, /video\.location/);
+  assert.deepEqual(diagnostic.policyFields, ['image.location']);
+}
+
+{
+  const { result } = await runCase({ schema: baseSchema, functions: `
+import { defineAssetUpload } from '${defineUrl}';
+export const clipUpload = defineAssetUpload({
+  accept: { mediaTypes: ['video/mp4'], maxBytes: 100_000_000 },
+  image: { location: 'retain' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+` });
+  const diagnostic = result.diagnostics.find(
+    (entry) => entry.code === 'SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED',
+  );
+  assert.ok(diagnostic, JSON.stringify(result.diagnostics));
+  assert.match(diagnostic.message, /declare video\.location/);
+  assert.doesNotMatch(diagnostic.message, /image\.location/);
+  assert.deepEqual(diagnostic.policyFields, ['video.location']);
+}
+
+{
+  const { result } = await runCase({ schema: baseSchema, functions: `
+import { defineAssetUpload } from '${defineUrl}';
+export const mediaUpload = defineAssetUpload({
+  accept: { mediaTypes: ['image/jpeg', 'video/mp4'], maxBytes: 100_000_000 },
+  image: { location: 'retain' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+` });
+  const diagnostic = result.diagnostics.find(
+    (entry) => entry.code === 'SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED',
+  );
+  assert.ok(diagnostic, JSON.stringify(result.diagnostics));
+  assert.match(diagnostic.message, /declare video\.location/);
+  assert.deepEqual(diagnostic.policyFields, ['video.location']);
+}
 
 // Since the P-05 flip the local target advertises asset_image_finalization_v1,
 // so a strip-declared image intent ADMITS on local — with declared variants.
@@ -201,6 +246,16 @@ export const photoUpload = defineAssetUpload({
 `,
   });
   assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
+  const intent = manifest.assetUploadIntents.find((entry) => entry.name === 'photoUpload');
+  // The video sibling is presence-only in the policy preimage. Pin the exact
+  // pre-ruling image hash so admitting it can never move existing image
+  // policy identity silently (LLP 0044, 2026-08-03 amendment).
+  assert.equal(
+    intent.intentPolicyHash,
+    'sha256:99480cc91c3d07bd07581ef7faabfc4037ee68801796c7946a75599a7e1ca12a',
+  );
+  assert.equal(Object.hasOwn(intent, 'video'), false);
   const api = readFileSync(join(dir, 'generated', 'api.mjs'), 'utf8');
   assert.ok(api.includes('"artifactKind": "assetUploadReference"'));
 }
@@ -227,18 +282,22 @@ export const photoUpload = defineAssetUpload({
 // Since the W2d flip the local target advertises asset_video_finalization_v1,
 // so a strip-declared video intent ADMITS on local.
 {
-  const { result } = await runCase({
+  const { result, dir } = await runCase({
     schema: baseSchema,
     functions: `
 import { defineAssetUpload } from '${defineUrl}';
 export const clipUpload = defineAssetUpload({
   accept: { mediaTypes: ['video/mp4'], maxBytes: 100_000_000 },
-  image: { location: 'strip' },
+  video: { location: 'strip' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 `,
   });
   assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
+  const intent = manifest.assetUploadIntents.find((entry) => entry.name === 'clipUpload');
+  assert.deepEqual(intent.video, { location: 'strip' });
+  assert.equal(Object.hasOwn(intent, 'image'), false, 'video policy is not emitted as an image alias');
 }
 
 // A target without the video fact still refuses video strip.
@@ -249,7 +308,7 @@ export const clipUpload = defineAssetUpload({
 import { defineAssetUpload } from '${defineUrl}';
 export const clipUpload = defineAssetUpload({
   accept: { mediaTypes: ['video/mp4'], maxBytes: 100_000_000 },
-  image: { location: 'strip' },
+  video: { location: 'strip' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 `,
@@ -259,7 +318,7 @@ export const clipUpload = defineAssetUpload({
   assert.ok(codes(result).includes('SNAPBACK_ASSET_INTENT_LOCATION_STRIP_UNSUPPORTED'));
 }
 
-// An image policy without any image/video media type is an authoring error.
+// Each media policy block is valid only for its own accepted media class.
 await refusalCase(`
 import { defineAssetUpload } from '${defineUrl}';
 export const docUpload = defineAssetUpload({
@@ -268,6 +327,15 @@ export const docUpload = defineAssetUpload({
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 `, 'SNAPBACK_ASSET_INTENT_IMAGE_SPEC_INVALID');
+
+await refusalCase(`
+import { defineAssetUpload } from '${defineUrl}';
+export const docUpload = defineAssetUpload({
+  accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  video: { location: 'retain' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+`, 'SNAPBACK_ASSET_INTENT_VIDEO_SPEC_INVALID');
 
 // --- explicit retain admits location-bearing media on a lifecycle target ---
 

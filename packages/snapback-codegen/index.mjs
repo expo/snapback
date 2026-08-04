@@ -3178,11 +3178,10 @@ export async function generateInProcess(backendDir, options = {}) {
     binding.resultHash = fn.resultContractHash;
     binding.resultContract = fn.resultContract;
   }
-  // @ref LLP 0044#generated-upload-intents — generation-time admission: the
-  //   location policy is mandatory for location-bearing media, `strip` is
-  //   admissible only where the target advertises the matching
-  //   metadata-rewriting fact, and the reference freezes the admitted policy
-  //   identity as `intentPolicyHash`.
+  // @ref LLP 0044#video-location-policy-the-video--location--sibling-block-dated-decision-2026-08-03 —
+  //   generation requires the media-specific image.location/video.location
+  //   sibling, keeps the image policy preimage intact, and admits `strip`
+  //   only where the target advertises the matching rewriting fact.
   const assetUploadIntents = [];
   {
     const supportedTargetCapabilities = new Set(
@@ -3249,43 +3248,59 @@ export async function generateInProcess(backendDir, options = {}) {
         }
       }
       const bearing = def.accept.mediaTypes.filter(locationBearing);
-      if (bearing.length > 0 && def.image?.location === undefined) {
+      const images = bearing.filter((type) => type.toLowerCase().startsWith('image/'));
+      const videos = bearing.filter((type) => type.toLowerCase().startsWith('video/'));
+      const missingLocationPolicies = [
+        ...(images.length > 0 && def.image?.location === undefined ? ['image.location'] : []),
+        ...(videos.length > 0 && def.video?.location === undefined ? ['video.location'] : []),
+      ];
+      if (missingLocationPolicies.length > 0) {
+        const declaration = missingLocationPolicies.length === 1
+          ? `${missingLocationPolicies[0]} ('strip' or 'retain')`
+          : `${missingLocationPolicies.join(' and ')} (each 'strip' or 'retain')`;
         err(
           'SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED',
           'asset',
-          `${exportName}: media types ${bearing.join(', ')} carry location metadata; declare image.location ('strip' or 'retain') — omission refuses at generation, there is no implicit fallback`,
-          { intent: exportName, mediaTypes: bearing },
+          `${exportName}: media types ${bearing.join(', ')} carry location metadata; declare ${declaration} — omission refuses at generation, there is no implicit fallback`,
+          { intent: exportName, mediaTypes: bearing, policyFields: missingLocationPolicies },
         );
         continue;
       }
-      if (def.image !== undefined && bearing.length === 0) {
+      if (def.image !== undefined && images.length === 0) {
         err(
           'SNAPBACK_ASSET_INTENT_IMAGE_SPEC_INVALID',
           'asset',
-          `${exportName}: image policy declared but no accepted media type is an image or video`,
+          `${exportName}: image policy declared but no accepted media type is an image`,
           { intent: exportName, mediaTypes: def.accept.mediaTypes },
         );
         continue;
       }
-      if (def.image?.location === 'strip') {
-        const images = bearing.filter((type) => type.toLowerCase().startsWith('image/'));
-        const videos = bearing.filter((type) => type.toLowerCase().startsWith('video/'));
-        const missing = [];
-        if (images.length > 0 && !supportedTargetCapabilities.has('asset_image_finalization_v1')) {
-          missing.push({ capability: 'asset_image_finalization_v1', mediaTypes: images });
-        }
-        if (videos.length > 0 && !supportedTargetCapabilities.has('asset_video_finalization_v1')) {
-          missing.push({ capability: 'asset_video_finalization_v1', mediaTypes: videos });
-        }
-        if (missing.length > 0) {
-          err(
-            'SNAPBACK_ASSET_INTENT_LOCATION_STRIP_UNSUPPORTED',
-            'asset',
-            `${exportName}: location 'strip' requires ${missing.map((entry) => entry.capability).join(' and ')}, which target ${canonicalCapability.manifest?.targetProfileId ?? targetProfile} does not advertise; an explicit 'retain' admits without the rewriting fact`,
-            { intent: exportName, missing },
-          );
-          continue;
-        }
+      if (def.video !== undefined && videos.length === 0) {
+        err(
+          'SNAPBACK_ASSET_INTENT_VIDEO_SPEC_INVALID',
+          'asset',
+          `${exportName}: video policy declared but no accepted media type is a video`,
+          { intent: exportName, mediaTypes: def.accept.mediaTypes },
+        );
+        continue;
+      }
+      const missing = [];
+      if (def.image?.location === 'strip'
+        && !supportedTargetCapabilities.has('asset_image_finalization_v1')) {
+        missing.push({ capability: 'asset_image_finalization_v1', mediaTypes: images });
+      }
+      if (def.video?.location === 'strip'
+        && !supportedTargetCapabilities.has('asset_video_finalization_v1')) {
+        missing.push({ capability: 'asset_video_finalization_v1', mediaTypes: videos });
+      }
+      if (missing.length > 0) {
+        err(
+          'SNAPBACK_ASSET_INTENT_LOCATION_STRIP_UNSUPPORTED',
+          'asset',
+          `${exportName}: location 'strip' requires ${missing.map((entry) => entry.capability).join(' and ')}, which target ${canonicalCapability.manifest?.targetProfileId ?? targetProfile} does not advertise; an explicit 'retain' admits without the rewriting fact`,
+          { intent: exportName, missing },
+        );
+        continue;
       }
       // Delivery-profile admission is manifest-keyed like strip admission:
       // a target advertises supported profiles and refuses an intent it
@@ -3389,6 +3404,9 @@ export async function generateInProcess(backendDir, options = {}) {
         delivery: def.delivery,
         access: def.access,
         image: def.image ?? null,
+        // Presence-only is deliberate: adding the sibling must not alter the
+        // canonical preimage (and frozen hashes) of existing image intents.
+        ...(def.video ? { video: def.video } : {}),
         // Spread-when-present keeps pre-existing intent policy hashes
         // unchanged for intents that declare no callbacks.
         ...(def.on ? { on: def.on } : {}),
@@ -3421,6 +3439,7 @@ export async function generateInProcess(backendDir, options = {}) {
         delivery: def.delivery,
         access: def.access,
         ...(def.image ? { image: def.image } : {}),
+        ...(def.video ? { video: def.video } : {}),
         ...(def.on ? { on: def.on } : {}),
         declaredReads: def.reads ?? [],
         runtime: {
