@@ -1,0 +1,788 @@
+{
+  "receipt": "eas-phase0/p0.1/wfp-dispatch-namespace",
+  "date": "2026-08-03",
+  "startedAt": "2026-08-03T19:47:57.998Z",
+  "command": "CLOUDFLARE_ACCOUNT_ID=<account-id> CLOUDFLARE_API_TOKEN=<token> node demos/eas-phase0/spikes/p0.1-wfp-dispatch-namespace.mjs --namespace eas-p0-spike-20260803",
+  "authority": {
+    "plan": "LLP 0105 §P0.1 WfP handler and host bridge",
+    "security": [
+      "LLP 0009 §Invocation Isolation",
+      "LLP 0009 §Capability Model",
+      "LLP 0047 §Acceptance"
+    ],
+    "enablementReceipt": "demos/eas-phase0/receipts/p0-access-wfp-enabled.json"
+  },
+  "repository": {
+    "sha": "8ac5f34e4fe573e5828e8ca3deb36c69bd3ea9db",
+    "dirty": true
+  },
+  "cloudflare": {
+    "account": "ccheever@expo.io account",
+    "accountIdRedacted": true,
+    "tokenPosture": "account-scoped API token from the LLP 0040 credential store; value not retained",
+    "namespace": "eas-p0-spike-20260803",
+    "runId": "ac6293",
+    "namespaceTrustedWorkers": null,
+    "compatibilityDate": "2026-07-01",
+    "compatibilityFlags": [],
+    "apiDocs": [
+      "https://developers.cloudflare.com/api/resources/workers_for_platforms/subresources/dispatch/subresources/namespaces/methods/create/",
+      "https://developers.cloudflare.com/api/resources/workers_for_platforms/subresources/dispatch/subresources/namespaces/subresources/scripts/methods/update/",
+      "https://developers.cloudflare.com/cloudflare-for-platforms/workers-for-platforms/configuration/custom-limits/",
+      "https://developers.cloudflare.com/cloudflare-for-platforms/workers-for-platforms/configuration/outbound-workers/"
+    ],
+    "namespaceScriptNames": [
+      "app-a-r1-action",
+      "app-a-r1-handler",
+      "app-a-r2-action",
+      "app-a-r2-handler",
+      "app-b-r1-action",
+      "app-b-r1-handler",
+      "app-b-r2-action",
+      "app-b-r2-handler"
+    ],
+    "dispatcherBindings": [
+      {
+        "type": "secret_text",
+        "name": "CAP_SECRET"
+      },
+      {
+        "type": "dispatch_namespace",
+        "name": "DISPATCHER",
+        "namespace": "eas-p0-spike-20260803",
+        "outbound": {
+          "worker": {
+            "service": "snapback-eas-p0-20260803-ac6293-outbound"
+          },
+          "params": [
+            {
+              "name": "DISPATCH_CONTEXT"
+            }
+          ],
+          "prebuilt_pipeline_id": null
+        }
+      },
+      {
+        "type": "durable_object_namespace",
+        "name": "GATES",
+        "className": "Gate"
+      }
+    ],
+    "dispatcherUrl": "https://snapback-eas-p0-20260803-ac6293-dispatch.ccheever-0f6.workers.dev",
+    "dispatcherEdgeActivationObservation": {
+      "stable": false,
+      "round": 20,
+      "concurrentProbeStatuses": [
+        200,
+        404,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "scope": "P0.2 ingress follow-up; P0.1 calls retry only Cloudflare activation pages"
+    }
+  },
+  "topology": {
+    "regularWorkers": {
+      "host": "snapback-eas-p0-20260803-ac6293-host",
+      "outbound": "snapback-eas-p0-20260803-ac6293-outbound",
+      "dispatcher": "snapback-eas-p0-20260803-ac6293-dispatch"
+    },
+    "apps": [
+      "app-a",
+      "app-b"
+    ],
+    "releases": [
+      "r1",
+      "r2"
+    ],
+    "roles": [
+      "handler",
+      "action"
+    ],
+    "userWorkerCount": 8,
+    "userWorkerBindingEnvelope": [
+      {
+        "type": "service",
+        "name": "HOST",
+        "service": "snapback-eas-p0-20260803-ac6293-host"
+      }
+    ],
+    "capabilityFields": [
+      "appId",
+      "environmentId",
+      "objectId",
+      "release",
+      "operation",
+      "requestId",
+      "deadline"
+    ]
+  },
+  "limits": {
+    "nativeWfpPerInvocation": {
+      "cpuMs": 20,
+      "subRequests": 5
+    },
+    "dispatcherEnforced": {
+      "responseBytes": 65536,
+      "handlerConcurrency": 2,
+      "actionConcurrency": 1,
+      "queueDepth": 2,
+      "invocationDeadlineMs": 10000
+    }
+  },
+  "exactMultipartBindingMetadata": [
+    {
+      "script": "app-a-r1-handler",
+      "sourceSha256": "ba0d5974fcca1bcfb0deef57fab3c1813cecbfb85d02a49b477f5bc9814cf2bc",
+      "multipartMetadata": [
+        {
+          "type": "service",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host"
+        }
+      ],
+      "uploadResponseBindings": [],
+      "bindingsEndpoint": [
+        {
+          "environment": "production",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host",
+          "type": "service"
+        }
+      ]
+    },
+    {
+      "script": "app-a-r1-action",
+      "sourceSha256": "30b64fb57b338f8d5dd75cd9589ae9f68b4d2e390d0ed1570d46d7bfe0dc28e0",
+      "multipartMetadata": [
+        {
+          "type": "service",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host"
+        }
+      ],
+      "uploadResponseBindings": [],
+      "bindingsEndpoint": [
+        {
+          "environment": "production",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host",
+          "type": "service"
+        }
+      ]
+    },
+    {
+      "script": "app-a-r2-handler",
+      "sourceSha256": "366f5f5f9af5c6eb62dbe3c63fc2b571996dae3825a0a571ac751ea36fa44c20",
+      "multipartMetadata": [
+        {
+          "type": "service",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host"
+        }
+      ],
+      "uploadResponseBindings": [],
+      "bindingsEndpoint": [
+        {
+          "environment": "production",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host",
+          "type": "service"
+        }
+      ]
+    },
+    {
+      "script": "app-a-r2-action",
+      "sourceSha256": "76210cbe4c74f5c936790a01437128c061c392397806a553600e85b40f193276",
+      "multipartMetadata": [
+        {
+          "type": "service",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host"
+        }
+      ],
+      "uploadResponseBindings": [],
+      "bindingsEndpoint": [
+        {
+          "environment": "production",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host",
+          "type": "service"
+        }
+      ]
+    },
+    {
+      "script": "app-b-r1-handler",
+      "sourceSha256": "1a07835133c30676d0b09a6dfdb49ba715c74a2395606c05eee3c67af4832646",
+      "multipartMetadata": [
+        {
+          "type": "service",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host"
+        }
+      ],
+      "uploadResponseBindings": [],
+      "bindingsEndpoint": [
+        {
+          "environment": "production",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host",
+          "type": "service"
+        }
+      ]
+    },
+    {
+      "script": "app-b-r1-action",
+      "sourceSha256": "fb94f3922101d72db4d4c1eb16cfb2f6b155b25e775626aa4d1ff169c59d4c90",
+      "multipartMetadata": [
+        {
+          "type": "service",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host"
+        }
+      ],
+      "uploadResponseBindings": [],
+      "bindingsEndpoint": [
+        {
+          "environment": "production",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host",
+          "type": "service"
+        }
+      ]
+    },
+    {
+      "script": "app-b-r2-handler",
+      "sourceSha256": "428cb38f12a6f9351f71cf7765700284d550b2204d8a9c8eab59f53d0271fcf5",
+      "multipartMetadata": [
+        {
+          "type": "service",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host"
+        }
+      ],
+      "uploadResponseBindings": [],
+      "bindingsEndpoint": [
+        {
+          "environment": "production",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host",
+          "type": "service"
+        }
+      ]
+    },
+    {
+      "script": "app-b-r2-action",
+      "sourceSha256": "37fb5d514e9fae3ee2e1ebb8b61088a624494922e71a86474adf8e1856f7fa8c",
+      "multipartMetadata": [
+        {
+          "type": "service",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host"
+        }
+      ],
+      "uploadResponseBindings": [],
+      "bindingsEndpoint": [
+        {
+          "environment": "production",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host",
+          "type": "service"
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "id": "namespace-trusted-mode-not-enabled",
+      "pass": true,
+      "evidence": {
+        "trustedWorkers": null,
+        "note": "the create response omits this optional field on the current API; runtime-facts below proves the untrusted request surface"
+      }
+    },
+    {
+      "id": "namespace-script-list-eight-workers",
+      "pass": true,
+      "evidence": {
+        "names": [
+          "app-a-r1-action",
+          "app-a-r1-handler",
+          "app-a-r2-action",
+          "app-a-r2-handler",
+          "app-b-r1-action",
+          "app-b-r1-handler",
+          "app-b-r2-action",
+          "app-b-r2-handler"
+        ]
+      }
+    },
+    {
+      "id": "dispatcher-activated",
+      "pass": true,
+      "evidence": {
+        "namespace": "eas-p0-spike-20260803",
+        "limits": {
+          "cpuMs": 20,
+          "subRequests": 5,
+          "responseBytes": 65536,
+          "handlerConcurrency": 2,
+          "actionConcurrency": 1,
+          "queueDepth": 2,
+          "deadlineMs": 10000
+        }
+      }
+    },
+    {
+      "id": "namespaced-worker-untrusted-runtime",
+      "pass": true,
+      "evidence": {
+        "status": 200,
+        "requestCfType": "undefined",
+        "cacheDefaultType": "object",
+        "responseBody": {
+          "ok": true,
+          "requestCfType": "undefined",
+          "cacheDefaultType": "object"
+        },
+        "elapsedMs": 7744,
+        "activationAttempts": 7
+      }
+    },
+    {
+      "id": "multipart-binding-envelope-eight-workers",
+      "pass": true,
+      "evidence": {
+        "scripts": [
+          "app-a-r1-handler",
+          "app-a-r1-action",
+          "app-a-r2-handler",
+          "app-a-r2-action",
+          "app-b-r1-handler",
+          "app-b-r1-action",
+          "app-b-r2-handler",
+          "app-b-r2-action"
+        ],
+        "binding": {
+          "type": "service",
+          "name": "HOST",
+          "service": "snapback-eas-p0-20260803-ac6293-host"
+        },
+        "uploadResponseBindingCounts": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "note": "the current API omits bindings from upload responses; the dedicated bindings endpoint is authoritative"
+      }
+    },
+    {
+      "id": "query-app-a-r1",
+      "pass": true,
+      "evidence": {
+        "status": 200,
+        "elapsedMs": 638.9,
+        "activationAttempts": 1,
+        "capability": {
+          "appId": "app-a",
+          "environmentId": "app-a-environment",
+          "objectId": "root",
+          "release": "r1",
+          "operation": "query",
+          "requestId": "ee6bb9ab-fbae-47fe-acf4-7f873bdfcfa6",
+          "deadline": 1785786533241
+        },
+        "responseBody": {
+          "ok": true,
+          "value": 0,
+          "cap": {
+            "appId": "app-a",
+            "environmentId": "app-a-environment",
+            "objectId": "root",
+            "release": "r1",
+            "operation": "query",
+            "requestId": "ee6bb9ab-fbae-47fe-acf4-7f873bdfcfa6",
+            "deadline": 1785786533241
+          },
+          "applicationArgKeys": [
+            "value"
+          ]
+        },
+        "applicationArgKeys": [
+          "value"
+        ]
+      }
+    },
+    {
+      "id": "query-app-a-r2",
+      "pass": true,
+      "evidence": {
+        "status": 200,
+        "elapsedMs": 273.9,
+        "activationAttempts": 1,
+        "capability": {
+          "appId": "app-a",
+          "environmentId": "app-a-environment",
+          "objectId": "root",
+          "release": "r2",
+          "operation": "query",
+          "requestId": "1b48ee49-d39d-415b-9f87-4dd7bac73abe",
+          "deadline": 1785786533898
+        },
+        "responseBody": {
+          "ok": true,
+          "value": 0,
+          "cap": {
+            "appId": "app-a",
+            "environmentId": "app-a-environment",
+            "objectId": "root",
+            "release": "r2",
+            "operation": "query",
+            "requestId": "1b48ee49-d39d-415b-9f87-4dd7bac73abe",
+            "deadline": 1785786533898
+          },
+          "applicationArgKeys": [
+            "value"
+          ]
+        },
+        "applicationArgKeys": [
+          "value"
+        ]
+      }
+    },
+    {
+      "id": "query-app-b-r1",
+      "pass": true,
+      "evidence": {
+        "status": 200,
+        "elapsedMs": 873.9,
+        "activationAttempts": 1,
+        "capability": {
+          "appId": "app-b",
+          "environmentId": "app-b-environment",
+          "objectId": "root",
+          "release": "r1",
+          "operation": "query",
+          "requestId": "96da0183-7831-491e-be99-15cd75aceafa",
+          "deadline": 1785786534431
+        },
+        "responseBody": {
+          "ok": true,
+          "value": 0,
+          "cap": {
+            "appId": "app-b",
+            "environmentId": "app-b-environment",
+            "objectId": "root",
+            "release": "r1",
+            "operation": "query",
+            "requestId": "96da0183-7831-491e-be99-15cd75aceafa",
+            "deadline": 1785786534431
+          },
+          "applicationArgKeys": [
+            "value"
+          ]
+        },
+        "applicationArgKeys": [
+          "value"
+        ]
+      }
+    },
+    {
+      "id": "query-app-b-r2",
+      "pass": true,
+      "evidence": {
+        "status": 200,
+        "elapsedMs": 190.6,
+        "activationAttempts": 1,
+        "capability": {
+          "appId": "app-b",
+          "environmentId": "app-b-environment",
+          "objectId": "root",
+          "release": "r2",
+          "operation": "query",
+          "requestId": "0da0d04f-d0b5-4ccd-b365-ba9f1d653875",
+          "deadline": 1785786535021
+        },
+        "responseBody": {
+          "ok": true,
+          "value": 0,
+          "cap": {
+            "appId": "app-b",
+            "environmentId": "app-b-environment",
+            "objectId": "root",
+            "release": "r2",
+            "operation": "query",
+            "requestId": "0da0d04f-d0b5-4ccd-b365-ba9f1d653875",
+            "deadline": 1785786535021
+          },
+          "applicationArgKeys": [
+            "value"
+          ]
+        },
+        "applicationArgKeys": [
+          "value"
+        ]
+      }
+    },
+    {
+      "id": "app-isolation-release-shared-data",
+      "pass": true,
+      "evidence": {
+        "appAR1MutationValue": 1,
+        "appAR2QueryValue": 1,
+        "appBR1QueryValue": 0
+      }
+    },
+    {
+      "id": "retry-idempotent-request-capability",
+      "pass": true,
+      "evidence": {
+        "requestId": "proof:app-a:r1:mutation-retry",
+        "first": {
+          "value": 2,
+          "replayed": false
+        },
+        "retry": {
+          "value": 2,
+          "replayed": true
+        }
+      }
+    },
+    {
+      "id": "user-arguments-cannot-carry-host-scope",
+      "pass": true,
+      "evidence": {
+        "status": 400,
+        "code": "SNAPBACK_HOST_SCOPE_ARGUMENT_FORBIDDEN",
+        "rejectedKeys": [
+          "appId",
+          "objectId",
+          "release"
+        ]
+      }
+    },
+    {
+      "id": "cross-app-capability-tamper-rejected",
+      "pass": true,
+      "evidence": {
+        "status": 401,
+        "code": "SNAPBACK_CAPABILITY_SIGNATURE_INVALID",
+        "responseBody": {
+          "ok": false,
+          "code": "SNAPBACK_CAPABILITY_SIGNATURE_INVALID"
+        }
+      }
+    },
+    {
+      "id": "cross-release-capability-tamper-rejected",
+      "pass": true,
+      "evidence": {
+        "status": 401,
+        "code": "SNAPBACK_CAPABILITY_SIGNATURE_INVALID",
+        "responseBody": {
+          "ok": false,
+          "code": "SNAPBACK_CAPABILITY_SIGNATURE_INVALID"
+        }
+      }
+    },
+    {
+      "id": "stale-capability-rejected",
+      "pass": true,
+      "evidence": {
+        "status": 401,
+        "code": "SNAPBACK_CAPABILITY_STALE"
+      }
+    },
+    {
+      "id": "handler-ambient-network-denied",
+      "pass": true,
+      "evidence": {
+        "status": 200,
+        "outboundStatus": 403
+      }
+    },
+    {
+      "id": "action-allowlisted-fetch",
+      "pass": true,
+      "evidence": {
+        "status": 200,
+        "outboundStatus": 200
+      }
+    },
+    {
+      "id": "action-nonallowlisted-fetch-denied",
+      "pass": true,
+      "evidence": {
+        "status": 200,
+        "outboundStatus": 403
+      }
+    },
+    {
+      "id": "slow-action-does-not-block-handler-role",
+      "pass": true,
+      "evidence": {
+        "actionStatus": 200,
+        "actionBody": {
+          "ok": true,
+          "outboundStatus": 200,
+          "role": "action"
+        },
+        "queryStatus": 200,
+        "queryBody": {
+          "ok": true,
+          "value": 2,
+          "cap": {
+            "appId": "app-a",
+            "environmentId": "app-a-environment",
+            "objectId": "root",
+            "release": "r1",
+            "operation": "query",
+            "requestId": "c2884678-8523-4094-bc2c-3a5cbdc1d113",
+            "deadline": 1785786537419
+          },
+          "applicationArgKeys": []
+        },
+        "queryElapsedMs": 117.6,
+        "queryFinishedAfterStartMs": 219,
+        "actionFinishedAfterStartMs": 1262,
+        "actionScript": "app-a-r1-action",
+        "handlerScript": "app-a-r1-handler"
+      }
+    },
+    {
+      "id": "concurrency-and-queue-bounded",
+      "pass": true,
+      "evidence": {
+        "statuses": [
+          200,
+          200,
+          200,
+          200,
+          429
+        ],
+        "codes": [
+          null,
+          null,
+          null,
+          null,
+          "SNAPBACK_QUEUE_LIMIT"
+        ],
+        "bodies": [
+          {
+            "ok": true,
+            "delayedMs": 700
+          },
+          {
+            "ok": true,
+            "delayedMs": 700
+          },
+          {
+            "ok": true,
+            "delayedMs": 700
+          },
+          {
+            "ok": true,
+            "delayedMs": 700
+          },
+          {
+            "ok": false,
+            "code": "SNAPBACK_QUEUE_LIMIT"
+          }
+        ],
+        "elapsedMs": 1530.9,
+        "activationAttempts": 1,
+        "layer": "dispatcher Durable Object admission gate"
+      }
+    },
+    {
+      "id": "response-size-limit",
+      "pass": true,
+      "evidence": {
+        "status": 413,
+        "code": "SNAPBACK_RESPONSE_LIMIT",
+        "observedBytes": 131096,
+        "limitBytes": 65536
+      }
+    },
+    {
+      "id": "native-wfp-subrequest-limit",
+      "pass": false,
+      "evidence": {
+        "status": 200,
+        "category": null,
+        "responseBody": {
+          "ok": true,
+          "unexpected": "subrequest limit did not fire"
+        },
+        "elapsedMs": 212.4
+      }
+    },
+    {
+      "id": "native-wfp-cpu-termination",
+      "pass": false,
+      "evidence": {
+        "status": 200,
+        "category": null,
+        "responseBody": {
+          "ok": true,
+          "unexpected": "CPU limit did not fire",
+          "checksum": 884703232
+        },
+        "elapsedMs": 87.8,
+        "cpuMs": 20,
+        "finiteBurnIterations": 20000000
+      }
+    }
+  ],
+  "cleanup": [
+    {
+      "resource": "Worker snapback-eas-p0-20260803-ac6293-dispatch",
+      "deleted": true
+    },
+    {
+      "resource": "dispatch namespace eas-p0-spike-20260803",
+      "deleted": true
+    },
+    {
+      "resource": "Worker snapback-eas-p0-20260803-ac6293-host",
+      "deleted": true
+    },
+    {
+      "resource": "Worker snapback-eas-p0-20260803-ac6293-outbound",
+      "deleted": true
+    }
+  ],
+  "nonClaims": [
+    "This disposable proof does not qualify the eas-cloudflare-wfp-v1 capability profile or graduate hosted_untrusted_code.",
+    "The documented native WfP CPU/subrequest options are exercised, but this run makes no enforcement claim unless both corresponding checks pass; response, concurrency, queue, and wall-clock limits remain disposable dispatcher/Gate code.",
+    "The action-role mechanism is a separate namespaced script and admission gate; Gate 0 must still select the production kill-domain mechanism.",
+    "Rapid disposable Workers.dev activation was not stable under concurrent probes; that ingress concern belongs to P0.2 and is recorded without qualifying a route.",
+    "No production Expo-org credential custody, stable identity, billing, hosted auth, or route-shape claim is made."
+  ],
+  "finishedAt": "2026-08-03T19:48:51.319Z",
+  "durationMs": 53321,
+  "namespaceLifecycle": {
+    "created": true,
+    "scriptsUploaded": [
+      "app-a-r1-handler",
+      "app-a-r1-action",
+      "app-a-r2-handler",
+      "app-a-r2-action",
+      "app-b-r1-handler",
+      "app-b-r1-action",
+      "app-b-r2-handler",
+      "app-b-r2-action"
+    ],
+    "deleted": true
+  },
+  "verdict": "FAIL"
+}
