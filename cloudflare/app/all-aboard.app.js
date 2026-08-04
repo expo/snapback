@@ -39,6 +39,9 @@ export const acknowledgedExperimentalCapabilities = ['bounded_response_stream_v1
 
 export const schema = {
   schemaHash: schemaManifest.schemaHash,
+  // The Cloudflare loader consumes this manifest option explicitly so the
+  // target-admission refusal cannot be bypassed by the deploy-time adapter.
+  strictDeclarations: schemaManifest.strictDeclarations === true,
   tables: [
     {
       name: 'stations',

@@ -51,6 +51,10 @@ import {
   restoreDenialWitness,
 } from '../../packages/snapback-harness/envelope.mjs';
 import { ID_PREFIXES, mintId } from '../../packages/snapback-contract/ids.mjs';
+import {
+  CLOUDFLARE_TARGET_PROFILE,
+  strictDeclarationsTargetRefusal,
+} from './target-admission.js';
 // RQS — the Cloudflare arm (LLP 0090 rollout step 4, ENG-25455). The token/
 // digest algebra is the shared packages/snapback-client/rqs.mjs module,
 // re-exported through rqs-host.mjs (never forked); rqs-host adds this arm's
@@ -102,6 +106,21 @@ import {
 
 const APP_SCHEMA_HASH = schema.schemaHash;
 const APP_BUNDLE_HASH = bundleHash;
+// The Cloudflare arm compiles app artifacts into the Worker, so module load is
+// its earliest admission seam. Refuse before a Durable Object or data-plane
+// route can exist; the immutable flag must never become unenforced serving
+// state on this target.
+const COMPILED_SCHEMA_ADMISSION_REFUSAL = strictDeclarationsTargetRefusal(schema, {
+  targetProfile: CLOUDFLARE_TARGET_PROFILE,
+  enforcesStrictDeclarations: false,
+});
+if (COMPILED_SCHEMA_ADMISSION_REFUSAL) {
+  throw codedError(
+    COMPILED_SCHEMA_ADMISSION_REFUSAL.code,
+    COMPILED_SCHEMA_ADMISSION_REFUSAL.message,
+    COMPILED_SCHEMA_ADMISSION_REFUSAL.details,
+  );
+}
 const APP_TABLES = new Set(schema.tables.map((table) => table.name));
 const APP_SCHEMA_TABLES = new Map(schema.tables.map((table) => [table.name, table]));
 const CHANGE_JOURNAL_RETAIN_VERSIONS = 1000;
@@ -4464,6 +4483,18 @@ export class Coordinator {
     // @ref LLP 0034#5 —
     // production provisioning is identity-gated and host-owned.
     const posted = payload || {};
+    const strictDeclarationsRefusal = strictDeclarationsTargetRefusal(posted.schema, {
+      targetProfile: CLOUDFLARE_TARGET_PROFILE,
+      enforcesStrictDeclarations: false,
+    });
+    if (strictDeclarationsRefusal) {
+      return kitError(
+        400,
+        strictDeclarationsRefusal.code,
+        strictDeclarationsRefusal.message,
+        strictDeclarationsRefusal.details,
+      );
+    }
     const schemaState = !posted.schema
       ? 'skipped-absent'
       : posted.schema.schemaHash === APP_SCHEMA_HASH
@@ -4496,7 +4527,7 @@ export class Coordinator {
       schema: schemaState,
       functions: functionsState,
       seed: seedState,
-      profile: 'cloudflare-do-sqlite-v8',
+      profile: CLOUDFLARE_TARGET_PROFILE,
     });
   }
 

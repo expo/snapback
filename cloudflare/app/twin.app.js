@@ -55,6 +55,7 @@ export const deploymentIdentity = Object.freeze({
 // (src/bin/snapback-conformance-twin.rs `schema()`).
 export const schema = {
   schemaHash: deploymentIdentity.schemaHash,
+  strictDeclarations: false,
   tables: [
     {
       name: 'items',
