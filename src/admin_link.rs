@@ -35,7 +35,7 @@ const TAILSCALE_MOUNT_PATH: &str = "/_snapback";
 const TAILSCALE_HTTPS_PORT: u16 = 443;
 const TAILSCALE_RECEIPT_VERSION: u32 = 1;
 const TAILSCALE_RECEIPT_MAX_BYTES: usize = 64 * 1024;
-const TAILSCALE_COMMAND_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+const TAILSCALE_COMMAND_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct LanCandidate {

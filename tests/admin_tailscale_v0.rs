@@ -154,7 +154,7 @@ struct LinkProcess {
 
 impl LinkProcess {
     fn line(&mut self) -> String {
-        match self.lines.recv_timeout(Duration::from_secs(10)) {
+        match self.lines.recv_timeout(Duration::from_secs(40)) {
             Ok(line) => line,
             Err(error) => {
                 let status = self.child.wait().expect("wait for failed tailscale link");
