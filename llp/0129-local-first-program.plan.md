@@ -1723,6 +1723,25 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    > program is commissioned as
    > `issues/20260803-move3-phase1-program.md`; the Kanban-gate exit
    > presentation stays due 2026-08-17.
+   >
+   > **Phase-1 EXIT (2026-08-04, Charlie Cheever): ACCEPTED.** The
+   > Kanban exit gate was presented and accepted ahead of the timebox:
+   > the Move-3 program's four lanes landed (M1 shipping evaluator, M2
+   > read admission, M3 optimistic rebase, M4 generated-IR mutations +
+   > the Latency Kanban exit at 2ca5e7f7c) and the transcribed gate
+   > passed 5/5 with 0 blocked sections on a real served run
+   > (`tests/acceptance/fixtures/latency-kanban/
+   > move3-exit.2026-08-04.v1.json`: local paint ~21–24 ms per verb,
+   > locked refusal 21 ms, 20-move stack 258 ms, exact settlement
+   > retirement, second-client convergence, SIGKILL loss-free
+   > pre-network reload). OQ8's mechanisms shipped inside the program
+   > (admission, identity-bound coverage, receipts, the answer-class
+   > presentation). The gate's first real run also caught and fixed the
+   > mutate-after-subscribe admission-source defect (live-registration
+   > volatile answers vs the proof-or-nothing durable store), recorded
+   > in the program ticket. **Phase-2 scheduling returns to this
+   > document's machinery**: no phase is open; opening Phase 2 is a
+   > future author act with its own owner/timebox ruling.
 6. **The ephemeral no-sync pin.** Does the proposed LLP 0013
    amendment (0126 OQ8; constraint 4) land with Phase 0 or
    independently, and who writes it?

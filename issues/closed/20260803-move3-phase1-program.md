@@ -86,3 +86,13 @@ stays 0129's.
   records name the source class. The program's build lanes are
   complete; the ticket stays open pending the Phase-1 gate
   PRESENTATION to Charlie (due 2026-08-17).
+
+## Resolution (2026-08-04)
+
+**Program COMPLETE — Phase-1 exit ACCEPTED by Charlie 2026-08-04**
+(dated ruling in LLP 0129). All four lanes landed (M1 f231c6386, M2
+df77cbcbf, M3 ca392928b, M4 2ca5e7f7c); the Kanban gate passed 5/5 /
+0 blocked on a real served run with retained receipts. Phase-2
+scheduling returns to LLP 0129's machinery. Follow-on threads live in
+their own tickets (HTTP-family review debt, P1 finite-carrier
+amendment, 0146 live-target gaps, volatile-offline error typing).
