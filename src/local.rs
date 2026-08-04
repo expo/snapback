@@ -781,6 +781,16 @@ pub struct LiveSubscribeOutput {
     /// token. Only a resume-capable caller can receive the absent form.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub snapshot: Option<QueryOutput>,
+    /// Optional additive carrier on the open LLP 0094 LiveSubscribeOutput
+    /// family. The proof's signed preimage is the closed LLP 0157 record; this
+    /// envelope member conveys it without changing those semantic bytes.
+    // @ref LLP 0157#d3--the-completeness-witness — 0094 may select an envelope carrier but cannot alter the proof preimage.
+    #[serde(
+        default,
+        rename = "completenessProof",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub completeness_proof: Option<crate::completeness::CompletenessProofV1>,
     /// Fresh resume token for `rqsEligible` subscriptions answered with rows
     /// (the "initial `LiveReplace`" mint of LLP 0091 §0A.5 on this arm).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2995,6 +3005,12 @@ pub struct LocalSnapback {
     // with the lock-free read lane, which MACs and verifies relational
     // pagination cursors (LLP 0080 §2) without the global writer mutex.
     resume_keyring: Arc<RwLock<crate::rqs::ResumeKeyring>>,
+    // LLP 0157 proof signing has independent asymmetric custody. The private
+    // seed lives in its own owner-only database sidecar; the generated trusted
+    // activation carries only this ring's public manifest.
+    // @ref LLP 0157#d3--the-completeness-witness — server-only signing custody survives at least the admitted retained-lease horizon.
+    proof_keyring: Arc<RwLock<crate::completeness::ProofKeyring>>,
+    trusted_composition_activation: Option<crate::completeness::TrustedCompositionActivationV1>,
     // Rung-2 witness caps and the replay-vs-replace threshold (LLP 0090
     // D1.3; server policy knobs with LLP 0091 rung-2 amendment defaults).
     rqs_replay_policy: RqsReplayPolicy,
@@ -14791,6 +14807,7 @@ impl LocalSnapback {
             Some(definition) => definition?,
             None => self.function(name)?.clone(),
         };
+        let proof_namespace = input.authorization_namespace.clone();
         self.validate_expected_generation(&authority, expected_generation)?;
         if function.kind != FunctionKind::LiveQuery {
             return Err(SnapbackError::error(
@@ -15154,6 +15171,22 @@ impl LocalSnapback {
                 self.live_delivery.resume.fresh_replace_answers += 1;
             }
         }
+        let answered_without_rows = answer_current_as_of || answer_delta.is_some();
+        // LLP 0094 declares LiveSubscribeOutput open and explicitly permits
+        // additive optional server fields. Rung-1/rung-2 answers contain no
+        // established result bytes, so only the ordinary snapshot answer can
+        // carry the proof that binds those bytes. Mint before publishing any
+        // subscription/supersession effect so issuance refusal stays atomic.
+        let completeness_proof = if answered_without_rows {
+            None
+        } else {
+            self.issue_live_completeness_proof(
+                &function,
+                &subscription_input,
+                &query.output,
+                proof_namespace.as_ref(),
+            )?
+        };
         // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S2:
         // subscription ids are unguessable bearer capabilities, not enumerable
         // counters; they share the runtime's UUIDv7 id source.
@@ -15362,7 +15395,6 @@ impl LocalSnapback {
         // its mandatory fresh token) in the same &mut cut that registered the
         // subscription, and omit rows from the subscribe output entirely —
         // the caller's held rows are current as of `head_version`.
-        let answered_without_rows = answer_current_as_of || answer_delta.is_some();
         if answer_current_as_of {
             let envelope = LiveEnvelope::CurrentAsOf {
                 subscription_id: subscription_id.clone(),
@@ -15416,6 +15448,7 @@ impl LocalSnapback {
             subscription_id,
             facts: self.function_invocation_facts(authority.active_mode())?,
             snapshot: (!answered_without_rows).then_some(query.output),
+            completeness_proof,
             resume: fresh_resume,
             resume_refusal: resume_refusal.map(str::to_owned),
             superseded: superseded_witness,
@@ -19137,6 +19170,22 @@ impl LocalSnapback {
             ),
             None => crate::rqs::ResumeKeyring::in_memory(now_millis()),
         }));
+        let proof_keyring = Arc::new(RwLock::new(
+            match db.database_path() {
+                Some(path) => crate::completeness::ProofKeyring::load_or_create(
+                    path.with_file_name(crate::completeness::PROOF_KEYRING_FILE_NAME),
+                    now_millis(),
+                ),
+                None => crate::completeness::ProofKeyring::in_memory(now_millis()),
+            }
+            .map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_COMPLETENESS_PROOF_KEYRING_INVALID",
+                    "composition",
+                    error.to_string(),
+                )
+            })?,
+        ));
         static STREAM_ATTEMPT_NAMESPACE: std::sync::atomic::AtomicUsize =
             std::sync::atomic::AtomicUsize::new(1);
         Ok(Self {
@@ -19184,6 +19233,8 @@ impl LocalSnapback {
             auth_scoped_live_connections: Arc::new(RwLock::new(Arc::new(BTreeSet::new()))),
             receipts: ReceiptLog::default(),
             resume_keyring,
+            proof_keyring,
+            trusted_composition_activation: None,
             rqs_replay_policy: RqsReplayPolicy::default(),
             rqs_generation: None,
             routes: None,
@@ -19202,6 +19253,379 @@ impl LocalSnapback {
                 format!("unknown function {name}"),
             )
         })
+    }
+
+    /// Install the exact read-only activation delivered with the generated
+    /// application graph. Every locally derivable binding is rechecked:
+    /// database stream, target/auth profile, artifact generation, and the
+    /// server-held public-key projection.
+    pub fn install_trusted_composition_activation(
+        &mut self,
+        artifact: crate::completeness::TrustedCompositionActivationV1,
+    ) -> SnapbackResult<()> {
+        let invalid = |message: String| {
+            SnapbackError::error(
+                "SNAPBACK_COMPOSITION_ACTIVATION_INVALID",
+                "composition",
+                message,
+            )
+        };
+        artifact
+            .validate()
+            .map_err(|error| invalid(error.to_string()))?;
+        let schema = self.db.schema();
+        let expected_generation = ArtifactGeneration {
+            schema_version: schema.schema_version.clone(),
+            app_id: schema.app_id.clone(),
+            schema_hash: schema
+                .schema_hash
+                .clone()
+                .ok_or_else(|| invalid("active schema has no schemaHash".to_owned()))?,
+            bundle_hash: self
+                .functions
+                .bundle_hash
+                .clone()
+                .ok_or_else(|| invalid("active functions have no bundleHash".to_owned()))?,
+            inputs_hash: schema
+                .inputs_hash
+                .clone()
+                .filter(|value| self.functions.inputs_hash.as_ref() == Some(value))
+                .ok_or_else(|| {
+                    invalid("active artifact pair has no coherent inputsHash".to_owned())
+                })?,
+        };
+        let database_id = self.db.data_version_stream()?;
+        let target_profile_id = self
+            .db
+            .schema()
+            .target_profile
+            .as_deref()
+            .unwrap_or(crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX);
+        let auth_mode = match self.db.schema().effective_auth_mode() {
+            AuthMode::Dev => "dev",
+            AuthMode::Sessions => "sessions",
+        };
+        if artifact.activation.database_id != database_id
+            || artifact.activation.target_profile_id != target_profile_id
+            || artifact.activation.auth_mode != auth_mode
+            || artifact.activation.expected_generation != expected_generation
+        {
+            return Err(invalid(
+                "trusted activation does not exact-match the active database/profile/generation"
+                    .to_owned(),
+            ));
+        }
+        let manifest_matches = self
+            .proof_keyring
+            .read()
+            .map_err(|_| invalid("proof keyring lock is poisoned".to_owned()))?
+            .matches_manifest(&artifact.proof_keys)
+            .map_err(|error| invalid(error.to_string()))?;
+        if !manifest_matches {
+            return Err(invalid(
+                "trusted activation proof-key manifest does not match server custody".to_owned(),
+            ));
+        }
+        self.trusted_composition_activation = Some(artifact);
+        Ok(())
+    }
+
+    fn issue_live_completeness_proof(
+        &mut self,
+        function: &FunctionDefinition,
+        input: &HandlerInput,
+        output: &QueryOutput,
+        namespace: Option<&QueryNamespace>,
+    ) -> SnapbackResult<Option<crate::completeness::CompletenessProofV1>> {
+        let Some(namespace) = namespace else {
+            return Ok(None);
+        };
+        if !namespace.query_key.starts_with("qmk1.") {
+            return Ok(None);
+        }
+        namespace.validate()?;
+        let Some(activation) = self.trusted_composition_activation.clone() else {
+            return Ok(None);
+        };
+        let issue_error = |message: String| {
+            SnapbackError::error(
+                "SNAPBACK_COMPLETENESS_PROOF_ISSUANCE_FAILED",
+                "composition",
+                message,
+            )
+        };
+        let (plan_hash, nodes, profile_id) = match &function.runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(_)) => {
+                let identity = crate::manifest::single_node_identity_v1(function)?
+                    .expect("relational query has a single-node identity");
+                (
+                    identity.plan_hash,
+                    vec![crate::completeness::ProofNodeIdentityV1 {
+                        position: 0,
+                        class_id: "relational_query_v1".to_owned(),
+                        class_version: 1,
+                        node_plan_hash: identity.node_plan_hash,
+                    }],
+                    "relational-query.v1",
+                )
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(_)) => {
+                let identity = crate::manifest::single_node_identity_v1(function)?
+                    .expect("bounded children has a single-node identity");
+                (
+                    identity.plan_hash,
+                    vec![crate::completeness::ProofNodeIdentityV1 {
+                        position: 0,
+                        class_id: "bounded_children_v1".to_owned(),
+                        class_version: 1,
+                        node_plan_hash: identity.node_plan_hash,
+                    }],
+                    "bounded-children.v1",
+                )
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) => {
+                let identity = crate::manifest::snapshot_batch_identity_v1(function, plan)?;
+                let nodes = identity
+                    .node_plan_hashes
+                    .into_iter()
+                    .enumerate()
+                    .map(
+                        |(position, node_plan_hash)| crate::completeness::ProofNodeIdentityV1 {
+                            position: position as u64,
+                            class_id: "bounded_children_v1".to_owned(),
+                            class_version: 1,
+                            node_plan_hash,
+                        },
+                    )
+                    .collect();
+                (identity.plan_hash, nodes, "snapshot-batch.v1")
+            }
+            _ => return Ok(None),
+        };
+        let input_cursor = input.args.get("cursor").and_then(Value::as_str);
+        let output_cursor = match &function.runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(_)) => output.cursor.as_deref(),
+            FunctionRuntime::HostPlan(
+                HandlerPlan::BoundedChildrenQuery(_) | HandlerPlan::SnapshotBatch(_),
+            ) => output
+                .rows
+                .first()
+                .and_then(Value::as_object)
+                .and_then(|row| row.get("continuation"))
+                .and_then(Value::as_str),
+            _ => None,
+        };
+        let sealed = output
+            .rows
+            .first()
+            .and_then(Value::as_object)
+            .and_then(|row| row.get("kind"))
+            .and_then(Value::as_str)
+            == Some("absent");
+        let page = if sealed {
+            crate::completeness::PageIdentityV1::SealedTerminal {
+                input: crate::completeness::CursorEndV1::input(profile_id, input_cursor),
+                output: crate::completeness::CursorEndV1::Terminal,
+            }
+        } else {
+            let vector_nodes = match &function.runtime {
+                FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => {
+                    let state = if let Some(cursor) = output_cursor {
+                        let ring = self.resume_keyring.read().map_err(|_| {
+                            issue_error("resume keyring lock is poisoned".to_owned())
+                        })?;
+                        let body = crate::rqs::decode_and_verify_relational_cursor(
+                            cursor,
+                            &ring,
+                            now_millis(),
+                            crate::rqs::RELATIONAL_CURSOR_MAX_AGE_MS,
+                        )
+                        .map_err(|_| {
+                            issue_error("issued relational cursor did not verify".to_owned())
+                        })?;
+                        let boundary = crate::completeness::NodePageBoundaryV1::RelationalQuery {
+                            order_fields: plan
+                                .order
+                                .iter()
+                                .map(|order| order.field.clone())
+                                .collect(),
+                            boundary: body.boundary,
+                            row_id: body.id,
+                        };
+                        crate::completeness::NodeBoundaryStateV1::Boundary {
+                            boundary_digest: crate::completeness::node_page_boundary_digest(
+                                0,
+                                "relational_query_v1",
+                                1,
+                                &boundary,
+                            )
+                            .map_err(|error| issue_error(error.to_string()))?,
+                        }
+                    } else {
+                        crate::completeness::NodeBoundaryStateV1::Terminal
+                    };
+                    vec![crate::completeness::PageBoundaryVectorNodeV1 { position: 0, state }]
+                }
+                FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(_)) => {
+                    let state = if let Some(cursor) = output_cursor {
+                        let roots = self
+                            .resume_keyring
+                            .read()
+                            .map_err(|_| issue_error("resume keyring lock is poisoned".to_owned()))?
+                            .bounded_children_cursor_materials(now_millis());
+                        let body = crate::bounded_children_cursor::decode(
+                            cursor,
+                            &roots,
+                            &activation.activation.expected_generation.app_id,
+                            &activation.activation.database_id,
+                            &activation.activation.target_profile_id,
+                            now_millis(),
+                        )
+                        .map_err(|_| {
+                            issue_error("issued bounded-children cursor did not verify".to_owned())
+                        })?;
+                        let boundary = crate::completeness::NodePageBoundaryV1::BoundedChildren {
+                            order_fields: body.order_fields,
+                            boundary: body.boundary,
+                            row_id: body.row_id,
+                        };
+                        crate::completeness::NodeBoundaryStateV1::Boundary {
+                            boundary_digest: crate::completeness::node_page_boundary_digest(
+                                0,
+                                "bounded_children_v1",
+                                1,
+                                &boundary,
+                            )
+                            .map_err(|error| issue_error(error.to_string()))?,
+                        }
+                    } else {
+                        crate::completeness::NodeBoundaryStateV1::Terminal
+                    };
+                    vec![crate::completeness::PageBoundaryVectorNodeV1 { position: 0, state }]
+                }
+                FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(_)) => {
+                    if let Some(cursor) = output_cursor {
+                        let roots = self
+                            .resume_keyring
+                            .read()
+                            .map_err(|_| issue_error("resume keyring lock is poisoned".to_owned()))?
+                            .snapshot_batch_cursor_materials(now_millis());
+                        let body = crate::snapshot_batch_cursor::decode(
+                            cursor,
+                            &roots,
+                            &activation.activation.expected_generation.app_id,
+                            &activation.activation.database_id,
+                            &activation.activation.target_profile_id,
+                            now_millis(),
+                        )
+                        .map_err(|_| {
+                            issue_error("issued snapshot-batch cursor did not verify".to_owned())
+                        })?;
+                        body.nodes
+                            .into_iter()
+                            .map(|node| {
+                                let state = match node.state {
+                                    crate::snapshot_batch_cursor::NodeState::Terminal => {
+                                        crate::completeness::NodeBoundaryStateV1::Terminal
+                                    }
+                                    crate::snapshot_batch_cursor::NodeState::Boundary {
+                                        order_fields,
+                                        boundary,
+                                        row_id,
+                                    } => {
+                                        let boundary = crate::completeness::NodePageBoundaryV1::BoundedChildren {
+                                            order_fields,
+                                            boundary,
+                                            row_id,
+                                        };
+                                        crate::completeness::NodeBoundaryStateV1::Boundary {
+                                            boundary_digest: crate::completeness::node_page_boundary_digest(
+                                                node.position as u64,
+                                                "bounded_children_v1",
+                                                1,
+                                                &boundary,
+                                            ).map_err(|error| issue_error(error.to_string()))?,
+                                        }
+                                    }
+                                };
+                                Ok(crate::completeness::PageBoundaryVectorNodeV1 {
+                                    position: node.position as u64,
+                                    state,
+                                })
+                            })
+                            .collect::<SnapbackResult<Vec<_>>>()?
+                    } else {
+                        nodes
+                            .iter()
+                            .map(|node| crate::completeness::PageBoundaryVectorNodeV1 {
+                                position: node.position,
+                                state: crate::completeness::NodeBoundaryStateV1::Terminal,
+                            })
+                            .collect()
+                    }
+                }
+                _ => unreachable!("admitted completeness class selected above"),
+            };
+            let vector = crate::completeness::PageBoundaryVectorV1 {
+                format: "snapback.page-boundary-vector.v1".to_owned(),
+                profile_id: profile_id.to_owned(),
+                nodes: vector_nodes,
+            };
+            crate::completeness::PageIdentityV1::Visible {
+                input: crate::completeness::CursorEndV1::input(profile_id, input_cursor),
+                boundary_vector_digest: vector
+                    .digest()
+                    .map_err(|error| issue_error(error.to_string()))?,
+                output: crate::completeness::CursorEndV1::output(profile_id, output_cursor),
+            }
+        };
+        let version_stream = self.db.data_version_stream()?;
+        let witness = self
+            .auth_invalidation
+            .as_ref()
+            .map(|state| state.witness(output.version))
+            .unwrap_or(CompositeWitness {
+                authorization: self.db.authorization_version()?,
+                data: Some(DataWitness {
+                    version_stream: version_stream.clone(),
+                    min_commit_version: output.version,
+                }),
+            });
+        let witness = crate::completeness::AuthorizationWitnessRecordV1::new(
+            namespace.query_instance_id,
+            witness,
+        )
+        .map_err(|error| issue_error(error.to_string()))?;
+        let unsigned = crate::completeness::UnsignedCompletenessProofV1 {
+            format: "snapback.completeness-proof.v1".to_owned(),
+            materialization_key: namespace.query_key.clone(),
+            query_instance_id: namespace.query_instance_id,
+            activation_hash: activation.activation_hash,
+            plan_hash,
+            version: crate::completeness::ProofVersionV1 {
+                stream: version_stream,
+                commit: output.version,
+            },
+            authorization_witness_digest: witness
+                .digest()
+                .map_err(|error| issue_error(error.to_string()))?,
+            page,
+            nodes,
+            batch_identity: crate::completeness::fresh_batch_identity()
+                .map_err(|error| issue_error(error.to_string()))?,
+            result_digest: crate::completeness::result_digest_v1(&Value::Array(
+                output.rows.clone(),
+            ))
+            .map_err(|error| issue_error(error.to_string()))?,
+            proof_key_id: String::new(),
+        };
+        let proof = self
+            .proof_keyring
+            .read()
+            .map_err(|_| issue_error("proof keyring lock is poisoned".to_owned()))?
+            .sign(unsigned)
+            .map_err(|error| issue_error(error.to_string()))?;
+        Ok(Some(proof))
     }
 
     /// The caller-visible content identity for the active sessions pair.
@@ -38503,6 +38927,140 @@ globalThis.__snapbackHandlers = {
             titles(after_joined.last().expect("replacement")),
             vec![json!("alpha"), json!("beta")],
         );
+    }
+
+    // @ref LLP 0157#d3--the-completeness-witness — an admitted live
+    // relational establishment signs the exact rows and namespace under the
+    // generated activation's proof-key manifest; ordinary dev subscriptions
+    // without a materialization namespace remain on the compatibility path.
+    #[test]
+    fn relational_live_establishment_issues_activation_bound_completeness_proof() {
+        let (mut schema, mut functions) = relational_live_fixture_functions(10);
+        schema.app_id = "proof-establishment-app".to_owned();
+        schema.schema_hash = Some("sha256:proof-establishment-schema".to_owned());
+        schema.inputs_hash = Some("sha256:proof-establishment-inputs".to_owned());
+        functions.app_id = schema.app_id.clone();
+        functions.schema_version = schema.schema_version.clone();
+        functions.bundle_hash = Some("sha256:proof-establishment-functions".to_owned());
+        functions.inputs_hash = schema.inputs_hash.clone();
+        let function = functions
+            .functions
+            .iter_mut()
+            .find(|function| function.name == "booksWithAuthors")
+            .expect("relational function");
+        let args_contract = crate::manifest::FunctionArgsContract::default();
+        function.args_contract_hash = Some(
+            crate::manifest::args_contract_hash(&args_contract).expect("args contract identity"),
+        );
+        function.args_contract = Some(args_contract);
+        function
+            .required_capabilities
+            .push("args_contract_v1".to_owned());
+        functions
+            .acknowledged_experimental_capabilities
+            .push("args_contract_v1".to_owned());
+
+        let expected_generation = ArtifactGeneration {
+            schema_version: schema.schema_version.clone(),
+            app_id: schema.app_id.clone(),
+            schema_hash: schema.schema_hash.clone().expect("schema identity"),
+            bundle_hash: functions.bundle_hash.clone().expect("function identity"),
+            inputs_hash: schema.inputs_hash.clone().expect("input identity"),
+        };
+        let mut snapback = LocalSnapback::memory().expect("memory proof fixture");
+        snapback.apply_schema(schema).expect("apply proof schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "proof fixture must activate: {diagnostics:?}",
+        );
+        let database_id = snapback.db.data_version_stream().expect("data stream");
+        let proof_keys = snapback
+            .proof_keyring
+            .read()
+            .expect("proof keyring")
+            .manifest();
+        let activation = crate::completeness::TrustedCompositionActivationV1::prepare(
+            database_id.clone(),
+            "proof-establishment-deployment",
+            crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+            "dev",
+            expected_generation,
+            proof_keys,
+        )
+        .expect("prepare trusted activation");
+        let activation_hash = activation.activation_hash.clone();
+        snapback
+            .install_trusted_composition_activation(activation)
+            .expect("install trusted activation");
+
+        let row = |fields: Value| fields.as_object().cloned().expect("seed row");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![row(
+                            json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" }),
+                        )],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![row(
+                            json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                        )],
+                    ),
+                ]),
+            })
+            .expect("seed proof rows");
+        let namespace = QueryNamespace {
+            client_store_id: "proof-client-store".to_owned(),
+            query_key: "qmk1.QyDKzYi6VyAvgXpzJBPs7GgSHMo7tl0or6K0eYqyp4c".to_owned(),
+            query_instance_id: 17,
+        };
+        let established = snapback
+            .subscribe_live(
+                "booksWithAuthors",
+                LiveSubscribeInput {
+                    connection_id: "conn-proof-establishment".to_owned(),
+                    input: HandlerInput {
+                        auth: AuthInput {
+                            user_id: Some("user-a".to_owned()),
+                            ..AuthInput::default()
+                        },
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: Some(namespace.clone()),
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect("subscribe with proof namespace");
+        let rows = established
+            .snapshot
+            .as_ref()
+            .expect("established snapshot")
+            .rows
+            .clone();
+        let proof = established.completeness_proof.expect("establishment proof");
+        assert_eq!(proof.materialization_key, namespace.query_key);
+        assert_eq!(proof.query_instance_id, namespace.query_instance_id);
+        assert_eq!(proof.activation_hash, activation_hash);
+        assert_eq!(proof.version.stream, database_id);
+        assert_eq!(
+            proof.result_digest,
+            crate::completeness::result_digest_v1(&Value::Array(rows))
+                .expect("established result digest"),
+        );
+        snapback
+            .proof_keyring
+            .read()
+            .expect("proof keyring")
+            .verify(&proof)
+            .expect("server-issued proof verifies");
     }
 
     fn bounded_children_publication_fixture(take: u32) -> (SchemaManifest, FunctionManifest) {

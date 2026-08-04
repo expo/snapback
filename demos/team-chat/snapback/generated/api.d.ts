@@ -25,6 +25,7 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   argsContractHash: string;
   resultContractHash: string;
   expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;
+  composition?: Readonly<{ normalizedCompositePlan: Readonly<Record<string, unknown>>; planHash: `sha256:${string}` }>;
   argumentSchema: Readonly<Record<string, unknown>>;
   readonly __args?: Args;
   readonly __result?: Result;

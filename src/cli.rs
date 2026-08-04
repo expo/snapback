@@ -606,6 +606,12 @@ pub struct Args {
     #[arg(long)]
     pub startup_artifacts: Option<PathBuf>,
 
+    /// Read-only LLP 0157 trust root emitted beside the generated manifests.
+    /// The server re-derives every activation binding and exact-compares the
+    /// public key manifest to its database-side signing custody before bind.
+    #[arg(long)]
+    pub trusted_composition_activation: Option<PathBuf>,
+
     /// Abandon a valid pending auth-mode transition before listener bind.
     #[arg(long, conflicts_with = "allow_auth_downgrade")]
     pub clear_desired_auth_mode: bool,
@@ -665,6 +671,7 @@ impl Default for Args {
             hosted_edge: None,
             hosted_admission: None,
             startup_artifacts: None,
+            trusted_composition_activation: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
@@ -797,6 +804,19 @@ pub enum HostCommand {
     // independently embedded facts without starting a server, so link probes
     // can classify the exact executable they just launched.
     BuildIdentity,
+    /// Prepare the public LLP 0157 activation source from the server-owned
+    /// proof keyring and one already-generated manifest pair. Re-run ordinary
+    /// codegen afterward; it validates and publishes this source inside the
+    /// transactional generated artifact graph.
+    #[command(name = "composition-activation-prepare")]
+    CompositionActivationPrepare {
+        #[arg(long)]
+        db: PathBuf,
+        #[arg(long)]
+        generated: PathBuf,
+        #[arg(long)]
+        deployment_id: String,
+    },
     /// Create and destroy the same restricted no-eval handler VM that
     /// `RuntimeGuard::create` uses per invocation, then print a JSON verdict.
     /// The bootstrap smoke runs this against the final linked binary so its
@@ -1596,6 +1616,11 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             );
             Ok(())
         }
+        Some(HostCommand::CompositionActivationPrepare {
+            db,
+            generated,
+            deployment_id,
+        }) => prepare_composition_activation_source(&db, &generated, &deployment_id),
         Some(HostCommand::RuntimeQualify) => {
             let result = startup_blocking(crate::runtime::qualify_handler_vm);
             let report = match &result {
@@ -1873,6 +1898,83 @@ fn read_json_file(path: &Path) -> anyhow::Result<Value> {
     let raw = std::fs::read_to_string(path)
         .with_context(|| format!("failed to read {}", path.display()))?;
     serde_json::from_str(&raw).with_context(|| format!("{} is not valid JSON", path.display()))
+}
+
+fn prepare_composition_activation_source(
+    database_path: &Path,
+    generated_dir: &Path,
+    deployment_id: &str,
+) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        !deployment_id.is_empty(),
+        "--deployment-id must be nonempty"
+    );
+    let schema: crate::manifest::SchemaManifest =
+        serde_json::from_slice(&std::fs::read(generated_dir.join("schema.manifest.json"))?)?;
+    let functions: crate::manifest::FunctionManifest = serde_json::from_slice(&std::fs::read(
+        generated_dir.join("functions.manifest.json"),
+    )?)?;
+    schema.validate_artifact()?;
+    functions.validate_artifact()?;
+    anyhow::ensure!(
+        schema.app_id == functions.app_id && schema.inputs_hash == functions.inputs_hash,
+        "generated schema/functions are not one coherent artifact pair"
+    );
+    let expected_generation = crate::manifest::ArtifactGeneration {
+        schema_version: schema.schema_version.clone(),
+        app_id: schema.app_id.clone(),
+        schema_hash: schema
+            .schema_hash
+            .clone()
+            .context("generated schema has no schemaHash")?,
+        bundle_hash: functions
+            .bundle_hash
+            .clone()
+            .context("generated functions have no bundleHash")?,
+        inputs_hash: schema
+            .inputs_hash
+            .clone()
+            .context("generated pair has no inputsHash")?,
+    };
+    let mut database = crate::storage::LocalDatabase::open(database_path)?;
+    let database_id = database.data_version_stream()?;
+    let keyring = crate::completeness::ProofKeyring::load_or_create(
+        database_path.with_file_name(crate::completeness::PROOF_KEYRING_FILE_NAME),
+        crate::server::now_millis(),
+    )?;
+    let artifact = crate::completeness::TrustedCompositionActivationV1::prepare(
+        database_id,
+        deployment_id,
+        schema
+            .target_profile
+            .clone()
+            .unwrap_or_else(|| crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned()),
+        match schema.effective_auth_mode() {
+            crate::manifest::AuthMode::Dev => "dev",
+            crate::manifest::AuthMode::Sessions => "sessions",
+        },
+        expected_generation,
+        keyring.manifest(),
+    )?;
+    let backend_dir = generated_dir.parent().context(
+        "--generated must name the generated output directory beneath a backend directory",
+    )?;
+    let source_path =
+        backend_dir.join(crate::completeness::TRUSTED_COMPOSITION_ACTIVATION_FILE_NAME);
+    std::fs::write(
+        &source_path,
+        format!("{}\n", serde_json::to_string_pretty(&artifact)?),
+    )?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&json!({
+            "format": "snapback.composition-activation-preparation.v1",
+            "source": source_path,
+            "activationHash": artifact.activation_hash,
+            "next": "rerun Snapback codegen for this backend",
+        }))?
+    );
+    Ok(())
 }
 
 fn read_trusted_json_file(path: &Path) -> anyhow::Result<Value> {
@@ -3673,6 +3775,10 @@ async fn run_composed(
         &auth_mode_state,
         args.allow_insecure_dev_auth,
     )?;
+    if let Some(path) = args.trusted_composition_activation.as_deref() {
+        let artifact = crate::completeness::read_trusted_activation(path)?;
+        snapback.install_trusted_composition_activation(artifact)?;
+    }
 
     // ReadyV1 runs one bounded pass before bind. Missing/corrupt keyrings stay
     // in the provider health fact while the committed durable outcome carries
@@ -6950,6 +7056,7 @@ mod tests {
             ready_file: Some(ready.clone()),
             restored_from_backup: None,
             startup_artifacts: None,
+            trusted_composition_activation: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
@@ -6973,6 +7080,7 @@ mod tests {
             hosted_edge: None,
             hosted_admission: None,
             startup_artifacts: None,
+            trusted_composition_activation: None,
             clear_desired_auth_mode: false,
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,

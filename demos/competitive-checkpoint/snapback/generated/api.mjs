@@ -156,6 +156,125 @@ export const api = Object.freeze({
       "type": "object"
     },
     "artifactKind": "functionReference",
+    "composition": {
+      "normalizedCompositePlan": {
+        "classification": {
+          "callable": true,
+          "invalidation": "table-granular-resnapshot",
+          "live": {
+            "delivery": "live_replace",
+            "kind": "admitted",
+            "pageDomain": "cursor-free-first-page"
+          },
+          "retention": "none"
+        },
+        "format": "snapback.normalized-composite-plan.v1",
+        "mergedArgsContractHash": "sha256:c9da5a25fca83729951aaf1f34cd3d56f7aa6f9c6da1feb1e39a08fcbec2603f",
+        "nodes": [
+          {
+            "nodePlan": {
+              "argumentBindings": [
+                {
+                  "contract": {
+                    "format": "snapback.argument-binding-contract.v1",
+                    "required": false,
+                    "value": {
+                      "kind": "string",
+                      "maxBytes": 1048576
+                    }
+                  },
+                  "contractHash": "sha256:edca6b5348729a6b66105f8941bd22a58ca520d16db0f897d00600c763f3449a",
+                  "name": "cursor"
+                }
+              ],
+              "capability": {
+                "exportKind": "LiveQuery",
+                "live": {
+                  "delivery": "live_replace",
+                  "kind": "admitted",
+                  "pageDomain": "cursor-free-first-page"
+                },
+                "requiredCapabilityIds": [
+                  "relational_query_v1"
+                ],
+                "retention": "none"
+              },
+              "classId": "relational_query_v1",
+              "classVersion": 1,
+              "format": "snapback.node-plan.v1",
+              "normalizedPlan": {
+                "joinKind": "Left",
+                "joinOn": [
+                  {
+                    "joinedField": "slug",
+                    "rootField": "model"
+                  }
+                ],
+                "joined": "models",
+                "joinedAlias": "models",
+                "joinedIndex": "models_by_slug",
+                "joinedVisibility": [],
+                "order": [
+                  {
+                    "direction": "Asc",
+                    "field": "createdAt"
+                  }
+                ],
+                "projection": [
+                  {
+                    "name": "slug",
+                    "source": {
+                      "RootField": "slug"
+                    }
+                  },
+                  {
+                    "name": "title",
+                    "source": {
+                      "RootField": "title"
+                    }
+                  },
+                  {
+                    "name": "model",
+                    "source": {
+                      "RootField": "model"
+                    }
+                  },
+                  {
+                    "name": "modelName",
+                    "source": {
+                      "JoinedField": "displayName"
+                    }
+                  },
+                  {
+                    "name": "modelProvider",
+                    "source": {
+                      "JoinedField": "provider"
+                    }
+                  }
+                ],
+                "root": "conversations",
+                "rootAlias": "conversations",
+                "rootFilters": [],
+                "rootIndex": "by_owner_created",
+                "rootVisibility": [
+                  {
+                    "field": "ownerId",
+                    "op": "Eq",
+                    "value": "AuthUserId"
+                  }
+                ],
+                "take": 8
+              }
+            },
+            "nodePlanHash": "sha256:d7111af80d5c8c0e894ab3528b393b7770768fa342865a067a0e96cc5cacd6c6",
+            "position": 0
+          }
+        ],
+        "parentAuthorizationGroups": [],
+        "profileId": "single-node.v1"
+      },
+      "planHash": "sha256:04961781955b98f68ceec800b4df8016bca17df66654def1fa7d8d29d6b8dbed"
+    },
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
       "bundleHash": "sha256:ebab5e084691cb7d",

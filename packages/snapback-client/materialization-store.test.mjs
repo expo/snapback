@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, sign } from 'node:crypto';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -277,6 +277,99 @@ async function openSemantic(handle, fixture) {
     },
   });
 }
+
+test('A5 installs Rust-server golden proof bytes and rejects binding near misses', async (t) => {
+  const fixture = JSON.parse(await readFile(
+    new URL('../../tests/conformance/completeness-proof-v1.json', import.meta.url),
+    'utf8',
+  ));
+  const handle = await setupCarrier(t, 'memory', 'server-proof-golden');
+  for (let allocated = 1; allocated < fixture.proof.queryInstanceId; allocated += 1) {
+    assert.equal(await handle.allocateQueryInstanceId(), allocated);
+  }
+  const bytes = new Uint8Array(Buffer.from(fixture.resultBytesBase64url, 'base64url'));
+  const context = {
+    trustedActivation: fixture.trustedActivation,
+    planHash: fixture.proof.planHash,
+    nodes: fixture.proof.nodes,
+    resultContractHash: digest('5'),
+    resultContract: { kind: 'unknown' },
+    authorizationWitness: fixture.witness,
+    authorizationWitnessOwnerProduced: true,
+    retentionEligible: true,
+    leaseStatus: 'valid',
+  };
+  const address = [
+    'snapback:client-materialization-address:v1',
+    'client-store-server-fixture',
+    fixture.proof.materializationKey,
+  ];
+  const store = await createMaterializationStore(handle, {
+    resolveValidationContext: () => context,
+  });
+  let record = await store.initialize(address, {
+    planHash: fixture.proof.planHash,
+    activationHash: fixture.proof.activationHash,
+    argsDigest: digest('3'),
+    authorityPartitionDigest: digest('4'),
+    storageProfile: 'volatile-online-v1',
+    authorityState: makeAuthorityState({ incarnation: 'inc-1', epoch: 9, stream: 'stream-1' }),
+  }, null);
+  assert.equal(record.queryInstanceId, fixture.proof.queryInstanceId);
+  record = await store.beginEstablishment(
+    address,
+    { kind: 'page', input: { kind: 'first' } },
+    fence(record),
+  );
+  const fragment = {
+    pageIdentityDigest: fixture.pageIdentityDigest,
+    resultContractHash: context.resultContractHash,
+    bytes,
+    authorizedLeaseHash: null,
+    memberships: [],
+    freshness: 'current',
+  };
+  record = await store.commitPage(address, fragment, fixture.proof, null, fence(record));
+  assert.equal(deriveCompletenessStatusV1(record), 'complete');
+  assert.deepEqual(await store.readRenderable(address, fence(record)), bytes);
+
+  const invalidProofs = [
+    { ...fixture.proof, signature: `${fixture.proof.signature.slice(0, -1)}B` },
+    { ...fixture.proof, queryInstanceId: fixture.proof.queryInstanceId + 1 },
+    { ...fixture.proof, version: { ...fixture.proof.version, stream: 'wrong-stream' } },
+    { ...fixture.proof, version: { ...fixture.proof.version, commit: 40 } },
+  ];
+  for (const proof of invalidProofs) {
+    await assert.rejects(
+      store.commitPage(address, fragment, proof, null, fence(record)),
+      (error) => error?.code?.startsWith('SNAPBACK_COMPLETENESS_'),
+    );
+  }
+  for (const witness of [
+    { ...fixture.witness, compositeWitness: {
+      ...fixture.witness.compositeWitness,
+      authorization: { incarnation: 'wrong-incarnation', epoch: 9 },
+    } },
+    { ...fixture.witness, compositeWitness: {
+      ...fixture.witness.compositeWitness,
+      authorization: { incarnation: 'inc-1', epoch: 8 },
+    } },
+    { ...fixture.witness, compositeWitness: {
+      ...fixture.witness.compositeWitness,
+      data: { versionStream: 'wrong-stream', minCommitVersion: 41 },
+    } },
+    { ...fixture.witness, compositeWitness: {
+      ...fixture.witness.compositeWitness,
+      data: { versionStream: 'stream-1', minCommitVersion: 44 },
+    } },
+  ]) {
+    context.authorizationWitness = witness;
+    await assert.rejects(
+      store.commitPage(address, fragment, fixture.proof, null, fence(record)),
+      (error) => error?.code?.startsWith('SNAPBACK_COMPLETENESS_'),
+    );
+  }
+});
 
 for (const carrier of ['memory', 'file', 'indexeddb']) {
   test(`A5 proof installation and invalid-proof refusals are atomic on ${carrier}`, async (t) => {

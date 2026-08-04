@@ -39240,6 +39240,14 @@ globalThis.__snapbackHandlers = {
         // envelope, which is a Snapback fault, never a caller's.
         "SNAPBACK_APP_API_COMPOSITION_FAILED",
         "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+        // @ref LLP 0157#d3--the-completeness-witness —
+        // proof custody, trusted activation, admitted-plan reconstruction, and
+        // signing are server-authored establishment invariants. A failure in
+        // any of them is never attributable to the live-subscribe caller.
+        "SNAPBACK_COMPLETENESS_PROOF_ISSUANCE_FAILED",
+        "SNAPBACK_COMPLETENESS_PROOF_KEYRING_INVALID",
+        "SNAPBACK_COMPOSITION_ACTIVATION_INVALID",
+        "SNAPBACK_COMPOSITION_PLAN_INVALID",
         // LLP 0070 first slice: internal job-ledger invariants — a corrupt
         // stored state, an exhausted per-job fence, or enqueues reaching
         // commit without producer provenance are Snapback faults, never 4xx.

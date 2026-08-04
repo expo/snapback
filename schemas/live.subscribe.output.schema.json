@@ -76,6 +76,71 @@
       ],
       "type": "object"
     },
+    "CompletenessProofV1": {
+      "additionalProperties": false,
+      "properties": {
+        "activationHash": {
+          "type": "string"
+        },
+        "authorizationWitnessDigest": {
+          "type": "string"
+        },
+        "batchIdentity": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        },
+        "materializationKey": {
+          "type": "string"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/ProofNodeIdentityV1"
+          },
+          "type": "array"
+        },
+        "page": {
+          "$ref": "#/$defs/PageIdentityV1"
+        },
+        "planHash": {
+          "type": "string"
+        },
+        "proofKeyId": {
+          "type": "string"
+        },
+        "queryInstanceId": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "resultDigest": {
+          "type": "string"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "version": {
+          "$ref": "#/$defs/ProofVersionV1"
+        }
+      },
+      "required": [
+        "format",
+        "materializationKey",
+        "queryInstanceId",
+        "activationHash",
+        "planHash",
+        "version",
+        "authorizationWitnessDigest",
+        "page",
+        "nodes",
+        "batchIdentity",
+        "resultDigest",
+        "proofKeyId",
+        "signature"
+      ],
+      "type": "object"
+    },
     "CompositeWitness": {
       "additionalProperties": false,
       "properties": {
@@ -97,6 +162,57 @@
         "authorization"
       ],
       "type": "object"
+    },
+    "CursorEndV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "first",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "digest": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "cursor",
+              "type": "string"
+            },
+            "profileId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "profileId",
+            "digest"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "terminal",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "DataWitness": {
       "additionalProperties": false,
@@ -216,6 +332,102 @@
         "rejected"
       ],
       "type": "string"
+    },
+    "PageIdentityV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "input": {
+              "$ref": "#/$defs/CursorEndV1"
+            },
+            "kind": {
+              "const": "sealed-terminal",
+              "type": "string"
+            },
+            "output": {
+              "$ref": "#/$defs/CursorEndV1"
+            }
+          },
+          "required": [
+            "kind",
+            "input",
+            "output"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "boundaryVectorDigest": {
+              "type": "string"
+            },
+            "input": {
+              "$ref": "#/$defs/CursorEndV1"
+            },
+            "kind": {
+              "const": "visible",
+              "type": "string"
+            },
+            "output": {
+              "$ref": "#/$defs/CursorEndV1"
+            }
+          },
+          "required": [
+            "kind",
+            "input",
+            "boundaryVectorDigest",
+            "output"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ProofNodeIdentityV1": {
+      "additionalProperties": false,
+      "properties": {
+        "classId": {
+          "type": "string"
+        },
+        "classVersion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "nodePlanHash": {
+          "type": "string"
+        },
+        "position": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "position",
+        "classId",
+        "classVersion",
+        "nodePlanHash"
+      ],
+      "type": "object"
+    },
+    "ProofVersionV1": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "stream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "stream",
+        "commit"
+      ],
+      "type": "object"
     },
     "QueryNamespace": {
       "additionalProperties": false,
@@ -907,6 +1119,17 @@
           "type": "null"
         }
       ]
+    },
+    "completenessProof": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CompletenessProofV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional additive carrier on the open LLP 0094 LiveSubscribeOutput\nfamily. The proof's signed preimage is the closed LLP 0157 record; this\nenvelope member conveys it without changing those semantic bytes."
     },
     "facts": {
       "anyOf": [

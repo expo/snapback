@@ -1,0 +1,71 @@
+{
+  "format": "snapback.completeness-proof-fixture.v1",
+  "seedBase64url": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+  "trustedActivation": {
+    "format": "snapback.trusted-composition-activation.v1",
+    "activation": {
+      "format": "snapback.composition-activation.v1",
+      "databaseId": "db-1",
+      "deploymentId": "deployment-1",
+      "targetProfileId": "native.v1",
+      "authMode": "sessions",
+      "expectedGeneration": {
+        "schemaVersion": "snapback.v1",
+        "appId": "app-1",
+        "schemaHash": "schema-hash",
+        "bundleHash": "bundle-hash",
+        "inputsHash": "inputs-hash"
+      },
+      "proofKeyManifestDigest": "sha256:829438f6e0d054543bffc3ede3e6959288fed97ccb722f24bb494b5f24fef6ae"
+    },
+    "activationHash": "sha256:8bde419cf82d7f64c7b5f1b3a60a20bdf28da30985b27e6a50b126d2399ff294",
+    "proofKeys": {
+      "format": "snapback.completeness-proof-keys.v1",
+      "keys": [
+        {
+          "proofKeyId": "fixture-key",
+          "algorithm": "Ed25519",
+          "publicKeyBase64url": "6kpsY-KcUgq-9VB7Ey7F-ZVHdq6-vnuSQh7qaRRG0iw"
+        }
+      ]
+    }
+  },
+  "witness": {
+    "format": "snapback.authorization-witness.v1",
+    "queryInstanceId": 17,
+    "compositeWitness": {
+      "authorization": { "incarnation": "inc-1", "epoch": 9 },
+      "data": { "versionStream": "stream-1", "minCommitVersion": 41 }
+    }
+  },
+  "resultBytesBase64url": "W3siX2lkIjoicjEiLCJuIjoxfV0",
+  "pageIdentityDigest": "sha256:5c9cf7403a2969d63335017f4372035b243d2d00d85b2622fe6b26813aa9edbe",
+  "proofPreimageBase64url": "c25hcGJhY2s6Y29tcGxldGVuZXNzLXByb29mOnYxOnsiYWN0aXZhdGlvbkhhc2giOiJzaGEyNTY6OGJkZTQxOWNmODJkN2Y2NGM3YjVmMWIzYTYwYTIwYmRmMjhkYTMwOTg1YjI3ZTZhNTBiMTI2ZDIzOTlmZjI5NCIsImF1dGhvcml6YXRpb25XaXRuZXNzRGlnZXN0Ijoic2hhMjU2OjM2MThhMjRjNTYxYTczMmZhODM0YmQ0MjY2MTY3MzA0ZjY2NDBlOTU5OGI3ZWM1NDJmOGJlMGNkZTA4YWQwZDgiLCJiYXRjaElkZW50aXR5Ijoic2JiaTEuQUFFQ0F3UUZCZ2NJQ1FvTERBME9EdyIsImZvcm1hdCI6InNuYXBiYWNrLmNvbXBsZXRlbmVzcy1wcm9vZi52MSIsIm1hdGVyaWFsaXphdGlvbktleSI6InFtazEuUXlES3pZaTZWeUF2Z1hwekpCUHM3R2dTSE1vN3RsMG9yNkswZVlxeXA0YyIsIm5vZGVzIjpbeyJjbGFzc0lkIjoicmVsYXRpb25hbF9xdWVyeV92MSIsImNsYXNzVmVyc2lvbiI6MSwibm9kZVBsYW5IYXNoIjoic2hhMjU2OjQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQiLCJwb3NpdGlvbiI6MH1dLCJwYWdlIjp7ImJvdW5kYXJ5VmVjdG9yRGlnZXN0Ijoic2hhMjU2OjMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMiLCJpbnB1dCI6eyJraW5kIjoiZmlyc3QifSwia2luZCI6InZpc2libGUiLCJvdXRwdXQiOnsia2luZCI6InRlcm1pbmFsIn19LCJwbGFuSGFzaCI6InNoYTI1NjoyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyIiwicHJvb2ZLZXlJZCI6ImZpeHR1cmUta2V5IiwicXVlcnlJbnN0YW5jZUlkIjoxNywicmVzdWx0RGlnZXN0Ijoic2hhMjU2OmQyMzg5ZDk4Y2U5ZWY2ZDM4ZDNkN2JkZGFhYTE5MGMxNDQ0NGZkYmEyY2I3NGQxOGJmNDljNzczNmFjNGFiOTMiLCJ2ZXJzaW9uIjp7ImNvbW1pdCI6NDMsInN0cmVhbSI6InN0cmVhbS0xIn19",
+  "proof": {
+    "format": "snapback.completeness-proof.v1",
+    "materializationKey": "qmk1.QyDKzYi6VyAvgXpzJBPs7GgSHMo7tl0or6K0eYqyp4c",
+    "queryInstanceId": 17,
+    "activationHash": "sha256:8bde419cf82d7f64c7b5f1b3a60a20bdf28da30985b27e6a50b126d2399ff294",
+    "planHash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "version": { "stream": "stream-1", "commit": 43 },
+    "authorizationWitnessDigest": "sha256:3618a24c561a732fa834bd4266167304f6640e9598b7ec542f8be0cde08ad0d8",
+    "page": {
+      "kind": "visible",
+      "input": { "kind": "first" },
+      "boundaryVectorDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "output": { "kind": "terminal" }
+    },
+    "nodes": [
+      {
+        "position": 0,
+        "classId": "relational_query_v1",
+        "classVersion": 1,
+        "nodePlanHash": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+      }
+    ],
+    "batchIdentity": "sbbi1.AAECAwQFBgcICQoLDA0ODw",
+    "resultDigest": "sha256:d2389d98ce9ef6d38d3d7bddaaa190c14444fdba2cb74d18bf49c7736ac4ab93",
+    "proofKeyId": "fixture-key",
+    "signature": "ZSECZAOVH0Zzlv2LY0l68JBdMzrqQr82VxfcgzQmSwHP9WDk-fIVDiQlcoU05CU8jgxzdl9SigVm18wCiHgcAA"
+  }
+}
