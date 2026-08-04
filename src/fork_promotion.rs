@@ -772,19 +772,20 @@ pub(crate) fn managed_in_app_branch_path(
     managed_workspace_path(canonical_path, branch_id)
 }
 
-fn managed_workspace_files(path: &Path) -> [PathBuf; 6] {
+fn managed_workspace_files(path: &Path) -> Vec<PathBuf> {
     let append = |suffix: &str| {
         let mut value = path.as_os_str().to_os_string();
         value.push(suffix);
         PathBuf::from(value)
     };
-    [
+    vec![
         path.to_path_buf(),
         append("-wal"),
         append("-shm"),
         append(".immutable-base"),
         append(".immutable-base-wal"),
         append(".immutable-base-shm"),
+        crate::operation_detail::keyring_path(path),
     ]
 }
 
@@ -1017,7 +1018,10 @@ pub fn create_managed_in_app_branch(
         ));
     }
     let path = managed_workspace_path(&canonical_path, &request.branch_id)?;
-    if path.exists() {
+    if managed_workspace_files(&path)
+        .iter()
+        .any(|candidate| candidate.exists())
+    {
         return Err(error(
             "SNAPBACK_BRANCH_CUSTODY_COLLISION",
             "server-derived managed branch workspace already exists",
@@ -1052,6 +1056,17 @@ pub fn create_managed_in_app_branch(
     };
     if let Err(cause) =
         crate::instance_fork::scrub_copied_authority_for_in_app_branch(&mut workspace.conn)
+    {
+        let _ = workspace.teardown();
+        let _ = canonical.execute(
+            "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'dropped'
+              WHERE branch_id = ?1 AND state = 'creating'",
+            params![request.branch_id.0],
+        );
+        return Err(cause);
+    }
+    if let Err(cause) = crate::operation_detail::mint_new_sidecar(&path)
+        .and_then(|()| crate::operation_detail::install(&workspace.conn, Some(&path)))
     {
         let _ = workspace.teardown();
         let _ = canonical.execute(
@@ -4350,12 +4365,38 @@ mod tests {
         let directory = tempfile::tempdir().expect("tempdir");
         let canonical_path = directory.path().join("app.sqlite3");
         let mut canonical = file_source(&canonical_path, 7);
+        crate::operation_detail::install(&canonical, Some(&canonical_path))
+            .expect("parent protected-detail custody");
+        {
+            let tx = canonical.transaction().expect("parent detail transaction");
+            crate::operation_detail::seal_in(
+                &tx,
+                "operation-detail:parent:reads",
+                &sha('9'),
+                &json!({ "private": "parent-only" }),
+            )
+            .expect("parent protected detail");
+            tx.commit().expect("commit parent protected detail");
+        }
+        let parent_detail_key = fs::read(crate::operation_detail::keyring_path(&canonical_path))
+            .expect("parent protected-detail sidecar");
         let left_request = create_request("left", "left-stream", 7, 100);
         let right_request = create_request("right", "right-stream", 7, 101);
         create_managed_in_app_branch(&mut canonical, &canonical_path, &left_request)
             .expect("left branch");
         create_managed_in_app_branch(&mut canonical, &canonical_path, &right_request)
             .expect("right branch");
+
+        let left_path = managed_workspace_path(&canonical_path, &left_request.branch_id).unwrap();
+        let right_path = managed_workspace_path(&canonical_path, &right_request.branch_id).unwrap();
+        for path in [&left_path, &right_path] {
+            let branch_key = fs::read(crate::operation_detail::keyring_path(path))
+                .expect("branch-private protected-detail sidecar exists before publication");
+            assert_ne!(
+                branch_key, parent_detail_key,
+                "managed branches never inherit the parent protected-detail key"
+            );
+        }
 
         let left =
             open_managed_in_app_branch(&canonical, &canonical_path, &left_request.branch_id, 200)
@@ -4385,6 +4426,18 @@ mod tests {
             "alpha"
         );
         for workspace in [&left, &right] {
+            assert_eq!(
+                workspace
+                    .conn
+                    .query_row(
+                        "SELECT COUNT(*) FROM _snapback_operation_protected_detail_v1",
+                        [],
+                        |row| row.get::<_, u64>(0),
+                    )
+                    .unwrap(),
+                0,
+                "parent protected ciphertext is scrubbed from the executable head"
+            );
             assert_eq!(
                 workspace
                     .conn
@@ -4419,7 +4472,6 @@ mod tests {
         drop(left);
         drop(right);
 
-        let left_path = managed_workspace_path(&canonical_path, &left_request.branch_id).unwrap();
         for family in crate::instance_fork::EgressFamily::ALL {
             let runtime = inspect_in_app_branch_boot(&left_path)
                 .expect("boot inspection")
@@ -4429,9 +4481,23 @@ mod tests {
                 "SNAPBACK_BRANCH_EGRESS_DENIED"
             );
         }
-        let reopened =
+        let mut reopened =
             open_managed_in_app_branch(&canonical, &canonical_path, &left_request.branch_id, 200)
                 .expect("reopen after deny markers");
+        crate::operation_detail::install(&reopened.conn, Some(&left_path))
+            .expect("branch-private custody reopens");
+        let tx = reopened
+            .conn
+            .transaction()
+            .expect("branch protected detail transaction");
+        crate::operation_detail::seal_in(
+            &tx,
+            "operation-detail:branch:reads",
+            &sha('8'),
+            &json!({ "private": "branch-only" }),
+        )
+        .expect("branch custody seals after reopen");
+        tx.commit().expect("commit branch protected detail");
         assert_eq!(
             deny_all_attempt_markers(&reopened.conn, &left_request.branch_id)
                 .unwrap()
@@ -4464,6 +4530,14 @@ mod tests {
             300,
         )
         .expect("drop right");
+        for path in [&left_path, &right_path] {
+            assert!(
+                managed_workspace_files(path)
+                    .into_iter()
+                    .all(|candidate| !candidate.exists()),
+                "exact drop removes SQLite files and protected-detail sidecar"
+            );
+        }
     }
 
     #[test]
