@@ -363,6 +363,14 @@ impl RelayRefusal {
             message,
         }
     }
+
+    fn bad_gateway(code: &'static str, message: &'static str) -> Self {
+        Self {
+            status: StatusCode::BAD_GATEWAY,
+            code,
+            message,
+        }
+    }
 }
 
 async fn relay_request_inner(
@@ -625,19 +633,19 @@ async fn forward_http_request(
     })
     .await
     .map_err(|_| {
-        RelayRefusal::bad_request(
+        RelayRefusal::bad_gateway(
             "SNAPBACK_ADMIN_RELAY_UPSTREAM_FAILED",
             "the loopback admin upstream task failed",
         )
     })?
     .map_err(|_| {
-        RelayRefusal::bad_request(
+        RelayRefusal::bad_gateway(
             "SNAPBACK_ADMIN_RELAY_UPSTREAM_FAILED",
             "the loopback admin upstream was unavailable",
         )
     })?;
     let status = StatusCode::from_u16(upstream.status()).map_err(|_| {
-        RelayRefusal::bad_request(
+        RelayRefusal::bad_gateway(
             "SNAPBACK_ADMIN_RELAY_UPSTREAM_INVALID",
             "the loopback admin upstream returned an invalid status",
         )
@@ -670,7 +678,7 @@ async fn forward_http_request(
         .into_reader()
         .read_to_end(&mut bytes)
         .map_err(|_| {
-            RelayRefusal::bad_request(
+            RelayRefusal::bad_gateway(
                 "SNAPBACK_ADMIN_RELAY_UPSTREAM_INVALID",
                 "the loopback admin upstream response could not be read",
             )
@@ -741,8 +749,12 @@ fn validated_loopback_upstream(origin: &str) -> anyhow::Result<String> {
         .authority()
         .map(|authority| authority.host())
         .unwrap_or_default();
+    let ip_host = host
+        .strip_prefix('[')
+        .and_then(|host| host.strip_suffix(']'))
+        .unwrap_or(host);
     let loopback = host.eq_ignore_ascii_case("localhost")
-        || host
+        || ip_host
             .parse::<IpAddr>()
             .ok()
             .is_some_and(|address| address.is_loopback());

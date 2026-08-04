@@ -1925,7 +1925,12 @@ fn validated_reachability_origin(origin: &str) -> Result<(String, String), Snapb
         )
     })?;
     let host = authority.host();
-    let host_ip = host.parse::<std::net::IpAddr>().ok();
+    let host_ip = host
+        .strip_prefix('[')
+        .and_then(|host| host.strip_suffix(']'))
+        .unwrap_or(host)
+        .parse::<std::net::IpAddr>()
+        .ok();
     if !matches!(scheme, "http" | "https")
         || authority.as_str().contains('@')
         || host.is_empty()
