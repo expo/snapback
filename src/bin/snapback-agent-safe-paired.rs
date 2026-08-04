@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use snapback::bench::{
-    BenchConfig, BenchReport, IdleObservation, measure_idle_agent_safe_active_covered,
+    BenchConfig, BenchReport, IdleObservation, measure_idle_agent_safe_active_covered, run,
     run_agent_safe_active_covered,
 };
 
@@ -261,6 +261,13 @@ struct WorkerObservation {
     idle: IdleObservation,
 }
 
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct IdleWorkerObservation {
+    protocol: String,
+    idle: IdleObservation,
+}
+
 struct Arguments {
     output: PathBuf,
     baseline_artifact: PathBuf,
@@ -300,8 +307,10 @@ struct LockPackage {
 }
 
 fn main() -> anyhow::Result<()> {
-    if std::env::args().nth(1).as_deref() == Some("--active-covered-worker") {
-        return active_worker();
+    match std::env::args().nth(1).as_deref() {
+        Some("--active-covered-worker") => return active_worker(),
+        Some("--active-covered-idle-worker") => return active_idle_worker(),
+        _ => {}
     }
     if cfg!(debug_assertions) {
         bail!("paired evidence must be produced by a --release binary");
@@ -453,7 +462,7 @@ fn main() -> anyhow::Result<()> {
             bootstrap_seed: "snapback-agent-safe-active-paired-v2/2026-08-04",
             quiescence_rule: "direct release binary refuses unless no cargo or rustc process exists",
             baseline_worker_protocol: "external digest-bound wrapper and lockfile path-linked to the exact pre-profile tree; original baseline product posture remains exactly three instrumentation paths",
-            candidate_worker_protocol: "same executable --active-covered-worker on fresh active-covered mutation and idle fixtures per observation",
+            candidate_worker_protocol: "same release executable: --active-covered-worker records active-covered read/write metrics; a fresh --active-covered-idle-worker first runs the dormant comparator workload, then holds the armed storage connection and server-issued range across the five-second idle observation",
         },
         raw_pairs,
         comparisons,
@@ -512,12 +521,53 @@ fn active_worker() -> anyhow::Result<()> {
         bail!("active covered worker must be a --release binary");
     }
     let report = run_agent_safe_active_covered(&BenchConfig::agent_safe_step0())?;
-    let idle = measure_idle_agent_safe_active_covered(Duration::from_secs(5))?;
+    let executable = std::env::current_exe().context("resolve active covered worker executable")?;
+    let output = Command::new(&executable)
+        .arg("--active-covered-idle-worker")
+        .output()
+        .with_context(|| format!("run isolated active idle worker {}", executable.display()))?;
+    if !output.status.success() {
+        bail!(
+            "isolated active idle worker failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    let idle_observation: IdleWorkerObservation =
+        serde_json::from_slice(&output.stdout).context("decode isolated active idle report")?;
+    anyhow::ensure!(
+        idle_observation.protocol == "agentSafeActiveCoveredIdleWorkerV1",
+        "isolated active idle worker did not attest its exact protocol"
+    );
     println!(
         "{}",
         serde_json::to_string(&WorkerObservation {
-            protocol: "agentSafeActiveCoveredWorkerV2".to_owned(),
+            protocol: "agentSafeActiveCoveredWorkerV3".to_owned(),
             report,
+            idle: idle_observation.idle,
+        })?
+    );
+    Ok(())
+}
+
+/// Measure idle residency in a fresh process whose preceding allocation/code
+/// footprint matches the dormant comparator workload. Active read/write costs
+/// are already measured by the parent worker; repeating them here would make
+/// transient envelope setup part of the otherwise-idle RSS metric. The actual
+/// active coverage manifest, armed storage connection, and issued range remain
+/// live inside `measure_idle_agent_safe_active_covered` for the whole window.
+///
+/// @ref LLP 0162#measurement-gate — per-metric fixtures keep setup outside the
+///   idle window and compare active storage after the same dormant warm path.
+fn active_idle_worker() -> anyhow::Result<()> {
+    if cfg!(debug_assertions) {
+        bail!("active covered idle worker must be a --release binary");
+    }
+    let _ = run(&BenchConfig::agent_safe_step0())?;
+    let idle = measure_idle_agent_safe_active_covered(Duration::from_secs(5))?;
+    println!(
+        "{}",
+        serde_json::to_string(&IdleWorkerObservation {
+            protocol: "agentSafeActiveCoveredIdleWorkerV1".to_owned(),
             idle,
         })?
     );
@@ -883,7 +933,7 @@ fn run_candidate(executable: &Path) -> anyhow::Result<WorkerObservation> {
     let observation: WorkerObservation =
         serde_json::from_slice(&output.stdout).context("decode candidate worker report")?;
     anyhow::ensure!(
-        observation.protocol == "agentSafeActiveCoveredWorkerV2",
+        observation.protocol == "agentSafeActiveCoveredWorkerV3",
         "candidate worker did not attest the active covered protocol"
     );
     Ok(observation)

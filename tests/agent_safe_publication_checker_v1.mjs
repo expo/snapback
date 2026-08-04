@@ -95,18 +95,42 @@ function validPairedEvidence(commit) {
     artifactName: 'agent-safe-active-covered-paired-2026-08-04',
     date: '2026-08-04',
     baseline: {
+      artifactName: 'agent-safe-step0-pre-profile-2026-08-03',
+      artifactSchemaVersion: 'snapback.agent-safe-step0-baseline.v1',
       artifactSha256: 'sha256:d28d8514f48db3f8a0e4d0c33a1381f12e4ad13eaf6a69187aef9b7fe822ab91',
+      sourceRevision: '2ab36e28c74c450213b65f17ef81c0d6652ba33a',
+      buildProvenanceSha256: 'sha256:84e288661c3edf5dfaec3690f2fe00335d251d046ac187439ffae37fe9c65991',
+      sourceRootCargoLockSha256: 'sha256:496569d9a3cb87609b6e79974f69126dbaccba53eb71d093f5dcf090fe1a36b1',
+      externalWorkerCargoLockSha256: 'sha256:05bd0af1ed649011354f091e2cd371f38aaf5c229437c6a98b4807c7d0eead3d',
+      executableSha256: 'sha256:b78089dadd8b4966b20eb847d576ed9cd59dbaa96143c81a2c4a8b0a684c0bb8',
     },
     candidate: {
       sourceRevision: commit,
       sourceTreeClean: true,
+      executableSha256: `sha256:${'a'.repeat(64)}`,
       buildProfile: 'release',
       activeProfile: 'serverIssuedClientRange+ordinaryMutationCoverageV1+productionEnvelopeChokePoint',
     },
     hardwareClass: {
-      model: 'Mac17,3', cpu: 'Apple M5', logicalCpus: 10, memoryBytes: 34_359_738_368,
+      os: '26.5.2', architecture: 'aarch64', model: 'Mac17,3', cpu: 'Apple M5',
+      logicalCpus: 10, memoryBytes: 34_359_738_368,
     },
-    protocol: { recordedPairs: 11, warmupsPerExecutable: 1, bootstrapSamples: 20_000 },
+    toolchain: {
+      rustc: 'rustc 1.97.0 (2d8144b78 2026-07-07)',
+      cargo: 'cargo 1.97.0 (c980f4866 2026-06-30)',
+    },
+    protocol: {
+      warmupsPerExecutable: 1,
+      recordedPairs: 11,
+      pairOrder: 'AB/BA alternating by zero-based pair parity',
+      estimator: 'median of 11 time-local paired regression percentages',
+      confidenceInterval: 'deterministic bootstrap 90% interval over paired medians; interval must lie wholly inside the registered bound',
+      bootstrapSamples: 20_000,
+      bootstrapSeed: 'snapback-agent-safe-active-paired-v2/2026-08-04',
+      quiescenceRule: 'direct release binary refuses unless no cargo or rustc process exists',
+      baselineWorkerProtocol: 'external digest-bound wrapper and lockfile path-linked to the exact pre-profile tree; original baseline product posture remains exactly three instrumentation paths',
+      candidateWorkerProtocol: 'same release executable: --active-covered-worker records active-covered read/write metrics; a fresh --active-covered-idle-worker first runs the dormant comparator workload, then holds the armed storage connection and server-issued range across the five-second idle observation',
+    },
     rawPairs,
     comparisons: pairedMetrics.map(([
       metric, , direction, boundKind, boundPercent,
@@ -303,6 +327,37 @@ test('paired raw reports reject camelCase byte aliases', () => {
     () => validatePairedPerformanceArtifact(invalid, commit),
     /allocatedWriteBytesPerChangedRow byte observation identity\/value drifted/u,
   );
+});
+
+test('paired evidence rejects the old or missing candidate worker protocol', () => {
+  const commit = 'f'.repeat(40);
+  for (const protocol of [
+    undefined,
+    'same executable --active-covered-worker on fresh active-covered mutation and idle fixtures per observation',
+  ]) {
+    const invalid = validPairedEvidence(commit);
+    if (protocol === undefined) delete invalid.protocol.candidateWorkerProtocol;
+    else invalid.protocol.candidateWorkerProtocol = protocol;
+    assert.throws(
+      () => validatePairedPerformanceArtifact(invalid, commit),
+      /paired protocol identity drifted/u,
+    );
+  }
+});
+
+test('paired evidence binds Air, toolchain, and candidate executable identities', () => {
+  const commit = '1'.repeat(40);
+  const mutations = [
+    (value) => { delete value.hardwareClass.os; },
+    (value) => { value.hardwareClass.architecture = 'x86_64'; },
+    (value) => { delete value.toolchain.rustc; },
+    (value) => { value.candidate.executableSha256 = `sha256:${'0'.repeat(64)}`; },
+  ];
+  for (const mutate of mutations) {
+    const invalid = validPairedEvidence(commit);
+    mutate(invalid);
+    assert.throws(() => validatePairedPerformanceArtifact(invalid, commit));
+  }
 });
 
 test('paired idle gate rejects impossible raw counters', () => {

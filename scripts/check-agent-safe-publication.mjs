@@ -433,6 +433,19 @@ const BYTE_METRICS = [
   ['retainedBytesPerOperation', 'retained_bytes_per_operation'],
 ];
 
+const PAIRED_PROTOCOL = Object.freeze({
+  warmupsPerExecutable: 1,
+  recordedPairs: 11,
+  pairOrder: 'AB/BA alternating by zero-based pair parity',
+  estimator: 'median of 11 time-local paired regression percentages',
+  confidenceInterval: 'deterministic bootstrap 90% interval over paired medians; interval must lie wholly inside the registered bound',
+  bootstrapSamples: 20_000,
+  bootstrapSeed: 'snapback-agent-safe-active-paired-v2/2026-08-04',
+  quiescenceRule: 'direct release binary refuses unless no cargo or rustc process exists',
+  baselineWorkerProtocol: 'external digest-bound wrapper and lockfile path-linked to the exact pre-profile tree; original baseline product posture remains exactly three instrumentation paths',
+  candidateWorkerProtocol: 'same release executable: --active-covered-worker records active-covered read/write metrics; a fresh --active-covered-idle-worker first runs the dormant comparator workload, then holds the armed storage connection and server-issued range across the five-second idle observation',
+});
+
 function validatePairedComparisons(value) {
   requireEvidence(Array.isArray(value.rawPairs) && value.rawPairs.length === 11,
     'paired raw observation population drifted');
@@ -592,26 +605,41 @@ export function validatePairedPerformanceArtifact(value, commit) {
   requireEvidence(value.date === '2026-08-04', 'paired date drifted');
   requireEvidence(value.candidate?.sourceRevision === commit, 'paired candidate is not exact C');
   requireEvidence(value.candidate?.sourceTreeClean === true, 'paired candidate was dirty');
+  requireEvidence(isSha256(value.candidate?.executableSha256, true),
+    'paired candidate executable digest is missing');
   requireEvidence(value.candidate?.buildProfile === 'release', 'paired candidate was not release');
   requireEvidence(
     value.candidate?.activeProfile
       === 'serverIssuedClientRange+ordinaryMutationCoverageV1+productionEnvelopeChokePoint',
     'paired candidate did not exercise the active covered carrier',
   );
-  requireEvidence(
-    value.baseline?.artifactSha256
-      === 'sha256:d28d8514f48db3f8a0e4d0c33a1381f12e4ad13eaf6a69187aef9b7fe822ab91',
-    'paired baseline digest drifted',
-  );
-  requireEvidence(value.hardwareClass?.model === 'Mac17,3'
+  requireEvidence(value.baseline?.artifactName === 'agent-safe-step0-pre-profile-2026-08-03'
+    && value.baseline?.artifactSchemaVersion === 'snapback.agent-safe-step0-baseline.v1'
+    && value.baseline?.artifactSha256
+      === 'sha256:d28d8514f48db3f8a0e4d0c33a1381f12e4ad13eaf6a69187aef9b7fe822ab91'
+    && value.baseline?.sourceRevision === '2ab36e28c74c450213b65f17ef81c0d6652ba33a'
+    && value.baseline?.buildProvenanceSha256
+      === 'sha256:84e288661c3edf5dfaec3690f2fe00335d251d046ac187439ffae37fe9c65991'
+    && value.baseline?.sourceRootCargoLockSha256
+      === 'sha256:496569d9a3cb87609b6e79974f69126dbaccba53eb71d093f5dcf090fe1a36b1'
+    && value.baseline?.externalWorkerCargoLockSha256
+      === 'sha256:05bd0af1ed649011354f091e2cd371f38aaf5c229437c6a98b4807c7d0eead3d'
+    && value.baseline?.executableSha256
+      === 'sha256:b78089dadd8b4966b20eb847d576ed9cd59dbaa96143c81a2c4a8b0a684c0bb8',
+  'paired baseline identity/provenance drifted');
+  requireEvidence(value.hardwareClass?.os === '26.5.2'
+    && value.hardwareClass?.architecture === 'aarch64'
+    && value.hardwareClass?.model === 'Mac17,3'
     && value.hardwareClass?.cpu === 'Apple M5'
     && value.hardwareClass?.logicalCpus === 10
     && value.hardwareClass?.memoryBytes === 34_359_738_368,
   'paired hardware class drifted');
-  requireEvidence(value.protocol?.recordedPairs === 11
-    && value.protocol?.warmupsPerExecutable === 1
-    && value.protocol?.bootstrapSamples === 20_000,
-  'paired protocol population drifted');
+  requireEvidence(value.toolchain?.rustc === 'rustc 1.97.0 (2d8144b78 2026-07-07)'
+    && value.toolchain?.cargo === 'cargo 1.97.0 (c980f4866 2026-06-30)',
+  'paired toolchain drifted');
+  requireEvidence(Object.entries(PAIRED_PROTOCOL)
+    .every(([key, expected]) => value.protocol?.[key] === expected),
+  'paired protocol identity drifted');
   validatePairedComparisons(value);
   validatePairedIdle(value);
   requireEvidence(value.measuredComparativeThresholdsPassed === true
