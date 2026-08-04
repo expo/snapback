@@ -43,3 +43,21 @@ mechanical review-manifest refresh, so the drift pass has not reminted or
 weakened it. Its owner must prepare the successor activation through the
 existing trusted-composition machinery; until then the generated-artifact gate
 and therefore local-proof remain honestly red.
+
+## 2026-08-04 wave-drift resolution
+
+After P3 closed, the batch drift pass used that exact machinery rather than
+editing or weakening the trusted record. The coded Ibex bootstrap linked,
+launched, and handler-VM-qualified the current clean source at `610b21105`.
+Codegen then produced the unactivated current manifest pair; the built
+`snapback composition-activation-prepare` command created a server-owned key
+in a task-local database and prepared the successor for deployment
+`triage-graph-p3-controlled-run`; ordinary codegen validated and published the
+result. The task-local database and private keyring were deleted afterward;
+only the public trusted activation and its review manifest are retained.
+
+The successor activation hash is
+`sha256:24a7913ae52d4face25a851fb39b8c4dd09ae9bb810d9878417863b1a753043d`.
+Triage generation and the 22-demo provisioning inventory now pass. This
+closes the dated handoff above without fabricating authority or bypassing the
+P1/P3 preparation boundary.
