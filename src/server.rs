@@ -24697,7 +24697,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED"
         | "SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID"
         | "SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED"
-        // @ref LLP 0166#d7--result-transform — TransformPlanV1 validation
+        // @ref LLP 0166#d7--the-gated-evaluation-profile-and-the-carried-amendments — TransformPlanV1 validation
         //   refusals are authoring faults (the profile is closed); the feature is
         //   dormant, so these classify before any evaluation ships.
         | "SNAPBACK_RESULT_TRANSFORM_BASE_INVALID"
