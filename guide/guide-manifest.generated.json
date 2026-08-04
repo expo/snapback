@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "c5df9a8f64cd692330aaec30567be2f7140e2651"
+    "commit": "c1a073a66ea2714c5bdcdd23c853e944761e56d6"
   },
   "nav": {
     ".": [
@@ -2132,8 +2132,8 @@
         "admin-ui"
       ],
       "reviewed": "2026-08-03",
-      "reviewedCommit": "9b9096bf3",
-      "sha256": "cba40593990b3a1f98003394268c0d7f021f6ccbda38b8afd20d954d01632f39",
+      "reviewedCommit": "3662aa240",
+      "sha256": "c1482c6b65f655461dbb624afadbc4106ad1418de98b220848fd30a7d25e5df8",
       "snippets": [
         {
           "lang": "js",
@@ -2963,5 +2963,5 @@
     "routes": 110,
     "hostOps": 35
   },
-  "contentHash": "99aa0e2058c8a04bc5427539b9fc6f53f503482b633f6dc2bcda6cde3d93a71c"
+  "contentHash": "ef5cc0da9a647e5f06fecc5a4e70e96f23a483a61fd0809021b9d5d114d9140b"
 }
