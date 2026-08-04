@@ -214,6 +214,8 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/query/{name}"),
         ("POST", "/query/{name}/authorized-lease"),
         ("POST", "/client-mutations/acknowledge"),
+        ("POST", "/client-mutations/identity-range"),
+        ("POST", "/operations/explain"),
         ("POST", "/assets/attempts"),
         ("GET", "/assets/attempts/{id}"),
         ("POST", "/assets/attempts/{id}/cancel"),
@@ -252,6 +254,12 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/_snapback/api/app/seed/preview-v1"),
         ("POST", "/_snapback/api/app/seed/reset-install-v1"),
         ("POST", "/_snapback/api/client-mutations/purge"),
+        ("POST", "/_snapback/api/operations/explain"),
+        (
+            "POST",
+            "/_snapback/api/storage/operation-coverage/activate",
+        ),
+        ("POST", "/_snapback/api/storage/protected-erasure"),
         ("POST", "/_snapback/api/host-ops"),
         (
             "POST",
@@ -1044,6 +1052,12 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
             "host_ops.app.seed.reset-install.v1",
             "host_ops.auth.mintSession",
             "host_ops.auth.rescueCollidingTable",
+            "host_ops.branch.create.v1",
+            "host_ops.branch.drop.v1",
+            "host_ops.branch.execute.v1",
+            "host_ops.branch.inspect.v1",
+            "host_ops.branch.list.v1",
+            "host_ops.branch.reap.v1",
             "host_ops.errors.issue",
             "host_ops.errors.issues",
             "host_ops.errors.transition",
@@ -1701,6 +1715,28 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
             SessionBodyProbe {
                 uri: "/client-mutations/acknowledge",
                 base: json!({ "clientMutationIds": [] }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/client-mutations/identity-range"),
+            SessionBodyProbe {
+                uri: "/client-mutations/identity-range",
+                base: json!({
+                    "schemaVersion": 1,
+                    "clientAudienceId": "policy_probe"
+                }),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/operations/explain"),
+            SessionBodyProbe {
+                uri: "/operations/explain",
+                base: json!({
+                    "schemaVersion": 1,
+                    "clientAudienceId": "policy_probe"
+                }),
                 forbidden_fields: handler_fields(),
             },
         ),
