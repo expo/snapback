@@ -2459,8 +2459,8 @@ function evidenceMarkdown(receipt, bundle) {
   )).join('\n');
   return `# LLP 0166 local-store carrier-exit v1 evidence
 
-**Run date:** ${DATE}  
-**Source revision:** \`${receipt.source.revision}\` (${receipt.source.dirty ? 'dirty evidence worktree' : 'clean'})  
+**Run date:** ${DATE}
+**Source revision:** \`${receipt.source.revision}\` (${receipt.source.dirty ? 'dirty evidence worktree' : 'clean'})
 **Machine:** ${receipt.runtime.platform}/${receipt.runtime.arch}, Node ${receipt.runtime.node}
 
 This is the standards-real Move-2 carrier exit consumed by LLP 0157 and LLP
@@ -2515,7 +2515,7 @@ module-own minified bytes.
   separately binding the current trusted successor activation in its source
   closure. Fleet remains GAP on LLP 0135 OQ5's relational-node successor.
 
-Machine receipt: \`tests/acceptance/fixtures/local-persistent-store/carrier-exit.${DATE}.v1.json\`  
+Machine receipt: \`tests/acceptance/fixtures/local-persistent-store/carrier-exit.${DATE}.v1.json\`
 Bundle receipt: \`tests/acceptance/fixtures/local-persistent-store/bundle-attribution.${DATE}.v1.json\`
 `;
 }
