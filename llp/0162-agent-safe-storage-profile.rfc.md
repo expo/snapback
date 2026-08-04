@@ -1485,6 +1485,16 @@ recording an observation is semantically sufficient.
     OQ5's ownership half; this RFC remains the profile umbrella and the
     acceptance corpus's home.)*
 
+## Capability registry record
+
+On 2026-08-04, `agent_safe_storage_v1` entered the closed target-capability
+registry at `Experimental` maturity. The id names this RFC's versioned
+`agentSafe.v1` extension and component-fact vocabulary; it deliberately does
+**not** mean that the `AgentSafeV1` core aggregate is supported. Every target's
+positive predicate remains false, every public projection remains `Missing`,
+and the guide retains the GAP until the applicable corpus, review, acceptance,
+and publication gates pass.
+
 ## Status
 
 **Accepted** (2026-08-03, Charlie), after the seven-round dual-family

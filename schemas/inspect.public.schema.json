@@ -92,10 +92,10 @@
           "$ref": "#/$defs/AgentSafeDiffFactsV1"
         },
         "envelope": {
-          "$ref": "#/$defs/AgentSafeEnvelopeCoverageByLaneV1"
+          "$ref": "#/$defs/AgentSafeEnvelopeCoverageByScopeV1"
         },
         "explanation": {
-          "$ref": "#/$defs/AgentSafeExplanationByLaneV1"
+          "$ref": "#/$defs/AgentSafeExplanationFactsV1"
         },
         "forks": {
           "$ref": "#/$defs/AgentSafeForkFactsV1"
@@ -160,9 +160,26 @@
       ],
       "type": "object"
     },
-    "AgentSafeEnvelopeCoverageByLaneV1": {
+    "AgentSafeEnvelopeCoverageByAdapterV1": {
       "additionalProperties": false,
       "description": "Fixed durable-lane inventory. Specialized lanes remain first-class facts\neven though their absence does not block the v1 core aggregate.",
+      "properties": {
+        "hostPlan": {
+          "$ref": "#/$defs/AgentSafeEnvelopeCoverageV1"
+        },
+        "ibexBuffered": {
+          "$ref": "#/$defs/AgentSafeEnvelopeCoverageV1"
+        }
+      },
+      "required": [
+        "hostPlan",
+        "ibexBuffered"
+      ],
+      "type": "object"
+    },
+    "AgentSafeEnvelopeCoverageByScopeV1": {
+      "additionalProperties": false,
+      "description": "Exact logical-lane x physical-adapter coverage. The ordinary and Host\nnamespaces each have both execution adapters; collapsing either axis would\nlet one green writer silently stand in for another.",
       "properties": {
         "auth": {
           "$ref": "#/$defs/AgentSafeEnvelopeCoverageV1"
@@ -170,22 +187,22 @@
         "durableBackgroundWork": {
           "$ref": "#/$defs/AgentSafeEnvelopeCoverageV1"
         },
-        "hostPlanSettlement": {
-          "$ref": "#/$defs/AgentSafeEnvelopeCoverageV1"
+        "hostChildMutation": {
+          "$ref": "#/$defs/AgentSafeEnvelopeCoverageByAdapterV1"
         },
         "migration": {
           "$ref": "#/$defs/AgentSafeEnvelopeCoverageV1"
         },
-        "ordinaryIbexMutation": {
-          "$ref": "#/$defs/AgentSafeEnvelopeCoverageV1"
+        "ordinaryMutation": {
+          "$ref": "#/$defs/AgentSafeEnvelopeCoverageByAdapterV1"
         },
         "push": {
           "$ref": "#/$defs/AgentSafeEnvelopeCoverageV1"
         }
       },
       "required": [
-        "ordinaryIbexMutation",
-        "hostPlanSettlement",
+        "ordinaryMutation",
+        "hostChildMutation",
         "migration",
         "durableBackgroundWork",
         "push",
@@ -200,37 +217,19 @@
       ],
       "type": "string"
     },
-    "AgentSafeExplanationByLaneV1": {
-      "additionalProperties": false,
-      "properties": {
-        "auth": {
-          "$ref": "#/$defs/AgentSafeExplanationClassV1"
-        },
-        "durableBackgroundWork": {
-          "$ref": "#/$defs/AgentSafeExplanationClassV1"
-        },
-        "hostPlanSettlement": {
-          "$ref": "#/$defs/AgentSafeExplanationClassV1"
-        },
-        "migration": {
-          "$ref": "#/$defs/AgentSafeExplanationClassV1"
-        },
-        "ordinaryIbexMutation": {
-          "$ref": "#/$defs/AgentSafeExplanationClassV1"
-        },
-        "push": {
-          "$ref": "#/$defs/AgentSafeExplanationClassV1"
-        }
-      },
-      "required": [
-        "ordinaryIbexMutation",
-        "hostPlanSettlement",
-        "migration",
-        "durableBackgroundWork",
-        "push",
-        "auth"
+    "AgentSafeExplanationAccessV1": {
+      "enum": [
+        "publicCurrentPolicy",
+        "administrative"
       ],
-      "type": "object"
+      "type": "string"
+    },
+    "AgentSafeExplanationAdapterV1": {
+      "enum": [
+        "hostPlan",
+        "ibexBuffered"
+      ],
+      "type": "string"
     },
     "AgentSafeExplanationClassV1": {
       "additionalProperties": false,
@@ -256,6 +255,36 @@
       ],
       "type": "string"
     },
+    "AgentSafeExplanationFactsV1": {
+      "additionalProperties": false,
+      "description": "Canonical sparse projection of explanation support. An empty list is the\ncomplete Missing projection. Positive entries are strictly scope-sorted,\nunique, and use only the closed profile/access/execution vocabulary above.",
+      "properties": {
+        "scopedFacts": {
+          "items": {
+            "$ref": "#/$defs/AgentSafeScopedExplanationFactV1"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "scopedFacts"
+      ],
+      "type": "object"
+    },
+    "AgentSafeExplanationLogicalLaneV1": {
+      "enum": [
+        "ordinaryMutation",
+        "hostChildMutation"
+      ],
+      "type": "string"
+    },
+    "AgentSafeExplanationProfileV1": {
+      "enum": [
+        "generatedOwnedCrudOwnerCreateV1",
+        "generatedOwnedCrudOwnerUpdateV1"
+      ],
+      "type": "string"
+    },
     "AgentSafeExplanationRetentionV1": {
       "enum": [
         "Missing",
@@ -263,6 +292,30 @@
         "PolicyBounded"
       ],
       "type": "string"
+    },
+    "AgentSafeExplanationScopeV1": {
+      "additionalProperties": false,
+      "properties": {
+        "access": {
+          "$ref": "#/$defs/AgentSafeExplanationAccessV1"
+        },
+        "adapter": {
+          "$ref": "#/$defs/AgentSafeExplanationAdapterV1"
+        },
+        "logicalLane": {
+          "$ref": "#/$defs/AgentSafeExplanationLogicalLaneV1"
+        },
+        "profile": {
+          "$ref": "#/$defs/AgentSafeExplanationProfileV1"
+        }
+      },
+      "required": [
+        "logicalLane",
+        "adapter",
+        "access",
+        "profile"
+      ],
+      "type": "object"
     },
     "AgentSafeForkAxesV1": {
       "additionalProperties": false,
@@ -389,6 +442,22 @@
         "ProofsWithoutLens"
       ],
       "type": "string"
+    },
+    "AgentSafeScopedExplanationFactV1": {
+      "additionalProperties": false,
+      "properties": {
+        "class": {
+          "$ref": "#/$defs/AgentSafeExplanationClassV1"
+        },
+        "scope": {
+          "$ref": "#/$defs/AgentSafeExplanationScopeV1"
+        }
+      },
+      "required": [
+        "scope",
+        "class"
+      ],
+      "type": "object"
     },
     "AppCliTargetFactsV1": {
       "additionalProperties": false,
@@ -1110,36 +1179,19 @@
               "envelope": {
                 "auth": "Missing",
                 "durableBackgroundWork": "Missing",
-                "hostPlanSettlement": "Missing",
+                "hostChildMutation": {
+                  "hostPlan": "Missing",
+                  "ibexBuffered": "Missing"
+                },
                 "migration": "Missing",
-                "ordinaryIbexMutation": "Missing",
+                "ordinaryMutation": {
+                  "hostPlan": "Missing",
+                  "ibexBuffered": "Missing"
+                },
                 "push": "Missing"
               },
               "explanation": {
-                "auth": {
-                  "detail": "Missing",
-                  "retention": "Missing"
-                },
-                "durableBackgroundWork": {
-                  "detail": "Missing",
-                  "retention": "Missing"
-                },
-                "hostPlanSettlement": {
-                  "detail": "Missing",
-                  "retention": "Missing"
-                },
-                "migration": {
-                  "detail": "Missing",
-                  "retention": "Missing"
-                },
-                "ordinaryIbexMutation": {
-                  "detail": "Missing",
-                  "retention": "Missing"
-                },
-                "push": {
-                  "detail": "Missing",
-                  "retention": "Missing"
-                }
+                "scopedFacts": []
               },
               "forks": {
                 "derivedDeployment": {
@@ -1177,36 +1229,19 @@
               "envelope": {
                 "auth": "Missing",
                 "durableBackgroundWork": "Missing",
-                "hostPlanSettlement": "Missing",
+                "hostChildMutation": {
+                  "hostPlan": "Missing",
+                  "ibexBuffered": "Missing"
+                },
                 "migration": "Missing",
-                "ordinaryIbexMutation": "Missing",
+                "ordinaryMutation": {
+                  "hostPlan": "Missing",
+                  "ibexBuffered": "Missing"
+                },
                 "push": "Missing"
               },
               "explanation": {
-                "auth": {
-                  "detail": "Missing",
-                  "retention": "Missing"
-                },
-                "durableBackgroundWork": {
-                  "detail": "Missing",
-                  "retention": "Missing"
-                },
-                "hostPlanSettlement": {
-                  "detail": "Missing",
-                  "retention": "Missing"
-                },
-                "migration": {
-                  "detail": "Missing",
-                  "retention": "Missing"
-                },
-                "ordinaryIbexMutation": {
-                  "detail": "Missing",
-                  "retention": "Missing"
-                },
-                "push": {
-                  "detail": "Missing",
-                  "retention": "Missing"
-                }
+                "scopedFacts": []
               },
               "forks": {
                 "derivedDeployment": {
@@ -5092,6 +5127,11 @@
         {
           "const": "vector_search_v1",
           "description": "Exact portable vector search. The local target publishes this at\nexperimental maturity only when its dedicated implementation fact and\ncomplete closed profile are both present; every other target remains\na structured GAP.",
+          "type": "string"
+        },
+        {
+          "const": "agent_safe_storage_v1",
+          "description": "Registry identity for the LLP 0162 `agentSafe.v1` extension/component\nfact vocabulary. It does not name the `AgentSafeV1` core aggregate and\nregistration does not imply that any target has passed the corpus.",
           "type": "string"
         }
       ]

@@ -12,36 +12,19 @@
       "envelope": {
         "auth": "Missing",
         "durableBackgroundWork": "Missing",
-        "hostPlanSettlement": "Missing",
+        "hostChildMutation": {
+          "hostPlan": "Missing",
+          "ibexBuffered": "Missing"
+        },
         "migration": "Missing",
-        "ordinaryIbexMutation": "Missing",
+        "ordinaryMutation": {
+          "hostPlan": "Missing",
+          "ibexBuffered": "Missing"
+        },
         "push": "Missing"
       },
       "explanation": {
-        "auth": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "durableBackgroundWork": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "hostPlanSettlement": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "migration": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "ordinaryIbexMutation": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "push": {
-          "detail": "Missing",
-          "retention": "Missing"
-        }
+        "scopedFacts": []
       },
       "forks": {
         "derivedDeployment": {
@@ -79,36 +62,19 @@
       "envelope": {
         "auth": "Missing",
         "durableBackgroundWork": "Missing",
-        "hostPlanSettlement": "Missing",
+        "hostChildMutation": {
+          "hostPlan": "Missing",
+          "ibexBuffered": "Missing"
+        },
         "migration": "Missing",
-        "ordinaryIbexMutation": "Missing",
+        "ordinaryMutation": {
+          "hostPlan": "Missing",
+          "ibexBuffered": "Missing"
+        },
         "push": "Missing"
       },
       "explanation": {
-        "auth": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "durableBackgroundWork": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "hostPlanSettlement": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "migration": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "ordinaryIbexMutation": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "push": {
-          "detail": "Missing",
-          "retention": "Missing"
-        }
+        "scopedFacts": []
       },
       "forks": {
         "derivedDeployment": {

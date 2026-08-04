@@ -21,38 +21,21 @@
     "schemaVersion": "agentSafe.v1",
     "target": {
       "envelope": {
-        "ordinaryIbexMutation": "Missing",
-        "hostPlanSettlement": "Missing",
+        "ordinaryMutation": {
+          "hostPlan": "Missing",
+          "ibexBuffered": "Missing"
+        },
+        "hostChildMutation": {
+          "hostPlan": "Missing",
+          "ibexBuffered": "Missing"
+        },
         "migration": "Missing",
         "durableBackgroundWork": "Missing",
         "push": "Missing",
         "auth": "Missing"
       },
       "explanation": {
-        "ordinaryIbexMutation": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "hostPlanSettlement": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "migration": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "durableBackgroundWork": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "push": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "auth": {
-          "detail": "Missing",
-          "retention": "Missing"
-        }
+        "scopedFacts": []
       },
       "forks": {
         "inApp": {
@@ -87,38 +70,21 @@
     },
     "appEffective": {
       "envelope": {
-        "ordinaryIbexMutation": "Missing",
-        "hostPlanSettlement": "Missing",
+        "ordinaryMutation": {
+          "hostPlan": "Missing",
+          "ibexBuffered": "Missing"
+        },
+        "hostChildMutation": {
+          "hostPlan": "Missing",
+          "ibexBuffered": "Missing"
+        },
         "migration": "Missing",
         "durableBackgroundWork": "Missing",
         "push": "Missing",
         "auth": "Missing"
       },
       "explanation": {
-        "ordinaryIbexMutation": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "hostPlanSettlement": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "migration": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "durableBackgroundWork": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "push": {
-          "detail": "Missing",
-          "retention": "Missing"
-        },
-        "auth": {
-          "detail": "Missing",
-          "retention": "Missing"
-        }
+        "scopedFacts": []
       },
       "forks": {
         "inApp": {
