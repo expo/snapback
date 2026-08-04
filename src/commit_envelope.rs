@@ -388,6 +388,54 @@ pub struct OperationCoverageManifestV1 {
     pub coverage_digest: String,
 }
 
+pub(crate) fn operation_coverage_activation_schema_version() -> u32 {
+    1
+}
+
+/// The exact target accepted by the v1 coverage-publication command. A closed
+/// enum keeps a future target from inheriting the local SQLite inventory by
+/// string convention.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+pub enum OperationCoverageActivationTargetV1 {
+    #[serde(rename = "local-dev-sqlite-ibex")]
+    LocalDevSqliteIbex,
+}
+
+/// The exact manifest cut published by the v1 command. The name deliberately
+/// says envelope-mapped writers rather than complete target coverage: excluded
+/// app-effective writers remain visible and fail closed after publication.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+pub enum OperationCoverageActivationProfileV1 {
+    #[serde(rename = "local-envelope-mapped-writers.v1")]
+    LocalEnvelopeMappedWritersV1,
+}
+
+/// Explicit operator request for the local target's closed envelope-writer
+/// cut. Publication is never an implicit side effect of database open, range
+/// issuance, or capability inspection.
+///
+/// @ref LLP 0162#acceptance — row 4 requires target-exact coverage and stable
+///   exclusion of every app-effective writer outside the manifest.
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperationCoverageActivationRequestV1 {
+    #[serde(default = "operation_coverage_activation_schema_version")]
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub target_profile_id: OperationCoverageActivationTargetV1,
+    pub coverage_profile: OperationCoverageActivationProfileV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperationCoverageActivationResponseV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub target_profile_id: OperationCoverageActivationTargetV1,
+    pub coverage_profile: OperationCoverageActivationProfileV1,
+    pub manifest: OperationCoverageManifestV1,
+}
+
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CommitEnvelopeV1 {

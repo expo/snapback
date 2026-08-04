@@ -9616,6 +9616,9 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/_snapback/api/storage/protected-erasure" => {
             Some(InvocationSource::ProtectedRecordErasure)
         }
+        "/_snapback/api/storage/operation-coverage/activate" => {
+            Some(InvocationSource::OperationCoverageActivation)
+        }
         _ => None,
     }
 }
@@ -9793,6 +9796,7 @@ async fn prepare_registered_route_authority(
                             | InvocationSource::HostOperationFunctionRun
                             | InvocationSource::HostOperationMutationDryRun
                             | InvocationSource::ProtectedRecordErasure
+                            | InvocationSource::OperationCoverageActivation
                     ) {
                         (
                             ResolvedAppAuthority::AdminBypass {
@@ -10040,6 +10044,7 @@ fn route_uses_managed_admission(spec: RouteSpec) -> bool {
                 | "/_snapback/api/app/seed/reset-install-v1"
                 | "/_snapback/api/app/seed/clear-v1"
                 | "/_snapback/api/storage/protected-erasure"
+                | "/_snapback/api/storage/operation-coverage/activate"
                 | "/_snapback/api/auth/mailbox"
                 | "/_snapback/api/admin-secret-read/mint"
         )
