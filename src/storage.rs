@@ -107,6 +107,50 @@ thread_local! {
         const { std::cell::RefCell::new(None) };
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum OperationEnvelopeCrashPointV1 {
+    BeforeSettlement,
+    AfterSettlementBeforeEnvelope,
+    AfterEnvelopeBeforeCommit,
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Deterministic one-shot rollback seams for LLP 0162's ordinary-writer
+    /// atomic-envelope crash corpus. Thread-local isolation keeps concurrent
+    /// storage tests independent.
+    static OPERATION_ENVELOPE_CRASH_POINT: std::cell::Cell<Option<OperationEnvelopeCrashPointV1>> =
+        const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+fn inject_operation_envelope_crash_for_test(point: OperationEnvelopeCrashPointV1) {
+    OPERATION_ENVELOPE_CRASH_POINT.with(|slot| {
+        assert!(slot.get().is_none(), "operation crash cut must be one-shot");
+        slot.set(Some(point));
+    });
+}
+
+fn operation_envelope_crash_cut(point: OperationEnvelopeCrashPointV1) -> SnapbackResult<()> {
+    #[cfg(test)]
+    if OPERATION_ENVELOPE_CRASH_POINT.with(|slot| {
+        if slot.get() == Some(point) {
+            slot.set(None);
+            true
+        } else {
+            false
+        }
+    }) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_TEST_OPERATION_CRASH_CUT",
+            "storage",
+            format!("injected operation-envelope crash cut at {point:?}"),
+        ));
+    }
+    let _ = point;
+    Ok(())
+}
+
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AuthorizationCommitFaultForTest {
@@ -2526,9 +2570,11 @@ impl LocalDatabase {
     }
 
     /// Administrative recovery for a client that can no longer send durable
-    /// acknowledgements. Purging deliberately gives up exactly-once replay for
-    /// the removed settlements, so callers must gate it as an admin write.
-    /// Ledger rows plus global/per-auth counters change in one transaction.
+    /// acknowledgements. Purging deliberately gives up full-result replay for
+    /// removed settlements; covered operations retain compact duplicate
+    /// prevention while predecessor-only rows retain the legacy tradeoff.
+    /// Callers must gate this as an admin write. Ledger rows, purge audit, and
+    /// global/per-auth counters change in one transaction.
     pub fn purge_client_mutation_settlements(
         &mut self,
         auth_fingerprint: Option<&str>,
@@ -2541,6 +2587,27 @@ impl LocalDatabase {
             Some(auth_fingerprint) => {
                 let (auth_records, auth_bytes) =
                     client_mutation_auth_retention_counters(&tx, auth_fingerprint)?;
+                let settlements = tx
+                    .prepare(
+                        "SELECT client_mutation_id,auth_fingerprint,authority_instance_id
+                           FROM _snapback_client_mutations
+                          WHERE auth_fingerprint=?1 ORDER BY client_mutation_id",
+                    )?
+                    .query_map(params![auth_fingerprint], |row| {
+                        Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+                    })?
+                    .collect::<rusqlite::Result<Vec<(String, String, Option<String>)>>>()?;
+                let selector_digest = crate::operation_ledger::digest_fact_set(
+                    b"snapback:operation-purge-selector:v1\n",
+                    &json!({ "authFingerprint": auth_fingerprint }),
+                );
+                crate::operation_ledger::operator_purge_client_operations_in(
+                    &tx,
+                    "auth",
+                    &selector_digest,
+                    &settlements,
+                    now_millis(),
+                )?;
                 let deleted = tx.execute(
                     "DELETE FROM _snapback_client_mutations WHERE auth_fingerprint = ?1",
                     params![auth_fingerprint],
@@ -2572,6 +2639,24 @@ impl LocalDatabase {
                 deleted
             }
             None => {
+                let settlements = tx
+                    .prepare(
+                        "SELECT client_mutation_id,auth_fingerprint,authority_instance_id
+                           FROM _snapback_client_mutations ORDER BY client_mutation_id",
+                    )?
+                    .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+                    .collect::<rusqlite::Result<Vec<(String, String, Option<String>)>>>()?;
+                let selector_digest = crate::operation_ledger::digest_fact_set(
+                    b"snapback:operation-purge-selector:v1\n",
+                    &json!({ "all": true }),
+                );
+                crate::operation_ledger::operator_purge_client_operations_in(
+                    &tx,
+                    "all",
+                    &selector_digest,
+                    &settlements,
+                    now_millis(),
+                )?;
                 let deleted = tx.execute("DELETE FROM _snapback_client_mutations", [])? as u64;
                 if deleted != retained_records {
                     return Err(invalid_client_mutation_retention_state(
@@ -2629,7 +2714,7 @@ impl LocalDatabase {
                 settled_version_exact: exact_settled_version,
             }) = row
             else {
-                return Ok(None);
+                return covered_operation_recovery_result(conn, identity);
             };
             if function != identity.function {
                 return Err(SnapbackError::error(
@@ -5854,6 +5939,7 @@ impl LocalDatabase {
             let _commit_guard = before_commit()?;
             check_live()?;
             if let Some(identity) = identity {
+                operation_envelope_crash_cut(OperationEnvelopeCrashPointV1::BeforeSettlement)?;
                 record_client_mutation_result(
                     &tx,
                     identity,
@@ -6582,6 +6668,7 @@ impl LocalDatabase {
             let _commit_guard = before_commit()?;
             check_live()?;
             if let Some(identity) = options.identity {
+                operation_envelope_crash_cut(OperationEnvelopeCrashPointV1::BeforeSettlement)?;
                 record_client_mutation_result(
                     &tx,
                     identity,
@@ -7018,6 +7105,139 @@ impl LocalDatabase {
         }
         tx.commit()?;
         Ok(())
+    }
+}
+
+/// Continue settlement lookup through LLP 0163's retained operation state
+/// after the full `_snapback_client_mutations` payload has been ACK-reclaimed
+/// or operator-purged. This runs only after the caller has reconstructed the
+/// complete bound identity; it is settlement lookup, never authorization.
+///
+/// @ref LLP 0162#1-the-universal-commit-envelope — suppression, then compact
+///   envelope/tombstone, then epoch floor; a miss below the floor is
+///   outcome-unknown and may not dispatch the handler.
+fn covered_operation_recovery_result(
+    conn: &Connection,
+    identity: &ClientMutationIdentity,
+) -> SnapbackResult<Option<MutationOutput>> {
+    let Some(issuance) = identity.operation_issuance.clone() else {
+        return Ok(None);
+    };
+    let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(conn)? else {
+        return Ok(None);
+    };
+    let audience = crate::operation_ledger::resolve_operation_audience_for_lookup(
+        conn,
+        &issuance,
+        &identity.authority_instance_id,
+    )?;
+    let operation = match issuance {
+        crate::commit_envelope::OperationIssuanceV1::ClientRange { .. } => {
+            crate::commit_envelope::OperationIdentityV1::from_client_mutation(
+                stream_id,
+                audience,
+                issuance,
+                identity,
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+            )
+        }
+        crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. } => {
+            crate::commit_envelope::OperationIdentityV1::from_host_mutation(
+                stream_id,
+                audience,
+                issuance,
+                identity,
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+            )
+        }
+    };
+    match crate::operation_ledger::lookup_operation(conn, &operation)? {
+        crate::operation_ledger::OperationLookupV1::Novel => Ok(None),
+        crate::operation_ledger::OperationLookupV1::ExactReplay(record) => {
+            if record.terminal_outcome
+                != crate::commit_envelope::OperationTerminalOutcomeV1::Committed
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_OPERATION_STORED_REFUSAL",
+                    "sync",
+                    "the covered operation retained a terminal refusal",
+                ));
+            }
+            let retained: crate::commit_envelope::RetainedEnvelopeDetailV1 =
+                serde_json::from_value(record.receipt_payload).map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_OPERATION_RECEIPT_INVALID",
+                        "storage",
+                        "the retained operation receipt projection could not be decoded",
+                    )
+                })?;
+            let receipt = match retained {
+                crate::commit_envelope::RetainedEnvelopeDetailV1::InlineRedacted { detail } => {
+                    detail
+                }
+                crate::commit_envelope::RetainedEnvelopeDetailV1::ProtectedLane {
+                    custody_reference,
+                    payload_digest,
+                    ..
+                } => crate::operation_detail::open(conn, &custody_reference, &payload_digest)?
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_OPERATION_PROTECTED_CUSTODY_UNAVAILABLE",
+                            "storage",
+                            "the retained operation receipt is unavailable from protected custody",
+                        )
+                    })?,
+                crate::commit_envelope::RetainedEnvelopeDetailV1::Truncated
+                | crate::commit_envelope::RetainedEnvelopeDetailV1::Expired => {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_OPERATION_RECEIPT_INVALID",
+                        "storage",
+                        "an exact-replay suppression receipt cannot be truncated or expired",
+                    ));
+                }
+            };
+            let output: MutationOutput = serde_json::from_value(receipt).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_OPERATION_RECEIPT_INVALID",
+                    "storage",
+                    "the retained operation receipt could not be decoded",
+                )
+            })?;
+            validate_storage_version_at_most(
+                output.version,
+                current_version_on(conn)?,
+                "retained operation receipt version",
+            )?;
+            Ok(Some(output))
+        }
+        crate::operation_ledger::OperationLookupV1::ResultExpired {
+            outcome,
+            receipt_digest,
+        } => Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_RESULT_EXPIRED",
+            "sync",
+            "the operation outcome is known but its result payload was reclaimed",
+        )
+        .with_details(json!({
+            "disposition": "result-expired",
+            "outcome": match outcome {
+                crate::commit_envelope::OperationTerminalOutcomeV1::Committed => "committed",
+                crate::commit_envelope::OperationTerminalOutcomeV1::Refused => "refused",
+            },
+            "receiptDigest": receipt_digest,
+        }))),
+        crate::operation_ledger::OperationLookupV1::IdentityHorizonPassed => {
+            Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED",
+                "sync",
+                "the identity epoch is below the retained outcome horizon",
+            )
+            .with_details(json!({
+                "disposition": "identity-horizon-passed",
+                "outcome": "unknown",
+                "terminal": false,
+            })))
+        }
     }
 }
 
@@ -19278,6 +19498,9 @@ fn record_client_mutation_result(
         auth_retained + 1,
         auth_admitted_bytes.expect("checked by per-auth retention admission"),
     )?;
+    operation_envelope_crash_cut(
+        OperationEnvelopeCrashPointV1::AfterSettlementBeforeEnvelope,
+    )?;
     if identity.operation_issuance.is_some() {
         record_covered_mutation_envelope_in(
             tx,
@@ -19288,6 +19511,7 @@ fn record_client_mutation_result(
             output,
         )?;
     }
+    operation_envelope_crash_cut(OperationEnvelopeCrashPointV1::AfterEnvelopeBeforeCommit)?;
     Ok(())
 }
 
@@ -24311,6 +24535,378 @@ mod guarded_commit_tests {
         );
     }
 
+    #[derive(Clone, Copy, Debug)]
+    enum CoveredWriterFixtureV1 {
+        HostPlan,
+        Buffered,
+    }
+
+    fn operation_crash_fixture(
+        writer: CoveredWriterFixtureV1,
+    ) -> (
+        tempfile::TempDir,
+        PathBuf,
+        LocalDatabase,
+        HandlerInput,
+        ClientMutationIdentity,
+    ) {
+        use crate::commit_envelope::OperationIssuanceV1;
+
+        let (dir, path, mut db) = file_database();
+        db.install_operation_coverage_for_test(
+            vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()],
+            crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+                .iter()
+                .map(|writer| (*writer).to_owned())
+                .collect(),
+        )
+        .expect("activate test-only ordinary coverage");
+        let input = HandlerInput::default();
+        let function = match writer {
+            CoveredWriterFixtureV1::HostPlan => "items.insert",
+            CoveredWriterFixtureV1::Buffered => "items.bufferedInsert",
+        };
+        let prototype = ClientMutationIdentity::new("operation-crash-0", function, &input);
+        let range = db
+            .issue_client_operation_identity_range(
+                "crash-fixture-client",
+                &prototype.authority_instance_id,
+                None,
+                now_millis(),
+            )
+            .expect("server-issued operation range");
+        let identity = prototype.with_operation_issuance(OperationIssuanceV1::ClientRange {
+            epoch_id: range.epoch_id,
+            counter: range.range_start,
+            range_start: range.range_start,
+            range_end_exclusive: range.range_end_exclusive,
+            authority_authenticator_digest: range.authority_authenticator_digest,
+        });
+        (dir, path, db, input, identity)
+    }
+
+    fn execute_operation_crash_fixture(
+        db: &mut LocalDatabase,
+        writer: CoveredWriterFixtureV1,
+        input: &HandlerInput,
+        identity: &ClientMutationIdentity,
+    ) -> SnapbackResult<MutationCommit> {
+        match writer {
+            CoveredWriterFixtureV1::HostPlan => {
+                db.execute_mutation_idempotent(&insert_plan(), input, identity)
+            }
+            CoveredWriterFixtureV1::Buffered => db.commit_buffered_writes_idempotent_guarded(
+                input,
+                BufferedCommitPayload {
+                    writes: vec![BufferedWrite::Insert {
+                        table: "items".to_owned(),
+                        id: format!("crash-buffered-{}", identity.id),
+                        values: Map::from_iter([("title".to_owned(), json!("buffered"))]),
+                    }],
+                    sequence_allocations: Vec::new(),
+                    membership_plans: Vec::new(),
+                    read_dependencies: Vec::new(),
+                    result: json!({ "receiptSecret": "classified-operation-output" }),
+                    ctx_ledger: CtxAnswerLedger::default(),
+                    job_enqueues: Vec::new(),
+                    job_producer: None,
+                    asset_admissions: Vec::new(),
+                },
+                Some(identity),
+                || Ok(()),
+                || Ok(()),
+            ),
+        }
+    }
+
+    fn assert_operation_commit_absent(db: &LocalDatabase) {
+        assert_eq!(db.current_version().expect("version after crash cut"), 0);
+        assert_eq!(db.scan_table("items", 10, 0).expect("app rows").total, 0);
+        for table in [
+            "_snapback_changes",
+            "_snapback_client_mutations",
+            "_snapback_commit_envelopes_v1",
+            "_snapback_operation_suppression_v1",
+            "_snapback_operation_protected_detail_v1",
+        ] {
+            let count: u64 = db
+                .conn
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row.get(0))
+                .unwrap_or_else(|error| panic!("count {table}: {error}"));
+            assert_eq!(count, 0, "{table} must roll back at every crash cut");
+        }
+    }
+
+    #[test]
+    fn llp0162_ordinary_writers_are_atomic_at_every_envelope_crash_cut_and_after_reopen() {
+        let points = [
+            OperationEnvelopeCrashPointV1::BeforeSettlement,
+            OperationEnvelopeCrashPointV1::AfterSettlementBeforeEnvelope,
+            OperationEnvelopeCrashPointV1::AfterEnvelopeBeforeCommit,
+        ];
+        for writer in [
+            CoveredWriterFixtureV1::HostPlan,
+            CoveredWriterFixtureV1::Buffered,
+        ] {
+            for point in points {
+                let (_dir, path, mut db, input, identity) = operation_crash_fixture(writer);
+                inject_operation_envelope_crash_for_test(point);
+                let error = execute_operation_crash_fixture(&mut db, writer, &input, &identity)
+                    .expect_err("injected crash cut must roll back the covered commit");
+                assert_eq!(error.diagnostic.code, "SNAPBACK_TEST_OPERATION_CRASH_CUT");
+                drop(db);
+                let reopened = LocalDatabase::open(&path).expect("reopen after crash cut");
+                assert_operation_commit_absent(&reopened);
+            }
+
+            let (_dir, path, mut db, input, identity) = operation_crash_fixture(writer);
+            let committed = execute_operation_crash_fixture(&mut db, writer, &input, &identity)
+                .expect("complete covered commit");
+            assert!(!committed.changes.is_empty());
+            let expected = committed.output;
+            drop(db);
+            let mut reopened = LocalDatabase::open(&path).expect("reopen committed database");
+            let replay = execute_operation_crash_fixture(&mut reopened, writer, &input, &identity)
+                .expect("exact replay after process restart");
+            assert!(replay.changes.is_empty());
+            assert_eq!(replay.output, expected);
+            assert_eq!(
+                reopened
+                    .conn
+                    .query_row(
+                        "SELECT COUNT(*) FROM _snapback_commit_envelopes_v1",
+                        [],
+                        |row| row.get::<_, u64>(0),
+                    )
+                    .expect("one complete envelope"),
+                1
+            );
+        }
+    }
+
+    #[test]
+    fn covered_replay_opens_protected_receipt_without_plaintext_in_suppression_json() {
+        use crate::commit_envelope::{
+            OperationSuppressionRecordV1, RetainedEnvelopeDetailV1,
+        };
+
+        let (_dir, path, mut db, input, identity) =
+            operation_crash_fixture(CoveredWriterFixtureV1::Buffered);
+        let committed = execute_operation_crash_fixture(
+            &mut db,
+            CoveredWriterFixtureV1::Buffered,
+            &input,
+            &identity,
+        )
+        .expect("covered operation with protected receipt");
+        assert_eq!(
+            committed.output.result,
+            json!({ "receiptSecret": "classified-operation-output" })
+        );
+        let suppression_json: String = db
+            .conn
+            .query_row(
+                "SELECT record_json FROM _snapback_operation_suppression_v1
+                  WHERE operation_id=?1",
+                params![identity.id],
+                |row| row.get(0),
+            )
+            .expect("suppression JSON");
+        assert!(
+            !suppression_json.contains("classified-operation-output"),
+            "secret-bearing receipt plaintext belongs only in protected custody"
+        );
+        let suppression: OperationSuppressionRecordV1 =
+            serde_json::from_str(&suppression_json).expect("decode suppression projection");
+        assert!(matches!(
+            serde_json::from_value::<RetainedEnvelopeDetailV1>(suppression.receipt_payload)
+                .expect("decode retained receipt projection"),
+            RetainedEnvelopeDetailV1::ProtectedLane { .. }
+        ));
+
+        let expected = committed.output;
+        drop(db);
+        let reopened = LocalDatabase::open(&path).expect("reopen protected receipt custody");
+        // Simulate loss/reclamation of only the predecessor settlement row;
+        // the LLP 0163 lookup is authoritative after process restart and opens
+        // the digest-bound protected receipt without redispatching the writer.
+        reopened
+            .conn
+            .execute(
+                "DELETE FROM _snapback_client_mutations WHERE client_mutation_id=?1",
+                params![identity.id],
+            )
+            .expect("remove predecessor replay row fixture");
+        let recovered = reopened
+            .client_mutation_result(&identity)
+            .expect("protected operation lookup")
+            .expect("exact protected replay");
+        assert_eq!(recovered, expected);
+        assert_eq!(
+            reopened
+                .scan_table("items", 10, 0)
+                .expect("unchanged app rows")
+                .total,
+            1,
+            "exact fallback replay never redispatches the write"
+        );
+    }
+
+    #[test]
+    fn covered_capacity_ack_and_floor_lifecycle_never_reexecutes_an_ambiguous_identity() {
+        use crate::commit_envelope::{OperationIssuanceV1, OperationOriginatorClassV1};
+
+        let (_dir, _path, mut db, input, first) =
+            operation_crash_fixture(CoveredWriterFixtureV1::Buffered);
+        let OperationIssuanceV1::ClientRange {
+            epoch_id,
+            counter,
+            range_start,
+            range_end_exclusive,
+            authority_authenticator_digest,
+        } = first
+            .operation_issuance
+            .clone()
+            .expect("first range issuance")
+        else {
+            panic!("client fixture must carry range issuance");
+        };
+        let second = ClientMutationIdentity::new(
+            "operation-delayed-1",
+            "items.bufferedInsert",
+            &input,
+        )
+        .with_operation_issuance(OperationIssuanceV1::ClientRange {
+            epoch_id: epoch_id.clone(),
+            counter: counter + 1,
+            range_start,
+            range_end_exclusive,
+            authority_authenticator_digest: authority_authenticator_digest.clone(),
+        });
+
+        let limits = TestRetentionLimits::install(1, u64::MAX);
+        let first_commit = execute_operation_crash_fixture(
+            &mut db,
+            CoveredWriterFixtureV1::Buffered,
+            &input,
+            &first,
+        )
+        .expect("first covered settlement fills bounded retention");
+        let full = execute_operation_crash_fixture(
+            &mut db,
+            CoveredWriterFixtureV1::Buffered,
+            &input,
+            &second,
+        )
+        .expect_err("unacknowledged retention refuses new work");
+        assert_eq!(
+            full.diagnostic.code,
+            "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
+        );
+        assert_eq!(
+            db.scan_table("items", 10, 0).expect("one retained write").total,
+            1
+        );
+        let replay = execute_operation_crash_fixture(
+            &mut db,
+            CoveredWriterFixtureV1::Buffered,
+            &input,
+            &first,
+        )
+        .expect("full capacity cannot evict exact replay");
+        assert!(replay.changes.is_empty());
+        assert_eq!(replay.output, first_commit.output);
+        drop(limits);
+
+        assert_eq!(
+            db.acknowledge_client_mutations(
+                &first.auth_fingerprint,
+                std::slice::from_ref(&first.id),
+            )
+            .expect("durable ACK reclaims full result"),
+            1
+        );
+        let expired = db
+            .client_mutation_result(&first)
+            .expect_err("ACKed covered result keeps a compact duplicate barrier");
+        assert_eq!(
+            expired.diagnostic.code,
+            "SNAPBACK_OPERATION_RESULT_EXPIRED"
+        );
+        assert_eq!(expired.diagnostic.details["outcome"], "committed");
+
+        let (audience, expires_at_ms): (String, u64) = db
+            .conn
+            .query_row(
+                "SELECT audience,expires_at_ms FROM _snapback_operation_ranges_v1
+                  WHERE epoch_id=?1 AND range_start=?2 AND range_end_exclusive=?3",
+                params![epoch_id, range_start as i64, range_end_exclusive as i64],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("range lifecycle facts");
+        let stream_id = crate::seed_identity::strict_current_data_version_stream(&db.conn)
+            .expect("operation stream lookup")
+            .expect("operation stream");
+        let first_operation = crate::commit_envelope::OperationIdentityV1::from_client_mutation(
+            stream_id,
+            audience.clone(),
+            first.operation_issuance.clone().expect("first issuance"),
+            &first,
+            crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+        );
+        let tx = db.conn.transaction().expect("retire identity epoch");
+        crate::operation_ledger::terminate_epoch_in(
+            &tx,
+            OperationOriginatorClassV1::Client,
+            &audience,
+            &epoch_id,
+            false,
+            expires_at_ms,
+        )
+        .expect("terminate client epoch");
+        assert!(
+            crate::operation_ledger::close_epoch_if_complete_in(
+                &tx,
+                OperationOriginatorClassV1::Client,
+                &audience,
+                &epoch_id,
+                expires_at_ms + 1,
+            )
+            .expect("close fully acknowledged epoch")
+        );
+        assert!(
+            crate::operation_ledger::prune_compact_envelope_in(&tx, &first_operation)
+                .expect("independent compact-envelope retention expiry")
+        );
+        tx.commit().expect("commit identity floor advancement");
+
+        for (label, identity) in [
+            ("previously-committed", &first),
+            ("delayed-first-delivery", &second),
+        ] {
+            let horizon = match execute_operation_crash_fixture(
+                &mut db,
+                CoveredWriterFixtureV1::Buffered,
+                &input,
+                identity,
+            ) {
+                Err(error) => error,
+                Ok(output) => panic!("{label} below-floor identity executed: {output:?}"),
+            };
+            assert_eq!(
+                horizon.diagnostic.code,
+                "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED",
+                "{label} must surface outcome-unknown"
+            );
+            assert_eq!(horizon.diagnostic.details["outcome"], "unknown");
+            assert_eq!(horizon.diagnostic.details["terminal"], false);
+        }
+        assert_eq!(
+            db.scan_table("items", 10, 0).expect("no below-floor write").total,
+            1
+        );
+    }
+
     #[test]
     fn llp0163_writer_lane_coverage_is_explicit_and_asymmetric() {
         use crate::commit_envelope::{OperationIssuanceV1, OperationCoverageManifestV1};
@@ -26766,6 +27362,145 @@ mod guarded_commit_tests {
         let empty = db.client_mutation_retention_info().unwrap();
         assert_eq!((empty.records, empty.bytes), (0, 0));
         assert!(db.client_mutation_result(&identities[2]).unwrap().is_none());
+    }
+
+    #[test]
+    fn covered_operator_purge_is_keyed_by_active_client_stream_not_operation_text() {
+        use crate::commit_envelope::{
+            OperationIdentityV1, OperationIssuanceV1, OperationOriginatorClassV1,
+            OperationSuppressionRecordV1,
+        };
+
+        let (_dir, _path, mut db, input, identity) =
+            operation_crash_fixture(CoveredWriterFixtureV1::Buffered);
+        execute_operation_crash_fixture(
+            &mut db,
+            CoveredWriterFixtureV1::Buffered,
+            &input,
+            &identity,
+        )
+        .expect("settle covered purge target");
+        let active_stream = crate::seed_identity::strict_current_data_version_stream(&db.conn)
+            .expect("active stream lookup")
+            .expect("active stream");
+        let (identity_json, record_json): (String, String) = db
+            .conn
+            .query_row(
+                "SELECT identity_json,record_json
+                   FROM _snapback_operation_suppression_v1
+                  WHERE stream_id=?1 AND originator_class='client' AND operation_id=?2",
+                params![active_stream, identity.id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("target suppression row");
+        let base_identity: OperationIdentityV1 =
+            serde_json::from_str(&identity_json).expect("decode target identity");
+        let base_record: OperationSuppressionRecordV1 =
+            serde_json::from_str(&record_json).expect("decode target suppression");
+
+        let insert_unrelated = |unrelated: OperationIdentityV1| {
+            let mut record = base_record.clone();
+            record.identity = unrelated.clone();
+            let (epoch_id, counter) = match &unrelated.issuance {
+                OperationIssuanceV1::ClientRange {
+                    epoch_id, counter, ..
+                } => (epoch_id.clone(), Some(*counter)),
+                OperationIssuanceV1::HostIncarnation { epoch_id, .. } => {
+                    (epoch_id.clone(), None)
+                }
+            };
+            db.conn
+                .execute(
+                    "INSERT INTO _snapback_operation_suppression_v1(
+                       stream_id,originator_class,operation_id,audience,epoch_id,
+                       epoch_sequence,counter,terminal_at_ms,acknowledged_at_ms,
+                       identity_json,record_json
+                     ) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,NULL,?9,?10)",
+                    params![
+                        unrelated.key.stream_id,
+                        match unrelated.key.originator_class {
+                            OperationOriginatorClassV1::Client => "client",
+                            OperationOriginatorClassV1::Host => "host",
+                        },
+                        unrelated.key.operation_id,
+                        unrelated.bound_facts.audience,
+                        epoch_id,
+                        1_i64,
+                        counter.map(|value| value as i64),
+                        record.terminal_at_ms as i64,
+                        serde_json::to_string(&unrelated).expect("encode unrelated identity"),
+                        serde_json::to_string(&record).expect("encode unrelated suppression"),
+                    ],
+                )
+                .expect("insert unrelated operation partition");
+        };
+
+        let mut retired_stream_client = base_identity.clone();
+        retired_stream_client.key.stream_id = "retired-stream-fixture".to_owned();
+        retired_stream_client.bound_facts.principal_fingerprint =
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                .to_owned();
+        insert_unrelated(retired_stream_client);
+
+        let mut host = base_identity;
+        host.key.originator_class = OperationOriginatorClassV1::Host;
+        host.bound_facts.audience = "host-audience-fixture".to_owned();
+        host.bound_facts.principal_fingerprint =
+            "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                .to_owned();
+        host.bound_facts.authority_instance_id = "host-authority-fixture".to_owned();
+        host.issuance = OperationIssuanceV1::HostIncarnation {
+            epoch_id: "host-epoch-fixture".to_owned(),
+            upstream_identity: "job:purge-collision".to_owned(),
+            commit_ordinal: 0,
+            authority_authenticator_digest:
+                "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                    .to_owned(),
+        };
+        insert_unrelated(host);
+
+        assert_eq!(
+            db.purge_client_mutation_settlements(Some(&identity.auth_fingerprint))
+                .expect("purge exact active client partition"),
+            1
+        );
+        let partitions = db
+            .conn
+            .prepare(
+                "SELECT stream_id,originator_class
+                   FROM _snapback_operation_suppression_v1
+                  WHERE operation_id=?1 ORDER BY stream_id,originator_class",
+            )
+            .expect("partition query")
+            .query_map(params![identity.id], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .expect("partition rows")
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .expect("collect partitions");
+        assert_eq!(
+            partitions,
+            vec![
+                (active_stream.clone(), "host".to_owned()),
+                ("retired-stream-fixture".to_owned(), "client".to_owned()),
+            ],
+            "same-text identities in unrelated partitions survive the purge"
+        );
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT operation_count FROM _snapback_operation_purges_v1",
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .expect("recorded purge count"),
+            1
+        );
+        let retry = db
+            .client_mutation_result(&identity)
+            .expect_err("purged exact partition keeps a result-expired tombstone");
+        assert_eq!(retry.diagnostic.code, "SNAPBACK_OPERATION_RESULT_EXPIRED");
+        assert_eq!(retry.diagnostic.details["outcome"], "committed");
     }
 
     struct CommitVisibilityGuard {

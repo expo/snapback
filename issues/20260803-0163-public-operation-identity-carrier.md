@@ -124,3 +124,31 @@ Still required before this ticket closes:
 - the genuinely paired, baseline-digest-bound active-lane row-13 performance
   record (including the still-unmeasured active byte and idle legs) and the
   required independent review/author acceptance.
+
+## Lifecycle-tail evidence — 2026-08-04
+
+- Both ordinary writer choke points pass file-backed crash/reopen cuts before
+  settlement, between settlement and envelope, and between envelope and COMMIT;
+  the reopened database contains none or the complete application/journal/
+  settlement/envelope/suppression/protected-detail set. Exact post-reopen retry
+  returns the original output with no changes.
+- An issuance-bearing retry whose predecessor replay row is absent now follows
+  suppression → tombstone/compact envelope → epoch floor. Protected exact
+  replay opens the digest-bound encrypted receipt while suppression JSON is
+  plaintext-free; ACK/purge returns `result-expired`; a closed-floor committed
+  retry and delayed first delivery both return outcome unknown before dispatch.
+- Retention-full preserves the unacknowledged replay result and rolls back the
+  next write. Operator purge is transactionally audited and scoped to the
+  active client stream/originator partition; same-text retired-stream client
+  and current-stream host identities with divergent principals survive.
+- The JS outbox never mark-fails a committed result whose payload expired and
+  never terminalizes an outcome-unknown horizon response. It retains the head,
+  stops ordered replay, blocks successors, and projects the known/unknown
+  operation outcome on the thrown error. Focused full outbox corpus is green.
+
+This is additional Partial evidence only. Production coverage remains dormant;
+the migration host adapter, recreated-branch end-to-end lifecycle corpus,
+complete target writer/bypass inventory, distinct durable result-gone outbox
+state, fixed-Air active/idle/retention performance artifact, independent
+review, and author acceptance remain required. LLP 0163 remains Draft and all
+related capabilities remain `Missing`.
