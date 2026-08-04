@@ -6270,10 +6270,11 @@ impl LocalSnapback {
             ));
         }
         let audience = self.loaded_app_id();
-        if audience.is_empty()
-            || self.loaded_schema_hash().is_none()
-            || self.loaded_bundle_hash().is_none()
-        {
+        let schema_hash = self.loaded_schema_hash().filter(|value| !value.trim().is_empty());
+        let function_bundle_hash = self
+            .loaded_bundle_hash()
+            .filter(|value| !value.trim().is_empty());
+        if audience.is_empty() || schema_hash.is_none() || function_bundle_hash.is_none() {
             return Err(SnapbackError::error(
                 "SNAPBACK_BRANCH_ARTIFACT_IDENTITY_MISSING",
                 "storage",
@@ -6307,6 +6308,11 @@ impl LocalSnapback {
             )),
             base_stream: self.db.current_data_version_stream()?,
             base_version: self.db.current_version()?,
+            artifact_binding: crate::fork_promotion::BranchArtifactBindingV1 {
+                schema_hash: schema_hash.expect("validated schema hash"),
+                function_bundle_hash: function_bundle_hash
+                    .expect("validated function bundle hash"),
+            },
             grant: crate::fork_promotion::BranchGrantV1 {
                 principal_id,
                 grant_id,
@@ -6394,27 +6400,14 @@ impl LocalSnapback {
         server_profile: ServerProfile,
     ) -> SnapbackResult<crate::fork_promotion::BranchOperationV1> {
         let receipt = self.db.inspect_managed_in_app_branch(branch_id, now_ms)?;
-        let definition = self.function_definition(function).cloned().ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_UNKNOWN_FUNCTION",
-                "runtime",
-                "managed branch execution names no served function",
-            )
-        })?;
-        if matches!(definition.kind, FunctionKind::Query | FunctionKind::LiveQuery) {
-            return Err(SnapbackError::error(
-                "SNAPBACK_BRANCH_OPERATION_KIND_UNSUPPORTED",
-                "storage",
-                "managed branch execution v1 accepts mutations and DenyAll-tested actions only",
-            ));
-        }
         let path = self.db.managed_in_app_branch_path(branch_id, now_ms)?;
+        let artifact_binding = json!({
+            "schemaHash": &receipt.branch.artifact_binding.schema_hash,
+            "functionBundleHash": &receipt.branch.artifact_binding.function_bundle_hash,
+        });
         let artifact_identity = crate::operation_ledger::digest_fact_set(
             b"managed-branch-artifact-v1",
-            &json!({
-                "schemaHash": self.loaded_schema_hash(),
-                "bundleHash": self.loaded_bundle_hash(),
-            }),
+            &artifact_binding,
         );
         let upstream_identity = format!("branch.execute.v1:{request_id}");
         let operation_id = crate::commit_envelope::derive_host_operation_id(&upstream_identity, 0);
@@ -6480,6 +6473,31 @@ impl LocalSnapback {
         );
         if let Some(retained) = branch.db.branch_operation_retry(branch_id, &draft)? {
             return Ok(retained);
+        }
+        let current_artifacts = crate::fork_promotion::BranchArtifactBindingV1 {
+            schema_hash: self.loaded_schema_hash().unwrap_or_default(),
+            function_bundle_hash: self.loaded_bundle_hash().unwrap_or_default(),
+        };
+        if current_artifacts != receipt.branch.artifact_binding {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_ARTIFACT_DRIFT",
+                "storage",
+                "managed branch execution refuses because the parent schema or function bundle changed after branch creation",
+            ));
+        }
+        let definition = self.function_definition(function).cloned().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_UNKNOWN_FUNCTION",
+                "runtime",
+                "managed branch execution names no served function",
+            )
+        })?;
+        if matches!(definition.kind, FunctionKind::Query | FunctionKind::LiveQuery) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_OPERATION_KIND_UNSUPPORTED",
+                "storage",
+                "managed branch execution v1 accepts mutations and DenyAll-tested actions only",
+            ));
         }
         let diagnostics = branch.load_functions(self.functions.clone());
         if let Some(diagnostic) = diagnostics
@@ -54306,7 +54324,7 @@ globalThis.__snapbackHandlers = {
         snapback
             .apply_schema(SchemaManifest {
                 app_id: "branch-carrier-app".to_owned(),
-                schema_hash: Some("branch-carrier-schema".to_owned()),
+                schema_hash: Some(format!("sha256:{}", "1".repeat(64))),
                 tables: vec![TableManifest {
                     name: "records".to_owned(),
                     fields: vec![
@@ -54449,7 +54467,7 @@ globalThis.__snapbackHandlers = {
         );
         let diagnostics = snapback.load_functions(FunctionManifest {
             app_id: "branch-carrier-app".to_owned(),
-            bundle_hash: Some("branch-carrier-functions".to_owned()),
+            bundle_hash: Some(format!("sha256:{}", "2".repeat(64))),
             functions: vec![
                 create_owned,
                 mutate_admin,
@@ -54501,6 +54519,13 @@ globalThis.__snapbackHandlers = {
         let receipt = snapback
             .create_operator_in_app_branch(vec!["createOwned".to_owned()], 100_000, 1_000)
             .expect("create managed branch");
+        assert_eq!(
+            receipt.branch.artifact_binding,
+            crate::fork_promotion::BranchArtifactBindingV1 {
+                schema_hash: format!("sha256:{}", "1".repeat(64)),
+                function_bundle_hash: format!("sha256:{}", "2".repeat(64)),
+            }
+        );
         let branch_id = receipt.branch.branch.branch_id.clone();
         let principal_id = receipt.branch.grant.principal_id.clone();
         let operation = snapback
@@ -54556,9 +54581,88 @@ globalThis.__snapbackHandlers = {
             operation.identity.key.operation_id
         );
 
+        let original_functions = snapback.functions.clone();
+        let mut drifted_functions = original_functions.clone();
+        drifted_functions.bundle_hash = Some(format!("sha256:{}", "3".repeat(64)));
+        drifted_functions.functions.clear();
+        assert!(snapback
+            .load_functions(drifted_functions)
+            .iter()
+            .all(|diagnostic| {
+                diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+            }));
+        assert_eq!(
+            snapback
+                .execute_operator_in_app_branch(
+                    &branch_id,
+                    "createOwned",
+                    json!({"value": "branch-owned"}),
+                    "branch-request-stable-1",
+                    1_005,
+                    ServerProfile::Test,
+                )
+                .expect("exact retry is recovered from the pinned branch after bundle drift"),
+            operation
+        );
+        assert_eq!(
+            snapback
+                .execute_operator_in_app_branch(
+                    &branch_id,
+                    "createOwned",
+                    json!({"value": "must-not-run-bundle-drift"}),
+                    "branch-request-bundle-drift",
+                    1_006,
+                    ServerProfile::Test,
+                )
+                .expect_err("novel request refuses parent bundle drift before handler bytes")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_ARTIFACT_DRIFT"
+        );
+
+        assert!(snapback
+            .load_functions(original_functions)
+            .iter()
+            .all(|diagnostic| {
+                diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+            }));
+        let mut drifted_schema = snapback.db.schema().clone();
+        drifted_schema.schema_hash = Some(format!("sha256:{}", "4".repeat(64)));
+        snapback
+            .apply_schema(drifted_schema)
+            .expect("reload the same schema with a distinct canonical identity");
+        assert_eq!(
+            snapback
+                .execute_operator_in_app_branch(
+                    &branch_id,
+                    "createOwned",
+                    json!({"value": "branch-owned-second"}),
+                    "branch-request-stable-2",
+                    1_007,
+                    ServerProfile::Test,
+                )
+                .expect("exact retry is recovered from the pinned branch after schema drift"),
+            second
+        );
+        assert_eq!(
+            snapback
+                .execute_operator_in_app_branch(
+                    &branch_id,
+                    "createOwned",
+                    json!({"value": "must-not-run-schema-drift"}),
+                    "branch-request-schema-drift",
+                    1_008,
+                    ServerProfile::Test,
+                )
+                .expect_err("novel request refuses parent schema drift before handler bytes")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_ARTIFACT_DRIFT"
+        );
+
         let branch_path = snapback
             .db
-            .managed_in_app_branch_path(&branch_id, 1_005)
+            .managed_in_app_branch_path(&branch_id, 1_009)
             .expect("resolve server-custodied branch path");
         let branch = LocalSnapback::open(branch_path).expect("open branch for assertions");
         let rows = branch.db.scan_table("records", 10, 0).unwrap();
@@ -54656,6 +54760,14 @@ globalThis.__snapbackHandlers = {
         assert_ne!(
             operation.approved_facts.effects[0]["intentId"],
             operation.approved_facts.effects[1]["intentId"]
+        );
+        assert!(
+            !snapback
+                .inspect_operator_in_app_branch(&branch_id, 1_002)
+                .expect("CaptureOnly receipt after durable intent capture")
+                .branch
+                .promotable,
+            "CaptureOnly remains truthful: captured effects are not promotable without provider custody"
         );
 
         let path = snapback
