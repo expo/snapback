@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: 67bcac6316606055130fc63bfc61f9351e0fcf91
+reviewed-commit: 4f6b1bc3d98c9b9e3d1a946ff7cbd648854ea1a6
 ---
 
 # Assets
