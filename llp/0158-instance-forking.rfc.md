@@ -289,10 +289,11 @@ deferral and missed that the deferral had already been answered:
 (Accepted 2026-07-25 after a five-round loop) *is* 0088's named revisit
 trigger, normatively amended LLP 0007/0018 (one canonical commit-version
 stream plus typed ephemeral child streams), and has its **substrate
-implemented but unwired**: branch registry/lifecycle, materialized branch
-base, COW overlay, the capture-don't-fire effect ledger, and staged
-promotion all landed as an in-crate library (`src/branches.rs`, the P0–P3
-program) — but no server, CLI, or client path consumes it yet
+implemented but product-unwired**: branch registry/lifecycle, materialized
+branch base, COW overlay, and the capture-don't-fire effect ledger landed in
+`src/branches.rs`; strict `DenyAll` replay promotion now lives in
+`src/fork_promotion.rs`, while `CaptureOnly` product mediation remains unbuilt.
+No server, CLI, or client path consumes the in-app branch surface yet
 (`src/server.rs` annotates its diagnostic code "Not yet wired into any
 request path"), and 0097's own claim boundary keeps the capability
 `Missing` until its acceptance corpus passes. The distinction the round-1
@@ -908,12 +909,12 @@ comes before the CLI verb, and no duration estimates until it exists):
   registry state; the deny corpus records one bounded payload-free row per
   family and refuses unknown future host operations. Local asset-bearing
   sources take option (a), `SNAPBACK_FORK_CUSTODY_REFUSED`, until F0b/F1 owns
-  a same-cut private-tree copy. F0a is complete; F0b remains the consumer
-  surface.
+  a same-cut private-tree copy. F0a is complete; F0b subsequently landed the
+  first consumer surface recorded below.
 - **F0b — the local fork verb:** `snapback fork create
   [--from <db|ready-file>] [--ttl 2h] [--with-secrets] [--app-root <dir>]`
   → copy (cold or live path), scrub-and-mint, registry row with TTL,
-  boot with all three worker switches + capture-mode egress, ready file
+  boot with all three worker switches + `DenyAll` egress, ready file
   out (LLP 0024 envelope); `fork list`, `fork diff` (the receipt),
   `fork drop`, TTL reaping; asset custody per the F0 decision
   (refuse or fork-private tree).
@@ -924,10 +925,14 @@ comes before the CLI verb, and no duration estimates until it exists):
   copy opt-in. The child runtime publishes an LLP 0024 `hostOpsResult` plus a
   ready file, disables cron/jobs/assets, and inherits the F0a `DenyAll` gate.
   Asset-bearing parents still refuse under OQ5 option (a). List/drop/reap use
-  UUID-bound advisory registry entries and exact one-child deletion; reaping
-  takes an injected clock. The app-row diff receipt is pinned to the fork
-  point and names its omissions. The automated managed-lifecycle test and the
-  dated fleet record at
+  UUID-bound advisory registry entries that must re-bind to the exact regular
+  direct-child destination, mint receipt, database lineage, and ready file
+  before read/signal/delete; an unverified possibly-live PID refuses. Reaping
+  takes a portable-range injected clock. The app-row diff pins floor/head/rows
+  in one read transaction and refuses if retention passed the fork point.
+  Copied history drops parent-only operation ids when their ledger is scrubbed.
+  The automated managed-lifecycle and executable CLI tests plus the dated fleet
+  record at
   `tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json` are green.
 - **F1 — agent ergonomics:** fork-per-worktree conventions, the diff
   receipt as a first-class review artifact, guide page + capability
@@ -1019,8 +1024,9 @@ structural argument that the capability is priced correctly.
   fork, and the completeness proof that no adapter initiates egress
   outside the closed set. Shared prerequisite with LLP 0097's own
   acceptance corpus.
-- **OQ3 — Fork-of-fork.** Allowed (it composes trivially — a fork is an
-  ordinary app) or restricted in v1 to keep the GC/registry story flat?
+- **OQ3 — Fork-of-fork. DECIDED for local v1 F0b 2026-08-03:** nested forks
+  refuse. Keeping the registry and GC graph flat is the honest first surface;
+  composition can be reconsidered with an explicit lineage/retention design.
 - **OQ4 — DO fork mechanics.** Can a new coordinator DO actually be
   instantiated from another DO's PITR bookmark, or is export/import the
   only real path? Needs a spike, not an assumption.
@@ -1030,9 +1036,9 @@ structural argument that the capability is priced correctly.
   shared store with its GC barrier remains F2. This is intentionally the
   cheapest honest posture: metadata is never published while its physical
   blob tree is absent.
-- **OQ6 — Where does `fork` live in the surface?** CLI verb, admin API,
-  app API (can handlers fork their own app — probably not in v1), and
-  what LLP 0024's envelope conventions require of it.
+- **OQ6 — Where does `fork` live in the surface? DECIDED for local v1 F0b
+  2026-08-03:** CLI-only. The source `snapback fork` verb emits the LLP 0024
+  host-operation/ready envelopes; no handler or public app API may fork.
 - **OQ7 — The promotion path.** Is fork-graduation (throwaway → real
   environment) in scope at all, or is v1 strictly disposable with
   promotion deferred until preview-environment demand is concrete?
@@ -1090,21 +1096,21 @@ structural argument that the capability is priced correctly.
 
 ## Status
 
-Draft, **experimental**. Authored 2026-08-03 from a brainstorming
-session; commits no implementation and takes no scheduling position
-against the accepted Wave-1 / local-sync program work. The cheapest
-validation step — a local-only `clonefile` fork of a demo app plus a
-journal-derived diff receipt, no runtime quarantine — was executed the
-same day; results and one corrected claim are in §Spike evidence. The
+Draft, **experimental**. Authored 2026-08-03 from a brainstorming session;
+F0a and F0b now implement the local safety substrate and CLI consumer with
+dated fleet dogfood, while F1 ergonomics and F2 hosted work remain open. This
+status records implementation progress but stays Draft until the author makes
+the LLP 0005 transition; it is not a capability advertisement. The earliest
+local-only `clonefile` validation and its corrected claim remain in §Spike
+evidence. The
 same-day 0097 reconciliation narrowed the claimed territory. A
 six-round dual-family super-refine loop ran the same day and
 **converged dual-READY at v0.11** (Fable READY rounds 2–4; Codex READY
 round 6 after a strictly shrinking defect set — 4 blockers + 6 majors in
 round 1 down to clean; two convergent cross-family findings; artifacts
 under `llp/reviews/0158-instance-forking.{claude,codex}.md`). Both
-families' shared closing guidance: the document is sound to *begin*
-F0a; OQ9 must be decided before F0 ships or the RFC completes
-graduation. Per LLP 0005, any status transition is the author's call —
+families' shared closing guidance authorized the now-landed F0a after OQ9's
+author decision. Per LLP 0005, any status transition is still the author's call —
 this document proposes, on that basis, moving to **Review** when the
 author is ready, and stays Draft until then.
 

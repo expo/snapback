@@ -22,6 +22,15 @@ contracts so they can version independently of the profile umbrella)
 **Related:** LLP 0037, LLP 0055, LLP 0066, LLP 0088, LLP 0097, LLP 0148,
 LLP 0158, LLP 0162, LLP 0163, LLP 0165
 
+**Implementation evidence:** 2026-08-03 (promotion now commits an independent
+LLP 0165 boundary proof and aggregate LLP 0163 provenance through an
+enumerated, journal-verified ordinary-mutation writer; exact durable ticket,
+sealed schema/request retry, and host-ticket lifecycle negatives are green.
+The aggregate envelope explicitly retains a coverage-manifest GAP, F0b is only
+the first derived-deployment consumer, and final integrated latency/bounds,
+p99 contention, and the residual corpus remain missing, so the Spec stays
+Draft and every capability stays `Missing`)
+
 ## Purpose
 
 This Spec owns the committed contracts and artifact schemas for the fork and
@@ -61,8 +70,8 @@ revision reconciles them.
   Runtime diff digests are inventory except at the promotion boundary.
 - **Promotion.** Strict CAS on base equality; staged re-execution over the
   replay-sufficient operation log (a named schema here); never post-images —
-  the landed `branches::promote` deviates from Accepted 0097 §5 and is
-  replaced or disabled (ticketed in 0097's lane). Promotion consumes a
+  the former `branches::promote` path deviated from Accepted 0097 §5 and is now
+  compile-disabled and replaced by the strict path. Promotion consumes a
   sealed `PromotionRequestV1` binding the reviewed child-stream head
   (branch-head CAS), the log/diff/manifest digests, the approver (a human
   or an agent principal holding an LLP 0055 scoped grant — decided at 0162's
@@ -105,12 +114,14 @@ p99 under contention); the
 derived-deployment legs of rows 5 and 7 gate the 0158-gated additive
 capability. No parallel corpus here.
 
-**Evidence note — 2026-08-03:** LLP 0158 F0a now proves fork-class identity
+**Evidence note — 2026-08-03:** LLP 0158 F0a proves fork-class identity
 separation, credential negatives, fail-closed unknown custody, crash-atomic
 publication, and bounded payload-free `DenyAll` markers for derived
-deployments. This unblocks the implementation dependency for the row-5 and
-row-7 derived legs; it does not close or advertise those legs before the F0b
-consumer surface exercises them end to end.
+deployments. F0b now exercises create/list/diff/drop/reap through a dated
+two-session, function-divergent Todo fleet dogfood, including finite TTL,
+default secret scrubbing, inert workers/assets, and deny-all egress. That closes
+the first consumer dependency for the derived-deployment legs of rows 5 and 7;
+it does not complete the in-app branch corpus or advertise either capability.
 
 ### Implementation record — 2026-08-03
 
@@ -124,18 +135,27 @@ This is intentionally a progress record, not a capability advertisement:
 
 | LLP 0162 row | Evidence in this slice | Status after this slice |
 | --- | --- | --- |
-| 5 — fork isolation | current-head base, canonical/sibling isolation, and immutable-base fixture | Partial — the product/runtime consumer surface and derived F0b leg are not closed |
+| 5 — fork isolation | current-head base, canonical/sibling isolation, immutable-base fixture, and F0b derived-deployment fleet dogfood | Partial — F0b closes the first derived consumer leg; a derived fixture with parent writes after fork, the in-app product/runtime surface, and the full class/credential corpus remain open |
 | 6 — effect quarantine | bounded payload-free `DenyAll` marker, crash/reopen persistence, promotion foreclosure | Partial — exhaustive host-egress-family mediation/bypass coverage and `CaptureOnly` are missing |
-| 7 — identity/authority | closed branch grant allowlists and promotion-time authority revalidation | Partial — product auth wiring, stale/revoked corpus breadth, later settlement, and derived F0b remain |
-| 8 — resources | principal/app counts, operation/byte/diff/TTL bounds and reap-without-canonical-change fixture | Partial — replay-floor/envelope-clock joint corpus remains |
-| 9 — exact diff | independent immutable-base/head comparison, attributed sequence, deterministic 32-seed add/update/delete/revert corpus | Partial — schema/system-field coverage and the complete journal-completeness corpus owned with LLP 0165 remain |
-| 10 — strict promotion | sealed head/log/diff/manifest/facts request; unchanged-base re-execution; changed-head refusal; receipt retry; rebase/re-seal divergence; FIFO/reservation mechanics; negative post-image-source guard | Partial — full concurrent-writer fairness/crash matrix, provisional effect chains, frozen production contention terms, and the LLP 0163/0165 integration seams remain |
-| 13 — applicable performance | `snapback-fork-promotion-bench` instruments release-mode absolute fork/diff/promotion/reap latency with the step-0 11-run median/MAD protocol | Missing — the quiescent dated run, author-ratified absolute bounds, and p99 contention evidence are not complete |
+| 7 — identity/authority | closed branch grant allowlists, promotion-time authority revalidation, and F0b scrub-and-mint/credential negatives | Partial — product auth wiring, stale/revoked corpus breadth, and later settlement remain |
+| 8 — resources | principal/app counts, operation/byte/diff/TTL bounds and reap-without-canonical-change fixture | Partial — the digest-work limit and replay-floor/envelope-clock joint corpus remain |
+| 9 — exact diff | independent immutable-base/head comparison, emitted attributed sequence, and deterministic 32-seed add/update/delete/revert folding corpus | Partial — the randomized corpus mutates the fixture directly rather than comparing a journal-derived net diff; a separate attributed-sequence oracle, schema/system-field coverage, and the complete journal-completeness corpus owned with LLP 0165 remain |
+| 10 — strict promotion | sealed head/log/diff/manifest/facts/schema request; unchanged-base read-only re-execution; exact durable ticket and retry binding; changed-head refusal; rebase/re-seal divergence; FIFO/reservation mechanics; forged-post-image and unjournaled-trigger refusal; aggregate envelope/source joins; independently derived expected-versus-staged-actual boundary comparison with mismatch rollback | Partial — the enumerated ordinary-mutation promotion seam is creditable, but its envelope honestly marks the active canonical coverage manifest as uncovered; global generated-writer/SQLite-authorizer coverage, the full concurrent-writer fairness/crash matrix, exhausted-budget fixture, identical-write/divergent-read-or-result re-seal negatives, provisional effect chains, and frozen production contention terms remain |
+| 13 — applicable performance | the historical dated release-mode absolute record follows the step-0 11-run median/MAD protocol for fork/diff/promotion/reap | Partial — the record predates the final promotion hardening and must be rerun against the integrated revision; author-ratified absolute bounds and p99 contention evidence are also incomplete |
 
 The runner refuses measurement while another Cargo/Rust compiler is active,
 retains every raw run, and writes the missing bound-ratification fact into its
-output artifact. The implementation machine was carrying other Wave-3 builds,
-so this landing does not mislabel a contaminated run as dated evidence.
+output artifact. The historical dated record is
+[`agent-safe-fork-promotion-absolute-2026-08-03`](../tests/acceptance/fixtures/agent-safe-storage/fork-promotion-performance.2026-08-03.v1.json),
+recorded on the step-0 Mac17,3 machine and identifying source revision
+`83d0e71901357733293f66a5b125991bbfd892f8`. Median/MAD latencies are
+171.250/0.625 µs for fork creation, 694.375/4.375 µs for exact diff,
+1,500.208/20.875 µs for promotion, and 27.625/0.166 µs for TTL reap. The
+artifact explicitly preserves the missing author-bound and claim-boundary
+facts; it does not measure p99 contention and predates the final ticket,
+coverage, schema-binding, and canonical-writer hardening. It remains preserved
+as historical instrumentation evidence; an integrated-revision rerun is a
+separate row-13 gate.
 `CaptureOnly`, exhaustive product egress mediation, and capability manifest
 publication are explicitly outside this slice.
 
@@ -146,7 +166,12 @@ publication are explicitly outside this slice.
    fairness-coupled: quota sufficiency is one of LLP 0162 §5's declared
    conditional-fairness terms, so its value bounds the progress claim, not
    just resource use.
-2. Divergence-surfacing receipt vocabulary (LLP 0162 OQ10 residue).
+2. *(Executed in LLP 0162.)* Divergence surfaces through the stable refusal
+   diagnostics and receipt fields already named by the accepted umbrella; no
+   separate OQ10 vocabulary decision remains open here.
 3. Fork-receipt enumerability ("list my live forks", LLP 0162 OQ12).
-4. Wiring order with LLP 0097's mediation prerequisite and LLP 0158 F0a
-   (LLP 0162 §Sequencing steps 3/5/6).
+4. Remaining wiring order is LLP 0097's exhaustive product mediation before
+   `CaptureOnly`; LLP 0158 F0a/F0b are landed dependencies, not blockers.
+5. The consolidated acceptance tail, including author bound ratification and
+   the residual corpus, is tracked in
+   [`issues/20260803-agent-safe-storage-acceptance-tail.md`](../issues/20260803-agent-safe-storage-acceptance-tail.md).

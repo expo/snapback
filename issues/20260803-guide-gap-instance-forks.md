@@ -24,5 +24,12 @@ inert workers, deny-all egress, asset refusal, and the diff receipt's omissions.
   that need realistic parent state; and
 - `node scripts/check-guide.mjs` passes.
 
+## Progress — 2026-08-03
+
+`guide/capabilities.md` now carries a target-`none`, non-advertising GAP row
+that points at the source substrate and dated fleet evidence without treating
+either as a publication witness. The operating page and fork-aware acceptance
+harness remain open, so this ticket stays open.
+
 This is LLP 0158 F1. It is intentionally not folded into F0b's implementation
 landing and does not authorize an early capability claim.

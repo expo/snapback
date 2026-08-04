@@ -171,6 +171,16 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
            manifest_json TEXT NOT NULL,
            coverage_digest TEXT NOT NULL,
            activated_at_ms INTEGER NOT NULL CHECK(activated_at_ms >= 0)
+         );
+         CREATE TABLE IF NOT EXISTS _snapback_host_identity_leases_v1 (
+           stream_id TEXT NOT NULL,
+           operation_id TEXT NOT NULL,
+           audience TEXT NOT NULL,
+           epoch_id TEXT NOT NULL,
+           identity_json TEXT NOT NULL,
+           expires_at_ms INTEGER NOT NULL CHECK(expires_at_ms >= 0),
+           completed_at_ms INTEGER,
+           PRIMARY KEY(stream_id, operation_id)
          );",
     )?;
     let has_successor: bool = tx.query_row(
@@ -610,6 +620,80 @@ pub fn authenticate_host_identity(
     authenticate_operation_identity(conn, identity).map(|_| ())
 }
 
+/// Retain an authenticated host-only admission identity while external work is
+/// still live. Promotion tickets use this lease so incarnation rotation cannot
+/// reclaim their epoch before the ticket completes or expires.
+pub(crate) fn register_host_identity_lease_in(
+    tx: &Transaction<'_>,
+    identity: &OperationIdentityV1,
+    expires_at_ms: u64,
+) -> SnapbackResult<()> {
+    authenticate_host_identity(tx, identity)?;
+    let identity_json = serde_json::to_string(identity)
+        .map_err(|_| invalid("host identity lease could not be encoded"))?;
+    let existing: Option<(String, i64)> = tx
+        .query_row(
+            "SELECT identity_json,expires_at_ms FROM _snapback_host_identity_leases_v1
+             WHERE stream_id=?1 AND operation_id=?2",
+            params![identity.key.stream_id, identity.key.operation_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    if let Some((stored_identity, stored_expiry)) = existing {
+        if stored_identity == identity_json
+            && stored_expiry == to_i64(expires_at_ms, "host lease expiry")?
+        {
+            return Ok(());
+        }
+        return Err(refused(
+            "SNAPBACK_HOST_OPERATION_IDENTITY_REUSED",
+            "host admission identity was reused with divergent lease facts",
+        ));
+    }
+    let (epoch_id, _, _) = issuance_parts(identity);
+    tx.execute(
+        "INSERT INTO _snapback_host_identity_leases_v1(
+           stream_id,operation_id,audience,epoch_id,identity_json,expires_at_ms
+         ) VALUES(?1,?2,?3,?4,?5,?6)",
+        params![
+            identity.key.stream_id,
+            identity.key.operation_id,
+            identity.bound_facts.audience,
+            epoch_id,
+            identity_json,
+            to_i64(expires_at_ms, "host lease expiry")?,
+        ],
+    )?;
+    Ok(())
+}
+
+pub(crate) fn complete_host_identity_lease_in(
+    tx: &Transaction<'_>,
+    identity: &OperationIdentityV1,
+    completed_at_ms: u64,
+) -> SnapbackResult<()> {
+    let identity_json = serde_json::to_string(identity)
+        .map_err(|_| invalid("host identity lease could not be encoded"))?;
+    let changed = tx.execute(
+        "UPDATE _snapback_host_identity_leases_v1 SET completed_at_ms=?3
+         WHERE stream_id=?1 AND operation_id=?2 AND identity_json=?4
+           AND completed_at_ms IS NULL",
+        params![
+            identity.key.stream_id,
+            identity.key.operation_id,
+            to_i64(completed_at_ms, "host lease completion")?,
+            identity_json,
+        ],
+    )?;
+    if changed != 1 {
+        return Err(refused(
+            "SNAPBACK_HOST_OPERATION_LEASE_INVALID",
+            "host identity lease is missing, divergent, or already completed",
+        ));
+    }
+    Ok(())
+}
+
 fn authenticate_operation_identity(
     conn: &Connection,
     identity: &OperationIdentityV1,
@@ -990,6 +1074,15 @@ pub fn close_epoch_if_complete_in(
             if !rotation_recorded {
                 false
             } else {
+                let live_host_lease: bool = tx.query_row(
+                    "SELECT EXISTS(
+                       SELECT 1 FROM _snapback_host_identity_leases_v1
+                       WHERE audience=?1 AND epoch_id=?2
+                         AND completed_at_ms IS NULL AND expires_at_ms > ?3
+                     )",
+                    params![audience, epoch_id, to_i64(now_ms, "host closure time")?],
+                    |row| row.get(0),
+                )?;
                 let young: bool = tx.query_row(
                     "SELECT EXISTS(
                        SELECT 1 FROM _snapback_operation_suppression_v1
@@ -1006,7 +1099,7 @@ pub fn close_epoch_if_complete_in(
                     ],
                     |row| row.get(0),
                 )?;
-                !young
+                !live_host_lease && !young
             }
         }
     };
@@ -1018,6 +1111,11 @@ pub fn close_epoch_if_complete_in(
         for identity in keys {
             acknowledge_and_reclaim_in(tx, &identity, now_ms)?;
         }
+        tx.execute(
+            "DELETE FROM _snapback_host_identity_leases_v1
+             WHERE audience=?1 AND epoch_id=?2",
+            params![audience, epoch_id],
+        )?;
     }
     tx.execute(
         "UPDATE _snapback_operation_epochs_v1 SET state='closed'
@@ -2048,6 +2146,16 @@ mod tests {
             "SNAPBACK_HOST_OPERATION_IDENTITY_INVALID"
         );
         record_operation_in(&tx, &envelope(host.clone(), 0, 0)).expect("host operation");
+        let mut live_ticket = host.clone();
+        live_ticket.key.operation_id = derive_host_operation_id("promotion:ticket-1", 0);
+        live_ticket.issuance = OperationIssuanceV1::HostIncarnation {
+            epoch_id: "host-epoch-1".to_owned(),
+            upstream_identity: "promotion:ticket-1".to_owned(),
+            commit_ordinal: 0,
+            authority_authenticator_digest: sha('e'),
+        };
+        register_host_identity_lease_in(&tx, &live_ticket, HOST_RECEIPT_WINDOW_MS_V1 + 100)
+            .expect("live promotion ticket lease");
         tx.commit().expect("commit host");
         assert_eq!(
             lookup_operation(&conn, &client).expect("client key"),
@@ -2123,6 +2231,18 @@ mod tests {
             .expect("host window remains")
         );
         assert!(
+            !close_epoch_if_complete_in(
+                &tx,
+                OperationOriginatorClassV1::Host,
+                "audience-1",
+                "host-epoch-1",
+                HOST_RECEIPT_WINDOW_MS_V1 + 11,
+            )
+            .expect("live ticket holds the rotated epoch open")
+        );
+        complete_host_identity_lease_in(&tx, &live_ticket, HOST_RECEIPT_WINDOW_MS_V1 + 11)
+            .expect("ticket completed");
+        assert!(
             close_epoch_if_complete_in(
                 &tx,
                 OperationOriginatorClassV1::Host,
@@ -2130,7 +2250,7 @@ mod tests {
                 "host-epoch-1",
                 HOST_RECEIPT_WINDOW_MS_V1 + 11,
             )
-            .expect("host window elapsed")
+            .expect("host window elapsed after ticket completion")
         );
         tx.commit().expect("host close");
     }

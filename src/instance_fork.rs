@@ -126,6 +126,10 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         name: "_snapback_operation_coverage_v1",
         disposition: CustodyDisposition::Scrub,
     },
+    CustodyRule {
+        name: "_snapback_host_identity_leases_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
     // In-app branch and promotion registries are canonical coordination state,
     // not application data. Derived deployments start without live tickets,
     // retained branch operations, or canonical promotion receipts.
@@ -2449,8 +2453,7 @@ mod tests {
         fs::create_dir(&root).unwrap();
         let destination = root.join("fork-a");
         let receipt =
-            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false)
-                .unwrap();
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false).unwrap();
         let registry = registry_path(&root, &receipt.lineage.fork_id);
         let original: ForkRegistryEntryV1 =
             serde_json::from_slice(&fs::read(&registry).unwrap()).unwrap();
@@ -2503,12 +2506,17 @@ mod tests {
         fs::create_dir(&root).unwrap();
         let destination = root.join("fork-a");
         let receipt =
-            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false)
-                .unwrap();
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false).unwrap();
         let registry = registry_path(&root, &receipt.lineage.fork_id);
         let mut entry: ForkRegistryEntryV1 =
             serde_json::from_slice(&fs::read(&registry).unwrap()).unwrap();
-        entry.ready_file = Some(directory.path().join("outside.ready.json").display().to_string());
+        entry.ready_file = Some(
+            directory
+                .path()
+                .join("outside.ready.json")
+                .display()
+                .to_string(),
+        );
         write_json_sync(&registry, &entry).unwrap();
         assert_eq!(
             managed_target(&root, &receipt.lineage.fork_id)
@@ -2552,9 +2560,11 @@ mod tests {
         assert_eq!(operation_id, None);
         assert_eq!(
             child
-                .query_row("SELECT COUNT(*) FROM _snapback_commit_envelopes_v1", [], |row| {
-                    row.get::<_, u64>(0)
-                })
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_commit_envelopes_v1",
+                    [],
+                    |row| { row.get::<_, u64>(0) }
+                )
                 .unwrap(),
             0
         );

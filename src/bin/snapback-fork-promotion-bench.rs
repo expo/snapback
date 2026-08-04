@@ -27,9 +27,9 @@ use snapback::fork_promotion::{
     BranchOperationV1, ForkCoverageV1, ForkEgressPolicyV1, InAppBranchCreateV1, LogicalWriteFactV1,
     PromotionApprovalV1, PromotionAuthorityDecisionV1, PromotionContentionPolicyV1,
     PromotionReplayContextV1, PromotionSealKey, ReplayCustodyClassV1, RetainedReplayInputV1,
-    SnapshotRowV1,
-    create_in_app_branch, exact_fork_diff, execute_branch_operation, issue_promotion_ticket,
-    promote_by_reexecution, reap_expired_in_app_branches, seal_promotion_request,
+    SnapshotRowV1, create_in_app_branch, exact_fork_diff, execute_branch_operation,
+    issue_promotion_ticket, promote_by_reexecution, reap_expired_in_app_branches,
+    seal_promotion_request,
 };
 
 const RECORDED_RUNS: usize = 11;
@@ -122,7 +122,7 @@ fn main() -> anyhow::Result<()> {
     }
     let artifact = Artifact {
         schema_version: "snapback.fork-promotion-performance.v1",
-        artifact_name: "agent-safe-fork-promotion-absolute-2026-08-03",
+        artifact_name: "agent-safe-fork-promotion-absolute-integrated-2026-08-03",
         date: "2026-08-03",
         source_revision: command(&["git", "rev-parse", "HEAD"]),
         hardware_class: Hardware {
@@ -213,6 +213,7 @@ fn run_once(seed: u64) -> anyhow::Result<Run> {
         },
         ticket,
         aggregate,
+        &sha('f'),
         &key,
         now + 3,
     )?;

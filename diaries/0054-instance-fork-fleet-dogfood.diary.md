@@ -20,8 +20,8 @@ version 1 while each fork advanced independently to version 2. `fork diff`
 then emitted one app-row post-image for each fork, with the fork point, observed
 head, table count, and explicit omissions. `fork drop` removed one exact
 directory. A post-fix lifecycle probe ran `fork reap --now-ms <expiresAtMs>`
-at the exact expiry boundary and removed the other exact directory and registry
-row.
+at the exact expiry boundary and removed a third dedicated probe fork's exact
+directory and registry row; session B had already been dropped explicitly.
 
 The dated facts are retained in
 `tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json`. The automated

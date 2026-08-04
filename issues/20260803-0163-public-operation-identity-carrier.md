@@ -28,8 +28,11 @@ Required closure:
   cannot mint the host namespace;
 - complete public/admin explanation transport and real current-policy
   evaluation, including protected custody for secret-bearing facts; and
-- run LLP 0162 Acceptance row 13's candidate comparison before changing any
-  related capability from `Missing`.
+- rerun LLP 0162 Acceptance row 13's comparable candidate protocol with the
+  public issuance-bearing covered lane active under a genuinely paired,
+  baseline-digest-bound protocol; the clean 2026-08-03 binary observations
+  were within threshold but used ordinal-zipped historical samples and did not
+  activate that lane.
 
 Until all relevant corpus rows pass for a named target, capability manifests
 must remain `Missing` and must not advertise envelope coverage.

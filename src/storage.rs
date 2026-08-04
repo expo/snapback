@@ -17803,16 +17803,7 @@ pub(crate) fn record_promotion_change(
     now_ms: u64,
     operation_id: &str,
 ) -> SnapbackResult<()> {
-    record_change_with_operation_id(
-        tx,
-        version,
-        table,
-        id,
-        op,
-        row,
-        now_ms,
-        Some(operation_id),
-    )
+    record_change_with_operation_id(tx, version, table, id, op, row, now_ms, Some(operation_id))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -17873,10 +17864,7 @@ fn set_version(tx: &Transaction<'_>, version: u64) -> SnapbackResult<()> {
     Ok(())
 }
 
-pub(crate) fn set_promotion_version(
-    tx: &Transaction<'_>,
-    version: u64,
-) -> SnapbackResult<()> {
+pub(crate) fn set_promotion_version(tx: &Transaction<'_>, version: u64) -> SnapbackResult<()> {
     set_version(tx, version)
 }
 
@@ -18900,7 +18888,10 @@ fn record_covered_client_mutation_envelope_in(
         "UPDATE _snapback_record_history_v1
             SET operation_id = ?1
           WHERE version = ?2 AND operation_id IS NULL",
-        params![history_operation_id, version_to_sql_integer(output.version)?],
+        params![
+            history_operation_id,
+            version_to_sql_integer(output.version)?
+        ],
     )?;
     Ok(())
 }

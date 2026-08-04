@@ -395,6 +395,10 @@
       "minimum": 0,
       "type": "integer"
     },
+    "schemaHash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
     "schemaVersion": {
       "format": "uint32",
       "maximum": 1,
@@ -417,6 +421,7 @@
     "diffDigest",
     "manifestDigest",
     "approvedFactsDigest",
+    "schemaHash",
     "approval",
     "admissionTicket",
     "aggregateIdentity",

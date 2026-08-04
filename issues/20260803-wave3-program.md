@@ -45,12 +45,14 @@ release needed.
 
 ## Track B — agent-safe storage
 
-1. **0158 F0a — safety substrate landed 2026-08-03.** The four
+1. **0158 F0a + F0b — safety substrate and first consumer landed 2026-08-03.** The four
    implementation tickets are closed with the custody/fidelity,
    scrub-and-mint, publication crash matrix, and deny-all corpus green.
    This removes the F0a dependency for 0160's G7/G7′ and 0164's
-   derived-deployment legs. The fleet-dogfood first consumer stays open on
-   F0b's verb and remains the acceptance/graduation gate.
+   derived-deployment legs. F0b adds create/list/diff/drop/reap, finite TTL,
+   default secret scrubbing, and dated two-session Todo fleet dogfood. The F1
+   operating-guide/acceptance-harness follow-up remains separately tracked;
+   F0b makes no capability claim.
 2. **Gates recorded 2026-08-03.** The step-0 dated performance baseline is
    `tests/acceptance/fixtures/agent-safe-storage/performance-baseline.2026-08-03.v1.json`;
    the OQ13 spike and dated record are
@@ -58,15 +60,30 @@ release needed.
    `tests/acceptance/fixtures/agent-safe-storage/oq13-snapshot-pinning.2026-08-03.v1.json`.
    OQ13 narrows LLP 0165 to budgeted pin or stable refusal; neither artifact
    by itself passes Acceptance 13 or advertises a capability.
-3. **0163 → 0164 → 0165** implementation in 0162's dependency order
-   (**0163 initial substrate landed; 0164 first core in-app slice landed:**
-   immutable base/head isolation, replay-only strict promotion, generated
-   artifacts, focused corpus, and dated absolute-latency instrumentation;
-   the per-row gaps recorded in LLP 0164 remain unpassed),
-   against 0162's single acceptance corpus (rows split per Spec).
+3. **0163 → 0164 → 0165 implementation slices landed in dependency order.**
+   The integrated branch has durable operation envelopes/suppression/range
+   lifecycle and ordinary history joins; immutable base/head isolation,
+   replay-only strict promotion and aggregate provenance; domain-separated
+   promotion/checkpoint proofs, budgeted named checkpoints, bounded history,
+   generated artifacts, and focused corpus. Promotion now consumes LLP 0165's
+   independent expected/actual proof and rolls back on mismatch.
    `issues/closed/20260803-branches-promote-postimage-deviation.md` closed with
-   0164's replacement/disable correction. Capabilities stay `Missing` until corpus rows pass — no early
-   claims.
+   0164's replacement/disable correction.
+4. **Dated performance evidence recorded 2026-08-03.** The clean comparable
+   candidate observations are within their read/write/idle thresholds on the
+   exact step-0 machine, but the runner ordinal-zips historical and candidate
+   runs instead of producing experimental pairs. A post-run audit adds the
+   committed baseline digest, but cannot retroactively make those observations
+   measurement-time-bound experimental pairs. The fork/diff/promotion/reap
+   absolute run records median/MAD but predates the final promotion hardening,
+   so an integrated-revision rerun joins the still-missing author-ratified
+   bounds and p99 contention evidence. The public covered
+   lane was not activated, so Acceptance 13 is Partial, not passed.
+5. **Honest tail.** The remaining row-by-row corpus, production/public wiring,
+   author decisions, and extracted-Spec review/acceptance gates are recorded in
+   `issues/20260803-agent-safe-storage-acceptance-tail.md`. Specs 0163-0165 stay
+   Draft and capabilities stay `Missing` until the corpus rows pass — no early
+   claims or inferred acceptance.
 
 ## Track C — experience and cadence
 

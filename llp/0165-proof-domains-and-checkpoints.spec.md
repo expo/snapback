@@ -10,9 +10,10 @@ checkpoint digest headers, normalized approved promotion writes, independent
 expected-state derivation, generated schemas and golden vectors, finite
 history policy/storage, budgeted materialized and receipt-only checkpoints,
 the imported publication crash matrix, and registry-authoritative erasure are
-implemented; integration with LLP 0163's operation provenance and LLP 0164's
-promotion caller plus the remaining Acceptance/performance corpus still gate
-any capability claim); 2026-08-03 (OQ13 executed — the reproducible SQLite spike proves
+implemented; LLP 0163 operation-provenance joins and the LLP 0164 promotion
+caller are integrated, while the global write-authority seam and remaining
+Acceptance/performance corpus still gate any capability claim); 2026-08-03
+(OQ13 executed — the reproducible SQLite spike proves
 one held source read transaction can feed both backup and independent scan
 while writers progress, but retained WAL grows with concurrent write volume;
 the contract is narrowed to budgeted pin or stable refusal); 2026-08-03
@@ -22,6 +23,13 @@ LLP 0162 §4 names as a prerequisite for the core tier's boundary-proof
 component)
 **Related:** LLP 0035, LLP 0037, LLP 0053, LLP 0081, LLP 0088, LLP 0158,
 LLP 0162, LLP 0163, LLP 0164
+
+**Implementation evidence:** 2026-08-03 (LLP 0164 promotion now consumes the
+domain-separated expected/actual proof and rolls back on mismatch, while
+issuance-bearing ordinary history rows join LLP 0163 operation identity in the
+same transaction; schema-declared history, the full write-authority choke
+point, remaining boundary integrations, and performance corpus still gate any
+claim, so the Spec stays Draft and every capability stays `Missing`)
 
 ## Purpose
 
@@ -128,6 +136,11 @@ the registry, removes the sentinel, and fsyncs the published directory.
 Ordinary refusal reconciles its intent immediately; the test-only crash cuts
 retain evidence for recovery. The eight intra-state cuts recover to either an
 `aborted` absent checkpoint or a complete registry-authorized published one.
+Post-rename recovery requires byte-identical registry and on-disk private
+intents bound to operation/owner/location/source/schema/coverage/lease/budgets,
+reopens and independently rescans the exact regular copied database, and fsyncs
+the destination parent before marking the registry `published`. Empty schema
+identity and missing/forged/symlinked recovery evidence refuse stably.
 Receipt-only checkpoints retain no path and remain inventory in this
 implementation. Materialized equality is labelled only
 `verifiedCopyFidelity`.
@@ -151,6 +164,29 @@ through `_snapback_history_policies_v1`; projecting that policy from a
 per-table schema declaration remains part of the row-11 integration gap and
 prevents a history capability claim at this checkpoint.
 
+### Promotion and operation-provenance integration — 2026-08-03
+
+Strict promotion now constructs the LLP 0165 promotion header from the sealed
+request, independently derives expected rows from the immutable base plus the
+canonical approved final-write set, and scans the staged transaction for the
+actual rows. Publication requires an `independentBoundaryProof` match; the
+negative fixture perturbs the staged state and proves that proof mismatch rolls
+back before canonical publication. `PromotionReceiptV1` carries the proof, and
+the aggregate LLP 0163 envelope plus per-source write-fact joins commit in that
+same transaction. The product-owned ordinary-mutation writer records and then
+verifies the exact canonical change/history journal; trigger side paths and
+unsupported physical table shapes refuse before replay. The envelope still
+declares `promotionCoverageManifest` uncovered until the global active
+write-path manifest/authorizer seam is integrated, so the boundary proof cannot
+be mistaken for whole-target coverage.
+
+For issuance-bearing ordinary mutations with an active finite history policy,
+the HostPlan/Buffered transaction fills retained history rows with the owning
+operation identity before commit. This supplies the operation-provenance join
+for covered history rows without changing uncovered writes into covered ones.
+Neither integration establishes the still-missing global generated write
+facade plus SQLite-authorizer completeness seam.
+
 ## Acceptance
 
 LLP 0162 Acceptance row 12, row 11's checkpoint half, row 4's
@@ -169,8 +205,9 @@ step 0 (the performance baseline). No parallel corpus here.
    golden vectors are recorded above and generated from the Rust implementation.
 3. LLP 0163 composition details of the write-authority choke point — both
    controls (the generated transaction API with lane-writer token AND the
-   SQLite authorizer) are decided by LLP 0162 §4; open here are only the
-   generated-facade surface and the migration path for existing direct-SQL
+   SQLite authorizer) are decided by LLP 0162 §4. Promotion proof and ordinary
+   history-operation joins are integrated; open here are the generated-facade
+   surface, authorizer enforcement, and migration path for existing direct-SQL
    write sites.
 
 ## Dated OQ13 spike record — 2026-08-03

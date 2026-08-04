@@ -70,6 +70,8 @@ fn install_checkpoint_sync_hook(hook: impl FnOnce(&Path) -> SnapbackResult<()> +
 }
 
 fn run_checkpoint_sync_hook(path: &Path) -> SnapbackResult<()> {
+    #[cfg(not(test))]
+    let _ = path;
     #[cfg(test)]
     CHECKPOINT_SYNC_HOOK.with(|slot| -> SnapbackResult<()> {
         if let Some(hook) = slot.borrow_mut().take() {

@@ -2086,9 +2086,8 @@ fn verify_fork_ready_database(
         .as_deref()
         .map(Path::new)
         .context("SNAPBACK_FORK_READY_INVALID: fork descriptor has no database path")?;
-    let declared = std::fs::canonicalize(declared).context(
-        "SNAPBACK_FORK_READY_INVALID: fork descriptor database path cannot be resolved",
-    )?;
+    let declared = std::fs::canonicalize(declared)
+        .context("SNAPBACK_FORK_READY_INVALID: fork descriptor database path cannot be resolved")?;
     anyhow::ensure!(
         declared == expected_database,
         "SNAPBACK_FORK_READY_INVALID: fork descriptor names a different database"
@@ -2296,9 +2295,7 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
                 &fetch_health(&descriptor.server_url),
                 "fork.create",
             )
-            .map_err(|diagnostic| {
-                anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message)
-            })?;
+            .map_err(|diagnostic| anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message))?;
             let declared_admin = descriptor
                 .admin_token_file
                 .as_deref()
@@ -2401,7 +2398,8 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
             let app_root = std::fs::canonicalize(app_root)?;
             let root = fork_root(&app_root, requested_root)?;
             let target = crate::instance_fork::managed_target(&root, &fork_id)?;
-            let receipt = startup_blocking(|| crate::instance_fork::diff_receipt(&target.database))?;
+            let receipt =
+                startup_blocking(|| crate::instance_fork::diff_receipt(&target.database))?;
             if let Some(path) = out.as_ref() {
                 std::fs::write(path, serde_json::to_vec_pretty(&receipt)?)?;
             }
@@ -2454,10 +2452,7 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
             let expired = crate::instance_fork::expired_managed(&root, now_ms)?;
             let mut reaped = Vec::new();
             for entry in expired {
-                let target = crate::instance_fork::managed_target(
-                    &root,
-                    &entry.lineage.fork_id,
-                )?;
+                let target = crate::instance_fork::managed_target(&root, &entry.lineage.fork_id)?;
                 if let Some(ready) = target.ready_file.as_deref() {
                     let _ = quiet_stop_fork(ready, &target.database)?;
                 }
@@ -6115,12 +6110,12 @@ mod tests {
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
         BEFORE_STARTUP_TARGET_RESERVATION, Cli, ErrorsCommand, ForkCommand, HostCommand,
         ManagedPath, ReadyFileTarget, ResolvedHttpTarget, TargetArgs, TelemetryCommand,
-        bind_first_available, bind_listener, console_fragment_url, managed_startup_paths,
-        fork_secret_disposition, mint_secret_read_via_http, parse_fork_ttl, parse_run_args,
+        bind_first_available, bind_listener, console_fragment_url, fork_secret_disposition,
+        managed_startup_paths, mint_secret_read_via_http, parse_fork_ttl, parse_run_args,
         path_with_filename_suffix, prepare_database_path, prepare_database_path_for_startup,
         quiet_stop_fork, reject_misdirected_serve_flags, resolve_http_target,
-        runtime_auth_program_readiness, validate_path_disjointness, validated_secret_read_root_path,
-        write_ready_file_atomic,
+        runtime_auth_program_readiness, validate_path_disjointness,
+        validated_secret_read_root_path, write_ready_file_atomic,
         write_ready_file_atomic_protected,
     };
     use crate::instance_lock::TargetInstanceReservation;
@@ -6203,11 +6198,8 @@ mod tests {
             mode: "file".to_owned(),
             path: Some(database.display().to_string()),
         };
-        crate::secure_file::write_owner_only(
-            &ready,
-            &serde_json::to_vec(&descriptor).unwrap(),
-        )
-        .unwrap();
+        crate::secure_file::write_owner_only(&ready, &serde_json::to_vec(&descriptor).unwrap())
+            .unwrap();
         let error = quiet_stop_fork(&ready, &database).unwrap_err();
         assert!(error.to_string().contains("SNAPBACK_FORK_STOP_UNVERIFIED"));
         assert!(ready.is_file());

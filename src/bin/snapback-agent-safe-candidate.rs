@@ -1,8 +1,9 @@
 //! Dated profile-bearing comparison for LLP 0162 Acceptance 13.
 //!
 //! @ref LLP 0162#measurement-gate — compare eleven fresh-fixture candidate
-//! runs with the registered step-0 baseline using paired ratios and a
-//! deterministic 90% bootstrap interval.
+//! runs with the registered step-0 baseline. The current historical baseline
+//! cannot form experimental pairs, so the runner retains ordinal-zipped ratios
+//! and a deterministic 90% bootstrap only as explicitly unqualified evidence.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -12,6 +13,7 @@ use std::time::Duration;
 use anyhow::Context;
 use serde::Serialize;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use snapback::bench::{BenchConfig, BenchReport, IdleObservation, measure_idle, run};
 
 const RECORDED_RUNS: usize = 11;
@@ -28,6 +30,7 @@ struct Artifact {
     artifact_name: &'static str,
     date: &'static str,
     baseline_artifact_name: String,
+    baseline_artifact_sha256: String,
     source: Source,
     hardware_class: HardwareClass,
     protocol: Protocol,
@@ -126,6 +129,7 @@ struct IdleGates {
 #[serde(rename_all = "camelCase")]
 struct Verdict {
     passed: bool,
+    protocol_qualified: bool,
     failed_metrics: Vec<String>,
     note: &'static str,
 }
@@ -151,10 +155,10 @@ fn main() -> anyhow::Result<()> {
     );
     let (baseline_path, output_path) = arguments()?;
     ensure_machine_quiescent()?;
-    let baseline: Value = serde_json::from_slice(
-        &std::fs::read(&baseline_path)
-            .with_context(|| format!("read baseline {}", baseline_path.display()))?,
-    )?;
+    let baseline_bytes = std::fs::read(&baseline_path)
+        .with_context(|| format!("read baseline {}", baseline_path.display()))?;
+    let baseline_sha256 = format!("{:x}", Sha256::digest(&baseline_bytes));
+    let baseline: Value = serde_json::from_slice(&baseline_bytes)?;
     validate_baseline(&baseline)?;
     let hardware = hardware_class();
     validate_hardware(&baseline, &hardware)?;
@@ -190,6 +194,11 @@ fn main() -> anyhow::Result<()> {
     if !idle_gates.disk_passed {
         failed_metrics.push("idleDisk".to_owned());
     }
+    // The step-0 artifact predates the candidate, so equal ordinals are not
+    // experimental pairs. Preserve the arithmetic as exploratory evidence,
+    // but refuse a qualified LLP 0162 row-13 verdict until a driver records
+    // matched/interleaved baseline and candidate observations.
+    failed_metrics.push("experimentalPairing".to_owned());
 
     let artifact = Artifact {
         schema_version: "snapback.agent-safe-candidate.v1",
@@ -199,6 +208,7 @@ fn main() -> anyhow::Result<()> {
             .as_str()
             .unwrap_or("unknown")
             .to_owned(),
+        baseline_artifact_sha256: baseline_sha256,
         source: Source {
             revision: option_env!("SNAPBACK_BUILD_GIT_COMMIT")
                 .unwrap_or("unknown")
@@ -217,7 +227,7 @@ fn main() -> anyhow::Result<()> {
             per_metric_warmups: 4,
             idle_recorded_runs: IDLE_RECORDED_RUNS,
             idle_sample_seconds: IDLE_SAMPLE_SECONDS,
-            paired_estimator: "median of the 11 paired per-run regression percentages",
+            paired_estimator: "median of 11 ordinal-zipped historical/candidate regression percentages (exploratory only; not experimental pairs)",
             bootstrap_samples: BOOTSTRAP_SAMPLES,
             bootstrap_seed: "snapback-agent-safe-candidate-v1/2026-08-03",
             confidence_interval_percent: 90,
@@ -232,11 +242,12 @@ fn main() -> anyhow::Result<()> {
         paired_comparisons,
         idle_gates,
         verdict: Verdict {
-            passed: failed_metrics.is_empty(),
+            passed: false,
+            protocol_qualified: false,
             failed_metrics,
-            note: "This verdict covers LLP 0162's registered comparable metrics only; novel-operation absolute bounds and every correctness corpus remain independent gates.",
+            note: "The arithmetic thresholds are exploratory only: historical and candidate observations were not experimentally paired. A digest-bound matched/interleaved run, novel-operation bounds, and every correctness corpus remain independent gates.",
         },
-        claim_boundary: "dated performance evidence only; it neither accepts LLP 0163-0165 nor advertises a capability",
+        claim_boundary: "unqualified exploratory evidence only; it is not an LLP 0162 Acceptance 13 pass, does not accept LLP 0163-0165, and advertises no capability",
     };
     let mut json = serde_json::to_string_pretty(&artifact)?;
     json.push('\n');

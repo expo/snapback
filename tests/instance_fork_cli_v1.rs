@@ -230,10 +230,7 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
     std::fs::create_dir(&empty_app).expect("empty app root");
     let expiring = fork_create(&source, &empty_app, &fork_root, "1s", true);
     cleanup.track(fork_id(&expiring));
-    assert_eq!(
-        expiring["data"]["secrets"],
-        "copy-requested-source-absent"
-    );
+    assert_eq!(expiring["data"]["secrets"], "copy-requested-source-absent");
     let expiring_destination = data_path(&expiring, "database")
         .parent()
         .expect("expiring database parent")

@@ -41,6 +41,8 @@ use crate::proof_checkpoint::{
 };
 
 const SHA256_PATTERN: &str = "^sha256:[0-9a-f]{64}$";
+const PROMOTION_WRITER_LANE_V1: &str = "ordinaryMutation";
+const PROMOTION_COVERAGE_GAP_V1: &str = "promotionCoverageManifest";
 
 fn error(code: &'static str, message: impl Into<String>) -> SnapbackError {
     SnapbackError::new(Diagnostic::error(code, "storage", message))
@@ -604,6 +606,12 @@ where
     let tx = conn.transaction()?;
     let child_version = allocate_child_version(&tx, branch_id)?;
     let approved_facts = execute(&tx, draft)?;
+    if approved_facts.coverage.clone().normalized() != profile.coverage.clone().normalized() {
+        return Err(error(
+            "SNAPBACK_PROMOTION_WRITE_COVERAGE_INCOMPLETE",
+            "operation coverage facts must exactly match the branch coverage manifest",
+        ));
+    }
     if approved_facts.coverage.covered_lanes.iter().any(|lane| {
         !profile
             .grant
@@ -1050,6 +1058,8 @@ pub struct PromotionRequestV1 {
     pub manifest_digest: String,
     #[schemars(pattern(SHA256_PATTERN))]
     pub approved_facts_digest: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub schema_hash: String,
     pub approval: PromotionApprovalV1,
     pub admission_ticket: PromotionAdmissionTicketV1,
     pub aggregate_identity: OperationIdentityV1,
@@ -1068,6 +1078,19 @@ fn promotion_request_seal(
         &key.0,
         &json_bytes(&body, "promotion request")?,
     ))
+}
+
+fn promotion_request_digest(request: &PromotionRequestV1) -> SnapbackResult<String> {
+    digest_json(b"committed-promotion-request", request)
+}
+
+fn is_sha256_digest(value: &str) -> bool {
+    value.strip_prefix("sha256:").is_some_and(|digest| {
+        digest.len() == 64
+            && digest
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    })
 }
 
 fn operation_log_digest(operations: &[BranchOperationV1]) -> SnapbackResult<String> {
@@ -1101,6 +1124,7 @@ pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
             ticket_id          TEXT PRIMARY KEY,
             aggregate_identity_json BLOB NOT NULL,
             approved_facts_digest TEXT NOT NULL,
+            request_digest     TEXT NOT NULL,
             receipt_json       BLOB NOT NULL
          );
          CREATE TABLE IF NOT EXISTS _snapback_promotion_source_joins (
@@ -1115,6 +1139,18 @@ pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
             envelope_json      BLOB NOT NULL
          );",
     )?;
+    let has_request_digest: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('_snapback_promotion_receipts')
+          WHERE name = 'request_digest'",
+        [],
+        |row| row.get(0),
+    )?;
+    if has_request_digest == 0 {
+        conn.execute(
+            "ALTER TABLE _snapback_promotion_receipts ADD COLUMN request_digest TEXT",
+            [],
+        )?;
+    }
     Ok(())
 }
 
@@ -1155,12 +1191,28 @@ pub fn issue_promotion_ticket(
         if stored.ticket_identity != ticket_identity
             || stored.branch_id != *branch_id
             || stored.canonical_stream_id != canonical_stream_id
+            || stored.observed_concurrent_forks != observed_concurrent_forks
+            || stored.expires_at_ms != expires_at_ms
+            || stored.contention_policy != contention_policy
         {
             return Err(error(
                 "SNAPBACK_PROMOTION_TICKET_IDENTITY_REUSED",
                 "promotion ticket identity collides with divergent durable admission facts",
             ));
         }
+        let lease_expiry = u64::try_from(stored.expires_at_ms).map_err(|_| {
+            error(
+                "SNAPBACK_PROMOTION_TICKET_TTL_INSUFFICIENT",
+                "promotion ticket expiry must be a non-negative durable timestamp",
+            )
+        })?;
+        let tx = canonical.transaction()?;
+        crate::operation_ledger::register_host_identity_lease_in(
+            &tx,
+            &stored.ticket_identity,
+            lease_expiry,
+        )?;
+        tx.commit()?;
         return Ok(stored);
     }
     let tx = canonical.transaction()?;
@@ -1201,6 +1253,17 @@ pub fn issue_promotion_ticket(
         expires_at_ms,
         contention_policy,
     };
+    let lease_expiry = u64::try_from(ticket.expires_at_ms).map_err(|_| {
+        error(
+            "SNAPBACK_PROMOTION_TICKET_TTL_INSUFFICIENT",
+            "promotion ticket expiry must be a non-negative durable timestamp",
+        )
+    })?;
+    crate::operation_ledger::register_host_identity_lease_in(
+        &tx,
+        &ticket.ticket_identity,
+        lease_expiry,
+    )?;
     let bytes = json_bytes(&ticket, "promotion ticket")?;
     tx.execute(
         "INSERT INTO _snapback_promotion_admission
@@ -1218,15 +1281,49 @@ pub fn issue_promotion_ticket(
     Ok(ticket)
 }
 
+fn require_exact_durable_ticket(
+    canonical: &Connection,
+    supplied: &PromotionAdmissionTicketV1,
+) -> SnapbackResult<()> {
+    let stored: Option<Vec<u8>> = canonical
+        .query_row(
+            "SELECT ticket_json FROM _snapback_promotion_admission WHERE ticket_id = ?1",
+            params![supplied.ticket_identity.key.operation_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let Some(stored) = stored else {
+        return Err(error(
+            "SNAPBACK_PROMOTION_TICKET_MISMATCH",
+            "promotion ticket has no durable admission authority",
+        ));
+    };
+    let stored: PromotionAdmissionTicketV1 = decode_json(&stored, "promotion ticket")?;
+    if stored != *supplied {
+        return Err(error(
+            "SNAPBACK_PROMOTION_TICKET_MISMATCH",
+            "caller-supplied promotion ticket diverges from durable admission authority",
+        ));
+    }
+    Ok(())
+}
+
 pub fn seal_promotion_request(
     workspace: &MaterializedBase,
     diff: &ForkDiffReceiptV1,
     approval: PromotionApprovalV1,
     admission_ticket: PromotionAdmissionTicketV1,
     aggregate_identity: OperationIdentityV1,
+    schema_hash: &str,
     key: &PromotionSealKey,
     now_ms: i64,
 ) -> SnapbackResult<PromotionRequestV1> {
+    if !is_sha256_digest(schema_hash) {
+        return Err(error(
+            "SNAPBACK_PROMOTION_SCHEMA_IDENTITY_MISSING",
+            "promotion requests require a canonical sha256 schema identity",
+        ));
+    }
     let (_, receipt) = branch_profile(&workspace.conn, &diff.branch_id)?;
     if receipt.egress_policy != ForkEgressPolicyV1::DenyAll
         || receipt.deny_all_attempt_count != 0
@@ -1280,6 +1377,7 @@ pub fn seal_promotion_request(
         diff_digest: diff.diff_digest.clone(),
         manifest_digest: diff.coverage.digest()?,
         approved_facts_digest: approved_facts_digest(&operations)?,
+        schema_hash: schema_hash.to_owned(),
         approval,
         admission_ticket,
         aggregate_identity,
@@ -1295,6 +1393,7 @@ pub fn reseal_after_rebase(
     rebased_workspace: &MaterializedBase,
     rebased_diff: &ForkDiffReceiptV1,
     engine_identity: impl Into<String>,
+    schema_hash: &str,
     key: &PromotionSealKey,
     now_ms: i64,
 ) -> SnapbackResult<PromotionRequestV1> {
@@ -1302,6 +1401,12 @@ pub fn reseal_after_rebase(
         return Err(error(
             "SNAPBACK_PROMOTION_REQUEST_SEAL_INVALID",
             "prior promotion request seal is invalid",
+        ));
+    }
+    if !is_sha256_digest(schema_hash) || schema_hash != prior.schema_hash {
+        return Err(error(
+            "SNAPBACK_PROMOTION_REBASE_DIVERGED",
+            "automatic re-seal cannot preserve approval across a schema identity change",
         ));
     }
     let operations = branch_operation_log(&rebased_workspace.conn, &rebased_diff.branch_id)?;
@@ -1330,6 +1435,7 @@ pub fn reseal_after_rebase(
         diff_digest: rebased_diff.diff_digest.clone(),
         manifest_digest: rebased_diff.coverage.digest()?,
         approved_facts_digest: rebased_facts,
+        schema_hash: schema_hash.to_owned(),
         approval: prior.approval.clone(),
         admission_ticket: prior.admission_ticket.clone(),
         aggregate_identity: prior.aggregate_identity.clone(),
@@ -1408,31 +1514,34 @@ fn note_ticket_loss(
 
 fn stored_promotion_result(
     canonical: &Connection,
-    aggregate_identity: &OperationIdentityV1,
-    approved_facts: &str,
+    request: &PromotionRequestV1,
 ) -> SnapbackResult<Option<PromotionResultV1>> {
-    let row: Option<(Vec<u8>, String, Vec<u8>)> = canonical
+    let row: Option<(Vec<u8>, String, Option<String>, Vec<u8>)> = canonical
         .query_row(
-            "SELECT aggregate_identity_json, approved_facts_digest, receipt_json
+            "SELECT aggregate_identity_json, approved_facts_digest, request_digest, receipt_json
                FROM _snapback_promotion_receipts WHERE ticket_id = ?1",
-            params![aggregate_identity.key.operation_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            params![request.aggregate_identity.key.operation_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .optional()?;
-    let Some((identity_bytes, stored_facts, receipt_bytes)) = row else {
+    let Some((identity_bytes, stored_facts, stored_request_digest, receipt_bytes)) = row else {
         return Ok(None);
     };
     let identity: OperationIdentityV1 = decode_json(&identity_bytes, "stored aggregate identity")?;
-    if &identity != aggregate_identity || stored_facts != approved_facts {
+    let request_digest = promotion_request_digest(request)?;
+    if identity != request.aggregate_identity
+        || stored_facts != request.approved_facts_digest
+        || stored_request_digest.as_deref() != Some(request_digest.as_str())
+    {
         return Err(error(
             "SNAPBACK_PROMOTION_IDENTITY_REUSED",
-            "aggregate identity was reused with divergent bound or approved facts",
+            "aggregate identity was reused with divergent durable promotion request facts",
         ));
     }
     let receipt: PromotionReceiptV1 = decode_json(&receipt_bytes, "promotion receipt")?;
     let envelope_bytes: Vec<u8> = canonical.query_row(
         "SELECT envelope_json FROM _snapback_promotion_envelopes WHERE ticket_id = ?1",
-        params![aggregate_identity.key.operation_id],
+        params![request.aggregate_identity.key.operation_id],
         |row| row.get(0),
     )?;
     let aggregate_envelope = decode_json(&envelope_bytes, "promotion envelope")?;
@@ -1473,6 +1582,14 @@ struct PromotionJournalFactV1 {
     row_id: String,
     operation: &'static str,
     row: Option<Value>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct PromotionDiffConsistencyV1 {
+    table_name: String,
+    row_id: String,
+    disposition: NetDiffDispositionV1,
+    post_image: Option<Value>,
 }
 
 /// Read-only canonical state exposed to command replay. The underlying SQLite
@@ -1636,9 +1753,7 @@ fn json_from_sql_value(value: ValueRef<'_>) -> SnapbackResult<Value> {
             }),
         ValueRef::Text(value) => Ok(Value::String(
             std::str::from_utf8(value)
-                .map_err(|_| {
-                    promotion_write_refused("promotion boundary contains non-UTF-8 text")
-                })?
+                .map_err(|_| promotion_write_refused("promotion boundary contains non-UTF-8 text"))?
                 .to_owned(),
         )),
         ValueRef::Blob(_) => Err(promotion_write_refused(
@@ -1687,7 +1802,10 @@ fn sql_from_json_value(value: &Value) -> SnapbackResult<SqlValue> {
 fn row_value(row: &rusqlite::Row<'_>, table: &PromotionTableV1) -> SnapbackResult<Value> {
     let mut object = serde_json::Map::new();
     for (index, column) in table.columns.iter().enumerate() {
-        object.insert(column.name.clone(), json_from_sql_value(row.get_ref(index)?)?);
+        object.insert(
+            column.name.clone(),
+            json_from_sql_value(row.get_ref(index)?)?,
+        );
     }
     Ok(Value::Object(object))
 }
@@ -1710,10 +1828,7 @@ fn scan_promotion_row(
         quote_identifier(primary_key),
     ))?;
     let mut rows = statement.query(params![row_id])?;
-    let value = rows
-        .next()?
-        .map(|row| row_value(row, table))
-        .transpose()?;
+    let value = rows.next()?.map(|row| row_value(row, table)).transpose()?;
     if let Some(value) = &value {
         let actual_id = row_id_from_json(&value[primary_key])?;
         if actual_id != row_id {
@@ -1771,6 +1886,25 @@ fn scan_promotion_scope(
 fn promotion_scope(operations: &[BranchOperationV1]) -> SnapbackResult<BTreeSet<String>> {
     let mut scope = BTreeSet::new();
     for operation in operations {
+        let coverage = operation.approved_facts.coverage.clone().normalized();
+        if coverage.covered_lanes != [PROMOTION_WRITER_LANE_V1]
+            || !coverage.uncovered_lanes.is_empty()
+            || coverage.schema_covered
+            || coverage.system_fields_covered
+            || coverage.assets_covered
+            || coverage.effects_covered
+        {
+            return Err(error(
+                "SNAPBACK_PROMOTION_WRITE_COVERAGE_INCOMPLETE",
+                "v1 promotion covers only the enumerated ordinary-mutation application-row lane",
+            ));
+        }
+        if !operation.approved_facts.effects.is_empty() {
+            return Err(error(
+                "SNAPBACK_BRANCH_NOT_PROMOTABLE",
+                "DenyAll promotion cannot retain approved effect facts",
+            ));
+        }
         if !operation.approved_facts.writes.is_empty()
             && operation.approved_facts.coverage.covered_lanes.is_empty()
         {
@@ -1904,7 +2038,20 @@ fn validate_diff_against_approved_facts(
             )
         })
         .collect::<BTreeMap<_, _>>();
-    let mut diff_writes = Vec::new();
+    let approved_consistency = approved_writes
+        .iter()
+        .map(|write| PromotionDiffConsistencyV1 {
+            table_name: write.qualified_table.clone(),
+            row_id: write.row_id.clone(),
+            disposition: match write.kind {
+                PromotionWriteKindV1::Insert => NetDiffDispositionV1::Added,
+                PromotionWriteKindV1::Update => NetDiffDispositionV1::Updated,
+                PromotionWriteKindV1::Delete => NetDiffDispositionV1::Deleted,
+            },
+            post_image: write.post_image.clone(),
+        })
+        .collect::<Vec<_>>();
+    let mut diff_consistency = Vec::new();
     let mut prior: Option<(&str, &str)> = None;
     for row in &diff.net_diff {
         let key = (row.table_name.as_str(), row.row_id.as_str());
@@ -1915,26 +2062,27 @@ fn validate_diff_against_approved_facts(
             ));
         }
         prior = Some(key);
-        if row.before.as_ref().map(|value| canonicalize_json(value.clone()))
-            != base.get(&(row.table_name.clone(), row.row_id.clone())).cloned()
+        if row
+            .before
+            .as_ref()
+            .map(|value| canonicalize_json(value.clone()))
+            != base
+                .get(&(row.table_name.clone(), row.row_id.clone()))
+                .cloned()
         {
             return Err(error(
                 "SNAPBACK_PROMOTION_DIFF_FACTS_MISMATCH",
                 "sealed net diff pre-image does not match the immutable base",
             ));
         }
-        diff_writes.push(PromotionApprovedWriteV1 {
-            qualified_table: row.table_name.clone(),
+        diff_consistency.push(PromotionDiffConsistencyV1 {
+            table_name: row.table_name.clone(),
             row_id: row.row_id.clone(),
-            kind: match row.disposition {
-                NetDiffDispositionV1::Added => PromotionWriteKindV1::Insert,
-                NetDiffDispositionV1::Updated => PromotionWriteKindV1::Update,
-                NetDiffDispositionV1::Deleted => PromotionWriteKindV1::Delete,
-            },
+            disposition: row.disposition,
             post_image: row.after.clone().map(canonicalize_json),
         });
     }
-    if diff_writes != approved_writes {
+    if diff_consistency != approved_consistency {
         return Err(error(
             "SNAPBACK_PROMOTION_DIFF_FACTS_MISMATCH",
             "sealed net diff is inconsistent with the independently folded approved write facts",
@@ -1987,7 +2135,9 @@ fn apply_approved_write(
                 .iter()
                 .enumerate()
                 .filter(|(index, _)| *index != table.primary_key_index)
-                .map(|(index, column)| format!("{} = ?{}", quote_identifier(&column.name), index + 1))
+                .map(|(index, column)| {
+                    format!("{} = ?{}", quote_identifier(&column.name), index + 1)
+                })
                 .collect::<Vec<_>>();
             if assignments.is_empty() {
                 return Err(promotion_write_refused(
@@ -2217,7 +2367,7 @@ fn build_aggregate_envelope(
                 .collect::<BTreeSet<_>>()
                 .into_iter()
                 .collect(),
-            uncovered_lanes: Vec::new(),
+            uncovered_lanes: vec![PROMOTION_COVERAGE_GAP_V1.to_owned()],
             coverage_digest: request.manifest_digest.clone(),
         },
         recorded_at_ms: now_ms.max(0) as u64,
@@ -2254,11 +2404,7 @@ where
     ) -> SnapbackResult<ApprovedOperationFactsV1>,
 {
     ensure_promotion_tables(canonical)?;
-    if let Some(stored) = stored_promotion_result(
-        canonical,
-        &request.aggregate_identity,
-        &request.approved_facts_digest,
-    )? {
+    if let Some(stored) = stored_promotion_result(canonical, request)? {
         return Ok(stored);
     }
     if request.schema_version != 1 || promotion_request_seal(request, key)? != request.seal {
@@ -2267,6 +2413,7 @@ where
             "promotion request seal or schemaVersion is invalid",
         ));
     }
+    require_exact_durable_ticket(canonical, &request.admission_ticket)?;
     let revalidated = matches!(
         authority,
         PromotionAuthorityDecisionV1::Revalidated {
@@ -2349,10 +2496,10 @@ where
     }
 
     let started = Instant::now();
-    if schema_hash.trim().is_empty() {
+    if !is_sha256_digest(schema_hash) || schema_hash != request.schema_hash {
         return Err(error(
             "SNAPBACK_PROMOTION_SCHEMA_IDENTITY_MISSING",
-            "promotion boundary proof requires a schema identity",
+            "promotion boundary proof requires the sealed canonical schema identity",
         ));
     }
     ensure_internal_promotion_path_has_no_triggers(canonical)?;
@@ -2363,7 +2510,7 @@ where
         child_stream_id: request.child_stream_id.0.clone(),
         base_version: request.base_version,
         reviewed_head_version: request.reviewed_child_head,
-        schema_hash: schema_hash.to_owned(),
+        schema_hash: request.schema_hash.clone(),
         coverage_manifest_digest: request.manifest_digest.clone(),
         operation_log_digest: request.operation_log_digest.clone(),
         approved_facts_digest: request.approved_facts_digest.clone(),
@@ -2420,10 +2567,7 @@ where
         .collect::<BTreeMap<_, _>>();
     let mut expected_journal = Vec::new();
     for operation in &operations {
-        let replayed = reexecute(
-            &PromotionReplayContextV1 { canonical: &tx },
-            operation,
-        )?;
+        let replayed = reexecute(&PromotionReplayContextV1 { canonical: &tx }, operation)?;
         if replayed != operation.approved_facts {
             return Err(error(
                 "SNAPBACK_PROMOTION_REPLAY_DIVERGED",
@@ -2530,12 +2674,13 @@ where
     }
     tx.execute(
         "INSERT INTO _snapback_promotion_receipts
-           (ticket_id, aggregate_identity_json, approved_facts_digest, receipt_json)
-         VALUES (?1, ?2, ?3, ?4)",
+           (ticket_id, aggregate_identity_json, approved_facts_digest, request_digest, receipt_json)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
         params![
             request.aggregate_identity.key.operation_id,
             json_bytes(&request.aggregate_identity, "aggregate identity")?,
             request.approved_facts_digest,
+            promotion_request_digest(request)?,
             json_bytes(&receipt, "promotion receipt")?,
         ],
     )?;
@@ -2552,6 +2697,11 @@ where
             SET state = 'completed', completed_at_ms = ?2
           WHERE ticket_id = ?1",
         params![request.aggregate_identity.key.operation_id, now_ms],
+    )?;
+    crate::operation_ledger::complete_host_identity_lease_in(
+        &tx,
+        &request.aggregate_identity,
+        now_ms.max(0) as u64,
     )?;
     tx.commit()?;
     Ok(PromotionResultV1 {
@@ -2597,6 +2747,7 @@ pub fn request_head_reservation(
     now_ms: i64,
 ) -> SnapbackResult<i64> {
     ensure_promotion_tables(conn)?;
+    require_exact_durable_ticket(conn, ticket)?;
     let losses: i64 = conn.query_row(
         "SELECT losses FROM _snapback_promotion_admission WHERE ticket_id = ?1",
         params![ticket.ticket_identity.key.operation_id],
@@ -2621,11 +2772,17 @@ pub fn request_head_reservation(
         ));
     }
     let until = now_ms.saturating_add(ticket.contention_policy.reservation_interval_ms as i64);
-    conn.execute(
+    let changed = conn.execute(
         "UPDATE _snapback_promotion_admission SET reserved_until_ms = ?2
           WHERE ticket_id = ?1 AND state = 'queued'",
         params![ticket.ticket_identity.key.operation_id, until],
     )?;
+    if changed != 1 {
+        return Err(error(
+            "SNAPBACK_PROMOTION_RESERVATION_NOT_ELIGIBLE",
+            "only the exact queued durable ticket can reserve the canonical head",
+        ));
+    }
     Ok(until)
 }
 
@@ -3327,11 +3484,32 @@ mod tests {
             },
             ticket,
             ticket_identity,
+            &sha('f'),
             &key,
             2_001,
         )
         .expect("seal");
         let mut replay_count = 0;
+        let mut forged_ticket_request = request.clone();
+        forged_ticket_request.admission_ticket.rebase_budget += 1;
+        forged_ticket_request.seal =
+            promotion_request_seal(&forged_ticket_request, &key).expect("reseal forged ticket");
+        let error = promote_by_reexecution(
+            &mut canonical,
+            &workspace,
+            &diff,
+            &forged_ticket_request,
+            &key,
+            &PromotionAuthorityDecisionV1::Revalidated {
+                grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+            },
+            2_002,
+            &sha('f'),
+            |_, _| panic!("forged durable ticket must not reexecute"),
+        )
+        .expect_err("sealed caller ticket cannot override durable admission facts");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_PROMOTION_TICKET_MISMATCH");
         let promoted = promote_by_reexecution(
             &mut canonical,
             &workspace,
@@ -3347,9 +3525,7 @@ mod tests {
             |context, operation| {
                 replay_count += 1;
                 assert_eq!(
-                    context
-                        .read_row("widgets", "1")?
-                        .expect("canonical widget")["name"],
+                    context.read_row("widgets", "1")?.expect("canonical widget")["name"],
                     "alpha"
                 );
                 let name = operation.canonical_arguments["name"]
@@ -3400,7 +3576,10 @@ mod tests {
             )
             .expect("history operation identity");
         assert_eq!(history_operation_id, aggregate_operation_id);
-        assert!(promoted.aggregate_envelope.coverage.uncovered_lanes.is_empty());
+        assert_eq!(
+            promoted.aggregate_envelope.coverage.uncovered_lanes,
+            [PROMOTION_COVERAGE_GAP_V1]
+        );
         let retry = promote_by_reexecution(
             &mut canonical,
             &workspace,
@@ -3414,6 +3593,22 @@ mod tests {
         )
         .expect("stored receipt");
         assert_eq!(retry, promoted);
+        let mut divergent_retry = request.clone();
+        divergent_retry.schema_hash = sha('0');
+        divergent_retry.seal = promotion_request_seal(&divergent_retry, &key).expect("reseal");
+        let error = promote_by_reexecution(
+            &mut canonical,
+            &workspace,
+            &diff,
+            &divergent_retry,
+            &key,
+            &PromotionAuthorityDecisionV1::Denied,
+            2_003,
+            &sha('0'),
+            |_, _| panic!("divergent retry must not reexecute"),
+        )
+        .expect_err("one promotion identity cannot retrieve a divergent request");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_PROMOTION_IDENTITY_REUSED");
         let joins: i64 = canonical
             .query_row(
                 "SELECT COUNT(*) FROM _snapback_promotion_source_joins",
@@ -3474,6 +3669,7 @@ mod tests {
             },
             ticket,
             aggregate,
+            &sha('f'),
             &key,
             2_001,
         )
@@ -3509,7 +3705,10 @@ mod tests {
             crate::storage::current_version_on(&canonical).expect("head"),
             5
         );
-        assert_eq!(scan_widgets(&canonical).expect("rows")[0].row["name"], "alpha");
+        assert_eq!(
+            scan_widgets(&canonical).expect("rows")[0].row["name"],
+            "alpha"
+        );
     }
 
     #[test]
@@ -3554,6 +3753,7 @@ mod tests {
             },
             ticket,
             aggregate,
+            &sha('f'),
             &key,
             2_001,
         )
@@ -3590,10 +3790,14 @@ mod tests {
             crate::storage::current_version_on(&canonical).expect("head"),
             5
         );
-        assert_eq!(scan_widgets(&canonical).expect("rows")[0].row["name"], "alpha");
+        assert_eq!(
+            scan_widgets(&canonical).expect("rows")[0].row["name"],
+            "alpha"
+        );
         assert_eq!(
             canonical
-                .query_row("SELECT COUNT(*) FROM shadow_writes", [], |row| row.get::<_, i64>(0))
+                .query_row("SELECT COUNT(*) FROM shadow_writes", [], |row| row
+                    .get::<_, i64>(0))
                 .expect("shadow count"),
             0
         );
@@ -3612,8 +3816,26 @@ mod tests {
     #[test]
     fn approved_write_folding_is_ordered_and_refuses_impossible_deletes() {
         let (_, workspace, diff) = branch_with_rename();
-        let mut operations = branch_operation_log(&workspace.conn, &diff.branch_id)
-            .expect("operation log");
+        let mut operations =
+            branch_operation_log(&workspace.conn, &diff.branch_id).expect("operation log");
+        let mut mislabeled = operations.clone();
+        mislabeled[0].approved_facts.coverage.covered_lanes = vec!["unrelatedLane".to_owned()];
+        assert_eq!(
+            promotion_scope(&mislabeled)
+                .expect_err("unrelated coverage lane cannot label a complete promotion")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROMOTION_WRITE_COVERAGE_INCOMPLETE"
+        );
+        let mut effectful = operations.clone();
+        effectful[0].approved_facts.effects = vec![json!({ "network": "simulated" })];
+        assert_eq!(
+            promotion_scope(&effectful)
+                .expect_err("DenyAll promotion cannot silently drop approved effect facts")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_NOT_PROMOTABLE"
+        );
         operations[0].approved_facts.writes = vec![
             LogicalWriteFactV1 {
                 table_name: "widgets".to_owned(),
@@ -3646,7 +3868,10 @@ mod tests {
             ("widgets", "1")
         );
         assert_eq!(folded[0].kind, PromotionWriteKindV1::Update);
-        assert_eq!(folded[0].post_image, Some(json!({ "id": 1, "name": "OMEGA" })));
+        assert_eq!(
+            folded[0].post_image,
+            Some(json!({ "id": 1, "name": "OMEGA" }))
+        );
         assert_eq!(
             (
                 folded[1].qualified_table.as_str(),
@@ -3701,6 +3926,7 @@ mod tests {
             },
             ticket,
             ticket_identity,
+            &sha('f'),
             &key,
             2_001,
         )
@@ -3766,6 +3992,7 @@ mod tests {
             },
             ticket,
             ticket_identity,
+            &sha('f'),
             &key,
             2_001,
         )
@@ -3838,6 +4065,7 @@ mod tests {
             },
             first,
             first_identity,
+            &sha('f'),
             &key,
             2_001,
         )
@@ -3901,6 +4129,7 @@ mod tests {
             },
             ticket,
             ticket_identity,
+            &sha('f'),
             &key,
             2_001,
         )
@@ -3928,11 +4157,27 @@ mod tests {
         assert!(replay.meaning_preserved);
         let rebased_diff = exact_fork_diff(&rebased, &rebased_create.branch_id, scan_widgets)
             .expect("rebased diff");
+        assert_eq!(
+            reseal_after_rebase(
+                &prior,
+                &rebased,
+                &rebased_diff,
+                "promotion-engine-1",
+                &sha('0'),
+                &key,
+                3_002,
+            )
+            .expect_err("schema identity change requires fresh approval")
+            .diagnostic
+            .code,
+            "SNAPBACK_PROMOTION_REBASE_DIVERGED"
+        );
         let resealed = reseal_after_rebase(
             &prior,
             &rebased,
             &rebased_diff,
             "promotion-engine-1",
+            &sha('f'),
             &key,
             3_002,
         )

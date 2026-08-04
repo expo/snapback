@@ -1,0 +1,125 @@
+{
+  "schemaVersion": "snapback.fork-promotion-performance.v1",
+  "artifactName": "agent-safe-fork-promotion-absolute-2026-08-03",
+  "date": "2026-08-03",
+  "sourceRevision": "83d0e71901357733293f66a5b125991bbfd892f8",
+  "hardwareClass": {
+    "os": "26.5.2",
+    "architecture": "aarch64",
+    "model": "Mac17,3",
+    "cpu": "Apple M5",
+    "logicalCpus": 10,
+    "memoryBytes": 34359738368
+  },
+  "fixture": {
+    "logicalRows": 512,
+    "changedRows": 1,
+    "operationsPerPromotion": 1,
+    "wholeRunWarmups": 1,
+    "perMetricWarmups": 4,
+    "recordedRuns": 11
+  },
+  "protocol": {
+    "estimator": "median of 11 fresh-fixture runs",
+    "spread": "median absolute deviation (MAD), with min/max and raw runs retained",
+    "buildProfile": "release",
+    "quiescenceRule": "direct binary invocation refuses while another cargo or rustc process exists",
+    "measurementScope": "absolute latency only; no honest pre-profile product comparator exists"
+  },
+  "rawRuns": [
+    {
+      "forkCreationUs": 173.167,
+      "exactDiffUs": 687.125,
+      "promotionUs": 1500.208,
+      "ttlReapUs": 28.208000000000002
+    },
+    {
+      "forkCreationUs": 171.292,
+      "exactDiffUs": 682.4580000000001,
+      "promotionUs": 1500.959,
+      "ttlReapUs": 27.708
+    },
+    {
+      "forkCreationUs": 171.25,
+      "exactDiffUs": 684.0,
+      "promotionUs": 1505.916,
+      "ttlReapUs": 27.459
+    },
+    {
+      "forkCreationUs": 169.959,
+      "exactDiffUs": 682.6659999999999,
+      "promotionUs": 1502.4579999999999,
+      "ttlReapUs": 27.583
+    },
+    {
+      "forkCreationUs": 169.75,
+      "exactDiffUs": 692.7090000000001,
+      "promotionUs": 1522.375,
+      "ttlReapUs": 30.0
+    },
+    {
+      "forkCreationUs": 171.875,
+      "exactDiffUs": 695.5419999999999,
+      "promotionUs": 1504.375,
+      "ttlReapUs": 27.792
+    },
+    {
+      "forkCreationUs": 171.625,
+      "exactDiffUs": 697.9580000000001,
+      "promotionUs": 1477.0,
+      "ttlReapUs": 27.75
+    },
+    {
+      "forkCreationUs": 171.125,
+      "exactDiffUs": 700.709,
+      "promotionUs": 1479.333,
+      "ttlReapUs": 27.625
+    },
+    {
+      "forkCreationUs": 170.666,
+      "exactDiffUs": 698.7080000000001,
+      "promotionUs": 1467.6660000000002,
+      "ttlReapUs": 27.459
+    },
+    {
+      "forkCreationUs": 173.042,
+      "exactDiffUs": 694.375,
+      "promotionUs": 1478.084,
+      "ttlReapUs": 27.375
+    },
+    {
+      "forkCreationUs": 170.334,
+      "exactDiffUs": 698.75,
+      "promotionUs": 1476.583,
+      "ttlReapUs": 27.541
+    }
+  ],
+  "summaryUs": {
+    "exactDiff": {
+      "median": 694.375,
+      "mad": 4.375,
+      "min": 682.4580000000001,
+      "max": 700.709
+    },
+    "forkCreation": {
+      "median": 171.25,
+      "mad": 0.625,
+      "min": 169.75,
+      "max": 173.167
+    },
+    "promotion": {
+      "median": 1500.208,
+      "mad": 20.875,
+      "min": 1467.6660000000002,
+      "max": 1522.375
+    },
+    "ttlReap": {
+      "median": 27.625,
+      "mad": 0.16600000000000037,
+      "min": 27.375,
+      "max": 30.0
+    }
+  },
+  "boundRatification": "Missing: LLP 0162 author has not ratified absolute bounds beside the step-0 artifact",
+  "claimBoundary": "instrumentation evidence only; fork and promotion capabilities remain Missing"
+}

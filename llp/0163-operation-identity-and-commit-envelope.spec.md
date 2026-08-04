@@ -18,6 +18,13 @@ they can version independently of the profile umbrella)
 **Related:** LLP 0012, LLP 0037, LLP 0043, LLP 0055, LLP 0095, LLP 0133,
 LLP 0148, LLP 0162
 
+**Implementation evidence:** 2026-08-03 (the durable slice is integrated with
+ordinary history operation joins and dated candidate observations; the valid
+paired protocol, measurement-time baseline digest binding,
+public carrier, production coverage activation, protected explanation custody,
+host callers, and active-lane performance confirmation remain open, so the
+Spec stays Draft and every capability stays `Missing`)
+
 ## Purpose
 
 This Spec owns the committed contracts and artifact schemas for the
@@ -164,7 +171,7 @@ match their identity. These are schema/validation foundations only:
 | 2 | **Partial** — exact-replay versus bound-fact-divergence comparison exists at the type boundary; stored retry settlement, range issuance/persistence/exhaustion, suppression lifecycle, tombstones, floors, and crash corpus are not wired. |
 | 3 | **Missing** — durable provenance joins, bounded enumeration, detail dispositions, and fail-closed explanation authorization are not wired. |
 | 4 | **Missing** — covered-lane inventory/choke point and asymmetric retention corpus are not wired. |
-| 13 | **Gate artifact recorded separately** — candidate comparison has not run, so the row has not passed. |
+| 13 | **Historical state at initial slice** — the candidate comparison had not run, so the row had not passed. See the durable-slice table below for current evidence. |
 | 14 | **Partial** — host namespace/derivation validation exists; server authentication, admission exclusion, reclamation, and corpus legs are missing. |
 
 Every related capability therefore remains `Missing`.
@@ -197,7 +204,19 @@ Bounded explanation lookup/enumeration joins retained envelopes to the journal,
 distinguishes detail-expired/truncated and journal-expired states, and withholds
 even digest/count facts when current authority is unprovable. Host records use
 a structurally disjoint namespace and close only after server-incarnation
-rotation plus the declared terminal-receipt window.
+rotation plus the declared terminal-receipt window. Host-only admission now
+authenticates the deterministic upstream/ordinal derivation against an open
+server-recorded epoch and its authority/authenticator; rotation durably creates
+the successor while retiring the predecessor, so closure no longer accepts a
+caller-supplied rotation assertion. A live promotion ticket also holds a
+durable host-identity lease: the rotated epoch cannot close until that exact
+ticket completes or expires, and closure reclaims the finished lease.
+
+When a finite history policy retains rows for an issuance-bearing ordinary
+mutation, the HostPlan/Buffered transaction also fills those history rows with
+the same operation identity before commit. The focused join corpus proves that
+multiple versions retain their owning operation ids and that the update rolls
+back with the rest of the operation transaction.
 
 The public mutation wire does not yet issue/carry authenticated ranges, the
 clients do not yet atomically persist a range with queued intent, no production
@@ -212,7 +231,7 @@ and prohibit capability publication.
 | 2 | **Partial** — exact retry/divergence, authenticated finite ranges, exhaustion, ACK reclamation, tombstones, epoch closure, floors, and two-identities-in-one-epoch corpus are green; server issuance transport and atomic client range custody are missing. |
 | 3 | **Partial** — durable exact/bounded explanations, current-authority fail-closed behavior, and expiry dispositions are green; public/admin transport, real policy evaluators, and secret-bearing protected custody remain missing. |
 | 4 | **Partial** — a versioned stream manifest names both ordinary writer choke points and bypass/journal-retention adversaries are green; no production target activates a complete all-writer inventory. |
-| 13 | **Gate artifact recorded separately** — no candidate comparison has run, so the row has not passed. |
-| 14 | **Partial** — host namespace authentication, client/host key separation, terminal receipt window, and incarnation closure corpus are green; first-party host callers and transport-level client exclusion are not wired. |
+| 13 | **Partial** — the dated comparable candidate observations are within the registered binary read/write/idle bounds on the step-0 machine, but the historical/candidate runs are not experimentally paired; a post-run baseline digest cannot supply measurement-time binding. No production target activates the public issuance-bearing covered lane, so a qualified digest-bound active-path run and applicable crash-cut corpus are still missing. |
+| 14 | **Partial** — host namespace authentication, client/host key separation, terminal receipt window, live promotion-ticket leases, and incarnation closure corpus are green; first-party host callers, transport-level client exclusion, and the full capacity/purge corpus are not wired. |
 
 Every related capability remains `Missing`; this slice makes no advertisement.

@@ -28,15 +28,16 @@ Work the §5 ledger in the doc's own suggested order, as tranches:
   first, then the experience half), G8 (migration-scale evidence — the
   D-half is conformance drift: no test crosses the second batch
   boundary), G4′a.
-- **Blocked, do not start:** G7/G7′ (fork rehearsal — needs LLP 0158
-  F0a's custody/fidelity proofs plus a dated 0081 §7 amendment), G4′b
+- **Blocked, do not start:** G7/G7′ (fork rehearsal — F0a/F0b are landed, but
+  the dated 0081 §7 amendment remains required), G4′b
   (needs the OQ6 Moment-8 ruling).
 
 **Dependency update — 2026-08-03:** LLP 0158 F0a's custody/fidelity,
-publication, credential-negative, and deny-all proofs landed. G7/G7′ is no
-longer blocked on the fork safety substrate; it remains blocked on F0b's
-consumer verb and the separately required dated LLP 0081 §7 amendment. No
-rehearsal receipt is qualified by F0a alone.
+publication, credential-negative, and deny-all proofs landed, followed by
+F0b's local CLI consumer and fleet dogfood. G7/G7′ is no longer blocked on
+fork substrate or consumer availability; it remains blocked on the separately
+required dated LLP 0081 §7 amendment. No rehearsal receipt is qualified by
+F0a/F0b alone.
 
 ## Tranche 1 row status notes
 

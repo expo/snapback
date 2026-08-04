@@ -6,6 +6,15 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-03
 **Revised:** 2026-08-03 (v0.11 — sequencing gates recorded: the dated step-0 pre-profile baseline fixes hardware, fixtures, warm-up, run count, median/MAD, formulas, and bounds; OQ13's reproducible spike proves a held source snapshot but no intrinsic database-size WAL bound, narrowing LLP 0165 to budgeted pin or stable refusal; capability rows remain `Missing`); 2026-08-03 (v0.10 — post-acceptance scoped-review repairs from the combined light round (artifacts `llp/reviews/0163-0165-extraction.{fable,codex}.md`): host-originator reclamation predicate added (terminal-receipt-plus-declared-window; range-less host epochs close on incarnation rotation) with an Acceptance 14 leg; §8 provenance table rebuilt contiguous with Accepted/Draft ownership split; reservation-quota sufficiency added to the declared fairness terms; the legacy 0097 projection made total; protected-lane custody assigned to LLP 0163; tombstone bound recorded); 2026-08-03 (v0.9 — **Accepted by Charlie** after the seven-round super-refine loop (see `llp/reviews/0162-agent-safe-storage-profile.super-refine.md`), with three author decisions applied: OQ11 decided — an agent principal holding an LLP 0055 scoped grant may approve a `PromotionRequestV1`; OQ14 executed — the identity/envelope, fork/promotion, and proof/checkpoint contracts are extracted to LLP 0163/0164/0165 with this RFC as the profile umbrella; the commissioned dated amendments landed in LLP 0097, 0133, 0043, 0012, and 0095. Acceptance changes the document's status only: every capability remains `Missing` until the acceptance corpus passes (§Summary claim boundary), and the step-0 baseline artifact, the OQ13 snapshot-pinning spike, and LLP 0163-0165's own acceptance still gate advertisement); 2026-08-03 (v0.8 — final targeted repair from the seventh, delta-scoped cross-family round (repairs unreviewed; the loop closed at the declared stopping rule): re-seal widened to the full approved-facts digest (reads, ctx answers, decision/result facts, writes, effects, coverage) with the original approval preserved and re-seal as a separately identified engine attestation; identity tombstones retained until the epoch floor passes, closing the two-identity/same-epoch hole, with `result-expired`-before-`identity-horizon-passed` lookup precedence; journal completeness re-founded on an enforceable write-authority choke point (generated transaction API + SQLite authorizer) with an honest enumerated-fixture fallback class; post-expiry aggregate explanation gets `authorization-unprovable` fail-closed; promotion durably copies replay-log envelope facts into canonical; the aggregate promotion identity pinned to the rebase-invariant admission ticket; head reservation quotaed with a p99 contention metric and TTL-sufficiency condition; 0158 sentinel + intra-state crash matrix imported into Acceptance 12 with the registry-authority deviation declared; effect facts split into egress-family and 0066 settlement-capability axes; offline range exhaustion dispositioned; `verifiedCopyFidelity` named as its own proof class; per-component performance gating clarified; legacy `Missing` projection rationale recorded); 2026-08-03 (v0.7 — sixth cross-family review round applied: `PromotionRequestV1` re-seals automatically across rebase when re-execution reproduces the approved facts; promotion's admissible identity unified on the aggregate (per-source identities demoted to non-admissible write-fact-granularity provenance joins, Acceptance 3 carved); liveness weakened to declared conditional fairness with a bounded head-reservation escalation and ticket-lifetime/budget terms; offline minting closed via server-preallocated authenticated finite identity ranges; epoch closure defined on acknowledgement with the crashed-client wedge stated; the `result-expired` middle-regime disposition named and amended; checkpoint claims re-scoped to verified copy fidelity with 0158's publication state machine imported and the snapshot-pinning spike named; journal completeness given a closed write-path-registry derivation; the non-row authorization rule owned here; derived-deployment fork support moved out of core into a 0158-gated additive capability; `Promotable(noEffects)` named as a strictly narrower claim with a conservative legacy projection; index costs split; OQ4 authority corrected); 2026-08-03 (v0.6 — fifth cross-family review round applied: identity keyspace partitioned by originator class with server-authenticated host derivations (squatting foreclosed); envelope compact identity given a bounded retention clock independent of the resume floor and journal prune, with asymmetric-join dispositions; non-row authorization dropped to LLP 0088's current-policy rule with the residual named; `DenyAll` records a bounded payload-free attempt marker so no-egress promotion is provable; `PromotionRequestV1` seals the reviewed branch head and promotion commits one canonical transaction with an aggregate envelope; epoch issuance server-recorded so closure sees minted-not-just-admitted identities; §8 provenance claim replaced by a per-component owner/status table and the 0097 amendment scope widened to every touched section; FIFO admission tickets held across rebase with a concurrency-scaled budget and progress fixture; pins made finite renewable leases; exception authority corrected to dated author ratification with a hard ceiling; bounded envelope enumeration added; per-class credential acceptance; sequencing step-3(a)/5(a) duplication fixed); 2026-08-03 (v0.5 — fourth cross-family review round applied: audience decided to be a bound compared fact, not a key component (LLP 0133's collision rule preserved; key = stream-qualified operation identity, promotion identities derived from the globally non-reusable `childStreamId`); the epoch floor given an issuer/closure/advancement protocol that cannot strand in-flight identities; a dated proposed-normative amendment to LLP 0097 §Capability classes declared for the axis split and `DenyAll`; promotion contention answered with serialized admission and a bounded rebase budget; checkpoint dual-path proof pinned to one source snapshot; non-row fact authorization made current-plus-captured; the core tier's per-version rule owned by this RFC; aggregate membership and performance thresholds closed with LLP 0130 as exception authority; sequencing gains a baseline step 0 and splits mediation from capture-ledger work); 2026-08-03 (v0.4 — third cross-family review round applied: envelope/suppression identity stream-qualified with branch-local namespaces and deterministic promotion re-mint; suppression reclamation restricted to acknowledged receipts plus an epoch-bearing anti-replay floor, `identity-horizon-passed` reclassified as outcome-unknown; per-fact-class authorization for non-row explanation facts; fork capability split into orthogonal axes (egress/promotion/base/isolation) with no-egress `DenyAll` branches promotable; `AgentSafeV1` layered into a core aggregate, an app-effective conformance fact, and a history tier gated on LLP 0088; checkpoint dual-path proof derivation and erasure/custody protocol; measurement gate scoped per component against the dated baseline; rebase-by-replay affordance; uncovered-lane co-writes make a branch non-promotable); 2026-08-03 (v0.3 — second cross-family review round applied: `operationId` defined as the shipped `ClientMutationIdentity` widened (LLP 0133's extend-don't-ride-beside discipline) with per-originator identity sources and a bounded suppression lifecycle after LLP 0043's settlement pattern; LLP 0088 §6's per-post-image authorization rule imported verbatim with elision fixtures; the diff surface split into attributed change sequence versus net state diff with first-write-preimage/immutable-base requirement and canonical folding; deny-all egress renamed `DenyAll` (CaptureOnly reserved for 0097's ledger-backed meaning); "covered" given a definition; §8 given a base-class axis, a manifest-extension relationship to LLP 0134, and a closed v1 aggregate matrix; performance gate re-founded on a dated statistically controlled baseline artifact; `branches::promote` reframed as a deviation from Accepted LLP 0097 and ticketed there); 2026-08-03 (v0.2 — first cross-family review round applied: envelope keyed by operation identity with the commit version demoted to a stream-qualified snapshot association; the promotable fork class pinned to LLP 0097's in-app branch, with LLP 0158 derived-deployment forks capture-only; named checkpoints split into materialized and receipt-only substrate classes; per-fact read-set provenance discriminators per LLP 0007/0133/0146; LLP 0088's history invariants imported normatively; replay-sufficient promotion record required and the landed post-image `branches::promote` path marked superseded; capability claims routed through LLP 0134; commissioning authorities and amendment ownership named)
+**Implementation evidence:** 2026-08-03 (dated candidate evidence recorded:
+the comparable read/write/idle observations are within threshold on the step-0
+machine, but the historical runs were ordinal-zipped rather than experimentally
+paired. A post-run audit records the committed baseline digest but cannot make
+the observations measurement-time-bound experimental pairs; the public covered
+lane was not activated and the historical fork/promotion run predates final
+hardening and still lacks author-ratified bounds and p99 evidence, so
+Acceptance 13 and every capability remain
+unpassed/`Missing`)
 **Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0012, LLP 0017, LLP 0018, LLP 0024, LLP 0035, LLP 0036, LLP 0037, LLP 0042, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0066, LLP 0070, LLP 0072, LLP 0081, LLP 0088, LLP 0090, LLP 0094, LLP 0095, LLP 0097, LLP 0129, LLP 0130, LLP 0133, LLP 0134, LLP 0146, LLP 0155, LLP 0158, LLP 0159, LLP 0160, LLP 0161
 
 > **Proposal boundary.** LLP 0161 derives nine ideal properties for an
@@ -1084,9 +1093,59 @@ capability claims. Fork creation/diff/promotion/reap have no honest pre-profile
 product comparator; their first implementation must record absolute latency
 and obtain a dated bound beside this artifact before advertisement.
 
-This record completes sequencing step 0. It does **not** pass Acceptance 13:
-the profile-bearing candidate comparison has not run, and every capability
-remains `Missing`.
+This record completes sequencing step 0. It did **not** pass Acceptance 13 by
+itself: the profile-bearing candidate comparison had not yet run, and every
+capability remained `Missing`.
+
+#### Candidate and absolute-operation records — 2026-08-03
+
+The comparable candidate artifact is
+[`agent-safe-profile-candidate-2026-08-03`](../tests/acceptance/fixtures/agent-safe-storage/performance-candidate.2026-08-03.v1.json).
+It was produced from clean revision `33357bc3c2cf45166c24cc7ee6e139e98973e536`
+on the exact Mac17,3 / Apple M5 / 32 GiB baseline machine and Rust/Cargo 1.97.0
+toolchain. Its arithmetic verdict passes all registered comparable
+point/range/query-plan read, warm single-writer, allocation/retention, and idle
+CPU/RSS/disk thresholds. The audit found that the runner ordinal-zips the
+earlier historical baseline runs with later candidate runs; those samples were
+not experimentally paired or interleaved. The artifact also names rather than
+digests the baseline in its original runner output; the post-run audit adds the
+committed baseline SHA-256
+`d28d8514f48db3f8a0e4d0c33a1381f12e4ad13eaf6a69187aef9b7fe822ab91`).
+That later binding cannot retroactively establish a measurement-time protocol.
+Consequently this is useful exploratory evidence, not a fully qualified pass
+of the accepted paired protocol. Independently, no production target activates
+the public issuance-bearing covered lane, so the run does not prove that lane's
+active-path overhead or pass its correctness corpus.
+
+The first attempted candidate record was rejected before publication because
+the recorder incorrectly serialized an empty dirty-path set as `unknown`; it
+also contained a noisy point-read-p95 sample outside the equivalence interval.
+After the recorder defect was fixed, the protocol was rerun once and the clean
+passing artifact above is the dated record. A future active-lane measurement
+must be confirmatory rather than treating this replacement run as evidence for
+an unexercised component.
+
+The no-comparator absolute record is
+[`agent-safe-fork-promotion-absolute-2026-08-03`](../tests/acceptance/fixtures/agent-safe-storage/fork-promotion-performance.2026-08-03.v1.json),
+from clean revision `83d0e71901357733293f66a5b125991bbfd892f8` on the same
+machine. Over 11 fresh fixtures it records median/MAD latencies of
+171.250/0.625 µs for fork creation, 694.375/4.375 µs for exact diff,
+1,500.208/20.875 µs for promotion, and 27.625/0.166 µs for TTL reap. The
+artifact itself records that the RFC author has not ratified absolute bounds;
+p99 contention is also unmeasured. Revisions between the comparable candidate
+and absolute record only repair benchmark fixture-clock expiry and canonical
+row ordering. Later revisions materially harden promotion tickets, proof/write
+authority, schema/request retry binding, and host-ticket lifecycle, so the
+historical record must be preserved and rerun rather than treated as final-code
+performance evidence.
+
+These records make Acceptance 13 **Partial**, not passed: the comparable
+binary observations are within threshold, while a valid paired/interleaved and
+baseline-digest-bound protocol, active covered-lane measurement,
+an integrated-revision absolute rerun, author-ratified fork/promotion bounds,
+p99 contention evidence, and the
+applicable crash-cut corpora remain open. No exception is requested and every
+capability remains `Missing`.
 
 ## Security and privacy
 
@@ -1406,8 +1465,9 @@ repairs entered acceptance unreviewed under the loop's declared stopping
 rule, with both round-7 reviews prescribing at most a scoped re-read.
 Acceptance changes document status only: per the §Summary claim boundary,
 every capability remains `Missing` until the acceptance corpus passes on a
-target. The sequencing step-0 baseline artifact and OQ13 snapshot-pinning
-spike were recorded on 2026-08-03; the candidate measurements and the
-extracted Specs' (LLP 0163-0165) own acceptance still gate advertisement. This RFC neither changes the current
+target. The sequencing step-0 baseline artifact, OQ13 snapshot-pinning spike,
+and dated candidate/absolute-operation measurements were recorded on
+2026-08-03; the residual Acceptance 13 legs and the extracted Specs'
+(LLP 0163-0165) own acceptance still gate advertisement. This RFC neither changes the current
 canonical local target nor claims that the profile ships, and it is not a
 commission to implement — LLP 0130/0129/0155 own commissioning.
