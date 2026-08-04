@@ -4462,6 +4462,132 @@ mod tests {
     }
 
     #[test]
+    fn concurrent_protected_erasure_exact_and_divergent_retries_serialize() {
+        let exact_temp = tempfile::tempdir().expect("exact-retry tempdir");
+        let exact_database_path = exact_temp.path().join("source.sqlite");
+        drop(seeded_file_database(&exact_database_path));
+        let exact_request = protected_erasure_request(
+            "erase-concurrent-exact",
+            "operator-a",
+            "item-a",
+            75_000,
+        );
+        let exact_barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let exact_receipts = std::thread::scope(|scope| {
+            let mut handles = Vec::new();
+            for now_ms in [75_000, 75_001] {
+                let database_path = exact_database_path.clone();
+                let barrier = exact_barrier.clone();
+                let mut request = exact_request.clone();
+                request.now_ms = now_ms;
+                handles.push(scope.spawn(move || {
+                    let database = LocalDatabase::open(database_path)
+                        .expect("open concurrent exact-retry database");
+                    barrier.wait();
+                    database
+                        .erase_protected_record(&request)
+                        .expect("concurrent exact retry converges")
+                }));
+            }
+            handles
+                .into_iter()
+                .map(|handle| handle.join().expect("exact-retry worker"))
+                .collect::<Vec<_>>()
+        });
+        assert_eq!(exact_receipts[0].erasure_id, exact_receipts[1].erasure_id);
+        assert_eq!(
+            exact_receipts[0].canonical_delete_version,
+            exact_receipts[1].canonical_delete_version
+        );
+        assert!(exact_receipts
+            .iter()
+            .all(|receipt| receipt.state == ProtectedRecordErasureStateV1::Complete));
+        let exact_reader = Connection::open(&exact_database_path).expect("inspect exact retry");
+        let exact_tombstones: u64 = exact_reader
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_changes
+                 WHERE table_name='items' AND row_id='item-a'
+                   AND op='delete' AND row_json IS NULL",
+                [],
+                |row| row.get(0),
+            )
+            .expect("exact retry tombstone count");
+        assert_eq!(exact_tombstones, 1, "exact concurrency deletes once");
+
+        let divergent_temp = tempfile::tempdir().expect("divergent-retry tempdir");
+        let divergent_database_path = divergent_temp.path().join("source.sqlite");
+        let mut divergent_database = seeded_file_database(&divergent_database_path);
+        divergent_database
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "item-b".to_owned(),
+                    values: Map::from_iter([("visibility".to_owned(), json!("private"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("insert second divergent target");
+        drop(divergent_database);
+        let divergent_requests = [
+            protected_erasure_request(
+                "erase-concurrent-divergent",
+                "operator-a",
+                "item-a",
+                76_000,
+            ),
+            protected_erasure_request(
+                "erase-concurrent-divergent",
+                "operator-b",
+                "item-b",
+                76_001,
+            ),
+        ];
+        let divergent_barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let divergent_results = std::thread::scope(|scope| {
+            let handles = divergent_requests
+                .into_iter()
+                .map(|request| {
+                    let database_path = divergent_database_path.clone();
+                    let barrier = divergent_barrier.clone();
+                    scope.spawn(move || {
+                        let database = LocalDatabase::open(database_path)
+                            .expect("open concurrent divergent-retry database");
+                        barrier.wait();
+                        database.erase_protected_record(&request)
+                    })
+                })
+                .collect::<Vec<_>>();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().expect("divergent-retry worker"))
+                .collect::<Vec<_>>()
+        });
+        let winner = divergent_results
+            .iter()
+            .filter_map(|result| result.as_ref().ok())
+            .collect::<Vec<_>>();
+        let loser = divergent_results
+            .iter()
+            .filter_map(|result| result.as_ref().err())
+            .collect::<Vec<_>>();
+        assert_eq!(winner.len(), 1, "one divergent identity binding wins");
+        assert_eq!(loser.len(), 1, "one divergent identity binding refuses");
+        assert_eq!(
+            loser[0].diagnostic.code,
+            "SNAPBACK_PROTECTED_ERASURE_IDENTITY_REUSED"
+        );
+        let divergent_reader =
+            Connection::open(&divergent_database_path).expect("inspect divergent retry");
+        let remaining_rows: u64 = divergent_reader
+            .query_row("SELECT COUNT(*) FROM items", [], |row| row.get(0))
+            .expect("remaining divergent targets");
+        assert_eq!(remaining_rows, 1, "the losing target is not mutated");
+        assert_eq!(winner[0].state, ProtectedRecordErasureStateV1::Complete);
+    }
+
+    #[test]
     fn protected_erasure_crash_cuts_reopen_to_none_or_resumable_completion() {
         let cuts = [
             ProtectedRecordErasureCutV1::BeforeAtomicCommit,

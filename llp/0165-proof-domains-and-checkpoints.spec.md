@@ -5,7 +5,14 @@
 **Systems:** Storage, Migrations, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (protected-erasure implementation increment — the
+**Revised:** 2026-08-04 (protected-erasure acceptance-tail audit — production
+transactions and focused corpus now cover simultaneous exact and divergent
+command retries in addition to the already integrated admission/publication
+race, producer cancellation, crash/reopen, reachable/unreachable copies,
+active and expired leases, credential revocation, and authorization-stream
+reset. This closes LLP 0162 Acceptance row 11's protected-erasure tail. The
+Spec stays Draft and every capability stays `Missing` pending independent
+review, author acceptance, and the separately owned gates); 2026-08-04 (protected-erasure implementation increment — the
 registered AdminWrite product command derives an internal authority from the
 current prepared route authority plus the concrete revalidated admin
 credential. Its first immediate transaction binds operation identity,
@@ -54,7 +61,12 @@ component)
 **Related:** LLP 0035, LLP 0037, LLP 0053, LLP 0081, LLP 0088, LLP 0158,
 LLP 0162, LLP 0163, LLP 0164
 
-**Implementation evidence:** 2026-08-04 (the registered protected-record
+**Implementation evidence:** 2026-08-04 (the protected-erasure acceptance-tail
+audit verified the product transaction and generation fence against LLP 0162
+row 11 and added simultaneous exact/divergent retry corpus. Row 11's
+protected-erasure tail is closed; independent review, author acceptance, and
+separately owned gates still keep this Spec Draft and every capability
+`Missing`); 2026-08-04 (the registered protected-record
 erasure route, concrete-credential-bound internal authority, atomic canonical
 delete/history purge/payload-free tombstone/inventory fence, producer-owned
 cancellation acknowledgement, resumable physical-copy obligations, and
@@ -200,9 +212,10 @@ bytes as destroyed after a crash/reopen and retains inaccessible paths as open
 obligations until a later retry closes them. That low-level checkpoint-copy
 operation remains available only as evidence; the registered product command
 described below now composes canonical protected-row deletion with the
-complete inventory fence and closes the intervening-new-checkpoint race. Row
-11 remains Partial pending the residual acceptance tail and independent
-review. The focused corpus also forces a canonical writer to commit while
+complete inventory fence and closes the intervening-new-checkpoint race. The
+2026-08-04 acceptance-tail audit closes row 11's protected-erasure component;
+independent review and author acceptance remain publication gates. The focused
+corpus also forces a canonical writer to commit while
 the checkpoint source transaction is pinned, then proves the copy stayed at
 the earlier stream-qualified version; the finite-WAL negative proves the
 stable `SNAPBACK_CHECKPOINT_WAL_BUDGET_EXCEEDED` refusal and automatic intent
@@ -223,9 +236,9 @@ atomically upgrades that table, and the v1 configuration surface refuses to
 replace an active v2 declaration. The corpus covers reopen, current-record and
 per-version authorization, hidden-version pagination/horizon stability,
 per-record caps across two records, schema removal, and sync-floor independence.
-The newly integrated atomic protected-record command does not itself publish a
-history capability; the residual acceptance tail, performance gates, and
-independent Spec review still prevent that claim.
+The atomic protected-record command does not itself publish a history
+capability; independent review, author acceptance, performance gates, and the
+other separately owned acceptance rows still prevent that claim.
 
 #### Protected-deletion authority audit — 2026-08-04
 
@@ -267,11 +280,12 @@ concurrent admission/publication, pinned snapshots, expired checkpoint leases,
 payload-free stale replay, reachable/unreachable copies, current credential
 revocation, and predecessor authorization-stream reset.
 
-This closes the audited missing product-operation and new-checkpoint race. It
-does not promote row 11 or a capability by itself: the residual acceptance
-tail, performance gates, independent review, and author acceptance remain
-required. This Spec therefore stays Draft and the related capabilities stay
-`Missing`.
+This closes the audited missing product-operation and new-checkpoint race. The
+2026-08-04 acceptance-tail audit additionally verifies simultaneous exact and
+divergent retries and closes row 11's protected-erasure component. It does not
+publish a capability: performance and other separately owned acceptance gates,
+independent review, and author acceptance remain required. This Spec therefore
+stays Draft and the related capabilities stay `Missing`.
 
 ### Migration verification boundary — 2026-08-04
 
@@ -313,9 +327,11 @@ facade plus SQLite-authorizer completeness seam.
 
 LLP 0162 Acceptance row 12, row 11's checkpoint half, row 4's
 journal-completeness leg (the choke point this Spec owns), and row 13's
-applicable submetrics gate these components. This Spec's golden vectors
-are committed before any caller wires in, independently of sequencing
-step 0 (the performance baseline). No parallel corpus here.
+applicable submetrics gate these components. The dated 2026-08-04 audit closes
+row 11's protected-erasure tail without changing the remaining rows or making
+a capability claim. This Spec's golden vectors are committed before any caller
+wires in, independently of sequencing step 0 (the performance baseline). No
+parallel corpus here.
 
 ## Open items
 
@@ -331,13 +347,15 @@ step 0 (the performance baseline). No parallel corpus here.
    history-operation joins are integrated; open here are the generated-facade
    surface, authorizer enforcement, and migration path for existing direct-SQL
    write sites.
-4. *(Migration half executed 2026-08-04.)* The full receipt now binds a
-   separately implemented expected-value oracle and adversarial drift corpus.
-   Still open: compose canonical protected-record deletion atomically with the
-   registered-copy sweep so checkpoint creation cannot race between them. The
-   2026-08-04 authority audit found no existing product-level protected-delete
-   operation to compose with; define that real authority first rather than
-   assigning erasure semantics to generic row deletion.
+4. *(Executed 2026-08-04.)* The full migration receipt binds a separately
+   implemented expected-value oracle and adversarial drift corpus. The
+   registered protected-record product command supplies the previously missing
+   authority and atomically composes canonical deletion, retained-detail purge,
+   checkpoint-inventory invalidation, generation fencing, and its retry-bound
+   receipt. Admission/final-publication races, producer cancellation and
+   recovery, active/expired leases, reachable/unreachable copies, exact and
+   divergent concurrency, credential revocation, and authorization-stream
+   reset are covered. Generic row deletion remains deliberately unchanged.
 
 ## Dated OQ13 spike record — 2026-08-03
 
