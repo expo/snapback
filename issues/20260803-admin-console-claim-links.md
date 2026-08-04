@@ -23,8 +23,8 @@ review artifacts under `llp/reviews/0017-*`. Summary:
 
 - `snapback admin link --ready-file P` proves master access exactly like
   `snapback admin`, then mints a **claim code**: single-use, unguessable,
-  five-minute TTL, digest-only, **process-ephemeral** (restart invalidates
-  unredeemed codes). Master-proven mints get their own pending budget; claim
+  **thirty-minute TTL**, digest-only, **process-ephemeral** (restart
+  invalidates unredeemed codes). Master-proven mints get their own pending budget; claim
   creation, claim-exchange attempts, and total pending claims are rate/cap
   bounded alongside the device flow's operations.
 - Prints `<console>/#claim=<code>`; `--url-base` substitutes a tunnel or
@@ -34,10 +34,12 @@ review artifacts under `llp/reviews/0017-*`. Summary:
   the ordinary credential path (`no-store`, fragment stripped before boot,
   standard client storage rules). Reuse/expiry/invalid share one refusal —
   one status, one body.
-- The claim-derived credential is **non-renewable** (fixed ten-minute
-  expiry), carries distinct provenance, and grants ordinary
-  `AdminRead`/`AdminWrite` only — never `AdminSecretRead`, never
-  impersonation. A stolen link is bounded to ten minutes.
+- The claim-derived credential carries distinct provenance, grants ordinary
+  `AdminRead`/`AdminWrite` only (never `AdminSecretRead`, never
+  impersonation), and renews via the ordinary sliding mechanism under a
+  **ninety-minute absolute cap** (author ruling 2026-08-03; not the ordinary
+  eight-hour cap). Active use lasts up to 90 minutes on one link; an idle or
+  stolen-and-idle credential dies ten idle minutes after last use.
 - Redemption is recorded atomically against the claim digest: time, direct
   transport-peer address, issued credential digest. Readable only via
   master-bearer status; the master can revoke the bound credential. By
@@ -55,10 +57,11 @@ review artifacts under `llp/reviews/0017-*`. Summary:
 ## Work items
 
 1. Server: claim registry (mint under `authorize_master`, atomic single-use
-   exchange, digest storage, TTL, own mint budget + bounded exchange
-   attempts), non-renewable provenance-marked credential issuance, redemption
-   record + master revocation of the bound credential, with stable
-   `SNAPBACK_*` diagnostics consistent with the approval flow's.
+   exchange, digest storage, 30-min TTL, own mint budget + bounded exchange
+   attempts), provenance-marked credential issuance whose renewal is capped
+   at ninety minutes absolute, redemption record + master revocation of the
+   bound credential, with stable `SNAPBACK_*` diagnostics consistent with the
+   approval flow's.
 2. CLI: `snapback admin link` (attached-by-default wait reporting
    redemption/expiry/revocation, `--no-wait`, a reattach/status query,
    `--url-base` with origin sanity-check).
@@ -73,8 +76,9 @@ review artifacts under `llp/reviews/0017-*`. Summary:
    exchanges, exactly one wins; uniform status+body across
    invalid/expired/consumed; code only ever in a `POST` body, never URL or
    logs; constant-time digest compare; `no-store` on exchange; TTL expiry;
-   restart invalidates unredeemed claims; non-renewability of claim-derived
-   credentials; master revocation; mint-budget isolation from unauthenticated
+   restart invalidates unredeemed claims; claim-derived renewal slides but
+   refuses to cross the ninety-minute absolute cap (and never inherits the
+   eight-hour cap); master revocation; mint-budget isolation from unauthenticated
    device-approval floods; non-loopback and hosted refusals;
    fragment-stripping; and a planted-link end-to-end proof.
 

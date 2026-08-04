@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Runtime, Storage, Realtime, Security, Client integration, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-08-03 (designed the one-time operator claim link — `snapback admin link` mints a single-use five-minute process-ephemeral claim code redeemed from a `#claim=` URL, loopback-only, for one non-renewable ten-minute `sbcc_` credential with distinct provenance, a master-readable redemption record, and master revocation; added the "only ephemeral authority transits the human" design principle complementing LLP 0150, with the 401 master-paste prompt named as the acknowledged pre-existing exception; revised same day after a dual-family delta review round — both families NOT READY on the initial amendment (non-loopback contradiction, notification underspecification, renewal inheritance) — this text incorporates those fixes and is itself review-unreviewed). Same day: (`snapback admin` performs trusted ready-file discovery and hands only a derived `sbcc_` credential to the browser in a URL fragment; active dev/loopback credentials slide within an eight-hour cap and digest-only state reattaches beside file-backed databases; a short-TTL, rate-limited, single-use RFC-8628-shaped terminal approval flow covers remote browsers).
+**Revised:** 2026-08-03 (designed the one-time operator claim link — `snapback admin link` mints a single-use thirty-minute process-ephemeral claim code redeemed from a `#claim=` URL, loopback-only, for one `sbcc_` credential with distinct provenance that slides within a ninety-minute absolute cap, a master-readable redemption record, and master revocation; the thirty/ninety windows are an author ruling widening the review round's five-minute/non-renewable-ten-minute bounds for parallel long-running sessions; added the "only ephemeral authority transits the human" design principle complementing LLP 0150, with the 401 master-paste prompt named as the acknowledged pre-existing exception; revised same day after a dual-family delta review round — both families NOT READY on the initial amendment (non-loopback contradiction, notification underspecification, renewal inheritance) — this text incorporates those fixes and is itself review-unreviewed). Same day: (`snapback admin` performs trusted ready-file discovery and hands only a derived `sbcc_` credential to the browser in a URL fragment; active dev/loopback credentials slide within an eight-hour cap and digest-only state reattaches beside file-backed databases; a short-TTL, rate-limited, single-use RFC-8628-shaped terminal approval flow covers remote browsers).
 **Revised:** 2026-08-02 (0137 G1 follow-on: descriptor-scoped `P.secret-read-root` custody now retains an open handle to the adopted inode until teardown, preventing immediate inode-number reuse from making an identity-only guard delete a foreign replacement). 2026-08-01 (0137 G1: the `P.secret-read-root` sibling is descriptor-scoped custody — the serve process removes it identity-guarded with the ready descriptor at shutdown/teardown instead of orphaning it; the database-scoped `<db>.admin-token` reattach custody is unchanged). 2026-07-15 (the instance home now discovers the build-bound Snapback Guide for humans and its one-request flat projection for agent clients in every negotiated rendering). 2026-07-13 (ENG-24595: browsers exchange the master admin token for a short-lived, non-renewable console credential and never persist the master; config status exposes only closed verification state; the browser runner no longer manufactures app identity; earlier: ENG-24338 review follow-up: the readiness descriptor itself is atomically published owner-only at 0600, and CLI URL/token resolution uses one validated descriptor snapshot; ENG-24359 review follow-up: filesystem static assets are opened by a root-directory capability plus component-relative no-follow handles and read from the verified final descriptor; platforms without that primitive fail closed instead of retaining a canonicalize/read race; ENG-24338/ENG-24346/ENG-24359: trusted token discovery, owner-only no-follow capability files, and canonical static-asset containment; earlier: 2026-07-04 admin serving now has a single UI implementation: the Contract/Exact `admin-ui/dist` snapshot. The server auto-discovers a built repo-local dist when `SNAPBACK_ADMIN_DIST` is unset; if no dist is available, `/_snapback/admin` returns a missing-dist diagnostic instead of the deleted handwritten fallback console. Earlier: 2026-07-03 instance home is embedded-only again: the short-lived `home-ui/` Contract surface, `SNAPBACK_HOME_DIST`, and `/_snapback/home/*` lane were removed because `/` is a recovery/status page whose value is zero-toolchain reliability, while the admin dashboard remains the useful Contract/Exact dogfooding surface. Earlier: 2026-07-02 instance home briefly gained a Contract surface and shared-build-preset notes; this revision supersedes that slice. Earlier same day: added §Instance home page: the root `/` is now content-negotiated — a branded, embedded HTML homepage for browsers over the same public metadata object served as YAML/JSON/Markdown; app identity comes from the schema manifest's optional `app` block. Earlier same day: ENG-22598: Secrets surface was added to the then-existing admin consoles over the LLP 0036 config ops. Earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the console and admin API shipped per this RFC, hosted access still future; LLP 0032 R3: layout-kernel diagnosis corrected per LLP 0023/ENG-22199; "local safe by default" annotated with the S0 root-alias gating; LLP 0032 S1: v0-alias retirement completed per LLP 0031)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0024, LLP 0036, LLP 0150
 
@@ -556,7 +556,7 @@ Local defaults:
   neither fragment handoff nor `snapback admin approve` is convenient.
   `snapback admin link --ready-file P` proves master access the same way
   `snapback admin` does, then asks the server to mint a **claim code**: a
-  single-use, unguessable code with a five-minute expiry, held server-side
+  single-use, unguessable code with a thirty-minute expiry, held server-side
   only as a digest in the device-approval registry's process-local state —
   claims are process-ephemeral, and a server restart invalidates unredeemed
   codes. Master-proven claim mints draw on their own pending budget so
@@ -573,10 +573,15 @@ Local defaults:
   use after expiry — shares the single invalid/expired/consumed refusal.
   A claim-derived credential carries distinct provenance, satisfies only
   ordinary `AdminRead`/`AdminWrite` (never `AdminSecretRead` or
-  impersonation), and is **non-renewable**: it lives its fixed ten-minute
-  expiry and dies, so a raced or stolen link is bounded to ten minutes of
-  ordinary console authority rather than inheriting the sliding-renewal
-  window. The redemption event is recorded atomically against the claim
+  impersonation), and renews through the ordinary sliding mechanism under a
+  **ninety-minute absolute cap** — deliberately far below the eight-hour cap
+  of a locally minted credential (author ruling 2026-08-03, widening the
+  review round's fixed ten-minute non-renewable bound, which forced constant
+  link regeneration across parallel long-running sessions). An actively used
+  console session thus lasts up to ninety minutes on one link, while an
+  abandoned — or stolen-and-idle — credential still dies ten idle minutes
+  after last use, and active theft is bounded by the cap, the redemption
+  record, and master revocation. The redemption event is recorded atomically against the claim
   digest — time, direct transport-peer address, and the issued credential's
   digest — for the life of the claim plus the credential, readable only
   through master-bearer status (never by the browser or anonymous loopback),
@@ -589,7 +594,7 @@ Local defaults:
   honest visibility claim is "redeemed at time T", with the peer address
   best-effort; forwarding headers are consulted only for explicitly
   configured trusted proxies and are labeled as such. Because the link is a
-  bearer for its five-minute unclaimed life, this flow exists precisely
+  bearer for its thirty-minute unclaimed life, this flow exists precisely
   because it is safe to appear in agent transcripts, scrollback, and chat
   logs *after* redemption — a claimed or expired link is inert, in contrast
   to the master token, which must never enter those channels at all. Like
@@ -824,7 +829,8 @@ The accepted local contract must keep the following acceptance proofs green:
   claims share one status and body; the code travels only in a `POST` body
   (never a URL or log line) and comparison is constant-time against the
   stored digest; exchange responses are `no-store`; claim-derived credentials
-  are non-renewable, carry distinct provenance, and are revocable by the
+  carry distinct provenance, renew only within their ninety-minute absolute
+  cap (never reaching the ordinary eight-hour cap), and are revocable by the
   master through the recorded redemption binding; a server restart
   invalidates unredeemed claims;
 - `snapback admin --no-open` prints a fragment-bearing URL whose only
