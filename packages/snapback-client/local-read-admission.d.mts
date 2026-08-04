@@ -42,6 +42,14 @@ export interface LocalReadMaterializationIdentityV1 {
   readonly authorityPartitionDigest: `sha256:${string}`;
 }
 
+export interface LiveLocalReadMaterializationIdentityV1 {
+  readonly materializationKey: string;
+  readonly queryInstanceId: number | null;
+  readonly planHash: `sha256:${string}`;
+  readonly resultContractHash: string | null;
+  readonly authorityPartitionDigest: `sha256:${string}`;
+}
+
 export interface LocalReadAnswerV1 {
   readonly answerClass:
     | 'authoritative'
@@ -62,16 +70,41 @@ export interface DemandedMaterializationV1 {
   readonly effectiveScope: unknown;
   readonly registrations: readonly Readonly<{
     readonly registration: Readonly<{
+      readonly registrationId: string;
       readonly functionReference: Readonly<Record<string, unknown>>;
     }>;
     readonly resolution: Readonly<Record<string, unknown>>;
+    readonly liveAnswer?: Readonly<{
+      readonly answerClass: 'authoritative';
+      readonly freshness: 'current';
+      readonly rows: readonly BrowserIrRow[];
+      readonly version: number;
+      readonly subscriptionId: string;
+      readonly materialization: LiveLocalReadMaterializationIdentityV1;
+    }> | null;
   }>[];
+}
+
+export interface LocalReadAdmissionSourceV1 {
+  readonly sourceClass: 'live-registration' | 'durable-store';
+  readonly address: readonly string[];
+  readonly materializationKey: string;
+  readonly answerClass: LocalReadAnswerV1['answerClass'];
+  readonly freshness: LocalReadAnswerV1['freshness'];
+  readonly coverage: LocalReadMaterializationCoverageV1;
+  readonly queryInstanceId: number | null;
+  readonly authorityPartitionDigest: string | null;
+  readonly registrationId: string | null;
+  readonly subscriptionId: string | null;
+  readonly version: number | null;
+  readonly code: string | null;
 }
 
 export interface LocalReadAdmissionPointV1 {
   readonly id: string;
   readonly state: 'present' | 'absent' | 'missing';
   readonly sourceMaterializationKeys: readonly string[];
+  readonly sourceClasses: readonly ('live-registration' | 'durable-store')[];
 }
 
 export interface LocalReadAdmissionTableV1 {
@@ -79,7 +112,8 @@ export interface LocalReadAdmissionTableV1 {
   readonly state: 'admitted' | 'missing';
   readonly rows: readonly BrowserIrRow[] | null;
   readonly points: readonly LocalReadAdmissionPointV1[];
-  readonly sources: readonly Readonly<Record<string, unknown>>[];
+  readonly sources: readonly Readonly<LocalReadAdmissionSourceV1>[];
+  readonly admittedSourceClasses: readonly ('live-registration' | 'durable-store')[];
   readonly code: string;
 }
 

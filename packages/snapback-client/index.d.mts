@@ -21,6 +21,36 @@ export {
 } from './canonical-client-value.mjs';
 
 export type SnapbackFunctionKind = 'Query' | 'LiveQuery' | 'Mutation' | 'Action';
+export interface GeneratedMutationIrV1 {
+  readonly format: 'snapback.generated-mutation-ir.v1';
+  readonly operationHash: `sha256:${string}`;
+  readonly sourceIdentity: Readonly<{
+    functionId: string;
+    implementationHash: string;
+    activation: ArtifactGeneration;
+  }>;
+  readonly schemaIdentity: Readonly<{
+    schemaVersion: string;
+    appId: string;
+    schemaHash: string;
+  }>;
+  readonly capabilityClass: 'local-executable' | 'server-only';
+  readonly capabilityCode: string;
+  readonly declaredEffectClass: 'snapback.browser-ir.insert-get-guard-patch.v1';
+  readonly declaredReads: readonly string[];
+  readonly localReadRequirements: readonly Readonly<{
+    kind: 'point';
+    table: string;
+    idArg: string;
+    binding: string | null;
+    requiredFields: readonly string[];
+  }>[];
+  readonly schema: Readonly<Record<string, unknown>>;
+  readonly plan: Readonly<Record<string, unknown>>;
+  readonly mintSites: readonly string[];
+  readonly usesRuntimeNow: boolean;
+  readonly boundedSkew: BoundedSkewDeclaration | null;
+}
 export interface SnapbackFunctionReference<
   Name extends string = string,
   Kind extends SnapbackFunctionKind = SnapbackFunctionKind,
@@ -37,6 +67,7 @@ export interface SnapbackFunctionReference<
   readonly argsContractHash: string;
   readonly resultContractHash: string;
   readonly expectedGeneration?: ArtifactGeneration;
+  readonly mutationIr?: GeneratedMutationIrV1;
   readonly __args?: Args;
   readonly __result?: Result;
 }
@@ -172,6 +203,39 @@ export interface MutationOutput<Result> {
   readonly receipt: Readonly<Record<string, unknown>>;
   readonly attribution?: FunctionAttribution;
   readonly facts?: FunctionInvocationFacts;
+  readonly clientMutationId?: string;
+  readonly optimistic?: Readonly<{
+    operationHash: `sha256:${string}`;
+    settlementIdentity: string;
+  }>;
+}
+
+export interface OptimisticMutationViewSnapshot {
+  readonly format: 'snapback.optimistic-rebase-snapshot.v1';
+  readonly revision: number;
+  readonly authoritativeRows: Readonly<Record<string, readonly Readonly<Record<string, unknown>>[]>>;
+  readonly visibleRows: Readonly<Record<string, readonly Readonly<Record<string, unknown>>[]>>;
+  readonly layers: readonly Readonly<Record<string, unknown>>[];
+  readonly queuedOnly: readonly Readonly<Record<string, unknown>>[];
+  readonly lastRebase: Readonly<Record<string, unknown>> | null;
+}
+
+export interface OptimisticMutationRebaseInput {
+    readonly authoritativeRows?: Readonly<Record<string, readonly Readonly<Record<string, unknown>>[]>>;
+    readonly retiredSettlementIdentities?: readonly string[];
+    readonly cause?: string;
+    readonly connected?: boolean;
+}
+
+export interface OptimisticMutationView {
+  readonly format: 'snapback.optimistic-mutation-view.v1';
+  rebase(input?: OptimisticMutationRebaseInput): Promise<Readonly<Record<string, unknown>>>;
+  reload(input?: OptimisticMutationRebaseInput): Promise<Readonly<Record<string, unknown>>>;
+  refresh(input?: OptimisticMutationRebaseInput): Promise<Readonly<Record<string, unknown>>>;
+  getSnapshot(): OptimisticMutationViewSnapshot;
+  inspection(): Readonly<Record<string, unknown>>;
+  subscribe(listener: () => void): () => void;
+  close(): void;
 }
 
 export interface AuthorityDescriptorV1 {
@@ -950,6 +1014,12 @@ export class SnapbackClient {
     ref: Ref,
     options: FunctionArgs<Ref> & { readonly userId?: string },
   ): Promise<FunctionResult<Ref>>;
+  /** Create the generated-IR presentation over durable outbox intent. Boot
+   * replays retained operations before this promise resolves. */
+  createOptimisticMutationView(options?: {
+    readonly authoritativeRows?: Readonly<Record<string, readonly Readonly<Record<string, unknown>>[]>>;
+    readonly connected?: boolean;
+  }): Promise<OptimisticMutationView>;
   mutate<Ref extends FunctionRef<'Mutation'>>(
     ref: Ref,
     options?: {

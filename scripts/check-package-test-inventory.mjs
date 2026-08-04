@@ -66,6 +66,7 @@ const inventories = [
     packageDir: 'packages/snapback-client',
     testDir: '.',
     suffix: '.test.mjs',
+    scriptNames: ['pretest', 'test'],
     expectedFiles: [
       'app-data.test.mjs',
       'argument-validation.test.mjs',
@@ -80,6 +81,7 @@ const inventories = [
       'ephemeral-room.test.mjs',
       'evaluation-floor.test.mjs',
       'external-store.test.mjs',
+      'generated-mutation-ir.test.mjs',
       'hosted-browser.test.mjs',
       'hosted-ephemeral.test.mjs',
       'ir-evaluator.test.mjs',
@@ -189,6 +191,7 @@ const inventories = [
     packageDir: 'packages/snapback-codegen',
     testDir: '.',
     suffix: '.test.mjs',
+    scriptNames: ['pretest', 'test'],
     expectedFiles: [
       'api-envelope-members.test.mjs',
       'args-contract-goldens.test.mjs',
@@ -202,6 +205,7 @@ const inventories = [
       'dependency-graph.test.mjs',
       'effect-ceiling.test.mjs',
       'function-id.test.mjs',
+      'generated-mutation-ir.test.mjs',
       'identifier-validation.test.mjs',
       'inline-helper-sharing.test.mjs',
       'inline-result-contracts.test.mjs',
@@ -520,7 +524,10 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // 191 -> 193 (2026-08-04, Move-3 Phase-1 lane M3): @expo/snapback-client
 // gains the optimistic layer/rebase unit suite and the three-leg in-process
 // acceptance (20 rapid moves, locked card, reload during settlement).
-assert.equal(total, 193, 'reviewed package/admin test count changed');
+// 193 -> 195 (2026-08-04, Move-3 Phase-1 lane M4): codegen gains the
+// generated mutation-IR identity/read-requirement suite; the client gains the
+// no-duplicate-transform, pre-settlement paint, and boot-replay suite.
+assert.equal(total, 195, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

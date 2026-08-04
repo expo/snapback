@@ -396,6 +396,165 @@ const references = {
     "id": "competitive-checkpoint:createConversation",
     "implementationHash": "sha256:ff4f928ccce67c879c62027bb59c40f68fcd7e2985c1632543c6a174928ebee8",
     "kind": "Mutation",
+    "mutationIr": {
+      "boundedSkew": null,
+      "capabilityClass": "server-only",
+      "capabilityCode": "SNAPBACK_GENERATED_IR_AUTHORITATIVE_EXPR_SERVER_ONLY",
+      "declaredEffectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
+      "declaredReads": [],
+      "format": "snapback.generated-mutation-ir.v1",
+      "localReadRequirements": [],
+      "mintSites": [
+        "plan/steps/0/insert/row-id"
+      ],
+      "operationHash": "sha256:e65aa76bde615f4a59d47961634e5fbf43d99ecb6f40bd4793abedead5fee457",
+      "plan": {
+        "return_value": {
+          "Document": {
+            "id": {
+              "Binding": "__standardCreatedId"
+            },
+            "table": "conversations"
+          }
+        },
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": "__standardCreatedId",
+              "table": "conversations",
+              "values": {
+                "createdAt": "RuntimeNow",
+                "model": {
+                  "Arg": "model"
+                },
+                "ownerId": "AuthUserId",
+                "pageKey": "RuntimeId",
+                "slug": {
+                  "Arg": "slug"
+                },
+                "title": {
+                  "Arg": "title"
+                },
+                "updatedAt": "RuntimeNow"
+              }
+            }
+          }
+        ]
+      },
+      "schema": {
+        "tables": [
+          {
+            "fields": [
+              {
+                "name": "ownerId"
+              },
+              {
+                "name": "slug"
+              },
+              {
+                "name": "title"
+              },
+              {
+                "name": "model"
+              },
+              {
+                "name": "pageKey"
+              },
+              {
+                "name": "createdAt"
+              },
+              {
+                "name": "updatedAt"
+              }
+            ],
+            "name": "conversations"
+          },
+          {
+            "fields": [
+              {
+                "name": "ownerId"
+              },
+              {
+                "name": "conversationId"
+              },
+              {
+                "name": "role"
+              },
+              {
+                "name": "content"
+              },
+              {
+                "name": "status"
+              },
+              {
+                "name": "attemptId"
+              },
+              {
+                "name": "idempotencyKey"
+              },
+              {
+                "name": "sequence"
+              },
+              {
+                "name": "lastProgressAt"
+              },
+              {
+                "name": "pageKey"
+              },
+              {
+                "name": "effectMayHaveExecuted"
+              }
+            ],
+            "name": "messages"
+          },
+          {
+            "fields": [
+              {
+                "name": "slug"
+              },
+              {
+                "name": "displayName"
+              },
+              {
+                "name": "provider"
+              }
+            ],
+            "name": "models"
+          },
+          {
+            "fields": [
+              {
+                "name": "ownerId"
+              },
+              {
+                "name": "title"
+              },
+              {
+                "name": "modelName"
+              }
+            ],
+            "name": "conversationCards"
+          }
+        ]
+      },
+      "schemaIdentity": {
+        "appId": "competitive-checkpoint",
+        "schemaHash": "sha256:d1659f1faae6d578",
+        "schemaVersion": "snapback.v0"
+      },
+      "sourceIdentity": {
+        "activation": {
+          "appId": "competitive-checkpoint",
+          "bundleHash": "sha256:0ebae8b9d88d2223",
+          "inputsHash": "84eda29356c38f58afcb2f8a06bea4d1ab7170e42a4d6e317c840176671c3e64",
+          "schemaHash": "sha256:d1659f1faae6d578",
+          "schemaVersion": "snapback.v0"
+        },
+        "functionId": "competitive-checkpoint:createConversation",
+        "implementationHash": "sha256:ff4f928ccce67c879c62027bb59c40f68fcd7e2985c1632543c6a174928ebee8"
+      },
+      "usesRuntimeNow": true
+    },
     "name": "createConversation",
     "resultContractHash": "sha256:344bedd6d97d9e9634aabc51f0e23fd5a8c8fa5a3e732ea66aa7caed1d886d6b",
     "schemaVersion": "snapback.v0"
@@ -426,6 +585,185 @@ const references = {
     "id": "competitive-checkpoint:deleteConversation",
     "implementationHash": "sha256:96c947c478374b2809aee196310d5709f242cf44fdff5740a884aa9a7b985c85",
     "kind": "Mutation",
+    "mutationIr": {
+      "boundedSkew": null,
+      "capabilityClass": "server-only",
+      "capabilityCode": "SNAPBACK_GENERATED_IR_EFFECT_SERVER_ONLY",
+      "declaredEffectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
+      "declaredReads": [
+        "conversations"
+      ],
+      "format": "snapback.generated-mutation-ir.v1",
+      "localReadRequirements": [
+        {
+          "binding": "__standardOwnedRow",
+          "idArg": "id",
+          "kind": "point",
+          "requiredFields": [
+            "_id",
+            "ownerId"
+          ],
+          "table": "conversations"
+        }
+      ],
+      "mintSites": [],
+      "operationHash": "sha256:cbe99a157222066a4305625d30b00fc3a9d027b73aad37ce7e0001dc3387fe16",
+      "plan": {
+        "return_value": null,
+        "steps": [
+          {
+            "Get": {
+              "bind_as": "__standardOwnedRow",
+              "else_error": "SNAPBACK_ROW_NOT_FOUND",
+              "id": {
+                "Arg": "id"
+              },
+              "table": "conversations"
+            }
+          },
+          {
+            "Guard": {
+              "cond": {
+                "Binary": {
+                  "left": {
+                    "Field": {
+                      "base": {
+                        "Binding": "__standardOwnedRow"
+                      },
+                      "key": "ownerId"
+                    }
+                  },
+                  "op": "Eq",
+                  "right": "AuthUserId"
+                }
+              },
+              "else_error": "SNAPBACK_ROW_NOT_FOUND"
+            }
+          },
+          {
+            "Delete": {
+              "id": {
+                "Arg": "id"
+              },
+              "table": "conversations"
+            }
+          }
+        ]
+      },
+      "schema": {
+        "tables": [
+          {
+            "fields": [
+              {
+                "name": "ownerId"
+              },
+              {
+                "name": "slug"
+              },
+              {
+                "name": "title"
+              },
+              {
+                "name": "model"
+              },
+              {
+                "name": "pageKey"
+              },
+              {
+                "name": "createdAt"
+              },
+              {
+                "name": "updatedAt"
+              }
+            ],
+            "name": "conversations"
+          },
+          {
+            "fields": [
+              {
+                "name": "ownerId"
+              },
+              {
+                "name": "conversationId"
+              },
+              {
+                "name": "role"
+              },
+              {
+                "name": "content"
+              },
+              {
+                "name": "status"
+              },
+              {
+                "name": "attemptId"
+              },
+              {
+                "name": "idempotencyKey"
+              },
+              {
+                "name": "sequence"
+              },
+              {
+                "name": "lastProgressAt"
+              },
+              {
+                "name": "pageKey"
+              },
+              {
+                "name": "effectMayHaveExecuted"
+              }
+            ],
+            "name": "messages"
+          },
+          {
+            "fields": [
+              {
+                "name": "slug"
+              },
+              {
+                "name": "displayName"
+              },
+              {
+                "name": "provider"
+              }
+            ],
+            "name": "models"
+          },
+          {
+            "fields": [
+              {
+                "name": "ownerId"
+              },
+              {
+                "name": "title"
+              },
+              {
+                "name": "modelName"
+              }
+            ],
+            "name": "conversationCards"
+          }
+        ]
+      },
+      "schemaIdentity": {
+        "appId": "competitive-checkpoint",
+        "schemaHash": "sha256:d1659f1faae6d578",
+        "schemaVersion": "snapback.v0"
+      },
+      "sourceIdentity": {
+        "activation": {
+          "appId": "competitive-checkpoint",
+          "bundleHash": "sha256:0ebae8b9d88d2223",
+          "inputsHash": "84eda29356c38f58afcb2f8a06bea4d1ab7170e42a4d6e317c840176671c3e64",
+          "schemaHash": "sha256:d1659f1faae6d578",
+          "schemaVersion": "snapback.v0"
+        },
+        "functionId": "competitive-checkpoint:deleteConversation",
+        "implementationHash": "sha256:96c947c478374b2809aee196310d5709f242cf44fdff5740a884aa9a7b985c85"
+      },
+      "usesRuntimeNow": false
+    },
     "name": "deleteConversation",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
     "schemaVersion": "snapback.v0"
@@ -624,6 +962,157 @@ const references = {
     "id": "competitive-checkpoint:registerModel",
     "implementationHash": "sha256:cd72223aabe96532cbc6faa922f317f101cdcf05637b40977d434fe6089b5b7a",
     "kind": "Mutation",
+    "mutationIr": {
+      "boundedSkew": null,
+      "capabilityClass": "local-executable",
+      "capabilityCode": "SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE",
+      "declaredEffectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
+      "declaredReads": [],
+      "format": "snapback.generated-mutation-ir.v1",
+      "localReadRequirements": [],
+      "mintSites": [
+        "plan/steps/0/insert/row-id"
+      ],
+      "operationHash": "sha256:4551de85473e58543be469dcba35e6e4b36ded53876ff0e37a23314c3a4cc84a",
+      "plan": {
+        "return_value": null,
+        "steps": [
+          {
+            "Insert": {
+              "bind_id_as": null,
+              "table": "models",
+              "values": {
+                "displayName": {
+                  "Arg": "displayName"
+                },
+                "provider": {
+                  "Field": {
+                    "base": "Args",
+                    "key": "provider"
+                  }
+                },
+                "slug": {
+                  "Arg": "slug"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "schema": {
+        "tables": [
+          {
+            "fields": [
+              {
+                "name": "ownerId"
+              },
+              {
+                "name": "slug"
+              },
+              {
+                "name": "title"
+              },
+              {
+                "name": "model"
+              },
+              {
+                "name": "pageKey"
+              },
+              {
+                "name": "createdAt"
+              },
+              {
+                "name": "updatedAt"
+              }
+            ],
+            "name": "conversations"
+          },
+          {
+            "fields": [
+              {
+                "name": "ownerId"
+              },
+              {
+                "name": "conversationId"
+              },
+              {
+                "name": "role"
+              },
+              {
+                "name": "content"
+              },
+              {
+                "name": "status"
+              },
+              {
+                "name": "attemptId"
+              },
+              {
+                "name": "idempotencyKey"
+              },
+              {
+                "name": "sequence"
+              },
+              {
+                "name": "lastProgressAt"
+              },
+              {
+                "name": "pageKey"
+              },
+              {
+                "name": "effectMayHaveExecuted"
+              }
+            ],
+            "name": "messages"
+          },
+          {
+            "fields": [
+              {
+                "name": "slug"
+              },
+              {
+                "name": "displayName"
+              },
+              {
+                "name": "provider"
+              }
+            ],
+            "name": "models"
+          },
+          {
+            "fields": [
+              {
+                "name": "ownerId"
+              },
+              {
+                "name": "title"
+              },
+              {
+                "name": "modelName"
+              }
+            ],
+            "name": "conversationCards"
+          }
+        ]
+      },
+      "schemaIdentity": {
+        "appId": "competitive-checkpoint",
+        "schemaHash": "sha256:d1659f1faae6d578",
+        "schemaVersion": "snapback.v0"
+      },
+      "sourceIdentity": {
+        "activation": {
+          "appId": "competitive-checkpoint",
+          "bundleHash": "sha256:0ebae8b9d88d2223",
+          "inputsHash": "84eda29356c38f58afcb2f8a06bea4d1ab7170e42a4d6e317c840176671c3e64",
+          "schemaHash": "sha256:d1659f1faae6d578",
+          "schemaVersion": "snapback.v0"
+        },
+        "functionId": "competitive-checkpoint:registerModel",
+        "implementationHash": "sha256:cd72223aabe96532cbc6faa922f317f101cdcf05637b40977d434fe6089b5b7a"
+      },
+      "usesRuntimeNow": false
+    },
     "name": "registerModel",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
     "schemaVersion": "snapback.v0"
@@ -776,6 +1265,201 @@ const references = {
     "id": "competitive-checkpoint:updateConversation",
     "implementationHash": "sha256:5b6950ca7f4d36a3cd23f975ee262472dfe68d7ec29bdf96cc17211c6eb6ed79",
     "kind": "Mutation",
+    "mutationIr": {
+      "boundedSkew": null,
+      "capabilityClass": "server-only",
+      "capabilityCode": "SNAPBACK_GENERATED_IR_AUTHORITATIVE_EXPR_SERVER_ONLY",
+      "declaredEffectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
+      "declaredReads": [
+        "conversations"
+      ],
+      "format": "snapback.generated-mutation-ir.v1",
+      "localReadRequirements": [
+        {
+          "binding": "__standardOwnedRow",
+          "idArg": "id",
+          "kind": "point",
+          "requiredFields": [
+            "_id",
+            "ownerId"
+          ],
+          "table": "conversations"
+        }
+      ],
+      "mintSites": [],
+      "operationHash": "sha256:ca64e701a222c652ee40d5eb102a1a3fafbfdacf1f41258cbd3603c4d24f47ac",
+      "plan": {
+        "return_value": {
+          "Document": {
+            "id": {
+              "Arg": "id"
+            },
+            "table": "conversations"
+          }
+        },
+        "steps": [
+          {
+            "Get": {
+              "bind_as": "__standardOwnedRow",
+              "else_error": "SNAPBACK_ROW_NOT_FOUND",
+              "id": {
+                "Arg": "id"
+              },
+              "table": "conversations"
+            }
+          },
+          {
+            "Guard": {
+              "cond": {
+                "Binary": {
+                  "left": {
+                    "Field": {
+                      "base": {
+                        "Binding": "__standardOwnedRow"
+                      },
+                      "key": "ownerId"
+                    }
+                  },
+                  "op": "Eq",
+                  "right": "AuthUserId"
+                }
+              },
+              "else_error": "SNAPBACK_ROW_NOT_FOUND"
+            }
+          },
+          {
+            "Patch": {
+              "id": {
+                "Arg": "id"
+              },
+              "table": "conversations",
+              "values": {
+                "model": {
+                  "Arg": "model"
+                },
+                "title": {
+                  "Arg": "title"
+                },
+                "updatedAt": "RuntimeNow"
+              }
+            }
+          }
+        ]
+      },
+      "schema": {
+        "tables": [
+          {
+            "fields": [
+              {
+                "name": "ownerId"
+              },
+              {
+                "name": "slug"
+              },
+              {
+                "name": "title"
+              },
+              {
+                "name": "model"
+              },
+              {
+                "name": "pageKey"
+              },
+              {
+                "name": "createdAt"
+              },
+              {
+                "name": "updatedAt"
+              }
+            ],
+            "name": "conversations"
+          },
+          {
+            "fields": [
+              {
+                "name": "ownerId"
+              },
+              {
+                "name": "conversationId"
+              },
+              {
+                "name": "role"
+              },
+              {
+                "name": "content"
+              },
+              {
+                "name": "status"
+              },
+              {
+                "name": "attemptId"
+              },
+              {
+                "name": "idempotencyKey"
+              },
+              {
+                "name": "sequence"
+              },
+              {
+                "name": "lastProgressAt"
+              },
+              {
+                "name": "pageKey"
+              },
+              {
+                "name": "effectMayHaveExecuted"
+              }
+            ],
+            "name": "messages"
+          },
+          {
+            "fields": [
+              {
+                "name": "slug"
+              },
+              {
+                "name": "displayName"
+              },
+              {
+                "name": "provider"
+              }
+            ],
+            "name": "models"
+          },
+          {
+            "fields": [
+              {
+                "name": "ownerId"
+              },
+              {
+                "name": "title"
+              },
+              {
+                "name": "modelName"
+              }
+            ],
+            "name": "conversationCards"
+          }
+        ]
+      },
+      "schemaIdentity": {
+        "appId": "competitive-checkpoint",
+        "schemaHash": "sha256:d1659f1faae6d578",
+        "schemaVersion": "snapback.v0"
+      },
+      "sourceIdentity": {
+        "activation": {
+          "appId": "competitive-checkpoint",
+          "bundleHash": "sha256:0ebae8b9d88d2223",
+          "inputsHash": "84eda29356c38f58afcb2f8a06bea4d1ab7170e42a4d6e317c840176671c3e64",
+          "schemaHash": "sha256:d1659f1faae6d578",
+          "schemaVersion": "snapback.v0"
+        },
+        "functionId": "competitive-checkpoint:updateConversation",
+        "implementationHash": "sha256:5b6950ca7f4d36a3cd23f975ee262472dfe68d7ec29bdf96cc17211c6eb6ed79"
+      },
+      "usesRuntimeNow": true
+    },
     "name": "updateConversation",
     "resultContractHash": "sha256:344bedd6d97d9e9634aabc51f0e23fd5a8c8fa5a3e732ea66aa7caed1d886d6b",
     "schemaVersion": "snapback.v0"

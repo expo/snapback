@@ -29,6 +29,14 @@ export interface RegistrationLedger {
   releaseDurable(input: { registrationId: string }): unknown | Promise<unknown>;
   effectivePolicy(addressKey: string): unknown;
   demandState(addressKey: string): unknown;
+  publishLiveRegistrationAnswer(input: {
+    registrationId: string;
+    rows: readonly Readonly<Record<string, unknown>>[];
+    version: number;
+    subscriptionId: string;
+    materialization: Readonly<Record<string, unknown>>;
+  }): boolean;
+  clearLiveRegistrationAnswer(registrationId: string): boolean;
   awaitHydrationIdle?(): Promise<void>;
   [key: string]: unknown;
 }
