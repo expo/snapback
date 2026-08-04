@@ -5,20 +5,34 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-03 (LLP 0163 implementation parameters — v1 authenticated
+**Revised:** 2026-08-04 (author decision sitting #3
+(`issues/closed/20260804-author-decision-sitting-3.md`): the JS-arm
+sessions-custody queue recorded design is **RATIFIED** — all four open
+points ruled: (1) v1 stays server-refusal-only, no LLP 0053
+queue-obligation suspension port, the named Contract-arm asymmetry
+stands, revisit only on evidence of meaningful refusal rates;
+(2) `SNAPBACK_AUTH_STALE_RESULT` at replay surfaces as *stranded* with
+re-record recovery, content refusals stay drop-and-mark-failed;
+(3) cross-principal disposition is delete-with-diagnostic-count, no
+redacted tombstones; (4) recovery affordance is
+read/discard/re-record-as-new-`clientMutationId`, no exactly-once bridge
+across authorities. Implementation is now authorized as a lane; the
+`SNAPBACK_OFFLINE_QUEUE_CUSTODY_UNSUPPORTED` refusal remains the shipped
+behavior only until that lane lands.) 2026-08-03 (LLP 0163 implementation parameters — v1 authenticated
 client ranges admit at most 256 counters over at most 30 days; unacknowledged
 results have no time eviction; ACK makes the result payload immediately
 reclaimable but requires a tombstone until the audience floor passes the
 epoch); 2026-08-03 (`single_table_v1@1` boundary: proof-backed QMK
 records under its narrow authority remain retained-not-current; pending
 outbox intent withholds token resume but not a verified retained display;
-lease and outbox lifecycle are unchanged.); 2026-08-03 (recorded design,
-awaiting author ratification —
+lease and outbox lifecycle are unchanged.); 2026-08-03 (recorded design —
 JS-arm sessions-custody offline queue: capture-at-enqueue authority
 descriptors + strand-on-authority-change, per the commissioned design pass
-at author sitting #2; see §Auth posture's dated subsection. No claim,
-capability, or behavior change until the author ratifies the recording; the
-JS arm's `SNAPBACK_OFFLINE_QUEUE_CUSTODY_UNSUPPORTED` fence stands.)
+at author sitting #2; see §Auth posture's dated subsection. Recorded
+awaiting author ratification; **ratified 2026-08-04 at author sitting #3**
+— see that entry. The JS arm's
+`SNAPBACK_OFFLINE_QUEUE_CUSTODY_UNSUPPORTED` fence stands until the
+authorized implementation lane lands.)
 2026-08-03 (terminology note: "cold process" in this document
 names the fresh-wrappers-over-retained-state-in-one-process proof class;
 no claim change.) 2026-08-03 (Accepted LLP 0166 boundary: v1 lease-family
@@ -461,7 +475,7 @@ Every tab/process sharing the physical client-store key must be drained and
 upgraded together; if an old writer later replaces v6 with v5, the next v6 read
 performs the same deletion-only migration instead of trusting the downgrade.
 
-#### JS-arm sessions-custody queue — Recorded design (2026-08-03, commissioned at author sitting #2) — awaiting author ratification; no implementation authorized by this recording
+#### JS-arm sessions-custody queue — Recorded design (2026-08-03, commissioned at author sitting #2) — RATIFIED (2026-08-04, author sitting #3); implementation authorized as a lane
 
 Commissioned by `issues/20260803-0043-sessions-custody-design.md` (leg 2 of
 `issues/20260731-js-arm-lease-custody-and-sessions-outbox.md`). Today the JS
@@ -473,9 +487,12 @@ recording lands on the working hypothesis — **capture-at-enqueue authority
 descriptors + strand-on-authority-change**, the discipline this section
 already states and the Contract arm already ships — realized per durable
 outbox record on the JS arm's RQS store, not by porting the Contract store's
-format-6 epoch machinery wholesale. Until the author ratifies this recording
-and an implementation lands, the refusal above remains the shipped behavior;
-nothing in this subsection changes a claim.
+format-6 epoch machinery wholesale. **The author ratified this recording on
+2026-08-04 at author decision sitting #3
+(`issues/closed/20260804-author-decision-sitting-3.md`), ruling all four
+open points below; implementation is now authorized as a lane.** Until that
+implementation lands, the refusal above remains the shipped behavior;
+nothing in this subsection changes a claim ahead of the landed lane.
 
 **Captured at enqueue.** A sessions-custody enqueue is admitted only while the
 authority fence is settled (a clearing/unsettled fence —
@@ -544,8 +561,9 @@ Contract arm's shipped format-6 transitions:
    instance: does not strand.** The descriptor is unchanged; the server
    re-validates authorization at replay and refuses or admits each mutation
    on its own merits. v1 of this design carries no client-side ingestion of
-   LLP 0053 mutation-queue obligations (see open point 1 — this is the named
-   asymmetry with the Contract arm's `pendingByScope` suspension).
+   LLP 0053 mutation-queue obligations (ratified point 1, ruled at sitting
+   #3 — this is the named asymmetry with the Contract arm's
+   `pendingByScope` suspension).
 5. **Lease expiry: does not strand.** The lease bounds retained *display*
    (M1); the queue axis is the descriptor. Queue custody neither requires nor
    consumes leases.
@@ -578,8 +596,8 @@ handler and authorization refusals produce their own typed outcomes. On the
 client, `SNAPBACK_AUTH_STALE_RESULT` on a replayed record is recorded as
 **stranded** (authority changed), while content refusals keep
 drop-and-mark-**failed**; both are terminal and never retried, so the
-exactly-once discipline is unchanged (see open point 2 for the taxonomy
-ratification).
+exactly-once discipline is unchanged (the taxonomy is ratified point 2,
+ruled at sitting #3).
 
 **Settlement presentation and recovery affordances.** The shipped
 descriptor-cohort discipline extends unchanged: `settledMutations()` /
@@ -592,8 +610,8 @@ ones with full bytes), an explicit discard, and — for rerecordable records
 only — explicit re-recording, which mints a **new** `clientMutationId` under
 the current descriptor. Re-recording is a new intent, not a replay: the old
 settlement identity is bound to the old descriptor and carries no
-exactly-once bridge across authorities (open point 4 owns the affordance
-shape).
+exactly-once bridge across authorities (the affordance shape is ratified
+point 4, ruled at sitting #3).
 
 **Interaction boundaries.**
 
@@ -622,29 +640,34 @@ shape).
   precondition applies to sessions-custody pending records identically.
   Nothing in this design imports LLP 0166 machinery as a built dependency.
 
-**Open points for author ratification** (each a genuine under-determination
-of the hypothesis; everything above is the recorded design):
+**Ratified points (2026-08-04, author decision sitting #3)** — each was a
+genuine under-determination of the hypothesis, recorded 2026-08-03 as an
+open alternative; each is now ruled. The design text above stands as
+recorded; the rulings resolve the alternatives:
 
-1. **LLP 0053 queue-obligation ingestion.** v1 relies on server re-validation
-   at replay (matrix row 4) instead of porting `pendingByScope` queue
-   suspension. Consequence: a delete-disposition invalidation strands a
-   queued record only at replay time, not at obligation delivery. Ratify
-   server-refusal-only for v1, or require the suspension port.
+1. **LLP 0053 queue-obligation ingestion — RULED: server-refusal-only for
+   v1.** v1 relies on server re-validation at replay (matrix row 4); no
+   `pendingByScope` queue-obligation suspension port on the JS arm. The
+   consequence stands as recorded: a delete-disposition invalidation
+   strands a queued record only at replay time, not at obligation
+   delivery. The named Contract-arm asymmetry stands; revisit only on
+   evidence of meaningful refusal rates. (Ruled at sitting #3.)
 2. **Stranded-vs-failed taxonomy for `SNAPBACK_AUTH_STALE_RESULT` on
-   replay.** This design records authority-change refusals as *stranded*
-   rather than *failed*, refining (not weakening — still terminal,
-   never retried) the drop-and-mark-failed rule. Ratify the refinement, or
-   keep every server refusal in `failed`.
-3. **Cross-principal disposition.** Recorded: delete-with-diagnostic
-   (Contract parity, matrix row 2). Alternative: retain payload-free
-   redacted tombstones (`id`, function, sequence, reason) for the
-   predecessor principal's possible return. The Contract arm keeps such
-   tombstones only in its stranded-sanitization flows, not on principal
-   change; parity argues for delete.
-4. **Rerecord affordance shape.** Recorded: explicit
-   read/discard/re-record-as-new-intent. Alternative: read+discard only,
-   with re-creation left entirely to the application. Either way there is no
-   automatic re-submission and no exactly-once bridge across authorities.
+   replay — RULED: the refinement stands.** An authority-change refusal at
+   replay surfaces client-side as *stranded* (a custody outcome, with the
+   re-record recovery affordance), exactly as recorded — still terminal,
+   never retried. Content refusals stay drop-and-mark-*failed*. (Ruled at
+   sitting #3.)
+3. **Cross-principal disposition — RULED: delete-with-diagnostic-count**
+   (Contract parity, matrix row 2). The principal change is a privacy
+   deletion boundary: no payload-free redacted tombstones, and nothing is
+   retained for, attributed to, or replayed under the successor. (Ruled at
+   sitting #3.)
+4. **Rerecord affordance shape — RULED: explicit
+   read/discard/re-record-as-new-`clientMutationId`.** Re-recording mints
+   a new intent under the current descriptor; there is no automatic
+   re-submission and no exactly-once bridge across authorities. (Ruled at
+   sitting #3.)
 
 ## Non-goals
 

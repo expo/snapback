@@ -7,7 +7,18 @@ verification, Diagnostics, Schema and storage, Live queries, Developer
 experience
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-03 (D1 first-tranche implementation record
+**Revised:** 2026-08-04 (author decision sitting #3
+(`issues/closed/20260804-author-decision-sitting-3.md`), two rulings on
+the D1 tranche's accumulated author questions: (1) **no escape hatch in
+v1** — the boolean `strictDeclarations` opt-in ships as-is, and the
+per-dependency-class vocabulary gets defined only when a real app hits a
+conservative or unobservable class (evidence-driven); (2) the strict
+flag is **refused at load with a named code** on targets that cannot
+enforce it (Cloudflare arm today) — the flag must never ride through
+unenforced; the load/ensure-time refusal with a named `SNAPBACK_*` code
+plus test is added to the tranche's next steps. Ruling 2 partially
+resolves OQ14 in the refuse direction — what constitutes an
+authoritative capture on Cloudflare stays open.) 2026-08-03 (D1 first-tranche implementation record
 (`issues/20260803-0146-d1-d3-tranche.md`): D1 surfaces 1 and 3 are
 implemented on the local target — the per-invocation class-tagged report
 with per-class provenance lands on the admin runner's `FunctionRunResult`
@@ -445,6 +456,11 @@ declarations are evidence, and LLP 0108 sequences ceiling enforcement as
 "its own later decision, decoupled" (`llp/0108`). This RFC is that later
 decision, taken narrowly. The escape hatch is per-dependency-class
 (explicitly conservative or unobservable classes), never a blanket disable.
+(Ruled 2026-08-04, author sitting #3: **no hatch ships in v1** — the
+boolean opt-in ships as-is, and the class vocabulary gets defined only when
+a real app hits a conservative or unobservable class. Also ruled: the
+strict flag is refused at load with a named code on targets that cannot
+enforce it — see §Open questions.)
 
 **Cloudflare disposition.** Report and coverage did not by themselves fix
 the fan-out defect, so the arm independently landed conservative widening:
@@ -1104,6 +1120,26 @@ OQ7 (CV-14 custody trigger) was deliberately **not** ruled —
 implementation must not claim CV-14 custody satisfaction without the
 custody owner's ratification. The remaining questions stay open.
 
+**Ruled 2026-08-04 — author decision sitting #3
+(`issues/closed/20260804-author-decision-sitting-3.md`).** Two rulings
+on the D1 tranche's accumulated author questions
+(`issues/20260803-0146-d1-d3-tranche.md`):
+
+- **Escape hatch: none in v1.** The boolean `strictDeclarations`
+  strict-mode opt-in ships as-is. The per-dependency-class vocabulary
+  ("explicitly conservative or unobservable classes") gets defined only
+  when a real app hits such a class — evidence-driven, not speculative.
+- **Strict flag on non-enforcing targets: REFUSE AT LOAD** with a named
+  code on targets that cannot enforce `strictDeclarations` (the
+  Cloudflare arm today). The flag must never ride through unenforced.
+  The implementation item (load/ensure-time refusal with a named
+  `SNAPBACK_*` code, plus test) belongs to the tranche's continuation
+  and is recorded in the tranche ticket's next steps. This ruling
+  **partially resolves OQ14**: when strict mode is requested on a
+  target without enforcement authority, the answer is refusal, not
+  unenforced ride-through; OQ14's broader question — what constitutes
+  an authoritative capture on Cloudflare — stays open.
+
 1. **D1 strict-mode default.** Opt-in per app is proposed. Does a
    newly generated app opt in by default, making the *legacy* case the
    opt-out? That would make declarations enforced ceilings for all new
@@ -1162,6 +1198,10 @@ custody owner's ratification. The remaining questions stay open.
 14. **Conformance evidence on non-local targets.** D1's provenance states
     are defined against local capture. What constitutes an authoritative
     capture on Cloudflare, where captured reads are recorded but unused?
+    *Partially resolved 2026-08-04 (author sitting #3): a strict flag on a
+    target that cannot enforce it is refused at load with a named code —
+    never unenforced ride-through. The capture-authority question above
+    stays open.*
 
 ## Status
 

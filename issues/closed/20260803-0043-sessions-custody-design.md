@@ -1,6 +1,7 @@
 # LLP 0043 sessions-custody JS-arm queue — design pass commission
 
-**Status:** Open
+**Status:** Resolved (2026-08-04 — design recorded and ratified; see
+resolution below)
 **Opened:** 2026-08-03 — commissioned by author decision sitting #2
 (`issues/20260803-author-decision-sitting-2.md`)
 **Systems:** Client integration, Sync, Auth
@@ -63,3 +64,31 @@ affordance shape.
 recorded design (including the four open points), not the hypothesis; no
 implementation is authorized by the recording, and the JS arm's
 `SNAPBACK_OFFLINE_QUEUE_CUSTODY_UNSUPPORTED` fence stands until then.
+
+## Resolution (2026-08-04 — ratified at author decision sitting #3)
+
+Charlie ratified the recorded design at author decision sitting #3
+(`issues/closed/20260804-author-decision-sitting-3.md`), ruling all four
+open points:
+
+1. **LLP 0053 queue-obligation ingestion:** v1 stays server-refusal-only
+   — no `pendingByScope` suspension port on the JS arm; the named
+   Contract-arm asymmetry stands; revisit only on evidence of meaningful
+   refusal rates.
+2. **`SNAPBACK_AUTH_STALE_RESULT` taxonomy:** surfaces client-side as
+   *stranded* (custody outcome with re-record recovery), exactly as
+   recorded; content refusals stay drop-and-mark-failed.
+3. **Cross-principal disposition:** delete-with-diagnostic-count — a
+   privacy deletion boundary, no redacted tombstones, nothing attributed
+   to the successor.
+4. **Recovery affordance:** read/discard/re-record-as-new-
+   `clientMutationId`; no exactly-once bridge across authorities.
+
+The deliverable is complete: design recorded in LLP 0043 §Auth posture
+(2026-08-03) and ratified (2026-08-04, sitting #3); the subsection is
+marked RATIFIED with each open alternative resolved by its ruling.
+Implementation is now authorized as a lane; the implementation legs are
+tracked by `issues/20260731-js-arm-lease-custody-and-sessions-outbox.md`
+(leg 2), which stays open. The
+`SNAPBACK_OFFLINE_QUEUE_CUSTODY_UNSUPPORTED` fence remains the shipped
+behavior until that lane lands.
