@@ -2404,7 +2404,7 @@ impl LocalDatabase {
             now_millis(),
         )?;
         tx.commit()?;
-        self.writer_authority.set_manifest(Some(manifest))?;
+        self.writer_authority.arm_manifest(&self.conn, manifest)?;
         Ok(())
     }
 

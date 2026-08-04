@@ -169,7 +169,9 @@ impl WriterAuthorityV1 {
         // the token drops, so the covered writer connection has no prepared
         // statement cache. The facade's transactions also never return a raw
         // Statement, closing the non-cache escape structurally.
-        conn.set_prepared_statement_cache_capacity(0);
+        if self.state.lock().map_or(true, |state| state.armed()) {
+            conn.set_prepared_statement_cache_capacity(0);
+        }
         let state = Arc::clone(&self.state);
         conn.authorizer(Some(move |context: AuthContext<'_>| {
             authorize(&state, context)
@@ -198,6 +200,18 @@ impl WriterAuthorityV1 {
         }
         state.manifest = manifest;
         Ok(())
+    }
+
+    pub(super) fn arm_manifest(
+        &self,
+        conn: &Connection,
+        manifest: OperationCoverageManifestV1,
+    ) -> SnapbackResult<()> {
+        // Disable reuse before making the manifest visible to the authorizer;
+        // an unarmed connection keeps its normal cache and pays no dormant
+        // coverage cost.
+        conn.set_prepared_statement_cache_capacity(0);
+        self.set_manifest(Some(manifest))
     }
 
     pub(super) fn enter(

@@ -78,7 +78,7 @@ impl LocalDatabase {
         // The same-process SQLite authorizer observes this exact committed
         // manifest before activation reports success. Reopen reconstructs the
         // same state from the durable row.
-        self.writer_authority.set_manifest(Some(manifest))?;
+        self.writer_authority.arm_manifest(&self.conn, manifest)?;
         Ok(())
     }
 
