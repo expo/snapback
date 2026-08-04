@@ -5,7 +5,11 @@
 **Systems:** Wire Protocol, Client SDK, Realtime, Live Queries, Native Clients, Guide
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-08-01 (v0.12 — ratified Implemented by the author; see
+**Revised:** 2026-08-04 (dated finite-carrier completeness amendment: ordinary
+finite query and authorized-lease responses may carry the LLP 0157 proof /
+witness pair, and terminal snapshot-batch continuation delivery may atomically
+carry its composed page-set manifest; see the dated amendment below).
+2026-08-01 (v0.12 — ratified Implemented by the author; see
 Revision history) 2026-07-26 (v0.11 — Partitime clean-room corrections; see
 Revision history)
 **Related:** LLP 0008, LLP 0012, LLP 0013, LLP 0031, LLP 0034, LLP 0043, LLP 0049, LLP 0051, LLP 0053, LLP 0059, LLP 0064, LLP 0075, LLP 0077, LLP 0082, LLP 0084, LLP 0090, LLP 0091, LLP 0092
@@ -742,6 +746,48 @@ version carrier (bound at `/connection/open`; see D1).
    actual route set) move under the reserved `/_snapback/*` namespace;
    no LLP 0031 exception is minted. Execution is P-0 scope, tracked by
    `issues/20260725-hosted-root-system-routes-migration.md`.
+
+## Finite-carrier completeness amendment — 2026-08-04
+
+This dated normative amendment extends the finite wire families without
+changing LLP 0157's closed semantic records. A successful ordinary finite
+query for an LLP 0157-admitted plan may carry the optional pair
+`completenessProof: CompletenessProofV1` and
+`authorizationWitness: AuthorizationWitnessRecordV1` when the request names
+the exact proof namespace (`clientStoreId`, `queryKey`, and
+`queryInstanceId`) and `queryKey` is the admitted `qmk1` materialization key.
+The successful `AuthorizedLeaseQueryResponse` gains the same optional pair,
+bound to its existing exact namespace fields. The members are a pair: a
+server emits both or neither, and a client treats either member alone as an
+invalid carrier. The envelope conveys the proof and witness preimage but
+cannot rewrite the Ed25519/JCS domain, signed record, identity bindings,
+result digest, key custody, or validation rules owned by LLP 0157 §D3.
+
+For snapshot-batch continuation delivery, the same ordinary finite response
+carries the proof and witness for that one page. A continuation request may
+present the already-held ordered proof chain. The server verifies every
+presented signature before use and, when the new terminal page plus that
+chain satisfy LLP 0157 §D3's first-to-terminal, same-identity, same-version
+composition rule, the response additionally carries optional
+`pageSetManifest: PageSetManifestV1`. Its `identity` is the digest of the
+exact `PageSetIdentityRecordV1` and its `orderedProofDigests` are the exact
+ordered proof digests. The terminal page bytes, its proof/witness pair, and
+the composed manifest are one response publication: minting, verification,
+or composition failure cannot publish a partial carrier. A valid page whose
+prior pages no longer share one commit remains individually provable, but no
+page-set manifest is emitted and the set remains `unknown`, never `prefix`.
+
+Compatibility is deliberate. These response records were closed, so this
+section is the dated normative act admitting exactly these optional members;
+it is not an inference from the former closure matrix. Old clients continue
+to consume the required finite fields and ignore unknown optional response
+members. New clients accept their absence and classify completeness as
+`unknown`, taking fresh establishment rather than treating absence, an
+unknown/retired proof key, or verification failure as authorization or
+integrity evidence. The optional ordinary-query request context is likewise
+absent for old callers; a caller sends it only when it is prepared to consume
+the proof contract. No capability row or wire-version identity moves in this
+amendment.
 
 ## Alternatives considered
 

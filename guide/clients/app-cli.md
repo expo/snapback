@@ -4,13 +4,13 @@ id: clients.app-cli
 order: 2
 audience: agent-first
 capabilities: [clients.app-cli]
-authorities: [llp/0062-generated-app-cli-and-code-mode.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/cli.mjs, packages/snapback-app-cli/digest.mjs, packages/snapback-app-cli/agent-digest.schema.json, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/code-mode.mjs, packages/snapback-app-cli/result-core.mjs, packages/snapback-client/app-data.mjs]
-examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, packages/snapback-app-cli/code-mode.test.mjs, packages/snapback-app-cli/cli.test.mjs, packages/snapback-app-cli/digest.test.mjs, demos/todo/snapback/generated]
+authorities: [llp/0062-generated-app-cli-and-code-mode.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/cli.mjs, packages/snapback-app-cli/digest.mjs, packages/snapback-app-cli/agent-digest.schema.json, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/code-mode.mjs, packages/snapback-app-cli/code-mode-ibex.mjs, packages/snapback-app-cli/schema-interpreter.mjs, packages/snapback-app-cli/ibex-bundle.mjs, packages/snapback-app-cli/result-core.mjs, packages/snapback-client/app-data.mjs, scripts/build-app-bound-executable]
+examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, packages/snapback-app-cli/code-mode.test.mjs, packages/snapback-app-cli/code-mode-ibex.test.mjs, packages/snapback-app-cli/schema-interpreter.test.mjs, packages/snapback-app-cli/ibex-bundle.test.mjs, packages/snapback-app-cli/cli.test.mjs, packages/snapback-app-cli/digest.test.mjs, demos/todo/snapback/generated]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: dab2410b6793ffa5685069a0a4054f0e2b21608a
+reviewed-commit: 37ed952672d43abdfede88a9d51a76e04a11da5b
 ---
 
 # The artifact-driven app CLI
@@ -26,10 +26,12 @@ descriptor, and exposes the generic `snapback-app` command. Calls carry the
 five-part generated identity so a deploy between discovery and dispatch
 refuses rather than running against different code.
 
-The local phase-1 engine is shipped. The capability remains marked partial
-because hosted targets do not advertise it and the app-bound, single-file Ibex
-executable is phase 2, blocked on the Ibex embedding contract. The current
-download is the Node package, not the promised one-file executable.
+The local phase-1 engine is shipped. Phase 2 now has an app-bound Ibex builder,
+embedded coordinator, and literal executable proof on the qualified macOS
+arm64 tuple. The capability remains partial: hosted targets do not advertise
+it, and ticket 0062-08 keeps qualified Linux plus the full host-portable
+lifecycle and acceptance matrix open. The ordinary supported download remains
+the Node package until that matrix is complete.
 
 ## Discover the app surface
 
@@ -186,10 +188,42 @@ function ids, safe codes, attribution, and counters but no intermediate
 values. Valid hazardous names such as `then` lose their property alias and
 remain callable only through `snapback.function(id)`.
 
-The child-process split is a credential non-transmission contract, not a
+The Node child-process split is a credential non-transmission contract, not a
 hostile-code sandbox. A Node `vm` escape has the invoking OS user's authority;
-run only scripts trusted at that level. The future Ibex host strengthens
-enforcement while keeping the same broker ABI.
+run only scripts trusted at that level. The app-bound Ibex checkpoint keeps the
+same broker shape while running the admitted script in a separate restricted
+Hermes runtime with no ambient filesystem, network, environment, subprocess,
+clock/randomness, import, or dynamic-code authority.
+
+## Build the experimental app-bound executable
+
+Release producers can build from an app-bound Ibex release kit and pin the
+app's normalized HTTPS origin, app id, engine compatibility identity,
+publisher key identity, and reproducible recipe digest:
+
+```sh
+scripts/build-app-bound-executable --ibex /opt/ibex-app-release/ibex --origin https://example.snapback.app --app-id example --engine-compatibility sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA --publisher-key-id release-key-1 --recipe-digest sha256-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA --output ./example
+```
+
+The builder inspects the result and refuses unless its Stub V4 contract reports
+the requested binding. Qualified outputs are literal single files with no Node,
+npm tree, Hermes framework, shared library, catalog, or policy sidecar beside
+them. Their command shape is:
+
+```sh
+./example introspect
+./example call createTodo --args-json '{"text":"Buy milk"}'
+./example run analysis.ts
+```
+
+`--server`, `--app`, and `--artifacts` are unavailable in this mode: the
+executable admits only its embedded app identity. The current API envelope is
+dynamic data fetched from that origin, so ordinary function and schema deploys
+do not alter the fixed binding. Rebuilds are intended only for that binding,
+the trusted engine/runtime, policy/protocol, platform, or release provenance;
+ticket 0062-08 still owns the comprehensive §7 disclosure, ceiling, lifecycle,
+and race matrix. Unsupported producer tuples refuse instead of emitting a
+wrapper or sidecar approximation.
 
 ## Run the packaged agent journey
 
@@ -222,5 +256,7 @@ semantics and durable daemon custody, read
   profile.
 - Do not infer agent safety from a hostname; the phase-1 lane requires a
   literal loopback origin and peer.
-- Do not describe the Node package as the app-bound one-file executable; that
-  phase is blocked on the Ibex contract.
+- Do not present the app-bound build checkpoint as a generally released
+  download until ticket 0062-08's host-portable acceptance matrix is complete.
+- Do not describe the Node package as the app-bound one-file executable; they
+  remain distinct products with different trust and distribution postures.
