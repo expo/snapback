@@ -9,7 +9,9 @@
     "agent-digest.schema.json",
     "auth.mjs",
     "code-mode-child.mjs",
+    "code-mode-ibex.mjs",
     "code-mode.mjs",
+    "ibex-bundle.mjs",
     "digest.d.mts",
     "digest.mjs",
     "envelope.mjs",
@@ -42,6 +44,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node auth.test.mjs && node code-mode.test.mjs && node cli.test.mjs && node digest.test.mjs && node attribution.test.mjs && node result-core.test.mjs && node envelope.test.mjs"
+    "test": "node package.test.mjs && node auth.test.mjs && node code-mode.test.mjs && node code-mode-ibex.test.mjs && node ibex-bundle.test.mjs && node cli.test.mjs && node digest.test.mjs && node attribution.test.mjs && node result-core.test.mjs && node envelope.test.mjs"
   }
 }

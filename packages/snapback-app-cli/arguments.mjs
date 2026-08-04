@@ -1,4 +1,5 @@
 import Ajv2020 from 'ajv/dist/2020.js';
+import { compileInertSchema } from './schema-interpreter.mjs';
 
 const ajv = new Ajv2020({
   allErrors: true,
@@ -28,7 +29,9 @@ export function validateFunctionArgs(fn, args) {
   let validate = validators.get(schema);
   if (validate === undefined) {
     try {
-      validate = ajv.compile(schema);
+      validate = globalThis.__ibexAppBoundWorkerV1
+        ? compileInertSchema(schema)
+        : ajv.compile(schema);
     } catch (cause) {
       throw fail(
         'SNAPBACK_APP_CLI_ARTIFACT_IDENTITY_MISMATCH',
