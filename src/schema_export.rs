@@ -55,8 +55,9 @@ use crate::ephemeral::{
     PublishOutcome, PublishRequest, RealtimeEnvelope, SubscribeRequest,
 };
 use crate::fork_promotion::{
-    BranchOperationV1, BranchReapReceiptV1, DenyAllAttemptMarkerV1, ForkDiffReceiptV1,
-    InAppBranchReceiptV1, ManagedInAppBranchReceiptV1, PromotionAdmissionTicketV1,
+    BranchOperationV1, BranchReapReceiptV1, CapturedEffectIntentV1, DenyAllAttemptMarkerV1,
+    EffectInitiationV1, EffectSettlementAuthorityV1, ForkDiffReceiptV1, InAppBranchReceiptV1,
+    ManagedInAppBranchReceiptV1, PromotedEffectIntentV1, PromotionAdmissionTicketV1,
     PromotionReceiptV1, PromotionRequestV1, RebaseReplayReceiptV1,
 };
 use crate::handler_wire::{HandlerHostCallRequest, HandlerInvokeRequest, HandlerInvokeResponse};
@@ -310,6 +311,10 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(DenyAllAttemptMarkerV1),
         ),
         finish(
+            "branch.effect-intent-v1.schema.json",
+            schemars::schema_for!(CapturedEffectIntentV1),
+        ),
+        finish(
             "branch.diff-receipt-v1.schema.json",
             schemars::schema_for!(ForkDiffReceiptV1),
         ),
@@ -324,6 +329,18 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "promotion.receipt-v1.schema.json",
             schemars::schema_for!(PromotionReceiptV1),
+        ),
+        finish(
+            "promotion.effect-intent-v1.schema.json",
+            schemars::schema_for!(PromotedEffectIntentV1),
+        ),
+        finish(
+            "promotion.effect-settlement-authority-v1.schema.json",
+            schemars::schema_for!(EffectSettlementAuthorityV1),
+        ),
+        finish(
+            "promotion.effect-initiation-v1.schema.json",
+            schemars::schema_for!(EffectInitiationV1),
         ),
         finish(
             "branch.reap-receipt-v1.schema.json",

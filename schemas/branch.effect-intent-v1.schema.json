@@ -1,0 +1,105 @@
+{
+  "$defs": {
+    "BranchId": {
+      "description": "Stable identity of an ephemeral branch within one logical app.",
+      "type": "string"
+    },
+    "CapturedEffectStateV1": {
+      "enum": [
+        "captured",
+        "canonicalPending",
+        "initiated",
+        "succeeded",
+        "rejected",
+        "ambiguousExternalEffect",
+        "authorityRefused"
+      ],
+      "type": "string"
+    },
+    "EffectSettlementCapabilityV1": {
+      "enum": [
+        "providerIdempotent",
+        "providerQueryable",
+        "inherentlyAmbiguous"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/branch.effect-intent-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorityFingerprint": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "branchId": {
+      "$ref": "#/$defs/BranchId"
+    },
+    "capturedAtMs": {
+      "format": "int64",
+      "type": "integer"
+    },
+    "childVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "effectOrdinal": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "egressClass": {
+      "type": "string"
+    },
+    "grantId": {
+      "type": "string"
+    },
+    "idempotencyKey": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "intentId": {
+      "type": "string"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "principalId": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "format": "uint32",
+      "maximum": 1,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "settlementCapability": {
+      "$ref": "#/$defs/EffectSettlementCapabilityV1"
+    },
+    "state": {
+      "$ref": "#/$defs/CapturedEffectStateV1"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "intentId",
+    "branchId",
+    "operationId",
+    "effectOrdinal",
+    "egressClass",
+    "settlementCapability",
+    "idempotencyKey",
+    "principalId",
+    "grantId",
+    "authorityFingerprint",
+    "state",
+    "capturedAtMs"
+  ],
+  "title": "CapturedEffectIntentV1",
+  "type": "object"
+}
