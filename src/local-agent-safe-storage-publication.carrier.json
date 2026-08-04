@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "snapback.local-agent-safe-publication.v1",
+  "capabilityId": "agent_safe_storage_v1",
+  "targetProfileId": "local-dev-sqlite-ibex",
+  "maturity": "experimental",
+  "qualifiedSourceCommit": "0000000000000000000000000000000000000000",
+  "implementationTreeSha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "candidateFactsSha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "qualificationReceiptSha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "buildProvenanceRequirement": "known-clean-contributor-source",
+  "candidateFacts": null
+}

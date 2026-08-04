@@ -62,6 +62,9 @@ ureq = { version = "2", features = ["json"] }
 uuid = { version = "1.23.4", features = ["v4", "v7", "serde"] }
 zeroize = "1.8"
 
+[build-dependencies]
+sha2 = "0.10"
+
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = [
   "Win32_Foundation",
