@@ -90,6 +90,16 @@ the guide-gap ticket rather than being conflated with this implementation tail.
   unreachable-copy receipts, retry closure, and crash/reopen reconciliation.
   The sweep is not atomic with canonical protected-row deletion, so the
   possible intervening new checkpoint remains an explicit row-11 gap.
+- A 2026-08-04 deletion-authority audit found no canonical product operation
+  that classifies a generic row as protected and owns canonical deletion,
+  retained-history erasure, checkpoint fencing, and copy obligations. Generic
+  `BufferedWrite::Delete`/mutation deletes and specialized asset/auth deletion
+  paths do not have that authority. Row 11 therefore remains Partial until a
+  real protected-erasure command installs one retry-bound durable fence with
+  canonical deletion/history erasure/inventory invalidation, blocks checkpoint
+  admission and publication while open, and passes the crash/reopen,
+  reachable/unreachable, exact/divergent retry, concurrency, pin, lease, and
+  expiry corpus. No test-only or benchmark-only deletion semantic was added.
 
 The managed in-app branch slice is recorded in LLP 0164's dated implementation
 record. Focused operation-registry and HTTP negatives prove the five lifecycle
