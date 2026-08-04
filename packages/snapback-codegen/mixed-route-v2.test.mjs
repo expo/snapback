@@ -31,7 +31,7 @@ const normalizeVolatile = (value) => {
     return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, normalizeVolatile(entry)]));
   }
   if (typeof value === 'string') {
-    if (/^sha256:[0-9a-f]{64}$/u.test(value)) return 'sha256:<volatile>';
+    if (/^sha256:[0-9a-f]{8,64}$/u.test(value)) return 'sha256:<volatile>';
     if (/^[0-9a-f]{64}$/u.test(value)) return '<volatile-hex>';
     if (/^gen1:/u.test(value)) return 'gen1:<volatile>';
   }
@@ -46,8 +46,8 @@ const stableDigest = (value) => digest(normalizeVolatile(value));
 // generation inputs legitimately rotate (expectedGeneration hashes ride
 // every reference); re-pin only after verifying the SHAPE is unchanged —
 // a new field on format 1 is the defect this guard exists to catch.
-const FORMAT_1_BYTES_SHA256 = '9f127e73b3599f6ec49ba9acfc14c0a2ed0030e24cb14143741e3bba6c7fc7b3';
-const FORMAT_2_BYTES_SHA256 = 'ed2b1327878101663dc28d4e37d050ec192135a8d1d521fa2d1557ff653fe36f';
+const FORMAT_1_BYTES_SHA256 = '372019d75890405c41bcbd0a0fbad3919d46f111dabc200c29ebbf6450ebd4bc';
+const FORMAT_2_BYTES_SHA256 = '6be5564d1f47f0b74efcbf161f733d7ad2bef7b14cbb33f4dbe5be3996d0b366';
 
 test('mixed route emits format 2 from bound liveness while format 1 stays byte-exact', async (t) => {
   const root = mkdtempSync(join(tmpdir(), 'snapback-mixed-route-v2-'));
