@@ -343,11 +343,22 @@ impl WriterAuthorityV1 {
         // coverage cost.
         conn.set_prepared_statement_cache_capacity(0);
         let armed = self.set_manifest(Some(manifest));
+        // Activation is a rare control-plane cut. Ask SQLite to release unused
+        // connection memory after publishing and validating the manifest. This
+        // is the shared product seam used by both local publication and the
+        // evidence fixture; the live manifest, connection-local authorizer,
+        // and issued identities remain intact.
+        //
+        // @ref LLP 0162#measurement-gate — idle RSS measures the active
+        //   steady connection, not one-time activation cache residency.
+        let cache_release = conn.execute_batch("PRAGMA shrink_memory;");
         // Install even when the state mutex is poisoned: the callback then
         // denies every prepare instead of leaving a durable active manifest
         // on a permissive connection after activation reports its error.
         self.install_authorizer(conn);
-        armed
+        armed?;
+        cache_release?;
+        Ok(())
     }
 
     pub(super) fn enter(
