@@ -255,6 +255,7 @@ fn fixture_corpus_covers_the_seeded_classes_and_routes_tuples_correctly() {
         .collect();
     for required in [
         "durable.live_replace.basic",
+        "socket.durable.live_replace.network_profile_marker",
         "durable.live_delta.apply_by_id",
         "durable.replace_then_delta.identity_continuity",
         "durable.current_as_of.adopts_token_without_rows",
@@ -351,6 +352,22 @@ fn fixture_corpus_covers_the_seeded_classes_and_routes_tuples_correctly() {
     assert!(reference.contains(DURABLE_BYTES_RESYNC_REASON));
     assert!(reference.contains("client-synthesized"));
     assert!(class["permittedEquivalent"].is_string());
+
+    let profiled = fixture(
+        &fixtures,
+        "socket.durable.live_replace.network_profile_marker",
+    );
+    assert_eq!(profiled["frame"]["network_profile"], "fixture-slow");
+    assert_eq!(
+        profiled["tuples"],
+        serde_json::json!(["live/local", "live/hosted"])
+    );
+    assert!(
+        fixture(&fixtures, "durable.live_replace.basic")["frame"]
+            .get("network_profile")
+            .is_none(),
+        "the normal fixture remains byte-shape compatible"
+    );
 }
 
 /// Format v2 removes the arbitrary-population and row-identity ambiguities

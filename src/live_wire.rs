@@ -45,11 +45,19 @@ use crate::manifest::SettlementLane;
 /// for the analyzable unordered subset;
 /// `resync_required` tells the client its subscription (or, connection-wide,
 /// its whole outbox) can no longer be trusted and it must re-snapshot.
+///
+/// @ref LLP 0093#d1--the-protocol-document-and-wire-v1 — optional fields on
+///   existing server-to-client envelopes are compatible within wire v1.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum LiveEnvelope {
     /// Whole-result refresh for one subscription.
     LiveReplace {
+        /// Name of the immutable non-`normal` network profile snapshot that
+        /// delayed this frame. Absent for the identity profile.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(pattern(r"^[A-Za-z0-9._-]+$"))]
+        network_profile: Option<String>,
         subscription_id: String,
         function: String,
         #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
@@ -64,6 +72,11 @@ pub enum LiveEnvelope {
     /// the subscription's result. Unordered by contract — ordered queries fall
     /// back to `live_replace`.
     LiveDelta {
+        /// Name of the immutable non-`normal` network profile snapshot that
+        /// delayed this frame. Absent for the identity profile.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(pattern(r"^[A-Za-z0-9._-]+$"))]
+        network_profile: Option<String>,
         subscription_id: String,
         function: String,
         #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
@@ -81,6 +94,11 @@ pub enum LiveEnvelope {
     /// `resumeFromToken`, so decode ability is implied by the request — no
     /// capability negotiation.
     CurrentAsOf {
+        /// Name of the immutable non-`normal` network profile snapshot that
+        /// delayed this frame. Absent for the identity profile.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(pattern(r"^[A-Za-z0-9._-]+$"))]
+        network_profile: Option<String>,
         subscription_id: String,
         function: String,
         #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
@@ -93,6 +111,11 @@ pub enum LiveEnvelope {
     /// their presence never discharges the server obligation. Only the exact
     /// post-commit ACK token does that.
     AuthorizationInvalidation {
+        /// Name of the immutable non-`normal` network profile snapshot that
+        /// delayed this frame. Absent for the identity profile.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(pattern(r"^[A-Za-z0-9._-]+$"))]
+        network_profile: Option<String>,
         obligation: Box<ResyncObligation>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         resolution: Option<Box<ResolutionTicket>>,
@@ -107,6 +130,11 @@ pub enum LiveEnvelope {
     /// recovery is identical for every reason and new reasons must not break
     /// deployed decoders.
     ResyncRequired {
+        /// Name of the immutable non-`normal` network profile snapshot that
+        /// delayed this frame. Absent for the identity profile.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(pattern(r"^[A-Za-z0-9._-]+$"))]
+        network_profile: Option<String>,
         reason: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         subscription_id: Option<String>,
@@ -126,9 +154,56 @@ impl LiveEnvelope {
         snapshot: Option<AuthorizationInvalidationSnapshot>,
     ) -> Self {
         Self::AuthorizationInvalidation {
+            network_profile: None,
             obligation: Box::new(obligation),
             resolution: resolution.map(Box::new),
             snapshot,
+        }
+    }
+
+    /// Attach the admission-snapshot marker at the socket serialization cut.
+    ///
+    /// @ref LLP 0167#honesty-requirements — the marker names the same
+    ///   immutable profile snapshot that supplied the frame deadline.
+    pub(crate) fn with_network_profile(mut self, profile_name: String) -> Self {
+        let marker = match &mut self {
+            Self::LiveReplace {
+                network_profile, ..
+            }
+            | Self::LiveDelta {
+                network_profile, ..
+            }
+            | Self::CurrentAsOf {
+                network_profile, ..
+            }
+            | Self::AuthorizationInvalidation {
+                network_profile, ..
+            }
+            | Self::ResyncRequired {
+                network_profile, ..
+            } => network_profile,
+        };
+        *marker = Some(profile_name);
+        self
+    }
+
+    pub fn network_profile(&self) -> Option<&str> {
+        match self {
+            Self::LiveReplace {
+                network_profile, ..
+            }
+            | Self::LiveDelta {
+                network_profile, ..
+            }
+            | Self::CurrentAsOf {
+                network_profile, ..
+            }
+            | Self::AuthorizationInvalidation {
+                network_profile, ..
+            }
+            | Self::ResyncRequired {
+                network_profile, ..
+            } => network_profile.as_deref(),
         }
     }
 }
@@ -751,12 +826,18 @@ mod tests {
         // The exact pre-typed wire bytes (field names and casing) — a change
         // here is a breaking protocol change, not a refactor.
         let replace = LiveEnvelope::LiveReplace {
+            network_profile: None,
             subscription_id: "sub_1".into(),
             function: "listTodos".into(),
             version: 7,
             rows: vec![json!({ "_id": "a" })],
             resume: None,
         };
+        assert_eq!(
+            serde_json::to_vec(&replace).unwrap(),
+            br#"{"kind":"live_replace","subscription_id":"sub_1","function":"listTodos","version":7,"rows":[{"_id":"a"}]}"#,
+            "normal keeps the pre-marker bytes exactly"
+        );
         assert_eq!(
             serde_json::to_value(&replace).unwrap(),
             json!({
@@ -767,8 +848,17 @@ mod tests {
                 "rows": [{ "_id": "a" }],
             })
         );
+        let profiled = replace
+            .clone()
+            .with_network_profile("fixture-slow".to_owned());
+        assert_eq!(profiled.network_profile(), Some("fixture-slow"));
+        assert_eq!(
+            serde_json::to_vec(&profiled).unwrap(),
+            br#"{"kind":"live_replace","network_profile":"fixture-slow","subscription_id":"sub_1","function":"listTodos","version":7,"rows":[{"_id":"a"}]}"#
+        );
 
         let delta = LiveEnvelope::LiveDelta {
+            network_profile: None,
             subscription_id: "sub_1".into(),
             function: "listTodos".into(),
             version: 8,
@@ -801,6 +891,7 @@ mod tests {
         );
 
         let scoped_resync = LiveEnvelope::ResyncRequired {
+            network_profile: None,
             reason: "permission_epoch_changed".into(),
             subscription_id: Some("sub_1".into()),
             scope: Some("user:alice".into()),
@@ -833,6 +924,7 @@ mod tests {
             },
         };
         let current_as_of = LiveEnvelope::CurrentAsOf {
+            network_profile: None,
             subscription_id: "sub_1".into(),
             function: "listTodos".into(),
             version: 9,
@@ -864,6 +956,7 @@ mod tests {
         // field (None) reads the same frame minus `resume` — the old-decoder
         // tolerance case is exercised by the schema's non-required field.
         let refreshed = LiveEnvelope::LiveReplace {
+            network_profile: None,
             subscription_id: "sub_1".into(),
             function: "listTodos".into(),
             version: 9,
@@ -879,6 +972,7 @@ mod tests {
 
         // Connection-wide overflow: no subscription fields at all.
         let overflow = LiveEnvelope::ResyncRequired {
+            network_profile: None,
             reason: "outbox_overflow".into(),
             subscription_id: None,
             scope: None,

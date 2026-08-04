@@ -114,12 +114,15 @@ try {
     'snapback_start', 'snapback_stop', 'snapback_restart', 'snapback_inspect',
     'snapback_reset', 'snapback_load_schema', 'snapback_load_functions',
     'snapback_run_function', 'snapback_acceptance_run',
+    'snapback_network_profile_get', 'snapback_network_profile_set',
     'snapback_telemetry_stats', 'snapback_telemetry_events', 'snapback_telemetry_export',
     'snapback_errors_issues', 'snapback_errors_issue', 'snapback_errors_transition',
   ]) {
     assert.ok(names.includes(pinned), `missing pinned control tool ${pinned}`);
   }
   assert.equal(tools.find((tool) => tool.name === 'snapback_inspect').annotations.readOnlyHint, true);
+  assert.equal(tools.find((tool) => tool.name === 'snapback_network_profile_get').annotations.readOnlyHint, true);
+  assert.equal(tools.find((tool) => tool.name === 'snapback_network_profile_set').annotations.readOnlyHint, false);
   assert.equal(tools.find((tool) => tool.name === 'snapback_reset').annotations.destructiveHint, true);
 
   const catalog = listed.result._meta['snapback/appDataCatalog'];
@@ -334,6 +337,30 @@ try {
     restarted.structuredContent.data.current.serverUrl,
   );
   assert.equal(acceptance.structuredContent.authority.mode, 'none');
+
+  const initialProfile = await client.call('snapback_network_profile_get');
+  assert.equal(initialProfile.structuredContent.operation, 'debug.networkProfileGet');
+  assert.equal(initialProfile.structuredContent.ok, true, JSON.stringify(initialProfile.structuredContent));
+  assert.equal(initialProfile.structuredContent.data.profile.name, 'normal');
+
+  const setProfile = await client.call('snapback_network_profile_set', {
+    profile: {
+      name: 'mcp-zero-delay',
+      mutationAckDelayMs: 0,
+      liveDeltaDelayMs: 0,
+      queryResponseDelayMs: 0,
+      jitterMs: 0,
+    },
+  });
+  assert.equal(setProfile.structuredContent.resultKind, 'hostOpsResult');
+  assert.equal(setProfile.structuredContent.operation, 'debug.networkProfileSet');
+  assert.equal(setProfile.structuredContent.ok, true, JSON.stringify(setProfile.structuredContent));
+  assert.equal(setProfile.structuredContent.data.profile.name, 'mcp-zero-delay');
+  assert.equal(setProfile.structuredContent.data.provenance.source, 'host-ops');
+
+  const restoredProfile = await client.call('snapback_network_profile_set', { profile: 'normal' });
+  assert.equal(restoredProfile.structuredContent.ok, true, JSON.stringify(restoredProfile.structuredContent));
+  assert.equal(restoredProfile.structuredContent.data.profile.name, 'normal');
 
   const stopped = await client.call('snapback_stop');
   assert.equal(stopped.structuredContent.operation, 'host.stop');

@@ -9,7 +9,14 @@ import { performance } from 'node:perf_hooks';
 import { Zero } from '@rocicorp/zero';
 import postgres from 'postgres';
 // @ts-expect-error shared program harness is intentionally plain ESM.
-import { assert, assertEqual, createArmSuite, eventually, loadAcceptance } from '../../../../shared/harness.mjs';
+import {
+  assert,
+  assertEqual,
+  createArmSuite,
+  eventually,
+  loadAcceptanceVersion,
+  loadNetworkCondition,
+} from '../../../../shared/harness.mjs';
 import { startApi } from '../api.ts';
 import { mutators } from '../mutators.ts';
 import { queries } from '../queries.ts';
@@ -18,7 +25,8 @@ import { schema } from '../schema.ts';
 const here = dirname(fileURLToPath(import.meta.url));
 const appDir = resolve(here, '..', '..');
 const zeroBakeoffRoot = resolve(appDir, '..', '..');
-const manifest = await loadAcceptance('latency-kanban');
+const manifest = await loadAcceptanceVersion('latency-kanban', 'v2');
+const networkCondition = await loadNetworkCondition(manifest, 'zero');
 const suite = createArmSuite({
   app: 'latency-kanban', provider: 'zero', manifest,
   evidencePath: join(appDir, 'evidence', 'zero.v1.json'),
@@ -34,6 +42,13 @@ let admin = postgres(basePG, { max: 1 });
 let db: ReturnType<typeof postgres> | undefined;
 const clients: Zero[] = [];
 let cleanupCheckNeeded = false;
+
+function assertLatencyWindow(value: number, window: {floorMs: number; toleranceMs: number}, label: string) {
+  assert(value >= window.floorMs,
+    `${label} ${value.toFixed(3)}ms was below ${window.floorMs}ms profile floor`);
+  assert(value <= window.floorMs + window.toleranceMs,
+    `${label} ${value.toFixed(3)}ms exceeded ${window.floorMs + window.toleranceMs}ms window ceiling`);
+}
 
 function databaseURL(name: string) {
   const url = new URL(basePG);
@@ -95,7 +110,7 @@ try {
       assignee_id: ['alice', 'bob', 'cara'][i % 3], archived: 0, locked: i === 7 ? 1 : 0, revision: 0,
     })}`;
   });
-  api = startApi(databaseURL(dbName), manifest.fixture.authoritativeLatencyMs);
+  api = startApi(databaseURL(dbName), networkCondition.profile.mutationAckDelayMs);
   const cachePort = await freePort();
   const cacheURL = `http://127.0.0.1:${cachePort}`;
   const cacheBin = join(zeroBakeoffRoot, 'node_modules', '.bin', 'zero-cache-dev');
@@ -147,7 +162,8 @@ try {
     const sample = { inputToPaintMs: paintedAt - inputAt, acknowledgementMs: acknowledgedAt - inputAt };
     axes.push(sample);
     assert(sample.inputToPaintMs < 16.7, `local mutator missed one frame: ${sample.inputToPaintMs}`);
-    assert(sample.acknowledgementMs >= manifest.fixture.authoritativeLatencyMs, 'server ack omitted injected delay');
+    assertLatencyWindow(sample.acknowledgementMs, networkCondition.windows.actorAck,
+      'actor acknowledgement');
     return sample;
   });
 
@@ -215,6 +231,8 @@ try {
       { label: 'independent Zero observer' });
     const sample = { observerConvergenceMs: performance.now() - started, transport: 'Zero materialized query over websocket' };
     axes.push(sample);
+    assertLatencyWindow(sample.observerConvergenceMs, networkCondition.windows.observerDelta,
+      'observer delta');
     return sample;
   });
 
@@ -222,6 +240,16 @@ try {
     assert(axes.some((entry) => entry.inputToPaintMs !== undefined), 'local paint measured');
     assert(axes.some((entry) => entry.acknowledgementMs !== undefined), 'server acknowledgement measured');
     assert(axes.some((entry) => entry.observerConvergenceMs !== undefined), 'observer convergence measured');
+    for (const entry of axes) {
+      if (typeof entry.acknowledgementMs === 'number') {
+        assertLatencyWindow(entry.acknowledgementMs, networkCondition.windows.actorAck,
+          'actor acknowledgement');
+      }
+      if (typeof entry.observerConvergenceMs === 'number') {
+        assertLatencyWindow(entry.observerConvergenceMs, networkCondition.windows.observerDelta,
+          'observer delta');
+      }
+    }
     return { samples: axes };
   });
 
@@ -263,6 +291,12 @@ await rm(work, { recursive: true, force: true });
 const receipt = await suite.finish({
   providerIdentity: { product: 'Zero', version: '1.8.0', target: 'zero-cache-dev/PostgreSQL 17' },
   fixture: manifest.fixture,
+  networkCondition: {
+    schemaVersion: networkCondition.environment.schemaVersion,
+    profile: networkCondition.profile,
+    windows: networkCondition.windows,
+    injectionPoint: networkCondition.injectionPoint,
+  },
   latency: { samples: axes },
   nonclaims: ['kvStore=mem makes pending reload behavior non-durable; no offline write claim'],
   zeroAppID,

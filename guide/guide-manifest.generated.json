@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "e9311728db613f76ac1ddf1b51e72bb055a91198"
+    "commit": "ce6160481acfcfbbd6a97c625d87953cdf63f0d9"
   },
   "nav": {
     ".": [
@@ -1445,7 +1445,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "37ed952672d43abdfede88a9d51a76e04a11da5b",
-      "sha256": "297635e4d5a0e427db917fdae4aeaeadfdd6232d7223eebae283c3a7e9a47fd9",
+      "sha256": "14b38ed1de512d742893a483f0ebfea79ab3941436d3050c08c1121f6b0f217d",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2739,7 +2739,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "7b467cf16",
-      "sha256": "489444297b32be391c170a7eb907b155fdb9ced6c053f61f32999f7fea7d97d0",
+      "sha256": "2cd61aae00ec61ae7c7a8e1b61c4a701f6ba57987b49fde59401ae7c1cd25e83",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -3014,7 +3014,7 @@
   },
   "surfaces": {
     "routes": 116,
-    "hostOps": 35
+    "hostOps": 37
   },
-  "contentHash": "4c09c72da823ccf34dfa6990958e884ba8cbb299a199b22219257c1760d56487"
+  "contentHash": "9236408a8fdce78ad37ccf4f85803e89c60189a75b2e49d6aabced32ccf4121f"
 }

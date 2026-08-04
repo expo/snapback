@@ -443,6 +443,18 @@ final class TolerantDecodingTests: XCTestCase {
         XCTAssertEqual(machine.subscriptions["s1"]?.state, .resyncPending)
     }
 
+    func testNetworkProfileMarkerIsKnownOptionalAndSurfaced() throws {
+        let marked = try JSONValue.parse(#"{"kind":"live_replace","network_profile":"fixture-slow","subscription_id":"s1","function":"f","version":11,"rows":[]}"#)
+        guard let decoded = LiveEnvelope.from(marked) else {
+            return XCTFail("profile-marked envelope should decode")
+        }
+        XCTAssertFalse(decoded.hadUnknownFields)
+        XCTAssertEqual(decoded.value.networkProfile, "fixture-slow")
+
+        let normal = try JSONValue.parse(#"{"kind":"live_replace","subscription_id":"s1","function":"f","version":12,"rows":[]}"#)
+        XCTAssertNil(LiveEnvelope.from(normal)?.value.networkProfile)
+    }
+
     func testRequestIdAliasIsClientToServerOnly() throws {
         // Server frames emit `requestId` (no alias); the snake alias exists
         // only on the client→server family (LLP 0093 gotcha 6). A pong with

@@ -1,6 +1,6 @@
 {
   "artifactKind": "liveWireFixtureCorpus",
-  "coverage": "format-v3 — all five committed LiveEnvelope kinds with wrapped/unwrapped parity, replace-to-delta `_id` continuity, auth/live apply-before-ack, exact scope/expectation binding, equal-data-version authorization replacement, pending high-water, terminal delete and no-resurrection, resolution floor/shape rejection, quarantine, exact duplicate re-ACK, durable_bytes and its poll-lane analogue, connection-wide resync, tolerance negatives, negotiation/offer refusals (client_to_server), drain-cancel duplicate tolerance, arm-mismatch and grant-loss recovery, virtual-time heartbeat/freshness/backoff, and the LLP 0096 auth-profile classes (auth/rr, auth/live incl. terminal dispositions, auth/replay incl. the post-split descriptor fence, auth/lease; auth/sender deliberately deferred per LLP 0096 §5)",
+  "coverage": "format-v3 — all five committed LiveEnvelope kinds with wrapped/unwrapped parity, the optional socket network-profile marker, replace-to-delta `_id` continuity, auth/live apply-before-ack, exact scope/expectation binding, equal-data-version authorization replacement, pending high-water, terminal delete and no-resurrection, resolution floor/shape rejection, quarantine, exact duplicate re-ACK, durable_bytes and its poll-lane analogue, connection-wide resync, tolerance negatives, negotiation/offer refusals (client_to_server), drain-cancel duplicate tolerance, arm-mismatch and grant-loss recovery, virtual-time heartbeat/freshness/backoff, and the LLP 0096 auth-profile classes (auth/rr, auth/live incl. terminal dispositions, auth/replay incl. the post-split descriptor fence, auth/lease; auth/sender deliberately deferred per LLP 0096 §5)",
   "fixtures": [
     {
       "direction": "server_to_client",
@@ -42,6 +42,50 @@
       "schemaValid": true,
       "tuples": [
         "poll/local",
+        "live/local",
+        "live/hosted"
+      ]
+    },
+    {
+      "direction": "server_to_client",
+      "expect": {
+        "actions": [
+          "replace_rows"
+        ],
+        "transitions": [
+          {
+            "subscription": "sub_fixture_1",
+            "to": "live",
+            "version": 41
+          }
+        ]
+      },
+      "family": "live.envelope.schema.json",
+      "frame": {
+        "function": "listTodos",
+        "kind": "live_replace",
+        "network_profile": "fixture-slow",
+        "rows": [
+          {
+            "_id": "todo_1",
+            "title": "current row"
+          }
+        ],
+        "subscription_id": "sub_fixture_1",
+        "version": 41
+      },
+      "given": {
+        "subscription": {
+          "id": "sub_fixture_1",
+          "state": "live",
+          "version": 40
+        }
+      },
+      "lane": "live",
+      "name": "socket.durable.live_replace.network_profile_marker",
+      "notes": "Compatible v1 optional-field addition: the socket frame surfaces the non-normal admission snapshot name without changing ordinary live_replace application. The marker is absent under normal.",
+      "schemaValid": true,
+      "tuples": [
         "live/local",
         "live/hosted"
       ]

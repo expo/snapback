@@ -141,3 +141,36 @@ defects. They were corrected without changing the frozen checks or first-pass
 verdict. Final reruns are zero-skip and retain machine-readable receipts; Zero
 cleanup now owns the full cache process group and checks that its database and
 replication slot are absent.
+
+### 2026-08-04 — server-side network-profile swap
+
+LLP 0167 removed the Snapback arm's client-side one-second sleep. The runner
+now starts the repository's `target/debug/snapback` explicitly with the shared
+`optimistic` profile selected through `SNAPBACK_NETWORK_PROFILE`; the ordinary
+client sends immediately while the server delays the real mutation ack and
+live frame after commit. The acceptance asserts a bounded 1,000–2,000 ms
+window on both axes, the HTTP `snapback-network-profile` header, the socket
+`network_profile` annotation, and timestamp-free commit facts against a fresh
+`normal` run of the same concurrently dispatched card corpus. Stable card keys
+bridge the two fresh fixture databases because generated storage `_id`s are
+not cross-run identity.
+
+The protocol change is additive. Frozen `environment.v1.json` and
+`acceptance/latency-kanban.v1.json` remain byte-identical for Stage 0 and for
+the `offlineStretch` scenario vocabulary; `environment.v2.json` owns the built
+LLP 0167 field shape, windows, and Zero `pre-commit` versus Snapback
+`post-commit` placement, and `acceptance/latency-kanban.v2.json` cites it. Both
+runners machine-check the citation before setup. Compared with the original
+test workaround, the new path is more honest and easier to audit: latency is
+one named server configuration rather than timing logic interleaved through
+every mutation helper.
+
+This agent session could not produce a fresh end-to-end receipt because its
+execution sandbox refused the server's loopback bind with `EPERM`; the failed
+attempt was not retained over the prior green evidence. The non-socket profile
+suite passed 14/14, and the protocol plus immutable Stage-0 checks passed. The
+Zero arm was not rerun: its local `zero-cache-dev` dependency was absent and
+PostgreSQL on the declared port was unavailable, so no infrastructure was
+installed. The guide's acceptance/lifecycle page and explicit
+`operating.network-profiles` GAP led directly to the right surfaces; this swap
+did not expose a new guide gap.

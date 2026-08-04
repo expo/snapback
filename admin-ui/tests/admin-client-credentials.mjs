@@ -534,6 +534,15 @@ await telemetryClient.telemetryEvents({ kind: 'log', text: 'needle / value', ord
 await telemetryClient.errorsIssues({ state: 'regressed', failureDisposition: 'fault', order: 'lastSeen', limit: 500, ignored: MASTER });
 await telemetryClient.errorsIssue('iss_test');
 await telemetryClient.errorsTransition({ issue: 'iss_test', to: 'resolved', expectSeq: 7 });
+await telemetryClient.networkProfile();
+await telemetryClient.setNetworkProfile('optimistic');
+await telemetryClient.setNetworkProfile({
+  name: 'office-wifi',
+  mutationAckDelayMs: 120,
+  liveDeltaDelayMs: 80,
+  queryResponseDelayMs: 40,
+  jitterMs: 10,
+});
 assert.equal(
   telemetryRequests[0].url,
   'http://snapback.test/_snapback/api/telemetry/stats?kind=http_request&fromMs=10',
@@ -579,6 +588,22 @@ assert.deepEqual(
   JSON.parse(telemetryRequests[4].options.body),
   { issue: 'iss_test', to: 'resolved', expectSeq: 7 },
   'error transition preserves the state-sequence CAS body',
+);
+assert.equal(
+  telemetryRequests[5].url,
+  'http://snapback.test/_snapback/api/debug/network-profile',
+  'network profile status uses the dedicated AdminRead route',
+);
+assert.equal(telemetryRequests[5].options.method, 'GET', 'network profile status is a GET');
+assert.equal(telemetryRequests[6].options.method, 'PUT', 'built-in profile activation is a PUT');
+assert.equal(telemetryRequests[6].options.body, '"optimistic"', 'built-in profile activation sends a JSON string');
+assert.deepEqual(
+  JSON.parse(telemetryRequests[7].options.body),
+  {
+    name: 'office-wifi', mutationAckDelayMs: 120, liveDeltaDelayMs: 80,
+    queryResponseDelayMs: 40, jitterMs: 10,
+  },
+  'custom profile activation sends the inline object unchanged',
 );
 
 const FRAGMENT_DERIVED = 'sbcc_fragment-handoff';

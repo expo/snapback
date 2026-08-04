@@ -1058,6 +1058,8 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
             "host_ops.branch.inspect.v1",
             "host_ops.branch.list.v1",
             "host_ops.branch.reap.v1",
+            "host_ops.debug.networkProfileGet",
+            "host_ops.debug.networkProfileSet",
             "host_ops.errors.issue",
             "host_ops.errors.issues",
             "host_ops.errors.transition",
@@ -1433,12 +1435,22 @@ fn session_overlay_closes_every_host_ops_branch() {
         ResponseSensitivity::OperatorMetadata
     );
 
+    let network_profile_get = host_ops
+        .get("host_ops.debug.networkProfileGet")
+        .expect("network profile read operation");
+    assert_eq!(network_profile_get.path_policy, RoutePolicy::AdminRead);
+    assert_eq!(
+        network_profile_get.response_sensitivity,
+        ResponseSensitivity::OperatorMetadata
+    );
+
     for name in [
         "host_ops.app.reset",
         "host_ops.schema.load",
         "host_ops.functions.load",
         "host_ops.auth.mintSession",
         "host_ops.auth.rescueCollidingTable",
+        "host_ops.debug.networkProfileSet",
         "host_ops.function.run.mutation",
         "host_ops.function.run.action",
         // Pinned-unbuilt and CLI-only verbs keep the same closed AdminWrite
