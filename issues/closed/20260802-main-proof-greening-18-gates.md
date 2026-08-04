@@ -356,3 +356,34 @@ was still running when this carrier proof closed; because it predates every
 post-receipt fixture fix, it is an attribution input rather than evidence for
 the repaired tree. The remaining Job 1 boundary is to land this green carrier
 and obtain a zero-failure `local-proof` run on the resulting main commit.
+
+### Post-merge All Aboard cold-clone reconciliation — 2026-08-04
+
+The separate `all-aboard-cold-clone` workflow on merged main
+`081efbc0db9f956e1ba3ac1c099426575cb1cf8e` passed the registry install and
+production build, then reported 32/34 browser checks. Both failures were
+acceptance-fixture lifecycle defects, not Snapback or Exact correctness
+failures:
+
+- `second window boot does not clear the first` was introduced with the D4
+  multi-window check in `8db252a0e4`. The new CDP target was never activated or
+  closed, even though frame-driven browser work is throttled in background
+  tabs.
+- `backend unreachable: the open still shows a schedule board` was introduced
+  in `42570df079` with the same missing activation on its isolated target. The
+  first completed run after the Exact `0.1.10` refresh in `cc71c8ce7`, run
+  `30767525955`, shows this same pair. The source attribution remains the two
+  fixture landings above; the history does not prove that the runtime refresh
+  itself created an application boot regression.
+
+The Contract and React fixtures now activate each target before navigation,
+reactivate the first window before proving that its live session survived, and
+close the temporary second window with cleanup failures left visible. The
+coded bootstrap linked, launched, and handler-VM-qualified the patched local
+checkout. The exact cold-clone lane then passed the registry-pinned Exact
+`0.1.10` production build and all 34/34 Contract checks in 107 seconds; its
+acceptance transcript has SHA-256
+`65b65ea9d785046badd676ed928a49543a8784bc9385ec943229159999c43a26`.
+The mirrored React control arm passed 18/18, including D4. A normal-sandbox
+Linux GitHub run remains the merge boundary; the fleet reproduction was not
+weakened with `--no-sandbox` or an administrator-owned SUID change.

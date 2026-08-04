@@ -187,6 +187,7 @@ async function main() {
     cdp = await connectCdp(chrome.ws);
     cleanups.push(() => cdp.close());
     page = await cdp.newPage();
+    await page.activate();
     // Pin the scheme: the app follows the OS appearance, and this host may
     // be in dark mode when the suite runs. The color assertions are written
     // against the light palette; the dark-mode check flips explicitly via
@@ -439,39 +440,48 @@ async function main() {
 
     await suite.check('second window boot does not clear the first (D4 inspect-first)', async () => {
       const page2 = await cdp.newPage();
-      await page2.navigate(`${viteUrl}/?appearance=light`);
-      const second = await page2.eval(`(async () => {
-        const d = Date.now() + 20000;
-        while (!window.allAboard) { if (Date.now() > d) throw new Error('second window never booted'); await new Promise(r=>setTimeout(r,50)); }
-        await window.allAboard.ready;
-        const s = Date.now() + 8000;
-        for (;;) {
-          const conns = window.allAboard.connections ? window.allAboard.connections() : null;
-          if (conns && conns.liveTrainStatus === 'live') return { provisioned: window.allAboard.provisioned, connections: conns };
-          if (Date.now() > s) throw new Error('second window connections never settled: ' + JSON.stringify(conns));
-          await new Promise(r => setTimeout(r, 100));
+      try {
+        // Contract commits are frame-driven. Chrome throttles background tabs,
+        // so make the window under test foreground before asking it to boot.
+        await page2.activate();
+        await page2.navigate(`${viteUrl}/?appearance=light`);
+        const second = await page2.eval(`(async () => {
+          const d = Date.now() + 20000;
+          while (!window.allAboard) { if (Date.now() > d) throw new Error('second window never booted'); await new Promise(r=>setTimeout(r,50)); }
+          await window.allAboard.ready;
+          const s = Date.now() + 8000;
+          for (;;) {
+            const conns = window.allAboard.connections ? window.allAboard.connections() : null;
+            if (conns && conns.liveTrainStatus === 'live') return { provisioned: window.allAboard.provisioned, connections: conns };
+            if (Date.now() > s) throw new Error('second window connections never settled: ' + JSON.stringify(conns));
+            await new Promise(r => setTimeout(r, 100));
+          }
+        })()`);
+        // Inspect-first: the backend is already provisioned and seeded, so the
+        // second window's boot performs NO provisioning writes (the LLP 0275 C4
+        // footgun — a second window calling loadSchema/reset — is gone).
+        if (second.provisioned.length !== 0) {
+          throw new Error(`second window re-provisioned: ${JSON.stringify(second.provisioned)}`);
         }
-      })()`);
-      // Inspect-first: the backend is already provisioned and seeded, so the
-      // second window's boot performs NO provisioning writes (the LLP 0275 C4
-      // footgun — a second window calling loadSchema/reset — is gone).
-      if (second.provisioned.length !== 0) {
-        throw new Error(`second window re-provisioned: ${JSON.stringify(second.provisioned)}`);
+        // The first window's session survived: still rendered, still live, and
+        // still receiving server-authored deltas after the second boot.
+        await page.activate();
+        const stationName = await page.text('station-name');
+        if (!stationName) throw new Error('first window lost its board after the second boot');
+        const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, {
+          method: 'POST',
+          headers: { 'x-snapback-admin-token': apiAdminToken },
+        });
+        if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
+        const fresh = await page.pollText('freshness', 'Updated a few seconds ago', 6000);
+        if (fresh !== 'Updated a few seconds ago') throw new Error(`first window stopped receiving push after second boot: ${fresh}`);
+        const conns = await page.eval('window.allAboard.connections()');
+        if (conns.liveTrainStatus !== 'live') throw new Error(`first window degraded: ${JSON.stringify(conns)}`);
+        return { second, firstStillLive: conns };
+      } finally {
+        await page2.close();
+        await page.activate();
       }
-      // The first window's session survived: still rendered, still live, and
-      // still receiving server-authored deltas after the second boot.
-      const stationName = await page.text('station-name');
-      if (!stationName) throw new Error('first window lost its board after the second boot');
-      const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, {
-        method: 'POST',
-        headers: { 'x-snapback-admin-token': apiAdminToken },
-      });
-      if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
-      const fresh = await page.pollText('freshness', 'Updated a few seconds ago', 6000);
-      if (fresh !== 'Updated a few seconds ago') throw new Error(`first window stopped receiving push after second boot: ${fresh}`);
-      const conns = await page.eval('window.allAboard.connections()');
-      if (conns.liveTrainStatus !== 'live') throw new Error(`first window degraded: ${JSON.stringify(conns)}`);
-      return { second, firstStillLive: conns };
     });
 
     // Exact LLP 0336 P1: the shared Contract recognizer owns both contiguous
@@ -939,6 +949,7 @@ async function main() {
     await suite.check('backend unreachable: the open still shows a schedule board, honestly labeled', async () => {
       const page3 = await cdp.newPage();
       try {
+        await page3.activate();
         await page3.blockUrls(`${apiUrl}/*`);
         await page3.navigate(`${viteUrl}/?appearance=light`);
         await page3.waitForTestId('station-name');
@@ -1015,6 +1026,7 @@ async function connectCdp(url) {
       const sel = (id) => `[data-testid="${id}"]`;
       return {
         navigate: (url) => send('Page.navigate', { url }, sessionId),
+        activate: () => send('Target.activateTarget', { targetId }),
         close: () => send('Target.closeTarget', { targetId }),
         // Refuse every request matching the pattern (ENG-23727): navigation
         // and module loads on other origins proceed normally, so the surface
