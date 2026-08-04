@@ -5,7 +5,16 @@
 **Systems:** Storage, Migrations, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (history/checkpoint/migration acceptance-tail increment
+**Revised:** 2026-08-04 (proof-tail increment — full migration verification
+now maps predecessor rows through a separately implemented closed-expression
+oracle; explicit-value/equivalence, injected executor-drift, and staged-byte
+corruption negatives gate its `independentBoundaryProof` receipt. A durable
+protected-record checkpoint-copy sweep invalidates every registered
+materialized copy before deletion, enumerates destroyed versus unreachable
+copies, and resumes crash/open obligations after reopen; because this low-level
+sweep is not yet atomic with canonical protected-record deletion, the new-copy
+race remains open and row 11 stays Partial. Status stays Draft and capabilities
+stay `Missing`); 2026-08-04 (history/checkpoint/migration acceptance-tail increment
 — schema publication atomically projects finite per-record history into a
 distinct durable v2 policy without reinterpreting legacy v1 table-wide
 `maxRows`; removal erases retained detail, and auth/pagination/horizon/pruning
@@ -32,7 +41,10 @@ component)
 **Related:** LLP 0035, LLP 0037, LLP 0053, LLP 0081, LLP 0088, LLP 0158,
 LLP 0162, LLP 0163, LLP 0164
 
-**Implementation evidence:** 2026-08-04 (schema-declared history projection,
+**Implementation evidence:** 2026-08-04 (the independent migration oracle and
+adversarial drift/corruption corpus are integrated; the registered-copy erasure
+sweep and receipt are integrated with explicit crash/unreachable obligations,
+but canonical protected-record deletion composition remains open); 2026-08-04 (schema-declared history projection,
 v1 compatibility, visible-only auth pagination/horizon, receipt-only no-upcast,
 and migration full-table-verification disclosure are integrated. Protected-copy
 erasure and a genuinely independent migration oracle remain open, so the Spec
@@ -161,7 +173,15 @@ Erasure commits registry invalidity before attempting physical destruction.
 Successful deletion records `destroyed`; an inaccessible copy records
 `invalidUnreachable` plus an open obligation, and registry invalidity outvotes
 otherwise complete local evidence. A later successful erasure closes the
-obligation. The focused corpus also forces a canonical writer to commit while
+obligation. The protected-record copy sweep snapshots the complete registered
+materialized inventory, invalidates every live entry in one transaction, and
+persists a per-copy receipt before attempting deletion. It resumes missing
+bytes as destroyed after a crash/reopen and retains inaccessible paths as open
+obligations until a later retry closes them. This is deliberately a low-level
+checkpoint-copy operation: it is not yet atomic with canonical protected-row
+deletion, so a checkpoint created between those authorities could retain the
+row. Row 11 therefore remains Partial despite the registry/copy corpus. The
+focused corpus also forces a canonical writer to commit while
 the checkpoint source transaction is pinned, then proves the copy stayed at
 the earlier stream-qualified version; the finite-WAL negative proves the
 stable `SNAPBACK_CHECKPOINT_WAL_BUDGET_EXCEEDED` refusal and automatic intent
@@ -182,21 +202,21 @@ atomically upgrades that table, and the v1 configuration surface refuses to
 replace an active v2 declaration. The corpus covers reopen, current-record and
 per-version authorization, hidden-version pagination/horizon stability,
 per-record caps across two records, schema removal, and sync-floor independence.
-Protected-record erasure across every checkpoint copy remains open and prevents
-a history capability claim.
+Atomic canonical protected-record deletion plus the checkpoint-copy sweep
+remains open and prevents a history capability claim.
 
 ### Migration verification boundary — 2026-08-04
 
-Full migration verification receipts now record the migration boundary domain,
+Full migration verification receipts record the migration boundary domain,
 separate expected/actual logical and system digests, equality, and the named
-predecessor-plus-plan derivation. They deliberately use the narrower
-`fullTableVerification` class and disclose
-`expectedEvaluatorIndependence: sharedImplementation`: execution and expected
-evaluation both call `eval_expr`. Sampled audits remain inventory and say so on
-their face. The staged corpus independently asserts concrete transformed rows
-and system stamps and corruption still blocks publication, but the receipt is
-not an independent boundary proof until a separately implemented expected-value
-oracle is integrated.
+predecessor-plus-plan derivation. Expected rows use a separately implemented
+evaluator over every admitted pure migration expression form; this path calls
+neither storage `eval_expr` nor `value_expr::eval_value_expr`. The receipt is
+therefore `independentBoundaryProof` with
+`expectedEvaluatorIndependence: separateImplementation`. A broad corpus binds
+both implementations to explicit values, an injected execution-only semantic
+drift refuses publication, and independently corrupted staged bytes still
+refuse. Sampled audits remain inventory and say so on their face.
 
 ### Promotion and operation-provenance integration — 2026-08-03
 
@@ -243,10 +263,10 @@ step 0 (the performance baseline). No parallel corpus here.
    history-operation joins are integrated; open here are the generated-facade
    surface, authorizer enforcement, and migration path for existing direct-SQL
    write sites.
-4. Integrate a migration expected-value oracle that does not share `eval_expr`
-   with execution, bind it to the full receipt, and only then upgrade the
-   migration proof class. Complete protected-record erasure across every
-   materialized checkpoint copy.
+4. *(Migration half executed 2026-08-04.)* The full receipt now binds a
+   separately implemented expected-value oracle and adversarial drift corpus.
+   Still open: compose canonical protected-record deletion atomically with the
+   registered-copy sweep so checkpoint creation cannot race between them.
 
 ## Dated OQ13 spike record — 2026-08-03
 

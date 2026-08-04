@@ -1,0 +1,97 @@
+{
+  "$defs": {
+    "CheckpointCopyDispositionV1": {
+      "enum": [
+        "reachable",
+        "destroyed",
+        "invalidUnreachable"
+      ],
+      "type": "string"
+    },
+    "ProtectedCheckpointCopyErasureV1": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpointId": {
+          "type": "string"
+        },
+        "disposition": {
+          "$ref": "#/$defs/CheckpointCopyDispositionV1"
+        },
+        "locationClass": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "checkpointId",
+        "owner",
+        "locationClass",
+        "disposition"
+      ],
+      "type": "object"
+    },
+    "ProtectedCheckpointErasureStateV1": {
+      "enum": [
+        "openObligations",
+        "complete"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/checkpoint.protected-record-erasure-receipt-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "copies": {
+      "items": {
+        "$ref": "#/$defs/ProtectedCheckpointCopyErasureV1"
+      },
+      "type": "array"
+    },
+    "createdAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "erasureId": {
+      "type": "string"
+    },
+    "formatVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "qualifiedTable": {
+      "type": "string"
+    },
+    "rowId": {
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/ProtectedCheckpointErasureStateV1"
+    },
+    "updatedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "formatVersion",
+    "erasureId",
+    "operationId",
+    "qualifiedTable",
+    "rowId",
+    "state",
+    "copies",
+    "createdAtMs",
+    "updatedAtMs"
+  ],
+  "title": "ProtectedRecordCheckpointErasureReceiptV1",
+  "type": "object"
+}

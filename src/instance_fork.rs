@@ -99,6 +99,10 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         name: "_snapback_checkpoint_registry_v1",
         disposition: CustodyDisposition::Scrub,
     },
+    CustodyRule {
+        name: "_snapback_protected_checkpoint_erasure_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
     // LLP 0163 identities and receipts belong to the parent stream. A derived
     // deployment mints a new stream/authority and must never replay inherited
     // suppression or envelope state as if it originated there.

@@ -33,8 +33,8 @@ not authorize capability publication.
 | 8 — resource containment | Partial | The in-app diff enforces a streaming digest-work byte limit, while managed reap enforces TTL/grant expiry exactly at the boundary with durable `tearing_down`, exact-file deletion, and crash/reopen reconciliation. Finish the replay-floor/envelope-window independent-clock corpus and remaining declared resource limits. |
 | 9 — exact fork diff | Partial | The randomized multi-commit corpus compares journal-derived net state with an independent immutable-base/head oracle and verifies the attributed sequence separately. Add schema/system-field and full generated-writer/SQLite-authorizer journal-completeness coverage. |
 | 10 — strict promotion | Partial | Frozen v1 contention terms, quota/defer/release behavior, exhausted-budget refusal, and identical-write/divergent-read-or-result re-seal negatives are covered. Complete the real concurrent-writer fairness/crash matrix, prove the conditional-progress claim, and cover provisional/transitive effect chains. |
-| 11 — history/checkpoint | Partial | Schema publication now atomically projects finite v2 per-record policy, removal erases retained detail, and current/per-version auth plus visible-only pagination/horizon and per-record pruning are covered without changing legacy v1 `maxRows`. Close protected-record-to-every-checkpoint-copy erasure obligations and the remaining lifecycle corpus. |
-| 12 — boundary proof | Partial | Promotion is independently derived; checkpoint concurrent-writer/publication/receipt-only no-upcast negatives are covered. Migration receipts now expose migration-domain expected/actual digests but honestly identify their shared `eval_expr` implementation; add a genuinely independent migration expected-value oracle before calling that leg an independent boundary proof. |
+| 11 — history/checkpoint | Partial | Schema publication now atomically projects finite v2 per-record policy, removal erases retained detail, and current/per-version auth plus visible-only pagination/horizon and per-record pruning are covered without changing legacy v1 `maxRows`. The registered-copy sweep invalidates the complete materialized inventory before deletion and preserves crash/unreachable obligations, but it is not yet atomic with canonical protected-record deletion; close that new-checkpoint race and the remaining lifecycle corpus. |
+| 12 — boundary proof | Partial | Promotion and full migration verification are independently derived; migration's separate evaluator has explicit-value/equivalence plus executor-drift and staged-corruption negatives. Checkpoint concurrent-writer/publication/receipt-only no-upcast negatives are covered. Finish the remaining row-wide boundary integrations/coverage before an aggregate claim. |
 | 13 — performance | Partial | The final-integrated absolute rerun is recorded, and the successor recorder now refuses unless it binds the accepted baseline digest, exact clean revision, fixed hardware, toolchain, and release executable. Run that dated successor plus a genuinely paired/interleaved active-covered-lane comparison; obtain dated RFC-author absolute-bound ratification; record p99 contention and every applicable crash/reopen gate. |
 | 14 — identity lifecycle | Partial | Wire first-party host job/cron/migration callers and transport-level client exclusion, then finish capacity/purge/current-authority negative fixtures beyond the landed promotion-ticket lease. |
 
@@ -78,8 +78,18 @@ the guide-gap ticket rather than being conflated with this implementation tail.
   adds the explicit receipt-only negative beside the existing eight-cut
   publication and concurrent-writer corpus. Migration full verification now
   records expected/actual logical and system digests, `boundaryDomain:
-  migration`, and `expectedEvaluatorIndependence: sharedImplementation`; that
-  disclosure deliberately leaves independent migration proof open.
+  migration`, and `expectedEvaluatorIndependence: separateImplementation`.
+  `migration_expected_oracle_covers_the_closed_expression_profile`,
+  `independent_oracle_detects_executor_semantic_drift_before_publication`, and
+  `verification_failure_blocks_publication` bind the separately implemented
+  expected path to explicit values and prove drift/corruption refuse before
+  publication.
+- `proof_checkpoint::tests::protected_record_erasure_enumerates_all_copies_and_closes_obligations`
+  and `protected_record_erasure_crash_reopens_with_registry_obligation` prove
+  transactional invalidation of every registered materialized copy, honest
+  unreachable-copy receipts, retry closure, and crash/reopen reconciliation.
+  The sweep is not atomic with canonical protected-row deletion, so the
+  possible intervening new checkpoint remains an explicit row-11 gap.
 
 The managed in-app branch slice is recorded in LLP 0164's dated implementation
 record. Focused operation-registry and HTTP negatives prove the five lifecycle
