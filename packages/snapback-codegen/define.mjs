@@ -2311,7 +2311,7 @@ export function defineRelationalQuery(spec) {
     __kind: 'LiveQuery',
     auth: computedOutput === 'owner' ? 'authenticated' : 'public',
     ...(retention === 'opaque-authorized-snapshot-v1'
-      ? { retainable: true, authorizationDependence: ['UserId'] }
+      ? { retainable: true, authorizationDependence: ['userId'] }
       : {}),
     // The one implicit argument every relational query accepts: the opaque
     // versioned continuation cursor from a previous full page (LLP 0080 §2).

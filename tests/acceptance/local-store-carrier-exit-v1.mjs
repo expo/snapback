@@ -31,10 +31,11 @@ import {
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, extname, join, relative, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { brotliCompressSync, constants as zlibConstants, gzipSync } from 'node:zlib';
 
 import { build, version as esbuildVersion } from 'esbuild';
+import { generate } from '../../packages/snapback-codegen/index.mjs';
 
 import {
   AuthCoordinator,
@@ -83,7 +84,7 @@ const FIXTURE_DIR = join(ROOT, 'tests/acceptance/fixtures/local-persistent-store
 const RECEIPT_PATH = join(FIXTURE_DIR, `carrier-exit.${DATE}.v1.json`);
 const EVIDENCE_PATH = join(ROOT, 'tests/acceptance/local-store-carrier-exit-v1-evidence.md');
 const BUNDLE_PATH = join(FIXTURE_DIR, `bundle-attribution.${DATE}.v1.json`);
-const SERVER_BINARY = '/Users/ccheever/projects/snapback/target/debug/snapback';
+const SERVER_BINARY = join(ROOT, 'target/debug/snapback');
 const CHILD_MODE = process.argv[2] === '--file-child';
 const encoder = new TextEncoder();
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
@@ -397,6 +398,7 @@ const fromFixture = (input, overrides = {}) => {
     authorizationWitnessOwnerProduced: true,
     retentionEligible: true,
     leaseStatus: overrides.leaseStatus ?? 'valid',
+    authorizedLeaseHash: fixture.fragment.authorizedLeaseHash,
     ownerTransitionForRetainedFailure(reason, record) {
       return {
         authorityState: {
@@ -1979,44 +1981,273 @@ async function runFileCustodyEvidence() {
   }
 }
 
-async function probeBackend() {
+// P2's former GAP leg: create one retainable relational application, prepare
+// the P1 activation from this worktree's server-owned keyring, seed through a
+// live public client, stop that exact backend, and open a new public client on
+// the same file-v3 carrier. No receipt or materialization is hand-authored.
+async function runRetainedRenderBackendEvidence() {
   if (!existsSync(SERVER_BINARY)) {
-    return {
-      started: false,
-      reason: `SNAPBACK_CARRIER_EXIT_SERVER_BINARY_MISSING: ${SERVER_BINARY}`,
-    };
+    throw new Error(`SNAPBACK_CARRIER_EXIT_SERVER_BINARY_MISSING: ${SERVER_BINARY}`);
   }
+  const scratch = await mkdtemp(join(tmpdir(), 'snapback-carrier-exit-retained-render-'));
+  const backendRoot = join(scratch, 'snapback');
+  const generatedRoot = join(backendRoot, 'generated');
+  const databasePath = join(scratch, 'retained-render.sqlite3');
+  const storeDirectory = join(scratch, 'client-store');
+  const startupArtifacts = join(scratch, 'startup-artifacts.json');
   let server = null;
+  let firstStore = null;
+  let secondStore = null;
+  let firstClient = null;
+  let secondClient = null;
   try {
+    await mkdir(backendRoot, { recursive: true });
+    await mkdir(storeDirectory, { recursive: true });
+    await writeFile(join(backendRoot, 'schema.mjs'), `
+import { defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
+export const books = defineTable({
+  title: v.string(),
+  authorSlug: v.string(),
+  ownerId: v.principal(),
+}).index('by_owner_title', ['ownerId', 'title']).sync();
+export const authors = defineTable({
+  slug: v.string(),
+  name: v.string(),
+  ownerId: v.principal(),
+}).index('by_slug', ['slug'], { unique: true }).sync();
+export default defineSchema({books, authors}, {auth: {mode: 'sessions'}});
+`);
+    await writeFile(join(backendRoot, 'functions.mjs'), `
+import schema from './schema.mjs';
+import {
+  arg,
+  authUserId,
+  defineMutation,
+  defineRelationalQuery,
+  insert,
+  v,
+} from '@expo/snapback-codegen/define';
+export const addAuthor = defineMutation({
+  auth: 'authenticated',
+  args: {slug: v.string(), name: v.string()},
+  plan: insert('authors', {slug: arg('slug'), name: arg('name'), ownerId: authUserId()}),
+});
+export const addBook = defineMutation({
+  auth: 'authenticated',
+  args: {title: v.string(), authorSlug: v.string()},
+  plan: insert('books', {
+    title: arg('title'), authorSlug: arg('authorSlug'), ownerId: authUserId(),
+  }),
+});
+export const booksWithAuthors = defineRelationalQuery({
+  root: schema.tables.books,
+  joined: schema.tables.authors,
+  join: [{root: 'authorSlug', joined: 'slug'}],
+  kind: 'inner',
+  visibility: {
+    root: {kind: 'owner', field: 'ownerId'},
+    joined: {kind: 'owner', field: 'ownerId'},
+    output: 'owner',
+  },
+  projection: {title: {root: 'title'}, authorName: {joined: 'name'}},
+  take: 16,
+  rootIndex: 'by_owner_title',
+  joinedIndex: 'by_slug',
+  retention: 'opaque-authorized-snapshot-v1',
+});
+`);
+    let generation = await generate(backendRoot);
+    assert.equal(generation.ok, true, JSON.stringify(generation.diagnostics));
+    const rawActivationPreparation = JSON.parse(execFileSync(
+      SERVER_BINARY,
+      [
+        'composition-activation-prepare',
+        '--db', databasePath,
+        '--generated', generatedRoot,
+        '--deployment-id', 'carrier-exit-retained-render',
+      ],
+      {
+        cwd: ROOT,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          DYLD_FRAMEWORK_PATH: join(ROOT, 'vendor/ibex/ios/Frameworks'),
+        },
+      },
+    ));
+    const activationPreparation = {
+      format: rawActivationPreparation.format,
+      activationHash: rawActivationPreparation.activationHash,
+      sourceClass: 'temporary-backend-source',
+      next: rawActivationPreparation.next,
+    };
+    generation = await generate(backendRoot);
+    assert.equal(generation.ok, true, JSON.stringify(generation.diagnostics));
+    const schema = JSON.parse(await readFile(join(generatedRoot, 'schema.manifest.json'), 'utf8'));
+    const functions = JSON.parse(await readFile(join(generatedRoot, 'functions.manifest.json'), 'utf8'));
+    await writeFile(
+      startupArtifacts,
+      `${JSON.stringify({ formatVersion: 1, schema, functions })}\n`,
+      { mode: 0o600 },
+    );
+    const generatedApi = await import(
+      `${pathToFileURL(join(generatedRoot, 'api.mjs')).href}?carrier-exit-retained`,
+    );
+    assert.equal(
+      generatedApi.api.booksWithAuthors.artifacts,
+      generatedApi.artifacts,
+      'trusted activation reaches the generated public reference graph',
+    );
+
     server = await startServer({
       port: 0,
-      db: ':memory:',
+      db: databasePath,
       cwd: ROOT,
       serverBinary: SERVER_BINARY,
       binaryProvenance: true,
+      startupArtifacts,
+      trustedCompositionActivation: join(
+        generatedRoot,
+        'trusted-composition-activation.json',
+      ),
+      captureImpersonationCapability: true,
       startupTimeoutMs: 120_000,
     });
-    const response = await fetch(`${server.baseUrl}/health`, { signal: AbortSignal.timeout(10_000) });
-    const body = await response.json();
-    return {
-      started: true,
-      baseUrlClass: 'loopback-ephemeral-port',
-      healthStatus: response.status,
-      healthOk: body?.ok === true,
-      launchRung: server.launch?.rung ?? null,
+    const coordinator = new AuthCoordinator({
+      appId: schema.appId,
+      storage: createMemoryAuthCustodyStorage({ state: {} }),
+      broadcastChannelFactory: null,
+      hintStorage: null,
+    });
+    firstStore = createFileRqsResumeStore({
+      directory: storeDirectory,
+      identity: 'retained-render-owner',
+      clientStoreId: 'carrier-exit-retained-render-store',
+    });
+    await firstStore.whenLockSettled();
+    firstClient = new SnapbackClient(server.baseUrl, {
+      authCoordinator: coordinator,
+      authInvalidationProtocol: 1,
+      authorityDescriptorProtocol: 1,
+      authorizedLeaseProtocol: 1,
+      rqsStore: firstStore,
+      offlineQueue: false,
+    });
+    const requested = await firstClient.authRequestCode('retained-render@carrier-exit.test');
+    const mailboxResponse = await fetch(
+      `${server.baseUrl}/_snapback/api/auth/mailbox?challengeId=${encodeURIComponent(requested.challengeId)}`,
+      {
+        headers: {
+          'x-snapback-admin-token': server.adminToken,
+          'x-snapback-impersonation-capability': server.impersonationCapability,
+        },
+      },
+    );
+    const mailbox = await mailboxResponse.json();
+    assert.equal(mailboxResponse.status, 200, JSON.stringify(mailbox));
+    await firstClient.authExchange({
+      challengeId: requested.challengeId,
+      code: mailbox.code,
+    });
+    await firstClient.mutate(generatedApi.api.addAuthor, {
+      args: { slug: 'ada', name: 'Ada' },
+      queue: false,
+    });
+    await firstClient.mutate(generatedApi.api.addBook, {
+      args: { title: 'proof-backed', authorSlug: 'ada' },
+      queue: false,
+    });
+    const live = await firstClient.liveQuery(generatedApi.api.booksWithAuthors, {
+      connectionId: 'carrier-exit-retained-render-live',
+      persistResume: true,
+    });
+    assert.deepEqual(live.rows, [{ title: 'proof-backed', authorName: 'Ada' }]);
+    assert.equal(live.answerClass, 'authoritative');
+    assert.equal(live.freshness, 'current');
+    assert.equal(live.retention.retainable, true);
+    const liveEvidence = {
+      answerClass: live.answerClass,
+      freshness: live.freshness,
+      rows: structuredClone(live.rows),
+      retention: structuredClone(live.retention),
     };
-  } catch (error) {
+    await live.dispose();
+
+    const liveBaseUrl = server.baseUrl;
+    const launchRung = server.launch?.rung ?? null;
+    await server.stop();
+    server = null;
+    await firstStore.close();
+    firstStore = null;
+
+    secondStore = createFileRqsResumeStore({
+      directory: storeDirectory,
+      identity: 'retained-render-owner',
+    });
+    await secondStore.whenLockSettled();
+    secondClient = new SnapbackClient(liveBaseUrl, {
+      authCoordinator: coordinator,
+      authInvalidationProtocol: 1,
+      authorityDescriptorProtocol: 1,
+      authorizedLeaseProtocol: 1,
+      rqsStore: secondStore,
+      offlineQueue: false,
+    });
+    const updates = [];
+    const relaunched = await secondClient.liveQuery(generatedApi.api.booksWithAuthors, {
+      connectionId: 'carrier-exit-retained-render-relaunch',
+      persistResume: true,
+      onUpdate(_rows, detail) { updates.push(detail); },
+    });
+    assert.deepEqual(relaunched.rows, [{ title: 'proof-backed', authorName: 'Ada' }]);
+    assert.equal(relaunched.answerClass, 'authoritative');
+    assert.equal(relaunched.freshness, 'retained');
+    await relaunched.dispose();
+    const materialization = await secondStore.materializationTransaction('readonly', (view) => {
+      const records = [...view.materializations.values()]
+        .map(decodeMaterializationRecordV1)
+        .filter(Boolean);
+      return {
+        records: records.length,
+        qmk1: records[0]?.address[2] ?? null,
+        freshness: records[0]?.productState.freshness ?? null,
+        fragments: records[0]?.fragments.length ?? 0,
+        leaseCustody: Object.keys(view.storeMeta.materializationLeaseCustody).length,
+      };
+    });
     return {
-      started: false,
-      reason: `SNAPBACK_CARRIER_EXIT_BACKEND_PROBE_FAILED: ${stableError(error)}`,
+      serverBinary: relative(ROOT, SERVER_BINARY),
+      serverBinarySha256: sha256Hex(readFileSync(SERVER_BINARY)),
+      launchRung,
+      backendStoppedBeforeRelaunch: true,
+      activationPreparation,
+      generatedArtifactGraph: {
+        trustedActivationPresent: generatedApi.artifacts.trustedCompositionActivation !== null,
+        directReferenceIdentity: true,
+      },
+      live: liveEvidence,
+      relaunch: {
+        answerClass: relaunched.answerClass,
+        freshness: relaunched.freshness,
+        rows: relaunched.rows,
+        firstUpdate: updates[0] ?? null,
+      },
+      materialization,
+      endToEndRenderedByPublicClient: true,
     };
   } finally {
     try { await server?.stop(); } catch {}
+    try { await firstStore?.close(); } catch {}
+    try { await secondStore?.close(); } catch {}
+    try { await firstClient?.closeAuth(); } catch {}
+    try { await secondClient?.closeAuth(); } catch {}
+    await rm(scratch, { recursive: true, force: true });
   }
 }
 
 const ATTRIBUTION_MODULES = Object.freeze([
   'materialization-store.mjs',
+  'materialization-bridge.mjs',
   'registration-ledger.mjs',
   'demand-broker.mjs',
   'store-policy.mjs',
@@ -2098,7 +2329,7 @@ async function measureBundleAttribution(source, closure) {
       legalComments: 'none',
       conditions: ['browser', 'import', 'default'],
       attribution: 'esbuild metafile output.inputs bytesInOutput (module-own minified bytes)',
-      closure: 'full @expo/snapback-client root plus all eight LLP 0166 store modules retained by namespace observation',
+      closure: 'full @expo/snapback-client root plus all nine LLP 0166 store modules retained by namespace observation',
       external: [],
     },
     output: {
@@ -2196,7 +2427,7 @@ ${moduleRows}
 
 Full measured closure: ${bundle.output.minifiedBytes.toLocaleString('en-US')}
 minified bytes, ${bundle.output.gzipBytes.toLocaleString('en-US')} gzip bytes,
-${bundle.output.brotliBytes.toLocaleString('en-US')} Brotli bytes. The eight
+${bundle.output.brotliBytes.toLocaleString('en-US')} Brotli bytes. The nine
 store modules account for ${bundle.totalMeasuredModuleOwnBytes.toLocaleString('en-US')}
 module-own minified bytes.
 
@@ -2214,11 +2445,11 @@ module-own minified bytes.
   transition before anonymous resume, and checks the §D1 projection including
   pending-outbox destruction and sibling-identity sweeping. It is not a
   page-level browser leg.
-- The retained-unreachable row is GAP because no shipped public client path
-  seeds the LLP 0166 v3 materialization from the backend and renders its answer
-  class. The receipt separately records whether the supplied backend and
-  Contract store-level probe started; combining independent or failed probes
-  would fabricate an end-to-end leg.
+- The retained-unreachable row is one end-to-end public-client sequence: the
+  generated qmk1 reference establishes against this worktree's live backend,
+  stores the P1 proof and complete lease custody, the owned backend process
+  exits, and a newly constructed client projects authoritative-retained bytes
+  from the same file-v3 identity while the endpoint is unreachable.
 - Triage and Fleet remain GAP exactly as LLP 0157's commission crosswalk says:
   the Move-1 successor apps do not exist, and Fleet additionally waits on LLP
   0135 OQ5's relational-node successor.
@@ -2288,6 +2519,10 @@ async function main() {
     console.log(JSON.stringify(await runPublicLogoutBridgeEvidence(), null, 2));
     return;
   }
+  if (process.argv.includes('--retained-render-only')) {
+    console.log(JSON.stringify(await runRetainedRenderBackendEvidence(), null, 2));
+    return;
+  }
   const skipBrowser = process.argv.includes('--skip-browser');
   const startedAt = new Date().toISOString();
   const source = sourceProvenance();
@@ -2298,9 +2533,8 @@ async function main() {
   const publicLogout = await runPublicLogoutBridgeEvidence();
   const fileAuthority = await runFileAuthorityEvidence();
   const fileCustody = await runFileCustodyEvidence();
-  const backend = await probeBackend();
+  const retainedRender = await runRetainedRenderBackendEvidence();
   const browser = skipBrowser ? null : await runBrowserEvidence(makeBrowserFixtures());
-  const retainedGapReason = 'SNAPBACK_CARRIER_EXIT_RETAINED_RENDER_BRIDGE_MISSING: no shipped public client path seeds an LLP 0166 v3 materialization from a live backend and renders the answer-class projection after backend loss; the receipt separately records the backend and browser probe outcomes from this run';
   const legs = [
     browser
       ? pass('browser-terminate-relaunch', 'browser-indexeddb-v3', {
@@ -2322,15 +2556,10 @@ async function main() {
       ? pass('two-tabs-one-profile', 'browser-indexeddb-web-locks-broadcastchannel', browser.twoTabs.handoff)
       : skipped('two-tabs-one-profile', 'browser-indexeddb-web-locks-broadcastchannel'),
     pass('file-process-terminate-relaunch', 'node-file-v3-outbox', fileCrash),
-    gap(
+    pass(
       'retained-render-server-unreachable',
-      'live-backend-plus-browser-contract-store',
-      {
-        backend,
-        storeLevelRetainedRead: browser?.contractAuthority.retainedOfflineStoreLevel ?? null,
-        endToEndRenderedByPublicClient: false,
-      },
-      retainedGapReason,
+      'live-backend-plus-node-file-v3',
+      retainedRender,
     ),
     pass('authority-logout', 'node-public-client-to-file-v3', publicLogout),
     pass('authority-user-switch', 'node-file-v3-multi-identity', fileAuthority.userSwitch),

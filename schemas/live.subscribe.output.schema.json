@@ -76,6 +76,28 @@
       ],
       "type": "object"
     },
+    "AuthorizationWitnessRecordV1": {
+      "additionalProperties": false,
+      "properties": {
+        "compositeWitness": {
+          "$ref": "#/$defs/CompositeWitness"
+        },
+        "format": {
+          "type": "string"
+        },
+        "queryInstanceId": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "format",
+        "queryInstanceId",
+        "compositeWitness"
+      ],
+      "type": "object"
+    },
     "CompletenessProofV1": {
       "additionalProperties": false,
       "properties": {
@@ -1119,6 +1141,17 @@
           "type": "null"
         }
       ]
+    },
+    "authorizationWitness": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AuthorizationWitnessRecordV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Exact owner-produced preimage named by `completenessProof`'s witness\ndigest. This additive member is transported beside the signed proof so\na client can validate the authorization fence before installing result\nbytes; it is never accepted as a trust root on its own."
     },
     "completenessProof": {
       "anyOf": [

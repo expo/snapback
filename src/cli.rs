@@ -1620,7 +1620,9 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             db,
             generated,
             deployment_id,
-        }) => prepare_composition_activation_source(&db, &generated, &deployment_id),
+        }) => startup_blocking(|| {
+            prepare_composition_activation_source(&db, &generated, &deployment_id)
+        }),
         Some(HostCommand::RuntimeQualify) => {
             let result = startup_blocking(crate::runtime::qualify_handler_vm);
             let report = match &result {

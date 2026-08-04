@@ -13,6 +13,8 @@ export interface SearchItemV1<Fields extends Readonly<Record<string, unknown>> =
 export interface SearchPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { items: readonly SearchItemV1<Fields, RowId>[]; cursor: string | null; hasMore: boolean }
 export interface VectorItemV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { rowId: RowId; distance: number; fields: Fields }
 export interface VectorPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { items: readonly VectorItemV1<Fields, RowId>[] }
+export interface GeneratedArtifacts { readonly trustedCompositionActivation: Readonly<Record<string, unknown>> | null }
+export const artifacts: GeneratedArtifacts;
 export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';
 export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
   artifactKind: 'functionReference';
@@ -25,7 +27,8 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   argsContractHash: string;
   resultContractHash: string;
   expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;
-  composition?: Readonly<{ normalizedCompositePlan: Readonly<Record<string, unknown>>; planHash: `sha256:${string}` }>;
+  composition?: Readonly<{ normalizedCompositePlan: Readonly<Record<string, unknown>>; planHash: `sha256:${string}`; resultContract: Readonly<Record<string, unknown>> }>;
+  readonly artifacts?: GeneratedArtifacts;
   argumentSchema: Readonly<Record<string, unknown>>;
   readonly __args?: Args;
   readonly __result?: Result;

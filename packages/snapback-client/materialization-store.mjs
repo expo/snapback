@@ -626,11 +626,26 @@ function validateResultBytes(fragment, context) {
 }
 
 function validateProof(record, fragment, suppliedProof, context, signatureReceipts) {
+  if (context?.publicationAdmitted === false) {
+    refuse(
+      'SNAPBACK_MATERIALIZATION_AUTHORITY_STALE',
+      'authority publication changed before the materialization commit',
+    );
+  }
   const proof = requireProof(suppliedProof);
   const trusted = prepareTrustedActivation(context?.trustedActivation);
   const witness = prepareWitness(context?.authorizationWitness);
   if (context.authorizationWitnessOwnerProduced !== true) {
     refuse('SNAPBACK_COMPLETENESS_WITNESS_INVALID', 'authorization witness lacks owner provenance');
+  }
+  if (
+    record.productState.freshness === 'retained'
+    && (
+      context.leaseStatus !== 'valid'
+      || context.authorizedLeaseHash !== fragment.authorizedLeaseHash
+    )
+  ) {
+    refuse('SNAPBACK_COMPLETENESS_LEASE_INVALID', 'retained fragment does not match valid owner lease custody');
   }
   if (
     proof.materializationKey !== record.address[2]
@@ -1176,6 +1191,19 @@ export async function createMaterializationStore(storeHandle, {
     for (const [key, stored] of view.materializations) {
       const record = decodeRecord(stored);
       if (record === null) refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', `stored materialization ${key} is invalid`);
+      // volatile-online-v1 may share a durable carrier transaction domain,
+      // but its payload never survives a store reopen. The identity/fence
+      // remains so registration can establish the same current instance.
+      // @ref LLP 0157#d7--the-move-2-store-interface — volatile-online restarts unknown and never emulates durable fragments.
+      if (
+        record.fragments.length > 0
+        && (
+          record.storageProfile === 'volatile-online-v1'
+          || record.productState.freshness === 'current'
+        )
+      ) {
+        removePayload(view, key, record);
+      }
       const validated = record.productState.freshness === 'retained'
         ? revalidateRetainedRecord(
           view,
@@ -1391,6 +1419,18 @@ export async function createMaterializationStore(storeHandle, {
         authorizedLeaseHash: fragmentInput.authorizedLeaseHash,
       });
       const context = requireContext(resolveValidationContext, admittedAddress, record, 'commit');
+      if (
+        fragmentInput.freshness === 'retained'
+        && (
+          context.leaseStatus !== 'valid'
+          || context.authorizedLeaseHash !== fragmentInput.authorizedLeaseHash
+        )
+      ) {
+        refuse(
+          'SNAPBACK_COMPLETENESS_LEASE_INVALID',
+          'retained commit requires exact valid owner lease custody',
+        );
+      }
       fragment.proof = validateProof(record, fragment, proofInput, context, signatureReceipts);
       const memberships = fragmentInput.memberships.map((entry, index) => prepareMembership(entry, `fragment.memberships[${index}]`));
       for (const membership of memberships) {

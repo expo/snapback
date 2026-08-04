@@ -3808,6 +3808,7 @@ export async function generateInProcess(backendDir, options = {}) {
     routesManifest,
     assetUploadIntents,
     { schemaVersion: artifactVersion, appId, schemaHash, bundleHash, inputsHash },
+    trustedCompositionActivation,
   );
   const apiTypes = renderApiTypes(
     functionManifest.functions,
@@ -5543,6 +5544,11 @@ function collectAuthoredAuthorizationDimensions(expr, dimensions) {
 }
 
 function hostPlanAuthorizationDependence(def) {
+  // Relational authoring owns its visibility filters outside `def.plan` and
+  // emits the mechanically derived, closed dependence vector itself.
+  if (def.relationalPlan && Array.isArray(def.authorizationDependence)) {
+    return [...def.authorizationDependence].sort();
+  }
   const dimensions = new Set();
   for (const filter of def.plan?.filters ?? []) {
     collectAuthoredAuthorizationDimensions(filter.value, dimensions);
@@ -8260,6 +8266,7 @@ function renderApiModule(
   routesManifest,
   assetUploadIntents = [],
   expectedGeneration,
+  trustedCompositionActivation = null,
 ) {
   const refs = dict();
   // Derived default intents also project as api.defaults.<table>.<field>
@@ -8287,7 +8294,15 @@ function renderApiModule(
       argsContractHash: fn.argsContractHash,
       resultContractHash: fn.resultContractHash,
       expectedGeneration,
-      ...(composition ? { composition } : {}),
+      ...(composition ? {
+        composition: {
+          ...composition,
+          // The result-contract descriptor is verification input for the L2
+          // bridge. Its hash already rides the function reference; carrying
+          // the descriptor here avoids reconstructing authority from rows.
+          resultContract: fn.resultContract,
+        },
+      } : {}),
       // @ref LLP 0065#3-common-pattern-contracts — trusted defaults are
       // absent and additional properties are closed on the generated client
       // boundary. Reuse the operation-schema projection, never a second model.
@@ -8328,14 +8343,19 @@ function renderApiModule(
   );
   refs.groups = groupRefs;
   return `${HEADER}\n` +
+    `const deepFreeze = (value) => { if (value && typeof value === 'object' && !Object.isFrozen(value)) { for (const child of Object.values(value)) deepFreeze(child); Object.freeze(value); } return value; };\n` +
+    `/** @type {import('./api.d.ts').GeneratedArtifacts} */\n` +
+    `export const artifacts = deepFreeze(${stableJson({ trustedCompositionActivation })});\n` +
     `/** @type {import('./api.d.ts').GeneratedEphemeral} */\n` +
     `export const ephemeral = Object.freeze(${stableJson(ephemeralRefs)});\n` +
     `/** @type {import('./api.d.ts').GeneratedQueryGroups} */\n` +
     `export const groups = Object.freeze(${stableJson(groupRefs)});\n` +
     `/** @type {import('./api.d.ts').GeneratedAssetUploadDefaults} */\n` +
     `export const defaults = Object.freeze(${stableJson(defaultRefs)});\n` +
+    `const references = ${stableJson(refs)};\n` +
+    `for (const reference of Object.values(references)) { if (reference?.artifactKind === 'functionReference') Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false }); }\n` +
     `/** @type {import('./api.d.ts').GeneratedApi} */\n` +
-    `export const api = Object.freeze(${stableJson(refs)});\n` +
+    `export const api = deepFreeze(references);\n` +
     `export default api;\n`;
 }
 
@@ -8419,6 +8439,8 @@ function renderApiTypes(
     hasVectorFunction
       ? 'export type VectorPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> = ClientVectorPageV1<Fields, RowId>;'
       : 'export interface VectorPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { items: readonly VectorItemV1<Fields, RowId>[] }',
+    'export interface GeneratedArtifacts { readonly trustedCompositionActivation: Readonly<Record<string, unknown>> | null }',
+    'export const artifacts: GeneratedArtifacts;',
     "export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';",
     'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {',
     "  artifactKind: 'functionReference';",
@@ -8431,7 +8453,8 @@ function renderApiTypes(
     '  argsContractHash: string;',
     '  resultContractHash: string;',
     '  expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;',
-    '  composition?: Readonly<{ normalizedCompositePlan: Readonly<Record<string, unknown>>; planHash: `sha256:${string}` }>;',
+    '  composition?: Readonly<{ normalizedCompositePlan: Readonly<Record<string, unknown>>; planHash: `sha256:${string}`; resultContract: Readonly<Record<string, unknown>> }>;',
+    '  readonly artifacts?: GeneratedArtifacts;',
     '  argumentSchema: Readonly<Record<string, unknown>>;',
     '  readonly __args?: Args;',
     '  readonly __result?: Result;',

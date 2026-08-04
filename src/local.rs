@@ -791,6 +791,17 @@ pub struct LiveSubscribeOutput {
         skip_serializing_if = "Option::is_none"
     )]
     pub completeness_proof: Option<crate::completeness::CompletenessProofV1>,
+    /// Exact owner-produced preimage named by `completenessProof`'s witness
+    /// digest. This additive member is transported beside the signed proof so
+    /// a client can validate the authorization fence before installing result
+    /// bytes; it is never accepted as a trust root on its own.
+    // @ref LLP 0157#d3--the-completeness-witness — the digest is meaningful only with the exact owner-produced witness preimage.
+    #[serde(
+        default,
+        rename = "authorizationWitness",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authorization_witness: Option<crate::completeness::AuthorizationWitnessRecordV1>,
     /// Fresh resume token for `rqsEligible` subscriptions answered with rows
     /// (the "initial `LiveReplace`" mint of LLP 0091 §0A.5 on this arm).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -15177,8 +15188,8 @@ impl LocalSnapback {
         // established result bytes, so only the ordinary snapshot answer can
         // carry the proof that binds those bytes. Mint before publishing any
         // subscription/supersession effect so issuance refusal stays atomic.
-        let completeness_proof = if answered_without_rows {
-            None
+        let (completeness_proof, authorization_witness) = if answered_without_rows {
+            (None, None)
         } else {
             self.issue_live_completeness_proof(
                 &function,
@@ -15186,6 +15197,7 @@ impl LocalSnapback {
                 &query.output,
                 proof_namespace.as_ref(),
             )?
+            .map_or((None, None), |(proof, witness)| (Some(proof), Some(witness)))
         };
         // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S2:
         // subscription ids are unguessable bearer capabilities, not enumerable
@@ -15449,6 +15461,7 @@ impl LocalSnapback {
             facts: self.function_invocation_facts(authority.active_mode())?,
             snapshot: (!answered_without_rows).then_some(query.output),
             completeness_proof,
+            authorization_witness,
             resume: fresh_resume,
             resume_refusal: resume_refusal.map(str::to_owned),
             superseded: superseded_witness,
@@ -19336,7 +19349,12 @@ impl LocalSnapback {
         input: &HandlerInput,
         output: &QueryOutput,
         namespace: Option<&QueryNamespace>,
-    ) -> SnapbackResult<Option<crate::completeness::CompletenessProofV1>> {
+    ) -> SnapbackResult<
+        Option<(
+            crate::completeness::CompletenessProofV1,
+            crate::completeness::AuthorizationWitnessRecordV1,
+        )>,
+    > {
         let Some(namespace) = namespace else {
             return Ok(None);
         };
@@ -19625,7 +19643,7 @@ impl LocalSnapback {
             .map_err(|_| issue_error("proof keyring lock is poisoned".to_owned()))?
             .sign(unsigned)
             .map_err(|error| issue_error(error.to_string()))?;
-        Ok(Some(proof))
+        Ok(Some((proof, witness)))
     }
 
     /// The caller-visible content identity for the active sessions pair.
@@ -39046,14 +39064,22 @@ globalThis.__snapbackHandlers = {
             .rows
             .clone();
         let proof = established.completeness_proof.expect("establishment proof");
+        let witness = established
+            .authorization_witness
+            .expect("authorization witness preimage");
         assert_eq!(proof.materialization_key, namespace.query_key);
         assert_eq!(proof.query_instance_id, namespace.query_instance_id);
+        assert_eq!(witness.query_instance_id, namespace.query_instance_id);
         assert_eq!(proof.activation_hash, activation_hash);
         assert_eq!(proof.version.stream, database_id);
         assert_eq!(
             proof.result_digest,
             crate::completeness::result_digest_v1(&Value::Array(rows))
                 .expect("established result digest"),
+        );
+        assert_eq!(
+            proof.authorization_witness_digest,
+            witness.digest().expect("authorization witness digest"),
         );
         snapback
             .proof_keyring

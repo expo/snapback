@@ -139,6 +139,7 @@ function makeFixture(label = 'fixture') {
     authorizationWitnessOwnerProduced: true,
     retentionEligible: true,
     leaseStatus: 'valid',
+    authorizedLeaseHash: 'lease-hash-1',
     ownerTransitionForRetainedFailure(reason, record) {
       return ownerTransition(
         record,
@@ -470,6 +471,21 @@ for (const carrier of ['memory', 'file', 'indexeddb']) {
       );
       assert.deepEqual(await store.readRenderable(fixture.address, fence(record)), valid.bytes);
     }
+
+    fixture.context.publicationAdmitted = false;
+    await assert.rejects(
+      store.commitPage(
+        fixture.address,
+        fixture.fragmentFor(valid),
+        valid.proof,
+        null,
+        fence(record),
+      ),
+      (error) => error?.code === 'SNAPBACK_MATERIALIZATION_AUTHORITY_STALE',
+      'an authority barrier that lands during async proof verification fences the final commit',
+    );
+    fixture.context.publicationAdmitted = true;
+    assert.deepEqual(await store.readRenderable(fixture.address, fence(record)), valid.bytes);
 
     for (const [name, witness] of [
       ['wrong authorization incarnation', fixture.makeWitness(record.queryInstanceId, { incarnation: 'inc-other' })],

@@ -261,6 +261,26 @@ export const baseline = defineLiveQuery({
     generatedPackage.exports['./trusted-composition-activation'],
     './trusted-composition-activation.json',
   );
+  const activatedApi = await import(
+    `${pathToFileURL(join(dir, 'generated', 'api.mjs')).href}?trusted-activation`,
+  );
+  assert.deepEqual(activatedApi.artifacts.trustedCompositionActivation, trustedActivation);
+  assert.equal(
+    activatedApi.api.incidentTasks.artifacts,
+    activatedApi.artifacts,
+    'direct generated references ride the same immutable application artifact graph',
+  );
+  assert.equal(
+    Object.keys(activatedApi.api.incidentTasks).includes('artifacts'),
+    false,
+    'the trust root does not enter structured registration DTOs',
+  );
+  assert.deepEqual(
+    activatedApi.api.incidentTasks.composition.resultContract,
+    generatedFunctions.functions.find((fn) => fn.name === 'incidentTasks').resultContract,
+  );
+  assert.equal(Object.isFrozen(activatedApi.artifacts.trustedCompositionActivation), true);
+  assert.equal(Object.isFrozen(activatedApi.api.incidentTasks.composition), true);
 
   const activityPlan = authored.addTask.writeWithActivityPlan;
   assert.equal(activityPlan.requiredCapability, 'write_activity_v1');

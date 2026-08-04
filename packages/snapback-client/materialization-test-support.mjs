@@ -110,6 +110,7 @@ export async function createMaterializationTestHarness(handle, label, {
     authorizationWitnessOwnerProduced: true,
     retentionEligible: true,
     leaseStatus: 'valid',
+    authorizedLeaseHash: freshness === 'retained' ? 'lease-hash-1' : null,
   };
   const store = await createMaterializationStore(handle, {
     resolveValidationContext: () => context,
