@@ -90,10 +90,13 @@ for (const testCase of cases) {
   });
   assert.ok(reducer, `${testCase.name}: reducer derives`);
 
+  const replayIds = [...(testCase.ctxLedger?.ids ?? [])];
   const out = reducer(seed, testCase.args ?? {}, {
     userId: testCase.authUserId ?? null,
     optimisticId: 'optimistic_1',
     baseVersion: null,
+    nowMs: testCase.ctxLedger?.now,
+    runtimeId: replayIds.length ? () => replayIds.shift() : undefined,
   });
 
   if (testCase.expect?.error) {
@@ -471,6 +474,58 @@ const todoPlan = {
   );
   assert.ok(!('withheld' in derived));
   assert.ok(!('noPlan' in derived));
+}
+
+// LLP 0135 §5.1: withholding is mutation-atomic across projections. A mixed
+// changeset has a sequence-bearing message insert and a sequence-free room
+// patch; neither the messages projection nor the rooms-only projection may
+// derive an optimistic reducer for the mutation.
+{
+  const mixedSequencePlan = {
+    steps: [
+      {
+        AllocateSequence: {
+          counter: 'messageNumber',
+          scope: { Arg: 'roomId' },
+          into: 'sequence',
+        },
+      },
+      {
+        Insert: {
+          table: 'messages',
+          values: {
+            roomId: { Arg: 'roomId' },
+            sequence: { Binding: 'sequence' },
+            body: { Arg: 'body' },
+          },
+          bind_id_as: 'messageId',
+        },
+      },
+      {
+        Patch: {
+          table: 'rooms',
+          id: { Arg: 'roomId' },
+          values: { lastBody: { Arg: 'body' } },
+        },
+      },
+    ],
+    return_value: { Binding: 'sequence' },
+  };
+  const manifest = {
+    mutations: {
+      send: {
+        plan: mixedSequencePlan,
+        optimistic: false,
+        atomicOptimisticWithholding: true,
+      },
+    },
+  };
+  for (const table of ['messages', 'rooms']) {
+    assert.ok(
+      !('send' in deriveOptimisticReducers({ manifest, table })),
+      `${table} projection withholds the complete mixed sequence changeset`,
+    );
+  }
 }
 
 console.log(

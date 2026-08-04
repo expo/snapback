@@ -51,7 +51,7 @@ and `guide-gap`.
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
 | backend.codegen | Generate a digest-verified review manifest, input-hash cache, client API, and Contract bindings with deterministic human/JSON summaries | codegen, generate, artifacts, cache, custody, review manifest | all | shipped | `createReviewManifest` in packages/snapback-codegen/review-surface.mjs | llp/0010, llp/0012, llp/0037, llp/0041 | getting-started/generated-artifacts.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
-| backend.sequences | Experimental declared, incarnation-scoped sequences have an in-tree local substrate spanning `ctx.sequence.allocate(counterName, scopeId)`, generated `AllocateSequence`, mutation-atomic lane-Q withholding, membership/public scope reach, exact settlement replay, safe-integer exhaustion, storage-enforced string order-field bounds, and A6 evidence. The capability remains unpublished and support-false until the complete LLP 0135 §5.1 qualification and LLP 0113 publication train | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | none | partial | `sequence.allocate` in packages/snapback-harness/ctx-bootstrap.js + demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs + focused generated-plan/lane-Q proof (substrate evidence only; no capability publication witness) | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (qualified `sequence_allocation_v1` publication; owner: Charlie, review: 2026-08-31; issue: issues/20260803-sequence-allocation-qualification.md); backend/sequences.md |
+| backend.sequences | Experimental incarnation-scoped dense sequences through handler `ctx.sequence.allocate(counterName, scopeId)` and generated `AllocateSequence`, with abort-disclosure, commit-order/contention, exact replay, incarnation restart, exhaustion, Relay, Campfire, and mutation-atomic lane-Q qualification. Only the exact contributor-source local target publishes `sequence_allocation_v1`; public packages and hosted targets remain structured GAPs | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json + tests/conformance/sequence-allocation-publication-v1.receipt.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public-package attestation and hosted target qualification/publication; owner: Charlie, review: 2026-09-30); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
 | backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks, deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, upload, object storage, media, browser upload, vite relay, asset export, logical backup, signing key rotation | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation) + demos/file-drop/tests/acceptance/browser-relay.mjs (browser path) | llp/0044 | backend/assets.md |
 | backend.expo-push-seam | Shipped local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized and paced `ctx.push.send`, crash-safe intent/batch/message ledger, safe pre-transmit recovery, bounded ticket/receipt maintenance, a privacy-bounded generated ledger query, explicit ambiguous redrive risk, structured `notifications.expoPushSeam` facts, and a retained physical-device `ok` receipt witness. The complete hosted conjunction remains a GAP; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json (`expoPushSeam`) + packages/snapback-cli/fake-expo-push.test.mjs + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs + LLP 0143 implementation record (2026-08-03 physical-device witness) | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
@@ -4978,23 +4978,22 @@ id: backend.sequences
 order: 28
 audience: agent-first
 capabilities: [backend.sequences]
-authorities: [llp/0113-qualification-and-publication-authority.spec.md, llp/0128-popular-app-storage-scale.research.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, src/manifest.rs, src/runtime.rs, src/storage.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/sequence-authoring.test.mjs, packages/snapback-harness/ctx-bootstrap.js, demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs]
+authorities: [llp/0113-qualification-and-publication-authority.spec.md, llp/0128-popular-app-storage-scale.research.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, src/local-sequence-allocation-publication.v1.json, src/manifest.rs, src/runtime.rs, src/storage.rs, tests/conformance/sequence-allocation-publication-v1.receipt.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/sequence-authoring.test.mjs, packages/snapback-contract/derived-overlay.test.mjs, packages/snapback-harness/ctx-bootstrap.js, demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs]
 examples: [demos/improvement-sweep/arms/a6-snapback-web/evidence/app]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-04
+reviewed-commit: HEAD
 ---
 
 # Scoped sequences
 
-> **Unpublished local substrate; no supporting target yet.** The contributor
-> tree contains handler-tier `ctx.sequence.allocate`, generated
-> `AllocateSequence`, mutation-atomic lane-Q withholding, and A6 evidence, but
-> `sequence_allocation_v1` remains support-false with a structured GAP until the
-> complete LLP 0135 §5.1 qualification and LLP 0113 publication train land. Do
-> not make an application depend on it yet.
+> **Local target only.** Contributor-source builds of the local dev/test target
+> publish `sequence_allocation_v1` at Experimental maturity. Generated
+> applications acknowledge that dependency. Public runtime packages and hosted
+> targets retain a structured GAP because neither has its required publication
+> authority or target-specific evidence.
 
 The accepted surface is intended for dense, monotonic human-facing numbers such
 as JOB-42 without an application-owned read/increment/write counter. The local
@@ -5032,9 +5031,10 @@ recreating the row starts a new sequence at 1, even when the application row id
 is reused. The last admitted value is `Number.MAX_SAFE_INTEGER`; later
 allocation refuses with `SNAPBACK_SEQUENCE_EXHAUSTED` and commits nothing.
 
-Codegen emits the experimental capability requirement and acknowledgment, but
-because target support remains false, an artifact requiring the capability
-must be refused rather than served. In the observed substrate, allocation
+Codegen emits the Experimental capability requirement and acknowledgment. The
+local target admits that requirement only when its compiled qualification
+carrier matches the §5.1 receipt and bound source bytes. A public-package build,
+hosted target, altered carrier, or stale receipt stays support-false. Allocation
 facts are settlement evidence: direct receipts carry the exact counter, scope,
 incarnation, and value, while ordinary live fanout strips them. A sequence-only
 migration mutation may use `writes: []`; do not invent an application write
@@ -5051,12 +5051,12 @@ writer rejects oversized values with
 
 ## Current limits
 
-- No target currently publishes `sequence_allocation_v1` support. The local
-  handler implementation and A6 run are substrate evidence only; the full
-  LLP 0135 §5.1 corpus remains the qualification boundary.
-- The generated `AllocateSequence` plan step and lane-Q mutation-atomic
-  optimistic withholding are implemented substrate with focused proof. They do
-  not complete §5.1 or authorize target publication.
+- Only contributor-source builds of `local-dev-sqlite-ibex` publish
+  `sequence_allocation_v1`. Public packages, remote-service profiles,
+  conformance twins, and hosted targets remain structured GAPs.
+- Publication is Experimental. LLP 0113 governs support publication but cannot
+  mint Stable maturity; that would require a separate digest-bound LLP 0134
+  promotion act.
 - One mutation can allocate at most once.
 - A counter's current or next value is never readable through the API.
 - Lane-L local execution of allocating mutations remains out of scope; do not
@@ -5066,9 +5066,9 @@ writer rejects oversized values with
   ordinary committed sequence allocations; there is no authored start-value
   escape hatch.
 - Snapshot-batch composition is a separate LLP 0135 Part 2 capability. The
-  experimental local target now supports it; see
-  [Snapshot batches](./snapshot-batches.md). That does not qualify or publish
-  `sequence_allocation_v1`.
+  experimental local target supports it independently; see
+  [Snapshot batches](./snapshot-batches.md). Sequence qualification did not
+  change that capability.
 
 ---
 

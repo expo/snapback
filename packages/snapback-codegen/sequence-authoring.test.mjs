@@ -124,10 +124,18 @@ export const createJob = defineJsMutation({
 });
 `);
   const generated = await generate(dir);
-  assert.equal(generated.ok, false, 'unpublished sequence capability must fail generation');
-  assert.match(
-    JSON.stringify(generated.diagnostics),
-    /SNAPBACK_CAPABILITY_UNSUPPORTED.*sequence_allocation_v1|sequence_allocation_v1.*SNAPBACK_CAPABILITY_UNSUPPORTED/u,
+  assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+  const functionsManifest = JSON.parse(
+    readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'),
+  );
+  const createJob = functionsManifest.functions.find((entry) => entry.name === 'createJob');
+  assert.deepEqual(createJob.sequences, declaration.map((entry) => ({
+    name: entry.name,
+    scopeTable: entry.scopeTable,
+    scopeAccess: 'public.v1',
+  })));
+  assert.ok(
+    createJob.requiredCapabilities.includes('sequence_allocation_v1'),
   );
 } finally {
   rmSync(dir, { recursive: true, force: true });
@@ -154,8 +162,15 @@ try {
   const generated = await generate(a6Dir);
   if (previousOutbound === undefined) delete process.env.SNAPBACK_OUTBOUND_ACTIONS;
   else process.env.SNAPBACK_OUTBOUND_ACTIONS = previousOutbound;
-  assert.equal(generated.ok, false, 'A6 remains source evidence, not publication authority');
-  assert.match(JSON.stringify(generated.diagnostics), /sequence_allocation_v1/u);
+  assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+  const generatedFunctions = JSON.parse(
+    readFileSync(join(a6Dir, 'generated', 'functions.manifest.json'), 'utf8'),
+  );
+  const createJob = generatedFunctions.functions.find((entry) => entry.name === 'createJob');
+  assert.ok(
+    createJob.requiredCapabilities.includes('sequence_allocation_v1'),
+    'A6 consumes the target-owned Experimental publication',
+  );
   const createJobSource = readFileSync(join(a6Source, 'functions.mjs'), 'utf8');
   assert.match(
     createJobSource,

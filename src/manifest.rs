@@ -9173,10 +9173,24 @@ impl TargetCapabilityId {
             // (e.g. the Cloudflare host-ops path) does not thereby implement
             // the relational executor (LLP 0080 §2's capability-gap rule).
             Self::RelationalQueryV1 => facts.relational_query_v1_registered,
-            // @ref LLP 0135#18-ceilings-receipts-and-capability — the local
-            //   target advertises only the code-owned registered execution
-            //   seam; maturity remains experimental until LLP 0134 promotion.
-            Self::SequenceAllocationV1 => facts.sequence_allocation_v1_registered,
+            // @ref LLP 0135#18-ceilings-receipts-and-capability — publication
+            // is an exact local-source conjunction over both allocation
+            // surfaces, settlement/read-set dependencies, and the compiled
+            // qualification carrier. Maturity remains experimental until a
+            // separate LLP 0134 promotion act.
+            // @ref LLP 0113#1-closed-capability-registry-assignment — neither
+            // app artifacts nor an unqualified target may mint support.
+            Self::SequenceAllocationV1 => {
+                facts.sequence_allocation_v1_registered
+                    && facts.local_sequence_allocation_publication_v1_verified
+                    && facts.host_plan_runtime
+                    && facts.ibex_ctx_db_host_bridge_available
+                    && facts.result_contract_v1_registered
+                    && facts.mutation_read_set_validator_registered
+                    && Self::WriteActivityV1.is_supported_by(manifest, facts)
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+                    && manifest.mutation_isolation_mode == "handler-captured-read-set-validation"
+            }
             Self::SnapshotBatchV1 => {
                 facts.snapshot_batch_v1_registered
                     && Self::BoundedChildrenV1.is_supported_by(manifest, facts)
@@ -9365,9 +9379,15 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:18b738a0fef20f0933957b82c44a023507349d005052ebcf8ec37dda3788b80a";
+    "sha256:965787746a93a5673830f44eac97cde463d3172fd584b843222eadd6f7ffe34f";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
+const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
+    include_bytes!("local-sequence-allocation-publication.v1.json");
+const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
+    "sha256:be05b09e66497fbdaa45a81221ff050068232dfffb910a08368d9394c7340103";
+const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
+    include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -9384,6 +9404,30 @@ struct LocalRelationActivityPublicationV1 {
     executor_source_sha256: BTreeMap<String, String>,
     #[serde(rename = "schemaSourceSha256")]
     schema_source_sha256: BTreeMap<String, String>,
+    #[serde(rename = "packageClosureSha256")]
+    package_closure_sha256: Option<String>,
+    #[serde(rename = "buildProvenanceRequirement")]
+    build_provenance_requirement: String,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+struct LocalSequenceAllocationPublicationV1 {
+    #[serde(rename = "schemaVersion")]
+    schema_version: String,
+    #[serde(rename = "targetProfileId")]
+    target_profile_id: String,
+    #[serde(rename = "capabilityIds")]
+    capability_ids: Vec<String>,
+    maturity: String,
+    #[serde(rename = "qualificationReceiptSha256")]
+    qualification_receipt_sha256: String,
+    #[serde(rename = "executorSourceSha256")]
+    executor_source_sha256: BTreeMap<String, String>,
+    #[serde(rename = "schemaSourceSha256")]
+    schema_source_sha256: BTreeMap<String, String>,
+    #[serde(rename = "clientSourceSha256")]
+    client_source_sha256: BTreeMap<String, String>,
     #[serde(rename = "packageClosureSha256")]
     package_closure_sha256: Option<String>,
     #[serde(rename = "buildProvenanceRequirement")]
@@ -9435,19 +9479,19 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:3f50ad9d7ba9395f32f0b928d336e62b0d9a0e9b0bba475e429183c58d2ddd6b"
+                    "sha256:e30af7a49569b0caa05bd29c72a7433e84647363379c3e320d32ab5c23608b57"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:8f9dd3df80217b4f5f0bce26a4256490d784b0bc565e5ef66366769bb4715c96"
+                    "sha256:11858caf01246d630aac6a18da84d3f77d74442f0e66c918eade7100638265d6"
                         .to_owned(),
                 ),
             ])
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:5c3589b2b24a2fb7bef39de2c9eca1c0b7b258eb86423892f8f23300a752ddab"
+                "sha256:b7f401c0a33b5e9bef08e8166e53230998657ddda734850f43cb6ab30dd5ed64"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
@@ -9461,6 +9505,82 @@ fn local_relation_activity_publication_verified() -> bool {
         LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES,
         LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256,
         LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES,
+    )
+}
+
+/// Validate the dedicated sequence qualification carrier. This is local
+/// contributor-source authority only: public packages require the signed
+/// package attestation, and hosted profiles require their own LLP 0113 family
+/// plus exact target corpus.
+///
+/// @ref LLP 0135#18-ceilings-receipts-and-capability — support follows the
+/// complete §5.1 receipt; a carrier/source/target mismatch remains a GAP.
+/// @ref LLP 0113#6-acceptance — support publication and static maturity are
+/// distinct, fail-closed dimensions.
+fn local_sequence_allocation_publication_verified_for(
+    build_distribution: &str,
+    carrier_bytes: &[u8],
+    expected_carrier_sha256: &str,
+    qualification_receipt_bytes: &[u8],
+) -> bool {
+    if build_distribution != crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE {
+        return false;
+    }
+    if sha256_prefixed(carrier_bytes) != expected_carrier_sha256 {
+        return false;
+    }
+    let Ok(carrier) = serde_json::from_slice::<LocalSequenceAllocationPublicationV1>(carrier_bytes)
+    else {
+        return false;
+    };
+    carrier.schema_version == "snapback.local-capability-publication.v1"
+        && carrier.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+        && carrier.capability_ids == ["sequence_allocation_v1".to_owned()]
+        && carrier.maturity == "experimental"
+        && carrier.qualification_receipt_sha256 == sha256_prefixed(qualification_receipt_bytes)
+        && carrier.executor_source_sha256
+            == BTreeMap::from([
+                (
+                    "src/runtime.rs".to_owned(),
+                    "sha256:56925ee217229ff6df0b114ce0e957e1bd4396d6ffaa4eeac26f247cd0f5f328"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage.rs".to_owned(),
+                    "sha256:11858caf01246d630aac6a18da84d3f77d74442f0e66c918eade7100638265d6"
+                        .to_owned(),
+                ),
+            ])
+        && carrier.schema_source_sha256
+            == BTreeMap::from([(
+                "packages/snapback-codegen/define.mjs".to_owned(),
+                "sha256:b7f401c0a33b5e9bef08e8166e53230998657ddda734850f43cb6ab30dd5ed64"
+                    .to_owned(),
+            )])
+        && carrier.client_source_sha256
+            == BTreeMap::from([
+                (
+                    "packages/snapback-contract/derived-overlay.mjs".to_owned(),
+                    "sha256:8b5324a45a8beaaa7db4eaf93361f8faf1008e152a74f9903844335d0f8e0a32"
+                        .to_owned(),
+                ),
+                (
+                    "packages/snapback-contract/index.mjs".to_owned(),
+                    "sha256:a7631cb2c37d32987929b207c3aec279bc97f8884918e2b06780d3eddceeeda7"
+                        .to_owned(),
+                ),
+            ])
+        && carrier.package_closure_sha256.is_none()
+        && carrier.build_provenance_requirement == "source-commit-and-embedded-carrier-sha256"
+}
+
+#[cfg(test)]
+fn local_sequence_allocation_publication_verified() -> bool {
+    local_sequence_allocation_publication_verified_for(
+        crate::identity::build_distribution(),
+        LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES,
+        LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256,
+        LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES,
     )
 }
 
@@ -9497,6 +9617,7 @@ pub struct TargetCapabilityFacts {
     mixed_bundle_boot_v2_registered: bool,
     write_activity_v1_registered: bool,
     local_relation_activity_publication_v1_verified: bool,
+    local_sequence_allocation_publication_v1_verified: bool,
     asset_lifecycle_local_fs_registered: bool,
     asset_image_finalization_registered: bool,
     asset_reference_gc_registered: bool,
@@ -9516,6 +9637,13 @@ impl TargetCapabilityFacts {
                 LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256,
                 LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES,
             );
+        let local_sequence_allocation_publication_v1_verified =
+            local_sequence_allocation_publication_verified_for(
+                build_distribution,
+                LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES,
+                LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256,
+                LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES,
+            );
         // @ref LLP 0109#166-the-manifest-is-an-executable-advertisement-gate — both local capability ids
         // are advertised only after the closed executable suite passes every
         // mandatory local row; LLP 0109 remains Review, so registry maturity
@@ -9533,10 +9661,9 @@ impl TargetCapabilityFacts {
             bounded_response_stream_v1_registered: true,
             relational_query_v1_registered: true,
             // @ref LLP 0135#18-ceilings-receipts-and-capability — handler and
-            // generated execution substrate exists, but the complete §5.1
-            // qualification/publication receipt has not landed. Keep the
-            // served capability GAP until that evidence is reviewed.
-            sequence_allocation_v1_registered: false,
+            // generated execution are registered independently from the
+            // compiled §5.1 publication receipt checked below.
+            sequence_allocation_v1_registered: true,
             migration_keyset_scan_v1_registered: true,
             full_text_search_v1_registered: true,
             // Authoring and closed carriers exist, but no wire/runtime/live
@@ -9578,6 +9705,7 @@ impl TargetCapabilityFacts {
             mixed_bundle_boot_v2_registered: true,
             write_activity_v1_registered: true,
             local_relation_activity_publication_v1_verified,
+            local_sequence_allocation_publication_v1_verified,
         }
     }
 
@@ -9595,6 +9723,7 @@ impl TargetCapabilityFacts {
             expo_push_seam_v1_registered: false,
             write_activity_v1_registered: false,
             local_relation_activity_publication_v1_verified: false,
+            local_sequence_allocation_publication_v1_verified: false,
             ..Self::local_auth_aware()
         }
     }
@@ -9604,6 +9733,13 @@ impl TargetCapabilityFacts {
         self.snapshot_batch_v1_registered = false;
         self.write_activity_v1_registered = false;
         self.local_relation_activity_publication_v1_verified = false;
+        self
+    }
+
+    #[cfg(test)]
+    fn with_sequence_allocation_publication_withheld(mut self) -> Self {
+        self.sequence_allocation_v1_registered = false;
+        self.local_sequence_allocation_publication_v1_verified = false;
         self
     }
 }
@@ -11811,6 +11947,10 @@ mod membership_manifest_grammar_tests {
                 CapabilityMaturity::Experimental,
             ),
             (
+                TargetCapabilityId::SequenceAllocationV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
                 TargetCapabilityId::SnapshotBatchV1,
                 CapabilityMaturity::Experimental,
             ),
@@ -11861,12 +12001,12 @@ mod membership_manifest_grammar_tests {
         ]);
         assert_eq!(disabled.capability_maturity, experimental);
         assert!(
-            !disabled
+            disabled
                 .supported_capabilities
                 .contains(&TargetCapabilityId::SequenceAllocationV1)
         );
         assert!(
-            disabled
+            !disabled
                 .capability_gaps
                 .iter()
                 .any(|gap| gap == "sequence_allocation_v1")
@@ -11938,6 +12078,7 @@ mod membership_manifest_grammar_tests {
             "relational_query_v1",
             "bounded_response_stream_v1",
             "live_subscriptions",
+            "sequence_allocation_v1",
             "write_activity_v1",
             "not.a.known.capability",
         ]);
@@ -11956,6 +12097,9 @@ mod membership_manifest_grammar_tests {
         enabled
             .require_capability_acknowledging("write_activity_v1", &acknowledged)
             .expect("acknowledged write/activity support admits");
+        enabled
+            .require_capability_acknowledging("sequence_allocation_v1", &acknowledged)
+            .expect("acknowledged experimental sequence support admits");
         assert_eq!(
             disabled
                 .require_capability_acknowledging("bounded_response_stream_v1", &acknowledged)
@@ -11992,18 +12136,41 @@ mod membership_manifest_grammar_tests {
     }
 
     #[test]
-    fn unpublished_sequence_capability_always_carries_a_structured_gap() {
+    fn sequence_publication_is_experimental_local_source_only() {
+        assert!(local_sequence_allocation_publication_verified());
         for manifest in [
             CapabilityManifest::local_v0(Vec::new()),
             CapabilityManifest::local_v0_instance(Vec::new(), true),
+        ] {
+            assert!(
+                manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::SequenceAllocationV1)
+            );
+            assert!(
+                !manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "sequence_allocation_v1")
+            );
+            assert_eq!(
+                manifest
+                    .capability_maturity
+                    .get(&TargetCapabilityId::SequenceAllocationV1),
+                Some(&CapabilityMaturity::Experimental),
+                "LLP 0113 publication cannot mint stable maturity",
+            );
+        }
+        for manifest in [
             CapabilityManifest::remote_service_sqlite_ibex_declared(),
+            CapabilityManifest::conformance_workerd_v8(json!({})),
             CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
         ] {
             assert!(
                 !manifest
                     .supported_capabilities
                     .contains(&TargetCapabilityId::SequenceAllocationV1),
-                "{} must not publish the sequence substrate",
+                "{} must not inherit the local sequence publication",
                 manifest.target_profile_id,
             );
             assert!(
@@ -12021,6 +12188,70 @@ mod membership_manifest_grammar_tests {
                 "unsupported ids do not receive maturity annotations",
             );
         }
+
+        let withheld = CapabilityManifest::local_v0_with_facts(
+            Vec::new(),
+            TargetCapabilityFacts::local_auth_aware()
+                .with_sequence_allocation_publication_withheld(),
+        );
+        assert!(
+            !withheld
+                .supported_capabilities
+                .contains(&TargetCapabilityId::SequenceAllocationV1)
+        );
+        assert!(
+            withheld
+                .capability_gaps
+                .iter()
+                .any(|gap| gap == "sequence_allocation_v1")
+        );
+    }
+
+    #[test]
+    fn sequence_publication_tamper_and_package_substitutions_fail_closed() {
+        let mut tampered_carrier = LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES.to_vec();
+        tampered_carrier[0] ^= 1;
+        assert!(!local_sequence_allocation_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+            &tampered_carrier,
+            LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256,
+            LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES,
+        ));
+        let mut stale_receipt = LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES.to_vec();
+        stale_receipt.push(b'\n');
+        assert!(!local_sequence_allocation_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+            LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES,
+            LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256,
+            &stale_receipt,
+        ));
+        assert!(!local_sequence_allocation_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+            LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES,
+            LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256,
+            LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES,
+        ));
+        let package = CapabilityManifest::local_v0_with_facts(
+            Vec::new(),
+            TargetCapabilityFacts::local_auth_aware_for_distribution(
+                crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+            ),
+        );
+        assert!(
+            !package
+                .supported_capabilities
+                .contains(&TargetCapabilityId::SequenceAllocationV1)
+        );
+        assert!(
+            package
+                .capability_gaps
+                .iter()
+                .any(|gap| gap == "sequence_allocation_v1")
+        );
+        assert_eq!(
+            TargetCapabilityId::SequenceAllocationV1.maturity(),
+            CapabilityMaturity::Experimental,
+        );
     }
 
     #[test]

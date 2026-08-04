@@ -6,7 +6,12 @@
 generation, Authorization, Live Queries, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-04 (dated diagnostic addition:
+**Revised:** 2026-08-04 (sequence-allocation qualification and local-source
+publication: the complete §5.1 corpus is green, the exact compiled carrier
+publishes `sequence_allocation_v1` only for contributor-source builds of
+`local-dev-sqlite-ibex`, public-package and hosted targets retain structured
+GAPs, and maturity remains Experimental because LLP 0113 cannot mint Stable);
+2026-08-04 (dated diagnostic addition:
 `SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID` joins the stable
 authoring diagnostics — the load-time result-contract exactness refusal
 the implementation already emits.) 2026-08-03 (snapshot-batch implementation: the experimental
@@ -1094,6 +1099,58 @@ substrate, but do not close the two app-authored abort-disclosure vectors, the
 complete multi-writer performance/commit-order corpus, or the other unlisted
 §5.1 qualification rows.
 
+## Implementation record — 2026-08-04 (sequence allocation v1 qualification)
+
+The complete §5.1 qualification corpus is now green for the contributor-source
+`local-dev-sqlite-ibex` target. The digest-bound
+`LocalCapabilityPublicationV1` carrier in
+`src/local-sequence-allocation-publication.v1.json` binds the qualification
+receipt and the executor, schema-authoring, and client-withholding source
+bytes. The runtime manifest publishes `sequence_allocation_v1` only when that
+carrier, receipt, contributor-source distribution, exact local profile, both
+allocation surfaces, write/activity dependency, settlement/result contract,
+and captured-read validator all hold. Carrier drift, receipt drift, a public
+package, the remote-service profile, the conformance twin, and hosted targets
+remain support-false with the structured sequence GAP.
+
+The receipt at
+`tests/conformance/sequence-allocation-publication-v1.receipt.json` records all
+ten §5.1 rows:
+
+- 24 independent SQLite writers produce values 1..24 in commit-version order
+  within the 15-second qualification budget, while the explicit stale-first
+  writer race proves that the losing tentative value never commits;
+- real Ibex handlers exercise the two distinct abort-disclosure causes: a
+  console-disclosing handler completes and then loses captured-read validation,
+  while a handler throws its tentative value and never reaches commit; both
+  leave counter/application/activity/version/settlement/result surfaces clean;
+- delete/recreate, orphan reachability, incarnation-prefixed uniqueness,
+  reviewed brownfield backfill, maximum/exhaustion, byte-identical oracle
+  collapse, undeclared refusal, and the absence of a current-value API are
+  covered at their owning seams;
+- sequential and concurrent same-identity deliveries replay the exact retained
+  result and allocation fact while advancing once. The concurrent vector found
+  and closed the precheck-to-settlement race: a transaction that loses the
+  unique settlement row now rolls back and returns the winner's exact retained
+  commit rather than leaking a raw SQLite uniqueness diagnostic;
+- lane-Q's mixed sequence-bearing insert plus sequence-free patch is withheld
+  across both projections through fresh queueing and retained reload, then
+  appears only at authoritative settlement;
+- Relay's generated write-with-activity plan returns exact
+  `{cardId, activityId, sequence}` bytes with source, activity, counter, and
+  settlement at one version; and Campfire's public-scope handler arm admits
+  eight anonymous concurrent senders, performs no application range read, and
+  commits dense values 1..8.
+
+This is a support-publication act, not a maturity-promotion act.
+`sequence_allocation_v1` remains **Experimental** and generated artifacts must
+acknowledge it. LLP 0113 supplies qualification/publication discipline but has
+no authority to mint Stable; only a future digest-bound LLP 0134 promotion act
+could do that. No hosted exact capability family is added to LLP 0113 because
+no hosted target corpus exists. Public-package authority likewise remains
+blocked on its signed `PackageCapabilityAttestationV1`. This record changes no
+`snapshot_batch_v1` behavior or claim.
+
 ## LLP 0157 acceptance boundary — 2026-08-03
 
 This Spec continues to own `snapshot-batch.v1` static admission,
@@ -1174,19 +1231,17 @@ not change the separate support-false sequence-allocation posture.
   surface presents one (§1.4). Admission of allocating operations to
   local execution is out of scope pending LLP 0129 row 2's admission
   vocabulary (open question 6).
-- **Sequence substrate remains unpublished.** The 2026-08-02 record above
-  claims only the observed local handler-tier sequence substrate, not target support for
-  `sequence_allocation_v1`. The capability remains Experimental,
-  support-false, and represented as a structured GAP until the complete §5.1
-  qualification and LLP 0113 publication requirements land. Generated
-  allocation and lane-Q withholding are substrate evidence only; they do not
-  imply the remaining unexercised vectors. `snapshot_batch_v1` is separately
-  implemented and supported only on the experimental contributor local target
-  under the dated record above. Any
-  future promotion still follows LLP 0134; this Spec cannot and does not
-  shorten that path.
-- **No performance results.** §1.6's statements are named empirical
-  expectations; LLP 0125's burst work owns the measurement.
+- **Sequence publication is local-source and Experimental only.** The
+  2026-08-04 record publishes `sequence_allocation_v1` for the exact qualified
+  contributor local target. It does not publish a public package, remote,
+  conformance-twin, or hosted target and cannot mint Stable maturity.
+  `snapshot_batch_v1` remains separately implemented and supported under its
+  own dated record. Any future promotion still follows LLP 0134; this Spec
+  cannot and does not shorten that path.
+- **No general performance claim.** The qualification receipt records one
+  bounded 24-writer local observation and enforces its acceptance budget. It
+  does not generalize that result to production workload sizing or hosted
+  targets; LLP 0125's burst work owns broader measurement.
 - **No general query language, and no relational nodes in v1.**
   Data-dependent node invocation, arbitrary predicates, and
   caller-composed shapes stay rejected (option 3's verdict); no stable

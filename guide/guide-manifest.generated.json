@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "df77cbcbf588504d9c7201fa5b2621469b770f91"
+    "commit": "9ea6e8bff6c2c6c4141eb692bef95041b55bc920"
   },
   "nav": {
     ".": [
@@ -1079,20 +1079,23 @@
         "llp/0128-popular-app-storage-scale.research.md",
         "llp/0135-sequence-allocation-and-snapshot-batch.spec.md",
         "llp/0157-composition-algebra-and-completeness.spec.md",
+        "src/local-sequence-allocation-publication.v1.json",
         "src/manifest.rs",
         "src/runtime.rs",
         "src/storage.rs",
+        "tests/conformance/sequence-allocation-publication-v1.receipt.json",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/sequence-authoring.test.mjs",
+        "packages/snapback-contract/derived-overlay.test.mjs",
         "packages/snapback-harness/ctx-bootstrap.js",
         "demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs"
       ],
       "examples": [
         "demos/improvement-sweep/arms/a6-snapback-web/evidence/app"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "f3084141ec9d6b36d28b41eeacd8ffda88121b13443f9c32fb2444cdebe94b48",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "HEAD",
+      "sha256": "08945588c0bc749b80ca54b8c58764639248beecbb77c550247c0ae1fbd04d12",
       "snippets": [
         {
           "lang": "js",
@@ -1422,7 +1425,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "aaae949238a72e1e1b1e5b9b235ed3fce3b655ac5d1425e09ce62bd6c7279b2f",
+      "sha256": "e5713886657c1a7e1fff4f7e0235ea68db3df56d9c42049c63486febf503282e",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2941,5 +2944,5 @@
     "routes": 105,
     "hostOps": 35
   },
-  "contentHash": "793921ef5ce277ec70253df98494c2fc053e63b7469f5030b8fde40d5303e1f9"
+  "contentHash": "663c805f97292dd5b30e0c1f57f8a05b0ed4ab774af6818ae08af600573099af"
 }
