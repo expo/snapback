@@ -415,22 +415,22 @@ function bootstrapMedianInterval(values) {
 }
 
 const PAIRED_METRICS = [
-  ['currentPointReadP50Us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
-  ['currentPointReadP95Us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
-  ['currentRangeReadP50Us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
-  ['currentRangeReadP95Us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
-  ['currentQueryPlanReadP50Us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
-  ['currentQueryPlanReadP95Us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
-  ['singleWriterMutationsPerSec', 'lowerIsWorse', 'oneSidedRegression', 15, 'throughput'],
-  ['singleWriterMutationP50Us', 'higherIsWorse', 'oneSidedRegression', 15, 'latency'],
-  ['singleWriterMutationP95Us', 'higherIsWorse', 'oneSidedRegression', 15, 'latency'],
+  ['currentPointReadP50Us', 'current_point_read_p50_us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
+  ['currentPointReadP95Us', 'current_point_read_p95_us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
+  ['currentRangeReadP50Us', 'current_range_read_p50_us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
+  ['currentRangeReadP95Us', 'current_range_read_p95_us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
+  ['currentQueryPlanReadP50Us', 'current_query_plan_read_p50_us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
+  ['currentQueryPlanReadP95Us', 'current_query_plan_read_p95_us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
+  ['singleWriterMutationsPerSec', 'single_writer_mutations_per_sec', 'lowerIsWorse', 'oneSidedRegression', 15, 'throughput'],
+  ['singleWriterMutationP50Us', 'single_writer_mutation_p50_us', 'higherIsWorse', 'oneSidedRegression', 15, 'latency'],
+  ['singleWriterMutationP95Us', 'single_writer_mutation_p95_us', 'higherIsWorse', 'oneSidedRegression', 15, 'latency'],
 ];
 
 const BYTE_METRICS = [
-  'allocatedWriteBytesPerChangedRow',
-  'allocatedWriteBytesPerOperation',
-  'retainedBytesPerChangedRow',
-  'retainedBytesPerOperation',
+  ['allocatedWriteBytesPerChangedRow', 'allocated_write_bytes_per_changed_row'],
+  ['allocatedWriteBytesPerOperation', 'allocated_write_bytes_per_operation'],
+  ['retainedBytesPerChangedRow', 'retained_bytes_per_changed_row'],
+  ['retainedBytesPerOperation', 'retained_bytes_per_operation'],
 ];
 
 function validatePairedComparisons(value) {
@@ -444,7 +444,9 @@ function validatePairedComparisons(value) {
   requireEvidence(Array.isArray(value.comparisons)
     && value.comparisons.length === PAIRED_METRICS.length,
   'paired comparison vocabulary drifted');
-  PAIRED_METRICS.forEach(([metric, direction, boundKind, boundPercent, mode], index) => {
+  PAIRED_METRICS.forEach(([
+    metric, rawMetric, direction, boundKind, boundPercent, mode,
+  ], index) => {
     const comparison = value.comparisons[index];
     requireEvidence(comparison.metric === metric
       && comparison.direction === direction
@@ -452,8 +454,8 @@ function validatePairedComparisons(value) {
       && comparison.boundPercent === boundPercent,
     `paired comparison ${metric} identity/bound drifted`);
     const regressions = value.rawPairs.map((pair) => {
-      const baseline = pair.baseline?.[metric];
-      const candidate = pair.candidateActiveCovered?.[metric];
+      const baseline = pair.baseline?.[rawMetric];
+      const candidate = pair.candidateActiveCovered?.[rawMetric];
       requireEvidence(Number.isFinite(baseline) && baseline > 0 && Number.isFinite(candidate),
         `paired raw metric ${metric} is invalid`);
       return mode === 'throughput'
@@ -477,10 +479,10 @@ function validatePairedComparisons(value) {
   requireEvidence(Array.isArray(value.byteComparisons)
     && value.byteComparisons.length === BYTE_METRICS.length,
   'paired byte observation vocabulary drifted');
-  BYTE_METRICS.forEach((metric, index) => {
+  BYTE_METRICS.forEach(([metric, rawMetric], index) => {
     const comparison = value.byteComparisons[index];
-    const baseline = value.rawPairs.map((pair) => pair.baseline?.[metric]);
-    const candidate = value.rawPairs.map((pair) => pair.candidateActiveCovered?.[metric]);
+    const baseline = value.rawPairs.map((pair) => pair.baseline?.[rawMetric]);
+    const candidate = value.rawPairs.map((pair) => pair.candidateActiveCovered?.[rawMetric]);
     requireEvidence(comparison.metric === metric
       && comparison.thresholdStatus
         === 'observed; LLP 0162 registers the metric but no numeric byte bound'

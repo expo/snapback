@@ -50,27 +50,27 @@ const derived = {
 };
 
 const pairedMetrics = [
-  ['currentPointReadP50Us', 'higherIsWorse', 'twoSidedEquivalence', 5],
-  ['currentPointReadP95Us', 'higherIsWorse', 'twoSidedEquivalence', 5],
-  ['currentRangeReadP50Us', 'higherIsWorse', 'twoSidedEquivalence', 5],
-  ['currentRangeReadP95Us', 'higherIsWorse', 'twoSidedEquivalence', 5],
-  ['currentQueryPlanReadP50Us', 'higherIsWorse', 'twoSidedEquivalence', 5],
-  ['currentQueryPlanReadP95Us', 'higherIsWorse', 'twoSidedEquivalence', 5],
-  ['singleWriterMutationsPerSec', 'lowerIsWorse', 'oneSidedRegression', 15],
-  ['singleWriterMutationP50Us', 'higherIsWorse', 'oneSidedRegression', 15],
-  ['singleWriterMutationP95Us', 'higherIsWorse', 'oneSidedRegression', 15],
+  ['currentPointReadP50Us', 'current_point_read_p50_us', 'higherIsWorse', 'twoSidedEquivalence', 5],
+  ['currentPointReadP95Us', 'current_point_read_p95_us', 'higherIsWorse', 'twoSidedEquivalence', 5],
+  ['currentRangeReadP50Us', 'current_range_read_p50_us', 'higherIsWorse', 'twoSidedEquivalence', 5],
+  ['currentRangeReadP95Us', 'current_range_read_p95_us', 'higherIsWorse', 'twoSidedEquivalence', 5],
+  ['currentQueryPlanReadP50Us', 'current_query_plan_read_p50_us', 'higherIsWorse', 'twoSidedEquivalence', 5],
+  ['currentQueryPlanReadP95Us', 'current_query_plan_read_p95_us', 'higherIsWorse', 'twoSidedEquivalence', 5],
+  ['singleWriterMutationsPerSec', 'single_writer_mutations_per_sec', 'lowerIsWorse', 'oneSidedRegression', 15],
+  ['singleWriterMutationP50Us', 'single_writer_mutation_p50_us', 'higherIsWorse', 'oneSidedRegression', 15],
+  ['singleWriterMutationP95Us', 'single_writer_mutation_p95_us', 'higherIsWorse', 'oneSidedRegression', 15],
 ];
 const byteMetrics = [
-  'allocatedWriteBytesPerChangedRow',
-  'allocatedWriteBytesPerOperation',
-  'retainedBytesPerChangedRow',
-  'retainedBytesPerOperation',
+  ['allocatedWriteBytesPerChangedRow', 'allocated_write_bytes_per_changed_row'],
+  ['allocatedWriteBytesPerOperation', 'allocated_write_bytes_per_operation'],
+  ['retainedBytesPerChangedRow', 'retained_bytes_per_changed_row'],
+  ['retainedBytesPerOperation', 'retained_bytes_per_operation'],
 ];
 
 function validPairedEvidence(commit) {
   const report = Object.fromEntries([
-    ...pairedMetrics.map(([metric]) => [metric, 100]),
-    ...byteMetrics.map((metric) => [metric, 100]),
+    ...pairedMetrics.map(([, rawMetric]) => [rawMetric, 100]),
+    ...byteMetrics.map(([, rawMetric]) => [rawMetric, 100]),
   ]);
   const idle = {
     durationMs: 5_000,
@@ -108,7 +108,9 @@ function validPairedEvidence(commit) {
     },
     protocol: { recordedPairs: 11, warmupsPerExecutable: 1, bootstrapSamples: 20_000 },
     rawPairs,
-    comparisons: pairedMetrics.map(([metric, direction, boundKind, boundPercent]) => ({
+    comparisons: pairedMetrics.map(([
+      metric, , direction, boundKind, boundPercent,
+    ]) => ({
       metric,
       direction,
       boundKind,
@@ -119,7 +121,7 @@ function validPairedEvidence(commit) {
       bootstrap90PercentUpper: 0,
       passed: true,
     })),
-    byteComparisons: byteMetrics.map((metric) => ({
+    byteComparisons: byteMetrics.map(([metric]) => ({
       metric,
       baselineValues: Array(11).fill(100),
       candidateActiveCoveredValues: Array(11).fill(100),
@@ -265,11 +267,41 @@ test('paired evidence is recomputed from raw observations', () => {
   const valid = validPairedEvidence(commit);
   validatePairedPerformanceArtifact(valid, commit);
   for (let index = 0; index < 6; index += 1) {
-    valid.rawPairs[index].candidateActiveCovered.currentPointReadP50Us = 200;
+    valid.rawPairs[index].candidateActiveCovered.current_point_read_p50_us = 200;
   }
   assert.throws(
     () => validatePairedPerformanceArtifact(valid, commit),
     /disagrees with retained raw observations/u,
+  );
+});
+
+test('paired raw reports reject camelCase metric aliases', () => {
+  const commit = 'd'.repeat(40);
+  const invalid = validPairedEvidence(commit);
+  for (const pair of invalid.rawPairs) {
+    for (const report of [pair.baseline, pair.candidateActiveCovered]) {
+      report.currentPointReadP50Us = report.current_point_read_p50_us;
+      delete report.current_point_read_p50_us;
+    }
+  }
+  assert.throws(
+    () => validatePairedPerformanceArtifact(invalid, commit),
+    /paired raw metric currentPointReadP50Us is invalid/u,
+  );
+});
+
+test('paired raw reports reject camelCase byte aliases', () => {
+  const commit = 'e'.repeat(40);
+  const invalid = validPairedEvidence(commit);
+  for (const pair of invalid.rawPairs) {
+    for (const report of [pair.baseline, pair.candidateActiveCovered]) {
+      report.allocatedWriteBytesPerChangedRow = report.allocated_write_bytes_per_changed_row;
+      delete report.allocated_write_bytes_per_changed_row;
+    }
+  }
+  assert.throws(
+    () => validatePairedPerformanceArtifact(invalid, commit),
+    /allocatedWriteBytesPerChangedRow byte observation identity\/value drifted/u,
   );
 });
 

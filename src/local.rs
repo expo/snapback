@@ -12452,6 +12452,18 @@ impl LocalSnapback {
         .map(|(_, range)| range)
     }
 
+    /// Consume the private active-lane fixture into the exact armed storage
+    /// connection used by the public carrier. This drops and joins unrelated
+    /// Local runtime services (notably telemetry) before an idle observation,
+    /// while preserving the durable range and the connection-local SQLite
+    /// writer authority installed by coverage activation.
+    ///
+    /// @ref LLP 0162#measurement-gate — setup work is outside the idle window;
+    ///   the candidate holds the same storage object as the pre-profile twin.
+    pub(crate) fn into_agent_safe_active_idle_database(self) -> LocalDatabase {
+        self.db
+    }
+
     /// Prepare one independently identified writer for the concurrent
     /// request-to-COMMIT fixture. Returning the server-owned stream lets the
     /// recorder install the real promotion reservation on the exact stream

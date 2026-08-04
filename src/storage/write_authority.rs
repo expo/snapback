@@ -280,15 +280,29 @@ pub(super) struct WriterAuthorityV1 {
 }
 
 impl WriterAuthorityV1 {
+    /// @ref LLP 0162#measurement-gate — dormant profile-bearing reads retain
+    ///   the baseline path; SQLite authorization begins at the active cut.
     pub(super) fn install(&self, conn: &Connection) {
+        // A dormant database has no coverage boundary to enforce. Installing
+        // SQLite's authorizer anyway makes every ordinary statement prepare
+        // enter this mutex-backed callback, which is observable read-path
+        // overhead before the capability is active. Activation installs the
+        // callback below; reopen reaches this branch only when the durable
+        // manifest was reconstructed successfully.
+        match self.state.lock() {
+            Ok(state) if !state.armed() => return,
+            Ok(_) | Err(_) => {}
+        }
+        self.install_authorizer(conn);
+    }
+
+    fn install_authorizer(&self, conn: &Connection) {
         // SQLite authorization happens while a statement is prepared. A
         // statement cached while a token is live must not be reusable after
         // the token drops, so the covered writer connection has no prepared
         // statement cache. The facade's transactions also never return a raw
         // Statement, closing the non-cache escape structurally.
-        if self.state.lock().map_or(true, |state| state.armed()) {
-            conn.set_prepared_statement_cache_capacity(0);
-        }
+        conn.set_prepared_statement_cache_capacity(0);
         let state = Arc::clone(&self.state);
         conn.authorizer(Some(move |context: AuthContext<'_>| {
             authorize(&state, context)
@@ -328,7 +342,12 @@ impl WriterAuthorityV1 {
         // an unarmed connection keeps its normal cache and pays no dormant
         // coverage cost.
         conn.set_prepared_statement_cache_capacity(0);
-        self.set_manifest(Some(manifest))
+        let armed = self.set_manifest(Some(manifest));
+        // Install even when the state mutex is poisoned: the callback then
+        // denies every prepare instead of leaving a durable active manifest
+        // on a permissive connection after activation reports its error.
+        self.install_authorizer(conn);
+        armed
     }
 
     pub(super) fn enter(

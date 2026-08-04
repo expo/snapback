@@ -962,6 +962,12 @@ pub fn measure_idle_agent_safe_active_covered(
         let mut snapback = configured_file_agent_safe(&path)?;
         let input = args(json!({ "title": "agent-safe active idle fixture" }));
         let range = snapback.prepare_agent_safe_active_lane_benchmark(&input)?;
+        // Range issuance and coverage activation above are the production
+        // setup being qualified. Consume the carrier before sampling so its
+        // asynchronous telemetry flush cannot leak setup CPU/RSS into the
+        // otherwise-idle storage interval. The returned connection remains
+        // armed with the exact durable coverage manifest.
+        let database = snapback.into_agent_safe_active_idle_database();
         let database_family_bytes_before = file_family_bytes(&path)?;
         let resident_kb_before = resident_kb();
         let usage_before = process_usage()?;
@@ -969,8 +975,8 @@ pub fn measure_idle_agent_safe_active_covered(
         let usage_after = process_usage()?;
         let resident_kb_after = resident_kb();
         let database_family_bytes_after = file_family_bytes(&path)?;
-        std::hint::black_box((&snapback, &range));
-        drop(snapback);
+        std::hint::black_box((&database, &range));
+        drop(database);
         Ok(IdleObservation {
             duration_ms: duration.as_millis().try_into().unwrap_or(u64::MAX),
             cpu_user_us: usage_after.user_us.saturating_sub(usage_before.user_us),

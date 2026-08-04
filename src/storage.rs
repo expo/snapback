@@ -26652,6 +26652,41 @@ mod guarded_commit_tests {
         );
     }
 
+    #[test]
+    fn llp0162_writer_authority_installs_only_at_the_active_coverage_cut() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema()).expect("apply writer fixture schema");
+
+        // A dormant connection must preserve SQLite's normal statement-cache
+        // behavior. Preparing raw application DML is admitted before the
+        // explicit coverage cut, including on a statement reused from cache.
+        let sql = "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title) \
+                   VALUES(?1,1,1,1,'dormant')";
+        db.conn
+            .prepare_cached(sql)
+            .expect("dormant statement prepares before the coverage cut");
+        db.install_operation_coverage_for_test(
+            vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()],
+            crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+                .iter()
+                .map(|writer| (*writer).to_owned())
+                .collect(),
+        )
+        .expect("activate ordinary writer fixture");
+
+        let denied = match db.conn.prepare_cached(sql) {
+            Ok(_) => panic!(
+                "activation failed to clear the dormant cache and install the authorizer"
+            ),
+            Err(error) => error,
+        };
+        assert!(matches!(
+            denied,
+            rusqlite::Error::SqliteFailure(failure, _)
+                if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+        ));
+    }
+
     fn buffered_writes() -> Vec<BufferedWrite> {
         [("item_one", "one"), ("item_two", "two")]
             .into_iter()
