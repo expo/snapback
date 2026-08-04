@@ -24,3 +24,15 @@ Fix shape: author and commit `answer-classes.d.mts` matching the
 the pattern), or drop the entry from `files` if the surface is deliberately
 untyped — the former matches `scripts/check-package-export-types.mjs`
 expectations.
+
+## Resolution (2026-08-04)
+
+Authored the missing `answer-classes.d.mts` (closed answer-class
+vocabulary, the three derivation-input records, LocalAnswerV1) —
+strict-tsc clean. The same sweep found and fixed the identical gap for
+`registration-ledger.d.mts` (also in the files array, never
+committed; typed as the internal OQ8 seam without widening it into
+product API). The packing walk in comparator-profile no longer ENOENTs;
+a fresh-worktree comparator run still needs the packaged runtime
+(`cargo build --release` + prepare-runtime.mjs), which is environmental
+and documented by the script's own diagnostics.
