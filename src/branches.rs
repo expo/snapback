@@ -444,8 +444,12 @@ impl MaterializedBase {
     /// Tear down the base: drop the connection and delete the backing file (if
     /// any). Idempotent — a missing file is not an error.
     pub fn teardown(self) -> SnapbackResult<()> {
+        let operation_detail_sidecar = self
+            .path
+            .as_deref()
+            .map(crate::operation_detail::keyring_path);
         let primary = [self.path.clone(), self.immutable_base_path.clone()];
-        let paths = primary
+        let mut paths = primary
             .iter()
             .flatten()
             .flat_map(|path| {
@@ -456,6 +460,7 @@ impl MaterializedBase {
                 })
             })
             .collect::<Vec<_>>();
+        paths.extend(operation_detail_sidecar);
         drop(self); // close the connection before unlinking
         for p in paths {
             match std::fs::remove_file(&p) {

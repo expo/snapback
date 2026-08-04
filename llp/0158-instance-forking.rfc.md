@@ -5,7 +5,14 @@
 **Systems:** Storage, Deployment, Runtime, Scheduling, Assets, Security, Agent experience, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (v0.16 — LLP 0163 protected operation-detail custody
+**Revised:** 2026-08-04 (v0.17 — managed in-app branches now apply the same
+executable-head custody boundary before canonical publication: inherited
+protected-detail ciphertext is scrubbed, a branch-private owner-only sidecar
+is minted and boot-checked, and exact drop/reap includes that sidecar. The
+immutable comparison base remains non-executable proof material and receives
+no parent key. A well-formed swapped sidecar also refuses at database boot;
+no capability status changes.)
+2026-08-04 (v0.16 — LLP 0163 protected operation-detail custody
 is now a closed scrub/rotate class: derived forks discard inherited ciphertext,
 mint a distinct owner-only key sidecar, and refuse boot evidence when that
 sidecar is absent; no capability status changes.)
@@ -441,7 +448,11 @@ pre-OQ9 language here is identity-neutral) with, at minimum:
   `_snapback_operation_protected_detail_v1` ciphertext is scrubbed with its
   parent-stream envelopes and the fork mints a fresh owner-only
   `*.operation-detail-keyring.json`; neither parent ciphertext nor its key
-  crosses the publication boundary. The mint then stamps the fork
+  crosses the publication boundary. Managed in-app branches enforce the same
+  boundary on their executable writable head before canonical custody moves
+  from `creating` to `active`; their byte-stable immutable comparison base is
+  non-executable and receives no key. Branch drop/reap owns the private
+  sidecar in its exact file inventory. The mint then stamps the fork
   id + fork point. User *records* (`_auth_identities`) stay, as data to
   test against. Beyond credentials, the custody manifest also sweeps
   **non-credential operational residue** the clone carries — search

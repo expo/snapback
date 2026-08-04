@@ -71,7 +71,10 @@ Landed in the explanation/protected-custody slice:
   those four protected classes plus inline-redacted effects; and
 - LLP 0158 fork custody extended so protected-detail ciphertext is scrubbed,
   the key sidecar rotates, absent minted custody refuses boot evidence, and
-  neither parent key nor ciphertext crosses into a derived fork.
+  neither parent key nor ciphertext crosses into a derived fork. Managed
+  in-app branch publication applies the same executable-head scrub/private-key
+  boundary, and exact drop/reap removes its sidecar; swapped valid sidecars
+  refuse at boot rather than deferring failure until explanation.
 
 Still required before this ticket closes:
 

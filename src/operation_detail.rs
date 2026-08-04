@@ -105,10 +105,62 @@ fn retained_ciphertext_exists(conn: &Connection) -> SnapbackResult<bool> {
     .map_err(Into::into)
 }
 
+fn authenticate_retained_ciphertext(
+    conn: &Connection,
+    expected_key_id: &str,
+    secret: &[u8; KEY_BYTES],
+) -> SnapbackResult<()> {
+    let row: Option<(String, String, String, Vec<u8>, Vec<u8>, i64)> = conn
+        .query_row(
+            "SELECT custody_reference,payload_digest,key_id,nonce,ciphertext,payload_bytes
+               FROM _snapback_operation_protected_detail_v1
+              ORDER BY custody_reference LIMIT 1",
+            [],
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                ))
+            },
+        )
+        .optional()?;
+    let Some((custody_reference, payload_digest, key_id, nonce, ciphertext, payload_bytes)) = row
+    else {
+        return Ok(());
+    };
+    if key_id != expected_key_id || nonce.len() != 24 || payload_bytes < 0 {
+        return Err(invalid(
+            "protected operation detail custody metadata is invalid at boot",
+        ));
+    }
+    let plaintext = XChaCha20Poly1305::new(secret.into())
+        .decrypt(
+            XNonce::from_slice(&nonce),
+            Payload {
+                msg: &ciphertext,
+                aad: &aad(&custody_reference, &payload_digest),
+            },
+        )
+        .map_err(|_| invalid("protected operation detail cannot authenticate at boot"))?;
+    if plaintext.len() != payload_bytes as usize
+        || serde_json::from_slice::<Value>(&plaintext).is_err()
+    {
+        return Err(invalid(
+            "protected operation detail plaintext is invalid at boot",
+        ));
+    }
+    Ok(())
+}
+
 /// Install one process-local key projection. Existing ciphertext makes a
 /// missing/corrupt sidecar a hard fail-closed condition; a new empty database
 /// may create its first key.
 pub(crate) fn install(conn: &Connection, database_path: Option<&Path>) -> SnapbackResult<()> {
+    let retained_ciphertext = retained_ciphertext_exists(conn)?;
     let persisted = database_path.map(keyring_path);
     let loaded = persisted
         .as_ref()
@@ -116,7 +168,7 @@ pub(crate) fn install(conn: &Connection, database_path: Option<&Path>) -> Snapba
         .and_then(|bytes| decode_key(&bytes));
     let (key_id, secret) = match loaded {
         Some(key) => key,
-        None if retained_ciphertext_exists(conn)? => {
+        None if retained_ciphertext => {
             return Err(invalid(
                 "protected operation detail exists but its owner-only key sidecar is unavailable",
             ));
@@ -140,6 +192,22 @@ pub(crate) fn install(conn: &Connection, database_path: Option<&Path>) -> Snapba
             (key_id, secret)
         }
     };
+    if retained_ciphertext {
+        let mismatched: bool = conn.query_row(
+            "SELECT EXISTS(
+               SELECT 1 FROM _snapback_operation_protected_detail_v1
+                WHERE key_id<>?1 LIMIT 1
+             )",
+            [&key_id],
+            |row| row.get(0),
+        )?;
+        if mismatched {
+            return Err(invalid(
+                "protected operation detail does not match its owner-only key sidecar",
+            ));
+        }
+        authenticate_retained_ciphertext(conn, &key_id, &secret)?;
+    }
     conn.execute_batch(
         "CREATE TEMP TABLE IF NOT EXISTS _snapback_operation_detail_key_v1(
            singleton INTEGER PRIMARY KEY CHECK(singleton=1),
@@ -259,4 +327,54 @@ pub(crate) fn open(
     serde_json::from_slice(&plaintext)
         .map(Some)
         .map_err(|_| invalid("protected operation detail plaintext is invalid"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn swapped_well_formed_secret_with_retained_key_id_refuses_at_boot() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let database = directory.path().join("app.sqlite3");
+        let mut conn = Connection::open(&database).expect("database");
+        install(&conn, Some(&database)).expect("initial custody");
+        let tx = conn.transaction().expect("protected detail transaction");
+        crate::operation_ledger::create_infra(&tx).expect("operation infra");
+        seal_in(
+            &tx,
+            "operation-detail:test:reads",
+            &format!("sha256:{}", "a".repeat(64)),
+            &json!({ "secret": "parent" }),
+        )
+        .expect("seal protected detail");
+        tx.commit().expect("commit protected detail");
+        drop(conn);
+
+        let key_path = keyring_path(&database);
+        let original = crate::secure_file::read_owner_only(&key_path).expect("original sidecar");
+        let (retained_key_id, original_secret) = decode_key(&original).expect("valid sidecar");
+        let forged_secret = if original_secret == [7_u8; KEY_BYTES] {
+            [8_u8; KEY_BYTES]
+        } else {
+            [7_u8; KEY_BYTES]
+        };
+        let forged = serde_json::to_vec(&PersistedKeyV1 {
+            format_version: FORMAT_VERSION,
+            key_id: retained_key_id,
+            secret: URL_SAFE_NO_PAD.encode(forged_secret),
+        })
+        .expect("forged sidecar encoding");
+        crate::secure_file::write_owner_only(&key_path, &forged)
+            .expect("replace with same-id wrong-secret sidecar");
+
+        let reopened = Connection::open(&database).expect("reopen database");
+        let error = install(&reopened, Some(&database))
+            .expect_err("a well-formed swapped sidecar must fail at boot");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_OPERATION_PROTECTED_CUSTODY_INVALID"
+        );
+    }
 }
