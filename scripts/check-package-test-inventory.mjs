@@ -160,6 +160,7 @@ const inventories = [
       'optimistic.test.mjs',
       'package.test.mjs',
       'presence.test.mjs',
+      'subscribe-retry.test.mjs',
       'webcrypto-fallback.test.mjs',
     ],
   },
@@ -503,7 +504,11 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // private-layer, and complete 37-case D5 conformance suite.
 // 186 -> 187 (2026-08-03, P5 result-transform lane): @expo/snapback-client
 // gains the dormant result-transform.v1 D5-extension suite.
-assert.equal(total, 187, 'reviewed package/admin test count changed');
+// 187 -> 188 (2026-08-04, RN carrier retry-storm fix 5fbea8e4d):
+// @expo/snapback-react gains subscribe-retry.test.mjs (bounded per-store
+// failure window); that landing updated the package test script but not
+// this canonical inventory, which broke this check on main.
+assert.equal(total, 188, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
