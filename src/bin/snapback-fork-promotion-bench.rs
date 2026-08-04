@@ -191,7 +191,7 @@ fn run_once(seed: u64) -> anyhow::Result<Run> {
         &create.branch_id,
         "canonical",
         1,
-        60_000,
+        now + 60_000,
         now + 2,
         PromotionContentionPolicyV1 {
             reservation_after_losses: 2,
