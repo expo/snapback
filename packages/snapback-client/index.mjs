@@ -500,6 +500,10 @@ const DEFAULT_RESERVATION_RETRY_JITTER_MILLISECONDS = Object.freeze([20, 80]);
 // request, then buffers deltas until that snapshot arrives. Keep a hung request
 // from turning the temporary queue into an unbounded client-memory sink.
 const EPHEMERAL_PRE_SNAPSHOT_BUFFER_CAP = 1_024;
+// A token-resume subscribe can register and emit its rowless durable answer
+// before the HTTP acknowledgement reaches the client. Bound that cross-
+// transport establishment window just like the ephemeral snapshot boundary.
+const RQS_PRE_SUBSCRIBE_DURABLE_BUFFER_CAP = 1_024;
 // Generated function/collection identifiers are URL path components on the
 // app-data plane. Keep this grammar in lockstep with codegen's IDENT so a
 // caller-supplied reference cannot acquire authority through URL parsing.
@@ -8036,6 +8040,11 @@ export class SnapbackClient {
     // only after the prior path has committed its subscription id.
     let freshSubscribeTail = Promise.resolve();
     let freshSubscribePending = 0;
+    // The server may emit CurrentAsOf/replay on the already-open socket before
+    // the subscribe POST returns the new id. Only one fresh subscribe runs at a
+    // time for this handle, so one attempt-scoped buffer covers the ordering
+    // boundary without weakening subscription-id isolation.
+    let preSubscribeDurableAttempt = null;
     let handleAuthorityCapture = null;
     const freshSubscribeQueueGenerations = new WeakMap();
     let pauseReleasePromise = Promise.resolve();
@@ -9471,6 +9480,49 @@ export class SnapbackClient {
       }
     };
 
+    const classifyRqsRetention = () => {
+      handle.retention = Object.freeze({
+        retainable: resumeStore !== null,
+        code: resumeStore === null ? 'SNAPBACK_RETENTION_STORE_DISABLED' : null,
+        reason: resumeStore === null
+          ? 'rqsEligible, but this client has no persistence store'
+          : null,
+        store: client.rqsStoreInfo,
+      });
+    };
+
+    const repairRqsRetentionFromDurable = () => {
+      // Generated materializations have their own owner-authority
+      // classification. A refreshed RQS token repairs only the Channel B
+      // retention fact governed by this handle's resume store.
+      if (preparedMaterialization === null) classifyRqsRetention();
+    };
+
+    const bufferPreSubscribeDurable = (update) => {
+      const attempt = preSubscribeDurableAttempt;
+      if (
+        attempt === null
+        || update.function !== name
+        || typeof update.subscription_id !== 'string'
+        || (
+          update.kind !== LIVE_DURABLE_KINDS.CURRENT_AS_OF
+          && update.kind !== LIVE_DURABLE_KINDS.LIVE_DELTA
+          && update.kind !== LIVE_DURABLE_KINDS.LIVE_REPLACE
+        )
+      ) return false;
+      const targetsInstallingSubscription = attempt.subscriptionId !== null
+        && update.subscription_id === attempt.subscriptionId;
+      if (!targetsInstallingSubscription && update.subscription_id === handle.subscriptionId) {
+        return false;
+      }
+      if (attempt.envelopes.length >= RQS_PRE_SUBSCRIBE_DURABLE_BUFFER_CAP) {
+        attempt.overflowed = true;
+        return true;
+      }
+      attempt.envelopes.push(update);
+      return true;
+    };
+
     const applyDurable = (update) => {
       if (disposed || paused || !update || typeof update !== 'object') return;
       const updateCapture = update[AUTHORITY_CAPTURE] ?? handleAuthorityCapture;
@@ -9478,6 +9530,10 @@ export class SnapbackClient {
         client.authorityFence
         && (!updateCapture || !client.authorityFence.isCurrent(updateCapture))
       ) return;
+      // @ref LLP 0091#0b2-currentasof-envelope — rowless completion is a
+      //   durable-lane answer and therefore may overtake the HTTP subscribe
+      //   acknowledgement that names its new subscription id.
+      if (bufferPreSubscribeDurable(update)) return;
       if (update.kind === LIVE_DURABLE_KINDS.AUTHORIZATION_INVALIDATION) {
         // Purge the persisted RQS copy, not just in-memory state (LLP 0090
         // D3 storage lifecycle). Auth-scoped data is never in the store, so
@@ -9519,7 +9575,10 @@ export class SnapbackClient {
           // T6 (LLP 0091 §0B.3): adopt the refreshed token with the
           // replacement rows it was minted from. A replacement is always
           // authoritative — retained/pending state ends here.
-          if (update.resume && !legacySingleTableAdoption) handle.rqsResume = update.resume;
+          if (update.resume && !legacySingleTableAdoption) {
+            handle.rqsResume = update.resume;
+            repairRqsRetentionFromDurable();
+          }
           handle.freshness = 'current';
           handle.answerClass = 'authoritative';
           syncLiveRegistrationAnswer();
@@ -9546,7 +9605,10 @@ export class SnapbackClient {
         if (typeof update.version === 'number' && update.version < handle.version) return;
         if (authorizationFaulted) return;
         handle.version = update.version;
-        if (update.resume && !legacySingleTableAdoption) handle.rqsResume = update.resume;
+        if (update.resume && !legacySingleTableAdoption) {
+          handle.rqsResume = update.resume;
+          repairRqsRetentionFromDurable();
+        }
         // The rung-1 authoritative answer: held (persisted-seeded) rows are
         // proved current without touching them.
         handle.freshness = 'current';
@@ -9615,7 +9677,10 @@ export class SnapbackClient {
           if (update.resume) {
             const digest = update.resume.meta?.contentDigest;
             if (digest && rowsMatchDigest(handle.rows, digest)) {
-              if (!legacySingleTableAdoption) handle.rqsResume = update.resume;
+              if (!legacySingleTableAdoption) {
+                handle.rqsResume = update.resume;
+                repairRqsRetentionFromDurable();
+              }
               if (pendingResumeConfirmation) {
                 // Rung-2 replay completion is a successful authoritative
                 // resume: bump the persisted entry's LRU recency exactly as
@@ -9670,6 +9735,18 @@ export class SnapbackClient {
       }
     };
 
+    const replayPreSubscribeDurable = (attempt, subscriptionId) => {
+      if (preSubscribeDurableAttempt === attempt) preSubscribeDurableAttempt = null;
+      // Once the bound was exceeded, no prefix can prove continuity. Avoid a
+      // transient current publication from the retained prefix; the caller
+      // will clear the token and force a fresh snapshot below.
+      if (attempt.overflowed) return true;
+      for (const update of attempt.envelopes) {
+        if (update.subscription_id === subscriptionId) applyDurable(update);
+      }
+      return false;
+    };
+
     const subscribeFreshExclusive = async (
       lifecycle,
       externalBearerTransitionPermit = null,
@@ -9685,6 +9762,12 @@ export class SnapbackClient {
         assertSubscribeLifecycle(lifecycle);
         const epochAtStart = socketLossEpoch;
         const demandEpochAtStart = resubscribeDemandEpoch;
+        const durableAttempt = {
+          envelopes: [],
+          overflowed: false,
+          subscriptionId: null,
+        };
+        preSubscribeDurableAttempt = durableAttempt;
         try {
           // RQS dispatch rule 2 (LLP 0091 §0B.4): a fresh subscribe holding
           // verified rows + a resume token seeds the request with it —
@@ -9744,6 +9827,9 @@ export class SnapbackClient {
                 externalBearerTransitionPermit,
               )
             : await client.subscribeLive(ref, subscribeOptions);
+          // Keep matching new-id frames buffered through asynchronous
+          // materialization/authority installation, not merely through fetch.
+          durableAttempt.subscriptionId = sub.subscription_id;
           try {
             assertSubscribeLifecycle(lifecycle);
           } catch (error) {
@@ -9752,9 +9838,18 @@ export class SnapbackClient {
             bestEffortUnsubscribeLive(sub?.subscription_id);
             throw error;
           }
-          attempt = { sub, epochAtStart, demandEpochAtStart, heldResume };
+          attempt = {
+            sub,
+            epochAtStart,
+            demandEpochAtStart,
+            heldResume,
+            durableAttempt,
+          };
           break;
         } catch (error) {
+          if (preSubscribeDurableAttempt === durableAttempt) {
+            preSubscribeDurableAttempt = null;
+          }
           const code = error?.diagnostic?.code;
           if (
             transport !== 'stream' ||
@@ -9782,7 +9877,13 @@ export class SnapbackClient {
           assertSubscribeLifecycle(lifecycle);
         }
       }
-      const { sub, epochAtStart, demandEpochAtStart, heldResume } = attempt;
+      const {
+        sub,
+        epochAtStart,
+        demandEpochAtStart,
+        heldResume,
+        durableAttempt,
+      } = attempt;
       initialSupersedes = null;
       assertSubscribeLifecycle(lifecycle);
       const responseCapture = sub[AUTHORITY_CAPTURE] ?? null;
@@ -9845,6 +9946,10 @@ export class SnapbackClient {
           return true;
         });
         if (!installed.committed) throw staleAuthorityError();
+        const preSubscribeDurableOverflowed = replayPreSubscribeDurable(
+          durableAttempt,
+          sub.subscription_id,
+        );
         // Retainability classification (LLP 0129 Phase 0, refuse-with-
         // clarity). Only what LLP 0053 admits is retained: an auth-scoped
         // subscription's retained display is exclusively the LLP 0043/0053
@@ -9871,15 +9976,12 @@ export class SnapbackClient {
               + 'queries are never cold-retained on this arm',
             store: client.rqsStoreInfo,
           });
-        } else if (sub.resume) {
-          handle.retention = Object.freeze({
-            retainable: resumeStore !== null,
-            code: resumeStore === null ? 'SNAPBACK_RETENTION_STORE_DISABLED' : null,
-            reason: resumeStore === null
-              ? 'rqsEligible, but this client has no persistence store'
-              : null,
-            store: client.rqsStoreInfo,
-          });
+        } else if (sub.resume || (heldResume && !sub.snapshot)) {
+          // A rung-1/rung-2 acknowledgement is intentionally rowless and
+          // tokenless: the fresh token rides CurrentAsOf/replay. The verified
+          // server-minted token that seeded this accepted subscribe remains an
+          // eligibility proof while that durable completion is pending.
+          classifyRqsRetention();
         } else {
           handle.retention = Object.freeze({
             retainable: false,
@@ -9911,11 +10013,33 @@ export class SnapbackClient {
             void removePersistedEntry();
           }
         }
+        if (preSubscribeDurableOverflowed) {
+          // The response id is known, but at least one establishment-era frame
+          // was lost to the bound. Do not claim current or reuse the token:
+          // force the next serialized subscribe down rung 3 for a fresh
+          // authoritative snapshot.
+          handle.rqsResume = null;
+          pendingResumeConfirmation = false;
+          handle.freshness = 'retained';
+          handle.answerClass = 'labeled-retained';
+          void removePersistedEntry();
+          resubscribeDemandEpoch = safeNextCounter(
+            resubscribeDemandEpoch,
+            'SNAPBACK_CLIENT_RESUBSCRIBE_GENERATION_EXHAUSTED',
+            'resubscribe demand generation',
+          );
+          needsResubscribe = true;
+          pendingResubscribeReason = 'pre_subscribe_durable_overflow';
+          syncLiveRegistrationAnswer();
+        }
         assertSubscribeLifecycle(lifecycle);
       } catch (error) {
         bestEffortUnsubscribeLive(sub.subscription_id);
         throw error;
       } finally {
+        if (preSubscribeDurableAttempt === durableAttempt) {
+          preSubscribeDurableAttempt = null;
+        }
         if (preparedMaterialization) {
           preparedMaterialization.context.publicationGuard = null;
         }
@@ -10473,6 +10597,9 @@ export class SnapbackClient {
       }
       try {
         await subscribeFresh();
+        if (needsResubscribe) {
+          await resubscribe(pendingResubscribeReason);
+        }
       } catch (error) {
         // Cold-boot offline survival (LLP 0129 Phase 0): when this handle
         // was seeded from a VERIFIED persisted entry and the first fresh
