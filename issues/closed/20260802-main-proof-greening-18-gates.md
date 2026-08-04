@@ -156,7 +156,7 @@ classes. The batch attribution and disposition are:
 | Relation/sequence publication carriers | Track-B checkpoint/fork storage landings (`19d79f87`, `40c117a0`, `a2f1f564` and successors) and the sequence publication (`eb3f78a6`) changed pinned sources. | Regenerated both digest chains after the final strict-Clippy edits. Relation, sequence, and SBSB1 parity all pass. |
 | Demo setup | Chirp (`c5733dba`/`cdec3e94`) and P3 Triage (`dab2410b`) were absent from the intentional inventory. | Added both demos. Chirp provisions; Triage now reaches its real owner-held trusted-activation refusal described below rather than disappearing from coverage. |
 | Deployment identity / Cloudflare local suite | Hosted denial-witness and deployment-source landings, including `a7bfbbfa`, changed the normalized Cloudflare closure; the local-suite failure was its downstream duplicate. | Regenerated both deployment identities. The dedicated check passes and the pinned Node 24.18.0 local suite passes 27/27. |
-| Linux telemetry Phase 1 receipt | Every later Rust source landing after the receipt at `24857293` invalidated its source-input digest. | The stale receipt is not reused. A fresh Linux coded-bootstrap run is required only after this batch's final clean commit. |
+| Linux telemetry Phase 1 receipt | Every later Rust source landing after the receipt at `24857293` invalidated its source-input digest. | The stale receipt was not reused. The full Linux proof passed at clean source `37b3fd18b6500747533b5ec9d25c6830206b1cab` and minted receipt SHA-256 `622e33b7d1c16b63c37e96a9eb1840b6766d366314422e741a94856b388f23fe`, bound to 428 proof-source files with digest `5b5371b0d2bdb549153fa22f5d1d259aecaf9b5378f8b0302a9e7842781dbd17`. |
 | Telemetry standalone proof setup | The retained-proof verifier landed in `3371bdf6` assuming both ignored demo caches and the parent proof's dynamic-loader environment already existed, while Rust test fixtures introduced in `6e080ca2` and `cbbb58ec` include Todo/RBAC generated manifests at compile time. The prior `24857293` host retained those ignored files, masking the fresh-worktree half; a standalone Linux run then exposed the missing `libhermesvm.so` test-harness path. | The smoke/full verifier now regenerates the two exact compile-time fixture closures through `snapback-codegen`, fails closed if their tracked review manifests drift, and establishes the same supported platform loader path as the canonical local proof. No stale cache is copied and no per-run loader override is needed. |
 | Strict Clippy | The Track-B fork/checkpoint seams, Move-3 storage seams, and the later admin reachability landing accumulated mechanical Rust 1.97 findings. | Fixed forward without changing the protected push or F0a correctness seams. `cargo clippy --all-targets -- -D warnings` passes. |
 | Rust suite fixtures | Admin claims/schema work (`aaedc6b0` and successors) changed generated schemas and error classifications; sequence publication added `sequence_allocation_v1` to the closed capability registry. | Regenerated the Rust-owned schemas. Main independently landed the same sequence fixture in `c4a047c1`. The exhaustive local suite passes after reconciliation. |
@@ -177,8 +177,10 @@ correctness/evidence authority owned by active feature programs:
   successor receipt was minted.
 
 No PUSH-01 or F0a fork-code correctness failure remains for this lane to
-handoff. The batch-owned gates are green locally. The only honest closing
-sequence is: land this drift batch, mint the digest-bound Linux telemetry
-receipt through the coded bootstrap on that clean commit, obtain a zero-failure
-main proof after the two owner-held artifacts land, and only then evaluate the
-npm capstone prerequisites.
+handoff. The batch-owned gates are green locally. The Linux full run at
+`37b3fd18b` also proved the release benchmark below every frozen ceiling and
+the 120-second idle window at zero storage mutations, zero process write bytes,
+8/10 CPU ticks, and 0/8 RSS-growth pages. The remaining honest closing sequence
+is: land the receipt carrier, obtain a zero-failure main proof after the two
+owner-held artifacts land, and only then evaluate the npm capstone
+prerequisites.
