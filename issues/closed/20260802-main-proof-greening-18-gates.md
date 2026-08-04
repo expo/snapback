@@ -263,3 +263,46 @@ Triage GAP to a standards-real PASS and retains the current full browser
 closure attribution. The later carrier commit contains both source-bound
 receipts; their check modes, the remaining local gates, and the final
 KEEP-GOING run are the next proof boundary before landing.
+
+### Post-receipt fixture reconciliation — 2026-08-04
+
+The first complete local KEEP-GOING replay at carrier commit `91755e6e3`
+finished with five failed gates. All five are attributed and fixed forward;
+none was a PUSH-01 or F0a correctness failure:
+
+- Strict Clippy found the collapsible built-in-name guard introduced by
+  `03008ecff`. The guard now uses the equivalent Rust 1.97 let-chain; strict
+  Clippy passes across all targets.
+- The filesystem custody suite's child-checkpoint watchdog had remained a
+  hard-coded five seconds since `23a34a961`. Concurrent wave builds delayed a
+  healthy child beyond that infrastructure budget. The bounded watchdog is now
+  30 seconds while the lock-semantic timeouts remain unchanged; the complete
+  process-restart, recovery, tombstone, lock, ABA, CAS, peer, wedge, and
+  terminal suite passes.
+- The required cursors-web production build had accumulated a legitimate
+  committed-dist delta after the later client/runtime graph landings following
+  the Exact `0.1.10` refresh in `cc71c8ce7`. Its production output is
+  regenerated and a second build is byte-stable.
+- The workout receipt refresh in `1fcb11c91` retained run-minted ids and wall
+  times, so every successful public-dashboard replay dirtied the checkout.
+  The suite still asserts the live identities, replay lane, claim ledger, and
+  exactly-once row identity, but retains a deterministic semantic projection;
+  the focused suite passes 9/9 and leaves the checkout clean.
+- Once those two tracked outputs changed, the proof's honest binary-identity
+  ladder refused the prebuilt binary. Card-game authority scope, RBAC, and
+  live-delta then hit coded source-link/readiness timeouts under the machine's
+  concurrent Rust load before any acceptance assertion ran. At the clean,
+  coded-bootstrap-qualified merged source `3b2516f55`, the three focused suites
+  pass respectively, including live-delta 3/3. They were cascades, not
+  correctness failures in their owned seams.
+
+Main was re-fetched immediately before the reruns and had advanced to
+`126d69d62`; both new commits were merged before qualification. The exact
+merged checkout passes the coded link/launch/restricted-handler-VM bootstrap,
+198-file test inventory, deployment identity, relation and sequence carriers,
+local-store carrier validation (16 PASS / 1 declared Fleet GAP / 0 skipped),
+and the 168-document LLP audit (3,825 refs, 0 errors). As required, the earlier
+Linux telemetry receipt now refuses because the Clippy source edit and merged
+declaration changed its source closure. A new full Linux release measurement,
+not a smoke substitute, is the remaining receipt step before the terminal
+local and main proofs.
