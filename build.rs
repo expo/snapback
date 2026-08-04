@@ -259,6 +259,7 @@ fn emit_build_identity() {
     println!("cargo:rerun-if-changed=packages/snapback-contract");
     println!("cargo:rerun-if-changed=tests");
     println!("cargo:rerun-if-changed=scripts/check-agent-safe-publication.mjs");
+    println!("cargo:rerun-if-changed=scripts/generated-artifact-policy.mjs");
     println!("cargo:rerun-if-changed=.gitmodules");
     // The agent-safe digest binds vendored Ibex source and submodule state,
     // so Snapback's build script must rerun whenever Cargo may rebuild that
@@ -401,6 +402,7 @@ fn agent_safe_implementation_tree_sha256(manifest_dir: &Path) -> Option<String> 
             "packages/snapback-contract",
             "tests",
             "scripts/check-agent-safe-publication.mjs",
+            "scripts/generated-artifact-policy.mjs",
         ],
     )?;
     let mut paths = listed

@@ -7,7 +7,10 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
+  allowedPublicationChange,
   allowedPublicationPath,
+  generatedPublicationPathsAt,
+  IMPLEMENTATION_ROOTS,
   implementationDigestAt,
   runChecker,
   validateAbsolutePerformanceArtifact,
@@ -15,6 +18,13 @@ import {
   validatePublishedEvidenceSemantics,
   validatePublicationRecord,
 } from '../scripts/check-agent-safe-publication.mjs';
+import {
+  ADMIN_GENERATED_ROOTS,
+  CODEGEN_JOBS,
+  FULLY_COMMITTED_ROOTS,
+  REVIEW_CACHE_ROOTS,
+  codegenOutputRoot,
+} from '../scripts/generated-artifact-policy.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const storage = {
@@ -301,6 +311,89 @@ test('history digest is deterministic for an immutable qualification commit', ()
   const second = implementationDigestAt(root, head);
   assert.match(first, /^sha256:[0-9a-f]{64}$/u);
   assert.equal(first, second);
+});
+
+test('build and checker bind the shared generated-artifact policy', () => {
+  assert.ok(IMPLEMENTATION_ROOTS.includes('scripts/check-agent-safe-publication.mjs'));
+  assert.ok(IMPLEMENTATION_ROOTS.includes('scripts/generated-artifact-policy.mjs'));
+  const build = readFileSync(join(root, 'build.rs'), 'utf8');
+  for (const path of IMPLEMENTATION_ROOTS) {
+    assert.ok(build.includes(`"${path}"`), `build digest omits ${path}`);
+  }
+  assert.ok(build.includes(
+    'cargo:rerun-if-changed=scripts/generated-artifact-policy.mjs',
+  ));
+  assert.equal(allowedPublicationPath('scripts/generated-artifact-policy.mjs'), false);
+  assert.equal(allowedPublicationPath('scripts/check-generated-artifacts'), false);
+});
+
+test('generated-artifact registry covers every codegen job exactly once', () => {
+  const jobs = CODEGEN_JOBS.map(codegenOutputRoot).sort();
+  const policies = [...REVIEW_CACHE_ROOTS, ...FULLY_COMMITTED_ROOTS].sort();
+  assert.deepEqual(jobs, policies);
+  assert.equal(new Set(jobs).size, jobs.length);
+  assert.ok(REVIEW_CACHE_ROOTS.includes('demos/party-wall/snapback/generated'));
+  assert.deepEqual(ADMIN_GENERATED_ROOTS, ['admin-ui/generated']);
+});
+
+test('P-vs-C generated allowance is the exact qualification-C leaf set', () => {
+  const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+  const generated = generatedPublicationPathsAt(root, head);
+  assert.equal(generated.size, 175);
+  const unchangedPublicationEntries = new Map(
+    [...generated].map(([path, entry]) => [path, { ...entry }]),
+  );
+  for (const path of generated.keys()) {
+    assert.equal(allowedPublicationPath(path, generated), true, path);
+    assert.equal(allowedPublicationChange(
+      { status: 'M', path }, generated, unchangedPublicationEntries,
+    ), true, path);
+  }
+  for (const path of [
+    'demos/party-wall/snapback/generated/artifacts.json',
+    'demos/competitive-checkpoint/snapback/generated/api.d.ts',
+    'demos/competitive-checkpoint/snapback/generated/api.mjs',
+    'demos/partiful-matrix/snapback/generated/api.mjs',
+    'demos/team-chat/snapback/generated/artifacts.json',
+    'packages/snapback-cli/fixtures/comparator/app/snapback/generated/api.mjs',
+    'packages/snapback-cli/fixtures/push-seam/app/snapback/generated/api.mjs',
+    'admin-ui/generated/contract/runtime-links.ts',
+  ]) {
+    assert.equal(allowedPublicationPath(path, generated), true, path);
+  }
+  for (const path of [
+    'demos/todo/snapback/generated/api.mjs',
+    'demos/todo/snapback/generated/evil.mjs',
+    'demos/todo/snapback/generatedness/artifacts.json',
+    'demos/todo/snapback/generated-evil/artifacts.json',
+    'demos/todo/.snapback/codegen-cache/forged/api.mjs',
+    'demos/chirp/snapback/generated/artifacts.json',
+    'demos/todo/snapback/schema.ts',
+    'packages/snapback-cli/index.mjs',
+    'packages/snapback-cli/fixtures/comparator/app/snapback/generated/evil.mjs',
+    'admin-ui/generated/contract/evil.ts',
+  ]) {
+    assert.equal(allowedPublicationPath(path, generated), false, path);
+  }
+
+  const generatedPath = 'demos/todo/snapback/generated/artifacts.json';
+  const expected = generated.get(generatedPath);
+  const sameMode = new Map([[generatedPath, { ...expected }]]);
+  assert.equal(allowedPublicationChange(
+    { status: 'M', path: generatedPath }, generated, sameMode,
+  ), true);
+  for (const status of ['A', 'D', 'R100', 'T']) {
+    assert.equal(allowedPublicationChange(
+      { status, path: generatedPath }, generated, sameMode,
+    ), false, status);
+  }
+  assert.equal(allowedPublicationChange(
+    { status: 'M', path: generatedPath },
+    generated,
+    new Map([[generatedPath, { mode: '120000', type: 'blob' }]]),
+  ), false);
+  // A P manifest cannot widen this set: only paths frozen from C are queried.
+  assert.equal(generated.has('demos/todo/snapback/generated/evil.mjs'), false);
 });
 
 test('P-vs-C publication path allowlist rejects executable drift', () => {

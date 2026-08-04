@@ -1532,6 +1532,15 @@ Acceptance rows 1–4/13/14, distinct Fable
 and Codex `READY` verdicts, Charlie's scoped acceptance, and every wider fact
 remaining `Missing`.
 
+Generated publication projections are fail-closed too. One implementation-
+digest-bound registry covers every backend in the canonical artifact ledger.
+At C the checker freezes the exact regular-blob leaves: each review manifest,
+only its tracked `consumer-committed` projections, and the pre-existing leaves
+of the explicitly fully committed and admin-generated roots. P may modify
+those leaves without changing their modes, but may not add, delete, rename,
+retag, or widen them from a mutable P manifest. Source inputs, regenerable
+caches, unmanaged roots, and every new executable path remain forbidden.
+
 The storage candidate is reconstructed in Rust and is exactly six facts: the
 ordinary-mutation and host-child-mutation lanes across HostPlan and
 IbexBuffered adapters, plus public-current-policy bounded explanation for the

@@ -6,7 +6,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOTS = [
+import {
+  ADMIN_GENERATED_ROOTS,
+  FULLY_COMMITTED_ROOTS,
+  REVIEW_CACHE_ROOTS,
+} from './generated-artifact-policy.mjs';
+
+export const IMPLEMENTATION_ROOTS = [
   'Cargo.toml',
   'Cargo.lock',
   'build.rs',
@@ -16,6 +22,7 @@ const ROOTS = [
   'packages/snapback-contract',
   'tests',
   'scripts/check-agent-safe-publication.mjs',
+  'scripts/generated-artifact-policy.mjs',
 ];
 
 const PUBLICATION_CYCLE_ALLOWLIST = new Set([
@@ -97,16 +104,11 @@ const PUBLICATION_ONLY_PATHS = new Set([
   'schemas/inspect.admin.schema.json',
   'schemas/inspect.public.schema.json',
   'schemas/inspect.schema.json',
-  'demos/rbac/snapback/generated/artifacts.json',
-  'demos/latency-kanban/snapback/generated/artifacts.json',
   'demos/latency-kanban/snapback/trusted-composition-activation.json',
-  'demos/todo-v2/snapback/generated-remote-service/artifacts.json',
-  'demos/todo-v2/snapback/generated/artifacts.json',
-  'demos/todo/snapback/generated/artifacts.json',
 ]);
 
-export function allowedPublicationPath(path) {
-  return PUBLICATION_ONLY_PATHS.has(path);
+export function allowedPublicationPath(path, generatedPaths = new Map()) {
+  return PUBLICATION_ONLY_PATHS.has(path) || generatedPaths.has(path);
 }
 
 function fail(message) {
@@ -115,6 +117,96 @@ function fail(message) {
 
 function git(root, args, encoding = 'utf8') {
   return execFileSync('git', args, { cwd: root, encoding }).toString().trim();
+}
+
+function treeEntriesAt(root, commit, roots) {
+  const raw = execFileSync('git', ['ls-tree', '-r', '-z', commit, '--', ...roots], { cwd: root });
+  const entries = new Map();
+  for (const record of raw.toString().split('\0').filter(Boolean)) {
+    const match = record.match(/^([0-7]{6}) (blob|tree|commit) ([0-9a-f]+)\t([\s\S]+)$/u);
+    if (!match) fail(`could not decode tree entry at ${commit}`);
+    const [, mode, type, object, path] = match;
+    entries.set(path, { mode, type, object });
+  }
+  return entries;
+}
+
+function portableGeneratedLeaf(path) {
+  return typeof path === 'string'
+    && path.length > 0
+    && !path.startsWith('/')
+    && !path.includes('\\')
+    && path.split('/').every((segment) => segment !== '' && segment !== '.' && segment !== '..');
+}
+
+function requireFrozenBlob(entries, path, label) {
+  const entry = entries.get(path);
+  if (!entry || entry.type !== 'blob' || !entry.mode.startsWith('100')) {
+    fail(`${label} is not a regular blob at qualification C: ${path}`);
+  }
+  return entry;
+}
+
+export function generatedPublicationPathsAt(root, commit) {
+  const roots = [...REVIEW_CACHE_ROOTS, ...FULLY_COMMITTED_ROOTS, ...ADMIN_GENERATED_ROOTS];
+  const entries = treeEntriesAt(root, commit, roots);
+  const allowed = new Map();
+  for (const generatedRoot of REVIEW_CACHE_ROOTS) {
+    const manifestPath = `${generatedRoot}/artifacts.json`;
+    allowed.set(manifestPath, requireFrozenBlob(entries, manifestPath, 'review manifest'));
+    let manifest;
+    try {
+      manifest = JSON.parse(execFileSync('git', ['show', `${commit}:${manifestPath}`], {
+        cwd: root,
+        encoding: 'utf8',
+        maxBuffer: 32 * 1024 * 1024,
+      }));
+    } catch (error) {
+      fail(`could not decode qualification-C review manifest ${manifestPath}: ${error.message}`);
+    }
+    if (manifest?.manifestVersion !== 2 || !Array.isArray(manifest.files)) {
+      fail(`qualification-C review manifest is not v2: ${manifestPath}`);
+    }
+    for (const file of manifest.files) {
+      if (file?.custody !== 'consumer-committed') continue;
+      if (!portableGeneratedLeaf(file.path)) {
+        fail(`qualification-C consumer projection path is invalid: ${manifestPath}`);
+      }
+      const path = `${generatedRoot}/${file.path}`;
+      allowed.set(path, requireFrozenBlob(entries, path, 'consumer-committed projection'));
+    }
+  }
+  for (const generatedRoot of [...FULLY_COMMITTED_ROOTS, ...ADMIN_GENERATED_ROOTS]) {
+    for (const [path, entry] of entries) {
+      if (path.startsWith(`${generatedRoot}/`)) {
+        allowed.set(path, requireFrozenBlob(entries, path, 'fully committed generated projection'));
+      }
+    }
+  }
+  return allowed;
+}
+
+export function allowedPublicationChange(change, generatedPaths, publicationEntries) {
+  if (PUBLICATION_ONLY_PATHS.has(change.path)) return true;
+  const expected = generatedPaths.get(change.path);
+  const published = publicationEntries.get(change.path);
+  return change.status === 'M'
+    && expected?.type === 'blob'
+    && published?.type === 'blob'
+    && published.mode === expected.mode;
+}
+
+function publicationChangesBetween(root, from, to) {
+  const raw = execFileSync('git', [
+    'diff', '--name-status', '--no-renames', '-z', `${from}..${to}`,
+  ], { cwd: root });
+  const fields = raw.toString().split('\0').filter(Boolean);
+  if (fields.length % 2 !== 0) fail('could not decode P-vs-C changed-path status');
+  const changes = [];
+  for (let index = 0; index < fields.length; index += 2) {
+    changes.push({ status: fields[index], path: fields[index + 1] });
+  }
+  return changes;
 }
 
 function sha256(bytes) {
@@ -201,7 +293,7 @@ function updateTreeDigest(hash, path, bytes) {
 }
 
 export function implementationDigestAt(root, commit) {
-  const names = git(root, ['ls-tree', '-r', '--name-only', commit, '--', ...ROOTS])
+  const names = git(root, ['ls-tree', '-r', '--name-only', commit, '--', ...IMPLEMENTATION_ROOTS])
     .split('\n')
     .filter(Boolean)
     .filter((path) => !PUBLICATION_CYCLE_ALLOWLIST.has(path))
@@ -237,7 +329,7 @@ function checkedOutImplementationGitlink(root) {
 
 export function implementationDigestWorkingTree(root) {
   const checkedOutIbex = checkedOutImplementationGitlink(root);
-  const names = execFileSync('git', ['ls-files', '-z', '--', ...ROOTS], { cwd: root })
+  const names = execFileSync('git', ['ls-files', '-z', '--', ...IMPLEMENTATION_ROOTS], { cwd: root })
     .toString()
     .split('\0')
     .filter(Boolean)
@@ -805,12 +897,17 @@ export function runChecker(root) {
       fail(`${result.id} qualification commit is not an ancestor of publication HEAD`);
     }
     const carrier = JSON.parse(readFileSync(join(root, RECORDS.find(({ id }) => id === result.id).carrier)));
-    const changedAfterQualification = git(root, [
-      'diff', '--name-only', `${result.commit}..${publication}`,
-    ]).split('\n').filter(Boolean);
-    const forbidden = changedAfterQualification.filter((path) => !allowedPublicationPath(path));
+    const generatedPaths = generatedPublicationPathsAt(root, result.commit);
+    const publicationEntries = treeEntriesAt(root, publication, [
+      ...REVIEW_CACHE_ROOTS, ...FULLY_COMMITTED_ROOTS, ...ADMIN_GENERATED_ROOTS,
+    ]);
+    const changedAfterQualification = publicationChangesBetween(root, result.commit, publication);
+    const forbidden = changedAfterQualification.filter((change) => (
+      !allowedPublicationChange(change, generatedPaths, publicationEntries)
+    ));
     if (forbidden.length > 0) {
-      fail(`${result.id} P changed forbidden post-qualification paths: ${forbidden.join(',')}`);
+      fail(`${result.id} P changed forbidden post-qualification paths: ${forbidden
+        .map(({ status, path }) => `${status}:${path}`).join(',')}`);
     }
     const atQualification = implementationDigestAt(root, result.commit);
     const atPublication = implementationDigestWorkingTree(root);
