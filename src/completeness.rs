@@ -906,6 +906,27 @@ impl PageSetIdentityRecordV1 {
     }
 }
 
+/// Client-store manifest for one composed first-to-terminal page set.  The
+/// identity is the digest of the closed LLP 0157 `PageSetIdentityRecordV1`;
+/// retaining the ordered proof digests beside it lets the client reproduce
+/// that record from its already-verified fragments before committing the set.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PageSetManifestV1 {
+    pub identity: String,
+    pub ordered_proof_digests: Vec<String>,
+}
+
+impl PageSetManifestV1 {
+    pub fn compose(proofs: &[CompletenessProofV1]) -> Result<Self> {
+        let record = PageSetIdentityRecordV1::compose(proofs)?;
+        Ok(Self {
+            identity: record.digest()?,
+            ordered_proof_digests: record.ordered_proof_digests,
+        })
+    }
+}
+
 pub fn read_trusted_activation(path: &Path) -> Result<TrustedCompositionActivationV1> {
     let bytes = std::fs::read(path)
         .with_context(|| format!("could not read trusted activation {}", path.display()))?;

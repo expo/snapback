@@ -1,6 +1,6 @@
 # P1 — server-side CompletenessProofV1 issuance
 
-**Status:** Open (program: `20260803-local-first-continuation-program.md`;
+**Status:** Closed (program: `20260803-local-first-continuation-program.md`;
 Rust — see the program's step-0 constraint)
 
 Implement LLP 0157 §D3's server half: the
@@ -46,3 +46,42 @@ so extending it would additionally require a separately gated request-context
 carrier; this lane does not invent one. Snapshot-batch continuation pages and
 server delivery of a composed `PageSetIdentityRecordV1` therefore remain on
 the finite-carrier side of this amendment boundary.
+
+## Resolution — 2026-08-04
+
+LLP 0093 and LLP 0094 now carry dated normative amendments for both finite
+families. Ordinary finite queries can opt into the exact materialization
+namespace in their request and receive optional `completenessProof` plus its
+`authorizationWitness`; `AuthorizedLeaseQueryResponse` can convey the same
+pair without rewriting the LLP 0157 preimage. Snapshot-batch continuation
+requests can additionally present the already-verified ordered prior proofs,
+and the terminal response atomically carries the current proof, witness, and
+composed `pageSetManifest`. The amendments explicitly preserve compatibility:
+the newly admitted members are optional, old decoders ignore unknown optional
+members, and new decoders tolerate their absence.
+
+The server now uses one issuance path for live establishment and finite
+answers. It verifies every supplied prior proof, mints before response
+publication, composes LLP 0157's page-set identity only for a terminal
+snapshot-batch page, and refuses the complete carrier with the existing
+`SNAPBACK_COMPLETENESS_PROOF_ISSUANCE_FAILED` diagnostic on signing or prior
+proof failure. The query and authorized-lease JSON schemas were regenerated
+additively, together with the affected remote-service review manifest.
+
+The shipped materialization verifier now exposes finite-carrier verification
+through the same Ed25519/JCS proof path and rejection classes used by live
+establishment. Its Rust-fixture compatibility test accepts the canonical
+proof and rejects tampered bytes and the wrong materialization identity.
+
+Closure evidence:
+
+- Rust artifact-schema suite: 33 passed, 0 failed.
+- Rust completeness unit suite: 4 passed, 0 failed.
+- In-process snapshot-batch proof/composition/refusal test: 1 passed, 0 failed.
+- Client materialization-store suite: 18 passed, 0 failed.
+- Client strict TypeScript fixture check: passed.
+- Generated-artifact reproducibility gate: passed with the intentional review
+  manifest held in an isolated temporary index; no additional drift.
+- Package test inventory: 195 reviewed files.
+- `ref-check --verbose`: 168 LLP documents, 3,630 references in 8,790 files,
+  0 errors and 0 unchecked references.

@@ -31,6 +31,32 @@ export interface PageSetManifestV1 {
   readonly orderedProofDigests: readonly DigestV1[];
 }
 
+export interface FiniteCompletenessCarrierV1 {
+  readonly completenessProof: CompletenessProofV1;
+  readonly authorizationWitness: Readonly<Record<string, unknown>>;
+  readonly pageSetManifest?: PageSetManifestV1 | null;
+}
+
+export interface FiniteCompletenessVerificationContextV1 extends Readonly<Record<string, unknown>> {
+  readonly trustedActivation: Readonly<Record<string, unknown>>;
+  readonly materializationKey: QueryMaterializationKeyV1;
+  readonly queryInstanceId: number;
+  readonly planHash: DigestV1;
+  readonly nodes: readonly Readonly<Record<string, unknown>>[];
+  readonly resultBytes: Uint8Array;
+  readonly resultContractHash: string;
+  readonly resultContract: Readonly<Record<string, unknown>>;
+  readonly authorizationWitnessOwnerProduced: true;
+  readonly authorization: Readonly<{
+    incarnation: string;
+    epoch: number;
+    versionStream: string;
+  }>;
+  readonly pageIdentityDigest?: DigestV1;
+  readonly expectedVersion?: Readonly<{ stream: string; commit: number }>;
+  readonly priorProofs?: readonly CompletenessProofV1[];
+}
+
 export interface MaterializationRecordV1 extends Readonly<Record<string, unknown>> {
   readonly format: 'snapback.materialization-record.v1';
   readonly address: ClientMaterializationAddressV1;
@@ -91,6 +117,14 @@ export function completenessProofDigestV1(proof: CompletenessProofV1): DigestV1;
 export function pageIdentityDigestV1(page: Readonly<Record<string, unknown>>): DigestV1;
 export function resultDigestV1(bytes: Uint8Array): DigestV1;
 export function deriveCompletenessStatusV1(record: MaterializationRecordV1): 'unknown' | 'complete' | 'refused';
+export function verifyFiniteCompletenessCarrierV1(
+  carrier: Readonly<Record<string, unknown>>,
+  context: FiniteCompletenessVerificationContextV1,
+): Promise<Readonly<{
+  proof: CompletenessProofV1;
+  authorizationWitness: Readonly<Record<string, unknown>>;
+  pageSetManifest: PageSetManifestV1 | null;
+}> | null>;
 
 export function createMaterializationStore(storeHandle: RqsResumeStore, options?: Readonly<{
   resolveValidationContext?: ((input: Readonly<Record<string, unknown>>) => unknown) | null;
