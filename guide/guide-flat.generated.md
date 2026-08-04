@@ -351,7 +351,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: 7b467cf16
 ---
 
 # Surface map
@@ -9881,7 +9881,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: HEAD
+reviewed-commit: 7b467cf16
 ---
 
 # Admin console
