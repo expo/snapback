@@ -1,12 +1,16 @@
 # Author decision sitting #2 — 2026-08-03 (sitting record)
 
-**Status:** Open (provenance record). This file is the provenance record
-for the 2026-08-03 author decision sitting #2 (Charlie Cheever, with
-Claude Fable 5 recording and propagating). Every ruling's amendment,
-ticket update, and commission landed in one commit with this record; the
-propagation map at the bottom says where each ruling lives. Modeled on
-`issues/closed/20260802-author-decision-packet.md`; close to
-`issues/closed/` once the commissions it opened have owners underway.
+**Status:** Closed (provenance record, 2026-08-04). This file is the
+provenance record for the 2026-08-03 author decision sitting #2 (Charlie
+Cheever, with Claude Fable 5 recording and propagating). Every ruling's
+amendment, ticket update, and commission landed in one commit with this
+record; the propagation map at the bottom says where each ruling lives.
+Modeled on `issues/closed/20260802-author-decision-packet.md`. Closure
+criterion met 2026-08-04: both commissions it opened have owners underway
+— the 0146 D1–D3 tranche landed its D1 slice (38792274d) with the D2/D3
+program scoped in `issues/20260803-0146-d1-d3-tranche.md`, and the 0043
+sessions-custody design pass completed and was ratified at sitting #3
+(`issues/closed/20260804-author-decision-sitting-3.md`).
 
 Sibling landing, same sitting: the **promotion batch** — LLP 0144, the
 0094–0114 stack, and the 0079/0086 status flips — was ruled **"accept
