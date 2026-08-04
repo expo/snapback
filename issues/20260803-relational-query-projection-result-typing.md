@@ -29,3 +29,8 @@ Run `node demos/_kit/codegen.mjs demos/triage-graph/snapback`; the warning names
 `queries.retainedInbox.result.row`. This lane does not change
 `packages/snapback-codegen/index.mjs` because P3's boundary makes a core change
 a follow-up.
+
+**Sequencing note (2026-08-04):** the fix lives in
+`packages/snapback-codegen/index.mjs`, which the in-flight
+single_table_v1 adoption lane owns; dispatch this after that lane
+lands.

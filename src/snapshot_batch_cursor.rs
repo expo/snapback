@@ -582,19 +582,42 @@ mod tests {
         );
     }
 
+    // @ref LLP 0157#sbsb1-plaintext-and-budget — one committed fixed-nonce
+    // vector is consumed independently by Rust and Node
+    // (tests/conformance/snapshot-batch-sbsb1-parity-v1.mjs), freezing the
+    // exact plaintext bytes and the HKDF/AAD/XChaCha20-Poly1305 envelope.
     #[test]
     fn fixed_nonce_golden_vector_and_exact_order() {
-        let root = core::array::from_fn(|i| i as u8);
-        let nonce = core::array::from_fn(|i| 0xa0 + i as u8);
-        let body = body();
-        let plain = String::from_utf8(compact_plaintext(&body).unwrap()).unwrap();
-        assert!(plain.starts_with(
-            "{\"formatVersion\":1,\"keyGeneration\":\"generation-1\",\"appId\":\"app\""
-        ));
-        let wire = mint_with_nonce(&root, &body, nonce).unwrap();
-        assert_eq!(
-            wire,
-            "sbsb1.oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3kYjFdAtilxeGZdH8SasYsZC4q7DZdgjpGvEqxlblTAK7sstbNymQZogfh3xHEcvx4nGiJqnAdkSUfpLoSjlMKnExM2bS10zo_eCLhnVz8Wxfax7gd_iii1eK8i2rPTR9a5aIS7T_ZiKu5yCR26WI0poaJp0rvJLitHt-ezEkQ-yK9Uzqhg9-zyCiVWQFjBNR2u-T-8Sc9swgAjjJSGzuxTtiTolRXkhEkbCV2bMBbqvf6tknaD4OeysfgVdwjHOcOjH0a9h-eYWY90UTh0sRSbYTZS3yW439miPaEQiKDNuana2seJ_KmBWn-NHxVGJxtFGCzDEqbLKzUkQH853WdXRvW3F4AJv-V9-yAB1k4IHqDCvOnZ9pOjcigRvV2dRYOXEfUh3jSK6vffzS0JxQUbJewox_WWJ_MWhyeXcXRnBE35eYA3SDgoT2c7IKuF_tZfFZjX2vRvwNGFPI3YszjQsOnmUCBsv3HwBP7198YYSZ0tYbcYH6gaOUfVcDvx34CWSjieyd-p7yMEPjilBhAWdmVhEtlLbtQneQK1t_s5AJtdtZX5-I7TkdAkxt2XD5FAX-JdakQvThouwrIpfzqoFSNP5uh8ZEqPqoSwXsy3huA5UlFrXgAooSqBrpA5InoF_FYz4PJOQBcYEX_pkWLBJOzE7IfzcEQvoIlN8jrxjURWNui9C8aH6g9MV7mhctkl_krbkxa1BSpWm0ZEBmWoY5WiB5TK7nOI41H6f1zZaCqYzN4eFX_1eJ7lObICJMOo4D9J8LOpPuTzG63I0ctRdqm87Ew8PrDM9_n0CCu_aJSlH8nXbWNYAUBXNWKK8ZHjpg27cNa37gAbMSvOANAMynaxH3X3hnFFU468omDmpr-MehWdbK5Sj_xgmZ_fhU14KvKcyTT9-ZBg6JvzAggyn6ggNNTGfHqdHbNsFfFUHyiXJPHkJgkibVLZ5GBA0LuoRbr0RJw_h_Ach4ZNJPK6O8eOE2HocsDOJT7dqErroTP-MofKx3xQhlUFKfWPWK2KYR5sp4SWriHlBbz2Q19eJzhszxXaRbu_Fd32w2I6zaOE_VefInk113nEWJCqhGJtGgPbfRgbGtvfjfLI38frcFeRfbWV66GOmfx7wiYEVrY3pnMhod7dzGXBMuq29Tz_r4BSSQTMZImo99avK3q6U0WR1cnQzsOJqBJkOXxzWC5QdVs8BBZULoS04oHAcyv6oFV45aIRrUipwxVcYwNCZxG0zkyLyqR6U0VnJ661W3Xeh12lyhSV5cFtxYeU6r5WZmUpeYjIgIOX51_qGOFQxGiTYPuYvgloHz0lo"
-        );
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct ParityFixture {
+            format_version: String,
+            root_hex: String,
+            nonce_hex: String,
+            body: Body,
+            expected_plaintext: String,
+            expected_wire: String,
+        }
+        let decode_hex = |value: &str| -> Vec<u8> {
+            (0..value.len())
+                .step_by(2)
+                .map(|index| u8::from_str_radix(&value[index..index + 2], 16).unwrap())
+                .collect()
+        };
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/snapshot-batch-sbsb1-parity-v1.json");
+        let fixture: ParityFixture =
+            serde_json::from_slice(&std::fs::read(path).expect("read sbsb1 parity fixture"))
+                .expect("parse sbsb1 parity fixture");
+        assert_eq!(fixture.format_version, "snapshot-batch-sbsb1-parity-v1");
+        let root: [u8; 32] = decode_hex(&fixture.root_hex).try_into().unwrap();
+        let nonce: [u8; 24] = decode_hex(&fixture.nonce_hex).try_into().unwrap();
+        let plain = String::from_utf8(compact_plaintext(&fixture.body).unwrap()).unwrap();
+        assert_eq!(plain, fixture.expected_plaintext);
+        let wire = mint_with_nonce(&root, &fixture.body, nonce).unwrap();
+        assert_eq!(wire, fixture.expected_wire);
+        // The in-module construction stays pinned to the same vector so the
+        // fixture cannot drift away from what mint actually produces.
+        assert_eq!(compact_plaintext(&body()).unwrap(), plain.as_bytes());
     }
 }

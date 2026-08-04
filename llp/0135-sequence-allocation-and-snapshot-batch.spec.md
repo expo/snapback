@@ -6,7 +6,10 @@
 generation, Authorization, Live Queries, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-03 (snapshot-batch implementation: the experimental
+**Revised:** 2026-08-04 (dated diagnostic addition:
+`SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID` joins the stable
+authoring diagnostics — the load-time result-contract exactness refusal
+the implementation already emits.) 2026-08-03 (snapshot-batch implementation: the experimental
 local SQLite/Ibex target now emits and host-verifies LLP 0157 identity,
 executes 2–8 bounded-child nodes at one snapshot, and resumes them with the
 exact `sbsb1` grammar; the dated implementation record pins the previously
@@ -794,7 +797,18 @@ New stable authoring diagnostics:
 `SNAPBACK_SNAPSHOT_BATCH_NODE_INELIGIBLE`,
 `SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED`, and
 `SNAPBACK_SNAPSHOT_BATCH_CURSOR_BUDGET_EXCEEDED` (§2.4's static
-establishment-time refusal). New stable public runtime diagnostics:
+establishment-time refusal).
+
+> Dated addition (2026-08-04): the implementation also emits
+> `SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID`, a stable authoring
+> diagnostic refusing load when a snapshot-batch function's declared
+> result contract does not exactly match the declaration-ordered
+> cursor-free visible page tuple. It is distinct from
+> `SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID` (plan shape) because the plan
+> can be well-formed while the authored result contract has drifted;
+> collapsing the two would hide which artifact to fix. Recorded here so
+> no parallel wire code rides unspecified
+> (`issues/20260803-snapshot-batch-unspecified-diagnostic.md`). New stable public runtime diagnostics:
 `SNAPBACK_SEQUENCE_EXHAUSTED`, `SNAPBACK_SEQUENCE_UNDECLARED` (a
 runtime ctx-boundary refusal — generation cannot see through
 imperative handler code, so the undeclared-allocation check enforces
