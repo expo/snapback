@@ -5,29 +5,23 @@
 **Systems:** Sync, Client integration, Storage, Jobs, Migrations, Testing
 **Related:** LLP 0043, LLP 0133, LLP 0162, LLP 0163
 
-The LLP 0163 durable store and ordinary-mutation choke point accept an
-authenticated `OperationIssuanceV1`, but no public request currently carries
-one and no server endpoint issues finite authenticated ranges. Clients
-therefore cannot atomically persist a range alongside queued intent or refresh
-an exhausted range at reconnect. Production targets also do not activate a
-coverage manifest, and host-originated job/cron/migration writers do not yet
-construct host-incarnation identities.
+The public client range carrier, ordinary-mutation choke points, protected
+explanation custody, job/cron action children, and migration transaction
+carriers are implemented. Production targets still do not activate a coverage
+manifest, the public explanation lane still refuses until it can re-evaluate
+current policy per fact, and the migration carrier remains explicitly
+uncovered: publication and terminal settlement are distinct transactions that
+the current terminal-only operation ledger cannot represent honestly.
 
-Required closure:
+The remaining closure gates are:
 
-- define and generate the range issue/refresh request and response carrier,
-  authenticate it to the authority-instance incarnation, and pass the issuance
-  through ordinary mutation admission without creating a second retry id;
-- persist issued range state atomically with client counter allocation and
-  queued intent, with crash/reopen and exhaustion/refusal corpus;
 - inventory every durable writer per target, route each covered writer through
   the envelope hook, activate a versioned manifest only after bypass and
   asymmetric-retention corpus pass, and keep undeclared lanes explicit;
-- wire server-authenticated attempt-invariant host identities for jobs, cron,
-  migrations, and child commits, including transport-level proof that a client
-  cannot mint the host namespace;
-- complete public/admin explanation transport and real current-policy
-  evaluation, including protected custody for secret-bearing facts; and
+- accept and implement the pending→terminal migration amendment and crash
+  corpus mapped below before adding that specialized lane to coverage;
+- complete real current-policy evaluation for the public explanation lane;
+  the public/admin transport and protected custody are already wired; and
 - rerun LLP 0162 Acceptance row 13's comparable candidate protocol with the
   public issuance-bearing covered lane active under a genuinely paired,
   baseline-digest-bound protocol; the clean 2026-08-03 binary observations
@@ -117,10 +111,99 @@ Landed in the host action-child carrier slice:
 The host lane remains dormant outside explicit corpus activation. This slice
 does not publish or advertise a capability.
 
+Landed in the migration transaction-carrier slice:
+
+- one authenticated Host `OperationIdentityV1` per physical migration-journal
+  transaction, parented by the approval operation id and shared by every row
+  that transaction appends;
+- a deterministic child ordinal equal to the operation's durable
+  pre-transaction journal-row count, excluding attempt-local time, executor,
+  and fencing-lease facts;
+- durable Host-authority provisioning before apply, rollback, release, and
+  cleanup cuts, including reopen support for legacy in-progress migrations;
+- focused rollback/retry proof across fencing-lease supersession, multi-entry
+  transaction proof, and production apply/release, rollback, and cleanup-
+  reopen coverage of every new journal row; and
+- generated journal artifacts that declare the Host carrier while explicitly
+  declaring migration envelope coverage absent.
+
+## Migration pending → terminal lifecycle map — 2026-08-04
+
+This map is a design/corpus prerequisite, not an amendment to LLP 0163 and not
+an implementation claim. The current Spec and ledger remain terminal-only;
+the `migrationTransition` lane must stay out of every coverage manifest until
+a separately reviewed amendment owns the lifecycle below.
+
+### Current durable cuts
+
+| Cut | Current atomic transaction | Identity / coverage posture |
+| --- | --- | --- |
+| H0 — authority | Ensure the current data-version stream and range-less migration Host incarnation. | Server authority only; not an application operation and no envelope. It commits before H1 so later rollback cannot change retry issuance. |
+| H1 — admission | Migration operation row, lease/fence, checkpoint setup, and `admitted` + `barriered` journal rows. | One authenticated approval-derived Host child for the transaction; carrier-only and uncovered. |
+| H2 — private work | Each staged/backfill/verification transaction and its migration journal row(s). | One Host child per transaction; private/staged work remains carrier-only and uncovered. |
+| P — publication | Successor schema/generation, application version P, retention floor, one schema-resync `_snapback_changes` row, and `published-held`. | This is the application-visible write cut. It has a Host carrier but no envelope because no terminal receipt exists yet. |
+| T-release — terminal success | `released`, fence deletion, terminal forward receipt, and operation state. | Separate from P and writes no application version. A terminal envelope here would not be atomic with P. |
+| T-rollback — terminal rollback | `rolling-back`, predecessor republish at version R, rollback-resync change row, `rolled-back`, fence deletion, and forward + rollback receipts. | One transaction/Host child, but it terminates an aggregate that already published at P; it cannot retroactively make P atomic. |
+| C — cleanup | `cleanup-pending`, physical garbage drops, and the repeated terminal journal state across two resumable cuts. | Post-terminal maintenance children; never substitutes for P or T settlement and remains uncovered. |
+
+`record_operation_in` currently rejects
+`OperationReceiptStateV1::Pending`. Consequently there is no honest placement
+for a migration `CommitEnvelopeV1`: a terminal receipt at P is false, while a
+first envelope at T-release misses the application write and journal atomicity
+required by LLP 0162.
+
+### Required amendment shape
+
+1. Define one aggregate migration operation identity whose stable source is
+   the approved migration `operationId`. Per-transaction Host children remain
+   provenance joins; executor leases and attempts are never aggregate identity
+   facts.
+2. At P, atomically write the schema/data publication, schema-resync journal
+   row, aggregate envelope in `Pending`, and a pending suppression/lifecycle
+   record. The envelope's produced snapshot is P and its write-fact count must
+   exactly cover the publication transaction's application journal rows.
+3. Exact lookup of the aggregate identity while pending returns a typed
+   `published-held`/outcome-pending result and never re-executes P. Divergent
+   bound facts retain the existing fail-closed reused-identity disposition.
+4. T-release or T-rollback atomically finalizes that exact pending record to
+   `Committed` or the amendment's explicitly named rollback outcome. The
+   finalizer must compare the aggregate identity, P, and the pending receipt
+   digest/chain; a second equal finalizer is replay, while a different one is
+   corruption/refusal. The amendment must decide whether finalization mutates
+   the pending envelope under a digest-linked transition or appends a terminal
+   supplement; current v1 artifacts authorize neither choice.
+5. Pending records are non-reclaimable, non-acknowledgeable, and hold their
+   Host epoch open. Terminal retention, tombstones, purge, and epoch closure
+   begin only at the finalization time and follow the declared Host window.
+6. Coverage names the exact boundary it proves. If only P/T aggregate
+   settlement is covered, H1/H2/C stay explicitly carrier-only; a manifest may
+   not imply that every private migration transaction has its own envelope.
+
+### Required crash and replay corpus
+
+| Crash / retry cut | Required observation before migration coverage may activate |
+| --- | --- |
+| Before P commits | No P, pending record, envelope, or schema-resync row; retry may execute P once under the same aggregate identity. |
+| Inside P | All-or-none across live schema/data, version P, schema-resync row, pending envelope, and pending suppression. |
+| After P, before T | Retry returns the retained pending/`published-held` posture and never republishes or emits a second schema-resync row. |
+| Inside T-release | All-or-none across `released`, fence deletion, terminal receipt, and pending→terminal transition. |
+| After T-release response loss | Exact retry returns the retained terminal receipt; P and T each remain singletons. |
+| Inside T-rollback | All-or-none across predecessor republish R, rollback-resync row, `rolled-back`, receipts, fence deletion, and pending→terminal transition. |
+| After T-rollback response loss | Exact retry returns the retained rollback outcome and never republishes R. |
+| Cleanup crash/reopen | Terminal aggregate result is unchanged; cleanup resumes only its carrier-only physical tail. |
+| Divergent replay at pending and terminal states | Refuse before any migration or application write. |
+| Retention/capacity pressure while pending | Refuse new admission according to the declared bound; never evict, acknowledge, tombstone, or close the epoch for the pending operation. |
+
+The activation gate additionally requires an enumerated writer manifest for
+this exact migration boundary, asymmetric envelope/change retention in both
+directions, journal-count equality at P and rollback R, the paired active-lane
+performance record, independent review, and author acceptance. Until then the
+migration lane and every aggregate capability remain `Missing`.
+
 Still required before this ticket closes:
 
-- first-party host identity adapters for migration transactions (job/cron
-  action children and promotion's authenticated host lease are wired);
+- a separately reviewed pending→terminal migration lifecycle amendment and
+  its full atomic crash/replay corpus before any migration coverage claim;
 - the remainder of per-fact current-policy evaluation for public explanation:
   delete, aggregate/non-row, hand-written/opaque, predicate, membership,
   effect-bearing, and other unsupported shapes stay fail-closed; the generated

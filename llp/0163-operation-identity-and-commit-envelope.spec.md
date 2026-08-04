@@ -5,7 +5,12 @@
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (narrow public owner-policy slice — exact generated
+**Revised:** 2026-08-04 (migration transaction carrier slice — every new
+migration-journal transaction now carries an authenticated approval-derived
+Host identity with a durable pre-transaction ordinal, including lease-
+superseding crash/retry and cleanup-reopen paths; migration remains explicitly
+uncovered because publication and terminal receipt are separate transactions,
+so every capability stays Missing); 2026-08-04 (narrow public owner-policy slice — exact generated
 `owned-crud.v1`/`owner.v1` update envelopes can be explained only
 after current function policy, client audience, executable artifact, current
 row, retained historical row, and the complete closed fact set revalidate;
@@ -34,7 +39,13 @@ they can version independently of the profile umbrella)
 **Related:** LLP 0012, LLP 0037, LLP 0043, LLP 0055, LLP 0095, LLP 0133,
 LLP 0148, LLP 0162
 
-**Implementation evidence:** 2026-08-04 (the public explanation lane now has a
+**Implementation evidence:** 2026-08-04 (new migration journal rows carry one
+authenticated Host identity per physical transaction, derived from the
+approval operation and durable pre-transaction journal-row count; production
+apply/release, rollback, cleanup-reopen, multi-entry transaction, and lease-
+superseding retry fixtures are green, while the migration lane remains absent
+from coverage manifests pending a separately accepted pending→terminal
+lifecycle); 2026-08-04 (the public explanation lane now has a
 narrow exact generated owner-update evaluator; any artifact drift,
 principal/incarnation/audience change, current or historical owner divergence,
 permission/query/membership fact, context-answer widening, receipt divergence,
@@ -263,6 +274,53 @@ and prohibit capability publication.
 | 4 | **Partial** — a versioned stream manifest names both ordinary writer choke points and bypass/journal-retention adversaries are green; no production target activates a complete all-writer inventory. |
 | 13 | **Partial** — the dated comparable candidate observations are within the registered binary read/write/idle bounds on the step-0 machine, but the historical/candidate runs are not experimentally paired; a post-run baseline digest cannot supply measurement-time binding. No production target activates the public issuance-bearing covered lane, so a qualified digest-bound active-path run and applicable crash-cut corpus are still missing. |
 | 14 | **Partial** — host namespace authentication, client/host key separation, terminal receipt window, live promotion-ticket leases, and incarnation closure corpus are green; first-party host callers, transport-level client exclusion, and the full capacity/purge corpus are not wired. |
+
+Every related capability remains `Missing`; this slice makes no advertisement.
+
+## Implementation record — 2026-08-04, migration transaction carrier
+
+Every new `MigrationJournalEntryV1` records the authenticated Host
+`OperationIdentityV1` of the physical SQLite transaction that appended it;
+legacy entries may omit the field. The migration approval's `operationId` is
+the durable upstream identity. The child ordinal is the count of that
+operation's durable journal rows before the transaction begins, so all entries
+from a multi-entry transaction share one child and the next transaction starts
+at the first still-unoccupied ordinal. Attempt-local timestamps, executor
+instances, and fencing lease epochs are excluded from derivation.
+
+The migration executor provisions the range-less Host incarnation in its own
+durable transaction after semantic admission but before the first migration
+transaction. Apply, rollback, release, cancellation/abort, step wrappers, and
+both cleanup cuts then authenticate their child against that incarnation.
+Cleanup recovery provisions it on reopen as well, preserving compatibility
+with legacy migrations. The focused crash fixture rolls a journal transaction
+back, supersedes its fencing lease, and proves retry reconstructs the identical
+authenticated child; the production apply/release corpus proves every emitted
+row has a carrier and every transaction group's ordinal equals its durable
+starting row.
+
+This is provenance carriage, not migration envelope coverage. Publication
+commits the live successor schema, application version, schema-resync change
+row, and `published-held` journal transition at version P. A later transaction
+records `released`, deletes the fence, and seals the terminal migration
+receipt; rollback has its own republish-and-terminal cut. The current
+operation ledger refuses `Pending` receipts, so attaching a terminal envelope
+to publication would lie and attaching it only at release would violate the
+atomic data/journal/envelope rule. The `migrationTransition` lane therefore
+remains absent from every coverage manifest and the generated journal-machine
+artifact declares it `uncovered`. The dated pending→terminal lifecycle and
+crash-corpus map is recorded in
+[`issues/20260803-0163-public-operation-identity-carrier.md`](../issues/20260803-0163-public-operation-identity-carrier.md);
+implementing it requires a separately reviewed amendment rather than silently
+widening this Draft Spec.
+
+| LLP 0162 acceptance row | Status after this slice |
+| --- | --- |
+| 1 | **Partial** — migration transactions now have durable Host carriers, but publication and terminal receipt remain non-atomic across transactions and no migration envelope is written. |
+| 2 | **Partial** — a rolled-back migration journal cut retries under the same identity even after fencing-lease supersession; the aggregate pending/terminal replay contract is not implemented. |
+| 4 | **Partial** — the generated migration artifact explicitly declares the lane uncovered; no coverage manifest includes it, so it cannot inflate the complete-target writer claim. |
+| 13 | **Partial** — unchanged: the qualified paired active-lane measurement remains required for lanes eligible for publication. |
+| 14 | **Partial** — first-party migration transaction identities are now production-reachable and authenticated; migration aggregate settlement plus the remaining capacity/purge corpus are open. |
 
 Every related capability remains `Missing`; this slice makes no advertisement.
 
