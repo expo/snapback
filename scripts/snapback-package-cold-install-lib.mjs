@@ -42,6 +42,50 @@ export {
   validateRetainedComparatorReceipt,
 };
 
+// @ref LLP 0146#d3-agent-digest — packaged introspection is the budgeted
+// agent digest; app and operation identity live in its static item section.
+// @ref LLP 0041#acceptance — the cold-install proof must validate that shape
+// from the materialized package closure, not a repository-local projection.
+export function validateColdInstallAgentDigest(
+  digest,
+  { expectedAppId, requiredFunctionName },
+) {
+  if (typeof expectedAppId !== 'string' || expectedAppId.length === 0) {
+    throw new TypeError('expected app id must be a non-empty string');
+  }
+  if (
+    typeof requiredFunctionName !== 'string'
+    || requiredFunctionName.length === 0
+  ) {
+    throw new TypeError('required function name must be a non-empty string');
+  }
+  if (
+    digest?.artifactKind !== 'agentDigest'
+    || digest.formatVersion !== 'snapback.agent-digest.v1'
+    || !Array.isArray(digest.sections?.static?.items)
+  ) {
+    throw new Error('packaged CLI returned an unsupported introspection digest');
+  }
+  const identityItems = digest.sections.static.items.filter(
+    (item) => item?.key === 'artifact/identity',
+  );
+  const appId = identityItems.length === 1
+    && identityItems[0]?.kind === 'artifact-identity'
+    ? identityItems[0]?.value?.appId
+    : undefined;
+  if (appId !== expectedAppId) {
+    throw new Error(`unexpected CLI app id ${appId}`);
+  }
+  const operation = digest.sections.static.items.find(
+    (item) => item?.kind === 'operation-signature'
+      && item?.value?.name === requiredFunctionName,
+  );
+  if (typeof operation?.value?.id !== 'string' || operation.value.id.length === 0) {
+    throw new Error(`packaged CLI did not discover ${requiredFunctionName}`);
+  }
+  return Object.freeze({ appId, functionId: operation.value.id });
+}
+
 const PLAYWRIGHT_HEADLESS_EXECUTABLE_NAMES = new Set([
   'chrome-headless-shell',
   'chrome-headless-shell.exe',
