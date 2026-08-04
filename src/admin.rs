@@ -34,7 +34,7 @@ use axum::body::{Body, Bytes};
 use axum::extract::{ConnectInfo, Extension, FromRef, Path, Query, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use base64::Engine as _;
 use futures_util::StreamExt as _;
 use serde::{Deserialize, Serialize};
@@ -287,7 +287,7 @@ fn env_profile(loopback: bool) -> ServerProfile {
 /// loopback default (ENG-22527 FIX 3). Unset or empty falls back to the
 /// bind-address default: zero-config `dev` on loopback, `prod` on a real
 /// interface.
-fn resolve_profile(raw: Option<&str>, loopback: bool) -> ServerProfile {
+pub(crate) fn resolve_profile(raw: Option<&str>, loopback: bool) -> ServerProfile {
     match raw {
         Some("dev") => ServerProfile::Dev,
         Some("demo") => ServerProfile::Demo,
@@ -2384,6 +2384,9 @@ pub struct AppState {
     /// managed claim-link fronts. This state is process-local by design: a
     /// startup-nonce change invalidates every admission without recovery.
     pub(crate) console_reachability: ConsoleReachabilityRegistry,
+    /// Process-local network condition selection shared by HTTP egress and
+    /// Local's post-commit live preparation.
+    pub(crate) network_profiles: crate::network_profile::NetworkProfileState,
     /// Per-connection capability grants (ENG-23442): connection-scoped routes
     /// demand the token minted by `POST /connection/open`.
     pub connections: ConnectionRegistry,
@@ -2500,6 +2503,7 @@ impl AppState {
             .expect("system entropy is required for telemetry export continuations");
         let auth_admission = read.admission_controller();
         let connections = ConnectionRegistry::default();
+        let network_profiles = crate::network_profile::NetworkProfileState::new();
         let auth_terminal_lifecycle =
             AuthTerminalLifecycle::new(connections.clone(), &ephemeral, snapback.clone());
         let (service_authority_fences, telemetry) = {
@@ -2507,6 +2511,7 @@ impl AppState {
                 .try_lock()
                 .expect("trusted app-state builder owns the detached instance");
             let telemetry = instance.telemetry();
+            instance.install_network_profile_state(network_profiles.clone());
             let database = instance.auth_database_mut();
             assert!(
                 database.claim_app_state_graph(),
@@ -2522,6 +2527,7 @@ impl AppState {
                 telemetry,
                 server: Arc::new(server),
                 console_reachability: ConsoleReachabilityRegistry::default(),
+                network_profiles,
                 connections,
                 bundle_pending: crate::bundle::PendingBundleRegistry::default(),
                 auth_terminal_lifecycle,
@@ -2556,6 +2562,49 @@ impl AppState {
                 projection_handoff_limit_for_test: crate::ephemeral::MAX_OUTBOX_HANDOFF_BYTES,
             },
             operator,
+        )
+    }
+
+    fn network_profile_authority(&self) -> crate::network_profile::NetworkProfileAuthority {
+        crate::network_profile::NetworkProfileAuthority::classified(
+            self.server.profile,
+            self.server.auth_deployment,
+            self.hosted_serving.is_some(),
+        )
+    }
+
+    /// Both startup and runtime surfaces terminate at this one state-changing
+    /// gate; callers may parse different transport representations but cannot
+    /// select around classification or provenance capture.
+    ///
+    /// @ref LLP 0167#authority-one-activation-chokepoint — ServerProfile and
+    ///   hosted-serving authority are checked together, fail closed.
+    pub(crate) fn activate_network_profile(
+        &self,
+        profile: crate::network_profile::NetworkConditionProfile,
+        source: crate::network_profile::NetworkProfileSource,
+        principal: Option<String>,
+    ) -> Result<Arc<crate::network_profile::ActiveNetworkProfile>, SnapbackError> {
+        self.network_profiles.activate(
+            profile,
+            self.network_profile_authority(),
+            source,
+            principal,
+        )
+    }
+
+    pub(crate) fn activate_network_profile_env(
+        &self,
+        raw: Option<&str>,
+    ) -> Result<Arc<crate::network_profile::ActiveNetworkProfile>, SnapbackError> {
+        let profile = raw.map_or_else(
+            || Ok(crate::network_profile::NetworkConditionProfile::normal()),
+            crate::network_profile::NetworkConditionProfile::parse_env,
+        )?;
+        self.activate_network_profile(
+            profile,
+            crate::network_profile::NetworkProfileSource::Env,
+            None,
         )
     }
 
@@ -3650,6 +3699,24 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             ),
             get(admin_health),
         ),
+        // @ref LLP 0167#authority-one-activation-chokepoint — route policy
+        //   authenticates read/write separately; PUT still terminates at the
+        //   shared environment activation gate below.
+        RegisteredRoute::new(
+            read(
+                "/_snapback/api/debug/network-profile",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            get(admin_network_profile_get),
+        ),
+        RegisteredRoute::new(
+            write(
+                "PUT",
+                "/_snapback/api/debug/network-profile",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            put(admin_network_profile_put),
+        ),
         // @ref LLP 0154#d5--the-query-contract-typed-operations-projected-everywhere —
         //   closed aggregates use ordinary admin authority; raw rows and
         //   snapshot exports use fixed, budgeted secret-read scopes.
@@ -3928,6 +3995,25 @@ async fn admin_telemetry_stats(
     Query(request): Query<crate::telemetry_query::TelemetryStatsRequestV1>,
 ) -> Result<Json<crate::telemetry_query::TelemetryStatsResponseV1>, ApiError> {
     Ok(Json(runtime.telemetry.query_stats(&request)?))
+}
+
+async fn admin_network_profile_get(
+    State(runtime): State<AppState>,
+) -> Json<crate::network_profile::ActiveNetworkProfile> {
+    Json((*runtime.network_profiles.active()).clone())
+}
+
+async fn admin_network_profile_put(
+    State(runtime): State<AppState>,
+    Json(selection): Json<serde_json::Value>,
+) -> Result<Json<crate::network_profile::ActiveNetworkProfile>, ApiError> {
+    let profile = crate::network_profile::NetworkConditionProfile::parse_value(selection)?;
+    let active = runtime.activate_network_profile(
+        profile,
+        crate::network_profile::NetworkProfileSource::Api,
+        None,
+    )?;
+    Ok(Json((*active).clone()))
 }
 
 async fn admin_telemetry_events(
@@ -5191,6 +5277,28 @@ fn now_millis() -> u64 {
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
+
+    #[test]
+    fn network_profile_routes_pin_read_and_write_authority() {
+        let mut routes = crate::server::route_registry()
+            .into_iter()
+            .filter(|route| route.path == "/_snapback/api/debug/network-profile")
+            .collect::<Vec<_>>();
+        routes.sort_by_key(|route| route.method);
+        assert_eq!(routes.len(), 2);
+        let get = routes.iter().find(|route| route.method == "GET").unwrap();
+        let put = routes.iter().find(|route| route.method == "PUT").unwrap();
+        assert_eq!(get.path_policy, RoutePolicy::AdminRead);
+        assert_eq!(put.path_policy, RoutePolicy::AdminWrite);
+        assert_eq!(
+            get.credential_resolution,
+            CredentialResolution::AdminCredential
+        );
+        assert_eq!(
+            put.credential_resolution,
+            CredentialResolution::AdminCredential
+        );
+    }
 
     #[test]
     fn telemetry_routes_pin_authority_sensitivity_and_no_sql_carrier() {

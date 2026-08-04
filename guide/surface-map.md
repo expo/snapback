@@ -44,6 +44,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/client-mutations/purge | notAuthorFacing (operator settlement maintenance) |
 | /_snapback/api/config/plan | operating.secrets-config |
 | /_snapback/api/config/set | operating.secrets-config |
+| /_snapback/api/debug/network-profile | operating.network-profiles |
 | /_snapback/api/config/status | operating.secrets-config |
 | /_snapback/api/config/unset | operating.secrets-config |
 | /_snapback/api/config/verify | operating.secrets-config |

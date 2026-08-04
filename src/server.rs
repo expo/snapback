@@ -14486,6 +14486,9 @@ async fn telemetry_not_found(State(runtime): State<AppState>, request: Request<B
 #[derive(Clone, Debug)]
 struct TelemetryDiagnosticCode(String);
 
+#[derive(Clone, Debug)]
+struct NetworkProfileObservation(Arc<crate::network_profile::ActiveNetworkProfile>);
+
 fn telemetry_observes_http_route(_spec: RouteSpec, method: &Method) -> bool {
     // CORS preflight is the router's inert method fallback, not an admitted
     // application operation. Health/static/control/internal requests remain
@@ -14550,7 +14553,19 @@ pub(crate) fn router_from_registrations(
                             .extensions()
                             .get::<TelemetryDiagnosticCode>()
                             .map(|code| code.0.as_str());
-                        span.finish(Some(i64::from(response.status().as_u16())), code, None);
+                        // @ref LLP 0167#honesty-requirements — the exact
+                        // response admission snapshot attributes any injected
+                        // latency in the surrounding HTTP carrier span.
+                        let details = response
+                            .extensions()
+                            .get::<NetworkProfileObservation>()
+                            .and_then(|observation| serde_json::to_value(&*observation.0).ok())
+                            .map(|profile| json!({ "networkProfile": profile }));
+                        span.finish(
+                            Some(i64::from(response.status().as_u16())),
+                            code,
+                            details,
+                        );
                     }
                     if let Some(value) = sender_nonce.value() {
                         response
@@ -16922,7 +16937,7 @@ fn with_cors_headers(mut response: Response, allowed_origin: Option<HeaderValue>
     );
     headers.insert(
         header::ACCESS_CONTROL_EXPOSE_HEADERS,
-        HeaderValue::from_static("dpop-nonce"),
+        HeaderValue::from_static("dpop-nonce, snapback-network-profile"),
     );
     response
 }
@@ -19056,6 +19071,54 @@ fn parse_optional_json<T: serde::de::DeserializeOwned>(
         .map_err(|error| ApiError::request_json_invalid(error.to_string()))
 }
 
+/// Release one fully prepared HTTP response at its absolute deadline. The
+/// caller has already dropped invocation/instance authorities; this function
+/// owns only response bytes and the immutable profile snapshot.
+///
+/// @ref LLP 0167#observation-semantics--what-a-delay-means — physical waiting
+///   is an egress concern and never extends commit or invocation authority.
+async fn release_network_profiled_response(
+    mut response: Response,
+    prepared: Option<crate::network_profile::PreparedNetworkEgress>,
+) -> Response {
+    let Some(prepared) = prepared else {
+        return response;
+    };
+    let wait = prepared
+        .release_at()
+        .saturating_duration_since(Instant::now());
+    if !wait.is_zero() {
+        tokio::time::sleep(wait).await;
+    }
+    let marker = HeaderValue::from_str(&prepared.snapshot().profile.name)
+        .expect("validated network profile names are response-header safe");
+    response.headers_mut().insert(
+        HeaderName::from_static(crate::network_profile::NETWORK_PROFILE_HEADER),
+        marker,
+    );
+    response
+        .extensions_mut()
+        .insert(NetworkProfileObservation(prepared.snapshot().clone()));
+    response
+}
+
+fn prepare_mutation_network_egress(
+    profiles: &crate::network_profile::NetworkProfileState,
+    basis: crate::network_profile::MutationEgressBasis,
+    result_ready_at: Instant,
+) -> Option<crate::network_profile::PreparedNetworkEgress> {
+    match basis {
+        crate::network_profile::MutationEgressBasis::ResultReady => profiles.admit_result(
+            crate::network_profile::NetworkEgressLane::MutationAck,
+            result_ready_at,
+        ),
+        crate::network_profile::MutationEgressBasis::NormalCommit => None,
+        crate::network_profile::MutationEgressBasis::ProfiledCommit(group) => {
+            Some(group.for_lane(crate::network_profile::NetworkEgressLane::MutationAck))
+        }
+    }
+}
+
 /// `/query/{name}` runs on the lock-free read lane when the instance is
 /// file-backed: a pooled WAL reader inside a pinned read transaction, so
 /// queries proceed during long writes. In-memory instances (no WAL) keep the
@@ -19069,66 +19132,78 @@ async fn invoke_query(
     Extension(authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
     input: Result<Json<FunctionCallRequest>, JsonRejection>,
-) -> Result<Json<FunctionResponse<crate::manifest::QueryOutput>>, ApiError> {
-    let attribution = authority.function_attribution();
-    let Json(request) = input
-        .map_err(ApiError::from_json_rejection)
-        .map_err(|error| error.with_attribution(attribution.clone()))?;
-    let input = request.input;
-    let expected_generation = request.expected_generation;
-    // Only finite service authority needs the SQLite-owned terminal cut.
-    // Anonymous and session queries are fenced by their process publication
-    // handles and must stay off the global write lane so WAL reads remain
-    // concurrent with long mutations.
-    // @ref LLP 0059#finite-service-authority-fence — service witnesses
-    // serialize with terminal writers; unrelated authority classes do not.
-    if matches!(
-        authority.resolved(),
-        ResolvedAppAuthority::ServicePrincipal { .. }
-    ) {
-        persist_expired_service_authority_owned(&runtime, authority.clone())
+) -> Response {
+    let network_profiles = runtime.network_profiles.clone();
+    let result: Result<Json<FunctionResponse<crate::manifest::QueryOutput>>, ApiError> = async move {
+        let attribution = authority.function_attribution();
+        let Json(request) = input
+            .map_err(ApiError::from_json_rejection)
+            .map_err(|error| error.with_attribution(attribution.clone()))?;
+        let input = request.input;
+        let expected_generation = request.expected_generation;
+        // Only finite service authority needs the SQLite-owned terminal cut.
+        // Anonymous and session queries are fenced by their process publication
+        // handles and must stay off the global write lane so WAL reads remain
+        // concurrent with long mutations.
+        // @ref LLP 0059#finite-service-authority-fence — service witnesses
+        // serialize with terminal writers; unrelated authority classes do not.
+        if matches!(
+            authority.resolved(),
+            ResolvedAppAuthority::ServicePrincipal { .. }
+        ) {
+            persist_expired_service_authority_owned(&runtime, authority.clone())
+                .await
+                .map_err(ApiError::from)
+                .map_err(|error| error.with_attribution(attribution.clone()))?;
+            let authority_to_validate = authority.clone();
+            with_snapback(&state, move |snapback| {
+                snapback.validate_prepared_service_authority(&authority_to_validate)
+            })
             .await
             .map_err(ApiError::from)
             .map_err(|error| error.with_attribution(attribution.clone()))?;
-        let authority_to_validate = authority.clone();
-        with_snapback(&state, move |snapback| {
-            snapback.validate_prepared_service_authority(&authority_to_validate)
-        })
-        .await
+        }
+        let (output, facts) = if read.available() {
+            with_read_lane(&read, move |lane| {
+                lane.invoke_query_prepared_generation_with_facts(
+                    &name,
+                    input,
+                    authority,
+                    expected_generation.as_ref(),
+                )
+            })
+            .await
+        } else {
+            with_snapback(&state, move |snapback| {
+                let invocation = snapback.invoke_query_with_dependencies_prepared_generation(
+                    &name,
+                    input,
+                    authority.clone(),
+                    expected_generation.as_ref(),
+                )?;
+                authority.validate_admission("query generation facts")?;
+                let facts = snapback.function_invocation_facts(authority.active_mode())?;
+                Ok((invocation.output, facts))
+            })
+            .await
+        }
         .map_err(ApiError::from)
         .map_err(|error| error.with_attribution(attribution.clone()))?;
+        Ok(Json(FunctionResponse::with_facts(
+            output,
+            attribution,
+            facts,
+        )))
     }
-    let (output, facts) = if read.available() {
-        with_read_lane(&read, move |lane| {
-            lane.invoke_query_prepared_generation_with_facts(
-                &name,
-                input,
-                authority,
-                expected_generation.as_ref(),
-            )
-        })
-        .await
-    } else {
-        with_snapback(&state, move |snapback| {
-            let invocation = snapback.invoke_query_with_dependencies_prepared_generation(
-                &name,
-                input,
-                authority.clone(),
-                expected_generation.as_ref(),
-            )?;
-            authority.validate_admission("query generation facts")?;
-            let facts = snapback.function_invocation_facts(authority.active_mode())?;
-            Ok((invocation.output, facts))
-        })
-        .await
-    }
-    .map_err(ApiError::from)
-    .map_err(|error| error.with_attribution(attribution.clone()))?;
-    Ok(Json(FunctionResponse::with_facts(
-        output,
-        attribution,
-        facts,
-    )))
+    .await;
+    // The async invocation future (and therefore PreparedAuthority) is gone
+    // before result-readiness is stamped or any timer begins.
+    let response = result.into_response();
+    let prepared = network_profiles.admit_result(
+        crate::network_profile::NetworkEgressLane::QueryResponse,
+        Instant::now(),
+    );
+    release_network_profiled_response(response, prepared).await
 }
 
 /// Replay-tuple identities for credential families that do not carry LLP
@@ -20199,95 +20274,115 @@ async fn asset_record_delete_route(
 /// MutationReceipt (LLP 0034 §3.2, ENG-22478). A REJECTED mutation still
 /// produces a receipt; it rides the error envelope.
 async fn invoke_mutation(
+    State(runtime): State<AppState>,
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
     input: Result<Json<MutationRequest>, JsonRejection>,
-) -> Result<Json<MutationResponse>, ApiError> {
-    let attribution = authority.function_attribution();
-    let Json(request) = input
-        .map_err(ApiError::from_json_rejection)
-        .map_err(|error| error.with_attribution(attribution.clone()))?;
-    if let Some(current_id) = request.client_mutation_id.as_deref()
-        && request
-            .acknowledged_client_mutation_ids
-            .iter()
-            .any(|acknowledged| acknowledged == current_id)
-    {
-        return Err(ApiError::from(
-            SnapbackError::error(
-                "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP",
-                "sync",
-                "the current client mutation id cannot be acknowledged by the same request",
+) -> Response {
+    let network_profiles = runtime.network_profiles.clone();
+    let mut network_basis = crate::network_profile::MutationEgressBasis::ResultReady;
+    let result: Result<Json<MutationResponse>, ApiError> = async {
+        let attribution = authority.function_attribution();
+        let Json(request) = input
+            .map_err(ApiError::from_json_rejection)
+            .map_err(|error| error.with_attribution(attribution.clone()))?;
+        if let Some(current_id) = request.client_mutation_id.as_deref()
+            && request
+                .acknowledged_client_mutation_ids
+                .iter()
+                .any(|acknowledged| acknowledged == current_id)
+        {
+            return Err(ApiError::from(
+                SnapbackError::error(
+                    "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP",
+                    "sync",
+                    "the current client mutation id cannot be acknowledged by the same request",
+                )
+                .with_details(json!({ "clientMutationId": current_id })),
             )
-            .with_details(json!({ "clientMutationId": current_id })),
-        )
-        .with_attribution(attribution));
-    }
-    // Receipt emission rides the L7 blocking offload: the recording call
-    // (Hermes eval + rusqlite) runs via with_snapback, and the envelope is
-    // assembled from its (result, receipt) pair back on the async side.
-    let stage_name = name.clone();
-    let stage_input = request.input.clone();
-    let stage_client_mutation_id = request.client_mutation_id.clone();
-    let stage_authority_descriptor = request.authority_descriptor.clone();
-    let stage_acknowledgements = request.acknowledged_client_mutation_ids.clone();
-    let stage_expected_generation = request.expected_generation.clone();
-    let stage_settlement = request.settlement.clone();
-    let stage_authority = authority.clone();
-    let (result, receipt, response_authority_descriptor) =
-        with_snapback_staged_authorization_write(
-            &state,
-            move |snapback| {
-                let response_authority_descriptor =
-                    snapback.descriptor_for_prepared_authority(&stage_authority)?;
-                let (preflight, staged) = snapback
-                    .stage_recorded_authorization_mutation_with_generation_and_settlement(
-                        &stage_name,
-                        stage_input.clone(),
-                        stage_client_mutation_id.clone(),
-                        stage_authority_descriptor.clone(),
-                        &stage_acknowledgements,
-                        "http",
-                        stage_authority.clone(),
-                        stage_expected_generation.as_ref(),
-                        stage_settlement.clone(),
-                    )?;
-                Ok((preflight, (response_authority_descriptor, staged)))
-            },
-            move |snapback, (response_authority_descriptor, staged)| {
-                snapback
-                    .commit_staged_recorded_authorization_mutation(staged)
-                    .map(|(result, receipt)| (result, receipt, response_authority_descriptor))
-            },
-        )
-        .await
-        .map_err(ApiError::from)
-        .map_err(|error| error.with_attribution(attribution.clone()))?
-        .map_err(ApiError::from)
-        .map_err(|error| error.with_attribution(attribution.clone()))?;
-    match result {
-        // The mutation envelope carries its attribution member directly
-        // (never through the FunctionResponse flatten) so the served bytes
-        // stay inside the closed generated mutation.output schema.
-        // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 4.
-        Ok(output) => {
-            let facts_mode = authority.active_mode();
-            let facts = with_snapback(&state, move |snapback| {
-                authority.validate_admission("mutation generation facts")?;
-                snapback.function_invocation_facts(facts_mode)
-            })
-            .await?;
-            Ok(Json(MutationResponse::from_output(
-                output,
-                receipt,
-                attribution,
-                response_authority_descriptor,
-                facts,
-            )))
+            .with_attribution(attribution));
         }
-        Err(error) => Err(ApiError::with_receipt(error, receipt).with_attribution(attribution)),
+        // Receipt emission rides the L7 blocking offload: the recording call
+        // (Hermes eval + rusqlite) runs via with_snapback, and the envelope is
+        // assembled from its (result, receipt) pair back on the async side.
+        let stage_name = name.clone();
+        let stage_input = request.input.clone();
+        let stage_client_mutation_id = request.client_mutation_id.clone();
+        let stage_authority_descriptor = request.authority_descriptor.clone();
+        let stage_acknowledgements = request.acknowledged_client_mutation_ids.clone();
+        let stage_expected_generation = request.expected_generation.clone();
+        let stage_settlement = request.settlement.clone();
+        let stage_authority = authority.clone();
+        let (result, receipt, response_authority_descriptor, committed_network_basis) =
+            with_snapback_staged_authorization_write(
+                &state,
+                move |snapback| {
+                    let response_authority_descriptor =
+                        snapback.descriptor_for_prepared_authority(&stage_authority)?;
+                    let (preflight, staged) = snapback
+                        .stage_recorded_authorization_mutation_with_generation_and_settlement(
+                            &stage_name,
+                            stage_input.clone(),
+                            stage_client_mutation_id.clone(),
+                            stage_authority_descriptor.clone(),
+                            &stage_acknowledgements,
+                            "http",
+                            stage_authority.clone(),
+                            stage_expected_generation.as_ref(),
+                            stage_settlement.clone(),
+                        )?;
+                    Ok((preflight, (response_authority_descriptor, staged)))
+                },
+                move |snapback, (response_authority_descriptor, staged)| {
+                    snapback
+                        .commit_staged_recorded_authorization_mutation_with_network_egress(staged)
+                        .map(|(result, receipt, network_basis)| {
+                            (
+                                result,
+                                receipt,
+                                response_authority_descriptor,
+                                network_basis,
+                            )
+                        })
+                },
+            )
+            .await
+            .map_err(ApiError::from)
+            .map_err(|error| error.with_attribution(attribution.clone()))?
+            .map_err(ApiError::from)
+            .map_err(|error| error.with_attribution(attribution.clone()))?;
+        network_basis = committed_network_basis;
+        match result {
+            // The mutation envelope carries its attribution member directly
+            // (never through the FunctionResponse flatten) so the served bytes
+            // stay inside the closed generated mutation.output schema.
+            // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 4.
+            Ok(output) => {
+                let facts_mode = authority.active_mode();
+                let facts_authority = authority.clone();
+                let facts = with_snapback(&state, move |snapback| {
+                    facts_authority.validate_admission("mutation generation facts")?;
+                    snapback.function_invocation_facts(facts_mode)
+                })
+                .await?;
+                Ok(Json(MutationResponse::from_output(
+                    output,
+                    receipt,
+                    attribution,
+                    response_authority_descriptor,
+                    facts,
+                )))
+            }
+            Err(error) => Err(ApiError::with_receipt(error, receipt).with_attribution(attribution)),
+        }
     }
+    .await;
+    // The invocation lease is deliberately released before egress waiting.
+    drop(authority);
+    let response = result.into_response();
+    let prepared = prepare_mutation_network_egress(&network_profiles, network_basis, Instant::now());
+    release_network_profiled_response(response, prepared).await
 }
 
 /// App-data action runner for side-effectful app work that is not a transaction:
@@ -24046,6 +24141,9 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
     //   the SNAPBACK_BUNDLE_* HTTP status mapping (codes authoritative,
     //   statuses advisory).
     match code {
+        crate::network_profile::NETWORK_PROFILE_FORBIDDEN_CODE => StatusCode::FORBIDDEN,
+        crate::network_profile::NETWORK_PROFILE_DELAY_CEILING_CODE
+        | crate::network_profile::NETWORK_PROFILE_INVALID_CODE => StatusCode::BAD_REQUEST,
         "SNAPBACK_BUNDLE_ROUTE_UNKNOWN" => StatusCode::NOT_FOUND,
         "SNAPBACK_BUNDLE_NOT_PUBLIC"
         | "SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL"
@@ -25044,6 +25142,157 @@ mod tests {
         spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
         with_snapback_staged_authorization_write,
     };
+
+    #[tokio::test]
+    async fn network_profile_http_release_marks_delay_and_keeps_normal_identity() {
+        let profiles = crate::network_profile::NetworkProfileState::new();
+        let authority = crate::network_profile::NetworkProfileAuthority::classified(
+            crate::admin::ServerProfile::Test,
+            crate::auth::deployment::AuthDeploymentTarget::Local,
+            false,
+        );
+        profiles
+            .activate(
+                crate::network_profile::NetworkConditionProfile {
+                    name: "test-delay".to_owned(),
+                    mutation_ack_delay_ms: 30,
+                    live_delta_delay_ms: 30,
+                    query_response_delay_ms: 30,
+                    jitter_ms: 0,
+                },
+                authority,
+                crate::network_profile::NetworkProfileSource::Api,
+                None,
+            )
+            .unwrap();
+
+        let ready_at = Instant::now();
+        let rejected = super::prepare_mutation_network_egress(
+            &profiles,
+            crate::network_profile::MutationEgressBasis::ResultReady,
+            ready_at,
+        )
+        .expect("a rejected mutation uses its result-readiness deadline");
+        assert!(
+            rejected.release_at()
+                >= ready_at + std::time::Duration::from_millis(30)
+        );
+        let started = Instant::now();
+        let delayed = super::release_network_profiled_response(
+            axum::response::Response::new(axum::body::Body::empty()),
+            Some(rejected),
+        )
+        .await;
+        assert!(started.elapsed() >= std::time::Duration::from_millis(20));
+        assert!(started.elapsed() < std::time::Duration::from_secs(1));
+        assert_eq!(
+            delayed
+                .headers()
+                .get(crate::network_profile::NETWORK_PROFILE_HEADER)
+                .and_then(|value| value.to_str().ok()),
+            Some("test-delay")
+        );
+        assert_eq!(
+            delayed
+                .extensions()
+                .get::<super::NetworkProfileObservation>()
+                .map(|observation| observation.0.profile.name.as_str()),
+            Some("test-delay")
+        );
+
+        profiles
+            .activate(
+                crate::network_profile::NetworkConditionProfile::normal(),
+                authority,
+                crate::network_profile::NetworkProfileSource::Api,
+                None,
+            )
+            .unwrap();
+        let started = Instant::now();
+        let normal = super::release_network_profiled_response(
+            axum::response::Response::new(axum::body::Body::empty()),
+            profiles.admit_result(
+                crate::network_profile::NetworkEgressLane::QueryResponse,
+                Instant::now(),
+            ),
+        )
+        .await;
+        assert!(started.elapsed() < std::time::Duration::from_secs(1));
+        assert!(
+            normal
+                .headers()
+                .get(crate::network_profile::NETWORK_PROFILE_HEADER)
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn network_profile_admin_api_uses_shared_authorizer_and_activation_gate() {
+        let mut context = ServerContext::detached();
+        context.profile = ServerProfile::Test;
+        context.admin_token = Some("network-profile-admin".to_owned());
+        let state = AppState::from_snapback(
+            LocalSnapback::memory().expect("network profile admin fixture"),
+            context,
+        );
+        let router = app(state.clone());
+        let put = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/_snapback/api/debug/network-profile")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header("x-snapback-admin-token", "network-profile-admin")
+                    .body(Body::from(r#""optimistic""#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(put.status(), StatusCode::OK);
+        assert_eq!(response_json(put).await["profile"]["name"], "optimistic");
+
+        let get = router
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/_snapback/api/debug/network-profile")
+                    .header("x-snapback-admin-token", "network-profile-admin")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(get.status(), StatusCode::OK);
+        let get = response_json(get).await;
+        assert_eq!(get["profile"]["name"], "optimistic");
+        assert_eq!(get["provenance"]["source"], "api");
+
+        let mut context = ServerContext::detached();
+        context.profile = ServerProfile::Prod;
+        context.admin_token = Some("prod-admin".to_owned());
+        let prod = AppState::from_snapback(
+            LocalSnapback::memory().expect("production gate fixture"),
+            context,
+        );
+        let forbidden = app(prod)
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/_snapback/api/debug/network-profile")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header("x-snapback-admin-token", "prod-admin")
+                    .body(Body::from(r#""optimistic""#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(forbidden.status(), StatusCode::FORBIDDEN);
+        assert_eq!(
+            response_json(forbidden).await["diagnostic"]["code"],
+            crate::network_profile::NETWORK_PROFILE_FORBIDDEN_CODE
+        );
+    }
     use crate::admin::{AppState, ServerContext, ServerProfile};
     use crate::admin_impersonation::{
         IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
@@ -38275,6 +38524,10 @@ globalThis.__snapbackHandlers = {
             "diagnostic-code family prefix appearing in detail-shape doc text (LLP 0044); concrete codes are classified individually",
         ),
         (
+            "SNAPBACK_NETWORK_PROFILE",
+            "environment variable selecting the startup network condition profile (LLP 0167)",
+        ),
+        (
             "SNAPBACK_ACTION_MAX_CONCURRENCY",
             "environment variable configuring detached action worker admission",
         ),
@@ -38695,6 +38948,8 @@ globalThis.__snapbackHandlers = {
     ];
 
     const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_NETWORK_PROFILE_DELAY_CEILING",
+        "SNAPBACK_NETWORK_PROFILE_INVALID",
         "SNAPBACK_RESULT_TRANSFORM_BASE_INVALID",
         "SNAPBACK_RESULT_TRANSFORM_COMPARATOR_UNKNOWN",
         "SNAPBACK_RESULT_TRANSFORM_CROSS_ADDRESS",
@@ -39090,6 +39345,7 @@ globalThis.__snapbackHandlers = {
     ];
 
     const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_NETWORK_PROFILE_FORBIDDEN",
         "SNAPBACK_ADMIN_DISABLED",
         "SNAPBACK_ADMIN_APPROVAL_UNAVAILABLE",
         "SNAPBACK_ADMIN_CLAIM_UNAVAILABLE",

@@ -4912,6 +4912,25 @@ async fn run_composed(
         }
         None => app_state,
     };
+    // Startup selection uses the same gate as runtime PUT, after hosted
+    // authority has reached its final pre-bind classification.
+    //
+    // @ref LLP 0167#authority-one-activation-chokepoint — env activation is
+    //   a startup failure on ceiling or environment refusal, never a clamp.
+    let startup_network_profile_env = match std::env::var("SNAPBACK_NETWORK_PROFILE") {
+        Ok(value) => Some(value),
+        Err(std::env::VarError::NotPresent) => None,
+        Err(std::env::VarError::NotUnicode(_)) => {
+            return Err(anyhow::Error::new(crate::diagnostic::SnapbackError::error(
+                crate::network_profile::NETWORK_PROFILE_INVALID_CODE,
+                "network-profile",
+                "SNAPBACK_NETWORK_PROFILE must be valid Unicode",
+            )));
+        }
+    };
+    let startup_network_profile = app_state
+        .activate_network_profile_env(startup_network_profile_env.as_deref())
+        .map_err(anyhow::Error::new)?;
     // @ref LLP 0098#24-renewal-and-the-honest-cost-of-pre-signing — an admission
     // lives at most five minutes, so a deployment that serves longer needs its
     // authority replaced in place. The loop only ever installs another
@@ -5124,6 +5143,14 @@ async fn run_composed(
     }
 
     println!("snapback listening on http://{local_addr}");
+    if !startup_network_profile.profile.is_normal() {
+        // @ref LLP 0167#honesty-requirements — a non-normal boot profile is
+        //   visible in startup/readiness output rather than silently active.
+        println!(
+            "network profile: {} (startup env)",
+            startup_network_profile.profile.name
+        );
+    }
     println!("admin console: http://{local_addr}/_snapback/admin");
     if let Some(db_path) = database_path {
         println!("sqlite database: {}", db_path.display());

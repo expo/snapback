@@ -115,6 +115,8 @@ pub mod migration;
 #[doc(hidden)]
 pub mod migration_presentation;
 #[doc(hidden)]
+pub mod network_profile;
+#[doc(hidden)]
 pub mod operation_ledger;
 #[doc(hidden)]
 pub mod proof_checkpoint;

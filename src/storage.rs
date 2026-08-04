@@ -619,6 +619,14 @@ pub struct MutationCommit {
     /// transaction, including ordinary commits that did not advance it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub authorization: Option<AuthorizationCommitWitness>,
+    /// Server-only post-commit egress carrier. Storage constructs the
+    /// result-readiness default; Local replaces it immediately after a real
+    /// commit, before preparing live bytes or the caller receipt.
+    ///
+    /// @ref LLP 0167#observation-semantics--what-a-delay-means — the commit
+    ///   group transports one snapshot/basis without changing durable wire.
+    #[serde(skip)]
+    pub(crate) network_egress: crate::network_profile::MutationEgressBasis,
 }
 
 /// A server-admitted lane-L override for one direct RuntimeNow field. The
@@ -4365,6 +4373,7 @@ impl LocalDatabase {
                 job_changes: Vec::new(),
                 sequence_allocations,
                 authorization: None,
+                network_egress: Default::default(),
             }
         }))
     }
@@ -5403,6 +5412,7 @@ impl LocalDatabase {
                 job_changes: Vec::new(),
                 sequence_allocations: sequence_allocation_facts,
                 authorization,
+                network_egress: Default::default(),
             },
             generated_ids,
             now_ms,
@@ -6067,6 +6077,7 @@ impl LocalDatabase {
             job_changes,
             sequence_allocations,
             authorization,
+            network_egress: Default::default(),
         })
     }
 
