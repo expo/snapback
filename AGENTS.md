@@ -79,9 +79,11 @@ Before editing a subsystem with documented design, orient first: read its
 governing LLP, and for non-trivial work invoke `llp-orient` to assemble a
 context pack of the constraints the change must respect.
 
-Skills: orient = context before coding; create = author one LLP; review = LLP
-review loop scaled to stakes; adopt = set up LLP in any repo; maintain = drift,
-pre-PR, reconcile, and retirement checks.
+Skills: orient = context before coding · create = author one LLP · review =
+LLP 0005 loop, scaled to stakes · adopt = set up LLP in any repo,
+install/update the skills · maintain = drift / pre-PR / reconcile / retire
+checks · super-refine = dual-model refine-until-ready · ship = tasks done end
+to end.
 <!-- END LLP SKILLS MANAGED BLOCK -->
 
 Project skills are aggregated under `skills/` and mirrored into each agent's
