@@ -12,15 +12,19 @@ use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
-use std::sync::{Arc, Barrier};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Barrier, Mutex, mpsc};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, bail};
-use rusqlite::{Connection, Transaction, TransactionBehavior, params};
+use rusqlite::{Connection, Transaction, params};
 use serde::Serialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
+use snapback::bench::{
+    AgentSafeActiveContentionWriter, prepare_agent_safe_active_contention_database,
+};
 use snapback::branches::{BranchId, ChildStreamId, MaterializedBase};
 use snapback::commit_envelope::{
     IdentityEpochStateV1, IdentityEpochV1, OperationBoundFactsV1, OperationIdentityV1,
@@ -29,12 +33,12 @@ use snapback::commit_envelope::{
 use snapback::diagnostic::SnapbackResult;
 use snapback::fork_promotion::{
     ApprovedOperationFactsV1, BranchGrantV1, BranchLimitsV1, BranchOperationDraftV1,
-    BranchOperationV1, CanonicalAdmissionV1, ForkCoverageV1, ForkEgressPolicyV1,
-    InAppBranchCreateV1, LogicalWriteFactV1, PromotionApprovalV1, PromotionAuthorityDecisionV1,
-    PromotionContentionPolicyV1, PromotionReplayContextV1, PromotionSealKey, ReplayCustodyClassV1,
-    RetainedReplayInputV1, SnapshotRowV1, canonical_mutation_admission, create_in_app_branch,
-    exact_fork_diff, execute_branch_operation, issue_promotion_ticket, promote_by_reexecution,
-    reap_expired_in_app_branches, request_head_reservation, seal_promotion_request,
+    BranchOperationV1, ForkCoverageV1, ForkEgressPolicyV1, InAppBranchCreateV1, LogicalWriteFactV1,
+    PromotionApprovalV1, PromotionAuthorityDecisionV1, PromotionContentionPolicyV1,
+    PromotionReplayContextV1, PromotionSealKey, ReplayCustodyClassV1, RetainedReplayInputV1,
+    SnapshotRowV1, create_in_app_branch, exact_fork_diff, execute_branch_operation,
+    issue_promotion_ticket, promote_by_reexecution, reap_expired_in_app_branches,
+    request_head_reservation, seal_promotion_request,
 };
 
 const RECORDED_RUNS: usize = 11;
@@ -42,11 +46,13 @@ const LOCAL_WARMUPS: usize = 4;
 const ROWS: usize = 512;
 const CONTENTION_SAMPLES: usize = 128;
 const CONTENTION_WORKERS: usize = 8;
+const ACCEPTED_BASELINE_SHA256: &str =
+    "d28d8514f48db3f8a0e4d0c33a1381f12e4ad13eaf6a69187aef9b7fe822ab91";
 const FORK_CREATION_MEDIAN_BOUND_US: f64 = 1_000.0;
 const EXACT_DIFF_MEDIAN_BOUND_US: f64 = 2_500.0;
 const PROMOTION_MEDIAN_BOUND_US: f64 = 7_500.0;
 const TTL_REAP_MEDIAN_BOUND_US: f64 = 250.0;
-const ORDINARY_WRITER_CONTENTION_P99_BOUND_US: f64 = 750_000.0;
+const ORDINARY_WRITER_CONTENTION_P99_BOUND_US: f64 = 1_250_000.0;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,6 +74,7 @@ struct Artifact {
     absolute_bounds: AbsoluteBounds,
     absolute_bounds_passed: bool,
     bound_ratification: &'static str,
+    promotion_egress_scope: &'static str,
     claim_boundary: &'static str,
 }
 
@@ -145,6 +152,7 @@ struct ContentionEvidence {
     metric: &'static str,
     sample_definition: &'static str,
     reservation_interval_ms: u64,
+    maximum_promotion_commit_duration_ms: u64,
     raw_request_to_commit_us: Vec<f64>,
     deferred_sample_count: usize,
     initial_deferred_worker_count: usize,
@@ -184,18 +192,10 @@ fn main() -> anyhow::Result<()> {
         bail!("usage: snapback-fork-promotion-bench OUTPUT.json BASELINE.json EXPECTED_REVISION");
     }
     ensure_machine_quiescent()?;
-    let source_revision = checked_command(&["git", "rev-parse", "HEAD"])?;
-    if source_revision != expected_revision {
-        bail!(
-            "benchmark revision mismatch: expected {expected_revision}, checked out {source_revision}"
-        );
-    }
-    let dirty = checked_command(&["git", "status", "--porcelain", "--untracked-files=all"])?;
-    if !dirty.is_empty() {
-        bail!("benchmark requires a clean tracked source tree; found:\n{dirty}");
-    }
+    let source_revision = validate_candidate_source(&expected_revision)?;
     let baseline_bytes = std::fs::read(&baseline_path)
         .with_context(|| format!("read baseline artifact {}", baseline_path.display()))?;
+    let baseline_sha256 = validate_baseline_digest(&baseline_bytes)?;
     let baseline: serde_json::Value =
         serde_json::from_slice(&baseline_bytes).context("decode baseline artifact")?;
     let baseline_artifact_name = baseline["artifactName"]
@@ -285,7 +285,7 @@ fn main() -> anyhow::Result<()> {
         baseline_artifact: BaselineBinding {
             artifact_name: baseline_artifact_name.to_owned(),
             schema_version: baseline_schema_version.to_owned(),
-            sha256: format!("sha256:{:x}", Sha256::digest(&baseline_bytes)),
+            sha256: format!("sha256:{baseline_sha256}"),
         },
         toolchain,
         hardware_class: hardware,
@@ -311,8 +311,9 @@ fn main() -> anyhow::Result<()> {
         contention,
         absolute_bounds,
         absolute_bounds_passed,
-        bound_ratification: "Ratified by Charlie Cheever in LLP 0162's dated 2026-08-04 absolute-bound record before this final run",
-        claim_boundary: "instrumentation evidence only; fork and promotion capabilities remain Missing",
+        bound_ratification: "Ratified by Charlie Cheever in LLP 0162's dated 2026-08-04 v0.13 absolute-bound record before this final run",
+        promotion_egress_scope: "DenyAll/no-effects only; CaptureOnly intent publication and settlement are not measured",
+        claim_boundary: "instrumentation evidence only; this record alone does not qualify row 13 or advertise fork, promotion, CaptureOnly, or aggregate capabilities",
     };
     let mut output_file = std::fs::OpenOptions::new()
         .write(true)
@@ -323,6 +324,54 @@ fn main() -> anyhow::Result<()> {
     output_file.sync_all()?;
     println!("wrote {}", output.display());
     Ok(())
+}
+
+fn validate_candidate_source(expected_revision: &str) -> anyhow::Result<String> {
+    let checkout_revision = checked_command(&["git", "rev-parse", "HEAD"])?;
+    let dirty = checked_command(&["git", "status", "--porcelain", "--untracked-files=all"])?;
+    validate_candidate_binding(
+        expected_revision,
+        &checkout_revision,
+        &dirty,
+        option_env!("SNAPBACK_BUILD_GIT_COMMIT"),
+        option_env!("SNAPBACK_BUILD_GIT_DIRTY"),
+    )?;
+    Ok(checkout_revision)
+}
+
+fn validate_candidate_binding(
+    expected_revision: &str,
+    checkout_revision: &str,
+    dirty: &str,
+    compiled_revision: Option<&str>,
+    compiled_dirty: Option<&str>,
+) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        checkout_revision == expected_revision,
+        "benchmark revision mismatch: expected {expected_revision}, checked out {checkout_revision}"
+    );
+    anyhow::ensure!(
+        dirty.is_empty(),
+        "benchmark requires a clean source tree; found:\n{dirty}"
+    );
+    anyhow::ensure!(
+        compiled_revision == Some(expected_revision),
+        "release executable was not built from EXPECTED_REVISION"
+    );
+    anyhow::ensure!(
+        compiled_dirty == Some("false"),
+        "release executable was not built from a clean source tree"
+    );
+    Ok(())
+}
+
+fn validate_baseline_digest(bytes: &[u8]) -> anyhow::Result<String> {
+    let digest = format!("{:x}", Sha256::digest(bytes));
+    anyhow::ensure!(
+        digest == ACCEPTED_BASELINE_SHA256,
+        "baseline artifact bytes do not match the accepted LLP 0162 digest"
+    );
+    Ok(digest)
 }
 
 fn digest_file(path: &std::path::Path) -> anyhow::Result<String> {
@@ -425,12 +474,6 @@ fn source() -> anyhow::Result<Connection> {
     initialize_source(Connection::open_in_memory()?)
 }
 
-fn source_at(path: &std::path::Path) -> anyhow::Result<Connection> {
-    let conn = Connection::open(path)?;
-    conn.pragma_update(None, "journal_mode", "WAL")?;
-    initialize_source(conn)
-}
-
 fn initialize_source(mut conn: Connection) -> anyhow::Result<Connection> {
     conn.execute_batch(
         "CREATE TABLE _snapback_version (id INTEGER PRIMARY KEY, version INTEGER NOT NULL);
@@ -459,11 +502,6 @@ fn initialize_source(mut conn: Connection) -> anyhow::Result<Connection> {
            operation_id TEXT
          );
          CREATE TABLE widgets (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
-         CREATE TABLE _snapback_contention_writes (
-           id INTEGER PRIMARY KEY,
-           worker INTEGER NOT NULL,
-           ordinal INTEGER NOT NULL
-         );
          INSERT INTO _snapback_version VALUES (1, 9);",
     )?;
     let tx = conn.transaction()?;
@@ -494,24 +532,48 @@ fn initialize_source(mut conn: Connection) -> anyhow::Result<Connection> {
 }
 
 /// Measure the ordinary-writer tail introduced by the frozen promotion head
-/// reservation. Eight real SQLite writers begin behind one production
-/// reservation and then commit 128 operations through the production
-/// admission gate. The nearest-rank p99 is retained with every raw sample.
+/// reservation. Eight file-backed active carriers begin behind one production
+/// reservation and commit 128 issuance-bearing ordinary mutations through the
+/// envelope choke point. The nearest-rank p99 retains every request-to-COMMIT
+/// sample, including the intentional reservation wait.
 ///
 /// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — the bounded
 ///   reservation requires a p99 under-contention latency record.
 fn measure_writer_contention() -> anyhow::Result<ContentionEvidence> {
     let directory = tempfile::tempdir().context("create contention fixture directory")?;
     let database_path = directory.path().join("contention.sqlite");
-    let mut canonical = source_at(&database_path)?;
+    let canonical_stream_id = prepare_agent_safe_active_contention_database(&database_path)
+        .context("prepare active ordinary-mutation contention database")?;
+    let mut canonical = Connection::open(&database_path)?;
+    canonical.busy_timeout(Duration::from_secs(5))?;
+    let issued_at_ms = unix_millis()?;
+    let epoch = IdentityEpochV1 {
+        schema_version: 1,
+        originator_class: OperationOriginatorClassV1::Host,
+        audience: "bench-app".to_owned(),
+        authority_instance_id: "bench-authority".to_owned(),
+        epoch_id: "bench-epoch".to_owned(),
+        epoch_sequence: 1,
+        state: IdentityEpochStateV1::Open,
+        issued_at_ms: issued_at_ms.max(1) as u64,
+        terminated_at_ms: None,
+        authority_authenticator_digest: sha('a'),
+    };
+    let tx = canonical.transaction()?;
+    snapback::operation_ledger::register_epoch_in(&tx, &epoch)?;
+    tx.commit()?;
     let ticket = issue_promotion_ticket(
         &mut canonical,
-        identity("canonical", "contention-ticket", "promotion.reserve"),
+        identity(
+            &canonical_stream_id,
+            "contention-ticket",
+            "promotion.reserve",
+        ),
         &BranchId("contention-branch".to_owned()),
-        "canonical",
+        &canonical_stream_id,
         CONTENTION_WORKERS as u64,
-        80_000,
-        10_000,
+        issued_at_ms.saturating_add(60_000),
+        issued_at_ms,
         PromotionContentionPolicyV1::default(),
     )?;
     // Fixture admission starts from the exact durable state reached after the
@@ -525,58 +587,60 @@ fn measure_writer_contention() -> anyhow::Result<ContentionEvidence> {
             ticket.contention_policy.reservation_after_losses as i64
         ],
     )?;
-    let logical_start_ms = 20_000_i64;
-    request_head_reservation(&canonical, &ticket, logical_start_ms)?;
-    drop(canonical);
-
-    let barrier = Arc::new(Barrier::new(CONTENTION_WORKERS));
-    let wall_start = Instant::now();
+    let start = Arc::new(Barrier::new(CONTENTION_WORKERS + 1));
+    let abort = Arc::new(AtomicBool::new(false));
+    let setup_gate = Arc::new(Mutex::new(()));
+    let (ready_tx, ready_rx) = mpsc::channel();
     let per_worker = CONTENTION_SAMPLES / CONTENTION_WORKERS;
     let mut workers = Vec::with_capacity(CONTENTION_WORKERS);
     for worker in 0..CONTENTION_WORKERS {
         let database_path = database_path.clone();
-        let barrier = barrier.clone();
+        let canonical_stream_id = canonical_stream_id.clone();
+        let start = start.clone();
+        let abort = abort.clone();
+        let setup_gate = setup_gate.clone();
+        let ready_tx = ready_tx.clone();
         workers.push(thread::spawn(
             move || -> anyhow::Result<(bool, Vec<(f64, bool)>)> {
-                let mut conn = Connection::open(database_path)?;
-                conn.busy_timeout(Duration::from_secs(5))?;
-                barrier.wait();
+                let carrier = {
+                    let _setup = setup_gate
+                        .lock()
+                        .map_err(|_| anyhow::anyhow!("contention writer setup lock poisoned"))?;
+                    AgentSafeActiveContentionWriter::open(
+                        database_path,
+                        worker,
+                        &canonical_stream_id,
+                    )
+                };
+                ready_tx
+                    .send(carrier.as_ref().map(|_| ()).map_err(ToString::to_string))
+                    .context("report contention writer readiness")?;
+                start.wait();
+                let mut carrier = carrier?;
+                if abort.load(Ordering::Acquire) {
+                    bail!("contention writer setup aborted before measurement");
+                }
                 let mut samples = Vec::with_capacity(per_worker);
                 for ordinal in 0..per_worker {
                     let sample_started = Instant::now();
                     let mut was_deferred = false;
                     loop {
-                        let elapsed_ms =
-                            i64::try_from(wall_start.elapsed().as_millis()).unwrap_or(i64::MAX);
-                        match canonical_mutation_admission(
-                            &conn,
-                            "canonical",
-                            logical_start_ms.saturating_add(elapsed_ms),
-                        )? {
-                            CanonicalAdmissionV1::Admit => break,
-                            CanonicalAdmissionV1::DeferredByPromotionReservation { until_ms } => {
+                        match carrier.commit_next(worker, ordinal) {
+                            Ok(()) => break,
+                            Err(error)
+                                if error.diagnostic.code == "SNAPBACK_PROMOTION_HEAD_RESERVED" =>
+                            {
                                 was_deferred = true;
-                                let now_ms = logical_start_ms.saturating_add(elapsed_ms);
-                                let remaining = until_ms.saturating_sub(now_ms).max(1) as u64;
-                                thread::sleep(Duration::from_millis(remaining.min(2)));
+                                let until_ms = error.diagnostic.details["untilMs"]
+                                    .as_i64()
+                                    .context("reservation refusal omitted untilMs")?;
+                                let remaining =
+                                    until_ms.saturating_sub(unix_millis()?).max(1) as u64;
+                                thread::sleep(Duration::from_millis(remaining));
                             }
+                            Err(error) => return Err(error.into()),
                         }
                     }
-                    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-                    tx.execute(
-                        "INSERT INTO _snapback_contention_writes(id, worker, ordinal)
-                         VALUES (?1, ?2, ?3)",
-                        params![
-                            (worker * per_worker + ordinal + 1) as i64,
-                            worker as i64,
-                            ordinal as i64
-                        ],
-                    )?;
-                    tx.execute(
-                        "UPDATE _snapback_version SET version = version + 1 WHERE id = 1",
-                        [],
-                    )?;
-                    tx.commit()?;
                     samples.push((micros(sample_started), was_deferred));
                 }
                 let initial_deferred = samples.first().is_some_and(|(_, deferred)| *deferred);
@@ -584,6 +648,29 @@ fn measure_writer_contention() -> anyhow::Result<ContentionEvidence> {
             },
         ));
     }
+    drop(ready_tx);
+    let setup_errors = (0..CONTENTION_WORKERS)
+        .map(|_| {
+            ready_rx
+                .recv()
+                .context("receive contention writer readiness")
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?
+        .into_iter()
+        .filter_map(Result::err)
+        .collect::<Vec<_>>();
+    if !setup_errors.is_empty() {
+        abort.store(true, Ordering::Release);
+        start.wait();
+        for worker in workers {
+            let _ = worker.join();
+        }
+        bail!("contention writers failed setup: {setup_errors:?}");
+    }
+    request_head_reservation(&canonical, &ticket, unix_millis()?)?;
+    drop(canonical);
+    start.wait();
+
     let mut samples = Vec::with_capacity(CONTENTION_SAMPLES);
     let mut deferred_sample_count = 0;
     let mut initial_deferred_worker_count = 0;
@@ -601,12 +688,20 @@ fn measure_writer_contention() -> anyhow::Result<ContentionEvidence> {
         samples.len() == CONTENTION_SAMPLES && initial_deferred_worker_count == CONTENTION_WORKERS,
         "contention fixture did not place every initial writer behind the reservation"
     );
+    let committed_rows: usize =
+        Connection::open(&database_path)?
+            .query_row("SELECT COUNT(*) FROM todos", [], |row| row.get(0))?;
+    anyhow::ensure!(
+        committed_rows == CONTENTION_SAMPLES,
+        "active contention carrier committed {committed_rows} rows, expected {CONTENTION_SAMPLES}"
+    );
     let mut sorted = samples.clone();
     sorted.sort_by(f64::total_cmp);
     Ok(ContentionEvidence {
         metric: "ordinaryWriterReservationRequestToCommitP99Us",
-        sample_definition: "128 benchmark SQL writes across 8 concurrent SQLite connections; timer begins before the production canonical_mutation_admission gate and ends after the benchmark transaction COMMIT; this is reservation-gate tail cost, not the full envelope mutation path; each worker's first sample is observed deferred by one active production promotion reservation",
+        sample_definition: "128 active issuance-bearing ordinary mutations across 8 file-backed carriers; timer begins before the real staged mutation carrier and ends only after its envelope-bearing storage transaction commits; a reservation refusal retries the same server-issued operation identity; each worker's first sample is observed deferred by one active production promotion reservation",
         reservation_interval_ms: ticket.contention_policy.reservation_interval_ms,
+        maximum_promotion_commit_duration_ms: ticket.contention_policy.maximum_commit_duration_ms,
         p50_us: percentile(&sorted, 0.50),
         p95_us: percentile(&sorted, 0.95),
         p99_us: percentile(&sorted, 0.99),
@@ -615,6 +710,16 @@ fn measure_writer_contention() -> anyhow::Result<ContentionEvidence> {
         deferred_sample_count,
         initial_deferred_worker_count,
     })
+}
+
+fn unix_millis() -> anyhow::Result<i64> {
+    i64::try_from(
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .context("system clock predates Unix epoch")?
+            .as_millis(),
+    )
+    .context("system clock milliseconds exceed i64")
 }
 
 fn percentile(sorted: &[f64], quantile: f64) -> f64 {
@@ -853,7 +958,55 @@ mod tests {
         let evidence = measure_writer_contention().expect("contention evidence");
         assert_eq!(evidence.raw_request_to_commit_us.len(), CONTENTION_SAMPLES);
         assert_eq!(evidence.initial_deferred_worker_count, CONTENTION_WORKERS);
+        assert_eq!(evidence.deferred_sample_count, CONTENTION_WORKERS);
+        assert_eq!(evidence.reservation_interval_ms, 1_000);
+        assert_eq!(evidence.maximum_promotion_commit_duration_ms, 500);
         assert!(evidence.p99_us >= evidence.p95_us);
         assert!(evidence.max_us >= evidence.p99_us);
+    }
+
+    #[test]
+    fn absolute_recorder_rejects_stale_or_dirty_compiled_identity() {
+        let revision = "a".repeat(40);
+        validate_candidate_binding(&revision, &revision, "", Some(&revision), Some("false"))
+            .expect("exact clean binding");
+        assert!(
+            validate_candidate_binding(
+                &revision,
+                &revision,
+                "",
+                Some(&"b".repeat(40)),
+                Some("false"),
+            )
+            .is_err()
+        );
+        assert!(
+            validate_candidate_binding(&revision, &revision, "", Some(&revision), Some("true"))
+                .is_err()
+        );
+        assert!(
+            validate_candidate_binding(
+                &revision,
+                &revision,
+                " M src/storage.rs",
+                Some(&revision),
+                Some("false"),
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn absolute_recorder_accepts_only_the_exact_step0_baseline_bytes() {
+        let baseline = include_bytes!(
+            "../../tests/acceptance/fixtures/agent-safe-storage/performance-baseline.2026-08-03.v1.json"
+        );
+        assert_eq!(
+            validate_baseline_digest(baseline).expect("accepted baseline"),
+            ACCEPTED_BASELINE_SHA256
+        );
+        let mut drifted = baseline.to_vec();
+        drifted.push(b'\n');
+        assert!(validate_baseline_digest(&drifted).is_err());
     }
 }

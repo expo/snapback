@@ -12311,6 +12311,22 @@ impl LocalSnapback {
         &mut self,
         input: &HandlerInput,
     ) -> SnapbackResult<crate::commit_envelope::ClientIdentityRangeV1> {
+        self.prepare_agent_safe_active_lane_benchmark_for_client(
+            input,
+            "agent-safe-bench-client",
+        )
+        .map(|(_, range)| range)
+    }
+
+    /// Prepare one independently identified writer for the concurrent
+    /// request-to-COMMIT fixture. Returning the server-owned stream lets the
+    /// recorder install the real promotion reservation on the exact stream
+    /// that the subsequent storage transaction will check.
+    pub(crate) fn prepare_agent_safe_active_lane_benchmark_for_client(
+        &mut self,
+        input: &HandlerInput,
+        client_audience_id: &str,
+    ) -> SnapbackResult<(String, crate::commit_envelope::ClientIdentityRangeV1)> {
         let authority = self.admission.admit_dev().and_then(|admission| {
             InvocationGate::prepare_admitted_dev_input(
                 InvocationSource::LocalMutation,
@@ -12322,16 +12338,16 @@ impl LocalSnapback {
         // The ordinary benchmark fixture predates identity streams; create
         // its server-owned stream before asking the public range issuer to
         // bind a range to it.
-        self.db.data_version_stream()?;
+        let stream_id = self.db.data_version_stream()?;
         let range = self.issue_client_operation_identity_range(
             &authority,
-            "agent-safe-bench-client",
+            client_audience_id,
             None,
             None,
         )?;
         self.db
             .activate_ordinary_mutation_coverage_for_evidence(now_millis())?;
-        Ok(range)
+        Ok((stream_id, range))
     }
 
     /// Invoke the same staged issuance-bearing mutation body used by the HTTP
@@ -12366,7 +12382,10 @@ impl LocalSnapback {
             range_end_exclusive: range.range_end_exclusive,
             authority_authenticator_digest: range.authority_authenticator_digest.clone(),
         };
-        let client_mutation_id = format!("agent-safe-bench-{counter}");
+        // Range counters are unique only inside their server-issued client
+        // epoch. Include that epoch in the durable replay key so concurrent
+        // acceptance writers can each start at counter zero without aliasing.
+        let client_mutation_id = format!("agent-safe-bench-{}-{counter}", range.epoch_id);
         let (_preflight, staged) =
             self.stage_recorded_authorization_mutation_with_generation_and_settlement(
                 name,

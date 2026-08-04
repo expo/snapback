@@ -5,7 +5,15 @@
 **Systems:** Storage, Runtime, Effects, Auth, Agent experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (atomic multi-operation and CaptureOnly acceptance-tail
+**Revised:** 2026-08-04 (pre-result performance-protocol repair — LLP 0162
+v0.13 corrects the author-ratified contention terms to the frozen 1,000-ms
+reservation, separate 500-ms maximum promotion-commit duration, and
+1,250,000-µs p99 ceiling. The successor recorder times eight file-backed
+active issuance-bearing ordinary-mutation carriers through their real
+envelope-bearing COMMITs, binds the exact baseline digest and compiled clean
+candidate revision, and scopes fork/promotion operation timing to
+`DenyAll`/no-effects. The fixed-Air records remain unrun and capabilities stay
+`Missing`); 2026-08-04 (atomic multi-operation and CaptureOnly acceptance-tail
 increment — the production public branch carrier now derives conservative
 server-owned causal predecessors, records mutation facts in the same SQLite
 transaction as app rows/journal/version, and admits exact later operations
@@ -195,11 +203,13 @@ This is intentionally a progress record, not a capability advertisement:
 | 8 — resources | principal/app counts, operation/byte/diff/TTL bounds and reap-without-canonical-change fixture | Partial — the digest-work limit and replay-floor/envelope-clock joint corpus remain |
 | 9 — exact diff | independent immutable-base/head comparison, emitted attributed sequence, and deterministic 32-seed add/update/delete/revert folding corpus | Partial — the randomized corpus mutates the fixture directly rather than comparing a journal-derived net diff; a separate attributed-sequence oracle, schema/system-field coverage, and the complete journal-completeness corpus owned with LLP 0165 remain |
 | 10 — strict promotion | sealed head/log/diff/manifest/facts/schema request; unchanged-base read-only re-execution; exact durable ticket and retry binding; changed-head refusal; rebase/re-seal divergence including identical writes with divergent read/result facts; frozen R=2 / 1,000-ms / quota=1 / 500-ms contention policy; FIFO quota/defer/release; exhausted-budget refusal before canonical mutation; forged-post-image and unjournaled-trigger refusal; aggregate envelope/source joins; independently derived expected-versus-staged-actual boundary comparison with mismatch rollback | Partial — the enumerated ordinary-mutation promotion seam is creditable, but its envelope honestly marks the active canonical coverage manifest as uncovered; global generated-writer/SQLite-authorizer coverage, the real concurrent-writer fairness/crash matrix, conditional-progress evidence, and provisional/transitive effect chains remain |
-| 13 — applicable performance | historical and final-integrated dated release-mode records follow the step-0 11-run median/MAD protocol for fork/diff/promotion/reap | Partial — the integrated record closes the final-revision rerun only; author-ratified absolute bounds, p99 contention evidence, and applicable correctness gates remain incomplete |
+| 13 — applicable performance | historical and final-integrated dated release-mode records follow the step-0 11-run median/MAD protocol for fork/diff/promotion/reap; the final recorder is pre-bound to LLP 0162 v0.13's absolute and active-carrier p99 ceilings | Partial — the historical integrated record is preserved, and the exact baseline/compiled-source/real-carrier protocol is ready; the final fixed-Air records and applicable correctness gates remain incomplete |
 
-The runner refuses measurement while another Cargo/Rust compiler is active,
-retains every raw run, and writes the missing bound-ratification fact into its
-output artifact. The historical dated record is
+The historical runner refuses measurement while another Cargo/Rust compiler
+is active, retains every raw run, and writes its then-missing
+bound-ratification fact into the output artifact. Its successor instead embeds
+the pre-result v0.13 ratification, exact baseline digest, compiled candidate
+identity, and honest `DenyAll`/no-effects scope. The historical dated record is
 [`agent-safe-fork-promotion-absolute-2026-08-03`](../tests/acceptance/fixtures/agent-safe-storage/fork-promotion-performance.2026-08-03.v1.json),
 recorded on the step-0 Mac17,3 machine and identifying source revision
 `83d0e71901357733293f66a5b125991bbfd892f8`. Median/MAD latencies are
