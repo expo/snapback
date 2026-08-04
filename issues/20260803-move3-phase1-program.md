@@ -31,3 +31,13 @@ M1 → M2 → M3 → M4 serial in spirit; M1/M2 may interleave where the
 evaluator's read admission demands it. Exit: the Kanban gate presented
 to Charlie by 2026-08-17 with retained receipts; Phase-2 scheduling
 stays 0129's.
+
+## Progress
+
+- **M1 LANDED 2026-08-03.** `@expo/snapback-client/ir-evaluator`: the
+  shipping browser-safe evaluator; D5 harness now a thin adapter over
+  shipped code — 37/37 Rust-vs-shipping-JS exact, 5/5 multi-table;
+  full client suite green outside the sandbox; used-exports closure
+  20,833 min / 7,383 gzip (inside the spike envelope; increment over
+  the store 20,795 / 6,917). M2 (read admission against the store) is
+  next.

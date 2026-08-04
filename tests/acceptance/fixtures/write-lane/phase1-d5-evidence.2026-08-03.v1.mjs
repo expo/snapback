@@ -209,8 +209,11 @@ assert.equal(matrix.filter((row) => row.crossRuntimeExact).length, 37);
 
 const sourcePaths = [
   'packages/snapback-codegen/data-tier-corpus.mjs',
+  'packages/snapback-contract/index.mjs',
   'packages/snapback-contract/derived-overlay.mjs',
   'packages/snapback-contract/derived-overlay.test.mjs',
+  'packages/snapback-client/ir-evaluator.mjs',
+  'packages/snapback-client/ir-evaluator.test.mjs',
   'tests/conformance/data-tier/js-d5-harness.mjs',
   'tests/data_tier_corpus_v0.rs',
   'tests/acceptance/fixtures/write-lane/phase1-d5-evidence.2026-08-03.v1.mjs',
@@ -244,13 +247,14 @@ const receipt = {
       rustc: run('rustc', ['--version']),
     },
     javascript: {
-      shippedValueEvaluator: 'packages/snapback-contract/derived-overlay.mjs',
-      evidenceWorkspace: 'tests/conformance/data-tier/js-d5-harness.mjs',
-      suite: 'packages/snapback-contract/derived-overlay.test.mjs',
-      command: 'node packages/snapback-contract/derived-overlay.test.mjs',
+      shippingEvaluator: 'packages/snapback-client/ir-evaluator.mjs',
+      conformanceAdapter: 'tests/conformance/data-tier/js-d5-harness.mjs',
+      valueSemantics: 'packages/snapback-contract/derived-overlay.mjs',
+      suite: 'packages/snapback-client/ir-evaluator.test.mjs',
+      command: 'node packages/snapback-client/ir-evaluator.test.mjs',
       status: 'pass',
       node: process.version,
-      registration: 'test-only-unregistered',
+      registration: 'shipping-package-subpath',
     },
   },
   exactness: {
@@ -284,7 +288,7 @@ const receipt = {
   cases: matrix,
   findings: [],
   limits: [
-    'The JavaScript multi-table workspace is test-only evidence machinery, not an exported or registered shipping executor.',
+    'The shipping evaluator implements the complete D5 v1 semantic workspace, while local prediction separately admits only the M1 Insert/Get/Guard/Patch effect ceiling.',
     'No coverage/read-requirement sidecar is needed for D5 full-workspace replay; this receipt does not establish partial-replica read admission.',
     'This receipt makes no Parity, same-code, capability, React presentation, store/outbox, or settlement claim.',
   ],

@@ -1,6 +1,6 @@
 {
   "artifactKind": "snapback.phase1-d5-evidence-receipt.v1",
-  "baseRevision": "b2f37c00175f640b6c4e560e4848389df9ee338c",
+  "baseRevision": "aeba33a8c40f44aff7dd191adf4dd7f7f99786ad",
   "cases": [
     {
       "case": "all-aboard-apply-feed-tick",
@@ -970,13 +970,14 @@
   },
   "executors": {
     "javascript": {
-      "command": "node packages/snapback-contract/derived-overlay.test.mjs",
-      "evidenceWorkspace": "tests/conformance/data-tier/js-d5-harness.mjs",
+      "command": "node packages/snapback-client/ir-evaluator.test.mjs",
+      "conformanceAdapter": "tests/conformance/data-tier/js-d5-harness.mjs",
       "node": "v25.9.0",
-      "registration": "test-only-unregistered",
-      "shippedValueEvaluator": "packages/snapback-contract/derived-overlay.mjs",
+      "registration": "shipping-package-subpath",
+      "shippingEvaluator": "packages/snapback-client/ir-evaluator.mjs",
       "status": "pass",
-      "suite": "packages/snapback-contract/derived-overlay.test.mjs"
+      "suite": "packages/snapback-client/ir-evaluator.test.mjs",
+      "valueSemantics": "packages/snapback-contract/derived-overlay.mjs"
     },
     "rustHost": {
       "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
@@ -989,16 +990,19 @@
   "findings": [],
   "gatePresentationDue": "2026-08-10",
   "limits": [
-    "The JavaScript multi-table workspace is test-only evidence machinery, not an exported or registered shipping executor.",
+    "The shipping evaluator implements the complete D5 v1 semantic workspace, while local prediction separately admits only the M1 Insert/Get/Guard/Patch effect ceiling.",
     "No coverage/read-requirement sidecar is needed for D5 full-workspace replay; this receipt does not establish partial-replica read admission.",
     "This receipt makes no Parity, same-code, capability, React presentation, store/outbox, or settlement claim."
   ],
   "sourceHashes": {
+    "packages/snapback-client/ir-evaluator.mjs": "sha256:99f554215a27c23686ca4bb3ed5b17b5f2b98ed46d738057992af3fa3898ea36",
+    "packages/snapback-client/ir-evaluator.test.mjs": "sha256:01cf09a92607979698c967a0c16ef743d44540f28fa9e7a04aeb9b493eeed684",
     "packages/snapback-codegen/data-tier-corpus.mjs": "sha256:fba1211d669fc87f19a7c15604f6f4df9f21ade4bfc8d2721d6c8b16592333b3",
     "packages/snapback-contract/derived-overlay.mjs": "sha256:8b5324a45a8beaaa7db4eaf93361f8faf1008e152a74f9903844335d0f8e0a32",
-    "packages/snapback-contract/derived-overlay.test.mjs": "sha256:ac3b9b3a4d79258216a124d660f779a44203d1e40e1015803696e9a5f6848107",
-    "tests/acceptance/fixtures/write-lane/phase1-d5-evidence.2026-08-03.v1.mjs": "sha256:a4e69d4ca400faa200bc1ecf3f18d1048419159051034ee38e79876c2d1ff2ad",
-    "tests/conformance/data-tier/js-d5-harness.mjs": "sha256:2c2578a1ace8481c993e0e2563cae06c2ee1008b1c23cacdba6ae9d2fc3db5ce",
+    "packages/snapback-contract/derived-overlay.test.mjs": "sha256:56165350540634a3a347bca6ab2f9d4dd89117f9056246835379e3b383b2e3e2",
+    "packages/snapback-contract/index.mjs": "sha256:a7631cb2c37d32987929b207c3aec279bc97f8884918e2b06780d3eddceeeda7",
+    "tests/acceptance/fixtures/write-lane/phase1-d5-evidence.2026-08-03.v1.mjs": "sha256:3c0f1ea0bb4c6da5525b157113f1e690d186ed12bac4e65139ca154f7d382f08",
+    "tests/conformance/data-tier/js-d5-harness.mjs": "sha256:6379413001c81895dc9585a14100c8a0cfdb08cb955bca68c2d4b801e4953071",
     "tests/data_tier_corpus_v0.rs": "sha256:9f973e411f032d5f1733da90484622fa0b34f07c8eb367931ba1f68be65f57d8"
   },
   "summary": {

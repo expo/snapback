@@ -81,6 +81,7 @@ const inventories = [
       'external-store.test.mjs',
       'hosted-browser.test.mjs',
       'hosted-ephemeral.test.mjs',
+      'ir-evaluator.test.mjs',
       'lifecycle-disposal.test.mjs',
       'lease-convergence.test.mjs',
       'logout-v3-bridge.test.mjs',
@@ -493,7 +494,13 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // the public AuthCoordinator-to-v3-store logout transition suite.
 // 181 -> 183 (2026-08-03, LLP 0090 mixed-route successor): codegen and client
 // gain the version-2 artifact, explicit-liveness, and refusal witnesses.
-assert.equal(total, 185, 'reviewed package/admin test count changed');
+// 183 -> 185 (2026-08-03, P2 hydration bridge landing): @expo/snapback-client
+// gains the materialization-bridge suite, and the already configured admin
+// brand-mark theme suite is registered (main had omitted it here).
+// 185 -> 186 (2026-08-03, Move-3 Phase-1 lane M1): @expo/snapback-client
+// gains the shipping browser-safe IR evaluator, closed-admission,
+// private-layer, and complete 37-case D5 conformance suite.
+assert.equal(total, 186, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

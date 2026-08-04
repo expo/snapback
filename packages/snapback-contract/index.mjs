@@ -107,10 +107,18 @@ export { createKeyedSnapbackContractProvider } from './keyed-provider.mjs';
 // ./derived-overlay.mjs; re-exported so the package root stays the single
 // import site.
 export {
+  canonicalizeJsonValue,
+  DATA_TIER_PROFILE_VERSION,
   deriveOptimisticReducer,
   deriveOptimisticReducers,
+  evalValueExpr,
+  MAX_EXPR_DEPTH,
+  MAX_INSERT_EACH_FANOUT,
+  MAX_PLAN_STEPS,
   planDerivableForTable,
   OVERLAY_CLASSES,
+  truthy,
+  valuesEqual,
 } from './derived-overlay.mjs';
 
 export {

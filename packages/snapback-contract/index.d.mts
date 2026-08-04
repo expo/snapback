@@ -166,6 +166,25 @@ export type SnapbackOverlayClass = 'derived' | 'reducer' | 'none';
 
 /** Overlay classes a mutation invocation can present. */
 export const OVERLAY_CLASSES: readonly ['derived', 'reducer', 'none'];
+export const DATA_TIER_PROFILE_VERSION: 1;
+export const MAX_PLAN_STEPS: 64;
+export const MAX_EXPR_DEPTH: 32;
+export const MAX_INSERT_EACH_FANOUT: 1024;
+
+export function canonicalizeJsonValue(value: unknown): unknown;
+export function evalValueExpr(
+  expression: unknown,
+  environment: Readonly<{
+    args?: unknown;
+    authUserId?: string | null;
+    bindings?: Map<string, unknown>;
+    nowMs?: number;
+    runtimeId?: (() => string) | null;
+  }>,
+  depth?: number,
+): unknown;
+export function truthy(value: unknown): boolean;
+export function valuesEqual(left: unknown, right: unknown): boolean;
 
 /** Serialized snapback `MutationPlan` embedded in a generated manifest. */
 export interface SnapbackMutationPlan {
