@@ -153,8 +153,26 @@ struct LinkProcess {
 }
 
 impl LinkProcess {
-    fn line(&self) -> String {
-        self.lines.recv_timeout(Duration::from_secs(10)).unwrap()
+    fn line(&mut self) -> String {
+        match self.lines.recv_timeout(Duration::from_secs(10)) {
+            Ok(line) => line,
+            Err(error) => {
+                let status = self.child.wait().expect("wait for failed tailscale link");
+                if let Some(reader) = self.reader.take() {
+                    reader.join().expect("join failed tailscale link reader");
+                }
+                let mut stderr = String::new();
+                self.child
+                    .stderr
+                    .take()
+                    .expect("failed tailscale link stderr")
+                    .read_to_string(&mut stderr)
+                    .expect("read failed tailscale link stderr");
+                panic!(
+                    "tailscale link emitted no URL ({error:?}); status={status}; stderr={stderr}"
+                );
+            }
+        }
     }
 
     fn signal(&mut self, signal: libc::c_int) {
@@ -215,7 +233,7 @@ fn start_link(ready_file: &std::path::Path, fake: &FakeTailscale) -> (LinkProces
             }
         }
     });
-    let process = LinkProcess {
+    let mut process = LinkProcess {
         child,
         lines,
         reader: Some(reader),
