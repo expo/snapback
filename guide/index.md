@@ -180,6 +180,10 @@ you never build around a feature because you didn't know it existed.
   publish budgets (the cursors-web demo, distilled).
 - [Hidden hands](./recipes/hidden-hands.md) — per-principal secrecy, logout
   blanking, lease-bounded offline retention (card-game, distilled).
+- [Optimistic toggle](./recipes/optimistic-toggle.md) — like/favorite with a
+  count: atomic two-field projection, replayable capture-and-set reducers,
+  complete-receipt matching, and the one-canonical-store rule across query
+  surfaces.
 
 ### Meta
 - [Capability index](./capabilities.md) — everything Snapback has, covered

@@ -178,18 +178,15 @@ For a mutation whose optimistic projection updates a currently authoritative
 live query, declare that projection beside the hook:
 
 ```ts fragment reason="mutation and query fields come from the generated application API"
+const intendedDone = !task.done; // captured from the row this component rendered
 const toggleTask = useSnapbackMutation(api.toggleTask, {
   optimistic: {
     query: api.allTasks,
     args: {},
-    update(tasks, { taskId }) {
-      return tasks.map((task) =>
-        task.id === taskId ? { ...task, done: !task.done } : task);
-    },
-    isAuthoritative(tasks, result) {
-      return tasks.some((task) => task.id === result.id
-        && task.done === result.done);
-    },
+    update: (tasks) =>
+      tasks.map((row) => row.id === task.id ? { ...row, done: intendedDone } : row),
+    isAuthoritative: (tasks, result) =>
+      tasks.some((row) => row.id === result.id && row.done === result.done),
   },
 });
 ```
@@ -202,6 +199,16 @@ authoritative base. An HTTP response validates and settles the mutation
 promise, but is not itself live-query authority; `isAuthoritative`, when
 present, retires that layer only after a matching validated live delivery.
 There are at most 256 pending optimistic layers per store.
+
+`update` is a **replayable projection**, not an action: it is recomputed over
+every newer authoritative base, so capture the intended outcome outside the
+reducer and set it (as `intendedDone` above) rather than toggling or
+incrementing the incoming row, which re-runs the user action on rebase. For
+the full toggle-plus-counter shape — atomic `liked`/`likeCount` projection,
+complete-receipt matching across partial deliveries, response/query ordering,
+and the one-canonical-store rule when the same record renders on several
+query surfaces — use
+[the optimistic toggle recipe](../recipes/optimistic-toggle.md).
 
 ## Publish and observe presence
 
@@ -316,6 +323,12 @@ no-work refusal, and exact provider/client/server cleanup with zero skips.
   reference.** Fix the function's result contract and regenerate the API.
 - **Do not treat a mutation HTTP response as live-query authority.** Use the
   subsequent validated live delivery to retire optimistic state.
+- **Do not add a component-local delta to a count a live query already
+  supplies.** The authoritative increment arrives independently and
+  double-counts; project the change optimistically over the query store
+  instead ([optimistic toggle recipe](../recipes/optimistic-toggle.md)).
+- **Do not toggle or increment inside an optimistic `update`.** The
+  projection replays during rebase; capture the intended outcome and set it.
 - **Do not create presence heartbeat intervals in application code.** Pass
   managed intent to `useSnapbackPresence`; the provider owns admission,
   refresh, disconnect, and teardown.

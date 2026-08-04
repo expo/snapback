@@ -221,4 +221,169 @@ await flush();
 await provider.dispose();
 assert.equal(client.inspection().handles, 0);
 
-console.log('optimistic.test.mjs: overlap, rollback, matcher ordering, rebase failure, and install refusal pass');
+// The optimistic toggle recipe (guide/recipes/optimistic-toggle.md): one
+// viewer-aware query supplies both `liked` and `likeCount`, one replayable
+// projection sets both atomically, and the matcher recognizes only the
+// complete mutation receipt. The same post is mounted in two query stores to
+// pin the v1 one-canonical-store boundary.
+const postsContract = {
+  kind: 'records',
+  record: {
+    kind: 'object',
+    fields: [
+      { name: 'id', required: true, value: { kind: 'string', maxBytes: 32 } },
+      { name: 'liked', required: true, value: { kind: 'boolean' } },
+      { name: 'likeCount', required: true, value: { kind: 'integer', min: 0, max: 1_000_000 } },
+    ],
+    allowExtra: false,
+  },
+};
+const likeReceiptContract = {
+  kind: 'value',
+  value: {
+    kind: 'object',
+    fields: [
+      { name: 'liked', required: true, value: { kind: 'boolean' } },
+      { name: 'likeCount', required: true, value: { kind: 'integer', min: 0, max: 1_000_000 } },
+    ],
+    allowExtra: false,
+  },
+};
+const timeline = ref('timeline', 'LiveQuery', postsContract);
+const profilePosts = ref('profilePosts', 'LiveQuery', postsContract);
+const toggleLike = ref('toggleLike', 'Mutation', likeReceiptContract);
+const likeFunctions = Object.freeze({
+  artifactKind: 'functionManifest',
+  schemaVersion: 'snapback.v0',
+  appId: 'optimistic-fixture',
+  bundleHash: 'sha256:optimistic-toggle-bundle',
+  functions: [timeline, profilePosts, toggleLike],
+});
+
+function fakeSurfacesClient(initialRowsByQuery) {
+  const handles = new Set();
+  const attempts = [];
+  let dispatches = 0;
+  return {
+    liveQuery() {},
+    async inspect() {
+      return {
+        targetProfileId: 'local-dev-sqlite-ibex',
+        target: 'local-dev-sqlite-ibex',
+        schema: { schemaHash: 'sha256:optimistic-schema' },
+        functions: likeFunctions,
+        capabilityManifest: {
+          artifactKind: 'capabilityManifest',
+          schemaVersion: 'snapback.v0',
+          targetProfileId: 'local-dev-sqlite-ibex',
+          supportedCapabilities: ['live_subscriptions'],
+        },
+      };
+    },
+    async authSession() { return { activeMode: 'dev' }; },
+    registerAuthBarrierParticipant() { return async () => {}; },
+    liveStreamManager() { return { async settled() {} }; },
+    startLiveQuery(reference, options) {
+      const handle = {
+        name: reference.name,
+        current: { rows: initialRowsByQuery[reference.name], connection: 'live' },
+        started: async () => {},
+        dispose() { handles.delete(handle); },
+        settled: async () => {},
+        emit(rows) {
+          handle.current.rows = rows;
+          options.onUpdate(rows);
+        },
+      };
+      handles.add(handle);
+      queueMicrotask(() => options.onUpdate(handle.current.rows));
+      return Object.freeze(handle);
+    },
+    mutate(_reference, options) {
+      dispatches += 1;
+      let resolve;
+      let reject;
+      const promise = new Promise((yes, no) => {
+        resolve = (result) => yes({ result, version: dispatches });
+        reject = no;
+      });
+      attempts.push({ options, resolve, reject });
+      return promise;
+    },
+    emit(name, rows) {
+      for (const handle of handles) if (handle.name === name) handle.emit(rows);
+    },
+    inspection() { return { attempts, dispatches, handles: handles.size }; },
+  };
+}
+
+const likeClient = fakeSurfacesClient({
+  timeline: [{ id: 'p1', liked: false, likeCount: 10 }],
+  profilePosts: [{ id: 'p1', liked: false, likeCount: 10 }],
+});
+const likeBinding = await prepareReactBindingForClient(likeClient, { generatedManifest: likeFunctions });
+const likeProvider = createSnapbackReactProvider(likeBinding, { connectionId: 'optimistic-toggle-test' });
+const likeObserver = observeSnapbackQueries(
+  likeProvider,
+  {
+    timeline: { ref: timeline, args: {} },
+    profile: { ref: profilePosts, args: { handle: 'ada' } },
+  },
+  () => {},
+);
+await flush();
+const view = () => likeObserver.snapshot().queries;
+assert.equal(view().timeline.data[0].liked, false);
+assert.equal(view().profile.data[0].likeCount, 10);
+
+// Capture the intended outcome at admission. The projection is replayed over
+// every newer authoritative base during rebase, so it must set the captured
+// outcome; toggling or incrementing the incoming row would re-run the user
+// action on replay and visibly invert or double-apply it.
+const intended = { liked: true, likeCount: 11 };
+const optimisticLike = {
+  query: timeline,
+  args: {},
+  update: (posts) => posts.map((post) => post.id === 'p1' ? { ...post, ...intended } : post),
+  isAuthoritative: (posts, receipt) => posts.some((post) => post.id === 'p1'
+    && post.liked === receipt.liked && post.likeCount === receipt.likeCount),
+};
+const like = invokeSnapbackMutation(
+  likeProvider,
+  toggleLike,
+  { postId: 'p1' },
+  { optimistic: optimisticLike },
+);
+assert.equal(view().timeline.data[0].liked, true);
+assert.equal(view().timeline.data[0].likeCount, 11, 'both fields change atomically');
+assert.equal(view().profile.data[0].liked, false, 'v1: one canonical store carries the layer');
+
+// A partial authoritative delivery (the like row landed, the denormalized
+// count has not) rebases the layer instead of retiring it: the captured
+// outcome holds, and a toggle-style reducer would have inverted here.
+likeClient.emit('timeline', [{ id: 'p1', liked: true, likeCount: 10 }]);
+assert.equal(view().timeline.data[0].liked, true, 'replay does not invert the heart');
+assert.equal(view().timeline.data[0].likeCount, 11, 'partial delivery keeps the layer installed');
+
+// Response-before-query: the HTTP receipt settles the mutation promise, but
+// the layer retires only after a live delivery matches the complete receipt.
+likeClient.inspection().attempts[0].resolve({ liked: true, likeCount: 11 });
+assert.deepEqual(await like, { liked: true, likeCount: 11 });
+assert.equal(view().timeline.data[0].likeCount, 11, 'settled response alone does not retire the layer');
+likeClient.emit('timeline', [{ id: 'p1', liked: true, likeCount: 11 }]);
+assert.equal(view().timeline.data[0].likeCount, 11);
+likeClient.emit('timeline', [{ id: 'p1', liked: true, likeCount: 12 }]);
+assert.equal(view().timeline.data[0].likeCount, 12, 'layer retired after the complete receipt');
+
+// Other mounted stores rendering the same record update through their own
+// authoritative subscriptions, not through the optimistic layer.
+likeClient.emit('profilePosts', [{ id: 'p1', liked: true, likeCount: 12 }]);
+assert.equal(view().profile.data[0].liked, true, 'other surfaces settle authoritatively');
+assert.equal(view().profile.data[0].likeCount, 12);
+
+likeObserver.dispose();
+await flush();
+await likeProvider.dispose();
+assert.equal(likeClient.inspection().handles, 0);
+
+console.log('optimistic.test.mjs: overlap, rollback, matcher ordering, rebase failure, install refusal, and the toggle recipe pass');

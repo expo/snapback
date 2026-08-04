@@ -186,3 +186,9 @@ reconnect backoff 250ms → 10s. The
   connection axis, not `isOpen()`.
 - **Do not leak handles.** Every `liveQuery`/overlay handle is `dispose()`d
   in teardown (React: effect cleanup; suites: `cleanups`).
+- **Do not combine component-local state or counter deltas with a value a
+  live query already delivers.** Viewer-specific facts (a `liked` flag, a
+  count) belong in the query result; zero-latency interaction comes from an
+  optimistic projection over that same store, which reconciles with later
+  authoritative deliveries instead of double-applying — see
+  [the optimistic toggle recipe](../recipes/optimistic-toggle.md).
