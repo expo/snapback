@@ -5,8 +5,9 @@
 **Systems:** Developer experience, Runtime, Storage, Realtime, Security, Client integration, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
+**Revised:** 2026-08-03 (`snapback admin` performs trusted ready-file discovery and hands only a derived `sbcc_` credential to the browser in a URL fragment; active dev/loopback credentials slide within an eight-hour cap and digest-only state reattaches beside file-backed databases; a short-TTL, rate-limited, single-use RFC-8628-shaped terminal approval flow covers remote browsers).
 **Revised:** 2026-08-02 (0137 G1 follow-on: descriptor-scoped `P.secret-read-root` custody now retains an open handle to the adopted inode until teardown, preventing immediate inode-number reuse from making an identity-only guard delete a foreign replacement). 2026-08-01 (0137 G1: the `P.secret-read-root` sibling is descriptor-scoped custody — the serve process removes it identity-guarded with the ready descriptor at shutdown/teardown instead of orphaning it; the database-scoped `<db>.admin-token` reattach custody is unchanged). 2026-07-15 (the instance home now discovers the build-bound Snapback Guide for humans and its one-request flat projection for agent clients in every negotiated rendering). 2026-07-13 (ENG-24595: browsers exchange the master admin token for a short-lived, non-renewable console credential and never persist the master; config status exposes only closed verification state; the browser runner no longer manufactures app identity; earlier: ENG-24338 review follow-up: the readiness descriptor itself is atomically published owner-only at 0600, and CLI URL/token resolution uses one validated descriptor snapshot; ENG-24359 review follow-up: filesystem static assets are opened by a root-directory capability plus component-relative no-follow handles and read from the verified final descriptor; platforms without that primitive fail closed instead of retaining a canonicalize/read race; ENG-24338/ENG-24346/ENG-24359: trusted token discovery, owner-only no-follow capability files, and canonical static-asset containment; earlier: 2026-07-04 admin serving now has a single UI implementation: the Contract/Exact `admin-ui/dist` snapshot. The server auto-discovers a built repo-local dist when `SNAPBACK_ADMIN_DIST` is unset; if no dist is available, `/_snapback/admin` returns a missing-dist diagnostic instead of the deleted handwritten fallback console. Earlier: 2026-07-03 instance home is embedded-only again: the short-lived `home-ui/` Contract surface, `SNAPBACK_HOME_DIST`, and `/_snapback/home/*` lane were removed because `/` is a recovery/status page whose value is zero-toolchain reliability, while the admin dashboard remains the useful Contract/Exact dogfooding surface. Earlier: 2026-07-02 instance home briefly gained a Contract surface and shared-build-preset notes; this revision supersedes that slice. Earlier same day: added §Instance home page: the root `/` is now content-negotiated — a branded, embedded HTML homepage for browsers over the same public metadata object served as YAML/JSON/Markdown; app identity comes from the schema manifest's optional `app` block. Earlier same day: ENG-22598: Secrets surface was added to the then-existing admin consoles over the LLP 0036 config ops. Earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the console and admin API shipped per this RFC, hosted access still future; LLP 0032 R3: layout-kernel diagnosis corrected per LLP 0023/ENG-22199; "local safe by default" annotated with the S0 root-alias gating; LLP 0032 S1: v0-alias retirement completed per LLP 0031)
-**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0024, LLP 0036
+**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0024, LLP 0036, LLP 0150
 
 ## Summary
 
@@ -503,14 +504,41 @@ Local defaults:
   projection. A fresh console renders a text-only token prompt on 401 and sends
   the submitted master token once to
   `POST /_snapback/api/console/credential`. That response is `no-store` and
-  carries a process-bound console credential with a ten-minute expiry. The
-  server retains only its SHA-256 digest. The shared client may persist that
-  derived credential plus its expiry under
+  carries a derived console credential with a ten-minute expiry. The
+  server retains only its SHA-256 digest. On file-backed targets the digest,
+  original issue time, sliding expiry, and absolute expiry are atomically
+  persisted owner-only at `<db>.console-credentials`; the raw credential and
+  master token are never written there. Valid entries reattach after a server
+  restart. The shared client may persist the derived credential plus its expiry under
   `snapback_console_credential_v1`, removes it when stale, and sends it only as
   `x-snapback-console-credential`; the master never enters `localStorage`,
-  `sessionStorage`, or IndexedDB. A derived console credential satisfies only
-  ordinary `AdminRead`/`AdminWrite`: it cannot renew itself, satisfy
-  `AdminSecretRead`, or mint/use impersonation authority. Operator tooling may
+  `sessionStorage`, or IndexedDB. `snapback admin --ready-file P` validates the
+  descriptor against the live startup nonce, reads the owner-only token path
+  admitted by that trusted descriptor, exchanges the master in the CLI, and
+  opens `/_snapback/admin/` with only `sbcc_` plus its expiry in the URL
+  fragment; the page removes the fragment before boot and stores the derived
+  record through the same client path. `--no-open` explicitly prints that
+  fragment URL for headless handoff. A URL-only target never selects a local
+  file and requires an explicit token.
+
+  An active derived credential may renew itself only on a loopback local
+  target in the `dev` profile and dev auth policy. Renewal slides the ten-minute
+  expiry but never moves the absolute eight-hour deadline established at first
+  mint; expired credentials and other profiles cannot renew. A derived console
+  credential otherwise satisfies only ordinary `AdminRead`/`AdminWrite`: it
+  cannot satisfy `AdminSecretRead` or mint/use impersonation authority.
+
+  A browser that cannot share the terminal filesystem may request a
+  RFC-8628-shaped device approval. The console displays an eight-hex-digit user
+  code; `snapback admin approve <code> --ready-file P` proves master-token
+  access in the terminal, and polling releases one newly derived credential to
+  that browser. Device requests expire after ten minutes, approval and delivery
+  are each single-use, invalid/expired/consumed codes share one refusal, and
+  creation, approval attempts, polling, and total pending state are rate/cap
+  bounded. Request and poll grant no admin authority by themselves. This flow,
+  initial minting, and renewal all refuse non-loopback and hosted targets.
+
+  Operator tooling may
   hand the shared client a derived `AdminSecretRead` lease for an explicit
   inspection session, but the client retains it only in the current JavaScript
   object, sends it only on secret-bearing inspect/scan/runner calls, and never
@@ -641,6 +669,9 @@ Landed (steps 1–7 of the sketch):
   retained only in bearer-authenticated full inspect) whenever `SNAPBACK_ADMIN_TOKEN` is unset
   — so no HTTP-served
   instance accepts tokenless admin writes;
+- `snapback admin`, fragment-only browser handoff, restart-stable digest-only
+  console credentials, capped dev-only sliding renewal, and the bounded
+  terminal approval flow described in *Security Defaults*;
 - the one safe ephemeral control: token-gated cleanup of expired entries.
 
 Reported as honest capability gaps in the `admin` block, not as placeholder
@@ -722,6 +753,15 @@ The accepted local contract must keep the following acceptance proofs green:
   authority out of Snapback;
 - binding to a non-loopback address disables admin or requires an explicit admin
   token;
+- non-loopback and hosted targets cannot mint, renew, or device-approve browser
+  console credentials even when another admin bearer is present;
+- `snapback admin --no-open` prints a fragment-bearing URL whose only
+  credential is derived `sbcc_`, and that credential authenticates the real
+  admin API;
+- active console credentials survive a file-backed server restart and renew
+  past their base TTL without crossing their absolute lifetime cap;
+- console device codes expire, are single-use, are rate/cap bounded, and release
+  a credential only after a token-holding terminal approves the matching code;
 - the data explorer reads rows through schema-aware Snapback storage, not raw
   SQLite assumptions;
 - direct admin edits, once implemented, create ordinary Snapback changesets,

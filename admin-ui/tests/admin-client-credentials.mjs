@@ -5,7 +5,10 @@
 
 import assert from 'node:assert/strict';
 
-import { AdminClient } from '../../packages/snapback-admin-client/index.mjs';
+import {
+  AdminClient,
+  consumeConsoleCredentialFragment,
+} from '../../packages/snapback-admin-client/index.mjs';
 
 const MASTER = 'master-admin-credential-SENTINEL';
 const DERIVED = 'sbcc_derived-console-SENTINEL';
@@ -46,7 +49,7 @@ globalThis.fetch = async (url, options = {}) => {
   if (url.endsWith('/console/credential')) {
     return response(200, {
       credential: DERIVED,
-      expiresAtMs: Date.now() + 60_000,
+      expiresAtMs: Date.now() + 10 * 60_000,
     });
   }
   return response(200, { ok: true });
@@ -572,6 +575,103 @@ assert.deepEqual(
   JSON.parse(telemetryRequests[4].options.body),
   { issue: 'iss_test', to: 'resolved', expectSeq: 7 },
   'error transition preserves the state-sequence CAS body',
+);
+
+const FRAGMENT_DERIVED = 'sbcc_fragment-handoff';
+const fragmentExpiry = Date.now() + 60_000;
+let replacedFragmentUrl = null;
+const fragmentClient = new AdminClient('http://snapback.test/_snapback/api');
+assert.equal(
+  consumeConsoleCredentialFragment(
+    fragmentClient,
+    {
+      hash: `#credential=${FRAGMENT_DERIVED}&expiresAtMs=${fragmentExpiry}`,
+      pathname: '/_snapback/admin/',
+      search: '',
+    },
+    {
+      state: { retained: true },
+      replaceState(_state, _title, url) { replacedFragmentUrl = url; },
+    },
+  ),
+  true,
+);
+assert.equal(replacedFragmentUrl, '/_snapback/admin/');
+assert.equal(
+  JSON.parse(storage.get('snapback_console_credential_v1')).credential,
+  FRAGMENT_DERIVED,
+  'fragment handoff lands in the same derived-only storage record as token exchange',
+);
+
+const deviceRequests = [];
+const DEVICE_CODE = 'sbcd_devicesecret';
+const DEVICE_DERIVED = 'sbcc_device-approved';
+let devicePolls = 0;
+fetchOverride = async (url, options = {}) => {
+  deviceRequests.push({ url, options });
+  if (url.endsWith('/console/approval/request')) {
+    return response(200, {
+      deviceCode: DEVICE_CODE,
+      userCode: 'ABCD-1234',
+      verificationUri: 'http://127.0.0.1/_snapback/admin/',
+      expiresIn: 600,
+      interval: 2,
+    });
+  }
+  if (url.endsWith('/console/approval/poll')) {
+    devicePolls += 1;
+    return devicePolls === 1
+      ? response(200, { status: 'authorization_pending', interval: 2 })
+      : response(200, {
+          status: 'approved',
+          credential: DEVICE_DERIVED,
+          expiresAtMs: Date.now() + 60_000,
+        });
+  }
+  return response(200, { ok: true });
+};
+const deviceClient = new AdminClient('http://snapback.test/_snapback/api');
+const deviceRequest = await deviceClient.requestConsoleApproval();
+assert.equal(deviceRequest.userCode, 'ABCD-1234');
+assert.equal((await deviceClient.pollConsoleApproval(deviceRequest.deviceCode)).status, 'authorization_pending');
+assert.equal((await deviceClient.pollConsoleApproval(deviceRequest.deviceCode)).status, 'approved');
+assert.equal(
+  JSON.parse(storage.get('snapback_console_credential_v1')).credential,
+  DEVICE_DERIVED,
+);
+assert.equal(
+  [...storage.entries(), ...storageWrites].some((entry) => JSON.stringify(entry).includes(DEVICE_CODE)),
+  false,
+  'the polling device bearer remains memory-only',
+);
+
+const NEAR_EXPIRY = 'sbcc_near-expiry';
+storage.set('snapback_console_credential_v1', JSON.stringify({
+  credential: NEAR_EXPIRY,
+  expiresAtMs: Date.now() + 1_000,
+}));
+const renewalRequests = [];
+fetchOverride = async (url, options = {}) => {
+  renewalRequests.push({ url, options });
+  if (url.endsWith('/console/credential')) {
+    return response(200, {
+      credential: NEAR_EXPIRY,
+      expiresAtMs: Date.now() + 10 * 60_000,
+    });
+  }
+  return response(200, { ok: true });
+};
+const renewalClient = new AdminClient('http://snapback.test/_snapback/api');
+await renewalClient.inspect();
+assert.equal(renewalRequests[0].url.endsWith('/console/credential'), true);
+assert.equal(
+  renewalRequests[0].options.headers['x-snapback-console-credential'],
+  NEAR_EXPIRY,
+);
+assert.equal(renewalRequests[1].url.endsWith('/inspect'), true);
+assert.equal(
+  renewalRequests[1].options.headers['x-snapback-console-credential'],
+  NEAR_EXPIRY,
 );
 
 delete globalThis.fetch;

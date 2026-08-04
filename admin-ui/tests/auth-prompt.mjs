@@ -28,10 +28,12 @@ const document = {
 };
 const hostile = '<img src=x onerror="globalThis.stolen=localStorage.token">';
 let submitted = null;
+let deviceControls = null;
 assert.equal(
   renderAdminTokenPrompt(document, {
     message: hostile,
     onSubmit: async (token) => { submitted = token; },
+    onDeviceFlow: (controls) => { deviceControls = controls; },
   }),
   true,
 );
@@ -43,6 +45,13 @@ assert.equal('innerHTML' in panel, false);
 input.value = '  secret-token  ';
 await panel.listeners.submit({ preventDefault() {} });
 assert.equal(submitted, 'secret-token');
+deviceControls.showCode('ABCD-1234', 'snapback admin approve ABCD-1234 --ready-file ready.json');
+assert.equal(panel.children[6].textContent, 'ABCD-1234');
+assert.equal(
+  panel.children[7].textContent,
+  'snapback admin approve ABCD-1234 --ready-file ready.json',
+);
+assert.equal('innerHTML' in panel.children[6], false);
 
 let sessionCredentials = null;
 assert.equal(

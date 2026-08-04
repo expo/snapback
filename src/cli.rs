@@ -701,6 +701,9 @@ pub enum HostCommand {
         #[arg(long)]
         ready_file: PathBuf,
     },
+    /// Open the local admin console with a derived browser credential, or
+    /// approve a browser-displayed device code from a token-holding terminal.
+    Admin(AdminArgs),
     /// app.inspect — one hostOpsResult envelope with the runtime state.
     Inspect(TargetArgs),
     /// app.reset — deterministic reset, optionally applying a seed file.
@@ -818,6 +821,27 @@ pub enum HostCommand {
         json: bool,
         #[command(subcommand)]
         command: MigrateCommand,
+    },
+}
+
+#[derive(clap::Args, Debug)]
+pub struct AdminArgs {
+    /// Print the fragment-bearing console URL instead of opening a browser.
+    #[arg(long)]
+    no_open: bool,
+    #[command(flatten)]
+    target: TargetArgs,
+    #[command(subcommand)]
+    command: Option<AdminCommand>,
+}
+
+#[derive(clap::Subcommand, Debug)]
+pub enum AdminCommand {
+    /// Approve one short-lived code displayed by the admin console.
+    Approve {
+        code: String,
+        #[command(flatten)]
+        target: TargetArgs,
     },
 }
 
@@ -1294,6 +1318,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         None => run(cli.serve).await,
         Some(HostCommand::Start(args)) => run(args).await,
         Some(HostCommand::Stop { ready_file }) => host_stop(&ready_file),
+        Some(HostCommand::Admin(args)) => admin_command(args),
         Some(HostCommand::Inspect(target)) => {
             host_op_via_http(&target, json!({ "operation": "app.inspect" }))
         }
@@ -2428,6 +2453,260 @@ fn errors_command(command: ErrorsCommand) -> anyhow::Result<()> {
     }
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleCredentialCliResponse {
+    credential: String,
+    expires_at_ms: u64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleApprovalCliResponse {
+    approved: bool,
+}
+
+fn admin_command(args: AdminArgs) -> anyhow::Result<()> {
+    match args.command {
+        Some(AdminCommand::Approve { code, target }) => approve_console_code(&target, &code),
+        None => launch_admin_console(&args.target, args.no_open),
+    }
+}
+
+fn launch_admin_console(target: &TargetArgs, no_open: bool) -> anyhow::Result<()> {
+    let resolved = resolve_admin_console_target(target)?;
+    let mut request = ureq::post(&format!(
+        "{}/_snapback/api/console/credential",
+        resolved.server_url
+    ));
+    request = request.set("x-snapback-admin-token", &resolved.token);
+    let response = match request.call() {
+        Ok(response) => response,
+        Err(ureq::Error::Status(status, response)) => {
+            return Err(admin_http_error(status, response, "credential mint"));
+        }
+        Err(error) => {
+            return Err(anyhow::anyhow!(
+                "SNAPBACK_ADMIN_CONSOLE_UNREACHABLE: console credential mint request failed: {error}"
+            ));
+        }
+    };
+    let credential: ConsoleCredentialCliResponse = response.into_json().map_err(|_| {
+        anyhow::anyhow!(
+            "SNAPBACK_ADMIN_CREDENTIAL_RESPONSE_INVALID: console credential response was not the expected JSON shape"
+        )
+    })?;
+    anyhow::ensure!(
+        valid_console_credential(&credential.credential)
+            && credential.expires_at_ms > crate::server::now_millis(),
+        "SNAPBACK_ADMIN_CREDENTIAL_RESPONSE_INVALID: console credential response was invalid"
+    );
+    // @ref LLP 0017#security-defaults — only the derived sbcc_ capability is
+    // placed in a fragment. The master token never enters a URL, and the
+    // fragment is absent from HTTP requests, server logs, and Referer.
+    let url = console_fragment_url(
+        &resolved.server_url,
+        &credential.credential,
+        credential.expires_at_ms,
+    );
+    if no_open {
+        println!("{url}");
+        return Ok(());
+    }
+    open_admin_browser(&url)?;
+    println!("admin console opened");
+    Ok(())
+}
+
+fn approve_console_code(target: &TargetArgs, code: &str) -> anyhow::Result<()> {
+    let resolved = resolve_admin_console_target(target)?;
+    let mut request = ureq::post(&format!(
+        "{}/_snapback/api/console/approval/approve",
+        resolved.server_url
+    ));
+    request = request.set("x-snapback-admin-token", &resolved.token);
+    let response = match request.send_json(serde_json::json!({ "userCode": code })) {
+        Ok(response) => response,
+        Err(ureq::Error::Status(status, response)) => {
+            return Err(admin_http_error(status, response, "console approval"));
+        }
+        Err(error) => {
+            return Err(anyhow::anyhow!(
+                "SNAPBACK_ADMIN_CONSOLE_UNREACHABLE: console approval request failed: {error}"
+            ));
+        }
+    };
+    let approved: ConsoleApprovalCliResponse = response.into_json().map_err(|_| {
+        anyhow::anyhow!(
+            "SNAPBACK_ADMIN_APPROVAL_RESPONSE_INVALID: console approval response was not the expected JSON shape"
+        )
+    })?;
+    anyhow::ensure!(
+        approved.approved,
+        "SNAPBACK_ADMIN_APPROVAL_RESPONSE_INVALID: console approval was not confirmed"
+    );
+    println!("admin console code approved");
+    Ok(())
+}
+
+struct ResolvedAdminConsoleTarget {
+    server_url: String,
+    token: String,
+}
+
+impl std::fmt::Debug for ResolvedAdminConsoleTarget {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ResolvedAdminConsoleTarget")
+            .field("server_url", &self.server_url)
+            .field("token", &"[REDACTED]")
+            .finish()
+    }
+}
+
+fn resolve_admin_console_target(target: &TargetArgs) -> anyhow::Result<ResolvedAdminConsoleTarget> {
+    let explicit_token = target
+        .token
+        .clone()
+        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
+        .filter(|token| !token.is_empty());
+    if let Some(url) = target.url.as_deref() {
+        let token = explicit_token.ok_or_else(|| anyhow::anyhow!(
+            "SNAPBACK_ADMIN_TOKEN_UNAVAILABLE: --url requires --token or SNAPBACK_ADMIN_TOKEN; a network peer cannot select a local token file"
+        ))?;
+        return Ok(ResolvedAdminConsoleTarget {
+            server_url: url.trim_end_matches('/').to_owned(),
+            token,
+        });
+    }
+    let path = target.ready_file.as_deref().ok_or_else(|| anyhow::anyhow!(
+        "SNAPBACK_ADMIN_READY_FILE_REQUIRED: pass --ready-file, or pass --url with an explicit token"
+    ))?;
+    let ready_target = ReadyFileTarget::open_existing(path).map_err(|error| {
+        anyhow::anyhow!(
+            "SNAPBACK_ADMIN_READY_FILE_UNAVAILABLE: cannot open trusted ready file {}: {error}",
+            path.display()
+        )
+    })?;
+    let canonical_ready = ready_target.pinned_path().to_path_buf();
+    let descriptor_bytes = ready_target
+        .read_owner_only_sibling(&canonical_ready)
+        .map_err(|error| {
+            anyhow::anyhow!(
+                "SNAPBACK_ADMIN_READY_FILE_UNAVAILABLE: cannot read trusted ready file {}: {error}",
+                path.display()
+            )
+        })?;
+    let value: Value = serde_json::from_slice(&descriptor_bytes).map_err(|_| {
+        anyhow::anyhow!(
+            "SNAPBACK_ADMIN_READY_FILE_INVALID: {} is not valid JSON",
+            path.display()
+        )
+    })?;
+    let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
+        anyhow::anyhow!(
+            "SNAPBACK_ADMIN_READY_FILE_INVALID: {} is not a valid readiness descriptor: {}",
+            path.display(),
+            problems.join("; ")
+        )
+    })?;
+    let health = fetch_health(&descriptor.server_url);
+    verify_live_descriptor_identity(&descriptor, &health, "admin console")
+        .map_err(|diagnostic| anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message))?;
+    let token = explicit_token
+        .or_else(|| discover_admin_console_token(&ready_target, &canonical_ready, &descriptor))
+        .ok_or_else(|| anyhow::anyhow!(
+            "SNAPBACK_ADMIN_TOKEN_UNAVAILABLE: the trusted ready descriptor has no readable owner-only admin token"
+        ))?;
+    Ok(ResolvedAdminConsoleTarget {
+        server_url: descriptor.server_url.trim_end_matches('/').to_owned(),
+        token,
+    })
+}
+
+fn discover_admin_console_token(
+    ready_target: &ReadyFileTarget,
+    ready_file: &Path,
+    descriptor: &HostReadyDescriptor,
+) -> Option<String> {
+    let declared = PathBuf::from(descriptor.admin_token_file.as_deref()?);
+    let expected = match descriptor.database.mode.as_str() {
+        "file" => {
+            crate::admin::admin_token_sibling(Path::new(descriptor.database.path.as_deref()?))
+        }
+        "memory" => crate::admin::admin_token_sibling(ready_file),
+        _ => return None,
+    };
+    if declared != expected {
+        return None;
+    }
+    let bytes = if declared.parent() == ready_file.parent() {
+        ready_target.read_owner_only_sibling(&declared).ok()?
+    } else {
+        crate::secure_file::read_owner_only(&declared).ok()?
+    };
+    let token = String::from_utf8(bytes).ok()?;
+    let token = token.trim();
+    (!token.is_empty()).then(|| token.to_owned())
+}
+
+fn valid_console_credential(value: &str) -> bool {
+    value.strip_prefix("sbcc_").is_some_and(|suffix| {
+        !suffix.is_empty() && suffix.bytes().all(|byte| byte.is_ascii_alphanumeric())
+    })
+}
+
+fn console_fragment_url(server_url: &str, credential: &str, expires_at_ms: u64) -> String {
+    format!(
+        "{}/_snapback/admin/#credential={credential}&expiresAtMs={expires_at_ms}",
+        server_url.trim_end_matches('/')
+    )
+}
+
+fn admin_http_error(status: u16, response: ureq::Response, operation: &str) -> anyhow::Error {
+    let body: Value = response.into_json().unwrap_or(Value::Null);
+    let code = body
+        .pointer("/diagnostic/code")
+        .and_then(Value::as_str)
+        .unwrap_or("SNAPBACK_ADMIN_HTTP_ERROR");
+    let message = body
+        .pointer("/diagnostic/message")
+        .and_then(Value::as_str)
+        .unwrap_or("admin request was refused");
+    anyhow::anyhow!("{code}: {operation} failed with HTTP {status}: {message}")
+}
+
+fn open_admin_browser(url: &str) -> anyhow::Result<()> {
+    #[cfg(target_vendor = "apple")]
+    let mut command = std::process::Command::new("open");
+    #[cfg(target_os = "linux")]
+    let mut command = std::process::Command::new("xdg-open");
+    #[cfg(windows)]
+    let mut command = {
+        let mut command = std::process::Command::new("cmd");
+        command.args(["/C", "start", ""]);
+        command
+    };
+    #[cfg(not(any(target_vendor = "apple", target_os = "linux", windows)))]
+    return Err(anyhow::anyhow!(
+        "SNAPBACK_ADMIN_BROWSER_OPEN_UNSUPPORTED: use --no-open on this host"
+    ));
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux", windows))]
+    {
+        command
+            .arg(url)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .map_err(|error| anyhow::anyhow!(
+                "SNAPBACK_ADMIN_BROWSER_OPEN_FAILED: could not launch the system browser; retry with --no-open: {error}"
+            ))?;
+        Ok(())
+    }
+}
+
 /// Minted-token discovery (ENG-23443): when the caller passed no explicit
 /// token, read the auto-minted token file the server points at — via the
 /// readiness descriptor's `adminTokenFile`. The path must be the mechanical
@@ -3036,6 +3315,9 @@ async fn run_composed(
         server_context.install_minted_token(&resolved);
         minted_token = Some(resolved);
     }
+    if let Some(database_path) = database_path.as_deref() {
+        server_context.install_console_credential_store(database_path)?;
+    }
     let token_configured = server_context.admin_token.is_some();
     let ready_sibling_token_file = if database_path.is_none() {
         server_context.admin_token_file.clone()
@@ -3618,6 +3900,7 @@ async fn run_auth_collision_recovery(
         server_context.install_minted_token(&resolved);
         minted_token = Some(resolved);
     }
+    server_context.install_console_credential_store(&database_path)?;
     crate::auth::recovery::validate_startup_context(&server_context)?;
 
     let startup_nonce = crate::identity::binary_identity().startup_nonce;
@@ -5177,13 +5460,15 @@ fn describe_ports(ports: &[u16]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        Args, AssetsCommand, AuthCommand, AuthConstructionFailure, AuthCoordinatorReadinessReceipt,
-        AuthProgramConstructionReceipts, BEFORE_STARTUP_TARGET_RESERVATION, Cli, ErrorsCommand, HostCommand,
-        ManagedPath, ReadyFileTarget, ResolvedHttpTarget, TargetArgs, TelemetryCommand, bind_first_available,
-        bind_listener, managed_startup_paths, mint_secret_read_via_http, parse_run_args,
-        path_with_filename_suffix, prepare_database_path, prepare_database_path_for_startup,
-        reject_misdirected_serve_flags, resolve_http_target, runtime_auth_program_readiness,
-        validate_path_disjointness, validated_secret_read_root_path, write_ready_file_atomic,
+        AdminArgs, AdminCommand, Args, AssetsCommand, AuthCommand, AuthConstructionFailure,
+        AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
+        BEFORE_STARTUP_TARGET_RESERVATION, Cli, ErrorsCommand, HostCommand, ManagedPath,
+        ReadyFileTarget, ResolvedHttpTarget, TargetArgs, TelemetryCommand, bind_first_available,
+        bind_listener, console_fragment_url, managed_startup_paths, mint_secret_read_via_http,
+        parse_run_args, path_with_filename_suffix, prepare_database_path,
+        prepare_database_path_for_startup, reject_misdirected_serve_flags, resolve_http_target,
+        runtime_auth_program_readiness, validate_path_disjointness,
+        validated_secret_read_root_path, write_ready_file_atomic,
         write_ready_file_atomic_protected,
     };
     use crate::instance_lock::TargetInstanceReservation;
@@ -5253,6 +5538,54 @@ mod tests {
         assert!(after_lease_install.authority_descriptor);
         assert!(after_lease_install.authorization_invalidation);
         assert!(after_lease_install.authorized_lease);
+    }
+
+    #[test]
+    fn admin_cli_pins_launch_and_terminal_approval_shapes() {
+        let launch = Cli::parse_from([
+            "snapback",
+            "admin",
+            "--no-open",
+            "--ready-file",
+            "ready.json",
+        ]);
+        match launch.command {
+            Some(HostCommand::Admin(AdminArgs {
+                no_open,
+                target,
+                command: None,
+            })) => {
+                assert!(no_open);
+                assert_eq!(target.ready_file, Some(PathBuf::from("ready.json")));
+            }
+            other => panic!("expected admin launch command, got {other:?}"),
+        }
+
+        let approval = Cli::parse_from([
+            "snapback",
+            "admin",
+            "approve",
+            "ABCD-1234",
+            "--ready-file",
+            "ready.json",
+        ]);
+        match approval.command {
+            Some(HostCommand::Admin(AdminArgs {
+                command: Some(AdminCommand::Approve { code, target }),
+                ..
+            })) => {
+                assert_eq!(code, "ABCD-1234");
+                assert_eq!(target.ready_file, Some(PathBuf::from("ready.json")));
+            }
+            other => panic!("expected admin approval command, got {other:?}"),
+        }
+
+        let url = console_fragment_url("http://127.0.0.1:4287", "sbcc_abc123", 42);
+        assert_eq!(
+            url,
+            "http://127.0.0.1:4287/_snapback/admin/#credential=sbcc_abc123&expiresAtMs=42"
+        );
+        assert!(!url.contains('?'));
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

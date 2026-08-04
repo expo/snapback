@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "7aaf817b518becf1b38084aea00b83e802a13c98"
+    "commit": "621906e32588af8c0a803ba1ee9dd21f5949acfd"
   },
   "nav": {
     ".": [
@@ -1400,7 +1400,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "b2ed8d7bae69fdb1bea7911fc7d88e6003bcee9721d1301378967a1f81d46f9a",
+      "sha256": "fa602771e450bbe794c2f1d6e30e9f3076d373f96146542d5b7d502975421e9a",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2071,6 +2071,9 @@
       "authorities": [
         "llp/0017-admin-console-inspection-surface.rfc.md",
         "src/admin.rs",
+        "src/cli.rs",
+        "packages/snapback-admin-client/index.mjs",
+        "admin-ui/auth-prompt.mjs",
         "admin-ui/app.contract",
         "admin-ui/build.mjs",
         "admin-ui/dev.mjs",
@@ -2082,7 +2085,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "3109a3b4f5068595a71448b10788b56b4fa358f5",
-      "sha256": "2f76437bebead39a9e6b972a12bff30d3c86fab59f94f03a00c0ad2e8e509a10",
+      "sha256": "b3fb878ac2605409bd0c45543d3dec80d461cd232c2a40e5e374b9814eb5cfc3",
       "snippets": [
         {
           "lang": "js",
@@ -2835,8 +2838,8 @@
     ]
   },
   "surfaces": {
-    "routes": 98,
+    "routes": 101,
     "hostOps": 35
   },
-  "contentHash": "e554e91e4d662ad7fa574f499460c9d45481819b29afbc4ba1c24af0eaef22a2"
+  "contentHash": "643688fed2af77122e27cc585f0cf016def5b291e40f621d8e08969de9f5c7f1"
 }

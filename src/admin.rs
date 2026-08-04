@@ -302,11 +302,46 @@ fn resolve_profile(raw: Option<&str>, loopback: bool) -> ServerProfile {
 /// `/_snapback/admin/client.mjs` for external tooling — one client, no drift.
 const ADMIN_CLIENT_MJS: &str = include_str!("../packages/snapback-admin-client/index.mjs");
 
-/// Browser-safe administrator capability lifetime. The credential is both
-/// process-bound and short-lived; the master credential is used only for the
-/// exchange request and never needs to enter browser storage.
+/// Browser-safe administrator capability lifetime. The credential is
+/// short-lived and may slide only while active, with an eight-hour absolute
+/// ceiling from its first mint. The master credential is used only for the
+/// initial exchange and never needs to enter browser storage.
 const CONSOLE_CREDENTIAL_TTL: Duration = Duration::from_secs(10 * 60);
+const CONSOLE_CREDENTIAL_MAX_LIFETIME: Duration = Duration::from_secs(8 * 60 * 60);
 const MAX_CONSOLE_CREDENTIALS: usize = 256;
+const CONSOLE_CREDENTIAL_STORE_VERSION: u32 = 1;
+const MAX_CONSOLE_CREDENTIAL_STORE_BYTES: usize = 256 * 1024;
+
+const CONSOLE_APPROVAL_TTL: Duration = Duration::from_secs(10 * 60);
+const CONSOLE_APPROVAL_POLL_INTERVAL: Duration = Duration::from_secs(2);
+const MAX_PENDING_CONSOLE_APPROVALS: usize = 64;
+const CONSOLE_APPROVAL_REQUESTS_PER_MINUTE: u32 = 20;
+const CONSOLE_APPROVAL_ATTEMPTS_PER_MINUTE: u32 = 30;
+const CONSOLE_APPROVAL_POLLS_PER_MINUTE: u32 = 120;
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConsoleCredentialEntry {
+    issued_at_ms: u64,
+    expires_at_ms: u64,
+    max_expires_at_ms: u64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct PersistedConsoleCredentialStore {
+    version: u32,
+    credentials: Vec<PersistedConsoleCredential>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct PersistedConsoleCredential {
+    digest_sha256: String,
+    issued_at_ms: u64,
+    expires_at_ms: u64,
+    max_expires_at_ms: u64,
+}
 
 /// In-memory registry of derived console credentials. These credentials can
 /// satisfy ordinary AdminRead/AdminWrite policy only. Stronger resolvers such
@@ -317,15 +352,22 @@ const MAX_CONSOLE_CREDENTIALS: usize = 256;
 /// short-lived console capability instead of the master admin credential.
 #[derive(Clone, Default)]
 pub struct ConsoleCredentialRegistry {
-    entries: Arc<StdMutex<HashMap<[u8; 32], Instant>>>,
+    state: Arc<StdMutex<ConsoleCredentialState>>,
+}
+
+#[derive(Default)]
+struct ConsoleCredentialState {
+    entries: HashMap<[u8; 32], ConsoleCredentialEntry>,
+    persistence: Option<PathBuf>,
 }
 
 impl fmt::Debug for ConsoleCredentialRegistry {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let active_entries = self
-            .entries
+            .state
             .lock()
             .unwrap_or_else(|lock| lock.into_inner())
+            .entries
             .len();
         formatter
             .debug_struct("ConsoleCredentialRegistry")
@@ -335,38 +377,222 @@ impl fmt::Debug for ConsoleCredentialRegistry {
 }
 
 impl ConsoleCredentialRegistry {
-    fn mint(&self) -> ConsoleCredentialResponse {
-        let now = Instant::now();
-        let mut entries = self.entries.lock().unwrap_or_else(|lock| lock.into_inner());
-        entries.retain(|_, expires_at| *expires_at > now);
-        if entries.len() >= MAX_CONSOLE_CREDENTIALS
-            && let Some(oldest) = entries
+    pub fn persistent(path: PathBuf) -> anyhow::Result<Self> {
+        let now_ms = now_millis();
+        let entries = match crate::secure_file::read_strict_owner_only(
+            &path,
+            MAX_CONSOLE_CREDENTIAL_STORE_BYTES,
+        ) {
+            Ok(bytes) => {
+                let persisted: PersistedConsoleCredentialStore = serde_json::from_slice(&bytes)
+                    .map_err(|error| anyhow::anyhow!(
+                        "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted credential store is not valid JSON: {error}"
+                    ))?;
+                anyhow::ensure!(
+                    persisted.version == CONSOLE_CREDENTIAL_STORE_VERSION,
+                    "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: unsupported persisted credential store version {}",
+                    persisted.version
+                );
+                anyhow::ensure!(
+                    persisted.credentials.len() <= MAX_CONSOLE_CREDENTIALS,
+                    "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted credential store exceeds its entry limit"
+                );
+                let mut entries = HashMap::new();
+                for persisted in persisted.credentials {
+                    let digest = decode_console_credential_digest(&persisted.digest_sha256)
+                        .ok_or_else(|| anyhow::anyhow!(
+                            "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted credential digest is invalid"
+                        ))?;
+                    anyhow::ensure!(
+                        persisted.issued_at_ms <= persisted.expires_at_ms
+                            && persisted.expires_at_ms <= persisted.max_expires_at_ms
+                            && persisted
+                                .max_expires_at_ms
+                                .saturating_sub(persisted.issued_at_ms)
+                                <= CONSOLE_CREDENTIAL_MAX_LIFETIME.as_millis() as u64,
+                        "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted credential lifetime is invalid"
+                    );
+                    if persisted.issued_at_ms <= now_ms && persisted.expires_at_ms > now_ms {
+                        entries.insert(
+                            digest,
+                            ConsoleCredentialEntry {
+                                issued_at_ms: persisted.issued_at_ms,
+                                expires_at_ms: persisted.expires_at_ms,
+                                max_expires_at_ms: persisted.max_expires_at_ms,
+                            },
+                        );
+                    }
+                }
+                entries
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => HashMap::new(),
+            Err(error) => {
+                return Err(anyhow::anyhow!(
+                    "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted credential store could not be read: {error}"
+                ));
+            }
+        };
+        Ok(Self {
+            state: Arc::new(StdMutex::new(ConsoleCredentialState {
+                entries,
+                persistence: Some(path),
+            })),
+        })
+    }
+
+    fn mint(&self) -> Result<ConsoleCredentialResponse, SnapbackError> {
+        self.mint_at(now_millis())
+    }
+
+    fn mint_at(&self, now_ms: u64) -> Result<ConsoleCredentialResponse, SnapbackError> {
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        let original = state.entries.clone();
+        state
+            .entries
+            .retain(|_, entry| entry.issued_at_ms <= now_ms && entry.expires_at_ms > now_ms);
+        if state.entries.len() >= MAX_CONSOLE_CREDENTIALS
+            && let Some(oldest) = state
+                .entries
                 .iter()
-                .min_by_key(|(_, expires_at)| **expires_at)
+                .min_by_key(|(_, entry)| entry.expires_at_ms)
                 .map(|(digest, _)| *digest)
         {
-            entries.remove(&oldest);
+            state.entries.remove(&oldest);
         }
         let credential = format!("sbcc_{}", uuid::Uuid::new_v4().simple());
-        entries.insert(
+        let expires_at_ms = now_ms.saturating_add(CONSOLE_CREDENTIAL_TTL.as_millis() as u64);
+        let max_expires_at_ms =
+            now_ms.saturating_add(CONSOLE_CREDENTIAL_MAX_LIFETIME.as_millis() as u64);
+        state.entries.insert(
             console_credential_digest(&credential),
-            now + CONSOLE_CREDENTIAL_TTL,
+            ConsoleCredentialEntry {
+                issued_at_ms: now_ms,
+                expires_at_ms,
+                max_expires_at_ms,
+            },
         );
-        ConsoleCredentialResponse {
-            credential,
-            expires_at_ms: now_millis().saturating_add(CONSOLE_CREDENTIAL_TTL.as_millis() as u64),
+        if let Err(error) = persist_console_credentials(&state) {
+            state.entries = original;
+            return Err(console_credential_store_error(error));
         }
+        Ok(ConsoleCredentialResponse {
+            credential,
+            expires_at_ms,
+        })
+    }
+
+    fn renew(&self, credential: &str) -> Result<Option<ConsoleCredentialResponse>, SnapbackError> {
+        self.renew_at(credential, now_millis())
+    }
+
+    fn renew_at(
+        &self,
+        credential: &str,
+        now_ms: u64,
+    ) -> Result<Option<ConsoleCredentialResponse>, SnapbackError> {
+        let digest = console_credential_digest(credential);
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        let original = state.entries.clone();
+        state
+            .entries
+            .retain(|_, entry| entry.issued_at_ms <= now_ms && entry.expires_at_ms > now_ms);
+        let Some(entry) = state.entries.get_mut(&digest) else {
+            return Ok(None);
+        };
+        entry.expires_at_ms = now_ms
+            .saturating_add(CONSOLE_CREDENTIAL_TTL.as_millis() as u64)
+            .min(entry.max_expires_at_ms);
+        let expires_at_ms = entry.expires_at_ms;
+        if let Err(error) = persist_console_credentials(&state) {
+            state.entries = original;
+            return Err(console_credential_store_error(error));
+        }
+        Ok(Some(ConsoleCredentialResponse {
+            credential: credential.to_owned(),
+            expires_at_ms,
+        }))
     }
 
     fn allows(&self, credential: Option<&str>) -> bool {
         let Some(credential) = credential else {
             return false;
         };
-        let now = Instant::now();
-        let mut entries = self.entries.lock().unwrap_or_else(|lock| lock.into_inner());
-        entries.retain(|_, expires_at| *expires_at > now);
-        entries.contains_key(&console_credential_digest(credential))
+        self.allows_at(credential, now_millis())
     }
+
+    fn allows_at(&self, credential: &str, now_ms: u64) -> bool {
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        state
+            .entries
+            .retain(|_, entry| entry.issued_at_ms <= now_ms && entry.expires_at_ms > now_ms);
+        state
+            .entries
+            .contains_key(&console_credential_digest(credential))
+    }
+}
+
+fn persist_console_credentials(state: &ConsoleCredentialState) -> std::io::Result<()> {
+    let Some(path) = state.persistence.as_deref() else {
+        return Ok(());
+    };
+    let mut credentials = state
+        .entries
+        .iter()
+        .map(|(digest, entry)| PersistedConsoleCredential {
+            digest_sha256: encode_console_credential_digest(digest),
+            issued_at_ms: entry.issued_at_ms,
+            expires_at_ms: entry.expires_at_ms,
+            max_expires_at_ms: entry.max_expires_at_ms,
+        })
+        .collect::<Vec<_>>();
+    credentials.sort_by(|left, right| left.digest_sha256.cmp(&right.digest_sha256));
+    let bytes = serde_json::to_vec(&PersistedConsoleCredentialStore {
+        version: CONSOLE_CREDENTIAL_STORE_VERSION,
+        credentials,
+    })
+    .map_err(std::io::Error::other)?;
+    let mut temporary = path.as_os_str().to_os_string();
+    temporary.push(format!(".tmp-{}", uuid::Uuid::new_v4().simple()));
+    let temporary = PathBuf::from(temporary);
+    crate::secure_file::write_new_owner_only(&temporary, &bytes)?;
+    let publication =
+        std::fs::rename(&temporary, path).and_then(|()| crate::secure_file::sync_parent(path));
+    if publication.is_err() {
+        let _ = std::fs::remove_file(&temporary);
+    }
+    publication
+}
+
+fn console_credential_store_error(error: std::io::Error) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_FAILED",
+        "admin",
+        "the derived console credential store could not be updated",
+    )
+    .with_details(serde_json::json!({ "kind": format!("{:?}", error.kind()) }))
+}
+
+fn encode_console_credential_digest(digest: &[u8; 32]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut encoded = String::with_capacity(64);
+    for byte in digest {
+        encoded.push(HEX[(byte >> 4) as usize] as char);
+        encoded.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    encoded
+}
+
+fn decode_console_credential_digest(encoded: &str) -> Option<[u8; 32]> {
+    if encoded.len() != 64 {
+        return None;
+    }
+    let mut digest = [0_u8; 32];
+    for (index, pair) in encoded.as_bytes().chunks_exact(2).enumerate() {
+        let high = (pair[0] as char).to_digit(16)? as u8;
+        let low = (pair[1] as char).to_digit(16)? as u8;
+        digest[index] = (high << 4) | low;
+    }
+    Some(digest)
 }
 
 fn console_credential_digest(credential: &str) -> [u8; 32] {
@@ -388,6 +614,290 @@ impl fmt::Debug for ConsoleCredentialResponse {
             .field("expires_at_ms", &self.expires_at_ms)
             .finish()
     }
+}
+
+#[derive(Clone, Default)]
+pub struct ConsoleApprovalRegistry {
+    state: Arc<StdMutex<ConsoleApprovalState>>,
+}
+
+#[derive(Default)]
+struct ConsoleApprovalState {
+    entries: HashMap<[u8; 32], ConsoleApprovalEntry>,
+    request_window: RateWindow,
+    approval_window: RateWindow,
+    poll_window: RateWindow,
+}
+
+struct ConsoleApprovalEntry {
+    user_code: String,
+    expires_at_ms: u64,
+    last_poll_at_ms: Option<u64>,
+    approved: Option<ConsoleCredentialResponse>,
+}
+
+#[derive(Default)]
+struct RateWindow {
+    started_at_ms: u64,
+    count: u32,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConsoleApprovalRequestResponse {
+    device_code: String,
+    user_code: String,
+    verification_uri: String,
+    expires_in: u64,
+    interval: u64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleApprovalPollRequest {
+    device_code: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConsoleApprovalPollResponse {
+    status: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    credential: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expires_at_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    interval: Option<u64>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleApprovalApproveRequest {
+    user_code: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConsoleApprovalApproveResponse {
+    approved: bool,
+}
+
+impl fmt::Debug for ConsoleApprovalRegistry {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let pending = self
+            .state
+            .lock()
+            .unwrap_or_else(|lock| lock.into_inner())
+            .entries
+            .len();
+        formatter
+            .debug_struct("ConsoleApprovalRegistry")
+            .field("pending", &pending)
+            .finish()
+    }
+}
+
+impl ConsoleApprovalRegistry {
+    fn request(
+        &self,
+        verification_uri: String,
+    ) -> Result<ConsoleApprovalRequestResponse, SnapbackError> {
+        self.request_at(verification_uri, now_millis())
+    }
+
+    fn request_at(
+        &self,
+        verification_uri: String,
+        now_ms: u64,
+    ) -> Result<ConsoleApprovalRequestResponse, SnapbackError> {
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        prune_console_approvals(&mut state, now_ms);
+        if !admit_rate(
+            &mut state.request_window,
+            now_ms,
+            CONSOLE_APPROVAL_REQUESTS_PER_MINUTE,
+        ) || state.entries.len() >= MAX_PENDING_CONSOLE_APPROVALS
+        {
+            return Err(console_approval_error(
+                "SNAPBACK_ADMIN_APPROVAL_RATE_LIMITED",
+                "console approval request rate limit exceeded",
+            ));
+        }
+        let device_code = format!("sbcd_{}", uuid::Uuid::new_v4().simple());
+        let user_code = (0..16)
+            .find_map(|_| {
+                let raw = uuid::Uuid::new_v4()
+                    .simple()
+                    .to_string()
+                    .to_ascii_uppercase();
+                let candidate = format!("{}-{}", &raw[..4], &raw[4..8]);
+                (!state
+                    .entries
+                    .values()
+                    .any(|entry| entry.user_code == candidate))
+                .then_some(candidate)
+            })
+            .ok_or_else(|| {
+                console_approval_error(
+                    "SNAPBACK_ADMIN_APPROVAL_RATE_LIMITED",
+                    "console approval code capacity is exhausted",
+                )
+            })?;
+        state.entries.insert(
+            console_credential_digest(&device_code),
+            ConsoleApprovalEntry {
+                user_code: user_code.clone(),
+                expires_at_ms: now_ms.saturating_add(CONSOLE_APPROVAL_TTL.as_millis() as u64),
+                last_poll_at_ms: None,
+                approved: None,
+            },
+        );
+        Ok(ConsoleApprovalRequestResponse {
+            device_code,
+            user_code,
+            verification_uri,
+            expires_in: CONSOLE_APPROVAL_TTL.as_secs(),
+            interval: CONSOLE_APPROVAL_POLL_INTERVAL.as_secs(),
+        })
+    }
+
+    fn approve(
+        &self,
+        user_code: &str,
+        credentials: &ConsoleCredentialRegistry,
+    ) -> Result<(), SnapbackError> {
+        self.approve_at(user_code, credentials, now_millis())
+    }
+
+    fn approve_at(
+        &self,
+        user_code: &str,
+        credentials: &ConsoleCredentialRegistry,
+        now_ms: u64,
+    ) -> Result<(), SnapbackError> {
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        prune_console_approvals(&mut state, now_ms);
+        if !admit_rate(
+            &mut state.approval_window,
+            now_ms,
+            CONSOLE_APPROVAL_ATTEMPTS_PER_MINUTE,
+        ) {
+            return Err(console_approval_error(
+                "SNAPBACK_ADMIN_APPROVAL_RATE_LIMITED",
+                "console approval attempt rate limit exceeded",
+            ));
+        }
+        let normalized =
+            normalize_console_approval_code(user_code).ok_or_else(console_approval_invalid)?;
+        let digest = state
+            .entries
+            .iter()
+            .find(|(_, entry)| entry.user_code == normalized && entry.approved.is_none())
+            .map(|(digest, _)| *digest)
+            .ok_or_else(console_approval_invalid)?;
+        let credential = credentials.mint_at(now_ms)?;
+        state
+            .entries
+            .get_mut(&digest)
+            .expect("selected approval remains under the registry lock")
+            .approved = Some(credential);
+        Ok(())
+    }
+
+    fn poll(&self, device_code: &str) -> Result<ConsoleApprovalPollResponse, SnapbackError> {
+        self.poll_at(device_code, now_millis())
+    }
+
+    fn poll_at(
+        &self,
+        device_code: &str,
+        now_ms: u64,
+    ) -> Result<ConsoleApprovalPollResponse, SnapbackError> {
+        let digest = console_credential_digest(device_code);
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        prune_console_approvals(&mut state, now_ms);
+        if !admit_rate(
+            &mut state.poll_window,
+            now_ms,
+            CONSOLE_APPROVAL_POLLS_PER_MINUTE,
+        ) {
+            return Err(console_approval_error(
+                "SNAPBACK_ADMIN_APPROVAL_RATE_LIMITED",
+                "console approval poll rate limit exceeded",
+            ));
+        }
+        let entry = state
+            .entries
+            .get_mut(&digest)
+            .ok_or_else(console_approval_invalid)?;
+        if let Some(last_poll_at_ms) = entry.last_poll_at_ms
+            && now_ms.saturating_sub(last_poll_at_ms)
+                < CONSOLE_APPROVAL_POLL_INTERVAL.as_millis() as u64
+        {
+            return Err(console_approval_error(
+                "SNAPBACK_ADMIN_APPROVAL_RATE_LIMITED",
+                "console approval was polled faster than its declared interval",
+            ));
+        }
+        entry.last_poll_at_ms = Some(now_ms);
+        if let Some(credential) = entry.approved.take() {
+            state.entries.remove(&digest);
+            return Ok(ConsoleApprovalPollResponse {
+                status: "approved",
+                credential: Some(credential.credential),
+                expires_at_ms: Some(credential.expires_at_ms),
+                interval: None,
+            });
+        }
+        Ok(ConsoleApprovalPollResponse {
+            status: "authorization_pending",
+            credential: None,
+            expires_at_ms: None,
+            interval: Some(CONSOLE_APPROVAL_POLL_INTERVAL.as_secs()),
+        })
+    }
+}
+
+fn prune_console_approvals(state: &mut ConsoleApprovalState, now_ms: u64) {
+    state
+        .entries
+        .retain(|_, entry| entry.expires_at_ms > now_ms);
+}
+
+fn admit_rate(window: &mut RateWindow, now_ms: u64, limit: u32) -> bool {
+    if window.started_at_ms == 0 || now_ms.saturating_sub(window.started_at_ms) >= 60_000 {
+        window.started_at_ms = now_ms;
+        window.count = 0;
+    }
+    if window.count >= limit {
+        return false;
+    }
+    window.count += 1;
+    true
+}
+
+fn normalize_console_approval_code(value: &str) -> Option<String> {
+    let compact = value
+        .trim()
+        .chars()
+        .filter(|character| *character != '-')
+        .collect::<String>()
+        .to_ascii_uppercase();
+    if compact.len() != 8 || !compact.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return None;
+    }
+    Some(format!("{}-{}", &compact[..4], &compact[4..]))
+}
+
+fn console_approval_invalid() -> SnapbackError {
+    console_approval_error(
+        "SNAPBACK_ADMIN_APPROVAL_INVALID",
+        "console approval code is invalid, expired, or already used",
+    )
+}
+
+fn console_approval_error(code: &'static str, message: &'static str) -> SnapbackError {
+    SnapbackError::error(code, "admin", message)
 }
 
 /// Server-runtime facts that live outside `LocalSnapback` (it does not know the
@@ -426,6 +936,9 @@ pub struct ServerContext {
     /// Process-local, short-lived browser capabilities derived from the master
     /// admin token. This registry never grants secret-read or impersonation.
     pub console_credentials: ConsoleCredentialRegistry,
+    /// Short-lived RFC-8628-shaped requests that let a token-holding terminal
+    /// approve one browser credential without exposing the master token.
+    pub console_approvals: ConsoleApprovalRegistry,
     /// Directory of a built static console bundle (`SNAPBACK_ADMIN_DIST`, or the
     /// repo-local `admin-ui/dist` when it has already been built). When present,
     /// the Contract console is served from here; otherwise `/_snapback/admin`
@@ -455,6 +968,7 @@ impl fmt::Debug for ServerContext {
                 &self.admin_token_file.is_some(),
             )
             .field("console_credentials", &self.console_credentials)
+            .field("console_approvals", &self.console_approvals)
             .field("admin_dist_configured", &self.admin_dist.is_some())
             .finish()
     }
@@ -496,6 +1010,7 @@ impl ServerContext {
             admin_token_minted: false,
             admin_token_file: None,
             console_credentials: ConsoleCredentialRegistry::default(),
+            console_approvals: ConsoleApprovalRegistry::default(),
             admin_dist: env_admin_dist(),
         }
     }
@@ -518,6 +1033,7 @@ impl ServerContext {
             admin_token_minted: false,
             admin_token_file: None,
             console_credentials: ConsoleCredentialRegistry::default(),
+            console_approvals: ConsoleApprovalRegistry::default(),
             admin_dist: env_admin_dist(),
         }
     }
@@ -554,6 +1070,21 @@ impl ServerContext {
         self.admin_token = Some(resolved.token.clone());
         self.admin_token_minted = resolved.minted;
         self.admin_token_file = resolved.file.clone();
+    }
+
+    /// Reattach the digest-only browser credential store beside a file-backed
+    /// database. Memory targets deliberately retain process-local credentials.
+    ///
+    /// @ref LLP 0017#security-defaults — restart continuity persists only
+    /// derived, expiring SHA-256 digests; the master token stays in its
+    /// separate capability file and never enters this store.
+    pub fn install_console_credential_store(
+        &mut self,
+        database_path: &FsPath,
+    ) -> anyhow::Result<()> {
+        self.console_credentials =
+            ConsoleCredentialRegistry::persistent(console_credential_sibling(database_path))?;
+        Ok(())
     }
 
     pub fn with_auth_deployment(
@@ -615,6 +1146,16 @@ pub fn admin_token_sibling(path: &std::path::Path) -> PathBuf {
         .map(|name| name.to_os_string())
         .unwrap_or_default();
     name.push(".admin-token");
+    path.with_file_name(name)
+}
+
+/// Digest-only console credential persistence beside a file-backed database.
+pub fn console_credential_sibling(path: &std::path::Path) -> PathBuf {
+    let mut name = path
+        .file_name()
+        .map(|name| name.to_os_string())
+        .unwrap_or_default();
+    name.push(".console-credentials");
     path.with_file_name(name)
 }
 
@@ -2037,6 +2578,35 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             ),
             post(mint_console_credential),
         ),
+        // @ref LLP 0017#security-defaults — the browser may create and poll a
+        // bounded device request, but only a token-holding local terminal can
+        // approve it and cause a derived credential to exist.
+        RegisteredRoute::new(
+            system_api_route(
+                "POST",
+                "/_snapback/api/console/approval/request",
+                RoutePolicy::AdminRead,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(request_console_approval),
+        ),
+        RegisteredRoute::new(
+            system_api_route(
+                "POST",
+                "/_snapback/api/console/approval/poll",
+                RoutePolicy::AdminRead,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(poll_console_approval),
+        ),
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/console/approval/approve",
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(approve_console_approval),
+        ),
         RegisteredRoute::new(
             write(
                 "POST",
@@ -2660,16 +3230,117 @@ async fn admin_health(
 }
 
 /// Exchange the master administrator token for the capability a browser may
-/// persist. Even though registry middleware enforces the route's AdminWrite
-/// floor, repeat the narrower master-only check here: console credentials are
-/// intentionally non-renewable.
+/// persist, or slide an active derived credential within its absolute cap.
+/// Initial minting remains master-only. Renewal is narrower still: loopback,
+/// local deployment, dev profile, and dev auth policy only.
 async fn mint_console_credential(
     State(ctx): State<Arc<ServerContext>>,
     State(policy_mode): State<PolicyAuthMode>,
     headers: HeaderMap,
 ) -> Result<Json<ConsoleCredentialResponse>, ApiError> {
+    require_console_mint_posture(&ctx)?;
+    if let Some(credential) = provided_console_credential(&headers) {
+        require_console_renewal_posture(&ctx, policy_mode)?;
+        let renewed = ctx.console_credentials.renew(credential)?.ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_ADMIN_TOKEN_REQUIRED",
+                "admin",
+                "renewing a console credential requires an active derived credential",
+            )
+        })?;
+        return Ok(Json(renewed));
+    }
     authorize_master(&ctx, &headers, policy_mode)?;
-    Ok(Json(ctx.console_credentials.mint()))
+    Ok(Json(ctx.console_credentials.mint()?))
+}
+
+async fn request_console_approval(
+    State(ctx): State<Arc<ServerContext>>,
+    State(policy_mode): State<PolicyAuthMode>,
+) -> Result<Json<ConsoleApprovalRequestResponse>, ApiError> {
+    require_console_approval_posture(&ctx, policy_mode)?;
+    let host = if ctx.host.contains(':') {
+        format!("[{}]", ctx.host)
+    } else {
+        ctx.host.clone()
+    };
+    Ok(Json(ctx.console_approvals.request(format!(
+        "http://{host}:{}/_snapback/admin/",
+        ctx.port
+    ))?))
+}
+
+async fn poll_console_approval(
+    State(ctx): State<Arc<ServerContext>>,
+    State(policy_mode): State<PolicyAuthMode>,
+    Json(request): Json<ConsoleApprovalPollRequest>,
+) -> Result<Json<ConsoleApprovalPollResponse>, ApiError> {
+    require_console_approval_posture(&ctx, policy_mode)?;
+    Ok(Json(ctx.console_approvals.poll(&request.device_code)?))
+}
+
+async fn approve_console_approval(
+    State(ctx): State<Arc<ServerContext>>,
+    State(policy_mode): State<PolicyAuthMode>,
+    headers: HeaderMap,
+    Json(request): Json<ConsoleApprovalApproveRequest>,
+) -> Result<Json<ConsoleApprovalApproveResponse>, ApiError> {
+    require_console_approval_posture(&ctx, policy_mode)?;
+    authorize_master(&ctx, &headers, policy_mode)?;
+    ctx.console_approvals
+        .approve(&request.user_code, &ctx.console_credentials)?;
+    Ok(Json(ConsoleApprovalApproveResponse { approved: true }))
+}
+
+fn require_console_mint_posture(ctx: &ServerContext) -> Result<(), ApiError> {
+    #[cfg(windows)]
+    return Err(console_approval_error(
+        "SNAPBACK_ADMIN_CONSOLE_MINT_UNAVAILABLE",
+        "console credential custody is unavailable on this host",
+    )
+    .into());
+
+    #[cfg(not(windows))]
+    if !ctx.loopback || ctx.auth_deployment != crate::auth::deployment::AuthDeploymentTarget::Local
+    {
+        return Err(console_approval_error(
+            "SNAPBACK_ADMIN_CONSOLE_MINT_UNAVAILABLE",
+            "console credentials can be minted only by a loopback local target",
+        )
+        .into());
+    }
+    #[cfg(not(windows))]
+    Ok(())
+}
+
+fn require_console_renewal_posture(
+    ctx: &ServerContext,
+    policy_mode: PolicyAuthMode,
+) -> Result<(), ApiError> {
+    require_console_mint_posture(ctx)?;
+    if ctx.profile != ServerProfile::Dev || policy_mode != PolicyAuthMode::Dev {
+        return Err(console_approval_error(
+            "SNAPBACK_ADMIN_CONSOLE_RENEWAL_UNAVAILABLE",
+            "console credential renewal is available only in the dev profile",
+        )
+        .into());
+    }
+    Ok(())
+}
+
+fn require_console_approval_posture(
+    ctx: &ServerContext,
+    policy_mode: PolicyAuthMode,
+) -> Result<(), ApiError> {
+    require_console_mint_posture(ctx)?;
+    if ctx.profile != ServerProfile::Dev || policy_mode != PolicyAuthMode::Dev {
+        return Err(console_approval_error(
+            "SNAPBACK_ADMIN_APPROVAL_UNAVAILABLE",
+            "console device approval is available only in the local dev profile",
+        )
+        .into());
+    }
+    Ok(())
 }
 
 #[derive(Serialize)]
@@ -3965,9 +4636,146 @@ mod tests {
     }
 
     #[test]
+    fn console_credentials_slide_past_base_ttl_but_stop_at_absolute_cap() {
+        let registry = ConsoleCredentialRegistry::default();
+        let issued_at_ms = 1_000_000;
+        let minted = registry.mint_at(issued_at_ms).unwrap();
+        let base_expiry = minted.expires_at_ms;
+        let mut now_ms = issued_at_ms + 9 * 60_000;
+        let mut expiry = base_expiry;
+        while now_ms < issued_at_ms + CONSOLE_CREDENTIAL_MAX_LIFETIME.as_millis() as u64 {
+            expiry = registry
+                .renew_at(&minted.credential, now_ms)
+                .unwrap()
+                .expect("credential remains active while renewed inside the window")
+                .expires_at_ms;
+            now_ms = now_ms.saturating_add(9 * 60_000);
+            if expiry == issued_at_ms + CONSOLE_CREDENTIAL_MAX_LIFETIME.as_millis() as u64 {
+                break;
+            }
+        }
+        assert!(
+            expiry > base_expiry,
+            "renewal crosses the original ten-minute TTL"
+        );
+        assert_eq!(
+            expiry,
+            issued_at_ms + CONSOLE_CREDENTIAL_MAX_LIFETIME.as_millis() as u64
+        );
+        assert!(!registry.allows_at(&minted.credential, expiry));
+    }
+
+    #[test]
+    fn console_credential_digests_persist_without_raw_bearers() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("dev.sqlite3.console-credentials");
+        let registry = ConsoleCredentialRegistry::persistent(path.clone()).unwrap();
+        let minted = registry.mint().unwrap();
+        let bytes = crate::secure_file::read_owner_only(&path).unwrap();
+        let encoded = String::from_utf8(bytes).unwrap();
+        assert!(!encoded.contains(&minted.credential));
+        assert!(!encoded.contains("sbat_"));
+        drop(registry);
+
+        let reattached = ConsoleCredentialRegistry::persistent(path).unwrap();
+        assert!(reattached.allows(Some(&minted.credential)));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn console_credential_publication_replaces_a_raced_symlink_without_following_it() {
+        use std::os::unix::fs::symlink;
+
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("dev.sqlite3.console-credentials");
+        let victim = directory.path().join("victim");
+        std::fs::write(&victim, b"unchanged").unwrap();
+        let registry = ConsoleCredentialRegistry::persistent(path.clone()).unwrap();
+        registry.mint().unwrap();
+
+        std::fs::remove_file(&path).unwrap();
+        symlink(&victim, &path).unwrap();
+        let minted_after_swap = registry.mint().unwrap();
+
+        assert_eq!(std::fs::read(&victim).unwrap(), b"unchanged");
+        assert!(
+            std::fs::symlink_metadata(&path)
+                .unwrap()
+                .file_type()
+                .is_file()
+        );
+        assert!(
+            ConsoleCredentialRegistry::persistent(path)
+                .unwrap()
+                .allows(Some(&minted_after_swap.credential))
+        );
+    }
+
+    #[test]
+    fn console_approval_codes_are_short_lived_and_single_use() {
+        let approvals = ConsoleApprovalRegistry::default();
+        let credentials = ConsoleCredentialRegistry::default();
+        let requested = approvals
+            .request_at("http://127.0.0.1/admin".to_owned(), 1_000)
+            .unwrap();
+        assert_eq!(requested.user_code.len(), 9);
+        approvals
+            .approve_at(&requested.user_code, &credentials, 2_000)
+            .unwrap();
+        assert!(
+            approvals
+                .approve_at(&requested.user_code, &credentials, 2_001)
+                .unwrap_err()
+                .diagnostic
+                .code
+                .contains("APPROVAL_INVALID")
+        );
+        let delivered = approvals.poll_at(&requested.device_code, 3_000).unwrap();
+        assert_eq!(delivered.status, "approved");
+        assert!(delivered.credential.unwrap().starts_with("sbcc_"));
+        assert!(approvals.poll_at(&requested.device_code, 5_001).is_err());
+
+        let expired = approvals
+            .request_at("http://127.0.0.1/admin".to_owned(), 70_000)
+            .unwrap();
+        assert!(
+            approvals
+                .poll_at(
+                    &expired.device_code,
+                    70_000 + CONSOLE_APPROVAL_TTL.as_millis() as u64,
+                )
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn console_approval_rate_limit_counts_malformed_attempts() {
+        let approvals = ConsoleApprovalRegistry::default();
+        let credentials = ConsoleCredentialRegistry::default();
+        for attempt in 0..CONSOLE_APPROVAL_ATTEMPTS_PER_MINUTE {
+            assert_eq!(
+                approvals
+                    .approve_at("not-a-code", &credentials, 1_000 + u64::from(attempt))
+                    .unwrap_err()
+                    .diagnostic
+                    .code,
+                "SNAPBACK_ADMIN_APPROVAL_INVALID"
+            );
+        }
+        assert_eq!(
+            approvals
+                .approve_at("not-a-code", &credentials, 2_000)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_ADMIN_APPROVAL_RATE_LIMITED"
+        );
+    }
+
+    #[test]
     fn credential_bearing_debug_surfaces_are_redacted() {
         let registry = ConsoleCredentialRegistry::default();
-        let response = registry.mint();
+        let response = registry.mint().unwrap();
         let derived = response.credential.clone();
         let mut context = ServerContext::detached();
         context.admin_token = Some("MASTER_DEBUG_SENTINEL".to_owned());

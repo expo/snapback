@@ -3,7 +3,7 @@
 // startup/ready-descriptor token before booting the console. Build the prompt
 // only with DOM text/property APIs: server error text never crosses an HTML
 // parser on this privileged origin.
-export function renderAdminTokenPrompt(document, { message = '', onSubmit }) {
+export function renderAdminTokenPrompt(document, { message = '', onSubmit, onDeviceFlow }) {
   const root = document.getElementById('exact-root');
   if (!root) return false;
 
@@ -32,6 +32,16 @@ export function renderAdminTokenPrompt(document, { message = '', onSubmit }) {
   error.textContent = message;
 
   panel.append(title, help, input, submit, error);
+  const deviceHelp = document.createElement('p');
+  deviceHelp.textContent =
+    'Or approve this browser from a terminal that can read the trusted ready file:';
+  const deviceCode = document.createElement('strong');
+  deviceCode.style.cssText =
+    'display:block;margin:12px 0;font:24px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:0.08em';
+  deviceCode.textContent = 'Requesting code…';
+  const deviceStatus = document.createElement('p');
+  deviceStatus.textContent = '';
+  panel.append(deviceHelp, deviceCode, deviceStatus);
   panel.addEventListener('submit', async (event) => {
     event.preventDefault();
     const token = String(input.value || '').trim();
@@ -49,6 +59,17 @@ export function renderAdminTokenPrompt(document, { message = '', onSubmit }) {
   });
   root.replaceChildren(panel);
   input.focus();
+  if (typeof onDeviceFlow === 'function') {
+    onDeviceFlow({
+      showCode(code, command) {
+        deviceCode.textContent = String(code);
+        deviceStatus.textContent = String(command);
+      },
+      showStatus(status) {
+        deviceStatus.textContent = String(status);
+      },
+    });
+  }
   return true;
 }
 

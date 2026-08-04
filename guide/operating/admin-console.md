@@ -4,7 +4,7 @@ id: operating.admin-console
 order: 4
 audience: agent-first
 capabilities: [operating.admin-console]
-authorities: [llp/0017-admin-console-inspection-surface.rfc.md, src/admin.rs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs]
+authorities: [llp/0017-admin-console-inspection-surface.rfc.md, src/admin.rs, src/cli.rs, packages/snapback-admin-client/index.mjs, admin-ui/auth-prompt.mjs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs]
 examples: [admin-ui]
 status: current
 targets: [local]
@@ -45,9 +45,22 @@ instead of a second embedded implementation.
 Browser baseline:
 
 ```sh
-cargo run -- --memory
-# open the printed admin console URL
+cargo run -- --memory --ready-file .snapback/dev.ready.json
+# in another terminal: discover the token, mint a browser credential, and open
+cargo run -- admin --ready-file .snapback/dev.ready.json
 ```
+
+For a headless machine, print the URL instead:
+
+```sh
+cargo run -- admin --ready-file .snapback/dev.ready.json --no-open
+```
+
+The URL carries only a derived `sbcc_` credential and its expiry in the
+fragment. It never carries the `sbat_` master token in either the query or the
+fragment. The page removes the fragment before boot and stores the derived
+record through the same `snapback_console_credential_v1` path used by the paste
+fallback.
 
 For a native Exact shell, point `EXACT_APP_CUSTOM_URL` at the
 Snapback-served static admin URL. A browser-only dist returns a specific
@@ -96,6 +109,25 @@ assert.equal('innerHTML' in root.children[0], false);
 The production browser proof also enforces CSP hashes, Trusted Types, zero
 runtime exceptions, zero console errors, and zero policy violations.
 
+Active dev/loopback console credentials renew on a ten-minute sliding window,
+up to eight hours from first mint. File-backed servers atomically persist only
+the expiring SHA-256 digest metadata beside the database, so a restart does not
+log out a live console. The master token remains in its separate owner-only
+capability file and never enters browser storage or the digest store.
+
+For a remote browser reached through SSH or another loopback-preserving tunnel,
+the token prompt also displays a short-lived user code. Approve it from a
+terminal with ready-file access:
+
+```sh
+cargo run -- admin approve ABCD-1234 --ready-file .snapback/dev.ready.json
+```
+
+The browser polls for its derived credential. Codes expire after ten minutes,
+are single-use, and the request, approval, poll, and pending-state lanes are
+bounded. Non-loopback binds, hosted targets, and non-dev profiles cannot use
+this flow.
+
 ## Debug through declared views
 
 - **Overview/Capabilities/Realtime/Diagnostics:** inspect target, artifacts,
@@ -143,4 +175,6 @@ admin binding layer.
 - **Do not point a native shell at a browser Vite surface.** Use the built
   Snapback-served admin URL.
 - **Do not persist admin or secret-read credentials in UI state/storage.**
+- **Do not put the `sbat_` master token in any URL.** The CLI fragment handoff
+  is for derived `sbcc_` credentials only.
 - **Do not bypass generated Contract bindings with a second admin UI.**

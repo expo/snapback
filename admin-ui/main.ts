@@ -9,7 +9,10 @@ import * as contractRuntime from '@exact/contract/runtime';
 import { mount, reset } from '@exact/contract/runtime';
 import { installContractWebHost } from '@exact/renderer/web-host';
 
-import { AdminClient } from '../packages/snapback-admin-client/index.mjs';
+import {
+  AdminClient,
+  consumeConsoleCredentialFragment,
+} from '../packages/snapback-admin-client/index.mjs';
 import { createAdminSurface } from './admin-boundary.mjs';
 import {
   renderAdminTokenPrompt,
@@ -23,6 +26,7 @@ import {
 } from './generated/contract/runtime-links';
 
 let currentSurface: { dispose: () => void } | null = null;
+let credentialRecoveryGeneration = 0;
 
 function adminBaseUrl(): string {
   if (typeof location !== 'undefined' && location.origin) {
@@ -63,6 +67,7 @@ async function start(): Promise<void> {
   installContractWebHost();
   const client = new AdminClient(adminBaseUrl());
   try {
+    consumeConsoleCredentialFragment(client);
     await boot(client);
   } catch (error) {
     const safe = client.sanitizeError(error);
@@ -106,9 +111,17 @@ function renderCredentialRecovery(client: AdminClient, failure: unknown): boolea
     });
   }
 
+  const generation = ++credentialRecoveryGeneration;
   return renderAdminTokenPrompt(document, {
     message,
+    onDeviceFlow: (controls: {
+      showCode: (code: string, command: string) => void;
+      showStatus: (status: string) => void;
+    }) => {
+      void completeDeviceApproval(client, controls, generation);
+    },
     onSubmit: async (token: string) => {
+      credentialRecoveryGeneration += 1;
       await client.setToken(token);
       try {
         await boot(client);
@@ -119,6 +132,48 @@ function renderCredentialRecovery(client: AdminClient, failure: unknown): boolea
       }
     },
   });
+}
+
+async function completeDeviceApproval(
+  client: AdminClient,
+  controls: {
+    showCode: (code: string, command: string) => void;
+    showStatus: (status: string) => void;
+  },
+  generation: number,
+): Promise<void> {
+  try {
+    const request = await client.requestConsoleApproval();
+    if (generation !== credentialRecoveryGeneration) return;
+    controls.showCode(
+      request.userCode,
+      `snapback admin approve ${request.userCode} --ready-file <path>`,
+    );
+    let intervalSeconds = request.interval;
+    while (generation === credentialRecoveryGeneration) {
+      await new Promise((resolve) => setTimeout(resolve, intervalSeconds * 1_000));
+      if (generation !== credentialRecoveryGeneration) return;
+      const result = await client.pollConsoleApproval(request.deviceCode);
+      if (result.status === 'authorization_pending') {
+        intervalSeconds = result.interval;
+        continue;
+      }
+      controls.showStatus('Approved. Opening the admin console…');
+      credentialRecoveryGeneration += 1;
+      try {
+        await boot(client);
+      } catch (next) {
+        if (!renderCredentialRecovery(client, next)) {
+          throw client.sanitizeError(next);
+        }
+      }
+      return;
+    }
+  } catch (failure) {
+    if (generation === credentialRecoveryGeneration) {
+      controls.showStatus(client.sanitizeError(failure).message);
+    }
+  }
 }
 
 function isCredentialFailure(failure: unknown): boolean {

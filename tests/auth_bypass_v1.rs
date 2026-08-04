@@ -64,9 +64,9 @@ async fn console_and_admin_credentials_cannot_substitute_for_secret_read() {
         .unwrap()
         .to_owned();
 
-    // The outer AdminWrite gate accepts the derived console credential. The
-    // handler's stricter master exchange must still ignore Authorization in
-    // sessions mode instead of combining two individually-wrong carriers.
+    // The outer AdminWrite gate accepts the derived console credential, but
+    // sliding renewal is dev-policy-only. A dev Authorization spelling cannot
+    // combine with it to cross the sessions boundary.
     let combined_wrong_carriers = app
         .clone()
         .oneshot(post_json_with_headers(
@@ -81,8 +81,8 @@ async fn console_and_admin_credentials_cannot_substitute_for_secret_read() {
         .unwrap();
     assert_diagnostic(
         combined_wrong_carriers,
-        StatusCode::UNAUTHORIZED,
-        "SNAPBACK_ADMIN_TOKEN_REQUIRED",
+        StatusCode::FORBIDDEN,
+        "SNAPBACK_ADMIN_CONSOLE_RENEWAL_UNAVAILABLE",
     )
     .await;
 

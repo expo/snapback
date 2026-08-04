@@ -17,16 +17,14 @@ reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 
 <!-- @ref LLP 0061#2-the-capability-index-registry-lite-with-witnesses — witnesses, GAP rows, and the joined surfaces -->
 
-Every author-facing capability Snapback has, whether or not the guide
-covers it yet. **GAP** rows are capabilities with no page — explicit, owned,
-and dated, never silent. Shipped rows carry a code **witness** proving the
-capability exists. The surface map below classifies every entry of the two
-machine-enumerable registries (server routes, host-ops); `scripts/check-guide.mjs`
-joins it against the code on every run, so a shipped surface cannot fall out
-of this file unnoticed.
+Every author-facing capability Snapback has. **GAP** rows make missing coverage
+explicit and owned. Shipped rows carry a code **witness**. The surface map
+classifies the machine-enumerable route and host-op registries;
+`scripts/check-guide.mjs` joins it to code so shipped surfaces cannot silently
+disappear.
 
-Guide owner: `ccheever`. File gaps as Linear issues in the Exact project
-with the Snapback label and `guide-gap` in the title.
+`ccheever` owns this guide. Track gaps in Exact Linear issues labeled `Snapback`
+and `guide-gap`.
 
 ## Capabilities
 
@@ -143,6 +141,9 @@ here (or listed here but gone from the code).
 | /_snapback/api/config/verify | operating.secrets-config |
 | /_snapback/api/connections/{connection_id}/disconnect | notAuthorFacing (admin-gated connection teardown) |
 | /_snapback/api/console/credential | operating.admin-console |
+| /_snapback/api/console/approval/request | operating.admin-console |
+| /_snapback/api/console/approval/poll | operating.admin-console |
+| /_snapback/api/console/approval/approve | operating.admin-console |
 | /_snapback/api/cron/tick | backend.cron |
 | /_snapback/api/cron/{name}/run | backend.cron |
 | /_snapback/api/data/{table} | operating.admin-console |

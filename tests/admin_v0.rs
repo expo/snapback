@@ -665,7 +665,7 @@ async fn non_loopback_with_token_allows_admin_reads() {
 }
 
 #[tokio::test]
-async fn console_credential_is_derived_nonrenewable_and_no_store() {
+async fn console_credential_is_derived_sliding_and_no_store() {
     let app = app_with_context(seeded_snapback(), loopback_context(Some("master-secret")));
     let minted = app
         .clone()
@@ -715,7 +715,7 @@ async fn console_credential_is_derived_nonrenewable_and_no_store() {
         "derived credential should carry ordinary console authority"
     );
 
-    let cannot_renew = app
+    let renewal = app
         .clone()
         .oneshot(
             Request::builder()
@@ -727,11 +727,20 @@ async fn console_credential_is_derived_nonrenewable_and_no_store() {
         )
         .await
         .unwrap();
-    assert_eq!(cannot_renew.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(renewal.status(), StatusCode::OK);
     assert_eq!(
-        json(cannot_renew).await["diagnostic"]["code"],
-        "SNAPBACK_ADMIN_TOKEN_REQUIRED"
+        renewal
+            .headers()
+            .get("cache-control")
+            .and_then(|value| value.to_str().ok()),
+        Some("no-store, private")
     );
+    let renewed = json(renewal).await;
+    assert_eq!(
+        renewed["credential"], credential,
+        "renewal extends the active derived credential instead of exposing the master"
+    );
+    assert!(renewed["expiresAtMs"].as_u64().unwrap() >= expires_at_ms);
 
     let wrong_carrier = app
         .oneshot(
@@ -759,6 +768,39 @@ async fn console_credential_is_derived_nonrenewable_and_no_store() {
         tokenless_embedded.status(),
         StatusCode::UNAUTHORIZED,
         "a tokenless embedded router has no master capability to derive"
+    );
+
+    let non_loopback = app_with_context(seeded_snapback(), exposed_context(Some("master-secret")))
+        .oneshot(post_with_token(
+            "/_snapback/api/console/credential",
+            json!({}),
+            "master-secret",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(non_loopback.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        json(non_loopback).await["diagnostic"]["code"],
+        "SNAPBACK_ADMIN_CONSOLE_MINT_UNAVAILABLE"
+    );
+
+    let hosted = app_with_context(
+        seeded_snapback(),
+        loopback_context(Some("master-secret")).with_auth_deployment(
+            snapback::auth::deployment::AuthDeploymentTarget::Hosted,
+        ),
+    )
+    .oneshot(post_with_token(
+        "/_snapback/api/console/credential",
+        json!({}),
+        "master-secret",
+    ))
+    .await
+    .unwrap();
+    assert_eq!(hosted.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        json(hosted).await["diagnostic"]["code"],
+        "SNAPBACK_ADMIN_CONSOLE_MINT_UNAVAILABLE"
     );
 }
 
@@ -794,6 +836,82 @@ async fn console_credential_cannot_satisfy_sessions_secret_read() {
         json(secret_read).await["diagnostic"]["code"],
         "SNAPBACK_ADMIN_SECRET_READ_REQUIRED",
         "ordinary console capability must not satisfy AdminSecretRead"
+    );
+}
+
+#[tokio::test]
+async fn console_device_approval_is_terminal_authorized_and_single_use() {
+    let app = app_with_context(seeded_snapback(), loopback_context(Some("master-secret")));
+    let requested = app
+        .clone()
+        .oneshot(post(
+            "/_snapback/api/console/approval/request",
+            json!({}),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(requested.status(), StatusCode::OK);
+    assert_eq!(
+        requested.headers()["cache-control"],
+        "no-store, private"
+    );
+    let requested = json(requested).await;
+    let device_code = requested["deviceCode"].as_str().unwrap();
+    let user_code = requested["userCode"].as_str().unwrap();
+    assert!(device_code.starts_with("sbcd_"));
+    assert_eq!(user_code.len(), 9);
+
+    let approved = app
+        .clone()
+        .oneshot(post_with_token(
+            "/_snapback/api/console/approval/approve",
+            json!({ "userCode": user_code }),
+            "master-secret",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(approved.status(), StatusCode::OK);
+    assert_eq!(json(approved).await["approved"], true);
+
+    let replayed_approval = app
+        .clone()
+        .oneshot(post_with_token(
+            "/_snapback/api/console/approval/approve",
+            json!({ "userCode": user_code }),
+            "master-secret",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(replayed_approval.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        json(replayed_approval).await["diagnostic"]["code"],
+        "SNAPBACK_ADMIN_APPROVAL_INVALID"
+    );
+
+    let polled = app
+        .clone()
+        .oneshot(post(
+            "/_snapback/api/console/approval/poll",
+            json!({ "deviceCode": device_code }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(polled.status(), StatusCode::OK);
+    let polled = json(polled).await;
+    assert_eq!(polled["status"], "approved");
+    assert!(polled["credential"].as_str().unwrap().starts_with("sbcc_"));
+
+    let replayed_poll = app
+        .oneshot(post(
+            "/_snapback/api/console/approval/poll",
+            json!({ "deviceCode": device_code }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(replayed_poll.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        json(replayed_poll).await["diagnostic"]["code"],
+        "SNAPBACK_ADMIN_APPROVAL_INVALID"
     );
 }
 

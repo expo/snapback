@@ -28,6 +28,8 @@ export class AdminClient {
     const stored = this.masterToken ? null : storedConsoleCredential();
     this.consoleCredential = stored?.credential ?? '';
     this.consoleExpiresAtMs = stored?.expiresAtMs ?? 0;
+    this.consoleRenewalAttemptedAtMs = 0;
+    this.consoleRenewalPromise = null;
     clearLegacyStoredMaster();
   }
 
@@ -55,6 +57,72 @@ export class AdminClient {
     this.#replaceConsoleCredential(credential);
   }
 
+  setConsoleCredential(credential, expiresAtMs) {
+    const projected = projectConsoleCredential({ credential, expiresAtMs });
+    if (!projected || projected.expiresAtMs <= Date.now()) {
+      throw responseShapeError('console credential handoff was invalid or expired');
+    }
+    this.masterToken = '';
+    this.#replaceConsoleCredential(projected);
+  }
+
+  async requestConsoleApproval() {
+    const response = await this.#req(
+      'POST',
+      '/console/approval/request',
+      undefined,
+      {},
+      false,
+      false,
+    );
+    if (!projectConsoleApprovalRequest(response)) {
+      throw responseShapeError('console approval request returned an invalid response');
+    }
+    return response;
+  }
+
+  async pollConsoleApproval(deviceCode) {
+    const code = String(deviceCode ?? '').trim();
+    if (!code.startsWith('sbcd_')) {
+      throw responseShapeError('console approval device code was invalid');
+    }
+    const response = await this.#req(
+      'POST',
+      '/console/approval/poll',
+      { deviceCode: code },
+      {},
+      false,
+      false,
+      false,
+    );
+    if (exactRecord(response, ['status', 'interval'])) {
+      if (
+        response.status !== 'authorization_pending'
+        || !Number.isSafeInteger(response.interval)
+        || response.interval < 1
+      ) {
+        throw responseShapeError('console approval poll returned an invalid pending response');
+      }
+      return { status: response.status, interval: response.interval };
+    }
+    if (!exactRecord(response, ['status', 'credential', 'expiresAtMs'])) {
+      throw responseShapeError('console approval poll returned an invalid response');
+    }
+    const credential = projectConsoleCredential({
+      credential: response.credential,
+      expiresAtMs: response.expiresAtMs,
+    });
+    if (
+      response.status !== 'approved'
+      || !credential
+      || credential.expiresAtMs <= Date.now()
+    ) {
+      throw responseShapeError('console approval returned an invalid credential');
+    }
+    this.#replaceConsoleCredential(credential);
+    return { status: 'approved', expiresAtMs: credential.expiresAtMs };
+  }
+
   setSecretReadLease(lease) {
     this.secretReadLease = String(lease ?? '').trim();
   }
@@ -75,6 +143,13 @@ export class AdminClient {
     includeSecretRead = false,
     preserveCredentialResponse = false,
   ) {
+    if (
+      includeCredential
+      && path !== '/console/credential'
+      && this.#consoleCredentialNeedsRenewal()
+    ) {
+      await this.#renewConsoleCredential();
+    }
     const headers = { ...explicitHeaders };
     if (includeCredential && this.masterToken) {
       headers['x-snapback-admin-token'] = this.masterToken;
@@ -218,6 +293,43 @@ export class AdminClient {
     if (this.consoleExpiresAtMs > Date.now()) return this.consoleCredential;
     this.#replaceConsoleCredential(null);
     return '';
+  }
+
+  #consoleCredentialNeedsRenewal() {
+    return !!this.#activeConsoleCredential()
+      && this.consoleExpiresAtMs <= Date.now() + 2 * 60_000
+      && this.consoleRenewalAttemptedAtMs <= Date.now() - 30_000;
+  }
+
+  async #renewConsoleCredential() {
+    if (this.consoleRenewalPromise) return this.consoleRenewalPromise;
+    this.consoleRenewalAttemptedAtMs = Date.now();
+    this.consoleRenewalPromise = (async () => {
+      try {
+        const renewed = await this.#req(
+          'POST',
+          '/console/credential',
+          undefined,
+          {},
+          true,
+          false,
+          true,
+        );
+        const credential = projectConsoleCredential(renewed);
+        if (!credential || credential.expiresAtMs <= Date.now()) {
+          throw responseShapeError('console credential renewal returned an invalid credential');
+        }
+        this.#replaceConsoleCredential(credential);
+      } catch (error) {
+        // Renewal is a sliding convenience. Preserve an active credential for
+        // the request that triggered renewal; the ordinary request remains the
+        // authority check and will surface expiry when the cap is reached.
+        if (!this.#activeConsoleCredential()) throw error;
+      } finally {
+        this.consoleRenewalPromise = null;
+      }
+    })();
+    return this.consoleRenewalPromise;
   }
 
   #replaceConsoleCredential(record) {
@@ -374,6 +486,35 @@ export class AdminClient {
   }
 }
 
+// Consume the CLI's fragment handoff before the console makes any request.
+// The fragment is removed from the visible/history URL before validation or
+// persistence, and only the derived credential record reaches localStorage.
+export function consumeConsoleCredentialFragment(
+  client,
+  locationObject = globalThis.location,
+  historyObject = globalThis.history,
+) {
+  const raw = String(locationObject?.hash ?? '');
+  if (!raw.startsWith('#')) return false;
+  const parameters = new URLSearchParams(raw.slice(1));
+  if (!parameters.has('credential')) return false;
+  const replacement = `${locationObject?.pathname ?? ''}${locationObject?.search ?? ''}` || '/';
+  if (historyObject && typeof historyObject.replaceState === 'function') {
+    historyObject.replaceState(historyObject.state ?? null, '', replacement);
+  }
+  const keys = [...parameters.keys()];
+  if (
+    keys.length !== 2
+    || keys.filter((key) => key === 'credential').length !== 1
+    || keys.filter((key) => key === 'expiresAtMs').length !== 1
+  ) {
+    throw responseShapeError('console credential fragment was invalid');
+  }
+  const expiresAtMs = Number(parameters.get('expiresAtMs'));
+  client.setConsoleCredential(parameters.get('credential'), expiresAtMs);
+  return true;
+}
+
 function telemetryQuery(input, allowed) {
   const query = new URLSearchParams();
   for (const key of allowed) {
@@ -452,8 +593,7 @@ function projectConsoleCredential(value, forbiddenMaster = '') {
   if (!exactRecord(value, ['credential', 'expiresAtMs'])) return null;
   if (
     typeof value.credential !== 'string' ||
-    !value.credential.startsWith('sbcc_') ||
-    value.credential.length <= 'sbcc_'.length ||
+    !/^sbcc_[A-Za-z0-9-]+$/.test(value.credential) ||
     !Number.isSafeInteger(value.expiresAtMs) ||
     value.expiresAtMs < 0
   ) {
@@ -469,6 +609,27 @@ function projectConsoleCredential(value, forbiddenMaster = '') {
   // `expiresAtMs` timestamp or a master spanning serialized JSON punctuation.
   if (forbiddenMaster && consoleRecordContainsMaster(projected, forbiddenMaster)) return null;
   return projected;
+}
+
+function projectConsoleApprovalRequest(value) {
+  if (!exactRecord(value, ['deviceCode', 'userCode', 'verificationUri', 'expiresIn', 'interval'])) {
+    return null;
+  }
+  if (
+    typeof value.deviceCode !== 'string'
+    || !/^sbcd_[A-Za-z0-9]+$/.test(value.deviceCode)
+    || typeof value.userCode !== 'string'
+    || !/^[A-F0-9]{4}-[A-F0-9]{4}$/.test(value.userCode)
+    || typeof value.verificationUri !== 'string'
+    || !value.verificationUri
+    || !Number.isSafeInteger(value.expiresIn)
+    || value.expiresIn < 1
+    || !Number.isSafeInteger(value.interval)
+    || value.interval < 1
+  ) {
+    return null;
+  }
+  return value;
 }
 
 function consoleRecordContainsMaster(record, master) {
@@ -503,6 +664,7 @@ function sensitiveAdminField(name) {
     || normalized.endsWith('_bearer')
     || normalized === 'credential'
     || normalized.endsWith('_credential')
+    || normalized === 'device_code'
     || normalized === 'lease'
     || normalized.endsWith('_lease')
     || normalized === 'proof'
