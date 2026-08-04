@@ -252,6 +252,15 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
            expires_at_ms INTEGER NOT NULL CHECK(expires_at_ms >= 0),
            completed_at_ms INTEGER,
            PRIMARY KEY(stream_id, operation_id)
+         );
+         CREATE TABLE IF NOT EXISTS _snapback_operation_purges_v1 (
+           purge_id TEXT PRIMARY KEY,
+           selector_class TEXT NOT NULL CHECK(selector_class IN ('auth','all')),
+           selector_digest TEXT NOT NULL,
+           settlement_count INTEGER NOT NULL CHECK(settlement_count >= 0),
+           operation_count INTEGER NOT NULL CHECK(operation_count >= 0),
+           operation_keys_digest TEXT NOT NULL,
+           recorded_at_ms INTEGER NOT NULL CHECK(recorded_at_ms >= 0)
          );",
     )?;
     let has_successor: bool = tx.query_row(
@@ -714,6 +723,93 @@ pub fn resolve_client_range_audience_in(
     Ok(audience)
 }
 
+/// Resolve an issuance audience for retry classification after settlement
+/// payload reclamation. Unlike first-attempt admission this accepts a retired
+/// epoch: the retained authenticator is used only to locate the exact
+/// suppression/tombstone/floor namespace, never to authorize new work.
+///
+/// @ref LLP 0162#1-the-universal-commit-envelope — lookup precedence remains
+///   effective after issuer termination and must classify a below-floor retry
+///   instead of executing it as novel.
+pub fn resolve_operation_audience_for_lookup(
+    conn: &Connection,
+    issuance: &OperationIssuanceV1,
+    authority_instance_id: &str,
+) -> SnapbackResult<String> {
+    let (originator_class, epoch_id, authenticator) = match issuance {
+        OperationIssuanceV1::ClientRange {
+            epoch_id,
+            authority_authenticator_digest,
+            ..
+        } => (
+            OperationOriginatorClassV1::Client,
+            epoch_id,
+            authority_authenticator_digest,
+        ),
+        OperationIssuanceV1::HostIncarnation {
+            epoch_id,
+            authority_authenticator_digest,
+            ..
+        } => (
+            OperationOriginatorClassV1::Host,
+            epoch_id,
+            authority_authenticator_digest,
+        ),
+    };
+    let audience: Option<String> = conn
+        .query_row(
+            "SELECT audience FROM _snapback_operation_epochs_v1
+              WHERE originator_class=?1 AND epoch_id=?2
+                AND authority_instance_id=?3 AND authenticator_digest=?4",
+            params![
+                originator(originator_class),
+                epoch_id,
+                authority_instance_id,
+                authenticator,
+            ],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let audience = audience.ok_or_else(|| {
+        refused(
+            "SNAPBACK_OPERATION_ISSUANCE_AUTH_INVALID",
+            "operation retry issuance does not resolve to a server-recorded authority epoch",
+        )
+    })?;
+    if let OperationIssuanceV1::ClientRange {
+        counter,
+        range_start,
+        range_end_exclusive,
+        ..
+    } = issuance
+    {
+        let exact_range: bool = conn.query_row(
+            "SELECT EXISTS(
+               SELECT 1 FROM _snapback_operation_ranges_v1
+                WHERE audience=?1 AND epoch_id=?2 AND range_start=?3
+                  AND range_end_exclusive=?4 AND range_start <= ?5
+                  AND range_end_exclusive > ?5 AND authenticator_digest=?6
+             )",
+            params![
+                audience,
+                epoch_id,
+                to_i64(*range_start, "range start")?,
+                to_i64(*range_end_exclusive, "range end")?,
+                to_i64(*counter, "operation counter")?,
+                authenticator,
+            ],
+            |row| row.get(0),
+        )?;
+        if !exact_range {
+            return Err(refused(
+                "SNAPBACK_OPERATION_RANGE_AUTH_INVALID",
+                "operation retry issuance does not name its exact server-recorded range",
+            ));
+        }
+    }
+    Ok(audience)
+}
+
 /// Mint the next finite range under the exact live authority incarnation.
 /// A caller may present its prior range only as a continuity assertion; it
 /// never selects the audience, epoch, bounds, or authenticator. Issuance does
@@ -1139,6 +1235,9 @@ pub fn record_operation_in(
             }
         },
         receipt_digest: envelope.receipt.receipt_digest.clone(),
+        // Suppression retains only the bounded receipt projection/reference.
+        // Protected plaintext stays exclusively in encrypted custody and is
+        // opened only for an authorized exact replay.
         receipt_payload: serde_json::to_value(&envelope.receipt.payload)
             .map_err(|_| invalid("receipt payload could not be encoded"))?,
         terminal_at_ms: envelope.recorded_at_ms,
@@ -1567,6 +1666,82 @@ pub fn acknowledge_client_operation_by_id_in(
         matched += 1;
     }
     Ok(matched)
+}
+
+/// Convert every covered suppression row selected by an administrative
+/// settlement purge into the same compact/tombstone state as ACK reclamation,
+/// then append one payload-free audit record in the caller's transaction.
+/// This intentionally forfeits replay of the full result while preserving
+/// anti-duplication and the `result-expired`/floor lookup order.
+///
+/// @ref LLP 0162#acceptance — row 14 requires operator purge to be explicit,
+///   recorded, and unable to turn a retained operation into a novel write.
+pub fn operator_purge_client_operations_in(
+    tx: &Transaction<'_>,
+    selector_class: &str,
+    selector_digest: &str,
+    settlements: &[(String, String, Option<String>)],
+    recorded_at_ms: u64,
+) -> SnapbackResult<u64> {
+    if !matches!(selector_class, "auth" | "all") || !valid_sha256(selector_digest) {
+        return Err(invalid("operation purge selector is invalid"));
+    }
+    let stream_id = crate::seed_identity::strict_current_data_version_stream(tx)?;
+    let mut reclaimed = Vec::new();
+    for (operation_id, principal_fingerprint, authority_instance_id) in settlements {
+        let Some(stream_id) = stream_id.as_deref() else {
+            // Pre-0163 databases can retain predecessor settlement rows
+            // without any operation stream. They still receive the explicit
+            // payload-free purge audit, with zero operation keys reclaimed.
+            continue;
+        };
+        let mut statement = tx.prepare(
+            "SELECT identity_json FROM _snapback_operation_suppression_v1
+              WHERE stream_id=?1 AND originator_class='client' AND operation_id=?2",
+        )?;
+        let bodies = statement
+            .query_map(params![stream_id, operation_id], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        drop(statement);
+        for body in bodies {
+            let identity: OperationIdentityV1 = decode(&body, "purged operation identity")?;
+            if identity.bound_facts.principal_fingerprint != *principal_fingerprint
+                || authority_instance_id.as_ref().is_some_and(|expected| {
+                    identity.bound_facts.authority_instance_id != *expected
+                })
+            {
+                return Err(invalid(
+                    "operator purge settlement and operation authority diverged",
+                ));
+            }
+            acknowledge_and_reclaim_in(tx, &identity, recorded_at_ms)?;
+            reclaimed.push(identity.key);
+        }
+    }
+    reclaimed.sort();
+    reclaimed.dedup();
+    let operation_keys_digest = digest_json(
+        b"snapback:operation-purge-keys:v1\n",
+        &serde_json::to_value(&reclaimed)
+            .map_err(|_| invalid("operation purge keys could not be encoded"))?,
+    );
+    let purge_id = crate::ids::mint_time_ordered(crate::ids::Kind::Opaque);
+    tx.execute(
+        "INSERT INTO _snapback_operation_purges_v1(
+           purge_id,selector_class,selector_digest,settlement_count,
+           operation_count,operation_keys_digest,recorded_at_ms
+         ) VALUES(?1,?2,?3,?4,?5,?6,?7)",
+        params![
+            purge_id,
+            selector_class,
+            selector_digest,
+            to_i64(settlements.len() as u64, "purged settlement count")?,
+            to_i64(reclaimed.len() as u64, "purged operation count")?,
+            operation_keys_digest,
+            to_i64(recorded_at_ms, "operation purge time")?,
+        ],
+    )?;
+    Ok(reclaimed.len() as u64)
 }
 
 pub fn terminate_epoch_in(
@@ -2292,6 +2467,16 @@ fn compact_envelope_receipt_in(
         |row| row.get(0),
     )?;
     let mut envelope: CommitEnvelopeV1 = decode(&body, "commit envelope")?;
+    if let RetainedEnvelopeDetailV1::ProtectedLane {
+        custody_reference, ..
+    } = &envelope.receipt.payload
+    {
+        tx.execute(
+            "DELETE FROM _snapback_operation_protected_detail_v1
+             WHERE custody_reference=?1",
+            params![custody_reference],
+        )?;
+    }
     envelope.receipt.payload = RetainedEnvelopeDetailV1::Expired;
     tx.execute(
         "UPDATE _snapback_commit_envelopes_v1 SET envelope_json=?1

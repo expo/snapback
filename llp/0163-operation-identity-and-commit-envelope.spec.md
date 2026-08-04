@@ -324,6 +324,52 @@ widening this Draft Spec.
 
 Every related capability remains `Missing`; this slice makes no advertisement.
 
+## Implementation record — 2026-08-04, lifecycle and atomic-envelope tail
+
+The two declared ordinary writers now expose deterministic test-only crash cuts
+before predecessor settlement, after predecessor settlement but before the
+CommitEnvelope, and after the envelope but before SQLite COMMIT. HostPlan and
+Buffered corpus runs each cut against a file database, reopen it, and prove
+that application rows, version/change journal, predecessor replay row,
+envelope, suppression row, and protected custody are either all absent or all
+committed. A successful commit is then reopened and exact-replayed without a
+second write.
+
+The predecessor `_snapback_client_mutations` row is no longer the only retry
+authority. When that full payload is absent, an issuance-bearing retry resolves
+its server-recorded audience and applies LLP 0162's suppression, tombstone,
+compact-envelope, then floor lookup order. Exact replay opens the digest-bound
+protected receipt reference and reconstructs `MutationOutput`; suppression
+JSON retains no receipt plaintext. ACK and explicit operator purge reclaim the
+full result while preserving `result-expired` duplicate prevention. Epoch
+closure plus independent compact-envelope expiry classifies both a previously
+committed retry and a never-delivered preallocated identity below the floor as
+`identity-horizon-passed` / outcome unknown before writer dispatch.
+
+Operator purge now converts only the active-stream client partition selected by
+the predecessor settlement into tombstone/compact state in the same
+transaction, and writes a payload-free selector/key digest audit row. Corpus
+uses the same operation-id text in a retired client stream and an active-stream
+host partition under divergent principals; both unrelated keys survive while
+the exact active client key becomes result-expired. Bounded-retention corpus
+also proves an unacknowledged first result refuses a second operation without
+evicting exact replay.
+
+The JavaScript outbox distinguishes `result-expired` from a failed operation
+and `identity-horizon-passed` from any terminal result. The former carries the
+known operation outcome and expired-result disposition; the latter carries
+outcome unknown. Both retain the durable head as pending and stop ordered
+replay, so no dependent crosses while a settlement payload is unavailable and
+neither case is mislabeled as a failed committed operation. HTTP maps
+result-expired to 410 and the identity horizon/stored-refusal classes to 409.
+
+This closes additional LLP 0162 rows 1, 2, and 14 corpus cells but does not
+activate a production coverage manifest. A distinct durable outbox
+outcome-known/result-gone state, recreated-branch end-to-end corpus, migration
+host adapter, complete target writer inventory, active-lane paired performance,
+independent review, and named-author acceptance remain open. This Spec remains
+Draft and every related capability remains `Missing`.
+
 ## Implementation record — 2026-08-04, host action-child carrier slice
 
 Job, cron, recovery, and manual action runs now construct one deterministic

@@ -1364,6 +1364,106 @@ test('replay persistence failure stops without drop-and-mark-failed', async (t) 
   assert.equal(record.status, 'pending');
 });
 
+test('identity horizon outcome-unknown remains pending online and during replay', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  globalThis.fetch = async () => Response.json({
+    diagnostic: {
+      code: 'SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED',
+      message: 'the identity epoch is below the retained outcome horizon',
+      details: {
+        disposition: 'identity-horizon-passed',
+        outcome: 'unknown',
+        terminal: false,
+      },
+    },
+  }, { status: 409 });
+
+  await assert.rejects(
+    () => client.mutate('createThing', {
+      args: { title: 'ambiguous' },
+      clientMutationId: 'cm-outcome-unknown',
+    }),
+    (error) => (
+      error.diagnostic.code === 'SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED'
+      && error.operationOutcome === 'unknown'
+    ),
+  );
+  let record = (await store.outboxRecords()).find((item) => item.id === 'cm-outcome-unknown');
+  assert.equal(record.status, 'pending', 'online horizon refusal is not terminal failed state');
+
+  const replay = await client.replayQueuedMutations();
+  assert.deepEqual(
+    {
+      replayed: replay.replayed,
+      failed: replay.failed,
+      remaining: replay.remaining,
+      stopped: replay.stopped,
+    },
+    { replayed: 0, failed: 0, remaining: 1, stopped: true },
+  );
+  record = (await store.outboxRecords()).find((item) => item.id === 'cm-outcome-unknown');
+  assert.equal(record.status, 'pending', 'replay horizon refusal remains operator-visible pending');
+});
+
+test('committed result-expired stays pending and blocks ordered successors', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return Response.json({
+      diagnostic: {
+        code: 'SNAPBACK_OPERATION_RESULT_EXPIRED',
+        message: 'the committed operation result payload was reclaimed',
+        details: {
+          disposition: 'result-expired',
+          outcome: 'committed',
+          receiptDigest: `sha256:${'e'.repeat(64)}`,
+        },
+      },
+    }, { status: 410 });
+  };
+
+  await assert.rejects(
+    () => client.mutate('createThing', {
+      args: { title: 'known-committed' },
+      clientMutationId: 'cm-result-expired',
+    }),
+    (error) => (
+      error.operationOutcome === 'committed'
+      && error.operationResult === 'expired'
+    ),
+  );
+  await store.outboxEnqueue({
+    id: 'cm-after-result-expired',
+    function: 'updateThing',
+    args: { title: 'must-wait' },
+  });
+  calls = 0;
+  const replay = await client.replayQueuedMutations();
+  assert.deepEqual(
+    {
+      replayed: replay.replayed,
+      failed: replay.failed,
+      remaining: replay.remaining,
+      stopped: replay.stopped,
+      calls,
+    },
+    { replayed: 0, failed: 0, remaining: 2, stopped: true, calls: 1 },
+    'payload loss keeps the known-committed head and its successors behind the submission fence',
+  );
+  assert.deepEqual(
+    (await store.outboxRecords()).map((record) => [record.id, record.status]),
+    [
+      ['cm-result-expired', 'pending'],
+      ['cm-after-result-expired', 'pending'],
+    ],
+  );
+});
+
 test('replay drop-and-mark-failed on server refusal, pending kept on connectivity', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();

@@ -181,6 +181,24 @@ passed. It also does not establish the global writer-token/SQLite-authorizer
 choke point, a dated fixed-Air p99 or active-covered paired record, author
 bounds, or any capability claim; every related capability remains `Missing`.
 
+The same 2026-08-04 record now includes the LLP 0163 lifecycle tail for rows 1,
+2, and 14. File-backed production HostPlan and Buffered writers pass all three
+settlement/envelope/COMMIT crash cuts and reopen as none-or-complete. Missing
+predecessor replay rows fall through to the operation ledger: protected exact
+receipts reopen from digest-bound custody without plaintext in suppression,
+ACK/purge preserves result-expired duplicate prevention, and closed-floor
+committed retries plus delayed first delivery surface outcome unknown before
+dispatch. Retention-full preserves the unacknowledged result. Operator purge is
+payload-free audited and partition-scoped against same-text cross-stream/client
+and host/divergent-principal collisions. The client keeps result-expired and
+identity-horizon heads pending, reports known/unknown operation outcome, and
+blocks ordered successors instead of mark-failing a committed operation.
+
+Rows 1, 2, and 14 remain Partial: recreated-branch end-to-end lifecycle,
+migration host identity, a distinct durable result-gone client state, complete
+target writer/bypass inventory, production activation, and row 13 are still
+open. No capability state changes in this record.
+
 ## Review and publication gates
 
 - LLP 0163, LLP 0164, and LLP 0165 remain `Draft`. Their existing extraction

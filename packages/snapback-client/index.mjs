@@ -138,6 +138,26 @@ import { resolveDefaultRqsStore } from './rqs-store-default.mjs';
 // rule. sanitizeTransportError below still owns the provenance stamp.
 import { isConnectivityFailureError } from './outbox-shared.mjs';
 
+// @ref LLP 0162#acceptance — once an operation identity is below the retained
+// outcome horizon, the client must expose unknown outcome and retain durable
+// intent; it may never publish a terminal local failure or blindly retry.
+const isOperationOutcomeUnknownError = (error) => (
+  error?.diagnostic?.code === 'SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED'
+  || error?.code === 'SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED'
+  || error?.diagnostic?.details?.disposition === 'identity-horizon-passed'
+);
+
+const isOperationResultExpiredError = (error) => (
+  error?.diagnostic?.code === 'SNAPBACK_OPERATION_RESULT_EXPIRED'
+  || error?.code === 'SNAPBACK_OPERATION_RESULT_EXPIRED'
+  || error?.diagnostic?.details?.disposition === 'result-expired'
+);
+
+const operationOutcomeFromError = (error) => {
+  const outcome = error?.diagnostic?.details?.outcome;
+  return outcome === 'committed' || outcome === 'refused' ? outcome : 'unknown';
+};
+
 // ---------------------------------------------------------------------------
 // D1 freshness + reconnect policy (LLP 0034 §2.2/§2.3; Exact LLP 0284 §2.2).
 //
@@ -6142,6 +6162,27 @@ export class SnapbackClient {
           });
           break;
         }
+        if (isOperationResultExpiredError(error)) {
+          stopped = true;
+          this.#recordOutboxDiagnostic({
+            code: 'SNAPBACK_OFFLINE_MUTATION_RESULT_EXPIRED',
+            mutation: record.function,
+            clientMutationId: record.id,
+            disposition: 'result-expired',
+            operationOutcome: operationOutcomeFromError(error),
+          });
+          break;
+        }
+        if (isOperationOutcomeUnknownError(error)) {
+          stopped = true;
+          this.#recordOutboxDiagnostic({
+            code: 'SNAPBACK_OFFLINE_MUTATION_OUTCOME_UNKNOWN',
+            mutation: record.function,
+            clientMutationId: record.id,
+            disposition: 'identity-horizon-passed',
+          });
+          break;
+        }
         if (isConnectivityFailureError(error)) {
           // Still offline: keep the record pending and preserve order.
           stopped = true;
@@ -6469,6 +6510,28 @@ export class SnapbackClient {
           // stage ran even though this mutation was rejected (LLP 0043); a
           // receipt-less failure is ambiguous and RETAINS the obligations.
           if (error?.receipt) await confirmSentAcknowledgements();
+          if (isOperationResultExpiredError(error)) {
+            error.operationOutcome = operationOutcomeFromError(error);
+            error.operationResult = 'expired';
+            this.#recordOutboxDiagnostic({
+              code: 'SNAPBACK_OFFLINE_MUTATION_RESULT_EXPIRED',
+              mutation: name,
+              clientMutationId,
+              disposition: 'result-expired',
+              operationOutcome: error.operationOutcome,
+            });
+            throw error;
+          }
+          if (isOperationOutcomeUnknownError(error)) {
+            error.operationOutcome = 'unknown';
+            this.#recordOutboxDiagnostic({
+              code: 'SNAPBACK_OFFLINE_MUTATION_OUTCOME_UNKNOWN',
+              mutation: name,
+              clientMutationId,
+              disposition: 'identity-horizon-passed',
+            });
+            throw error;
+          }
           if (queueStore && isConnectivityFailureError(error)) {
             // LLP 0043 M2 / LLP 0129 Phase 0: delivery refused at the
             // transport — queue the intent durably under a client-minted
