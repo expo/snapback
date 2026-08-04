@@ -153,6 +153,20 @@
         "node packages/snapback-client/argument-validation.test.mjs",
         "node packages/snapback-client/materialization-bridge.test.mjs"
       ]
+    },
+    {
+      "filename": "baseline.finite-carrier-completeness.v1.json",
+      "workloadVersion": "llp-0093-0094-finite-carrier-completeness.v1",
+      "inputs": {
+        "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
+        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+      },
+      "behaviorCommands": [
+        "node packages/snapback-client/package.test.mjs",
+        "node packages/snapback-client/browser-closure.test.mjs",
+        "node packages/snapback-react/package.test.mjs",
+        "node packages/snapback-client/materialization-store.test.mjs"
+      ]
     }
   ],
   "profiles": [
@@ -161,15 +175,15 @@
       "package": "@expo/snapback-client/app-data",
       "fixtureSha256": "affa880d29923ab0e75ae51a65250f5c4a93587cd9041352590e1b1f35f929e6",
       "externals": [],
-      "minifiedBytes": 449906,
-      "gzipBytes": 125560,
-      "brotliBytes": 103505,
-      "outputSha256": "a05ad5014b4ef2034e70921480fddf99f194e38d3cd88e2b830a1c14393aeac8",
+      "minifiedBytes": 449927,
+      "gzipBytes": 125567,
+      "brotliBytes": 103614,
+      "outputSha256": "f71ceed63808277f0f8e629df6a7dadf42122f91100d149ebf7dc923779f0f24",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 389362
+            "bytes": 389383
           },
           {
             "name": "@expo/snapback-contract",
@@ -189,7 +203,7 @@
           {
             "module": "packages/snapback-client/materialization-store.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 48293
+            "bytes": 48314
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -671,7 +685,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -1161,7 +1175,7 @@
           }
         },
         "output": {
-          "bytes": 449906,
+          "bytes": 449927,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/app-data-operation-live.fixture.mjs",
           "imports": [],
           "inputs": {
@@ -1199,7 +1213,7 @@
               "bytesInOutput": 10000
             },
             "packages/snapback-client/materialization-store.mjs": {
-              "bytesInOutput": 48293
+              "bytesInOutput": 48314
             },
             "packages/snapback-client/optimistic-rebase.mjs": {
               "bytesInOutput": 7972
@@ -1761,7 +1775,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -2404,15 +2418,15 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "84aa869b18e72ffaf028cd00cf1ef39aa07ceea3334ffc34aff6c3784eb0cdee",
       "externals": [],
-      "minifiedBytes": 447811,
-      "gzipBytes": 124917,
-      "brotliBytes": 103108,
-      "outputSha256": "fe8581e5e7e8509579c0db07245d5395b8fb03a248b1a91b775e38a5dd0d711c",
+      "minifiedBytes": 447832,
+      "gzipBytes": 124907,
+      "brotliBytes": 102999,
+      "outputSha256": "4f80ddd2350a41846347673809f821ca03dc40dfd4c8f3029141b93c3359d20a",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 387255
+            "bytes": 387276
           },
           {
             "name": "@expo/snapback-contract",
@@ -2432,7 +2446,7 @@
           {
             "module": "packages/snapback-client/materialization-store.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 48293
+            "bytes": 48314
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -2899,7 +2913,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -3389,7 +3403,7 @@
           }
         },
         "output": {
-          "bytes": 447811,
+          "bytes": 447832,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/full-operation-call.fixture.mjs",
           "imports": [],
           "inputs": {
@@ -3424,7 +3438,7 @@
               "bytesInOutput": 10000
             },
             "packages/snapback-client/materialization-store.mjs": {
-              "bytesInOutput": 48293
+              "bytesInOutput": 48314
             },
             "packages/snapback-client/optimistic-rebase.mjs": {
               "bytesInOutput": 7972
@@ -3521,15 +3535,15 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "0eebc000eaa9d8065d155ed1af5d46a64e1257498e4280266999022435be0dd6",
       "externals": [],
-      "minifiedBytes": 447841,
-      "gzipBytes": 124922,
-      "brotliBytes": 103155,
-      "outputSha256": "27a00030b907b4526298b85c456bffab370f35637d7c6b473d0ee76c08619f04",
+      "minifiedBytes": 447862,
+      "gzipBytes": 124912,
+      "brotliBytes": 103018,
+      "outputSha256": "e69469fb69de5f9d6a5830325669e509da4703a2bbf418121d7c0f4f18d5fa19",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 387255
+            "bytes": 387276
           },
           {
             "name": "@expo/snapback-contract",
@@ -3549,7 +3563,7 @@
           {
             "module": "packages/snapback-client/materialization-store.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 48293
+            "bytes": 48314
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -4016,7 +4030,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -4506,7 +4520,7 @@
           }
         },
         "output": {
-          "bytes": 447841,
+          "bytes": 447862,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/full-operation-live.fixture.mjs",
           "imports": [],
           "inputs": {
@@ -4541,7 +4555,7 @@
               "bytesInOutput": 10000
             },
             "packages/snapback-client/materialization-store.mjs": {
-              "bytesInOutput": 48293
+              "bytesInOutput": 48314
             },
             "packages/snapback-client/optimistic-rebase.mjs": {
               "bytesInOutput": 7972
@@ -4638,15 +4652,15 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "6c5d046533faa7d9794a2a001d88c1fb961f4d29b594c7aa4efa221572e59d83",
       "externals": [],
-      "minifiedBytes": 556730,
+      "minifiedBytes": 556751,
       "gzipBytes": 154110,
-      "brotliBytes": 125452,
-      "outputSha256": "a67058b3a195814ae95fd16df171671767187f4fc1f10ab93cca67417b6cd753",
+      "brotliBytes": 125360,
+      "outputSha256": "a7cb26e3bb6c3a643a1b14fdc3106147743dbcbd8b347252b7e0fb7786004645",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 493424
+            "bytes": 493445
           },
           {
             "name": "@expo/snapback-contract",
@@ -4671,7 +4685,7 @@
           {
             "module": "packages/snapback-client/materialization-store.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 48380
+            "bytes": 48401
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -5138,7 +5152,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -5628,7 +5642,7 @@
           }
         },
         "output": {
-          "bytes": 556730,
+          "bytes": 556751,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/full-public-surface.fixture.mjs",
           "imports": [],
           "inputs": {
@@ -5666,7 +5680,7 @@
               "bytesInOutput": 9999
             },
             "packages/snapback-client/materialization-store.mjs": {
-              "bytesInOutput": 48380
+              "bytesInOutput": 48401
             },
             "packages/snapback-client/optimistic-rebase.mjs": {
               "bytesInOutput": 7970
@@ -5763,15 +5777,15 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "4e318bff7882378e69ee33376f5eed5ae87362d549c6fd3f3fe5b2364b072dcb",
       "externals": [],
-      "minifiedBytes": 448250,
-      "gzipBytes": 125014,
-      "brotliBytes": 103159,
-      "outputSha256": "2cf04bc70149eaee0c0ec7d867c868ccbc3fd9ac2b3588b07ff63aabfe9c5888",
+      "minifiedBytes": 448271,
+      "gzipBytes": 125008,
+      "brotliBytes": 103103,
+      "outputSha256": "4db0081053fd305f73572d6c485de72e4a414760df2ed5c42c259e1374f6c647",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 387716
+            "bytes": 387737
           },
           {
             "name": "@expo/snapback-contract",
@@ -5791,7 +5805,7 @@
           {
             "module": "packages/snapback-client/materialization-store.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 48293
+            "bytes": 48314
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -6258,7 +6272,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -6748,7 +6762,7 @@
           }
         },
         "output": {
-          "bytes": 448250,
+          "bytes": 448271,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/full-sessions.fixture.mjs",
           "imports": [],
           "inputs": {
@@ -6783,7 +6797,7 @@
               "bytesInOutput": 10000
             },
             "packages/snapback-client/materialization-store.mjs": {
-              "bytesInOutput": 48293
+              "bytesInOutput": 48314
             },
             "packages/snapback-client/optimistic-rebase.mjs": {
               "bytesInOutput": 7972
@@ -7206,15 +7220,15 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "53cbbb1e7343c133423222271946153ad9c5c0e005895a7ab9c75883e14a421f",
       "externals": [],
-      "minifiedBytes": 556892,
-      "gzipBytes": 154208,
-      "brotliBytes": 125467,
-      "outputSha256": "2c7ca3490268c2d0fe3017ce5b61324d5373ecfa1e2e058515a60010386f14d0",
+      "minifiedBytes": 556913,
+      "gzipBytes": 154209,
+      "brotliBytes": 125567,
+      "outputSha256": "e1b6121086ac9332faca5d2fa41d5c058de9ed5dcf494766130e2a743ba879a0",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 493532
+            "bytes": 493553
           },
           {
             "name": "@expo/snapback-contract",
@@ -7239,7 +7253,7 @@
           {
             "module": "packages/snapback-client/materialization-store.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 48380
+            "bytes": 48401
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -7711,7 +7725,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -8216,7 +8230,7 @@
           }
         },
         "output": {
-          "bytes": 556892,
+          "bytes": 556913,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/micro-root-negative.fixture.mjs",
           "imports": [],
           "inputs": {
@@ -8254,7 +8268,7 @@
               "bytesInOutput": 9999
             },
             "packages/snapback-client/materialization-store.mjs": {
-              "bytesInOutput": 48380
+              "bytesInOutput": 48401
             },
             "packages/snapback-client/online.mjs": {
               "bytesInOutput": 108
@@ -8354,15 +8368,15 @@
       "package": "@expo/snapback-client/online",
       "fixtureSha256": "021cff3497a2cee86d3ca8cf778a0313b30a1567b9fb3714a0bed2673d768daf",
       "externals": [],
-      "minifiedBytes": 447843,
-      "gzipBytes": 124925,
-      "brotliBytes": 103069,
-      "outputSha256": "0069e6eb2a30b35f01a92b3855f989188366fdfa3c2ffe026016b39fe1add458",
+      "minifiedBytes": 447864,
+      "gzipBytes": 124916,
+      "brotliBytes": 103073,
+      "outputSha256": "5f1d6ccc4fcf61d633850d8c1003dfe553820ef8c78cdbba06746e39c9787ebe",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 387255
+            "bytes": 387276
           },
           {
             "name": "@expo/snapback-contract",
@@ -8382,7 +8396,7 @@
           {
             "module": "packages/snapback-client/materialization-store.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 48293
+            "bytes": 48314
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -8854,7 +8868,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -9354,7 +9368,7 @@
           }
         },
         "output": {
-          "bytes": 447843,
+          "bytes": 447864,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/online-operation-live.fixture.mjs",
           "imports": [],
           "inputs": {
@@ -9389,7 +9403,7 @@
               "bytesInOutput": 10000
             },
             "packages/snapback-client/materialization-store.mjs": {
-              "bytesInOutput": 48293
+              "bytesInOutput": 48314
             },
             "packages/snapback-client/online.mjs": {
               "bytesInOutput": 0
@@ -9621,15 +9635,15 @@
       "package": "@expo/snapback-client/app-data",
       "fixtureSha256": "dc9cd2dba7e807de4104f8a707a3cc8ab2e98358d29f6c53c5efcea76ed498e9",
       "externals": [],
-      "minifiedBytes": 453019,
-      "gzipBytes": 126658,
-      "brotliBytes": 104217,
-      "outputSha256": "54e63a0681ed4eede55c579e742268920d81d3b6e17d6169fca82efa79a1f45b",
+      "minifiedBytes": 453040,
+      "gzipBytes": 126662,
+      "brotliBytes": 104231,
+      "outputSha256": "cb22514d81bc14ff406cdcb65c307be5186ecc0a1c65fc75e143c901f85d774e",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 392403
+            "bytes": 392424
           },
           {
             "name": "@expo/snapback-contract",
@@ -9649,7 +9663,7 @@
           {
             "module": "packages/snapback-client/materialization-store.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 48293
+            "bytes": 48314
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -10131,7 +10145,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -10621,7 +10635,7 @@
           }
         },
         "output": {
-          "bytes": 453019,
+          "bytes": 453040,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-app-data.fixture.mjs",
           "imports": [],
           "inputs": {
@@ -10659,7 +10673,7 @@
               "bytesInOutput": 10000
             },
             "packages/snapback-client/materialization-store.mjs": {
-              "bytesInOutput": 48293
+              "bytesInOutput": 48314
             },
             "packages/snapback-client/optimistic-rebase.mjs": {
               "bytesInOutput": 7972
@@ -11036,15 +11050,15 @@
       "package": "@expo/snapback-client/hosted-browser",
       "fixtureSha256": "cac007ca30751dde93db15febdfaf51b00f114adfed031e92f3f91daeb975fe1",
       "externals": [],
-      "minifiedBytes": 449159,
-      "gzipBytes": 125345,
-      "brotliBytes": 103533,
-      "outputSha256": "16d360a448bd766db8d6ff1eb325f27c72c71e69b16bb3104329d044c569dc08",
+      "minifiedBytes": 449180,
+      "gzipBytes": 125340,
+      "brotliBytes": 103547,
+      "outputSha256": "88d78e760fc77bd42f6358c11e4edbefd225bbf6be7fe4f5f719720445a58e30",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 388537
+            "bytes": 388558
           },
           {
             "name": "@expo/snapback-contract",
@@ -11064,7 +11078,7 @@
           {
             "module": "packages/snapback-client/materialization-store.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 48293
+            "bytes": 48314
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -11546,7 +11560,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -12036,7 +12050,7 @@
           }
         },
         "output": {
-          "bytes": 449159,
+          "bytes": 449180,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-hosted-browser.fixture.mjs",
           "imports": [],
           "inputs": {
@@ -12074,7 +12088,7 @@
               "bytesInOutput": 10000
             },
             "packages/snapback-client/materialization-store.mjs": {
-              "bytesInOutput": 48293
+              "bytesInOutput": 48314
             },
             "packages/snapback-client/optimistic-rebase.mjs": {
               "bytesInOutput": 7972
@@ -13012,15 +13026,15 @@
       "package": "@expo/snapback-client/materialization-store",
       "fixtureSha256": "1e55e19552ec5a901e5f1ee6bb6caf04ef33c16e0586d986dc49e9ee373edbc7",
       "externals": [],
-      "minifiedBytes": 67752,
-      "gzipBytes": 19432,
-      "brotliBytes": 17169,
-      "outputSha256": "2acaa02f425724795f814f6bd97ac596b4d9e8595143d48fb0bff804940aaae0",
+      "minifiedBytes": 69961,
+      "gzipBytes": 19947,
+      "brotliBytes": 17607,
+      "outputSha256": "ea8c533baa92607db7cad1f32cf20718b7db7b3b0afb043674ea74fde107293e",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 58090
+            "bytes": 60299
           },
           {
             "name": "@expo/snapback-contract",
@@ -13035,7 +13049,7 @@
           {
             "module": "packages/snapback-client/materialization-store.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 48476
+            "bytes": 50685
           },
           {
             "module": "packages/snapback-contract/result-contract-validator.mjs",
@@ -13085,7 +13099,7 @@
             "imports": []
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -13153,7 +13167,7 @@
           }
         },
         "output": {
-          "bytes": 67752,
+          "bytes": 69961,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-materialization-store.fixture.mjs",
           "imports": [],
           "inputs": {
@@ -13164,7 +13178,7 @@
               "bytesInOutput": 488
             },
             "packages/snapback-client/materialization-store.mjs": {
-              "bytesInOutput": 48476
+              "bytesInOutput": 50685
             },
             "packages/snapback-client/outbox-shared.mjs": {
               "bytesInOutput": 112
@@ -13446,15 +13460,15 @@
       "package": "@expo/snapback-client/online",
       "fixtureSha256": "5dc8b4d7b09913de130602cdddac3d082b7da2bf83ba25786cfa9dd8cd501a70",
       "externals": [],
-      "minifiedBytes": 449245,
-      "gzipBytes": 125386,
-      "brotliBytes": 103404,
-      "outputSha256": "2dea644b475c0d08eace6021c94469d33dafa46307c012802a51ac85f7c466b2",
+      "minifiedBytes": 449266,
+      "gzipBytes": 125372,
+      "brotliBytes": 103426,
+      "outputSha256": "d69fa918590ef0fe4ca327b7a0a41986c1f41580a68a3824c5d23a357a750b42",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 388631
+            "bytes": 388652
           },
           {
             "name": "@expo/snapback-contract",
@@ -13474,7 +13488,7 @@
           {
             "module": "packages/snapback-client/materialization-store.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 48293
+            "bytes": 48314
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -13946,7 +13960,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -14446,7 +14460,7 @@
           }
         },
         "output": {
-          "bytes": 449245,
+          "bytes": 449266,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-online.fixture.mjs",
           "imports": [],
           "inputs": {
@@ -14481,7 +14495,7 @@
               "bytesInOutput": 10000
             },
             "packages/snapback-client/materialization-store.mjs": {
-              "bytesInOutput": 48293
+              "bytesInOutput": 48314
             },
             "packages/snapback-client/online.mjs": {
               "bytesInOutput": 108
@@ -15170,15 +15184,15 @@
       "package": "@expo/snapback-client/push-registry",
       "fixtureSha256": "5dad135cbf5fc5bc6be7012b2b5ee40e9149eca502854b3e3c1be2374a0d3735",
       "externals": [],
-      "minifiedBytes": 451798,
-      "gzipBytes": 126269,
-      "brotliBytes": 103881,
-      "outputSha256": "8e7c65c5bf0460bacb791aec992e24d8bc90d17fec2657b34346ea2bb9731d30",
+      "minifiedBytes": 451819,
+      "gzipBytes": 126259,
+      "brotliBytes": 103914,
+      "outputSha256": "0bf3c5abac468223c44c63e8a16b14f3779fc5f8a0a00b6e87bf3eb2fcf3af5d",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 391177
+            "bytes": 391198
           },
           {
             "name": "@expo/snapback-contract",
@@ -15198,7 +15212,7 @@
           {
             "module": "packages/snapback-client/materialization-store.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 48293
+            "bytes": 48314
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -15670,7 +15684,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -16175,7 +16189,7 @@
           }
         },
         "output": {
-          "bytes": 451798,
+          "bytes": 451819,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-push-registry.fixture.mjs",
           "imports": [],
           "inputs": {
@@ -16210,7 +16224,7 @@
               "bytesInOutput": 10000
             },
             "packages/snapback-client/materialization-store.mjs": {
-              "bytesInOutput": 48293
+              "bytesInOutput": 48314
             },
             "packages/snapback-client/optimistic-rebase.mjs": {
               "bytesInOutput": 7972
@@ -16310,15 +16324,15 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "0b8aca9f63994d2f44a8bc47a6f21226dff5d6a13bb73742eb1e55ed2a4e260f",
       "externals": [],
-      "minifiedBytes": 556730,
-      "gzipBytes": 154113,
-      "brotliBytes": 125422,
-      "outputSha256": "c771a849f1fe7a451d5b99a022d8bc5ca8c05dbf1aa2c69c3e6872f01c14e92b",
+      "minifiedBytes": 556751,
+      "gzipBytes": 154114,
+      "brotliBytes": 125345,
+      "outputSha256": "36c280d7745d6678eb57e250423d716db6d4f796d710b2fa703430147130b3e7",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 493424
+            "bytes": 493445
           },
           {
             "name": "@expo/snapback-contract",
@@ -16343,7 +16357,7 @@
           {
             "module": "packages/snapback-client/materialization-store.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 48380
+            "bytes": 48401
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -16810,7 +16824,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -17300,7 +17314,7 @@
           }
         },
         "output": {
-          "bytes": 556730,
+          "bytes": 556751,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-root.fixture.mjs",
           "imports": [],
           "inputs": {
@@ -17338,7 +17352,7 @@
               "bytesInOutput": 9999
             },
             "packages/snapback-client/materialization-store.mjs": {
-              "bytesInOutput": 48380
+              "bytesInOutput": 48401
             },
             "packages/snapback-client/optimistic-rebase.mjs": {
               "bytesInOutput": 7970
@@ -18542,15 +18556,15 @@
       "package": "@expo/snapback-client/vector-search",
       "fixtureSha256": "a246801156b965b742e04ded577c363b50941c57547ac7486509c1e7bb5330e6",
       "externals": [],
-      "minifiedBytes": 447917,
-      "gzipBytes": 124988,
-      "brotliBytes": 103150,
-      "outputSha256": "f900ad2e710379db282781fe4e3c0f4111c355a1aec93725bd55b1c1685b469d",
+      "minifiedBytes": 447938,
+      "gzipBytes": 124982,
+      "brotliBytes": 103103,
+      "outputSha256": "a32369486aea99821aaddec2a5ebc81998e202a932cc93c15e508cd4cd6145c7",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 387296
+            "bytes": 387317
           },
           {
             "name": "@expo/snapback-contract",
@@ -18570,7 +18584,7 @@
           {
             "module": "packages/snapback-client/materialization-store.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 48293
+            "bytes": 48314
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -19042,7 +19056,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -19542,7 +19556,7 @@
           }
         },
         "output": {
-          "bytes": 447917,
+          "bytes": 447938,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-vector-search.fixture.mjs",
           "imports": [],
           "inputs": {
@@ -19577,7 +19591,7 @@
               "bytesInOutput": 10000
             },
             "packages/snapback-client/materialization-store.mjs": {
-              "bytesInOutput": 48293
+              "bytesInOutput": 48314
             },
             "packages/snapback-client/optimistic-rebase.mjs": {
               "bytesInOutput": 7972
@@ -19677,15 +19691,15 @@
       "package": "@expo/snapback-client/push-registry",
       "fixtureSha256": "82c87d382e3a6cc932897930fe351ca82915e6842c124163364f7252ab0ddabe",
       "externals": [],
-      "minifiedBytes": 451819,
-      "gzipBytes": 126206,
-      "brotliBytes": 103912,
-      "outputSha256": "645394e11351f760875d5c3abde7e32649b236a1286625d7807a35c586b4ceaf",
+      "minifiedBytes": 451840,
+      "gzipBytes": 126204,
+      "brotliBytes": 103824,
+      "outputSha256": "79060bee4cf2c7c6cbebd882a1b7ff253fd0534e42f7ee43f16906d0ed756492",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 391103
+            "bytes": 391124
           },
           {
             "name": "@expo/snapback-contract",
@@ -19705,7 +19719,7 @@
           {
             "module": "packages/snapback-client/materialization-store.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 48293
+            "bytes": 48314
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -20177,7 +20191,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -20687,7 +20701,7 @@
           }
         },
         "output": {
-          "bytes": 451819,
+          "bytes": 451840,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/push-registry-attach.fixture.mjs",
           "imports": [],
           "inputs": {
@@ -20722,7 +20736,7 @@
               "bytesInOutput": 10000
             },
             "packages/snapback-client/materialization-store.mjs": {
-              "bytesInOutput": 48293
+              "bytesInOutput": 48314
             },
             "packages/snapback-client/optimistic-rebase.mjs": {
               "bytesInOutput": 7972
@@ -20822,15 +20836,15 @@
       "package": "@expo/snapback-client",
       "fixtureSha256": "42aa5b177ef3541023072161237d1e35f59324d92e546915faf74601cc4b72f1",
       "externals": [],
-      "minifiedBytes": 557348,
-      "gzipBytes": 154321,
-      "brotliBytes": 125537,
-      "outputSha256": "ae0d059260862e4f9c325119367c4f373a2625408e7e5f9768e974786aa10055",
+      "minifiedBytes": 557369,
+      "gzipBytes": 154308,
+      "brotliBytes": 125561,
+      "outputSha256": "2fb71a4b632f72c4f2637ebd1b9a5aa17eea9fb2cd4088f38be6071d223a1e15",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 493424
+            "bytes": 493445
           },
           {
             "name": "@expo/snapback-contract",
@@ -20855,7 +20869,7 @@
           {
             "module": "packages/snapback-client/materialization-store.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 48380
+            "bytes": 48401
           },
           {
             "module": "packages/snapback-client/react-binding.mjs",
@@ -21322,7 +21336,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -21812,7 +21826,7 @@
           }
         },
         "output": {
-          "bytes": 557348,
+          "bytes": 557369,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/push-registry-root-negative.fixture.mjs",
           "imports": [],
           "inputs": {
@@ -21850,7 +21864,7 @@
               "bytesInOutput": 9999
             },
             "packages/snapback-client/materialization-store.mjs": {
-              "bytesInOutput": 48380
+              "bytesInOutput": 48401
             },
             "packages/snapback-client/optimistic-rebase.mjs": {
               "bytesInOutput": 7970
@@ -22412,7 +22426,7 @@
             ]
           },
           "packages/snapback-client/materialization-store.mjs": {
-            "bytes": 85477,
+            "bytes": 89590,
             "imports": [
               {
                 "path": "packages/snapback-client/canonical-client-value.mjs",
@@ -23060,6 +23074,7 @@
     "baseline.local-persistent-store.v1.json",
     "baseline.local-read-admission.v1.json",
     "baseline.generated-mutation-ir.v1.json",
-    "baseline.offline-unavailable.v1.json"
+    "baseline.offline-unavailable.v1.json",
+    "baseline.finite-carrier-completeness.v1.json"
   ]
 }
