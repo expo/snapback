@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "snapback.agent-safe-baseline-build-recipe.v1",
+  "sourceRevision": "2ab36e28c74c450213b65f17ef81c0d6652ba33a",
+  "instrumentationSourceCommit": "3109a3b4f5068595a71448b10788b56b4fa358f5",
+  "instrumentationPatchSha256": "sha256:8d1e62197fadb7fa1c8a86f16c4c1f07f474907cfd10f6d5d42ca77082c945b5",
+  "instrumentationFiles": [
+    {
+      "path": "src/bench.rs",
+      "sha256": "sha256:7d9936f65e41ff9d5b3118966c8e5038b4777cdfa2ad1fe1617e35ad5fa73ed0"
+    },
+    {
+      "path": "src/bin/snapback-agent-safe-step0.rs",
+      "sha256": "sha256:b646422c12e1651daa48b70cdb3a894693ea31cd6eb01eb81c0f6215a42e6232"
+    },
+    {
+      "path": "src/bin/snapback-bench.rs",
+      "sha256": "sha256:540e7aed8416f48df6ae361a95e39e2f6dbecca2ad22489e59325da9b0ec9b57"
+    }
+  ],
+  "buildProfile": "release",
+  "toolchain": {
+    "rustcVersion": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "cargoVersion": "cargo 1.97.0 (c980f4866 2026-06-30)"
+  },
+  "reconstruction": [
+    "git worktree add --detach BASELINE_WORKTREE 2ab36e28c74c450213b65f17ef81c0d6652ba33a",
+    "git -C BASELINE_WORKTREE checkout 3109a3b4f5068595a71448b10788b56b4fa358f5 -- src/bench.rs src/bin/snapback-agent-safe-step0.rs src/bin/snapback-bench.rs",
+    "verify HEAD, exactly three dirty paths, and the three content digests above",
+    "bootstrap the pinned Ibex runtime, then cargo build --release --bin snapback-bench",
+    "write snapback.agent-safe-baseline-build-provenance.v1 with these identities, exact toolchain/profile, and the built executable SHA-256"
+  ],
+  "claimBoundary": "reproducible build recipe only; a measurement-time provenance record and executable digest are still required"
+}

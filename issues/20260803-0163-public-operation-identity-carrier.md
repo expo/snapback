@@ -76,6 +76,21 @@ Landed in the explanation/protected-custody slice:
   boundary, and exact drop/reap removes its sidecar; swapped valid sidecars
   refuse at boot rather than deferring failure until explanation.
 
+Landed as row-13 evidence scaffolding, without changing capability state:
+
+- a release-only recorder that binds the accepted baseline artifact bytes,
+  exact pre-profile revision plus three-blob instrumentation provenance,
+  baseline and candidate executable digests, exact clean candidate revision,
+  fixed Air hardware/OS, and the accepted toolchain;
+- 11 experimentally time-local comparisons in alternating AB/BA order whose
+  candidate worker activates the actual `ordinaryMutation` coverage manifest,
+  obtains a server-issued client range, and commits issuance-bearing mutations
+  through the production envelope seam; and
+- an explicit non-qualification boundary: the recorder covers the registered
+  read and single-writer metrics only. Paired idle CPU/RSS/disk,
+  active-covered allocation/retention, the fixed-Air dated result, and the
+  other row-13 gates remain open.
+
 Still required before this ticket closes:
 
 - first-party host identity adapters for jobs, cron, migrations, and stable
@@ -86,4 +101,5 @@ Still required before this ticket closes:
 - the complete target writer/bypass/asymmetric-retention acceptance corpus;
   and
 - the genuinely paired, baseline-digest-bound active-lane row-13 performance
-  record and the required independent review/author acceptance.
+  record (including the still-unmeasured active byte and idle legs) and the
+  required independent review/author acceptance.

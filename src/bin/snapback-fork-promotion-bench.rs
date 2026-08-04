@@ -12,10 +12,12 @@ use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
-use std::time::Instant;
+use std::sync::{Arc, Barrier};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, bail};
-use rusqlite::{Connection, Transaction, params};
+use rusqlite::{Connection, Transaction, TransactionBehavior, params};
 use serde::Serialize;
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -27,17 +29,19 @@ use snapback::commit_envelope::{
 use snapback::diagnostic::SnapbackResult;
 use snapback::fork_promotion::{
     ApprovedOperationFactsV1, BranchGrantV1, BranchLimitsV1, BranchOperationDraftV1,
-    BranchOperationV1, ForkCoverageV1, ForkEgressPolicyV1, InAppBranchCreateV1, LogicalWriteFactV1,
-    PromotionApprovalV1, PromotionAuthorityDecisionV1, PromotionContentionPolicyV1,
-    PromotionReplayContextV1, PromotionSealKey, ReplayCustodyClassV1, RetainedReplayInputV1,
-    SnapshotRowV1, create_in_app_branch, exact_fork_diff, execute_branch_operation,
-    issue_promotion_ticket, promote_by_reexecution, reap_expired_in_app_branches,
-    seal_promotion_request,
+    BranchOperationV1, CanonicalAdmissionV1, ForkCoverageV1, ForkEgressPolicyV1,
+    InAppBranchCreateV1, LogicalWriteFactV1, PromotionApprovalV1, PromotionAuthorityDecisionV1,
+    PromotionContentionPolicyV1, PromotionReplayContextV1, PromotionSealKey, ReplayCustodyClassV1,
+    RetainedReplayInputV1, SnapshotRowV1, canonical_mutation_admission, create_in_app_branch,
+    exact_fork_diff, execute_branch_operation, issue_promotion_ticket, promote_by_reexecution,
+    reap_expired_in_app_branches, request_head_reservation, seal_promotion_request,
 };
 
 const RECORDED_RUNS: usize = 11;
 const LOCAL_WARMUPS: usize = 4;
 const ROWS: usize = 512;
+const CONTENTION_SAMPLES: usize = 128;
+const CONTENTION_WORKERS: usize = 8;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,6 +59,7 @@ struct Artifact {
     protocol: Protocol,
     raw_runs: Vec<Run>,
     summary_us: BTreeMap<&'static str, Statistics>,
+    contention: ContentionEvidence,
     bound_ratification: &'static str,
     claim_boundary: &'static str,
 }
@@ -94,6 +99,8 @@ struct Fixture {
     whole_run_warmups: usize,
     per_metric_warmups: usize,
     recorded_runs: usize,
+    contention_samples: usize,
+    contention_workers: usize,
 }
 
 #[derive(Serialize)]
@@ -113,6 +120,21 @@ struct Run {
     exact_diff_us: f64,
     promotion_us: f64,
     ttl_reap_us: f64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ContentionEvidence {
+    metric: &'static str,
+    sample_definition: &'static str,
+    reservation_interval_ms: u64,
+    raw_request_to_commit_us: Vec<f64>,
+    deferred_sample_count: usize,
+    initial_deferred_worker_count: usize,
+    p50_us: f64,
+    p95_us: f64,
+    p99_us: f64,
+    max_us: f64,
 }
 
 #[derive(Serialize)]
@@ -217,8 +239,9 @@ fn main() -> anyhow::Result<()> {
     for index in 0..RECORDED_RUNS {
         raw_runs.push(run_once(20_000 + index as u64)?);
     }
+    let contention = measure_writer_contention()?;
     let artifact = Artifact {
-        schema_version: "snapback.fork-promotion-performance.v2",
+        schema_version: "snapback.fork-promotion-performance.v3",
         artifact_name: "agent-safe-fork-promotion-absolute-2026-08-04",
         date: "2026-08-04",
         source_revision,
@@ -238,6 +261,8 @@ fn main() -> anyhow::Result<()> {
             whole_run_warmups: 1,
             per_metric_warmups: LOCAL_WARMUPS,
             recorded_runs: RECORDED_RUNS,
+            contention_samples: CONTENTION_SAMPLES,
+            contention_workers: CONTENTION_WORKERS,
         },
         protocol: Protocol {
             estimator: "median of 11 fresh-fixture runs",
@@ -248,6 +273,7 @@ fn main() -> anyhow::Result<()> {
         },
         summary_us: summarize(&raw_runs),
         raw_runs,
+        contention,
         bound_ratification: "Missing: LLP 0162 author has not ratified absolute bounds beside the step-0 artifact",
         claim_boundary: "instrumentation evidence only; fork and promotion capabilities remain Missing",
     };
@@ -359,7 +385,16 @@ fn run_once(seed: u64) -> anyhow::Result<Run> {
 }
 
 fn source() -> anyhow::Result<Connection> {
-    let mut conn = Connection::open_in_memory()?;
+    initialize_source(Connection::open_in_memory()?)
+}
+
+fn source_at(path: &std::path::Path) -> anyhow::Result<Connection> {
+    let conn = Connection::open(path)?;
+    conn.pragma_update(None, "journal_mode", "WAL")?;
+    initialize_source(conn)
+}
+
+fn initialize_source(mut conn: Connection) -> anyhow::Result<Connection> {
     conn.execute_batch(
         "CREATE TABLE _snapback_version (id INTEGER PRIMARY KEY, version INTEGER NOT NULL);
          CREATE TABLE _snapback_changes (
@@ -387,6 +422,11 @@ fn source() -> anyhow::Result<Connection> {
            operation_id TEXT
          );
          CREATE TABLE widgets (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+         CREATE TABLE _snapback_contention_writes (
+           id INTEGER PRIMARY KEY,
+           worker INTEGER NOT NULL,
+           ordinal INTEGER NOT NULL
+         );
          INSERT INTO _snapback_version VALUES (1, 9);",
     )?;
     let tx = conn.transaction()?;
@@ -414,6 +454,136 @@ fn source() -> anyhow::Result<Connection> {
     )?;
     tx.commit()?;
     Ok(conn)
+}
+
+/// Measure the ordinary-writer tail introduced by the frozen promotion head
+/// reservation. Eight real SQLite writers begin behind one production
+/// reservation and then commit 128 operations through the production
+/// admission gate. The nearest-rank p99 is retained with every raw sample.
+///
+/// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — the bounded
+///   reservation requires a p99 under-contention latency record.
+fn measure_writer_contention() -> anyhow::Result<ContentionEvidence> {
+    let directory = tempfile::tempdir().context("create contention fixture directory")?;
+    let database_path = directory.path().join("contention.sqlite");
+    let mut canonical = source_at(&database_path)?;
+    let ticket = issue_promotion_ticket(
+        &mut canonical,
+        identity("canonical", "contention-ticket", "promotion.reserve"),
+        &BranchId("contention-branch".to_owned()),
+        "canonical",
+        CONTENTION_WORKERS as u64,
+        80_000,
+        10_000,
+        PromotionContentionPolicyV1::default(),
+    )?;
+    // Fixture admission starts from the exact durable state reached after the
+    // production promotion loop records two consecutive CAS losses. The
+    // reservation itself is requested and enforced only through production
+    // APIs; this setup mutation is outside the timed interval.
+    canonical.execute(
+        "UPDATE _snapback_promotion_admission SET losses = ?2 WHERE ticket_id = ?1",
+        params![
+            ticket.ticket_identity.key.operation_id,
+            ticket.contention_policy.reservation_after_losses as i64
+        ],
+    )?;
+    let logical_start_ms = 20_000_i64;
+    request_head_reservation(&canonical, &ticket, logical_start_ms)?;
+    drop(canonical);
+
+    let barrier = Arc::new(Barrier::new(CONTENTION_WORKERS));
+    let wall_start = Instant::now();
+    let per_worker = CONTENTION_SAMPLES / CONTENTION_WORKERS;
+    let mut workers = Vec::with_capacity(CONTENTION_WORKERS);
+    for worker in 0..CONTENTION_WORKERS {
+        let database_path = database_path.clone();
+        let barrier = barrier.clone();
+        workers.push(thread::spawn(
+            move || -> anyhow::Result<(bool, Vec<(f64, bool)>)> {
+                let mut conn = Connection::open(database_path)?;
+                conn.busy_timeout(Duration::from_secs(5))?;
+                barrier.wait();
+                let mut samples = Vec::with_capacity(per_worker);
+                for ordinal in 0..per_worker {
+                    let sample_started = Instant::now();
+                    let mut was_deferred = false;
+                    loop {
+                        let elapsed_ms =
+                            i64::try_from(wall_start.elapsed().as_millis()).unwrap_or(i64::MAX);
+                        match canonical_mutation_admission(
+                            &conn,
+                            "canonical",
+                            logical_start_ms.saturating_add(elapsed_ms),
+                        )? {
+                            CanonicalAdmissionV1::Admit => break,
+                            CanonicalAdmissionV1::DeferredByPromotionReservation { until_ms } => {
+                                was_deferred = true;
+                                let now_ms = logical_start_ms.saturating_add(elapsed_ms);
+                                let remaining = until_ms.saturating_sub(now_ms).max(1) as u64;
+                                thread::sleep(Duration::from_millis(remaining.min(2)));
+                            }
+                        }
+                    }
+                    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+                    tx.execute(
+                        "INSERT INTO _snapback_contention_writes(id, worker, ordinal)
+                         VALUES (?1, ?2, ?3)",
+                        params![
+                            (worker * per_worker + ordinal + 1) as i64,
+                            worker as i64,
+                            ordinal as i64
+                        ],
+                    )?;
+                    tx.execute(
+                        "UPDATE _snapback_version SET version = version + 1 WHERE id = 1",
+                        [],
+                    )?;
+                    tx.commit()?;
+                    samples.push((micros(sample_started), was_deferred));
+                }
+                let initial_deferred = samples.first().is_some_and(|(_, deferred)| *deferred);
+                Ok((initial_deferred, samples))
+            },
+        ));
+    }
+    let mut samples = Vec::with_capacity(CONTENTION_SAMPLES);
+    let mut deferred_sample_count = 0;
+    let mut initial_deferred_worker_count = 0;
+    for worker in workers {
+        let (initial_deferred, worker_samples) = worker
+            .join()
+            .map_err(|_| anyhow::anyhow!("contention writer thread panicked"))??;
+        initial_deferred_worker_count += usize::from(initial_deferred);
+        for (sample, deferred) in worker_samples {
+            samples.push(sample);
+            deferred_sample_count += usize::from(deferred);
+        }
+    }
+    anyhow::ensure!(
+        samples.len() == CONTENTION_SAMPLES
+            && initial_deferred_worker_count == CONTENTION_WORKERS,
+        "contention fixture did not place every initial writer behind the reservation"
+    );
+    let mut sorted = samples.clone();
+    sorted.sort_by(f64::total_cmp);
+    Ok(ContentionEvidence {
+        metric: "ordinaryWriterReservationRequestToCommitP99Us",
+        sample_definition: "128 benchmark SQL writes across 8 concurrent SQLite connections; timer begins before the production canonical_mutation_admission gate and ends after the benchmark transaction COMMIT; this is reservation-gate tail cost, not the full envelope mutation path; each worker's first sample is observed deferred by one active production promotion reservation",
+        reservation_interval_ms: ticket.contention_policy.reservation_interval_ms,
+        p50_us: percentile(&sorted, 0.50),
+        p95_us: percentile(&sorted, 0.95),
+        p99_us: percentile(&sorted, 0.99),
+        max_us: *sorted.last().unwrap_or(&0.0),
+        raw_request_to_commit_us: samples,
+        deferred_sample_count,
+        initial_deferred_worker_count,
+    })
+}
+
+fn percentile(sorted: &[f64], quantile: f64) -> f64 {
+    let rank = (quantile * sorted.len() as f64).ceil() as usize;
+    sorted[rank.saturating_sub(1).min(sorted.len().saturating_sub(1))]
 }
 
 fn create_request(seed: u64, ordinal: u64, base_version: u64, now: i64) -> InAppBranchCreateV1 {
@@ -636,4 +806,18 @@ fn sysctl(name: &str) -> anyhow::Result<String> {
 
 fn sha(character: char) -> String {
     format!("sha256:{}", character.to_string().repeat(64))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn contention_recorder_observes_real_reservation_and_retains_p99_population() {
+        let evidence = measure_writer_contention().expect("contention evidence");
+        assert_eq!(evidence.raw_request_to_commit_us.len(), CONTENTION_SAMPLES);
+        assert_eq!(evidence.initial_deferred_worker_count, CONTENTION_WORKERS);
+        assert!(evidence.p99_us >= evidence.p95_us);
+        assert!(evidence.max_us >= evidence.p99_us);
+    }
 }
