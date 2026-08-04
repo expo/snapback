@@ -843,6 +843,23 @@ pub enum AdminCommand {
         #[command(flatten)]
         target: TargetArgs,
     },
+    /// Mint, observe, reattach to, or revoke a one-time operator claim link.
+    Link {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// Print the link and return instead of observing redemption/expiry.
+        #[arg(long)]
+        no_wait: bool,
+        /// Substitute this HTTP(S) origin in the printed browser link.
+        #[arg(long)]
+        url_base: Option<String>,
+        /// Query a previously minted claim by its raw claim code.
+        #[arg(long, value_name = "CLAIM", conflicts_with = "revoke")]
+        status: Option<String>,
+        /// Revoke the credential bound to a redeemed claim.
+        #[arg(long, value_name = "CLAIM", conflicts_with = "status")]
+        revoke: Option<String>,
+    },
 }
 
 #[derive(clap::Args, Clone, Default)]
@@ -2466,11 +2483,242 @@ struct ConsoleApprovalCliResponse {
     approved: bool,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleClaimMintCliResponse {
+    claim_code: String,
+    expires_at_ms: u64,
+    expires_in: u64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleClaimStatusCliResponse {
+    status: String,
+    claim_expires_at_ms: Option<u64>,
+    redeemed_at_ms: Option<u64>,
+    transport_peer: Option<String>,
+    transport_peer_source: Option<String>,
+    credential_digest_sha256: Option<String>,
+    credential_expires_at_ms: Option<u64>,
+    credential_max_expires_at_ms: Option<u64>,
+    revoked_at_ms: Option<u64>,
+}
+
 fn admin_command(args: AdminArgs) -> anyhow::Result<()> {
     match args.command {
         Some(AdminCommand::Approve { code, target }) => approve_console_code(&target, &code),
+        Some(AdminCommand::Link {
+            target,
+            no_wait,
+            url_base,
+            status,
+            revoke,
+        }) => admin_claim_link(&target, no_wait, url_base.as_deref(), status, revoke),
         None => launch_admin_console(&args.target, args.no_open),
     }
+}
+
+fn admin_claim_link(
+    target: &TargetArgs,
+    no_wait: bool,
+    url_base: Option<&str>,
+    status: Option<String>,
+    revoke: Option<String>,
+) -> anyhow::Result<()> {
+    let resolved = resolve_admin_console_target(target)?;
+    if let Some(claim_code) = status {
+        let status = console_claim_control_request(
+            &resolved,
+            "/_snapback/api/console/claim/status",
+            &claim_code,
+            "claim status",
+        )?;
+        print_console_claim_status(&status);
+        return Ok(());
+    }
+    if let Some(claim_code) = revoke {
+        let status = console_claim_control_request(
+            &resolved,
+            "/_snapback/api/console/claim/revoke",
+            &claim_code,
+            "claim revocation",
+        )?;
+        print_console_claim_status(&status);
+        return Ok(());
+    }
+
+    let printed_origin = match url_base {
+        Some(origin) => validated_console_origin(origin)?,
+        None => validated_console_origin(&resolved.server_url)?,
+    };
+    let mut request = ureq::post(&format!(
+        "{}/_snapback/api/console/claim",
+        resolved.server_url
+    ));
+    request = request.set("x-snapback-admin-token", &resolved.token);
+    let response = match request.call() {
+        Ok(response) => response,
+        Err(ureq::Error::Status(status, response)) => {
+            return Err(admin_http_error(status, response, "claim mint"));
+        }
+        Err(error) => {
+            return Err(anyhow::anyhow!(
+                "SNAPBACK_ADMIN_CONSOLE_UNREACHABLE: console claim mint request failed: {error}"
+            ));
+        }
+    };
+    let claim: ConsoleClaimMintCliResponse = response.into_json().map_err(|_| {
+        anyhow::anyhow!(
+            "SNAPBACK_ADMIN_CLAIM_RESPONSE_INVALID: console claim response was not the expected JSON shape"
+        )
+    })?;
+    anyhow::ensure!(
+        valid_console_claim(&claim.claim_code)
+            && claim.expires_at_ms > crate::server::now_millis()
+            && claim.expires_in > 0,
+        "SNAPBACK_ADMIN_CLAIM_RESPONSE_INVALID: console claim response was invalid"
+    );
+    // @ref LLP 0017#security-defaults — this is intentionally the only human
+    // carrier: a process-ephemeral single-use code in a fragment. The request
+    // URL and server logs never receive it, and the link is inert after the
+    // attached observer reports redemption or expiry.
+    let link = console_claim_fragment_url(&printed_origin, &claim.claim_code);
+    println!("{link}");
+    use std::io::Write as _;
+    std::io::stdout().flush()?;
+    if no_wait {
+        return Ok(());
+    }
+    loop {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        let status = console_claim_control_request(
+            &resolved,
+            "/_snapback/api/console/claim/status",
+            &claim.claim_code,
+            "claim status",
+        )?;
+        match status.status.as_str() {
+            "pending" => continue,
+            "redeemed" | "claim_expired" | "credential_expired" | "revoked" => {
+                print_console_claim_status(&status);
+                return Ok(());
+            }
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "SNAPBACK_ADMIN_CLAIM_STATUS_RESPONSE_INVALID: claim status response carried an unknown state"
+                ));
+            }
+        }
+    }
+}
+
+fn console_claim_control_request(
+    resolved: &ResolvedAdminConsoleTarget,
+    path: &str,
+    claim_code: &str,
+    operation: &str,
+) -> anyhow::Result<ConsoleClaimStatusCliResponse> {
+    anyhow::ensure!(
+        valid_console_claim(claim_code),
+        "SNAPBACK_ADMIN_CLAIM_CODE_INVALID: claim code must use the sbcl_ format"
+    );
+    let mut request = ureq::post(&format!("{}{path}", resolved.server_url));
+    request = request.set("x-snapback-admin-token", &resolved.token);
+    let response = match request.send_json(serde_json::json!({ "claimCode": claim_code })) {
+        Ok(response) => response,
+        Err(ureq::Error::Status(status, response)) => {
+            return Err(admin_http_error(status, response, operation));
+        }
+        Err(error) => {
+            return Err(anyhow::anyhow!(
+                "SNAPBACK_ADMIN_CONSOLE_UNREACHABLE: {operation} request failed: {error}"
+            ));
+        }
+    };
+    response.into_json().map_err(|_| {
+        anyhow::anyhow!(
+            "SNAPBACK_ADMIN_CLAIM_STATUS_RESPONSE_INVALID: claim status response was not the expected JSON shape"
+        )
+    })
+}
+
+fn print_console_claim_status(status: &ConsoleClaimStatusCliResponse) {
+    match status.status.as_str() {
+        "pending" => println!(
+            "claim pending until {}",
+            status.claim_expires_at_ms.unwrap_or_default()
+        ),
+        "claim_expired" => println!("claim expired without redemption"),
+        "redeemed" => print_console_claim_redemption(status),
+        "credential_expired" => {
+            print_console_claim_redemption(status);
+            println!("claim-derived credential expired");
+        }
+        "revoked" => {
+            print_console_claim_redemption(status);
+            println!(
+                "claim-derived credential revoked at {}",
+                status.revoked_at_ms.unwrap_or_default()
+            );
+        }
+        _ => println!("claim status unavailable"),
+    }
+}
+
+fn print_console_claim_redemption(status: &ConsoleClaimStatusCliResponse) {
+    println!(
+        "claim redeemed at {} by {} peer {}; credential digest {}; expires at {} (absolute cap {})",
+        status.redeemed_at_ms.unwrap_or_default(),
+        status.transport_peer_source.as_deref().unwrap_or("unknown"),
+        status.transport_peer.as_deref().unwrap_or("unavailable"),
+        status
+            .credential_digest_sha256
+            .as_deref()
+            .unwrap_or("unavailable"),
+        status.credential_expires_at_ms.unwrap_or_default(),
+        status.credential_max_expires_at_ms.unwrap_or_default()
+    );
+}
+
+fn validated_console_origin(value: &str) -> anyhow::Result<String> {
+    anyhow::ensure!(
+        !value.contains('#') && value.trim() == value,
+        "SNAPBACK_ADMIN_CLAIM_URL_BASE_INVALID: --url-base must not contain whitespace or a fragment"
+    );
+    let uri = value.parse::<axum::http::Uri>().map_err(|_| {
+        anyhow::anyhow!(
+            "SNAPBACK_ADMIN_CLAIM_URL_BASE_INVALID: --url-base must be an absolute HTTP(S) origin"
+        )
+    })?;
+    let scheme = uri.scheme_str().unwrap_or_default();
+    let authority = uri.authority().ok_or_else(|| {
+        anyhow::anyhow!(
+            "SNAPBACK_ADMIN_CLAIM_URL_BASE_INVALID: --url-base must include an origin host"
+        )
+    })?;
+    anyhow::ensure!(
+        matches!(scheme, "http" | "https")
+            && !authority.as_str().contains('@')
+            && !authority.host().is_empty()
+            && matches!(uri.path(), "" | "/")
+            && uri.query().is_none(),
+        "SNAPBACK_ADMIN_CLAIM_URL_BASE_INVALID: --url-base must be an HTTP(S) origin without credentials, path, query, or fragment"
+    );
+    Ok(format!("{scheme}://{authority}"))
+}
+
+fn valid_console_claim(value: &str) -> bool {
+    value.strip_prefix("sbcl_").is_some_and(|suffix| {
+        suffix.len() == 32 && suffix.bytes().all(|byte| byte.is_ascii_hexdigit())
+    })
+}
+
+fn console_claim_fragment_url(origin: &str, claim_code: &str) -> String {
+    format!(
+        "{}/_snapback/admin/#claim={claim_code}",
+        origin.trim_end_matches('/')
+    )
 }
 
 fn launch_admin_console(target: &TargetArgs, no_open: bool) -> anyhow::Result<()> {
@@ -5464,11 +5712,11 @@ mod tests {
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
         BEFORE_STARTUP_TARGET_RESERVATION, Cli, ErrorsCommand, HostCommand, ManagedPath,
         ReadyFileTarget, ResolvedHttpTarget, TargetArgs, TelemetryCommand, bind_first_available,
-        bind_listener, console_fragment_url, managed_startup_paths, mint_secret_read_via_http,
-        parse_run_args, path_with_filename_suffix, prepare_database_path,
+        bind_listener, console_claim_fragment_url, console_fragment_url, managed_startup_paths,
+        mint_secret_read_via_http, parse_run_args, path_with_filename_suffix, prepare_database_path,
         prepare_database_path_for_startup, reject_misdirected_serve_flags, resolve_http_target,
         runtime_auth_program_readiness, validate_path_disjointness,
-        validated_secret_read_root_path, write_ready_file_atomic,
+        validated_console_origin, validated_secret_read_root_path, write_ready_file_atomic,
         write_ready_file_atomic_protected,
     };
     use crate::instance_lock::TargetInstanceReservation;
@@ -5580,12 +5828,82 @@ mod tests {
             other => panic!("expected admin approval command, got {other:?}"),
         }
 
+        let link = Cli::parse_from([
+            "snapback",
+            "admin",
+            "link",
+            "--ready-file",
+            "ready.json",
+            "--url-base",
+            "https://console.example",
+            "--no-wait",
+        ]);
+        match link.command {
+            Some(HostCommand::Admin(AdminArgs {
+                command:
+                    Some(AdminCommand::Link {
+                        target,
+                        no_wait,
+                        url_base,
+                        status: None,
+                        revoke: None,
+                    }),
+                ..
+            })) => {
+                assert!(no_wait);
+                assert_eq!(target.ready_file, Some(PathBuf::from("ready.json")));
+                assert_eq!(url_base.as_deref(), Some("https://console.example"));
+            }
+            other => panic!("expected admin claim-link command, got {other:?}"),
+        }
+
+        let status = Cli::parse_from([
+            "snapback",
+            "admin",
+            "link",
+            "--status",
+            "sbcl_0123456789abcdef0123456789abcdef",
+            "--ready-file",
+            "ready.json",
+        ]);
+        assert!(matches!(
+            status.command,
+            Some(HostCommand::Admin(AdminArgs {
+                command: Some(AdminCommand::Link { status: Some(_), .. }),
+                ..
+            }))
+        ));
+
         let url = console_fragment_url("http://127.0.0.1:4287", "sbcc_abc123", 42);
         assert_eq!(
             url,
             "http://127.0.0.1:4287/_snapback/admin/#credential=sbcc_abc123&expiresAtMs=42"
         );
         assert!(!url.contains('?'));
+
+        assert_eq!(
+            validated_console_origin("https://console.example/").unwrap(),
+            "https://console.example"
+        );
+        for invalid in [
+            "console.example",
+            "ftp://console.example",
+            "https://user@console.example",
+            "https://console.example/path",
+            "https://console.example?claim=secret",
+            "https://console.example/#fragment",
+        ] {
+            assert!(validated_console_origin(invalid).is_err(), "{invalid}");
+        }
+        let claim_url = console_claim_fragment_url(
+            "https://console.example",
+            "sbcl_0123456789abcdef0123456789abcdef",
+        );
+        assert_eq!(
+            claim_url,
+            "https://console.example/_snapback/admin/#claim=sbcl_0123456789abcdef0123456789abcdef"
+        );
+        assert!(!claim_url.contains('?'));
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

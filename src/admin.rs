@@ -31,7 +31,7 @@ use crate::server::{
 use anyhow::Context as _;
 use axum::Json;
 use axum::body::{Body, Bytes};
-use axum::extract::{Extension, FromRef, Path, Query, State};
+use axum::extract::{ConnectInfo, Extension, FromRef, Path, Query, State};
 use axum::http::{HeaderMap, HeaderName, StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
@@ -39,9 +39,11 @@ use base64::Engine as _;
 use futures_util::StreamExt as _;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
+use subtle::ConstantTimeEq as _;
 use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsString;
 use std::fmt;
+use std::net::SocketAddr;
 use std::path::{Component, Path as FsPath, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex, RwLock as StdRwLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -308,8 +310,10 @@ const ADMIN_CLIENT_MJS: &str = include_str!("../packages/snapback-admin-client/i
 /// initial exchange and never needs to enter browser storage.
 const CONSOLE_CREDENTIAL_TTL: Duration = Duration::from_secs(10 * 60);
 const CONSOLE_CREDENTIAL_MAX_LIFETIME: Duration = Duration::from_secs(8 * 60 * 60);
+const CONSOLE_CLAIM_CREDENTIAL_MAX_LIFETIME: Duration = Duration::from_secs(90 * 60);
 const MAX_CONSOLE_CREDENTIALS: usize = 256;
-const CONSOLE_CREDENTIAL_STORE_VERSION: u32 = 1;
+const MAX_CONSOLE_CLAIM_REDEMPTIONS: usize = 256;
+const CONSOLE_CREDENTIAL_STORE_VERSION: u32 = 2;
 const MAX_CONSOLE_CREDENTIAL_STORE_BYTES: usize = 256 * 1024;
 
 const CONSOLE_APPROVAL_TTL: Duration = Duration::from_secs(10 * 60);
@@ -319,12 +323,28 @@ const CONSOLE_APPROVAL_REQUESTS_PER_MINUTE: u32 = 20;
 const CONSOLE_APPROVAL_ATTEMPTS_PER_MINUTE: u32 = 30;
 const CONSOLE_APPROVAL_POLLS_PER_MINUTE: u32 = 120;
 
+const CONSOLE_CLAIM_TTL: Duration = Duration::from_secs(30 * 60);
+const MAX_PENDING_CONSOLE_CLAIMS: usize = 64;
+const MAX_CONSOLE_CLAIM_RECORDS: usize = 256;
+const CONSOLE_CLAIM_MINTS_PER_MINUTE: u32 = 20;
+const CONSOLE_CLAIM_EXCHANGES_PER_MINUTE: u32 = 60;
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+enum ConsoleCredentialProvenance {
+    #[default]
+    Standard,
+    OperatorClaim,
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ConsoleCredentialEntry {
     issued_at_ms: u64,
     expires_at_ms: u64,
     max_expires_at_ms: u64,
+    #[serde(default)]
+    provenance: ConsoleCredentialProvenance,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -332,6 +352,8 @@ struct ConsoleCredentialEntry {
 struct PersistedConsoleCredentialStore {
     version: u32,
     credentials: Vec<PersistedConsoleCredential>,
+    #[serde(default)]
+    claim_redemptions: Vec<PersistedConsoleClaimRedemption>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -341,6 +363,30 @@ struct PersistedConsoleCredential {
     issued_at_ms: u64,
     expires_at_ms: u64,
     max_expires_at_ms: u64,
+    #[serde(default)]
+    provenance: ConsoleCredentialProvenance,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct PersistedConsoleClaimRedemption {
+    claim_digest_sha256: String,
+    redeemed_at_ms: u64,
+    transport_peer: String,
+    credential_digest_sha256: String,
+    credential_expires_at_ms: u64,
+    credential_max_expires_at_ms: u64,
+    revoked_at_ms: Option<u64>,
+}
+
+#[derive(Clone, Debug)]
+struct ConsoleClaimRedemption {
+    redeemed_at_ms: u64,
+    transport_peer: String,
+    credential_digest: [u8; 32],
+    credential_expires_at_ms: u64,
+    credential_max_expires_at_ms: u64,
+    revoked_at_ms: Option<u64>,
 }
 
 /// In-memory registry of derived console credentials. These credentials can
@@ -358,6 +404,7 @@ pub struct ConsoleCredentialRegistry {
 #[derive(Default)]
 struct ConsoleCredentialState {
     entries: HashMap<[u8; 32], ConsoleCredentialEntry>,
+    claim_redemptions: HashMap<[u8; 32], ConsoleClaimRedemption>,
     persistence: Option<PathBuf>,
 }
 
@@ -379,7 +426,7 @@ impl fmt::Debug for ConsoleCredentialRegistry {
 impl ConsoleCredentialRegistry {
     pub fn persistent(path: PathBuf) -> anyhow::Result<Self> {
         let now_ms = now_millis();
-        let entries = match crate::secure_file::read_strict_owner_only(
+        let (entries, claim_redemptions) = match crate::secure_file::read_strict_owner_only(
             &path,
             MAX_CONSOLE_CREDENTIAL_STORE_BYTES,
         ) {
@@ -389,7 +436,7 @@ impl ConsoleCredentialRegistry {
                         "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted credential store is not valid JSON: {error}"
                     ))?;
                 anyhow::ensure!(
-                    persisted.version == CONSOLE_CREDENTIAL_STORE_VERSION,
+                    matches!(persisted.version, 1 | CONSOLE_CREDENTIAL_STORE_VERSION),
                     "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: unsupported persisted credential store version {}",
                     persisted.version
                 );
@@ -397,19 +444,31 @@ impl ConsoleCredentialRegistry {
                     persisted.credentials.len() <= MAX_CONSOLE_CREDENTIALS,
                     "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted credential store exceeds its entry limit"
                 );
+                anyhow::ensure!(
+                    persisted.claim_redemptions.len() <= MAX_CONSOLE_CLAIM_REDEMPTIONS,
+                    "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted claim-redemption store exceeds its entry limit"
+                );
                 let mut entries = HashMap::new();
                 for persisted in persisted.credentials {
                     let digest = decode_console_credential_digest(&persisted.digest_sha256)
                         .ok_or_else(|| anyhow::anyhow!(
                             "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted credential digest is invalid"
                         ))?;
+                    let lifetime_cap = match persisted.provenance {
+                        ConsoleCredentialProvenance::Standard => {
+                            CONSOLE_CREDENTIAL_MAX_LIFETIME
+                        }
+                        ConsoleCredentialProvenance::OperatorClaim => {
+                            CONSOLE_CLAIM_CREDENTIAL_MAX_LIFETIME
+                        }
+                    };
                     anyhow::ensure!(
                         persisted.issued_at_ms <= persisted.expires_at_ms
                             && persisted.expires_at_ms <= persisted.max_expires_at_ms
                             && persisted
                                 .max_expires_at_ms
                                 .saturating_sub(persisted.issued_at_ms)
-                                <= CONSOLE_CREDENTIAL_MAX_LIFETIME.as_millis() as u64,
+                                <= lifetime_cap.as_millis() as u64,
                         "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted credential lifetime is invalid"
                     );
                     if persisted.issued_at_ms <= now_ms && persisted.expires_at_ms > now_ms {
@@ -419,13 +478,59 @@ impl ConsoleCredentialRegistry {
                                 issued_at_ms: persisted.issued_at_ms,
                                 expires_at_ms: persisted.expires_at_ms,
                                 max_expires_at_ms: persisted.max_expires_at_ms,
+                                provenance: persisted.provenance,
                             },
                         );
                     }
                 }
-                entries
+                let mut claim_redemptions = HashMap::new();
+                for persisted in persisted.claim_redemptions {
+                    let claim_digest =
+                        decode_console_credential_digest(&persisted.claim_digest_sha256)
+                            .ok_or_else(|| anyhow::anyhow!(
+                                "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted claim digest is invalid"
+                            ))?;
+                    let credential_digest =
+                        decode_console_credential_digest(&persisted.credential_digest_sha256)
+                            .ok_or_else(|| anyhow::anyhow!(
+                                "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted claim credential digest is invalid"
+                            ))?;
+                    anyhow::ensure!(
+                        persisted.redeemed_at_ms <= persisted.credential_expires_at_ms
+                            && persisted.credential_expires_at_ms
+                                <= persisted.credential_max_expires_at_ms
+                            && persisted
+                                .credential_max_expires_at_ms
+                                .saturating_sub(persisted.redeemed_at_ms)
+                                <= CONSOLE_CLAIM_CREDENTIAL_MAX_LIFETIME.as_millis() as u64
+                            && persisted
+                                .revoked_at_ms
+                                .is_none_or(|revoked| {
+                                    revoked >= persisted.redeemed_at_ms
+                                        && revoked <= persisted.credential_max_expires_at_ms
+                                }),
+                        "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted claim redemption lifetime is invalid"
+                    );
+                    if persisted.credential_max_expires_at_ms > now_ms {
+                        claim_redemptions.insert(
+                            claim_digest,
+                            ConsoleClaimRedemption {
+                                redeemed_at_ms: persisted.redeemed_at_ms,
+                                transport_peer: persisted.transport_peer,
+                                credential_digest,
+                                credential_expires_at_ms: persisted.credential_expires_at_ms,
+                                credential_max_expires_at_ms: persisted
+                                    .credential_max_expires_at_ms,
+                                revoked_at_ms: persisted.revoked_at_ms,
+                            },
+                        );
+                    }
+                }
+                (entries, claim_redemptions)
             }
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => HashMap::new(),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                (HashMap::new(), HashMap::new())
+            }
             Err(error) => {
                 return Err(anyhow::anyhow!(
                     "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted credential store could not be read: {error}"
@@ -435,6 +540,7 @@ impl ConsoleCredentialRegistry {
         Ok(Self {
             state: Arc::new(StdMutex::new(ConsoleCredentialState {
                 entries,
+                claim_redemptions,
                 persistence: Some(path),
             })),
         })
@@ -447,18 +553,9 @@ impl ConsoleCredentialRegistry {
     fn mint_at(&self, now_ms: u64) -> Result<ConsoleCredentialResponse, SnapbackError> {
         let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
         let original = state.entries.clone();
-        state
-            .entries
-            .retain(|_, entry| entry.issued_at_ms <= now_ms && entry.expires_at_ms > now_ms);
-        if state.entries.len() >= MAX_CONSOLE_CREDENTIALS
-            && let Some(oldest) = state
-                .entries
-                .iter()
-                .min_by_key(|(_, entry)| entry.expires_at_ms)
-                .map(|(digest, _)| *digest)
-        {
-            state.entries.remove(&oldest);
-        }
+        let original_redemptions = state.claim_redemptions.clone();
+        prune_console_credential_state(&mut state, now_ms);
+        evict_oldest_console_credential(&mut state, now_ms);
         let credential = format!("sbcc_{}", uuid::Uuid::new_v4().simple());
         let expires_at_ms = now_ms.saturating_add(CONSOLE_CREDENTIAL_TTL.as_millis() as u64);
         let max_expires_at_ms =
@@ -469,15 +566,79 @@ impl ConsoleCredentialRegistry {
                 issued_at_ms: now_ms,
                 expires_at_ms,
                 max_expires_at_ms,
+                provenance: ConsoleCredentialProvenance::Standard,
             },
         );
         if let Err(error) = persist_console_credentials(&state) {
             state.entries = original;
+            state.claim_redemptions = original_redemptions;
             return Err(console_credential_store_error(error));
         }
         Ok(ConsoleCredentialResponse {
             credential,
             expires_at_ms,
+            provenance: None,
+        })
+    }
+
+    // @ref LLP 0017#security-defaults — claim provenance and its ninety-minute
+    // absolute renewal ceiling are committed in the same owner-only
+    // publication as the redemption binding. There is no issued-but-unbound
+    // credential window for a concurrent status/revoke observer to race.
+    fn mint_claim_derived_at(
+        &self,
+        claim_digest: [u8; 32],
+        transport_peer: String,
+        now_ms: u64,
+    ) -> Result<ConsoleCredentialResponse, SnapbackError> {
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        let original = state.entries.clone();
+        let original_redemptions = state.claim_redemptions.clone();
+        prune_console_credential_state(&mut state, now_ms);
+        if constant_time_matching_digest(&state.claim_redemptions, &claim_digest).is_some() {
+            return Err(console_claim_invalid());
+        }
+        if state.claim_redemptions.len() >= MAX_CONSOLE_CLAIM_REDEMPTIONS {
+            return Err(console_claim_error(
+                "SNAPBACK_ADMIN_CLAIM_RATE_LIMITED",
+                "console claim redemption capacity is exhausted",
+            ));
+        }
+        evict_oldest_console_credential(&mut state, now_ms);
+        let credential = format!("sbcc_{}", uuid::Uuid::new_v4().simple());
+        let credential_digest = console_credential_digest(&credential);
+        let expires_at_ms = now_ms.saturating_add(CONSOLE_CREDENTIAL_TTL.as_millis() as u64);
+        let max_expires_at_ms =
+            now_ms.saturating_add(CONSOLE_CLAIM_CREDENTIAL_MAX_LIFETIME.as_millis() as u64);
+        state.entries.insert(
+            credential_digest,
+            ConsoleCredentialEntry {
+                issued_at_ms: now_ms,
+                expires_at_ms,
+                max_expires_at_ms,
+                provenance: ConsoleCredentialProvenance::OperatorClaim,
+            },
+        );
+        state.claim_redemptions.insert(
+            claim_digest,
+            ConsoleClaimRedemption {
+                redeemed_at_ms: now_ms,
+                transport_peer,
+                credential_digest,
+                credential_expires_at_ms: expires_at_ms,
+                credential_max_expires_at_ms: max_expires_at_ms,
+                revoked_at_ms: None,
+            },
+        );
+        if let Err(error) = persist_console_credentials(&state) {
+            state.entries = original;
+            state.claim_redemptions = original_redemptions;
+            return Err(console_credential_store_error(error));
+        }
+        Ok(ConsoleCredentialResponse {
+            credential,
+            expires_at_ms,
+            provenance: Some(ConsoleCredentialProvenance::OperatorClaim),
         })
     }
 
@@ -493,9 +654,8 @@ impl ConsoleCredentialRegistry {
         let digest = console_credential_digest(credential);
         let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
         let original = state.entries.clone();
-        state
-            .entries
-            .retain(|_, entry| entry.issued_at_ms <= now_ms && entry.expires_at_ms > now_ms);
+        let original_redemptions = state.claim_redemptions.clone();
+        prune_console_credential_state(&mut state, now_ms);
         let Some(entry) = state.entries.get_mut(&digest) else {
             return Ok(None);
         };
@@ -503,13 +663,25 @@ impl ConsoleCredentialRegistry {
             .saturating_add(CONSOLE_CREDENTIAL_TTL.as_millis() as u64)
             .min(entry.max_expires_at_ms);
         let expires_at_ms = entry.expires_at_ms;
+        let provenance = entry.provenance;
+        if provenance == ConsoleCredentialProvenance::OperatorClaim
+            && let Some(redemption) = state
+                .claim_redemptions
+                .values_mut()
+                .find(|redemption| bool::from(redemption.credential_digest.ct_eq(&digest)))
+        {
+            redemption.credential_expires_at_ms = expires_at_ms;
+        }
         if let Err(error) = persist_console_credentials(&state) {
             state.entries = original;
+            state.claim_redemptions = original_redemptions;
             return Err(console_credential_store_error(error));
         }
         Ok(Some(ConsoleCredentialResponse {
             credential: credential.to_owned(),
             expires_at_ms,
+            provenance: (provenance == ConsoleCredentialProvenance::OperatorClaim)
+                .then_some(provenance),
         }))
     }
 
@@ -522,12 +694,133 @@ impl ConsoleCredentialRegistry {
 
     fn allows_at(&self, credential: &str, now_ms: u64) -> bool {
         let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
-        state
-            .entries
-            .retain(|_, entry| entry.issued_at_ms <= now_ms && entry.expires_at_ms > now_ms);
+        prune_console_credential_state(&mut state, now_ms);
         state
             .entries
             .contains_key(&console_credential_digest(credential))
+    }
+
+    fn claim_redemption_status_at(
+        &self,
+        claim_digest: &[u8; 32],
+        now_ms: u64,
+    ) -> Option<ConsoleClaimStatusResponse> {
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        prune_console_credential_state(&mut state, now_ms);
+        let redemption = state
+            .claim_redemptions
+            .iter()
+            .find(|(digest, _)| bool::from(digest.ct_eq(claim_digest)))
+            .map(|(_, redemption)| redemption)?;
+        let status = if redemption.revoked_at_ms.is_some() {
+            "revoked"
+        } else if redemption.credential_expires_at_ms <= now_ms {
+            "credential_expired"
+        } else {
+            "redeemed"
+        };
+        Some(ConsoleClaimStatusResponse {
+            status,
+            claim_expires_at_ms: None,
+            redeemed_at_ms: Some(redemption.redeemed_at_ms),
+            transport_peer: Some(redemption.transport_peer.clone()),
+            transport_peer_source: Some("directTransport"),
+            credential_digest_sha256: Some(encode_console_credential_digest(
+                &redemption.credential_digest,
+            )),
+            credential_expires_at_ms: Some(redemption.credential_expires_at_ms),
+            credential_max_expires_at_ms: Some(redemption.credential_max_expires_at_ms),
+            revoked_at_ms: redemption.revoked_at_ms,
+        })
+    }
+
+    fn revoke_claim_credential_at(
+        &self,
+        claim_digest: &[u8; 32],
+        now_ms: u64,
+    ) -> Result<Option<ConsoleClaimStatusResponse>, SnapbackError> {
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        let original = state.entries.clone();
+        let original_redemptions = state.claim_redemptions.clone();
+        prune_console_credential_state(&mut state, now_ms);
+        let Some(matched_digest) = state
+            .claim_redemptions
+            .keys()
+            .find(|digest| bool::from(digest.ct_eq(claim_digest)))
+            .copied()
+        else {
+            return Ok(None);
+        };
+        let credential_digest = state
+            .claim_redemptions
+            .get(&matched_digest)
+            .expect("constant-time selected redemption remains under the registry lock")
+            .credential_digest;
+        state.entries.remove(&credential_digest);
+        let redemption = state
+            .claim_redemptions
+            .get_mut(&matched_digest)
+            .expect("constant-time selected redemption remains under the registry lock");
+        if redemption.revoked_at_ms.is_none() {
+            redemption.revoked_at_ms = Some(
+                now_ms
+                    .max(redemption.redeemed_at_ms)
+                    .min(redemption.credential_max_expires_at_ms),
+            );
+        }
+        if let Err(error) = persist_console_credentials(&state) {
+            state.entries = original;
+            state.claim_redemptions = original_redemptions;
+            return Err(console_credential_store_error(error));
+        }
+        let redemption = state
+            .claim_redemptions
+            .get(&matched_digest)
+            .expect("revoked redemption remains under the registry lock");
+        Ok(Some(ConsoleClaimStatusResponse {
+            status: "revoked",
+            claim_expires_at_ms: None,
+            redeemed_at_ms: Some(redemption.redeemed_at_ms),
+            transport_peer: Some(redemption.transport_peer.clone()),
+            transport_peer_source: Some("directTransport"),
+            credential_digest_sha256: Some(encode_console_credential_digest(
+                &redemption.credential_digest,
+            )),
+            credential_expires_at_ms: Some(redemption.credential_expires_at_ms),
+            credential_max_expires_at_ms: Some(redemption.credential_max_expires_at_ms),
+            revoked_at_ms: redemption.revoked_at_ms,
+        }))
+    }
+}
+
+fn prune_console_credential_state(state: &mut ConsoleCredentialState, now_ms: u64) {
+    state
+        .entries
+        .retain(|_, entry| entry.issued_at_ms <= now_ms && entry.expires_at_ms > now_ms);
+    state
+        .claim_redemptions
+        .retain(|_, redemption| redemption.credential_max_expires_at_ms > now_ms);
+}
+
+fn evict_oldest_console_credential(state: &mut ConsoleCredentialState, now_ms: u64) {
+    if state.entries.len() < MAX_CONSOLE_CREDENTIALS {
+        return;
+    }
+    let Some(oldest) = state
+        .entries
+        .iter()
+        .min_by_key(|(_, entry)| entry.expires_at_ms)
+        .map(|(digest, _)| *digest)
+    else {
+        return;
+    };
+    state.entries.remove(&oldest);
+    if let Some(redemption) = state
+        .claim_redemptions
+        .values_mut()
+        .find(|redemption| bool::from(redemption.credential_digest.ct_eq(&oldest)))
+    {
+        redemption.revoked_at_ms = Some(now_ms.min(redemption.credential_max_expires_at_ms));
     }
 }
 
@@ -543,12 +836,33 @@ fn persist_console_credentials(state: &ConsoleCredentialState) -> std::io::Resul
             issued_at_ms: entry.issued_at_ms,
             expires_at_ms: entry.expires_at_ms,
             max_expires_at_ms: entry.max_expires_at_ms,
+            provenance: entry.provenance,
         })
         .collect::<Vec<_>>();
     credentials.sort_by(|left, right| left.digest_sha256.cmp(&right.digest_sha256));
+    let mut claim_redemptions = state
+        .claim_redemptions
+        .iter()
+        .map(|(claim_digest, redemption)| PersistedConsoleClaimRedemption {
+            claim_digest_sha256: encode_console_credential_digest(claim_digest),
+            redeemed_at_ms: redemption.redeemed_at_ms,
+            transport_peer: redemption.transport_peer.clone(),
+            credential_digest_sha256: encode_console_credential_digest(
+                &redemption.credential_digest,
+            ),
+            credential_expires_at_ms: redemption.credential_expires_at_ms,
+            credential_max_expires_at_ms: redemption.credential_max_expires_at_ms,
+            revoked_at_ms: redemption.revoked_at_ms,
+        })
+        .collect::<Vec<_>>();
+    claim_redemptions.sort_by(|left, right| {
+        left.claim_digest_sha256
+            .cmp(&right.claim_digest_sha256)
+    });
     let bytes = serde_json::to_vec(&PersistedConsoleCredentialStore {
         version: CONSOLE_CREDENTIAL_STORE_VERSION,
         credentials,
+        claim_redemptions,
     })
     .map_err(std::io::Error::other)?;
     let mut temporary = path.as_os_str().to_os_string();
@@ -604,6 +918,8 @@ fn console_credential_digest(credential: &str) -> [u8; 32] {
 struct ConsoleCredentialResponse {
     credential: String,
     expires_at_ms: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    provenance: Option<ConsoleCredentialProvenance>,
 }
 
 impl fmt::Debug for ConsoleCredentialResponse {
@@ -612,6 +928,7 @@ impl fmt::Debug for ConsoleCredentialResponse {
             .debug_struct("ConsoleCredentialResponse")
             .field("credential", &"[REDACTED]")
             .field("expires_at_ms", &self.expires_at_ms)
+            .field("provenance", &self.provenance)
             .finish()
     }
 }
@@ -900,6 +1217,280 @@ fn console_approval_error(code: &'static str, message: &'static str) -> Snapback
     SnapbackError::error(code, "admin", message)
 }
 
+#[derive(Clone, Default)]
+pub struct ConsoleClaimRegistry {
+    state: Arc<StdMutex<ConsoleClaimState>>,
+}
+
+#[derive(Default)]
+struct ConsoleClaimState {
+    entries: HashMap<[u8; 32], ConsoleClaimEntry>,
+    mint_window: RateWindow,
+    exchange_window: RateWindow,
+}
+
+#[derive(Clone, Copy)]
+struct ConsoleClaimEntry {
+    expires_at_ms: u64,
+    retain_until_ms: u64,
+    consumed_at_ms: Option<u64>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConsoleClaimMintResponse {
+    claim_code: String,
+    expires_at_ms: u64,
+    expires_in: u64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleClaimCodeRequest {
+    claim_code: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConsoleClaimStatusResponse {
+    status: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    claim_expires_at_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    redeemed_at_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transport_peer: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transport_peer_source: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    credential_digest_sha256: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    credential_expires_at_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    credential_max_expires_at_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    revoked_at_ms: Option<u64>,
+}
+
+impl fmt::Debug for ConsoleClaimRegistry {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        let pending = state
+            .entries
+            .values()
+            .filter(|entry| entry.consumed_at_ms.is_none())
+            .count();
+        formatter
+            .debug_struct("ConsoleClaimRegistry")
+            .field("pending", &pending)
+            .field("retained_records", &state.entries.len())
+            .finish()
+    }
+}
+
+impl ConsoleClaimRegistry {
+    fn mint(&self) -> Result<ConsoleClaimMintResponse, SnapbackError> {
+        self.mint_at(now_millis())
+    }
+
+    fn mint_at(&self, now_ms: u64) -> Result<ConsoleClaimMintResponse, SnapbackError> {
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        prune_console_claims(&mut state, now_ms);
+        if !admit_rate(
+            &mut state.mint_window,
+            now_ms,
+            CONSOLE_CLAIM_MINTS_PER_MINUTE,
+        ) || state
+            .entries
+            .values()
+            .filter(|entry| entry.consumed_at_ms.is_none() && entry.expires_at_ms > now_ms)
+            .count()
+            >= MAX_PENDING_CONSOLE_CLAIMS
+        {
+            return Err(console_claim_error(
+                "SNAPBACK_ADMIN_CLAIM_RATE_LIMITED",
+                "console claim mint rate or pending limit exceeded",
+            ));
+        }
+        while state.entries.len() >= MAX_CONSOLE_CLAIM_RECORDS {
+            let Some(oldest) = state
+                .entries
+                .iter()
+                .filter(|(_, entry)| {
+                    entry.consumed_at_ms.is_some() || entry.expires_at_ms <= now_ms
+                })
+                .min_by_key(|(_, entry)| entry.retain_until_ms)
+                .map(|(digest, _)| *digest)
+            else {
+                return Err(console_claim_error(
+                    "SNAPBACK_ADMIN_CLAIM_RATE_LIMITED",
+                    "console claim record capacity is exhausted",
+                ));
+            };
+            state.entries.remove(&oldest);
+        }
+        let claim_code = format!("sbcl_{}", uuid::Uuid::new_v4().simple());
+        let expires_at_ms = now_ms.saturating_add(CONSOLE_CLAIM_TTL.as_millis() as u64);
+        state.entries.insert(
+            console_credential_digest(&claim_code),
+            ConsoleClaimEntry {
+                expires_at_ms,
+                retain_until_ms: expires_at_ms
+                    .saturating_add(CONSOLE_CLAIM_TTL.as_millis() as u64),
+                consumed_at_ms: None,
+            },
+        );
+        Ok(ConsoleClaimMintResponse {
+            claim_code,
+            expires_at_ms,
+            expires_in: CONSOLE_CLAIM_TTL.as_secs(),
+        })
+    }
+
+    fn exchange(
+        &self,
+        claim_code: &str,
+        transport_peer: String,
+        credentials: &ConsoleCredentialRegistry,
+    ) -> Result<ConsoleCredentialResponse, SnapbackError> {
+        self.exchange_at(claim_code, transport_peer, credentials, now_millis())
+    }
+
+    fn exchange_at(
+        &self,
+        claim_code: &str,
+        transport_peer: String,
+        credentials: &ConsoleCredentialRegistry,
+        now_ms: u64,
+    ) -> Result<ConsoleCredentialResponse, SnapbackError> {
+        let candidate = console_credential_digest(claim_code);
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        prune_console_claims(&mut state, now_ms);
+        if !admit_rate(
+            &mut state.exchange_window,
+            now_ms,
+            CONSOLE_CLAIM_EXCHANGES_PER_MINUTE,
+        ) {
+            return Err(console_claim_error(
+                "SNAPBACK_ADMIN_CLAIM_RATE_LIMITED",
+                "console claim exchange rate limit exceeded",
+            ));
+        }
+        let matched = constant_time_matching_digest(&state.entries, &candidate)
+            .ok_or_else(console_claim_invalid)?;
+        let entry = state
+            .entries
+            .get(&matched)
+            .copied()
+            .expect("constant-time selected claim remains under the registry lock");
+        if entry.consumed_at_ms.is_some() || entry.expires_at_ms <= now_ms {
+            return Err(console_claim_invalid());
+        }
+        let response = credentials.mint_claim_derived_at(matched, transport_peer, now_ms)?;
+        state
+            .entries
+            .get_mut(&matched)
+            .expect("exchanged claim remains under the registry lock")
+            .consumed_at_ms = Some(now_ms);
+        Ok(response)
+    }
+
+    fn status(
+        &self,
+        claim_code: &str,
+        credentials: &ConsoleCredentialRegistry,
+    ) -> Result<ConsoleClaimStatusResponse, SnapbackError> {
+        self.status_at(claim_code, credentials, now_millis())
+    }
+
+    fn status_at(
+        &self,
+        claim_code: &str,
+        credentials: &ConsoleCredentialRegistry,
+        now_ms: u64,
+    ) -> Result<ConsoleClaimStatusResponse, SnapbackError> {
+        let candidate = console_credential_digest(claim_code);
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        prune_console_claims(&mut state, now_ms);
+        if let Some(status) = credentials.claim_redemption_status_at(&candidate, now_ms) {
+            return Ok(status);
+        }
+        let matched = constant_time_matching_digest(&state.entries, &candidate)
+            .ok_or_else(console_claim_status_invalid)?;
+        let entry = state
+            .entries
+            .get(&matched)
+            .expect("constant-time selected claim remains under the registry lock");
+        Ok(ConsoleClaimStatusResponse {
+            status: if entry.expires_at_ms <= now_ms {
+                "claim_expired"
+            } else {
+                "pending"
+            },
+            claim_expires_at_ms: Some(entry.expires_at_ms),
+            redeemed_at_ms: None,
+            transport_peer: None,
+            transport_peer_source: None,
+            credential_digest_sha256: None,
+            credential_expires_at_ms: None,
+            credential_max_expires_at_ms: None,
+            revoked_at_ms: None,
+        })
+    }
+
+    fn revoke(
+        &self,
+        claim_code: &str,
+        credentials: &ConsoleCredentialRegistry,
+    ) -> Result<ConsoleClaimStatusResponse, SnapbackError> {
+        let candidate = console_credential_digest(claim_code);
+        let _state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        credentials
+            .revoke_claim_credential_at(&candidate, now_millis())?
+            .ok_or_else(console_claim_status_invalid)
+    }
+}
+
+fn constant_time_matching_digest<T>(
+    entries: &HashMap<[u8; 32], T>,
+    candidate: &[u8; 32],
+) -> Option<[u8; 32]> {
+    let mut matched = None;
+    // @ref LLP 0017#security-defaults — even though only digests are retained,
+    // claim selection scans every fixed-width digest with a constant-time
+    // comparison instead of exposing HashMap equality as the bearer oracle.
+    for digest in entries.keys() {
+        if bool::from(digest.ct_eq(candidate)) {
+            matched = Some(*digest);
+        }
+    }
+    matched
+}
+
+fn prune_console_claims(state: &mut ConsoleClaimState, now_ms: u64) {
+    state
+        .entries
+        .retain(|_, entry| entry.retain_until_ms > now_ms);
+}
+
+fn console_claim_invalid() -> SnapbackError {
+    console_claim_error(
+        "SNAPBACK_ADMIN_CLAIM_INVALID",
+        "console claim is invalid, expired, or already used",
+    )
+}
+
+fn console_claim_status_invalid() -> SnapbackError {
+    console_claim_error(
+        "SNAPBACK_ADMIN_CLAIM_STATUS_INVALID",
+        "console claim status is unavailable",
+    )
+}
+
+fn console_claim_error(code: &'static str, message: &'static str) -> SnapbackError {
+    SnapbackError::error(code, "admin", message)
+}
+
 /// Server-runtime facts that live outside `LocalSnapback` (it does not know the
 /// socket it is served on) and the admin authorization configuration.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -939,6 +1530,9 @@ pub struct ServerContext {
     /// Short-lived RFC-8628-shaped requests that let a token-holding terminal
     /// approve one browser credential without exposing the master token.
     pub console_approvals: ConsoleApprovalRegistry,
+    /// Process-ephemeral one-time links minted only by a master-proven
+    /// terminal. Raw claim codes never enter this registry or durable storage.
+    pub console_claims: ConsoleClaimRegistry,
     /// Directory of a built static console bundle (`SNAPBACK_ADMIN_DIST`, or the
     /// repo-local `admin-ui/dist` when it has already been built). When present,
     /// the Contract console is served from here; otherwise `/_snapback/admin`
@@ -969,6 +1563,7 @@ impl fmt::Debug for ServerContext {
             )
             .field("console_credentials", &self.console_credentials)
             .field("console_approvals", &self.console_approvals)
+            .field("console_claims", &self.console_claims)
             .field("admin_dist_configured", &self.admin_dist.is_some())
             .finish()
     }
@@ -1011,6 +1606,7 @@ impl ServerContext {
             admin_token_file: None,
             console_credentials: ConsoleCredentialRegistry::default(),
             console_approvals: ConsoleApprovalRegistry::default(),
+            console_claims: ConsoleClaimRegistry::default(),
             admin_dist: env_admin_dist(),
         }
     }
@@ -1034,6 +1630,7 @@ impl ServerContext {
             admin_token_file: None,
             console_credentials: ConsoleCredentialRegistry::default(),
             console_approvals: ConsoleApprovalRegistry::default(),
+            console_claims: ConsoleClaimRegistry::default(),
             admin_dist: env_admin_dist(),
         }
     }
@@ -2578,6 +3175,42 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             ),
             post(mint_console_credential),
         ),
+        // @ref LLP 0017#security-defaults — the claim is accepted only in a
+        // POST body and is consumed under the process-local registry lock;
+        // no route path or query component ever carries the bearer.
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/console/claim",
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(mint_console_claim),
+        ),
+        RegisteredRoute::new(
+            system_api_route(
+                "POST",
+                "/_snapback/api/console/claim/exchange",
+                RoutePolicy::AdminRead,
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(exchange_console_claim),
+        ),
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/console/claim/status",
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(status_console_claim),
+        ),
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/console/claim/revoke",
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(revoke_console_claim),
+        ),
         // @ref LLP 0017#security-defaults — the browser may create and poll a
         // bounded device request, but only a token-holding local terminal can
         // approve it and cause a derived credential to exist.
@@ -3254,6 +3887,66 @@ async fn mint_console_credential(
     Ok(Json(ctx.console_credentials.mint()?))
 }
 
+async fn mint_console_claim(
+    State(ctx): State<Arc<ServerContext>>,
+    State(policy_mode): State<PolicyAuthMode>,
+    headers: HeaderMap,
+) -> Result<Json<ConsoleClaimMintResponse>, ApiError> {
+    require_console_claim_posture(&ctx, policy_mode)?;
+    authorize_master(&ctx, &headers, policy_mode)?;
+    Ok(Json(ctx.console_claims.mint()?))
+}
+
+async fn exchange_console_claim(
+    State(ctx): State<Arc<ServerContext>>,
+    State(policy_mode): State<PolicyAuthMode>,
+    peer: Option<Extension<ConnectInfo<SocketAddr>>>,
+    Json(request): Json<ConsoleClaimCodeRequest>,
+) -> Result<Json<ConsoleCredentialResponse>, ApiError> {
+    require_console_claim_posture(&ctx, policy_mode)?;
+    let transport_peer = peer
+        .map(|Extension(ConnectInfo(address))| address.to_string())
+        .ok_or_else(|| {
+            console_claim_error(
+                "SNAPBACK_ADMIN_CLAIM_UNAVAILABLE",
+                "console claim exchange requires direct transport-peer metadata",
+            )
+        })?;
+    Ok(Json(ctx.console_claims.exchange(
+        &request.claim_code,
+        transport_peer,
+        &ctx.console_credentials,
+    )?))
+}
+
+async fn status_console_claim(
+    State(ctx): State<Arc<ServerContext>>,
+    State(policy_mode): State<PolicyAuthMode>,
+    headers: HeaderMap,
+    Json(request): Json<ConsoleClaimCodeRequest>,
+) -> Result<Json<ConsoleClaimStatusResponse>, ApiError> {
+    require_console_claim_posture(&ctx, policy_mode)?;
+    authorize_master(&ctx, &headers, policy_mode)?;
+    Ok(Json(
+        ctx.console_claims
+            .status(&request.claim_code, &ctx.console_credentials)?,
+    ))
+}
+
+async fn revoke_console_claim(
+    State(ctx): State<Arc<ServerContext>>,
+    State(policy_mode): State<PolicyAuthMode>,
+    headers: HeaderMap,
+    Json(request): Json<ConsoleClaimCodeRequest>,
+) -> Result<Json<ConsoleClaimStatusResponse>, ApiError> {
+    require_console_claim_posture(&ctx, policy_mode)?;
+    authorize_master(&ctx, &headers, policy_mode)?;
+    Ok(Json(
+        ctx.console_claims
+            .revoke(&request.claim_code, &ctx.console_credentials)?,
+    ))
+}
+
 async fn request_console_approval(
     State(ctx): State<Arc<ServerContext>>,
     State(policy_mode): State<PolicyAuthMode>,
@@ -3325,6 +4018,33 @@ fn require_console_renewal_posture(
         )
         .into());
     }
+    Ok(())
+}
+
+fn require_console_claim_posture(
+    ctx: &ServerContext,
+    policy_mode: PolicyAuthMode,
+) -> Result<(), ApiError> {
+    #[cfg(windows)]
+    return Err(console_claim_error(
+        "SNAPBACK_ADMIN_CLAIM_UNAVAILABLE",
+        "console claims are unavailable on this host",
+    )
+    .into());
+
+    #[cfg(not(windows))]
+    if !ctx.loopback
+        || ctx.auth_deployment != crate::auth::deployment::AuthDeploymentTarget::Local
+        || ctx.profile != ServerProfile::Dev
+        || policy_mode != PolicyAuthMode::Dev
+    {
+        return Err(console_claim_error(
+            "SNAPBACK_ADMIN_CLAIM_UNAVAILABLE",
+            "console claims are available only on a loopback local dev target",
+        )
+        .into());
+    }
+    #[cfg(not(windows))]
     Ok(())
 }
 
@@ -4769,6 +5489,277 @@ mod tests {
                 .diagnostic
                 .code,
             "SNAPBACK_ADMIN_APPROVAL_RATE_LIMITED"
+        );
+    }
+
+    #[test]
+    fn console_claim_invalid_expired_and_consumed_refuse_uniformly() {
+        let credentials = ConsoleCredentialRegistry::default();
+
+        let consumed_registry = ConsoleClaimRegistry::default();
+        let consumed = consumed_registry.mint_at(1_000).unwrap();
+        consumed_registry
+            .exchange_at(
+                &consumed.claim_code,
+                "127.0.0.1:4000".to_owned(),
+                &credentials,
+                2_000,
+            )
+            .unwrap();
+        let consumed_error = consumed_registry
+            .exchange_at(
+                &consumed.claim_code,
+                "127.0.0.1:4001".to_owned(),
+                &credentials,
+                2_001,
+            )
+            .unwrap_err();
+
+        let expired_registry = ConsoleClaimRegistry::default();
+        let expired = expired_registry.mint_at(10_000).unwrap();
+        let expired_error = expired_registry
+            .exchange_at(
+                &expired.claim_code,
+                "127.0.0.1:4002".to_owned(),
+                &credentials,
+                expired.expires_at_ms,
+            )
+            .unwrap_err();
+
+        let invalid_error = ConsoleClaimRegistry::default()
+            .exchange_at(
+                "sbcl_00000000000000000000000000000000",
+                "127.0.0.1:4003".to_owned(),
+                &credentials,
+                20_000,
+            )
+            .unwrap_err();
+        for error in [consumed_error, expired_error, invalid_error] {
+            assert_eq!(error.diagnostic.code, "SNAPBACK_ADMIN_CLAIM_INVALID");
+            assert_eq!(
+                error.diagnostic.message,
+                "console claim is invalid, expired, or already used"
+            );
+        }
+        assert_eq!(
+            consumed.expires_at_ms,
+            1_000 + CONSOLE_CLAIM_TTL.as_millis() as u64
+        );
+    }
+
+    #[test]
+    fn console_claim_concurrent_exchange_has_exactly_one_winner() {
+        let claims = ConsoleClaimRegistry::default();
+        let credentials = ConsoleCredentialRegistry::default();
+        let claim = claims.mint().unwrap().claim_code;
+        let barrier = Arc::new(std::sync::Barrier::new(3));
+        let handles = (0..2)
+            .map(|index| {
+                let claims = claims.clone();
+                let credentials = credentials.clone();
+                let claim = claim.clone();
+                let barrier = barrier.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    claims.exchange(
+                        &claim,
+                        format!("127.0.0.1:{}", 4100 + index),
+                        &credentials,
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+        barrier.wait();
+        let results = handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(results.iter().filter(|result| result.is_ok()).count(), 1);
+        assert_eq!(
+            results
+                .iter()
+                .filter_map(|result| result.as_ref().err())
+                .filter(|error| error.diagnostic.code == "SNAPBACK_ADMIN_CLAIM_INVALID")
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn claim_credential_renews_only_within_its_provenance_cap() {
+        let claims = ConsoleClaimRegistry::default();
+        let credentials = ConsoleCredentialRegistry::default();
+        let issued_at_ms = 1_000_000;
+        let claim = claims.mint_at(issued_at_ms - 1).unwrap();
+        let credential = claims
+            .exchange_at(
+                &claim.claim_code,
+                "127.0.0.1:4200".to_owned(),
+                &credentials,
+                issued_at_ms,
+            )
+            .unwrap();
+        assert_eq!(
+            credential.provenance,
+            Some(ConsoleCredentialProvenance::OperatorClaim)
+        );
+        let absolute = issued_at_ms
+            + CONSOLE_CLAIM_CREDENTIAL_MAX_LIFETIME.as_millis() as u64;
+        let mut now_ms = issued_at_ms + 9 * 60_000;
+        let mut expiry = credential.expires_at_ms;
+        while now_ms < absolute {
+            expiry = credentials
+                .renew_at(&credential.credential, now_ms)
+                .unwrap()
+                .expect("active claim credential renews inside its absolute window")
+                .expires_at_ms;
+            if expiry == absolute {
+                break;
+            }
+            now_ms += 9 * 60_000;
+        }
+        assert_eq!(expiry, absolute);
+        assert!(
+            absolute
+                < issued_at_ms + CONSOLE_CREDENTIAL_MAX_LIFETIME.as_millis() as u64,
+            "claim provenance never inherits the ordinary eight-hour cap"
+        );
+        assert!(
+            credentials
+                .renew_at(&credential.credential, absolute)
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn claim_redemption_binding_persists_digest_only_and_master_revoke_reattaches() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("dev.sqlite3.console-credentials");
+        let credentials = ConsoleCredentialRegistry::persistent(path.clone()).unwrap();
+        let claims = ConsoleClaimRegistry::default();
+        let claim = claims.mint().unwrap();
+        let issued = claims
+            .exchange(
+                &claim.claim_code,
+                "127.0.0.1:4300".to_owned(),
+                &credentials,
+            )
+            .unwrap();
+        let stored = String::from_utf8(crate::secure_file::read_owner_only(&path).unwrap())
+            .unwrap();
+        assert!(!stored.contains(&claim.claim_code));
+        assert!(!stored.contains(&issued.credential));
+        assert!(stored.contains("operatorClaim"));
+
+        drop(credentials);
+        let reattached = ConsoleCredentialRegistry::persistent(path).unwrap();
+        let restarted_claim_registry = ConsoleClaimRegistry::default();
+        let status = restarted_claim_registry
+            .status(&claim.claim_code, &reattached)
+            .unwrap();
+        assert_eq!(status.status, "redeemed");
+        assert_eq!(status.transport_peer.as_deref(), Some("127.0.0.1:4300"));
+        let revoked = restarted_claim_registry
+            .revoke(&claim.claim_code, &reattached)
+            .unwrap();
+        assert_eq!(revoked.status, "revoked");
+        assert!(!reattached.allows(Some(&issued.credential)));
+    }
+
+    #[test]
+    fn claim_mint_budget_is_isolated_and_unredeemed_claims_are_process_ephemeral() {
+        let approvals = ConsoleApprovalRegistry::default();
+        for attempt in 0..CONSOLE_APPROVAL_REQUESTS_PER_MINUTE {
+            approvals
+                .request_at("http://127.0.0.1/admin".to_owned(), 1_000 + u64::from(attempt))
+                .unwrap();
+        }
+        assert_eq!(
+            approvals
+                .request_at("http://127.0.0.1/admin".to_owned(), 2_000)
+                .err()
+                .unwrap()
+                .diagnostic
+                .code,
+            "SNAPBACK_ADMIN_APPROVAL_RATE_LIMITED"
+        );
+        let claims = ConsoleClaimRegistry::default();
+        let claim = claims.mint_at(2_000).unwrap();
+        assert_eq!(
+            ConsoleClaimRegistry::default()
+                .exchange_at(
+                    &claim.claim_code,
+                    "127.0.0.1:4400".to_owned(),
+                    &ConsoleCredentialRegistry::default(),
+                    2_001,
+                )
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_ADMIN_CLAIM_INVALID",
+            "a fresh process cannot redeem an unredeemed predecessor claim"
+        );
+    }
+
+    #[test]
+    fn claim_creation_exchange_and_pending_state_are_bounded() {
+        let claims = ConsoleClaimRegistry::default();
+        let mut last = None;
+        for batch in 0..4_u64 {
+            let now_ms = 1_000 + batch * 60_000;
+            for _ in 0..CONSOLE_CLAIM_MINTS_PER_MINUTE {
+                match claims.mint_at(now_ms) {
+                    Ok(claim) => last = Some(claim),
+                    Err(error) => {
+                        assert_eq!(error.diagnostic.code, "SNAPBACK_ADMIN_CLAIM_RATE_LIMITED");
+                        break;
+                    }
+                }
+            }
+        }
+        let state = claims.state.lock().unwrap();
+        assert_eq!(
+            state
+                .entries
+                .values()
+                .filter(|entry| entry.consumed_at_ms.is_none())
+                .count(),
+            MAX_PENDING_CONSOLE_CLAIMS
+        );
+        assert!(state.entries.len() <= MAX_CONSOLE_CLAIM_RECORDS);
+        drop(state);
+        assert!(last.is_some());
+
+        let exchange_limited = ConsoleClaimRegistry::default();
+        let credentials = ConsoleCredentialRegistry::default();
+        for attempt in 0..CONSOLE_CLAIM_EXCHANGES_PER_MINUTE {
+            assert_eq!(
+                exchange_limited
+                    .exchange_at(
+                        "not-a-claim",
+                        "127.0.0.1:4500".to_owned(),
+                        &credentials,
+                        1_000 + u64::from(attempt),
+                    )
+                    .unwrap_err()
+                    .diagnostic
+                    .code,
+                "SNAPBACK_ADMIN_CLAIM_INVALID"
+            );
+        }
+        assert_eq!(
+            exchange_limited
+                .exchange_at(
+                    "not-a-claim",
+                    "127.0.0.1:4501".to_owned(),
+                    &credentials,
+                    2_000,
+                )
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_ADMIN_CLAIM_RATE_LIMITED"
         );
     }
 

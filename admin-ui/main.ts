@@ -67,7 +67,7 @@ async function start(): Promise<void> {
   installContractWebHost();
   const client = new AdminClient(adminBaseUrl());
   try {
-    consumeConsoleCredentialFragment(client);
+    await consumeConsoleCredentialFragment(client);
     await boot(client);
   } catch (error) {
     const safe = client.sanitizeError(error);

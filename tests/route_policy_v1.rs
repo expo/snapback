@@ -277,6 +277,10 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/_snapback/api/errors/issue"),
         ("POST", "/_snapback/api/errors/transition"),
         ("POST", "/_snapback/api/console/credential"),
+        ("POST", "/_snapback/api/console/claim"),
+        ("POST", "/_snapback/api/console/claim/exchange"),
+        ("POST", "/_snapback/api/console/claim/status"),
+        ("POST", "/_snapback/api/console/claim/revoke"),
         ("POST", "/_snapback/api/console/approval/request"),
         ("POST", "/_snapback/api/console/approval/poll"),
         ("POST", "/_snapback/api/console/approval/approve"),
@@ -408,6 +412,43 @@ async fn cors_preflight_projects_registered_methods_including_delete() {
         .await
         .unwrap();
     assert_eq!(unknown.status(), StatusCode::NOT_FOUND);
+}
+
+#[test]
+fn console_claim_routes_pin_authority_and_secret_response_policy() {
+    let routes = route_registry()
+        .into_iter()
+        .filter(|route| route.path.starts_with("/_snapback/api/console/claim"))
+        .map(|route| (route.path, route))
+        .collect::<BTreeMap<_, _>>();
+    assert_eq!(routes.len(), 4);
+    for path in [
+        "/_snapback/api/console/claim",
+        "/_snapback/api/console/claim/status",
+        "/_snapback/api/console/claim/revoke",
+    ] {
+        let route = routes[path];
+        assert_eq!(route.method, "POST", "{path}");
+        assert_eq!(route.path_policy, RoutePolicy::AdminWrite, "{path}");
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::AdminCredential,
+            "{path}"
+        );
+        assert_eq!(route.invocation_authority, InvocationAuthority::Operator);
+        assert_eq!(
+            route.response_sensitivity,
+            ResponseSensitivity::CredentialSecret,
+            "{path}"
+        );
+    }
+    let exchange = routes["/_snapback/api/console/claim/exchange"];
+    assert_eq!(exchange.method, "POST");
+    assert_eq!(exchange.path_policy, RoutePolicy::AdminRead);
+    assert_eq!(
+        exchange.response_sensitivity,
+        ResponseSensitivity::CredentialSecret
+    );
 }
 
 /// @ref LLP 0057#routes-operations-and-dtos — the auth provider and agent

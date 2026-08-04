@@ -582,7 +582,7 @@ const fragmentExpiry = Date.now() + 60_000;
 let replacedFragmentUrl = null;
 const fragmentClient = new AdminClient('http://snapback.test/_snapback/api');
 assert.equal(
-  consumeConsoleCredentialFragment(
+  await consumeConsoleCredentialFragment(
     fragmentClient,
     {
       hash: `#credential=${FRAGMENT_DERIVED}&expiresAtMs=${fragmentExpiry}`,
@@ -602,6 +602,111 @@ assert.equal(
   FRAGMENT_DERIVED,
   'fragment handoff lands in the same derived-only storage record as token exchange',
 );
+
+const CLAIM_CODE = 'sbcl_0123456789abcdef0123456789abcdef';
+const CLAIM_DERIVED = 'sbcc_claim-derived';
+let claimFragmentStripped = false;
+const claimRequests = [];
+fetchOverride = async (url, options = {}) => {
+  claimRequests.push({ url, options });
+  assert.equal(
+    claimFragmentStripped,
+    true,
+    'the claim fragment is removed before the exchange request starts',
+  );
+  return response(200, {
+    credential: CLAIM_DERIVED,
+    expiresAtMs: Date.now() + 10 * 60_000,
+    provenance: 'operatorClaim',
+  });
+};
+const claimClient = new AdminClient('http://snapback.test/_snapback/api');
+assert.equal(
+  await consumeConsoleCredentialFragment(
+    claimClient,
+    {
+      hash: `#claim=${CLAIM_CODE}`,
+      pathname: '/_snapback/admin/',
+      search: '',
+    },
+    {
+      state: null,
+      replaceState(_state, _title, url) {
+        assert.equal(url, '/_snapback/admin/');
+        claimFragmentStripped = true;
+      },
+    },
+  ),
+  true,
+);
+assert.equal(
+  claimRequests[0].url,
+  'http://snapback.test/_snapback/api/console/claim/exchange',
+);
+assert.equal(claimRequests[0].options.method, 'POST');
+assert.deepEqual(JSON.parse(claimRequests[0].options.body), { claimCode: CLAIM_CODE });
+assert.equal(
+  claimRequests[0].url.includes(CLAIM_CODE),
+  false,
+  'the claim code never enters the HTTP URL',
+);
+assert.deepEqual(
+  JSON.parse(storage.get('snapback_console_credential_v1')),
+  {
+    credential: CLAIM_DERIVED,
+    expiresAtMs: JSON.parse(storage.get('snapback_console_credential_v1')).expiresAtMs,
+    provenance: 'operatorClaim',
+  },
+  'claim exchange uses the existing credential storage path with distinct provenance',
+);
+assert.equal(
+  [...storage.entries(), ...storageWrites]
+    .some((entry) => JSON.stringify(entry).includes(CLAIM_CODE)),
+  false,
+  'the raw claim never enters browser storage',
+);
+
+let refusedFragmentStripped = false;
+fetchOverride = async () => response(401, {
+  diagnostic: {
+    code: 'SNAPBACK_ADMIN_CLAIM_INVALID',
+    message: `claim ${CLAIM_CODE} is invalid`,
+  },
+});
+const refusedClaim = await captureFailure(() => consumeConsoleCredentialFragment(
+  new AdminClient('http://snapback.test/_snapback/api'),
+  {
+    hash: `#claim=${CLAIM_CODE}`,
+    pathname: '/_snapback/admin/',
+    search: '',
+  },
+  {
+    replaceState() { refusedFragmentStripped = true; },
+  },
+));
+assert.equal(refusedFragmentStripped, true);
+assert.equal(refusedClaim.diagnostic.code, 'SNAPBACK_ADMIN_CLAIM_INVALID');
+assertCredentialAbsent(refusedClaim, CLAIM_CODE, 'refused claim diagnostic');
+
+let unstrippedClaimFetches = 0;
+fetchOverride = async () => {
+  unstrippedClaimFetches += 1;
+  return response(500, {});
+};
+await assert.rejects(
+  () => consumeConsoleCredentialFragment(
+    new AdminClient('http://snapback.test/_snapback/api'),
+    {
+      hash: `#claim=${CLAIM_CODE}`,
+      pathname: '/_snapback/admin/',
+      search: '',
+    },
+    null,
+  ),
+  (error) => error.diagnostic?.code === 'SNAPBACK_RESPONSE_INVALID',
+  'claim exchange fails closed when the fragment cannot be stripped',
+);
+assert.equal(unstrippedClaimFetches, 0, 'an unstripped claim is never sent');
 
 const deviceRequests = [];
 const DEVICE_CODE = 'sbcd_devicesecret';

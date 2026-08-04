@@ -28,6 +28,7 @@ export class AdminClient {
     const stored = this.masterToken ? null : storedConsoleCredential();
     this.consoleCredential = stored?.credential ?? '';
     this.consoleExpiresAtMs = stored?.expiresAtMs ?? 0;
+    this.consoleProvenance = stored?.provenance ?? '';
     this.consoleRenewalAttemptedAtMs = 0;
     this.consoleRenewalPromise = null;
     clearLegacyStoredMaster();
@@ -64,6 +65,33 @@ export class AdminClient {
     }
     this.masterToken = '';
     this.#replaceConsoleCredential(projected);
+  }
+
+  async exchangeConsoleClaim(claimCode) {
+    const code = String(claimCode ?? '').trim();
+    if (!/^sbcl_[A-Fa-f0-9]{32}$/.test(code)) {
+      throw responseShapeError('console claim code was invalid');
+    }
+    const exchanged = await this.#req(
+      'POST',
+      '/console/claim/exchange',
+      { claimCode: code },
+      {},
+      false,
+      false,
+      false,
+    );
+    const credential = projectConsoleCredential(exchanged);
+    if (
+      !credential
+      || credential.provenance !== 'operatorClaim'
+      || credential.expiresAtMs <= Date.now()
+    ) {
+      throw responseShapeError('console claim exchange returned an invalid credential');
+    }
+    this.masterToken = '';
+    this.#replaceConsoleCredential(credential);
+    return { expiresAtMs: credential.expiresAtMs };
   }
 
   async requestConsoleApproval() {
@@ -335,6 +363,7 @@ export class AdminClient {
   #replaceConsoleCredential(record) {
     this.consoleCredential = record?.credential ?? '';
     this.consoleExpiresAtMs = record?.expiresAtMs ?? 0;
+    this.consoleProvenance = record?.provenance ?? '';
     try {
       if (typeof localStorage === 'undefined') return;
       clearLegacyStoredMaster();
@@ -489,7 +518,7 @@ export class AdminClient {
 // Consume the CLI's fragment handoff before the console makes any request.
 // The fragment is removed from the visible/history URL before validation or
 // persistence, and only the derived credential record reaches localStorage.
-export function consumeConsoleCredentialFragment(
+export async function consumeConsoleCredentialFragment(
   client,
   locationObject = globalThis.location,
   historyObject = globalThis.history,
@@ -497,12 +526,29 @@ export function consumeConsoleCredentialFragment(
   const raw = String(locationObject?.hash ?? '');
   if (!raw.startsWith('#')) return false;
   const parameters = new URLSearchParams(raw.slice(1));
-  if (!parameters.has('credential')) return false;
+  const carriesCredential = parameters.has('credential');
+  const carriesClaim = parameters.has('claim');
+  if (!carriesCredential && !carriesClaim) return false;
   const replacement = `${locationObject?.pathname ?? ''}${locationObject?.search ?? ''}` || '/';
-  if (historyObject && typeof historyObject.replaceState === 'function') {
+  const canStripFragment = historyObject && typeof historyObject.replaceState === 'function';
+  if (carriesClaim && !canStripFragment) {
+    throw responseShapeError('console claim fragment could not be removed before exchange');
+  }
+  if (canStripFragment) {
     historyObject.replaceState(historyObject.state ?? null, '', replacement);
   }
   const keys = [...parameters.keys()];
+  if (carriesClaim) {
+    if (
+      carriesCredential
+      || keys.length !== 1
+      || keys.filter((key) => key === 'claim').length !== 1
+    ) {
+      throw responseShapeError('console claim fragment was invalid');
+    }
+    await client.exchangeConsoleClaim(parameters.get('claim'));
+    return true;
+  }
   if (
     keys.length !== 2
     || keys.filter((key) => key === 'credential').length !== 1
@@ -590,12 +636,15 @@ function responseShapeError(message) {
 }
 
 function projectConsoleCredential(value, forbiddenMaster = '') {
-  if (!exactRecord(value, ['credential', 'expiresAtMs'])) return null;
+  const standard = exactRecord(value, ['credential', 'expiresAtMs']);
+  const provenanced = exactRecord(value, ['credential', 'expiresAtMs', 'provenance']);
+  if (!standard && !provenanced) return null;
   if (
     typeof value.credential !== 'string' ||
     !/^sbcc_[A-Za-z0-9-]+$/.test(value.credential) ||
     !Number.isSafeInteger(value.expiresAtMs) ||
     value.expiresAtMs < 0
+    || (provenanced && value.provenance !== 'operatorClaim')
   ) {
     return null;
   }
@@ -603,6 +652,7 @@ function projectConsoleCredential(value, forbiddenMaster = '') {
     credential: value.credential,
     expiresAtMs: value.expiresAtMs,
   };
+  if (provenanced) projected.provenance = value.provenance;
   // @ref LLP 0060#c1-the-v1-custody-claim — an exact response shape still
   // fails closed when the derived record would persist its minting authority
   // in any key or value, including an all-numeric master reflected as the
@@ -665,6 +715,7 @@ function sensitiveAdminField(name) {
     || normalized === 'credential'
     || normalized.endsWith('_credential')
     || normalized === 'device_code'
+    || normalized === 'claim_code'
     || normalized === 'lease'
     || normalized.endsWith('_lease')
     || normalized === 'proof'
