@@ -1,15 +1,18 @@
 # LLP 0167: Network condition profiles
 
 **Type:** RFC
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Server, Runtime, Cloudflare arm, Admin console, Agent experience,
 Developer experience, Acceptance testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-04
-**Revised:** 2026-08-04 (post-acceptance proposed OQ2 ruling, subject to author
-veto: runtime perturbations use a new `debug.*` operation family; the two
-network-profile host operations, CLI verbs, and control-plane MCP projections
-are implemented under that proposal); 2026-08-04 (v1.0 — Accepted by the author at super-refine
+**Revised:** 2026-08-04 (v1.1 — Implemented. Author rulings: OQ2 ratified
+(`debug.*` family), OQ4 ratified (subscription-stage seam folded,
+nested-commit seam kept as a capped documented micro-seam), OQ3 ruled by
+adopted recommendation (fork-only hosted exception + dedicated Cloudflare
+classification binding; implementation ticketed). Both arms, all four
+control surfaces, and the Latency Kanban acceptance anchor are built;
+residue is tracked in the capability GAP.); 2026-08-04 (v1.0 — Accepted by the author at super-refine
 close. Content identical to v0.4; the final dual-family round verdicts
 bind to v0.3 and the v0.4 in-delta fixes are author-reviewed only, as
 disclosed in Revision history.)
@@ -407,30 +410,28 @@ ban points at — but the reconciliation must be explicit:
   useful for multi-client convergence demos but complicates the console
   surface. (Request-side delay is not an open question — it is out of
   scope by the observation-not-state rule.)
-- **OQ2 — Operation namespace.** `host.networkProfile{Get,Set}` in the
-  existing `host.*` family, or the first members of a new `debug.*` family
-  that future perturbation ops (D6 seams, fault injection) would join?
-  This RFC is the first to hoist a runtime perturbation into host-ops, so
-  the 0024 table amendment should decide the family once. **Proposed ruling
-  (2026-08-04; the author may veto):** use the new `debug.*` family, beginning
-  with `debug.networkProfileGet` and `debug.networkProfileSet`. The current
-  implementation and the LLP 0024/0042 amendments follow this proposal; it is
-  not represented as an author-ratified change to this Accepted RFC.
-- **OQ3 — Fork exception.** The interim rule is decided (non-`normal`
-  refused on hosted-serving instances, all surfaces). The open half:
-  should LLP 0158 forks/derived instances — which carry explicit derived
-  identity — be exempted so perturbed servers can run against
-  production-shaped data with contained blast radius? The same ruling
-  should decide whether the Cloudflare arm gets a dedicated
-  deployment-classification binding: `SNAPBACK_TESTING` also unlocks
-  test-only functions, so a hosted demo deployment wanting `demo-slow`
-  currently has to accept test-surface exposure.
-- **OQ4 — Coordinator test seams.** Fold the two
-  `SNAPBACK_TEST_*_DELAY_MS` seams into the profile mechanism, or leave
-  them as documented internal micro-seams? The nested-commit seam delays
-  an *internal* stage rather than an egress boundary (and is uncapped
-  today), so it may not fit the model — which is itself an argument for
-  folding what fits and documenting what doesn't.
+- **OQ2 — Operation namespace. RESOLVED (author-ratified 2026-08-04):**
+  runtime perturbation operations form the new `debug.*` family, beginning
+  with `debug.networkProfileGet` and `debug.networkProfileSet`; future
+  perturbation ops (D6 seams, fault injection) join through their own
+  reviewed LLP 0024 table amendments.
+- **OQ3 — Fork exception. RESOLVED (2026-08-04; author adopted the
+  recommended ruling without strong preference — revisitable):** hosted
+  targets allow a non-`normal` profile only on LLP 0158 forks/derived
+  instances, which carry explicit derived identity and contained blast
+  radius; primary hosted instances refuse unconditionally. The Cloudflare
+  arm gets a dedicated deployment-classification binding tied to derived
+  identity rather than piggybacking `SNAPBACK_TESTING` (which also
+  unlocks test-only functions). Implementation is ticketed in the residue
+  ticket; until it lands, the fail-closed interim rule stands unchanged.
+- **OQ4 — Coordinator test seams. RESOLVED (author-ratified 2026-08-04,
+  as implemented):** `SNAPBACK_TEST_SUBSCRIPTION_STAGE_DELAY_MS` is folded
+  into the profile mechanism's live-delta lane (still `SNAPBACK_TESTING`-
+  gated, historical 1,000 ms clamp retained, marker emitted);
+  `SNAPBACK_TEST_NESTED_COMMIT_DELAY_MS` stays a documented test-only
+  micro-seam outside the egress model — it delays an internal stage, which
+  the observation-not-state rule excludes — now under the 30,000 ms cap
+  discipline.
 - **OQ5 — Guide surface.** Ship with a `guide/` page and a capability row,
   or land the row as a GAP until the acceptance corpus above passes? The
   LLP 0162 precedent (capabilities stay Missing until acceptance passes)

@@ -5,7 +5,13 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-03, latest (LLP 0109 acceptance: the versioned-seed
+**Revised:** 2026-08-04 (dated route-class registration for the
+landed `/app-api/*` app-data-plane envelope surface — LLP 0062 Phase 1:
+`GET /app-api/current` is the sessions-only `PublicNoStore` discovery
+route and `GET /app-api/envelope/{sha256}` the content-addressed
+`PublicProjection` artifact; both credential-free by construction and
+enforced through the registry; closes
+issues/20260804-0031-app-api-route-class-registration.md.) 2026-08-03, latest (LLP 0109 acceptance: the versioned-seed
 route-family amendment gains its dated supplement — normative gate-before-
 decode order including preview, and the redaction-bounded response posture
 with `AdminSecretRead` as the sole gated-detail lane.) Earlier:
@@ -346,6 +352,8 @@ resolved session or bound connection grant.
 | --- | --- | --- | --- | --- |
 | `GET /_snapback/admin`, `/`, `/setup`, `/{*path}` under that prefix | `Public` system-static presentation only | unchanged; the shell gains no data/control authority | serve | fixed static assets only; app/client-page XSS contract is separate |
 | `GET /_snapback/guide`, `/flat.md`, `/{*path}` under that prefix | `Public` system-static presentation only | unchanged; the corpus gains no instance authority | serve | build-owned `PublicProjection`; content hash + build commit bind cached bytes to the server |
+| `GET /app-api/current` | `Public`; credential-free discovery document | unchanged; sessions-only content, no credential custody | serve | closed `PublicNoStore` discovery projection; never cached |
+| `GET /app-api/envelope/{sha256}` | `Public`; content-addressed immutable artifact (64-lowercase-hex grammar, identity content coding, strong ETag, `Content-Digest`) | unchanged | serve | build-owned `PublicProjection`; immutable/no-transform caching; typed misses |
 | `GET /_snapback/api/health` | `AdminRead` (tokenless loopback remains the LLP 0017 compatibility posture) | unchanged | serve | typed admin metadata only |
 | `GET /_snapback/api/telemetry/stats` | `AdminRead` | unchanged; closed aggregates require no raw-data lease | serve | closed `OperatorMetadata` aggregates; no-store |
 | `GET /_snapback/api/telemetry/events`, `/telemetry/export` | `AdminSecretRead`; fixed finite scope and row/byte budgets | unchanged; ordinary admin/session credentials cannot substitute | serve only with the scoped lease | sensitive raw/snapshot application data; no-store |

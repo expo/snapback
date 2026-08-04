@@ -85,3 +85,16 @@ Track B (forking: 0163→0164→0165, F0b dogfood) and Track C's 0160
 migration program run in parallel under their own ownership — this
 program touches neither territory. The 0160 program needs no new
 tickets; its tranche 1 is dispatch-ready as written.
+
+## Resolution (2026-08-04)
+
+Program COMPLETE — all lanes landed and individually closed: P0 (OQ5
+ruling), P1 (server proof issuance 193a94b0c + the finite-carrier
+amendment f466c0501), P2 (hydration bridge 724e94715; receipt
+15 PASS / 2 GAP with the remaining GAPs publication-gated by Charlie's
+ruling), P3 (Triage Graph 8/8 + budget freeze dab2410b6), P4
+(single_table_v1 rulings + adoption 9143e3b56, dormant), P5
+(TransformPlanV1 + D5-extension corpus 2d147a0bf, dormant). The write
+lane continued past this program into the Move-3 Phase-1 program,
+whose exit Charlie accepted 2026-08-04
+(issues/closed/20260803-move3-phase1-program.md).

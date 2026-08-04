@@ -352,3 +352,18 @@ export function computeArtifactIdentityStrings(options: Readonly<{
 
 /** CLI entry (`[--json] [--target-profile <profile>] [backendDir]`). */
 export function runCodegenCli(argv?: readonly string[]): Promise<void>;
+
+/**
+ * Validates a `snapback.trusted-composition-activation.v1` artifact against
+ * the expected generation/target/auth identities and returns the frozen
+ * activation record. Throws `TypeError` on any closed-record or identity
+ * mismatch.
+ */
+export function validateTrustedCompositionActivationV1(
+  candidate: unknown,
+  context: Readonly<{
+    expectedGeneration: Readonly<Record<string, unknown>>;
+    targetProfileId: string;
+    authMode: string;
+  }>,
+): Readonly<Record<string, unknown>>;
