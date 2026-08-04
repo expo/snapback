@@ -1967,6 +1967,49 @@ pub(crate) struct AppActionStage {
     pub mode: StagedAction,
 }
 
+/// One deterministic parent for every durable child commit an action emits.
+/// Retries reconstruct the same parent from durable job/cron occurrence facts
+/// and restart ordinals at zero, so a committed prefix replays.
+///
+/// @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 — host
+///   children derive identity from an authenticated parent plus stable ordinal.
+#[derive(Clone)]
+pub(crate) struct HostOperationParentV1 {
+    upstream_identity: String,
+    next_commit_ordinal: Arc<AtomicU64>,
+}
+
+impl HostOperationParentV1 {
+    pub(crate) fn from_action_run(metadata: &CronRunMetadata) -> Self {
+        use sha2::Digest as _;
+        let mut digest = sha2::Sha256::new();
+        digest.update(b"snapback:action-host-operation-parent:v1\n");
+        digest.update(metadata.job_name.as_bytes());
+        digest.update(b"\n");
+        digest.update(metadata.slot_key.as_bytes());
+        digest.update(b"\n");
+        digest.update(metadata.idempotency_key.as_bytes());
+        Self {
+            upstream_identity: format!("host-parent:sha256:{:x}", digest.finalize()),
+            next_commit_ordinal: Arc::new(AtomicU64::new(0)),
+        }
+    }
+
+    fn next_child(&self) -> SnapbackResult<(&str, u64)> {
+        let ordinal = self
+            .next_commit_ordinal
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| value.checked_add(1))
+            .map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_HOST_OPERATION_ORDINAL_EXHAUSTED",
+                    "storage",
+                    "host action emitted more child commits than the identity ordinal can represent",
+                )
+            })?;
+        Ok((&self.upstream_identity, ordinal))
+    }
+}
+
 /// A bounded HostPlan action detached from the managed `LocalSnapback` guard.
 /// The server evaluates and commits one `RunMutation` step at a time through
 /// the authorization-reservation protocol; the captured generation prevents
@@ -1976,6 +2019,7 @@ pub(crate) struct ManagedHostPlanAction {
     pub(crate) plan: ActionPlan,
     pub(crate) input: HandlerInput,
     pub(crate) metadata: CronRunMetadata,
+    host_operation: HostOperationParentV1,
     pub(crate) invocation: PreparedInvocation,
     pub(crate) app_generation: u64,
     pub(crate) app_generation_fence: Arc<AtomicU64>,
@@ -12225,6 +12269,39 @@ impl LocalSnapback {
         crate::storage::AuthorizationCommitPreflight,
         StagedRecordedMutation,
     )> {
+        self.stage_recorded_authorization_mutation_with_generation_and_settlement_inner(
+            name,
+            input,
+            client_mutation_id,
+            authority_descriptor,
+            acknowledged_client_mutation_ids,
+            transport,
+            authority,
+            expected_generation,
+            operation_issuance,
+            settlement,
+            false,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn stage_recorded_authorization_mutation_with_generation_and_settlement_inner(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        authority_descriptor: Option<AuthorityDescriptor>,
+        acknowledged_client_mutation_ids: &[String],
+        transport: &str,
+        authority: PreparedAuthority,
+        expected_generation: Option<&ArtifactGeneration>,
+        operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
+        settlement: MutationSettlement,
+        allow_host_issuance: bool,
+    ) -> SnapbackResult<(
+        crate::storage::AuthorizationCommitPreflight,
+        StagedRecordedMutation,
+    )> {
         if operation_issuance.is_some() && client_mutation_id.is_none() {
             return Err(SnapbackError::error(
                 "SNAPBACK_OPERATION_IDENTITY_REQUIRES_CLIENT_MUTATION_ID",
@@ -12232,7 +12309,7 @@ impl LocalSnapback {
                 "operationIssuance extends clientMutationId and cannot be sent alone",
             ));
         }
-        if matches!(
+        if !allow_host_issuance && matches!(
             operation_issuance,
             Some(crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. })
         ) {
@@ -12615,15 +12692,25 @@ impl LocalSnapback {
         }
         let result = match execution {
             StagedMutationExecution::HostPlan(plan) => match identity.as_ref() {
-                Some(identity) => self
-                    .db
-                        .execute_mutation_idempotent_guarded_with_settlement_time(
-                            &plan,
-                            &input,
-                            identity,
-                            settlement_time.as_ref(),
-                            || prepared.effect_guard("idempotent mutation transaction"),
+                Some(identity)
+                    if matches!(
+                        identity.operation_issuance.as_ref(),
+                        Some(crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. })
+                    ) => self.db.execute_host_mutation_guarded_with_settlement_time(
+                        &plan,
+                        &input,
+                        Some(identity),
+                        settlement_time.as_ref(),
+                        || Ok(()),
+                        || prepared.effect_guard("host child mutation transaction"),
                     ),
+                Some(identity) => self.db.execute_mutation_idempotent_guarded_with_settlement_time(
+                    &plan,
+                    &input,
+                    identity,
+                    settlement_time.as_ref(),
+                    || prepared.effect_guard("idempotent mutation transaction"),
+                ),
                 None => self.db.execute_mutation_guarded_with_settlement_time(
                     &plan,
                     &input,
@@ -12634,13 +12721,28 @@ impl LocalSnapback {
             },
             StagedMutationExecution::Buffered(payload) => {
                 let payload = *payload;
-                self.db.commit_buffered_writes_idempotent_guarded(
-                    &input,
-                    payload,
-                    identity.as_ref(),
-                    || Ok(()),
-                    || prepared.effect_guard("ibex mutation transaction"),
-                )
+                if identity.as_ref().is_some_and(|identity| {
+                    matches!(
+                        identity.operation_issuance.as_ref(),
+                        Some(crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. })
+                    )
+                }) {
+                    self.db.commit_buffered_host_writes_guarded(
+                        &input,
+                        payload,
+                        identity.as_ref(),
+                        || Ok(()),
+                        || prepared.effect_guard("host child ibex mutation transaction"),
+                    )
+                } else {
+                    self.db.commit_buffered_writes_idempotent_guarded(
+                        &input,
+                        payload,
+                        identity.as_ref(),
+                        || Ok(()),
+                        || prepared.effect_guard("ibex mutation transaction"),
+                    )
+                }
             }
         }
         .and_then(|commit| self.finish_mutation_commit(epoch_scopes, commit, &admission));
@@ -12825,6 +12927,7 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
         prepared: PreparedInvocation,
+        identity: Option<ClientMutationIdentity>,
         check_live: Check,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<MutationOutput>
@@ -12841,6 +12944,7 @@ impl LocalSnapback {
             name,
             input,
             &prepared,
+            identity.as_ref(),
             check_live,
             before_commit,
         );
@@ -13087,6 +13191,7 @@ impl LocalSnapback {
         name: &str,
         input: HandlerInput,
         prepared: &PreparedInvocation,
+        identity: Option<&ClientMutationIdentity>,
         check_live: Check,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<MutationCommit>
@@ -13132,15 +13237,19 @@ impl LocalSnapback {
         );
         let mut result =
             crate::runtime::with_runtime_log_telemetry(self.telemetry.clone(), correlation, || {
-        let commit = self
-            .db
-            .execute_mutation_guarded(plan, &input, check_live, || {
+        let commit = self.db.execute_host_mutation_guarded(
+            plan,
+            &input,
+            identity,
+            &check_live,
+            || {
                 let admission_guard = prepared
                     .admission_lease()
                     .effect_guard("nested host-plan transaction")?;
                 let caller_guard = before_commit()?;
                 Ok((admission_guard, caller_guard))
-            })?;
+            },
+        )?;
         self.finish_mutation_commit(epoch_scopes, commit, prepared.admission_lease())
             });
         finish_function_observation(span, &mut result);
@@ -13252,6 +13361,7 @@ impl LocalSnapback {
         input: HandlerInput,
         binding: DetachedMutationBinding,
         executed: ExecutedIbexMutation,
+        identity: Option<ClientMutationIdentity>,
         check_live: Check,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<MutationOutput>
@@ -13294,7 +13404,7 @@ impl LocalSnapback {
             input.auth.user_id.clone(),
         )?;
         self.ensure_permission_epoch_capacity(&binding.epoch_scopes)?;
-        let commit = self.db.commit_buffered_writes_idempotent_guarded(
+        let commit = self.db.commit_buffered_host_writes_guarded(
             &input,
             BufferedCommitPayload {
                 writes: executed.writes,
@@ -13307,7 +13417,7 @@ impl LocalSnapback {
                 job_producer,
                 asset_admissions: executed.asset_admissions,
             },
-            None,
+            identity.as_ref(),
             check_live,
             || {
                 let admission_guard =
@@ -20511,6 +20621,70 @@ impl LocalSnapback {
         Ok(record)
     }
 
+    pub(crate) fn covered_host_child_identity(
+        &mut self,
+        parent: &HostOperationParentV1,
+        function: &str,
+        input: &HandlerInput,
+        authority: &PreparedAuthority,
+    ) -> SnapbackResult<Option<ClientMutationIdentity>> {
+        // @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 —
+        //   coverage is an explicit writer-lane cut; inactive targets neither
+        //   mint nor consume host identity ordinals.
+        if !self
+            .db
+            .operation_lane_covered(crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1)?
+        {
+            return Ok(None);
+        }
+        let (upstream_identity, commit_ordinal) = parent.next_child()?;
+        authority.validate_admission("host child operation identity")?;
+        self.persist_and_validate_prepared_service_authority(authority)?;
+        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+        let descriptor = descriptor_for_authority(authority, incarnation.as_str())?;
+        let issuance = self.db.host_operation_issuance(
+            &descriptor.authority_instance_id,
+            upstream_identity,
+            commit_ordinal,
+            now_millis(),
+        )?;
+        let operation_id = crate::commit_envelope::derive_host_operation_id(
+            upstream_identity,
+            commit_ordinal,
+        );
+        let mut canonical_input = input.clone();
+        canonical_input.auth = authority.canonical_auth_input();
+        let generation = DeploymentIdentity::from_manifests(
+            authority.active_mode(),
+            self.db.schema(),
+            &self.functions,
+        )
+        .map(|identity| ArtifactGeneration {
+            schema_version: identity.schema_version,
+            app_id: identity.app_id,
+            schema_hash: identity.schema_hash,
+            bundle_hash: identity.bundle_hash,
+            inputs_hash: identity.inputs_hash,
+        })
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH",
+                "runtime",
+                "covered host operation requires a derivable selected artifact generation",
+            )
+        })?;
+        Ok(Some(
+            ClientMutationIdentity::for_authority(
+                operation_id,
+                function,
+                &canonical_input,
+                descriptor.authority_instance_id,
+            )
+            .with_artifact_generation(&generation)
+            .with_operation_issuance(issuance),
+        ))
+    }
+
     /// Capture a stored HostPlan action for managed execution without keeping
     /// the global instance mutex across its sequence of nested commits. Each
     /// step is staged and reserved independently by
@@ -20552,10 +20726,12 @@ impl LocalSnapback {
                     correlation.as_deref(),
                     None,
                 );
+        let host_operation = HostOperationParentV1::from_action_run(&metadata);
         Ok(ManagedHostPlanAction {
             plan: plan.clone(),
             input,
             metadata,
+            host_operation,
             invocation: prepared,
             app_generation: self.app_generation,
             app_generation_fence: self.app_generation_fence.clone(),
@@ -20595,20 +20771,31 @@ impl LocalSnapback {
         let authority = action
             .invocation
             .inherit_authority_for(InvocationSource::NestedMutation)?;
-        self.stage_recorded_authorization_mutation(
+        let child_input = HandlerInput {
+            args: Value::Object(mutation_args),
+            auth: action.input.auth.clone(),
+            read_set: Vec::new(),
+            correlation: None,
+            ctx_ledger: None,
+        };
+        let host_identity = self.covered_host_child_identity(
+            &action.host_operation,
             name,
-            HandlerInput {
-                args: Value::Object(mutation_args),
-                auth: action.input.auth.clone(),
-                read_set: Vec::new(),
-                correlation: None,
-                ctx_ledger: None,
-            },
-            None,
+            &child_input,
+            &authority,
+        )?;
+        self.stage_recorded_authorization_mutation_with_generation_and_settlement_inner(
+            name,
+            child_input,
+            host_identity.as_ref().map(|identity| identity.id.clone()),
             None,
             &[],
             "local",
             authority,
+            None,
+            host_identity.and_then(|identity| identity.operation_issuance),
+            MutationSettlement::default(),
+            true,
         )
     }
 
@@ -48779,6 +48966,7 @@ globalThis.__snapbackHandlers = {
                 "hostInsert",
                 input(),
                 prepared_mutation(&cancelled_snapback, "hostInsert"),
+                None,
                 || Ok(()),
                 || -> crate::diagnostic::SnapbackResult<()> { Err(cancelled()) },
             )
@@ -48809,6 +48997,7 @@ globalThis.__snapbackHandlers = {
                 "hostInsert",
                 input(),
                 prepared_mutation(&committed, "hostInsert"),
+                None,
                 || Ok(()),
                 {
                     let active = active.clone();
@@ -48972,6 +49161,7 @@ globalThis.__snapbackHandlers = {
                 input(),
                 binding,
                 executed_insert(),
+                None,
                 || Ok(()),
                 || -> crate::diagnostic::SnapbackResult<()> { Err(cancelled()) },
             )
@@ -49001,6 +49191,7 @@ globalThis.__snapbackHandlers = {
                 input(),
                 binding,
                 executed_insert(),
+                None,
                 || Ok(()),
                 {
                     let active = active.clone();
@@ -49069,6 +49260,7 @@ globalThis.__snapbackHandlers = {
                 "hostInsert",
                 input(),
                 prepared_mutation(&host, "hostInsert"),
+                None,
                 || Ok(()),
                 || Ok(()),
             )
@@ -49092,6 +49284,7 @@ globalThis.__snapbackHandlers = {
                 input(),
                 binding,
                 executed_insert(),
+                None,
                 || Ok(()),
                 || Ok(()),
             )
@@ -49189,6 +49382,7 @@ globalThis.__snapbackHandlers = {
                 input(),
                 binding,
                 executed,
+                None,
                 || Ok(()),
                 || Ok(()),
             )

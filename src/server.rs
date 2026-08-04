@@ -66,7 +66,7 @@ use crate::local::{
     FunctionRunResult, InspectState, LiveInvalidationAdmission, LiveResumeInput,
     LiveSubscribeRequest, LiveUnsubscribeInput, LocalSnapback, MaintenanceOperation,
     PreparedAuthProvision, StagedAction, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
-    live_stream_text, live_stream_text_with_server_observed,
+    HostOperationParentV1, live_stream_text, live_stream_text_with_server_observed,
 };
 use crate::manifest::{
     ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode, AuthRequirement,
@@ -997,6 +997,7 @@ struct DetachedActionHost {
     /// are excluded from streamed actions until resumable retry semantics
     /// exist (LLP 0076 §Evidence-status, retry-fencing gap).
     automatic_retry_invocation: bool,
+    host_operation: HostOperationParentV1,
 }
 
 struct ScopedLocalSnapbackGuard {
@@ -1479,6 +1480,12 @@ impl IbexActionHost for DetachedActionHost {
         let authority = self
             .authority
             .inherit_for(InvocationSource::NestedMutation)?;
+        let host_identity = snapback.covered_host_child_identity(
+            &self.host_operation,
+            name,
+            &input,
+            &authority,
+        )?;
         match snapback.stage_nested_mutation(name, &input, authority)? {
             StagedNestedMutation::InLock(staged) => {
                 let snapshot = snapback.authorization_reservation_snapshot()?;
@@ -1498,6 +1505,7 @@ impl IbexActionHost for DetachedActionHost {
                         name,
                         staged.input,
                         staged.invocation,
+                        host_identity,
                         || self.validate_live("runMutation"),
                         || self.lock_commit_live("runMutation"),
                     )
@@ -1596,6 +1604,7 @@ impl IbexActionHost for DetachedActionHost {
                             input,
                             binding,
                             executed,
+                            host_identity,
                             || self.validate_live("runMutation"),
                             || self.lock_commit_live("runMutation"),
                         )
@@ -2667,6 +2676,7 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
     let stream_runner = crate::stream_attempt::StreamRunnerIdentity::new(abandoned.clone());
     let automatic_retry_invocation =
         metadata.attempt > 1 || matches!(metadata.trigger, crate::cron::CronRunTrigger::Recovery);
+    let host_operation = HostOperationParentV1::from_action_run(&metadata);
     let (sender, mut receiver) = tokio::sync::oneshot::channel();
     let spawned = spawn_detached_action_worker(
         worker_permit,
@@ -2722,6 +2732,7 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     stream_buffered_bytes: Arc::new(AtomicU64::new(0)),
                     stream_buffered_peak: Arc::new(AtomicU64::new(0)),
                     automatic_retry_invocation,
+                    host_operation,
                 };
                 let input = invocation.canonicalize_input(input);
                 let result = crate::runtime::with_runtime_log_telemetry(
@@ -25112,6 +25123,7 @@ mod tests {
         ACTION_WORKER_LIMIT_MAX, ADMITTED_BODY_INGEST_DEADLINE_MS, AdmissionLease,
         CRON_DISPATCH_CONCURRENCY_DEFAULT, CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant,
         ConnectionOpenAttempt, DetachedActionHost, DetachedActionWorkerCounters,
+        HostOperationParentV1,
         OpenConnectionRequest, PolicyAuthMode, PreparedAuthority, RealtimeEnvelope, SharedSnapback,
         SnapbackApp, TEST_FINITE_AUTHORITY_PAUSE_HEADER, TestFiniteAuthorityPausePoint,
         already_terminal_session_error, app, configured_action_worker_limit,
@@ -41166,7 +41178,214 @@ globalThis.__snapbackHandlers = {
             stream_buffered_bytes: Arc::new(AtomicU64::new(0)),
             stream_buffered_peak: Arc::new(AtomicU64::new(0)),
             automatic_retry_invocation: false,
+            host_operation: HostOperationParentV1::from_action_run(
+                &crate::local::manual_action_metadata("test", "heldAction"),
+            ),
         }
+    }
+
+    #[tokio::test]
+    async fn llp0163_managed_host_action_retries_reuse_one_host_child_envelope() {
+        let mut snapback = LocalSnapback::memory().expect("managed host identity state");
+        let app_id = "operation-carrier-fixture";
+        let inputs_hash = "sha256:carrier-inputs";
+        snapback
+            .apply_schema(SchemaManifest {
+                app_id: app_id.to_owned(),
+                schema_hash: Some("sha256:carrier-schema".to_owned()),
+                inputs_hash: Some(inputs_hash.to_owned()),
+                tables: vec![TableManifest {
+                    name: "items".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "value".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
+                    search_live_limits: None,
+                    membership: None,
+                    asset_sharing: None,
+                    history: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("apply managed host identity schema");
+        let mut values = BTreeMap::new();
+        values.insert("value".to_owned(), ValueExpr::Literal(json!("carrier")));
+        let mut insert = FunctionDefinition::new(
+            "insertCarrier",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "items".to_owned(),
+                    values,
+                    bind_id_as: None,
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        );
+        insert.write_set_summary.tables = vec!["items".to_owned()];
+        let mut action = FunctionDefinition::new(
+            "carrierAction",
+            FunctionKind::Action,
+            FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                steps: vec![ActionStep::RunMutation {
+                    name: "insertCarrier".to_owned(),
+                    args: BTreeMap::new(),
+                    bind_result_as: None,
+                }],
+                return_value: Some(ActionReturnValue::ChangedCount),
+            })),
+        );
+        action.write_set_summary.tables = vec!["items".to_owned()];
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            app_id: app_id.to_owned(),
+            bundle_hash: Some("sha256:carrier-functions".to_owned()),
+            inputs_hash: Some(inputs_hash.to_owned()),
+            functions: vec![insert, action],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().all(|diagnostic| {
+                diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+            }),
+            "managed host identity functions load: {diagnostics:?}"
+        );
+        snapback
+            .auth_database_mut()
+            .install_operation_coverage_for_test(
+                vec![crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned()],
+                crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1
+                    .iter()
+                    .map(|writer| (*writer).to_owned())
+                    .collect(),
+            )
+            .expect("activate test-only host child coverage");
+
+        let prepared = |snapback: &mut LocalSnapback| match snapback
+            .stage_action_invocation("carrierAction")
+            .expect("stage production managed action")
+        {
+            StagedAction::HostPlan(prepared) => prepared,
+            StagedAction::Detached(_) => panic!("HostPlan action must use managed runner"),
+        };
+        let first_prepared = prepared(&mut snapback);
+        let second_prepared = prepared(&mut snapback);
+        let mut first_metadata =
+            crate::local::manual_action_metadata("test", "carrierAction");
+        first_metadata.run_id = "carrier-run-1".to_owned();
+        first_metadata.attempt = 1;
+        let mut retry_metadata = first_metadata.clone();
+        retry_metadata.run_id = "carrier-run-2".to_owned();
+        retry_metadata.attempt = 2;
+        let state = Arc::new(Mutex::new(snapback));
+
+        let first = super::run_managed_host_plan_action(
+            &state,
+            "carrierAction".to_owned(),
+            HandlerInput::default(),
+            first_metadata,
+            first_prepared,
+        )
+        .await
+        .expect("first managed action attempt");
+        let retry = super::run_managed_host_plan_action(
+            &state,
+            "carrierAction".to_owned(),
+            HandlerInput::default(),
+            retry_metadata,
+            second_prepared,
+        )
+        .await
+        .expect("managed action retry replays committed child");
+        assert_eq!(first, retry);
+
+        let mut snapback = state.lock().await;
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .scan_table("items", 10, 0)
+                .expect("scan carrier rows")
+                .total,
+            1,
+            "attempt-local run ids must not duplicate a committed child"
+        );
+        let envelopes = snapback
+            .auth_database_mut()
+            .operation_envelopes_for_test()
+            .expect("load retained host envelopes");
+        assert_eq!(envelopes.len(), 1);
+        let envelope = &envelopes[0];
+        assert_eq!(
+            envelope.identity.key.originator_class,
+            crate::commit_envelope::OperationOriginatorClassV1::Host
+        );
+        assert_eq!(
+            envelope.coverage.covered_lanes,
+            vec![crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned()]
+        );
+        let crate::commit_envelope::OperationIssuanceV1::HostIncarnation {
+            upstream_identity,
+            commit_ordinal,
+            ..
+        } = &envelope.identity.issuance
+        else {
+            panic!("managed action child must retain host-incarnation issuance");
+        };
+        assert!(upstream_identity.starts_with("host-parent:sha256:"));
+        assert_eq!(*commit_ordinal, 0);
+    }
+
+    #[test]
+    fn llp0163_host_child_inventory_routes_both_action_runtime_tiers() {
+        assert_eq!(
+            crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1,
+            [
+                "LocalDatabase::execute_host_mutation_guarded_with_settlement_time",
+                "LocalDatabase::commit_buffered_host_writes_guarded",
+            ]
+        );
+
+        let server = include_str!("server.rs");
+        let start = server
+            .find("impl IbexActionHost for DetachedActionHost")
+            .expect("production action host remains present");
+        let end = server[start..]
+            .find("\n    fn open_response_stream")
+            .expect("runMutation inventory boundary");
+        let run_mutation = &server[start..start + end];
+        let identity = run_mutation
+            .find("covered_host_child_identity")
+            .expect("action host derives one covered child identity");
+        let host_plan = run_mutation
+            .find("invoke_host_plan_mutation_guarded")
+            .expect("HostPlan production adapter remains inventoried");
+        let buffered = run_mutation
+            .find("commit_detached_ibex_mutation_guarded")
+            .expect("detached Ibex production adapter remains inventoried");
+        assert!(identity < host_plan && identity < buffered);
+
+        let local = include_str!("local.rs");
+        let staged_start = local
+            .find("pub(crate) fn commit_staged_recorded_authorization_mutation")
+            .expect("managed staged writer remains present");
+        let staged_end = local[staged_start..]
+            .find("\n    fn record_mutation_commit(")
+            .expect("managed staged writer inventory boundary");
+        let staged_commit = &local[staged_start..staged_start + staged_end];
+        assert!(
+            staged_commit.contains("execute_host_mutation_guarded_with_settlement_time"),
+            "managed HostPlan children must select the host writer adapter"
+        );
+        assert!(
+            staged_commit.contains("commit_buffered_host_writes_guarded"),
+            "managed Ibex children must select the host buffered adapter"
+        );
     }
 
     #[test]
