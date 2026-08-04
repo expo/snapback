@@ -35,7 +35,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'wire-schema-gate',
 ]);
 
-export const EXPECTED_LOCAL_SUITE_CHECKS = 28;
+export const EXPECTED_LOCAL_SUITE_CHECKS = 29;
 
 export const LOCAL_SUITES = Object.freeze([
   { id: 'compatibility', file: 'scripts/cf-check-compat', runtime: 'direct' },
