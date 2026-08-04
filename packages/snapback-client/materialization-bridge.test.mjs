@@ -8,9 +8,21 @@ import { test } from 'node:test';
 import { authorizedLeaseActivationHash } from '@expo/snapback-contract/authorized-lease';
 
 import { SnapbackClient } from './index.mjs';
+import {
+  deriveGeneratedMaterializationBridge,
+  loadMaterializationLeaseCustody,
+} from './materialization-bridge.mjs';
 import { createFileRqsResumeStore } from './rqs-store-file.mjs';
+import { rqsEntryKey } from './rqs-store.mjs';
 import { resultDigestV1 } from './materialization-store.mjs';
-import { base64UrlNoPad, hex, jcsBytes, sha256 } from './rqs.mjs';
+import {
+  argsHash,
+  base64UrlNoPad,
+  digestOfRows,
+  hex,
+  jcsBytes,
+  sha256,
+} from './rqs.mjs';
 
 const encoder = new TextEncoder();
 const INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
@@ -155,6 +167,171 @@ function attachAuthority(client, fixture) {
   client.currentAuthorizationScope = async () => scope();
   client.unsubscribeLive = async () => ({ disposed: true });
 }
+
+test('single_table_v1 maps to durable no-lease retention without consuming AuthorizedLease', async () => {
+  const fixture = applicationFixture();
+  fixture.ref.composition.normalizedCompositePlan.nodes[0].nodePlan.classId = 'single_table_v1';
+  fixture.ref.composition.normalizedCompositePlan.classification.retention =
+    'rqs-authority-independent-snapshot-v1';
+  const bridge = deriveGeneratedMaterializationBridge({
+    ref: fixture.ref,
+    args: {},
+    clientStoreId: 'single-table-store',
+    authorizationScope: { ...scope(), session: session(fixture) },
+    durableCarrier: true,
+    persistResume: true,
+    authorizedLeaseAvailable: false,
+  });
+  assert.equal(bridge.retentionClass, 'rqs-authority-independent-snapshot-v1');
+  assert.equal(bridge.retentionRequested, true);
+  assert.equal(bridge.leaseRequired, false);
+  assert.equal(bridge.identities.storageProfile, 'durable-fragments-v1');
+  assert.deepEqual(await loadMaterializationLeaseCustody(null, bridge), {
+    leaseStatus: 'not-required',
+    authorizedLeaseHash: null,
+    witness: null,
+  });
+});
+
+test('single-table connected prove arm atomically adopts legacy bytes and discards its token', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'snapback-single-table-adoption-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const fixture = applicationFixture();
+  fixture.ref.composition.normalizedCompositePlan.nodes[0].nodePlan.classId = 'single_table_v1';
+  fixture.ref.composition.normalizedCompositePlan.classification.retention =
+    'rqs-authority-independent-snapshot-v1';
+  const rows = [{ _id: 'legacy-row', title: 'proved-current' }];
+  const legacyResume = {
+    token: 'sbrt1.legacy_key.eyJ2ZXJzaW9uIjo3fQ.bGVnYWN5LW1hYw',
+    meta: {
+      app: fixture.ref.appId,
+      version: 7,
+      contentDigest: digestOfRows('mset1', rows),
+      generation: 'legacy-generation',
+      versionStream: 'bridge-stream',
+      queryArtifact: digest('e'),
+      argsHash: argsHash({}),
+    },
+  };
+  const store = createFileRqsResumeStore({
+    directory,
+    identity: 'single-table-adoption-owner',
+    clientStoreId: 'single-table-adoption-store',
+  });
+  await store.whenLockSettled();
+  const legacyKey = rqsEntryKey(fixture.ref.name, {});
+  await store.commit(legacyKey, { rows, ...legacyResume });
+  const client = new SnapbackClient('https://single-table-adoption.test', {
+    bearerToken: 'sbs_single_table_adoption',
+    authClientProtocol: 1,
+    authInvalidationProtocol: 1,
+    authorizedLeaseProtocol: 1,
+    rqsStore: store,
+    offlineQueue: false,
+  });
+  attachAuthority(client, fixture);
+  client.subscribeLive = async (_ref, options) => {
+    assert.equal(options.resumeFromToken.resume.token, legacyResume.token);
+    assert.equal(Object.hasOwn(options.resumeFromToken, 'membershipWitness'), false);
+    const namespace = options.authorizationNamespace;
+    const witness = {
+      format: 'snapback.authorization-witness.v1',
+      queryInstanceId: namespace.queryInstanceId,
+      compositeWitness: {
+        authorization: { incarnation: INCARNATION, epoch: 0 },
+        data: { versionStream: 'bridge-stream', minCommitVersion: 7 },
+      },
+    };
+    const proof = {
+      format: 'snapback.completeness-proof.v1',
+      materializationKey: namespace.queryKey,
+      queryInstanceId: namespace.queryInstanceId,
+      activationHash: fixture.trustedCompositionActivation.activationHash,
+      planHash: fixture.ref.composition.planHash,
+      version: { stream: 'bridge-stream', commit: 7 },
+      authorizationWitnessDigest: hashRecord('snapback:authorization-witness:v1:', witness),
+      page: {
+        kind: 'visible',
+        input: { kind: 'first' },
+        boundaryVectorDigest: digest('a'),
+        output: { kind: 'terminal' },
+      },
+      nodes: fixture.ref.composition.normalizedCompositePlan.nodes.map((node) => ({
+        position: node.position,
+        classId: node.nodePlan.classId,
+        classVersion: node.nodePlan.classVersion,
+        nodePlanHash: node.nodePlanHash,
+      })),
+      batchIdentity: `sbbi1.${base64UrlNoPad(new Uint8Array(16).fill(9))}`,
+      resultDigest: resultDigestV1(jcsBytes(rows)),
+      proofKeyId: 'proof-key-1',
+      signature: '',
+    };
+    const { signature: _signature, ...unsigned } = proof;
+    proof.signature = base64UrlNoPad(sign(
+      null,
+      concat(encoder.encode('snapback:completeness-proof:v1:'), jcsBytes(unsigned)),
+      fixture.privateKey,
+    ));
+    return {
+      subscription_id: 'single-table-proved-current',
+      completenessProof: proof,
+      authorizationWitness: witness,
+      resume: legacyResume,
+    };
+  };
+
+  const live = await client.liveQuery(fixture.ref, {
+    connectionId: 'single-table-adoption-connection',
+    persistResume: true,
+  });
+  assert.deepEqual(live.rows, rows);
+  assert.equal(live.freshness, 'current');
+  assert.equal(live.answerClass, 'authoritative');
+  assert.equal(live.rqsResume, null, 'post-adoption QMK re-entry is fresh in v1');
+  assert.equal(await store.load(legacyKey), null);
+  await store.materializationTransaction('readonly', (view) => {
+    assert.equal(view.materializations.size, 1);
+  });
+  await live.dispose();
+  await store.outboxEnqueue({
+    id: 'single-table-pending-intent',
+    function: 'writeWhileOffline',
+    args: {},
+  });
+  await store.close();
+
+  const retainedStore = createFileRqsResumeStore({
+    directory,
+    identity: 'single-table-adoption-owner',
+    clientStoreId: 'single-table-adoption-store',
+  });
+  await retainedStore.whenLockSettled();
+  const offline = new SnapbackClient('https://single-table-adoption.test', {
+    bearerToken: 'sbs_single_table_adoption',
+    authClientProtocol: 1,
+    authInvalidationProtocol: 1,
+    authorizedLeaseProtocol: 1,
+    rqsStore: retainedStore,
+    offlineQueue: false,
+  });
+  offline.authSession = async () => { throw new TypeError('backend unreachable'); };
+  offline.unsubscribeLive = async () => ({ disposed: true });
+  offline.subscribeLive = async () => { throw new TypeError('backend unreachable'); };
+  const retainedUpdates = [];
+  const retained = await offline.liveQuery(fixture.ref, {
+    connectionId: 'single-table-retained-pending',
+    persistResume: true,
+    onUpdate: (_rows, detail) => retainedUpdates.push(detail),
+  });
+  assert.deepEqual(retained.rows, rows);
+  assert.equal(retained.freshness, 'retained');
+  assert.equal(retained.rqsResume, null);
+  assert.equal(retained.pendingIntentsAtSeed, 1);
+  assert.equal(retainedUpdates[0].pendingIntents, 1);
+  await retained.dispose();
+  await retainedStore.close();
+});
 
 test('P2 public liveQuery establishes, retains, and relaunches authoritative-retained through qmk1', async (t) => {
   const directory = await mkdtemp(join(tmpdir(), 'snapback-materialization-bridge-'));

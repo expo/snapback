@@ -316,9 +316,7 @@ const custodyValidShape = (value) => (
 
 export async function loadMaterializationLeaseCustody(storeHandle, bridge, now = Date.now()) {
   if (!bridge.leaseRequired || !storeHandle?.materializationTransaction) {
-    return bridge.retentionRequested
-      ? { leaseStatus: 'valid', authorizedLeaseHash: null, witness: null }
-      : { leaseStatus: 'not-required', authorizedLeaseHash: null, witness: null };
+    return { leaseStatus: 'not-required', authorizedLeaseHash: null, witness: null };
   }
   return storeHandle.materializationTransaction('readwrite', (view) => {
     const custody = view.storeMeta.materializationLeaseCustody[bridge.addressKey] ?? null;

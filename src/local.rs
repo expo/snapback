@@ -51,12 +51,11 @@ use crate::manifest::{
     ActionPlan, ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode,
     AuthorityDescriptor, CTX_ANSWER_LEDGER_MAX_IDS, CapabilityManifest, CtxAnswerLedger,
     FunctionDefinition, FunctionInvocationFacts, FunctionKind, FunctionManifest,
-    FunctionResultContract, FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput,
-    MutationSettlement, MutationStep, PermissionScopeExpr, PublicFunctionManifest,
-    PublicSchemaManifest, QueryOutput, QueryPlan, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
-    SeedData, SettlementLane, SettlementMintObservation, SettlementTimeObservation,
-    TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint, ctx_ledger_version,
-    legacy_auth_fingerprint,
+    FunctionRuntime, HandlerInput, HandlerPlan, MutationOutput, MutationSettlement, MutationStep,
+    PermissionScopeExpr, PublicFunctionManifest, PublicSchemaManifest, QueryOutput, QueryPlan,
+    SNAPBACK_SCHEMA_VERSION, SchemaManifest, SeedData, SettlementLane, SettlementMintObservation,
+    SettlementTimeObservation, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX, ValueExpr, auth_fingerprint,
+    ctx_ledger_version, legacy_auth_fingerprint,
 };
 use crate::runtime::{
     CapabilityState, ExecutedIbexMutation, IbexActionHost, IbexCliCapability,
@@ -3286,104 +3285,6 @@ fn rqs_eligibility(function: &FunctionDefinition) -> Option<crate::rqs::DigestKi
     crate::manifest::rqs_eligible_digest_kind(function)
 }
 
-/// Whether a query's result contract is exactly the schema-derived stored
-/// document contract. A direct manifest can spell `Documents` with arbitrary
-/// nested bounds, so the enum tag and table name alone do not prove that raw
-/// committed rows satisfy the declared egress shape.
-fn delta_documents_contract_matches_schema(
-    contract: &FunctionResultContract,
-    plan: &QueryPlan,
-    schema: &SchemaManifest,
-) -> bool {
-    let FunctionResultContract::Documents { table, document } = contract else {
-        return false;
-    };
-    if table != &plan.table {
-        return false;
-    }
-    let Some(table) = schema.table(table) else {
-        return false;
-    };
-
-    let safe_integer = || crate::manifest::ResultValueContract::Integer {
-        min: 0,
-        max: 9_007_199_254_740_991,
-    };
-    let mut fields = vec![
-        crate::manifest::ResultObjectFieldContract {
-            name: "_id".to_owned(),
-            required: true,
-            value: crate::manifest::ResultValueContract::Id {
-                table: table.name.clone(),
-            },
-        },
-        crate::manifest::ResultObjectFieldContract {
-            name: "_version".to_owned(),
-            required: true,
-            value: safe_integer(),
-        },
-        crate::manifest::ResultObjectFieldContract {
-            name: "_createdAt".to_owned(),
-            required: true,
-            value: safe_integer(),
-        },
-        crate::manifest::ResultObjectFieldContract {
-            name: "_updatedAt".to_owned(),
-            required: true,
-            value: safe_integer(),
-        },
-    ];
-    fields.extend(table.fields.iter().map(|field| {
-        use crate::manifest::{FieldType, ResultObjectFieldContract, ResultValueContract};
-
-        let value = match &field.field_type {
-            FieldType::String => ResultValueContract::String {
-                max_bytes: 1024 * 1024,
-            },
-            FieldType::Boolean => ResultValueContract::Boolean,
-            FieldType::Integer => ResultValueContract::Integer {
-                min: -9_007_199_254_740_991,
-                max: 9_007_199_254_740_991,
-            },
-            FieldType::Real => ResultValueContract::FiniteReal {
-                min: -f64::MAX,
-                max: f64::MAX,
-            },
-            FieldType::Vector { dimensions } => ResultValueContract::Vector {
-                dimensions: *dimensions,
-            },
-            FieldType::Json => ResultValueContract::Json {
-                max_depth: 16,
-                max_bytes: 1024 * 1024,
-            },
-            FieldType::Principal => ResultValueContract::Principal,
-            FieldType::Id { table } => ResultValueContract::Id {
-                table: table.clone(),
-            },
-            FieldType::RelationIncarnation { .. } => ResultValueContract::String { max_bytes: 64 },
-            FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
-        };
-        let value = if field.optional && !matches!(value, ResultValueContract::Json { .. }) {
-            ResultValueContract::Union {
-                variants: vec![ResultValueContract::Null, value],
-            }
-        } else {
-            value
-        };
-        ResultObjectFieldContract {
-            name: field.name.clone(),
-            required: true,
-            value,
-        }
-    }));
-
-    document
-        == &crate::manifest::ResultValueContract::Object {
-            fields,
-            allow_extra: false,
-        }
-}
-
 /// The reserved system live query projecting one asset record (LLP 0044
 /// §Live asset lifecycle). The `_snapback` prefix is refused for user
 /// identifiers, so the name cannot collide with a generated function; it is
@@ -6444,10 +6345,11 @@ impl LocalSnapback {
                 schema_hash: self.db.schema().schema_hash.as_deref(),
                 function_bundle_hash: self.functions.bundle_hash.as_deref(),
                 function_publication_generation: self.app_generation,
-                target_profile: self.db.schema().target_profile.as_deref(),
-            }),
-            None,
-        )
+                        target_profile: self.db.schema().target_profile.as_deref(),
+                    }),
+                    None,
+                    None,
+                )
             });
         finish_function_observation(span, &mut result);
         result
@@ -14228,6 +14130,7 @@ impl LocalSnapback {
                                 target_profile: target_profile.as_deref(),
                             }),
                             None,
+                            None,
                         )
                         .map_err(|error| {
                             refuse(code::QUERY_FAILED, "mixed child evaluation failed")
@@ -15042,10 +14945,19 @@ impl LocalSnapback {
                     keyring: &self.resume_keyring,
                     schema_hash: self.db.schema().schema_hash.as_deref(),
                     function_bundle_hash: self.functions.bundle_hash.as_deref(),
-                    function_publication_generation: self.app_generation,
-                    target_profile: self.db.schema().target_profile.as_deref(),
-                }),
-                None,
+                            function_publication_generation: self.app_generation,
+                            target_profile: self.db.schema().target_profile.as_deref(),
+                        }),
+                        if proof_namespace
+                            .as_ref()
+                            .is_some_and(|namespace| namespace.query_key.starts_with("qmk1."))
+                            && rqs_eligibility.is_some()
+                        {
+                            Some(1_024)
+                        } else {
+                            None
+                        },
+                        None,
                     )
                 },
             );
@@ -15184,21 +15096,35 @@ impl LocalSnapback {
         }
         let answered_without_rows = answer_current_as_of || answer_delta.is_some();
         // LLP 0094 declares LiveSubscribeOutput open and explicitly permits
-        // additive optional server fields. Rung-1/rung-2 answers contain no
-        // established result bytes, so only the ordinary snapshot answer can
-        // carry the proof that binds those bytes. Mint before publishing any
-        // subscription/supersession effect so issuance refusal stays atomic.
-        let (completeness_proof, authorization_witness) = if answered_without_rows {
-            (None, None)
-        } else {
-            self.issue_live_completeness_proof(
+        // additive optional server fields. Existing classes still require
+        // response-carried bytes. The single-table adoption class is the one
+        // narrow exception: the server has re-evaluated the exact result at
+        // this serialization cut, while the client proves it holds those same
+        // bytes before atomically switching stores.
+        // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — a
+        // rung-1/rung-2 established result may carry the ordinary proof used
+        // by the connected prove arm.
+        let prove_held_single_table = answered_without_rows
+            && rqs_eligibility.is_some()
+            && proof_namespace
+                .as_ref()
+                .is_some_and(|namespace| namespace.query_key.starts_with("qmk1."));
+        // Mint before publishing any subscription/supersession effect so
+        // issuance refusal stays atomic.
+        let (completeness_proof, authorization_witness) =
+            if answered_without_rows && !prove_held_single_table {
+                (None, None)
+            } else {
+                self.issue_live_completeness_proof(
                 &function,
                 &subscription_input,
-                &query.output,
-                proof_namespace.as_ref(),
-            )?
-            .map_or((None, None), |(proof, witness)| (Some(proof), Some(witness)))
-        };
+                    &query.output,
+                    proof_namespace.as_ref(),
+                )?
+                .map_or((None, None), |(proof, witness)| {
+                    (Some(proof), Some(witness))
+                })
+            };
         // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S2:
         // subscription ids are unguessable bearer capabilities, not enumerable
         // counters; they share the runtime's UUIDv7 id source.
@@ -19374,8 +19300,9 @@ impl LocalSnapback {
         };
         let (plan_hash, nodes, profile_id) = match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(_)) => {
-                let identity = crate::manifest::single_node_identity_v1(function)?
-                    .expect("relational query has a single-node identity");
+                let identity =
+                    crate::manifest::single_node_identity_v1(function, Some(self.db.schema()))?
+                        .expect("relational query has a single-node identity");
                 (
                     identity.plan_hash,
                     vec![crate::completeness::ProofNodeIdentityV1 {
@@ -19388,8 +19315,9 @@ impl LocalSnapback {
                 )
             }
             FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(_)) => {
-                let identity = crate::manifest::single_node_identity_v1(function)?
-                    .expect("bounded children has a single-node identity");
+                let identity =
+                    crate::manifest::single_node_identity_v1(function, Some(self.db.schema()))?
+                        .expect("bounded children has a single-node identity");
                 (
                     identity.plan_hash,
                     vec![crate::completeness::ProofNodeIdentityV1 {
@@ -19399,6 +19327,23 @@ impl LocalSnapback {
                         node_plan_hash: identity.node_plan_hash,
                     }],
                     "bounded-children.v1",
+                )
+            }
+            FunctionRuntime::HostPlan(HandlerPlan::Query(_))
+                if crate::manifest::rqs_eligible_digest_kind(function).is_some() =>
+            {
+                let identity =
+                    crate::manifest::single_node_identity_v1(function, Some(self.db.schema()))?
+                        .expect("RQS-eligible query has a single-table identity");
+                (
+                    identity.plan_hash,
+                    vec![crate::completeness::ProofNodeIdentityV1 {
+                        position: 0,
+                        class_id: "single_table_v1".to_owned(),
+                        class_version: 1,
+                        node_plan_hash: identity.node_plan_hash,
+                    }],
+                    "none.v1",
                 )
             }
             FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)) => {
@@ -19440,7 +19385,23 @@ impl LocalSnapback {
             .and_then(|row| row.get("kind"))
             .and_then(Value::as_str)
             == Some("absent");
-        let page = if sealed {
+        // @ref LLP 0007#dated-owner-amendment-singletableplanv1-portability-2026-08-03 —
+        // none.v1 has exactly one page: first to terminal, with the canonical
+        // empty boundary vector and no cursor credential on either end.
+        let page = if profile_id == "none.v1" {
+            let vector = crate::completeness::PageBoundaryVectorV1 {
+                format: "snapback.page-boundary-vector.v1".to_owned(),
+                profile_id: profile_id.to_owned(),
+                nodes: Vec::new(),
+            };
+            crate::completeness::PageIdentityV1::Visible {
+                input: crate::completeness::CursorEndV1::First,
+                boundary_vector_digest: vector
+                    .digest()
+                    .map_err(|error| issue_error(error.to_string()))?,
+                output: crate::completeness::CursorEndV1::Terminal,
+            }
+        } else if sealed {
             crate::completeness::PageIdentityV1::SealedTerminal {
                 input: crate::completeness::CursorEndV1::input(profile_id, input_cursor),
                 output: crate::completeness::CursorEndV1::Terminal,
@@ -21675,7 +21636,7 @@ impl LocalSnapback {
                         // @ref LLP 0108#runtime-validation-and-atomicity —
                         //   live-query output is validated before publication
                         //   or transport serialization.
-                        && delta_documents_contract_matches_schema(
+                        && crate::manifest::single_table_delta_contract_matches_schema(
                             &function.result_contract,
                             plan,
                             self.db.schema(),
@@ -22869,10 +22830,11 @@ impl ReadLane {
                 keyring: &self.resume_keyring,
                 schema_hash: manifests.schema.schema_hash.as_deref(),
                 function_bundle_hash: manifests.functions.bundle_hash.as_deref(),
-                function_publication_generation: manifests.app_generation,
-                target_profile: manifests.schema.target_profile.as_deref(),
-            }),
-            Some(&vector_quarantine),
+                            function_publication_generation: manifests.app_generation,
+                            target_profile: manifests.schema.target_profile.as_deref(),
+                        }),
+                        None,
+                        Some(&vector_quarantine),
                     )
                 },
         )?;
@@ -25704,6 +25666,7 @@ fn execute_query_invocation(
     prepared: &PreparedInvocation,
     warm_vms: Option<&crate::warm_vm::WarmVmPool>,
     cursor_authority: Option<RelationalCursorAuthority<'_>>,
+    examined_entry_ceiling: Option<usize>,
     vector_quarantine: Option<&VectorQuarantineCapture>,
 ) -> SnapbackResult<QueryInvocation> {
     if let DbRead::Live(live) = db {
@@ -25719,6 +25682,7 @@ fn execute_query_invocation(
                 prepared,
                 warm_vms,
                 cursor_authority,
+                examined_entry_ceiling,
                 Some(capture),
             )
         });
@@ -25807,7 +25771,11 @@ fn execute_query_invocation(
                     Some(_) => return Err(standard_pattern_cursor_invalid()),
                 }
             }
-            let mut output = db.query(plan, &input)?;
+            let mut output = if let Some(ceiling) = examined_entry_ceiling {
+                db.query_with_examined_entry_ceiling(plan, &input, ceiling)?
+            } else {
+                db.query(plan, &input)?
+            };
             if let Some(facts) = &keyset
                 && facts.page_limit > 0
                 && output.rows.len() == facts.page_limit
@@ -50358,6 +50326,14 @@ globalThis.__snapbackHandlers = {
                 value: ValueExpr::Literal(Value::Number(1.into())),
             });
         }
+        let mut absent = rqs_public_live_query("listAbsentTodos", false);
+        if let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &mut absent.runtime {
+            plan.filters.push(FilterExpr {
+                field: "title".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Literal(Value::String("never-present".to_owned())),
+            });
+        }
         let set_rank = FunctionDefinition::new(
             "setRank",
             FunctionKind::Mutation,
@@ -50394,6 +50370,7 @@ globalThis.__snapbackHandlers = {
                 rqs_public_live_query("listPublicTodos", false),
                 rqs_public_live_query("listRankedTodos", true),
                 visible,
+                absent,
                 scoped,
                 create,
                 set_rank,
@@ -50414,6 +50391,72 @@ globalThis.__snapbackHandlers = {
                 .all(|diagnostic| diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"),
             "unexpected load diagnostics: {diagnostics:?}"
         );
+        snapback
+    }
+
+    fn single_table_proof_snapback() -> LocalSnapback {
+        let mut schema = rqs_schema();
+        schema.app_id = "single-table-proof-app".to_owned();
+        schema.schema_hash = Some(format!("sha256:{}", "1".repeat(64)));
+        schema.inputs_hash = Some(format!("sha256:{}", "2".repeat(64)));
+        let mut functions = rqs_functions();
+        functions.app_id = schema.app_id.clone();
+        functions.schema_version = schema.schema_version.clone();
+        functions.bundle_hash = Some(format!("sha256:{}", "3".repeat(64)));
+        functions.inputs_hash = schema.inputs_hash.clone();
+        let function = functions
+            .functions
+            .iter_mut()
+            .find(|function| function.name == "listPublicTodos")
+            .expect("single-table proof function");
+        let args_contract = crate::manifest::FunctionArgsContract::default();
+        function.args_contract_hash =
+            Some(crate::manifest::args_contract_hash(&args_contract).expect("args contract hash"));
+        function.args_contract = Some(args_contract);
+        function.required_capabilities = vec![
+            "live_subscriptions".to_owned(),
+            "host_plan_runtime".to_owned(),
+            "result_contract_v1".to_owned(),
+            "args_contract_v1".to_owned(),
+        ];
+        functions
+            .acknowledged_experimental_capabilities
+            .push("args_contract_v1".to_owned());
+        let expected_generation = ArtifactGeneration {
+            schema_version: schema.schema_version.clone(),
+            app_id: schema.app_id.clone(),
+            schema_hash: schema.schema_hash.clone().unwrap(),
+            bundle_hash: functions.bundle_hash.clone().unwrap(),
+            inputs_hash: schema.inputs_hash.clone().unwrap(),
+        };
+        let mut snapback = LocalSnapback::memory().expect("single-table proof instance");
+        snapback
+            .apply_schema(schema)
+            .expect("apply single-table schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "single-table proof fixture activates: {diagnostics:?}"
+        );
+        let activation = crate::completeness::TrustedCompositionActivationV1::prepare(
+            snapback.db.data_version_stream().expect("data stream"),
+            "single-table-proof-deployment",
+            crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+            "dev",
+            expected_generation,
+            snapback
+                .proof_keyring
+                .read()
+                .expect("proof keyring")
+                .manifest(),
+        )
+        .expect("prepare single-table activation");
+        snapback
+            .install_trusted_composition_activation(activation)
+            .expect("install single-table activation");
         snapback
     }
 
@@ -51169,6 +51212,115 @@ globalThis.__snapbackHandlers = {
             super::rqs_eligibility(&rqs_public_live_query("o", true)),
             Some(crate::rqs::DigestKind::Seq1)
         );
+    }
+
+    #[test]
+    fn single_table_examined_entry_ceiling_is_scoped_to_qmk_establishment() {
+        let mut snapback = rqs_snapback();
+        for index in 0..1_025 {
+            rqs_create_todo(&mut snapback, &format!("present-{index}"));
+        }
+
+        let ordinary = snapback
+            .invoke_query("listAbsentTodos", HandlerInput::default())
+            .expect("ordinary LiveQuery invocation keeps the legacy scan behavior");
+        assert!(ordinary.rows.is_empty());
+
+        let error = snapback
+            .subscribe_live(
+                "listAbsentTodos",
+                LiveSubscribeInput {
+                    connection_id: "conn-single-table-ceiling".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(QueryNamespace {
+                        client_store_id: "client-store-single-table".to_owned(),
+                        query_key: format!("qmk1.{}", "A".repeat(43)),
+                        query_instance_id: 1,
+                    }),
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect_err("single-table node establishment refuses before a 1,025th entry");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_SINGLE_TABLE_EXAMINED_ENTRY_CEILING_EXCEEDED"
+        );
+    }
+
+    #[test]
+    fn single_table_none_cursor_proof_covers_fresh_and_held_result_arms() {
+        let mut snapback = single_table_proof_snapback();
+        rqs_create_todo(&mut snapback, "proof-backed");
+        let namespace = QueryNamespace {
+            client_store_id: "single-table-proof-store".to_owned(),
+            query_key: format!("qmk1.{}", "B".repeat(43)),
+            query_instance_id: 41,
+        };
+        let input = |connection: &str, resume| LiveSubscribeInput {
+            connection_id: connection.to_owned(),
+            input: HandlerInput::default(),
+            authorization_namespace: Some(namespace.clone()),
+            supersedes: None,
+            resume_from_token: resume,
+        };
+        let first = snapback
+            .subscribe_live("listPublicTodos", input("conn-single-table-proof-a", None))
+            .expect("fresh single-table establishment");
+        let rows = first.snapshot.as_ref().expect("fresh rows").rows.clone();
+        let proof = first.completeness_proof.as_ref().expect("fresh proof");
+        assert_eq!(proof.nodes.len(), 1);
+        assert_eq!(proof.nodes[0].class_id, "single_table_v1");
+        assert!(matches!(
+            proof.page,
+            crate::completeness::PageIdentityV1::Visible {
+                input: crate::completeness::CursorEndV1::First,
+                output: crate::completeness::CursorEndV1::Terminal,
+                ..
+            }
+        ));
+        let empty_vector = crate::completeness::PageBoundaryVectorV1 {
+            format: "snapback.page-boundary-vector.v1".to_owned(),
+            profile_id: "none.v1".to_owned(),
+            nodes: Vec::new(),
+        };
+        let crate::completeness::PageIdentityV1::Visible {
+            boundary_vector_digest,
+            ..
+        } = &proof.page
+        else {
+            unreachable!()
+        };
+        assert_eq!(boundary_vector_digest, &empty_vector.digest().unwrap());
+        snapback
+            .proof_keyring
+            .read()
+            .unwrap()
+            .verify(proof)
+            .expect("fresh proof signature");
+
+        let resume = first.resume.clone().expect("fresh token");
+        let held = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                input("conn-single-table-proof-b", rqs_wrap(resume)),
+            )
+            .expect("held-result prove arm");
+        assert!(held.snapshot.is_none());
+        let held_proof = held
+            .completeness_proof
+            .as_ref()
+            .expect("rung-1 adoption carries the ordinary proof");
+        assert_eq!(
+            held_proof.result_digest,
+            crate::completeness::result_digest_v1(&Value::Array(rows)).unwrap()
+        );
+        snapback
+            .proof_keyring
+            .read()
+            .unwrap()
+            .verify(held_proof)
+            .expect("held-result proof signature");
     }
 
     #[test]

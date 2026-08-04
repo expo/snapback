@@ -67,6 +67,8 @@ export function createMemoryRqsResumeStore({
     return state.writer === instance;
   };
 
+  // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — legacy
+  // entries, outbox, and QMK sections share the adoption commit domain.
   const materializationTransaction = async (mode, operation) => {
     requireOpen();
     if (mode !== 'readonly' && mode !== 'readwrite') {
@@ -84,6 +86,8 @@ export function createMemoryRqsResumeStore({
       materializations: new Map(structuredClone([...state.materializations])),
       pageSets: new Map(structuredClone([...state.pageSets])),
       memberships: new Map(structuredClone([...state.memberships])),
+      entries: new Map(structuredClone([...state.entries])),
+      outbox: structuredClone(state.outbox),
       storeMeta: structuredClone(state.storeMeta),
     };
     const result = operation(view);
@@ -100,6 +104,8 @@ export function createMemoryRqsResumeStore({
       state.materializations = view.materializations;
       state.pageSets = view.pageSets;
       state.memberships = view.memberships;
+      state.entries = view.entries;
+      state.outbox = view.outbox;
       state.storeMeta = preparedMeta;
     }
     return result;

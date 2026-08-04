@@ -4571,6 +4571,9 @@ export class SnapbackClient {
       authorizationWitness: lease.witness,
       authorizationWitnessOwnerProduced: true,
       retentionEligible: true,
+      retentionAuthority: bridge.retentionClass === 'rqs-authority-independent-snapshot-v1'
+        ? 'rqs-authority-independent-snapshot-v1'
+        : 'authorized-lease-v1',
       leaseStatus: lease.leaseStatus,
       authorizedLeaseHash: lease.authorizedLeaseHash,
       ownerTransitionForRetainedFailure: retainedFailureTransition,
@@ -4616,7 +4619,13 @@ export class SnapbackClient {
         ? { kind: 'page', input: { kind: 'first' } }
         : { kind: 'page-set', from: 'first', through: 'terminal' },
       retentionRequest: persistResume ? 'durable' : 'none',
-      idleTtlClass: 'default',
+      // @ref LLP 0166#d2--the-sync-specification-registered-queries — this one
+      // authority-independent retained class maps durable + pinned; every
+      // other registration keeps its existing TTL policy.
+      idleTtlClass: preparedBridge?.bridge?.retentionClass
+        === 'rqs-authority-independent-snapshot-v1' && persistResume
+        ? 'pinned'
+        : 'default',
     };
     const partition = typeof functionReference.authorityPartitionDigest === 'string'
       ? functionReference.authorityPartitionDigest
@@ -7610,6 +7619,9 @@ export class SnapbackClient {
       userId,
       persistResume,
     );
+    const legacySingleTableAdoption = persistResume === true
+      && preparedMaterialization?.bridge?.retentionClass
+        === 'rqs-authority-independent-snapshot-v1';
     // @ref LLP 0053#client-fences — every auth-scoped materialization owns a
     //   never-reused query identity and a synchronous publication fence.
     const authorizationProtocolEnabled = this.authProtocols.authInvalidation != null;
@@ -7808,7 +7820,7 @@ export class SnapbackClient {
     // the pagehide/visibility flush below mapped on native to the host
     // lifecycle calling handle.flushResumeState() on background/inactive.
     // -----------------------------------------------------------------
-    const resumeStore = persistResume && preparedMaterialization === null
+    const resumeStore = persistResume && (preparedMaterialization === null || legacySingleTableAdoption)
       ? client.rqsStore
       : null;
     const resumeStoreKey = resumeStore ? rqsEntryKey(name, args) : null;
@@ -7823,6 +7835,7 @@ export class SnapbackClient {
     let pendingResumeConfirmation = false;
     let seededFromResumeState = false;
     let seededFromMaterialization = false;
+    let legacyAdoptionCandidate = null;
 
     const chainStoreWrite = (write) => {
       if (!resumeStore || !resumeStoreKey) return Promise.resolve();
@@ -7839,6 +7852,11 @@ export class SnapbackClient {
       }
       persistFirstDirtyAt = null;
       if (!resumeStore || !resumeStoreKey) return Promise.resolve();
+      // The generated QMK path may read the legacy alias exactly once for
+      // staged adoption, but it never writes a new legacy successor. The only
+      // valid deletion is the same-transaction QMK switch (apart from corrupt
+      // entry cleanup below).
+      if (legacySingleTableAdoption) return Promise.resolve();
       return chainStoreWrite(async () => {
         if (resumeStore.isWriter?.() !== true) return;
         const held = handle.rqsResume;
@@ -7866,7 +7884,7 @@ export class SnapbackClient {
     };
 
     const schedulePersist = () => {
-      if (!resumeStore || !resumeStoreKey || disposed) return;
+      if (!resumeStore || !resumeStoreKey || disposed || legacySingleTableAdoption) return;
       const nowMs = Date.now();
       if (persistFirstDirtyAt === null) persistFirstDirtyAt = nowMs;
       // Trailing 1 s debounce with a 10 s continuous-change cap (§0A.5).
@@ -7922,6 +7940,7 @@ export class SnapbackClient {
         if (entry) {
           if (verifyPersistedResumeEntry(entry, { args }).ok) {
             persisted = { rows: entry.rows, resume: { token: entry.token, meta: entry.meta } };
+            if (legacySingleTableAdoption) legacyAdoptionCandidate = structuredClone(entry);
           } else {
             // Corrupt, truncated, digest-mismatched, or in-progress persisted
             // state fails closed to a fresh subscribe (T2).
@@ -8029,10 +8048,22 @@ export class SnapbackClient {
       });
       const rows = decodeMaterializationRows(answer.value);
       if (answer.answerClass !== 'authoritative' || rows === null) return;
+      let pendingIntentsAtSeed = 0;
+      try {
+        if ((await client.rqsStore.outboxEmpty()) !== true) {
+          pendingIntentsAtSeed = Math.max(1, (await client.rqsStore.outboxPending()).length);
+        }
+      } catch {
+        pendingIntentsAtSeed = 1;
+      }
       handle.rows = rows;
       handle.version = observation.generation.queryGeneration;
       handle.freshness = answer.freshness;
       handle.answerClass = answer.answerClass;
+      // @ref LLP 0043#llp-0157-acceptance-boundary--2026-08-03 — pending intent
+      // withholds resume/current promotion, never the verified retained
+      // pre-intent display.
+      handle.pendingIntentsAtSeed = pendingIntentsAtSeed;
       handle.retention = Object.freeze({
         retainable: true,
         code: null,
@@ -8046,15 +8077,26 @@ export class SnapbackClient {
           kind: 'materialization_retained',
           freshness: 'retained',
           answerClass: 'authoritative',
+          ...(pendingIntentsAtSeed > 0 ? { pendingIntents: pendingIntentsAtSeed } : {}),
         });
       });
     };
 
     const installMaterializationSnapshot = async (sub) => {
-      if (!preparedMaterialization || !sub.snapshot) return null;
+      if (!preparedMaterialization) return null;
       const proof = sub.completenessProof ?? null;
       const witness = sub.authorizationWitness ?? null;
       if (proof === null || witness === null) return null;
+      // The connected prove arm is rung 1: response rows are absent because
+      // the proof names the verified legacy bytes already held. Adoption does
+      // not send a rung-2 witness, so a changed head takes the fresh-snapshot
+      // arm and never asks this transaction to apply partial operations.
+      const establishedRows = Array.isArray(sub.snapshot?.rows)
+        ? sub.snapshot.rows
+        : legacyAdoptionCandidate !== null
+          ? handle.rows
+          : null;
+      if (!Array.isArray(establishedRows)) return null;
       const observation = materializationObservation();
       if (!observation?.present || !observation.generation) {
         throw new Error('SNAPBACK_MATERIALIZATION_NOT_INITIALIZED');
@@ -8095,7 +8137,7 @@ export class SnapbackClient {
           });
           if (
             leaseResponse.version !== proof.version.commit
-            || stableJson(leaseResponse.rows) !== stableJson(sub.snapshot.rows)
+            || stableJson(leaseResponse.rows) !== stableJson(establishedRows)
           ) {
             throw new Error('SNAPBACK_AUTHORIZED_LEASE_SNAPSHOT_MISMATCH');
           }
@@ -8123,24 +8165,48 @@ export class SnapbackClient {
           retained = false;
         }
       } else {
-        preparedMaterialization.context.leaseStatus = retained ? 'valid' : 'not-required';
+        preparedMaterialization.context.leaseStatus = 'not-required';
         preparedMaterialization.context.authorizedLeaseHash = null;
       }
-      const bytes = jcsBytes(sub.snapshot.rows);
-      record = await preparedMaterialization.store.commitPage(
-        preparedMaterialization.bridge.address,
-        {
+      const bytes = jcsBytes(establishedRows);
+      const fragment = {
           pageIdentityDigest: pageIdentityDigestV1(proof.page),
           resultContractHash: preparedMaterialization.bridge.resultContractHash,
           bytes,
           authorizedLeaseHash,
           memberships: [],
           freshness: retained ? 'retained' : 'current',
-        },
-        proof,
-        null,
-        materializationFence(record),
-      );
+      };
+      const adoptingLegacy = legacyAdoptionCandidate !== null;
+      try {
+        record = legacyAdoptionCandidate === null
+          ? await preparedMaterialization.store.commitPage(
+              preparedMaterialization.bridge.address,
+              fragment,
+              proof,
+              null,
+              materializationFence(record),
+            )
+          : await preparedMaterialization.store.commitLegacyAdoption(
+              preparedMaterialization.bridge.address,
+              resumeStoreKey,
+              legacyAdoptionCandidate,
+              fragment,
+              proof,
+              null,
+              materializationFence(record),
+            );
+        legacyAdoptionCandidate = null;
+      } catch (error) {
+        if (![
+          'SNAPBACK_SINGLE_TABLE_ADOPTION_PENDING_OUTBOX',
+          'SNAPBACK_SINGLE_TABLE_ADOPTION_LEGACY_MISMATCH',
+        ].includes(error?.code)) throw error;
+        // A raced enqueue or peer adoption leaves the before-state intact.
+        // The held display remains retained-not-current; a later establishment
+        // retries from the surviving carrier state once custody is clear.
+        return { rows: establishedRows, retained: true, adoptionDeferred: true };
+      }
       const answer = await client.__readQmk1LocalAnswer({
         address: preparedMaterialization.bridge.address,
         expectedFence: materializationFence(record),
@@ -8156,7 +8222,7 @@ export class SnapbackClient {
       if (answer.answerClass !== 'authoritative' || rows === null) {
         throw new Error('SNAPBACK_MATERIALIZATION_RENDER_REFUSED');
       }
-      return { rows, retained };
+      return { rows, retained, adoptedLegacy: adoptingLegacy };
     };
 
     const setConnection = (next) => {
@@ -9081,7 +9147,7 @@ export class SnapbackClient {
           // T6 (LLP 0091 §0B.3): adopt the refreshed token with the
           // replacement rows it was minted from. A replacement is always
           // authoritative — retained/pending state ends here.
-          if (update.resume) handle.rqsResume = update.resume;
+          if (update.resume && !legacySingleTableAdoption) handle.rqsResume = update.resume;
           handle.freshness = 'current';
           handle.answerClass = 'authoritative';
           schedulePersist();
@@ -9107,7 +9173,7 @@ export class SnapbackClient {
         if (typeof update.version === 'number' && update.version < handle.version) return;
         if (authorizationFaulted) return;
         handle.version = update.version;
-        if (update.resume) handle.rqsResume = update.resume;
+        if (update.resume && !legacySingleTableAdoption) handle.rqsResume = update.resume;
         // The rung-1 authoritative answer: held (persisted-seeded) rows are
         // proved current without touching them.
         handle.freshness = 'current';
@@ -9175,7 +9241,7 @@ export class SnapbackClient {
           if (update.resume) {
             const digest = update.resume.meta?.contentDigest;
             if (digest && rowsMatchDigest(handle.rows, digest)) {
-              handle.rqsResume = update.resume;
+              if (!legacySingleTableAdoption) handle.rqsResume = update.resume;
               if (pendingResumeConfirmation) {
                 // Rung-2 replay completion is a successful authoritative
                 // resume: bump the persisted entry's LRU recency exactly as
@@ -9272,7 +9338,7 @@ export class SnapbackClient {
           // (rowId, oldRowHash) pairs so the server can prove predicate
           // exits and replay deltas. A non-witnessable result (seq1, over
           // cap, digest drift) still resumes — rung 1 and rung 3 remain.
-          const membershipWitness = heldResume
+          const membershipWitness = heldResume && legacyAdoptionCandidate === null
             ? membershipWitnessOfRows(handle.rows, heldResume.meta?.contentDigest)
             : null;
           const subscribeOptions = {
@@ -9381,13 +9447,23 @@ export class SnapbackClient {
               // authoritative (LLP 0090 D1 freshness rule).
               handle.freshness = 'current';
               handle.answerClass = 'authoritative';
+            } else if (materializedSnapshot?.adoptedLegacy) {
+              // The ordinary proof already established the exact held rows
+              // under the QMK identity. After the one-transaction switch the
+              // legacy token is discarded; v1 QMK re-entry is fresh.
+              handle.rows = materializedSnapshot.rows;
+              handle.version = sub.completenessProof.version.commit;
+              handle.rqsResume = null;
+              handle.freshness = 'current';
+              handle.answerClass = 'authoritative';
+              pendingResumeConfirmation = false;
             } else if (heldResume) {
               // Rung-1 or rung-2 answer pending: held rows stay retained
               // until the current_as_of (or replay live_delta) durable
               // envelope advances version + token.
               pendingResumeConfirmation = seededFromResumeState;
             }
-            if (sub.resume) handle.rqsResume = sub.resume;
+            if (sub.resume && !legacySingleTableAdoption) handle.rqsResume = sub.resume;
             markAuthorityCapture(handle.rows, handleAuthorityCapture);
           }
           return true;
@@ -9919,7 +9995,8 @@ export class SnapbackClient {
       // Auth-scoped entries carry `resume: null` in both modes (LLP 0092
       // §0D.1) — the handle simply holds no token, exactly like a fresh
       // subscribe that minted none.
-      handle.rqsResume = resume && typeof resume.token === 'string' ? resume : null;
+      handle.rqsResume = !legacySingleTableAdoption
+        && resume && typeof resume.token === 'string' ? resume : null;
       // The bundle snapshot is authoritative (LLP 0053's fresh snapshot,
       // taken once): 'current', never retained/pending.
       handle.freshness = 'current';
@@ -9979,7 +10056,11 @@ export class SnapbackClient {
       // carry the seeded token. Seeding failures leave today's cold boot.
       // An adopted register-mode bundle IS the fresh authoritative state, so
       // persisted/preloaded candidates are not consulted for it.
-      if (!adoptedRegistration && ((resumeStore && resumeStoreKey) || preloadedResume)) {
+      if (
+        !adoptedRegistration
+        && !seededFromMaterialization
+        && ((resumeStore && resumeStoreKey) || preloadedResume)
+      ) {
         try { await seedFromResumeState(); } catch { /* cold boot */ }
       }
       if (transport === 'stream' && detachStream === null) {

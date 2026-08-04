@@ -2302,6 +2302,18 @@ mod tests {
     }
 
     #[test]
+    fn single_table_adoption_does_not_change_legacy_token_wire_bytes() {
+        // @ref LLP 0091#0a--token-and-digest-cryptography —
+        // single_table_v1 copies the existing selector into plan identity;
+        // it does not add a token field, digest spelling, or MAC frame.
+        let wire = mint_token_wire(&[0x11; 32], "rk1_fixture", &test_body());
+        assert_eq!(
+            wire,
+            "sbrt1.rk1_fixture.eyJhcHAiOiJhcHBfdGVzdCIsImFyZ3NIYXNoIjoic2hhMjU2OmNjIiwiY29udGVudERpZ2VzdCI6Im1zZXQxOmRkIiwiZGlnZXN0S2luZCI6Im1zZXQxIiwiZ2VuZXJhdGlvbiI6ImdlbjE6YWEiLCJpc3N1ZWRBdCI6MTAwMCwicXVlcnlBcnRpZmFjdCI6InNoYTI1NjpiYiIsInZlcnNpb24iOjcsInZlcnNpb25TdHJlYW0iOiJzdHJlYW0tMSJ9.ZuLSbeBFFAS11_IJiZmiuAZx18XW9UPjJ6jIOYlLAHo"
+        );
+    }
+
+    #[test]
     fn token_refusals_are_per_cause() {
         let mut ring = ResumeKeyring::in_memory(500);
         let (key_id, key) = ring.active(500).unwrap();

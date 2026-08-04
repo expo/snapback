@@ -143,6 +143,10 @@ export interface RqsMaterializationTransactionView {
   readonly materializations: Map<string, unknown>;
   readonly pageSets: Map<string, unknown>;
   readonly memberships: Map<string, unknown>;
+  /** Legacy Channel-B records share this exact transaction domain so class
+   * adoption can switch from the verified legacy key to QMK atomically. */
+  readonly entries: Map<string, unknown>;
+  outbox: unknown;
   storeMeta: RqsStoreMetaV3;
 }
 

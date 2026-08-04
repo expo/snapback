@@ -279,6 +279,109 @@ async function openSemantic(handle, fixture) {
   });
 }
 
+for (const carrier of ['file', 'indexeddb']) {
+  test(`single-table legacy adoption atomically switches stores and waits for outbox on ${carrier}`, async (t) => {
+    const handle = await setupCarrier(t, carrier, `single-table-adoption-${carrier}`);
+    const fixture = makeFixture(`single-table-adoption-${carrier}`);
+    fixture.context.retentionAuthority = 'rqs-authority-independent-snapshot-v1';
+    fixture.context.leaseStatus = 'not-required';
+    fixture.context.authorizedLeaseHash = null;
+    const store = await openSemantic(handle, fixture);
+    let record = await store.initialize(fixture.address, fixture.identities, null);
+    record = await store.beginEstablishment(
+      fixture.address,
+      { kind: 'page', input: { kind: 'first' } },
+      fence(record),
+    );
+    const valid = fixture.makeProof(record);
+    fixture.context.authorizationWitness = valid.witness;
+    const legacyKey = `legacy-single-table-${carrier}`;
+    const legacyRecord = {
+      rows: [{ _id: 'r1', v: 1 }],
+      meta: { contentDigest: 'mset1:legacy', version: 7 },
+      token: 'legacy-token-bytes-remain-opaque',
+      bytes: 128,
+      savedAt: 1,
+      resumedAt: 0,
+      inProgress: false,
+    };
+    await handle.materializationTransaction('readwrite', (view) => {
+      view.entries.set(legacyKey, structuredClone(legacyRecord));
+    });
+    const fragment = {
+      ...fixture.fragmentFor(valid, 'retained'),
+      authorizedLeaseHash: null,
+      memberships: [],
+    };
+    record = await store.commitLegacyAdoption(
+      fixture.address,
+      legacyKey,
+      legacyRecord,
+      fragment,
+      valid.proof,
+      null,
+      fence(record),
+    );
+    assert.equal(record.productState.freshness, 'retained');
+    assert.equal(record.fragments[0].authorizedLeaseHash, null);
+    assert.equal(deriveCompletenessStatusV1(record), 'complete');
+    await handle.materializationTransaction('readonly', (view) => {
+      assert.equal(view.entries.has(legacyKey), false);
+    });
+
+    const blockedFixture = makeFixture(`single-table-adoption-blocked-${carrier}`);
+    blockedFixture.context.retentionAuthority = 'rqs-authority-independent-snapshot-v1';
+    blockedFixture.context.leaseStatus = 'not-required';
+    blockedFixture.context.authorizedLeaseHash = null;
+    const blockedStore = await openSemantic(handle, blockedFixture);
+    let blocked = await blockedStore.initialize(
+      blockedFixture.address,
+      blockedFixture.identities,
+      null,
+    );
+    blocked = await blockedStore.beginEstablishment(
+      blockedFixture.address,
+      { kind: 'page', input: { kind: 'first' } },
+      fence(blocked),
+    );
+    const blockedProof = blockedFixture.makeProof(blocked);
+    blockedFixture.context.authorizationWitness = blockedProof.witness;
+    const blockedKey = `legacy-single-table-blocked-${carrier}`;
+    const blockedLegacy = { ...legacyRecord, token: 'blocked-legacy-token' };
+    await handle.materializationTransaction('readwrite', (view) => {
+      view.entries.set(blockedKey, structuredClone(blockedLegacy));
+    });
+    await handle.outboxEnqueue({
+      id: `single-table-pending-${carrier}`,
+      function: 'writeWhileOffline',
+      args: {},
+    });
+    await assert.rejects(
+      blockedStore.commitLegacyAdoption(
+        blockedFixture.address,
+        blockedKey,
+        blockedLegacy,
+        {
+          ...blockedFixture.fragmentFor(blockedProof, 'retained'),
+          authorizedLeaseHash: null,
+          memberships: [],
+        },
+        blockedProof.proof,
+        null,
+        fence(blocked),
+      ),
+      (error) => error?.code === 'SNAPBACK_SINGLE_TABLE_ADOPTION_PENDING_OUTBOX',
+    );
+    await handle.materializationTransaction('readonly', (view) => {
+      assert.deepEqual(view.entries.get(blockedKey), blockedLegacy);
+      const stored = decodeMaterializationRecordV1(
+        view.materializations.get(materializationAddressKey(blockedFixture.address)),
+      );
+      assert.equal(stored.fragments.length, 0);
+    });
+  });
+}
+
 test('A5 installs Rust-server golden proof bytes and rejects binding near misses', async (t) => {
   const fixture = JSON.parse(await readFile(
     new URL('../../tests/conformance/completeness-proof-v1.json', import.meta.url),

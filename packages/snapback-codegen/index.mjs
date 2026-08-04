@@ -312,15 +312,111 @@ function snapshotBatchIdentityV1(plan, argsContract) {
   };
 }
 
+function serializedValueUsesAuthorityOrAmbientInput(value) {
+  if (typeof value === 'string') {
+    return value === 'AuthUserId'
+      || value === 'AuthKind'
+      || value === 'AuthActorKind'
+      || value === 'AuthActivityActorKind'
+      || value === 'AuthActorUserId'
+      || value === 'AuthGrantId'
+      || value === 'ClientMutationDigest'
+      || value === 'AuthIsDelegated'
+      || value === 'RuntimeId'
+      || value === 'RuntimeNow';
+  }
+  if (value === null || typeof value !== 'object') return false;
+  if ('MembershipExists' in value) return true;
+  if ('Field' in value) return serializedValueUsesAuthorityOrAmbientInput(value.Field.base);
+  if ('Binary' in value) {
+    return serializedValueUsesAuthorityOrAmbientInput(value.Binary.left)
+      || serializedValueUsesAuthorityOrAmbientInput(value.Binary.right);
+  }
+  if ('Unary' in value) return serializedValueUsesAuthorityOrAmbientInput(value.Unary.expr);
+  if ('If' in value) {
+    return serializedValueUsesAuthorityOrAmbientInput(value.If.cond)
+      || serializedValueUsesAuthorityOrAmbientInput(value.If.then)
+      || serializedValueUsesAuthorityOrAmbientInput(value.If.else);
+  }
+  if ('Concat' in value) return value.Concat.some(serializedValueUsesAuthorityOrAmbientInput);
+  if ('Call' in value) return value.Call.args.some(serializedValueUsesAuthorityOrAmbientInput);
+  if ('Record' in value) {
+    return Object.values(value.Record.fields).some(serializedValueUsesAuthorityOrAmbientInput);
+  }
+  return false;
+}
+
+// @ref LLP 0092#0c2-the-rqseligible-served-manifest-predicate — class selection
+// is a projection of the served function's derived fact, never an authored
+// class marker.
+function singleTableRqsDigestKind(fn) {
+  const plan = fn.runtime?.HostPlan?.Query;
+  const summary = fn.readSetSummary;
+  if (fn.authorityIndependent !== true
+    || fn.kind !== 'LiveQuery'
+    || fn.authRequirement !== 'public'
+    || (fn.uses?.length ?? 0) !== 0
+    || (fn.authorizationDependence?.length ?? 0) !== 0
+    || !plan
+    || (plan.membershipFilters?.length ?? 0) !== 0
+    || (plan.filters ?? []).some((filter) => serializedValueUsesAuthorityOrAmbientInput(filter.value))
+    || summary?.mode !== 'singleTable'
+    || summary?.primaryTable !== plan.table
+    || summary?.tables?.length !== 1
+    || summary.tables[0] !== plan.table
+    || summary.authScopeField != null) {
+    return null;
+  }
+  return (plan.order?.length ?? 0) === 0 && plan.limit == null ? 'mset1' : 'seq1';
+}
+
+// @ref LLP 0007#dated-owner-amendment-singletableplanv1-portability-2026-08-03 — the
+// generated identity uses the closed typed normalization, including explicit
+// nulls and the snake_case-to-camelCase `indexedBy` translation.
+function normalizeSingleTablePlanV1(plan, rqsDigestKind) {
+  return {
+    format: 'snapback.single-table-plan.v1',
+    query: {
+      table: plan.table,
+      filters: (plan.filters ?? []).map((filter) => ({
+        field: filter.field,
+        op: filter.op,
+        value: filter.value,
+      })),
+      membershipFilters: [],
+      order: (plan.order ?? []).map((order) => ({
+        field: order.field,
+        direction: order.direction,
+        maxEncodedBytes: order.maxEncodedBytes ?? null,
+      })),
+      limit: plan.limit ?? null,
+      indexedBy: plan.indexed_by ?? null,
+    },
+    rqsDigestKind,
+    examinedEntryCeiling: 1024,
+  };
+}
+
 function singleNodeIdentityV1(fn) {
   const hostPlan = fn.runtime?.HostPlan;
   const relational = hostPlan?.RelationalQuery;
   const bounded = hostPlan?.BoundedChildrenQuery;
-  if (!relational && !bounded) return null;
-  const classId = relational ? 'relational_query_v1' : 'bounded_children_v1';
-  const retention = relational && fn.retainable === true
-    ? 'opaque-authorized-snapshot-v1'
-    : 'none';
+  const rqsDigestKind = singleTableRqsDigestKind(fn);
+  const singleTable = rqsDigestKind ? hostPlan.Query : null;
+  if (!relational && !bounded && !singleTable) return null;
+  const classId = relational
+    ? 'relational_query_v1'
+    : bounded
+      ? 'bounded_children_v1'
+      : 'single_table_v1';
+  const retention = singleTable
+    ? 'rqs-authority-independent-snapshot-v1'
+    : relational && fn.retainable === true
+      ? 'opaque-authorized-snapshot-v1'
+      : 'none';
+  const normalizedPlan = singleTable
+    ? normalizeSingleTablePlanV1(singleTable, rqsDigestKind)
+    : relational ?? bounded;
   const argumentBindings = (fn.argsContract?.fields ?? []).map((field) => {
     const contract = {
       format: 'snapback.argument-binding-contract.v1',
@@ -336,20 +432,31 @@ function singleNodeIdentityV1(fn) {
       ),
     };
   });
+  // @ref LLP 0008#decision-dk-3--delta-shape-and-read-lane-2026-07-01 — exact unordered document
+  // results may use live_delta, with live_replace retained as the fallback;
+  // every ordered or limited result remains replace-only.
+  const delivery = singleTable
+    && rqsDigestKind === 'mset1'
+    && fn.resultContract?.kind === 'documents'
+    && fn.resultContract.table === singleTable.table
+    ? 'live_delta'
+    : 'live_replace';
   const live = fn.kind === 'LiveQuery'
-    ? { kind: 'admitted', delivery: 'live_replace', pageDomain: 'cursor-free-first-page' }
+    ? { kind: 'admitted', delivery, pageDomain: 'cursor-free-first-page' }
     : { kind: 'none' };
   const nodePlan = {
     format: 'snapback.node-plan.v1',
     classId,
     classVersion: 1,
-    normalizedPlan: relational ?? bounded,
+    normalizedPlan,
     argumentBindings,
     capability: {
       exportKind: fn.kind,
       live,
       retention,
-      requiredCapabilityIds: [classId],
+      requiredCapabilityIds: singleTable
+        ? [...new Set(fn.requiredCapabilities ?? [])].sort()
+        : [classId],
     },
   };
   const nodePlanHash = compositionDomainHash('snapback:node-plan:v1:', nodePlan);
@@ -370,7 +477,9 @@ function singleNodeIdentityV1(fn) {
       live: fn.kind === 'LiveQuery'
         ? live
         : { kind: 'none', delivery: 'none', pageDomain: 'none' },
-      invalidation: fn.kind === 'LiveQuery' ? 'table-granular-resnapshot' : 'none',
+      invalidation: singleTable
+        ? 'proved-disjoint-write-set'
+        : fn.kind === 'LiveQuery' ? 'table-granular-resnapshot' : 'none',
       retention,
     },
     parentAuthorizationGroups: [],

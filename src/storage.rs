@@ -3565,13 +3565,8 @@ impl LocalDatabase {
         let touched = seed.tables.keys().cloned().collect();
         validate_touched_managed_tables(&tx, &schema, &touched, current_version)?;
         preflight_membership_activation_sources(&tx, &schema, current_version)?;
-        let changes = seed_into_transaction(
-            &tx,
-            &schema,
-            seed,
-            next_version,
-            &self.order_field_bounds,
-        )?;
+        let changes =
+            seed_into_transaction(&tx, &schema, seed, next_version, &self.order_field_bounds)?;
         maintain_derived_indexes_in_tx(&tx, &schema, &changes, next_version)?;
         validate_membership_activation(&tx, &schema, next_version)?;
         tx.rollback()?;
@@ -3910,15 +3905,15 @@ impl LocalDatabase {
             }
         }
         self.validate_sequence_scope_activation(
-            &successor_tables.into_iter().map(ToOwned::to_owned).collect(),
+            &successor_tables
+                .into_iter()
+                .map(ToOwned::to_owned)
+                .collect(),
         )?;
         validate_sequence_counter_rows(&self.conn, declarations)
     }
 
-    pub(crate) fn set_order_field_bounds(
-        &mut self,
-        bounds: BTreeMap<(String, String), u64>,
-    ) {
+    pub(crate) fn set_order_field_bounds(&mut self, bounds: BTreeMap<(String, String), u64>) {
         self.order_field_bounds = Arc::new(bounds);
     }
 
@@ -3978,13 +3973,7 @@ impl LocalDatabase {
         approval: &crate::migration::MigrationApprovalV1,
         now_ms: u64,
     ) -> SnapbackResult<crate::vector::VectorRebuildProgressV1> {
-        crate::vector::rebuild::begin_rebuild(
-            &mut self.conn,
-            &self.schema,
-            plan,
-            approval,
-            now_ms,
-        )
+        crate::vector::rebuild::begin_rebuild(&mut self.conn, &self.schema, plan, approval, now_ms)
     }
 
     pub fn resume_vector_rebuild(
@@ -3992,12 +3981,7 @@ impl LocalDatabase {
         operation_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<crate::vector::VectorRebuildProgressV1> {
-        crate::vector::rebuild::resume_rebuild(
-            &mut self.conn,
-            &self.schema,
-            operation_id,
-            now_ms,
-        )
+        crate::vector::rebuild::resume_rebuild(&mut self.conn, &self.schema, operation_id, now_ms)
     }
 
     pub fn activate_vector_rebuild(
@@ -4012,12 +3996,7 @@ impl LocalDatabase {
         table: &str,
         index: &str,
     ) -> SnapbackResult<crate::vector::VectorRebuildReceiptV1> {
-        crate::vector::rebuild::rollback_generation(
-            &mut self.conn,
-            &self.schema,
-            table,
-            index,
-        )
+        crate::vector::rebuild::rollback_generation(&mut self.conn, &self.schema, table, index)
     }
 
     pub fn inspect_vector_rebuild(
@@ -5078,6 +5057,7 @@ impl LocalDatabase {
                         None,
                         None,
                         false,
+                        None,
                     )?;
                     let rows = {
                         let mut statement = tx.prepare(&sql)?;
@@ -7477,6 +7457,7 @@ impl LocalDatabase {
             None,
             None,
             false,
+            None,
         )?;
         let mut statement = tx.prepare(&sql)?;
         let columns = statement
@@ -7569,6 +7550,7 @@ impl LocalDatabase {
                 None,
                 None,
                 false,
+                None,
             )?;
             let mut statement = tx.prepare(&sql)?;
             let columns = statement
@@ -7823,6 +7805,7 @@ fn projection_logical_row(
                 Some(2),
                 None,
                 false,
+                None,
             )?;
             let mut statement = tx.prepare(&sql)?;
             let columns = statement
@@ -8055,6 +8038,7 @@ fn maintain_projections_in_tx(
                 Some(plan.fan_out_limit as usize + 1),
                 None,
                 false,
+                None,
             )?;
             let mut statement = tx.prepare(&sql)?;
             let columns = statement
@@ -8123,6 +8107,7 @@ fn maintain_projections_in_tx(
                         Some(1),
                         None,
                         false,
+                        None,
                     )?;
                     let mut statement = tx.prepare(&sql)?;
                     let columns = statement
@@ -8517,6 +8502,7 @@ pub(crate) fn query_on_keyset(
         false,
         keyset,
         true,
+        None,
     )
 }
 
@@ -8537,6 +8523,27 @@ fn query_on_with_storage_limit_visibility(
         allow_private_membership,
         None,
         false,
+        None,
+    )
+}
+
+fn query_on_with_examined_entry_ceiling(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    plan: &QueryPlan,
+    input: &HandlerInput,
+    examined_entry_ceiling: usize,
+) -> SnapbackResult<QueryOutput> {
+    query_on_with_storage_limit_visibility_keyset(
+        conn,
+        schema,
+        plan,
+        input,
+        effective_query_limit(plan),
+        false,
+        None,
+        false,
+        Some(examined_entry_ceiling),
     )
 }
 
@@ -8550,6 +8557,7 @@ fn query_on_with_storage_limit_visibility_keyset(
     allow_private_membership: bool,
     keyset: Option<&KeysetAfter>,
     force_id_order: bool,
+    examined_entry_ceiling: Option<usize>,
 ) -> SnapbackResult<QueryOutput> {
     with_pinned_read_snapshot(conn, |conn| {
         crate::exec_guard::debug_assert_off_async_worker("a SQLite query");
@@ -8614,7 +8622,30 @@ fn query_on_with_storage_limit_visibility_keyset(
             Some(storage_limit),
             keyset,
             force_id_order,
+            examined_entry_ceiling.map(|_| "__snapback_single_table_examined_entry_guard"),
         )?;
+        let examined_entry_guard_exceeded =
+            std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        if let Some(ceiling) = examined_entry_ceiling {
+            let examined = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            let exceeded = examined_entry_guard_exceeded.clone();
+            conn.create_scalar_function(
+                "__snapback_single_table_examined_entry_guard",
+                0,
+                rusqlite::functions::FunctionFlags::SQLITE_UTF8
+                    | rusqlite::functions::FunctionFlags::SQLITE_DIRECTONLY,
+                move |_| {
+                    let entry = examined.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+                    if entry > ceiling {
+                        exceeded.store(true, std::sync::atomic::Ordering::Relaxed);
+                        return Err(rusqlite::Error::UserFunctionError(Box::new(
+                            std::io::Error::other("single-table examined-entry ceiling exceeded"),
+                        )));
+                    }
+                    Ok(1_i64)
+                },
+            )?;
+        }
         let mut statement = conn.prepare(&sql)?;
         let columns = statement
             .column_names()
@@ -8624,18 +8655,43 @@ fn query_on_with_storage_limit_visibility_keyset(
         let mut rows = statement.query(params_from_iter(values.iter()))?;
         let mut output = Vec::new();
 
-        while let Some(row) = rows.next()? {
+        loop {
+            let row = match rows.next() {
+                Ok(Some(row)) => row,
+                Ok(None) => break,
+                Err(_)
+                    if examined_entry_guard_exceeded.load(std::sync::atomic::Ordering::Relaxed) =>
+                {
+                    // @ref LLP 0004#dated-owner-amendment-single_table_v11-2026-08-03 —
+                    // the non-deterministic SQL guard is the first WHERE term,
+                    // so entry 1,025 refuses before application predicates can
+                    // examine it. Only the node-class entry point injects it.
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SINGLE_TABLE_EXAMINED_ENTRY_CEILING_EXCEEDED",
+                        "query",
+                        format!(
+                            "single-table establishment would examine more than {} storage entries",
+                            examined_entry_ceiling.expect("exceeded guard has a ceiling")
+                        ),
+                    )
+                    .with_details(serde_json::json!({
+                        "examinedEntryCeiling": examined_entry_ceiling,
+                    })));
+                }
+                Err(error) => return Err(error.into()),
+            };
             let document = row_to_document(row, table, &columns)?;
             validate_document_version_at_most(&document, snapshot_version, &table.name)?;
             output.push(document);
         }
+        drop(rows);
+        let fullscan_steps = statement.get_status(rusqlite::StatementStatus::FullscanStep);
         #[cfg(test)]
         {
-            drop(rows);
             KEYSET_SCAN_STATS.with(|stats| {
                 stats.borrow_mut().push(KeysetScanStats {
                     table: table.name.clone(),
-                    fullscan_steps: statement.get_status(rusqlite::StatementStatus::FullscanStep),
+                    fullscan_steps,
                     vm_steps: statement.get_status(rusqlite::StatementStatus::VmStep),
                     fetched_rows: output.len(),
                 });
@@ -9049,6 +9105,25 @@ impl DbRead<'_> {
         match self {
             DbRead::Pinned { conn, schema } => query_on(conn, schema, plan, input),
             _ => self.live().expect("live db").query(plan, input),
+        }
+    }
+
+    /// The new node-class establishment entry point. Keeping the ceiling on a
+    /// distinct method makes it structurally impossible for the ordinary
+    /// application Query/LiveQuery path to inherit the new refusal.
+    pub(crate) fn query_with_examined_entry_ceiling(
+        &self,
+        plan: &QueryPlan,
+        input: &HandlerInput,
+        ceiling: usize,
+    ) -> SnapbackResult<QueryOutput> {
+        match self {
+            DbRead::Pinned { conn, schema } => {
+                query_on_with_examined_entry_ceiling(conn, schema, plan, input, ceiling)
+            }
+            DbRead::Live(db) => {
+                query_on_with_examined_entry_ceiling(&db.conn, &db.schema, plan, input, ceiling)
+            }
         }
     }
 
@@ -11879,6 +11954,7 @@ fn build_query_sql(
     sql_limit: Option<usize>,
     keyset: Option<&KeysetAfter>,
     force_id_order: bool,
+    examined_entry_guard_function: Option<&str>,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
     // Always give the primary table an explicit alias. A membership table may
     // itself be the query's primary table; without distinct aliases the inner
@@ -11892,7 +11968,12 @@ fn build_query_sql(
         quote_ident(&table.name)?
     );
     let mut values = Vec::new();
-    let mut where_parts = Vec::new();
+    // This non-deterministic guard deliberately leads the predicate list. It
+    // counts every physical candidate before authored filters inspect it, and
+    // is injected only for single-table node establishment/re-establishment.
+    let mut where_parts = examined_entry_guard_function
+        .map(|name| vec![format!("{name}() = 1")])
+        .unwrap_or_default();
     let mut in_items = 0usize;
     let mut filter_bindings = 0usize;
 
@@ -14075,11 +14156,7 @@ impl MembershipPlan {
     }
 }
 
-fn mutation_plan_refusal(
-    code: &str,
-    message: impl Into<String>,
-    details: Value,
-) -> SnapbackError {
+fn mutation_plan_refusal(code: &str, message: impl Into<String>, details: Value) -> SnapbackError {
     // A generated WWA scope read deliberately collapses a missing parent and
     // a present-but-hidden parent to one byte-identical public refusal. The
     // builder assigns this code to both the Get and owner Guard; do not leak
@@ -18095,8 +18172,7 @@ fn normalize_json_value(value: Value, field_type: &FieldType) -> SnapbackResult<
                 .collect::<SnapbackResult<Vec<_>>>()?;
             let bytes =
                 crate::vector::storage::encode_vector_binary64_le(&components, *dimensions)?;
-            let canonical =
-                crate::vector::storage::decode_vector_binary64_le(&bytes, *dimensions)?;
+            let canonical = crate::vector::storage::decode_vector_binary64_le(&bytes, *dimensions)?;
             Ok(Value::Array(
                 canonical
                     .into_iter()
@@ -29524,6 +29600,7 @@ mod membership_write_tests {
             None,
             None,
             false,
+            None,
         )
         .expect("lower internal semi-join");
         assert!(sql.contains("AS \"__snapback_outer\""));
