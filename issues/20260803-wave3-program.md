@@ -128,3 +128,17 @@ Wave-2 rules carry over, including the current landing policy
 the fleet coordination conventions. Update this ticket at each track
 milestone; wave 3 closes with a green main, the tracks' exit criteria
 met or honestly re-scoped, and a closing corpus audit (LLP 0016 cadence).
+
+## Track A milestone (2026-08-04) — the whole local-first arc COMPLETE
+
+Track A ran spec → store → loop-closure → write lane end to end and
+exited: the LLP 0166 implementation program (8 lanes), the
+continuation program P0–P5 (both now in `issues/closed/`), and the
+Move-3 Phase-1 program (M1 evaluator, M2 admission, M3 rebase, M4
+generated-IR mutations + the Latency Kanban exit — gate 5/5
+real-served). **Charlie accepted the Phase-1 exit 2026-08-04** (dated
+ruling in LLP 0129); Phase-2 scheduling is back on 0129's machinery,
+deliberately unscheduled. Follow-on Track-A threads live in their own
+tickets (browser proof pair, 0146 live-target gaps, capability
+publication parked on Charlie). Track B (agent-safe storage / forking)
+continues per its own tickets.

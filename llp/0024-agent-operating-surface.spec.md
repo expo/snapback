@@ -5,8 +5,8 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-08-04 (proposed LLP 0167 OQ2 ruling, subject to author
-veto: add the `debug.*` runtime-perturbation family with built
+**Revised:** 2026-08-04 (LLP 0167 OQ2 ruling author-ratified: the `debug.*`
+runtime-perturbation family is decided, with built
 `debug.networkProfileGet` / `debug.networkProfileSet` host operations, CLI
 verbs, and control-plane MCP projections); 2026-08-01 (shared app-data result core amendment: the
 Rust-owned `AppDataResultCoreV1` + committed schema, the
@@ -140,7 +140,7 @@ It does not own:
 The v0 host-ops core uses these operation ids. The ids are the stable names used
 inside result envelopes, logs, HTTP requests, and MCP metadata.
 
-**Proposed OQ2 ruling (2026-08-04; subject to author veto):** runtime
+**OQ2 ruling (proposed 2026-08-04, author-ratified 2026-08-04):** runtime
 perturbation operations form a new `debug.*` family. The first two members are
 the rows below; future D6/fault-injection operations may join the family only
 through their own reviewed table amendments.
@@ -379,8 +379,8 @@ The CLI verbs map to operation ids as follows:
 | `snapback run <function-id> --args-json <json>` | `function.run` |
 | `snapback explain <function-id> --args-json <json> --kind <kind>` | `function.explain` |
 | `snapback acceptance run [profile]` | `acceptance.run` |
-| `snapback network-profile get` | `debug.networkProfileGet` (proposed OQ2 ruling, 2026-08-04; author may veto) |
-| `snapback network-profile set <name-or-inline-json>` | `debug.networkProfileSet` (proposed OQ2 ruling, 2026-08-04; author may veto) |
+| `snapback network-profile get` | `debug.networkProfileGet` (OQ2 ruling, ratified 2026-08-04) |
+| `snapback network-profile set <name-or-inline-json>` | `debug.networkProfileSet` (OQ2 ruling, ratified 2026-08-04) |
 
 `snapback run` must require a generated function id or generated reference. A
 human-friendly exported name may be accepted only when it resolves uniquely
@@ -445,8 +445,8 @@ operation and returns the same result envelope as JSON.
 | `snapback_run_function` | `function.run` |
 | `snapback_explain` | `function.explain` |
 | `snapback_acceptance_run` | `acceptance.run` |
-| `snapback_network_profile_get` | `debug.networkProfileGet` (proposed OQ2 ruling, 2026-08-04; author may veto) |
-| `snapback_network_profile_set` | `debug.networkProfileSet` (proposed OQ2 ruling, 2026-08-04; author may veto) |
+| `snapback_network_profile_get` | `debug.networkProfileGet` (OQ2 ruling, ratified 2026-08-04) |
+| `snapback_network_profile_set` | `debug.networkProfileSet` (OQ2 ruling, ratified 2026-08-04) |
 
 The MCP tool schemas should mirror the core `args` and `authority` structures.
 MCP display text may summarize diagnostics, but the structured content must

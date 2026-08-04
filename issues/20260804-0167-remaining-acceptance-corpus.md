@@ -109,5 +109,11 @@ Still open, from the integrated-diff adversarial review:
 4. **MCP tool schema drift guards** — the inline builtin enum and
    per-field maxima in the MCP tool schema will drift if built-ins
    change; the server remains authoritative, but add a pin test.
-5. Timer coalescing (item 4 above) and the OQ3 fork exception remain
-   open as before.
+5. Timer coalescing (item 4 above) remains open as before.
+6. **OQ3 implementation (ruled 2026-08-04):** hosted non-`normal`
+   profiles are allowed only on LLP 0158 forks/derived instances, and
+   the Cloudflare arm gets a dedicated deployment-classification binding
+   tied to derived identity instead of `SNAPBACK_TESTING`. Build the
+   fork-exception gate leg (Rust: derived-instance identity admits the
+   activation gate) and the CF binding, with the refusal matrix extended
+   for both. Until built, the fail-closed interim rule stands.

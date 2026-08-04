@@ -644,3 +644,12 @@ Charlie Cheever, as the deciding owner of every document named in §9, ruled:
 These rulings accept the semantic amendment set only. They grant no
 implementation or capability claim; the implementation and staged-adoption
 program remain separately commissioned.
+
+## Resolution (2026-08-04)
+
+Fully executed: Charlie's five §10 rulings recorded; the
+eleven-document amendment set landed (3f77ffe5b); the adoption
+implementation landed dormant (9143e3b56,
+issues/closed/20260803-single-table-v1-adoption-implementation.md).
+The only remainder — moving the capability rows — is the owner's
+activation act, recorded there; nothing further tracks here.
