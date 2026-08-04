@@ -79,11 +79,23 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, '../..');
-const DATE = '2026-08-03';
+const DATE = '2026-08-04';
 const FIXTURE_DIR = join(ROOT, 'tests/acceptance/fixtures/local-persistent-store');
 const RECEIPT_PATH = join(FIXTURE_DIR, `carrier-exit.${DATE}.v1.json`);
 const EVIDENCE_PATH = join(ROOT, 'tests/acceptance/local-store-carrier-exit-v1-evidence.md');
 const BUNDLE_PATH = join(FIXTURE_DIR, `bundle-attribution.${DATE}.v1.json`);
+const TRIAGE_EXIT_PATH = join(
+  ROOT,
+  'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-03.v1.json',
+);
+const TRIAGE_BUDGET_PATH = join(
+  ROOT,
+  'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-03.v1.json',
+);
+const TRIAGE_ACTIVATION_PATH = join(
+  ROOT,
+  'demos/triage-graph/snapback/trusted-composition-activation.json',
+);
 const SERVER_BINARY = join(ROOT, 'target/debug/snapback');
 const CHILD_MODE = process.argv[2] === '--file-child';
 const encoder = new TextEncoder();
@@ -2363,12 +2375,60 @@ function sourceProvenance() {
     'packages/snapback-contract/auth-coordinator.mjs',
     'packages/snapback-contract/client-store.mjs',
     'demos/_kit/chrome-process.mjs',
+    relative(ROOT, TRIAGE_EXIT_PATH),
+    relative(ROOT, TRIAGE_BUDGET_PATH),
+    relative(ROOT, TRIAGE_ACTIVATION_PATH),
+    'demos/triage-graph/snapback/generated/artifacts.json',
+    'demos/triage-graph/demo.snapback.json',
   ].map((path) => ({ path, sha256: sha256Hex(readFileSync(join(ROOT, path))) }));
   return {
     revision,
     dirty: dirtyLines.length > 0,
     dirtyPaths: dirtyLines.map((line) => line.slice(3)),
     files,
+  };
+}
+
+function triageFootprintHydrationEvidence() {
+  const receipt = JSON.parse(readFileSync(TRIAGE_EXIT_PATH, 'utf8'));
+  const budget = JSON.parse(readFileSync(TRIAGE_BUDGET_PATH, 'utf8'));
+  const currentActivation = JSON.parse(readFileSync(TRIAGE_ACTIVATION_PATH, 'utf8'));
+  assert.equal(receipt.schemaVersion, 'snapback.triage-graph.move1-exit.v1');
+  assert.equal(receipt.controlledRun?.status, 'PASS');
+  assert.deepEqual(receipt.summary, {
+    pass: 8,
+    blocked: 0,
+    total: 8,
+    capabilityClaimsChanged: false,
+    fleetIncluded: false,
+  });
+  assert.equal(budget.schemaVersion, 'snapback.triage-graph.budget-freeze.v1');
+  assert.deepEqual(receipt.budgetFreeze, budget);
+  assert.equal(currentActivation.format, 'snapback.trusted-composition-activation.v1');
+  assert.match(currentActivation.activationHash, /^sha256:[0-9a-f]{64}$/u);
+  assert.equal(
+    currentActivation.activation?.deploymentId,
+    'triage-graph-p3-controlled-run',
+  );
+  return {
+    applicationExists: true,
+    controlledRun: {
+      receipt: relative(ROOT, TRIAGE_EXIT_PATH),
+      sourceRevision: receipt.source.revision,
+      activationHash: receipt.controlledRun.activation.activationHash,
+      gatesPassed: receipt.summary.pass,
+    },
+    currentSuccessorActivation: {
+      artifact: relative(ROOT, TRIAGE_ACTIVATION_PATH),
+      activationHash: currentActivation.activationHash,
+      deploymentId: currentActivation.activation.deploymentId,
+    },
+    budgetFreeze: {
+      artifact: relative(ROOT, TRIAGE_BUDGET_PATH),
+      controlledWorkload: budget.controlledWorkload,
+      measured: budget.measured,
+      frozenCeilings: budget.frozenCeilings,
+    },
   };
 }
 
@@ -2450,9 +2510,10 @@ module-own minified bytes.
   stores the P1 proof and complete lease custody, the owned backend process
   exits, and a newly constructed client projects authoritative-retained bytes
   from the same file-v3 identity while the endpoint is unreachable.
-- Triage and Fleet remain GAP exactly as LLP 0157's commission crosswalk says:
-  the Move-1 successor apps do not exist, and Fleet additionally waits on LLP
-  0135 OQ5's relational-node successor.
+- Triage is a measured PASS: this receipt consumes the P3 owner's eight-gate
+  controlled-run receipt and LLP 0155 OQ9 custody/hydration freeze, while
+  separately binding the current trusted successor activation in its source
+  closure. Fleet remains GAP on LLP 0135 OQ5's relational-node successor.
 
 Machine receipt: \`tests/acceptance/fixtures/local-persistent-store/carrier-exit.${DATE}.v1.json\`  
 Bundle receipt: \`tests/acceptance/fixtures/local-persistent-store/bundle-attribution.${DATE}.v1.json\`
@@ -2490,6 +2551,10 @@ async function verifyRetainedArtifacts() {
       `${file.path}: retained source digest`,
     );
   }
+  const triage = receipt.legs.find((row) => row.leg === 'footprint-hydration-triage');
+  assert.equal(triage?.status, 'PASS', 'the landed Triage successor is measured, not a GAP');
+  const fleet = receipt.legs.find((row) => row.leg === 'footprint-hydration-fleet');
+  assert.equal(fleet?.status, 'GAP', 'Fleet remains the explicit relational-node GAP');
   assert.equal(existsSync(EVIDENCE_PATH), true);
   console.log(`PASS LLP 0166 retained carrier-exit receipt: ${receipt.legs.filter((row) => row.status === 'PASS').length} PASS / ${receipt.legs.filter((row) => row.status === 'GAP').length} GAP / ${receipt.legs.filter((row) => row.status === 'SKIPPED').length} SKIPPED`);
 }
@@ -2534,6 +2599,7 @@ async function main() {
   const fileAuthority = await runFileAuthorityEvidence();
   const fileCustody = await runFileCustodyEvidence();
   const retainedRender = await runRetainedRenderBackendEvidence();
+  const triage = triageFootprintHydrationEvidence();
   const browser = skipBrowser ? null : await runBrowserEvidence(makeBrowserFixtures());
   const legs = [
     browser
@@ -2581,11 +2647,10 @@ async function main() {
     browser
       ? pass('bounded-custody-query-churn', 'browser-indexeddb-v3', browser.boundedCustody)
       : skipped('bounded-custody-query-churn', 'browser-indexeddb-v3'),
-    gap(
+    pass(
       'footprint-hydration-triage',
       'move-1-successor-app',
-      { applicationExists: false, measurements: null },
-      'SNAPBACK_CARRIER_EXIT_TRIAGE_SUCCESSOR_MISSING: the fresh Move-1 successor Triage application does not exist, so byte/row footprint and hydration cannot be measured end to end',
+      triage,
     ),
     gap(
       'footprint-hydration-fleet',
