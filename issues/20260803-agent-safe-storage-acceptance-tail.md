@@ -2,7 +2,9 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (Track B integrated implementation pass)
-**Updated:** 2026-08-04 (strict-promotion contention/rebase negatives,
+**Updated:** 2026-08-04 (real k=2–4 strict-promotion concurrency,
+conditional FIFO progress, and reservation/admission/commit/release crash cuts;
+strict-promotion contention/rebase negatives,
 schema-declared v2 per-record history with v1 compatibility, checkpoint
 no-upcast negatives, honest migration verification metadata, managed branch
 execution carrier, crash-safe
@@ -34,7 +36,7 @@ not authorize capability publication.
 | 7 — identity/authority | Partial | Branch execution revalidates a digest-bound finite grant and uses a dedicated branch-principal invocation source that cannot admit `AdminBypass`; an admin-row guard negative proves the projection. Finish the per-class revoked/stale plus later-effect-settlement corpus. |
 | 8 — resource containment | Partial | Digest-work and exact TTL/grant expiry bounds are active; executable corpus now proves compact-envelope pruning cannot reap a live branch and branch reaping cannot advance replay floor or prune an envelope. Finish the remaining declared resource-limit corpus. |
 | 9 — exact fork diff | Partial | The randomized multi-commit corpus compares journal-derived net state with an independent immutable-base/head oracle and verifies the attributed sequence separately. Exact ordinary HostPlan/Buffered postimages now match stored system fields under the SQLite authorizer, hidden trigger writes refuse, and all other physical writers are individually classified. Finish schema-transition coverage; excluded migration/seed/admin/projection/promotion writers still prevent a wider journal-completeness claim. |
-| 10 — strict promotion | Partial | Frozen v1 contention terms, quota/defer/release behavior, exhausted-budget refusal, and identical-write/divergent-read-or-result re-seal negatives are covered. The non-atomic execution carrier durably reserves exact request facts and forecloses before the handler: terminal retries replay, outcome-unknown retries refuse, divergent reuse collides, and a second operation refuses. Move operation retention into the app commit, then complete the real concurrent-writer fairness/crash matrix, conditional-progress proof, and provisional/transitive effect chains. |
+| 10 — strict promotion | Partial | Frozen v1 terms plus file-backed concurrent issuance, k=2–4 reviewed-fork/ordinary-writer cycles, inherited FIFO ticket/approval replay, automatic bounded reservation, conditional all-k progress, exhausted-budget refusal, and reservation/admission/commit/release crash cuts are covered. The non-atomic execution carrier separately reserves exact request facts and forecloses before the handler. Move its operation retention into the app commit and complete `CaptureOnly` provisional/transitive effect settlement; global coverage and applicable performance remain independent gates. |
 | 11 — history/checkpoint | Partial | Schema publication now atomically projects finite v2 per-record policy, removal erases retained detail, and current/per-version auth plus visible-only pagination/horizon and per-record pruning are covered without changing legacy v1 `maxRows`. The registered-copy sweep invalidates the complete materialized inventory before deletion and preserves crash/unreachable obligations, but it is not yet atomic with canonical protected-record deletion; close that new-checkpoint race and the remaining lifecycle corpus. |
 | 12 — boundary proof | Partial | Promotion and full migration verification are independently derived; migration's separate evaluator has explicit-value/equivalence plus executor-drift and staged-corruption negatives. Checkpoint concurrent-writer/publication/receipt-only no-upcast negatives are covered. Finish the remaining row-wide boundary integrations/coverage before an aggregate claim. |
 | 13 — performance | Partial | The final-integrated absolute rerun is recorded. The successor absolute recorder includes a 128-sample/8-writer request-to-commit p99 behind a production promotion reservation. A second recorder now pairs the exactly reconstructed pre-profile tree with the active issuance-bearing covered lane in 11 AB/BA observations: registered point/range/query-plan and single-writer thresholds, active allocation/retention observations, and five-second CPU/RSS/disk gates. Run both exact clean recorders on the fixed Air; obtain dated RFC-author absolute-bound ratification; pass every applicable crash/reopen gate. |
@@ -116,6 +118,29 @@ the guide-gap ticket rather than being conflated with this implementation tail.
   defer/release and quota exhaustion, refuse an exhausted promotion before
   canonical mutation, and refuse identical writes when read or result facts
   diverge.
+- `fork_promotion::tests::concurrent_ticket_issuance_serializes_into_one_durable_fifo`
+  runs four file-backed issuers against one canonical stream; host identity,
+  idempotent reuse, FIFO allocation, and lease custody now share one immediate
+  transaction, and reopen observes one contiguous queue. A durable loss floor
+  prevents expiry alone from minting repeated writer deferrals.
+- `fork_promotion::tests::concurrent_reviewed_forks_make_bounded_fifo_progress_with_ordinary_writers`
+  runs k=2, 3, and 4 populations. Approvals are issued in the population loop;
+  two independently opened ordinary canonical writer transactions run during
+  every success cycle through the production reservation gate; fresh-fork
+  replay inherits FIFO ticket and original approval only after equal full-fact
+  re-seal. Under the fixture's declared finite replay, below-capacity arrival,
+  sufficient TTL, and sufficient quota, all k complete in FIFO order within k
+  success cycles and later heads automatically consume the bounded reservation
+  after R real advanced-head losses.
+- `fork_promotion::tests::promotion_crash_reopen_matrix_retains_admission_then_replays_committed_release`,
+  `reservation_expiry_mid_attempt_rolls_back_and_retains_the_fifo_ticket`, and
+  `expired_reservation_needs_fresh_losses_before_the_ticket_can_defer_again`
+  cover reservation reopen, process death during transactional admission,
+  commit-before-response retry, atomic writer release, mid-attempt expiry
+  rollback, and the repeated-deferral negative. This closes row 10's real
+  contention/fairness/crash leg only. `CaptureOnly` settlement and its
+  provisional/transitive effect chain are still absent; this ticket, LLP 0164,
+  and every related capability therefore remain Open/Draft/`Missing`.
 - `proof_checkpoint::tests::history_prunes_per_record_and_schema_removal_erases_retained_detail`
   and `history_survives_reopen_elides_per_version_and_never_moves_sync_floor`
   cover schema projection/removal, per-record caps, current plus per-version

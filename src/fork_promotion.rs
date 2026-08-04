@@ -21,7 +21,10 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use rusqlite::types::{Value as SqlValue, ValueRef};
-use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params, params_from_iter};
+use rusqlite::{
+    Connection, OpenFlags, OptionalExtension, Transaction, TransactionBehavior, params,
+    params_from_iter,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -1509,8 +1512,7 @@ fn validate_public_carrier_draft(
     );
     if profile.grant.authority_fingerprint != expected_authority_fingerprint
         || draft.identity.bound_facts.principal_fingerprint != expected_principal_fingerprint
-        || draft.identity.bound_facts.authority_instance_id
-            != profile.grant.authority_fingerprint
+        || draft.identity.bound_facts.authority_instance_id != profile.grant.authority_fingerprint
         || draft.identity.bound_facts.function_or_command != draft.function_or_command
         || draft.identity.bound_facts.input_fingerprint != expected_input_fingerprint
         || !issuance_matches_grant
@@ -1810,8 +1812,7 @@ pub fn retain_committed_branch_mutation(
             "committed branch mutation has no durable pre-execution reservation",
         )
     })?;
-    if decode_json::<BranchOperationDraftV1>(&reserved, "branch operation reservation")? != *draft
-    {
+    if decode_json::<BranchOperationDraftV1>(&reserved, "branch operation reservation")? != *draft {
         return Err(error(
             "SNAPBACK_BRANCH_OPERATION_ID_REUSED",
             "committed mutation facts diverge from their operation reservation",
@@ -1842,14 +1843,12 @@ pub fn retain_committed_branch_mutation(
             None
         } else {
             Some(
-                serde_json::from_str(
-                    body.as_deref().ok_or_else(|| {
-                        error(
-                            "SNAPBACK_BRANCH_OPERATION_JOURNAL_INCOMPLETE",
-                            "committed branch change is missing its post-image",
-                        )
-                    })?,
-                )
+                serde_json::from_str(body.as_deref().ok_or_else(|| {
+                    error(
+                        "SNAPBACK_BRANCH_OPERATION_JOURNAL_INCOMPLETE",
+                        "committed branch change is missing its post-image",
+                    )
+                })?)
                 .map_err(|_| {
                     error(
                         "SNAPBACK_BRANCH_OPERATION_JOURNAL_INCOMPLETE",
@@ -2362,6 +2361,7 @@ pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
             ticket_json        BLOB NOT NULL,
             state              TEXT NOT NULL,
             losses             INTEGER NOT NULL DEFAULT 0,
+            reservation_loss_floor INTEGER NOT NULL DEFAULT 0,
             reserved_until_ms  INTEGER,
             completed_at_ms    INTEGER
          );
@@ -2398,6 +2398,19 @@ pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
             [],
         )?;
     }
+    let has_reservation_loss_floor: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('_snapback_promotion_admission')
+          WHERE name = 'reservation_loss_floor'",
+        [],
+        |row| row.get(0),
+    )?;
+    if has_reservation_loss_floor == 0 {
+        conn.execute(
+            "ALTER TABLE _snapback_promotion_admission
+               ADD COLUMN reservation_loss_floor INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
     Ok(())
 }
 
@@ -2425,8 +2438,16 @@ pub fn issue_promotion_ticket(
         ));
     }
     ensure_promotion_tables(canonical)?;
-    crate::operation_ledger::authenticate_host_identity(canonical, &ticket_identity)?;
-    if let Some(bytes) = canonical
+    // Ticket identity, idempotent replay, FIFO allocation, and host-lease
+    // custody are one serialized admission decision. A deferred transaction
+    // could let two issuers observe the same MAX(fifo_sequence) and turn fair
+    // admission into a UNIQUE-constraint race.
+    //
+    // @ref LLP 0162#5-promotion-stays-strict-and-merge-free — admission order
+    // is durable FIFO authority, so concurrent issuance itself must serialize.
+    let tx = canonical.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    crate::operation_ledger::authenticate_host_identity(&tx, &ticket_identity)?;
+    if let Some(bytes) = tx
         .query_row(
             "SELECT ticket_json FROM _snapback_promotion_admission WHERE ticket_id = ?1",
             params![ticket_identity.key.operation_id],
@@ -2453,7 +2474,6 @@ pub fn issue_promotion_ticket(
                 "promotion ticket expiry must be a non-negative durable timestamp",
             )
         })?;
-        let tx = canonical.transaction()?;
         crate::operation_ledger::register_host_identity_lease_in(
             &tx,
             &stored.ticket_identity,
@@ -2462,7 +2482,6 @@ pub fn issue_promotion_ticket(
         tx.commit()?;
         return Ok(stored);
     }
-    let tx = canonical.transaction()?;
     let fifo_sequence: i64 = tx.query_row(
         "SELECT COALESCE(MAX(fifo_sequence), 0) + 1
            FROM _snapback_promotion_admission WHERE canonical_stream_id = ?1",
@@ -2779,12 +2798,64 @@ fn note_ticket_loss(
     canonical: &Connection,
     ticket: &PromotionAdmissionTicketV1,
 ) -> SnapbackResult<()> {
-    canonical.execute(
+    let changed = canonical.execute(
         "UPDATE _snapback_promotion_admission SET losses = losses + 1
           WHERE ticket_id = ?1 AND state = 'queued'",
         params![ticket.ticket_identity.key.operation_id],
     )?;
+    if changed != 1 {
+        return Err(error(
+            "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED",
+            "only the exact queued durable ticket can record a promotion loss",
+        ));
+    }
     Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct PromotionAdmissionStateV1 {
+    losses: u64,
+    reservation_loss_floor: u64,
+    reserved_until_ms: Option<i64>,
+}
+
+fn promotion_admission_state(
+    conn: &Connection,
+    ticket: &PromotionAdmissionTicketV1,
+) -> SnapbackResult<PromotionAdmissionStateV1> {
+    conn.query_row(
+        "SELECT losses,reservation_loss_floor,reserved_until_ms
+           FROM _snapback_promotion_admission
+          WHERE ticket_id = ?1 AND state = 'queued'",
+        params![ticket.ticket_identity.key.operation_id],
+        |row| {
+            let losses = row.get::<_, i64>(0)?.max(0) as u64;
+            let reservation_loss_floor = row.get::<_, i64>(1)?.max(0) as u64;
+            Ok(PromotionAdmissionStateV1 {
+                losses,
+                reservation_loss_floor,
+                reserved_until_ms: row.get(2)?,
+            })
+        },
+    )
+    .optional()?
+    .ok_or_else(|| {
+        error(
+            "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED",
+            "promotion ticket is no longer queued for admission",
+        )
+    })
+}
+
+fn live_reservation_deadline(
+    state: PromotionAdmissionStateV1,
+    ticket: &PromotionAdmissionTicketV1,
+    now_ms: i64,
+) -> Option<i64> {
+    state
+        .reserved_until_ms
+        .map(|until| until.min(ticket.expires_at_ms))
+        .filter(|until| *until > now_ms)
 }
 
 fn stored_promotion_result(
@@ -3750,6 +3821,13 @@ where
             "promotion admission is serialized in inherited FIFO order",
         ));
     }
+    let mut admission_state = promotion_admission_state(canonical, &request.admission_ticket)?;
+    if admission_state.losses >= request.admission_ticket.rebase_budget {
+        return Err(error(
+            "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED",
+            "promotion exhausted its declared rebase budget",
+        ));
+    }
     let head = crate::storage::current_version_on(canonical)?;
     if head != request.base_version {
         note_ticket_loss(canonical, &request.admission_ticket)?;
@@ -3761,16 +3839,27 @@ where
             ),
         ));
     }
-    let stored_losses: i64 = canonical.query_row(
-        "SELECT losses FROM _snapback_promotion_admission WHERE ticket_id = ?1",
-        params![request.admission_ticket.ticket_identity.key.operation_id],
-        |row| row.get(0),
-    )?;
-    if stored_losses.max(0) as u64 >= request.admission_ticket.rebase_budget {
-        return Err(error(
-            "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED",
-            "promotion exhausted its declared rebase budget",
-        ));
+    let losses_since_reservation = admission_state
+        .losses
+        .saturating_sub(admission_state.reservation_loss_floor);
+    let mut reservation_deadline =
+        live_reservation_deadline(admission_state, &request.admission_ticket, now_ms);
+    if reservation_deadline.is_none()
+        && losses_since_reservation
+            >= request
+                .admission_ticket
+                .contention_policy
+                .reservation_after_losses
+    {
+        // Escalation is an engine action, not caller etiquette. Once the FIFO
+        // head has accumulated the declared new-loss threshold, its next
+        // attempt durably reserves the stream before replay begins.
+        reservation_deadline = Some(request_head_reservation(
+            canonical,
+            &request.admission_ticket,
+            now_ms,
+        )?);
+        admission_state = promotion_admission_state(canonical, &request.admission_ticket)?;
     }
 
     let started = Instant::now();
@@ -3804,13 +3893,41 @@ where
     let expected_boundary =
         derive_promotion_expected_digest(&boundary_header, &base_rows, &approved_writes)?;
     let new_version = crate::storage::next_storage_version(head)?;
-    let tx = canonical.transaction()?;
+    let tx = canonical.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let transactional_now_ms =
+        now_ms.saturating_add(i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX));
+    if transactional_now_ms >= request.admission_ticket.expires_at_ms {
+        return Err(error(
+            "SNAPBACK_PROMOTION_TICKET_EXPIRED",
+            "promotion ticket expired before transactional admission",
+        ));
+    }
+    if active_fifo_ticket(&tx, &request.base_stream, transactional_now_ms)?.as_deref()
+        != Some(
+            request
+                .admission_ticket
+                .ticket_identity
+                .key
+                .operation_id
+                .as_str(),
+        )
+    {
+        return Err(error(
+            "SNAPBACK_PROMOTION_NOT_FIFO_HEAD",
+            "promotion lost FIFO authority before transactional admission",
+        ));
+    }
     let transactional_head: i64 = tx.query_row(
         "SELECT version FROM _snapback_version WHERE id = 1",
         [],
         |row| row.get(0),
     )?;
     if transactional_head.max(0) as u64 != request.base_version {
+        // The ordinary writer won immediately before our BEGIN IMMEDIATE.
+        // Count that loss durably before returning so the reservation
+        // threshold and rebase budget cannot be bypassed by admission races.
+        note_ticket_loss(&tx, &request.admission_ticket)?;
+        tx.commit()?;
         return Err(error(
             "SNAPBACK_PROMOTION_BASE_ADVANCED",
             "canonical head advanced at transaction admission",
@@ -3893,6 +4010,24 @@ where
             "staged promotion exceeded its declared maximum commit duration",
         ));
     }
+    let elapsed_ms = i64::try_from(started.elapsed().as_millis()).unwrap_or(i64::MAX);
+    let finished_at_ms = now_ms.saturating_add(elapsed_ms);
+    if finished_at_ms >= request.admission_ticket.expires_at_ms {
+        return Err(error(
+            "SNAPBACK_PROMOTION_TICKET_EXPIRED",
+            "promotion ticket expired before its canonical commit",
+        ));
+    }
+    if reservation_deadline.is_some_and(|until| finished_at_ms >= until) {
+        return Err(error(
+            "SNAPBACK_PROMOTION_RESERVATION_EXPIRED",
+            "bounded head reservation expired before canonical commit; ticket remains queued",
+        ));
+    }
+    debug_assert!(
+        admission_state.reservation_loss_floor <= admission_state.losses,
+        "durable reservation loss floor cannot lead recorded losses"
+    );
     let journal_completeness = verify_promotion_journal(&tx, new_version, &expected_journal)?;
     crate::storage::set_promotion_version(&tx, new_version)?;
     let source_write_fact_count = operations
@@ -4034,8 +4169,7 @@ fn canonical_mutation_admission_if_present(
         .collect::<rusqlite::Result<Vec<_>>>()?;
     let mut until = None;
     for (reserved_until_ms, ticket_json) in reservations {
-        let ticket: PromotionAdmissionTicketV1 =
-            decode_json(&ticket_json, "promotion ticket")?;
+        let ticket: PromotionAdmissionTicketV1 = decode_json(&ticket_json, "promotion ticket")?;
         let effective_until = reserved_until_ms.min(ticket.expires_at_ms);
         if effective_until > now_ms {
             until = Some(until.map_or(effective_until, |prior: i64| prior.max(effective_until)));
@@ -4095,11 +4229,13 @@ pub fn request_head_reservation(
             "only the live FIFO head may reserve ordinary canonical writers",
         ));
     }
-    let (losses, existing_reservation): (i64, Option<i64>) = tx.query_row(
-        "SELECT losses,reserved_until_ms FROM _snapback_promotion_admission WHERE ticket_id = ?1",
-        params![ticket.ticket_identity.key.operation_id],
-        |row| Ok((row.get(0)?, row.get(1)?)),
-    )?;
+    let (losses, reservation_loss_floor, existing_reservation): (i64, i64, Option<i64>) = tx
+        .query_row(
+            "SELECT losses,reservation_loss_floor,reserved_until_ms
+           FROM _snapback_promotion_admission WHERE ticket_id = ?1",
+            params![ticket.ticket_identity.key.operation_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
     if let Some(until) = existing_reservation
         .map(|until| until.min(ticket.expires_at_ms))
         .filter(|until| *until > now_ms)
@@ -4111,16 +4247,21 @@ pub fn request_head_reservation(
         tx.commit()?;
         return Ok(until);
     }
-    if (losses.max(0) as u64) < ticket.contention_policy.reservation_after_losses {
+    let new_losses = (losses.max(0) as u64).saturating_sub(reservation_loss_floor.max(0) as u64);
+    if new_losses < ticket.contention_policy.reservation_after_losses {
         return Err(error(
             "SNAPBACK_PROMOTION_RESERVATION_NOT_ELIGIBLE",
-            "ticket has not reached the declared consecutive-loss threshold",
+            "ticket has not reached the declared new-loss threshold since its prior reservation",
         ));
     }
-    if matches!(
-        canonical_mutation_admission_if_present(&tx, &ticket.canonical_stream_id, now_ms)?,
-        CanonicalAdmissionV1::DeferredByPromotionReservation { .. }
-    ) {
+    let active_reservations: i64 = tx.query_row(
+        "SELECT COUNT(*) FROM _snapback_promotion_admission
+          WHERE canonical_stream_id = ?1 AND state = 'queued'
+            AND reserved_until_ms > ?2",
+        params![ticket.canonical_stream_id, now_ms],
+        |row| row.get(0),
+    )?;
+    if active_reservations.max(0) as u64 >= ticket.contention_policy.reservation_quota {
         return Err(error(
             "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED",
             "bounded head-reservation quota is exhausted",
@@ -4130,7 +4271,8 @@ pub fn request_head_reservation(
         .saturating_add(ticket.contention_policy.reservation_interval_ms as i64)
         .min(ticket.expires_at_ms);
     let changed = tx.execute(
-        "UPDATE _snapback_promotion_admission SET reserved_until_ms = ?2
+        "UPDATE _snapback_promotion_admission
+            SET reserved_until_ms = ?2, reservation_loss_floor = losses
           WHERE ticket_id = ?1 AND state = 'queued'",
         params![ticket.ticket_identity.key.operation_id, until],
     )?;
@@ -4791,13 +4933,9 @@ mod tests {
         insert_envelope(&canonical);
         let exact_expiry = request.created_at_ms + request.limits.ttl_ms;
         assert_eq!(
-            reap_expired_managed_in_app_branches(
-                &mut canonical,
-                &canonical_path,
-                exact_expiry,
-            )
-            .expect("reap exact-expiry branch")
-            .len(),
+            reap_expired_managed_in_app_branches(&mut canonical, &canonical_path, exact_expiry,)
+                .expect("reap exact-expiry branch")
+                .len(),
             1
         );
         assert_eq!(
@@ -4833,20 +4971,15 @@ mod tests {
             upstream_identity: format!("upstream:{id}"),
             commit_ordinal: 0,
             authority_authenticator_digest: derive_branch_authority_fingerprint(
-                "agent-1",
-                "grant-1",
-                "app-1",
+                "agent-1", "grant-1", "app-1",
             )
             .expect("branch authority fingerprint"),
         };
         identity.bound_facts.principal_fingerprint =
             derive_branch_principal_fingerprint("agent-1").expect("principal fingerprint");
-        identity.bound_facts.authority_instance_id = derive_branch_authority_fingerprint(
-            "agent-1",
-            "grant-1",
-            "app-1",
-        )
-        .expect("branch authority fingerprint");
+        identity.bound_facts.authority_instance_id =
+            derive_branch_authority_fingerprint("agent-1", "grant-1", "app-1")
+                .expect("branch authority fingerprint");
         identity.bound_facts.input_fingerprint =
             derive_branch_input_fingerprint("widgets.rename", &canonical_arguments)
                 .expect("branch input fingerprint");
@@ -4975,6 +5108,269 @@ mod tests {
         .expect("execute");
         let diff = exact_fork_diff(&workspace, &request.branch_id, scan_widgets).expect("diff");
         (canonical, workspace, diff)
+    }
+
+    struct FairPromotionCandidate {
+        workspace: MaterializedBase,
+        diff: ForkDiffReceiptV1,
+        request: PromotionRequestV1,
+    }
+
+    fn fair_facts(name: &str) -> ApprovedOperationFactsV1 {
+        let mut result = facts(name);
+        result.read_facts = json!({});
+        result
+    }
+
+    fn make_fair_candidate(
+        canonical: &mut Connection,
+        key: &PromotionSealKey,
+        index: usize,
+        observed_forks: u64,
+        now_ms: i64,
+    ) -> FairPromotionCandidate {
+        let base_version = crate::storage::current_version_on(canonical).expect("candidate base");
+        let branch_id = format!("fair-branch-{index}");
+        let child_stream = format!("fair-child-{index}");
+        let name = format!("FAIR-{index}");
+        let mut create = create_request(&branch_id, &child_stream, base_version, now_ms);
+        create.limits.max_live_branches_per_principal = 64;
+        create.limits.max_live_branches_per_app = 64;
+        create_in_app_branch(canonical, &create).expect("fair branch");
+        let mut workspace = MaterializedBase::materialize(canonical, None).expect("fair workspace");
+        let mut operation = draft(&child_stream, &format!("fair-operation-{index}"));
+        operation.canonical_arguments["name"] = json!(name);
+        operation.read_baseline = json!({});
+        operation.identity.bound_facts.input_fingerprint =
+            derive_branch_input_fingerprint("widgets.rename", &operation.canonical_arguments)
+                .expect("fair input fingerprint");
+        execute_branch_operation(
+            &mut workspace.conn,
+            &create.branch_id,
+            &operation,
+            now_ms + 1,
+            |tx, draft| {
+                let name = draft.canonical_arguments["name"]
+                    .as_str()
+                    .expect("fair name");
+                tx.execute("UPDATE widgets SET name=?1 WHERE id=1", params![name])?;
+                Ok(fair_facts(name))
+            },
+        )
+        .expect("fair operation");
+        let diff = exact_fork_diff(&workspace, &create.branch_id, scan_widgets).expect("fair diff");
+        let ticket_identity = host_identity("canonical", &format!("fair-ticket-{index}"), "app-1");
+        let ticket = issue_promotion_ticket(
+            canonical,
+            ticket_identity.clone(),
+            &diff.branch_id,
+            "canonical",
+            observed_forks,
+            100_000,
+            now_ms + 2,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("fair ticket");
+        let request = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+                approved_at_ms: now_ms + 3,
+                expires_at_ms: 90_000,
+            },
+            ticket,
+            ticket_identity,
+            &sha('f'),
+            key,
+            now_ms + 3,
+        )
+        .expect("fair approval and seal");
+        FairPromotionCandidate {
+            workspace,
+            diff,
+            request,
+        }
+    }
+
+    fn rebase_fair_candidate(
+        canonical: &mut Connection,
+        key: &PromotionSealKey,
+        candidate: FairPromotionCandidate,
+        rebase_ordinal: usize,
+        now_ms: i64,
+    ) -> FairPromotionCandidate {
+        let base_version = crate::storage::current_version_on(canonical).expect("rebase head");
+        let mut create = create_request(
+            &format!("{}-rebase-{rebase_ordinal}", candidate.request.branch_id.0),
+            &format!(
+                "{}-rebase-{rebase_ordinal}",
+                candidate.request.child_stream_id.0
+            ),
+            base_version,
+            now_ms,
+        );
+        create.limits.max_live_branches_per_principal = 64;
+        create.limits.max_live_branches_per_app = 64;
+        let (workspace, replay) = rebase_by_replay(
+            canonical,
+            &candidate.workspace,
+            &candidate.request.branch_id,
+            &create,
+            now_ms + 1,
+            |tx, operation| {
+                let name = operation.canonical_arguments["name"]
+                    .as_str()
+                    .expect("rebase name");
+                tx.execute("UPDATE widgets SET name=?1 WHERE id=1", params![name])?;
+                Ok(operation.approved_facts.clone())
+            },
+        )
+        .expect("fair rebase");
+        assert!(replay.meaning_preserved);
+        let diff = exact_fork_diff(&workspace, &create.branch_id, scan_widgets)
+            .expect("rebased fair diff");
+        let request = reseal_after_rebase(
+            &candidate.request,
+            &workspace,
+            &diff,
+            "fairness-engine-v1",
+            &sha('f'),
+            key,
+            now_ms + 2,
+        )
+        .expect("inherited ticket and approval reseal");
+        FairPromotionCandidate {
+            workspace,
+            diff,
+            request,
+        }
+    }
+
+    fn ordinary_canonical_write(
+        canonical_path: &Path,
+        row_id: i64,
+        now_ms: i64,
+    ) -> SnapbackResult<()> {
+        let mut conn = Connection::open(canonical_path)?;
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        enforce_canonical_mutation_admission_in(&tx, "canonical", now_ms)?;
+        let head = crate::storage::current_version_on(&tx)?;
+        let version = crate::storage::next_storage_version(head)?;
+        let name = format!("ordinary-{row_id}");
+        let row_json =
+            serde_json::to_string(&json!({ "id": row_id, "name": name })).map_err(|cause| {
+                error(
+                    "SNAPBACK_BRANCH_ARTIFACT_INVALID",
+                    format!("encode ordinary-writer journal row: {cause}"),
+                )
+            })?;
+        tx.execute(
+            "INSERT INTO widgets(id,name) VALUES(?1,?2)",
+            params![row_id, name],
+        )?;
+        tx.execute(
+            "INSERT INTO _snapback_changes(version,table_name,row_id,op,row_json,changed_at_ms)
+             VALUES(?1,'widgets',?2,'insert',?3,?4)",
+            params![version as i64, row_id.to_string(), row_json, now_ms,],
+        )?;
+        crate::storage::set_promotion_version(&tx, version)?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    fn concurrent_fairness_cycle(
+        canonical_path: &Path,
+        key: &PromotionSealKey,
+        candidates: Vec<FairPromotionCandidate>,
+        cycle: usize,
+        now_ms: i64,
+    ) -> (
+        Vec<FairPromotionCandidate>,
+        Vec<PromotionResultV1>,
+        Vec<String>,
+    ) {
+        let candidate_count = candidates.len();
+        let start = std::sync::Arc::new(std::sync::Barrier::new(candidate_count + 1));
+        let (writer_a_start, writer_a_ready) = std::sync::mpsc::channel();
+        let (writer_b_start, writer_b_ready) = std::sync::mpsc::channel();
+        let writer_path_a = canonical_path.to_path_buf();
+        let writer_path_b = canonical_path.to_path_buf();
+        let writer_a = std::thread::spawn(move || {
+            writer_a_ready
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .expect("promotion reached transactional replay for writer A");
+            ordinary_canonical_write(&writer_path_a, 10_000 + (cycle as i64 * 2), now_ms + 1)
+        });
+        let writer_b = std::thread::spawn(move || {
+            writer_b_ready
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .expect("promotion reached transactional replay for writer B");
+            ordinary_canonical_write(&writer_path_b, 10_001 + (cycle as i64 * 2), now_ms + 1)
+        });
+        let threads = candidates
+            .into_iter()
+            .map(|candidate| {
+                let start = start.clone();
+                let path = canonical_path.to_path_buf();
+                let key = key.clone();
+                let writer_a_start = writer_a_start.clone();
+                let writer_b_start = writer_b_start.clone();
+                std::thread::spawn(move || {
+                    let mut conn = Connection::open(path).expect("promotion connection");
+                    conn.busy_timeout(std::time::Duration::from_secs(5))
+                        .expect("promotion busy timeout");
+                    start.wait();
+                    let result = promote_by_reexecution(
+                        &mut conn,
+                        &candidate.workspace,
+                        &candidate.diff,
+                        &candidate.request,
+                        &key,
+                        &PromotionAuthorityDecisionV1::Revalidated {
+                            grant_id: "grant-1".to_owned(),
+                            authority_fingerprint: sha('d'),
+                        },
+                        now_ms,
+                        &sha('f'),
+                        |_, operation| {
+                            writer_a_start.send(()).expect("start ordinary writer A");
+                            writer_b_start.send(()).expect("start ordinary writer B");
+                            std::thread::sleep(std::time::Duration::from_millis(20));
+                            Ok(operation.approved_facts.clone())
+                        },
+                    );
+                    (candidate, result)
+                })
+            })
+            .collect::<Vec<_>>();
+        start.wait();
+        let mut pending = Vec::new();
+        let mut committed = Vec::new();
+        let mut refusals = Vec::new();
+        for thread in threads {
+            let (candidate, result) = thread.join().expect("promotion contender");
+            match result {
+                Ok(result) => committed.push(result),
+                Err(error) => {
+                    refusals.push(error.diagnostic.code.to_owned());
+                    pending.push(candidate);
+                }
+            }
+        }
+        writer_a
+            .join()
+            .expect("ordinary writer A")
+            .expect("ordinary writer A commits through production gate");
+        writer_b
+            .join()
+            .expect("ordinary writer B")
+            .expect("ordinary writer B commits through production gate");
+        pending.sort_by_key(|candidate| candidate.request.admission_ticket.fifo_sequence);
+        (pending, committed, refusals)
     }
 
     #[test]
@@ -6336,6 +6732,502 @@ mod tests {
                 .expect("bounded interval expires after reopen"),
             CanonicalAdmissionV1::Admit
         );
+    }
+
+    #[test]
+    fn concurrent_ticket_issuance_serializes_into_one_durable_fifo() {
+        const FORKS: usize = 4;
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("canonical.sqlite3");
+        let canonical = file_source(&canonical_path, 1);
+        ensure_promotion_tables(&canonical).expect("promotion tables before concurrent issue");
+        drop(canonical);
+
+        let gate = std::sync::Arc::new(std::sync::Barrier::new(FORKS + 1));
+        let threads = (0..FORKS)
+            .map(|index| {
+                let gate = gate.clone();
+                let path = canonical_path.clone();
+                std::thread::spawn(move || {
+                    let mut conn = Connection::open(path).expect("ticket issuer connection");
+                    conn.busy_timeout(std::time::Duration::from_secs(5))
+                        .expect("ticket issuer busy timeout");
+                    let identity =
+                        host_identity("canonical", &format!("concurrent-ticket-{index}"), "app-1");
+                    let branch_id = BranchId(format!("concurrent-branch-{index}"));
+                    gate.wait();
+                    issue_promotion_ticket(
+                        &mut conn,
+                        identity,
+                        &branch_id,
+                        "canonical",
+                        FORKS as u64,
+                        60_000,
+                        2_000,
+                        PromotionContentionPolicyV1::default(),
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+        gate.wait();
+        let mut tickets = threads
+            .into_iter()
+            .map(|thread| {
+                thread
+                    .join()
+                    .expect("ticket issuer")
+                    .expect("durable ticket")
+            })
+            .collect::<Vec<_>>();
+        tickets.sort_by_key(|ticket| ticket.fifo_sequence);
+        assert_eq!(
+            tickets
+                .iter()
+                .map(|ticket| ticket.fifo_sequence)
+                .collect::<Vec<_>>(),
+            vec![1, 2, 3, 4]
+        );
+        assert!(tickets.iter().all(|ticket| {
+            ticket.initial_queue_position == ticket.fifo_sequence
+                && ticket.observed_concurrent_forks == FORKS as u64
+                && ticket.rebase_budget >= FORKS as u64
+        }));
+
+        let reopened = Connection::open(&canonical_path).expect("reopen issued FIFO");
+        assert_eq!(
+            reopened
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_promotion_admission
+                      WHERE canonical_stream_id='canonical' AND state='queued'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .expect("durable queue count"),
+            FORKS as i64
+        );
+        assert_eq!(
+            active_fifo_ticket(&reopened, "canonical", 2_001).expect("FIFO head"),
+            Some(tickets[0].ticket_identity.key.operation_id.clone())
+        );
+    }
+
+    #[test]
+    fn expired_reservation_needs_fresh_losses_before_the_ticket_can_defer_again() {
+        let mut canonical = source(1);
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            host_identity("canonical", "reservation-loss-floor", "app-1"),
+            &BranchId("reservation-loss-floor".to_owned()),
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("ticket");
+        for _ in 0..PRODUCTION_PROMOTION_CONTENTION_POLICY_V1.reservation_after_losses {
+            note_ticket_loss(&canonical, &ticket).expect("first loss group");
+        }
+        assert_eq!(
+            request_head_reservation(&canonical, &ticket, 3_000).expect("first reservation"),
+            4_000
+        );
+        assert_eq!(
+            request_head_reservation(&canonical, &ticket, 4_000)
+                .expect_err("expiry alone cannot mint another deferral")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROMOTION_RESERVATION_NOT_ELIGIBLE"
+        );
+        for _ in 0..PRODUCTION_PROMOTION_CONTENTION_POLICY_V1.reservation_after_losses {
+            note_ticket_loss(&canonical, &ticket).expect("fresh loss group");
+        }
+        assert_eq!(
+            request_head_reservation(&canonical, &ticket, 4_000)
+                .expect("fresh losses restore bounded eligibility"),
+            5_000
+        );
+    }
+
+    #[test]
+    fn promotion_crash_reopen_matrix_retains_admission_then_replays_committed_release() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("canonical.sqlite3");
+        let mut canonical = file_source(&canonical_path, 5);
+        let create = create_request("crash-matrix", "crash-matrix-child", 5, 1_000);
+        create_in_app_branch(&mut canonical, &create).expect("branch");
+        let mut workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        execute_branch_operation(
+            &mut workspace.conn,
+            &create.branch_id,
+            &draft("crash-matrix-child", "crash-matrix-operation"),
+            1_001,
+            |tx, _| {
+                tx.execute(
+                    "UPDATE widgets SET name='CRASHED-THEN-COMMITTED' WHERE id=1",
+                    [],
+                )?;
+                Ok(facts("CRASHED-THEN-COMMITTED"))
+            },
+        )
+        .expect("branch operation");
+        let diff = exact_fork_diff(&workspace, &create.branch_id, scan_widgets).expect("diff");
+        let key = PromotionSealKey::from_server_secret([19_u8; 32]).expect("key");
+        let ticket_identity = host_identity("canonical", "crash-matrix-ticket", "app-1");
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            ticket_identity.clone(),
+            &diff.branch_id,
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("ticket");
+        let request = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+                approved_at_ms: 2_001,
+                expires_at_ms: 50_000,
+            },
+            ticket.clone(),
+            ticket_identity,
+            &sha('f'),
+            &key,
+            2_001,
+        )
+        .expect("seal");
+        for _ in 0..PRODUCTION_PROMOTION_CONTENTION_POLICY_V1.reservation_after_losses {
+            note_ticket_loss(&canonical, &ticket).expect("eligible loss");
+        }
+        assert_eq!(
+            request_head_reservation(&canonical, &ticket, 3_000).expect("reservation cut"),
+            4_000
+        );
+        drop(canonical);
+
+        let mut admitted = Connection::open(&canonical_path).expect("reopen reservation cut");
+        admitted
+            .busy_timeout(std::time::Duration::from_secs(5))
+            .expect("busy timeout");
+        assert_eq!(
+            canonical_mutation_admission(&admitted, "canonical", 3_001)
+                .expect("durable reservation"),
+            CanonicalAdmissionV1::DeferredByPromotionReservation { until_ms: 4_000 }
+        );
+        let crashed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = promote_by_reexecution(
+                &mut admitted,
+                &workspace,
+                &diff,
+                &request,
+                &key,
+                &PromotionAuthorityDecisionV1::Revalidated {
+                    grant_id: "grant-1".to_owned(),
+                    authority_fingerprint: sha('d'),
+                },
+                3_001,
+                &sha('f'),
+                |_, _| panic!("simulated process death after promotion admission"),
+            );
+        }));
+        assert!(crashed.is_err());
+        drop(admitted);
+
+        let mut reopened = Connection::open(&canonical_path).expect("reopen admission cut");
+        assert_eq!(
+            crate::storage::current_version_on(&reopened).expect("head after admission crash"),
+            5
+        );
+        assert_eq!(
+            reopened
+                .query_row(
+                    "SELECT state FROM _snapback_promotion_admission WHERE ticket_id=?1",
+                    params![request.aggregate_identity.key.operation_id],
+                    |row| row.get::<_, String>(0),
+                )
+                .expect("queued ticket after admission crash"),
+            "queued"
+        );
+        let committed = promote_by_reexecution(
+            &mut reopened,
+            &workspace,
+            &diff,
+            &request,
+            &key,
+            &PromotionAuthorityDecisionV1::Revalidated {
+                grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+            },
+            3_002,
+            &sha('f'),
+            |_, operation| Ok(operation.approved_facts.clone()),
+        )
+        .expect("retry after admission crash commits once");
+        assert_eq!(committed.receipt.canonical_version, 6);
+        drop(reopened);
+
+        // Model process death after SQLite commit but before the response was
+        // observed. The exact request reopens from its atomic receipt and the
+        // completed queue row releases ordinary writers in the same commit.
+        let mut released = Connection::open(&canonical_path).expect("reopen commit cut");
+        let retry = promote_by_reexecution(
+            &mut released,
+            &workspace,
+            &diff,
+            &request,
+            &key,
+            &PromotionAuthorityDecisionV1::Denied,
+            3_003,
+            &sha('f'),
+            |_, _| panic!("committed retry must not reexecute"),
+        )
+        .expect("committed receipt retry");
+        assert_eq!(retry, committed);
+        assert_eq!(
+            canonical_mutation_admission(&released, "canonical", 3_003)
+                .expect("completed promotion releases writer admission"),
+            CanonicalAdmissionV1::Admit
+        );
+        assert_eq!(
+            released
+                .query_row(
+                    "SELECT state FROM _snapback_promotion_admission WHERE ticket_id=?1",
+                    params![request.aggregate_identity.key.operation_id],
+                    |row| row.get::<_, String>(0),
+                )
+                .expect("completed queue state"),
+            "completed"
+        );
+    }
+
+    #[test]
+    fn reservation_expiry_mid_attempt_rolls_back_and_retains_the_fifo_ticket() {
+        let (mut canonical, workspace, diff) = branch_with_rename();
+        let key = PromotionSealKey::from_server_secret([20_u8; 32]).expect("key");
+        let ticket_identity = host_identity("canonical", "reservation-expiry", "app-1");
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            ticket_identity.clone(),
+            &diff.branch_id,
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("ticket");
+        let request = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+                approved_at_ms: 2_001,
+                expires_at_ms: 50_000,
+            },
+            ticket.clone(),
+            ticket_identity,
+            &sha('f'),
+            &key,
+            2_001,
+        )
+        .expect("seal");
+        for _ in 0..PRODUCTION_PROMOTION_CONTENTION_POLICY_V1.reservation_after_losses {
+            note_ticket_loss(&canonical, &ticket).expect("eligible loss");
+        }
+        assert_eq!(
+            request_head_reservation(&canonical, &ticket, 3_000).expect("reservation"),
+            4_000
+        );
+        let before = scan_widgets(&canonical).expect("before");
+        assert_eq!(
+            promote_by_reexecution(
+                &mut canonical,
+                &workspace,
+                &diff,
+                &request,
+                &key,
+                &PromotionAuthorityDecisionV1::Revalidated {
+                    grant_id: "grant-1".to_owned(),
+                    authority_fingerprint: sha('d'),
+                },
+                3_999,
+                &sha('f'),
+                |_, operation| {
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                    Ok(operation.approved_facts.clone())
+                },
+            )
+            .expect_err("reservation expires before commit")
+            .diagnostic
+            .code,
+            "SNAPBACK_PROMOTION_RESERVATION_EXPIRED"
+        );
+        assert_eq!(scan_widgets(&canonical).expect("after rollback"), before);
+        assert_eq!(
+            crate::storage::current_version_on(&canonical).expect("head after rollback"),
+            5
+        );
+        assert_eq!(
+            promotion_admission_state(&canonical, &ticket)
+                .expect("retained queued ticket")
+                .losses,
+            2
+        );
+    }
+
+    fn assert_concurrent_reviewed_forks_make_bounded_fifo_progress(forks: usize) {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("canonical.sqlite3");
+        let mut canonical = file_source(&canonical_path, 5);
+        let key = PromotionSealKey::from_server_secret([21_u8; 32]).expect("key");
+        let mut pending = (0..forks)
+            .map(|index| make_fair_candidate(&mut canonical, &key, index, forks as u64, 1_000))
+            .collect::<Vec<_>>();
+        assert!(pending.windows(2).all(|pair| {
+            pair[0].request.admission_ticket.fifo_sequence
+                < pair[1].request.admission_ticket.fifo_sequence
+        }));
+        assert!(pending.iter().all(|candidate| {
+            candidate.request.approval.approved_at_ms > 0
+                && candidate.request.admission_ticket.rebase_budget >= forks as u64
+        }));
+        drop(canonical);
+
+        let mut completed_fifo = Vec::new();
+        let mut rebase_ordinal = 0;
+        let mut cycle = 0;
+        while !pending.is_empty() {
+            let expected_head_fifo = pending[0].request.admission_ticket.fifo_sequence;
+            if cycle > 0 {
+                let mut conn = Connection::open(&canonical_path).expect("loss-loop connection");
+                let ticket = pending[0].request.admission_ticket.clone();
+                loop {
+                    let state = promotion_admission_state(&conn, &ticket).expect("loss state");
+                    if state.losses >= ticket.contention_policy.reservation_after_losses {
+                        break;
+                    }
+                    let candidate = pending.remove(0);
+                    rebase_ordinal += 1;
+                    let candidate = rebase_fair_candidate(
+                        &mut conn,
+                        &key,
+                        candidate,
+                        rebase_ordinal,
+                        4_000 + rebase_ordinal as i64 * 10,
+                    );
+                    ordinary_canonical_write(
+                        &canonical_path,
+                        20_000 + rebase_ordinal as i64,
+                        4_005 + rebase_ordinal as i64 * 10,
+                    )
+                    .expect("ordinary writer wins one declared loss cycle");
+                    let refusal = promote_by_reexecution(
+                        &mut conn,
+                        &candidate.workspace,
+                        &candidate.diff,
+                        &candidate.request,
+                        &key,
+                        &PromotionAuthorityDecisionV1::Revalidated {
+                            grant_id: "grant-1".to_owned(),
+                            authority_fingerprint: sha('d'),
+                        },
+                        4_006 + rebase_ordinal as i64 * 10,
+                        &sha('f'),
+                        |_, _| panic!("advanced-head loss refuses before replay"),
+                    )
+                    .expect_err("ordinary head advance is one deterministic loss");
+                    assert_eq!(refusal.diagnostic.code, "SNAPBACK_PROMOTION_BASE_ADVANCED");
+                    pending.insert(0, candidate);
+                }
+                let candidate = pending.remove(0);
+                rebase_ordinal += 1;
+                let candidate = rebase_fair_candidate(
+                    &mut conn,
+                    &key,
+                    candidate,
+                    rebase_ordinal,
+                    5_000 + rebase_ordinal as i64 * 10,
+                );
+                pending.insert(0, candidate);
+            }
+
+            let (next_pending, committed, refusals) = concurrent_fairness_cycle(
+                &canonical_path,
+                &key,
+                pending,
+                cycle,
+                6_000 + cycle as i64 * 100,
+            );
+            assert_eq!(
+                committed.len(),
+                1,
+                "one and only one reviewed fork commits in each admission cycle"
+            );
+            assert_eq!(
+                committed[0].receipt.aggregate_identity.key.operation_id,
+                committed[0].aggregate_envelope.identity.key.operation_id
+            );
+            assert!(refusals.iter().all(|code| {
+                code == "SNAPBACK_PROMOTION_NOT_FIFO_HEAD"
+                    || code == "SNAPBACK_PROMOTION_BASE_ADVANCED"
+            }));
+            completed_fifo.push(expected_head_fifo);
+
+            let reopened = Connection::open(&canonical_path).expect("cycle reopen");
+            let (state, reservation_loss_floor): (String, i64) = reopened
+                .query_row(
+                    "SELECT state,reservation_loss_floor
+                       FROM _snapback_promotion_admission WHERE fifo_sequence=?1",
+                    params![expected_head_fifo as i64],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .expect("completed cycle admission row");
+            assert_eq!(state, "completed");
+            if cycle > 0 {
+                assert!(
+                    reservation_loss_floor >= 2,
+                    "the FIFO head automatically consumed its bounded reservation after R losses"
+                );
+            }
+            pending = next_pending;
+            cycle += 1;
+            assert!(
+                cycle <= forks,
+                "all-k progress is bounded by k success cycles"
+            );
+        }
+        assert_eq!(completed_fifo, (1..=forks as u64).collect::<Vec<_>>());
+        let reopened = Connection::open(&canonical_path).expect("final reopen");
+        assert_eq!(
+            reopened
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_promotion_admission WHERE state='completed'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .expect("completed queue"),
+            forks as i64
+        );
+        assert_eq!(
+            canonical_mutation_admission(&reopened, "canonical", 99_999)
+                .expect("all completed tickets release ordinary writers"),
+            CanonicalAdmissionV1::Admit
+        );
+    }
+
+    #[test]
+    fn concurrent_reviewed_forks_make_bounded_fifo_progress_with_ordinary_writers() {
+        for forks in 2..=4 {
+            assert_concurrent_reviewed_forks_make_bounded_fifo_progress(forks);
+        }
     }
 
     #[test]
