@@ -1866,6 +1866,9 @@ fn scan_promotion_table(
             value,
         });
     }
+    rows.sort_by(|left, right| {
+        (&left.qualified_table, &left.row_id).cmp(&(&right.qualified_table, &right.row_id))
+    });
     Ok(rows)
 }
 
@@ -2998,6 +3001,20 @@ mod tests {
         .expect("host epoch");
         tx.commit().expect("commit host authority");
         conn
+    }
+
+    #[test]
+    fn promotion_scanner_orders_serialized_integer_row_ids_canonically() {
+        let conn = source(5);
+        conn.execute("INSERT INTO widgets(id, name) VALUES (10, 'ten')", [])
+            .expect("multi-digit row");
+        let table = promotion_table(&conn, "widgets").expect("promotion table");
+        let rows = scan_promotion_table(&conn, &table).expect("promotion rows");
+        let row_ids = rows
+            .iter()
+            .map(|row| row.row_id.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(row_ids, ["1", "10", "2"]);
     }
 
     fn host_identity(stream: &str, id: &str, audience: &str) -> OperationIdentityV1 {

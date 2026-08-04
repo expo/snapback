@@ -168,7 +168,7 @@ fn run_once(seed: u64) -> anyhow::Result<Run> {
     let mut canonical = source()?;
     let create = create_request(seed, 9, 9, now);
     let started = Instant::now();
-    create_in_app_branch(&mut canonical, &create)?;
+    create_in_app_branch(&mut canonical, &create).context("create benchmark branch")?;
     let mut workspace = MaterializedBase::materialize(&canonical, None)?;
     let fork_creation_us = micros(started);
 
@@ -179,9 +179,11 @@ fn run_once(seed: u64) -> anyhow::Result<Run> {
         &operation,
         now + 1,
         rename,
-    )?;
+    )
+    .context("execute benchmark branch operation")?;
     let started = Instant::now();
-    let diff = exact_fork_diff(&workspace, &create.branch_id, scan_widgets)?;
+    let diff = exact_fork_diff(&workspace, &create.branch_id, scan_widgets)
+        .context("compute benchmark fork diff")?;
     let exact_diff_us = micros(started);
 
     let aggregate = identity("canonical", &format!("promotion-{seed}"), "widgets.rename");
@@ -199,7 +201,8 @@ fn run_once(seed: u64) -> anyhow::Result<Run> {
             reservation_quota: 1,
             maximum_commit_duration_ms: 500,
         },
-    )?;
+    )
+    .context("issue benchmark promotion ticket")?;
     let key = PromotionSealKey::from_server_secret([0x42; 32])?;
     let request = seal_promotion_request(
         &workspace,
@@ -216,7 +219,8 @@ fn run_once(seed: u64) -> anyhow::Result<Run> {
         &sha('f'),
         &key,
         now + 3,
-    )?;
+    )
+    .context("seal benchmark promotion request")?;
     let started = Instant::now();
     promote_by_reexecution(
         &mut canonical,
@@ -231,13 +235,14 @@ fn run_once(seed: u64) -> anyhow::Result<Run> {
         now + 4,
         &sha('f'),
         rename_replay,
-    )?;
+    )
+    .context("promote benchmark branch")?;
     let promotion_us = micros(started);
 
     let reap = create_request(seed, 10, 10, now);
-    create_in_app_branch(&mut canonical, &reap)?;
+    create_in_app_branch(&mut canonical, &reap).context("create benchmark reap branch")?;
     let started = Instant::now();
-    reap_expired_in_app_branches(&mut canonical, now + 30_000)?;
+    reap_expired_in_app_branches(&mut canonical, now + 30_000).context("reap benchmark branch")?;
     let ttl_reap_us = micros(started);
 
     Ok(Run {
@@ -431,7 +436,7 @@ fn rename_replay(
 }
 
 fn scan_widgets(conn: &Connection) -> SnapbackResult<Vec<SnapshotRowV1>> {
-    let mut statement = conn.prepare("SELECT id, name FROM widgets ORDER BY id")?;
+    let mut statement = conn.prepare("SELECT id, name FROM widgets")?;
     let rows = statement.query_map([], |row| {
         let id = row.get::<_, i64>(0)?;
         let name = row.get::<_, String>(1)?;
@@ -441,7 +446,11 @@ fn scan_widgets(conn: &Connection) -> SnapbackResult<Vec<SnapshotRowV1>> {
             row: json!({ "id": id, "name": name }),
         })
     })?;
-    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+    let mut rows = rows.collect::<rusqlite::Result<Vec<_>>>()?;
+    rows.sort_by(|left, right| {
+        (&left.table_name, &left.row_id).cmp(&(&right.table_name, &right.row_id))
+    });
+    Ok(rows)
 }
 
 fn summarize(runs: &[Run]) -> BTreeMap<&'static str, Statistics> {
