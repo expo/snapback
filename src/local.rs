@@ -4107,6 +4107,19 @@ impl LocalSnapback {
         &mut self.db
     }
 
+    /// Product ingress for the authority-bound protected-record erasure
+    /// command. The storage transaction owns the canonical tombstone and
+    /// checkpoint obligations; an empty post-commit frame deliberately forces
+    /// every connected live query to re-read the canonical state.
+    pub(crate) fn erase_protected_record(
+        &mut self,
+        request: &crate::proof_checkpoint::ProtectedRecordErasureRequestV1,
+    ) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordErasureReceiptV1> {
+        let receipt = self.db.erase_protected_record(request)?;
+        self.notify_live_subscriptions(&[]);
+        Ok(receipt)
+    }
+
     pub(crate) fn is_derived_fork(&self) -> bool {
         self.db.derived_fork().is_some()
     }

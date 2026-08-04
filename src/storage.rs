@@ -3092,6 +3092,21 @@ impl LocalDatabase {
         crate::proof_checkpoint::erase_checkpoint(&self.conn, checkpoint_id, now_ms)
     }
 
+    /// Deliberate authenticated protected-record erasure command. This is not
+    /// an alias for `BufferedWrite::Delete`: the unforgeable authority carrier
+    /// and retry-bound operation identity let the proof/checkpoint subsystem
+    /// atomically own canonical deletion, retained-detail erasure, registry
+    /// invalidation, and resumable physical-copy obligations.
+    ///
+    /// @ref LLP 0165#protected-deletion-authority-audit--2026-08-04 — one
+    /// product command owns the complete protected-erasure boundary.
+    pub(crate) fn erase_protected_record(
+        &self,
+        request: &crate::proof_checkpoint::ProtectedRecordErasureRequestV1,
+    ) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordErasureReceiptV1> {
+        crate::proof_checkpoint::erase_protected_record(&self.conn, &self.schema, request)
+    }
+
     /// Invalidate and destroy every registered materialized checkpoint copy
     /// that could retain a protected record. Retrying `operation_id` resumes
     /// explicit unreachable/crash obligations instead of re-enumerating a

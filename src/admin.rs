@@ -2988,6 +2988,66 @@ pub(crate) fn authorize_for_mode(
     authorize_admin_access(ctx, headers, write, mode)
 }
 
+/// Bearer-free identity of the concrete credential that satisfied this
+/// protected-erasure AdminWrite request. The raw token never leaves this
+/// resolver and cannot enter a receipt or diagnostic.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ProtectedErasureAdminCredentialBinding {
+    credential_class: &'static str,
+    credential_digest_sha256: String,
+}
+
+impl ProtectedErasureAdminCredentialBinding {
+    pub(crate) fn credential_class(&self) -> &'static str {
+        self.credential_class
+    }
+
+    pub(crate) fn credential_digest_sha256(&self) -> &str {
+        &self.credential_digest_sha256
+    }
+
+    #[cfg(test)]
+    pub(crate) fn for_test(credential_class: &'static str, credential: &str) -> Self {
+        Self {
+            credential_class,
+            credential_digest_sha256: encode_console_credential_digest(&console_credential_digest(
+                credential,
+            )),
+        }
+    }
+}
+
+pub(crate) fn resolve_protected_erasure_admin_credential(
+    ctx: &ServerContext,
+    headers: &HeaderMap,
+    mode: PolicyAuthMode,
+) -> Result<ProtectedErasureAdminCredentialBinding, ApiError> {
+    authorize_for_mode(ctx, headers, true, mode)?;
+    if let Some(credential) = provided_console_credential(headers)
+        && ctx.console_credentials.allows(Some(credential))
+    {
+        return Ok(ProtectedErasureAdminCredentialBinding {
+            credential_class: "console",
+            credential_digest_sha256: encode_console_credential_digest(&console_credential_digest(
+                credential,
+            )),
+        });
+    }
+    let credential = provided_token(headers, mode == PolicyAuthMode::Dev).ok_or_else(|| {
+        ApiError::from(SnapbackError::error(
+            "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
+            "admin",
+            "protected-record erasure requires a concrete validated admin credential",
+        ))
+    })?;
+    Ok(ProtectedErasureAdminCredentialBinding {
+        credential_class: "master-admin",
+        credential_digest_sha256: encode_console_credential_digest(&console_credential_digest(
+            &credential,
+        )),
+    })
+}
+
 fn authorize_admin_access(
     ctx: &ServerContext,
     headers: &HeaderMap,
@@ -3273,6 +3333,17 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             )
             .with_session_overlay(SessionModeOverlay::secret_read()),
             get(admin_data),
+        ),
+        // @ref LLP 0165#protected-deletion-authority-audit--2026-08-04 —
+        // authority is derived from the registered AdminWrite invocation;
+        // the body carries only retry identity and the exact row target.
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/storage/protected-erasure",
+                ResponseSensitivity::SensitiveApplicationData,
+            ),
+            post(admin_protected_record_erasure),
         ),
         // The route has an AdminRead floor. Query versus mutation/action is an
         // operation-level split retained by the handler and operation registry.
@@ -4226,6 +4297,51 @@ async fn admin_data(
     Ok(Json(scan))
 }
 
+async fn admin_protected_record_erasure(
+    State(state): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    Json(wire): Json<crate::proof_checkpoint::ProtectedRecordErasureWireRequestV1>,
+) -> Result<Json<crate::proof_checkpoint::ProtectedRecordErasureReceiptV1>, ApiError> {
+    let snapback = state.snapback.clone();
+    let ctx = state.server.clone();
+    let mode = state.active_policy_auth_mode();
+    let receipt = crate::server::with_snapback(&snapback, move |snapback| {
+        // Re-resolve the exact concrete credential after the await and inside
+        // the synchronous database window; console expiry/revocation cannot
+        // ride an earlier middleware success into this mutation.
+        let credential = resolve_protected_erasure_admin_credential(&ctx, &headers, mode)?;
+        let internal_authority =
+            crate::proof_checkpoint::ProtectedRecordErasureAuthorityV1::from_prepared(
+                &authority,
+                &credential,
+            )?;
+        let now_ms = now_millis();
+        let request = crate::proof_checkpoint::ProtectedRecordErasureRequestV1 {
+            operation_id: wire.operation_id,
+            authority: internal_authority,
+            qualified_table: wire.qualified_table,
+            row_id: wire.row_id,
+            now_ms,
+        };
+        authority
+            .try_fenced_publication(now_ms, Instant::now(), || {
+                let _mode_publication =
+                    authority.effect_guard("protected-record erasure canonical publication")?;
+                snapback.erase_protected_record(&request)
+            })?
+            .ok_or_else(|| {
+                ApiError::from(SnapbackError::error(
+                    "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
+                    "admin",
+                    "protected-record erasure authority was revoked before publication",
+                ))
+            })
+    })
+    .await?;
+    Ok(Json(receipt))
+}
+
 async fn admin_run_function(
     State(state): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
@@ -4506,6 +4622,207 @@ fn now_millis() -> u64 {
 mod tests {
     use super::*;
     use std::collections::BTreeMap;
+
+    #[test]
+    fn protected_erasure_route_is_admin_write_and_revalidates_concrete_credential() {
+        let route = crate::server::route_registry()
+            .into_iter()
+            .find(|route| route.path == "/_snapback/api/storage/protected-erasure")
+            .expect("registered protected-erasure route");
+        assert_eq!(route.path_policy, RoutePolicy::AdminWrite);
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::AdminCredential
+        );
+        assert_eq!(route.invocation_authority, InvocationAuthority::Operator);
+
+        let context = ServerContext::detached();
+        let first = context
+            .console_credentials
+            .mint_at(now_millis())
+            .expect("mint first console credential");
+        let second = context
+            .console_credentials
+            .mint_at(now_millis())
+            .expect("mint second console credential");
+        let headers_for = |credential: &str| {
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                "x-snapback-console-credential",
+                credential.parse().expect("credential header"),
+            );
+            headers
+        };
+        let first_headers = headers_for(&first.credential);
+        let second_headers = headers_for(&second.credential);
+        let first_binding = resolve_protected_erasure_admin_credential(
+            &context,
+            &first_headers,
+            PolicyAuthMode::Dev,
+        )
+        .expect("resolve first validated credential");
+        let second_binding = resolve_protected_erasure_admin_credential(
+            &context,
+            &second_headers,
+            PolicyAuthMode::Dev,
+        )
+        .expect("resolve second validated credential");
+        assert_eq!(first_binding.credential_class(), "console");
+        assert_ne!(
+            first_binding.credential_digest_sha256(),
+            second_binding.credential_digest_sha256()
+        );
+        assert!(
+            !first_binding
+                .credential_digest_sha256()
+                .contains(&first.credential)
+        );
+
+        assert!(
+            authorize_for_mode(&context, &first_headers, true, PolicyAuthMode::Dev).is_ok(),
+            "middleware-time validation initially succeeds"
+        );
+        context
+            .console_credentials
+            .state
+            .lock()
+            .unwrap_or_else(|lock| lock.into_inner())
+            .entries
+            .remove(&console_credential_digest(&first.credential));
+        assert!(
+            resolve_protected_erasure_admin_credential(
+                &context,
+                &first_headers,
+                PolicyAuthMode::Dev,
+            )
+            .is_err(),
+            "publication-boundary re-resolution refuses a revoked credential"
+        );
+    }
+
+    #[tokio::test]
+    async fn protected_erasure_transport_refuses_unauthorized_and_wire_authority_inputs() {
+        use crate::manifest::{FieldManifest, FieldType, SchemaManifest, SeedData, TableManifest};
+        use axum::http::Request;
+        use tower::ServiceExt as _;
+
+        let mut snapback = LocalSnapback::memory().expect("memory app");
+        snapback
+            .apply_schema(SchemaManifest {
+                schema_hash: Some("sha256:protected-erasure-http-test".to_owned()),
+                tables: vec![TableManifest {
+                    name: "items".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "value".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    indexes: Vec::new(),
+                    search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
+                    search_live_limits: None,
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                    asset_sharing: None,
+                    history: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("apply protected-erasure schema");
+        snapback
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![serde_json::Map::from_iter([
+                        ("_id".to_owned(), serde_json::json!("row-a")),
+                        ("value".to_owned(), serde_json::json!("protected")),
+                    ])],
+                )]),
+            })
+            .expect("seed protected row");
+        let mut context = ServerContext::detached();
+        context.admin_token = Some("protected-erasure-admin".to_owned());
+        let state = AppState::from_snapback(snapback, context);
+        let shared = state.snapback.clone();
+        let router = crate::server::app(state);
+        let body = serde_json::json!({
+            "operationId": "operation-v1:protected-erasure-transport",
+            "qualifiedTable": "items",
+            "rowId": "row-a",
+        });
+        let unauthorized = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/_snapback/api/storage/protected-erasure")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(serde_json::to_vec(&body).expect("request JSON")))
+                    .expect("request"),
+            )
+            .await
+            .expect("unauthorized response");
+        assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
+
+        let mut forged = body.clone();
+        forged["authority"] = serde_json::json!({
+            "principalId": "forged",
+            "authorityInstanceId": "forged",
+            "authorityFingerprint": "sha256:forged",
+        });
+        let rejected = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/_snapback/api/storage/protected-erasure")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, "Bearer protected-erasure-admin")
+                    .body(Body::from(
+                        serde_json::to_vec(&forged).expect("forged request JSON"),
+                    ))
+                    .expect("request"),
+            )
+            .await
+            .expect("forged authority response");
+        assert!(!rejected.status().is_success());
+
+        let accepted = router
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/_snapback/api/storage/protected-erasure")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, "Bearer protected-erasure-admin")
+                    .body(Body::from(
+                        serde_json::to_vec(&body).expect("protected-erasure request JSON"),
+                    ))
+                    .expect("request"),
+            )
+            .await
+            .expect("protected-erasure response");
+        assert_eq!(accepted.status(), StatusCode::OK);
+        let receipt = serde_json::from_slice::<
+            crate::proof_checkpoint::ProtectedRecordErasureReceiptV1,
+        >(
+            &axum::body::to_bytes(accepted.into_body(), 1_000_000)
+                .await
+                .expect("receipt body"),
+        )
+        .expect("protected-erasure receipt");
+        assert_eq!(
+            receipt.state,
+            crate::proof_checkpoint::ProtectedRecordErasureStateV1::Complete
+        );
+        let remaining = crate::server::with_snapback(&shared, |snapback| {
+            snapback.scan_table("items", 10, 0)
+        })
+        .await
+        .expect("scan canonical rows after erasure");
+        assert!(remaining.rows.is_empty());
+    }
 
     #[test]
     fn telemetry_routes_pin_authority_sensitivity_and_no_sql_carrier() {

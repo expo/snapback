@@ -5,7 +5,20 @@
 **Systems:** Storage, Migrations, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (proof-tail increment — full migration verification
+**Revised:** 2026-08-04 (protected-erasure implementation increment — the
+registered AdminWrite product command derives an internal authority from the
+current prepared route authority plus the concrete revalidated admin
+credential. Its first immediate transaction binds operation identity,
+authority, and target; deletes the canonical row and retained detail; emits a
+payload-free delete tombstone; invalidates the complete checkpoint inventory;
+and advances a durable generation fence. Admitted checkpoint producers own a
+durable cancellation acknowledgement, so physical absence cannot close an
+obligation while a producer can still create bytes. Exact retry resumes
+reachable obligations; authority/credential/target divergence, revocation,
+and predecessor authorization-stream publication refuse. Crash, concurrent
+producer, stale replay, and reopen corpus is green. Row 11 remains Partial
+pending the residual acceptance tail and independent review; the Spec stays
+Draft and every capability stays `Missing`); 2026-08-04 (proof-tail increment — full migration verification
 now maps predecessor rows through a separately implemented closed-expression
 oracle; explicit-value/equivalence, injected executor-drift, and staged-byte
 corruption negatives gate its `independentBoundaryProof` receipt. A durable
@@ -41,7 +54,14 @@ component)
 **Related:** LLP 0035, LLP 0037, LLP 0053, LLP 0081, LLP 0088, LLP 0158,
 LLP 0162, LLP 0163, LLP 0164
 
-**Implementation evidence:** 2026-08-04 (the independent migration oracle and
+**Implementation evidence:** 2026-08-04 (the registered protected-record
+erasure route, concrete-credential-bound internal authority, atomic canonical
+delete/history purge/payload-free tombstone/inventory fence, producer-owned
+cancellation acknowledgement, resumable physical-copy obligations, and
+authority/reset/concurrency/crash/reopen corpus are integrated. This closes
+the audited missing product-operation and intervening-new-checkpoint race, but
+row 11 remains Partial pending the residual acceptance tail and independent
+review; status stays Draft and capabilities stay `Missing`); 2026-08-04 (the independent migration oracle and
 adversarial drift/corruption corpus are integrated; the registered-copy erasure
 sweep and receipt are integrated with explicit crash/unreachable obligations,
 but canonical protected-record deletion composition remains open); 2026-08-04 (schema-declared history projection,
@@ -177,11 +197,12 @@ obligation. The protected-record copy sweep snapshots the complete registered
 materialized inventory, invalidates every live entry in one transaction, and
 persists a per-copy receipt before attempting deletion. It resumes missing
 bytes as destroyed after a crash/reopen and retains inaccessible paths as open
-obligations until a later retry closes them. This is deliberately a low-level
-checkpoint-copy operation: it is not yet atomic with canonical protected-row
-deletion, so a checkpoint created between those authorities could retain the
-row. Row 11 therefore remains Partial despite the registry/copy corpus. The
-focused corpus also forces a canonical writer to commit while
+obligations until a later retry closes them. That low-level checkpoint-copy
+operation remains available only as evidence; the registered product command
+described below now composes canonical protected-row deletion with the
+complete inventory fence and closes the intervening-new-checkpoint race. Row
+11 remains Partial pending the residual acceptance tail and independent
+review. The focused corpus also forces a canonical writer to commit while
 the checkpoint source transaction is pinned, then proves the copy stayed at
 the earlier stream-qualified version; the finite-WAL negative proves the
 stable `SNAPBACK_CHECKPOINT_WAL_BUDGET_EXCEEDED` refusal and automatic intent
@@ -202,34 +223,55 @@ atomically upgrades that table, and the v1 configuration surface refuses to
 replace an active v2 declaration. The corpus covers reopen, current-record and
 per-version authorization, hidden-version pagination/horizon stability,
 per-record caps across two records, schema removal, and sync-floor independence.
-Atomic canonical protected-record deletion plus the checkpoint-copy sweep
-remains open and prevents a history capability claim.
+The newly integrated atomic protected-record command does not itself publish a
+history capability; the residual acceptance tail, performance gates, and
+independent Spec review still prevent that claim.
 
 #### Protected-deletion authority audit — 2026-08-04
 
-The integrated local target has no canonical operation that means “erase this
-protected record and every retained representation.” `BufferedWrite::Delete`
-and the generated mutation delete steps are ordinary application-row writes;
-they carry neither a protected-erasure classification nor authority to fence
-checkpoint publication. Specialized asset and authorization deletion paths
-own only their respective products and cannot be generalized into that
-authority. Consequently the low-level checkpoint-copy sweep must not be
-silently attached to generic deletion, and row 11 cannot soundly be closed by
-this implementation pass.
+Implementation closure is recorded in the same dated audit section.
 
-Closure requires a real product operation, not a benchmark or test-only hook:
-one authenticated protected-erasure command whose durable identity and exact
-target are retry-bound. Its first fenced transaction must install an erasure
-fence, delete the canonical row and retained history detail, and invalidate the
-complete registry inventory. Checkpoint admission and publication must refuse
-that target while the fence is open. Physical copy destruction may then resume
-outside the transaction under durable destroyed/unreachable obligations; an
-exact retry resumes those obligations, while a divergent target or authority
-under the same operation identity refuses. The eventual implementation corpus
-must cover crash/reopen at every state, reachable and unreachable copies,
-concurrent checkpoint creation/publication, and pin/lease/expiry transitions.
-Until that authority exists, the current separate sweep remains useful
-low-level evidence but not atomic protected-record erasure.
+The audit found that `BufferedWrite::Delete` and generated mutation delete
+steps are ordinary application-row writes: they carry neither a
+protected-erasure classification nor authority to fence checkpoint
+publication. Specialized asset and authorization deletion paths own only their
+respective products. Those paths remain unchanged, and the low-level
+checkpoint-copy sweep is not silently attached to generic deletion.
+
+The registered `POST /_snapback/api/storage/protected-erasure` AdminWrite
+operation now owns the deliberate product boundary. Its public request carries
+only operation identity and the exact row target. After acquiring the app
+instance, the handler revalidates the concrete console or master-admin
+credential, derives a non-deserializable internal authority from the prepared
+`ProtectedRecordErasure` invocation, and runs the storage mutation inside that
+authority's mode and authorization-stream publication fences. The authority
+instance binds mode, profile, transition generation, credential class and
+SHA-256 digest, and authorization-stream incarnation; a different or revoked
+credential cannot replay the original operation identity.
+
+One immediate transaction deletes the canonical row, deactivates its relation
+incarnation, removes retained history and prior row journal payloads, advances
+the canonical version, and emits one payload-free delete tombstone. The same
+transaction invalidates every registered checkpoint, advances the protected
+erasure generation, and persists the authority/target-bound receipt before
+physical destruction. Checkpoint intent admission and final publication each
+compare that generation under an immediate transaction. An in-flight producer
+remains `producerActive` until it removes its exact staging/destination paths
+and durably acknowledges cancellation; the external erasure worker cannot
+infer closure from transient path absence. Recovery performs the same
+producer-owned cleanup after reopen. Exact retries resume open reachable
+obligations, inaccessible copies remain `invalidUnreachable`, and any divergent
+authority or target refuses. The focused corpus covers crash cuts around the
+atomic commit and physical deletion, intent/copy/rename producer crashes,
+concurrent admission/publication, pinned snapshots, expired checkpoint leases,
+payload-free stale replay, reachable/unreachable copies, current credential
+revocation, and predecessor authorization-stream reset.
+
+This closes the audited missing product-operation and new-checkpoint race. It
+does not promote row 11 or a capability by itself: the residual acceptance
+tail, performance gates, independent review, and author acceptance remain
+required. This Spec therefore stays Draft and the related capabilities stay
+`Missing`.
 
 ### Migration verification boundary — 2026-08-04
 

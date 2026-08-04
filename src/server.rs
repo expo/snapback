@@ -9593,6 +9593,9 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/ephemeral/subscribe" => Some(InvocationSource::EphemeralSubscribe),
         "/ephemeral/delete" => Some(InvocationSource::EphemeralDelete),
         "/_snapback/api/functions/{name}/run" => Some(InvocationSource::DirectAdminRunner),
+        "/_snapback/api/storage/protected-erasure" => {
+            Some(InvocationSource::ProtectedRecordErasure)
+        }
         _ => None,
     }
 }
@@ -9769,6 +9772,7 @@ async fn prepare_registered_route_authority(
                         InvocationSource::DirectAdminRunner
                             | InvocationSource::HostOperationFunctionRun
                             | InvocationSource::HostOperationMutationDryRun
+                            | InvocationSource::ProtectedRecordErasure
                     ) {
                         (
                             ResolvedAppAuthority::AdminBypass {
@@ -10015,6 +10019,7 @@ fn route_uses_managed_admission(spec: RouteSpec) -> bool {
                 | "/_snapback/api/app/seed/preview-v1"
                 | "/_snapback/api/app/seed/reset-install-v1"
                 | "/_snapback/api/app/seed/clear-v1"
+                | "/_snapback/api/storage/protected-erasure"
                 | "/_snapback/api/auth/mailbox"
                 | "/_snapback/api/admin-secret-read/mint"
         )

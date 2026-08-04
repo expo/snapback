@@ -1,0 +1,24 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/protected-record-erasure.request-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Public request shape for the registered protected-record erasure route.\nAuthority and time are deliberately absent and are supplied by the server.",
+  "properties": {
+    "operationId": {
+      "type": "string"
+    },
+    "qualifiedTable": {
+      "type": "string"
+    },
+    "rowId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "operationId",
+    "qualifiedTable",
+    "rowId"
+  ],
+  "title": "ProtectedRecordErasureWireRequestV1",
+  "type": "object"
+}
