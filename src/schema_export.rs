@@ -86,7 +86,8 @@ use crate::migration::{
 use crate::proof_checkpoint::{
     BoundaryDigestV1, BoundaryProofV1, CheckpointDigestHeaderV1, CheckpointRegistryRecordV1,
     HistoryRetentionPolicyV1, NamedCheckpointReceiptV1, NamedCheckpointRequestV1,
-    PromotionApprovedWriteV1, PromotionDigestHeaderV1, RecordHistoryPageV1,
+    PromotionApprovedWriteV1, PromotionDigestHeaderV1,
+    ProtectedRecordCheckpointErasureReceiptV1, RecordHistoryPageV1,
 };
 use crate::result_transform::{ResultTransformCorpusCaseV1, ResultTransformCorpusManifestV1};
 use crate::seed_identity::{
@@ -238,6 +239,10 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "checkpoint.registry-record-v1.schema.json",
             schemars::schema_for!(CheckpointRegistryRecordV1),
+        ),
+        finish(
+            "checkpoint.protected-record-erasure-receipt-v1.schema.json",
+            schemars::schema_for!(ProtectedRecordCheckpointErasureReceiptV1),
         ),
         finish(
             "history.retention-policy-v1.schema.json",

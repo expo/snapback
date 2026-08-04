@@ -2811,6 +2811,28 @@ impl LocalDatabase {
         crate::proof_checkpoint::erase_checkpoint(&self.conn, checkpoint_id, now_ms)
     }
 
+    /// Invalidate and destroy every registered materialized checkpoint copy
+    /// that could retain a protected record. Retrying `operation_id` resumes
+    /// explicit unreachable/crash obligations instead of re-enumerating a
+    /// weaker inventory.
+    pub fn erase_protected_record_checkpoint_copies(
+        &self,
+        qualified_table: &str,
+        row_id: &str,
+        operation_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<
+        crate::proof_checkpoint::ProtectedRecordCheckpointErasureReceiptV1,
+    > {
+        crate::proof_checkpoint::erase_protected_record_checkpoint_copies(
+            &self.conn,
+            qualified_table,
+            row_id,
+            operation_id,
+            now_ms,
+        )
+    }
+
     pub fn recover_named_checkpoint(
         &self,
         checkpoint_id: &str,

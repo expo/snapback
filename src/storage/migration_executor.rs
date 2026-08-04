@@ -20,7 +20,7 @@ use super::{
     timestamp_to_sql_millis, version_to_sql_integer,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::manifest::{HandlerInput, SchemaManifest, TableManifest};
+use crate::manifest::{BinaryOp, HandlerInput, SchemaManifest, TableManifest, UnaryOp, ValueExpr};
 use crate::migration::{
     MigrationAdmissionV1, MigrationApprovalV1, MigrationAudienceV1, MigrationExecutionStrategy,
     MigrationPlanArtifactV1, MigrationStep, admission_digest, approval_digest,
@@ -32,6 +32,42 @@ use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
+
+#[cfg(test)]
+thread_local! {
+    static MIGRATION_EXECUTION_VALUE_HOOK: std::cell::RefCell<
+        Option<Box<dyn FnMut(&str, Value) -> Value>>
+    > = const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+fn install_migration_execution_value_hook(hook: impl FnMut(&str, Value) -> Value + 'static) {
+    MIGRATION_EXECUTION_VALUE_HOOK.with(|slot| {
+        assert!(
+            slot.borrow().is_none(),
+            "migration execution hook is exclusive"
+        );
+        *slot.borrow_mut() = Some(Box::new(hook));
+    });
+}
+
+#[cfg(test)]
+fn clear_migration_execution_value_hook() {
+    MIGRATION_EXECUTION_VALUE_HOOK.with(|slot| *slot.borrow_mut() = None);
+}
+
+fn run_migration_execution_value_hook(field: &str, value: Value) -> Value {
+    #[cfg(not(test))]
+    let _ = field;
+    #[cfg(test)]
+    return MIGRATION_EXECUTION_VALUE_HOOK.with(|slot| {
+        slot.borrow_mut()
+            .as_mut()
+            .map_or(value.clone(), |hook| hook(field, value))
+    });
+    #[cfg(not(test))]
+    value
+}
 
 pub const MIGRATION_JOURNAL_SCHEMA_VERSION: &str = "migration-journal-v1";
 
@@ -2722,6 +2758,7 @@ impl LocalDatabase {
                         None,
                         "migration/backfill-fields",
                     )?;
+                    let value = run_migration_execution_value_hook(dest_field, value);
                     if row.get(dest_field).cloned().unwrap_or(Value::Null) != value {
                         content_changed = true;
                     }
@@ -2934,6 +2971,327 @@ impl LocalDatabase {
     }
 }
 
+// The migration expected-value path intentionally owns a second evaluator.
+// It must not call storage's `eval_expr` or `value_expr::eval_value_expr`:
+// sharing either implementation would turn matching digests into inventory,
+// not LLP 0081 independent boundary proof.
+//
+// @ref LLP 0165#migration-verification-boundary--2026-08-04 — predecessor
+//   values are mapped through an independently implemented evaluator.
+fn migration_expected_oracle(
+    expr: &ValueExpr,
+    constants: &Value,
+    bindings: &BTreeMap<String, Value>,
+) -> SnapbackResult<Value> {
+    fn refused(message: impl Into<String>) -> SnapbackError {
+        SnapbackError::error(
+            "SNAPBACK_MIGRATION_EXPECTED_ORACLE_FAILED",
+            "storage",
+            message,
+        )
+    }
+
+    fn lookup<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
+        let mut current = value;
+        for part in path.split('.') {
+            current = current.as_object()?.get(part)?;
+        }
+        Some(current)
+    }
+
+    fn field(value: &Value, key: &str) -> Value {
+        match value {
+            Value::Object(fields) => fields.get(key).cloned().unwrap_or(Value::Null),
+            Value::Array(items) => key
+                .parse::<usize>()
+                .ok()
+                .and_then(|index| items.get(index))
+                .cloned()
+                .unwrap_or(Value::Null),
+            _ => Value::Null,
+        }
+    }
+
+    fn number(value: &Value) -> Option<f64> {
+        value.as_f64()
+    }
+
+    fn number_value(value: f64) -> Value {
+        const SAFE: f64 = 9_007_199_254_740_992.0;
+        if !value.is_finite() {
+            Value::Null
+        } else if value.fract() == 0.0 && value.abs() <= SAFE {
+            json!(value as i64)
+        } else {
+            serde_json::Number::from_f64(value).map_or(Value::Null, Value::Number)
+        }
+    }
+
+    fn truthy(value: &Value) -> bool {
+        match value {
+            Value::Null => false,
+            Value::Bool(value) => *value,
+            Value::Number(_) => number(value).is_some_and(|value| value != 0.0 && !value.is_nan()),
+            Value::String(value) => !value.is_empty(),
+            Value::Array(_) | Value::Object(_) => true,
+        }
+    }
+
+    fn equal(left: &Value, right: &Value) -> bool {
+        match (number(left), number(right)) {
+            (Some(left), Some(right)) => left == right,
+            _ => left == right,
+        }
+    }
+
+    fn numeric(op: BinaryOp, left: &Value, right: &Value) -> SnapbackResult<Value> {
+        if left.is_null() || right.is_null() {
+            return Ok(Value::Null);
+        }
+        let (Some(left), Some(right)) = (number(left), number(right)) else {
+            return Err(refused(format!("{op:?} expects numeric operands")));
+        };
+        Ok(number_value(match op {
+            BinaryOp::Add => left + right,
+            BinaryOp::Sub => left - right,
+            BinaryOp::Mul => left * right,
+            BinaryOp::Div => left / right,
+            BinaryOp::Mod => left % right,
+            _ => unreachable!("numeric oracle only receives arithmetic operators"),
+        }))
+    }
+
+    fn portable_trim(value: &str) -> String {
+        value
+            .trim_matches(|ch| {
+                matches!(
+                    ch,
+                    '\u{0009}'..='\u{000D}'
+                        | '\u{0020}'
+                        | '\u{0085}'
+                        | '\u{00A0}'
+                        | '\u{1680}'
+                        | '\u{2000}'..='\u{200A}'
+                        | '\u{2028}'
+                        | '\u{2029}'
+                        | '\u{202F}'
+                        | '\u{205F}'
+                        | '\u{3000}'
+                )
+            })
+            .to_owned()
+    }
+
+    fn round_ecmascript(value: f64) -> f64 {
+        if !value.is_finite() || value == 0.0 || value.fract() == 0.0 {
+            return value;
+        }
+        let lower = value.floor();
+        if value - lower < 0.5 {
+            lower
+        } else {
+            lower + 1.0
+        }
+    }
+
+    fn concat_string(value: &Value) -> SnapbackResult<String> {
+        match value {
+            Value::Null => Ok("null".to_owned()),
+            Value::Bool(value) => Ok(value.to_string()),
+            Value::String(value) => Ok(value.clone()),
+            Value::Number(_) => number(value)
+                .filter(|value| value.is_finite())
+                .map(|value| ryu_js::Buffer::new().format(value).to_owned())
+                .ok_or_else(|| refused("concat received an unrepresentable number")),
+            Value::Array(_) | Value::Object(_) => {
+                Err(refused("concat cannot interpolate arrays or objects"))
+            }
+        }
+    }
+
+    fn evaluate(
+        expr: &ValueExpr,
+        constants: &Value,
+        bindings: &BTreeMap<String, Value>,
+        depth: usize,
+    ) -> SnapbackResult<Value> {
+        if depth > crate::value_expr::MAX_EXPR_DEPTH {
+            return Err(refused(
+                "migration expected expression exceeds the v1 depth bound",
+            ));
+        }
+        let child = |expr| evaluate(expr, constants, bindings, depth + 1);
+        match expr {
+            ValueExpr::Arg(path) => lookup(constants, path)
+                .cloned()
+                .ok_or_else(|| refused(format!("migration constant {path} was not provided"))),
+            ValueExpr::Binding(name) => bindings
+                .get(name)
+                .cloned()
+                .ok_or_else(|| refused(format!("migration binding {name} was not provided"))),
+            ValueExpr::Literal(value) => Ok(value.clone()),
+            ValueExpr::Field { base, key } => Ok(field(&child(base)?, key)),
+            ValueExpr::Binary { op, left, right } => {
+                let left = child(left)?;
+                let right = child(right)?;
+                match op {
+                    BinaryOp::And => Ok(if truthy(&left) { right } else { left }),
+                    BinaryOp::Or => Ok(if truthy(&left) { left } else { right }),
+                    BinaryOp::Eq => Ok(Value::Bool(equal(&left, &right))),
+                    BinaryOp::Ne => Ok(Value::Bool(!equal(&left, &right))),
+                    BinaryOp::Add if left.is_string() && right.is_string() => {
+                        Ok(Value::String(format!(
+                            "{}{}",
+                            left.as_str().unwrap_or_default(),
+                            right.as_str().unwrap_or_default()
+                        )))
+                    }
+                    BinaryOp::Add
+                    | BinaryOp::Sub
+                    | BinaryOp::Mul
+                    | BinaryOp::Div
+                    | BinaryOp::Mod => numeric(*op, &left, &right),
+                    BinaryOp::Lt | BinaryOp::Lte | BinaryOp::Gt | BinaryOp::Gte => {
+                        if left.is_null() || right.is_null() {
+                            return Ok(Value::Null);
+                        }
+                        let ordering = match (&left, &right) {
+                            (Value::String(left), Value::String(right)) => {
+                                left.chars().cmp(right.chars())
+                            }
+                            _ => {
+                                let (Some(left), Some(right)) = (number(&left), number(&right))
+                                else {
+                                    return Err(refused(
+                                        "ordering expects two strings or two numbers",
+                                    ));
+                                };
+                                left.partial_cmp(&right).ok_or_else(|| {
+                                    refused("ordering received an unordered number")
+                                })?
+                            }
+                        };
+                        Ok(Value::Bool(match op {
+                            BinaryOp::Lt => ordering.is_lt(),
+                            BinaryOp::Lte => ordering.is_le(),
+                            BinaryOp::Gt => ordering.is_gt(),
+                            BinaryOp::Gte => ordering.is_ge(),
+                            _ => unreachable!(),
+                        }))
+                    }
+                }
+            }
+            ValueExpr::Unary { op, expr } => {
+                let value = child(expr)?;
+                match op {
+                    UnaryOp::Not => Ok(Value::Bool(!truthy(&value))),
+                    UnaryOp::Neg if value.is_null() => Ok(Value::Null),
+                    UnaryOp::Neg => number(&value)
+                        .map(|value| number_value(-value))
+                        .ok_or_else(|| refused("Neg expects a number")),
+                }
+            }
+            ValueExpr::If { cond, then, r#else } => {
+                if truthy(&child(cond)?) {
+                    child(then)
+                } else {
+                    child(r#else)
+                }
+            }
+            ValueExpr::Concat(parts) => {
+                let mut output = String::new();
+                for part in parts {
+                    output.push_str(&concat_string(&child(part)?)?);
+                }
+                Ok(Value::String(output))
+            }
+            ValueExpr::Call { func, args } => {
+                let values = args
+                    .iter()
+                    .map(&child)
+                    .collect::<SnapbackResult<Vec<_>>>()?;
+                match func.as_str() {
+                    "coalesce" => Ok(values
+                        .into_iter()
+                        .find(|value| !value.is_null())
+                        .unwrap_or(Value::Null)),
+                    "len" if values.len() == 1 => match &values[0] {
+                        Value::Null => Ok(Value::Null),
+                        Value::String(value) => Ok(json!(value.encode_utf16().count())),
+                        Value::Array(value) => Ok(json!(value.len())),
+                        _ => Err(refused("len expects a string or array")),
+                    },
+                    "trim" | "lower" if values.len() == 1 => match &values[0] {
+                        Value::Null => Ok(Value::Null),
+                        Value::String(value) => Ok(Value::String(if func == "trim" {
+                            portable_trim(value)
+                        } else {
+                            value.to_lowercase()
+                        })),
+                        _ => Err(refused(format!("{func} expects a string"))),
+                    },
+                    "abs" | "round" | "floor" | "ceil" if values.len() == 1 => {
+                        if values[0].is_null() {
+                            return Ok(Value::Null);
+                        }
+                        let value = number(&values[0])
+                            .ok_or_else(|| refused(format!("{func} expects a number")))?;
+                        Ok(number_value(match func.as_str() {
+                            "abs" => value.abs(),
+                            "round" => round_ecmascript(value),
+                            "floor" => value.floor(),
+                            "ceil" => value.ceil(),
+                            _ => unreachable!(),
+                        }))
+                    }
+                    "min" | "max" if !values.is_empty() => {
+                        if values.iter().any(Value::is_null) {
+                            return Ok(Value::Null);
+                        }
+                        let mut best: Option<f64> = None;
+                        for value in &values {
+                            let value = number(value)
+                                .ok_or_else(|| refused(format!("{func} expects numbers")))?;
+                            best = Some(match best {
+                                None => value,
+                                Some(best) if (func == "min") == (value < best) => value,
+                                Some(best) => best,
+                            });
+                        }
+                        Ok(number_value(best.expect("non-empty values checked")))
+                    }
+                    _ => Err(refused(format!(
+                        "function {func} has unsupported name or arity in the migration oracle"
+                    ))),
+                }
+            }
+            ValueExpr::Record { fields } => {
+                let mut output = Map::new();
+                for (name, expr) in fields {
+                    output.insert(name.clone(), child(expr)?);
+                }
+                Ok(Value::Object(output))
+            }
+            ValueExpr::Args
+            | ValueExpr::AuthUserId
+            | ValueExpr::AuthKind
+            | ValueExpr::AuthActorKind
+            | ValueExpr::AuthActivityActorKind
+            | ValueExpr::AuthActorUserId
+            | ValueExpr::AuthGrantId
+            | ValueExpr::ClientMutationDigest
+            | ValueExpr::AuthIsDelegated
+            | ValueExpr::RuntimeId
+            | ValueExpr::RuntimeNow
+            | ValueExpr::MembershipExists(_) => Err(refused(
+                "expression is outside the closed migration expected-value profile",
+            )),
+        }
+    }
+
+    evaluate(expr, constants, bindings, 0)
+}
+
 /// How one proof table's successor content derives from predecessor rows.
 enum ProofTransform<'a> {
     /// Staged CopyTable: pristine predecessor rows still exist in the
@@ -3136,14 +3494,7 @@ fn run_data_proof(
                         let mut produced = serde_json::Map::new();
                         let mut content_changed = false;
                         for (dest, expr) in fields.iter() {
-                            let value = eval_expr(
-                                expr,
-                                &input,
-                                &bindings,
-                                constants.publication_timestamp_ms,
-                                None,
-                                "migration/verify-fields",
-                            )?;
+                            let value = migration_expected_oracle(expr, &input.args, &bindings)?;
                             if row.get(dest).cloned().unwrap_or(Value::Null) != value {
                                 content_changed = true;
                             }
@@ -3237,14 +3588,7 @@ fn run_data_proof(
                             predecessor_value.as_object().cloned().unwrap_or_default();
                         let mut content_changed = false;
                         for (dest, expr) in writes {
-                            let value = eval_expr(
-                                expr,
-                                &input,
-                                &bindings,
-                                constants.publication_timestamp_ms,
-                                None,
-                                "migration/verify-writes",
-                            )?;
+                            let value = migration_expected_oracle(expr, &input.args, &bindings)?;
                             if !value.is_null() {
                                 content_changed = true;
                                 expected_row.insert((*dest).to_owned(), value);
@@ -3359,20 +3703,15 @@ fn run_data_proof(
 
     Ok(json!({
         "proofClass": match proof_method {
-            MigrationProofMethod::Full => "fullTableVerification",
+            MigrationProofMethod::Full => "independentBoundaryProof",
             MigrationProofMethod::SampledAudit => "inventory",
         },
         "boundaryDomain": "migration",
         "expectedEvaluatorIndependence": match proof_method {
-            MigrationProofMethod::Full => "sharedImplementation",
+            MigrationProofMethod::Full => "separateImplementation",
             MigrationProofMethod::SampledAudit => "notApplicable",
         },
-        "independenceLimitation": match proof_method {
-            MigrationProofMethod::Full => Some(
-                "expected and actual paths share eval_expr; this receipt is not an independent boundary proof"
-            ),
-            MigrationProofMethod::SampledAudit => None,
-        },
+        "independenceLimitation": Value::Null,
         "expectedDerivation": match proof_method {
             MigrationProofMethod::Full => Some(
                 "predecessor rows plus the closed typed MigrationPlanV1 expected-value evaluator"
@@ -3386,7 +3725,7 @@ fn run_data_proof(
         // §5: a sampled-audit receipt says so on its face — it is a
         // rehearsal/audit label, never a substitute for proof.
         "proofLabel": match proof_method {
-            MigrationProofMethod::Full => "full-table proof",
+            MigrationProofMethod::Full => "independent full-table boundary proof",
             MigrationProofMethod::SampledAudit =>
                 "sampled-audit — lower-assurance rehearsal/audit run, NOT a proof",
         },
@@ -4847,6 +5186,226 @@ mod tests {
         })
     }
 
+    #[test]
+    fn migration_expected_oracle_covers_the_closed_expression_profile() {
+        let constants = json!({
+            "fallback": "n/a",
+            "nested": { "number": 3 },
+        });
+        let bindings = BTreeMap::from([(
+            "row".to_owned(),
+            json!({ "title": "  HeLLo  ", "n": 5, "missing": null }),
+        )]);
+        let literal = |value| ValueExpr::Literal(value);
+        let field = |key: &str| ValueExpr::Field {
+            base: Box::new(ValueExpr::Binding("row".to_owned())),
+            key: key.to_owned(),
+        };
+        let binary = |op, left, right| ValueExpr::Binary {
+            op,
+            left: Box::new(left),
+            right: Box::new(right),
+        };
+        let cases = vec![
+            (ValueExpr::Arg("nested.number".to_owned()), json!(3)),
+            (field("absent"), Value::Null),
+            (
+                binary(BinaryOp::Add, field("n"), literal(json!(2))),
+                json!(7),
+            ),
+            (
+                binary(BinaryOp::Add, literal(json!("a")), literal(json!("b"))),
+                json!("ab"),
+            ),
+            (
+                binary(BinaryOp::Sub, field("n"), literal(json!(2))),
+                json!(3),
+            ),
+            (
+                binary(BinaryOp::Mul, field("n"), literal(json!(2))),
+                json!(10),
+            ),
+            (
+                binary(BinaryOp::Div, field("n"), literal(json!(2))),
+                json!(2.5),
+            ),
+            (
+                binary(BinaryOp::Mod, field("n"), literal(json!(2))),
+                json!(1),
+            ),
+            (
+                binary(BinaryOp::Eq, field("n"), literal(json!(5.0))),
+                json!(true),
+            ),
+            (
+                binary(BinaryOp::Ne, field("n"), literal(json!(4))),
+                json!(true),
+            ),
+            (
+                binary(BinaryOp::Lt, field("n"), literal(json!(6))),
+                json!(true),
+            ),
+            (
+                binary(BinaryOp::Lte, field("n"), literal(json!(5))),
+                json!(true),
+            ),
+            (
+                binary(BinaryOp::Gt, field("n"), literal(json!(4))),
+                json!(true),
+            ),
+            (
+                binary(BinaryOp::Gte, field("n"), literal(json!(5))),
+                json!(true),
+            ),
+            (
+                binary(BinaryOp::And, literal(json!(0)), literal(json!("no"))),
+                json!(0),
+            ),
+            (
+                binary(
+                    BinaryOp::Or,
+                    ValueExpr::Arg("fallback".to_owned()),
+                    literal(json!("x")),
+                ),
+                json!("n/a"),
+            ),
+            (
+                ValueExpr::Unary {
+                    op: UnaryOp::Not,
+                    expr: Box::new(ValueExpr::Literal(Value::Null)),
+                },
+                json!(true),
+            ),
+            (
+                ValueExpr::Unary {
+                    op: UnaryOp::Neg,
+                    expr: Box::new(field("n")),
+                },
+                json!(-5),
+            ),
+            (
+                ValueExpr::If {
+                    cond: Box::new(literal(json!(true))),
+                    then: Box::new(ValueExpr::Arg("fallback".to_owned())),
+                    r#else: Box::new(literal(json!("wrong"))),
+                },
+                json!("n/a"),
+            ),
+            (
+                ValueExpr::Concat(vec![literal(json!("v=")), field("n")]),
+                json!("v=5"),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "trim".to_owned(),
+                    args: vec![field("title")],
+                },
+                json!("HeLLo"),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "lower".to_owned(),
+                    args: vec![field("title")],
+                },
+                json!("  hello  "),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "len".to_owned(),
+                    args: vec![literal(json!("a💾"))],
+                },
+                json!(3),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "coalesce".to_owned(),
+                    args: vec![field("missing"), ValueExpr::Arg("fallback".to_owned())],
+                },
+                json!("n/a"),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "abs".to_owned(),
+                    args: vec![literal(json!(-2))],
+                },
+                json!(2),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "round".to_owned(),
+                    args: vec![literal(json!(-1.5))],
+                },
+                json!(-1),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "floor".to_owned(),
+                    args: vec![literal(json!(2.9))],
+                },
+                json!(2),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "ceil".to_owned(),
+                    args: vec![literal(json!(2.1))],
+                },
+                json!(3),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "min".to_owned(),
+                    args: vec![field("n"), literal(json!(8)), literal(json!(2))],
+                },
+                json!(2),
+            ),
+            (
+                ValueExpr::Call {
+                    func: "max".to_owned(),
+                    args: vec![field("n"), literal(json!(8)), literal(json!(2))],
+                },
+                json!(8),
+            ),
+            (
+                ValueExpr::Record {
+                    fields: BTreeMap::from([
+                        ("copied".to_owned(), field("n")),
+                        ("constant".to_owned(), ValueExpr::Arg("fallback".to_owned())),
+                    ]),
+                },
+                json!({ "constant": "n/a", "copied": 5 }),
+            ),
+        ];
+        let execution_input = HandlerInput {
+            args: constants.clone(),
+            ..HandlerInput::default()
+        };
+        for (index, (expr, expected)) in cases.into_iter().enumerate() {
+            let oracle = migration_expected_oracle(&expr, &constants, &bindings)
+                .unwrap_or_else(|error| panic!("oracle case {index}: {error:?}"));
+            assert_eq!(oracle, expected, "explicit oracle case {index}");
+            assert_eq!(
+                eval_expr(
+                    &expr,
+                    &execution_input,
+                    &bindings,
+                    PUBLICATION_TS,
+                    None,
+                    "migration/oracle-equivalence-corpus",
+                )
+                .unwrap_or_else(|error| panic!("execution case {index}: {error:?}")),
+                oracle,
+                "independently implemented evaluators diverged at case {index}"
+            );
+        }
+        assert_eq!(
+            migration_expected_oracle(&ValueExpr::RuntimeNow, &constants, &bindings)
+                .expect_err("ambient input is outside the oracle")
+                .diagnostic
+                .code,
+            "SNAPBACK_MIGRATION_EXPECTED_ORACLE_FAILED"
+        );
+    }
+
     // @ref LLP 0081#3-typed-migration-steps — the staged-generation path.
     // @ref LLP 0081#5-verification-and-data-proof — its independent data proof.
     //   — the staged-generation path end to end: stage, copy through closed
@@ -4882,18 +5441,13 @@ mod tests {
             .get("§5-data-proof")
             .expect("data proof on the receipt");
         assert_eq!(proof["proofMethod"], json!("full"));
-        assert_eq!(proof["proofClass"], json!("fullTableVerification"));
+        assert_eq!(proof["proofClass"], json!("independentBoundaryProof"));
         assert_eq!(proof["boundaryDomain"], json!("migration"));
         assert_eq!(
             proof["expectedEvaluatorIndependence"],
-            json!("sharedImplementation")
+            json!("separateImplementation")
         );
-        assert!(
-            proof["independenceLimitation"]
-                .as_str()
-                .is_some_and(|limitation| limitation.contains("not an independent")),
-            "{proof}"
-        );
+        assert_eq!(proof["independenceLimitation"], Value::Null);
         assert!(proof["expectedDerivation"].as_str().is_some());
         assert!(
             proof["tables"]["items"]["logicalDigest"]
@@ -5012,6 +5566,31 @@ mod tests {
         assert!(
             !super::super::sqlite_table_exists(&db.conn, "items__retired_g1")
                 .expect("retired lookup"),
+        );
+    }
+
+    #[test]
+    fn independent_oracle_detects_executor_semantic_drift_before_publication() {
+        let mut db = seeded_db();
+        let plan = staged_plan(None);
+        let approval = approval_for(&plan, now_millis());
+        install_migration_execution_value_hook(|field, value| {
+            if field == "note" {
+                json!("executor-drift")
+            } else {
+                value
+            }
+        });
+        let result = staged_apply(&mut db, &plan, &approval);
+        clear_migration_execution_value_hook();
+        let error = result.expect_err("independent expected semantics must catch executor drift");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MIGRATION_VERIFICATION_FAILED"
+        );
+        assert!(
+            !super::super::sqlite_table_exists(&db.conn, "items__retired_g1")
+                .expect("predecessor remains authoritative"),
         );
     }
 
