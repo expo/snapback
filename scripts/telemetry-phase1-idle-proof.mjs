@@ -289,14 +289,12 @@ function lifecycleWitness(path) {
   // Keep waiting for the bounded settle rather than treating file existence
   // alone as schema readiness. A store that never initializes still fails the
   // enclosing 15-second settle timeout.
-  const schemaTableCount = execFileSync('sqlite3', [
+  const schemaTableCount = sqliteReadDuringSettle(
     path,
     "SELECT count(*) FROM sqlite_schema WHERE type='table' AND name IN ('telemetry_events','telemetry_meta');",
-  ], { encoding: 'utf8' }).trim();
+  );
   if (schemaTableCount !== '2') return null;
-  const output = execFileSync('sqlite3', [
-    '-separator', '\t',
-    path,
+  const output = sqliteReadDuringSettle(path,
     `SELECT
        coalesce(max(e.recorded_ts_ms),0),
        coalesce(sum(CASE WHEN e.name='process_start' THEN 1 ELSE 0 END),0),
@@ -315,7 +313,9 @@ function lifecycleWitness(path) {
          m.retention_floor
        )
        AND e.phase IN ('point','joined','terminal');`,
-  ], { encoding: 'utf8' }).trim();
+    ['-separator', '\t'],
+  );
+  if (output === null) return null;
   const [
     watermark = '0',
     processStartCount = '0',
@@ -336,6 +336,16 @@ function lifecycleWitness(path) {
     processReadyFlushSequence: Number(processReadyFlushSequence),
     flushCommitSequence: Number(flushCommitSequence),
   };
+}
+
+function sqliteReadDuringSettle(path, sql, options = []) {
+  try {
+    return execFileSync('sqlite3', [...options, path, sql], { encoding: 'utf8' }).trim();
+  } catch (error) {
+    const stderr = String(error.stderr ?? '');
+    if (error.status === 5 && stderr.includes('database is locked')) return null;
+    throw error;
+  }
 }
 
 function directorySnapshot(root) {
