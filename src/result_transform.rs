@@ -793,10 +793,10 @@ pub fn evaluate_validated_transform_v1(
         rows = decorated.into_iter().map(|(_, row)| row).collect();
     }
 
-    if let Some(limit) = plan.limit {
-        if limit < rows.len() as u64 {
-            rows.truncate(limit as usize);
-        }
+    if let Some(limit) = plan.limit
+        && limit < rows.len() as u64
+    {
+        rows.truncate(limit as usize);
     }
     Ok(TransformEvaluationV1 {
         transform_hash: transform_hash_v1(plan)?,

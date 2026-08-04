@@ -8712,9 +8712,9 @@ fn query_on_with_storage_limit_visibility_keyset(
             output.push(document);
         }
         drop(rows);
-        let fullscan_steps = statement.get_status(rusqlite::StatementStatus::FullscanStep);
         #[cfg(test)]
         {
+            let fullscan_steps = statement.get_status(rusqlite::StatementStatus::FullscanStep);
             KEYSET_SCAN_STATS.with(|stats| {
                 stats.borrow_mut().push(KeysetScanStats {
                     table: table.name.clone(),
@@ -17897,6 +17897,7 @@ fn record_change(
 ///
 /// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — promotion publishes
 /// one canonical version with durable write and operation-envelope truth.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn record_promotion_change(
     tx: &Transaction<'_>,
     version: u64,

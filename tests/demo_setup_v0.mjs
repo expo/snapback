@@ -14,6 +14,7 @@ assert.deepEqual([...demos.keys()].sort(), [
   'campfire',
   'card-game',
   'catalog-lens',
+  'chirp',
   'cursors-web',
   'dispatch-board',
   'file-drop',
@@ -27,6 +28,7 @@ assert.deepEqual([...demos.keys()].sort(), [
   'team-chat',
   'todo',
   'todo-v2',
+  'triage-graph',
 ]);
 
 for (const [id, setup] of demos) {

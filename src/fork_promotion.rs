@@ -396,7 +396,8 @@ fn branch_profile(
     branch_id: &BranchId,
 ) -> SnapbackResult<(InAppBranchCreateV1, InAppBranchReceiptV1)> {
     ensure_in_app_branch_tables(conn)?;
-    let row: Option<(Vec<u8>, i64, Option<String>, i64, i64, i64)> = conn
+    type BranchProfileRow = (Vec<u8>, i64, Option<String>, i64, i64, i64);
+    let row: Option<BranchProfileRow> = conn
         .query_row(
             "SELECT profile_json, promotable, foreclosed_by_operation_id,
                     retained_operation_count, retained_operation_bytes,
@@ -1157,6 +1158,7 @@ pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
 /// Mint one FIFO ticket. The budget formula is explicit and inspectable:
 /// `max(observedConcurrentForks, queuePosition + R)`. Values remain supplied by
 /// the caller until LLP 0164 freezes production defaults from contention data.
+#[allow(clippy::too_many_arguments)]
 pub fn issue_promotion_ticket(
     canonical: &mut Connection,
     ticket_identity: OperationIdentityV1,
@@ -1308,6 +1310,7 @@ fn require_exact_durable_ticket(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn seal_promotion_request(
     workspace: &MaterializedBase,
     diff: &ForkDiffReceiptV1,
@@ -1516,7 +1519,8 @@ fn stored_promotion_result(
     canonical: &Connection,
     request: &PromotionRequestV1,
 ) -> SnapbackResult<Option<PromotionResultV1>> {
-    let row: Option<(Vec<u8>, String, Option<String>, Vec<u8>)> = canonical
+    type StoredPromotionResultRow = (Vec<u8>, String, Option<String>, Vec<u8>);
+    let row: Option<StoredPromotionResultRow> = canonical
         .query_row(
             "SELECT aggregate_identity_json, approved_facts_digest, request_digest, receipt_json
                FROM _snapback_promotion_receipts WHERE ticket_id = ?1",
@@ -2389,6 +2393,7 @@ fn build_aggregate_envelope(
 /// replay reproduces its sealed facts, the product-owned transaction seam
 /// applies only those approved logical writes and records every one through
 /// the canonical change/history journal before publication.
+#[allow(clippy::too_many_arguments)]
 pub fn promote_by_reexecution<F>(
     canonical: &mut Connection,
     workspace: &MaterializedBase,

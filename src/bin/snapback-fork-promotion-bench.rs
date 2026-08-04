@@ -413,6 +413,9 @@ fn facts(name: &str) -> ApprovedOperationFactsV1 {
     }
 }
 
+// These benchmark adapters deliberately use the production promotion seam's
+// concrete diagnostic type so the measured path is the shipping path.
+#[allow(clippy::result_large_err)]
 fn rename(
     tx: &Transaction<'_>,
     draft: &BranchOperationDraftV1,
@@ -424,6 +427,7 @@ fn rename(
     Ok(facts(name))
 }
 
+#[allow(clippy::result_large_err)]
 fn rename_replay(
     context: &PromotionReplayContextV1<'_>,
     operation: &BranchOperationV1,
@@ -435,6 +439,7 @@ fn rename_replay(
     Ok(facts(name))
 }
 
+#[allow(clippy::result_large_err)]
 fn scan_widgets(conn: &Connection) -> SnapbackResult<Vec<SnapshotRowV1>> {
     let mut statement = conn.prepare("SELECT id, name FROM widgets")?;
     let rows = statement.query_map([], |row| {

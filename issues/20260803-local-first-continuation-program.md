@@ -44,6 +44,23 @@ design outcomes (or record owner refusals honestly); a closing corpus
 audit. Fleet Observatory stays explicitly out (blocked on 0135 OQ5 —
 that admission belongs to its owners, not this program).
 
+## 2026-08-04 wave-drift ownership note
+
+The wave-end batch pass at main `640bae8db90b9fc6f4b9acef6dfbad9d9dad7b11`
+cannot honestly regenerate the retained carrier-exit receipt. Its source
+closure guard reports that
+`packages/snapback-client/materialization-store.mjs` now hashes to
+`dea7124d0eef6fd9b33231445c27211f335f3687ce85e48e4ebba5791ecf5fe1`, while
+the retained evidence is bound to
+`c6bfcf36af707a309af83af8982d495c94f5bfc559831cb51660755615860a32`.
+More importantly, the dated runner/evidence still treats the absence of the
+Triage successor as a structural GAP even though P3 has now landed. Rerunning
+that historical program unchanged would mint a knowingly false current
+receipt, so the drift pass did not do so. This program owns the required
+carrier-exit successor run: update its current assertions to the landed P2/P3
+reality, preserve the standards-real lifecycle legs, and retain a newly dated
+receipt before claiming this exit closed.
+
 ## Coordination
 
 Track B (forking: 0163→0164→0165, F0b dogfood) and Track C's 0160
