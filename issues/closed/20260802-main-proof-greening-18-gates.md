@@ -218,3 +218,17 @@ observed: the P1 proof verifier behavior suite and its Rust-minted golden-vector
 cases pass. Only the two intentionally source-bound closing receipts—Linux
 telemetry and the updated local-store carrier—remain before the final main
 proof run.
+
+### Final-main reconciliation — 2026-08-04
+
+Main advanced from `f466c0501` to `cead9fa33` while the resumed exhaustive
+Rust suite was running. The LLP 0062 Phase 2 landing reconciled without a text
+conflict and its new package inventory entries pass, but the complete app-CLI
+package test exposed an older fixture defect from `056a2fc91`: the positive
+credential-custody fixture used the repository checkout as its supposedly
+private root. That worked on GitHub's owner-only workspace and failed honestly
+when this wave worktree lived below world-writable `/private/tmp`. The fixture
+now defaults to the current user's home directory (while retaining the explicit
+test-root override), so its real unsafe-ancestor checks remain armed. The
+focused custody test and the complete 11-file app-CLI package suite pass on
+Node 24.18.0.
