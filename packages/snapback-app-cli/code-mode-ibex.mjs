@@ -274,13 +274,17 @@ export async function runIbexCodeMode({
     terminalSelected = true;
     send('abort', { reason, signal });
     const graceDeadline = Date.now() + limits.graceMs;
+    let workerClosed = false;
     while (Date.now() < graceDeadline) {
       const event = worker.take(0);
       if (event === undefined) {
         await nextTurn();
         continue;
       }
-      if (event.tag === 4) return;
+      if (event.tag === 4) {
+        workerClosed = true;
+        break;
+      }
       if (event.tag !== 1) continue;
       const frame = JSON.parse(event.frame);
       const body = frame.body;
@@ -309,21 +313,24 @@ export async function runIbexCodeMode({
         emitStderr(Object.freeze({ protocolVersion: 1, type: 'diagnostic', code: 'SNAPBACK_APP_CLI_LATE_FRAME_DROPPED' }));
       }
     }
-    worker.interrupt();
-    const acknowledgementDeadline = Date.now() + 250;
-    while (Date.now() < acknowledgementDeadline) {
-      const event = worker.take(0);
-      if (event?.tag === 4) return;
-      if (event?.tag === 1) {
-        const frame = JSON.parse(event.frame);
-        if (frame.type === 'console') emitStderr(Object.freeze({ protocolVersion: 1, type: 'console', ...frame.body }));
-        else if (!lateFrameReported) {
-          lateFrameReported = true;
-          emitStderr(Object.freeze({ protocolVersion: 1, type: 'diagnostic', code: 'SNAPBACK_APP_CLI_LATE_FRAME_DROPPED' }));
+    if (!workerClosed) {
+      worker.interrupt();
+      const acknowledgementDeadline = Date.now() + 250;
+      while (Date.now() < acknowledgementDeadline) {
+        const event = worker.take(0);
+        if (event?.tag === 4) break;
+        if (event?.tag === 1) {
+          const frame = JSON.parse(event.frame);
+          if (frame.type === 'console') emitStderr(Object.freeze({ protocolVersion: 1, type: 'console', ...frame.body }));
+          else if (!lateFrameReported) {
+            lateFrameReported = true;
+            emitStderr(Object.freeze({ protocolVersion: 1, type: 'diagnostic', code: 'SNAPBACK_APP_CLI_LATE_FRAME_DROPPED' }));
+          }
         }
+        await nextTurn();
       }
-      await nextTurn();
     }
+    if (signal !== null && typeof bridge.ackParentSignal === 'function') bridge.ackParentSignal(signal);
   };
   try {
     worker.start(transformed.callableSource, transformed.composedSourceMap, jcsCanonical(start));
@@ -331,6 +338,11 @@ export async function runIbexCodeMode({
       if (asynchronousFailure !== null) throw asynchronousFailure;
       const observedAt = Date.now();
       const event = worker.take(0);
+      const nativeSignal = typeof bridge.parentSignal === 'function' ? bridge.parentSignal() : 0;
+      if (parentSignal === null && Number.isInteger(nativeSignal) && nativeSignal > 0) {
+        const name = Object.entries(signalNumbers).find(([, number]) => number === nativeSignal)?.[0] ?? `signal ${nativeSignal}`;
+        parentSignal = Object.freeze({ name, number: nativeSignal });
+      }
       if (parentSignal !== null && (event?.tag !== 1 || JSON.parse(event.frame).type !== 'settlementEnd')) {
         throw Object.assign(failure('SNAPBACK_APP_CLI_SIGNAL', `the app-bound script received ${parentSignal.name}`, 128 + parentSignal.number), {
           signalExit: true,
