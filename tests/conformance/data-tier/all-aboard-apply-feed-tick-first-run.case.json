@@ -806,40 +806,45 @@
           "_id": "sb-local",
           "delaySeconds": 0,
           "status": "on-time",
-          "observedAt": "$ANY_NOW"
+          "observedAt": 1785758400000
         },
         {
           "_id": "sb-limited",
           "delaySeconds": 180,
           "status": "delayed",
-          "observedAt": "$ANY_NOW"
+          "observedAt": 1785758400000
         },
         {
           "_id": "sb-bullet",
           "delaySeconds": 0,
           "status": "on-time",
-          "observedAt": "$ANY_NOW"
+          "observedAt": 1785758400000
         },
         {
           "_id": "nb-local",
           "delaySeconds": 0,
           "status": "on-time",
-          "observedAt": "$ANY_NOW"
+          "observedAt": 1785758400000
         },
         {
           "_id": "nb-limited",
           "delaySeconds": 0,
           "status": "on-time",
-          "observedAt": "$ANY_NOW"
+          "observedAt": 1785758400000
         },
         {
           "_id": "nb-bullet",
           "delaySeconds": 0,
           "status": "on-time",
-          "observedAt": "$ANY_NOW"
+          "observedAt": 1785758400000
         }
       ],
       "feedRefreshState": []
     }
+  },
+  "ctxLedger": {
+    "version": 1,
+    "ids": [],
+    "now": 1785758400000
   }
 }

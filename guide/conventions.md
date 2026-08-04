@@ -133,10 +133,11 @@ see which suite carries its guarantee.
 rows carry a **witness** — a route in the declared registry, a host-op id, a
 package export, a generated-manifest field, or a CLI command proving the
 capability exists in code. Uncovered capabilities are explicit **GAP** rows
-naming an owner and a review date. The checker joins the index's surface map
-against the repo's declared enumerations (route registry, host-ops) — every
-enumerated entry maps to a capability id or a `notAuthorFacing`
-classification.
+naming an owner and a review date. The authored
+[`surface-map.md`](./surface-map.md) carries the mechanically growing route
+and host-op classifications under a separate size budget. The checker joins
+that map against the repo's declared enumerations — every enumerated entry
+maps to a capability id or a `notAuthorFacing` classification.
 
 ## The manifest
 

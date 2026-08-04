@@ -2971,6 +2971,8 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
         &serde_json::to_value(LiveSubscribeOutput {
             subscription_id: "sub_1".to_owned(),
             snapshot: Some(snapshot.clone()),
+            completeness_proof: None,
+            authorization_witness: None,
             resume: None,
             resume_refusal: None,
             superseded: None,

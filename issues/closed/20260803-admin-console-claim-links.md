@@ -1,7 +1,8 @@
 # Admin console: one-time operator claim links (`snapback admin link`)
 
 **Date:** 2026-08-03
-**Status:** Open
+**Status:** Resolved
+**Resolved:** 2026-08-03
 **Area:** Admin console / operator auth (LLP 0017)
 
 ## Problem
@@ -91,3 +92,27 @@ review artifacts under `llp/reviews/0017-*`. Summary:
   TTL, rate windows, pending caps, atomic consumption).
 - `packages/snapback-admin-client/index.mjs`, `admin-ui/main.ts` — fragment
   handling from the `snapback admin` handoff to extend.
+
+## Resolution
+
+Implemented in `9a571a6e4` (`feat(admin): add one-time operator claim links`).
+The landed slice includes the process-ephemeral digest-only claim registry and
+its independent budgets, atomic exchange and redemption binding, provenance-
+capped renewal, master status/revocation, the attached/default CLI with origin
+validation, browser fragment exchange through the existing credential store,
+stable diagnostics, route-policy classifications, and a black-box planted-link
+proof against a real server.
+
+Verification completed on 2026-08-03:
+
+- `DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks cargo build`
+- `DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks cargo test`
+- `bun run --cwd admin-ui test`
+- `bun run --cwd admin-ui build`
+- `node scripts/check-guide.mjs`
+- `./ref-check --verbose`
+
+The security self-review additionally made direct transport-peer metadata
+mandatory before exchange, made claim exchange fail closed if the browser
+cannot strip the fragment first, and confirmed no raw claim or issued
+credential enters server persistence or server logs.

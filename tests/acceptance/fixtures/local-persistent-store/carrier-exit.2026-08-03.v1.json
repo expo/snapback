@@ -6,8 +6,8 @@
     "LLP 0166#executable-acceptance",
     "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
   ],
-  "startedAt": "2026-08-04T02:09:40.390Z",
-  "completedAt": "2026-08-04T02:11:12.315Z",
+  "startedAt": "2026-08-04T05:59:33.960Z",
+  "completedAt": "2026-08-04T06:00:54.963Z",
   "runtime": {
     "node": "v25.9.0",
     "platform": "darwin",
@@ -15,23 +15,21 @@
     "hostnameClass": "local-evidence-machine"
   },
   "source": {
-    "revision": "f78e23a602db9a545f49e439423731cd14b4c44a",
-    "dirty": true,
-    "dirtyPaths": [
-      "ackages/snapback-client/index.mjs",
-      "packages/snapback-client/package.json",
-      "scripts/check-package-test-inventory.mjs",
-      "tests/acceptance/local-store-carrier-exit-v1.mjs",
-      "packages/snapback-client/logout-v3-bridge.test.mjs"
-    ],
+    "revision": "ae3fbae247697e793a19dac558b85f3741668df5",
+    "dirty": false,
+    "dirtyPaths": [],
     "files": [
       {
         "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
-        "sha256": "84f161151090946769668e0d3980afd39ee9e0bd58daed6e2d8dc93b0876e2bb"
+        "sha256": "3d39c81a709b244f4f08518f9501b9c28a62e9b285d15bd80ceb1c444d6f7b31"
       },
       {
         "path": "packages/snapback-client/materialization-store.mjs",
-        "sha256": "fe2282ebed6da945409db09bc22a5a20a00a1c2f6c994d0e435395db8188230f"
+        "sha256": "c6bfcf376263b4d78d2533f661e3f7fcf8dedb72b674f743c612583dbfab7a3a"
+      },
+      {
+        "path": "packages/snapback-client/materialization-bridge.mjs",
+        "sha256": "660c79730696eed7663245834c69676c2a819125b64a0b9d68e4994ffdf76d70"
       },
       {
         "path": "packages/snapback-client/registration-ledger.mjs",
@@ -59,11 +57,11 @@
       },
       {
         "path": "packages/snapback-client/rqs-store-meta.mjs",
-        "sha256": "65ac9258773dcffae88031ee4d3a428c22dbbfbf18615ae29befa15dc202c63d"
+        "sha256": "ccba1d6faaae5a7ece09e0871835eea99bd28a1959d252373163fc4562c54e22"
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "e563380379039967ae1ed85e53920916bb5ffa34a5abdb52743e9232fc3502ff"
+        "sha256": "e1409ddce2e4de508957da805f6f2aa4085ab24c5f6fa6784038a99d56c6ad36"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
@@ -89,8 +87,8 @@
   },
   "partial": false,
   "summary": {
-    "pass": 14,
-    "gap": 3,
+    "pass": 15,
+    "gap": 2,
     "skipped": 0,
     "capabilityClaimsChanged": false
   },
@@ -233,7 +231,7 @@
           2,
           3
         ],
-        "relaunchToReadableMs": 1607.537,
+        "relaunchToReadableMs": 1604.307,
         "browser": {
           "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
           "version": "Google Chrome 150.0.7871.187",
@@ -246,12 +244,12 @@
         },
         "cleanup": {
           "firstBrowser": {
-            "pid": 91175,
+            "pid": 76232,
             "requestedSignal": "SIGKILL",
             "processTreeExitAttested": true
           },
           "finalBrowser": {
-            "pid": 91273,
+            "pid": 76382,
             "requestedSignal": "SIGTERM",
             "processTreeExitAttested": true
           },
@@ -349,7 +347,7 @@
           {
             "type": "boundary",
             "boundary": "before-rename",
-            "pid": 85012,
+            "pid": 70954,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -360,7 +358,7 @@
           {
             "type": "boundary",
             "boundary": "after-rename-before-directory-sync",
-            "pid": 85022,
+            "pid": 70970,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -384,33 +382,69 @@
           ],
           "nextAllocatedQueryInstanceId": 3
         },
-        "physicalBlobBytes": 1902
+        "physicalBlobBytes": 1935
       }
     },
     {
       "leg": "retained-render-server-unreachable",
-      "carrier": "live-backend-plus-browser-contract-store",
-      "status": "GAP",
+      "carrier": "live-backend-plus-node-file-v3",
+      "status": "PASS",
       "evidence": {
-        "backend": {
-          "started": true,
-          "baseUrlClass": "loopback-ephemeral-port",
-          "healthStatus": 200,
-          "healthOk": true,
-          "launchRung": "configured"
+        "serverBinary": "target/debug/snapback",
+        "serverBinarySha256": "7159f81aa983d700f4ea65549e89eeda6e3958d1aeeb15cd6218bbd25415db07",
+        "launchRung": "configured",
+        "backendStoppedBeforeRelaunch": true,
+        "activationPreparation": {
+          "format": "snapback.composition-activation-preparation.v1",
+          "activationHash": "sha256:32817247bbda7688de62019c49e6f6906eea20e401db3aa24a066e6e54d4668d",
+          "sourceClass": "temporary-backend-source",
+          "next": "rerun Snapback codegen for this backend"
         },
-        "storeLevelRetainedRead": {
-          "rows": 1,
-          "answer": {
-            "answerClass": "lease-authorized-retained",
-            "freshness": "retained",
-            "storeMutation": "none",
-            "resumeAction": "full-revalidate-and-fresh-snapshot-on-reconnect"
+        "generatedArtifactGraph": {
+          "trustedActivationPresent": true,
+          "directReferenceIdentity": true
+        },
+        "live": {
+          "answerClass": "authoritative",
+          "freshness": "current",
+          "rows": [
+            {
+              "title": "proof-backed",
+              "authorName": "Ada"
+            }
+          ],
+          "retention": {
+            "retainable": true,
+            "code": null,
+            "reason": null,
+            "store": {
+              "source": "injected",
+              "implementation": "file",
+              "durable": true,
+              "reason": null
+            }
           }
         },
-        "endToEndRenderedByPublicClient": false
-      },
-      "reason": "SNAPBACK_CARRIER_EXIT_RETAINED_RENDER_BRIDGE_MISSING: no shipped public client path seeds an LLP 0166 v3 materialization from a live backend and renders the answer-class projection after backend loss; the receipt separately records the backend and browser probe outcomes from this run"
+        "relaunch": {
+          "answerClass": "authoritative",
+          "freshness": "retained",
+          "rows": [
+            {
+              "authorName": "Ada",
+              "title": "proof-backed"
+            }
+          ],
+          "firstUpdate": null
+        },
+        "materialization": {
+          "records": 1,
+          "qmk1": "qmk1.ZAW9srW4-Rsp5CvoIdg0Z5p2wgPjf04D-md93AFMQgQ",
+          "freshness": "retained",
+          "fragments": 1,
+          "leaseCustody": 1
+        },
+        "endToEndRenderedByPublicClient": true
+      }
     },
     {
       "leg": "authority-logout",
@@ -545,8 +579,8 @@
         "recordCapRefusal": "SNAPBACK_MATERIALIZATION_BUDGET_EXCEEDED",
         "logicalBytesBefore": 38804851,
         "logicalBytesAfter": 32506933,
-        "physicalBytesBefore": 52174459,
-        "physicalBytesAfter": 43897200,
+        "physicalBytesBefore": 52174492,
+        "physicalBytesAfter": 43897233,
         "compactedAddressKeys": [
           "qmk1.CysAIfWyF3jTx0wqKc4pYMwIlIjX44GpNadmi3iUe3A",
           "qmk1.Jk32Yja9SmdgljkWdOmeZfMA5vz5sbyHRurF7ezyeNs",
@@ -573,7 +607,7 @@
           "version": 7,
           "token": "sbrt1.carrier-exit.7"
         },
-        "maintenanceMs": 70426.794
+        "maintenanceMs": 52055.348
       }
     },
     {
@@ -660,14 +694,14 @@
       "status": "PASS",
       "evidence": {
         "artifact": "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-03.v1.json",
-        "minifiedBytes": 485143,
-        "measuredModuleOwnBytes": 96217,
-        "modules": 8,
+        "minifiedBytes": 531367,
+        "measuredModuleOwnBytes": 107331,
+        "modules": 9,
         "browserClosureQualification": {
           "status": "PASS",
           "materializationStoreResolved": true,
           "resolved": true,
-          "outputBytes": 65278,
+          "outputBytes": 66076,
           "externalImports": []
         }
       }

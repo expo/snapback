@@ -35,6 +35,11 @@ correct.
   "plan": { "steps": [ … ], "return_value": … },  // MutationPlan (serde shape)
   "args": { … },
   "authUserId": "user-1" | null,
+  "ctxLedger": {                    // required exact v1 replay recording
+    "version": 1,
+    "ids": ["…"],                 // exact answer order, possibly empty
+    "now": 1785758400000
+  },
   "expect": {
     "result": …,                   // omit to skip
     "changedCount": 0,             // omit to skip
@@ -52,13 +57,14 @@ An optional case above a consumer's supported profile soft-skips with
 `SNAPBACK_DATA_TIER_VERSION_REQUIRED` (newer producer) or
 `SNAPBACK_DATA_TIER_VERSION_UNSUPPORTED` (older producer).
 
-Placeholders (staging bridge until the ctx-answer ledger — LLP 0051
-Increment 2 — makes outputs exact, LLP 0010's `$NOW`/`$ID` mechanism):
-
-- `"$ANY_NOW"` — matches any positive number (RuntimeNow-derived values)
-- `"$ANY_ID"` — matches any non-empty string (RuntimeId/bind_id_as values)
+Every committed v1 case carries an exact `ctxLedger`. The host and JS runners
+consume the complete recording, fail on exhaustion or unused ids, and require
+the committed output ledger to echo the input exactly. The corpus contains no
+`$ANY_NOW` or `$ANY_ID` staging placeholders; runtime-derived row fields and
+whole-plan return values are literal pins.
 
 Row matching: `expect.rows` lists a table's **complete** contents
 (count-exact); each expected row subset-matches one actual row (extra actual
-fields — system columns — are ignored). Rejection cases assert the typed
-diagnostic code and, optionally, that nothing committed.
+fields — system columns — are ignored). Rejection cases assert the exact typed
+diagnostic code, and both runners verify atomic rollback against every seeded
+table. A rejected plan has no result, changed count, or output ledger.

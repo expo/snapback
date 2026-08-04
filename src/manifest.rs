@@ -4343,6 +4343,13 @@ pub struct SnapshotBatchIdentityV1 {
     pub parent_authorization_key_digests: Vec<String>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SingleNodeIdentityV1 {
+    pub normalized_composite_plan: Value,
+    pub plan_hash: String,
+    pub node_plan_hash: String,
+}
+
 fn domain_hash(domain: &[u8], value: &Value) -> SnapbackResult<String> {
     let canonical = crate::rqs::jcs(value).map_err(|_| {
         SnapbackError::error(
@@ -4355,6 +4362,132 @@ fn domain_hash(domain: &[u8], value: &Value) -> SnapbackResult<String> {
     digest.update(domain);
     digest.update(canonical.as_bytes());
     Ok(format!("sha256:{:x}", digest.finalize()))
+}
+
+/// Rebuild LLP 0157's single-node plan identity for the two admitted owner
+/// classes. The function declaration, rather than plan shape, supplies the
+/// liveness axis; retention remains the independent owner-issued flag.
+// @ref LLP 0157#d2--plan-identity — a single-node hash includes every declared argument contract and explicit capability classification.
+pub fn single_node_identity_v1(
+    function: &FunctionDefinition,
+) -> SnapbackResult<Option<SingleNodeIdentityV1>> {
+    let (class_id, normalized_plan, retention) = match &function.runtime {
+        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => (
+            "relational_query_v1",
+            serde_json::to_value(plan).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_COMPOSITION_PLAN_INVALID",
+                    "query",
+                    "relational plan does not serialize",
+                )
+            })?,
+            if function.retainable {
+                "opaque-authorized-snapshot-v1"
+            } else {
+                "none"
+            },
+        ),
+        FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => (
+            "bounded_children_v1",
+            serde_json::to_value(plan).map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_COMPOSITION_PLAN_INVALID",
+                    "query",
+                    "bounded-children plan does not serialize",
+                )
+            })?,
+            "none",
+        ),
+        _ => return Ok(None),
+    };
+    let contract = function.args_contract.as_ref().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_COMPOSITION_PLAN_INVALID",
+            "query",
+            "single-node composition identity requires a typed argument contract",
+        )
+    })?;
+    let mut bindings = Vec::with_capacity(contract.fields.len());
+    let mut merged = Vec::with_capacity(contract.fields.len());
+    for field in &contract.fields {
+        let binding_contract = serde_json::json!({
+            "format": "snapback.argument-binding-contract.v1",
+            "required": field.required,
+            "value": field.value,
+        });
+        let contract_hash =
+            domain_hash(b"snapback:argument-binding-contract:v1:", &binding_contract)?;
+        bindings.push(serde_json::json!({
+            "name": field.name,
+            "contract": binding_contract,
+            "contractHash": contract_hash,
+        }));
+        merged.push(serde_json::json!({
+            "name": field.name,
+            "contract": binding_contract,
+            "contractHash": contract_hash,
+            "sourcePositions": [0],
+        }));
+    }
+    let live = if function.kind == FunctionKind::LiveQuery {
+        serde_json::json!({
+            "kind": "admitted",
+            "delivery": "live_replace",
+            "pageDomain": "cursor-free-first-page",
+        })
+    } else {
+        serde_json::json!({"kind": "none"})
+    };
+    let node_plan = serde_json::json!({
+        "format": "snapback.node-plan.v1",
+        "classId": class_id,
+        "classVersion": 1,
+        "normalizedPlan": normalized_plan,
+        "argumentBindings": bindings,
+        "capability": {
+            "exportKind": if function.kind == FunctionKind::LiveQuery { "LiveQuery" } else { "Query" },
+            "live": live,
+            "retention": retention,
+            "requiredCapabilityIds": [class_id],
+        },
+    });
+    let node_plan_hash = domain_hash(b"snapback:node-plan:v1:", &node_plan)?;
+    let merged_record = serde_json::json!({
+        "format": "snapback.merged-args-contract.v1",
+        "bindings": merged,
+    });
+    let merged_hash = domain_hash(b"snapback:merged-args-contract:v1:", &merged_record)?;
+    let classification_live = if function.kind == FunctionKind::LiveQuery {
+        serde_json::json!({
+            "kind": "admitted",
+            "delivery": "live_replace",
+            "pageDomain": "cursor-free-first-page",
+        })
+    } else {
+        serde_json::json!({"kind": "none", "delivery": "none", "pageDomain": "none"})
+    };
+    let normalized = serde_json::json!({
+        "format": "snapback.normalized-composite-plan.v1",
+        "profileId": "single-node.v1",
+        "nodes": [{
+            "position": 0,
+            "nodePlan": node_plan,
+            "nodePlanHash": node_plan_hash,
+        }],
+        "mergedArgsContractHash": merged_hash,
+        "classification": {
+            "callable": true,
+            "live": classification_live,
+            "invalidation": if function.kind == FunctionKind::LiveQuery { "table-granular-resnapshot" } else { "none" },
+            "retention": retention,
+        },
+        "parentAuthorizationGroups": [],
+    });
+    Ok(Some(SingleNodeIdentityV1 {
+        normalized_composite_plan: normalized.clone(),
+        plan_hash: domain_hash(b"snapback:plan-hash:v1:", &normalized)?,
+        node_plan_hash,
+    }))
 }
 
 /// Rebuild the exact LLP 0157 node/composite identity stack from an admitted

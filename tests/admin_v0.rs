@@ -6,6 +6,7 @@
 //! the normal invocation path, and non-loopback binds gate admin.
 
 use axum::body::Body;
+use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
@@ -913,6 +914,257 @@ async fn console_device_approval_is_terminal_authorized_and_single_use() {
         json(replayed_poll).await["diagnostic"]["code"],
         "SNAPBACK_ADMIN_APPROVAL_INVALID"
     );
+}
+
+#[tokio::test]
+async fn console_claim_exchange_is_atomic_uniform_master_observable_and_revocable() {
+    let context = loopback_context(Some("master-secret"));
+    let shared_credentials = context.console_credentials.clone();
+    let app = app_with_context(seeded_snapback(), context);
+    let minted = app
+        .clone()
+        .oneshot(post_with_token(
+            "/_snapback/api/console/claim",
+            json!({}),
+            "master-secret",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(minted.status(), StatusCode::OK);
+    assert_eq!(minted.headers()["cache-control"], "no-store, private");
+    let minted = json(minted).await;
+    let claim_code = minted["claimCode"].as_str().unwrap().to_owned();
+    assert!(claim_code.starts_with("sbcl_"));
+    assert_eq!(minted["expiresIn"], 30 * 60);
+
+    let missing_peer = app
+        .clone()
+        .oneshot(post(
+            "/_snapback/api/console/claim/exchange",
+            json!({ "claimCode": &claim_code }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(missing_peer.status(), StatusCode::FORBIDDEN);
+    assert_eq!(
+        json(missing_peer).await["diagnostic"]["code"],
+        "SNAPBACK_ADMIN_CLAIM_UNAVAILABLE",
+        "an exchange cannot publish a falsely labeled direct-peer record"
+    );
+
+    let (first, second) = tokio::join!(
+        app.clone()
+            .oneshot(claim_exchange_request(&claim_code, "127.0.0.1:5001")),
+        app.clone()
+            .oneshot(claim_exchange_request(&claim_code, "127.0.0.1:5002")),
+    );
+    let first = first.unwrap();
+    let second = second.unwrap();
+    let (winner, loser) = if first.status() == StatusCode::OK {
+        (first, second)
+    } else {
+        (second, first)
+    };
+    assert_eq!(winner.status(), StatusCode::OK);
+    assert_eq!(winner.headers()["cache-control"], "no-store, private");
+    assert_eq!(loser.status(), StatusCode::UNAUTHORIZED);
+    let loser_body = text(loser).await;
+    let consumed = app
+        .clone()
+        .oneshot(claim_exchange_request(&claim_code, "127.0.0.1:5003"))
+        .await
+        .unwrap();
+    assert_eq!(consumed.status(), StatusCode::UNAUTHORIZED);
+    let consumed_body = text(consumed).await;
+    let invalid = app
+        .clone()
+        .oneshot(claim_exchange_request(
+            "sbcl_00000000000000000000000000000000",
+            "127.0.0.1:5004",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(invalid.status(), StatusCode::UNAUTHORIZED);
+    let invalid_body = text(invalid).await;
+    assert_eq!(loser_body, consumed_body);
+    assert_eq!(consumed_body, invalid_body);
+    assert_eq!(
+        serde_json::from_str::<Value>(&invalid_body).unwrap()["diagnostic"]["code"],
+        "SNAPBACK_ADMIN_CLAIM_INVALID"
+    );
+
+    let winner = json(winner).await;
+    let credential = winner["credential"].as_str().unwrap();
+    assert!(credential.starts_with("sbcc_"));
+    assert_eq!(winner["provenance"], "operatorClaim");
+
+    let ordinary_write = app
+        .clone()
+        .oneshot(post_with_console_credential(
+            "/_snapback/api/app/reset",
+            json!({}),
+            credential,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(ordinary_write.status(), StatusCode::OK);
+
+    let mut sessions_context = loopback_context(Some("master-secret"));
+    sessions_context.console_credentials = shared_credentials;
+    let sessions_app = snapback::server::app(
+        AppState::from_snapback(seeded_snapback(), sessions_context)
+            .with_policy_auth_mode(PolicyAuthMode::Sessions),
+    );
+    let secret_read = sessions_app
+        .oneshot(
+            Request::builder()
+                .uri("/_snapback/api/inspect")
+                .header("x-snapback-console-credential", credential)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(secret_read.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        json(secret_read).await["diagnostic"]["code"],
+        "SNAPBACK_ADMIN_SECRET_READ_REQUIRED"
+    );
+
+    let impersonation = app
+        .clone()
+        .oneshot(post_with_console_credential(
+            "/_snapback/api/host-ops",
+            json!({
+                "operation": "function.run",
+                "function": "listTodos",
+                "userId": "chosen-user"
+            }),
+            credential,
+        ))
+        .await
+        .unwrap();
+    assert_ne!(
+        impersonation.status(),
+        StatusCode::OK,
+        "ordinary claim authority cannot manufacture impersonation authority"
+    );
+
+    let browser_status = app
+        .clone()
+        .oneshot(post_with_console_credential(
+            "/_snapback/api/console/claim/status",
+            json!({ "claimCode": claim_code }),
+            credential,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(browser_status.status(), StatusCode::UNAUTHORIZED);
+    assert_eq!(
+        json(browser_status).await["diagnostic"]["code"],
+        "SNAPBACK_ADMIN_TOKEN_REQUIRED"
+    );
+
+    let status = app
+        .clone()
+        .oneshot(post_with_token(
+            "/_snapback/api/console/claim/status",
+            json!({ "claimCode": claim_code }),
+            "master-secret",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(status.status(), StatusCode::OK);
+    let status = json(status).await;
+    assert_eq!(status["status"], "redeemed");
+    assert_eq!(status["transportPeerSource"], "directTransport");
+    assert!(status["transportPeer"].as_str().unwrap().starts_with("127.0.0.1:500"));
+    assert_ne!(status["credentialDigestSha256"], credential);
+    assert_eq!(status["credentialDigestSha256"].as_str().unwrap().len(), 64);
+
+    let renewal = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/_snapback/api/console/credential")
+                .header("x-snapback-console-credential", credential)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(renewal.status(), StatusCode::OK);
+    let renewal = json(renewal).await;
+    assert_eq!(renewal["credential"], credential);
+    assert_eq!(renewal["provenance"], "operatorClaim");
+
+    let revoked = app
+        .clone()
+        .oneshot(post_with_token(
+            "/_snapback/api/console/claim/revoke",
+            json!({ "claimCode": claim_code }),
+            "master-secret",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(revoked.status(), StatusCode::OK);
+    assert_eq!(json(revoked).await["status"], "revoked");
+
+    let after_revoke = app
+        .oneshot(post_with_console_credential(
+            "/_snapback/api/app/reset",
+            json!({}),
+            credential,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(after_revoke.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn console_claim_mint_and_exchange_refuse_non_loopback_and_hosted_targets() {
+    let contexts = [
+        (
+            exposed_context(Some("master-secret")),
+            "SNAPBACK_ADMIN_DISABLED",
+        ),
+        (
+            loopback_context(Some("master-secret")).with_auth_deployment(
+            snapback::auth::deployment::AuthDeploymentTarget::Hosted,
+            ),
+            "SNAPBACK_ADMIN_CLAIM_UNAVAILABLE",
+        ),
+    ];
+    for (context, anonymous_exchange_code) in contexts {
+        let app = app_with_context(seeded_snapback(), context);
+        let mint = app
+            .clone()
+            .oneshot(post_with_token(
+                "/_snapback/api/console/claim",
+                json!({}),
+                "master-secret",
+            ))
+            .await
+            .unwrap();
+        assert_eq!(mint.status(), StatusCode::FORBIDDEN);
+        assert_eq!(
+            json(mint).await["diagnostic"]["code"],
+            "SNAPBACK_ADMIN_CLAIM_UNAVAILABLE"
+        );
+        let exchange = app
+            .oneshot(claim_exchange_request(
+                "sbcl_00000000000000000000000000000000",
+                "127.0.0.1:5005",
+            ))
+            .await
+            .unwrap();
+        assert_eq!(exchange.status(), StatusCode::FORBIDDEN);
+        assert_eq!(
+            json(exchange).await["diagnostic"]["code"],
+            anonymous_exchange_code
+        );
+    }
 }
 
 /// LLP 0032 S1 (LLP 0031 §Enforcement) — the ungated root aliases and the
@@ -2425,6 +2677,27 @@ fn post_with_token(uri: &str, body: Value, token: &str) -> Request<Body> {
         .header("x-snapback-admin-token", token)
         .body(Body::from(body.to_string()))
         .unwrap()
+}
+
+fn post_with_console_credential(uri: &str, body: Value, credential: &str) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(uri)
+        .header("content-type", "application/json")
+        .header("x-snapback-console-credential", credential)
+        .body(Body::from(body.to_string()))
+        .unwrap()
+}
+
+fn claim_exchange_request(claim_code: &str, peer: &str) -> Request<Body> {
+    let mut request = post(
+        "/_snapback/api/console/claim/exchange",
+        json!({ "claimCode": claim_code }),
+    );
+    request
+        .extensions_mut()
+        .insert(ConnectInfo(peer.parse::<std::net::SocketAddr>().unwrap()));
+    request
 }
 
 fn post_with_connection_token(uri: &str, body: Value, token: &str) -> Request<Body> {

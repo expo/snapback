@@ -46,6 +46,19 @@ import {
 } from './react-binding.mjs';
 import { createRegistrationLedger } from './registration-ledger.mjs';
 import {
+  createMaterializationStore,
+  pageIdentityDigestV1,
+} from './materialization-store.mjs';
+import {
+  authorityStateForWitness,
+  commitMaterializationLeaseCustody,
+  deriveGeneratedMaterializationBridge,
+  findRetainedGeneratedMaterializationBridge,
+  loadMaterializationLeaseCustody,
+  materializationFence,
+  retainedFailureTransition,
+} from './materialization-bridge.mjs';
+import {
   deriveLegacyResumeAnswerV1,
   deriveQmk1AnswerV1,
 } from './answer-classes.mjs';
@@ -84,7 +97,7 @@ export {
   ExternalQueryScope,
   SNAPBACK_EXTERNAL_STORE_PROTOCOL,
 } from './external-store.mjs';
-import { membershipWitnessOfRows, rowsMatchDigest } from './rqs.mjs';
+import { jcsBytes, membershipWitnessOfRows, rowsMatchDigest } from './rqs.mjs';
 import {
   arbitrateResumeCandidates,
   rqsEntryKey,
@@ -1826,15 +1839,43 @@ export class SnapbackClient {
     this.__rqsStoreClosePromise = null;
     this.__registrationContextId = mintVolatileRegistrationId();
     this.__materializationStore = __materializationStore;
+    this.__materializationStorePromise = __materializationStore
+      ? Promise.resolve(__materializationStore)
+      : null;
+    this.__materializationContexts = new Map();
+    const deferredMaterializationStore = {
+      observeMaterialization: (address, listener) => {
+        if (this.__materializationStore) {
+          return this.__materializationStore.observeMaterialization(address, listener);
+        }
+        listener({ format: 'snapback.materialization-observation.v1', present: false, generation: null, status: null });
+        return () => {};
+      },
+      beginEstablishment: async (...args) => {
+        const store = await this.__materializationStorePromise;
+        if (!store) {
+          const error = new Error('SNAPBACK_MATERIALIZATION_STORE_UNAVAILABLE');
+          error.code = 'SNAPBACK_MATERIALIZATION_STORE_UNAVAILABLE';
+          throw error;
+        }
+        return store.beginEstablishment(...args);
+      },
+    };
     this.__registrationRevision = 0;
     this.__activeRegistrations = new Map();
-    this.__registrationLedgerPromise = createRegistrationLedger({
-      storeHandle: typeof this.rqsStore?.materializationTransaction === 'function'
-        ? this.rqsStore
-        : null,
-      clientStoreId: this.clientStoreId,
-      resolveAddress: __registrationAddressResolver,
-      materializationStore: __materializationStore,
+    const v3Store = typeof this.rqsStore?.materializationTransaction === 'function'
+      ? this.rqsStore
+      : null;
+    this.__registrationLedgerPromise = Promise.resolve(
+      typeof v3Store?.readStoreMeta === 'function' ? v3Store.readStoreMeta() : null,
+    ).then((meta) => {
+      this.__materializationClientStoreId = meta?.clientStoreId ?? this.clientStoreId;
+      return createRegistrationLedger({
+        storeHandle: v3Store,
+        clientStoreId: this.__materializationClientStoreId,
+        resolveAddress: __registrationAddressResolver,
+        materializationStore: deferredMaterializationStore,
+      });
     });
     if (offlineQueue !== 'auto' && typeof offlineQueue != 'boolean') {
       throw new TypeError("offlineQueue must be 'auto', true, or false");
@@ -4419,16 +4460,127 @@ export class SnapbackClient {
     return prepareReactBindingForClient(this, options);
   }
 
+  async __ensureMaterializationStore() {
+    if (this.__materializationStore) return this.__materializationStore;
+    if (!this.__materializationStorePromise) {
+      if (typeof this.rqsStore?.materializationTransaction !== 'function') return null;
+      this.__materializationStorePromise = createMaterializationStore(this.rqsStore, {
+        resolveValidationContext: ({ address, record }) => {
+          const key = JSON.stringify(address);
+          const base = this.__materializationContexts.get(key) ?? null;
+          if (!base) return null;
+          let witness = base.authorizationWitness;
+          if (witness === null) {
+            const proof = record.productState.heldProofs[0] ?? null;
+            if (proof) {
+              witness = {
+                format: 'snapback.authorization-witness.v1',
+                queryInstanceId: record.queryInstanceId,
+                compositeWitness: {
+                  authorization: {
+                    incarnation: record.authorityState.expected_authorization.incarnation,
+                    epoch: record.authorityState.expected_authorization.epoch,
+                  },
+                  data: {
+                    versionStream: proof.version.stream,
+                    minCommitVersion: proof.version.commit,
+                  },
+                },
+              };
+            }
+          }
+          return {
+            ...base,
+            authorizationWitness: witness,
+            publicationAdmitted: typeof base.publicationGuard === 'function'
+              ? base.publicationGuard() === true
+              : true,
+          };
+        },
+      }).then((store) => {
+        this.__materializationStore = store;
+        return store;
+      });
+    }
+    return this.__materializationStorePromise;
+  }
+
+  async __prepareGeneratedMaterializationBridge(ref, args, userId, persistResume) {
+    if (
+      ref?.artifacts?.trustedCompositionActivation == null
+      || ref?.composition == null
+      || typeof this.rqsStore?.materializationTransaction !== 'function'
+    ) return null;
+    const clientStoreId = this.__materializationClientStoreId ?? this.clientStoreId;
+    let bridge;
+    try {
+      const session = await this.authSession();
+      const scope = await this.currentAuthorizationScope({ devUserId: userId ?? null });
+      bridge = deriveGeneratedMaterializationBridge({
+        ref,
+        args,
+        // The request-body selector contributes the invocation fingerprint;
+        // principalDataScope and continuity identity come from the authority
+        // owner snapshot, per LLP 0157's exact partition record.
+        userId: userId ?? null,
+        clientStoreId,
+        authorizationScope: { ...scope, session },
+        durableCarrier: this.rqsStoreInfo.durable === true,
+        persistResume,
+        authorizedLeaseAvailable: this.authProtocols.authInvalidation === 1
+          && this.authProtocols.authorizedLease === 1
+          && session.clientProtocols?.authInvalidation === 1
+          && session.clientProtocols?.authorizedLease === 1
+          && session.authorizedLease?.protocolVersion === 1
+          && session.availability?.retainedReads?.available === true,
+      });
+    } catch (error) {
+      if (!isConnectivityFailureError(error)) throw error;
+      bridge = await findRetainedGeneratedMaterializationBridge({
+        ref,
+        args,
+        clientStoreId,
+        storeHandle: this.rqsStore,
+        durableCarrier: this.rqsStoreInfo.durable === true,
+        persistResume,
+      });
+    }
+    if (bridge === null) return null;
+    const lease = await loadMaterializationLeaseCustody(this.rqsStore, bridge);
+    const context = {
+      trustedActivation: bridge.activation,
+      planHash: bridge.identities.planHash,
+      nodes: bridge.nodes,
+      resultContractHash: bridge.resultContractHash,
+      resultContract: bridge.resultContract,
+      authorizationWitness: lease.witness,
+      authorizationWitnessOwnerProduced: true,
+      retentionEligible: true,
+      leaseStatus: lease.leaseStatus,
+      authorizedLeaseHash: lease.authorizedLeaseHash,
+      ownerTransitionForRetainedFailure: retainedFailureTransition,
+    };
+    this.__materializationContexts.set(bridge.addressKey, context);
+    const store = await this.__ensureMaterializationStore();
+    if (!store) return null;
+    const record = await store.initialize(bridge.address, bridge.identities, null);
+    return { bridge, context, record, store };
+  }
+
   // @ref LLP 0166#registration-sources-mapped-to-shipped-machinery — each
   // liveQuery owns one volatile active registration; persistResume maps only
   // the retention axis and disposal releases that exact demand.
-  async __registerActiveQueryDemand(ref, args, persistResume) {
+  async __registerActiveQueryDemand(ref, args, persistResume, preparedBridge = null) {
     const ledger = await this.__registrationLedgerPromise;
     if (ledger === null) return () => {};
     const registrationId = mintVolatileRegistrationId();
     const functionReference = typeof ref === 'object' && ref !== null
       ? structuredClone(ref)
       : { name: functionName(ref) };
+    if (preparedBridge) {
+      functionReference.materializationAddress = [...preparedBridge.bridge.address];
+      functionReference.authorityPartitionDigest = preparedBridge.bridge.authorityPartitionDigest;
+    }
     const registration = {
       format: 'snapback.query-registration.v1',
       registrationId,
@@ -4436,7 +4588,9 @@ export class SnapbackClient {
       ownerContext: { kind: 'subscription', contextId: this.__registrationContextId },
       functionReference,
       canonicalArgs: structuredClone(args),
-      requestedScope: { kind: 'page-set', from: 'first', through: 'terminal' },
+      requestedScope: preparedBridge
+        ? { kind: 'page', input: { kind: 'first' } }
+        : { kind: 'page-set', from: 'first', through: 'terminal' },
       retentionRequest: persistResume ? 'durable' : 'none',
       idleTtlClass: 'default',
     };
@@ -4454,6 +4608,7 @@ export class SnapbackClient {
         revision: ++this.__registrationRevision,
         demands,
       });
+      if (preparedBridge) await ledger.awaitHydrationIdle();
     } catch (error) {
       this.__activeRegistrations.delete(registrationId);
       throw error;
@@ -4489,7 +4644,8 @@ export class SnapbackClient {
   }
 
   async __readQmk1LocalAnswer({ address, expectedFence, connected, ...ownerFacts }) {
-    if (!this.__materializationStore) {
+    const materializationStore = await this.__ensureMaterializationStore();
+    if (!materializationStore) {
       const error = new Error(
         'SNAPBACK_MATERIALIZATION_STORE_UNAVAILABLE: qmk1 local reads require the L2 store seam',
       );
@@ -4497,17 +4653,17 @@ export class SnapbackClient {
       throw error;
     }
     let observation = null;
-    const releaseObservation = this.__materializationStore.observeMaterialization(
+    const releaseObservation = materializationStore.observeMaterialization(
       address,
       (next) => { observation = next; },
     );
     releaseObservation();
-    const value = await this.__materializationStore.readRenderable(address, expectedFence);
+    const value = await materializationStore.readRenderable(address, expectedFence);
     const classification = deriveQmk1AnswerV1({
       connected,
       ...ownerFacts,
       completenessStatus: observation?.status ?? 'unknown',
-      freshness: observation?.freshness ?? null,
+      freshness: ownerFacts.freshness ?? observation?.freshness ?? null,
       renderable: value !== null,
     });
     return Object.freeze({
@@ -7418,19 +7574,35 @@ export class SnapbackClient {
     const name = functionName(ref);
     const client = this;
     let releaseActiveRegistration = () => {};
+    // Resolve the store-scoped identity before allocating a live namespace.
+    // Generated references without the trusted artifact stay on the legacy
+    // path byte-for-byte.
+    await this.__registrationLedgerPromise;
+    const preparedMaterialization = await this.__prepareGeneratedMaterializationBridge(
+      ref,
+      args,
+      userId,
+      persistResume,
+    );
     // @ref LLP 0053#client-fences — every auth-scoped materialization owns a
     //   never-reused query identity and a synchronous publication fence.
     const authorizationProtocolEnabled = this.authProtocols.authInvalidation != null;
     const queryKey = retainedQueryKey(name, args);
-    let queryNamespace = authorizationProtocolEnabled
-      ? authorizationNamespace === null
+    let queryNamespace = preparedMaterialization
+      ? createLiveQueryNamespace({
+          clientStoreId: preparedMaterialization.bridge.address[1],
+          queryKey: preparedMaterialization.bridge.address[2],
+          queryInstanceId: preparedMaterialization.record.queryInstanceId,
+        })
+      : authorizationProtocolEnabled
+        ? authorizationNamespace === null
         ? createLiveQueryNamespace({
             clientStoreId: this.clientStoreId,
             queryKey,
             queryInstanceId: this.__liveQueryAllocator.allocate(),
           })
         : createLiveQueryNamespace(authorizationNamespace)
-      : null;
+        : null;
     let authorizationFence = null;
     let authorizationFaulted = false;
     let authorizationTail = Promise.resolve();
@@ -7610,7 +7782,9 @@ export class SnapbackClient {
     // the pagehide/visibility flush below mapped on native to the host
     // lifecycle calling handle.flushResumeState() on background/inactive.
     // -----------------------------------------------------------------
-    const resumeStore = persistResume ? client.rqsStore : null;
+    const resumeStore = persistResume && preparedMaterialization === null
+      ? client.rqsStore
+      : null;
     const resumeStoreKey = resumeStore ? rqsEntryKey(name, args) : null;
     let persistTimer = null;
     let persistFirstDirtyAt = null;
@@ -7622,6 +7796,7 @@ export class SnapbackClient {
     // resume" recency bookkeeping (LLP 0091 §0A.5 eviction rule).
     let pendingResumeConfirmation = false;
     let seededFromResumeState = false;
+    let seededFromMaterialization = false;
 
     const chainStoreWrite = (write) => {
       if (!resumeStore || !resumeStoreKey) return Promise.resolve();
@@ -7788,6 +7963,176 @@ export class SnapbackClient {
       });
     };
 
+    const materializationObservation = () => {
+      if (!preparedMaterialization) return null;
+      let observation = null;
+      const release = preparedMaterialization.store.observeMaterialization(
+        preparedMaterialization.bridge.address,
+        (next) => { observation = next; },
+      );
+      release();
+      return observation;
+    };
+
+    const decodeMaterializationRows = (value) => {
+      if (!(value instanceof Uint8Array)) return null;
+      try {
+        const rows = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(value));
+        return Array.isArray(rows) ? rows : null;
+      } catch {
+        return null;
+      }
+    };
+
+    // LLP 0166 D4 row 1: only L2 bytes that revalidate against the generated
+    // activation, proof, witness, fence, and lease are projected at relaunch.
+    const seedFromMaterializationState = async () => {
+      if (!preparedMaterialization || disposed) return;
+      const observation = materializationObservation();
+      if (!observation?.present || !observation.generation) return;
+      const answer = await client.__readQmk1LocalAnswer({
+        address: preparedMaterialization.bridge.address,
+        expectedFence: observation.generation,
+        connected: false,
+        freshness: 'retained',
+        retentionEligible: preparedMaterialization.bridge.retentionRequested,
+        leaseStatus: preparedMaterialization.context.leaseStatus,
+        witnessStatus: 'valid',
+        activationMatches: true,
+        fenceCurrent: true,
+      });
+      const rows = decodeMaterializationRows(answer.value);
+      if (answer.answerClass !== 'authoritative' || rows === null) return;
+      handle.rows = rows;
+      handle.version = observation.generation.queryGeneration;
+      handle.freshness = answer.freshness;
+      handle.answerClass = answer.answerClass;
+      handle.retention = Object.freeze({
+        retainable: true,
+        code: null,
+        reason: 'proof-validated qmk1 materialization',
+        store: client.rqsStoreInfo,
+      });
+      seededFromMaterialization = true;
+      deliverAuthorityObservation(() => {
+        onUpdate?.(handle.rows, {
+          version: handle.version,
+          kind: 'materialization_retained',
+          freshness: 'retained',
+          answerClass: 'authoritative',
+        });
+      });
+    };
+
+    const installMaterializationSnapshot = async (sub) => {
+      if (!preparedMaterialization || !sub.snapshot) return null;
+      const proof = sub.completenessProof ?? null;
+      const witness = sub.authorizationWitness ?? null;
+      if (proof === null || witness === null) return null;
+      const observation = materializationObservation();
+      if (!observation?.present || !observation.generation) {
+        throw new Error('SNAPBACK_MATERIALIZATION_NOT_INITIALIZED');
+      }
+      let record = await preparedMaterialization.store.beginEstablishment(
+        preparedMaterialization.bridge.address,
+        { kind: 'page', input: { kind: 'first' } },
+        observation.generation,
+      );
+      preparedMaterialization.context.authorizationWitness = structuredClone(witness);
+      if (
+        record.authorityState.expected_authorization.incarnation
+          !== witness.compositeWitness?.authorization?.incarnation
+        || record.authorityState.expected_authorization.epoch
+          !== witness.compositeWitness?.authorization?.epoch
+        || record.authorityState.expected_authorization.version_stream
+          !== witness.compositeWitness?.data?.versionStream
+      ) {
+        record = await preparedMaterialization.store.applyAuthorizationTransition(
+          preparedMaterialization.bridge.address,
+          { authorityState: authorityStateForWitness(record, witness) },
+        );
+      }
+
+      let retained = preparedMaterialization.bridge.retentionRequested
+        && !preparedMaterialization.bridge.leaseRequired;
+      let authorizedLeaseHash = null;
+      if (preparedMaterialization.bridge.leaseRequired) {
+        const startedClientMs = Date.now();
+        const leaseRequestId = createClientMutationId('lease');
+        try {
+          const leaseResponse = await client.authorizedLeaseQuery(ref, {
+            args,
+            userId,
+            leaseRequestId,
+            authorizationNamespace: queryNamespace,
+            authorityCapture: sub[AUTHORITY_CAPTURE] ?? null,
+          });
+          if (
+            leaseResponse.version !== proof.version.commit
+            || stableJson(leaseResponse.rows) !== stableJson(sub.snapshot.rows)
+          ) {
+            throw new Error('SNAPBACK_AUTHORIZED_LEASE_SNAPSHOT_MISMATCH');
+          }
+          const leaseFacts = await commitMaterializationLeaseCustody({
+            storeHandle: client.rqsStore,
+            bridge: preparedMaterialization.bridge,
+            record,
+            witness,
+            lease: leaseResponse.authorizedLease,
+            leaseRequestId,
+            startedClientMs,
+            clientNowMs: Date.now(),
+          });
+          preparedMaterialization.context.leaseStatus = leaseFacts.leaseStatus;
+          preparedMaterialization.context.authorizedLeaseHash = leaseFacts.authorizedLeaseHash;
+          preparedMaterialization.context.authorizationWitness = leaseFacts.witness;
+          authorizedLeaseHash = leaseFacts.authorizedLeaseHash;
+          retained = true;
+        } catch {
+          // The live snapshot remains usable, but no missing/mismatched lease
+          // is promoted to durable custody. Current bytes are cleared at the
+          // next store boot.
+          preparedMaterialization.context.leaseStatus = 'invalid';
+          preparedMaterialization.context.authorizedLeaseHash = null;
+          retained = false;
+        }
+      } else {
+        preparedMaterialization.context.leaseStatus = retained ? 'valid' : 'not-required';
+        preparedMaterialization.context.authorizedLeaseHash = null;
+      }
+      const bytes = jcsBytes(sub.snapshot.rows);
+      record = await preparedMaterialization.store.commitPage(
+        preparedMaterialization.bridge.address,
+        {
+          pageIdentityDigest: pageIdentityDigestV1(proof.page),
+          resultContractHash: preparedMaterialization.bridge.resultContractHash,
+          bytes,
+          authorizedLeaseHash,
+          memberships: [],
+          freshness: retained ? 'retained' : 'current',
+        },
+        proof,
+        null,
+        materializationFence(record),
+      );
+      const answer = await client.__readQmk1LocalAnswer({
+        address: preparedMaterialization.bridge.address,
+        expectedFence: materializationFence(record),
+        connected: true,
+        freshness: 'current',
+        retentionEligible: true,
+        leaseStatus: preparedMaterialization.context.leaseStatus,
+        witnessStatus: 'valid',
+        activationMatches: true,
+        fenceCurrent: true,
+      });
+      const rows = decodeMaterializationRows(answer.value);
+      if (answer.answerClass !== 'authoritative' || rows === null) {
+        throw new Error('SNAPBACK_MATERIALIZATION_RENDER_REFUSED');
+      }
+      return { rows, retained };
+    };
+
     const setConnection = (next) => {
       if (disposed && next !== 'disconnected') return;
       if (connection === next) return;
@@ -7814,9 +8159,17 @@ export class SnapbackClient {
           handle.rows = event.rows;
           handle.version = event.version;
           handle.authorizationDisposition = 'retain';
+          if (preparedMaterialization) {
+            handle.answerClass = 'authoritative';
+            handle.freshness = 'current';
+          }
         } else if (event.kind === 'quarantine' || event.kind === 'delete') {
           handle.rows = [];
           handle.authorizationDisposition = event.kind;
+          if (preparedMaterialization) {
+            handle.answerClass = 'unknown';
+            handle.freshness = null;
+          }
         } else if (event.kind === 'retain') {
           handle.authorizationDisposition = 'retain';
         } else {
@@ -7845,6 +8198,10 @@ export class SnapbackClient {
       authorizationFaulted = true;
       handle.rows = [];
       handle.authorizationDisposition = 'quarantine';
+      if (preparedMaterialization) {
+        handle.answerClass = 'unknown';
+        handle.freshness = null;
+      }
       markAuthorityCapture(handle.rows, handleAuthorityCapture);
       const detail = {
         version: handle.version,
@@ -8961,7 +9318,27 @@ export class SnapbackClient {
       initialSupersedes = null;
       assertSubscribeLifecycle(lifecycle);
       const responseCapture = sub[AUTHORITY_CAPTURE] ?? null;
+      let materializedSnapshot = null;
       try {
+        if (preparedMaterialization) {
+          // The proof commit is asynchronous, so admit its exact authority
+          // capture first and carry the synchronous transport generation into
+          // L2's final carrier transaction. A same-context or peer barrier
+          // increments that generation during quiesce; an already-queued L2
+          // commit then either precedes the barrier's store wipe or refuses
+          // inside its transaction, never reintroducing predecessor bytes
+          // after the wipe.
+          // @ref LLP 0059#exposure-invariant — async hydration may publish only beneath the exact authority capture and participant barrier.
+          const admission = await client.commitAuthorityPublication(
+            responseCapture,
+            () => client.__authTransportGeneration,
+          );
+          if (!admission.committed) throw staleAuthorityError();
+          preparedMaterialization.context.publicationGuard = () => (
+            client.__authTransportGeneration === admission.value
+          );
+        }
+        materializedSnapshot = await installMaterializationSnapshot(sub);
         const installed = await client.commitAuthorityPublication(responseCapture, () => {
           assertSubscribeLifecycle(lifecycle);
           currentSubscriptionId = sub.subscription_id;
@@ -8973,7 +9350,7 @@ export class SnapbackClient {
           if (!sub.authorizationScope) {
             if (sub.snapshot) {
               handle.version = sub.snapshot.version;
-              handle.rows = sub.snapshot.rows;
+              handle.rows = materializedSnapshot?.rows ?? sub.snapshot.rows;
               // A fresh LiveReplace answer (rung 3 or a plain subscribe) is
               // authoritative (LLP 0090 D1 freshness rule).
               handle.freshness = 'current';
@@ -8996,7 +9373,18 @@ export class SnapbackClient {
         // lease machinery's decision (not carried by this arm), and a query
         // the server minted no resume token for is not rqsEligible
         // (authority-independent + closed inputs).
-        if (sub.authorizationScope) {
+        if (materializedSnapshot) {
+          handle.retention = Object.freeze({
+            retainable: materializedSnapshot.retained,
+            code: materializedSnapshot.retained
+              ? null
+              : 'SNAPBACK_RETENTION_OWNER_AUTHORITY_UNAVAILABLE',
+            reason: materializedSnapshot.retained
+              ? null
+              : 'proof-validated live materialization is current, but no admissible durable retention authority was installed',
+            store: client.rqsStoreInfo,
+          });
+        } else if (sub.authorizationScope) {
           handle.retention = Object.freeze({
             retainable: false,
             code: 'SNAPBACK_RETENTION_NOT_RETAINABLE',
@@ -9049,6 +9437,10 @@ export class SnapbackClient {
       } catch (error) {
         bestEffortUnsubscribeLive(sub.subscription_id);
         throw error;
+      } finally {
+        if (preparedMaterialization) {
+          preparedMaterialization.context.publicationGuard = null;
+        }
       }
       // Any successful fresh subscribe satisfies an outstanding need — clear
       // it here so every path (establish, resume, resubscribe) agrees —
@@ -9553,6 +9945,9 @@ export class SnapbackClient {
         }
       }
       const adoptedRegistration = await adoptRegisteredSubscription();
+      if (!adoptedRegistration && preparedMaterialization) {
+        try { await seedFromMaterializationState(); } catch { /* invalid retained state stays unknown */ }
+      }
       // Channel B relaunch flow (LLP 0090 D3): load + verify the persisted
       // entry, render-first as retained, and let the fresh subscribe below
       // carry the seeded token. Seeding failures leave today's cold boot.
@@ -9603,7 +9998,7 @@ export class SnapbackClient {
         // protocol) keeps the LLP 0034 contract: fail loudly, run nothing.
         if (
           !disposed
-          && seededFromResumeState
+          && (seededFromResumeState || seededFromMaterialization)
           && handle.freshness === 'retained'
           && isConnectivityFailureError(error)
         ) {
@@ -9861,7 +10256,12 @@ export class SnapbackClient {
       // connection ownership.
     };
 
-    releaseActiveRegistration = await this.__registerActiveQueryDemand(ref, args, persistResume);
+    releaseActiveRegistration = await this.__registerActiveQueryDemand(
+      ref,
+      args,
+      persistResume,
+      preparedMaterialization,
+    );
     try {
       await establish();
     } catch (error) {

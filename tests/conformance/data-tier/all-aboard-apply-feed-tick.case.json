@@ -834,37 +834,37 @@
           "_id": "sb-local",
           "delaySeconds": 240,
           "status": "delayed",
-          "observedAt": "$ANY_NOW"
+          "observedAt": 1785758400000
         },
         {
           "_id": "sb-limited",
           "delaySeconds": 0,
           "status": "on-time",
-          "observedAt": "$ANY_NOW"
+          "observedAt": 1785758400000
         },
         {
           "_id": "sb-bullet",
           "delaySeconds": 0,
           "status": "on-time",
-          "observedAt": "$ANY_NOW"
+          "observedAt": 1785758400000
         },
         {
           "_id": "nb-local",
           "delaySeconds": 0,
           "status": "on-time",
-          "observedAt": "$ANY_NOW"
+          "observedAt": 1785758400000
         },
         {
           "_id": "nb-limited",
           "delaySeconds": 0,
           "status": "on-time",
-          "observedAt": "$ANY_NOW"
+          "observedAt": 1785758400000
         },
         {
           "_id": "nb-bullet",
           "delaySeconds": 60,
           "status": "on-time",
-          "observedAt": "$ANY_NOW"
+          "observedAt": 1785758400000
         }
       ],
       "liveDepartures": [],
@@ -875,9 +875,14 @@
           "lastSource": "recorded",
           "lastRunTrigger": "cron",
           "lastError": "",
-          "fetchedAt": "$ANY_NOW"
+          "fetchedAt": 1785758400000
         }
       ]
     }
+  },
+  "ctxLedger": {
+    "version": 1,
+    "ids": [],
+    "now": 1785758400000
   }
 }

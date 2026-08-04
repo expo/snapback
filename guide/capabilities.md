@@ -18,7 +18,8 @@ reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 <!-- @ref LLP 0061#2-the-capability-index-registry-lite-with-witnesses — witnesses, GAP rows, and the joined surfaces -->
 
 Every author-facing capability Snapback has. **GAP** rows make missing coverage
-explicit and owned. Shipped rows carry a code **witness**. The surface map
+explicit and owned. Shipped rows carry a code **witness**. The
+[surface map](./surface-map.md)
 classifies the machine-enumerable route and host-op registries;
 `scripts/check-guide.mjs` joins it to code so shipped surfaces cannot silently
 disappear.
@@ -92,7 +93,7 @@ and `guide-gap`.
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI. The current packed React/Vite starter and inferred sessions startup pass locally, but the expanded React closure is not yet the byte-verified public `0.1.0` closure. | install, new app, react starter, vite, dev, one command, watch, sessions startup, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041, llp/0058, llp/0114, llp/0103 | getting-started/the-authoring-loop.md |
 | operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
 | operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
-| operating.admin-console | Browser inspection surface | admin, console, dashboard | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
+| operating.admin-console | Browser inspection surface with master-derived fragment, device approval, and one-time operator claim-link handoffs | admin, console, dashboard, admin link, claim link, remote browser | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | operating/host-ops.md |
 | operating.diagnostics | Stable SNAPBACK_* codes; exact current-checkout link/launch diagnosis with one binary-selection recovery record; installed disposable vertical-slice doctor | diagnostics, errors, doctor, linker, missing symbols, stale binary, runtime recovery | all | shipped | `runRuntimeLinkProbe` in scripts/runtime-link-smoke.mjs | llp/0010, llp/0031, llp/0041, llp/0074 | operating/diagnostics.md |
 | operating.declaration-conformance | Per-invocation declared-vs-captured read/write conformance report (class-tagged deltas, per-class provenance) on the admin runner result and `function.run` envelope/recent-invocation ring (host-op invocations only), plus the per-app `strictDeclarations` opt-in that refuses undeclared application-table reads/writes at the local runtime seam with `SNAPBACK_HANDLER_UNDECLARED_READ`/`SNAPBACK_HANDLER_UNDECLARED_WRITE`. The `verify` coverage aggregation (D2), the agent digest (D3), app-data-plane ring wiring, and any Cloudflare-arm enforcement are not claimed | declaration drift, undeclared read, undeclared write, strict declarations, conformance, missingReads, read set, write set | local | partial | `conformance_report` in src/conformance.rs | llp/0146, llp/0127, llp/0010 | GAP (guide page for the conformance report and strict opt-in; owner: ccheever, review: 2026-08-31) |
@@ -108,157 +109,3 @@ motion, routing, Acto verification) is the **Exact guide**'s corpus —
 `repo(exact):guide/index.md`. The seam is reciprocal: Exact's
 `data.snapback` external-authority row points back to this guide (LLP 0061
 §Relationship).
-
-## Surface map
-
-Every entry of the machine-enumerable registries, classified. The checker
-extracts both enumerations from the code and fails if any entry is missing
-here (or listed here but gone from the code).
-
-### Server routes (LLP 0031 declared registry)
-
-| Route path | Capability |
-| --- | --- |
-| / | operating.inspect |
-| /_snapback/admin | operating.admin-console |
-| /_snapback/admin/ | operating.admin-console |
-| /_snapback/admin/setup | operating.secrets-config |
-| /_snapback/admin/{*path} | operating.admin-console |
-| /_snapback/guide | operating.served-guide |
-| /_snapback/guide/flat.md | operating.served-guide |
-| /_snapback/guide/{*path} | operating.served-guide |
-| /_snapback/api/admin-secret-read/mint | notAuthorFacing (operator data-read lease, LLP 0058) |
-| /_snapback/api/app/reset | backend.seed |
-| /_snapback/api/app/seed/clear-v1 | backend.versioned-seed |
-| /_snapback/api/app/seed/ensure-v1 | backend.versioned-seed |
-| /_snapback/api/app/seed/preview-v1 | backend.versioned-seed |
-| /_snapback/api/app/seed/reset-install-v1 | backend.versioned-seed |
-| /_snapback/api/auth/mailbox | auth.sessions |
-| /_snapback/api/client-mutations/purge | notAuthorFacing (operator settlement maintenance) |
-| /_snapback/api/config/plan | operating.secrets-config |
-| /_snapback/api/config/set | operating.secrets-config |
-| /_snapback/api/config/status | operating.secrets-config |
-| /_snapback/api/config/unset | operating.secrets-config |
-| /_snapback/api/config/verify | operating.secrets-config |
-| /_snapback/api/connections/{connection_id}/disconnect | notAuthorFacing (admin-gated connection teardown) |
-| /_snapback/api/console/credential | operating.admin-console |
-| /_snapback/api/console/approval/request | operating.admin-console |
-| /_snapback/api/console/approval/poll | operating.admin-console |
-| /_snapback/api/console/approval/approve | operating.admin-console |
-| /_snapback/api/cron/tick | backend.cron |
-| /_snapback/api/cron/{name}/run | backend.cron |
-| /_snapback/api/data/{table} | operating.admin-console |
-| /_snapback/api/ephemeral/cleanup | notAuthorFacing (operator maintenance) |
-| /_snapback/api/errors/issue | backend.error-tracking-v1 |
-| /_snapback/api/errors/issues | backend.error-tracking-v1 |
-| /_snapback/api/errors/transition | backend.error-tracking-v1 |
-| /_snapback/api/functions/load | backend.functions |
-| /_snapback/api/functions/{name}/run | testing.acceptance |
-| /_snapback/api/health | operating.inspect |
-| /_snapback/api/host-ops | operating.host-ops |
-| /_snapback/api/inspect | operating.inspect |
-| /_snapback/api/jobs | backend.jobs-one-off |
-| /_snapback/api/jobs/drain | backend.jobs-one-off |
-| /_snapback/api/jobs/{id} | backend.jobs-one-off |
-| /_snapback/api/push/maintenance | backend.expo-push-seam |
-| /_snapback/api/receipts | notAuthorFacing (operator projection) |
-| /_snapback/api/schema/load | backend.schema |
-| /_snapback/api/telemetry/events | backend.observability-v1 |
-| /_snapback/api/telemetry/export | backend.observability-v1 |
-| /_snapback/api/telemetry/stats | backend.observability-v1 |
-| /action/{name} | backend.actions |
-| /app-api/current | clients.app-cli |
-| /app-api/envelope/{sha256} | clients.app-cli |
-| /app/bundle | realtime.snapshot-bundles |
-| /app/ensure | backend.provisioning |
-| /app-api/current | clients.app-cli |
-| /app-api/envelope/{sha256} | clients.app-cli |
-| /assets/attempts | backend.assets |
-| /assets/attempts/{id} | backend.assets |
-| /assets/attempts/{id}/cancel | backend.assets |
-| /assets/attempts/{id}/finalize | backend.assets |
-| /assets/public/{id}/{variant} | backend.assets |
-| /assets/records/{id} | backend.assets |
-| /assets/records/{id}/bytes/{variant} | backend.assets |
-| /assets/records/{id}/signed-url | backend.assets |
-| /assets/signed/{id}/{variant} | backend.assets |
-| /assets/tus/{id} | backend.assets |
-| /auth/agents/pair | auth.agent-principals |
-| /auth/agents/revoke-self | auth.agent-principals |
-| /auth/agents/rotate | auth.agent-principals |
-| /auth/agents/token | auth.agent-principals |
-| /auth/agents/token/release | auth.agent-principals |
-| /auth/exchange | auth.sessions |
-| /auth/family-alarm | auth.sessions |
-| /auth/grant-requests | auth.agent-principals |
-| /auth/grant-requests/{id}/approve | auth.agent-principals |
-| /auth/grant-requests/{id}/deny | auth.agent-principals |
-| /auth/grants | auth.agent-principals |
-| /auth/grants/by-actor/{actor_id} | auth.agent-principals |
-| /auth/grants/{id} | auth.agent-principals |
-| /auth/logout | auth.sessions |
-| /auth/pairing-codes | auth.agent-principals |
-| /auth/refresh | auth.sessions |
-| /auth/request-code | auth.sessions |
-| /auth/session | auth.sessions |
-| /auth/step-up/request | auth.sessions |
-| /client-mutations/acknowledge | sync.offline |
-| /connection/open | realtime.durable-push |
-| /ephemeral/collections/ensure | realtime.ephemeral |
-| /ephemeral/delete | realtime.ephemeral |
-| /ephemeral/publish | realtime.ephemeral |
-| /ephemeral/subscribe | realtime.ephemeral |
-| /health | operating.inspect |
-| /inspect | operating.inspect |
-| /live/authorization-invalidation/acknowledge | auth.invalidation-barrier |
-| /live/authorization-invalidation/manual-retry | auth.invalidation-barrier |
-| /live/{connection_id}/stream | realtime.durable-push |
-| /live/{name}/resume | realtime.live-queries |
-| /live/{name}/subscribe | realtime.live-queries |
-| /live/{name}/unsubscribe | realtime.live-queries |
-| /mutation/{name} | backend.functions |
-| /outbox/{connection_id} | sync.offline |
-| /query/{name} | backend.functions |
-| /query/{name}/authorized-lease | auth.authorized-leases |
-| /push/tokens/register | backend.expo-push-seam |
-| /push/tokens/unregister | backend.expo-push-seam |
-
-### Host operations (LLP 0024 operation registry)
-
-| Operation | Capability |
-| --- | --- |
-| host_ops.app.inspect | operating.host-ops |
-| host_ops.app.reset | operating.host-ops |
-| host_ops.asset.put | backend.assets |
-| host_ops.asset.ensureSeedFixture | backend.assets |
-| host_ops.asset.inspect | backend.assets |
-| host_ops.asset.list | backend.assets |
-| host_ops.asset.retry | backend.assets |
-| host_ops.asset.gcSweep | notAuthorFacing (operator deterministic garbage collection) |
-| host_ops.asset.delete | backend.assets |
-| host_ops.asset.rotateSigningKey | notAuthorFacing (operator key rotation) |
-| host_ops.asset.exportCut | notAuthorFacing (operator consistent-cut export) |
-| host_ops.asset.importCut | notAuthorFacing (operator consistent-cut restore) |
-| host_ops.auth.mintSession | operating.host-ops |
-| host_ops.auth.rescueCollidingTable | operating.host-ops |
-| host_ops.errors.issue | backend.error-tracking-v1 |
-| host_ops.errors.issues | backend.error-tracking-v1 |
-| host_ops.errors.transition | backend.error-tracking-v1 |
-| host_ops.function.explain | operating.host-ops |
-| host_ops.function.explain.impersonated | operating.host-ops |
-| host_ops.function.run.query | operating.host-ops |
-| host_ops.function.run.mutation | operating.host-ops |
-| host_ops.function.run.action | operating.host-ops |
-| host_ops.function.run.unknown | operating.host-ops |
-| host_ops.function.run.impersonated | operating.host-ops |
-| host_ops.functions.load | operating.host-ops |
-| host_ops.schema.load | operating.host-ops |
-| host_ops.schema.reload | operating.host-ops |
-| host_ops.functions.reload | operating.host-ops |
-| host_ops.acceptance.run | operating.host-ops |
-| host_ops.host.start | operating.host-ops |
-| host_ops.host.stop | operating.host-ops |
-| host_ops.host.restart | operating.host-ops |
-| host_ops.telemetry.events | backend.observability-v1 |
-| host_ops.telemetry.export | backend.observability-v1 |
-| host_ops.telemetry.stats | backend.observability-v1 |

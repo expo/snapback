@@ -191,6 +191,8 @@ you never build around a feature because you didn't know it existed.
 ### Meta
 - [Capability index](./capabilities.md) — everything Snapback has, covered
   or GAP.
+- [Surface map](./surface-map.md) — every declared server route and host
+  operation joined to a capability or an explicit non-author-facing class.
 - [Conventions](./conventions.md) — page rules, snippet classes, link
   policy, freshness.
 - [Retrieval eval protocol](./retrieval-eval.md) — how we verify a cold

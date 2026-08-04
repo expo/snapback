@@ -39,7 +39,24 @@ link() {
 }
 
 mkdir -p skills
-for skill in llp-adopt llp-create llp-maintain llp-orient llp-review; do
+
+# Prune symlinks into the vendored skill repos whose target no longer exists,
+# so upstream skill removals don't leave dead entries in the aggregate.
+for existing in skills/*; do
+  [ -L "$existing" ] || continue
+  case "$(readlink "$existing")" in
+    ../vendor/llp/skills/*|../vendor/ccheever-skills/*)
+      [ -e "$existing" ] || rm -f "$existing"
+      ;;
+  esac
+done
+
+# Mirror every skill vendor/llp ships (a skill = a directory with SKILL.md),
+# not a frozen list — a vendored-llp bump that adds skills must not require a
+# matching edit here to become visible to agents.
+for dir in vendor/llp/skills/*/; do
+  skill="$(basename "$dir")"
+  [ -f "$dir/SKILL.md" ] || continue
   link "../vendor/llp/skills/$skill" "skills/$skill"
 done
 link "../vendor/ccheever-skills/cdc-linear-do" "skills/cdc-linear-do"

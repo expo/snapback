@@ -9,7 +9,11 @@
 client ranges admit at most 256 counters over at most 30 days; unacknowledged
 results have no time eviction; ACK makes the result payload immediately
 reclaimable but requires a tombstone until the audience floor passes the
-epoch); 2026-08-03 (recorded design, awaiting author ratification —
+epoch); 2026-08-03 (`single_table_v1@1` boundary: proof-backed QMK
+records under its narrow authority remain retained-not-current; pending
+outbox intent withholds token resume but not a verified retained display;
+lease and outbox lifecycle are unchanged.); 2026-08-03 (recorded design,
+awaiting author ratification —
 JS-arm sessions-custody offline queue: capture-at-enqueue authority
 descriptors + strand-on-authority-change, per the commissioned design pass
 at author sitting #2; see §Auth posture's dated subsection. No claim,
@@ -761,6 +765,16 @@ outbox intent depends on the predecessor, waiting for settlement or
 explicit discard. Direct atomic adoption awaits a future dated step
 moving the lease store into the shared transaction domain (LLP 0166
 OQ5). No custody semantics change here.
+
+**Dated boundary note (2026-08-03, `single_table_v1@1` owner
+acceptance):** a QMK materialization held under
+`rqs-authority-independent-snapshot-v1` remains labeled `retained`, never
+`current`, while offline. Pending outbox intent withholds the legacy token
+resume path and takes full resync then replay, but it does not blank an
+otherwise verified retained display. The class uses LLP 0157 proof, witness,
+fence, and trusted-activation custody rather than an `AuthorizedLease`; this
+note adds no lease envelope and changes no outbox lifecycle. Acceptance is
+semantic only and grants no implementation or capability claim.
 
 ## Amendment (2026-08-03 — LLP 0162, effective with its acceptance)
 

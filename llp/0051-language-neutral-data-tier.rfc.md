@@ -5,7 +5,11 @@
 **Systems:** Runtime, Codegen, Wire Protocol, Client SDK, Client integration, Conformance, Packaging, Security, Contract/Exact, Cloudflare
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-09
-**Revised:** 2026-08-02 (Accepted LLP 0135 owner fold: sequence allocations
+**Revised:** 2026-08-03 (D5 scope ruling by the owner: the LLP 0166 §D7
+result-transform conformance corpus is a D5 extension — same corpus
+discipline and cross-runtime exactness bar — per LLP 0157 OQ9's dated
+ruling; the 2026-08-03 write-lane D5 evidence run, 37/37 Rust-vs-JS
+exact with complete ledgers, is the current corpus baseline.) 2026-08-02 (Accepted LLP 0135 owner fold: sequence allocations
 are replay-stable settlement answers but never members of D1's ctx-answer
 ledger or capture environment); 2026-07-27 (the three D6 private marker envelopes are now
 IMPLEMENTED in D4's mechanism as served-shape authorities —

@@ -5,7 +5,12 @@
 **Systems:** Application data API, Query planning, Storage portability, Live Queries, Authorization, Code generation, Maintained projections, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-03, later (LLP 0109 acceptance reconciliation:
+**Revised:** 2026-08-03, later (`single_table_v1@1` owner amendment:
+the closed retention set gains the single-table-only,
+authority-independent `rqs-authority-independent-snapshot-v1` exception;
+neither authenticated class widens, anonymous retention otherwise remains
+unadmitted, and semantic acceptance promotes no implementation/capability
+claim.) 2026-08-03, later (LLP 0109 acceptance reconciliation:
 versioned seed install/reset-install recorded as sanctioned bulk writers
 through the real maintenance path with the shared observable-effect
 accounting; no projection semantics change.) 2026-08-03 (retention-class dated amendment landed with
@@ -381,10 +386,11 @@ Retention is a closed, default-deny plan capability:
 `retention: 'none'` (the default) or `retention: 'opaque-authorized-snapshot-v1'`,
 which treats the projected result as an opaque authorized snapshot under
 LLP 0053's lease and reconnect rules and therefore requires a
-server-resolved authenticated principal for the lease. Anonymous results
-have no admissible v1 retention: an all-`public-read` plan is
-`retention: 'none'` until LLP 0053 defines an anonymous
-authority-partition lease class. No other retention story is admitted in
+server-resolved authenticated principal for the lease. Plans governed by this
+RFC have no admissible anonymous v1 retention: an all-`public-read` relational
+plan is `retention: 'none'` until LLP 0053 defines an anonymous
+authority-partition lease class. Except for the dated, external
+`single_table_v1@1` exception below, no other retention story is admitted in
 v1: a profile may not retain and locally re-authorize the dependency closure,
 and must not retain unprojected joined rows merely to recompute locally.
 The retained/native evaluator executes relational plans on the live path
@@ -419,6 +425,22 @@ rows.
 > LLP 0157 amendment, reclassifying a plan to this class rotates its
 > plan identity and materialization key; the served manifests emit the
 > value only for owner-reclassified plans.)
+
+> **Dated amendment (2026-08-03, `single_table_v1@1` owner
+> acceptance):** the closed retention set additionally gains
+> `rqs-authority-independent-snapshot-v1`, issued if and only if a served
+> function passes the exact host-derived `rqsEligible` predicate and is
+> registered as `single_table_v1@1`. This is a single-table-only,
+> authority-independent exception: it is not available to an all-public
+> relational plan or any other anonymous plan. It is distinct from
+> `opaque-authorized-snapshot-v1` and `result-transform-snapshot-v1`; both
+> remain authenticated-principal, `AuthorizedLease` classes without widening.
+> The exception mints no lease and creates no general anonymous retention
+> class. Its custody is the current completeness proof, witness, instance
+> fence, trusted activation/proof-key artifact, and the owner transitions
+> fixed by LLP 0053/0157/0166; `authorizedLeaseHash` is exactly `null`.
+> Anonymous retention otherwise remains unadmitted. This is semantic
+> acceptance only and grants no implementation or capability claim.
 
 ### 5. Transactionally maintained projections
 

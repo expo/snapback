@@ -628,3 +628,19 @@ Please record explicit answers to all five questions; silence is not acceptance.
    relabel-in-place and no use of a legacy token as a QMK resume credential?
 5. **All owners:** Accept the same-landing amendment/boundary-note list in §9,
    with semantic acceptance granting no implementation or capability claim?
+
+### Rulings — 2026-08-03
+
+Charlie Cheever, as the deciding owner of every document named in §9, ruled:
+
+1. **ACCEPTED as proposed.**
+2. **ACCEPTED as proposed.**
+3. **ACCEPTED as Arm A:**
+   `rqs-authority-independent-snapshot-v1`; no anonymous-lease
+   commissioning.
+4. **ACCEPTED as proposed.**
+5. **ACCEPTED as proposed.**
+
+These rulings accept the semantic amendment set only. They grant no
+implementation or capability claim; the implementation and staged-adoption
+program remain separately commissioned.

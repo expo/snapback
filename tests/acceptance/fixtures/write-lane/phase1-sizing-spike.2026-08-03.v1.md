@@ -55,7 +55,7 @@ The prototype is intentionally only a sizing skeleton:
   written spike data, not generated application artifacts
   (`kanban-fixture.mjs:1`);
 - the fixture's record passes the landed `prepareMaterializationRecordV1`
-  validator (`browser-evaluator.test.mjs:22`), but no proof is minted in this
+  validator (`browser-evaluator.spike.mjs:22`), but no proof is minted in this
   spike. `answerFacts` and decoded `rows` stand in for a successful, fenced
   `readRenderable` result. This sizes the evaluator seam; it does not claim to
   reproduce the store's proof machinery;
@@ -106,8 +106,8 @@ The spike fixture is the executable enumeration: create at
 `kanban-fixture.mjs:52`, the common guarded patch at
 `kanban-fixture.mjs:35`, and the four field-specific operations at
 `kanban-fixture.mjs:76`. The test witnesses the five row effects and the
-indexed reorder at `browser-evaluator.test.mjs:41` and
-`browser-evaluator.test.mjs:52`.
+indexed reorder at `browser-evaluator.spike.mjs:41` and
+`browser-evaluator.spike.mjs:52`.
 
 **Important negative finding:** Kanban does not need mutation steps
 `DeleteWhere` or `InsertEach`. LLP 0051 added those for clear-and-replace feed
@@ -205,7 +205,7 @@ builtin (`measure.mjs:37`).
 
 The prototype implements the closed plan classification at
 `browser-evaluator.mjs:96`; tests witness a server-only host step and a refused
-over-ceiling step at `browser-evaluator.test.mjs:97`.
+over-ceiling step at `browser-evaluator.spike.mjs:97`.
 
 ## 3. Local-read admission against the landed store
 
@@ -244,7 +244,7 @@ The spike admission implementation is at `browser-evaluator.mjs:194` and
 
 The feasibility test covers complete positive reads, partial-positive admission,
 unavailable partial input, locked-card prediction suppression, exact ledger
-consumption, and all five operations (`browser-evaluator.test.mjs:41` through
+consumption, and all five operations (`browser-evaluator.spike.mjs:41` through
 `:123`).
 
 ### Landed-store gap exposed by the spike
@@ -371,7 +371,7 @@ Those should become a thin D5/local-admission envelope rather than a fork of the
 Commands executed as the retained verification for this report:
 
 ```text
-node tests/acceptance/fixtures/write-lane/spike/phase1-ir-evaluator.2026-08-03/browser-evaluator.test.mjs
+node tests/acceptance/fixtures/write-lane/spike/phase1-ir-evaluator.2026-08-03/browser-evaluator.spike.mjs
 node tests/acceptance/fixtures/write-lane/spike/phase1-ir-evaluator.2026-08-03/measure.mjs
 node packages/snapback-contract/derived-overlay.test.mjs
 ./ref-check --verbose

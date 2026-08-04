@@ -1,10 +1,17 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { generate, serializeMutationPlan } from './index.mjs';
+import { canonicalJson } from './result-contracts.mjs';
+
+const compositionHash = (domain, value) => `sha256:${createHash('sha256')
+  .update(domain)
+  .update(canonicalJson(value))
+  .digest('hex')}`;
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
@@ -203,6 +210,77 @@ export const baseline = defineLiveQuery({
   assert.equal(generatedSnapshot.resultContract.record.variants[1].fields[1].value.kind, 'tuple');
   assert(generatedSnapshot.requiredCapabilities.includes('snapshot_batch_v1'));
   assert(generatedFunctions.acknowledgedExperimentalCapabilities.includes('snapshot_batch_v1'));
+  const firstApi = await import(`${pathToFileURL(join(dir, 'generated', 'api.mjs')).href}?composition`);
+  assert.equal(firstApi.api.incidentTasks.composition.normalizedCompositePlan.profileId, 'single-node.v1');
+  assert.match(firstApi.api.incidentTasks.composition.planHash, /^sha256:[0-9a-f]{64}$/u);
+  assert.equal(firstApi.api.boardView.composition.planHash, generatedSnapshot.runtime.HostPlan.SnapshotBatch.planHash);
+
+  const proofKeys = {
+    format: 'snapback.completeness-proof-keys.v1',
+    keys: [{
+      proofKeyId: 'fixture-key',
+      algorithm: 'Ed25519',
+      publicKeyBase64url: '6kpsY-KcUgq-9VB7Ey7F-ZVHdq6-vnuSQh7qaRRG0iw',
+    }],
+  };
+  const activation = {
+    format: 'snapback.composition-activation.v1',
+    databaseId: 'database-fixture',
+    deploymentId: 'deployment-fixture',
+    targetProfileId: 'local-dev-sqlite-ibex',
+    authMode: 'dev',
+    expectedGeneration: {
+      schemaVersion: result.schemaManifest.schemaVersion,
+      appId: result.schemaManifest.appId,
+      schemaHash: result.schemaManifest.schemaHash,
+      bundleHash: result.functionManifest.bundleHash,
+      inputsHash: result.functionManifest.inputsHash,
+    },
+    proofKeyManifestDigest: compositionHash('snapback:completeness-proof-keys:v1:', proofKeys),
+  };
+  const trustedActivation = {
+    format: 'snapback.trusted-composition-activation.v1',
+    activation,
+    activationHash: compositionHash('snapback:composition-activation:v1:', activation),
+    proofKeys,
+  };
+  writeFileSync(
+    join(dir, 'trusted-composition-activation.json'),
+    `${JSON.stringify(trustedActivation, null, 2)}\n`,
+  );
+  const activated = await generate(dir);
+  assert.equal(activated.ok, true, JSON.stringify(activated.diagnostics));
+  assert.equal(activated.inputsHash, result.inputsHash, 'activation source must not create a recursive generation hash');
+  assert.deepEqual(
+    JSON.parse(readFileSync(join(dir, 'generated', 'trusted-composition-activation.json'), 'utf8')),
+    trustedActivation,
+  );
+  assert(activated.artifactIndex.artifacts.includes('trusted-composition-activation.json'));
+  const generatedPackage = JSON.parse(readFileSync(join(dir, 'generated', 'package.json'), 'utf8'));
+  assert.equal(
+    generatedPackage.exports['./trusted-composition-activation'],
+    './trusted-composition-activation.json',
+  );
+  const activatedApi = await import(
+    `${pathToFileURL(join(dir, 'generated', 'api.mjs')).href}?trusted-activation`,
+  );
+  assert.deepEqual(activatedApi.artifacts.trustedCompositionActivation, trustedActivation);
+  assert.equal(
+    activatedApi.api.incidentTasks.artifacts,
+    activatedApi.artifacts,
+    'direct generated references ride the same immutable application artifact graph',
+  );
+  assert.equal(
+    Object.keys(activatedApi.api.incidentTasks).includes('artifacts'),
+    false,
+    'the trust root does not enter structured registration DTOs',
+  );
+  assert.deepEqual(
+    activatedApi.api.incidentTasks.composition.resultContract,
+    generatedFunctions.functions.find((fn) => fn.name === 'incidentTasks').resultContract,
+  );
+  assert.equal(Object.isFrozen(activatedApi.artifacts.trustedCompositionActivation), true);
+  assert.equal(Object.isFrozen(activatedApi.api.incidentTasks.composition), true);
 
   const activityPlan = authored.addTask.writeWithActivityPlan;
   assert.equal(activityPlan.requiredCapability, 'write_activity_v1');

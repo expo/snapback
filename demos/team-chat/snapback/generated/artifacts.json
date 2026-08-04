@@ -61,10 +61,10 @@
     "contract/unreadDeliveries.query.ts",
     "contract/unreadDeliveries.query.contract-meta.ts"
   ],
-  "bundleHash": "sha256:7107bf9d443320ef",
+  "bundleHash": "sha256:26b399089b6afcfb",
   "cache": {
-    "graphPath": "../../.snapback/codegen-cache/9a2d16959b8749fcc88a82a43b2977c4b604102120a4694f8dfc1754927ed31e",
-    "key": "9a2d16959b8749fcc88a82a43b2977c4b604102120a4694f8dfc1754927ed31e",
+    "graphPath": "../../.snapback/codegen-cache/e7a8b5c7fcad1e2c84c3d1dba088be26b466b5007e8cb5f6c3869322c9e3ec9b",
+    "key": "e7a8b5c7fcad1e2c84c3d1dba088be26b466b5007e8cb5f6c3869322c9e3ec9b",
     "regenerationRule": "regenerate-or-fail-closed"
   },
   "config": [],
@@ -89,7 +89,7 @@
       "sha256": "sha256:60242036ab404e608540eed169161624c22d0a83af46a7c00fdb885f71831bbf"
     },
     {
-      "bytes": 19793,
+      "bytes": 20171,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-api",
@@ -98,10 +98,10 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:fa499067408b3d834e341fff8f47ad788ac9f1e636b3e4b30b94f7d1853218a5"
+      "sha256": "sha256:c4bd37ce0e44ae3b328a383af3c4c530eeca37f382634e1aa88c36aa79f4a846"
     },
     {
-      "bytes": 20692,
+      "bytes": 21255,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-api",
@@ -110,7 +110,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:87aa45de8ae7b0045ad75b02363237a8e4076d0a714a79cec578e5a89682bb3e"
+      "sha256": "sha256:2de63046c28fa262c1188f82a588309358ee38d86711339cb61bd3fc9b0a8538"
     },
     {
       "bytes": 12242,
@@ -134,7 +134,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:cad75c84629f9cb79388291dd09941df737f4c96abd74900a026c98b53795345"
+      "sha256": "sha256:bf625cc3de29decba5c322b90943121257c94c675e9e59e604395659d5eecba7"
     },
     {
       "bytes": 344,
@@ -518,7 +518,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:8c4594f4a811e24b150d5d6bd8b2fa350314b5fd6e07be736785a9f88cb44d3d"
+      "sha256": "sha256:6752646c83e83a1a52fbe69abe56358707907c915b7b11df8164ba7cd1277f88"
     },
     {
       "bytes": 352,
@@ -734,7 +734,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:1ed32afd637b01a347952210637a227d392ad6ae19db9ce4501436b3fa18b473"
+      "sha256": "sha256:f9e627afe467b19c91078bf209bee5c8fdf8dd73091c954b2081440cc57ced4c"
     },
     {
       "bytes": 53222,
@@ -746,7 +746,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:82cb428ee1090bb6f10eddc79651a928ea4b0ff3dade969a42b03f3b0808b082"
+      "sha256": "sha256:642ca93d9373cfeebfd3cd900318c60a8b4f189a0e73934d6b3797c3d044f2b4"
     },
     {
       "bytes": 324,
@@ -770,7 +770,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:09b0d185a4ca8d5c77e737f006fd68afc9e482bd6fdfe2ae3c8116c15cd9a7ce"
+      "sha256": "sha256:14e3ce8639f2a3a9556b62f9e3adc1a90962670190785d1e51e9b5fdae15c84d"
     }
   ],
   "functions": [
@@ -851,14 +851,14 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "9a2d16959b8749fcc88a82a43b2977c4b604102120a4694f8dfc1754927ed31e",
+  "inputsHash": "e7a8b5c7fcad1e2c84c3d1dba088be26b466b5007e8cb5f6c3869322c9e3ec9b",
   "manifestVersion": 2,
   "reviewManifest": {
     "authority": "@expo/snapback-codegen/review-manifest.schema.json",
     "custody": "review-manifest",
     "path": "artifacts.json"
   },
-  "schemaHash": "sha256:cf31558ccceb20dc",
+  "schemaHash": "sha256:13d7505e352386e3",
   "schemaVersion": "snapback.v0",
   "summary": {
     "appId": "team-chat",
@@ -974,7 +974,7 @@
         }
       }
     ],
-    "inputsHash": "9a2d16959b8749fcc88a82a43b2977c4b604102120a4694f8dfc1754927ed31e",
+    "inputsHash": "e7a8b5c7fcad1e2c84c3d1dba088be26b466b5007e8cb5f6c3869322c9e3ec9b",
     "schemaVersion": "snapback.codegen-summary.v1"
   },
   "tables": [

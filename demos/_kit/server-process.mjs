@@ -91,6 +91,10 @@ export async function startServer({
   // Closed cold-start carrier used by sessions-mode acceptance tests. The
   // child validates ownership, exact schema/functions identity, and shape.
   startupArtifacts = null,
+  // Optional LLP 0157/P1 trust root installed beside the exact generated
+  // manifest pair. Acceptance launchers use this after
+  // composition-activation-prepare; ordinary demos leave it absent.
+  trustedCompositionActivation = null,
   // Test-only capability handoff for the email-code capture mailbox. The
   // value is read only from the mechanical ready-file sibling after the
   // ready nonce has been verified against the live child.
@@ -118,6 +122,7 @@ export async function startServer({
     serverBinary,
     bindPortExactly,
     startupArtifacts,
+    trustedCompositionActivation,
     captureImpersonationCapability,
     onUnexpectedExit,
     cronDisabled,
@@ -143,6 +148,7 @@ async function startServerWithDeps({
   serverBinary = null,
   bindPortExactly = false,
   startupArtifacts = null,
+  trustedCompositionActivation = null,
   captureImpersonationCapability = false,
   onUnexpectedExit = null,
   cronDisabled = false,
@@ -160,6 +166,16 @@ async function startServerWithDeps({
       throw new TypeError('startupArtifacts must be a non-empty path');
     }
     resolvedStartupArtifacts = resolve(cwd, startupArtifacts);
+  }
+  let resolvedTrustedCompositionActivation = null;
+  if (trustedCompositionActivation !== null) {
+    if (
+      typeof trustedCompositionActivation !== 'string'
+      || trustedCompositionActivation.length === 0
+    ) {
+      throw new TypeError('trustedCompositionActivation must be a non-empty path');
+    }
+    resolvedTrustedCompositionActivation = resolve(cwd, trustedCompositionActivation);
   }
   const fetchImpl = deps.fetchImpl ?? fetch;
   const requestedBaseUrl = `http://127.0.0.1:${port}`;
@@ -269,6 +285,7 @@ async function startServerWithDeps({
     db,
     bindPortExactly,
     resolvedStartupArtifacts,
+    resolvedTrustedCompositionActivation,
     cwd,
     childEnv,
     deps,
@@ -518,6 +535,7 @@ async function launchServerAttempt(plan, {
   db,
   bindPortExactly,
   resolvedStartupArtifacts,
+  resolvedTrustedCompositionActivation,
   cwd,
   childEnv,
   deps,
@@ -544,6 +562,9 @@ async function launchServerAttempt(plan, {
   else serverArgs.push('--db', db);
   if (resolvedStartupArtifacts !== null) {
     serverArgs.push('--startup-artifacts', resolvedStartupArtifacts);
+  }
+  if (resolvedTrustedCompositionActivation !== null) {
+    serverArgs.push('--trusted-composition-activation', resolvedTrustedCompositionActivation);
   }
 
   let launch;

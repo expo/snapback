@@ -121,6 +121,91 @@ const compositionDomainHash = (domain, value) => `sha256:${createHash('sha256')
   .update(canonicalResultJson(value))
   .digest('hex')}`;
 
+const TRUSTED_COMPOSITION_ACTIVATION_FILE = 'trusted-composition-activation.json';
+
+function exactKeys(value, expected) {
+  return value !== null
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && canonicalResultJson(Object.keys(value).sort()) === canonicalResultJson([...expected].sort());
+}
+
+// Activation preparation is two-phase by construction: the server-owned
+// keyring mints/selects the public manifest and prepares this source artifact;
+// codegen then validates it against the generation it just derived and emits
+// the byte-stable trust root through the ordinary transactional artifact graph.
+// The source is deliberately outside `inputsHash`: including the activation,
+// which embeds `expectedGeneration`, would make that identity recursive.
+// @ref LLP 0157#d3--the-completeness-witness — trusted activation and proof-key manifest are generated/deployment output, never mutable client-store state.
+export function validateTrustedCompositionActivationV1(candidate, {
+  expectedGeneration,
+  targetProfileId,
+  authMode,
+}) {
+  if (!exactKeys(candidate, ['format', 'activation', 'activationHash', 'proofKeys'])
+    || candidate.format !== 'snapback.trusted-composition-activation.v1') {
+    throw new TypeError('trusted composition activation has an invalid closed root record');
+  }
+  const activation = candidate.activation;
+  if (!exactKeys(activation, [
+    'format',
+    'databaseId',
+    'deploymentId',
+    'targetProfileId',
+    'authMode',
+    'expectedGeneration',
+    'proofKeyManifestDigest',
+  ])
+    || activation.format !== 'snapback.composition-activation.v1'
+    || typeof activation.databaseId !== 'string'
+    || activation.databaseId === ''
+    || typeof activation.deploymentId !== 'string'
+    || activation.deploymentId === ''
+    || activation.targetProfileId !== targetProfileId
+    || activation.authMode !== authMode
+    || canonicalResultJson(activation.expectedGeneration) !== canonicalResultJson(expectedGeneration)) {
+    throw new TypeError('trusted composition activation does not bind this generated deployment');
+  }
+  const manifest = candidate.proofKeys;
+  if (!exactKeys(manifest, ['format', 'keys'])
+    || manifest.format !== 'snapback.completeness-proof-keys.v1'
+    || !Array.isArray(manifest.keys)
+    || manifest.keys.length === 0) {
+    throw new TypeError('trusted composition activation has an invalid proof-key manifest');
+  }
+  let previous = null;
+  for (const key of manifest.keys) {
+    if (!exactKeys(key, ['proofKeyId', 'algorithm', 'publicKeyBase64url'])
+      || typeof key.proofKeyId !== 'string'
+      || key.proofKeyId === ''
+      || key.algorithm !== 'Ed25519'
+      || typeof key.publicKeyBase64url !== 'string'
+      || (previous !== null && previous >= key.proofKeyId)) {
+      throw new TypeError('trusted composition activation proof keys are not closed, unique, and ascending');
+    }
+    const publicKey = Buffer.from(key.publicKeyBase64url, 'base64url');
+    if (publicKey.length !== 32 || publicKey.toString('base64url') !== key.publicKeyBase64url) {
+      throw new TypeError('trusted composition activation public key is not canonical 32-byte base64url');
+    }
+    previous = key.proofKeyId;
+  }
+  const manifestDigest = compositionDomainHash(
+    'snapback:completeness-proof-keys:v1:',
+    manifest,
+  );
+  if (activation.proofKeyManifestDigest !== manifestDigest) {
+    throw new TypeError('trusted composition activation proof-key manifest digest does not reproduce');
+  }
+  const activationHash = compositionDomainHash(
+    'snapback:composition-activation:v1:',
+    activation,
+  );
+  if (candidate.activationHash !== activationHash) {
+    throw new TypeError('trusted composition activation hash does not reproduce');
+  }
+  return candidate;
+}
+
 // Rebuild the complete LLP 0157 identity stack from the schema-expanded
 // argument contract. The emitted record is evidence for the host to compare,
 // never author-controlled authority.
@@ -224,6 +309,86 @@ function snapshotBatchIdentityV1(plan, argsContract) {
   return {
     normalizedCompositePlan,
     planHash: compositionDomainHash('snapback:plan-hash:v1:', normalizedCompositePlan),
+  };
+}
+
+function singleNodeIdentityV1(fn) {
+  const hostPlan = fn.runtime?.HostPlan;
+  const relational = hostPlan?.RelationalQuery;
+  const bounded = hostPlan?.BoundedChildrenQuery;
+  if (!relational && !bounded) return null;
+  const classId = relational ? 'relational_query_v1' : 'bounded_children_v1';
+  const retention = relational && fn.retainable === true
+    ? 'opaque-authorized-snapshot-v1'
+    : 'none';
+  const argumentBindings = (fn.argsContract?.fields ?? []).map((field) => {
+    const contract = {
+      format: 'snapback.argument-binding-contract.v1',
+      required: field.required,
+      value: field.value,
+    };
+    return {
+      name: field.name,
+      contract,
+      contractHash: compositionDomainHash(
+        'snapback:argument-binding-contract:v1:',
+        contract,
+      ),
+    };
+  });
+  const live = fn.kind === 'LiveQuery'
+    ? { kind: 'admitted', delivery: 'live_replace', pageDomain: 'cursor-free-first-page' }
+    : { kind: 'none' };
+  const nodePlan = {
+    format: 'snapback.node-plan.v1',
+    classId,
+    classVersion: 1,
+    normalizedPlan: relational ?? bounded,
+    argumentBindings,
+    capability: {
+      exportKind: fn.kind,
+      live,
+      retention,
+      requiredCapabilityIds: [classId],
+    },
+  };
+  const nodePlanHash = compositionDomainHash('snapback:node-plan:v1:', nodePlan);
+  const mergedArgs = {
+    format: 'snapback.merged-args-contract.v1',
+    bindings: argumentBindings.map((binding) => ({ ...binding, sourcePositions: [0] })),
+  };
+  const normalizedCompositePlan = {
+    format: 'snapback.normalized-composite-plan.v1',
+    profileId: 'single-node.v1',
+    nodes: [{ position: 0, nodePlan, nodePlanHash }],
+    mergedArgsContractHash: compositionDomainHash(
+      'snapback:merged-args-contract:v1:',
+      mergedArgs,
+    ),
+    classification: {
+      callable: true,
+      live: fn.kind === 'LiveQuery'
+        ? live
+        : { kind: 'none', delivery: 'none', pageDomain: 'none' },
+      invalidation: fn.kind === 'LiveQuery' ? 'table-granular-resnapshot' : 'none',
+      retention,
+    },
+    parentAuthorizationGroups: [],
+  };
+  return {
+    normalizedCompositePlan,
+    planHash: compositionDomainHash('snapback:plan-hash:v1:', normalizedCompositePlan),
+  };
+}
+
+function functionCompositionIdentityV1(fn) {
+  const single = singleNodeIdentityV1(fn);
+  if (single) return single;
+  const batch = fn.runtime?.HostPlan?.SnapshotBatch;
+  if (!batch) return null;
+  return {
+    normalizedCompositePlan: batch.normalizedCompositePlan,
+    planHash: batch.planHash,
   };
 }
 
@@ -3414,6 +3579,37 @@ export async function generateInProcess(backendDir, options = {}) {
     schemaContentItems,
     bundleContentItems,
   });
+  const expectedGeneration = {
+    schemaVersion: artifactVersion,
+    appId,
+    schemaHash,
+    bundleHash,
+    inputsHash,
+  };
+  const trustedActivationPath = join(backendRoot, TRUSTED_COMPOSITION_ACTIVATION_FILE);
+  let trustedCompositionActivation = null;
+  if (existsSync(trustedActivationPath)) {
+    try {
+      const capability = resolveFileReadCapability(trustedActivationPath, {
+        allowedRoots: [backendRoot],
+        codePrefix: 'TRUSTED_COMPOSITION_ACTIVATION',
+      });
+      const candidate = JSON.parse(capability.read().toString('utf8'));
+      trustedCompositionActivation = validateTrustedCompositionActivationV1(candidate, {
+        expectedGeneration,
+        targetProfileId: targetProfile,
+        authMode,
+      });
+    } catch (error) {
+      err(
+        'TRUSTED_COMPOSITION_ACTIVATION_INVALID',
+        'composition',
+        `${TRUSTED_COMPOSITION_ACTIVATION_FILE} is invalid: ${error.message}`,
+        { path: trustedActivationPath },
+      );
+      return { ok: false, diagnostics };
+    }
+  }
   const schemaManifest = {
     artifactKind: 'schemaManifest',
     schemaVersion: artifactVersion,
@@ -3612,6 +3808,7 @@ export async function generateInProcess(backendDir, options = {}) {
     routesManifest,
     assetUploadIntents,
     { schemaVersion: artifactVersion, appId, schemaHash, bundleHash, inputsHash },
+    trustedCompositionActivation,
   );
   const apiTypes = renderApiTypes(
     functionManifest.functions,
@@ -3694,6 +3891,9 @@ export async function generateInProcess(backendDir, options = {}) {
       './schema': './schema.manifest.json',
       './functions': './functions.manifest.json',
       './capabilities': './capability.manifest.json',
+      ...(trustedCompositionActivation
+        ? { './trusted-composition-activation': `./${TRUSTED_COMPOSITION_ACTIVATION_FILE}` }
+        : {}),
       './provider-introspection': './provider-introspection.json',
       './provider-bindings': {
         types: './provider-bindings.d.ts',
@@ -3729,7 +3929,7 @@ export async function generateInProcess(backendDir, options = {}) {
     generatedAt,
     schemaHash,
     bundleHash,
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', ...(trustedCompositionActivation ? [TRUSTED_COMPOSITION_ACTIVATION_FILE] : []), 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', API_ENVELOPE_MEMBERS_FILE, 'package.json', ...(microArtifacts ? ['micro.mjs', 'micro.d.ts', 'micro.profile.json'] : []), ...(routesManifest ? ['routes.manifest.json'] : []), ...(seedArtifact ? ['seed.artifact.json'] : []), ...(seedAssetFixtures ? ['seed.asset-fixtures.artifact.json'] : []), ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -3771,6 +3971,7 @@ export async function generateInProcess(backendDir, options = {}) {
       packageJson,
       seedArtifact,
       seedAssetFixtures,
+      trustedCompositionActivation,
       artifactIndex: null,
     });
     const files = createArtifactFileRecords(tmpOutDir, legacyArtifactIndex.artifacts, {
@@ -3823,6 +4024,7 @@ export async function generateInProcess(backendDir, options = {}) {
     schemaManifest,
     functionManifest,
     capabilityManifest,
+    trustedCompositionActivation,
     microProfile: microArtifacts?.profile ?? null,
     providerIntrospection,
     providerBindingMetadata,
@@ -5342,6 +5544,11 @@ function collectAuthoredAuthorizationDimensions(expr, dimensions) {
 }
 
 function hostPlanAuthorizationDependence(def) {
+  // Relational authoring owns its visibility filters outside `def.plan` and
+  // emits the mechanically derived, closed dependence vector itself.
+  if (def.relationalPlan && Array.isArray(def.authorizationDependence)) {
+    return [...def.authorizationDependence].sort();
+  }
   const dimensions = new Set();
   for (const filter of def.plan?.filters ?? []) {
     collectAuthoredAuthorizationDimensions(filter.value, dimensions);
@@ -8059,6 +8266,7 @@ function renderApiModule(
   routesManifest,
   assetUploadIntents = [],
   expectedGeneration,
+  trustedCompositionActivation = null,
 ) {
   const refs = dict();
   // Derived default intents also project as api.defaults.<table>.<field>
@@ -8074,6 +8282,7 @@ function renderApiModule(
     }
   }
   for (const fn of functions) {
+    const composition = functionCompositionIdentityV1(fn);
     refs[fn.name] = {
       artifactKind: 'functionReference',
       schemaVersion: SCHEMA_VERSION,
@@ -8085,6 +8294,15 @@ function renderApiModule(
       argsContractHash: fn.argsContractHash,
       resultContractHash: fn.resultContractHash,
       expectedGeneration,
+      ...(composition ? {
+        composition: {
+          ...composition,
+          // The result-contract descriptor is verification input for the L2
+          // bridge. Its hash already rides the function reference; carrying
+          // the descriptor here avoids reconstructing authority from rows.
+          resultContract: fn.resultContract,
+        },
+      } : {}),
       // @ref LLP 0065#3-common-pattern-contracts — trusted defaults are
       // absent and additional properties are closed on the generated client
       // boundary. Reuse the operation-schema projection, never a second model.
@@ -8125,14 +8343,19 @@ function renderApiModule(
   );
   refs.groups = groupRefs;
   return `${HEADER}\n` +
+    `const deepFreeze = (value) => { if (value && typeof value === 'object' && !Object.isFrozen(value)) { for (const child of Object.values(value)) deepFreeze(child); Object.freeze(value); } return value; };\n` +
+    `/** @type {import('./api.d.ts').GeneratedArtifacts} */\n` +
+    `export const artifacts = deepFreeze(${stableJson({ trustedCompositionActivation })});\n` +
     `/** @type {import('./api.d.ts').GeneratedEphemeral} */\n` +
     `export const ephemeral = Object.freeze(${stableJson(ephemeralRefs)});\n` +
     `/** @type {import('./api.d.ts').GeneratedQueryGroups} */\n` +
     `export const groups = Object.freeze(${stableJson(groupRefs)});\n` +
     `/** @type {import('./api.d.ts').GeneratedAssetUploadDefaults} */\n` +
     `export const defaults = Object.freeze(${stableJson(defaultRefs)});\n` +
+    `const references = ${stableJson(refs)};\n` +
+    `for (const reference of Object.values(references)) { if (reference?.artifactKind === 'functionReference') Object.defineProperty(reference, 'artifacts', { value: artifacts, enumerable: false }); }\n` +
     `/** @type {import('./api.d.ts').GeneratedApi} */\n` +
-    `export const api = Object.freeze(${stableJson(refs)});\n` +
+    `export const api = deepFreeze(references);\n` +
     `export default api;\n`;
 }
 
@@ -8216,6 +8439,8 @@ function renderApiTypes(
     hasVectorFunction
       ? 'export type VectorPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> = ClientVectorPageV1<Fields, RowId>;'
       : 'export interface VectorPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { items: readonly VectorItemV1<Fields, RowId>[] }',
+    'export interface GeneratedArtifacts { readonly trustedCompositionActivation: Readonly<Record<string, unknown>> | null }',
+    'export const artifacts: GeneratedArtifacts;',
     "export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';",
     'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {',
     "  artifactKind: 'functionReference';",
@@ -8228,6 +8453,8 @@ function renderApiTypes(
     '  argsContractHash: string;',
     '  resultContractHash: string;',
     '  expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;',
+    '  composition?: Readonly<{ normalizedCompositePlan: Readonly<Record<string, unknown>>; planHash: `sha256:${string}`; resultContract: Readonly<Record<string, unknown>> }>;',
+    '  readonly artifacts?: GeneratedArtifacts;',
     '  argumentSchema: Readonly<Record<string, unknown>>;',
     '  readonly __args?: Args;',
     '  readonly __result?: Result;',
@@ -10165,6 +10392,7 @@ function writeGeneratedOutput(outDir, {
   packageJson,
   seedArtifact,
   seedAssetFixtures,
+  trustedCompositionActivation,
   artifactIndex,
 }) {
   const contractOutDir = join(outDir, 'contract');
@@ -10175,6 +10403,12 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
   writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
   writeFileSync(join(outDir, 'capability.manifest.json'), stableJson(capabilityManifest) + '\n');
+  if (trustedCompositionActivation) {
+    writeFileSync(
+      join(outDir, TRUSTED_COMPOSITION_ACTIVATION_FILE),
+      stableJson(trustedCompositionActivation) + '\n',
+    );
+  }
   if (routesManifest) {
     writeFileSync(join(outDir, 'routes.manifest.json'), stableJson(routesManifest) + '\n');
   }

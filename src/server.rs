@@ -24289,7 +24289,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_GRANT_INVALID"
         | "SNAPBACK_AUTH_STEP_UP_REQUIRED"
         | "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID" => StatusCode::UNAUTHORIZED,
-        "SNAPBACK_ADMIN_APPROVAL_INVALID" => StatusCode::UNAUTHORIZED,
+        "SNAPBACK_ADMIN_APPROVAL_INVALID" | "SNAPBACK_ADMIN_CLAIM_INVALID" => {
+            StatusCode::UNAUTHORIZED
+        }
         "SNAPBACK_CONNECTION_GRANT_LIMIT_EXCEEDED"
         | "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED"
         | "SNAPBACK_TELEMETRY_STATS_WORK_LIMIT_EXCEEDED"
@@ -24304,6 +24306,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_PAIRING_REQUEST_CAP"
         | "SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY"
         | "SNAPBACK_ADMIN_APPROVAL_RATE_LIMITED"
+        | "SNAPBACK_ADMIN_CLAIM_RATE_LIMITED"
         | "SNAPBACK_EPHEMERAL_RATE_LIMITED"
         | "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED"
         | "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT"
@@ -24912,7 +24915,9 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_WEBSOCKET_SENDER_MISMATCH" => StatusCode::BAD_REQUEST,
         "SNAPBACK_ADMIN_CONSOLE_MINT_UNAVAILABLE"
         | "SNAPBACK_ADMIN_CONSOLE_RENEWAL_UNAVAILABLE"
-        | "SNAPBACK_ADMIN_APPROVAL_UNAVAILABLE" => StatusCode::FORBIDDEN,
+        | "SNAPBACK_ADMIN_APPROVAL_UNAVAILABLE"
+        | "SNAPBACK_ADMIN_CLAIM_UNAVAILABLE" => StatusCode::FORBIDDEN,
+        "SNAPBACK_ADMIN_CLAIM_STATUS_INVALID" => StatusCode::NOT_FOUND,
         "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
         | "SNAPBACK_AUTH_SENDER_PROOF_INVALID"
         | "SNAPBACK_AUTH_SENDER_PROOF_REPLAYED" => StatusCode::UNAUTHORIZED,
@@ -38867,6 +38872,7 @@ globalThis.__snapbackHandlers = {
     const UNAUTHORIZED_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ASSET_SIGNATURE_EXPIRED",
         "SNAPBACK_ADMIN_APPROVAL_INVALID",
+        "SNAPBACK_ADMIN_CLAIM_INVALID",
         "SNAPBACK_ADMIN_SECRET_READ_REQUIRED",
         "SNAPBACK_ADMIN_TOKEN_REQUIRED",
         "SNAPBACK_AUTH_CODE_INVALID",
@@ -38891,6 +38897,7 @@ globalThis.__snapbackHandlers = {
     const FORBIDDEN_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ADMIN_DISABLED",
         "SNAPBACK_ADMIN_APPROVAL_UNAVAILABLE",
+        "SNAPBACK_ADMIN_CLAIM_UNAVAILABLE",
         "SNAPBACK_ADMIN_CONSOLE_MINT_UNAVAILABLE",
         "SNAPBACK_ADMIN_CONSOLE_RENEWAL_UNAVAILABLE",
         "SNAPBACK_FORK_EGRESS_DENIED",
@@ -38933,6 +38940,7 @@ globalThis.__snapbackHandlers = {
     ];
 
     const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ADMIN_CLAIM_STATUS_INVALID",
         "SNAPBACK_AUTH_AGENT_UNKNOWN",
         "SNAPBACK_JOB_UNKNOWN",
         "SNAPBACK_BUNDLE_ROUTE_UNKNOWN",
@@ -39070,6 +39078,7 @@ globalThis.__snapbackHandlers = {
     const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED",
         "SNAPBACK_ADMIN_APPROVAL_RATE_LIMITED",
+        "SNAPBACK_ADMIN_CLAIM_RATE_LIMITED",
         // LLP 0092 §0D.2/§0D.4 bundle rate and pending-owner capacity.
         "SNAPBACK_BUNDLE_PENDING_CAPACITY",
         "SNAPBACK_BUNDLE_RATE_LIMITED",
@@ -39231,6 +39240,14 @@ globalThis.__snapbackHandlers = {
         // envelope, which is a Snapback fault, never a caller's.
         "SNAPBACK_APP_API_COMPOSITION_FAILED",
         "SNAPBACK_APP_API_STATE_PARSE_FAILED",
+        // @ref LLP 0157#d3--the-completeness-witness —
+        // proof custody, trusted activation, admitted-plan reconstruction, and
+        // signing are server-authored establishment invariants. A failure in
+        // any of them is never attributable to the live-subscribe caller.
+        "SNAPBACK_COMPLETENESS_PROOF_ISSUANCE_FAILED",
+        "SNAPBACK_COMPLETENESS_PROOF_KEYRING_INVALID",
+        "SNAPBACK_COMPOSITION_ACTIVATION_INVALID",
+        "SNAPBACK_COMPOSITION_PLAN_INVALID",
         // LLP 0070 first slice: internal job-ledger invariants — a corrupt
         // stored state, an exhausted per-job fence, or enqueues reaching
         // commit without producer provenance are Snapback faults, never 4xx.
@@ -39286,6 +39303,10 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ADMIN_APPROVAL_RESPONSE_INVALID",
         "SNAPBACK_ADMIN_BROWSER_OPEN_FAILED",
         "SNAPBACK_ADMIN_BROWSER_OPEN_UNSUPPORTED",
+        "SNAPBACK_ADMIN_CLAIM_CODE_INVALID",
+        "SNAPBACK_ADMIN_CLAIM_RESPONSE_INVALID",
+        "SNAPBACK_ADMIN_CLAIM_STATUS_RESPONSE_INVALID",
+        "SNAPBACK_ADMIN_CLAIM_URL_BASE_INVALID",
         "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_FAILED",
         "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID",
         "SNAPBACK_ADMIN_CONSOLE_UNREACHABLE",

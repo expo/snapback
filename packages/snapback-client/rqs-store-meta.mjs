@@ -13,6 +13,10 @@ const RECORD_SLOTS = Object.freeze([
   'fenceHighWaters',
   'tombstoneHighWaters',
   'barrierHighWaters',
+  // Complete AuthorizedLease custody for qmk1 fragments. L2 stores only the
+  // unkeyed hash; this owner slot retains the exact issued bytes and the
+  // rollback-checked client deadline that validation projects as leaseStatus.
+  'materializationLeaseCustody',
 ]);
 
 const plainRecord = (value) => (
@@ -91,33 +95,40 @@ export function createInitialStoreMeta({ clientStoreId = null, randomBytes } = {
     fenceHighWaters: {},
     tombstoneHighWaters: {},
     barrierHighWaters: {},
+    materializationLeaseCustody: {},
   };
 }
 
 export function prepareStoreMeta(value) {
   if (!plainRecord(value) || !jsonValue(value)) return null;
-  if (value.formatVersion !== RQS_STORE_FORMAT_VERSION) return null;
-  if (typeof value.clientStoreId !== 'string' || value.clientStoreId.length === 0) return null;
+  // Additive format-v3 migration: carriers created before the hydration
+  // bridge have no lease-custody slot. Absence means no retained auth-scoped
+  // materialization, never an implicit valid lease.
+  const prepared = value.materializationLeaseCustody === undefined
+    ? { ...value, materializationLeaseCustody: {} }
+    : value;
+  if (prepared.formatVersion !== RQS_STORE_FORMAT_VERSION) return null;
+  if (typeof prepared.clientStoreId !== 'string' || prepared.clientStoreId.length === 0) return null;
   if (
-    !Number.isSafeInteger(value.queryInstanceIdHighWater)
-    || value.queryInstanceIdHighWater < 0
+    !Number.isSafeInteger(prepared.queryInstanceIdHighWater)
+    || prepared.queryInstanceIdHighWater < 0
   ) return null;
-  if (!plainRecord(value.generationCounters)) return null;
+  if (!plainRecord(prepared.generationCounters)) return null;
   for (const field of [
     'writerGeneration',
     'authorityGenerationHighWater',
     'queryGenerationHighWater',
   ]) {
-    if (!Number.isSafeInteger(value.generationCounters[field]) || value.generationCounters[field] < 0) {
+    if (!Number.isSafeInteger(prepared.generationCounters[field]) || prepared.generationCounters[field] < 0) {
       return null;
     }
   }
-  if (typeof value.handleKey !== 'string' || !/^[0-9a-f]{64}$/u.test(value.handleKey)) return null;
+  if (typeof prepared.handleKey !== 'string' || !/^[0-9a-f]{64}$/u.test(prepared.handleKey)) return null;
   for (const slot of RECORD_SLOTS) {
-    if (!plainRecord(value[slot])) return null;
+    if (!plainRecord(prepared[slot])) return null;
   }
   try {
-    return clone(value);
+    return clone(prepared);
   } catch {
     return null;
   }
@@ -148,5 +159,6 @@ export function wipeStoreMeta(value, { randomBytes } = {}) {
     durableRegistrations: {},
     policyBudgetFacts: {},
     brokerRoster: {},
+    materializationLeaseCustody: {},
   };
 }

@@ -2,23 +2,21 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-03",
   "source": {
-    "revision": "f78e23a602db9a545f49e439423731cd14b4c44a",
-    "dirty": true,
-    "dirtyPaths": [
-      "ackages/snapback-client/index.mjs",
-      "packages/snapback-client/package.json",
-      "scripts/check-package-test-inventory.mjs",
-      "tests/acceptance/local-store-carrier-exit-v1.mjs",
-      "packages/snapback-client/logout-v3-bridge.test.mjs"
-    ],
+    "revision": "ae3fbae247697e793a19dac558b85f3741668df5",
+    "dirty": false,
+    "dirtyPaths": [],
     "files": [
       {
         "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
-        "sha256": "84f161151090946769668e0d3980afd39ee9e0bd58daed6e2d8dc93b0876e2bb"
+        "sha256": "3d39c81a709b244f4f08518f9501b9c28a62e9b285d15bd80ceb1c444d6f7b31"
       },
       {
         "path": "packages/snapback-client/materialization-store.mjs",
-        "sha256": "fe2282ebed6da945409db09bc22a5a20a00a1c2f6c994d0e435395db8188230f"
+        "sha256": "c6bfcf376263b4d78d2533f661e3f7fcf8dedb72b674f743c612583dbfab7a3a"
+      },
+      {
+        "path": "packages/snapback-client/materialization-bridge.mjs",
+        "sha256": "660c79730696eed7663245834c69676c2a819125b64a0b9d68e4994ffdf76d70"
       },
       {
         "path": "packages/snapback-client/registration-ledger.mjs",
@@ -46,11 +44,11 @@
       },
       {
         "path": "packages/snapback-client/rqs-store-meta.mjs",
-        "sha256": "65ac9258773dcffae88031ee4d3a428c22dbbfbf18615ae29befa15dc202c63d"
+        "sha256": "ccba1d6faaae5a7ece09e0871835eea99bd28a1959d252373163fc4562c54e22"
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "e563380379039967ae1ed85e53920916bb5ffa34a5abdb52743e9232fc3502ff"
+        "sha256": "e1409ddce2e4de508957da805f6f2aa4085ab24c5f6fa6784038a99d56c6ad36"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
@@ -90,22 +88,29 @@
       "default"
     ],
     "attribution": "esbuild metafile output.inputs bytesInOutput (module-own minified bytes)",
-    "closure": "full @expo/snapback-client root plus all eight LLP 0166 store modules retained by namespace observation",
+    "closure": "full @expo/snapback-client root plus all nine LLP 0166 store modules retained by namespace observation",
     "external": []
   },
   "output": {
-    "minifiedBytes": 485143,
-    "gzipBytes": 133011,
-    "brotliBytes": 110168,
-    "sha256": "1c9edee2962c97fe5a4df1c401c407a1fc1637d47281964eb928544786564a07"
+    "minifiedBytes": 531367,
+    "gzipBytes": 145758,
+    "brotliBytes": 119077,
+    "sha256": "1b55bf2a9c7c363fc68ef23f546a211e4dee887f628d46a3c25d67908cda1349"
   },
   "modules": [
     {
       "module": "materialization-store",
       "path": "packages/snapback-client/materialization-store.mjs",
-      "sourceBytes": 80489,
-      "minifiedModuleOwnBytes": 46840,
-      "sourceSha256": "fe2282ebed6da945409db09bc22a5a20a00a1c2f6c994d0e435395db8188230f"
+      "sourceBytes": 81949,
+      "minifiedModuleOwnBytes": 47509,
+      "sourceSha256": "c6bfcf376263b4d78d2533f661e3f7fcf8dedb72b674f743c612583dbfab7a3a"
+    },
+    {
+      "module": "materialization-bridge",
+      "path": "packages/snapback-client/materialization-bridge.mjs",
+      "sourceBytes": 17103,
+      "minifiedModuleOwnBytes": 10254,
+      "sourceSha256": "660c79730696eed7663245834c69676c2a819125b64a0b9d68e4994ffdf76d70"
     },
     {
       "module": "registration-ledger",
@@ -152,17 +157,17 @@
     {
       "module": "rqs-store-meta",
       "path": "packages/snapback-client/rqs-store-meta.mjs",
-      "sourceBytes": 4964,
-      "minifiedModuleOwnBytes": 2959,
-      "sourceSha256": "65ac9258773dcffae88031ee4d3a428c22dbbfbf18615ae29befa15dc202c63d"
+      "sourceBytes": 5673,
+      "minifiedModuleOwnBytes": 3150,
+      "sourceSha256": "ccba1d6faaae5a7ece09e0871835eea99bd28a1959d252373163fc4562c54e22"
     }
   ],
-  "totalMeasuredModuleOwnBytes": 96217,
+  "totalMeasuredModuleOwnBytes": 107331,
   "browserClosureQualification": {
     "status": "PASS",
     "materializationStoreResolved": true,
     "resolved": true,
-    "outputBytes": 65278,
+    "outputBytes": 66076,
     "externalImports": []
   }
 }

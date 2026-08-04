@@ -10,8 +10,14 @@
 // on purpose: `tintColor` rewrites every painted node to `currentColor` (see
 // the dom-mirror's `applyInlineSvgTint`), which would also recolor the mask's
 // black/white knockout fills and collapse the luminance mask. Baking the fill
-// leaves the mask untouched, and the console passes `c.markInk` so the mark
-// themes correctly across light/dark.
+// leaves the mask untouched.
+//
+// The console no longer renders the mark this way: inline `svgSource` needs an
+// innerHTML sink, which the operator pages' Trusted Types policy refuses, so
+// the sidebar serves `public/snapback-mark-{light,dark}.svg` as a themed
+// `image` instead and `theme.ts` publishes the resolved scheme the renderer
+// picks between them with. This module stays as the mark's parameterized
+// source for surfaces that can take inline SVG.
 //
 // @ref LLP 0017#console-surfaces — sidebar brand presentation only; this is a
 //   console surface detail, not an admin fact.

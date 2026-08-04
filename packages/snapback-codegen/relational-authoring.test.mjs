@@ -76,7 +76,7 @@ const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
   {
     const retained = defineRelationalQuery({ ...base, retention: 'opaque-authorized-snapshot-v1' });
     assert.equal(retained.retainable, true, 'the lease class declares retainable');
-    assert.deepEqual(retained.authorizationDependence, ['UserId']);
+    assert.deepEqual(retained.authorizationDependence, ['userId']);
     const plain = defineRelationalQuery(base);
     assert.equal(plain.retainable, undefined, 'retention defaults to none');
   }

@@ -14,3 +14,18 @@ answer classes; offline relaunch serves the authoritative-retained row 1
 path. Exit: the carrier-exit harness's retained-render leg upgraded from
 GAP to a real leg and the receipt regenerated in a dated rerun
 (15 PASS / 2 GAP expected — Triage/Fleet remain).
+
+## Resolution (2026-08-03)
+
+Landed on main at 724e94715: the generated-activation materialization
+bridge (generated `api.mjs` is the only activation source), registration-
+led establishment with proof + lease validation before `commitPage`,
+auth-barrier fencing, and the retained-render projection through
+`readRenderable`. Server carries the exact `authorizationWitness`
+preimage beside the signed proof (additive, LLP 0094 §0C.2).
+Carrier-exit receipt regenerated outside the sandbox: **15 PASS /
+2 GAP** (retained-render GAP closed); `--check` green. Auth-backup
+cargo cluster 25/25 outside the sandbox (the lane's 22 failures were
+sandbox-only). Client suite + S4 74/74 + real backend-loss leg green.
+Remaining GAPs are the two publication-gated rows; capability
+publication stays parked per Charlie's 2026-08-03 ruling.

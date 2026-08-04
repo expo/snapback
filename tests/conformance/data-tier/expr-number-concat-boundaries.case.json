@@ -48,5 +48,10 @@
   "expect": {
     "result": "100000000000000000000|1e+21|1e-7",
     "changedCount": 0
+  },
+  "ctxLedger": {
+    "version": 1,
+    "ids": [],
+    "now": 1785758400000
   }
 }
