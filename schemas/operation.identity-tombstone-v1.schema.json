@@ -1,0 +1,85 @@
+{
+  "$defs": {
+    "OperationKeyV1": {
+      "additionalProperties": false,
+      "description": "The physical key for suppression and envelope storage. Audience and all\nother semantic facts are compared facts, never key components.",
+      "properties": {
+        "operationId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$",
+          "type": "string"
+        },
+        "originatorClass": {
+          "$ref": "#/$defs/OperationOriginatorClassV1"
+        },
+        "streamId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "streamId",
+        "originatorClass",
+        "operationId"
+      ],
+      "type": "object"
+    },
+    "OperationOriginatorClassV1": {
+      "enum": [
+        "client",
+        "host"
+      ],
+      "type": "string"
+    },
+    "OperationTerminalOutcomeV1": {
+      "enum": [
+        "committed",
+        "refused"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/operation.identity-tombstone-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "audience": {
+      "type": "string"
+    },
+    "epochId": {
+      "type": "string"
+    },
+    "key": {
+      "$ref": "#/$defs/OperationKeyV1"
+    },
+    "receiptDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "retainedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schemaVersion": {
+      "format": "uint32",
+      "maximum": 1,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "terminalOutcome": {
+      "$ref": "#/$defs/OperationTerminalOutcomeV1"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "key",
+    "audience",
+    "epochId",
+    "terminalOutcome",
+    "receiptDigest",
+    "retainedAtMs"
+  ],
+  "title": "OperationIdentityTombstoneV1",
+  "type": "object"
+}

@@ -5,7 +5,11 @@
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (implementation substrate — Rust-owned
+**Revised:** 2026-08-03 (durable storage slice — authenticated epoch/range
+admission, atomic envelope/suppression recording for issuance-bearing ordinary
+mutations, replay/tombstone/floor lifecycle, bounded explanation, and coverage
+guards landed; public issuance/client custody and runtime coverage activation
+remain explicit gaps, so every capability remains Missing); 2026-08-03 (implementation substrate — Rust-owned
 `OperationIdentityV1` and `CommitEnvelopeV1` landed with generated schemas and
 focused namespace/stream/bound-fact validation tests; no storage wiring,
 coverage, or capability claim); 2026-08-03 (initial Draft — extracted from Accepted LLP 0162
@@ -91,10 +95,17 @@ and their wire projections — all Rust-owned generated schemas per LLP 0037. Am
 LLP 0133/0043 (identity semantics, retention parameters) and LLP 0012/0095
 (client conformance) are dated in those documents and reference this Spec.
 
-The first generated artifacts are
+The generated artifacts are
 [`operation.identity-v1.schema.json`](../schemas/operation.identity-v1.schema.json)
+and [`commit.envelope-v1.schema.json`](../schemas/commit.envelope-v1.schema.json),
+plus
+[`operation.identity-range-v1.schema.json`](../schemas/operation.identity-range-v1.schema.json),
+[`operation.identity-epoch-v1.schema.json`](../schemas/operation.identity-epoch-v1.schema.json),
+[`operation.suppression-v1.schema.json`](../schemas/operation.suppression-v1.schema.json),
+[`operation.identity-tombstone-v1.schema.json`](../schemas/operation.identity-tombstone-v1.schema.json),
+[`operation.explanation-v1.schema.json`](../schemas/operation.explanation-v1.schema.json),
 and
-[`commit.envelope-v1.schema.json`](../schemas/commit.envelope-v1.schema.json),
+[`operation.coverage-manifest-v1.schema.json`](../schemas/operation.coverage-manifest-v1.schema.json),
 both generated from
 [`src/commit_envelope.rs`](../src/commit_envelope.rs). Schema presence is an
 implementation substrate, not evidence that any lane has envelope coverage.
@@ -109,13 +120,15 @@ schemas.
 
 ## Open items
 
-1. *(Partially decided 2026-08-03.)* The operation-identity and commit-envelope
-   v1 schema shapes are fixed by the Rust-owned artifacts above. Suppression,
-   tombstone, epoch/range, explanation-projection, and protected-custody
-   record shapes, plus exact diagnostic spellings, remain open.
-2. Final parameter values: range size/window and ACK/retention parameters
-   land by dated revision in LLP 0043; the detail/envelope/checkpoint
-   windows stay with LLP 0162 OQ1 until this Spec and LLP 0165 land them.
+1. *(Partially decided 2026-08-03.)* The operation-identity, commit-envelope,
+   suppression, tombstone, epoch/range, explanation-projection, and coverage
+   manifest v1 schema shapes are fixed by the Rust-owned artifacts above.
+   A secret-bearing protected-custody record beyond the existing
+   `protectedLane` reference, public transport projections, and final
+   diagnostic consolidation remain open.
+2. *(Partially decided 2026-08-03.)* LLP 0043 now fixes the v1 client range
+   maxima and ACK reclamation rule. The detail/envelope/checkpoint windows
+   stay with LLP 0162 OQ1 until this Spec and LLP 0165 land them.
 3. `result-expired` is normative per the landed 2026-08-03 LLP
    0043/0012/0095 amendments; a later dated reconciliation of 0162, this
    Spec, and those amendments could still collapse it into
@@ -155,3 +168,51 @@ match their identity. These are schema/validation foundations only:
 | 14 | **Partial** — host namespace/derivation validation exists; server authentication, admission exclusion, reclamation, and corpus legs are missing. |
 
 Every related capability therefore remains `Missing`.
+
+## Implementation record — 2026-08-03, durable storage slice
+
+[`src/operation_ledger.rs`](../src/operation_ledger.rs) now owns durable
+SQLite records for authenticated client and host epochs, finite client ranges,
+per-audience epoch floors, commit envelopes, suppression results, payload-free
+tombstones, and stream coverage manifests. `record_operation_in` deliberately
+accepts a caller transaction: its corpus proves rollback leaves none of the
+application row, change journal, envelope, suppression record, or receipt, and
+commit leaves all of them. Admission compares the exact authenticated range
+bounds and epoch authority, refuses overlap/exhaustion/closed epochs, preserves
+unacknowledged results, converts acknowledged payloads to tombstones, and
+answers in suppression → compact/tombstone → floor order.
+
+The existing `ClientMutationIdentity` is widened in place with optional
+authenticated issuance; the already-shipped digest preimage stays unchanged
+when issuance is absent. The retained replay row persists and compares those
+issuance facts, so the predecessor lookup cannot bypass a divergent LLP 0163
+identity. Both ordinary durable writer implementations — HostPlan and Ibex
+buffered mutation settlement — call one envelope hook inside their existing
+data/journal transaction. Coverage remains fail-closed: an issuance-bearing
+write requires an active matching stream manifest, and the store rejects a
+produced-commit envelope whose write count does not match the transaction's
+journal rows.
+
+Bounded explanation lookup/enumeration joins retained envelopes to the journal,
+distinguishes detail-expired/truncated and journal-expired states, and withholds
+even digest/count facts when current authority is unprovable. Host records use
+a structurally disjoint namespace and close only after server-incarnation
+rotation plus the declared terminal-receipt window.
+
+The public mutation wire does not yet issue/carry authenticated ranges, the
+clients do not yet atomically persist a range with queued intent, no production
+target activates a complete writer manifest, and no host-originated job/cron/
+migration caller invokes the host seam. Those residues are tracked in
+[`issues/20260803-0163-public-operation-identity-carrier.md`](../issues/20260803-0163-public-operation-identity-carrier.md)
+and prohibit capability publication.
+
+| LLP 0162 acceptance row | State after durable storage slice |
+| --- | --- |
+| 1 | **Partial** — issuance-bearing ordinary HostPlan and Buffered mutations have an atomic data/journal/envelope/suppression/receipt hook and rollback corpus; the public lane cannot enter it yet. |
+| 2 | **Partial** — exact retry/divergence, authenticated finite ranges, exhaustion, ACK reclamation, tombstones, epoch closure, floors, and two-identities-in-one-epoch corpus are green; server issuance transport and atomic client range custody are missing. |
+| 3 | **Partial** — durable exact/bounded explanations, current-authority fail-closed behavior, and expiry dispositions are green; public/admin transport, real policy evaluators, and secret-bearing protected custody remain missing. |
+| 4 | **Partial** — a versioned stream manifest names both ordinary writer choke points and bypass/journal-retention adversaries are green; no production target activates a complete all-writer inventory. |
+| 13 | **Gate artifact recorded separately** — no candidate comparison has run, so the row has not passed. |
+| 14 | **Partial** — host namespace authentication, client/host key separation, terminal receipt window, and incarnation closure corpus are green; first-party host callers and transport-level client exclusion are not wired. |
+
+Every related capability remains `Missing`; this slice makes no advertisement.

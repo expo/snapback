@@ -1,0 +1,81 @@
+{
+  "$defs": {
+    "IdentityEpochStateV1": {
+      "enum": [
+        "open",
+        "terminated",
+        "revoked",
+        "closed"
+      ],
+      "type": "string"
+    },
+    "OperationOriginatorClassV1": {
+      "enum": [
+        "client",
+        "host"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/operation.identity-epoch-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "audience": {
+      "type": "string"
+    },
+    "authorityAuthenticatorDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "authorityInstanceId": {
+      "type": "string"
+    },
+    "epochId": {
+      "type": "string"
+    },
+    "epochSequence": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "issuedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "originatorClass": {
+      "$ref": "#/$defs/OperationOriginatorClassV1"
+    },
+    "schemaVersion": {
+      "format": "uint32",
+      "maximum": 1,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "state": {
+      "$ref": "#/$defs/IdentityEpochStateV1"
+    },
+    "terminatedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "originatorClass",
+    "audience",
+    "authorityInstanceId",
+    "epochId",
+    "epochSequence",
+    "state",
+    "issuedAtMs",
+    "authorityAuthenticatorDigest"
+  ],
+  "title": "IdentityEpochV1",
+  "type": "object"
+}

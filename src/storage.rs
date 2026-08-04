@@ -646,6 +646,10 @@ pub struct ClientMutationIdentity {
     pub auth_fingerprint: String,
     pub authority_instance_id: String,
     pub input_fingerprint: String,
+    /// Authenticated LLP 0163 issuance facts. Existing protocol clients leave
+    /// this absent and therefore remain outside envelope coverage until the
+    /// range carrier/negotiation amendment lands.
+    pub operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
 }
 
 struct RetainedClientMutationRow {
@@ -653,6 +657,7 @@ struct RetainedClientMutationRow {
     auth_fingerprint: String,
     authority_instance_id: Option<String>,
     input_fingerprint: String,
+    operation_issuance_json: Option<String>,
     output_json: String,
     settled_version: SqlValue,
     settled_version_exact: SqlValue,
@@ -757,20 +762,42 @@ impl ClientMutationIdentity {
             //   every settle-time policy fact shares the durable collision
             //   boundary with args/readSet/ctxLedger.
             input_fingerprint: mutation_input_fingerprint(input, settlement),
+            operation_issuance: None,
         }
+    }
+
+    pub fn with_operation_issuance(
+        mut self,
+        issuance: crate::commit_envelope::OperationIssuanceV1,
+    ) -> Self {
+        self.operation_issuance = Some(issuance);
+        self
     }
 
     /// Provenance-only digest of the exact server-constructed durable
     /// settlement identity. The activity row never receives the opaque
     /// client mutation id or its authority/input fingerprints in cleartext.
     pub(crate) fn activity_digest(&self) -> String {
-        let canonical = canonical_json(json!({
-            "authFingerprint": self.auth_fingerprint,
-            "authorityInstanceId": self.authority_instance_id,
-            "clientMutationId": self.id,
-            "function": self.function,
-            "inputFingerprint": self.input_fingerprint,
-        }));
+        // Preserve the already-shipped digest preimage for callers outside
+        // LLP 0163 coverage. Issuance facts widen the identity only when they
+        // are actually present.
+        let canonical = canonical_json(match &self.operation_issuance {
+            Some(issuance) => json!({
+                "authFingerprint": self.auth_fingerprint,
+                "authorityInstanceId": self.authority_instance_id,
+                "clientMutationId": self.id,
+                "function": self.function,
+                "inputFingerprint": self.input_fingerprint,
+                "operationIssuance": issuance,
+            }),
+            None => json!({
+                "authFingerprint": self.auth_fingerprint,
+                "authorityInstanceId": self.authority_instance_id,
+                "clientMutationId": self.id,
+                "function": self.function,
+                "inputFingerprint": self.input_fingerprint,
+            }),
+        });
         let encoded =
             serde_json::to_vec(&canonical).expect("client mutation identity JSON serializes");
         let mut digest = Sha256::new();
@@ -2065,6 +2092,7 @@ impl LocalDatabase {
                        length(CAST(auth_fingerprint AS BLOB)) +
                        COALESCE(length(CAST(authority_instance_id AS BLOB)), 0) +
                        length(CAST(input_fingerprint AS BLOB)) +
+                       COALESCE(length(CAST(operation_issuance_json AS BLOB)), 0) +
                        length(CAST(output_json AS BLOB))
                      FROM _snapback_client_mutations
                      WHERE client_mutation_id = ?1 AND auth_fingerprint = ?2
@@ -2076,6 +2104,13 @@ impl LocalDatabase {
             let Some(row_bytes) = row_bytes else {
                 continue;
             };
+            crate::operation_ledger::acknowledge_client_operation_by_id_in(
+                &tx,
+                id,
+                auth_fingerprint,
+                authority_instance_id,
+                now_millis(),
+            )?;
             let removed = tx.execute(
                 "DELETE FROM _snapback_client_mutations
                  WHERE client_mutation_id = ?1 AND auth_fingerprint = ?2
@@ -2209,8 +2244,8 @@ impl LocalDatabase {
             let row: Option<RetainedClientMutationRow> = conn
                 .query_row(
                     "SELECT function, auth_fingerprint, authority_instance_id,
-                        input_fingerprint, output_json, settled_version,
-                        settled_version_exact
+                        input_fingerprint, operation_issuance_json, output_json,
+                        settled_version, settled_version_exact
                  FROM _snapback_client_mutations WHERE client_mutation_id = ?1",
                     params![identity.id],
                     |row| {
@@ -2219,9 +2254,10 @@ impl LocalDatabase {
                             auth_fingerprint: row.get(1)?,
                             authority_instance_id: row.get(2)?,
                             input_fingerprint: row.get(3)?,
-                            output_json: row.get(4)?,
-                            settled_version: row.get(5)?,
-                            settled_version_exact: row.get(6)?,
+                            operation_issuance_json: row.get(4)?,
+                            output_json: row.get(5)?,
+                            settled_version: row.get(6)?,
+                            settled_version_exact: row.get(7)?,
                         })
                     },
                 )
@@ -2231,6 +2267,7 @@ impl LocalDatabase {
                 auth_fingerprint: retained_auth,
                 authority_instance_id: retained_authority,
                 input_fingerprint: retained_input,
+                operation_issuance_json: retained_issuance,
                 output_json,
                 settled_version,
                 settled_version_exact: exact_settled_version,
@@ -2297,6 +2334,24 @@ impl LocalDatabase {
                     "clientMutationId": identity.id,
                     "reason": "input_fingerprint_mismatch",
                 })));
+            }
+            let proposed_issuance = identity
+                .operation_issuance
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()
+                .map_err(|_| {
+                    invalid_client_mutation_retention_state(
+                        "proposed operation issuance could not be encoded",
+                    )
+                })?;
+            if retained_issuance != proposed_issuance {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+                    "sync",
+                    "client mutation id was reused with different operation issuance facts",
+                )
+                .with_details(json!({ "clientMutationId": identity.id })));
             }
             let output_value = serde_json::from_str::<Value>(&output_json).map_err(|error| {
                 SnapbackError::error(
@@ -5311,7 +5366,14 @@ impl LocalDatabase {
             let _commit_guard = before_commit()?;
             check_live()?;
             if let Some(identity) = identity {
-                record_client_mutation_result(&tx, identity, &output)?;
+                record_client_mutation_result(
+                    &tx,
+                    identity,
+                    input,
+                    &read_dependencies,
+                    &changes,
+                    &output,
+                )?;
             }
             commit_with_prepared_authorization_interlock(
                 tx,
@@ -5965,7 +6027,14 @@ impl LocalDatabase {
             let _commit_guard = before_commit()?;
             check_live()?;
             if let Some(identity) = options.identity {
-                record_client_mutation_result(&tx, identity, &output)?;
+                record_client_mutation_result(
+                    &tx,
+                    identity,
+                    input,
+                    &read_dependencies,
+                    &changes,
+                    &output,
+                )?;
             }
             commit_with_prepared_authorization_interlock(
                 tx,
@@ -6145,6 +6214,7 @@ impl LocalDatabase {
               auth_fingerprint TEXT NOT NULL,
               authority_instance_id TEXT,
               input_fingerprint TEXT NOT NULL,
+              operation_issuance_json TEXT,
               output_json TEXT NOT NULL,
               settled_at_ms INTEGER NOT NULL,
               settled_version INTEGER NOT NULL DEFAULT 0,
@@ -6320,6 +6390,13 @@ impl LocalDatabase {
                 [],
             )?;
         }
+        if !names.contains("operation_issuance_json") {
+            tx.execute(
+                "ALTER TABLE _snapback_client_mutations
+                 ADD COLUMN operation_issuance_json TEXT",
+                [],
+            )?;
+        }
         tx.execute(
             "CREATE INDEX IF NOT EXISTS _snapback_client_mutations_by_settlement
              ON _snapback_client_mutations(settled_version, settled_at_ms)",
@@ -6335,6 +6412,7 @@ impl LocalDatabase {
         // the already-governed data-version stream.
         crate::seed_identity::create_infra(&tx)?;
         crate::assets::create_infra(&tx)?;
+        crate::operation_ledger::create_infra(&tx)?;
         tx.commit()?;
         self.ensure_client_mutation_retention_counters()?;
         Ok(())
@@ -6370,6 +6448,7 @@ impl LocalDatabase {
                    length(CAST(auth_fingerprint AS BLOB)) +
                    COALESCE(length(CAST(authority_instance_id AS BLOB)), 0) +
                    length(CAST(input_fingerprint AS BLOB)) +
+                   COALESCE(length(CAST(operation_issuance_json AS BLOB)), 0) +
                    length(CAST(output_json AS BLOB))
                  )
                  FROM _snapback_client_mutations
@@ -18344,7 +18423,7 @@ fn canonical_json(value: Value) -> Value {
 }
 
 /// The logical retained-byte definition is stable and deliberately excludes
-/// SQLite row/index overhead. It is the sum of the six replay-identity/result
+/// SQLite row/index overhead. It is the sum of the seven replay-identity/result
 /// payloads whose contents the server must keep for exactly-once replay.
 fn scan_client_mutation_retention_totals(conn: &Connection) -> SnapbackResult<(u64, u64)> {
     let (records, bytes): (u64, u64) = conn.query_row(
@@ -18354,6 +18433,7 @@ fn scan_client_mutation_retention_totals(conn: &Connection) -> SnapbackResult<(u
            length(CAST(auth_fingerprint AS BLOB)) +
            COALESCE(length(CAST(authority_instance_id AS BLOB)), 0) +
            length(CAST(input_fingerprint AS BLOB)) +
+           COALESCE(length(CAST(operation_issuance_json AS BLOB)), 0) +
            length(CAST(output_json AS BLOB))
          ), 0) FROM _snapback_client_mutations",
         [],
@@ -18468,6 +18548,9 @@ fn save_meta_u64(conn: &Connection, key: &str, value: u64) -> SnapbackResult<()>
 fn record_client_mutation_result(
     tx: &Transaction<'_>,
     identity: &ClientMutationIdentity,
+    input: &HandlerInput,
+    read_dependencies: &[CapturedReadDependency],
+    changes: &[ChangedRow],
     output: &MutationOutput,
 ) -> SnapbackResult<()> {
     validate_client_mutation_identity(identity)?;
@@ -18500,11 +18583,24 @@ fn record_client_mutation_result(
     let (retained, retained_bytes) = client_mutation_retention_counters(tx)?;
     let (auth_retained, auth_retained_bytes) =
         client_mutation_auth_retention_counters(tx, &identity.auth_fingerprint)?;
+    let operation_issuance_json = identity
+        .operation_issuance
+        .as_ref()
+        .map(serde_json::to_string)
+        .transpose()
+        .map_err(|error| {
+            invalid_client_mutation_retention_state(format!(
+                "operation issuance could not be encoded: {error}"
+            ))
+        })?;
     let new_bytes = identity.id.len() as u64
         + identity.function.len() as u64
         + identity.auth_fingerprint.len() as u64
         + identity.authority_instance_id.len() as u64
         + identity.input_fingerprint.len() as u64
+        + operation_issuance_json
+            .as_ref()
+            .map_or(0, |value| value.len() as u64)
         + output_bytes;
     let limits = client_mutation_retention_limits();
     let admitted_bytes = retained_bytes.checked_add(new_bytes);
@@ -18545,15 +18641,16 @@ fn record_client_mutation_result(
     tx.execute(
         "INSERT INTO _snapback_client_mutations(
            client_mutation_id, function, auth_fingerprint, authority_instance_id,
-           input_fingerprint, output_json, settled_at_ms, settled_version,
-           settled_version_exact
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+           input_fingerprint, operation_issuance_json, output_json, settled_at_ms,
+           settled_version, settled_version_exact
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
             identity.id,
             identity.function,
             identity.auth_fingerprint,
             identity.authority_instance_id,
             identity.input_fingerprint,
+            operation_issuance_json,
             output_json,
             timestamp_to_sql_millis(now_millis())?,
             version_to_sql_integer(output.version)?,
@@ -18572,7 +18669,180 @@ fn record_client_mutation_result(
         auth_retained + 1,
         auth_admitted_bytes.expect("checked by per-auth retention admission"),
     )?;
+    if identity.operation_issuance.is_some() {
+        record_covered_client_mutation_envelope_in(
+            tx,
+            identity,
+            input,
+            read_dependencies,
+            changes,
+            output,
+        )?;
+    }
     Ok(())
+}
+
+/// The one ordinary-mutation envelope hook. Both HostPlan and Ibex buffered
+/// writers call this from their existing transaction after data/journal writes
+/// and before COMMIT; a future covered writer must use this hook rather than
+/// inserting an envelope independently.
+///
+/// @ref LLP 0162#1-the-universal-commit-envelope — application data,
+///   journal, envelope, suppression, and receipt share one physical commit.
+fn record_covered_client_mutation_envelope_in(
+    tx: &Transaction<'_>,
+    identity: &ClientMutationIdentity,
+    input: &HandlerInput,
+    read_dependencies: &[CapturedReadDependency],
+    changes: &[ChangedRow],
+    output: &MutationOutput,
+) -> SnapbackResult<()> {
+    use crate::commit_envelope::{
+        CommitEnvelopeV1, EnvelopeAuthorityFactsV1, EnvelopeCoverageV1, EnvelopeEffectFactsV1,
+        EnvelopeFactSetV1, FactProvenanceV1, LaneFactV1, OperationIdentityV1,
+        OperationReceiptStateV1, OperationReceiptV1, RetainedEnvelopeDetailV1,
+        SnapshotAssociationKindV1, StreamQualifiedVersionV1,
+    };
+
+    let issuance = identity
+        .operation_issuance
+        .clone()
+        .expect("covered hook is called only with issuance facts");
+    let stream_id =
+        crate::seed_identity::strict_current_data_version_stream(tx)?.ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_OPERATION_STREAM_UNAVAILABLE",
+                "storage",
+                "covered ordinary mutation requires an initialized data-version stream",
+            )
+        })?;
+    let operation_identity = OperationIdentityV1::from_client_mutation(
+        stream_id.clone(),
+        identity.authority_instance_id.clone(),
+        issuance,
+        identity,
+        crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+    );
+    let manifest =
+        crate::operation_ledger::active_coverage_manifest(tx, &stream_id)?.ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_OPERATION_COVERAGE_UNAVAILABLE",
+                "storage",
+                "covered ordinary mutation has no active stream coverage manifest",
+            )
+        })?;
+    let read_detail = serde_json::to_value(read_dependencies).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_OPERATION_LEDGER_INVALID",
+            "storage",
+            "captured mutation reads could not be encoded",
+        )
+    })?;
+    let write_detail = serde_json::to_value(changes).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_OPERATION_LEDGER_INVALID",
+            "storage",
+            "captured mutation writes could not be encoded",
+        )
+    })?;
+    let ctx_detail = serde_json::to_value(&output.ctx_ledger).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_OPERATION_LEDGER_INVALID",
+            "storage",
+            "captured ctx answers could not be encoded",
+        )
+    })?;
+    let fact_set = |domain: &'static [u8], value: Value, count: u64| EnvelopeFactSetV1 {
+        digest: crate::operation_ledger::digest_fact_set(domain, &canonical_json(value.clone())),
+        count,
+        provenance: FactProvenanceV1::ServerCaptured,
+        detail: if serde_json::to_vec(&value).is_ok_and(|bytes| bytes.len() <= 65_536) {
+            RetainedEnvelopeDetailV1::InlineRedacted { detail: value }
+        } else {
+            RetainedEnvelopeDetailV1::Truncated
+        },
+    };
+    let output_value = serde_json::to_value(output).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_OPERATION_LEDGER_INVALID",
+            "storage",
+            "mutation receipt could not be encoded",
+        )
+    })?;
+    let receipt_digest = crate::operation_ledger::digest_fact_set(
+        b"snapback:operation-receipt:v1\n",
+        &canonical_json(output_value.clone()),
+    );
+    let envelope = CommitEnvelopeV1 {
+        schema_version: 1,
+        identity: operation_identity,
+        snapshot: StreamQualifiedVersionV1 {
+            stream_id,
+            version: output.version,
+            association: if changes.is_empty() {
+                SnapshotAssociationKindV1::ObservedSnapshot
+            } else {
+                SnapshotAssociationKindV1::ProducedCommit
+            },
+        },
+        principal_session_or_invocation_id: identity.authority_instance_id.clone(),
+        authority: EnvelopeAuthorityFactsV1 {
+            audience: identity.authority_instance_id.clone(),
+            grant_or_policy_identity: LaneFactV1::NotDefinedForLane,
+            fencing_token_or_epoch: LaneFactV1::Defined(identity.authority_instance_id.clone()),
+        },
+        executable_artifact_digest: LaneFactV1::NotDefinedForLane,
+        argument_digest: crate::operation_ledger::digest_fact_set(
+            b"snapback:operation-arguments:v1\n",
+            &canonical_json(input.args.clone()),
+        ),
+        plan_digest: LaneFactV1::NotDefinedForLane,
+        base_version: LaneFactV1::NotDefinedForLane,
+        read_set: fact_set(
+            b"snapback:operation-read-set:v1\n",
+            read_detail,
+            read_dependencies.len() as u64,
+        ),
+        write_set: fact_set(
+            b"snapback:operation-write-set:v1\n",
+            write_detail,
+            changes.len() as u64,
+        ),
+        ctx_answers: fact_set(
+            b"snapback:operation-ctx-answers:v1\n",
+            ctx_detail,
+            usize::from(output.ctx_ledger.is_some()) as u64,
+        ),
+        effects: EnvelopeEffectFactsV1 {
+            facts: fact_set(b"snapback:operation-effects:v1\n", json!([]), 0),
+            egress_families: Vec::new(),
+            settlement_capabilities: Vec::new(),
+        },
+        receipt: OperationReceiptV1 {
+            state: OperationReceiptStateV1::Committed,
+            receipt_digest: receipt_digest.clone(),
+            payload: RetainedEnvelopeDetailV1::ProtectedLane {
+                custody_reference: format!("client-mutation-result:{}", identity.activity_digest()),
+                payload_digest: receipt_digest,
+                payload_bytes: serde_json::to_vec(&output_value)
+                    .map_err(|_| {
+                        SnapbackError::error(
+                            "SNAPBACK_OPERATION_LEDGER_INVALID",
+                            "storage",
+                            "mutation receipt bytes could not be counted",
+                        )
+                    })?
+                    .len() as u64,
+            },
+        },
+        coverage: EnvelopeCoverageV1 {
+            covered_lanes: vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()],
+            uncovered_lanes: Vec::new(),
+            coverage_digest: manifest.coverage_digest,
+        },
+        recorded_at_ms: now_millis(),
+    };
+    crate::operation_ledger::record_operation_in(tx, &envelope)
 }
 
 /// A generic host-minted id, for the paths where no table is in scope.
@@ -21367,6 +21637,7 @@ mod guarded_commit_tests {
             auth_fingerprint: "sha256:test".to_owned(),
             authority_instance_id: Uuid::now_v7().to_string(),
             input_fingerprint: "sha256:input".to_owned(),
+            operation_issuance: None,
         };
         db.execute_mutation_idempotent(
             &MutationPlan {
@@ -23022,6 +23293,148 @@ mod guarded_commit_tests {
             steps: vec![insert("one"), insert("two")],
             return_value: Some(ReturnValue::ChangedCount),
         }
+    }
+
+    #[test]
+    fn llp0163_issuance_bearing_host_plan_and_buffered_mutations_share_envelope_choke_point() {
+        use crate::commit_envelope::{
+            ClientIdentityRangeV1, IdentityEpochStateV1, IdentityEpochV1,
+            OperationCoverageManifestV1, OperationIssuanceV1, OperationOriginatorClassV1,
+        };
+
+        let mut db = database();
+        let tx = db.conn.transaction().expect("stream authority tx");
+        let stream = auth_invalidation::ensure_data_version_stream_in(&tx)
+            .expect("initialize operation stream");
+        tx.commit().expect("stream authority commit");
+        let authenticator = format!("sha256:{}", "a".repeat(64));
+        let issued_at_ms = now_millis();
+        let input = HandlerInput::default();
+        let prototype = ClientMutationIdentity::new("operation-0", "items.insert", &input);
+        let audience = prototype.authority_instance_id.clone();
+        let tx = db.conn.transaction().expect("operation authority tx");
+        crate::operation_ledger::register_epoch_in(
+            &tx,
+            &IdentityEpochV1 {
+                schema_version: 1,
+                originator_class: OperationOriginatorClassV1::Client,
+                audience: audience.clone(),
+                authority_instance_id: audience.clone(),
+                epoch_id: "epoch-1".to_owned(),
+                epoch_sequence: 1,
+                state: IdentityEpochStateV1::Open,
+                issued_at_ms,
+                terminated_at_ms: None,
+                authority_authenticator_digest: authenticator.clone(),
+            },
+        )
+        .expect("epoch");
+        crate::operation_ledger::register_client_range_in(
+            &tx,
+            &ClientIdentityRangeV1 {
+                schema_version: 1,
+                audience: audience.clone(),
+                authority_instance_id: audience.clone(),
+                epoch_id: "epoch-1".to_owned(),
+                epoch_sequence: 1,
+                range_start: 0,
+                range_end_exclusive: 2,
+                issued_at_ms,
+                expires_at_ms: issued_at_ms
+                    + crate::operation_ledger::CLIENT_IDENTITY_RANGE_WINDOW_MS_V1,
+                authority_authenticator_digest: authenticator.clone(),
+            },
+        )
+        .expect("range");
+        let lanes = vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()];
+        let writers = vec![
+            "storage::execute_mutation_plan".to_owned(),
+            "storage::commit_buffered_writes".to_owned(),
+        ];
+        crate::operation_ledger::register_coverage_in(
+            &tx,
+            &OperationCoverageManifestV1 {
+                schema_version: 1,
+                manifest_version: 1,
+                stream_id: stream.clone(),
+                covered_lanes: lanes.clone(),
+                writer_choke_points: writers.clone(),
+                coverage_digest: crate::operation_ledger::coverage_digest(
+                    &stream, 1, &lanes, &writers,
+                ),
+            },
+            1,
+        )
+        .expect("coverage");
+        tx.commit().expect("operation authority commit");
+
+        let issuance = |counter| OperationIssuanceV1::ClientRange {
+            epoch_id: "epoch-1".to_owned(),
+            counter,
+            range_start: 0,
+            range_end_exclusive: 2,
+            authority_authenticator_digest: authenticator.clone(),
+        };
+        let host_plan_identity = prototype.with_operation_issuance(issuance(0));
+        let host_plan = db
+            .execute_mutation_idempotent(&insert_plan(), &input, &host_plan_identity)
+            .expect("covered HostPlan commit");
+        assert_eq!(host_plan.changes.len(), 2);
+
+        let buffered_identity =
+            ClientMutationIdentity::new("operation-1", "items.bufferedInsert", &input)
+                .with_operation_issuance(issuance(1));
+        let buffered = db
+            .commit_buffered_writes_idempotent_guarded(
+                &input,
+                BufferedCommitPayload {
+                    writes: vec![BufferedWrite::Insert {
+                        table: "items".to_owned(),
+                        id: "buffered".to_owned(),
+                        values: Map::from_iter([("title".to_owned(), json!("buffered"))]),
+                    }],
+                    sequence_allocations: Vec::new(),
+                    membership_plans: Vec::new(),
+                    read_dependencies: Vec::new(),
+                    result: json!("buffered"),
+                    ctx_ledger: CtxAnswerLedger::default(),
+                    job_enqueues: Vec::new(),
+                    job_producer: None,
+                    asset_admissions: Vec::new(),
+                },
+                Some(&buffered_identity),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("covered buffered commit");
+        assert_eq!(buffered.changes.len(), 1);
+
+        for identity in [&host_plan_identity, &buffered_identity] {
+            let operation = crate::commit_envelope::OperationIdentityV1::from_client_mutation(
+                stream.clone(),
+                audience.clone(),
+                identity
+                    .operation_issuance
+                    .clone()
+                    .expect("issuance retained"),
+                identity,
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+            );
+            assert!(matches!(
+                crate::operation_ledger::lookup_operation(&db.conn, &operation)
+                    .expect("operation replay lookup"),
+                crate::operation_ledger::OperationLookupV1::ExactReplay(_)
+            ));
+        }
+        let envelope_count: u64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_commit_envelopes_v1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("envelope count");
+        assert_eq!(envelope_count, 2);
     }
 
     fn buffered_writes() -> Vec<BufferedWrite> {

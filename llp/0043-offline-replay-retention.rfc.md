@@ -5,7 +5,11 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-03 (recorded design, awaiting author ratification —
+**Revised:** 2026-08-03 (LLP 0163 implementation parameters — v1 authenticated
+client ranges admit at most 256 counters over at most 30 days; unacknowledged
+results have no time eviction; ACK makes the result payload immediately
+reclaimable but requires a tombstone until the audience floor passes the
+epoch); 2026-08-03 (recorded design, awaiting author ratification —
 JS-arm sessions-custody offline queue: capture-at-enqueue authority
 descriptors + strand-on-authority-change, per the commissioned design pass
 at author sitting #2; see §Auth posture's dated subsection. No claim,
@@ -782,6 +786,19 @@ lifecycle as follows; the core rules are affirmed, not weakened.
   range size/window parameter values (LLP 0133 owns collision/identity
   semantics and LLP 0163 the schemas and disposition spellings; they
   reference these parameters rather than fixing them).
+
+### Dated v1 parameter record (2026-08-03 — LLP 0163 durable slice)
+
+The implemented v1 server bounds are a maximum **256 identities per
+authenticated client range** and a maximum **30-day issuance window**. Smaller
+ranges and shorter windows are valid. An admitted result that has not been
+receipt-proven acknowledged has no time-based eviction and therefore holds its
+epoch open. On ACK, the replay payload is immediately eligible for reclamation;
+if the epoch floor has not passed it, reclamation writes a payload-free
+tombstone atomically. The tombstone is deleted only when the per-audience floor
+advances past the closed epoch. These are the constants exported by
+`src/operation_ledger.rs`; changing them requires another dated revision and
+updated lifecycle corpus.
 
 ## Terminology note (2026-08-03) — "cold process" proof classes
 

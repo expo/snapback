@@ -5,7 +5,10 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-02 (Accepted LLP 0135 owner fold: sequence allocation is
+**Revised:** 2026-08-03 (LLP 0163 durable slice widens the existing retained
+client mutation identity in place with authenticated issuance facts and
+compares those facts on replay; no parallel retry id was introduced, and
+public range issuance/custody remains unclaimed); 2026-08-02 (Accepted LLP 0135 owner fold: sequence allocation is
 a settlement-only host answer outside both captured-environment lanes);
 2026-08-02 (implementation record — the buildable-now
 settlement substrate landed through the six-ticket program: additive lane
@@ -850,3 +853,14 @@ implementation-altitude contracts and schemas.
   0043's same-dated amendment; disposition spellings and generated schemas
   by LLP 0163; the detail/envelope/checkpoint retention windows by LLP
   0162 OQ1 until LLP 0163/0165 land them.
+
+### Dated implementation note (2026-08-03 — LLP 0163 durable slice)
+
+`ClientMutationIdentity` now carries optional `OperationIssuanceV1` facts, and
+the same `_snapback_client_mutations` settlement row persists those facts with
+the existing function, authority, and input collision boundary. Lookup compares
+the serialized issuance exactly and refuses divergence in the shipped reused-id
+family; identities without issuance preserve their predecessor digest and
+remain outside LLP 0163 coverage. This satisfies the extend-don't-ride-beside
+constraint at the storage seam, but does not claim the missing server range
+issuance wire or client-side atomic range/outbox custody.

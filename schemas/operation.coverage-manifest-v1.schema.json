@@ -1,0 +1,47 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/operation.coverage-manifest-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "coverageDigest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "coveredLanes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "manifestVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schemaVersion": {
+      "format": "uint32",
+      "maximum": 1,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "streamId": {
+      "type": "string"
+    },
+    "writerChokePoints": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "manifestVersion",
+    "streamId",
+    "coveredLanes",
+    "writerChokePoints",
+    "coverageDigest"
+  ],
+  "title": "OperationCoverageManifestV1",
+  "type": "object"
+}

@@ -28,7 +28,11 @@ use crate::auth::wire::{
     MailboxResponse, MintSessionRequest, RequestCodeRequest, RequestCodeResponse,
     RescueCollidingTableRequest,
 };
-use crate::commit_envelope::{CommitEnvelopeV1, OperationIdentityV1};
+use crate::commit_envelope::{
+    ClientIdentityRangeV1, CommitEnvelopeV1, IdentityEpochV1, OperationCoverageManifestV1,
+    OperationExplanationV1, OperationIdentityTombstoneV1, OperationIdentityV1,
+    OperationSuppressionRecordV1,
+};
 use crate::data_tier::{DataTierCorpusCase, DataTierCorpusManifest, DataTierProfile};
 use crate::deploy::{
     AdapterLifecycleRequest, AdapterLifecycleRequestV2, AdapterLifecycleResponse,
@@ -138,6 +142,30 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "commit.envelope-v1.schema.json",
             schemars::schema_for!(CommitEnvelopeV1),
+        ),
+        finish(
+            "operation.identity-range-v1.schema.json",
+            schemars::schema_for!(ClientIdentityRangeV1),
+        ),
+        finish(
+            "operation.identity-epoch-v1.schema.json",
+            schemars::schema_for!(IdentityEpochV1),
+        ),
+        finish(
+            "operation.suppression-v1.schema.json",
+            schemars::schema_for!(OperationSuppressionRecordV1),
+        ),
+        finish(
+            "operation.identity-tombstone-v1.schema.json",
+            schemars::schema_for!(OperationIdentityTombstoneV1),
+        ),
+        finish(
+            "operation.explanation-v1.schema.json",
+            schemars::schema_for!(OperationExplanationV1),
+        ),
+        finish(
+            "operation.coverage-manifest-v1.schema.json",
+            schemars::schema_for!(OperationCoverageManifestV1),
         ),
         // @ref LLP 0165#owned-artifacts — proof/checkpoint/history carriers
         // are Rust-owned and committed before callers wire them in. Schema

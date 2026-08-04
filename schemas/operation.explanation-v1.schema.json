@@ -1,0 +1,148 @@
+{
+  "$defs": {
+    "ExplanationDispositionV1": {
+      "enum": [
+        "complete",
+        "detail-expired",
+        "detail-truncated",
+        "journal-expired",
+        "authorization-unprovable"
+      ],
+      "type": "string"
+    },
+    "OperationKeyV1": {
+      "additionalProperties": false,
+      "description": "The physical key for suppression and envelope storage. Audience and all\nother semantic facts are compared facts, never key components.",
+      "properties": {
+        "operationId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$",
+          "type": "string"
+        },
+        "originatorClass": {
+          "$ref": "#/$defs/OperationOriginatorClassV1"
+        },
+        "streamId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "streamId",
+        "originatorClass",
+        "operationId"
+      ],
+      "type": "object"
+    },
+    "OperationOriginatorClassV1": {
+      "enum": [
+        "client",
+        "host"
+      ],
+      "type": "string"
+    },
+    "SnapshotAssociationKindV1": {
+      "enum": [
+        "producedCommit",
+        "observedSnapshot"
+      ],
+      "type": "string"
+    },
+    "StreamQualifiedVersionV1": {
+      "additionalProperties": false,
+      "properties": {
+        "association": {
+          "$ref": "#/$defs/SnapshotAssociationKindV1"
+        },
+        "streamId": {
+          "type": "string"
+        },
+        "version": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "streamId",
+        "version",
+        "association"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/operation.explanation-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "detail": true,
+    "disposition": {
+      "$ref": "#/$defs/ExplanationDispositionV1"
+    },
+    "functionOrCommand": {
+      "type": "string"
+    },
+    "key": {
+      "$ref": "#/$defs/OperationKeyV1"
+    },
+    "operationKind": {
+      "type": "string"
+    },
+    "principalFingerprint": {
+      "type": "string"
+    },
+    "principalSessionOrInvocationId": {
+      "type": "string"
+    },
+    "readSetCount": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "readSetDigest": {
+      "description": "Withheld for `authorization-unprovable`; an absent digest is never an\nempty-set claim.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schemaVersion": {
+      "format": "uint32",
+      "maximum": 1,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "snapshot": {
+      "$ref": "#/$defs/StreamQualifiedVersionV1"
+    },
+    "writeSetCount": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "writeSetDigest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "key",
+    "operationKind",
+    "functionOrCommand",
+    "principalFingerprint",
+    "principalSessionOrInvocationId",
+    "snapshot",
+    "disposition"
+  ],
+  "title": "OperationExplanationV1",
+  "type": "object"
+}

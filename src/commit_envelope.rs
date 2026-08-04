@@ -342,6 +342,19 @@ pub struct EnvelopeCoverageV1 {
     pub coverage_digest: String,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperationCoverageManifestV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub manifest_version: u64,
+    pub stream_id: String,
+    pub covered_lanes: Vec<String>,
+    pub writer_choke_points: Vec<String>,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub coverage_digest: String,
+}
+
 #[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CommitEnvelopeV1 {
@@ -363,6 +376,141 @@ pub struct CommitEnvelopeV1 {
     pub receipt: OperationReceiptV1,
     pub coverage: EnvelopeCoverageV1,
     pub recorded_at_ms: u64,
+}
+
+/// Server-issued finite client range. The authenticator is a digest in this
+/// public projection; the issuing service retains/verifies the secret-bearing
+/// artifact outside application data.
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ClientIdentityRangeV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub audience: String,
+    pub authority_instance_id: String,
+    pub epoch_id: String,
+    pub epoch_sequence: u64,
+    pub range_start: u64,
+    pub range_end_exclusive: u64,
+    pub issued_at_ms: u64,
+    pub expires_at_ms: u64,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub authority_authenticator_digest: String,
+}
+
+impl ClientIdentityRangeV1 {
+    pub const SCHEMA_VERSION: u32 = 1;
+
+    pub fn validate(&self) -> bool {
+        self.schema_version == Self::SCHEMA_VERSION
+            && !self.audience.is_empty()
+            && !self.authority_instance_id.is_empty()
+            && !self.epoch_id.is_empty()
+            && self.range_start < self.range_end_exclusive
+            && self.issued_at_ms < self.expires_at_ms
+            && is_sha256(&self.authority_authenticator_digest)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum IdentityEpochStateV1 {
+    Open,
+    Terminated,
+    Revoked,
+    Closed,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct IdentityEpochV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub originator_class: OperationOriginatorClassV1,
+    pub audience: String,
+    pub authority_instance_id: String,
+    pub epoch_id: String,
+    pub epoch_sequence: u64,
+    pub state: IdentityEpochStateV1,
+    pub issued_at_ms: u64,
+    pub terminated_at_ms: Option<u64>,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub authority_authenticator_digest: String,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum OperationLookupDispositionV1 {
+    ExactReplay,
+    ResultExpired,
+    IdentityHorizonPassed,
+    Novel,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum OperationTerminalOutcomeV1 {
+    Committed,
+    Refused,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperationSuppressionRecordV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub identity: OperationIdentityV1,
+    pub terminal_outcome: OperationTerminalOutcomeV1,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub receipt_digest: String,
+    pub receipt_payload: Value,
+    pub terminal_at_ms: u64,
+    pub acknowledged_at_ms: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperationIdentityTombstoneV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub key: OperationKeyV1,
+    pub audience: String,
+    pub epoch_id: String,
+    pub terminal_outcome: OperationTerminalOutcomeV1,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub receipt_digest: String,
+    pub retained_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ExplanationDispositionV1 {
+    Complete,
+    DetailExpired,
+    DetailTruncated,
+    JournalExpired,
+    AuthorizationUnprovable,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperationExplanationV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub key: OperationKeyV1,
+    pub operation_kind: String,
+    pub function_or_command: String,
+    pub principal_fingerprint: String,
+    pub principal_session_or_invocation_id: String,
+    pub snapshot: StreamQualifiedVersionV1,
+    pub disposition: ExplanationDispositionV1,
+    /// Withheld for `authorization-unprovable`; an absent digest is never an
+    /// empty-set claim.
+    pub read_set_digest: Option<String>,
+    pub read_set_count: Option<u64>,
+    pub write_set_digest: Option<String>,
+    pub write_set_count: Option<u64>,
+    pub detail: Option<Value>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
