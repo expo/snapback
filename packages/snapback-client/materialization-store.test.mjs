@@ -16,6 +16,7 @@ import {
   materializationAddressKey,
   pageIdentityDigestV1,
   resultDigestV1,
+  verifyFiniteCompletenessCarrierV1,
 } from './materialization-store.mjs';
 import { createFileRqsResumeStore } from './rqs-store-file.mjs';
 import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
@@ -473,6 +474,58 @@ test('A5 installs Rust-server golden proof bytes and rejects binding near misses
       (error) => error?.code?.startsWith('SNAPBACK_COMPLETENESS_'),
     );
   }
+});
+
+test('finite carriers verify Rust-minted proof bytes and reject tamper or wrong identity', async () => {
+  const fixture = JSON.parse(await readFile(
+    new URL('../../tests/conformance/completeness-proof-v1.json', import.meta.url),
+    'utf8',
+  ));
+  const resultBytes = new Uint8Array(Buffer.from(fixture.resultBytesBase64url, 'base64url'));
+  const context = {
+    trustedActivation: fixture.trustedActivation,
+    materializationKey: fixture.proof.materializationKey,
+    queryInstanceId: fixture.proof.queryInstanceId,
+    planHash: fixture.proof.planHash,
+    nodes: fixture.proof.nodes,
+    resultBytes,
+    resultContractHash: digest('5'),
+    resultContract: { kind: 'unknown' },
+    authorizationWitnessOwnerProduced: true,
+    authorization: {
+      incarnation: fixture.witness.compositeWitness.authorization.incarnation,
+      epoch: fixture.witness.compositeWitness.authorization.epoch,
+      versionStream: fixture.witness.compositeWitness.data.versionStream,
+    },
+    pageIdentityDigest: fixture.pageIdentityDigest,
+    expectedVersion: fixture.proof.version,
+  };
+  const carrier = {
+    completenessProof: fixture.proof,
+    authorizationWitness: fixture.witness,
+  };
+  const verified = await verifyFiniteCompletenessCarrierV1(carrier, context);
+  assert.deepEqual(verified.proof, fixture.proof);
+  assert.deepEqual(verified.authorizationWitness, fixture.witness);
+  assert.equal(verified.pageSetManifest, null);
+
+  await assert.rejects(
+    verifyFiniteCompletenessCarrierV1({
+      ...carrier,
+      completenessProof: {
+        ...fixture.proof,
+        signature: `${fixture.proof.signature.slice(0, -1)}B`,
+      },
+    }, context),
+    (error) => error?.code?.startsWith('SNAPBACK_COMPLETENESS_'),
+  );
+  await assert.rejects(
+    verifyFiniteCompletenessCarrierV1(carrier, {
+      ...context,
+      materializationKey: qmk('wrong-finite-identity'),
+    }),
+    (error) => error?.code === 'SNAPBACK_COMPLETENESS_BINDING_INVALID',
+  );
 });
 
 for (const carrier of ['memory', 'file', 'indexeddb']) {

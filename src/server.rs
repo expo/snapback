@@ -70,10 +70,11 @@ use crate::local::{
 };
 use crate::manifest::{
     ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode, AuthRequirement,
-    AuthorityDescriptor, CtxAnswerLedger, FunctionCallRequest, FunctionInvocationFacts,
-    FunctionKind, FunctionManifest, FunctionResponse, FunctionRuntime, HandlerInput,
-    MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationOutput,
-    MutationRequest, QueryOutput, ReadDependency, SchemaManifest, SeedData,
+    AuthorityDescriptor, CtxAnswerLedger, FiniteQueryOutput, FiniteQueryRequest,
+    FunctionCallRequest, FunctionInvocationFacts, FunctionKind, FunctionManifest,
+    FunctionResponse, FunctionRuntime, HandlerInput, MutationAcknowledgementRequest,
+    MutationAcknowledgementResponse, MutationOutput, MutationRequest, QueryOutput,
+    ReadDependency, SchemaManifest, SeedData,
 };
 use crate::push::{
     PushTokenRegistrationResponse, PushTokenUnregisterResponse, RegisterPushTokenRequest,
@@ -7073,6 +7074,18 @@ pub struct AuthorizedLeaseQueryResponse {
     pub authorized_lease: AuthorizedLease,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub facts: Option<FunctionInvocationFacts>,
+    #[serde(
+        default,
+        rename = "completenessProof",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub completeness_proof: Option<crate::completeness::CompletenessProofV1>,
+    #[serde(
+        default,
+        rename = "authorizationWitness",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authorization_witness: Option<crate::completeness::AuthorizationWitnessRecordV1>,
 }
 
 impl AuthorizedLeaseQueryResponse {
@@ -7080,6 +7093,7 @@ impl AuthorizedLeaseQueryResponse {
         output: QueryOutput,
         authorized_lease: AuthorizedLease,
         facts: Option<FunctionInvocationFacts>,
+        completeness: Option<crate::local::FiniteCompletenessCarrier>,
     ) -> Self {
         // A retained authorized snapshot is decode-only (LLP 0080 §4): a
         // relational continuation cursor never rides the lease envelope, so
@@ -7089,11 +7103,17 @@ impl AuthorizedLeaseQueryResponse {
             rows,
             cursor: _,
         } = output;
+        let (completeness_proof, authorization_witness) = completeness
+            .map_or((None, None), |carrier| {
+                (Some(carrier.proof), Some(carrier.witness))
+            });
         Self {
             version,
             rows,
             authorized_lease,
             facts,
+            completeness_proof,
+            authorization_witness,
         }
     }
 }
@@ -19131,16 +19151,20 @@ async fn invoke_query(
     State(read): State<crate::local::ReadLane>,
     Extension(authority): Extension<PreparedAuthority>,
     Path(name): Path<String>,
-    input: Result<Json<FunctionCallRequest>, JsonRejection>,
+    input: Result<Json<FiniteQueryRequest>, JsonRejection>,
 ) -> Response {
     let network_profiles = runtime.network_profiles.clone();
-    let result: Result<Json<FunctionResponse<crate::manifest::QueryOutput>>, ApiError> = async move {
+    let result: Result<Json<FunctionResponse<FiniteQueryOutput>>, ApiError> = async move {
         let attribution = authority.function_attribution();
         let Json(request) = input
             .map_err(ApiError::from_json_rejection)
             .map_err(|error| error.with_attribution(attribution.clone()))?;
-        let input = request.input;
-        let expected_generation = request.expected_generation;
+        let input = request.request.input;
+        let expected_generation = request.request.expected_generation;
+        let completeness_namespace = request.completeness_namespace;
+        let prior_completeness_proofs = request.prior_completeness_proofs;
+        let proof_requested =
+            completeness_namespace.is_some() || !prior_completeness_proofs.is_empty();
         // Only finite service authority needs the SQLite-owned terminal cut.
         // Anonymous and session queries are fenced by their process publication
         // handles and must stay off the global write lane so WAL reads remain
@@ -19163,7 +19187,22 @@ async fn invoke_query(
             .map_err(ApiError::from)
             .map_err(|error| error.with_attribution(attribution.clone()))?;
         }
-        let (output, facts) = if read.available() {
+        let (output, facts) = if proof_requested {
+            with_snapback(&state, move |snapback| {
+                let output = snapback.invoke_finite_query_prepared_generation(
+                    &name,
+                    input,
+                    authority.clone(),
+                    expected_generation.as_ref(),
+                    completeness_namespace.as_ref(),
+                    &prior_completeness_proofs,
+                )?;
+                authority.validate_admission("finite query generation facts")?;
+                let facts = snapback.function_invocation_facts(authority.active_mode())?;
+                Ok((output, facts))
+            })
+            .await
+        } else if read.available() {
             with_read_lane(&read, move |lane| {
                 lane.invoke_query_prepared_generation_with_facts(
                     &name,
@@ -19173,6 +19212,7 @@ async fn invoke_query(
                 )
             })
             .await
+            .map(|(output, facts)| (FiniteQueryOutput::without_proof(output), facts))
         } else {
             with_snapback(&state, move |snapback| {
                 let invocation = snapback.invoke_query_with_dependencies_prepared_generation(
@@ -19183,7 +19223,7 @@ async fn invoke_query(
                 )?;
                 authority.validate_admission("query generation facts")?;
                 let facts = snapback.function_invocation_facts(authority.active_mode())?;
-                Ok((invocation.output, facts))
+                Ok((FiniteQueryOutput::without_proof(invocation.output), facts))
             })
             .await
         }
@@ -19768,6 +19808,7 @@ async fn invoke_authorized_lease_query(
         )
         .map_err(ApiError::from)?;
     let lease_for_reservation = lease.clone();
+    let completeness = capture.completeness.clone();
     let output = with_snapback(&state, move |snapback| {
         snapback.reserve_captured_authorized_lease(
             capture,
@@ -19778,7 +19819,10 @@ async fn invoke_authorized_lease_query(
     })
     .await?;
     Ok(Json(AuthorizedLeaseQueryResponse::from_parts(
-        output, lease, facts,
+        output,
+        lease,
+        facts,
+        completeness,
     )))
 }
 

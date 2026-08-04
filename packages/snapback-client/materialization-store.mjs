@@ -686,6 +686,91 @@ function validateProof(record, fragment, suppliedProof, context, signatureReceip
   return proof;
 }
 
+/** Verify an optional finite-response proof carrier with the same shape,
+ * Ed25519/JCS, witness, result, and identity checks used by `commitPage`.
+ * Absence is the compatibility path and returns null; a partial or invalid
+ * carrier rejects before callers can install any bytes.
+ *
+ * @ref LLP 0094#llp-0157-finite-carrier-completeness-amendment--2026-08-04
+ *   — finite answers reuse the establishment verifier unchanged.
+ */
+export async function verifyFiniteCompletenessCarrierV1(carrierInput, context) {
+  if (!plain(carrierInput)) {
+    refuse('SNAPBACK_COMPLETENESS_PROOF_INVALID', 'finite completeness carrier must be an object');
+  }
+  const hasProof = own(carrierInput, 'completenessProof') && carrierInput.completenessProof != null;
+  const hasWitness = own(carrierInput, 'authorizationWitness') && carrierInput.authorizationWitness != null;
+  const hasManifest = own(carrierInput, 'pageSetManifest') && carrierInput.pageSetManifest != null;
+  if (!hasProof && !hasWitness && !hasManifest) return null;
+  if (!hasProof || !hasWitness) {
+    refuse('SNAPBACK_COMPLETENESS_PROOF_INVALID', 'finite proof and authorization witness must be carried together');
+  }
+  if (!plain(context)) {
+    refuse('SNAPBACK_COMPLETENESS_TRUST_MISSING', 'finite verification context is unavailable');
+  }
+  const proof = requireProof(carrierInput.completenessProof);
+  const witness = prepareWitness(carrierInput.authorizationWitness);
+  const trusted = prepareTrustedActivation(context.trustedActivation);
+  if (!(context.resultBytes instanceof Uint8Array)) {
+    refuse('SNAPBACK_COMPLETENESS_RESULT_INVALID', 'finite result bytes must be Uint8Array');
+  }
+  if (!plain(context.authorization)) {
+    refuse('SNAPBACK_COMPLETENESS_WITNESS_INVALID', 'current authorization expectation is unavailable');
+  }
+  const pageIdentityDigest = pageIdentityDigestV1(proof.page);
+  if (context.pageIdentityDigest !== undefined && context.pageIdentityDigest !== pageIdentityDigest) {
+    refuse('SNAPBACK_COMPLETENESS_BINDING_INVALID', 'finite page identity does not match the requested page');
+  }
+  const record = {
+    address: ['snapback:client-materialization-address:v1', 'finite-carrier', context.materializationKey],
+    queryInstanceId: context.queryInstanceId,
+    activationHash: trusted.activationHash,
+    planHash: context.planHash,
+    productState: { freshness: 'current' },
+    authorityState: {
+      expected_authorization: {
+        incarnation: context.authorization.incarnation,
+        epoch: context.authorization.epoch,
+        version_stream: context.authorization.versionStream,
+      },
+    },
+  };
+  const fragment = {
+    pageIdentityDigest,
+    resultContractHash: context.resultContractHash,
+    bytes: context.resultBytes,
+    authorizedLeaseHash: null,
+  };
+  const validationContext = {
+    ...context,
+    authorizationWitness: witness,
+  };
+  const receipt = await verifySignatureCandidate(proof, trusted);
+  const receipts = new Set(receipt === null ? [] : [receipt]);
+  validateProof(record, fragment, proof, validationContext, receipts);
+  if (context.expectedVersion !== undefined && !same(proof.version, context.expectedVersion)) {
+    refuse('SNAPBACK_COMPLETENESS_VERSION_INVALID', 'finite proof version does not match the requested version');
+  }
+
+  let pageSetManifest = null;
+  if (hasManifest) {
+    pageSetManifest = preparePageSetManifestV1(carrierInput.pageSetManifest);
+    if (pageSetManifest === null) {
+      refuse('SNAPBACK_PAGE_SET_INVALID', 'finite page-set manifest is invalid');
+    }
+    const priorProofs = Array.isArray(context.priorProofs)
+      ? context.priorProofs.map(requireProof)
+      : [];
+    for (const prior of priorProofs) {
+      if (await verifySignatureCandidate(prior, trusted) === null) {
+        refuse('SNAPBACK_COMPLETENESS_SIGNATURE_INVALID', 'prior page proof signature is invalid');
+      }
+    }
+    validatePageSetProofChain([...priorProofs, proof], pageSetManifest);
+  }
+  return Object.freeze({ proof, authorizationWitness: witness, pageSetManifest });
+}
+
 function proofMatchesRequest(proof, productState) {
   const versionMatches = productState.requestedVersion === 'as-of-proof'
     || (
@@ -998,18 +1083,7 @@ function retainedAuthorityValid(context, fragmentAuthorizedLeaseHash = undefined
     );
 }
 
-function validatePageSet(record, manifest, context, signatureReceipts) {
-  const fragments = new Map(record.fragments.map((fragment) => [
-    completenessProofDigestV1(fragment.proof), fragment,
-  ]));
-  const ordered = manifest.orderedProofDigests.map((entry) => fragments.get(entry));
-  if (ordered.some((entry) => entry === undefined)) {
-    refuse('SNAPBACK_PAGE_SET_INVALID', 'page set references an absent fragment proof');
-  }
-  for (const fragment of ordered) {
-    validateProof(record, fragment, fragment.proof, context, signatureReceipts);
-  }
-  const proofs = ordered.map((fragment) => fragment.proof);
+function validatePageSetProofChain(proofs, manifest) {
   const first = proofs[0];
   const shared = {
     materializationKey: first.materializationKey,
@@ -1050,6 +1124,20 @@ function validatePageSet(record, manifest, context, signatureReceipts) {
   if (hashRecord('snapback:page-set:v1:', identityRecord) !== manifest.identity) {
     refuse('SNAPBACK_PAGE_SET_INVALID', 'page set identity does not reproduce');
   }
+}
+
+function validatePageSet(record, manifest, context, signatureReceipts) {
+  const fragments = new Map(record.fragments.map((fragment) => [
+    completenessProofDigestV1(fragment.proof), fragment,
+  ]));
+  const ordered = manifest.orderedProofDigests.map((entry) => fragments.get(entry));
+  if (ordered.some((entry) => entry === undefined)) {
+    refuse('SNAPBACK_PAGE_SET_INVALID', 'page set references an absent fragment proof');
+  }
+  for (const fragment of ordered) {
+    validateProof(record, fragment, fragment.proof, context, signatureReceipts);
+  }
+  validatePageSetProofChain(ordered.map((fragment) => fragment.proof), manifest);
 }
 
 function discardCorruptFragment(view, key, record, fragment) {

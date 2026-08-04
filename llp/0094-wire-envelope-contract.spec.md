@@ -5,7 +5,10 @@
 **Systems:** Wire Protocol, Realtime, Live Queries, Client SDK, HTTP surface, Cloudflare arm, Schema governance
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-25
-**Revised:** 2026-08-03, later (LLP 0109 acceptance reconciliation: the
+**Revised:** 2026-08-04 (dated LLP 0157 finite-carrier amendment: optional
+proof/witness members on ordinary query and authorized-lease responses, plus
+atomic snapshot-batch page-set-manifest delivery; see the dated section).
+2026-08-03, later (LLP 0109 acceptance reconciliation: the
 versioned-seed closed families land under the reserved admin namespace —
 `/app/ensure` unchanged on both arms; see the dated section).
 2026-08-03 (Accepted 2026-08-03 by the author — decision
@@ -1368,3 +1371,66 @@ contract:
 
 This is a docs reconciliation of shipped, locally conformance-gated
 surface; it adds no new wire obligation to v1 clients.
+
+## LLP 0157 finite-carrier completeness amendment — 2026-08-04
+
+This section is the normative closed-record amendment authorizing the finite
+completeness carriers. It supersedes §0C.2 only for the exact optional members
+listed here; all other closure/evolution rules remain unchanged.
+
+The ordinary `POST /query/{name}` request's closed carrier becomes
+`FiniteQueryRequest`, which flattens the unchanged `FunctionCallRequest` fields
+and adds optional `completenessNamespace: QueryNamespace` plus optional bounded
+`priorCompletenessProofs: CompletenessProofV1[]`. The namespace is a
+non-authorizing request context: it names the exact `clientStoreId`, admitted
+`qmk1` `queryKey`, and positive `queryInstanceId` that the proof must bind.
+The prior-proof array is absent/empty on a first page and is accepted only
+beside that namespace for snapshot-batch continuation composition. Every
+presented proof is verified under the current trusted activation before it can
+contribute to a manifest.
+
+The successful ordinary query response and the closed
+`AuthorizedLeaseQueryResponse` gain this optional pair:
+
+```ts
+completenessProof?: CompletenessProofV1
+authorizationWitness?: AuthorizationWitnessRecordV1
+```
+
+The pair is emitted atomically or omitted together. Ordinary query issuance
+uses the request's `completenessNamespace`; authorized-lease issuance uses the
+request's already-closed `clientStoreId` / `queryKey` / `queryInstanceId`
+triple. The plan must be admitted by LLP 0157 and the namespace must be exact.
+Minting occurs before response publication; a signing, result-binding,
+witness-binding, or current-activation failure refuses the operation and emits
+neither member. The wire envelope only transports the exact LLP 0157 §D3
+proof and witness preimage. It cannot reinterpret, re-sign, or weaken them.
+
+For a snapshot-batch continuation page, the ordinary response may additionally
+carry:
+
+```ts
+pageSetManifest?: {
+  identity: `sha256:${string}`
+  orderedProofDigests: readonly `sha256:${string}`[]
+}
+```
+
+When the presented prior chain plus the newly minted terminal-page proof
+satisfy LLP 0157 §D3's `PageSetIdentityRecordV1.compose` rules, the server
+computes `identity` from that exact closed record and publishes the page,
+proof/witness pair, and manifest in one response. A chain spanning different
+commit versions or otherwise not composing receives no manifest; each valid
+page remains complete only at its own version and the set is `unknown`. A
+tampered or unverifiable presented proof refuses before publication. No
+parallel page-set identity or cursor grammar is introduced; LLP 0135's single
+outer `sbsb1` continuation remains unchanged.
+
+Compatibility is additive in the server→client direction despite the former
+closed records because this dated normative act amends those records. Existing
+clients consume the old required members and ignore these unknown optional
+members. New clients tolerate their absence, classify completeness as
+`unknown`, and fresh-sync; they do the same for an unknown/retired proof key or
+any verification failure. Old callers omit the optional request context and
+receive the pre-amendment response shape. This amendment changes no frame kind,
+required member, capability row, or wire-version token.
