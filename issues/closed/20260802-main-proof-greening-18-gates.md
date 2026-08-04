@@ -306,3 +306,21 @@ Linux telemetry receipt now refuses because the Clippy source edit and merged
 declaration changed its source closure. A new full Linux release measurement,
 not a smoke substitute, is the remaining receipt step before the terminal
 local and main proofs.
+
+### Final Linux telemetry carrier — 2026-08-04
+
+The full Linux release proof was rerun at the exact clean post-fixture source
+`de86d22a4550a40fa7b767e6946ef84ef5764587` through the coded bootstrap on the
+approved Ubuntu fleet host. The bootstrap linked and launched that commit and
+qualified its restricted no-eval handler VM; no stale-binary override, curl
+CLI fallback, administrator access, or machine mutation was used. The frozen
+benchmark ceilings all passed. The 120-second idle witness recorded zero
+storage mutations, zero process write bytes, 4/10 CPU ticks, and 0/8
+RSS-growth pages.
+
+The retained receipt covers 430 proof-source files with source-input digest
+`febaa73582640d12befa36110ba1ca92649892b26ff8dac397ab8bdbaa572331` and
+SHA-256 `e341a0386ebf24c262a593ae0207016e2a55e5afcf2f1ff6dd979e5e67bce2a9`.
+Its uncommitted candidate correctly refused `--check` because the carrier
+bytes did not yet equal `HEAD`; validation therefore belongs to the carrier
+commit, before the terminal local proof.

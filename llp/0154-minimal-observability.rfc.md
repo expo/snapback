@@ -230,6 +230,9 @@ unbuilt.)
 **Revised:** 2026-08-04 (the retained Phase-1 evidence was remeasured after
 the wave-end source closure settled; the carrier protocol and frozen ceilings
 are unchanged.)
+**Revised:** 2026-08-04 (the retained Phase-1 evidence was remeasured at the
+final post-fixture source closure; the carrier protocol and frozen ceilings
+remain unchanged.)
 **Related:** LLP 0000 (root explainer; points the shipped local Phase-1
 surface here), LLP 0003 (storage core; app write lane), LLP 0010 (inspect
 loop; explicitly defers production observability), LLP 0012 (headless
@@ -1380,7 +1383,7 @@ operator and agent surfaces, the capability index labels the local contract,
 and the retained-evidence protocol recurs through the local proof.
 
 The retained receipt is a carrier over measured source commit
-`13f026cd31af3886e5e68512fd58912adf88eb29`. Its exact benchmark and idle
+`de86d22a4550a40fa7b767e6946ef84ef5764587`. Its exact benchmark and idle
 measurements are recorded in
 `tests/acceptance/telemetry-phase1-evidence.v1.json`; the carrier validator
 binds that clean source closure rather than measuring its own receipt bytes.
