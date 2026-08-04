@@ -263,6 +263,20 @@ test('paired evidence is recomputed from raw observations', () => {
   );
 });
 
+test('paired idle gate rejects impossible raw counters', () => {
+  const commit = 'c'.repeat(40);
+  const invalid = validPairedEvidence(commit);
+  for (const pair of invalid.rawPairs) {
+    pair.candidateActiveCoveredIdle.cpuUserUs = -1;
+  }
+  invalid.idleGates.candidateCombinedCpuUs = Array(11).fill(-1);
+  invalid.idleGates.candidateCpuMaxObservedUs = -1;
+  assert.throws(
+    () => validatePairedPerformanceArtifact(invalid, commit),
+    /candidate idle counters are invalid/u,
+  );
+});
+
 test('absolute summaries and p99 are recomputed from raw observations', () => {
   const commit = 'b'.repeat(40);
   const valid = validAbsoluteEvidence(commit);

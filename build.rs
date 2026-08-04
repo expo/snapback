@@ -264,18 +264,11 @@ fn emit_build_identity() {
     // so Snapback's build script must rerun whenever Cargo may rebuild that
     // path dependency. Tracking only the parent gitlink is insufficient for
     // an incremental build whose checked-out submodule changes in place.
-    for relative in [
-        "vendor/ibex/Cargo.toml",
-        "vendor/ibex/Cargo.lock",
-        "vendor/ibex/build.rs",
-        "vendor/ibex/src",
-        "vendor/ibex/ios/Frameworks",
-        "vendor/ibex/linux/lib",
-        "vendor/ibex/.git",
-    ] {
-        if manifest_dir.join(relative).exists() {
-            println!("cargo:rerun-if-changed={relative}");
-        }
+    if manifest_dir.join("vendor/ibex").exists() {
+        // Cargo scans directory inputs recursively. Ibex's build consumes
+        // build_support, capsec, schemas, native tests, public headers, and
+        // vendored-generated inputs in addition to its Rust source.
+        println!("cargo:rerun-if-changed=vendor/ibex");
     }
     let ibex_dir = manifest_dir.join("vendor/ibex");
     if let Some(ibex_git_dir) = resolve_git_dir(&ibex_dir) {

@@ -426,6 +426,26 @@ function validatePairedIdle(value) {
     const candidate = pair.candidateActiveCoveredIdle;
     requireEvidence(baseline?.durationMs === 5_000 && candidate?.durationMs === 5_000,
       'paired idle duration drifted');
+    for (const [label, observation] of [['baseline', baseline], ['candidate', candidate]]) {
+      const counters = [
+        observation.cpuUserUs,
+        observation.cpuSystemUs,
+        observation.outputBlockOperations,
+        observation.databaseFamilyBytesBefore,
+        observation.databaseFamilyBytesAfter,
+      ];
+      requireEvidence(counters.every((number) => Number.isSafeInteger(number) && number >= 0)
+        && Number.isSafeInteger(observation.cpuUserUs + observation.cpuSystemUs)
+        && Number.isSafeInteger(
+          observation.databaseFamilyBytesAfter - observation.databaseFamilyBytesBefore,
+        ),
+      `paired ${label} idle counters are invalid`);
+      requireEvidence(Number.isFinite(observation.residentKbBefore)
+        && observation.residentKbBefore > 0
+        && Number.isFinite(observation.residentKbAfter)
+        && observation.residentKbAfter > 0,
+      `paired ${label} idle RSS observations are invalid`);
+    }
     baselineCpu.push(baseline.cpuUserUs + baseline.cpuSystemUs);
     candidateCpu.push(candidate.cpuUserUs + candidate.cpuSystemUs);
     baselineRss.push(baseline.residentKbBefore);
@@ -433,9 +453,6 @@ function validatePairedIdle(value) {
     outputBlocks.push(candidate.outputBlockOperations);
     databaseDeltas.push(candidate.databaseFamilyBytesAfter - candidate.databaseFamilyBytesBefore);
   }
-  requireEvidence([...baselineRss, ...candidateRss]
-    .every((number) => Number.isFinite(number) && number > 0),
-  'paired idle RSS observations are invalid');
   const rssRegressions = baselineRss.map((baseline, index) => (
     100 * (candidateRss[index] / baseline - 1)
   ));
