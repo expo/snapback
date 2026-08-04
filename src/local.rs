@@ -5400,6 +5400,7 @@ impl LocalSnapback {
                     .into_value(),
                 );
                 let Ok(payload) = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+                    network_profile: None,
                     reason: "reset".to_owned(),
                     subscription_id: Some(subscription.id.clone()),
                     scope: Some(String::new()),
@@ -5802,6 +5803,7 @@ impl LocalSnapback {
                     return Err(ModeCommitFailure::Uncertain(error));
                 }
             };
+            let committed_at = Instant::now();
             let diagnostics = self.publish_preflighted_functions(
                 prepared.artifacts.functions,
                 publication_generation,
@@ -5827,36 +5829,38 @@ impl LocalSnapback {
                 let admission = activation_admission.expect(
                     "settled sessions activation checked transition-owned admission before commit",
                 );
-                self.begin_live_delivery_frame(self.subscriptions.len());
-                if activation_changed {
-                    self.invalidate_generation_bound_live_subscriptions_for_activation(admission)
-                        .map_err(ModeCommitFailure::Uncertain)?;
-                }
-                let already_resynced = if let Some(authorization) =
-                    authorization.as_ref().filter(|event| event.witness.event)
-                {
-                    self.notify_authorization_activation_in_frame(
-                        &authorization.witness,
-                        authorization.min_commit_version,
-                        admission,
-                    )
-                    .map_err(ModeCommitFailure::Uncertain)?
-                } else {
-                    BTreeSet::new()
-                };
-                if seed_outcome == NetworkSeedOutcome::Seeded {
-                    let frame_version = self
-                        .db
-                        .current_version()
-                        .map_err(ModeCommitFailure::Uncertain)?;
-                    self.notify_live_subscriptions_in_frame(
-                        &[],
-                        &already_resynced,
-                        frame_version,
-                        admission,
-                    )
-                    .map_err(ModeCommitFailure::Uncertain)?;
-                }
+                self.begin_live_commit_egress(committed_at);
+                let fanout = (|| -> SnapbackResult<()> {
+                    self.begin_live_delivery_frame(self.subscriptions.len());
+                    if activation_changed {
+                        self.invalidate_generation_bound_live_subscriptions_for_activation(
+                            admission,
+                        )?;
+                    }
+                    let already_resynced = if let Some(authorization) =
+                        authorization.as_ref().filter(|event| event.witness.event)
+                    {
+                        self.notify_authorization_activation_in_frame(
+                            &authorization.witness,
+                            authorization.min_commit_version,
+                            admission,
+                        )?
+                    } else {
+                        BTreeSet::new()
+                    };
+                    if seed_outcome == NetworkSeedOutcome::Seeded {
+                        let frame_version = self.db.current_version()?;
+                        self.notify_live_subscriptions_in_frame(
+                            &[],
+                            &already_resynced,
+                            frame_version,
+                            admission,
+                        )?;
+                    }
+                    Ok(())
+                })();
+                self.end_live_commit_egress();
+                fanout.map_err(ModeCommitFailure::Uncertain)?;
             }
             (seed_outcome.as_str(), state, diagnostics)
         } else {
@@ -7521,6 +7525,7 @@ impl LocalSnapback {
             return;
         }
         let payload = match serde_json::to_vec(&LiveEnvelope::LiveReplace {
+            network_profile: None,
             subscription_id: subscription.id.clone(),
             function: subscription.function.clone(),
             version: query.output.version,
@@ -15598,6 +15603,7 @@ impl LocalSnapback {
         // the caller's held rows are current as of `head_version`.
         if answer_current_as_of {
             let envelope = LiveEnvelope::CurrentAsOf {
+                network_profile: None,
                 subscription_id: subscription_id.clone(),
                 function: name.to_owned(),
                 version: head_version,
@@ -15628,6 +15634,7 @@ impl LocalSnapback {
             self.live_delivery.resume.replay_bytes_avoided +=
                 replaced_bytes.saturating_sub(replay_bytes);
             let envelope = LiveEnvelope::LiveDelta {
+                network_profile: None,
                 subscription_id: subscription_id.clone(),
                 function: name.to_owned(),
                 version: head_version,
@@ -18662,6 +18669,11 @@ impl LocalSnapback {
                 return Err(error);
             }
         };
+        // `finish_job` is the job-state commit boundary. Admit immediately so
+        // every completion frame below shares one deadline basis and jitter
+        // sample even when fan-out serialization takes different amounts of
+        // work per subscription.
+        let committed_at = Instant::now();
         if let Some(changed_row) = changed_row
             && disposition != crate::jobs::JobFinishDisposition::StalePublication
         {
@@ -18669,13 +18681,16 @@ impl LocalSnapback {
             // admission lease rather than minting a fresh root.
             match self.db.current_version() {
                 Ok(frame_version) => {
+                    self.begin_live_commit_egress(committed_at);
                     self.begin_live_delivery_frame(self.subscriptions.len());
-                    if let Err(error) = self.notify_live_subscriptions_in_frame(
+                    let result = self.notify_live_subscriptions_in_frame(
                         std::slice::from_ref(&changed_row),
                         &BTreeSet::new(),
                         frame_version,
                         &admission,
-                    ) {
+                    );
+                    self.end_live_commit_egress();
+                    if let Err(error) = result {
                         self.record_attached_diagnostics(vec![error.diagnostic]);
                     }
                 }
@@ -18922,6 +18937,24 @@ impl LocalSnapback {
                 network_egress,
             ),
         }
+    }
+
+    /// Admit one real commit once, then let every frame it produces clone the
+    /// same live-lane carrier. `Some(None)` is intentional: it suppresses the
+    /// result-readiness fallback for a commit observed under `normal`.
+    fn begin_live_commit_egress(&mut self, committed_at: Instant) {
+        debug_assert!(self.current_live_network_egress.is_none());
+        self.current_live_network_egress = Some(
+            self.network_profiles
+                .admit_commit(committed_at)
+                .map(|commit| {
+                    commit.for_lane(crate::network_profile::NetworkEgressLane::LiveDelta)
+                }),
+        );
+    }
+
+    fn end_live_commit_egress(&mut self) {
+        self.current_live_network_egress = None;
     }
 
     #[cfg(test)]
@@ -20330,6 +20363,7 @@ impl LocalSnapback {
                 payload
             } else {
                 serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+                    network_profile: None,
                     reason: "schema_publication".to_owned(),
                     subscription_id: Some(subscription.id.clone()),
                     scope: Some(String::new()),
@@ -20837,13 +20871,20 @@ impl LocalSnapback {
             }
         };
 
+        // This generic entry point is called only after a durable commit. One
+        // admission here replaces the old per-frame result-readiness stamps.
+        // @ref LLP 0167#observation-semantics--what-a-delay-means — all frames
+        //   from one real commit share the commit basis and jitter sample.
+        self.begin_live_commit_egress(Instant::now());
         self.begin_live_delivery_frame(self.subscriptions.len());
-        if let Err(error) = self.notify_live_subscriptions_in_frame(
+        let result = self.notify_live_subscriptions_in_frame(
             changes,
             &BTreeSet::new(),
             frame_version,
             &admission,
-        ) {
+        );
+        self.end_live_commit_egress();
+        if let Err(error) = result {
             self.record_attached_diagnostics(vec![error.diagnostic]);
         }
     }
@@ -21767,6 +21808,7 @@ impl LocalSnapback {
             .iter()
             .map(|subscription| {
                 serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+                    network_profile: None,
                     reason: if subscription.expected_generation.is_some() {
                         "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH".to_owned()
                     } else {
@@ -22137,6 +22179,7 @@ impl LocalSnapback {
                 None
             };
             let payload = match serde_json::to_vec(&LiveEnvelope::LiveReplace {
+                network_profile: None,
                 subscription_id: subscription.id.clone(),
                 function: subscription.function.clone(),
                 version: query.output.version,
@@ -22357,6 +22400,7 @@ impl LocalSnapback {
             None
         };
         let payload = match serde_json::to_vec(&LiveEnvelope::LiveDelta {
+            network_profile: None,
             subscription_id: subscription.id.clone(),
             function: subscription.function.clone(),
             version: frame_version,
@@ -22610,6 +22654,7 @@ impl LocalSnapback {
             }
             if subscription.authorization.is_none()
                 && let Ok(payload) = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+                    network_profile: None,
                     reason: reason.to_owned(),
                     subscription_id: Some(subscription.id.clone()),
                     scope: Some(String::new()),
@@ -22707,6 +22752,7 @@ impl LocalSnapback {
 
         for (subscription, scope, epoch) in stale {
             let payload = match serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+                network_profile: None,
                 reason: "permission_epoch_changed".to_owned(),
                 subscription_id: Some(subscription.id.clone()),
                 scope: Some(scope.clone()),
@@ -27462,7 +27508,7 @@ pub(crate) fn live_stream_text_with_server_observed(
     server_observed_at_ms: Option<u64>,
 ) -> Option<String> {
     match envelope {
-        RealtimeEnvelope::Durable(message) => String::from_utf8(message.payload)
+        RealtimeEnvelope::Durable(message) => String::from_utf8(message.into_live_socket_payload())
             .or_else(|error| {
                 serde_json::to_string(&LiveSocketServerFrame::DurableBytes {
                     payload: error.into_bytes(),
@@ -37825,6 +37871,7 @@ globalThis.__snapbackHandlers = {
         snapback.enqueue_subscription_durable(
             &changed_subscription,
             serde_json::to_vec(&crate::live_wire::LiveEnvelope::LiveReplace {
+                network_profile: None,
                 subscription_id: changed.subscription_id.clone(),
                 function: "independentChanged".to_owned(),
                 version: 1,
@@ -51487,6 +51534,137 @@ globalThis.__snapbackHandlers = {
             json!("scheduleOnly"),
             "the job row carries its producer association into the live view"
         );
+    }
+
+    #[test]
+    fn job_completion_fanout_shares_one_profiled_commit_carrier() {
+        let mut snapback = LocalSnapback::memory().expect("memory instance");
+        let profiles = crate::network_profile::NetworkProfileState::new();
+        snapback.install_network_profile_state(profiles.clone());
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![
+                FunctionDefinition::new(
+                    "scheduleCarrierJob",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::IbexModule(IbexModule {
+                        source: "globalThis.__snapbackHandlers = { async scheduleCarrierJob(ctx) { return await ctx.jobs.enqueue('carrierJob', {}); } };"
+                            .to_owned(),
+                        export: "scheduleCarrierJob".to_owned(),
+                    }),
+                ),
+                FunctionDefinition::new(
+                    "carrierJob",
+                    FunctionKind::Action,
+                    FunctionRuntime::HostPlan(HandlerPlan::Action(crate::manifest::ActionPlan {
+                        steps: Vec::new(),
+                        return_value: None,
+                    })),
+                ),
+                {
+                    let mut function = FunctionDefinition::new(
+                        "carrierJobStatus",
+                        FunctionKind::LiveQuery,
+                        FunctionRuntime::HostPlan(HandlerPlan::JobStatusQuery(
+                            crate::manifest::JobStatusQueryPlanV1::default(),
+                        )),
+                    );
+                    function.required_capabilities = vec![
+                        "jobs_one_off_v1".to_owned(),
+                        "live_subscriptions".to_owned(),
+                    ];
+                    function
+                },
+            ],
+            acknowledged_experimental_capabilities: vec!["jobs_one_off_v1".to_owned()],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "job carrier fixture must install: {diagnostics:?}"
+        );
+
+        let output = snapback
+            .invoke_mutation("scheduleCarrierJob", HandlerInput::default())
+            .expect("enqueue carrier job");
+        let job_id = output.result["jobId"]
+            .as_str()
+            .expect("enqueue returns jobId")
+            .to_owned();
+        let available_at = output.result["availableAtMs"]
+            .as_u64()
+            .expect("enqueue returns availableAtMs");
+        let mut claims = snapback
+            .claim_due_jobs(
+                available_at,
+                1,
+                "carrier-test",
+                DiagnosticBoundary::Attached,
+            )
+            .expect("claim carrier job");
+        assert_eq!(claims.len(), 1);
+
+        let connections = ["carrier-a", "carrier-b", "carrier-c", "carrier-d"];
+        for connection_id in connections {
+            let subscribed = snapback
+                .subscribe_live(
+                    "carrierJobStatus",
+                    LiveSubscribeInput {
+                        connection_id: connection_id.to_owned(),
+                        input: HandlerInput {
+                            args: json!({ "jobId": job_id }),
+                            ..HandlerInput::default()
+                        },
+                        authorization_namespace: None,
+                        supersedes: None,
+                        resume_from_token: None,
+                    },
+                )
+                .expect("subscribe claimed job status");
+            assert_eq!(
+                subscribed.snapshot.expect("claimed snapshot").rows[0]["state"],
+                "claimed"
+            );
+        }
+
+        profiles
+            .activate(
+                crate::network_profile::NetworkConditionProfile {
+                    name: "job-carrier".to_owned(),
+                    mutation_ack_delay_ms: 0,
+                    live_delta_delay_ms: 120,
+                    query_response_delay_ms: 0,
+                    jitter_ms: 1_000,
+                },
+                crate::network_profile::NetworkProfileAuthority::classified(
+                    crate::admin::ServerProfile::Test,
+                    crate::auth::deployment::AuthDeploymentTarget::Local,
+                    false,
+                ),
+                crate::network_profile::NetworkProfileSource::Api,
+                Some("unit-test".to_owned()),
+            )
+            .expect("activate job carrier profile");
+
+        let started = Instant::now();
+        snapback
+            .finish_job_claim(claims.remove(0), Ok(json!(null)))
+            .expect("finish carrier job");
+        let deadlines = connections
+            .iter()
+            .map(|connection_id| {
+                let queued = snapback
+                    .ephemeral
+                    .durable_release_deadlines_for_test(connection_id);
+                assert_eq!(queued.len(), 1, "one completion frame per subscriber");
+                queued[0].expect("non-normal completion frame has a deadline")
+            })
+            .collect::<Vec<_>>();
+        assert!(deadlines.iter().all(|deadline| *deadline == deadlines[0]));
+        assert!(deadlines[0] >= started + Duration::from_millis(120));
+        assert!(deadlines[0] <= started + Duration::from_millis(1_200));
     }
 
     /// The declared job-status query exactly as codegen manifests it: the

@@ -355,7 +355,7 @@ public final class ClientStateMachine {
             actions.append(.ignoreUnknownFields)
         }
         switch decoded.value {
-        case .liveReplace(let subscriptionId, let function, let version, let rows, _):
+        case .liveReplace(let subscriptionId, let function, let version, let rows, _, _):
             if subscriptions[subscriptionId]?.state == .terminalDeleted {
                 return terminalReuseDiagnostic(subscriptionId)
             }
@@ -369,7 +369,7 @@ public final class ClientStateMachine {
             }
             applySnapshot(subscriptionId: subscriptionId, function: function, snapshot: QuerySnapshot(version: version, rows: rows, cursor: nil))
             actions.append(.replaceRows)
-        case .liveDelta(let subscriptionId, let function, let version, let ops, _):
+        case .liveDelta(let subscriptionId, let function, let version, let ops, _, _):
             if subscriptions[subscriptionId]?.state == .terminalDeleted {
                 return terminalReuseDiagnostic(subscriptionId)
             }
@@ -399,7 +399,7 @@ public final class ClientStateMachine {
             )
             subscriptions[subscriptionId] = entry
             actions.append(.applyDeltaById)
-        case .currentAsOf(let subscriptionId, _, let version, _):
+        case .currentAsOf(let subscriptionId, _, let version, _, _):
             if subscriptions[subscriptionId]?.state == .terminalDeleted {
                 return terminalReuseDiagnostic(subscriptionId)
             }
@@ -418,7 +418,7 @@ public final class ClientStateMachine {
                 subscriptions[subscriptionId] = entry
                 actions.append(.adoptResumeToken)
             }
-        case .resyncRequired(let subscriptionId, _, let clearRetained, _, _):
+        case .resyncRequired(let subscriptionId, _, let clearRetained, _, _, _):
             if let subscriptionId {
                 if subscriptions[subscriptionId]?.state == .terminalDeleted {
                     return terminalReuseDiagnostic(subscriptionId)
@@ -437,7 +437,7 @@ public final class ClientStateMachine {
                 _ = clearRetained
             }
         // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — snapshot application precedes acknowledgement; foreign and unsatisfied obligations never settle.
-        case .authorizationInvalidation(let obligation, let snapshot, let resolution):
+        case .authorizationInvalidation(let obligation, let snapshot, let resolution, _):
             let scopeSubscriptionId = obligation.subscriptionId
             guard let scopeSubscriptionId,
                   var scopedEntry = subscriptions[scopeSubscriptionId],

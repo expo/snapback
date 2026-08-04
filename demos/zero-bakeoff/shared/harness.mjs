@@ -3,8 +3,52 @@ import {dirname, resolve} from 'node:path';
 import {performance} from 'node:perf_hooks';
 
 export async function loadAcceptance(app, root = resolve(import.meta.dirname, '..')) {
-  const path = resolve(root, 'protocol', 'acceptance', `${app}.v1.json`);
+  return loadAcceptanceVersion(app, 'v1', root);
+}
+
+export async function loadAcceptanceVersion(app, version, root = resolve(import.meta.dirname, '..')) {
+  const path = resolve(root, 'protocol', 'acceptance', `${app}.${version}.json`);
   return JSON.parse(await readFile(path, 'utf8'));
+}
+
+// @ref LLP 0167#observation-semantics--what-a-delay-means — bakeoff arms
+// consume one versioned profile, bounded observation envelope, and explicit
+// per-arm commit placement instead of carrying independent latency constants.
+export async function loadNetworkCondition(manifest, provider, root = resolve(import.meta.dirname, '..')) {
+  const citation = manifest?.networkCondition;
+  assert(citation && typeof citation === 'object', 'acceptance manifest must cite a network condition');
+  const path = resolve(root, 'protocol', 'acceptance', citation.environmentManifest);
+  const environment = JSON.parse(await readFile(path, 'utf8'));
+  assertEqual(environment.schemaVersion, citation.environmentSchemaVersion,
+    'acceptance environment schema version');
+  const profile = environment.networkProfiles?.[citation.profile];
+  assert(profile, `environment does not declare network profile ${citation.profile}`);
+  assertEqual(profile.name, citation.profile, 'network profile name');
+  for (const field of ['mutationAckDelayMs', 'liveDeltaDelayMs', 'queryResponseDelayMs', 'jitterMs']) {
+    assert(Number.isInteger(profile[field]) && profile[field] >= 0,
+      `network profile ${citation.profile}.${field} must be a non-negative integer`);
+  }
+  const windows = environment.latencyWindows?.[citation.profile];
+  assert(windows, `environment does not declare latency windows for ${citation.profile}`);
+  assertJsonEqual(windows, citation.latencyWindows, 'acceptance latency-window citation');
+  assertJsonEqual(environment.armInjectionPoints, citation.injectionPoints,
+    'acceptance injection-point citation');
+  assertEqual(windows.actorAck.floorMs, profile.mutationAckDelayMs,
+    'actor-ack floor must match mutationAckDelayMs');
+  assertEqual(windows.observerDelta.floorMs, profile.liveDeltaDelayMs,
+    'observer-delta floor must match liveDeltaDelayMs');
+  const injectionPoint = environment.armInjectionPoints?.[provider];
+  assert(injectionPoint === 'pre-commit' || injectionPoint === 'post-commit',
+    `environment does not declare a valid injection point for ${provider}`);
+  return { environment, injectionPoint, profile, profileName: citation.profile, windows };
+}
+
+function assertJsonEqual(actual, expected, message) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    const error = new Error(`${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+    error.code = 'ZERO_BAKEOFF_ASSERTION_FAILED';
+    throw error;
+  }
 }
 
 export function createArmSuite({app, provider, manifest, evidencePath}) {
@@ -125,4 +169,3 @@ export async function eventually(fn, {
   error.code = 'ZERO_BAKEOFF_TIMEOUT';
   throw error;
 }
-

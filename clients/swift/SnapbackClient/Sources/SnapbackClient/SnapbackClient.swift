@@ -443,7 +443,8 @@ public actor SnapbackClient {
                     value: .authorizationInvalidation(
                         obligation: projection.obligation,
                         snapshot: invalidationSnapshot,
-                        resolution: projection.resolution
+                        resolution: projection.resolution,
+                        networkProfile: nil
                     ),
                     hadUnknownFields: false
                 )

@@ -216,6 +216,13 @@ pub(crate) fn operation_profile_requirement(
     has_dev_user: bool,
 ) -> OperationProfileRequirement {
     match operation {
+        // @ref LLP 0167#authority-one-activation-chokepoint — reads are
+        // available in every profile and writes must reach the network-profile
+        // activation gate so its finer hosted/Prod policy and refusal codes
+        // remain authoritative. Do not preempt that gate with NonProd here.
+        "debug.networkProfileGet" | "debug.networkProfileSet" => {
+            OperationProfileRequirement::Any
+        }
         "app.reset"
         | "app.ensure.provision"
         | "app.seed.ensure.v1"

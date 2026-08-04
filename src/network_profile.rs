@@ -185,6 +185,8 @@ fn invalid_profile_error(message: impl Into<String>) -> SnapbackError {
 pub enum NetworkProfileSource {
     Env,
     Api,
+    #[serde(rename = "host-ops")]
+    HostOps,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
@@ -310,6 +312,12 @@ impl NetworkProfileState {
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
+    }
+
+    /// Fast identity check for response wrappers that should disappear
+    /// entirely while `normal` is active.
+    pub fn is_normal(&self) -> bool {
+        !self.inner.non_normal.load(Ordering::Acquire)
     }
 
     /// The sole state-changing activation gate for env and runtime surfaces.
@@ -454,6 +462,10 @@ impl PreparedNetworkEgress {
         &self.snapshot
     }
 
+    pub fn profile_name(&self) -> &str {
+        &self.snapshot.profile.name
+    }
+
     pub fn release_at(&self) -> Instant {
         self.release_at
     }
@@ -589,8 +601,12 @@ mod tests {
     }
 
     #[test]
-    fn activation_matrix_is_identical_for_env_and_api() {
-        for source in [NetworkProfileSource::Env, NetworkProfileSource::Api] {
+    fn activation_matrix_is_identical_for_every_selector() {
+        for source in [
+            NetworkProfileSource::Env,
+            NetworkProfileSource::Api,
+            NetworkProfileSource::HostOps,
+        ] {
             for profile in [ServerProfile::Dev, ServerProfile::Demo, ServerProfile::Test] {
                 NetworkProfileState::new()
                     .activate(

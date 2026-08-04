@@ -14,7 +14,7 @@ test('frozen protocol is complete and non-vacuous', () => {
   assert.equal(receipt.ok, true);
   assert.equal(receipt.applications, 6);
   assert.equal(receipt.acceptanceManifests, 6);
+  assert.deepEqual(receipt.versionedExtensions, { environment: 'v2', latencyKanban: 'v2' });
   assert.equal(receipt.checks, 51);
   assert.deepEqual(receipt.providers, ['snapback', 'zero', 'replicache']);
 });
-

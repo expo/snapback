@@ -6,7 +6,10 @@
 Developer experience, Acceptance testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-04
-**Revised:** 2026-08-04 (v1.0 — Accepted by the author at super-refine
+**Revised:** 2026-08-04 (post-acceptance proposed OQ2 ruling, subject to author
+veto: runtime perturbations use a new `debug.*` operation family; the two
+network-profile host operations, CLI verbs, and control-plane MCP projections
+are implemented under that proposal); 2026-08-04 (v1.0 — Accepted by the author at super-refine
 close. Content identical to v0.4; the final dual-family round verdicts
 bind to v0.3 and the v0.4 in-delta fixes are author-reviewed only, as
 disclosed in Revision history.)
@@ -150,6 +153,14 @@ mutation *commits* changes multi-client settlement interleavings, which is
 state perturbation — the province of LLP 0146 D6's ordering seams and
 LLP 0054's unratified transport scheduler, not of this RFC.
 
+**Implementation clarification (2026-08-04) — HTTP lanes are per-request.**
+The Rust arm applies query-response and mutation-ack deadlines independently
+to each HTTP request, not as a monotone sequence attached to the underlying
+TCP connection. Supported HTTP/1.1 clients have one in-flight request per
+connection; HTTP pipelining is not a supported client observation surface, so
+the per-connection clamp required for durable live-frame queues does not apply
+to these HTTP lanes.
+
 Consequences, stated so nobody discovers them in a demo:
 
 - **Per-connection FIFO is preserved, always — as pipeline latency.**
@@ -231,9 +242,10 @@ Surface-specific rules:
    runtime-set profile (API, host-ops, MCP, console) is **not
    persisted**: restart returns the server to `normal` or the env value —
    so a *runtime-set* slow profile cannot outlive its session.
-3. **Host-ops + MCP** — two operations in the LLP 0024 table (proposed:
-   `host.networkProfileGet`, AdminRead-class, and
-   `host.networkProfileSet`, AdminWrite-class; namespace is OQ2), each
+3. **Host-ops + MCP** — two operations in the LLP 0024 table (proposed OQ2
+   ruling dated 2026-08-04, subject to author veto:
+   `debug.networkProfileGet`, AdminRead-class, and
+   `debug.networkProfileSet`, AdminWrite-class), each
    registered with its profile requirement under the per-operation policy
    model, plus thin MCP projections per LLP 0042. Precedent to be honest
    about: the connection-disconnect control is an existing *admin-gated
@@ -393,7 +405,11 @@ ban points at — but the reconciliation must be explicit:
   existing `host.*` family, or the first members of a new `debug.*` family
   that future perturbation ops (D6 seams, fault injection) would join?
   This RFC is the first to hoist a runtime perturbation into host-ops, so
-  the 0024 table amendment should decide the family once.
+  the 0024 table amendment should decide the family once. **Proposed ruling
+  (2026-08-04; the author may veto):** use the new `debug.*` family, beginning
+  with `debug.networkProfileGet` and `debug.networkProfileSet`. The current
+  implementation and the LLP 0024/0042 amendments follow this proposal; it is
+  not represented as an author-ratified change to this Accepted RFC.
 - **OQ3 — Fork exception.** The interim rule is decided (non-`normal`
   refused on hosted-serving instances, all surfaces). The open half:
   should LLP 0158 forks/derived instances — which carry explicit derived
@@ -425,8 +441,14 @@ ban points at — but the reconciliation must be explicit:
   row `operating.network-profiles` is `partial`. Deferred with tickets:
   socket frame marker via LLP 0093 wire types
   (`issues/20260804-0167-live-wire-network-profile-marker.md`) and the
-  remaining corpus/stages — Cloudflare arm, bakeoff swap, host-ops/MCP,
-  console panel (`issues/20260804-0167-remaining-acceptance-corpus.md`).
+  remaining corpus/stages — Cloudflare arm, bakeoff swap, and console panel
+  (`issues/20260804-0167-remaining-acceptance-corpus.md`).
+- 2026-08-04 — host-ops/CLI/control-plane MCP toggle surface landed under the
+  vetoable OQ2 proposal: registered `debug.networkProfileGet` (`AdminRead`)
+  and `debug.networkProfileSet` (`AdminWrite`), both returning
+  `hostOpsResult`; set calls the same `AppState::activate_network_profile`
+  gate as admin PUT. Rust `snapback mcp` remains resource-only; the tools live
+  on LLP 0042's shipped `snapback mcp-control` surface.
 
 ## Revision history
 

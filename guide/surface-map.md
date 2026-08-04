@@ -172,6 +172,8 @@ here (or listed here but gone from the code).
 | host_ops.schema.reload | operating.host-ops |
 | host_ops.functions.reload | operating.host-ops |
 | host_ops.acceptance.run | operating.host-ops |
+| host_ops.debug.networkProfileGet | operating.network-profiles |
+| host_ops.debug.networkProfileSet | operating.network-profiles |
 | host_ops.host.start | operating.host-ops |
 | host_ops.host.stop | operating.host-ops |
 | host_ops.host.restart | operating.host-ops |
