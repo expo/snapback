@@ -2,6 +2,9 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (LLP 0163 durable storage slice)
+**Updated:** 2026-08-04 (closed 23-family local writer inventory, executable
+armed exclusions, and exact four-adapter production activation cut; the cut
+remains uninvoked pending performance, review, and author acceptance)
 **Systems:** Sync, Client integration, Storage, Jobs, Migrations, Testing
 **Related:** LLP 0043, LLP 0133, LLP 0162, LLP 0163
 
@@ -16,9 +19,10 @@ review/publication gates are still open.
 
 The remaining closure gates are:
 
-- inventory every durable writer per target, route each covered writer through
-  the envelope hook, activate a versioned manifest only after bypass and
-  asymmetric-retention corpus pass, and keep undeclared lanes explicit;
+- invoke the closed production activation cut only after independent review,
+  author acceptance, the fixed-Air result, and every applicable crash and
+  asymmetric-retention gate; the complete local writer inventory and its
+  fail-closed exclusion policy are now implemented;
 - independently review and accept the implemented pending→terminal migration
   amendment and complete the remaining asymmetric/performance gates before
   adding that specialized lane to coverage;
@@ -233,14 +237,17 @@ Landed in the local SQLite write-authority slice:
   exists;
 - positive issuance-bearing HostPlan and Ibex-buffered commits retain their
   exact envelopes/journals, including exact system-field postimages; and
-- the target/app-effective inventory keeps migration, seed/reset,
-  membership-admin, projection-rebuild, and specialized-system lanes visible.
-  The specialized row is deliberately grouped and non-enumerated, so it can
-  never upcast the local target to complete coverage.
+- the target/app-effective inventory names 23 physical writer families with
+  no grouped specialized row. Exactly four ordinary/host adapters are
+  envelope-mapped; every other row carries a stable executable exclusion
+  reason.
 
-This is enforcement substrate, not production activation. The incomplete
-specialized inventory and every non-envelope-mapped app-effective lane remain
-publication blockers; capabilities stay `Missing`.
+The production storage activation cut is implemented but uninvoked. It checks
+the closed inventory and publishes exactly the four authenticated adapters;
+after arming, schema, migration, reset/seed, standalone membership,
+projection-rebuild, and strict-promotion writers refuse generated authority
+instead of silently escaping the manifest. Non-envelope-mapped app-effective
+lanes remain publication blockers; capabilities stay `Missing`.
 
 Still required before this ticket closes:
 
@@ -252,10 +259,10 @@ Still required before this ticket closes:
   effect-bearing, and other unsupported shapes stay fail-closed; exact
   generated owner create/update are the only current positive profiles, while
   generated delete remains a normative current-row-absent refusal;
-- enumerate and envelope-map or explicitly exclude every migration,
-  seed/reset, admin, projection, and specialized physical writer; then finish
-  the complete target writer/asymmetric-retention corpus (the four
-  ordinary/host adapters' SQLite bypass corpus is now green); and
+- finish the remaining migration and cross-lane asymmetric-retention corpus,
+  then invoke the already-closed local target activation cut only through the
+  accepted publication step (the four ordinary/host adapters' crash/reopen,
+  SQLite bypass, exact retry, and asymmetric identity corpus is green); and
 - the dated fixed-Air execution of the paired active-lane recorder and p99
   recorder, plus the required independent review/author acceptance and every
   applicable row-13 correctness gate.
@@ -311,3 +318,34 @@ This is additional row-3 Partial evidence. General aggregate/non-row,
 predicate, membership, effect-bearing, hand-written/opaque, and other
 generated policy profiles still have no positive evaluator; LLP 0163 stays
 Draft and all related capabilities stay `Missing`.
+
+## Writer-inventory and activation-tail evidence — 2026-08-04
+
+- `LocalWriterLaneV1::ALL` is a closed 23-row manifest. Assets, auth, admin,
+  jobs/cron, push, search, vector, operation-ledger, checkpoint/history,
+  branch-registry, projection, migration, seed/reset, membership, and strict
+  promotion are individually named; there is no grouped specialized row.
+- Every row is exactly envelope-mapped or has a stable exclusion reason.
+  Target support and app-effectiveness remain independent fields, and
+  `allAppEffectiveWritersCovered` remains false while any app-effective
+  exclusion exists.
+- The four ordinary/host adapters are the only envelope-mapped rows. The
+  production storage publication cut refuses a non-closed inventory and an
+  inexact lane/writer set before commit, then arms the same SQLite authorizer
+  used by reopen.
+- Once armed, schema activation, migration, reset/seed, standalone seed,
+  standalone membership, projection rebuild, and strict promotion cannot
+  acquire generated write authority. Raw, cached, trigger-mediated,
+  system-field, and DDL fallbacks remain denied. System-only writers do not
+  originate application-table DML; derived projection maintenance stays in
+  its parent transaction.
+- Focused corpus covers exact four-writer publication, every app-writer
+  exclusion, target-vs-app-effective projection, ordinary/host lane
+  asymmetry, both physical adapters' crash/reopen cuts, exact retries,
+  retention-full rollback, compact result expiry, epoch-floor refusal, and
+  operator-purge partitioning.
+
+This closes the grouped-inventory defect and makes activation production
+callable, but does not invoke publication. Migration/cross-lane retention,
+fixed-Air performance, independent review, and author acceptance remain open;
+LLP 0163 stays Draft and every related capability stays `Missing`.

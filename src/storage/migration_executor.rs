@@ -1386,6 +1386,9 @@ impl LocalDatabase {
         &mut self,
         request: MigrationApplyRequest<'_>,
     ) -> SnapbackResult<MigrationReceiptV1> {
+        let _writer_token = self
+            .writer_authority
+            .enter(super::write_authority::LocalWriterLaneV1::MigrationExecutor)?;
         let MigrationApplyRequest {
             artifact,
             approval,
@@ -2249,6 +2252,9 @@ impl LocalDatabase {
         audience: &ResolvedLocalAudience,
         now_ms: u64,
     ) -> SnapbackResult<MigrationRollbackReceiptV1> {
+        let _writer_token = self
+            .writer_authority
+            .enter(super::write_authority::LocalWriterLaneV1::MigrationExecutor)?;
         validate_approval_shape(approval)?;
         if approval.plan_digest != artifact.plan_digest {
             return Err(SnapbackError::error(

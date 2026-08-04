@@ -551,6 +551,13 @@ impl LocalDatabase {
         trusted_predecessor_functions: Option<FunctionManifest>,
         seed: Option<SeedData>,
     ) -> DurableModeCommit<AuthModeStateRecord> {
+        let _writer_token = match self
+            .writer_authority
+            .enter(super::write_authority::LocalWriterLaneV1::SchemaActivation)
+        {
+            Ok(token) => token,
+            Err(error) => return DurableModeCommit::RolledBack(error),
+        };
         let predecessor = match (|| -> SnapbackResult<_> {
             requested_deployment.validate()?;
             requested_deployment.validate_schema_half(&schema_manifest)?;
@@ -816,6 +823,9 @@ impl LocalDatabase {
         readiness: &AuthProgramReadiness,
         functions: Option<&FunctionManifest>,
     ) -> SnapbackResult<AuthModeStateRecord> {
+        let _writer_token = self
+            .writer_authority
+            .enter(super::write_authority::LocalWriterLaneV1::SchemaActivation)?;
         let current = self.auth_mode_snapshot()?;
         require_pending_direction(&current, AuthMode::Dev, AuthMode::Sessions)?;
         readiness.validate()?;
@@ -926,6 +936,9 @@ impl LocalDatabase {
         now_ms: u64,
         functions: Option<&FunctionManifest>,
     ) -> SnapbackResult<AuthModeDowngradeResult> {
+        let _writer_token = self
+            .writer_authority
+            .enter(super::write_authority::LocalWriterLaneV1::SchemaActivation)?;
         let current = self.auth_mode_snapshot()?;
         require_pending_direction(&current, AuthMode::Sessions, AuthMode::Dev)?;
         if !allow_auth_downgrade {
@@ -1080,6 +1093,9 @@ impl LocalDatabase {
         sequence_declarations: BTreeMap<String, crate::manifest::SequenceDeclaration>,
         seed: Option<SeedData>,
     ) -> SnapbackResult<()> {
+        let _writer_token = self
+            .writer_authority
+            .enter(super::write_authority::LocalWriterLaneV1::SchemaActivation)?;
         deployment.validate()?;
         deployment.validate_schema_half(&manifest)?;
         validate_schema(&manifest)?;
@@ -1246,6 +1262,13 @@ impl LocalDatabase {
         functions: FunctionManifest,
         seed: Option<SeedData>,
     ) -> DurableModeCommit<NetworkDeploymentCommit> {
+        let _writer_token = match self
+            .writer_authority
+            .enter(super::write_authority::LocalWriterLaneV1::SchemaActivation)
+        {
+            Ok(token) => token,
+            Err(error) => return DurableModeCommit::RolledBack(error),
+        };
         let predecessor = match (|| -> SnapbackResult<_> {
             deployment.validate()?;
             deployment.validate_schema_half(&manifest)?;
@@ -1439,6 +1462,9 @@ impl LocalDatabase {
         &mut self,
         manifest: SchemaManifest,
     ) -> SnapbackResult<()> {
+        let _writer_token = self
+            .writer_authority
+            .enter(super::write_authority::LocalWriterLaneV1::SchemaActivation)?;
         // Raw schema application is the v0-dev compatibility ingress. A
         // complete v1-sessions pair must use staged provisioning even before
         // activeDeployment has been established.
