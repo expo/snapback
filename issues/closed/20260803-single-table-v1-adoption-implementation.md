@@ -33,3 +33,17 @@ oracles pass:
 
 Constraints: fresh worktree; owner machinery consumed, never
 reimplemented; regen-before-landing; inventory counts updated.
+
+## Resolution (2026-08-04)
+
+Implemented dormant and landed (9143e3b56 + the s5_d10 reconciliation
+74bfd7cb9/c98bd6146): codegen membership from derived rqsEligible facts
+only; Rust single-node admission, none.v1 activation, class-scoped
+1,024 examined-entry refusal, wire bytes unchanged (regression-pinned);
+client Arm A (durable+pinned, authorizedLeaseHash null, no
+AuthorizedLease anywhere on the path, atomic prove-or-fresh legacy
+adoption preserving before-state under pending outbox). Cross-target
+normalization pinned sha256:e98ec047…10ec5e. S4 74/74; full client +
+codegen + Rust lib suites green outside the sandbox. Capability rows
+deliberately NOT moved — owner motion once the acceptance legs and
+staged-migration criteria are reviewed.
