@@ -1,0 +1,33 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/promotion.effect-settlement-authority-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorityFingerprint": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "expiresAtMs": {
+      "format": "int64",
+      "type": "integer"
+    },
+    "grantId": {
+      "type": "string"
+    },
+    "principalId": {
+      "type": "string"
+    },
+    "revoked": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "principalId",
+    "grantId",
+    "authorityFingerprint",
+    "expiresAtMs",
+    "revoked"
+  ],
+  "title": "EffectSettlementAuthorityV1",
+  "type": "object"
+}

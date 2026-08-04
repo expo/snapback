@@ -736,6 +736,7 @@ struct BufferedCommitOptions<'a> {
     ctx_ledger: Option<CtxAnswerLedger>,
     apply: bool,
     identity: Option<&'a ClientMutationIdentity>,
+    branch_operation: Option<&'a crate::fork_promotion::BranchMutationCommitV1>,
 }
 
 #[derive(Clone)]
@@ -2147,11 +2148,55 @@ impl LocalDatabase {
         crate::fork_promotion::branch_operation_retry(&self.conn, branch_id, draft)
     }
 
+    pub(crate) fn branch_operation_log(
+        &self,
+        branch_id: &crate::branches::BranchId,
+    ) -> SnapbackResult<Vec<crate::fork_promotion::BranchOperationV1>> {
+        crate::fork_promotion::branch_operation_log(&self.conn, branch_id)
+    }
+
+    pub(crate) fn captured_effect_intents(
+        &self,
+        branch_id: &crate::branches::BranchId,
+    ) -> SnapbackResult<Vec<crate::fork_promotion::CapturedEffectIntentV1>> {
+        crate::fork_promotion::captured_effect_intents(&self.conn, branch_id)
+    }
+
     pub(crate) fn inspect_local_in_app_branch(
         &self,
         branch_id: &crate::branches::BranchId,
     ) -> SnapbackResult<crate::fork_promotion::InAppBranchReceiptV1> {
         crate::fork_promotion::inspect_in_app_branch(&self.conn, branch_id)
+    }
+
+    pub(crate) fn execute_branch_operation(
+        &mut self,
+        branch_id: &crate::branches::BranchId,
+        draft: &crate::fork_promotion::BranchOperationDraftV1,
+        now_ms: i64,
+        result: Value,
+    ) -> SnapbackResult<crate::fork_promotion::BranchOperationV1> {
+        crate::fork_promotion::execute_receipt_only_branch_operation(
+            &mut self.conn,
+            branch_id,
+            draft,
+            result,
+            now_ms,
+        )
+    }
+
+    pub(crate) fn finalize_captured_effect_operation(
+        &mut self,
+        context: &crate::fork_promotion::BranchEffectExecutionContextV1,
+        result: Value,
+        diagnostic_code: Option<&str>,
+    ) -> SnapbackResult<Option<crate::fork_promotion::BranchOperationV1>> {
+        crate::fork_promotion::finalize_captured_effect_operation(
+            &mut self.conn,
+            context,
+            result,
+            diagnostic_code,
+        )
     }
 
     pub(crate) fn foreclose_branch_operation_admission(
@@ -2199,11 +2244,7 @@ impl LocalDatabase {
                 "managed in-app branches require a file-backed canonical database",
             )
         })?;
-        crate::fork_promotion::reap_expired_managed_in_app_branches(
-            &mut self.conn,
-            &path,
-            now_ms,
-        )
+        crate::fork_promotion::reap_expired_managed_in_app_branches(&mut self.conn, &path, now_ms)
     }
 
     pub(crate) fn drop_managed_in_app_branch(
@@ -2386,12 +2427,14 @@ impl LocalDatabase {
             issued_at_ms,
         )?;
         tx.commit()?;
-        Ok(crate::commit_envelope::OperationIssuanceV1::HostIncarnation {
-            epoch_id: incarnation.epoch_id,
-            upstream_identity: upstream_identity.to_owned(),
-            commit_ordinal,
-            authority_authenticator_digest: incarnation.authority_authenticator_digest,
-        })
+        Ok(
+            crate::commit_envelope::OperationIssuanceV1::HostIncarnation {
+                epoch_id: incarnation.epoch_id,
+                upstream_identity: upstream_identity.to_owned(),
+                commit_ordinal,
+                authority_authenticator_digest: incarnation.authority_authenticator_digest,
+            },
+        )
     }
 
     pub(crate) fn operation_lane_covered(&self, lane: &str) -> SnapbackResult<bool> {
@@ -2440,6 +2483,14 @@ impl LocalDatabase {
     }
 
     #[cfg(test)]
+    pub(crate) fn initialize_data_version_stream_for_test(&mut self) -> SnapbackResult<String> {
+        let tx = self.conn.transaction()?;
+        let stream_id = auth_invalidation::ensure_data_version_stream_in(&tx)?;
+        tx.commit()?;
+        Ok(stream_id)
+    }
+
+    #[cfg(test)]
     pub(crate) fn install_operation_coverage_for_test(
         &mut self,
         mut lanes: Vec<String>,
@@ -2477,11 +2528,7 @@ impl LocalDatabase {
                 &writers,
             ),
         };
-        crate::operation_ledger::register_coverage_in(
-            &tx,
-            &manifest,
-            now_millis(),
-        )?;
+        crate::operation_ledger::register_coverage_in(&tx, &manifest, now_millis())?;
         tx.commit()?;
         self.writer_authority.arm_manifest(&self.conn, manifest)?;
         Ok(())
@@ -3191,9 +3238,7 @@ impl LocalDatabase {
         row_id: &str,
         operation_id: &str,
         now_ms: u64,
-    ) -> SnapbackResult<
-        crate::proof_checkpoint::ProtectedRecordCheckpointErasureReceiptV1,
-    > {
+    ) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordCheckpointErasureReceiptV1> {
         crate::proof_checkpoint::erase_protected_record_checkpoint_copies(
             &self.conn,
             qualified_table,
@@ -4804,7 +4849,40 @@ impl LocalDatabase {
                 true,
                 None,
                 None,
+                None,
                 &check_live,
+                before_commit,
+            )?
+            .commit)
+    }
+
+    /// Managed in-app branch mutation carrier. The branch operation is
+    /// derived and inserted inside the same transaction as the app commit.
+    pub(crate) fn execute_branch_mutation_guarded<G, BeforeCommit>(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        branch_operation: &crate::fork_promotion::BranchMutationCommitV1,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        require_covered_mutation_identity_for_lane(
+            &self.conn,
+            CoveredMutationLaneV1::Ordinary,
+            None,
+        )?;
+        Ok(self
+            .execute_mutation_plan_with_lifecycle_and_settlement_time(
+                write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
+                plan,
+                input,
+                true,
+                None,
+                None,
+                Some(branch_operation),
+                &|| Ok(()),
                 before_commit,
             )?
             .commit)
@@ -4856,6 +4934,7 @@ impl LocalDatabase {
             true,
             Some(identity),
             None,
+            None,
             &|| Ok(()),
             before_commit,
         );
@@ -4865,11 +4944,7 @@ impl LocalDatabase {
         }
     }
 
-    pub(crate) fn execute_host_mutation_guarded<
-        G,
-        Check,
-        BeforeCommit,
-    >(
+    pub(crate) fn execute_host_mutation_guarded<G, Check, BeforeCommit>(
         &mut self,
         plan: &MutationPlan,
         input: &HandlerInput,
@@ -4891,11 +4966,7 @@ impl LocalDatabase {
         )
     }
 
-    pub(crate) fn execute_host_mutation_guarded_with_settlement_time<
-        G,
-        Check,
-        BeforeCommit,
-    >(
+    pub(crate) fn execute_host_mutation_guarded_with_settlement_time<G, Check, BeforeCommit>(
         &mut self,
         plan: &MutationPlan,
         input: &HandlerInput,
@@ -4927,6 +4998,7 @@ impl LocalDatabase {
                 true,
                 identity,
                 policy,
+                None,
                 &check_live,
                 before_commit,
             )?
@@ -4985,6 +5057,7 @@ impl LocalDatabase {
                 true,
                 None,
                 policy,
+                None,
                 &check_live,
                 before_commit,
             )?
@@ -5017,6 +5090,7 @@ impl LocalDatabase {
             true,
             Some(identity),
             policy,
+            None,
             &|| Ok(()),
             before_commit,
         );
@@ -5090,6 +5164,7 @@ impl LocalDatabase {
             apply,
             identity,
             settlement_time,
+            None,
             &|| Ok(()),
             || Ok(()),
         )
@@ -5120,6 +5195,7 @@ impl LocalDatabase {
             apply,
             identity,
             None,
+            None,
             check_live,
             before_commit,
         )
@@ -5136,6 +5212,7 @@ impl LocalDatabase {
         apply: bool,
         identity: Option<&ClientMutationIdentity>,
         settlement_time: Option<&SettlementTimePolicy>,
+        branch_operation: Option<&crate::fork_promotion::BranchMutationCommitV1>,
         check_live: &Check,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<MutationPlanExecution>
@@ -6085,6 +6162,15 @@ impl LocalDatabase {
                     &output,
                 )?;
             }
+            if let Some(branch_operation) = branch_operation {
+                crate::fork_promotion::record_branch_mutation_in(
+                    &tx,
+                    branch_operation,
+                    version,
+                    &changes,
+                    &output,
+                )?;
+            }
             commit_with_prepared_authorization_interlock(
                 tx,
                 authorization
@@ -6137,6 +6223,7 @@ impl LocalDatabase {
                 ctx_ledger: None,
                 apply: true,
                 identity: None,
+                branch_operation: None,
             },
         )
     }
@@ -6161,6 +6248,7 @@ impl LocalDatabase {
             payload,
             identity,
             CoveredMutationLaneV1::Ordinary,
+            None,
             check_live,
             before_commit,
         )
@@ -6183,7 +6271,29 @@ impl LocalDatabase {
             payload,
             identity,
             CoveredMutationLaneV1::HostChild,
+            None,
             check_live,
+            before_commit,
+        )
+    }
+
+    pub(crate) fn commit_branch_buffered_writes_guarded<G, BeforeCommit>(
+        &mut self,
+        input: &HandlerInput,
+        payload: BufferedCommitPayload,
+        branch_operation: &crate::fork_promotion::BranchMutationCommitV1,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.commit_buffered_writes_for_lane(
+            input,
+            payload,
+            None,
+            CoveredMutationLaneV1::Ordinary,
+            Some(branch_operation),
+            || Ok(()),
             before_commit,
         )
     }
@@ -6194,6 +6304,7 @@ impl LocalDatabase {
         payload: BufferedCommitPayload,
         identity: Option<&ClientMutationIdentity>,
         lane: CoveredMutationLaneV1,
+        branch_operation: Option<&crate::fork_promotion::BranchMutationCommitV1>,
         check_live: Check,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<MutationCommit>
@@ -6242,6 +6353,7 @@ impl LocalDatabase {
                 ctx_ledger: Some(ctx_ledger),
                 apply: true,
                 identity,
+                branch_operation,
             },
             &check_live,
             before_commit,
@@ -6324,6 +6436,7 @@ impl LocalDatabase {
                 ctx_ledger: Some(ctx_ledger),
                 apply: false,
                 identity: None,
+                branch_operation: None,
             },
             MembershipCommitAuthority::deny(),
             &|| Ok(()),
@@ -6418,7 +6531,7 @@ impl LocalDatabase {
                 ));
             }
             if let Some(runtime) = self.in_app_branch() {
-                return Err(runtime.deny(
+                return Err(runtime.mediate(
                     crate::instance_fork::EgressFamily::JobsEnqueue,
                     now_millis(),
                 ));
@@ -6835,6 +6948,15 @@ impl LocalDatabase {
                     identity,
                     input,
                     &read_dependencies,
+                    &changes,
+                    &output,
+                )?;
+            }
+            if let Some(branch_operation) = options.branch_operation {
+                crate::fork_promotion::record_branch_mutation_in(
+                    &tx,
+                    branch_operation,
+                    version,
                     &changes,
                     &output,
                 )?;
@@ -15591,6 +15713,7 @@ impl LocalDatabase {
                 ctx_ledger: None,
                 apply: true,
                 identity: None,
+                branch_operation: None,
             },
             MembershipCommitAuthority::sanctioned(writer),
             &|| Ok(()),
@@ -19760,9 +19883,7 @@ fn record_client_mutation_result(
         auth_retained + 1,
         auth_admitted_bytes.expect("checked by per-auth retention admission"),
     )?;
-    operation_envelope_crash_cut(
-        OperationEnvelopeCrashPointV1::AfterSettlementBeforeEnvelope,
-    )?;
+    operation_envelope_crash_cut(OperationEnvelopeCrashPointV1::AfterSettlementBeforeEnvelope)?;
     if identity.operation_issuance.is_some() {
         record_covered_mutation_envelope_in(
             tx,
@@ -19815,8 +19936,14 @@ fn require_covered_mutation_identity_for_lane(
     let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(conn)? else {
         return Ok(());
     };
-    let covered = crate::operation_ledger::active_coverage_manifest(conn, &stream_id)?
-        .is_some_and(|manifest| manifest.covered_lanes.iter().any(|value| value == lane.name()));
+    let covered = crate::operation_ledger::active_coverage_manifest(conn, &stream_id)?.is_some_and(
+        |manifest| {
+            manifest
+                .covered_lanes
+                .iter()
+                .any(|value| value == lane.name())
+        },
+    );
     if !covered {
         return Ok(());
     }
@@ -19956,35 +20083,28 @@ fn record_covered_mutation_envelope_in(
         )
     })?;
     let custody_root = identity.activity_digest();
-    let protected_fact_set =
-        |domain: &'static [u8], value: Value, count: u64, name: &str| {
-            let digest = crate::operation_ledger::digest_fact_set(
-                domain,
-                &canonical_json(value.clone()),
-            );
-            let detail = if serde_json::to_vec(&value).is_ok_and(|bytes| bytes.len() <= 65_536) {
-                let custody_reference = format!("operation-detail:{custody_root}:{name}");
-                let payload_bytes = crate::operation_detail::seal_in(
-                    tx,
-                    &custody_reference,
-                    &digest,
-                    &value,
-                )?;
-                RetainedEnvelopeDetailV1::ProtectedLane {
-                    custody_reference,
-                    payload_digest: digest.clone(),
-                    payload_bytes,
-                }
-            } else {
-                RetainedEnvelopeDetailV1::Truncated
-            };
-            Ok::<EnvelopeFactSetV1, SnapbackError>(EnvelopeFactSetV1 {
-                digest,
-                count,
-                provenance: FactProvenanceV1::ServerCaptured,
-                detail,
-            })
+    let protected_fact_set = |domain: &'static [u8], value: Value, count: u64, name: &str| {
+        let digest =
+            crate::operation_ledger::digest_fact_set(domain, &canonical_json(value.clone()));
+        let detail = if serde_json::to_vec(&value).is_ok_and(|bytes| bytes.len() <= 65_536) {
+            let custody_reference = format!("operation-detail:{custody_root}:{name}");
+            let payload_bytes =
+                crate::operation_detail::seal_in(tx, &custody_reference, &digest, &value)?;
+            RetainedEnvelopeDetailV1::ProtectedLane {
+                custody_reference,
+                payload_digest: digest.clone(),
+                payload_bytes,
+            }
+        } else {
+            RetainedEnvelopeDetailV1::Truncated
         };
+        Ok::<EnvelopeFactSetV1, SnapbackError>(EnvelopeFactSetV1 {
+            digest,
+            count,
+            provenance: FactProvenanceV1::ServerCaptured,
+            detail,
+        })
+    };
     let inline_public_fact_set =
         |domain: &'static [u8], value: Value, count: u64| EnvelopeFactSetV1 {
             digest: crate::operation_ledger::digest_fact_set(
@@ -20060,11 +20180,7 @@ fn record_covered_mutation_envelope_in(
             "ctx-answers",
         )?,
         effects: EnvelopeEffectFactsV1 {
-            facts: inline_public_fact_set(
-                b"snapback:operation-effects:v1\n",
-                json!([]),
-                0,
-            ),
+            facts: inline_public_fact_set(b"snapback:operation-effects:v1\n", json!([]), 0),
             egress_families: Vec::new(),
             settlement_capabilities: Vec::new(),
         },
@@ -24895,47 +25011,40 @@ mod guarded_commit_tests {
                 .expect("no reservation admits"),
             crate::fork_promotion::CanonicalAdmissionV1::Admit
         );
-        let ticket_json = serde_json::to_vec(
-            &crate::fork_promotion::PromotionAdmissionTicketV1 {
+        let ticket_json = serde_json::to_vec(&crate::fork_promotion::PromotionAdmissionTicketV1 {
+            schema_version: 1,
+            ticket_identity: crate::commit_envelope::OperationIdentityV1 {
                 schema_version: 1,
-                ticket_identity: crate::commit_envelope::OperationIdentityV1 {
-                    schema_version: 1,
-                    key: crate::commit_envelope::OperationKeyV1 {
-                        stream_id: stream.clone(),
-                        originator_class:
-                            crate::commit_envelope::OperationOriginatorClassV1::Host,
-                        operation_id: "host:reservation-gate-test".to_owned(),
-                    },
-                    issuance: crate::commit_envelope::OperationIssuanceV1::HostIncarnation {
-                        epoch_id: "host-epoch-reservation-gate-test".to_owned(),
-                        upstream_identity: "reservation-gate-test".to_owned(),
-                        commit_ordinal: 0,
-                        authority_authenticator_digest: format!(
-                            "sha256:{}",
-                            "a".repeat(64)
-                        ),
-                    },
-                    bound_facts: crate::commit_envelope::OperationBoundFactsV1 {
-                        audience: "app-reservation-gate-test".to_owned(),
-                        principal_fingerprint: format!("sha256:{}", "b".repeat(64)),
-                        authority_instance_id: "authority-reservation-gate-test".to_owned(),
-                        operation_kind: "promotion".to_owned(),
-                        function_or_command: "promotion.reserve".to_owned(),
-                        input_fingerprint: format!("sha256:{}", "c".repeat(64)),
-                    },
+                key: crate::commit_envelope::OperationKeyV1 {
+                    stream_id: stream.clone(),
+                    originator_class: crate::commit_envelope::OperationOriginatorClassV1::Host,
+                    operation_id: "host:reservation-gate-test".to_owned(),
                 },
-                canonical_stream_id: stream.clone(),
-                branch_id: crate::branches::BranchId("branch-gate-test".to_owned()),
-                fifo_sequence: 1,
-                initial_queue_position: 1,
-                observed_concurrent_forks: 1,
-                rebase_budget: 3,
-                losses: 2,
-                expires_at_ms: i64::MAX,
-                contention_policy:
-                    crate::fork_promotion::PRODUCTION_PROMOTION_CONTENTION_POLICY_V1,
+                issuance: crate::commit_envelope::OperationIssuanceV1::HostIncarnation {
+                    epoch_id: "host-epoch-reservation-gate-test".to_owned(),
+                    upstream_identity: "reservation-gate-test".to_owned(),
+                    commit_ordinal: 0,
+                    authority_authenticator_digest: format!("sha256:{}", "a".repeat(64)),
+                },
+                bound_facts: crate::commit_envelope::OperationBoundFactsV1 {
+                    audience: "app-reservation-gate-test".to_owned(),
+                    principal_fingerprint: format!("sha256:{}", "b".repeat(64)),
+                    authority_instance_id: "authority-reservation-gate-test".to_owned(),
+                    operation_kind: "promotion".to_owned(),
+                    function_or_command: "promotion.reserve".to_owned(),
+                    input_fingerprint: format!("sha256:{}", "c".repeat(64)),
+                },
             },
-        )
+            canonical_stream_id: stream.clone(),
+            branch_id: crate::branches::BranchId("branch-gate-test".to_owned()),
+            fifo_sequence: 1,
+            initial_queue_position: 1,
+            observed_concurrent_forks: 1,
+            rebase_budget: 3,
+            losses: 2,
+            expires_at_ms: i64::MAX,
+            contention_policy: crate::fork_promotion::PRODUCTION_PROMOTION_CONTENTION_POLICY_V1,
+        })
         .expect("serialize production-shaped ticket");
         db.conn
             .execute(
@@ -25196,20 +25305,22 @@ mod guarded_commit_tests {
             fact_policy: crate::operation_ledger::ExplanationFactPolicyV1::Unprovable,
             administrative: true,
         };
-        let explanation = crate::operation_ledger::explain_operation(
-            &db.conn,
-            &operations[0],
-            &admin,
-        )
-        .expect("authorized protected explanation")
-        .expect("operation exists");
+        let explanation =
+            crate::operation_ledger::explain_operation(&db.conn, &operations[0], &admin)
+                .expect("authorized protected explanation")
+                .expect("operation exists");
         assert_eq!(
             explanation.disposition,
             crate::commit_envelope::ExplanationDispositionV1::Complete
         );
-        let detail = explanation.detail.expect("all retained fact classes project");
+        let detail = explanation
+            .detail
+            .expect("all retained fact classes project");
         for name in ["readSet", "writeSet", "ctxAnswers", "effects", "receipt"] {
-            assert!(detail.get(name).is_some(), "missing explanation fact {name}");
+            assert!(
+                detail.get(name).is_some(),
+                "missing explanation fact {name}"
+            );
         }
         let receipt_reference = format!(
             "operation-detail:{}:receipt",
@@ -25347,7 +25458,9 @@ mod guarded_commit_tests {
         ] {
             let count: u64 = db
                 .conn
-                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row.get(0))
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get(0)
+                })
                 .unwrap_or_else(|error| panic!("count {table}: {error}"));
             assert_eq!(count, 0, "{table} must roll back at every crash cut");
         }
@@ -25402,9 +25515,7 @@ mod guarded_commit_tests {
 
     #[test]
     fn covered_replay_opens_protected_receipt_without_plaintext_in_suppression_json() {
-        use crate::commit_envelope::{
-            OperationSuppressionRecordV1, RetainedEnvelopeDetailV1,
-        };
+        use crate::commit_envelope::{OperationSuppressionRecordV1, RetainedEnvelopeDetailV1};
 
         let (_dir, path, mut db, input, identity) =
             operation_crash_fixture(CoveredWriterFixtureV1::Buffered);
@@ -25487,18 +25598,15 @@ mod guarded_commit_tests {
         else {
             panic!("client fixture must carry range issuance");
         };
-        let second = ClientMutationIdentity::new(
-            "operation-delayed-1",
-            "items.bufferedInsert",
-            &input,
-        )
-        .with_operation_issuance(OperationIssuanceV1::ClientRange {
-            epoch_id: epoch_id.clone(),
-            counter: counter + 1,
-            range_start,
-            range_end_exclusive,
-            authority_authenticator_digest: authority_authenticator_digest.clone(),
-        });
+        let second =
+            ClientMutationIdentity::new("operation-delayed-1", "items.bufferedInsert", &input)
+                .with_operation_issuance(OperationIssuanceV1::ClientRange {
+                    epoch_id: epoch_id.clone(),
+                    counter: counter + 1,
+                    range_start,
+                    range_end_exclusive,
+                    authority_authenticator_digest: authority_authenticator_digest.clone(),
+                });
 
         let limits = TestRetentionLimits::install(1, u64::MAX);
         let first_commit = execute_operation_crash_fixture(
@@ -25658,17 +25766,13 @@ mod guarded_commit_tests {
             }
             writers.sort();
             db.install_operation_coverage_for_test(covered_lanes, writers)
-            .expect("register explicit coverage");
+                .expect("register explicit coverage");
             db
         }
 
         fn identity(issuance: OperationIssuanceV1) -> ClientMutationIdentity {
-            ClientMutationIdentity::new(
-                "operation-1",
-                "items.insert",
-                &HandlerInput::default(),
-            )
-            .with_operation_issuance(issuance)
+            ClientMutationIdentity::new("operation-1", "items.insert", &HandlerInput::default())
+                .with_operation_issuance(issuance)
         }
 
         fn client_identity() -> ClientMutationIdentity {
@@ -25701,9 +25805,7 @@ mod guarded_commit_tests {
                 .code
                 .as_str()
             {
-                "SNAPBACK_OPERATION_IDENTITY_REQUIRED" => {
-                    "SNAPBACK_OPERATION_IDENTITY_REQUIRED"
-                }
+                "SNAPBACK_OPERATION_IDENTITY_REQUIRED" => "SNAPBACK_OPERATION_IDENTITY_REQUIRED",
                 "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH" => {
                     "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH"
                 }
@@ -28617,9 +28719,7 @@ mod guarded_commit_tests {
                 OperationIssuanceV1::ClientRange {
                     epoch_id, counter, ..
                 } => (epoch_id.clone(), Some(*counter)),
-                OperationIssuanceV1::HostIncarnation { epoch_id, .. } => {
-                    (epoch_id.clone(), None)
-                }
+                OperationIssuanceV1::HostIncarnation { epoch_id, .. } => (epoch_id.clone(), None),
             };
             db.conn
                 .execute(

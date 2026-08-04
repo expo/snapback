@@ -5,7 +5,19 @@
 **Systems:** Storage, Runtime, Effects, Auth, Agent experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (real strict-promotion contention corpus — concurrent
+**Revised:** 2026-08-04 (atomic multi-operation and CaptureOnly acceptance-tail
+increment — the production public branch carrier now derives conservative
+server-owned causal predecessors, records mutation facts in the same SQLite
+transaction as app rows/journal/version, and admits exact later operations
+without caller-supplied dependency facts. CaptureOnly records ordered
+payload-free per-attempt intents, atomically promotes them as canonical pending
+effects, enforces transitive provisional dependencies, and exposes fenced
+post-promotion initiation/terminal settlement with current-authority checks and
+reopen-safe exact retry. Focused resource, revoked/expired authority, and
+payload-custody negatives landed. The promotion envelope still declares
+`promotionCoverageManifest` uncovered; final integrated correctness,
+performance, independent review, publication, and author acceptance remain
+open, so status stays Draft and all capabilities stay `Missing`); 2026-08-04 (real strict-promotion contention corpus — concurrent
 host ticket issuance now serializes identity revalidation, FIFO allocation,
 and lease custody under `BEGIN IMMEDIATE`; promotion automatically takes the
 bounded reservation after R fresh losses, rechecks FIFO/head/ticket authority
@@ -98,8 +110,8 @@ revision reconciles them.
   checkpoint-based forks are always this class). No nested forks in v1.
   Class-appropriate identity and per-class credential acceptance apply.
 - **Egress.** `DenyAll` refuses fail-loud and records a bounded payload-free
-  attempt marker (durable across branch crash); `CaptureOnly` is reserved
-  for 0097's ledger-backed intents. A branch with empty attempt markers is
+  attempt marker (durable across branch crash); `CaptureOnly` retains ordered,
+  payload-free 0097 ledger intents without initiating egress. A branch with empty attempt markers is
   promotable under `DenyAll` (`Promotable(noEffects)` — strictly narrower
   than 0097's `Promotable`; legacy three-value consumers see `Missing`).
   Replay-input retention classification at admission; an uncovered-lane
@@ -365,11 +377,73 @@ closes the repeated-deferral negative. Exhausted budget still refuses before
 canonical mutation.
 
 This completes LLP 0162 Acceptance 10's real concurrent-writer fairness and
-crash/reopen leg under its declared conditional assumptions. Row 10 remains
-Partial because `CaptureOnly` settlement and its provisional/transitive effect
-chain are not implemented here; the separately owned atomic execution-carrier
-retention and global coverage/performance gates also remain. LLP 0164 stays
-Draft and every capability stays `Missing`.
+crash/reopen leg under its declared conditional assumptions. The later
+same-day increment below supplies atomic execution-carrier retention and the
+CaptureOnly provisional/transitive settlement chain. Global coverage,
+performance, review, and publication gates remain. LLP 0164 stays Draft and
+every capability stays `Missing`.
+
+### Atomic carrier and CaptureOnly increment — 2026-08-04
+
+`branch.execute.v1` is now a multi-operation carrier. For a new request the
+server binds every retained earlier child version as a conservative causal
+predecessor; callers cannot provide or narrow that set. For an exact retry it
+recovers the originally retained predecessor vector before comparing the
+complete request facts, so later branch activity cannot manufacture a retry
+collision. HostPlan and Ibex mutation writers pass a `BranchMutationCommitV1`
+through the ordinary storage transaction, where the app rows, change journal,
+storage version, branch operation, retained-byte accounting, and any captured
+effect-intent version bindings either all commit or all roll back. The former
+pre-handler foreclosure implementation remains only as an unused compatibility
+surface; the production carrier no longer builds on it.
+
+CaptureOnly mediation allocates a server-owned ordinal for each attempted host
+effect while the handler is executing. Each attempt first persists a bounded,
+payload-free intent containing only family, settlement class, idempotency key,
+and branch authority facts, then raises
+`SNAPBACK_BRANCH_EFFECT_CAPTURED` without invoking the provider. A handler may
+catch that refusal and make another same-family attempt; the two intents remain
+distinct and ordered. Only after handler completion or failure does one final
+operation record bind the ordered intent set. Target, body, token, credential,
+and provider response bytes are not accepted by the ledger API.
+
+Strict promotion validates that every approved effect fact exactly matches one
+terminal branch intent and copies the ordered set as `canonicalPending` in the
+same canonical transaction as staged writes, journal proof, source joins,
+receipt, aggregate envelope, version advance, and ticket completion. The
+receipt state is `committedEffectsPending`; the envelope carries the actual
+payload-free effect facts and settlement taxonomy while continuing to name
+`promotionCoverageManifest` as uncovered. Causal dependence is propagated
+through the server-owned predecessor graph. A later write/effect downstream of
+an unsettled intent must carry an explicit provisional representation or
+promotion refuses `SNAPBACK_PROMOTION_PROVISIONAL_REPRESENTATION_REQUIRED`.
+The generic public carrier deliberately does not invent that application
+representation.
+
+Post-promotion settlement durably fences initiation before provider work,
+revalidates principal, grant, fingerprint, expiry, and revocation on each
+attempt, and recovers the same initiation plus stable idempotency key after
+reopen. Terminal settlement accepts only a canonical digest and closed outcome;
+an exact retry is stable, divergent retry refuses, and inherently ambiguous
+providers cannot manufacture success or rejection. Terminal detail is never
+stored verbatim.
+
+Focused corpus covers two caught same-family fetch attempts, payload absence in
+the reopened SQLite file, exact multi-operation retry, public
+CaptureOnly-to-later-write transitive refusal, retention-failure rollback,
+intent-count and exact-TTL bounds, atomic effect-only promotion, revoked and
+expired settlement authority, initiation reopen/retry, and terminal divergence.
+The inherited post-image source guard now locates the strict re-execution seam
+without depending on generic formatting, and the independent-clock fixture
+uses a valid compact envelope rather than an invalid `{}` sentinel. The
+compile-disabled `branches::promote` deviation is unchanged.
+
+This increment closes the previously named atomic-carrier and CaptureOnly
+implementation gaps in LLP 0162 rows 5-8 and 10 for the enumerated local lane.
+It does not close the separate global writer-coverage token, fixed-Air
+performance/p99, final integrated own-correctness, independent review, author
+acceptance, or capability-publication gates. This Spec therefore remains
+`Draft`, and every related capability remains `Missing`.
 
 ## Open items
 
@@ -381,8 +455,9 @@ Draft and every capability stays `Missing`.
    diagnostics and receipt fields already named by the accepted umbrella; no
    separate OQ10 vocabulary decision remains open here.
 3. Fork-receipt enumerability ("list my live forks", LLP 0162 OQ12).
-4. Remaining wiring order is LLP 0097's exhaustive product mediation before
-   `CaptureOnly`; LLP 0158 F0a/F0b are landed dependencies, not blockers.
+4. *(Implemented 2026-08-04.)* CaptureOnly now follows the existing exhaustive
+   product mediation choke and retains only payload-free ordered intents;
+   LLP 0158 F0a/F0b remain landed dependencies rather than blockers.
 5. The consolidated acceptance tail, including author bound ratification and
    the residual corpus, is tracked in
    [`issues/20260803-agent-safe-storage-acceptance-tail.md`](../issues/20260803-agent-safe-storage-acceptance-tail.md).

@@ -6,9 +6,9 @@
 //! inside one hidden canonical transaction; no API accepts an `OverlayWrite`
 //! or other branch post-image as a promotion input.
 //!
-//! The first shipped slice is deliberately `DenyAll`/`Promotable(noEffects)`.
-//! `CaptureOnly` remains a separately disclosed residual and is rejected at
-//! profile creation, sealing, and promotion.
+//! `DenyAll` records bounded payload-free refusal markers. `CaptureOnly`
+//! records ordered payload-free intents and promotes them into a canonical
+//! pending-settlement ledger; neither policy initiates real egress in a fork.
 //!
 //! @ref LLP 0164#contract-summary-normative-details-per-llp-0162-3-5 — the
 //!   in-app branch, diff, sealed request, strict-CAS replay, and contention
@@ -35,9 +35,10 @@ use crate::branches::{
     child_current_version, create_branch, ensure_branch_registry, get_branch,
 };
 use crate::commit_envelope::{
-    CommitEnvelopeV1, EffectEgressFamilyV1, EnvelopeAuthorityFactsV1, EnvelopeCoverageV1,
-    EnvelopeEffectFactsV1, EnvelopeFactSetV1, FactProvenanceV1, LaneFactV1, OperationIdentityV1,
-    OperationOriginatorClassV1, OperationReceiptStateV1, OperationReceiptV1,
+    CommitEnvelopeV1, EffectEgressFamilyV1,
+    EffectSettlementCapabilityV1 as EnvelopeEffectSettlementCapabilityV1, EnvelopeAuthorityFactsV1,
+    EnvelopeCoverageV1, EnvelopeEffectFactsV1, EnvelopeFactSetV1, FactProvenanceV1, LaneFactV1,
+    OperationIdentityV1, OperationOriginatorClassV1, OperationReceiptStateV1, OperationReceiptV1,
     RetainedEnvelopeDetailV1, SnapshotAssociationKindV1, StreamQualifiedVersionV1,
 };
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
@@ -245,6 +246,12 @@ pub enum ForkEgressPolicyV1 {
     CaptureOnly,
 }
 
+impl Default for ForkEgressPolicyV1 {
+    fn default() -> Self {
+        Self::DenyAll
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BranchGrantV1 {
@@ -432,14 +439,32 @@ pub fn ensure_in_app_branch_tables(conn: &Connection) -> SnapbackResult<()> {
             attempted_at_ms INTEGER NOT NULL
          );
          CREATE INDEX IF NOT EXISTS _snapback_branch_egress_by_branch
-           ON _snapback_branch_egress_attempts(branch_id, attempted_at_ms);",
+           ON _snapback_branch_egress_attempts(branch_id, attempted_at_ms);
+         CREATE TABLE IF NOT EXISTS _snapback_branch_effect_intents_v1 (
+            intent_id              TEXT PRIMARY KEY,
+            branch_id              TEXT NOT NULL,
+            operation_id           TEXT NOT NULL,
+            effect_ordinal         INTEGER NOT NULL,
+            child_version          INTEGER,
+            egress_class           TEXT NOT NULL,
+            settlement_capability  TEXT NOT NULL,
+            idempotency_key        TEXT NOT NULL,
+            principal_id           TEXT NOT NULL,
+            grant_id               TEXT NOT NULL,
+            authority_fingerprint  TEXT NOT NULL,
+            state                  TEXT NOT NULL,
+            captured_at_ms         INTEGER NOT NULL,
+            UNIQUE(branch_id, operation_id, effect_ordinal)
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_branch_effect_intents_by_branch
+           ON _snapback_branch_effect_intents_v1(branch_id, child_version);",
     )?;
     Ok(())
 }
 
-/// Create the only promotable fork class: a current-head, in-app, bounded,
-/// branch-scoped `DenyAll` fork. CaptureOnly is refused until its ledger and
-/// settlement corpus land.
+/// Create a current-head, bounded, branch-scoped in-app fork. Both policies
+/// remain publication-gated; accepting CaptureOnly here activates only its
+/// durable internal carrier and does not advertise a capability.
 pub fn create_in_app_branch(
     conn: &mut Connection,
     request: &InAppBranchCreateV1,
@@ -451,12 +476,6 @@ pub fn create_in_app_branch(
         ));
     }
     request.limits.validate()?;
-    if request.egress_policy != ForkEgressPolicyV1::DenyAll {
-        return Err(error(
-            "SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING",
-            "CaptureOnly remains Missing; in-app promotable v1 accepts DenyAll only",
-        ));
-    }
     if request.grant.expires_at_ms <= request.created_at_ms {
         return Err(error(
             "SNAPBACK_BRANCH_GRANT_STALE",
@@ -1279,6 +1298,7 @@ pub fn drop_managed_in_app_branch(
 pub(crate) struct InAppBranchRuntime {
     database_path: PathBuf,
     branch_id: BranchId,
+    egress_policy: ForkEgressPolicyV1,
 }
 
 pub(crate) fn inspect_in_app_branch_boot(
@@ -1312,17 +1332,16 @@ pub(crate) fn inspect_in_app_branch_boot(
         [] => Ok(None),
         [(branch_id, bytes)] => {
             let profile: InAppBranchCreateV1 = decode_json(bytes, "branch boot profile")?;
-            if profile.branch_id.0 != *branch_id
-                || profile.egress_policy != ForkEgressPolicyV1::DenyAll
-            {
+            if profile.branch_id.0 != *branch_id {
                 return Err(error(
                     "SNAPBACK_BRANCH_CUSTODY_INVALID",
-                    "branch boot profile does not identify one DenyAll head",
+                    "branch boot profile does not identify its active head",
                 ));
             }
             Ok(Some(InAppBranchRuntime {
                 database_path: database_path.to_path_buf(),
                 branch_id: profile.branch_id,
+                egress_policy: profile.egress_policy,
             }))
         }
         _ => Err(error(
@@ -1333,31 +1352,72 @@ pub(crate) fn inspect_in_app_branch_boot(
 }
 
 impl InAppBranchRuntime {
-    /// Route the existing exhaustive product egress inventory through the
-    /// branch-local durable DenyAll marker. No target, body, or credential is
-    /// accepted by this boundary.
-    pub(crate) fn deny(
+    /// Route the exhaustive product egress inventory through the branch-local
+    /// policy. Neither arm accepts a target, body, token, or credential:
+    /// DenyAll records a marker and CaptureOnly records a replay intent, then
+    /// both stop the real host operation before initiation.
+    pub(crate) fn mediate(
         &self,
         family: crate::instance_fork::EgressFamily,
         now_ms: u64,
     ) -> SnapbackError {
-        let result = (|| -> SnapbackResult<()> {
-            let mut conn = Connection::open(&self.database_path)?;
-            deny_egress_attempt(
-                &mut conn,
-                &self.branch_id,
-                None,
-                family.as_str(),
-                now_ms.min(i64::MAX as u64) as i64,
-            )
-        })();
-        match result {
-            Err(error) if error.diagnostic.code == "SNAPBACK_BRANCH_EGRESS_DENIED" => error,
-            _ => error(
-                "SNAPBACK_BRANCH_EGRESS_MARKER_FAILED",
-                "in-app branch egress was refused but its durable marker could not be recorded",
-            )
-            .with_details(json!({ "family": family.as_str() })),
+        match self.egress_policy {
+            ForkEgressPolicyV1::DenyAll => {
+                let operation_id = next_active_branch_effect_context(&self.branch_id)
+                    .map(|(context, _)| context.draft.identity.key.operation_id);
+                let result = (|| -> SnapbackResult<()> {
+                    let mut conn = Connection::open(&self.database_path)?;
+                    deny_egress_attempt(
+                        &mut conn,
+                        &self.branch_id,
+                        operation_id.as_deref(),
+                        family.as_str(),
+                        now_ms.min(i64::MAX as u64) as i64,
+                    )
+                })();
+                match result {
+                    Err(error) if error.diagnostic.code == "SNAPBACK_BRANCH_EGRESS_DENIED" => error,
+                    _ => error(
+                        "SNAPBACK_BRANCH_EGRESS_MARKER_FAILED",
+                        "in-app branch egress was refused but its durable marker could not be recorded",
+                    )
+                    .with_details(json!({ "family": family.as_str() })),
+                }
+            }
+            ForkEgressPolicyV1::CaptureOnly => {
+                let Some((context, effect_ordinal)) =
+                    next_active_branch_effect_context(&self.branch_id)
+                else {
+                    return error(
+                        "SNAPBACK_BRANCH_EFFECT_CONTEXT_MISSING",
+                        "CaptureOnly refused an unowned host egress initiation",
+                    )
+                    .with_details(json!({ "family": family.as_str() }));
+                };
+                let result = (|| -> SnapbackResult<CapturedEffectIntentV1> {
+                    let mut conn = Connection::open(&self.database_path)?;
+                    capture_effect_intent(&mut conn, &context, family.as_str(), effect_ordinal)
+                })();
+                match result {
+                    Ok(intent) => error(
+                        "SNAPBACK_BRANCH_EFFECT_CAPTURED",
+                        "CaptureOnly retained a payload-free effect intent and did not initiate egress",
+                    )
+                    .with_details(json!({
+                        "family": family.as_str(),
+                        "intentId": intent.intent_id,
+                        "effectOrdinal": intent.effect_ordinal,
+                    })),
+                    Err(cause) => error(
+                        "SNAPBACK_BRANCH_EFFECT_CAPTURE_FAILED",
+                        "CaptureOnly refused egress because its durable intent could not be recorded",
+                    )
+                    .with_details(json!({
+                        "family": family.as_str(),
+                        "causeCode": cause.diagnostic.code,
+                    })),
+                }
+            }
         }
     }
 }
@@ -1433,6 +1493,18 @@ pub struct BranchOperationV1 {
     pub approved_facts: ApprovedOperationFactsV1,
     #[schemars(pattern(SHA256_PATTERN))]
     pub approved_facts_digest: String,
+    pub recorded_at_ms: i64,
+}
+
+/// Server-owned context carried from the closed branch host operation into
+/// the ordinary application mutation transaction. The caller never supplies
+/// the resulting facts: storage derives them from the exact commit it is
+/// about to publish and records the branch operation before that transaction
+/// commits.
+#[derive(Clone, Debug)]
+pub struct BranchMutationCommitV1 {
+    pub branch_id: BranchId,
+    pub draft: BranchOperationDraftV1,
     pub recorded_at_ms: i64,
 }
 
@@ -1549,8 +1621,59 @@ where
         ));
     }
     let tx = conn.transaction()?;
-    let child_version = allocate_child_version(&tx, branch_id)?;
     let approved_facts = execute(&tx, draft)?;
+    let operation = record_branch_operation_in(
+        &tx,
+        branch_id,
+        draft,
+        now_ms,
+        &profile,
+        &receipt,
+        approved_facts,
+    )?;
+    tx.commit()?;
+    Ok(operation)
+}
+
+pub(crate) fn execute_receipt_only_branch_operation(
+    conn: &mut Connection,
+    branch_id: &BranchId,
+    draft: &BranchOperationDraftV1,
+    result: Value,
+    now_ms: i64,
+) -> SnapbackResult<BranchOperationV1> {
+    let (profile, _) = branch_profile(conn, branch_id)?;
+    execute_branch_operation(conn, branch_id, draft, now_ms, |_tx, draft| {
+        Ok(ApprovedOperationFactsV1 {
+            read_facts: draft.read_baseline.clone(),
+            ctx_answers: Value::Null,
+            decision: json!({
+                "carrier": "managed-branch-host-op-v1",
+                "receiptOnly": true,
+            }),
+            result,
+            writes: Vec::new(),
+            effects: Vec::new(),
+            coverage: profile.coverage.clone(),
+        })
+    })
+}
+
+fn record_branch_operation_in(
+    tx: &Transaction<'_>,
+    branch_id: &BranchId,
+    draft: &BranchOperationDraftV1,
+    now_ms: i64,
+    profile: &InAppBranchCreateV1,
+    receipt: &InAppBranchReceiptV1,
+    approved_facts: ApprovedOperationFactsV1,
+) -> SnapbackResult<BranchOperationV1> {
+    if receipt.retained_operation_count >= profile.limits.max_operations {
+        return Err(error(
+            "SNAPBACK_BRANCH_OPERATION_LIMIT_EXCEEDED",
+            "branch operation limit reached",
+        ));
+    }
     if approved_facts.coverage.clone().normalized() != profile.coverage.clone().normalized() {
         return Err(error(
             "SNAPBACK_PROMOTION_WRITE_COVERAGE_INCOMPLETE",
@@ -1569,6 +1692,7 @@ where
             "operation produced facts outside the branch grant's lane allowlist",
         ));
     }
+    let child_version = allocate_child_version(tx, branch_id)?;
     let approved_facts_digest = digest_json(b"approved-operation-facts", &approved_facts)?;
     let operation = BranchOperationV1 {
         schema_version: 1,
@@ -1638,8 +1762,529 @@ where
             operation.identity.key.operation_id,
         ],
     )?;
-    tx.commit()?;
     Ok(operation)
+}
+
+/// Record the exact mutation facts in the same SQLite transaction as the app
+/// rows, change journal, and storage-version update. Any error rolls all four
+/// surfaces back together; after commit an exact retry can recover the full
+/// operation without executing another handler byte.
+///
+/// @ref LLP 0162#acceptance — row 10 requires a branch-local operation to be
+///   retained atomically with the commit that it makes promotable.
+pub(crate) fn record_branch_mutation_in(
+    tx: &Transaction<'_>,
+    context: &BranchMutationCommitV1,
+    committed_version: u64,
+    changes: &[crate::storage::ChangedRow],
+    output: &crate::manifest::MutationOutput,
+) -> SnapbackResult<BranchOperationV1> {
+    let (profile, receipt) = branch_profile(tx, &context.branch_id)?;
+    validate_operation_draft(
+        &profile,
+        &receipt.branch,
+        &context.draft,
+        context.recorded_at_ms,
+    )?;
+    validate_public_carrier_draft(&profile, &context.draft)?;
+    let writes = changes
+        .iter()
+        .map(|change| LogicalWriteFactV1 {
+            table_name: change.table.clone(),
+            row_id: change.id.clone(),
+            after: if change.op == crate::storage::ChangeOp::Delete {
+                None
+            } else {
+                change.row.clone()
+            },
+        })
+        .collect();
+    let ctx_answers = serde_json::to_value(&output.ctx_ledger).map_err(|cause| {
+        error(
+            "SNAPBACK_BRANCH_ARTIFACT_INVALID",
+            format!("serialize committed branch ctx answers: {cause}"),
+        )
+    })?;
+    let intents = captured_effect_intents_for_operation(
+        tx,
+        &context.branch_id,
+        &context.draft.identity.key.operation_id,
+    )?;
+    let effects = intents.iter().map(captured_effect_fact).collect::<Vec<_>>();
+    let operation = record_branch_operation_in(
+        tx,
+        &context.branch_id,
+        &context.draft,
+        context.recorded_at_ms,
+        &profile,
+        &receipt,
+        ApprovedOperationFactsV1 {
+            read_facts: context.draft.read_baseline.clone(),
+            ctx_answers,
+            decision: json!({
+                "carrier": "managed-branch-host-op-v1",
+                "canonicalCommitVersion": committed_version,
+                "atomicWithAppCommit": true,
+                "capturedEffectCount": effects.len(),
+            }),
+            result: output.result.clone(),
+            writes,
+            effects,
+            coverage: profile.coverage.clone(),
+        },
+    )?;
+    tx.execute(
+        "UPDATE _snapback_branch_effect_intents_v1
+            SET child_version=?3
+          WHERE branch_id=?1 AND operation_id=?2 AND child_version IS NULL",
+        params![
+            context.branch_id.0,
+            context.draft.identity.key.operation_id,
+            operation.child_version as i64,
+        ],
+    )?;
+    Ok(operation)
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum EffectSettlementCapabilityV1 {
+    ProviderIdempotent,
+    ProviderQueryable,
+    InherentlyAmbiguous,
+}
+
+impl EffectSettlementCapabilityV1 {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::ProviderIdempotent => "providerIdempotent",
+            Self::ProviderQueryable => "providerQueryable",
+            Self::InherentlyAmbiguous => "inherentlyAmbiguous",
+        }
+    }
+
+    fn parse(value: &str) -> SnapbackResult<Self> {
+        match value {
+            "providerIdempotent" => Ok(Self::ProviderIdempotent),
+            "providerQueryable" => Ok(Self::ProviderQueryable),
+            "inherentlyAmbiguous" => Ok(Self::InherentlyAmbiguous),
+            _ => Err(error(
+                "SNAPBACK_BRANCH_EFFECT_LEDGER_INVALID",
+                "captured effect has an unknown settlement capability",
+            )),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CapturedEffectStateV1 {
+    Captured,
+    CanonicalPending,
+    Initiated,
+    Succeeded,
+    Rejected,
+    AmbiguousExternalEffect,
+    AuthorityRefused,
+}
+
+impl CapturedEffectStateV1 {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Captured => "captured",
+            Self::CanonicalPending => "canonicalPending",
+            Self::Initiated => "initiated",
+            Self::Succeeded => "succeeded",
+            Self::Rejected => "rejected",
+            Self::AmbiguousExternalEffect => "ambiguousExternalEffect",
+            Self::AuthorityRefused => "authorityRefused",
+        }
+    }
+
+    fn parse(value: &str) -> SnapbackResult<Self> {
+        match value {
+            "captured" => Ok(Self::Captured),
+            "canonicalPending" => Ok(Self::CanonicalPending),
+            "initiated" => Ok(Self::Initiated),
+            "succeeded" => Ok(Self::Succeeded),
+            "rejected" => Ok(Self::Rejected),
+            "ambiguousExternalEffect" => Ok(Self::AmbiguousExternalEffect),
+            "authorityRefused" => Ok(Self::AuthorityRefused),
+            _ => Err(error(
+                "SNAPBACK_BRANCH_EFFECT_LEDGER_INVALID",
+                "captured effect has an unknown settlement state",
+            )),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CapturedEffectIntentV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub intent_id: String,
+    pub branch_id: BranchId,
+    pub operation_id: String,
+    pub effect_ordinal: u64,
+    pub child_version: Option<u64>,
+    pub egress_class: String,
+    pub settlement_capability: EffectSettlementCapabilityV1,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub idempotency_key: String,
+    pub principal_id: String,
+    pub grant_id: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub authority_fingerprint: String,
+    pub state: CapturedEffectStateV1,
+    pub captured_at_ms: i64,
+}
+
+#[derive(Clone)]
+pub(crate) struct BranchEffectExecutionContextV1 {
+    pub branch_id: BranchId,
+    pub draft: BranchOperationDraftV1,
+    pub now_ms: i64,
+    next_effect_ordinal: std::rc::Rc<std::cell::Cell<u64>>,
+}
+
+impl BranchEffectExecutionContextV1 {
+    pub(crate) fn new(branch_id: BranchId, draft: BranchOperationDraftV1, now_ms: i64) -> Self {
+        Self {
+            branch_id,
+            draft,
+            now_ms,
+            next_effect_ordinal: std::rc::Rc::new(std::cell::Cell::new(0)),
+        }
+    }
+}
+
+thread_local! {
+    static ACTIVE_BRANCH_EFFECT_CONTEXT:
+        std::cell::RefCell<Vec<BranchEffectExecutionContextV1>> =
+        const { std::cell::RefCell::new(Vec::new()) };
+}
+
+pub(crate) fn with_branch_effect_execution_context<T>(
+    context: BranchEffectExecutionContextV1,
+    execute: impl FnOnce() -> T,
+) -> T {
+    ACTIVE_BRANCH_EFFECT_CONTEXT.with(|slot| slot.borrow_mut().push(context));
+    struct PopContext;
+    impl Drop for PopContext {
+        fn drop(&mut self) {
+            ACTIVE_BRANCH_EFFECT_CONTEXT.with(|slot| {
+                slot.borrow_mut().pop();
+            });
+        }
+    }
+    let _pop = PopContext;
+    execute()
+}
+
+fn next_active_branch_effect_context(
+    branch_id: &BranchId,
+) -> Option<(BranchEffectExecutionContextV1, u64)> {
+    ACTIVE_BRANCH_EFFECT_CONTEXT.with(|slot| {
+        let context = slot
+            .borrow()
+            .iter()
+            .rev()
+            .find(|context| context.branch_id == *branch_id)
+            .cloned()?;
+        let ordinal = context.next_effect_ordinal.get();
+        context.next_effect_ordinal.set(ordinal.saturating_add(1));
+        Some((context, ordinal))
+    })
+}
+
+fn settlement_capability_for_egress(egress_class: &str) -> EffectSettlementCapabilityV1 {
+    match egress_class {
+        "push_send" | "push_receipt" | "jobs_enqueue" | "jobs_drain" => {
+            EffectSettlementCapabilityV1::ProviderIdempotent
+        }
+        "fetch" | "stream_open" | "stream_read" | "stream_cancel" => {
+            EffectSettlementCapabilityV1::ProviderQueryable
+        }
+        _ => EffectSettlementCapabilityV1::InherentlyAmbiguous,
+    }
+}
+
+fn decode_captured_effect_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<(
+    String,
+    String,
+    i64,
+    Option<i64>,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    i64,
+)> {
+    Ok((
+        row.get(0)?,
+        row.get(1)?,
+        row.get(2)?,
+        row.get(3)?,
+        row.get(4)?,
+        row.get(5)?,
+        row.get(6)?,
+        row.get(7)?,
+        row.get(8)?,
+        row.get(9)?,
+        row.get(10)?,
+        row.get(11)?,
+    ))
+}
+
+fn captured_effect_from_raw(
+    branch_id: &BranchId,
+    raw: (
+        String,
+        String,
+        i64,
+        Option<i64>,
+        String,
+        String,
+        String,
+        String,
+        String,
+        String,
+        String,
+        i64,
+    ),
+) -> SnapbackResult<CapturedEffectIntentV1> {
+    let (
+        intent_id,
+        operation_id,
+        effect_ordinal,
+        child_version,
+        egress_class,
+        capability,
+        idempotency_key,
+        principal_id,
+        grant_id,
+        authority_fingerprint,
+        state,
+        captured_at_ms,
+    ) = raw;
+    Ok(CapturedEffectIntentV1 {
+        schema_version: 1,
+        intent_id,
+        branch_id: branch_id.clone(),
+        operation_id,
+        effect_ordinal: effect_ordinal.max(0) as u64,
+        child_version: child_version.map(|value| value.max(0) as u64),
+        egress_class,
+        settlement_capability: EffectSettlementCapabilityV1::parse(&capability)?,
+        idempotency_key,
+        principal_id,
+        grant_id,
+        authority_fingerprint,
+        state: CapturedEffectStateV1::parse(&state)?,
+        captured_at_ms,
+    })
+}
+
+pub fn captured_effect_intents(
+    conn: &Connection,
+    branch_id: &BranchId,
+) -> SnapbackResult<Vec<CapturedEffectIntentV1>> {
+    ensure_in_app_branch_tables(conn)?;
+    let mut statement = conn.prepare(
+        "SELECT intent_id,operation_id,effect_ordinal,child_version,egress_class,
+                settlement_capability,idempotency_key,principal_id,grant_id,
+                authority_fingerprint,state,captured_at_ms
+           FROM _snapback_branch_effect_intents_v1
+          WHERE branch_id=?1 ORDER BY operation_id,effect_ordinal,intent_id",
+    )?;
+    let rows = statement.query_map(params![branch_id.0], |row| decode_captured_effect_row(row))?;
+    rows.map(|row| captured_effect_from_raw(branch_id, row?))
+        .collect()
+}
+
+fn capture_effect_intent(
+    conn: &mut Connection,
+    context: &BranchEffectExecutionContextV1,
+    egress_class: &str,
+    effect_ordinal: u64,
+) -> SnapbackResult<CapturedEffectIntentV1> {
+    let (profile, receipt) = branch_profile(conn, &context.branch_id)?;
+    if profile.egress_policy != ForkEgressPolicyV1::CaptureOnly {
+        return Err(error(
+            "SNAPBACK_BRANCH_EFFECT_POLICY_INVALID",
+            "effect capture requires a CaptureOnly branch",
+        ));
+    }
+    validate_operation_draft(&profile, &receipt.branch, &context.draft, context.now_ms)?;
+    validate_public_carrier_draft(&profile, &context.draft)?;
+    if branch_operation_retry(conn, &context.branch_id, &context.draft)?.is_some() {
+        return Err(error(
+            "SNAPBACK_BRANCH_EFFECT_LEDGER_INVALID",
+            "a terminal branch operation cannot append another effect intent",
+        ));
+    }
+    let existing_intents = captured_effect_intents(conn, &context.branch_id)?;
+    if let Some(existing) = existing_intents.iter().find(|intent| {
+        intent.operation_id == context.draft.identity.key.operation_id
+            && intent.effect_ordinal == effect_ordinal
+    }) {
+        if existing.egress_class == egress_class {
+            return Ok(existing.clone());
+        }
+        return Err(error(
+            "SNAPBACK_BRANCH_EFFECT_ORDINAL_REUSED",
+            "one branch operation reused an effect ordinal for a different egress family",
+        ));
+    }
+    let intent_count = existing_intents
+        .iter()
+        .filter(|intent| intent.operation_id == context.draft.identity.key.operation_id)
+        .count() as u64;
+    if receipt.retained_operation_count >= profile.limits.max_operations
+        || intent_count >= profile.limits.max_operations
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_OPERATION_LIMIT_EXCEEDED",
+            "captured effect intent limit reached",
+        ));
+    }
+    let operation_id = context.draft.identity.key.operation_id.clone();
+    let intent_id = digest_json(
+        b"captured-effect-intent-v1",
+        &(
+            &context.branch_id,
+            &operation_id,
+            effect_ordinal,
+            egress_class,
+        ),
+    )?;
+    let idempotency_key = digest_json(
+        b"captured-effect-idempotency-v1",
+        &(&profile.branch_id, &intent_id),
+    )?;
+    let capability = settlement_capability_for_egress(egress_class);
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    tx.execute(
+        "INSERT INTO _snapback_branch_effect_intents_v1(
+           intent_id,branch_id,operation_id,effect_ordinal,child_version,egress_class,
+           settlement_capability,idempotency_key,principal_id,grant_id,
+           authority_fingerprint,state,captured_at_ms
+         ) VALUES(?1,?2,?3,?4,NULL,?5,?6,?7,?8,?9,?10,'captured',?11)",
+        params![
+            intent_id,
+            context.branch_id.0,
+            operation_id,
+            effect_ordinal as i64,
+            egress_class,
+            capability.as_str(),
+            idempotency_key,
+            profile.grant.principal_id,
+            profile.grant.grant_id,
+            profile.grant.authority_fingerprint,
+            context.now_ms,
+        ],
+    )?;
+    tx.commit()?;
+    Ok(CapturedEffectIntentV1 {
+        schema_version: 1,
+        intent_id,
+        branch_id: context.branch_id.clone(),
+        operation_id,
+        effect_ordinal,
+        child_version: None,
+        egress_class: egress_class.to_owned(),
+        settlement_capability: capability,
+        idempotency_key,
+        principal_id: profile.grant.principal_id,
+        grant_id: profile.grant.grant_id,
+        authority_fingerprint: profile.grant.authority_fingerprint,
+        state: CapturedEffectStateV1::Captured,
+        captured_at_ms: context.now_ms,
+    })
+}
+
+fn captured_effect_intents_for_operation(
+    conn: &Connection,
+    branch_id: &BranchId,
+    operation_id: &str,
+) -> SnapbackResult<Vec<CapturedEffectIntentV1>> {
+    Ok(captured_effect_intents(conn, branch_id)?
+        .into_iter()
+        .filter(|intent| intent.operation_id == operation_id)
+        .collect())
+}
+
+fn captured_effect_fact(intent: &CapturedEffectIntentV1) -> Value {
+    json!({
+        "schemaVersion": 1,
+        "intentId": intent.intent_id,
+        "effectOrdinal": intent.effect_ordinal,
+        "egressClass": intent.egress_class,
+        "settlementCapability": intent.settlement_capability,
+        "idempotencyKey": intent.idempotency_key,
+        "payloadRetained": false,
+    })
+}
+
+pub(crate) fn finalize_captured_effect_operation(
+    conn: &mut Connection,
+    context: &BranchEffectExecutionContextV1,
+    result: Value,
+    diagnostic_code: Option<&str>,
+) -> SnapbackResult<Option<BranchOperationV1>> {
+    if let Some(retained) = branch_operation_retry(conn, &context.branch_id, &context.draft)? {
+        return Ok(Some(retained));
+    }
+    let intents = captured_effect_intents_for_operation(
+        conn,
+        &context.branch_id,
+        &context.draft.identity.key.operation_id,
+    )?;
+    if intents.is_empty() {
+        return Ok(None);
+    }
+    let (profile, receipt) = branch_profile(conn, &context.branch_id)?;
+    let effects = intents.iter().map(captured_effect_fact).collect();
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let operation = record_branch_operation_in(
+        &tx,
+        &context.branch_id,
+        &context.draft,
+        context.now_ms,
+        &profile,
+        &receipt,
+        ApprovedOperationFactsV1 {
+            read_facts: context.draft.read_baseline.clone(),
+            ctx_answers: Value::Null,
+            decision: json!({
+                "carrier": "managed-branch-capture-only-v1",
+                "effectDisposition": "capturedNotFired",
+                "handlerDiagnosticCode": diagnostic_code,
+            }),
+            result,
+            writes: Vec::new(),
+            effects,
+            coverage: profile.coverage.clone(),
+        },
+    )?;
+    tx.execute(
+        "UPDATE _snapback_branch_effect_intents_v1
+            SET child_version=?3
+          WHERE branch_id=?1 AND operation_id=?2 AND child_version IS NULL",
+        params![
+            context.branch_id.0,
+            context.draft.identity.key.operation_id,
+            operation.child_version as i64,
+        ],
+    )?;
+    tx.commit()?;
+    Ok(Some(operation))
 }
 
 pub fn branch_operation_log(
@@ -1906,8 +2551,8 @@ pub fn deny_egress_attempt(
     let (profile, receipt) = branch_profile(conn, branch_id)?;
     if profile.egress_policy != ForkEgressPolicyV1::DenyAll {
         return Err(error(
-            "SNAPBACK_BRANCH_CAPTURE_ONLY_MISSING",
-            "CaptureOnly mediation is not implemented by this lane",
+            "SNAPBACK_BRANCH_EFFECT_POLICY_INVALID",
+            "DenyAll attempt recording requires a DenyAll branch",
         ));
     }
     let marker_id = digest_json(
@@ -2384,6 +3029,32 @@ pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
          CREATE TABLE IF NOT EXISTS _snapback_promotion_envelopes (
             ticket_id          TEXT PRIMARY KEY,
             envelope_json      BLOB NOT NULL
+         );
+         CREATE TABLE IF NOT EXISTS _snapback_promotion_effect_intents_v1 (
+            ticket_id              TEXT NOT NULL,
+            intent_id              TEXT PRIMARY KEY,
+            branch_id              TEXT NOT NULL,
+            source_operation_id    TEXT NOT NULL,
+            effect_ordinal         INTEGER NOT NULL,
+            egress_class           TEXT NOT NULL,
+            settlement_capability  TEXT NOT NULL,
+            idempotency_key        TEXT NOT NULL,
+            principal_id           TEXT NOT NULL,
+            grant_id               TEXT NOT NULL,
+            authority_fingerprint  TEXT NOT NULL,
+            state                  TEXT NOT NULL,
+            captured_at_ms         INTEGER NOT NULL,
+            initiated_at_ms        INTEGER,
+            settled_at_ms          INTEGER,
+            terminal_fact_digest   TEXT
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_promotion_effects_by_ticket
+           ON _snapback_promotion_effect_intents_v1(ticket_id,intent_id);
+         CREATE TABLE IF NOT EXISTS _snapback_promotion_provisional_dependencies_v1 (
+            ticket_id              TEXT NOT NULL,
+            source_operation_id    TEXT NOT NULL,
+            predecessor_version    INTEGER NOT NULL,
+            PRIMARY KEY(ticket_id,source_operation_id,predecessor_version)
          );",
     )?;
     let has_request_digest: i64 = conn.query_row(
@@ -2412,6 +3083,356 @@ pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
         )?;
     }
     Ok(())
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct EffectSettlementAuthorityV1 {
+    pub principal_id: String,
+    pub grant_id: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub authority_fingerprint: String,
+    pub expires_at_ms: i64,
+    pub revoked: bool,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum EffectSettlementOutcomeV1 {
+    Succeeded,
+    Rejected,
+    AmbiguousExternalEffect,
+}
+
+impl EffectSettlementOutcomeV1 {
+    fn state(self) -> CapturedEffectStateV1 {
+        match self {
+            Self::Succeeded => CapturedEffectStateV1::Succeeded,
+            Self::Rejected => CapturedEffectStateV1::Rejected,
+            Self::AmbiguousExternalEffect => CapturedEffectStateV1::AmbiguousExternalEffect,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PromotedEffectIntentV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub ticket_id: String,
+    pub intent_id: String,
+    pub branch_id: BranchId,
+    pub source_operation_id: String,
+    pub effect_ordinal: u64,
+    pub egress_class: String,
+    pub settlement_capability: EffectSettlementCapabilityV1,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub idempotency_key: String,
+    pub principal_id: String,
+    pub grant_id: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub authority_fingerprint: String,
+    pub state: CapturedEffectStateV1,
+    pub captured_at_ms: i64,
+    pub initiated_at_ms: Option<i64>,
+    pub settled_at_ms: Option<i64>,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub terminal_fact_digest: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct EffectInitiationV1 {
+    pub intent: PromotedEffectIntentV1,
+    pub already_initiated: bool,
+}
+
+fn promoted_effect_from_row(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<(
+    String,
+    String,
+    String,
+    String,
+    i64,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    String,
+    i64,
+    Option<i64>,
+    Option<i64>,
+    Option<String>,
+)> {
+    Ok((
+        row.get(0)?,
+        row.get(1)?,
+        row.get(2)?,
+        row.get(3)?,
+        row.get(4)?,
+        row.get(5)?,
+        row.get(6)?,
+        row.get(7)?,
+        row.get(8)?,
+        row.get(9)?,
+        row.get(10)?,
+        row.get(11)?,
+        row.get(12)?,
+        row.get(13)?,
+        row.get(14)?,
+        row.get(15)?,
+    ))
+}
+
+fn decode_promoted_effect(
+    raw: (
+        String,
+        String,
+        String,
+        String,
+        i64,
+        String,
+        String,
+        String,
+        String,
+        String,
+        String,
+        String,
+        i64,
+        Option<i64>,
+        Option<i64>,
+        Option<String>,
+    ),
+) -> SnapbackResult<PromotedEffectIntentV1> {
+    let (
+        ticket_id,
+        intent_id,
+        branch_id,
+        operation_id,
+        effect_ordinal,
+        egress_class,
+        capability,
+        idempotency_key,
+        principal_id,
+        grant_id,
+        authority_fingerprint,
+        state,
+        captured_at_ms,
+        initiated_at_ms,
+        settled_at_ms,
+        terminal_fact_digest,
+    ) = raw;
+    Ok(PromotedEffectIntentV1 {
+        schema_version: 1,
+        ticket_id,
+        intent_id,
+        branch_id: BranchId(branch_id),
+        source_operation_id: operation_id,
+        effect_ordinal: effect_ordinal.max(0) as u64,
+        egress_class,
+        settlement_capability: EffectSettlementCapabilityV1::parse(&capability)?,
+        idempotency_key,
+        principal_id,
+        grant_id,
+        authority_fingerprint,
+        state: CapturedEffectStateV1::parse(&state)?,
+        captured_at_ms,
+        initiated_at_ms,
+        settled_at_ms,
+        terminal_fact_digest,
+    })
+}
+
+fn load_promoted_effect(
+    conn: &Connection,
+    ticket_id: &str,
+    intent_id: &str,
+) -> SnapbackResult<PromotedEffectIntentV1> {
+    let raw = conn
+        .query_row(
+            "SELECT ticket_id,intent_id,branch_id,source_operation_id,effect_ordinal,egress_class,
+                    settlement_capability,idempotency_key,principal_id,grant_id,
+                    authority_fingerprint,state,captured_at_ms,initiated_at_ms,
+                    settled_at_ms,terminal_fact_digest
+               FROM _snapback_promotion_effect_intents_v1
+              WHERE ticket_id=?1 AND intent_id=?2",
+            params![ticket_id, intent_id],
+            promoted_effect_from_row,
+        )
+        .optional()?
+        .ok_or_else(|| {
+            error(
+                "SNAPBACK_PROMOTION_EFFECT_INTENT_MISSING",
+                "promotion has no captured effect intent with that identity",
+            )
+        })?;
+    decode_promoted_effect(raw)
+}
+
+pub fn promoted_effect_intents(
+    conn: &Connection,
+    ticket_id: &str,
+) -> SnapbackResult<Vec<PromotedEffectIntentV1>> {
+    ensure_promotion_tables(conn)?;
+    let mut statement = conn.prepare(
+        "SELECT ticket_id,intent_id,branch_id,source_operation_id,effect_ordinal,egress_class,
+                settlement_capability,idempotency_key,principal_id,grant_id,
+                authority_fingerprint,state,captured_at_ms,initiated_at_ms,
+                settled_at_ms,terminal_fact_digest
+           FROM _snapback_promotion_effect_intents_v1
+          WHERE ticket_id=?1 ORDER BY source_operation_id,effect_ordinal,intent_id",
+    )?;
+    let rows = statement.query_map(params![ticket_id], promoted_effect_from_row)?;
+    rows.map(|row| decode_promoted_effect(row?)).collect()
+}
+
+fn effect_authority_matches(
+    intent: &PromotedEffectIntentV1,
+    authority: &EffectSettlementAuthorityV1,
+    now_ms: i64,
+) -> bool {
+    !authority.revoked
+        && now_ms < authority.expires_at_ms
+        && authority.principal_id == intent.principal_id
+        && authority.grant_id == intent.grant_id
+        && authority.authority_fingerprint == intent.authority_fingerprint
+}
+
+/// Persist the external-initiation boundary before a provider call is made.
+/// A crash after this returns leaves an Initiated row with the same stable
+/// idempotency key; retry can recover it but cannot report the promotion as a
+/// no-op or launch under different authority.
+pub fn begin_promoted_effect_settlement(
+    canonical: &mut Connection,
+    ticket_id: &str,
+    intent_id: &str,
+    authority: &EffectSettlementAuthorityV1,
+    now_ms: i64,
+) -> SnapbackResult<EffectInitiationV1> {
+    ensure_promotion_tables(canonical)?;
+    let tx = canonical.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let mut intent = load_promoted_effect(&tx, ticket_id, intent_id)?;
+    if !effect_authority_matches(&intent, authority, now_ms) {
+        if intent.state == CapturedEffectStateV1::CanonicalPending {
+            let refusal_digest =
+                digest_json(b"effect-settlement-terminal-fact-v1", &"authority-refused")?;
+            tx.execute(
+                "UPDATE _snapback_promotion_effect_intents_v1
+                    SET state='authorityRefused',settled_at_ms=?3,
+                        terminal_fact_digest=?4
+                  WHERE ticket_id=?1 AND intent_id=?2 AND state='canonicalPending'",
+                params![ticket_id, intent_id, now_ms, refusal_digest],
+            )?;
+            tx.commit()?;
+        }
+        return Err(error(
+            "SNAPBACK_PROMOTION_EFFECT_AUTHORITY_DENIED",
+            "current effect-settlement authority is stale, revoked, or divergent",
+        ));
+    }
+    if intent.state == CapturedEffectStateV1::Initiated {
+        tx.commit()?;
+        return Ok(EffectInitiationV1 {
+            intent,
+            already_initiated: true,
+        });
+    }
+    if intent.state != CapturedEffectStateV1::CanonicalPending {
+        return Err(error(
+            "SNAPBACK_PROMOTION_EFFECT_NOT_PENDING",
+            "only a canonical pending effect may begin external settlement",
+        ));
+    }
+    let changed = tx.execute(
+        "UPDATE _snapback_promotion_effect_intents_v1
+            SET state='initiated',initiated_at_ms=?3
+          WHERE ticket_id=?1 AND intent_id=?2 AND state='canonicalPending'",
+        params![ticket_id, intent_id, now_ms],
+    )?;
+    if changed != 1 {
+        return Err(error(
+            "SNAPBACK_PROMOTION_EFFECT_FENCE_LOST",
+            "effect settlement lost its canonical initiation fence",
+        ));
+    }
+    tx.commit()?;
+    intent.state = CapturedEffectStateV1::Initiated;
+    intent.initiated_at_ms = Some(now_ms);
+    Ok(EffectInitiationV1 {
+        intent,
+        already_initiated: false,
+    })
+}
+
+pub fn finish_promoted_effect_settlement(
+    canonical: &mut Connection,
+    ticket_id: &str,
+    intent_id: &str,
+    outcome: EffectSettlementOutcomeV1,
+    terminal_fact_digest: &str,
+    now_ms: i64,
+) -> SnapbackResult<PromotedEffectIntentV1> {
+    if !is_sha256_digest(terminal_fact_digest) {
+        return Err(error(
+            "SNAPBACK_PROMOTION_EFFECT_RESULT_INVALID",
+            "effect settlement accepts only a canonical terminal fact digest",
+        ));
+    }
+    ensure_promotion_tables(canonical)?;
+    let tx = canonical.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let mut intent = load_promoted_effect(&tx, ticket_id, intent_id)?;
+    let terminal = outcome.state();
+    if matches!(
+        intent.state,
+        CapturedEffectStateV1::Succeeded
+            | CapturedEffectStateV1::Rejected
+            | CapturedEffectStateV1::AmbiguousExternalEffect
+    ) {
+        if intent.state == terminal
+            && intent.terminal_fact_digest.as_deref() == Some(terminal_fact_digest)
+        {
+            tx.commit()?;
+            return Ok(intent);
+        }
+        return Err(error(
+            "SNAPBACK_PROMOTION_EFFECT_RESULT_DIVERGED",
+            "effect settlement retry diverged from its terminal provider fact",
+        ));
+    }
+    if intent.state != CapturedEffectStateV1::Initiated {
+        return Err(error(
+            "SNAPBACK_PROMOTION_EFFECT_NOT_INITIATED",
+            "an external effect cannot settle before its durable initiation boundary",
+        ));
+    }
+    if intent.settlement_capability == EffectSettlementCapabilityV1::InherentlyAmbiguous
+        && outcome != EffectSettlementOutcomeV1::AmbiguousExternalEffect
+    {
+        return Err(error(
+            "SNAPBACK_PROMOTION_EFFECT_AMBIGUOUS",
+            "an inherently ambiguous effect cannot manufacture terminal success or rejection",
+        ));
+    }
+    tx.execute(
+        "UPDATE _snapback_promotion_effect_intents_v1
+            SET state=?3,settled_at_ms=?4,terminal_fact_digest=?5
+          WHERE ticket_id=?1 AND intent_id=?2 AND state='initiated'",
+        params![
+            ticket_id,
+            intent_id,
+            terminal.as_str(),
+            now_ms,
+            terminal_fact_digest
+        ],
+    )?;
+    tx.commit()?;
+    intent.state = terminal;
+    intent.settled_at_ms = Some(now_ms);
+    intent.terminal_fact_digest = Some(terminal_fact_digest.to_owned());
+    Ok(intent)
 }
 
 /// Mint one FIFO ticket. The budget formula is explicit and inspectable:
@@ -2607,13 +3628,13 @@ pub fn seal_promotion_request(
         ));
     }
     let (_, receipt) = branch_profile(&workspace.conn, &diff.branch_id)?;
-    if receipt.egress_policy != ForkEgressPolicyV1::DenyAll
-        || receipt.deny_all_attempt_count != 0
-        || !receipt.promotable
+    if !receipt.promotable
+        || (receipt.egress_policy == ForkEgressPolicyV1::DenyAll
+            && receipt.deny_all_attempt_count != 0)
     {
         return Err(error(
             "SNAPBACK_BRANCH_NOT_PROMOTABLE",
-            "only a promotable DenyAll branch with zero egress attempts can be sealed",
+            "only a promotable branch with policy-consistent effect custody can be sealed",
         ));
     }
     if now_ms >= approval.expires_at_ms
@@ -3232,7 +4253,124 @@ fn scan_promotion_scope(
     Ok((tables, rows))
 }
 
-fn promotion_scope(operations: &[BranchOperationV1]) -> SnapbackResult<BTreeSet<String>> {
+fn validate_captured_effect_custody(
+    policy: ForkEgressPolicyV1,
+    operations: &[BranchOperationV1],
+    intents: &[CapturedEffectIntentV1],
+) -> SnapbackResult<()> {
+    if policy == ForkEgressPolicyV1::DenyAll {
+        if !intents.is_empty()
+            || operations
+                .iter()
+                .any(|operation| !operation.approved_facts.effects.is_empty())
+        {
+            return Err(error(
+                "SNAPBACK_BRANCH_NOT_PROMOTABLE",
+                "DenyAll promotion cannot retain approved effect facts",
+            ));
+        }
+        return Ok(());
+    }
+    let by_operation = operations
+        .iter()
+        .map(|operation| {
+            (
+                operation.identity.key.operation_id.as_str(),
+                operation.child_version,
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    for intent in intents {
+        let child_version = by_operation
+            .get(intent.operation_id.as_str())
+            .ok_or_else(|| {
+                error(
+                    "SNAPBACK_BRANCH_EFFECT_LEDGER_INVALID",
+                    "captured effect intent has no terminal source operation",
+                )
+            })?;
+        if intent.child_version != Some(*child_version)
+            || intent.state != CapturedEffectStateV1::Captured
+        {
+            return Err(error(
+                "SNAPBACK_BRANCH_EFFECT_LEDGER_INVALID",
+                "captured effect intent is orphaned, nonterminal, or version-divergent",
+            ));
+        }
+    }
+    for operation in operations {
+        let expected = intents
+            .iter()
+            .filter(|intent| intent.operation_id == operation.identity.key.operation_id)
+            .map(captured_effect_fact)
+            .collect::<Vec<_>>();
+        if operation.approved_facts.effects != expected {
+            return Err(error(
+                "SNAPBACK_BRANCH_EFFECT_LEDGER_INVALID",
+                "approved effect facts do not exactly match the ordered captured-intent ledger",
+            ));
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn provisional_effect_dependencies(
+    operations: &[BranchOperationV1],
+) -> SnapbackResult<Vec<(String, u64)>> {
+    let known_versions = operations
+        .iter()
+        .map(|operation| operation.child_version)
+        .collect::<BTreeSet<_>>();
+    let mut inherited_roots = BTreeMap::<u64, BTreeSet<u64>>::new();
+    let mut dependencies = Vec::new();
+    for operation in operations {
+        let mut roots = BTreeSet::new();
+        for predecessor in &operation.causal_predecessors {
+            if *predecessor >= operation.child_version || !known_versions.contains(predecessor) {
+                return Err(error(
+                    "SNAPBACK_BRANCH_CAUSAL_ORDER_INVALID",
+                    "operation causal predecessors must name retained earlier child versions",
+                ));
+            }
+            roots.extend(
+                inherited_roots
+                    .get(predecessor)
+                    .cloned()
+                    .unwrap_or_default(),
+            );
+        }
+        let inherited_effect = !roots.is_empty();
+        if !operation.approved_facts.effects.is_empty() {
+            roots.insert(operation.child_version);
+        }
+        if inherited_effect
+            && (!operation.approved_facts.writes.is_empty()
+                || !operation.approved_facts.effects.is_empty())
+            && operation
+                .approved_facts
+                .decision
+                .get("provisionalRepresentation")
+                != Some(&Value::Bool(true))
+        {
+            return Err(error(
+                "SNAPBACK_PROMOTION_PROVISIONAL_REPRESENTATION_REQUIRED",
+                "a transitive effect-dependent write or effect lacks an explicit provisional representation",
+            ));
+        }
+        for root in &roots {
+            if *root != operation.child_version {
+                dependencies.push((operation.identity.key.operation_id.clone(), *root));
+            }
+        }
+        inherited_roots.insert(operation.child_version, roots);
+    }
+    Ok(dependencies)
+}
+
+fn promotion_scope(
+    operations: &[BranchOperationV1],
+    egress_policy: ForkEgressPolicyV1,
+) -> SnapbackResult<BTreeSet<String>> {
     let mut scope = BTreeSet::new();
     for operation in operations {
         let coverage = operation.approved_facts.coverage.clone().normalized();
@@ -3241,17 +4379,11 @@ fn promotion_scope(operations: &[BranchOperationV1]) -> SnapbackResult<BTreeSet<
             || coverage.schema_covered
             || coverage.system_fields_covered
             || coverage.assets_covered
-            || coverage.effects_covered
+            || coverage.effects_covered != (egress_policy == ForkEgressPolicyV1::CaptureOnly)
         {
             return Err(error(
                 "SNAPBACK_PROMOTION_WRITE_COVERAGE_INCOMPLETE",
                 "v1 promotion covers only the enumerated ordinary-mutation application-row lane",
-            ));
-        }
-        if !operation.approved_facts.effects.is_empty() {
-            return Err(error(
-                "SNAPBACK_BRANCH_NOT_PROMOTABLE",
-                "DenyAll promotion cannot retain approved effect facts",
             ));
         }
         if !operation.approved_facts.writes.is_empty()
@@ -3657,6 +4789,33 @@ fn build_aggregate_envelope(
         .iter()
         .map(|operation| operation.canonical_arguments.clone())
         .collect::<Vec<_>>();
+    let effect_facts = operations
+        .iter()
+        .flat_map(|operation| operation.approved_facts.effects.iter().cloned())
+        .collect::<Vec<_>>();
+    let mut egress_families = Vec::new();
+    let mut settlement_capabilities = Vec::new();
+    for effect in &effect_facts {
+        let family = match effect.get("egressClass").and_then(Value::as_str) {
+            Some("fetch" | "stream_open" | "stream_read" | "stream_cancel") => {
+                EffectEgressFamilyV1::Fetch
+            }
+            Some("push_send" | "push_receipt") => EffectEgressFamilyV1::Notification,
+            Some("jobs_enqueue" | "jobs_drain") => EffectEgressFamilyV1::Outbox,
+            _ => EffectEgressFamilyV1::Uses,
+        };
+        if !egress_families.contains(&family) {
+            egress_families.push(family);
+        }
+        let capability = match effect.get("settlementCapability").and_then(Value::as_str) {
+            Some("providerIdempotent") => EnvelopeEffectSettlementCapabilityV1::ProviderIdempotent,
+            Some("providerQueryable") => EnvelopeEffectSettlementCapabilityV1::ProviderQueryable,
+            _ => EnvelopeEffectSettlementCapabilityV1::InherentlyAmbiguous,
+        };
+        if !settlement_capabilities.contains(&capability) {
+            settlement_capabilities.push(capability);
+        }
+    }
     let envelope = CommitEnvelopeV1 {
         schema_version: 1,
         identity: request.aggregate_identity.clone(),
@@ -3698,15 +4857,20 @@ fn build_aggregate_envelope(
         write_set: aggregate_fact_set(b"promotion-write-facts", writes)?,
         ctx_answers: aggregate_fact_set(b"promotion-ctx-facts", ctx)?,
         effects: EnvelopeEffectFactsV1 {
-            facts: aggregate_fact_set(b"promotion-effect-facts", Vec::new())?,
-            egress_families: Vec::<EffectEgressFamilyV1>::new(),
-            settlement_capabilities: Vec::new(),
+            facts: aggregate_fact_set(b"promotion-effect-facts", effect_facts)?,
+            egress_families,
+            settlement_capabilities,
         },
         receipt: OperationReceiptV1 {
             state: OperationReceiptStateV1::Committed,
             receipt_digest,
             payload: RetainedEnvelopeDetailV1::InlineRedacted {
-                detail: json!({ "canonicalVersion": canonical_version }),
+                detail: json!({
+                    "canonicalVersion": canonical_version,
+                    "capturedEffectCount": operations.iter()
+                        .map(|operation| operation.approved_facts.effects.len() as u64)
+                        .sum::<u64>(),
+                }),
             },
         },
         coverage: EnvelopeCoverageV1 {
@@ -3785,12 +4949,12 @@ where
     }
     let (_, branch) = branch_profile(&workspace.conn, &request.branch_id)?;
     if !branch.promotable
-        || branch.egress_policy != ForkEgressPolicyV1::DenyAll
-        || branch.deny_all_attempt_count != 0
+        || (branch.egress_policy == ForkEgressPolicyV1::DenyAll
+            && branch.deny_all_attempt_count != 0)
     {
         return Err(error(
             "SNAPBACK_BRANCH_NOT_PROMOTABLE",
-            "branch is foreclosed, attempted egress, or is not DenyAll",
+            "branch is foreclosed or its egress policy has a disqualifying attempt",
         ));
     }
     let current_child_head = child_current_version(&workspace.conn, &request.branch_id)?
@@ -3804,6 +4968,9 @@ where
         ));
     }
     let operations = branch_operation_log(&workspace.conn, &request.branch_id)?;
+    let captured_intents = captured_effect_intents(&workspace.conn, &request.branch_id)?;
+    validate_captured_effect_custody(branch.egress_policy, &operations, &captured_intents)?;
+    let provisional_dependencies = provisional_effect_dependencies(&operations)?;
     if operation_log_digest(&operations)? != request.operation_log_digest
         || approved_facts_digest(&operations)? != request.approved_facts_digest
         || diff.diff_digest != request.diff_digest
@@ -3886,7 +5053,7 @@ where
     // expected state is predecessor-derived from the immutable base plus the
     // sealed operation write facts. The reviewed diff is only a separately
     // sealed consistency witness and never supplies proof post-images.
-    let scope = promotion_scope(&operations)?;
+    let scope = promotion_scope(&operations, branch.egress_policy)?;
     let (base_tables, base_rows) = scan_promotion_scope(workspace.immutable_base(), &scope)?;
     let approved_writes = folded_approved_writes(&base_rows, &operations)?;
     validate_diff_against_approved_facts(diff, &base_rows, &operations, &approved_writes)?;
@@ -4030,6 +5197,41 @@ where
     );
     let journal_completeness = verify_promotion_journal(&tx, new_version, &expected_journal)?;
     crate::storage::set_promotion_version(&tx, new_version)?;
+    for intent in &captured_intents {
+        tx.execute(
+            "INSERT INTO _snapback_promotion_effect_intents_v1(
+               ticket_id,intent_id,branch_id,source_operation_id,effect_ordinal,
+               egress_class,settlement_capability,idempotency_key,principal_id,
+               grant_id,authority_fingerprint,state,captured_at_ms
+             ) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,'canonicalPending',?12)",
+            params![
+                request.aggregate_identity.key.operation_id,
+                intent.intent_id,
+                intent.branch_id.0,
+                intent.operation_id,
+                intent.effect_ordinal as i64,
+                intent.egress_class,
+                intent.settlement_capability.as_str(),
+                intent.idempotency_key,
+                intent.principal_id,
+                intent.grant_id,
+                intent.authority_fingerprint,
+                intent.captured_at_ms,
+            ],
+        )?;
+    }
+    for (source_operation_id, predecessor_version) in &provisional_dependencies {
+        tx.execute(
+            "INSERT INTO _snapback_promotion_provisional_dependencies_v1(
+               ticket_id,source_operation_id,predecessor_version
+             ) VALUES(?1,?2,?3)",
+            params![
+                request.aggregate_identity.key.operation_id,
+                source_operation_id,
+                *predecessor_version as i64,
+            ],
+        )?;
+    }
     let source_write_fact_count = operations
         .iter()
         .map(|operation| operation.approved_facts.writes.len() as u64)
@@ -4044,7 +5246,11 @@ where
         source_operation_count: operations.len() as u64,
         source_write_fact_count,
         boundary_proof,
-        state: "committedNoEffects".to_owned(),
+        state: if captured_intents.is_empty() {
+            "committedNoEffects".to_owned()
+        } else {
+            "committedEffectsPending".to_owned()
+        },
         committed_at_ms: now_ms,
     };
     let receipt_digest = digest_json(b"promotion-receipt", &receipt)?;
@@ -4719,7 +5925,7 @@ mod tests {
                 .expect("boot inspection")
                 .expect("branch runtime");
             assert_eq!(
-                runtime.deny(family, 200).diagnostic.code,
+                runtime.mediate(family, 200).diagnostic.code,
                 "SNAPBACK_BRANCH_EGRESS_DENIED"
             );
         }
@@ -4887,17 +6093,64 @@ mod tests {
             )
             .expect("pin replay floor fixture");
         let identity = host_identity("canonical", "independent-clock", "app-1");
+        let empty_facts = || {
+            aggregate_fact_set(b"independent-clock-empty", Vec::new())
+                .expect("empty retained facts")
+        };
+        let envelope = CommitEnvelopeV1 {
+            schema_version: 1,
+            identity: identity.clone(),
+            snapshot: StreamQualifiedVersionV1 {
+                stream_id: identity.key.stream_id.clone(),
+                version: 7,
+                association: SnapshotAssociationKindV1::ProducedCommit,
+            },
+            principal_session_or_invocation_id: "clock-fixture".to_owned(),
+            authority: EnvelopeAuthorityFactsV1 {
+                audience: identity.bound_facts.audience.clone(),
+                grant_or_policy_identity: LaneFactV1::Defined("grant-1".to_owned()),
+                fencing_token_or_epoch: LaneFactV1::Defined("host-epoch-1".to_owned()),
+            },
+            executable_artifact_digest: LaneFactV1::Defined(sha('1')),
+            argument_digest: sha('2'),
+            plan_digest: LaneFactV1::NotDefinedForLane,
+            base_version: LaneFactV1::NotDefinedForLane,
+            read_set: empty_facts(),
+            write_set: empty_facts(),
+            ctx_answers: empty_facts(),
+            effects: EnvelopeEffectFactsV1 {
+                facts: empty_facts(),
+                egress_families: Vec::new(),
+                settlement_capabilities: Vec::new(),
+            },
+            receipt: OperationReceiptV1 {
+                state: OperationReceiptStateV1::Committed,
+                receipt_digest: sha('3'),
+                payload: RetainedEnvelopeDetailV1::InlineRedacted {
+                    detail: json!({"fixture": "independent-clock"}),
+                },
+            },
+            coverage: EnvelopeCoverageV1 {
+                covered_lanes: vec![PROMOTION_WRITER_LANE_V1.to_owned()],
+                uncovered_lanes: vec![PROMOTION_COVERAGE_GAP_V1.to_owned()],
+                coverage_digest: sha('4'),
+            },
+            recorded_at_ms: 100,
+        };
+        envelope.validate().expect("valid compact-envelope fixture");
+        let envelope_json = serde_json::to_string(&envelope).expect("encode envelope fixture");
         let insert_envelope = |conn: &Connection| {
             conn.execute(
                 "INSERT INTO _snapback_commit_envelopes_v1(
                    stream_id,originator_class,operation_id,audience,epoch_id,
                    epoch_sequence,principal_fingerprint,principal_session_id,
                    recorded_at_ms,envelope_json
-                 ) VALUES(?1,'host',?2,'app-1','host-epoch-1',1,?3,'',100,'{}')",
+                 ) VALUES(?1,'host',?2,'app-1','host-epoch-1',1,?3,'',100,?4)",
                 params![
                     identity.key.stream_id,
                     identity.key.operation_id,
                     identity.bound_facts.principal_fingerprint,
+                    envelope_json,
                 ],
             )
             .expect("insert compact-envelope sentinel");
@@ -4999,6 +6252,19 @@ mod tests {
             }],
             causal_predecessors: Vec::new(),
         }
+    }
+
+    fn public_draft_for_create(create: &InAppBranchCreateV1, id: &str) -> BranchOperationDraftV1 {
+        let mut operation = draft(&create.child_stream_id.0, id);
+        operation.identity.issuance = OperationIssuanceV1::HostIncarnation {
+            epoch_id: create.grant.grant_id.clone(),
+            upstream_identity: format!("upstream:{id}"),
+            commit_ordinal: 0,
+            authority_authenticator_digest: create.grant.authority_fingerprint.clone(),
+        };
+        operation.identity.bound_facts.authority_instance_id =
+            create.grant.authority_fingerprint.clone();
+        operation
     }
 
     #[test]
@@ -5670,6 +6936,344 @@ mod tests {
     }
 
     #[test]
+    fn capture_only_promotion_is_atomic_and_settlement_is_fenced_across_reopen() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("canonical.sqlite3");
+        let mut canonical = file_source(&canonical_path, 5);
+        let mut create = create_request("capture-promote", "capture-child", 5, 1_000);
+        create.egress_policy = ForkEgressPolicyV1::CaptureOnly;
+        create.coverage.effects_covered = true;
+        create.grant.authority_fingerprint = derive_branch_authority_fingerprint(
+            &create.grant.principal_id,
+            &create.grant.grant_id,
+            &create.grant.audience,
+        )
+        .expect("public branch authority fingerprint");
+        create_in_app_branch(&mut canonical, &create).expect("CaptureOnly branch");
+        let mut workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        let operation_draft = public_draft_for_create(&create, "capture-effect-operation");
+        let context =
+            BranchEffectExecutionContextV1::new(create.branch_id.clone(), operation_draft, 1_001);
+        for ordinal in 0..3 {
+            capture_effect_intent(&mut workspace.conn, &context, "fetch", ordinal)
+                .expect("payload-free captured intent");
+        }
+        let operation = finalize_captured_effect_operation(
+            &mut workspace.conn,
+            &context,
+            json!({"caught": 3}),
+            Some("SNAPBACK_BRANCH_EFFECT_CAPTURED"),
+        )
+        .expect("finalize effect operation")
+        .expect("captured operation");
+        assert_eq!(operation.approved_facts.effects.len(), 3);
+        let diff = exact_fork_diff(&workspace, &create.branch_id, scan_widgets)
+            .expect("effect-only exact diff");
+
+        let seal_key = PromotionSealKey::from_server_secret([23_u8; 32]).expect("seal key");
+        let ticket_identity = host_identity("canonical", "capture-promotion-ticket", "app-1");
+        let ticket_id = ticket_identity.key.operation_id.clone();
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            ticket_identity.clone(),
+            &create.branch_id,
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("ticket");
+        let request = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: create.grant.authority_fingerprint.clone(),
+                approved_at_ms: 2_001,
+                expires_at_ms: 50_000,
+            },
+            ticket,
+            ticket_identity,
+            &sha('f'),
+            &seal_key,
+            2_001,
+        )
+        .expect("seal CaptureOnly promotion");
+        let result = promote_by_reexecution(
+            &mut canonical,
+            &workspace,
+            &diff,
+            &request,
+            &seal_key,
+            &PromotionAuthorityDecisionV1::Revalidated {
+                grant_id: "grant-1".to_owned(),
+                authority_fingerprint: create.grant.authority_fingerprint.clone(),
+            },
+            2_002,
+            &sha('f'),
+            |_context, retained| Ok(retained.approved_facts.clone()),
+        )
+        .expect("atomic data plus pending-intent promotion");
+        assert_eq!(result.receipt.state, "committedEffectsPending");
+        assert_eq!(result.aggregate_envelope.effects.facts.count, 3);
+        assert_eq!(result.aggregate_envelope.write_set.count, 0);
+        assert!(
+            result
+                .aggregate_envelope
+                .coverage
+                .uncovered_lanes
+                .contains(&PROMOTION_COVERAGE_GAP_V1.to_owned()),
+            "effect support does not overclaim the separate global writer-coverage gate"
+        );
+
+        let promoted = promoted_effect_intents(&canonical, &ticket_id).expect("pending intents");
+        assert_eq!(
+            promoted
+                .iter()
+                .map(|intent| intent.effect_ordinal)
+                .collect::<Vec<_>>(),
+            vec![0, 1, 2]
+        );
+        let revoked = EffectSettlementAuthorityV1 {
+            principal_id: "agent-1".to_owned(),
+            grant_id: "grant-1".to_owned(),
+            authority_fingerprint: create.grant.authority_fingerprint.clone(),
+            expires_at_ms: 50_000,
+            revoked: true,
+        };
+        assert_eq!(
+            begin_promoted_effect_settlement(
+                &mut canonical,
+                &ticket_id,
+                &promoted[0].intent_id,
+                &revoked,
+                2_003,
+            )
+            .expect_err("revoked authority cannot initiate")
+            .diagnostic
+            .code,
+            "SNAPBACK_PROMOTION_EFFECT_AUTHORITY_DENIED"
+        );
+        let expired = EffectSettlementAuthorityV1 {
+            revoked: false,
+            expires_at_ms: 2_004,
+            ..revoked.clone()
+        };
+        assert_eq!(
+            begin_promoted_effect_settlement(
+                &mut canonical,
+                &ticket_id,
+                &promoted[1].intent_id,
+                &expired,
+                2_004,
+            )
+            .expect_err("expired authority cannot initiate")
+            .diagnostic
+            .code,
+            "SNAPBACK_PROMOTION_EFFECT_AUTHORITY_DENIED"
+        );
+        let current = EffectSettlementAuthorityV1 {
+            expires_at_ms: 50_000,
+            ..expired
+        };
+        let initiated = begin_promoted_effect_settlement(
+            &mut canonical,
+            &ticket_id,
+            &promoted[2].intent_id,
+            &current,
+            2_005,
+        )
+        .expect("durable initiation fence");
+        assert!(!initiated.already_initiated);
+        let settlement_intent_id = promoted[2].intent_id.clone();
+        drop(canonical);
+
+        let mut reopened = Connection::open(&canonical_path).expect("reopen canonical store");
+        let retry = begin_promoted_effect_settlement(
+            &mut reopened,
+            &ticket_id,
+            &settlement_intent_id,
+            &current,
+            2_006,
+        )
+        .expect("reopen recovers the initiation fence");
+        assert!(retry.already_initiated);
+        let terminal_digest = digest_json(
+            b"effect-settlement-terminal-fact-v1",
+            &json!({"providerDisposition": "accepted"}),
+        )
+        .expect("terminal fact digest");
+        let settled = finish_promoted_effect_settlement(
+            &mut reopened,
+            &ticket_id,
+            &settlement_intent_id,
+            EffectSettlementOutcomeV1::Succeeded,
+            &terminal_digest,
+            2_007,
+        )
+        .expect("settle initiated effect");
+        assert_eq!(settled.state, CapturedEffectStateV1::Succeeded);
+        assert_eq!(
+            finish_promoted_effect_settlement(
+                &mut reopened,
+                &ticket_id,
+                &settlement_intent_id,
+                EffectSettlementOutcomeV1::Succeeded,
+                &terminal_digest,
+                2_008,
+            )
+            .expect("exact terminal retry"),
+            settled
+        );
+        assert_eq!(
+            finish_promoted_effect_settlement(
+                &mut reopened,
+                &ticket_id,
+                &settlement_intent_id,
+                EffectSettlementOutcomeV1::Rejected,
+                &sha('9'),
+                2_009,
+            )
+            .expect_err("terminal retries cannot diverge")
+            .diagnostic
+            .code,
+            "SNAPBACK_PROMOTION_EFFECT_RESULT_DIVERGED"
+        );
+        let states = promoted_effect_intents(&reopened, &ticket_id)
+            .expect("settlement ledger after reopen")
+            .into_iter()
+            .map(|intent| intent.state)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            states,
+            vec![
+                CapturedEffectStateV1::AuthorityRefused,
+                CapturedEffectStateV1::AuthorityRefused,
+                CapturedEffectStateV1::Succeeded,
+            ]
+        );
+    }
+
+    #[test]
+    fn branch_mutation_fact_retention_failure_rolls_back_the_application_write() {
+        let mut canonical = source(5);
+        let mut create = create_request("atomic-retention", "atomic-child", 5, 1_000);
+        create.limits.max_retained_bytes = 1;
+        create.grant.authority_fingerprint = derive_branch_authority_fingerprint(
+            &create.grant.principal_id,
+            &create.grant.grant_id,
+            &create.grant.audience,
+        )
+        .expect("public branch authority fingerprint");
+        create_in_app_branch(&mut canonical, &create).expect("branch");
+        let mut workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        let operation_draft = draft("atomic-child", "atomic-operation");
+        {
+            let tx = workspace
+                .conn
+                .transaction()
+                .expect("application transaction");
+            tx.execute("UPDATE widgets SET name='MUST-ROLL-BACK' WHERE id=1", [])
+                .expect("stage app write");
+            let changed = crate::storage::ChangedRow {
+                table: "widgets".to_owned(),
+                id: "1".to_owned(),
+                op: crate::storage::ChangeOp::Update,
+                row: Some(json!({"id": 1, "name": "MUST-ROLL-BACK"})),
+                changed_fields: vec!["name".to_owned()],
+            };
+            let output = crate::manifest::MutationOutput {
+                version: 6,
+                changed_count: 1,
+                result: json!({"ok": true}),
+                ctx_ledger: None,
+                settlement_mint_observations: Vec::new(),
+                settlement_time_observation: None,
+                settlement_sequence_allocations: Vec::new(),
+            };
+            let error = record_branch_mutation_in(
+                &tx,
+                &BranchMutationCommitV1 {
+                    branch_id: create.branch_id.clone(),
+                    draft: operation_draft,
+                    recorded_at_ms: 1_001,
+                },
+                6,
+                &[changed],
+                &output,
+            )
+            .expect_err("fact-retention limit must abort the shared transaction");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_BRANCH_BYTE_LIMIT_EXCEEDED");
+        }
+        assert_eq!(
+            workspace
+                .conn
+                .query_row("SELECT name FROM widgets WHERE id=1", [], |row| {
+                    row.get::<_, String>(0)
+                })
+                .expect("row after rollback"),
+            "alpha"
+        );
+        assert!(
+            branch_operation_log(&workspace.conn, &create.branch_id)
+                .expect("operation log after rollback")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn capture_only_intents_obey_operation_and_ttl_limits_before_egress() {
+        let mut canonical = source(1);
+        let mut create = create_request("capture-bounds", "capture-bounds-child", 1, 100);
+        create.egress_policy = ForkEgressPolicyV1::CaptureOnly;
+        create.coverage.effects_covered = true;
+        create.limits.max_operations = 1;
+        create.grant.authority_fingerprint = derive_branch_authority_fingerprint(
+            &create.grant.principal_id,
+            &create.grant.grant_id,
+            &create.grant.audience,
+        )
+        .expect("public branch authority fingerprint");
+        create_in_app_branch(&mut canonical, &create).expect("CaptureOnly branch");
+        let mut workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        let context = BranchEffectExecutionContextV1::new(
+            create.branch_id.clone(),
+            public_draft_for_create(&create, "capture-bounded-operation"),
+            101,
+        );
+        capture_effect_intent(&mut workspace.conn, &context, "fetch", 0)
+            .expect("first intent fits the operation bound");
+        assert_eq!(
+            capture_effect_intent(&mut workspace.conn, &context, "fetch", 1)
+                .expect_err("second intent exceeds the declared bound")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_OPERATION_LIMIT_EXCEEDED"
+        );
+
+        let expired_context = BranchEffectExecutionContextV1::new(
+            create.branch_id.clone(),
+            public_draft_for_create(&create, "capture-after-expiry"),
+            create.created_at_ms + create.limits.ttl_ms,
+        );
+        assert_eq!(
+            capture_effect_intent(&mut workspace.conn, &expired_context, "fetch", 0)
+                .expect_err("exact TTL boundary refuses before intent custody")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_EXPIRED"
+        );
+        assert_eq!(
+            captured_effect_intents(&workspace.conn, &create.branch_id)
+                .expect("bounded ledger")
+                .len(),
+            1
+        );
+    }
+
+    #[test]
     fn exact_diff_model_corpus_covers_add_update_delete_and_folding() {
         for seed in 0_u64..32 {
             let mut canonical = source(1);
@@ -6277,7 +7881,7 @@ mod tests {
         let mut mislabeled = operations.clone();
         mislabeled[0].approved_facts.coverage.covered_lanes = vec!["unrelatedLane".to_owned()];
         assert_eq!(
-            promotion_scope(&mislabeled)
+            promotion_scope(&mislabeled, ForkEgressPolicyV1::DenyAll)
                 .expect_err("unrelated coverage lane cannot label a complete promotion")
                 .diagnostic
                 .code,
@@ -6286,7 +7890,7 @@ mod tests {
         let mut effectful = operations.clone();
         effectful[0].approved_facts.effects = vec![json!({ "network": "simulated" })];
         assert_eq!(
-            promotion_scope(&effectful)
+            validate_captured_effect_custody(ForkEgressPolicyV1::DenyAll, &effectful, &[],)
                 .expect_err("DenyAll promotion cannot silently drop approved effect facts")
                 .diagnostic
                 .code,
@@ -7637,19 +9241,20 @@ mod tests {
         let legacy = include_str!("branches.rs");
         assert!(legacy.contains("#[cfg(any())]\npub fn promote<F>("));
         let replacement = include_str!("fork_promotion.rs");
-        assert!(replacement.contains("pub fn promote_by_reexecution<F>("));
+        assert!(replacement.contains("pub fn promote_by_reexecution"));
         let product_source = replacement
-            .split("#[cfg(test)]")
+            .split("\n#[cfg(test)]\nmod tests {")
             .next()
             .expect("product source");
         assert!(!product_source.contains("apply_write"));
-        let promotion_surface = product_source
-            .split("pub fn promote_by_reexecution<F>(")
-            .nth(1)
-            .expect("promotion implementation")
-            .split("pub enum CanonicalAdmissionV1")
-            .next()
+        let implementation_start = product_source
+            .find("pub fn promote_by_reexecution")
+            .expect("promotion implementation");
+        let implementation_end = product_source[implementation_start..]
+            .find("pub enum CanonicalAdmissionV1")
+            .map(|offset| implementation_start + offset)
             .expect("promotion implementation boundary");
+        let promotion_surface = &product_source[implementation_start..implementation_end];
         assert!(promotion_surface.contains("PromotionReplayContextV1"));
         assert!(!promotion_surface.contains("scan_boundary"));
         assert!(!promotion_surface.contains("FnMut(&Transaction"));

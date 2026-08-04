@@ -4047,7 +4047,7 @@ impl LocalSnapback {
             return Err(runtime.deny(family, now_ms));
         }
         if let Some(runtime) = self.db.in_app_branch() {
-            return Err(runtime.deny(family, now_ms));
+            return Err(runtime.mediate(family, now_ms));
         }
         Ok(())
     }
@@ -6228,9 +6228,24 @@ impl LocalSnapback {
     ///   head, same app/bundle, server named, and no broader than its creator.
     pub(crate) fn create_operator_in_app_branch(
         &mut self,
+        allowed_functions: Vec<String>,
+        ttl_ms: i64,
+        now_ms: i64,
+    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
+        self.create_operator_in_app_branch_with_policy(
+            allowed_functions,
+            ttl_ms,
+            now_ms,
+            crate::fork_promotion::ForkEgressPolicyV1::DenyAll,
+        )
+    }
+
+    pub(crate) fn create_operator_in_app_branch_with_policy(
+        &mut self,
         mut allowed_functions: Vec<String>,
         ttl_ms: i64,
         now_ms: i64,
+        egress_policy: crate::fork_promotion::ForkEgressPolicyV1,
     ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
         const MIN_TTL_MS: i64 = 1_000;
         const MAX_TTL_MS: i64 = 15 * 60_000;
@@ -6316,9 +6331,10 @@ impl LocalSnapback {
                 schema_covered: false,
                 system_fields_covered: false,
                 assets_covered: false,
-                effects_covered: false,
+                effects_covered: egress_policy
+                    == crate::fork_promotion::ForkEgressPolicyV1::CaptureOnly,
             },
-            egress_policy: crate::fork_promotion::ForkEgressPolicyV1::DenyAll,
+            egress_policy,
             created_at_ms: now_ms,
         };
         self.db.create_managed_in_app_branch(&request)
@@ -6359,15 +6375,15 @@ impl LocalSnapback {
     /// checked before a separate LocalSnapback is opened, and the opened
     /// database re-identifies itself as that exact branch at boot.
     ///
-    /// Mutation success retains journal-derived operation facts. The present
-    /// carrier deliberately forecloses promotion before execution because its
-    /// branch-operation record is not yet atomic with the app commit; a crash
-    /// can therefore make the branch unusable, but never falsely promotable.
+    /// Mutation success retains journal-derived operation facts inside the
+    /// exact app transaction. A crash therefore reveals either neither the
+    /// app write nor operation, or both; exact retries never rerun a committed
+    /// handler and a branch remains available for later operations.
     ///
     /// @ref LLP 0162#3-safe-current-head-forks — public branch work is bound
     ///   to the server-owned current-head workspace and branch-scoped grant.
-    /// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — incomplete
-    ///   operation retention fails safe by foreclosing promotion first.
+    /// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — replay input
+    ///   retention and the app commit share one atomic custody boundary.
     pub(crate) fn execute_operator_in_app_branch(
         &mut self,
         branch_id: &crate::branches::BranchId,
@@ -6401,12 +6417,21 @@ impl LocalSnapback {
             }),
         );
         let upstream_identity = format!("branch.execute.v1:{request_id}");
-        let operation_id =
-            crate::commit_envelope::derive_host_operation_id(&upstream_identity, 0);
-        let input_fingerprint = crate::fork_promotion::derive_branch_input_fingerprint(
-            function,
-            &args,
-        )?;
+        let operation_id = crate::commit_envelope::derive_host_operation_id(&upstream_identity, 0);
+        let mut branch = LocalSnapback::open(path)?;
+        let retained_operations = branch.db.branch_operation_log(branch_id)?;
+        let causal_predecessors = retained_operations
+            .iter()
+            .find(|operation| operation.identity.key.operation_id == operation_id)
+            .map(|operation| operation.causal_predecessors.clone())
+            .unwrap_or_else(|| {
+                retained_operations
+                    .iter()
+                    .map(|operation| operation.child_version)
+                    .collect()
+            });
+        let input_fingerprint =
+            crate::fork_promotion::derive_branch_input_fingerprint(function, &args)?;
         let principal_fingerprint = crate::fork_promotion::derive_branch_principal_fingerprint(
             &receipt.branch.grant.principal_id,
         )?;
@@ -6446,16 +6471,16 @@ impl LocalSnapback {
             grant_id: receipt.branch.grant.grant_id.clone(),
             read_baseline: Value::Null,
             replay_inputs: Vec::new(),
-            causal_predecessors: Vec::new(),
+            causal_predecessors,
         };
-
-        let mut branch = LocalSnapback::open(path)?;
+        let effect_context = crate::fork_promotion::BranchEffectExecutionContextV1::new(
+            branch_id.clone(),
+            draft.clone(),
+            now_ms,
+        );
         if let Some(retained) = branch.db.branch_operation_retry(branch_id, &draft)? {
             return Ok(retained);
         }
-        branch
-            .db
-            .foreclose_branch_operation_admission(branch_id, &draft, now_ms)?;
         let diagnostics = branch.load_functions(self.functions.clone());
         if let Some(diagnostic) = diagnostics
             .into_iter()
@@ -6480,15 +6505,99 @@ impl LocalSnapback {
             &WireAuthorityFields::default(),
             resolved,
         )?;
-        let run = branch.run_function_with_authority(
-            function,
-            HandlerInput {
-                args,
-                ..HandlerInput::default()
+        if definition.kind == FunctionKind::Mutation {
+            let context = crate::fork_promotion::BranchMutationCommitV1 {
+                branch_id: branch_id.clone(),
+                draft: draft.clone(),
+                recorded_at_ms: now_ms,
+            };
+            let committed = crate::fork_promotion::with_branch_effect_execution_context(
+                effect_context.clone(),
+                || {
+                    branch.invoke_mutation_commit_with_id_authority_and_branch(
+                        function,
+                        HandlerInput {
+                            args,
+                            ..HandlerInput::default()
+                        },
+                        None,
+                        None,
+                        None,
+                        authority,
+                        Some(&context),
+                    )
+                },
+            );
+            if let Err(error) = committed {
+                if receipt.branch.egress_policy
+                    == crate::fork_promotion::ForkEgressPolicyV1::CaptureOnly
+                {
+                    let diagnostic_code = error.diagnostic.code.clone();
+                    if let Some(operation) = branch.db.finalize_captured_effect_operation(
+                        &effect_context,
+                        json!({ "handlerDiagnosticCode": diagnostic_code }),
+                        Some(&error.diagnostic.code),
+                    )? {
+                        return Ok(operation);
+                    }
+                }
+                return Err(error);
+            }
+            return branch
+                .db
+                .branch_operation_retry(branch_id, &draft)?
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_BRANCH_OPERATION_JOURNAL_INCOMPLETE",
+                        "storage",
+                        "committed branch mutation is missing its atomic operation record",
+                    )
+                });
+        }
+
+        let run = crate::fork_promotion::with_branch_effect_execution_context(
+            effect_context.clone(),
+            || {
+                branch.run_function_with_authority(
+                    function,
+                    HandlerInput {
+                        args,
+                        ..HandlerInput::default()
+                    },
+                    authority,
+                )
             },
-            authority,
         );
+        if receipt.branch.egress_policy == crate::fork_promotion::ForkEgressPolicyV1::CaptureOnly {
+            let diagnostic_code = run
+                .diagnostic
+                .as_ref()
+                .map(|diagnostic| diagnostic.code.as_str());
+            if let Some(operation) = branch.db.finalize_captured_effect_operation(
+                &effect_context,
+                run.result.clone().unwrap_or(Value::Null),
+                diagnostic_code,
+            )? {
+                return Ok(operation);
+            }
+        }
         if !run.ok {
+            if run
+                .diagnostic
+                .as_ref()
+                .is_some_and(|diagnostic| diagnostic.code == "SNAPBACK_BRANCH_EFFECT_CAPTURED")
+            {
+                return branch
+                    .db
+                    .branch_operation_retry(branch_id, &draft)?
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_BRANCH_EFFECT_LEDGER_INVALID",
+                            "storage",
+                            "captured branch action is missing its atomic operation record",
+                        )
+                    });
+            }
             let after = branch.db.inspect_local_in_app_branch(branch_id)?;
             if after.deny_all_attempt_count > receipt.branch.deny_all_attempt_count {
                 return Err(SnapbackError::error(
@@ -6512,20 +6621,11 @@ impl LocalSnapback {
                 "a successful branch action cannot be retained until CaptureOnly settlement exists",
             ));
         }
-        let version = run.version.ok_or_else(|| {
-            SnapbackError::error(
-                "SNAPBACK_BRANCH_HANDLER_RESULT_INVALID",
-                "runtime",
-                "managed branch mutation returned no committed version",
-            )
-        })?;
-        branch.db.retain_committed_branch_mutation(
+        branch.db.execute_branch_operation(
             branch_id,
             &draft,
-            version,
-            run.result.unwrap_or(Value::Null),
-            Value::Null,
             now_ms,
+            run.result.unwrap_or(Value::Null),
         )
     }
 
@@ -12850,13 +12950,15 @@ impl LocalSnapback {
                 let incarnation = self.db.ensure_authorization_stream_incarnation()?;
                 let expected =
                     descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
-                Some(bind_operation(ClientMutationIdentity::for_authority_with_settlement(
-                    id,
-                    name.to_owned(),
-                    &input,
-                    expected.authority_instance_id,
-                    &settlement,
-                )))
+                Some(bind_operation(
+                    ClientMutationIdentity::for_authority_with_settlement(
+                        id,
+                        name.to_owned(),
+                        &input,
+                        expected.authority_instance_id,
+                        &settlement,
+                    ),
+                ))
             } else {
                 None
             };
@@ -13124,21 +13226,26 @@ impl LocalSnapback {
                     if matches!(
                         identity.operation_issuance.as_ref(),
                         Some(crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. })
-                    ) => self.db.execute_host_mutation_guarded_with_settlement_time(
+                    ) =>
+                {
+                    self.db.execute_host_mutation_guarded_with_settlement_time(
                         &plan,
                         &input,
                         Some(identity),
                         settlement_time.as_ref(),
                         || Ok(()),
                         || prepared.effect_guard("host child mutation transaction"),
+                    )
+                }
+                Some(identity) => self
+                    .db
+                    .execute_mutation_idempotent_guarded_with_settlement_time(
+                        &plan,
+                        &input,
+                        identity,
+                        settlement_time.as_ref(),
+                        || prepared.effect_guard("idempotent mutation transaction"),
                     ),
-                Some(identity) => self.db.execute_mutation_idempotent_guarded_with_settlement_time(
-                    &plan,
-                    &input,
-                    identity,
-                    settlement_time.as_ref(),
-                    || prepared.effect_guard("idempotent mutation transaction"),
-                ),
                 None => self.db.execute_mutation_guarded_with_settlement_time(
                     &plan,
                     &input,
@@ -13413,6 +13520,28 @@ impl LocalSnapback {
         receipt_mutation_id: Option<&str>,
         authority: PreparedAuthority,
     ) -> SnapbackResult<MutationCommit> {
+        self.invoke_mutation_commit_with_id_authority_and_branch(
+            name,
+            input,
+            client_mutation_id,
+            authority_descriptor,
+            receipt_mutation_id,
+            authority,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn invoke_mutation_commit_with_id_authority_and_branch(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        authority_descriptor: Option<AuthorityDescriptor>,
+        receipt_mutation_id: Option<&str>,
+        authority: PreparedAuthority,
+        branch_operation: Option<&crate::fork_promotion::BranchMutationCommitV1>,
+    ) -> SnapbackResult<MutationCommit> {
         // @ref LLP 0043#settlement-consumption-and-acknowledgement-lifecycle-2026-08-01
         // Recovery of an already-committed identity is non-executing and does
         // not depend on the old function remaining in the active bundle.
@@ -13515,81 +13644,92 @@ impl LocalSnapback {
         self.ensure_permission_epoch_capacity(&epoch_scopes)?;
         let correlation = telemetry_correlation(&input.correlation);
         let span = self.telemetry.start_classified_span(
-                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
-                    name,
-                    correlation.as_deref(),
-                    None,
-                );
+            crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,
+            name,
+            correlation.as_deref(),
+            None,
+        );
         let mut result = (|| {
-        let commit = match &function.runtime {
-            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
-            | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
-                crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
-            )) => {
-                // Validate the exact dry-run result while all writes remain
-                // provisional. Reuse its ctx ledger so generated ids/time are
-                // identical when the guarded transaction executes.
-                let preview = self.db.dry_run_mutation(plan, &input)?;
-                crate::result_contract::validate_handler_result(
-                    &function,
-                    &preview.commit.output.result,
-                )?;
-                input.ctx_ledger = Some(CtxAnswerLedger {
-                    version: ctx_ledger_version(),
-                    ids: preview.generated_ids,
-                    now: preview.now_ms,
-                    auth_fingerprint: None,
-                });
-                match identity.as_ref() {
-                    Some(identity) => self.db.execute_mutation_idempotent_guarded(
-                        plan,
-                        &input,
-                        identity,
-                        || prepared.effect_guard("idempotent mutation transaction"),
-                    )?,
-                    None => self.db.execute_mutation_guarded(
-                        plan,
-                        &input,
-                        || Ok(()),
-                        || prepared.effect_guard("mutation transaction"),
-                    )?,
+            let commit = match &function.runtime {
+                FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan))
+                | FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(
+                    crate::manifest::WriteWithActivityPlan { mutation: plan, .. },
+                )) => {
+                    // Validate the exact dry-run result while all writes remain
+                    // provisional. Reuse its ctx ledger so generated ids/time are
+                    // identical when the guarded transaction executes.
+                    let preview = self.db.dry_run_mutation(plan, &input)?;
+                    crate::result_contract::validate_handler_result(
+                        &function,
+                        &preview.commit.output.result,
+                    )?;
+                    input.ctx_ledger = Some(CtxAnswerLedger {
+                        version: ctx_ledger_version(),
+                        ids: preview.generated_ids,
+                        now: preview.now_ms,
+                        auth_fingerprint: None,
+                    });
+                    match (branch_operation, identity.as_ref()) {
+                        (Some(branch_operation), None) => self.db.execute_branch_mutation_guarded(
+                            plan,
+                            &input,
+                            branch_operation,
+                            || prepared.effect_guard("branch mutation transaction"),
+                        )?,
+                        (Some(_), Some(_)) => {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_BRANCH_OPERATION_INVALID",
+                                "storage",
+                                "branch mutation carrier cannot compose with a second client identity",
+                            ));
+                        }
+                        (None, Some(identity)) => self.db.execute_mutation_idempotent_guarded(
+                            plan,
+                            &input,
+                            identity,
+                            || prepared.effect_guard("idempotent mutation transaction"),
+                        )?,
+                        (None, None) => self.db.execute_mutation_guarded(
+                            plan,
+                            &input,
+                            || Ok(()),
+                            || prepared.effect_guard("mutation transaction"),
+                        )?,
+                    }
                 }
-            }
-            FunctionRuntime::IbexModule(module) => {
+                FunctionRuntime::IbexModule(module) => {
                     let executed = crate::runtime::with_runtime_log_telemetry(
                         self.telemetry.clone(),
                         correlation.clone(),
                         || {
                             crate::runtime::execute_ibex_mutation_prepared(
-                    module,
-                    input.clone(),
-                    &prepared,
-                    DbRead::Live(&self.db),
-                    Some(&self.warm_vms),
-                    None,
+                                module,
+                                input.clone(),
+                                &prepared,
+                                DbRead::Live(&self.db),
+                                Some(&self.warm_vms),
+                                None,
                             )
                         },
-                )?;
-                crate::result_contract::validate_handler_result(&function, &executed.result)?;
-                let membership_plans = self
-                    .db
-                    .authorize_membership_commands(executed.membership_commands)?;
-                let producer_mutation_id = receipt_mutation_id
-                    .map(ToOwned::to_owned)
-                    .or_else(|| identity.as_ref().map(|identity| identity.id.clone()))
+                    )?;
+                    crate::result_contract::validate_handler_result(&function, &executed.result)?;
+                    let membership_plans = self
+                        .db
+                        .authorize_membership_commands(executed.membership_commands)?;
+                    let producer_mutation_id = receipt_mutation_id
+                        .map(ToOwned::to_owned)
+                        .or_else(|| identity.as_ref().map(|identity| identity.id.clone()))
                         .unwrap_or_else(|| {
                             crate::ids::mint_time_ordered(crate::ids::Kind::Mutation)
                         });
-                let (job_enqueues, job_producer) = admit_job_enqueues(
-                    &self.functions,
-                    executed.job_enqueues,
-                    &producer_mutation_id,
-                    name,
-                    input.auth.user_id.clone(),
-                )?;
-                self.db.commit_buffered_writes_idempotent_guarded(
-                    &input,
-                    BufferedCommitPayload {
+                    let (job_enqueues, job_producer) = admit_job_enqueues(
+                        &self.functions,
+                        executed.job_enqueues,
+                        &producer_mutation_id,
+                        name,
+                        input.auth.user_id.clone(),
+                    )?;
+                    let payload = BufferedCommitPayload {
                         writes: executed.writes,
                         sequence_allocations: executed.sequence_allocations,
                         membership_plans,
@@ -13599,22 +13739,42 @@ impl LocalSnapback {
                         job_enqueues,
                         job_producer,
                         asset_admissions: executed.asset_admissions,
-                    },
-                    identity.as_ref(),
-                    || Ok(()),
-                    || prepared.effect_guard("ibex mutation transaction"),
-                )?
-            }
-            _ => {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_FUNCTION_KIND_MISMATCH",
-                    "runtime",
-                    format!("{name} is not a mutation"),
-                ));
-            }
-        };
+                    };
+                    match (branch_operation, identity.as_ref()) {
+                        (Some(branch_operation), None) => {
+                            self.db.commit_branch_buffered_writes_guarded(
+                                &input,
+                                payload,
+                                branch_operation,
+                                || prepared.effect_guard("branch ibex mutation transaction"),
+                            )?
+                        }
+                        (Some(_), Some(_)) => {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_BRANCH_OPERATION_INVALID",
+                                "storage",
+                                "branch mutation carrier cannot compose with a second client identity",
+                            ));
+                        }
+                        (None, identity) => self.db.commit_buffered_writes_idempotent_guarded(
+                            &input,
+                            payload,
+                            identity,
+                            || Ok(()),
+                            || prepared.effect_guard("ibex mutation transaction"),
+                        )?,
+                    }
+                }
+                _ => {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                        "runtime",
+                        format!("{name} is not a mutation"),
+                    ));
+                }
+            };
 
-        self.finish_mutation_commit(epoch_scopes, commit, &admission)
+            self.finish_mutation_commit(epoch_scopes, commit, &admission)
         })();
         finish_function_observation(span, &mut result);
         result
@@ -14925,11 +15085,13 @@ impl LocalSnapback {
             SnapbackError::error(code, "realtime", message.to_owned())
         };
         let started = std::time::Instant::now();
-        let target = register.ok_or_else(|| {
-            refuse(code::MODE_INVALID, "mixed-route.v2 requires register mode")
-        })?;
+        let target = register
+            .ok_or_else(|| refuse(code::MODE_INVALID, "mixed-route.v2 requires register mode"))?;
         let admitted = target.mixed_children.clone().ok_or_else(|| {
-            refuse(code::ENTRY_INVALID, "mixed-route.v2 lacks admitted child identities")
+            refuse(
+                code::ENTRY_INVALID,
+                "mixed-route.v2 lacks admitted child identities",
+            )
         })?;
         if admitted.len() != entry.queries.len() {
             return Err(refuse(
@@ -14937,9 +15099,10 @@ impl LocalSnapback {
                 "mixed-route.v2 child identity count does not match the route",
             ));
         }
-        let profile = entry.mixed_profile.as_ref().ok_or_else(|| {
-            refuse(code::ENTRY_INVALID, "mixed-route.v2 lacks its route plan")
-        })?;
+        let profile = entry
+            .mixed_profile
+            .as_ref()
+            .ok_or_else(|| refuse(code::ENTRY_INVALID, "mixed-route.v2 lacks its route plan"))?;
         let generation = self
             .rqs_generation_digest()
             .map_err(|_| refuse(code::QUERY_FAILED, "bundle generation unavailable"))?;
@@ -15011,15 +15174,14 @@ impl LocalSnapback {
             } else {
                 authority.clone()
             };
-            let prepared = InvocationGate::prepare_function(
-                invocation_authority.clone(),
-                &function,
-            )
-            .map_err(|error| {
-                refuse(code::QUERY_FAILED, "mixed child invocation refused").with_details(
-                    json!({ "function": spec.function, "cause": error.diagnostic.code }),
-                )
-            })?;
+            let prepared =
+                InvocationGate::prepare_function(invocation_authority.clone(), &function).map_err(
+                    |error| {
+                        refuse(code::QUERY_FAILED, "mixed child invocation refused").with_details(
+                            json!({ "function": spec.function, "cause": error.diagnostic.code }),
+                        )
+                    },
+                )?;
             let input = prepared.canonicalize_input(HandlerInput {
                 args: args.clone(),
                 auth: auth.clone(),
@@ -15185,12 +15347,17 @@ impl LocalSnapback {
                     )
                 };
                 total_rows += rows.len();
-                total_bytes += serde_json::to_vec(&rows).map(|bytes| bytes.len()).unwrap_or(0);
+                total_bytes += serde_json::to_vec(&rows)
+                    .map(|bytes| bytes.len())
+                    .unwrap_or(0);
                 if total_rows > bundle::BUNDLE_MAX_ROWS {
                     return Err(refuse(code::LIMIT_ROWS, "mixed bundle row limit exceeded"));
                 }
                 if total_bytes > bundle::BUNDLE_MAX_BYTES {
-                    return Err(refuse(code::LIMIT_BYTES, "mixed bundle byte limit exceeded"));
+                    return Err(refuse(
+                        code::LIMIT_BYTES,
+                        "mixed bundle byte limit exceeded",
+                    ));
                 }
                 if started.elapsed().as_millis() as u64 > bundle::BUNDLE_MAX_EVAL_MS {
                     return Err(refuse(code::LIMIT_TIME, "mixed bundle time limit exceeded"));
@@ -19110,10 +19277,7 @@ impl LocalSnapback {
         &mut self,
         now_ms: u64,
     ) -> SnapbackResult<Vec<AdmittedCronClaim>> {
-        self.deny_derived_fork_egress(
-            crate::instance_fork::EgressFamily::CronTick,
-            now_ms,
-        )?;
+        self.deny_derived_fork_egress(crate::instance_fork::EgressFamily::CronTick, now_ms)?;
         // The cron lane consults the persisted migration fence per claim
         // (LLP 0081 §4's lane registry).
         self.db.ensure_migration_lane_open()?;
@@ -19191,10 +19355,7 @@ impl LocalSnapback {
         name: &str,
         now_ms: u64,
     ) -> SnapbackResult<AdmittedCronClaim> {
-        self.deny_derived_fork_egress(
-            crate::instance_fork::EgressFamily::CronTick,
-            now_ms,
-        )?;
+        self.deny_derived_fork_egress(crate::instance_fork::EgressFamily::CronTick, now_ms)?;
         self.db.ensure_migration_lane_open()?;
         let admission = self.admission.admit()?;
         let before_claim = self.cron.clone();
@@ -19249,10 +19410,7 @@ impl LocalSnapback {
         drive: &str,
         diagnostic_boundary: DiagnosticBoundary,
     ) -> SnapbackResult<Vec<AdmittedJobClaim>> {
-        self.deny_derived_fork_egress(
-            crate::instance_fork::EgressFamily::JobsDrain,
-            now_ms,
-        )?;
+        self.deny_derived_fork_egress(crate::instance_fork::EgressFamily::JobsDrain, now_ms)?;
         self.db.ensure_migration_lane_open()?;
         // Admission precedes the durable claim write, mirroring cron: if the
         // process is closing, no new claims are taken.
@@ -21229,10 +21387,8 @@ impl LocalSnapback {
             commit_ordinal,
             now_millis(),
         )?;
-        let operation_id = crate::commit_envelope::derive_host_operation_id(
-            upstream_identity,
-            commit_ordinal,
-        );
+        let operation_id =
+            crate::commit_envelope::derive_host_operation_id(upstream_identity, commit_ordinal);
         let mut canonical_input = input.clone();
         canonical_input.auth = authority.canonical_auth_input();
         let generation = DeploymentIdentity::from_manifests(
@@ -21406,45 +21562,45 @@ impl LocalSnapback {
         crate::args_contract::validate_function_args(&function, &input.args)?;
         let correlation = telemetry_correlation(&input.correlation);
         let span = self.telemetry.start_classified_span(
-                    crate::telemetry_contract::OperationClassIdV1::FUNCTION_ACTION,
-                    name,
-                    correlation.as_deref(),
-                    None,
-                );
+            crate::telemetry_contract::OperationClassIdV1::FUNCTION_ACTION,
+            name,
+            correlation.as_deref(),
+            None,
+        );
         let invocation_redactor = self.config.secret_redactor_for(&function.uses);
         let telemetry = self.telemetry.clone();
         let result = crate::runtime::with_runtime_log_telemetry(telemetry, correlation, || {
-                match (&function.kind, &function.runtime) {
+            match (&function.kind, &function.runtime) {
                 (FunctionKind::Action, FunctionRuntime::HostPlan(HandlerPlan::Action(plan))) => {
                     self.invoke_action_plan(plan, input, metadata, &prepared)
                 }
-            (FunctionKind::Action, FunctionRuntime::IbexModule(module)) => {
-                let runtime = self.runtime.clone();
-                // @ref LLP 0036#runtime-exposure-d5-d8 — grants are computed
-                // per invocation from the function's `uses` declaration; the
-                // store is read through on every run (no caching), leaving VM
-                // reuse questions to the DK-4 machinery.
-                let grants = self.config_grants(&function);
-                // One provenance root: runMutation (and the trait's unreachable
-                // raw-read defense) derives a reference from this *mut for one
-                // synchronous call, so no borrow outlives a later write.
-                let snapback = self as *mut LocalSnapback;
-                let mut host = LocalIbexActionHost {
-                    snapback,
-                    authority: prepared.authority().clone(),
-                    _marker: PhantomData,
-                };
-                runtime.invoke_ibex_action_prepared(
-                    module, input, &prepared, metadata, &mut host, grants, None,
-                )
-            }
-            _ => Err(SnapbackError::error(
-                "SNAPBACK_FUNCTION_KIND_MISMATCH",
-                "runtime",
-                format!("{name} is not an action"),
-            )),
+                (FunctionKind::Action, FunctionRuntime::IbexModule(module)) => {
+                    let runtime = self.runtime.clone();
+                    // @ref LLP 0036#runtime-exposure-d5-d8 — grants are computed
+                    // per invocation from the function's `uses` declaration; the
+                    // store is read through on every run (no caching), leaving VM
+                    // reuse questions to the DK-4 machinery.
+                    let grants = self.config_grants(&function);
+                    // One provenance root: runMutation (and the trait's unreachable
+                    // raw-read defense) derives a reference from this *mut for one
+                    // synchronous call, so no borrow outlives a later write.
+                    let snapback = self as *mut LocalSnapback;
+                    let mut host = LocalIbexActionHost {
+                        snapback,
+                        authority: prepared.authority().clone(),
+                        _marker: PhantomData,
+                    };
+                    runtime.invoke_ibex_action_prepared(
+                        module, input, &prepared, metadata, &mut host, grants, None,
+                    )
                 }
-            });
+                _ => Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                    "runtime",
+                    format!("{name} is not an action"),
+                )),
+            }
+        });
         let result = result.map_err(|error| {
             // In-lock actions cannot race config rotation, but scrub at the
             // creation boundary so no public envelope observes raw secret
@@ -24939,56 +25095,56 @@ fn order_field_bounds_from_functions(
     let mut register = |table_name: &str,
                         order: &[crate::manifest::OrderExpr]|
      -> SnapbackResult<()> {
-            let table = schema.table(table_name).ok_or_else(|| {
+        let table = schema.table(table_name).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                "runtime",
+                format!("order-field bound references unknown table {table_name}"),
+            )
+        })?;
+        for declaration in order {
+            let Some(max_encoded_bytes) = declaration.max_encoded_bytes else {
+                continue;
+            };
+            let field = table.field(&declaration.field).ok_or_else(|| {
                 SnapbackError::error(
                     "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
                     "runtime",
-                    format!("order-field bound references unknown table {table_name}"),
+                    format!(
+                        "order-field bound references unknown field {table_name}.{}",
+                        declaration.field
+                    ),
                 )
             })?;
-            for declaration in order {
-                let Some(max_encoded_bytes) = declaration.max_encoded_bytes else {
-                    continue;
-                };
-                let field = table.field(&declaration.field).ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
-                        "runtime",
-                        format!(
-                            "order-field bound references unknown field {table_name}.{}",
-                            declaration.field
-                        ),
-                    )
-                })?;
-                if max_encoded_bytes == 0
-                    || max_encoded_bytes > 9_007_199_254_740_991
-                    || field.field_type != crate::manifest::FieldType::String
-                {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
-                        "runtime",
-                        format!(
-                            "order-field maxEncodedBytes requires a positive bound on string field {table_name}.{}",
-                            declaration.field
-                        ),
-                    ));
-                }
-                let key = (table_name.to_owned(), declaration.field.clone());
-                if let Some(previous) = bounds.insert(key.clone(), max_encoded_bytes)
-                    && previous != max_encoded_bytes
-                {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
-                        "runtime",
-                        format!(
-                            "order-field bound for {}.{} conflicts: {previous} versus {max_encoded_bytes}",
-                            key.0, key.1
-                        ),
-                    ));
-                }
+            if max_encoded_bytes == 0
+                || max_encoded_bytes > 9_007_199_254_740_991
+                || field.field_type != crate::manifest::FieldType::String
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                    "runtime",
+                    format!(
+                        "order-field maxEncodedBytes requires a positive bound on string field {table_name}.{}",
+                        declaration.field
+                    ),
+                ));
             }
-            Ok(())
-        };
+            let key = (table_name.to_owned(), declaration.field.clone());
+            if let Some(previous) = bounds.insert(key.clone(), max_encoded_bytes)
+                && previous != max_encoded_bytes
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID",
+                    "runtime",
+                    format!(
+                        "order-field bound for {}.{} conflicts: {previous} versus {max_encoded_bytes}",
+                        key.0, key.1
+                    ),
+                ));
+            }
+        }
+        Ok(())
+    };
 
     for function in &manifest.functions {
         match &function.runtime {
@@ -29352,11 +29508,22 @@ mod tests {
         assert_eq!(response.profile.as_deref(), Some("mixed-route.v2"));
         assert_eq!(response.entries.len(), 2);
         assert_eq!(response.entries[0].rows, response.entries[1].rows);
-        assert_eq!(response.entries[0].subscription_id.as_deref(), snapback.subscriptions.keys().next().map(String::as_str));
-        assert!(response.entries[1].subscription_id.is_none());
-        assert_eq!(snapback.subscriptions.len(), 1, "plain child owns no live state");
         assert_eq!(
-            snapback.subscriptions.values().next().map(|subscription| subscription.function.as_str()),
+            response.entries[0].subscription_id.as_deref(),
+            snapback.subscriptions.keys().next().map(String::as_str)
+        );
+        assert!(response.entries[1].subscription_id.is_none());
+        assert_eq!(
+            snapback.subscriptions.len(),
+            1,
+            "plain child owns no live state"
+        );
+        assert_eq!(
+            snapback
+                .subscriptions
+                .values()
+                .next()
+                .map(|subscription| subscription.function.as_str()),
             Some("liveTodos"),
         );
         assert_eq!(
@@ -34850,9 +35017,7 @@ globalThis.__snapbackHandlers = {
             "application/octet-stream".to_owned(),
         ];
         intent.accept.max_bytes = 64 * 1024;
-        intent.video = Some(crate::manifest::AssetVideoPolicy {
-            location,
-        });
+        intent.video = Some(crate::manifest::AssetVideoPolicy { location });
         intent
     }
 
@@ -54266,6 +54431,14 @@ globalThis.__snapbackHandlers = {
                 export: "enqueueJob".to_owned(),
             }),
         );
+        let capture_twice = FunctionDefinition::new(
+            "captureTwice",
+            FunctionKind::Action,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = { async captureTwice(ctx) { let caught = 0; try { await ctx.fetch({ url: 'https://capture-sentinel.invalid/one' }); } catch (_) { caught += 1; } try { await ctx.fetch({ url: 'https://capture-sentinel.invalid/two' }); } catch (_) { caught += 1; } return { caught }; } };".to_owned(),
+                export: "captureTwice".to_owned(),
+            }),
+        );
         let inert_notify = FunctionDefinition::new(
             "inertNotify",
             FunctionKind::Action,
@@ -54284,19 +54457,22 @@ globalThis.__snapbackHandlers = {
                 attempt_stream,
                 attempt_push,
                 enqueue_job,
+                capture_twice,
                 inert_notify,
             ],
             acknowledged_experimental_capabilities: vec!["jobs_one_off_v1".to_owned()],
             ..FunctionManifest::default()
         });
         assert!(
-            diagnostics
-                .iter()
-                .all(|diagnostic| {
-                    diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
-                }),
+            diagnostics.iter().all(|diagnostic| {
+                diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+            }),
             "branch carrier functions load: {diagnostics:?}"
         );
+        snapback
+            .db
+            .initialize_data_version_stream_for_test()
+            .expect("initialize the canonical data stream for branch-carrier tests");
         snapback
     }
 
@@ -54365,10 +54541,24 @@ globalThis.__snapbackHandlers = {
             collision.diagnostic.code,
             "SNAPBACK_BRANCH_OPERATION_ID_REUSED"
         );
+        let second = snapback
+            .execute_operator_in_app_branch(
+                &branch_id,
+                "createOwned",
+                json!({"value": "branch-owned-second"}),
+                "branch-request-stable-2",
+                1_004,
+                ServerProfile::Test,
+            )
+            .expect("a committed operation does not foreclose later branch work");
+        assert_ne!(
+            second.identity.key.operation_id,
+            operation.identity.key.operation_id
+        );
 
         let branch_path = snapback
             .db
-            .managed_in_app_branch_path(&branch_id, 1_004)
+            .managed_in_app_branch_path(&branch_id, 1_005)
             .expect("resolve server-custodied branch path");
         let branch = LocalSnapback::open(branch_path).expect("open branch for assertions");
         let rows = branch.db.scan_table("records", 10, 0).unwrap();
@@ -54378,6 +54568,14 @@ globalThis.__snapbackHandlers = {
             .find(|row| row["value"] == "branch-owned")
             .expect("branch-owned row exists");
         assert_eq!(owned["ownerId"], principal_id);
+        assert_eq!(
+            branch
+                .db
+                .branch_operation_log(&branch_id)
+                .expect("reopened operation log")
+                .len(),
+            2
+        );
         assert_eq!(snapback.db.scan_table("records", 10, 0).unwrap().total, 1);
     }
 
@@ -54399,14 +54597,9 @@ globalThis.__snapbackHandlers = {
             .expect_err("branch principal cannot satisfy admin-row guard");
         assert_eq!(row_denial.diagnostic.code, "ADMIN_ROW_DENIED");
 
-        for (index, function) in [
-            "attemptFetch",
-            "attemptStream",
-            "attemptPush",
-            "enqueueJob",
-        ]
-        .into_iter()
-        .enumerate()
+        for (index, function) in ["attemptFetch", "attemptStream", "attemptPush", "enqueueJob"]
+            .into_iter()
+            .enumerate()
         {
             let now_ms = 1_002 + i64::try_from(index).unwrap() * 2;
             let egress_branch = snapback
@@ -54433,5 +54626,120 @@ globalThis.__snapbackHandlers = {
             assert_eq!(inspected.branch.deny_all_attempt_count, 1);
             assert!(!inspected.branch.promotable);
         }
+    }
+
+    #[test]
+    fn capture_only_orders_repeated_same_family_attempts_without_payload_custody() {
+        let mut snapback = managed_branch_carrier_fixture();
+        let receipt = snapback
+            .create_operator_in_app_branch_with_policy(
+                vec!["captureTwice".to_owned()],
+                100_000,
+                1_000,
+                crate::fork_promotion::ForkEgressPolicyV1::CaptureOnly,
+            )
+            .expect("create CaptureOnly branch");
+        let branch_id = receipt.branch.branch.branch_id.clone();
+        let operation = snapback
+            .execute_operator_in_app_branch(
+                &branch_id,
+                "captureTwice",
+                json!({}),
+                "branch-capture-twice",
+                1_001,
+                ServerProfile::Test,
+            )
+            .expect("caught host refusals finalize one captured operation");
+        assert_eq!(operation.approved_facts.effects.len(), 2);
+        assert_eq!(operation.approved_facts.effects[0]["effectOrdinal"], 0);
+        assert_eq!(operation.approved_facts.effects[1]["effectOrdinal"], 1);
+        assert_ne!(
+            operation.approved_facts.effects[0]["intentId"],
+            operation.approved_facts.effects[1]["intentId"]
+        );
+
+        let path = snapback
+            .db
+            .managed_in_app_branch_path(&branch_id, 1_002)
+            .expect("branch path");
+        let reopened = LocalSnapback::open(&path).expect("reopen captured branch");
+        let intents = reopened
+            .db
+            .captured_effect_intents(&branch_id)
+            .expect("ordered payload-free intents");
+        assert_eq!(
+            intents
+                .iter()
+                .map(|intent| (intent.effect_ordinal, intent.egress_class.as_str()))
+                .collect::<Vec<_>>(),
+            vec![(0, "fetch"), (1, "fetch")]
+        );
+        assert!(
+            intents
+                .iter()
+                .all(|intent| intent.child_version == Some(operation.child_version))
+        );
+        let database_bytes = std::fs::read(path).expect("read branch database");
+        assert!(
+            !database_bytes
+                .windows(b"capture-sentinel.invalid".len())
+                .any(|window| window == b"capture-sentinel.invalid"),
+            "target bytes must never enter the captured-effect ledger"
+        );
+    }
+
+    #[test]
+    fn public_capture_only_carrier_derives_transitive_predecessors_and_refuses_plain_writes() {
+        let mut snapback = managed_branch_carrier_fixture();
+        let receipt = snapback
+            .create_operator_in_app_branch_with_policy(
+                vec!["captureTwice".to_owned(), "createOwned".to_owned()],
+                100_000,
+                1_000,
+                crate::fork_promotion::ForkEgressPolicyV1::CaptureOnly,
+            )
+            .expect("create multi-operation CaptureOnly branch");
+        let branch_id = receipt.branch.branch.branch_id.clone();
+        let captured = snapback
+            .execute_operator_in_app_branch(
+                &branch_id,
+                "captureTwice",
+                json!({}),
+                "branch-capture-before-write",
+                1_001,
+                ServerProfile::Test,
+            )
+            .expect("capture effect intents");
+        let later_write = snapback
+            .execute_operator_in_app_branch(
+                &branch_id,
+                "createOwned",
+                json!({"value": "must-stay-provisional"}),
+                "branch-write-after-capture",
+                1_002,
+                ServerProfile::Test,
+            )
+            .expect("branch-local write may execute before promotion review");
+        assert_eq!(
+            later_write.causal_predecessors,
+            vec![captured.child_version]
+        );
+
+        let path = snapback
+            .db
+            .managed_in_app_branch_path(&branch_id, 1_003)
+            .expect("branch path");
+        let branch = LocalSnapback::open(path).expect("reopen branch");
+        let operations = branch
+            .db
+            .branch_operation_log(&branch_id)
+            .expect("public carrier operation log");
+        assert_eq!(
+            crate::fork_promotion::provisional_effect_dependencies(&operations)
+                .expect_err("plain later write cannot assert a captured effect outcome")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROMOTION_PROVISIONAL_REPRESENTATION_REQUIRED"
+        );
     }
 }

@@ -415,6 +415,8 @@ pub struct ManagedBranchCreateHostInputV1 {
     pub schema_version: u32,
     pub allowed_functions: Vec<String>,
     pub ttl_ms: i64,
+    #[serde(default)]
+    pub egress_policy: crate::fork_promotion::ForkEgressPolicyV1,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, schemars::JsonSchema)]
@@ -1365,10 +1367,11 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
                                 "branch.create.v1 requires schemaVersion 1",
                             ));
                         }
-                        snapback.create_operator_in_app_branch(
+                        snapback.create_operator_in_app_branch_with_policy(
                             input.allowed_functions,
                             input.ttl_ms,
                             host_now_ms(),
+                            input.egress_policy,
                         )
                     })
             };
