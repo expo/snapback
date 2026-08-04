@@ -1,7 +1,7 @@
 # Optimistic projections: dev replay-divergence warning and declarative projection helpers
 
 **Date:** 2026-08-04
-**Status:** Open
+**Status:** Resolved 2026-08-04
 **Area:** Snapback React, optimistic mutations
 **Governing:** LLP 0107, LLP 0061
 
@@ -53,6 +53,40 @@ here, not proposed.
   recipe's capture-and-set form.
 - Update `guide/recipes/optimistic-toggle.md` and the capability index when
   the helpers exist so the recipe teaches the helper as the default.
+
+## Resolution
+
+Both affordances landed together (llp-ship run 20260804-optimistic-replay-lint),
+designed first as the LLP 0107 "Replay-safety affordances" amendment per this
+ticket's second bullet:
+
+- `packages/snapback-react/index.mjs` now runs the dev replay advisory at
+  optimistic admission: the just-validated initial projection is replayed
+  through the reducer and compared structurally; divergence (or a throw over
+  the reducer's own output) logs one
+  `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` `console.warn` per
+  (mutation, query) pair per provider, pointing at the recipe page. The
+  check is observational, runs after side-effect-free admission validation,
+  and an explicit production `NODE_ENV` skips it.
+- `projectRecordFields(recordId, fields, {idField = '_id'})` is exported
+  with strict types: one declaration derives the idempotent capture-and-set
+  `update` and the complete-receipt `isAuthoritative` (receipt value when
+  the receipt object carries the field, else the captured intent), with
+  `TypeError` refusals for non-primitive intents, empty field sets, bad ids,
+  and non-records bases. `exact-result-types.fixture.ts` proves the pair
+  spreads into `useSnapbackMutation` optimistic options under strict tsc.
+- `optimistic.test.mjs` proves: the pre-existing increment fixture warns
+  exactly once across five attempts; the recipe's capture-and-set projection
+  and the helper stay silent; the helper's matcher holds through partial
+  delivery and retires on the complete receipt; declaration-time refusals;
+  and the production gate suppresses the advisory.
+- `guide/recipes/optimistic-toggle.md` teaches the helper as the preferred
+  form (new transcluded snippet) and documents the advisory;
+  `guide/clients/react.md` cross-links both.
+
+The delivery-side transactional-coherence question stays a non-proposed note
+here, as filed. The adjacent HMR runtime work remains open in
+issues/20260803-react-hmr-reference-invalid.md.
 
 ## Related
 
