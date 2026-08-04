@@ -5,7 +5,13 @@
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (migration transaction carrier slice — every new
+**Revised:** 2026-08-04 (public current-policy evaluation tail — exact
+generated `owned-crud.v1` / `owner.v1` create envelopes can now project only
+after their current row, retained insert postimage, write, receipt, and exact
+private mint-site chain agree; the private settlement observation is stripped
+before public projection, generated delete remains fail-closed under the
+current-plus-per-version rule, unsupported fact/profile classes remain
+metadata-free refusals, and every capability stays Missing); 2026-08-04 (migration transaction carrier slice — every new
 migration-journal transaction now carries an authenticated approval-derived
 Host identity with a durable pre-transaction ordinal, including lease-
 superseding crash/retry and cleanup-reopen paths; migration remains explicitly
@@ -44,7 +50,13 @@ they can version independently of the profile umbrella)
 **Related:** LLP 0012, LLP 0037, LLP 0043, LLP 0055, LLP 0095, LLP 0133,
 LLP 0148, LLP 0162
 
-**Implementation evidence:** 2026-08-04 (new migration journal rows carry one
+**Implementation evidence:** 2026-08-04 (the closed public owner evaluator now
+admits exact generated create as well as update, binds create's private mint
+observation to the active plan's exact site/id/occurrence, strips that private
+ledger before projection, recognizes generated delete but refuses it because
+no current row can satisfy owner policy, and keeps aggregate/non-row,
+membership, effect-bearing, opaque, truncated/expired, and changed-authority
+cases metadata-free); 2026-08-04 (new migration journal rows carry one
 authenticated Host identity per physical transaction, derived from the
 approval operation and durable pre-transaction journal-row count; production
 apply/release, rollback, cleanup-reopen, multi-entry transaction, and lease-
@@ -557,8 +569,40 @@ minted sidecar.
 
 | LLP 0162 acceptance row | Status after this slice |
 | --- | --- |
-| 3 | **Partial** — exact public/admin transport and encrypted protected custody are wired. Admin current policy projects the complete retained fact set. Public current-policy projection is green only for the closed generated owner-update profile; generated creates, aggregate/non-row, delete, hand-written/opaque, predicate, membership, effect-bearing, and other unsupported shapes remain deliberately fail-closed. |
+| 3 | **Partial** — exact public/admin transport and encrypted protected custody are wired. Admin current policy projects the complete retained fact set. Public current-policy projection is green only for the closed generated owner-create/update profiles; delete is exactly recognized but remains fail-closed because no current row can satisfy owner policy. Aggregate/non-row, hand-written/opaque, predicate, membership, effect-bearing, and other unsupported shapes remain deliberately fail-closed. |
 | 4 | **Partial** — protected-detail retention is independent and fork custody is closed, but complete-target activation/asymmetric-retention acceptance remains open. |
 | 14 | **Partial** — unchanged: promotion is wired, while first-party job/cron/migration/child identities are not yet production-reachable. |
 
 Every related capability remains `Missing`; this slice makes no advertisement.
+
+## Implementation record — 2026-08-04, public current-policy evaluation tail
+
+The public evaluator now treats exact generated `owned-crud.v1` / `owner.v1`
+create and update plans as two separate closed profiles recovered from the
+currently loaded artifact. Create requires exactly one inserted row whose
+current owner and retained insert postimage are the current subject, one
+matching ctx id, and one server-captured private settlement-mint observation
+bound to the active plan's exact `plan/steps/0/insert/row-id` site, occurrence
+zero, and the inserted id. The observation is checked only as captured
+consistency evidence; it supplies no authority and its private site/occurrence
+ledger is removed before the protected receipt enters the public projection.
+
+Generated owner delete is also recognized from its exact get/guard/delete
+plan, but deliberately returns `authorization-unprovable`: LLP 0088's
+current-plus-per-version rule cannot authorize an absent current row, and the
+retained historical owner, operation identity, audience, and ciphertext
+custody cannot substitute for that missing current authority. Hand-written or
+opaque artifacts remain outside the closed profile regardless of matching
+metadata strings.
+
+The focused corpus covers changed current and historical owners; missing-row,
+predicate/query and aggregate result-membership facts; membership-shaped
+permission facts; widened ctx answers; effect-bearing envelopes; divergent or
+unknown receipt shapes; wrong-site, extra, and reordered private mint
+observations; truncation and expiry; artifact, principal, audience, and
+authority-incarnation change; and unsupported policy shapes. Every refusal
+withholds stored metadata, counts, digests, and detail behind the stable
+`authorization-unprovable` disposition. Membership, general predicate/query,
+aggregate/non-row, effect-bearing, opaque/hand-written, and other generated
+profiles still have no positive evaluator, so row 3 remains **Partial**, the
+Spec remains Draft, and every related capability remains `Missing`.
