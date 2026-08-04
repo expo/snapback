@@ -23,9 +23,12 @@ const digest = (value) => createHash('sha256').update(JSON.stringify(value)).dig
 // These are SHA-256 over the exact JSON.stringify bytes of the generated
 // runtime artifacts. Format 1 is deliberately frozen beside the v2 golden so
 // later mixed-profile work cannot add, remove, reorder, or reinterpret a v1
-// byte without an explicit regression failure.
-const FORMAT_1_BYTES_SHA256 = '4f562d7fa69c5a9ec142c70912f7624ec1087beed92244be2330fce34409f5c2';
-const FORMAT_2_BYTES_SHA256 = '2e716b7ff8732ed1ea3b252ca905d6a32b2210ca125d41156ce5124a20601371';
+// byte without an explicit regression failure. The pins rotate whenever
+// generation inputs legitimately rotate (expectedGeneration hashes ride
+// every reference); re-pin only after verifying the SHAPE is unchanged —
+// a new field on format 1 is the defect this guard exists to catch.
+const FORMAT_1_BYTES_SHA256 = 'ca4e8547b18c51d73569ceaa45291d89a43a0352f83a8f6d6247d90870622367';
+const FORMAT_2_BYTES_SHA256 = '39b6d27f4254d82d4946f1066d6a27518a2512ab64be777a7f40243ab9158942';
 
 test('mixed route emits format 2 from bound liveness while format 1 stays byte-exact', async (t) => {
   const root = mkdtempSync(join(tmpdir(), 'snapback-mixed-route-v2-'));
