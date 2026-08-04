@@ -76,10 +76,26 @@ Landed in the explanation/protected-custody slice:
   boundary, and exact drop/reap removes its sidecar; swapped valid sidecars
   refuse at boot rather than deferring failure until explanation.
 
+Landed in the host action-child carrier slice:
+
+- job, cron, recovery, and manual action runs derive one attempt-invariant
+  parent from durable job/slot/idempotency facts and stable child ordinals;
+- server-recorded range-less host epochs authenticate child issuance to the
+  current data stream and authorization-instance incarnation;
+- production managed and detached actions carry host identities through both
+  HostPlan and Ibex nested mutations, with an explicit two-writer host lane
+  inventory and buffered exact replay before write application; and
+- ordinary-only, host-only, both-lane, wrong-issuance, and identityless-
+  asymmetric fixtures are green, including a transaction-level manifest-lane
+  refusal and a production retry that retains one row and one Host envelope.
+
+The host lane remains dormant outside explicit corpus activation. This slice
+does not publish or advertise a capability.
+
 Still required before this ticket closes:
 
-- first-party host identity adapters for jobs, cron, migrations, and stable
-  child ordinals (promotion's authenticated host lease is already wired);
+- first-party host identity adapters for migration transactions (job/cron
+  action children and promotion's authenticated host lease are wired);
 - real per-fact current-policy evaluation for the public explanation lane (the
   admin transport and protected custody are wired; public stays Partial and
   fail-closed);

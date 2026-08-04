@@ -5,7 +5,12 @@
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (explanation/protected-custody slice — public and
+**Revised:** 2026-08-04 (host action-child carrier slice — job/cron action
+parents now derive attempt-invariant child identities, managed HostPlan and
+detached HostPlan/Ibex commits select explicit host writer adapters, and the
+asymmetric/retry corpus is green; migrations, target activation, performance,
+review, and publication remain open, so every capability stays Missing);
+2026-08-04 (explanation/protected-custody slice — public and
 AdminRead exact-operation transport, encrypted protected fact custody, and
 fork-safe key rotation landed; public per-fact policy evaluation remains
 fail-closed/Partial, host callers and publication gates remain open, and all
@@ -26,7 +31,10 @@ they can version independently of the profile umbrella)
 **Related:** LLP 0012, LLP 0037, LLP 0043, LLP 0055, LLP 0095, LLP 0133,
 LLP 0148, LLP 0162
 
-**Implementation evidence:** 2026-08-04 (admin explanation and encrypted
+**Implementation evidence:** 2026-08-04 (job/cron action children carry
+server-recorded host-incarnation issuance through the production HostPlan and
+Ibex adapters; retry reconstruction and explicit asymmetric writer coverage
+are green, while migrations and publication gates remain open); 2026-08-04 (admin explanation and encrypted
 protected-detail custody are wired; public explanation resolves current
 authority but withholds all facts until a real per-fact evaluator exists;
 derived forks scrub ciphertext and rotate its owner-only sidecar); 2026-08-04 (public range transport, atomic client
@@ -250,6 +258,53 @@ and prohibit capability publication.
 | 14 | **Partial** — host namespace authentication, client/host key separation, terminal receipt window, live promotion-ticket leases, and incarnation closure corpus are green; first-party host callers, transport-level client exclusion, and the full capacity/purge corpus are not wired. |
 
 Every related capability remains `Missing`; this slice makes no advertisement.
+
+## Implementation record — 2026-08-04, host action-child carrier slice
+
+Job, cron, recovery, and manual action runs now construct one deterministic
+host parent from their durable job name, slot key, and idempotency key. The
+attempt-local run id and attempt number are deliberately excluded. Each nested
+mutation consumes a stable child ordinal only when the explicit
+`hostChildMutation` lane is active; retries reconstruct the same parent and
+restart the ordinal sequence, so a committed prefix returns its retained
+result instead of executing again.
+
+The server records one range-less host epoch for the current data stream and
+authorization-instance incarnation, and resolves every presented host child
+against that live epoch and its authenticator before writing an envelope. The
+production managed-action and detached-action adapters both carry the identity
+through HostPlan and Ibex mutation commits. Their physical writer inventory is
+the explicit pair
+`LocalDatabase::execute_host_mutation_guarded_with_settlement_time` and
+`LocalDatabase::commit_buffered_host_writes_guarded`; the buffered seam now
+checks retained settlement before applying writes, matching HostPlan exact
+replay.
+
+Coverage classification is lane-specific rather than global. An
+ordinary-only manifest leaves identityless host writes outside its claim, a
+host-only manifest leaves identityless ordinary writes outside its claim, and
+either covered lane requires issuance from its matching client-range or host-
+incarnation namespace. Even when the preflight lane is uncovered, the shared
+envelope hook refuses issuance whose lane is absent from the active manifest,
+and the transaction leaves neither data nor a partial envelope. Focused corpus
+also proves both covered lanes together, wrong-issuance refusal, production
+HostPlan retry stability, and buffered host exact replay.
+
+This slice does not cover migration transactions and does not activate either
+lane on a production target. The complete target inventory, asymmetric-
+retention tail, paired baseline-digest-bound active-lane performance record,
+independent review, and author acceptance remain publication gates. LLP 0163
+therefore remains Draft and every related capability remains `Missing`.
+
+| LLP 0162 acceptance row | Status after this slice |
+| --- | --- |
+| 1 | **Partial** — job/cron action-child HostPlan and Ibex commits can atomically record host envelopes, and exact retry is green; migration and complete-target crash corpus remain open. |
+| 2 | **Partial** — action-child host retry returns the retained settlement under stable upstream/ordinal identity; complete cross-arm acceptance remains gated. |
+| 4 | **Partial** — ordinary-only, host-only, both, wrong-issuance, and identityless-asymmetric fixtures are green, but no production target activates a complete all-writer manifest. |
+| 13 | **Partial** — unchanged: the qualified paired active-lane measurement is still required. |
+| 14 | **Partial** — first-party job/cron action children are production-reachable across both runtime tiers; migration identities and the remaining capacity/purge corpus are open. |
+
+No capability is advertised by this implementation record.
 
 ## Implementation record — 2026-08-04, public client carrier slice
 
