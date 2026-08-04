@@ -36,9 +36,15 @@ import { brotliCompressSync, constants as zlibConstants, gzipSync } from 'node:z
 
 import { build, version as esbuildVersion } from 'esbuild';
 
+import {
+  AuthCoordinator,
+  createMemoryAuthCustodyStorage,
+} from '../../packages/snapback-contract/auth-coordinator.mjs';
+
 import { launchChromeCdp } from '../../demos/_kit/chrome-process.mjs';
 import { startServer } from '../../demos/_kit/server-process.mjs';
 import { resolveInstalledBrowserExecutable } from '../../scripts/snapback-package-cold-install-lib.mjs';
+import { SnapbackClient } from '../../packages/snapback-client/index.mjs';
 import {
   createMaterializationStore,
   decodeMaterializationRecordV1,
@@ -1407,6 +1413,284 @@ async function runFileCrashEvidence() {
   }
 }
 
+const LOGOUT_BRIDGE_INCARNATION = '018f0d90-7b21-7a22-8c33-445566778899';
+const LOGOUT_BRIDGE_SESSION = '018f0d90-7b22-7a22-8c33-445566778899';
+const LOGOUT_BRIDGE_USER = '018f0d90-7b23-7a22-8c33-445566778899';
+const LOGOUT_BRIDGE_AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
+const LOGOUT_BRIDGE_BEARER = 'sbs_carrier_exit_logout_v3';
+const LOGOUT_BRIDGE_APP = 'snapback.test/carrier-exit-logout-v3';
+
+function logoutBridgeHandshake(authenticated) {
+  return {
+    protocolVersion: 1,
+    serverStartupNonce: 'carrier-exit-logout-v3',
+    authorizationStreamIncarnation: LOGOUT_BRIDGE_INCARNATION,
+    transitionGeneration: 0,
+    activeMode: 'sessions',
+    desiredMode: 'sessions',
+    modeState: 'settled',
+    appDataAvailability: 'available',
+    quarantineCode: null,
+    clientProtocols: {
+      authClient: 1,
+      authInvalidation: null,
+      authorityDescriptor: 1,
+      authorizedLease: null,
+    },
+    availability: {
+      onlineRequestResponse: { available: true, reason: null },
+      authScopedLive: {
+        available: false,
+        minimumAuthInvalidationProtocol: 1,
+        reason: 'SNAPBACK_AUTH_INVALIDATION_PROTOCOL_REQUIRED',
+      },
+      retainedReads: {
+        available: false,
+        minimumAuthInvalidationProtocol: 1,
+        minimumAuthorizedLeaseProtocol: 1,
+        reason: 'SNAPBACK_AUTH_RETAINED_READS_UNAVAILABLE',
+      },
+      queuedReplay: {
+        available: true,
+        minimumAuthorityDescriptorProtocol: 1,
+        reason: null,
+      },
+    },
+    provider: { key: 'email-code', available: true },
+    transports: ['bearer'],
+    authority: authenticated
+      ? {
+          kind: 'humanSession',
+          userId: LOGOUT_BRIDGE_USER,
+          sessionId: LOGOUT_BRIDGE_SESSION,
+          isAuthenticated: true,
+        }
+      : { kind: 'anonymous', userId: null, sessionId: null, isAuthenticated: false },
+    authorityDescriptor: {
+      descriptorVersion: 1,
+      authorityInstanceId: authenticated
+        ? LOGOUT_BRIDGE_AUTHORITY
+        : LOGOUT_BRIDGE_INCARNATION,
+      sessionGeneration: authenticated ? 1 : 0,
+    },
+    deploymentIdentity: {
+      schemaVersion: 'snapback.v1',
+      authMode: 'sessions',
+      appId: LOGOUT_BRIDGE_APP,
+      schemaHash: `snapback.v1:sessions:schema:sha256:${'1'.repeat(64)}`,
+      bundleHash: `snapback.v1:sessions:function:sha256:${'2'.repeat(64)}`,
+      inputsHash: `snapback.v1:sessions:inputs:sha256:${'3'.repeat(64)}`,
+    },
+    authorizedLease: null,
+  };
+}
+
+function logoutBridgeCredential() {
+  const now = Date.now();
+  return {
+    tokenType: 'Bearer',
+    token: LOGOUT_BRIDGE_BEARER,
+    refreshAfter: now + 60_000,
+    session: {
+      id: LOGOUT_BRIDGE_SESSION,
+      userId: LOGOUT_BRIDGE_USER,
+      provider: 'email-code',
+      createdAt: now,
+      expiresAt: now + 120_000,
+      absoluteExpiresAt: now + 240_000,
+    },
+    authorityDescriptor: {
+      descriptorVersion: 1,
+      authorityInstanceId: LOGOUT_BRIDGE_AUTHORITY,
+      sessionGeneration: 1,
+    },
+  };
+}
+
+async function logoutBridgeResidentSnapshot(store, key) {
+  return {
+    retainedEntryPresent: await store.load(key) !== null,
+    pendingOutboxIds: (await store.outboxPending()).map((record) => record.id),
+    sections: await store.materializationTransaction('readonly', (view) => ({
+      materializations: view.materializations.size,
+      pageSets: view.pageSets.size,
+      memberships: view.memberships.size,
+    })),
+  };
+}
+
+async function runPublicLogoutBridgeEvidence() {
+  const directory = await mkdtemp(join(tmpdir(), 'snapback-carrier-exit-logout-v3-'));
+  const key = rqsEntryKey('logoutBridge', { fixture: 'llp-0166-carrier-exit' });
+  const store = createFileRqsResumeStore({
+    directory,
+    identity: 'logout-owner',
+    clientStoreId: 'carrier-exit-logout-v3-store',
+  });
+  let client = null;
+  const originalFetch = globalThis.fetch;
+  try {
+    await store.whenLockSettled();
+    assert.equal(store.isWriter(), true);
+    let wipeCalls = 0;
+    let logoutPosted = false;
+    let clearedBeforeAnonymousResume = false;
+    const injectedStore = Object.create(store);
+    injectedStore.wipe = async () => {
+      wipeCalls += 1;
+      return store.wipe();
+    };
+    const coordinator = new AuthCoordinator({
+      appId: LOGOUT_BRIDGE_APP,
+      storage: createMemoryAuthCustodyStorage(),
+      broadcastChannelFactory: null,
+      hintStorage: null,
+    });
+    client = new SnapbackClient('https://carrier-exit-logout.test', {
+      authCoordinator: coordinator,
+      authClientProtocol: 1,
+      authorityDescriptorProtocol: 1,
+      rqsStore: injectedStore,
+      offlineQueue: false,
+    });
+    globalThis.fetch = async (url, init = {}) => {
+      const path = new URL(url).pathname;
+      const headers = new Headers(init.headers);
+      if (path === '/auth/session') {
+        const authenticated = headers.get('authorization')
+          === `Bearer ${LOGOUT_BRIDGE_BEARER}`;
+        if (logoutPosted) {
+          const snapshot = await logoutBridgeResidentSnapshot(store, key);
+          assert.equal(authenticated, false);
+          assert.deepEqual(snapshot, {
+            retainedEntryPresent: false,
+            pendingOutboxIds: [],
+            sections: { materializations: 0, pageSets: 0, memberships: 0 },
+          });
+          clearedBeforeAnonymousResume = true;
+        }
+        return Response.json(logoutBridgeHandshake(authenticated));
+      }
+      if (path === '/auth/exchange') return Response.json(logoutBridgeCredential());
+      if (path === '/auth/logout') {
+        assert.equal(headers.get('authorization'), `Bearer ${LOGOUT_BRIDGE_BEARER}`);
+        logoutPosted = true;
+        return new Response(null, { status: 204 });
+      }
+      throw new Error(`unexpected logout bridge request: ${init.method ?? 'GET'} ${path}`);
+    };
+
+    await client.authExchange({ challengeId: 'carrier-exit-logout', code: '123456' });
+    assert.equal(await store.allocateQueryInstanceId(), 1);
+    assert.equal(await store.allocateQueryInstanceId(), 2);
+    const initialMeta = await store.readStoreMeta();
+    await store.writeStoreMeta({
+      ...initialMeta,
+      generationCounters: {
+        writerGeneration: 9,
+        authorityGenerationHighWater: 7,
+        queryGenerationHighWater: 8,
+      },
+      durableRegistrations: { logout: { source: 'programmatic' } },
+      policyBudgetFacts: { logicalBytes: 123 },
+      brokerRoster: { context: { revision: 4 } },
+      fenceHighWaters: { qmk: 11 },
+      tombstoneHighWaters: { qmk: 12 },
+      barrierHighWaters: { authority: 13 },
+    });
+    assert.equal((await store.commit(key, resumeEntry(1, 'logout-predecessor'))).persisted, true);
+    await store.outboxEnqueue({ id: 'logout-v3-pending', function: 'writePredecessor' });
+    await store.materializationTransaction('readwrite', (view) => {
+      view.materializations.set('logout-v3-materialization', { occupied: true });
+      view.pageSets.set('logout-v3-page-set', { occupied: true });
+      view.memberships.set('logout-v3-membership', { occupied: true });
+    });
+    const before = await store.readStoreMeta();
+    assert.deepEqual(await logoutBridgeResidentSnapshot(store, key), {
+      retainedEntryPresent: true,
+      pendingOutboxIds: ['logout-v3-pending'],
+      sections: { materializations: 1, pageSets: 1, memberships: 1 },
+    });
+
+    const sibling = createFileRqsResumeStore({
+      directory,
+      identity: 'logout-sibling',
+      clientStoreId: 'carrier-exit-logout-v3-sibling',
+    });
+    await sibling.whenLockSettled();
+    const siblingStoreId = (await sibling.readStoreMeta()).clientStoreId;
+    assert.equal((await sibling.commit('sibling-entry', resumeEntry(1, 'sibling'))).persisted, true);
+    await sibling.outboxEnqueue({ id: 'sibling-pending', function: 'writeSibling' });
+    await sibling.close();
+    const blobsBefore = (await readdir(directory)).filter((name) => name.endsWith('.v1.json'));
+    assert.equal(blobsBefore.length, 2);
+
+    const wipeCallsBeforeLogout = wipeCalls;
+    assert.equal(await client.authLogout(), null);
+    assert.equal(wipeCalls, wipeCallsBeforeLogout + 1);
+    assert.equal(clearedBeforeAnonymousResume, true);
+    const after = await store.readStoreMeta();
+    assert.equal(after.clientStoreId, before.clientStoreId);
+    assert.equal(after.queryInstanceIdHighWater, before.queryInstanceIdHighWater);
+    assert.deepEqual(after.generationCounters, before.generationCounters);
+    assert.deepEqual(after.fenceHighWaters, before.fenceHighWaters);
+    assert.deepEqual(after.tombstoneHighWaters, before.tombstoneHighWaters);
+    assert.deepEqual(after.barrierHighWaters, before.barrierHighWaters);
+    assert.deepEqual(after.durableRegistrations, {});
+    assert.deepEqual(after.policyBudgetFacts, {});
+    assert.deepEqual(after.brokerRoster, {});
+    assert.notEqual(after.handleKey, before.handleKey);
+    const nextAllocation = await store.allocateQueryInstanceId();
+    assert.equal(nextAllocation, 3);
+    const blobsAfter = (await readdir(directory)).filter((name) => name.endsWith('.v1.json'));
+    assert.equal(blobsAfter.length, 1);
+
+    const reopenedSibling = createFileRqsResumeStore({
+      directory,
+      identity: 'logout-sibling',
+    });
+    await reopenedSibling.whenLockSettled();
+    const reopenedSiblingStoreId = (await reopenedSibling.readStoreMeta()).clientStoreId;
+    assert.notEqual(reopenedSiblingStoreId, siblingStoreId);
+    assert.equal(await reopenedSibling.load('sibling-entry'), null);
+    assert.deepEqual(await reopenedSibling.outboxPending(), []);
+    await reopenedSibling.close();
+
+    return {
+      publicMethod: 'SnapbackClient.authLogout',
+      transitionParticipant: 'AuthCoordinator.commitDurable',
+      nodeLevelBridge: true,
+      pageLevelBridge: false,
+      wipeCallsDuringLogout: wipeCalls - wipeCallsBeforeLogout,
+      retainedAndOutboxClearedBeforeAnonymousResume: clearedBeforeAnonymousResume,
+      clientStoreIdPreserved: after.clientStoreId === before.clientStoreId,
+      allocatorHighWaterPreserved: after.queryInstanceIdHighWater
+        === before.queryInstanceIdHighWater,
+      generationHighWatersPreserved: JSON.stringify(after.generationCounters)
+        === JSON.stringify(before.generationCounters),
+      fenceTombstoneBarrierHighWatersPreserved: [
+        'fenceHighWaters',
+        'tombstoneHighWaters',
+        'barrierHighWaters',
+      ].every((slot) => JSON.stringify(after[slot]) === JSON.stringify(before[slot])),
+      storeMetaPolicyProjectionCleared: [
+        'durableRegistrations',
+        'policyBudgetFacts',
+        'brokerRoster',
+      ].every((slot) => Object.keys(after[slot]).length === 0),
+      handleKeyRotated: after.handleKey !== before.handleKey,
+      nextAllocatedQueryInstanceId: nextAllocation,
+      siblingIdentityBlobs: { before: blobsBefore.length, after: blobsAfter.length },
+      destroyedSiblingReopenedWithFreshIdentity: reopenedSiblingStoreId !== siblingStoreId,
+    };
+  } finally {
+    globalThis.fetch = originalFetch;
+    try { await client?.closeAuth(); } catch {}
+    try { await store.close(); } catch {}
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
 async function runFileAuthorityEvidence() {
   const directory = await mkdtemp(join(tmpdir(), 'snapback-carrier-exit-authority-'));
   try {
@@ -1842,8 +2126,10 @@ function sourceProvenance() {
   const files = [
     'tests/acceptance/local-store-carrier-exit-v1.mjs',
     ...ATTRIBUTION_MODULES.map((name) => `packages/snapback-client/${name}`),
+    'packages/snapback-client/index.mjs',
     'packages/snapback-client/rqs-store.mjs',
     'packages/snapback-client/rqs-store-file.mjs',
+    'packages/snapback-contract/auth-coordinator.mjs',
     'packages/snapback-contract/client-store.mjs',
     'demos/_kit/chrome-process.mjs',
   ].map((path) => ({ path, sha256: sha256Hex(readFileSync(join(ROOT, path))) }));
@@ -1923,6 +2209,11 @@ module-own minified bytes.
 - File crash cuts pause inside the real adapter at before-rename and
   after-rename/before-directory-sync boundaries, then kill the detached child
   process group with SIGKILL.
+- The authority-logout row is a Node-level public bridge: it calls
+  \`SnapbackClient.authLogout\`, observes the LLP 0059 participant's file-v3
+  transition before anonymous resume, and checks the §D1 projection including
+  pending-outbox destruction and sibling-identity sweeping. It is not a
+  page-level browser leg.
 - The retained-unreachable row is GAP because no shipped public client path
   seeds the LLP 0166 v3 materialization from the backend and renders its answer
   class. The receipt separately records whether the supplied backend and
@@ -1993,6 +2284,10 @@ async function main() {
     await verifyRetainedArtifacts();
     return;
   }
+  if (process.argv.includes('--logout-only')) {
+    console.log(JSON.stringify(await runPublicLogoutBridgeEvidence(), null, 2));
+    return;
+  }
   const skipBrowser = process.argv.includes('--skip-browser');
   const startedAt = new Date().toISOString();
   const source = sourceProvenance();
@@ -2000,12 +2295,12 @@ async function main() {
   const bundle = await measureBundleAttribution(source, closure);
   if (skipBrowser) await buildBrowserHarness();
   const fileCrash = await runFileCrashEvidence();
+  const publicLogout = await runPublicLogoutBridgeEvidence();
   const fileAuthority = await runFileAuthorityEvidence();
   const fileCustody = await runFileCustodyEvidence();
   const backend = await probeBackend();
   const browser = skipBrowser ? null : await runBrowserEvidence(makeBrowserFixtures());
   const retainedGapReason = 'SNAPBACK_CARRIER_EXIT_RETAINED_RENDER_BRIDGE_MISSING: no shipped public client path seeds an LLP 0166 v3 materialization from a live backend and renders the answer-class projection after backend loss; the receipt separately records the backend and browser probe outcomes from this run';
-  const logoutGapReason = 'SNAPBACK_CARRIER_EXIT_LOGOUT_V3_BRIDGE_MISSING: authLogout parks live handles and clears auth custody, but no shipped public bridge invokes the LLP 0166 v3 store-wide logout transition';
   const legs = [
     browser
       ? pass('browser-terminate-relaunch', 'browser-indexeddb-v3', {
@@ -2037,7 +2332,7 @@ async function main() {
       },
       retainedGapReason,
     ),
-    gap('authority-logout', 'public-client-to-v3-store', { publicBridgeFound: false }, logoutGapReason),
+    pass('authority-logout', 'node-public-client-to-file-v3', publicLogout),
     pass('authority-user-switch', 'node-file-v3-multi-identity', fileAuthority.userSwitch),
     pass('authority-revocation', 'node-file-v3-materialization', fileAuthority.revocation),
     browser

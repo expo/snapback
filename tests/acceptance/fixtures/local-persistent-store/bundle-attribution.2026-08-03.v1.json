@@ -2,13 +2,19 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-03",
   "source": {
-    "revision": "b3c2f19cf1890d6b38696c3702ec2c1b66b3fe82",
-    "dirty": false,
-    "dirtyPaths": [],
+    "revision": "f78e23a602db9a545f49e439423731cd14b4c44a",
+    "dirty": true,
+    "dirtyPaths": [
+      "ackages/snapback-client/index.mjs",
+      "packages/snapback-client/package.json",
+      "scripts/check-package-test-inventory.mjs",
+      "tests/acceptance/local-store-carrier-exit-v1.mjs",
+      "packages/snapback-client/logout-v3-bridge.test.mjs"
+    ],
     "files": [
       {
         "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
-        "sha256": "2b7e3f728bcf225a948d1f46a90031f332fa38a65fa77c98285645d75e3cc65b"
+        "sha256": "84f161151090946769668e0d3980afd39ee9e0bd58daed6e2d8dc93b0876e2bb"
       },
       {
         "path": "packages/snapback-client/materialization-store.mjs",
@@ -16,7 +22,7 @@
       },
       {
         "path": "packages/snapback-client/registration-ledger.mjs",
-        "sha256": "5f5e66d1d8a8eb36323cd5bdedb8c536487bb92343da5312107023a411c6481c"
+        "sha256": "6f3200d7fcaa68f8610ccf1dff2bb80b4f51414c7d02113e79aa3691e1fa485a"
       },
       {
         "path": "packages/snapback-client/demand-broker.mjs",
@@ -43,12 +49,20 @@
         "sha256": "65ac9258773dcffae88031ee4d3a428c22dbbfbf18615ae29befa15dc202c63d"
       },
       {
+        "path": "packages/snapback-client/index.mjs",
+        "sha256": "e563380379039967ae1ed85e53920916bb5ffa34a5abdb52743e9232fc3502ff"
+      },
+      {
         "path": "packages/snapback-client/rqs-store.mjs",
         "sha256": "2d083c54d4d03b1b577960ce48ea71db784df55bede9c9235e0757f4825c3782"
       },
       {
         "path": "packages/snapback-client/rqs-store-file.mjs",
         "sha256": "6e51df397c62310d449bc2b96bce25a6b85919bed441755458dfba8496d38291"
+      },
+      {
+        "path": "packages/snapback-contract/auth-coordinator.mjs",
+        "sha256": "34dbfb48bb70f9bfeed02d9cc6b7dcfb4b9c56c0e4f5ed3ca64a473b11c0e4c3"
       },
       {
         "path": "packages/snapback-contract/client-store.mjs",
@@ -80,10 +94,10 @@
     "external": []
   },
   "output": {
-    "minifiedBytes": 485260,
-    "gzipBytes": 133085,
-    "brotliBytes": 110144,
-    "sha256": "545d67b442f7f9384f5d506ec1abf15056d30c4e8baa3affc4f82f1bf1a0ac1f"
+    "minifiedBytes": 485143,
+    "gzipBytes": 133011,
+    "brotliBytes": 110168,
+    "sha256": "1c9edee2962c97fe5a4df1c401c407a1fc1637d47281964eb928544786564a07"
   },
   "modules": [
     {
@@ -96,9 +110,9 @@
     {
       "module": "registration-ledger",
       "path": "packages/snapback-client/registration-ledger.mjs",
-      "sourceBytes": 25450,
-      "minifiedModuleOwnBytes": 13799,
-      "sourceSha256": "5f5e66d1d8a8eb36323cd5bdedb8c536487bb92343da5312107023a411c6481c"
+      "sourceBytes": 25592,
+      "minifiedModuleOwnBytes": 13786,
+      "sourceSha256": "6f3200d7fcaa68f8610ccf1dff2bb80b4f51414c7d02113e79aa3691e1fa485a"
     },
     {
       "module": "demand-broker",
@@ -143,7 +157,7 @@
       "sourceSha256": "65ac9258773dcffae88031ee4d3a428c22dbbfbf18615ae29befa15dc202c63d"
     }
   ],
-  "totalMeasuredModuleOwnBytes": 96230,
+  "totalMeasuredModuleOwnBytes": 96217,
   "browserClosureQualification": {
     "status": "PASS",
     "materializationStoreResolved": true,

@@ -83,6 +83,7 @@ const inventories = [
       'hosted-ephemeral.test.mjs',
       'lifecycle-disposal.test.mjs',
       'lease-convergence.test.mjs',
+      'logout-v3-bridge.test.mjs',
       'materialization-store.test.mjs',
       'micro-operational.test.mjs',
       'micro.test.mjs',
@@ -484,7 +485,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // 179 -> 180 (2026-08-03, LLP 0114 local-development synchronization):
 // @expo/snapback-react gains the bounded binding mismatch recovery and strict
 // hosted/sessions refusal suite.
-assert.equal(total, 180, 'reviewed package/admin test count changed');
+// 180 -> 181 (2026-08-03, LLP 0166 logout bridge): @expo/snapback-client gains
+// the public AuthCoordinator-to-v3-store logout transition suite.
+assert.equal(total, 181, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

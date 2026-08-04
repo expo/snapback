@@ -6,8 +6,8 @@
     "LLP 0166#executable-acceptance",
     "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
   ],
-  "startedAt": "2026-08-03T23:40:32.188Z",
-  "completedAt": "2026-08-03T23:41:45.428Z",
+  "startedAt": "2026-08-04T02:09:40.390Z",
+  "completedAt": "2026-08-04T02:11:12.315Z",
   "runtime": {
     "node": "v25.9.0",
     "platform": "darwin",
@@ -15,13 +15,19 @@
     "hostnameClass": "local-evidence-machine"
   },
   "source": {
-    "revision": "b3c2f19cf1890d6b38696c3702ec2c1b66b3fe82",
-    "dirty": false,
-    "dirtyPaths": [],
+    "revision": "f78e23a602db9a545f49e439423731cd14b4c44a",
+    "dirty": true,
+    "dirtyPaths": [
+      "ackages/snapback-client/index.mjs",
+      "packages/snapback-client/package.json",
+      "scripts/check-package-test-inventory.mjs",
+      "tests/acceptance/local-store-carrier-exit-v1.mjs",
+      "packages/snapback-client/logout-v3-bridge.test.mjs"
+    ],
     "files": [
       {
         "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
-        "sha256": "2b7e3f728bcf225a948d1f46a90031f332fa38a65fa77c98285645d75e3cc65b"
+        "sha256": "84f161151090946769668e0d3980afd39ee9e0bd58daed6e2d8dc93b0876e2bb"
       },
       {
         "path": "packages/snapback-client/materialization-store.mjs",
@@ -29,7 +35,7 @@
       },
       {
         "path": "packages/snapback-client/registration-ledger.mjs",
-        "sha256": "5f5e66d1d8a8eb36323cd5bdedb8c536487bb92343da5312107023a411c6481c"
+        "sha256": "6f3200d7fcaa68f8610ccf1dff2bb80b4f51414c7d02113e79aa3691e1fa485a"
       },
       {
         "path": "packages/snapback-client/demand-broker.mjs",
@@ -56,12 +62,20 @@
         "sha256": "65ac9258773dcffae88031ee4d3a428c22dbbfbf18615ae29befa15dc202c63d"
       },
       {
+        "path": "packages/snapback-client/index.mjs",
+        "sha256": "e563380379039967ae1ed85e53920916bb5ffa34a5abdb52743e9232fc3502ff"
+      },
+      {
         "path": "packages/snapback-client/rqs-store.mjs",
         "sha256": "2d083c54d4d03b1b577960ce48ea71db784df55bede9c9235e0757f4825c3782"
       },
       {
         "path": "packages/snapback-client/rqs-store-file.mjs",
         "sha256": "6e51df397c62310d449bc2b96bce25a6b85919bed441755458dfba8496d38291"
+      },
+      {
+        "path": "packages/snapback-contract/auth-coordinator.mjs",
+        "sha256": "34dbfb48bb70f9bfeed02d9cc6b7dcfb4b9c56c0e4f5ed3ca64a473b11c0e4c3"
       },
       {
         "path": "packages/snapback-contract/client-store.mjs",
@@ -75,8 +89,8 @@
   },
   "partial": false,
   "summary": {
-    "pass": 13,
-    "gap": 4,
+    "pass": 14,
+    "gap": 3,
     "skipped": 0,
     "capabilityClaimsChanged": false
   },
@@ -219,7 +233,7 @@
           2,
           3
         ],
-        "relaunchToReadableMs": 1627.644,
+        "relaunchToReadableMs": 1607.537,
         "browser": {
           "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
           "version": "Google Chrome 150.0.7871.187",
@@ -232,12 +246,12 @@
         },
         "cleanup": {
           "firstBrowser": {
-            "pid": 94175,
+            "pid": 91175,
             "requestedSignal": "SIGKILL",
             "processTreeExitAttested": true
           },
           "finalBrowser": {
-            "pid": 94234,
+            "pid": 91273,
             "requestedSignal": "SIGTERM",
             "processTreeExitAttested": true
           },
@@ -335,7 +349,7 @@
           {
             "type": "boundary",
             "boundary": "before-rename",
-            "pid": 91630,
+            "pid": 85012,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -346,7 +360,7 @@
           {
             "type": "boundary",
             "boundary": "after-rename-before-directory-sync",
-            "pid": 91693,
+            "pid": 85022,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -400,12 +414,28 @@
     },
     {
       "leg": "authority-logout",
-      "carrier": "public-client-to-v3-store",
-      "status": "GAP",
+      "carrier": "node-public-client-to-file-v3",
+      "status": "PASS",
       "evidence": {
-        "publicBridgeFound": false
-      },
-      "reason": "SNAPBACK_CARRIER_EXIT_LOGOUT_V3_BRIDGE_MISSING: authLogout parks live handles and clears auth custody, but no shipped public bridge invokes the LLP 0166 v3 store-wide logout transition"
+        "publicMethod": "SnapbackClient.authLogout",
+        "transitionParticipant": "AuthCoordinator.commitDurable",
+        "nodeLevelBridge": true,
+        "pageLevelBridge": false,
+        "wipeCallsDuringLogout": 1,
+        "retainedAndOutboxClearedBeforeAnonymousResume": true,
+        "clientStoreIdPreserved": true,
+        "allocatorHighWaterPreserved": true,
+        "generationHighWatersPreserved": true,
+        "fenceTombstoneBarrierHighWatersPreserved": true,
+        "storeMetaPolicyProjectionCleared": true,
+        "handleKeyRotated": true,
+        "nextAllocatedQueryInstanceId": 3,
+        "siblingIdentityBlobs": {
+          "before": 2,
+          "after": 1
+        },
+        "destroyedSiblingReopenedWithFreshIdentity": true
+      }
     },
     {
       "leg": "authority-user-switch",
@@ -543,7 +573,7 @@
           "version": 7,
           "token": "sbrt1.carrier-exit.7"
         },
-        "maintenanceMs": 51097.785
+        "maintenanceMs": 70426.794
       }
     },
     {
@@ -630,8 +660,8 @@
       "status": "PASS",
       "evidence": {
         "artifact": "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-03.v1.json",
-        "minifiedBytes": 485260,
-        "measuredModuleOwnBytes": 96230,
+        "minifiedBytes": 485143,
+        "measuredModuleOwnBytes": 96217,
         "modules": 8,
         "browserClosureQualification": {
           "status": "PASS",

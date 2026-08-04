@@ -2017,17 +2017,16 @@ export class SnapbackClient {
         if (firstError) throw firstError;
       },
       commitDurable: async (context = {}) => {
-        // User-switch wipe of the persisted RQS resume store (LLP 0090 D3):
-        // v1 entries are authority-independent, so the wipe is layout
-        // hygiene for the v2 door rather than a data-exposure gate — a
-        // failed wipe is availability-only and must not fail the barrier.
-        if (!this.rqsStore) return;
-        const principal = (authority) => (authority && typeof authority === 'object'
-          ? `${authority.kind ?? ''}:${authority.userId ?? ''}`
-          : null);
-        const previous = principal(context.previousAuthority);
-        const next = principal(context.nextAuthority);
-        if (previous === next) return;
+        // @ref LLP 0166#d1--one-store-domain — every LLP 0039 session
+        // authority transition is client-wide: clear all resident sections
+        // and outbox plus the selected storeMeta projection atomically,
+        // preserve monotone owner state, and rotate the handle key. Agent
+        // authority transitions remain LLP 0055 grant-scoped and must not
+        // enter this store-wide path.
+        //
+        // This participant retains the shipped availability-only exception:
+        // a refused/failed wipe cannot fail the AuthCoordinator barrier.
+        if (!this.rqsStore || !this.authCoordinator) return;
         try { await this.rqsStore.wipe(); } catch { /* availability-only */ }
       },
       resume: async (context) => {
