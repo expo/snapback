@@ -2150,6 +2150,14 @@ fence beside LLP 0053's. §D8 deliberately does own the cursor wire grammar.
 9. Does the evaluator conformance corpus extend LLP 0051 D5's corpus
    (proposed) or stand alone — with LLP 0051's owners.
 
+   > **Ruled (2026-08-03, Charlie Cheever, as LLP 0051's owner): extend
+   > D5.** The result-transform conformance corpus lands as an LLP 0051
+   > D5 extension — the same corpus discipline, pinned evaluator
+   > identities, and cross-runtime exactness bar the 2026-08-03 Phase-1
+   > D5 evidence proved out at 37/37 — not a standalone artifact. The
+   > dated note in LLP 0051 records the same ruling; LLP 0166 §D7's
+   > conformance gate binds here.
+
 ## Status
 
 Accepted, v0.7 — Charlie Cheever accepted and promoted the Spec on 2026-08-03

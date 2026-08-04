@@ -1706,6 +1706,23 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    > pends, and a missed timebox returns here for a fresh dated ruling
    > rather than sliding silently. Later phases remain unassigned; this
    > ruling opens exactly Phase 1 (LLP 0155 Move 3's entry point).
+   >
+   > **Gate outcome (2026-08-03, Charlie Cheever): ADVANCED.** Both
+   > evidence halves were presented ahead of the timebox and the author
+   > advanced Phase 1 the same day: the sizing spike (Kanban's common
+   > path is exactly Insert/Get/Guard/Patch; measured browser-evaluator
+   > closure 23,368 min / 8,547 gzip, +19,913/+6,846 over the landed
+   > LLP 0166 store — `tests/acceptance/fixtures/write-lane/
+   > phase1-sizing-spike.2026-08-03.v1.md`) and the D5 evidence (37/37
+   > corpus cases Rust-vs-JS exact, all five multi-table cases replayed,
+   > zero placeholders — `phase1-d5-evidence.2026-08-03.v1.md`).
+   > Advancement was author-presented per the standing rule; OQ8 remains
+   > pending and its unshipped mechanisms (read admission, identity,
+   > receipts, presentation beyond the landed store slice) are Phase-1
+   > implementation obligations, not waived. The Phase-1 implementation
+   > program is commissioned as
+   > `issues/20260803-move3-phase1-program.md`; the Kanban-gate exit
+   > presentation stays due 2026-08-17.
 6. **The ephemeral no-sync pin.** Does the proposed LLP 0013
    amendment (0126 OQ8; constraint 4) land with Phase 0 or
    independently, and who writes it?
