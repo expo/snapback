@@ -67,6 +67,7 @@ and `guide-gap`.
 | realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner. The contributor local target additionally ships Experimental `mixed_bundle_boot_v2`: a disjoint LLP 0157 `mixed-route.v2` artifact/wire evaluates live and ordinary children at one pinned snapshot, registers only identity-bound live children, and returns plain children honestly read-only. `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register and mixed mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) | llp/0090, llp/0092, llp/0157 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | sync.offline-js-arm | Experimental JS/React offline substrate: default IndexedDB + Web Locks in capable browsers, durable file storage in capable Node hosts, and in-memory fallback; declared public authority-independent retained queries; durable M2 outbox with exact ordered replay and pending-intent projection. Node/file and React-stub tests pass, and LLP 0155 proves real-Chrome `SIGKILL` persistence plus two-tab lock refusal/takeover. End-to-end browser React/server retained-current, resync/replay, settlement, observer convergence, and protected-refusal proof remain GAPs; no local execution or `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, retainability opt-in, pending intent render | local | partial | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs + `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` (Node/file, same-process) + `demos/zero-bakeoff/stage0/browser/run.mjs` (real-browser carrier substrate only) | llp/0043, llp/0090, llp/0129, llp/0155 | GAP (end-to-end browser product proof; owner: Charlie, review: 2026-08-31; issue: issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md); sync/offline-and-retention.md |
+| sync.local-persistent-store | LLP 0166 store + hydration bridge: one store domain per clientStoreId, registration-led establishment from the generated trusted activation only, completeness-proof + lease validation before any page commit, durable registrations behind the internal OQ8 seam, and proof-revalidated `authoritative`/`retained` relaunch answers for owner-scoped generated relational queries; snapshot-batch stays volatile (`none` retention); capability publication and the finite-carrier proof amendment remain GAPs | retained render, materialization, completeness proof, qmk1, hydration bridge, relaunch, answer class | local | partial | tests/acceptance/local-store-carrier-exit-v1.mjs --check in scripts/verify-local-proof (receipt 15 PASS / 2 GAP) + demos/triage-graph acceptance (8/8) | llp/0166, llp/0157, llp/0094 | GAP (publication-gated receipt rows; owner: Charlie, review: 2026-08-31; issue: issues/20260803-p1-server-proof-issuance.md); sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention (LLP 0043 M1 custody) on the JS/React arm — the Contract arm ships it; this arm does not yet | offline auth browser, lease js | none | design-only | llp/0129-local-first-program.plan.md (Phase 0 status note; no shipped witness) | llp/0043, llp/0053, llp/0129 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260731-js-arm-lease-custody-and-sessions-outbox.md) |
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-31) |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
@@ -11295,14 +11296,14 @@ title: Offline retention and mutation replay
 id: sync.offline-and-retention
 order: 1
 audience: agent-first
-capabilities: [sync.offline, sync.offline-js-arm]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs]
-examples: [demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
+capabilities: [sync.offline, sync.offline-js-arm, sync.local-persistent-store]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs]
+examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-04
+reviewed-commit: d3e80b7d4981c4fa14535e2a852e8cc2bc82e95d
 ---
 
 # Offline retention and mutation replay
@@ -11421,6 +11422,99 @@ witness proves:
     'replay is ordered by sequence and keeps the minted durable identity',
   );
 ```
+
+## Render retained rows proof-validated after relaunch (the materialization bridge)
+
+Since the LLP 0166 store and its hydration bridge landed, an owner-scoped
+**generated relational query** can come back from disk on a completely fresh
+client — server unreachable — as an `authoritative` answer, because the
+stored fragments were installed only after server-side completeness-proof
+and lease validation. This is the strongest retained-render path on the
+JS arm and it is receipt-proven end to end by
+[`tests/acceptance/local-store-carrier-exit-v1.mjs`](repo:tests/acceptance/local-store-carrier-exit-v1.mjs)
+(run in the local proof; receipt currently **15 PASS / 2 GAP**, the two
+GAPs being capability-publication rows, not mechanism gaps).
+
+Evidence scope, stated precisely: local target, Node process, file carrier,
+owner-scoped generated relational queries. It is not a browser-restart
+proof (that GAP is tracked separately, see the JS-arm section above), and
+it is not a hosted claim.
+
+### What is retainable, and what deliberately is not
+
+- **Owner-scoped generated relational queries** (`defineRelationalQuery`
+  composites) — retainable: their materializations carry qmk1 identity,
+  a completeness proof, and lease custody, so a fresh client may re-render
+  them offline as `authoritative` / `retained`.
+- **Snapshot-batch composites** (`snapshot-batch.v1`) — deliberately
+  volatile: retention is `none`. Stored grace payloads exist only to smooth
+  release; they are **never** authoritative offline answers. Do not read a
+  grace payload's presence as renderability — the answer classes below are
+  the only authority.
+
+### The controlled local recipe
+
+1. Prepare and regenerate the trusted activation (the generated artifact
+   graph is the **only** activation source the bridge trusts):
+
+```sh
+snapback composition-activation-prepare --db app.db \
+  --generated demos/your-app/snapback/generated --deployment-id dev
+node demos/_kit/codegen.mjs demos/your-app/snapback
+```
+
+2. Establish under sessions with a persistent store and `persistResume`,
+   then render live — the handle reports the answer classes directly:
+
+```js source=tests/acceptance/local-store-carrier-exit-v1.mjs
+    const live = await firstClient.liveQuery(generatedApi.api.booksWithAuthors, {
+      connectionId: 'carrier-exit-retained-render-live',
+      persistResume: true,
+    });
+    assert.deepEqual(live.rows, [{ title: 'proof-backed', authorName: 'Ada' }]);
+    assert.equal(live.answerClass, 'authoritative');
+    assert.equal(live.freshness, 'current');
+    assert.equal(live.retention.retainable, true);
+```
+
+3. Stop the server, construct a **fresh client** over the same store
+   directory, and re-render — the bridge revalidates proof and lease
+   custody before it will call the stored rows authoritative:
+
+```js source=tests/acceptance/local-store-carrier-exit-v1.mjs
+    assert.deepEqual(relaunched.rows, [{ title: 'proof-backed', authorName: 'Ada' }]);
+    assert.equal(relaunched.answerClass, 'authoritative');
+    assert.equal(relaunched.freshness, 'retained');
+```
+
+### Answer classes control offline rendering
+
+The store's answer table (LLP 0166 §D4) is the honesty contract; render
+decisions key off `answerClass` + `freshness`, never off "bytes exist":
+
+| `answerClass` | Meaning | Render offline? |
+| --- | --- | --- |
+| `authoritative` (`freshness: current`) | Live, connected, proof-backed | Yes |
+| `authoritative` (`freshness: retained`) | Relaunch answer whose proof and lease custody revalidated | Yes, marked retained |
+| `labeled-retained` | Rows retained but authority could not be revalidated | Only with an explicit degraded label |
+| `unknown` | Store cannot classify (no proof, no custody) | No — treat as no data |
+| `refused` | Policy or authorization refused the read | No — surface the refusal |
+
+Inspect stored volatile grace payloads separately from authorized rows with
+`StorePolicyInspectionV1` (`store-policy.test.mjs` exercises it): grace
+payloads report their release pinning, not an answer class, which is how
+the two populations stay visibly distinct.
+
+### The registration boundary (no public durable-authoring API yet)
+
+Active live queries register demand automatically — subscribing IS the
+registration, and the sync set equals the registration set. A **durable
+programmatic registration** surface (registering demand with no live
+handle) intentionally has **no public API yet** (LLP 0166 OQ8): the
+methods you may notice underscored on the client are internal seams, not
+product API, and this page deliberately does not teach them. Until the
+surface is ruled public, keep a live handle (or `persistResume` + relaunch)
+as the supported way to keep a query in the sync set.
 
 ## Opt a live query into cold retention (`rqsEligible`)
 

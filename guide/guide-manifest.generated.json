@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "33f9cbfc85991d8b2d100182ac507a4b8c8ae444"
+    "commit": "d3e80b7d4981c4fa14535e2a852e8cc2bc82e95d"
   },
   "nav": {
     ".": [
@@ -1405,7 +1405,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "870998b408cdc68621ab570ae3e320e4b0724ef240b67dd1dbc75796fd1442e2",
+      "sha256": "53a5cdd7a7e80b1fd8db84a58168be64afa34a6f7fad78abc88b1a5f7f91242b",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2654,7 +2654,8 @@
       "maturity": "partial",
       "capabilities": [
         "sync.offline",
-        "sync.offline-js-arm"
+        "sync.offline-js-arm",
+        "sync.local-persistent-store"
       ],
       "authorities": [
         "llp/0043-offline-replay-retention.rfc.md",
@@ -2663,6 +2664,10 @@
         "llp/0090-resumable-query-snapshots.rfc.md",
         "llp/0129-local-first-program.plan.md",
         "llp/0133-local-settlement.spec.md",
+        "llp/0157-composition-algebra-and-completeness.spec.md",
+        "llp/0166-local-persistent-store.spec.md",
+        "packages/snapback-client/materialization-bridge.mjs",
+        "tests/acceptance/local-store-carrier-exit-v1.mjs",
         "packages/snapback-contract/index.mjs",
         "packages/snapback-contract/offline-replay.test.mjs",
         "packages/snapback-client/index.mjs",
@@ -2672,15 +2677,16 @@
         "packages/snapback-react/index.mjs"
       ],
       "examples": [
+        "demos/triage-graph",
         "demos/card-game",
         "demos/todo-v2/surfaces/contract",
         "demos/public-dashboard",
         "packages/snapback-contract/agent-authority-contract.test.mjs",
         "packages/snapback-react/offline.test.mjs"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "135955ca060509089e9c1fac84d04d806fb327b4488d73335f345fa9c7423a88",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "d3e80b7d4981c4fa14535e2a852e8cc2bc82e95d",
+      "sha256": "000d8b237d734d20d0cf62bd6d308a9a7c8e7d4690cfbb49e11abc9aa86d728e",
       "snippets": [
         {
           "lang": "js",
@@ -2691,6 +2697,16 @@
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-client/outbox-store.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "tests/acceptance/local-store-carrier-exit-v1.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "tests/acceptance/local-store-carrier-exit-v1.mjs"
         },
         {
           "lang": "js",
@@ -2862,6 +2878,7 @@
       "clients.poll-hosted",
       "operating.declaration-conformance",
       "operating.instance-forks",
+      "sync.local-persistent-store",
       "sync.offline-js-arm",
       "sync.offline-js-arm-protected",
       "sync.settlement-bounded-skew"
@@ -2871,5 +2888,5 @@
     "routes": 105,
     "hostOps": 35
   },
-  "contentHash": "9d29705892e27040402b919b1ed3b50f9b1de4799a3f68e66fd6dfa7112ed4e2"
+  "contentHash": "2a4febd88f5f9e5c47c89793a51f3d2cd1a64d59fee525ff04be25ba1a293b41"
 }
