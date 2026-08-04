@@ -6,7 +6,12 @@
 Live queries, Relational queries, Optimistic updates, Auth, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v1.0, **Accepted** by Charlie Cheever's explicit
+**Revised:** 2026-08-03 (v1.1 semantic amendment: Charlie accepted
+`single_table_v1@1` and Arm A,
+`rqs-authority-independent-snapshot-v1`; the QMK predicate, no-lease answer,
+durable+`pinned` Channel-B mapping, connected prove-or-fresh atomic adoption,
+and OQ1 resolution land here. No implementation or capability claim; adoption
+remains a commissioned follow-on.) 2026-08-03 (v1.0, **Accepted** by Charlie Cheever's explicit
 "flip to accept" direction after the dual-family loop converged
 dual-READY at round 8. The §D7 amendment set is landed dated in the same
 change: LLP 0008 DK-9, LLP 0080, LLP 0157 (both retention unions + the
@@ -623,6 +628,15 @@ type QueryRegistrationV1 = Readonly<{
 | `preload` | the routes manifest (`defineRoutes` → `routes.manifest.json`) and its Channel A/C boot bundles and register groups | boot-scoped hydration; LLP 0090 owns bundle admission; the designed per-manifest-entry `persist: false` opt-out (LLP 0090 D3) and its shipped `persistResume` client-option stand-in map to `retentionRequest: "none"` |
 | `programmatic` | an explicit client registration API (successor of the `persistResume` stand-in) | the authoring shape is OQ8 |
 
+**Dated generated-mapping amendment (2026-08-03):** for a generated
+Channel-B registration that resolves to `single_table_v1@1`,
+`persistResume: true` fixes both `retentionRequest: "durable"` and
+`idleTtlClass: "pinned"`; `persistResume: false` keeps
+`retentionRequest: "none"` and grants no durable custody. This class-specific
+mapping preserves Channel B's indefinite retained offline display while
+remaining subject to the materialization budget, owner transitions, and store
+reset. It does not change the mapping for any other class.
+
 ### The multi-context demand broker
 
 Registrations are store state, and the store has one writer. The two
@@ -883,6 +897,11 @@ lifecycle belongs to LLP 0157 §D3's transitions).
      is **representable only after the carried LLP 0157 classification
      amendment lands** and grants evaluation admission only through §D7's
      full ship gate; until then no plan can carry it;
+   - `rqs-authority-independent-snapshot-v1` only for
+     `single_table_v1@1`, with `authorizedLeaseHash: null` and no
+     `AuthorizedLease`, but with the exact current completeness proof, result
+     bytes, authorization witness, instance fence, class binding, and trusted
+     activation/proof-key artifact required before install and every render;
    - `retention: "none"` never persists;
 3. an effective `retentionRequest` of `"durable"` — from live
    registrations (§D2's lattice), or pinned by a running release grace
@@ -917,27 +936,22 @@ Three keying regimes coexist, deliberately and visibly:
 
 | Family | Key | Population | Witness | Status under this Spec |
 | --- | --- | --- | --- | --- |
-| `qmk1` materializations | `ClientMaterializationAddressV1` | LLP 0157-admitted plans (`relational_query_v1`, `bounded_children_v1` singles; composites volatile-only in v1) | `CompletenessProofV1` | the target family; new establishment lands here |
-| legacy resume | `rqsEntryKey(name, args)` | the shipped `rqsEligible` set — public, authority-independent, single-table, plan-based LiveQueries (LLP 0004/0007 plans; server-derived predicate, never authored) | server-MACed resume token + content digest (corruption detection, not client-side authenticity — LLP 0090's threat model; no completeness proof) | continues under LLP 0090's exact rules and its own budget envelope in the same store domain (grandfathered, §D5); converges only if a single-table node class registers (OQ1) |
+| `qmk1` materializations | `ClientMaterializationAddressV1` | LLP 0157-admitted plans (`relational_query_v1`, `bounded_children_v1`, and `single_table_v1` singles; composites volatile-only in v1) | `CompletenessProofV1` | the target family; new establishment lands here |
+| legacy resume | `rqsEntryKey(name, args)` | the shipped `rqsEligible` set — public, authority-independent, single-table, plan-based LiveQueries (LLP 0004/0007 plans; server-derived predicate, never authored) | server-MACed resume token + content digest (corruption detection, not client-side authenticity — LLP 0090's threat model; no completeness proof) | continues under LLP 0090's exact rules and its own budget envelope in the same store domain (grandfathered, §D5); eligible for the connected prove-or-fresh adoption path after `single_table_v1@1` registration |
 | legacy lease | `retainedQueryKey(name, args)` | auth-scoped retained records (Contract arm) | `CompositeWitness` + `AuthorizedLease` | separate LLP 0043 artifact, unchanged; converges by §D6's close-predecessor-first protocol only |
 
-The middle row records a fact LLP 0157 makes explicit: ordinary LLP
-0004/0007 single-table plans are not silently reclassified as composition
-nodes, so the shipped retained population has no `PlanHashV1` and no
-completeness proof today. This Spec does not pretend otherwise: the legacy
-family keeps its shipped verification (digest + token identity,
-fail-closed) and its shipped rules, inside the same store domain, under
-its own untouched budget envelope. Registering a `single_table_v1` node
-class with the owners — which would give this population plan identity,
-proofs, and `qmk1` addresses — is OQ1, an owner proposal under LLP 0157
-§D1's growth stop rule, not an inference this Spec may make. OQ1 adoption
-additionally carries an owner precondition this Spec names now: LLP 0080
-admits no anonymous v1 retention (`opaque-authorized-snapshot-v1` requires
-an authenticated principal's lease), so the public `rqsEligible`
-population can adopt `qmk1` **without losing its shipped offline
-capability** only if the Channel-B retention authority travels with the
-family or an anonymous lease/retention class lands in LLP 0053/0080
-first.
+The middle row records a fact that registration does not rewrite: a legacy
+entry by itself has no `PlanHashV1` or completeness proof. It keeps its shipped
+verification (digest + token identity, fail-closed) and lifecycle inside the
+same store domain under its untouched budget envelope. The 2026-08-03 owner
+ruling registers `single_table_v1@1` and selects Arm A: Channel-B authority
+travels as `rqs-authority-independent-snapshot-v1`, with no anonymous-lease
+commissioning. Current served owner artifacts can therefore derive plan
+identity, proofs, and QMK addresses for the exact population during §D6's
+connected adoption path, without claiming that legacy bytes already contain
+those facts. This resolves OQ1 at the semantic registration layer. It does not
+relabel legacy bytes or claim the adoption implementation; that remains the
+separately commissioned follow-on.
 
 ### Identity rotation and predecessors
 
@@ -1019,6 +1033,11 @@ version and is never presented as current. The legacy lease family has its
 own owner-backed basis — `lease-authorized-retained`, LLP 0043 M1's exact
 conditions under the composite witness and MACed lease — which is
 authorized retained service without any LLP 0157 completeness claim.
+For `single_table_v1@1` under
+`rqs-authority-independent-snapshot-v1`, `authorizedLeaseHash` is exactly
+`null`; the proof, result, witness, current instance fence, class binding, and
+trusted activation/proof-key artifact are the complete no-lease basis and are
+revalidated before every render.
 
 Everything else derives `unknown` or — exactly where LLP 0157 §D3's
 transition table produces it (a current refused attempt with no valid
@@ -1055,6 +1074,7 @@ this table.
 | 13 | legacy resume | `AuthorizationInvalidation` / `resync_required` with `clear_retained` | `unknown` | purge the persisted copy |
 | 14 | legacy lease | every LLP 0043 M1 condition holds (exact witness match, complete MACed lease custody, strictly before deadline, valid cursor/target facts, no blocking fence) | **lease-authorized-retained** — `retained` (as-of the accepted snapshot), marked stale per LLP 0043 | none; reconnect requires full revalidation + fresh snapshot before stale clears |
 | 15 | legacy lease | expiry-equality, clock rollback, custody defect, identity/witness mismatch | `unknown`; render nothing | commit the instance's delete tombstone before read (LLP 0043/0053) |
+| 16 | `qmk1` / `single_table_v1@1` | `retention: "rqs-authority-independent-snapshot-v1"`; `authorizedLeaseHash: null`; valid proof/result, witness, current instance fence, class binding, and trusted activation/proof-key artifact | **authoritative** — `complete`, `current` if live-confirmed else `retained`; no lease is required or implied | none; every proof/fence/barrier/destructive check still applies, and any failure follows the corresponding qmk1 row above |
 
 ### Offline posture
 
@@ -1326,17 +1346,47 @@ their *custody domain and lifecycle*, not their admission protocols:
 This store is the declared successor of the Channel B store. Convergence is
 staged and fail-closed:
 
-- **Reconciliation with LLP 0157 §Migration, explicit:** LLP 0157 says
-  existing RQS retained snapshots migrate to materialization-key identity
-  where their recorded facts prove it, or fall back to fresh sync, and a
-  migration that cannot prove identity discards retained state rather than
-  mislabeling it. The legacy resume population *provably has no plan
-  identity to migrate on* (no registered node class, §D3), so v1 performs
-  no adoption at all: continued coexistence under the family's own labels
-  and rules **is** the never-mislabel posture — nothing is relabeled, and
-  the migrate-or-discard rule governs any *attempted* adoption if OQ1
-  later creates provable identity. This sentence rides the dated LLP 0157
-  boundary note at acceptance.
+- **Legacy resume → `single_table_v1@1` QMK, connected prove-or-fresh
+  adoption (dated 2026-08-03):** registration resolves OQ1 without granting
+  legacy bytes plan identity. Adoption is a connected attempt only and follows
+  this exact sequence:
+
+  1. **Preconditions.** The current served function passes the derived class
+     predicate; the target advertises the class/proof/store capabilities; the
+     current generated and trusted activation artifacts exact-match; and no
+     pending outbox intent depends on the predecessor. Pending intent waits for
+     settlement or explicit owner-governed discard and is never dropped.
+  2. **Derive, do not relabel.** Recompute `SingleTablePlanV1`, node
+     capability, `NodePlanHashV1`, `PlanHashV1`, QMK, and contextual address
+     from current owner artifacts. Validate the legacy key, args hash,
+     generation, function artifact, version stream, digest kind/content
+     digest, rows, and token under LLP 0090's rules. Mismatch or corruption is
+     not proof.
+  3. **Prove arm.** Present the legacy token through LLP 0090's unchanged
+     ladder. Rung-1 unchanged proof or admitted rung-2 replay may establish the
+     current exact whole-result bytes; the server then issues an ordinary
+     `CompletenessProofV1` over the derived QMK/node/plan and those bytes. The
+     token or content digest alone never substitutes for that proof.
+  4. **Fresh-sync arm.** If identity cannot be proved, the token is stale, the
+     ladder falls through, the class-only examined-entry guard refuses proof,
+     or any current binding differs, run fresh `single-node.v1`
+     establishment and install only a newly issued proof. If it cannot
+     succeed, keep a still-valid legacy record under its legacy label and
+     rules; never publish a QMK record. Discard a corrupt legacy record first,
+     leaving `unknown` until fresh establishment succeeds.
+  5. **One atomic same-domain switch.** Once a valid QMK fragment/proof is
+     ready, one store transaction installs the QMK materialization and removes
+     or terminally retires the legacy entry. Before commit only legacy is
+     renderable; after commit only QMK is renderable. A crash exposes neither
+     dual identity nor a gap, except the explicit corruption case that required
+     delete-before-fresh.
+  6. **After adoption.** The legacy token is not a QMK resume credential.
+     Re-entry is fresh LLP 0157 establishment until OQ2's separately owned
+     proof-backed resume amendment lands.
+
+  This is semantic acceptance of the adoption contract only. Its
+  implementation remains a separately commissioned follow-on and no target
+  capability advances here.
 - **Legacy lease records: close-predecessor-first convergence only.** The
   lease store and this domain are separate artifacts on the shipped
   carriers, and no transaction spans them, so no cross-artifact atomic
@@ -1851,7 +1901,9 @@ store-policy oracles:
    delete before read; row 10 withholds `resumeFromToken` while rendering
    `retained` + `pendingIntentsAtSeed`; row 12 verifies indefinite
    labeled-retained offline display with rung-3 fallback when connected;
-   row 14 reports `lease-authorized-retained`, never `authoritative`.
+   row 14 reports `lease-authorized-retained`, never `authoritative`; row 16
+   proves no lease is present while proof/witness/fence/trusted-activation
+   validation remains mandatory and the offline label remains `retained`.
 3. **S3 — grace, compaction, and partitioned budgets.** Fill the
    materialization envelope past budget with mixed demand states,
    `idleTtlClass` values, pending intent on some records, unresolved
@@ -1887,7 +1939,14 @@ store-policy oracles:
    migrates formats: intent preserved exactly (order, identity,
    acknowledgements), registrations and grace clocks intact; crash at
    every migration write boundary leaves the prior or successor state,
-   never a hybrid. Lease-family convergence runs §D6's protocol with a
+   never a hybrid. The `single_table_v1@1` leg runs both §D6 adoption arms:
+   a rung-1/rung-2 proved current result receives a QMK proof and switches in
+   one transaction; an identity mismatch or ladder fallthrough takes fresh
+   establishment; the examined-entry refusal leaves a still-valid legacy
+   entry labeled legacy; corruption deletes before fresh; every switch crash
+   cut exposes only legacy or QMK; pending intent blocks the attempt; and the
+   legacy token is never accepted as a QMK credential. Lease-family
+   convergence runs §D6's protocol with a
    crash injected at each cut: after (1) the legacy record is `retiring`
    — non-renderable — and no successor exists (gap, not dual render);
    after (2) exactly the successor renders; at no point are both
@@ -1947,6 +2006,11 @@ store-policy oracles:
 - The Channel B store's contents migrate by format version under §D1's
   rules; its public behaviors (S4) are preserved for the legacy section,
   grandfathered under LLP 0090's exact lifecycle and budget envelope.
+- `single_table_v1@1` registration changes no legacy key or record. Its §D6
+  connected prove-or-fresh adoption is an explicit per-entry operation that
+  switches only after a valid proof-backed QMK record is ready; until the
+  separately commissioned implementation runs, legacy entries remain under
+  their byte-exact owner lifecycle and budget.
 - The LLP 0043 lease store remains a separate artifact; convergence is
   §D6's close-predecessor-first protocol only, until a future dated
   LLP 0043 step moves it into the shared domain; nothing here amends its
@@ -1976,14 +2040,16 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
 
 ## Open questions
 
-1. **A `single_table_v1` node class** — registering the shipped
-   `rqsEligible` population's plan shape as an owner-governed node class
-   (LLP 0004/0007 family proposing into LLP 0157 §D1's registry, inside its
-   growth stop rule) would give the legacy resume family plan identity,
-   proofs, and `qmk1` addresses. Owners' decision; this Spec only stages
-   the adoption path (§D6) and names its retention precondition (§D3: the
-   Channel-B authority must travel, or an anonymous lease/retention class
-   must land in LLP 0053/0080 first).
+1. **RESOLVED by registration (2026-08-03): `single_table_v1@1`.** Charlie
+   accepted the LLP 0004/0007 closed normalization and class-only examined-
+   entry guard, LLP 0157 registered class 4 of 6 through `single-node.v1`,
+   and Arm A carries Channel-B authority as
+   `rqs-authority-independent-snapshot-v1` with no anonymous-lease
+   commissioning. §D3 records the QMK population/persistence predicate and
+   §D6 the connected prove-or-fresh same-domain adoption contract. The
+   adoption implementation remains the separately commissioned follow-on;
+   resolution of this design question is not an implementation or capability
+   claim.
 2. **A proof-backed resume credential** for `qmk1` materializations —
    binding resume-token identity to the materialization key and held proof
    so fresh establishment can use ladder rungs 1–2; dated
@@ -2061,3 +2127,10 @@ only: no implementation or capability fact is promoted, evaluation
 still gates on §D7's conformance corpus and oracles, and the
 implementation program is a separate wave-3 commissioning (Track A's
 exit rule).
+
+The v1.1 dated amendment records Charlie's semantic acceptance of
+`single_table_v1@1`, Arm A, and the connected prove-or-fresh adoption
+contract. No target is claimed to implement or advertise the class, retention
+authority, no-lease proof path, generated mapping, or atomic switch. The
+adoption implementation remains a separately commissioned follow-on, and OQ2
+remains a separate future resume-credential lane.

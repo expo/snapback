@@ -5,7 +5,10 @@
 **Systems:** Sync, Realtime, Storage, API, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-03 (DK-9 dated amendment landed with Accepted
+**Revised:** 2026-08-03 (`single_table_v1@1` boundary: its class binding
+consumes DK-3's additive-delivery ceiling; `live_delta` keeps the honest
+`live_replace` fallback, ordered/limited results remain replace, and no wire
+bytes or implementation/capability claim change.) 2026-08-03 (DK-9 dated amendment landed with Accepted
 LLP 0166: the store may hold LLP 0157 materialization records, and
 `result-transform-snapshot-v1` plans admit LLP 0166 §D7's closed
 result-transform profile over a single address's fragments; the
@@ -327,6 +330,17 @@ LLP 0012 wire guardrail is recorded there.
 > candidacy and inside `compute_live_delta`, and the debug convergence
 > assertion also runs at `NoChange` settles. Semi-join delta eligibility
 > remains future work behind a certified evaluator (LLP 0056).
+
+> **Dated boundary note (2026-08-03, `single_table_v1@1` owner
+> acceptance):** the accepted class binding consumes this section's DK-3
+> additive-delivery ceiling. An `mset1` class member may bind
+> `live_delta` only when the served function carries the exact schema-derived
+> `documents(table)` result contract and no other shipped delta exclusion
+> applies; the shipped runtime retains its honest `live_replace` fallback
+> whenever the implicit cap is reached or another per-delivery proof cannot
+> be made. `seq1`, ordered, and limited results bind `live_replace`. This is a
+> boundary acknowledgment only: DK-3's fallback and wire bytes do not change,
+> and semantic acceptance grants no implementation or capability claim.
 
 ## Mutation Replay and Conflict Semantics
 

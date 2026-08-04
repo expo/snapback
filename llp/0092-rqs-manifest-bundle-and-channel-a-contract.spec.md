@@ -5,7 +5,10 @@
 **Systems:** Sync, Realtime, API, Auth, Client integration, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-07-24 (step-7 landing notes appended to the
+**Revised:** 2026-08-03 (`single_table_v1@1` producer boundary: the existing
+derived `rqsEligible` fact also selects the class; the host emits/recomputes
+its normalized node and capability record; authors still cannot assert
+membership; semantic only.) 2026-07-24 (step-7 landing notes appended to the
 step-2/step-3 dated amendment: Channel C consumption on the local arm —
 todo-v2's authenticated register-mode boot with the client
 `registeredSubscription` adoption seam, and graffiti's socket-less widget
@@ -184,6 +187,17 @@ This spec pins it as a **derived, never authored** served-manifest fact:
 - Everything that 0090/0091 key on the predicate — token minting, bundle
   `resume` presence (§0D.1), Channel B persistence, D1.1 admission
   (`SNAPBACK_RESUME_NOT_ELIGIBLE`) — reads this one served-manifest fact.
+
+> **Dated producer projection (2026-08-03, `single_table_v1@1` owner
+> acceptance):** this same derived, non-erroring `rqsEligible` fact now also
+> selects `single_table_v1@1`. For a selected function the host reconstructs,
+> emits, and exact-recomputes the owner-normalized `SingleTablePlanV1` and
+> `NodeCapabilityBindingV1`; a mismatch refuses node admission. Authors still
+> cannot assert `rqsEligible`, the class id/version, the normalized record, or
+> its capability binding. A function for which derivation returns false gains
+> no node record, plan hash, proof, or QMK, and its existing API and legacy
+> behavior remain unchanged. This producer boundary is semantic only: it
+> changes no served-manifest schema, implementation, or capability claim.
 
 ### 0C.3 `publicInline` — a codegen-compiled disclosure fact
 

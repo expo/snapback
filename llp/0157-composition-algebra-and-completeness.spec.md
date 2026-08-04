@@ -122,6 +122,13 @@ opt-in; reclassification rotates node/plan identity and QMK; manifests
 emit it only for reclassified plans), and §D3's closed event vocabulary
 gains the payload-compaction event (dated row in the transition table).
 No other semantics change.)
+2026-08-03 (v0.9, `single_table_v1@1` owner amendment accepted by Charlie:
+registry class 4 of 6 is single-node-only through `single-node.v1`, activates
+`none.v1` for exactly this class, reuses `established-result-jcs.v1`, adds
+`rqs-authority-independent-snapshot-v1` to both retention unions, and pins
+its no-lease proof/witness/fence/trusted-activation custody and staged
+legacy-to-QMK adoption. Semantic acceptance only; no implementation or
+capability claim.)
 **Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0012,
 LLP 0017, LLP 0039, LLP 0043, LLP 0048, LLP 0051, LLP 0053, LLP 0059,
 LLP 0073, LLP 0080,
@@ -174,7 +181,8 @@ to its section, owner, or blocking dependency. It does **not** own:
 
 - **Node-class internals.** `relational_query_v1` stays LLP 0080's;
   `bounded_children_v1` stays LLP 0110's; membership-addressed and
-  search-adjacent shapes stay LLP 0100's and LLP 0073's. A new node
+  search-adjacent shapes stay LLP 0100's and LLP 0073's;
+  `single_table_v1` stays LLP 0004/0007's. A new node
   class is a proposal to its owning document, never a side effect here.
 - **Composite execution.** One-snapshot semantics, parent-auth dedup,
   the sealed `absent` envelope, ceilings, v1 classification, and the
@@ -210,8 +218,9 @@ this commission's scope; the author decides otherwise.
   registered class is the degenerate composite and participates in this
   Spec's identity, witness, classification, and inspection contracts.
   Ordinary LLP 0004/0007 single-table plans and imperative/inline handlers are
-  not silently reclassified: they retain their current identities and refuse
-  composition until an owner-governed node class is registered here. The
+  not silently reclassified: only a served function that passes the exact
+  host-derived `single_table_v1@1` predicate enters that registered class;
+  every other plan retains its current identity and refuses composition. The
   current imperative cap refusal remains §D3's fail-closed floor, not evidence
   that an opaque handler is a composable node.
 - **Page.** One established composite result: the node-tuple output for
@@ -244,8 +253,10 @@ The active node-class registry is exact:
 | `relational_query_v1` | 1 | LLP 0080 `RelationalQueryPlanV1` | admitted | not admitted until LLP 0135 OQ5's versioned successor | none |
 | `bounded_children_v1` | 1 | LLP 0110 `BoundedChildrenQueryPlanV1` | admitted | `snapshot-batch.v1` | required |
 | `exported_query_v1` | 1 | `ExportedQueryPlanV1` below, reconstructed from the served function manifest | not admitted as an algebra single-node API | `mixed-route.v2` | none |
+| `single_table_v1` | 1 | LLP 0004/0007 `SingleTablePlanV1` | admitted through `single-node.v1` | not admitted | none |
 
-These are the only active classes. An LLP 0004/0007 single-table plan,
+These are the only active classes. An LLP 0004/0007 single-table plan that
+does not pass the exact owner-derived `single_table_v1@1` predicate, a
 maintained projection, search, aggregate, or unknown class refuses as a
 composition node; its existing non-composed API remains unchanged. JS/inline
 query implementations participate only through the exported function fact of
@@ -280,7 +291,21 @@ The capability binding carries the served export kind, whole-result
 `live_replace` only for `LiveQuery`, `live:{kind:"none"}` for `Query`, the
 served retention fact, and the sorted unique required capability ids.
 
-**Growth stop rule.** The active registry has exactly three node classes and
+**Dated registry amendment (2026-08-03, Charlie's owner ruling):**
+`single_table_v1@1` is class 4 of the six-class ceiling. Its
+`SingleTablePlanV1` is the exact closed LLP 0004/0007 normalization of the
+host-derived `rqsEligible` predicate, including the new class-only 1,024
+examined-entry establishment refusal. It is admitted only through
+`single-node.v1`; `snapshot-batch.v1`, `mixed-route.v2`, and every implicit
+successor remain closed. Its application result is the complete HostPlan
+Query document array with no projection. Class membership and the normalized
+record are host-reconstructed; authors and clients cannot assert either. A
+future multi-node admission must name a reviewed versioned plan/cursor profile
+and is not inferred from this row. This amendment is semantic acceptance only:
+the separately commissioned implementation must satisfy the existing
+proof/wire/store gates before any target publishes support or a capability.
+
+**Growth stop rule.** The active registry has exactly four node classes and
 three plan profiles (`single-node.v1`, `snapshot-batch.v1`,
 `mixed-route.v2`). A successor may grow to at most six
 active classes and four plan profiles, one class or profile per reviewed
@@ -367,6 +392,7 @@ type NodeCapabilityBindingV1 = Readonly<{
     | "none"
     | "opaque-authorized-snapshot-v1"
     | "result-transform-snapshot-v1"   // dated 2026-08-03 amendment, below
+    | "rqs-authority-independent-snapshot-v1" // dated 2026-08-03 amendment, below
   requiredCapabilityIds: readonly string[] // sorted, unique
 }>
 ```
@@ -388,6 +414,7 @@ type PlanCapabilityClassificationV1 = Readonly<{
     | "none"
     | "opaque-authorized-snapshot-v1"
     | "result-transform-snapshot-v1"   // dated 2026-08-03 amendment, below
+    | "rqs-authority-independent-snapshot-v1" // dated 2026-08-03 amendment, below
 }>
 ```
 
@@ -412,6 +439,54 @@ type PlanCapabilityClassificationV1 = Readonly<{
 > unchanged; and §D3's closed event vocabulary gains the payload-
 > compaction event recorded in its transition table (dated row). No
 > other semantics change.
+
+> **Dated amendment (2026-08-03, `single_table_v1@1` owner
+> acceptance):** both closed retention unions additionally gain
+> `rqs-authority-independent-snapshot-v1`. The value is owner-issued if and
+> only if the function passes the exact derived `rqsEligible` predicate and
+> is registered as `single_table_v1@1`; it is not a general anonymous or
+> public-data retention class. For each admitted node the exact capability
+> binding is:
+>
+> ```ts
+> {
+>   exportKind: "LiveQuery",
+>   live: {
+>     kind: "admitted",
+>     delivery: "live_delta" | "live_replace",
+>     pageDomain: "whole-result"
+>   },
+>   retention: "rqs-authority-independent-snapshot-v1",
+>   requiredCapabilityIds: /* served function ids, UTF-8 sorted and unique */
+> }
+> ```
+>
+> `seq1` binds `live_replace`. `mset1` binds `live_delta` only when the
+> served function carries the exact schema-derived `documents(table)` result
+> contract and no other shipped delta exclusion applies; otherwise it binds
+> `live_replace`. A `live_delta` binding names the strongest admitted delivery
+> and preserves DK-3's honest `live_replace` fallback when the current result
+> reaches the implicit cap or another per-delivery proof cannot be made.
+> `requiredCapabilityIds` is the served function's existing required-
+> capability set, UTF-8 sorted and deduplicated; target support remains a
+> separate explicit admission fact.
+>
+> The degenerate single-node plan classification is the same owner fact:
+>
+> ```ts
+> {
+>   callable: true,
+>   live: /* the exact node live binding above */,
+>   invalidation: "proved-disjoint",
+>   retention: "rqs-authority-independent-snapshot-v1"
+> }
+> ```
+>
+> `proved-disjoint` remains subordinate to the captured affected verdict: when
+> the captured facts cannot prove a skip, the target re-queries or replaces.
+> These fields enter the existing node and plan hash preimages; no new identity
+> axis or hash is introduced. Semantic acceptance grants no implementation or
+> capability-publication claim.
 
 The served function/capability manifests produce this record; an author does
 not assert it. A nested node uses `exportKind: "internal"`; a plan admitted as
@@ -707,6 +782,18 @@ and inspection consume these exact layers. An implementation may index a
 digest of a contextual tuple, but may not derive a parallel semantic identity.
 Golden and near-miss vectors freeze every preimage and final spelling.
 
+**Dated derivation note (2026-08-03, `single_table_v1@1` owner
+acceptance):** once a current served function passes the exact class predicate,
+the existing QMK preimage is fully derivable from the current trusted
+activation, generated LiveQuery reference, derived `PlanHashV1`, LLP 0114
+canonical runtime args, and current owner-issued authority partition. Authority
+independence does not remove that partition from the preimage and does not
+permit cross-provider or cross-store deduplication. A legacy RQS entry alone
+still cannot derive a QMK: it has no registered node/plan hash or completeness
+proof. A connected client may derive the address from current owner artifacts
+and then follow the prove-or-fresh adoption rule; no legacy key or token is
+reinterpreted as materialization identity.
+
 Identity rotation is deliberately layered:
 
 | Change | Lowest identity that rotates |
@@ -785,6 +872,11 @@ base64url-no-pad of those exact UTF-8 bytes. A new result encoding requires a
 registry amendment here. Ordinary inspection sees these digests, never raw
 credentials, protected boundary values, or the authorization witness.
 
+**Dated encoding assignment (2026-08-03):** `single_table_v1@1` reuses
+`established-result-jcs.v1` for its complete validated full-document row array.
+Its separate `mset1`/`seq1` content digest remains legacy resume/corruption
+identity and never replaces `ResultDigestV1`.
+
 `BatchIdentityV1` is `sbbi1.` plus base64url-no-pad of 16 CSPRNG bytes,
 fresh for every establishment attempt. It is uniqueness, not authorization.
 
@@ -831,11 +923,15 @@ The total v1 assignment registry is:
 | --- | --- | --- | --- |
 | `single-node.v1` | `relational_query_v1` | `relational-query.v1` | `relational-query.v1` |
 | `single-node.v1` | `bounded_children_v1` | `bounded-children.v1` | `bounded-children.v1` |
+| `single-node.v1` | `single_table_v1` | `none.v1` | none; canonical empty vector |
 | `snapshot-batch.v1` | all `bounded_children_v1` | `snapshot-batch.v1` | one `bounded-children.v1` variant per nonterminal node |
 
-`none.v1` is reserved for a future registered owner-proved unpaginated plan;
-no active v1 class may emit it. A class/profile pair absent from the table, a
-`none.v1` credential today, or a profile/boundary mismatch refuses.
+`none.v1` is active for exactly the owner-proved, unpaginated
+`single_table_v1@1` row above. The class has no public input or output cursor:
+one establishment moves from `{kind:"first"}` to `{kind:"terminal"}` and its
+visible boundary vector is the canonical empty vector. A class/profile pair
+absent from the table, any attempted `none.v1` cursor credential, or a
+profile/boundary mismatch refuses.
 `relational-query.v1` names LLP 0080's cursor; `bounded-children.v1` names LLP
 0110's standalone cursor; and `snapshot-batch.v1` names §D8's coordinated
 cursor. These names are minted here and enter proof bytes. Acceptance carries
@@ -887,9 +983,9 @@ Positions are dense and ascending. A node `boundaryDigest` is SHA-256 over
 `snapback:node-page-boundary:v1:` plus JCS of
 `{position,classId,classVersion,boundary}`, where `boundary` is the exact
 `NodePageBoundaryV1` selected by the assignment registry. `BoundaryVectorDigestV1` is SHA-256 over
-`snapback:page-boundary-vector:v1:` plus the vector JCS. The `none.v1` vector
-is reserved and currently inadmissible; if a future owner admits it, its
-`nodes:[]` vector is the only canonical empty vector.
+`snapback:page-boundary-vector:v1:` plus the vector JCS. For the active
+`single-node.v1`/`single_table_v1`/`none.v1` assignment, `nodes:[]` is the only
+canonical empty vector; every other class/profile use of that vector refuses.
 
 The client requests an input, not an unknowable output boundary:
 
@@ -902,8 +998,8 @@ type RequestedCompletenessScopeV1 =
 The input/output cursor digests are `OpaqueCredentialDigestV1` values;
 `boundaryVectorDigest` is `BoundaryVectorDigestV1`. No raw boundary enters the
 proof. For `none.v1`, the empty vector's digest is still present, so the
-visible variant would have one encoding rather than a nullable field; because
-the profile is reserved, any such v1 proof currently refuses.
+visible variant has one encoding rather than a nullable field; it is admitted
+only for the exact assignment row above.
 Every sealed outcome uses the one `sealed-terminal` variant: it carries no
 sealing position or boundary vector, whether one or several nodes sealed.
 
@@ -976,7 +1072,8 @@ beside fragments for diagnostics, but persistence grants no trust. An
 application/activation change makes predecessor proofs ineligible and takes
 the artifact-change delete-before-read path below. Server signing and
 verification-only custody lasts at least as long as the longest admitted
-retained lease for that activation. A missing, retired, or unverifiable key
+retained lease for that activation and, for a no-lease class, while any
+same-activation retained record can still render. A missing, retired, or unverifiable key
 degrades to `unknown` and fresh sync when activation is otherwise current.
 Activation preparation selects the proof-key manifest and emits this immutable
 artifact through the same trusted generated/deployment-output path before the
@@ -997,6 +1094,18 @@ admitted only when the LLP 0053 owner produces that exact current witness; it
 never authorizes a client to omit a data floor. Installation, retained boot,
 and every render revalidation apply the same comparisons. A client can persist
 or revalidate a proof but cannot mint, extend, or rewrite one.
+
+> **Dated D3 teaching note (2026-08-03,
+> `rqs-authority-independent-snapshot-v1`):** an admitted
+> `single_table_v1@1` materialization carries
+> `authorizedLeaseHash: null`; no `AuthorizedLease` is minted or implied. The
+> null is not relaxed custody. Before install and on every retained boot/render,
+> the client must still validate the current `CompletenessProofV1`, exact result
+> bytes, current authorization witness and `query_instance_id` fence, class
+> binding, and exact trusted activation/proof-key artifact. A current activation
+> mismatch, corrupt proof/result, wrong instance/witness, or destructive owner
+> transition remains fail-closed. Stored proof material can never bootstrap its
+> own verification key.
 
 The `nodes` array deliberately repeats identity already committed by
 `planHash`: an offline verifier exact-compares both, so plan-hash substitution
@@ -1159,7 +1268,14 @@ coincidence, not from replaying deltas.
    `live.kind:"none"`, receives its own read-only QMK-addressed
    materialization record; only explicit live children receive subscription
    registration.
-6. Classification is a generated artifact fact; a target that cannot
+6. **`single_table_v1@1` is a single-node owner fact.** Its plan
+   classification is `{callable:true,live:<the exact whole-result node live
+   binding>,invalidation:"proved-disjoint",retention:
+   "rqs-authority-independent-snapshot-v1"}`. `proved-disjoint` is independent
+   of delta-versus-replace delivery and never overrides the captured affected
+   verdict. This class has no multi-node classification or meet; a future
+   multi-node admission requires a reviewed successor profile.
+7. Classification is a generated artifact fact; a target that cannot
    honor a class refuses at admission, never degrades silently.
 
 ## D5 — The authoring surface
@@ -1493,7 +1609,8 @@ differ, but there is no weaker implementation:
    barrier high-water commit; a crash resumes the barrier before any successor
    publication.
 8. `readRenderable(address, expectedFence)` returns bytes only for an active,
-   `retain` record after rechecking the exact triple, witness/lease and
+   `retain` record after rechecking the exact triple, witness, any
+   owner-required lease, and
    requested completeness scope. No check-then-read gap is allowed.
 9. `observeMaterialization(address, listener)` publishes one immutable
    observable snapshot after each committed transition. Initial delivery is
@@ -1519,8 +1636,22 @@ shape change.
 
 The LLP 0053 authorization `CompositeWitness` (may these bytes be shown?) and
 `CompletenessProofV1` (what exact page was established?) remain distinct.
-Retained payload, both witness bindings, the authorized lease, and the
-generation triple commit atomically.
+Retained payload, both witness bindings, any owner-required authorized lease,
+and the generation triple commit atomically.
+
+> **Dated D7 teaching note (2026-08-03,
+> `rqs-authority-independent-snapshot-v1`):** for exactly
+> `single_table_v1@1`, the fragment's `authorizedLeaseHash` is `null` and no
+> anonymous lease is minted. Install and every `readRenderable` call still
+> require the exact proof/result, current witness and instance fence, trusted
+> activation/proof-key artifact, and class binding. `retentionRequest:
+> "durable"` remains necessary. The generated Channel-B mapping from
+> `persistResume: true` fixes `idleTtlClass: "pinned"`; after release the
+> payload is exempt from grace GC but remains budget-compactable and subject
+> to every owner transition and store reset. Offline output remains labeled
+> retained, never current. Pending outbox intent withholds legacy token resume
+> and takes full resync then replay, but does not blank an otherwise verified
+> retained display.
 
 Ingestion admits only contract-validated frames. Current main's delta lane
 enters only when the result contract exactly equals the schema-derived
@@ -1943,6 +2074,28 @@ to fresh sync; a migration that cannot prove identity discards retained
 state rather than mislabeling it, and never drops pending intent
 (LLP 0155 Move 2's migration guardrail).
 
+**Dated `single_table_v1@1` migration rule (2026-08-03):** adoption of a
+legacy `rqsEntryKey(name,args)` entry is connected-only. The current served
+function must pass the class predicate; the target must advertise the class,
+proof, and store capabilities; current generated/trusted activation artifacts
+must exact-match; and no pending outbox intent may depend on the predecessor.
+The client derives the node/plan hashes, QMK, and contextual address from those
+current owner artifacts and validates the legacy key, args hash, generation,
+function artifact, version stream, digest kind/content digest, rows, and token
+under LLP 0090's rules. The unchanged ladder may establish current exact bytes,
+after which the server issues an ordinary proof over the derived QMK; a token
+or content digest alone never is that proof. If identity cannot be proved, the
+token is stale, the ladder falls through, the examined-entry guard refuses, or
+any binding differs, fresh `single-node.v1` establishment is required. A
+still-valid legacy entry remains under its legacy label/rules when fresh
+establishment cannot succeed; a corrupt entry is discarded before fresh sync.
+Only after a valid QMK fragment/proof exists may one same-domain store
+transaction install it and remove or terminally retire the legacy entry. A
+crash exposes only the pre-switch legacy record or the post-switch QMK record
+(except delete-before-fresh after corruption), never a relabel-in-place or two
+renderable identities. The legacy token never becomes a QMK resume credential.
+The adoption implementation remains a separately commissioned follow-on.
+
 Existing LLP 0043/0053 lease-backed records use the legacy
 `retainedQueryKey(name,args)` producer. They adopt `qmk1` only when migration
 can recompute the exact registered plan, function reference, activation,
@@ -2017,3 +2170,9 @@ versioned mixed-route successor may consume this Spec without inventing
 parallel identity, cursor, completeness, or liveness rules. G-02 is closed and
 records its generated-result-type owner boundary. No implementation or
 capability is promoted by this document-status change alone.
+
+The v0.9 dated amendment records Charlie's semantic acceptance of
+`single_table_v1@1` and Arm A. It does not claim that any target implements or
+advertises the class, proof path, retention authority, or staged adoption;
+those remain gated by the separately commissioned implementation program and
+the existing proof/wire/store conformance requirements.

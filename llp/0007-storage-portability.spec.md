@@ -5,7 +5,11 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-01 (LLP 0044 ceremony amendment companion: bare
+**Revised:** 2026-08-03 (`single_table_v1@1` owner amendment accepted by
+Charlie: exact typed normalization/evaluation, null/order/digest semantics,
+existing query bounds, the new class-only examined-entry refusal,
+`none.v1` whole-result behavior, and cross-target parity are fixed; ordinary
+APIs and implementation/capability claims are unchanged.) 2026-08-01 (LLP 0044 ceremony amendment companion: bare
 `v.assetRef()` derives a generated default intent — restricted-to-default
 on every write path; `upload: null` keeps the prior unrestricted
 handler-attach-only semantics; dated note inside the v.assetRef
@@ -393,6 +397,81 @@ types is an error or yields no match (Valet's matcher returned false rather than
 erroring), and pin whether `neq` includes nulls — Valet had to special-case
 `("field" != ? OR "field" IS NULL)` so that null-valued rows were not silently
 dropped (`[observed - Valet LLP 0019]`).
+
+## Dated owner amendment: `SingleTablePlanV1` portability (2026-08-03)
+
+Charlie Cheever accepted this amendment as LLP 0007's substantive part of the
+`single_table_v1@1` owner ruling. LLP 0004 owns the closed
+`SingleTablePlanV1` type; this Spec owns its normalization and evaluation
+contract on every target. Acceptance is semantic only: no implementation or
+capability claim follows, and the implementation/adoption program is
+commissioned separately.
+
+The host reconstructs the record from the served typed `QueryPlan`; it never
+trusts a client-carried copy. The typed source fields are exactly `table`,
+`filters`, `membership_filters`, `order`, `limit`, and `indexed_by`; the
+generated manifest already projects `membershipFilters` with the other
+generated spellings. Normalization:
+
+- emits `format: "snapback.single-table-plan.v1"`;
+- translates only `indexed_by` → `indexedBy`;
+- makes optional `limit`, `indexedBy`, and each order field's
+  `maxEncodedBytes` explicit as JSON `null`;
+- re-emits the class-proved empty `membershipFilters` list;
+- preserves filter and order declaration order; and
+- rejects unknown fields at every level.
+
+Filters use exactly `Eq | In | Lt | Lte | Gt | Gte`; order directions use
+exactly `Asc | Desc`. Value expressions use exactly the LLP 0004
+`SingleTableValueExprV1` closed non-authority/non-ambient grammar: `Args`,
+`Arg`, `Binding`, `Literal`, `Field`, `Binary`, `Unary`, `If`, `Concat`,
+`Call`, and `Record`, with binary operations
+`Add | Sub | Mul | Div | Mod | Eq | Ne | Lt | Lte | Gt | Gte | And | Or`
+and unary operations `Not | Neg`. Unknown variants refuse. Every evaluator —
+local SQLite, buffered overlay, native/retained, and any claimed hosted or
+future Postgres target — consumes this same normalized record and returns the
+same complete full-document row array or the same refusal.
+
+The identity-bearing digest selector is exact:
+
+- empty `order` and `limit: null` → `rqsDigestKind: "mset1"`;
+- any non-empty `order` or any explicit limit, including `0` or `1024` →
+  `rqsDigestKind: "seq1"`.
+
+`limit: null` is identity-significant and never normalizes to `1024`, although
+the effective returned-row limit is 1,024 when the authored limit is absent.
+Filter/order declaration order is likewise identity-significant.
+
+The class bounds are closed:
+
+| Bound | Class value |
+| --- | ---: |
+| primary tables | exactly 1 |
+| membership semi-joins | 0 |
+| returned rows | explicit `0..=1,024`; absent means 1,024 |
+| cumulative literal `In` items | 500 |
+| cumulative filter bindings | 500 |
+| `ValueExpr` depth | 32 |
+| optional string order-field `maxEncodedBytes` | integer `1..=2^53-1` when present |
+| examined storage entries | 1,024 |
+
+All bounds except the last are the existing portable plan/expression/schema
+bounds. The examined-entry ceiling is a **new class-only owner decision made
+by the 2026-08-03 ruling**, not a claim about the shipped `rqsEligible`
+predicate or ordinary query execution. During `single-node.v1` establishment
+or re-establishment the target counts physical storage entries examined and
+refuses the whole establishment with a registered closed reason when entry
+1,025 would be examined. No partial result or proof installs. An absent named
+index remains valid under the ordinary API; this class adds no general index
+requirement or scan ceiling outside node establishment.
+
+`single-node.v1` uses the existing `none.v1` cursor profile for this class.
+One establishment consumes `{kind:"first"}`, returns one bounded whole result,
+and produces `{kind:"terminal"}`; there is no public input or output cursor,
+and the visible page carries the canonical empty `none.v1` boundary vector.
+The result reuses LLP 0157's `established-result-jcs.v1` encoding. Every target
+must match these normalization, bound, refusal, whole-result, and no-cursor
+semantics before it may advertise class support.
 
 ## Index Contract
 

@@ -5,7 +5,10 @@
 **Systems:** Sync, Realtime, Auth, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-12
-**Revised:** 2026-08-03 (terminology pin: the cited "cold-process retained
+**Revised:** 2026-08-03 (`single_table_v1@1` boundary: its exact
+authority-independent retention class is not an `AuthorizedLease` consumer
+and sets no anonymous-lease precedent; proof/witness/fence/barrier/destructive
+rules remain mandatory.) 2026-08-03 (terminology pin: the cited "cold-process retained
 boot" is the fresh-wrappers-over-retained-state-in-one-process proof
 class; see §Changelog. No contract change.) 2026-08-03 (Accepted LLP 0166 boundary: store-policy layer
 composes over this RFC's state — payload compaction preserves §GC
@@ -2428,3 +2431,15 @@ store identity (a fresh `client_store_id`), so this RFC's never-reuse
 holds by namespace rotation. Registration demand never resurrects,
 delays, or downgrades any transition owned here. This boundary promotes
 no implementation or capability fact.
+
+**Dated boundary note (2026-08-03, `single_table_v1@1` owner
+acceptance):** `rqs-authority-independent-snapshot-v1` is the exact
+`rqsEligible` exception registered for `single_table_v1@1`; it is not an
+`AuthorizedLease` consumer, mints no lease, and sets no precedent for a
+general anonymous lease or retention class. Its custody instead requires the
+current LLP 0157 completeness proof, exact authorization witness, current
+instance fence, trusted activation/proof-key artifact, and every applicable
+barrier and destructive owner transition. The authenticated
+`opaque-authorized-snapshot-v1` and `result-transform-snapshot-v1` classes
+continue to require their authenticated lease unchanged. This semantic
+boundary note promotes no implementation or capability fact.

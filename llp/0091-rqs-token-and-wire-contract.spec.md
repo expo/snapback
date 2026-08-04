@@ -5,7 +5,10 @@
 **Systems:** Sync, Realtime, API, Auth, Client integration
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-08-02 (Accepted LLP 0136 staged wire fold: optional
+**Revised:** 2026-08-03 (`single_table_v1@1` boundary: the exact shipped
+`mset1`/`seq1` selector is copied into normalized node identity; token,
+digest, and wire bytes remain unchanged, with no implementation/capability
+claim.) 2026-08-02 (Accepted LLP 0136 staged wire fold: optional
 live-search cursor on `LiveReplace`, implementation- and offer-gated);
 2026-07-25 (dated amendment: step-5 native persistence knobs —
 native cadence/budget pinned to the web §0A.5 values, the flush trigger
@@ -284,6 +287,15 @@ persisted result fails this check by construction.
 delta class for the `queryArtifact` (DK-3-analyzable unordered → `mset1`;
 everything else resumable → `seq1`). The `digestKind` body field and the
 digest's string prefix must both match it at admission.
+
+> **Dated boundary note (2026-08-03, `single_table_v1@1` owner
+> acceptance):** the host copies this exact shipped selector into the
+> owner-normalized node identity as `rqsDigestKind`: empty `order` plus
+> `limit: null` selects `mset1`; any non-empty order or explicit limit,
+> including `0` or `1024`, selects `seq1`. The host recomputes and
+> exact-compares that field. This adds no digest construction, token
+> interpretation, credential prefix, or wire byte, and semantic acceptance
+> grants no implementation or capability claim.
 
 ### 0A.5 Token refresh, persistence cadence, store budget and eviction
 

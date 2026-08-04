@@ -5,7 +5,11 @@
 **Systems:** API, Storage, Runtime, Sync, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-01 (implicit collection completeness: a JS
+**Revised:** 2026-08-03 (`single_table_v1@1` owner amendment accepted by
+Charlie: `SingleTablePlanV1` is the closed normalization of the exact shipped
+`rqsEligible` predicate, with a new class-only 1,024 examined-entry
+establishment refusal; ordinary Query/LiveQuery APIs are unchanged and no
+implementation/capability claim follows.) 2026-08-01 (implicit collection completeness: a JS
 `ctx.db.query(...).collect()` that reaches the portable 1,024-row cap now
 refuses with `SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED`; authors must use
 server-side ordering plus explicit `take(n)` when they intend a bounded
@@ -534,6 +538,120 @@ Ratified on 2026-06-26 for v0 implementation:
 - **Doctor surface:** the public v0 doctor/sandbox is a CLI command backed by
   the same structured local-server inspection and invocation API. HTTP endpoints
   may exist for the CLI and tests; MCP can wrap the same schema later.
+
+## Dated owner amendment: `single_table_v1@1` (2026-08-03)
+
+Charlie Cheever accepted this amendment as LLP 0004's part of the
+`single_table_v1@1` owner ruling. It is semantic acceptance only: it grants no
+implementation or capability claim, and the implementation/adoption program is
+commissioned separately.
+
+`SingleTablePlanV1` is the closed owner normalization of the exact shipped
+`rqsEligible` population. Class membership is host-derived, never authored: a
+served function belongs only when the existing non-erroring predicate proves
+all of `authorityIndependent === true`, `LiveQuery`, effective public auth,
+empty `uses`/auth-scope/authorization-dependence inputs, exact
+`HostPlan(Query(plan))`, no authority or ambient ordinary-filter value input,
+empty `membershipFilters`, and a complete one-table read summary whose sole
+table is the plan table. `publicInline` is unrelated and is not required. A
+function that fails this predicate gains no class record, plan hash, proof, or
+QMK; its existing API and legacy behavior remain unchanged.
+
+The exact closed record is:
+
+```ts
+type SingleTableFilterOpV1 = "Eq" | "In" | "Lt" | "Lte" | "Gt" | "Gte"
+type SingleTableBinaryOpV1 =
+  | "Add" | "Sub" | "Mul" | "Div" | "Mod"
+  | "Eq" | "Ne" | "Lt" | "Lte" | "Gt" | "Gte"
+  | "And" | "Or"
+type SingleTableUnaryOpV1 = "Not" | "Neg"
+type SingleTableLiteralV1 =
+  | null | boolean | number | string
+  | readonly SingleTableLiteralV1[]
+  | Readonly<Record<string, SingleTableLiteralV1>>
+
+type SingleTableValueExprV1 =
+  | "Args"
+  | Readonly<{ Arg: string }>
+  | Readonly<{ Binding: string }>
+  | Readonly<{ Literal: SingleTableLiteralV1 }>
+  | Readonly<{
+      Field: Readonly<{ base: SingleTableValueExprV1; key: string }>
+    }>
+  | Readonly<{
+      Binary: Readonly<{
+        op: SingleTableBinaryOpV1
+        left: SingleTableValueExprV1
+        right: SingleTableValueExprV1
+      }>
+    }>
+  | Readonly<{
+      Unary: Readonly<{
+        op: SingleTableUnaryOpV1
+        expr: SingleTableValueExprV1
+      }>
+    }>
+  | Readonly<{
+      If: Readonly<{
+        cond: SingleTableValueExprV1
+        then: SingleTableValueExprV1
+        else: SingleTableValueExprV1
+      }>
+    }>
+  | Readonly<{ Concat: readonly SingleTableValueExprV1[] }>
+  | Readonly<{
+      Call: Readonly<{ func: string; args: readonly SingleTableValueExprV1[] }>
+    }>
+  | Readonly<{
+      Record: Readonly<{
+        fields: Readonly<Record<string, SingleTableValueExprV1>>
+      }>
+    }>
+
+type SingleTablePlanV1 = Readonly<{
+  format: "snapback.single-table-plan.v1"
+  query: Readonly<{
+    table: string
+    filters: readonly Readonly<{
+      field: string
+      op: SingleTableFilterOpV1
+      value: SingleTableValueExprV1
+    }>[]
+    membershipFilters: readonly []
+    order: readonly Readonly<{
+      field: string
+      direction: "Asc" | "Desc"
+      maxEncodedBytes: number | null
+    }>[]
+    limit: number | null
+    indexedBy: string | null
+  }>
+  rqsDigestKind: "mset1" | "seq1"
+  examinedEntryCeiling: 1024
+}>
+```
+
+The host reconstructs this record from the current served typed `QueryPlan`
+and exact-compares it; no client-carried copy is trusted. The application
+result is the complete array of full documents returned by the HostPlan Query;
+this class adds no projection. `NodePlanHashV1` argument bindings preserve this
+RFC's function-argument declaration order.
+
+The class is admitted only as the one node in LLP 0157's
+`single-node.v1` profile. It has whole-result/no-public-cursor semantics and is
+not admitted to `snapshot-batch.v1`, `mixed-route.v2`, or any implicit
+successor. A future multi-node admission requires its own reviewed versioned
+profile amendment.
+
+The 1,024 examined-storage-entry ceiling is a **new owner decision made by
+this 2026-08-03 ruling**, not a description of the shipped predicate. During
+`single-node.v1` establishment or re-establishment, the target counts storage
+entries examined and refuses the whole establishment with a registered closed
+reason before examining entry 1,025. It installs no partial result or proof.
+The ordinary non-node Query/LiveQuery API is unchanged: a sparse legacy query
+may remain usable there while refusing node establishment. No implicit index
+requirement or ordinary API scan guard is created by this class-only rule.
 
 ## Implementation Sketch
 

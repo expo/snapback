@@ -5,7 +5,11 @@
 **Systems:** Sync, Realtime, API, Client integration, Deployment, Auth
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-08-03 (**DRAFT**, non-normative pending orchestrator/author
+**Revised:** 2026-08-03 (`single_table_v1@1` owner amendment: Channel B's
+`rqsEligible` authority travels as
+`rqs-authority-independent-snapshot-v1`; prove-or-fresh adoption leaves
+token/digest/admission bytes unchanged and keeps QMK resume separate through
+LLP 0166 OQ2; semantic only.) 2026-08-03 (**DRAFT**, non-normative pending orchestrator/author
 review: mixed-route v2 successor amendment — one pinned snapshot,
 binding-derived per-child registration, and an honestly read-only weakest
 aggregate; see Revision history and D1.2); 2026-08-03 (Accepted LLP
@@ -924,6 +928,24 @@ pending outbox is milestone-3 work co-owned by LLP 0043.
 > pending-intent relaunch check in
 > `demos/public-dashboard/tests/acceptance/offline-local-first.mjs`.
 
+> **Dated successor-expression amendment (2026-08-03,
+> `single_table_v1@1` owner acceptance):** the narrow retention value
+> `rqs-authority-independent-snapshot-v1` is the successor expression of
+> Channel B's existing `rqsEligible` authority. It is issued only for the exact
+> host-derived predicate registered as `single_table_v1@1`; it is not a
+> general public-data or anonymous-lease class. The legacy digest selector,
+> token bytes, admission ladder, persistence verification, outbox rule,
+> retained labels, and indefinite offline display remain unchanged during
+> connected prove-or-fresh adoption. Legacy entries coexist under their own
+> byte-exact identity and budget until one LLP 0166 same-domain transaction
+> installs the proof-backed QMK record and removes or terminally retires the
+> legacy entry; there is no relabel in place. A legacy token or content digest
+> may help the unchanged ladder prove current result bytes, but neither becomes
+> a QMK credential or substitutes for `CompletenessProofV1`. Proof-backed QMK
+> token resume remains the separate lane reserved by LLP 0166 OQ2 and requires
+> its own dated LLP 0090/0093/0094 amendment. This acceptance is semantic only
+> and grants no implementation or capability claim.
+
 **Web multi-tab ownership.** Persisted snapshots/tokens live inside the
 existing Web-Lock-serialized same-origin store discipline (LLP 0008; LLP
 0053's second-tab attach rule): the lock holder is the single writer of
@@ -1108,8 +1130,10 @@ comparator, indefinite retained offline display, and budget envelope —
 are **grandfathered byte-exact**, with no cross-section budget
 competition and no TTL, grace, or demand semantics applied to legacy
 entries. Coexistence under the family's own labels satisfies LLP 0157
-§Migration's never-mislabel rule (this population has no plan identity
-to migrate on); any attempted adoption follows migrate-or-discard. A
+§Migration's never-mislabel rule (a legacy entry itself carries no plan
+identity); the dated `single_table_v1@1` amendment above permits only the
+connected prove-or-fresh adoption it specifies, otherwise migrate-or-discard
+still governs. A
 proof-backed resume credential for `qmk1` materializations remains a
 future dated amendment here (LLP 0166 OQ2). This note changes no
 behavior owned by this RFC.
