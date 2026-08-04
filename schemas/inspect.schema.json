@@ -242,7 +242,7 @@
     },
     "AssetCallbackPolicy": {
       "additionalProperties": false,
-      "description": "Declared lifecycle callbacks: each names an ordinary generated mutation\ninvoked with typed facts under the asset owner's authority — never raw\nbyte authority (LLP 0044 §Declarative processing).",
+      "description": "Declared lifecycle callbacks: each names an ordinary generated mutation\ninvoked with typed facts — under owner authority in dev mode or the ruled\n`asset-callbacks` service principal in sessions mode — never raw byte\nauthority (LLP 0044 §Declarative processing).",
       "properties": {
         "ready": {
           "type": [
