@@ -1425,6 +1425,9 @@ fn simulate_versioned_seed_projection_rows(
     reset_first: bool,
 ) -> SnapbackResult<usize> {
     let mut simulation = database.detached_read_snapshot()?;
+    let _writer_token = simulation
+        .writer_authority
+        .enter(write_authority::LocalWriterLaneV1::DryRun)?;
     let tx = simulation
         .conn
         .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -2397,11 +2400,18 @@ impl LocalDatabase {
         self.writer_authority.set_manifest(manifest)
     }
 
+    #[allow(dead_code)] // Production publication consumes this after acceptance.
+    fn local_writer_coverage_inventory(
+        &self,
+    ) -> SnapbackResult<write_authority::LocalWriterCoverageInventoryV1> {
+        self.writer_authority.inventory(self)
+    }
+
     #[cfg(test)]
     fn local_writer_coverage_inventory_for_test(
         &self,
     ) -> SnapbackResult<write_authority::LocalWriterCoverageInventoryV1> {
-        self.writer_authority.inventory(self)
+        self.local_writer_coverage_inventory()
     }
 
     pub(crate) fn current_data_version_stream(&self) -> SnapbackResult<String> {
@@ -3248,6 +3258,9 @@ impl LocalDatabase {
     }
 
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::SchemaActivation)?;
         self.apply_schema_mode_aware(manifest)?;
         self.writer_authority.set_schema(&self.schema)?;
         Ok(Vec::new())
@@ -3269,6 +3282,9 @@ impl LocalDatabase {
         &mut self,
         seed: Option<SeedData>,
     ) -> SnapbackResult<Option<MutationOutput>> {
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::ResetAndSeed)?;
         use crate::auth::coordinator::AuthCoordinator;
         use crate::auth::session_projection::{
             AuthorizationStreamRecord, ProjectionSource, SessionProjection,
@@ -3308,6 +3324,13 @@ impl LocalDatabase {
         predecessor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
         successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
     ) -> auth::AuthTransactionAttempt<Option<MutationOutput>> {
+        let _writer_token = match self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::ResetAndSeed)
+        {
+            Ok(token) => token,
+            Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
+        };
         let schema = self.schema.clone();
         let authorization_interlock = self.authorization_interlock.clone();
         let tx = match self
@@ -3434,6 +3457,13 @@ impl LocalDatabase {
         Option<MutationOutput>,
         crate::seed_identity::SeedInstallReceiptV1,
     )> {
+        let _writer_token = match self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::ResetAndSeed)
+        {
+            Ok(token) => token,
+            Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
+        };
         if let Err(error) = request.validate() {
             return auth::AuthTransactionAttempt::RolledBack(error);
         }
@@ -3735,6 +3765,9 @@ impl LocalDatabase {
         &mut self,
         request: crate::seed_identity::InstallSeedRequestV1,
     ) -> SnapbackResult<crate::seed_identity::SeedEnsureResultV1> {
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::StandaloneSeed)?;
         request.validate()?;
         validate_versioned_seed_request(
             &self.schema,
@@ -4070,6 +4103,9 @@ impl LocalDatabase {
         &mut self,
         seed: SeedData,
     ) -> SnapbackResult<Vec<ChangedRow>> {
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::DryRun)?;
         let schema = self.schema.clone();
         let tx = self
             .conn
@@ -4093,6 +4129,9 @@ impl LocalDatabase {
     }
 
     pub fn seed_with_authorization(&mut self, seed: SeedData) -> SnapbackResult<SeedCommit> {
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::StandaloneSeed)?;
         let schema = self.schema.clone();
         let authorization_interlock = self.authorization_interlock.clone();
         let tx = self
@@ -4242,6 +4281,9 @@ impl LocalDatabase {
     /// §4: a crash after release reopens only the successor and resumes
     /// cleanup). Inventory-driven — no artifact required.
     pub(crate) fn resume_pending_migration_cleanup(&mut self) -> SnapbackResult<Option<Value>> {
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::MigrationExecutor)?;
         let schema = self.schema.clone();
         migration_executor::resume_pending_cleanup(&mut self.conn, &schema)
     }
@@ -8323,6 +8365,9 @@ impl LocalDatabase {
         plan_digest: &str,
         cause: &str,
     ) -> SnapbackResult<ProjectionRebuildReceipt> {
+        let _writer_token = self
+            .writer_authority
+            .enter(write_authority::LocalWriterLaneV1::ProjectionRebuild)?;
         crate::exec_guard::debug_assert_off_async_worker("a projection rebuild");
         let schema = self.schema.clone();
         let now_ms = now_millis();
@@ -15420,7 +15465,7 @@ impl LocalDatabase {
     ) -> SnapbackResult<MutationCommit> {
         let input = writer.handler_input();
         self.apply_buffered_writes_with_lifecycle_gated(
-            write_authority::LocalWriterLaneV1::MembershipAdmin,
+            write_authority::LocalWriterLaneV1::MembershipTransition,
             &input,
             BufferedEffects {
                 writes: plan.writes,
@@ -25535,6 +25580,8 @@ mod guarded_commit_tests {
             .local_writer_coverage_inventory_for_test()
             .expect("closed local writer inventory");
         assert_eq!(inventory.schema_version, 1);
+        assert!(inventory.all_physical_writers_enumerated);
+        assert!(inventory.all_app_effective_writers_accounted);
         assert_eq!(
             inventory.entries.len(),
             write_authority::LocalWriterLaneV1::ALL.len(),
@@ -25556,8 +25603,23 @@ mod guarded_commit_tests {
         for writer in [
             write_authority::LocalWriterLaneV1::HostChildHostPlan,
             write_authority::LocalWriterLaneV1::HostChildIbexBuffered,
-            write_authority::LocalWriterLaneV1::Migration,
-            write_authority::LocalWriterLaneV1::SeedAndReset,
+        ] {
+            let entry = inventory
+                .entries
+                .iter()
+                .find(|entry| entry.choke_point == writer.choke_point())
+                .expect("mapped but undeclared host writer inventory row");
+            assert!(entry.target_supported && entry.app_effective);
+            assert!(!entry.declared_covered);
+            assert!(entry.envelope_mapped);
+            assert!(entry.exclusion_reason.is_none());
+        }
+        for writer in [
+            write_authority::LocalWriterLaneV1::SchemaActivation,
+            write_authority::LocalWriterLaneV1::MigrationExecutor,
+            write_authority::LocalWriterLaneV1::ResetAndSeed,
+            write_authority::LocalWriterLaneV1::StandaloneSeed,
+            write_authority::LocalWriterLaneV1::StrictPromotionReexecution,
         ] {
             let entry = inventory
                 .entries
@@ -25566,23 +25628,112 @@ mod guarded_commit_tests {
                 .expect("effective uncovered writer inventory row");
             assert!(entry.target_supported && entry.app_effective);
             assert!(!entry.declared_covered);
+            assert!(!entry.envelope_mapped);
+            assert!(entry.exclusion_reason.is_some());
         }
         assert!(
             !inventory.all_app_effective_writers_covered,
             "ordinary-only target support must not upcast app-effective coverage"
         );
-        let grouped_specialized = inventory
+        assert!(inventory.entries.iter().all(|entry| {
+            entry.physically_enumerated
+                && (entry.envelope_mapped != entry.exclusion_reason.is_some())
+        }));
+        for writer in [
+            write_authority::LocalWriterLaneV1::AuthCatalog,
+            write_authority::LocalWriterLaneV1::AdminControl,
+            write_authority::LocalWriterLaneV1::AssetCatalog,
+            write_authority::LocalWriterLaneV1::SearchIndex,
+            write_authority::LocalWriterLaneV1::VectorIndex,
+            write_authority::LocalWriterLaneV1::PushRegistry,
+            write_authority::LocalWriterLaneV1::JobAndCronState,
+            write_authority::LocalWriterLaneV1::OperationLedger,
+            write_authority::LocalWriterLaneV1::HistoryAndCheckpoint,
+            write_authority::LocalWriterLaneV1::BranchRegistry,
+        ] {
+            let entry = inventory
+                .entries
+                .iter()
+                .find(|entry| entry.choke_point == writer.choke_point())
+                .expect("enumerated system writer row");
+            assert!(entry.target_supported && !entry.app_effective);
+            assert!(entry.exclusion_reason.is_some());
+        }
+    }
+
+    #[test]
+    fn llp0162_local_target_activation_names_only_envelope_writers_and_blocks_exclusions() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema()).expect("apply writer fixture schema");
+        db.activate_local_target_operation_coverage(1)
+            .expect("activate closed local target manifest");
+
+        let inventory = db
+            .local_writer_coverage_inventory_for_test()
+            .expect("activated local writer inventory");
+        let declared = inventory
             .entries
             .iter()
-            .find(|entry| {
-                entry.choke_point
-                    == write_authority::LocalWriterLaneV1::SpecializedSystem.choke_point()
-            })
-            .expect("grouped specialized inventory marker");
+            .filter(|entry| entry.declared_covered)
+            .collect::<Vec<_>>();
+        assert_eq!(declared.len(), 4);
+        assert!(declared.iter().all(|entry| {
+            entry.envelope_mapped
+                && entry.exclusion_reason.is_none()
+                && entry.write_authority_enforced
+        }));
         assert!(
-            !grouped_specialized.physically_enumerated,
-            "a grouped specialized row is a Missing marker, never completeness evidence"
+            !inventory.all_app_effective_writers_covered,
+            "explicitly excluded schema/seed/migration/projection/promotion writers remain visible"
         );
+
+        for writer in [
+            write_authority::LocalWriterLaneV1::SchemaActivation,
+            write_authority::LocalWriterLaneV1::MigrationExecutor,
+            write_authority::LocalWriterLaneV1::ResetAndSeed,
+            write_authority::LocalWriterLaneV1::StandaloneSeed,
+            write_authority::LocalWriterLaneV1::MembershipTransition,
+            write_authority::LocalWriterLaneV1::ProjectionRebuild,
+            write_authority::LocalWriterLaneV1::StrictPromotionReexecution,
+        ] {
+            let error = match db.writer_authority.enter(writer) {
+                Ok(_) => panic!("an excluded app writer acquired authority"),
+                Err(error) => error,
+            };
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_OPERATION_WRITER_EXCLUDED"
+            );
+        }
+
+        let schema_error = db
+            .apply_schema(schema())
+            .expect_err("schema activation must use its excluded generated authority");
+        assert_eq!(
+            schema_error.diagnostic.code,
+            "SNAPBACK_OPERATION_WRITER_EXCLUDED"
+        );
+        let reset_error = db
+            .reset()
+            .expect_err("reset must use its excluded generated authority");
+        assert_eq!(
+            reset_error.diagnostic.code,
+            "SNAPBACK_OPERATION_WRITER_EXCLUDED"
+        );
+
+        let raw = db
+            .conn
+            .execute(
+                "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+                 VALUES('excluded-bypass',1,1,1,'denied')",
+                [],
+            )
+            .expect_err("excluded writer cannot fall back to raw SQL");
+        assert!(matches!(
+            raw,
+            rusqlite::Error::SqliteFailure(failure, _)
+                if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+        ));
     }
 
     #[test]

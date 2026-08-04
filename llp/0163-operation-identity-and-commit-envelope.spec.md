@@ -5,7 +5,13 @@
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (migration aggregate settlement tail — P now atomically
+**Revised:** 2026-08-04 (writer-inventory activation tail — the local target
+now has 23 individually named physical writer families, stable executable
+exclusion reasons instead of a grouped specialized row, fail-closed armed
+refusal for every non-envelope app writer, and one production storage cut that
+can publish exactly the four authenticated ordinary/host adapters; the cut is
+not invoked while review and publication gates remain open, so the Spec stays
+Draft and capabilities stay Missing); 2026-08-04 (migration aggregate settlement tail — P now atomically
 retains a truthful Pending envelope/lifecycle and T appends a digest-linked
 Committed/RolledBack supplement with bounded Host retention; H1/H2/C and the
 aggregate boundary remain uncovered, the Spec remains Draft, and every
@@ -54,7 +60,14 @@ they can version independently of the profile umbrella)
 **Related:** LLP 0012, LLP 0037, LLP 0043, LLP 0055, LLP 0095, LLP 0133,
 LLP 0148, LLP 0162
 
-**Implementation evidence:** 2026-08-04 (the approval-derived migration
+**Implementation evidence:** 2026-08-04 (the local target inventory names 23
+physical writer families; only the four ordinary/host adapters lack an
+exclusion reason and each maps to the authenticated envelope seam, while
+schema, migration, reset/seed, membership, projection rebuild, and strict
+promotion refuse generated writer authority after coverage is armed; a
+non-test production activation cut checks the closed inventory and exact
+four-writer manifest but remains uninvoked pending review/publication);
+2026-08-04 (the approval-derived migration
 aggregate has an immutable P-side Pending envelope plus an additive,
 receipt-byte-verified T supplement; exact replay, divergent refusal, P/R
 journal singleton checks, response loss, cleanup resume, capacity, corruption,
@@ -479,14 +492,28 @@ postimage — including `_id`, `_version`, `_createdAt`, and `_updatedAt` — wi
 the journal postimage.
 
 The target/app-effective projection is deliberately not a completeness claim.
-It enumerates migration, seed/reset, membership-admin, projection-rebuild, and
-specialized-system lanes beside the four envelope-mapped writers. The
-specialized-system row is explicitly `physicallyEnumerated: false`; grouped
-assets/auth/jobs/push/search/vector sites can never make
-`allAppEffectiveWritersCovered` true. Migration, seed/reset, and the remaining
-specialized/direct-SQL sites are not envelope-mapped by this slice. No
-production target activates coverage, row 4 and row 9 remain Partial, the Spec
-remains Draft, and every related capability remains `Missing`.
+It now names 23 physical families individually: the four ordinary/host
+adapters; schema activation; migration; destructive reset; standalone seed;
+membership transition; projection rebuild and derived projection maintenance;
+auth/admin, assets, search, vector, push, jobs/cron, operation-ledger,
+history/checkpoint, and branch-registry system writers; strict promotion; and
+rollback-only dry runs. There is no grouped `specializedSystem` escape hatch.
+Every row is physically enumerated and is exactly one of envelope-mapped or
+bound to a stable exclusion reason.
+
+The exclusion is executable, not documentary. Once coverage is armed,
+schema, migration, reset/seed, standalone seed, standalone membership,
+projection rebuild, and strict-promotion writers cannot acquire the generated
+writer token and fail with `SNAPBACK_OPERATION_WRITER_EXCLUDED`; they cannot
+fall back to raw SQL because SQLite still denies it. Projection maintenance
+runs only within its parent writer transaction, and the remaining specialized
+families write Snapback-owned system state rather than originating
+application-table DML. A production (non-test, non-benchmark) storage cut now
+checks the closed inventory and can publish exactly the two ordinary and two
+host-child adapters. It is deliberately not called by open or range issuance
+while independent review, author acceptance, and performance publication are
+open. Therefore row 4 and row 9 remain Partial, the Spec remains Draft, and
+every related capability remains `Missing`.
 
 ## Implementation record — 2026-08-04, host action-child carrier slice
 

@@ -32,25 +32,51 @@ pub(super) enum LocalWriterLaneV1 {
     OrdinaryIbexBuffered,
     HostChildHostPlan,
     HostChildIbexBuffered,
-    Migration,
-    SeedAndReset,
-    MembershipAdmin,
+    SchemaActivation,
+    MigrationExecutor,
+    ResetAndSeed,
+    StandaloneSeed,
+    MembershipTransition,
     ProjectionRebuild,
-    SpecializedSystem,
+    ProjectionMaintenance,
+    AuthCatalog,
+    AdminControl,
+    AssetCatalog,
+    SearchIndex,
+    VectorIndex,
+    PushRegistry,
+    JobAndCronState,
+    OperationLedger,
+    HistoryAndCheckpoint,
+    BranchRegistry,
+    StrictPromotionReexecution,
     DryRun,
 }
 
 impl LocalWriterLaneV1 {
-    pub(super) const ALL: [Self; 10] = [
+    pub(super) const ALL: [Self; 23] = [
         Self::OrdinaryHostPlan,
         Self::OrdinaryIbexBuffered,
         Self::HostChildHostPlan,
         Self::HostChildIbexBuffered,
-        Self::Migration,
-        Self::SeedAndReset,
-        Self::MembershipAdmin,
+        Self::SchemaActivation,
+        Self::MigrationExecutor,
+        Self::ResetAndSeed,
+        Self::StandaloneSeed,
+        Self::MembershipTransition,
         Self::ProjectionRebuild,
-        Self::SpecializedSystem,
+        Self::ProjectionMaintenance,
+        Self::AuthCatalog,
+        Self::AdminControl,
+        Self::AssetCatalog,
+        Self::SearchIndex,
+        Self::VectorIndex,
+        Self::PushRegistry,
+        Self::JobAndCronState,
+        Self::OperationLedger,
+        Self::HistoryAndCheckpoint,
+        Self::BranchRegistry,
+        Self::StrictPromotionReexecution,
         Self::DryRun,
     ];
 
@@ -62,11 +88,24 @@ impl LocalWriterLaneV1 {
             Self::HostChildHostPlan | Self::HostChildIbexBuffered => {
                 crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1
             }
-            Self::Migration => "migration",
-            Self::SeedAndReset => "seedAndReset",
-            Self::MembershipAdmin => "membershipAdmin",
+            Self::SchemaActivation => "schemaActivation",
+            Self::MigrationExecutor => "migration",
+            Self::ResetAndSeed => "resetAndSeed",
+            Self::StandaloneSeed => "standaloneSeed",
+            Self::MembershipTransition => "membershipTransition",
             Self::ProjectionRebuild => "projectionRebuild",
-            Self::SpecializedSystem => "specializedSystem",
+            Self::ProjectionMaintenance => "projectionMaintenance",
+            Self::AuthCatalog => "authCatalog",
+            Self::AdminControl => "adminControl",
+            Self::AssetCatalog => "assetCatalog",
+            Self::SearchIndex => "searchIndex",
+            Self::VectorIndex => "vectorIndex",
+            Self::PushRegistry => "pushRegistry",
+            Self::JobAndCronState => "jobAndCronState",
+            Self::OperationLedger => "operationLedger",
+            Self::HistoryAndCheckpoint => "historyAndCheckpoint",
+            Self::BranchRegistry => "branchRegistry",
+            Self::StrictPromotionReexecution => "strictPromotionReexecution",
             Self::DryRun => "dryRun",
         }
     }
@@ -83,17 +122,30 @@ impl LocalWriterLaneV1 {
                 "LocalDatabase::execute_host_mutation_guarded_with_settlement_time"
             }
             Self::HostChildIbexBuffered => "LocalDatabase::commit_buffered_host_writes_guarded",
-            Self::Migration => "storage::migration_executor",
-            Self::SeedAndReset => "storage::seed_and_reset",
-            Self::MembershipAdmin => "storage::commit_membership_plan",
-            Self::ProjectionRebuild => "storage::rebuild_projection",
-            Self::SpecializedSystem => "storage::specialized_system_writers",
-            Self::DryRun => "storage::execute_and_discard",
+            Self::SchemaActivation => "storage::auth_mode schema publication",
+            Self::MigrationExecutor => "LocalDatabase::migrate_apply/migrate_rollback",
+            Self::ResetAndSeed => "LocalDatabase::reset_and_seed",
+            Self::StandaloneSeed => "LocalDatabase::ensure_versioned_seed/seed_with_authorization",
+            Self::MembershipTransition => "LocalDatabase::commit_membership_plan",
+            Self::ProjectionRebuild => "LocalDatabase::rebuild_projection",
+            Self::ProjectionMaintenance => "storage::maintain_projections_in_tx",
+            Self::AuthCatalog => "LocalDatabase::with_auth_transaction/attempt_auth_transaction",
+            Self::AdminControl => "admin/local control-state transactions",
+            Self::AssetCatalog => "LocalDatabase::asset_transaction",
+            Self::SearchIndex => "search::sqlite",
+            Self::VectorIndex => "vector::sqlite/vector::rebuild",
+            Self::PushRegistry => "push registry/queue transactions",
+            Self::JobAndCronState => "jobs/cron durable state transactions",
+            Self::OperationLedger => "operation_ledger lifecycle transactions",
+            Self::HistoryAndCheckpoint => "proof_checkpoint/history transactions",
+            Self::BranchRegistry => "instance_fork/fork_promotion registry transactions",
+            Self::StrictPromotionReexecution => "fork_promotion::promote_by_reexecution",
+            Self::DryRun => "storage::preview/execute_and_discard",
         }
     }
 
     const fn schema_authority(self) -> bool {
-        matches!(self, Self::Migration)
+        matches!(self, Self::SchemaActivation | Self::MigrationExecutor)
     }
 
     pub(super) const fn envelope_mapped(self) -> bool {
@@ -103,6 +155,68 @@ impl LocalWriterLaneV1 {
                 | Self::OrdinaryIbexBuffered
                 | Self::HostChildHostPlan
                 | Self::HostChildIbexBuffered
+        )
+    }
+
+    /// A stable, executable explanation for every inventory row that is not
+    /// itself an envelope-mapped physical application writer. Returning
+    /// `None` is reserved to the four closed adapters above; tests reject any
+    /// future unclassified row.
+    pub(super) const fn exclusion_reason(self) -> Option<&'static str> {
+        match self {
+            Self::OrdinaryHostPlan
+            | Self::OrdinaryIbexBuffered
+            | Self::HostChildHostPlan
+            | Self::HostChildIbexBuffered => None,
+            Self::SchemaActivation => Some("schema-publication-has-no-ordinary-operation-envelope"),
+            Self::MigrationExecutor => Some("migration-aggregate-envelope-is-not-target-coverage"),
+            Self::ResetAndSeed => Some("destructive-stream-rotation-has-separate-seed-identity"),
+            Self::StandaloneSeed => Some("seed-receipt-is-not-operation-envelope-v1"),
+            Self::MembershipTransition => {
+                Some("membership-writer-has-no-authenticated-operation-issuance")
+            }
+            Self::ProjectionRebuild => {
+                Some("projection-rebuild-receipt-is-not-operation-envelope-v1")
+            }
+            Self::ProjectionMaintenance => {
+                Some("derived-write-runs-inside-its-parent-writer-transaction")
+            }
+            Self::AuthCatalog => Some("system-catalog-only-no-application-table-dml"),
+            Self::AdminControl => Some("system-control-only-no-application-table-dml"),
+            Self::AssetCatalog => Some("system-catalog-only-app-references-use-parent-writer"),
+            Self::SearchIndex => Some("derived-index-only-app-writes-use-parent-writer"),
+            Self::VectorIndex => Some("derived-index-only-app-writes-use-parent-writer"),
+            Self::PushRegistry => Some("system-custody-only-app-writes-use-parent-writer"),
+            Self::JobAndCronState => {
+                Some("system-scheduler-only-child-app-writes-use-host-adapter")
+            }
+            Self::OperationLedger => {
+                Some("envelope-metadata-writer-never-writes-application-tables")
+            }
+            Self::HistoryAndCheckpoint => {
+                Some("evidence-copy-writer-never-originates-application-dml")
+            }
+            Self::BranchRegistry => Some("registry-only-branch-app-writes-use-ordinary-adapters"),
+            Self::StrictPromotionReexecution => {
+                Some("production-route-not-published-and-no-generated-writer-token")
+            }
+            Self::DryRun => Some("transaction-is-always-rolled-back"),
+        }
+    }
+
+    /// App-table writers without the v1 authenticated envelope seam are not
+    /// merely omitted from the manifest: once coverage is armed they cannot
+    /// run. This is the executable half of the exclusion inventory.
+    const fn blocked_when_coverage_armed(self) -> bool {
+        matches!(
+            self,
+            Self::SchemaActivation
+                | Self::MigrationExecutor
+                | Self::ResetAndSeed
+                | Self::StandaloneSeed
+                | Self::MembershipTransition
+                | Self::ProjectionRebuild
+                | Self::StrictPromotionReexecution
         )
     }
 }
@@ -116,9 +230,10 @@ pub(super) struct LocalWriterCoverageEntryV1 {
     pub app_effective: bool,
     pub declared_covered: bool,
     pub envelope_mapped: bool,
-    /// False for a deliberately grouped inventory row. A grouped family is a
-    /// useful Missing marker, never evidence of physical-writer completeness.
+    /// Every row is one named physical writer family. Grouped catch-alls are
+    /// forbidden because they could hide a newly app-effective adapter.
     pub physically_enumerated: bool,
+    pub exclusion_reason: Option<&'static str>,
     pub write_authority_enforced: bool,
 }
 
@@ -129,6 +244,8 @@ pub(super) struct LocalWriterCoverageInventoryV1 {
     pub target_profile: &'static str,
     pub manifest_version: Option<u64>,
     pub entries: Vec<LocalWriterCoverageEntryV1>,
+    pub all_physical_writers_enumerated: bool,
+    pub all_app_effective_writers_accounted: bool,
     pub all_app_effective_writers_covered: bool,
 }
 
@@ -219,6 +336,19 @@ impl WriterAuthorityV1 {
         writer: LocalWriterLaneV1,
     ) -> SnapbackResult<GeneratedWriterTokenV1> {
         let mut state = self.lock()?;
+        if state.armed() && writer.blocked_when_coverage_armed() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_WRITER_EXCLUDED",
+                "storage",
+                format!(
+                    "writer {} is explicitly excluded from the active coverage manifest ({})",
+                    writer.choke_point(),
+                    writer
+                        .exclusion_reason()
+                        .unwrap_or("missing-exclusion-reason")
+                ),
+            ));
+        }
         match state.active_writer {
             None => state.active_writer = Some(writer),
             Some(active) if active == writer => {}
@@ -254,12 +384,6 @@ impl WriterAuthorityV1 {
             .iter()
             .any(|table| table.membership.is_some());
         let has_projection = !database.projections.is_empty();
-        let has_specialized =
-            database.schema.assets.is_some()
-                || database.schema.push_seam.is_some()
-                || database.schema.tables.iter().any(|table| {
-                    !table.search_indexes.is_empty() || !table.vector_indexes.is_empty()
-                });
         let entries = LocalWriterLaneV1::ALL
             .into_iter()
             .map(|writer| {
@@ -268,11 +392,32 @@ impl WriterAuthorityV1 {
                     | LocalWriterLaneV1::OrdinaryIbexBuffered
                     | LocalWriterLaneV1::HostChildHostPlan
                     | LocalWriterLaneV1::HostChildIbexBuffered
-                    | LocalWriterLaneV1::Migration
-                    | LocalWriterLaneV1::SeedAndReset => has_tables,
-                    LocalWriterLaneV1::MembershipAdmin => has_membership,
-                    LocalWriterLaneV1::ProjectionRebuild => has_projection,
-                    LocalWriterLaneV1::SpecializedSystem => has_specialized,
+                    | LocalWriterLaneV1::MigrationExecutor
+                    | LocalWriterLaneV1::ResetAndSeed
+                    | LocalWriterLaneV1::StandaloneSeed => has_tables,
+                    // Schema publication can create the first application
+                    // table, so it remains app-effective even on an empty
+                    // predecessor. This prevents a fresh target from being
+                    // incorrectly called completely covered.
+                    LocalWriterLaneV1::SchemaActivation => true,
+                    LocalWriterLaneV1::MembershipTransition => has_membership,
+                    LocalWriterLaneV1::ProjectionRebuild
+                    | LocalWriterLaneV1::ProjectionMaintenance => has_projection,
+                    // Strict promotion owns direct canonical app DML. The
+                    // product route is still unpublished, but the physical
+                    // implementation exists and therefore remains visible as
+                    // app-effective instead of disappearing from inventory.
+                    LocalWriterLaneV1::StrictPromotionReexecution => true,
+                    LocalWriterLaneV1::AuthCatalog
+                    | LocalWriterLaneV1::AdminControl
+                    | LocalWriterLaneV1::AssetCatalog
+                    | LocalWriterLaneV1::SearchIndex
+                    | LocalWriterLaneV1::VectorIndex
+                    | LocalWriterLaneV1::PushRegistry
+                    | LocalWriterLaneV1::JobAndCronState
+                    | LocalWriterLaneV1::OperationLedger
+                    | LocalWriterLaneV1::HistoryAndCheckpoint
+                    | LocalWriterLaneV1::BranchRegistry => false,
                     LocalWriterLaneV1::DryRun => false,
                 };
                 let declared_covered = manifest.is_some_and(|manifest| {
@@ -292,11 +437,21 @@ impl WriterAuthorityV1 {
                     app_effective,
                     declared_covered,
                     envelope_mapped: writer.envelope_mapped(),
-                    physically_enumerated: writer != LocalWriterLaneV1::SpecializedSystem,
+                    physically_enumerated: true,
+                    exclusion_reason: writer.exclusion_reason(),
                     write_authority_enforced: state.armed(),
                 }
             })
             .collect::<Vec<_>>();
+        let all_physical_writers_enumerated = entries.len() == LocalWriterLaneV1::ALL.len()
+            && entries.iter().all(|entry| entry.physically_enumerated)
+            && entries
+                .iter()
+                .all(|entry| entry.envelope_mapped != entry.exclusion_reason.is_some());
+        let all_app_effective_writers_accounted = entries
+            .iter()
+            .filter(|entry| entry.app_effective)
+            .all(|entry| entry.envelope_mapped || entry.exclusion_reason.is_some());
         let all_app_effective_writers_covered = entries
             .iter()
             .filter(|entry| entry.app_effective)
@@ -308,6 +463,8 @@ impl WriterAuthorityV1 {
             target_profile: LOCAL_TARGET_PROFILE_V1,
             manifest_version: manifest.map(|manifest| manifest.manifest_version),
             entries,
+            all_physical_writers_enumerated,
+            all_app_effective_writers_accounted,
             all_app_effective_writers_covered,
         })
     }

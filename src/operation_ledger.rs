@@ -1128,18 +1128,58 @@ pub(crate) fn activate_ordinary_mutation_coverage_in(
     stream_id: &str,
     activated_at_ms: u64,
 ) -> SnapbackResult<OperationCoverageManifestV1> {
+    activate_mutation_coverage_in(
+        tx,
+        stream_id,
+        &[ORDINARY_MUTATION_LANE_V1],
+        &ORDINARY_MUTATION_WRITERS_V1,
+        activated_at_ms,
+    )
+}
+
+/// Server-owned publication cut for every currently envelope-mapped local
+/// application writer. Keeping the target cut separate from the ordinary-only
+/// benchmark cut prevents measurement setup from accidentally advertising the
+/// Host child lane.
+#[allow(dead_code)] // Called only by the acceptance-gated publication step.
+pub(crate) fn activate_local_target_mutation_coverage_in(
+    tx: &Transaction<'_>,
+    stream_id: &str,
+    activated_at_ms: u64,
+) -> SnapbackResult<OperationCoverageManifestV1> {
+    let writers = ORDINARY_MUTATION_WRITERS_V1
+        .into_iter()
+        .chain(HOST_CHILD_MUTATION_WRITERS_V1)
+        .collect::<Vec<_>>();
+    activate_mutation_coverage_in(
+        tx,
+        stream_id,
+        &[ORDINARY_MUTATION_LANE_V1, HOST_CHILD_MUTATION_LANE_V1],
+        &writers,
+        activated_at_ms,
+    )
+}
+
+fn activate_mutation_coverage_in(
+    tx: &Transaction<'_>,
+    stream_id: &str,
+    lanes: &[&str],
+    writers: &[&str],
+    activated_at_ms: u64,
+) -> SnapbackResult<OperationCoverageManifestV1> {
     let current = active_coverage_manifest(tx, stream_id)?;
     if let Some(manifest) = current.as_ref().filter(|manifest| {
-        manifest
-            .covered_lanes
-            .iter()
-            .any(|lane| lane == ORDINARY_MUTATION_LANE_V1)
-            && ORDINARY_MUTATION_WRITERS_V1.iter().all(|writer| {
-                manifest
-                    .writer_choke_points
-                    .iter()
-                    .any(|declared| declared == writer)
-            })
+        lanes.iter().all(|lane| {
+            manifest
+                .covered_lanes
+                .iter()
+                .any(|declared| declared == lane)
+        }) && writers.iter().all(|writer| {
+            manifest
+                .writer_choke_points
+                .iter()
+                .any(|declared| declared == writer)
+        })
     }) {
         return Ok(manifest.clone());
     }
@@ -1155,17 +1195,13 @@ pub(crate) fn activate_ordinary_mutation_coverage_in(
         .as_ref()
         .map(|manifest| manifest.covered_lanes.clone())
         .unwrap_or_default();
-    covered_lanes.push(ORDINARY_MUTATION_LANE_V1.to_owned());
+    covered_lanes.extend(lanes.iter().map(|lane| (*lane).to_owned()));
     covered_lanes.sort();
     covered_lanes.dedup();
     let mut writer_choke_points = current
         .map(|manifest| manifest.writer_choke_points)
         .unwrap_or_default();
-    writer_choke_points.extend(
-        ORDINARY_MUTATION_WRITERS_V1
-            .iter()
-            .map(|writer| (*writer).to_owned()),
-    );
+    writer_choke_points.extend(writers.iter().map(|writer| (*writer).to_owned()));
     writer_choke_points.sort();
     writer_choke_points.dedup();
     let manifest = OperationCoverageManifestV1 {
