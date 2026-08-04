@@ -58,6 +58,10 @@ try {
       { ...ref, kind: 'LiveQuery' },
       { connectionId: 'argument-validation', args: forged },
     )],
+    ['live query', () => client.liveQuery(
+      { ...ref, kind: 'LiveQuery' },
+      { connectionId: 'argument-validation', args: forged },
+    )],
     ['authorized lease', () => client.authorizedLeaseQuery(
       { ...ref, kind: 'Query' },
       {

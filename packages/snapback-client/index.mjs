@@ -1683,6 +1683,67 @@ const clientCodedError = (error, code) => {
   return error;
 };
 
+export const SNAPBACK_QUERY_OFFLINE_UNAVAILABLE =
+  'SNAPBACK_QUERY_OFFLINE_UNAVAILABLE';
+
+const RETAINABLE_QUERY_RETENTION_CLASSES = new Set([
+  'opaque-authorized-snapshot-v1',
+  'result-transform-snapshot-v1',
+  'rqs-authority-independent-snapshot-v1',
+]);
+
+// @ref LLP 0166#d4--completeness-honest-local-answers — a failed transport
+// cannot upgrade missing/volatile state into an answer. Surface the exact
+// `unknown` class the store would return, together with the query's declared
+// retention facts, while preserving the transport failure as the cause.
+const queryOfflineUnavailableError = ({
+  cause,
+  name,
+  ref,
+  persistResume = true,
+  preparedMaterialization = null,
+}) => {
+  const retentionClass = preparedMaterialization?.bridge?.retentionClass
+    ?? ref?.composition?.normalizedCompositePlan?.classification?.retention
+    ?? 'none';
+  const retentionDisposition = RETAINABLE_QUERY_RETENTION_CLASSES.has(retentionClass)
+    ? 'retainable'
+    : 'volatile';
+  const reason = retentionDisposition === 'volatile'
+    ? `query retention class ${JSON.stringify(retentionClass)} does not admit `
+      + 'an authoritative retained local answer'
+    : persistResume !== true
+      ? 'local retention was disabled for this query'
+      : 'no authoritative retained answer passed the LLP 0166 D4 witness, '
+        + 'capability, fence, and completeness checks';
+  const message = `${name} is unavailable offline because ${reason}`;
+  const diagnostic = Object.freeze({
+    schemaVersion: 'snapback.client-diagnostic.v1',
+    code: SNAPBACK_QUERY_OFFLINE_UNAVAILABLE,
+    severity: 'error',
+    subsystem: 'client',
+    message,
+    details: Object.freeze({
+      function: name,
+      retentionClass,
+      retentionDisposition,
+      localAnswer: Object.freeze({
+        answerClass: 'unknown',
+        freshness: null,
+        reason,
+      }),
+    }),
+  });
+  const error = new Error(
+    `${SNAPBACK_QUERY_OFFLINE_UNAVAILABLE}: ${message}`,
+    { cause },
+  );
+  error.name = 'SnapbackQueryOfflineUnavailableError';
+  error.code = SNAPBACK_QUERY_OFFLINE_UNAVAILABLE;
+  error.diagnostic = diagnostic;
+  return error;
+};
+
 const LEGACY_REGISTRATION_PARTITION = `sha256:${'0'.repeat(64)}`;
 
 let localRegistrationSequence = 0;
@@ -5484,7 +5545,10 @@ export class SnapbackClient {
       },
       undefined,
       { expectedAuthorityCapture: authorityCapture },
-    );
+    ).catch((error) => {
+      if (!isConnectivityFailureError(error)) throw error;
+      throw queryOfflineUnavailableError({ cause: error, name, ref });
+    });
   }
 
   async search(ref, {
@@ -7864,6 +7928,10 @@ export class SnapbackClient {
       throw error;
     }
     const name = functionName(ref);
+    // Generated argument validation is a call-boundary refusal. Keep it ahead
+    // of auth discovery, local-store preparation, and every establishment
+    // transport so an offline caller never sees availability mask bad args.
+    validateGeneratedArguments(ref, args, name);
     const client = this;
     let activeRegistration = Object.freeze({
       registrationId: null,
@@ -10684,6 +10752,15 @@ export class SnapbackClient {
       await establish();
     } catch (error) {
       activeRegistration.release();
+      if (isConnectivityFailureError(error)) {
+        throw queryOfflineUnavailableError({
+          cause: error,
+          name,
+          ref,
+          persistResume,
+          preparedMaterialization,
+        });
+      }
       throw error;
     }
     return handle;

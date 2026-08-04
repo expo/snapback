@@ -259,6 +259,33 @@ export interface ActionOutput<Result> {
   readonly facts?: FunctionInvocationFacts;
 }
 
+export const SNAPBACK_QUERY_OFFLINE_UNAVAILABLE: 'SNAPBACK_QUERY_OFFLINE_UNAVAILABLE';
+
+export interface SnapbackQueryOfflineUnavailableDiagnostic {
+  readonly schemaVersion: 'snapback.client-diagnostic.v1';
+  readonly code: typeof SNAPBACK_QUERY_OFFLINE_UNAVAILABLE;
+  readonly severity: 'error';
+  readonly subsystem: 'client';
+  readonly message: string;
+  readonly details: Readonly<{
+    readonly function: string;
+    readonly retentionClass: string;
+    readonly retentionDisposition: 'volatile' | 'retainable';
+    readonly localAnswer: Readonly<{
+      readonly answerClass: 'unknown';
+      readonly freshness: null;
+      readonly reason: string;
+    }>;
+  }>;
+}
+
+export interface SnapbackQueryOfflineUnavailableError extends Error {
+  readonly name: 'SnapbackQueryOfflineUnavailableError';
+  readonly code: typeof SNAPBACK_QUERY_OFFLINE_UNAVAILABLE;
+  readonly diagnostic: SnapbackQueryOfflineUnavailableDiagnostic;
+  readonly cause: unknown;
+}
+
 export type SearchMatchAtomV1 =
   | { readonly Term: { readonly value: string; readonly field?: string } }
   | { readonly Phrase: { readonly values: readonly string[]; readonly field?: string } }
