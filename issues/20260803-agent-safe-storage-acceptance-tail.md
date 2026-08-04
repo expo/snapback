@@ -35,7 +35,7 @@ not authorize capability publication.
 | 10 — strict promotion | Partial | Frozen v1 contention terms, quota/defer/release behavior, exhausted-budget refusal, and identical-write/divergent-read-or-result re-seal negatives are covered. Complete the real concurrent-writer fairness/crash matrix, prove the conditional-progress claim, and cover provisional/transitive effect chains. |
 | 11 — history/checkpoint | Partial | Schema publication now atomically projects finite v2 per-record policy, removal erases retained detail, and current/per-version auth plus visible-only pagination/horizon and per-record pruning are covered without changing legacy v1 `maxRows`. The registered-copy sweep invalidates the complete materialized inventory before deletion and preserves crash/unreachable obligations, but it is not yet atomic with canonical protected-record deletion; close that new-checkpoint race and the remaining lifecycle corpus. |
 | 12 — boundary proof | Partial | Promotion and full migration verification are independently derived; migration's separate evaluator has explicit-value/equivalence plus executor-drift and staged-corruption negatives. Checkpoint concurrent-writer/publication/receipt-only no-upcast negatives are covered. Finish the remaining row-wide boundary integrations/coverage before an aggregate claim. |
-| 13 — performance | Partial | The final-integrated absolute rerun is recorded, and the successor recorder now refuses unless it binds the accepted baseline digest, exact clean revision, fixed hardware, toolchain, and release executable. Run that dated successor plus a genuinely paired/interleaved active-covered-lane comparison; obtain dated RFC-author absolute-bound ratification; record p99 contention and every applicable crash/reopen gate. |
+| 13 — performance | Partial | The final-integrated absolute rerun is recorded. The successor absolute recorder now includes a 128-sample/8-writer request-to-commit p99 behind a production promotion reservation. A second recorder alternates an exactly reconstructed pre-profile executable with the active issuance-bearing covered lane in 11 AB/BA pairs, but intentionally covers only the registered point/range/query-plan and single-writer metrics. Run both on the fixed Air; add paired idle CPU/RSS/disk and active-covered allocation/retention; obtain dated RFC-author absolute-bound ratification; pass every applicable crash/reopen gate. |
 | 14 — identity lifecycle | Partial | Wire first-party host job/cron/migration callers and transport-level client exclusion, then finish capacity/purge/current-authority negative fixtures beyond the landed promotion-ticket lease. |
 
 The detailed LLP 0163 public-carrier work remains in its existing focused
@@ -60,6 +60,26 @@ the guide-gap ticket rather than being conflated with this implementation tail.
   the accepted step-0 artifact and its SHA-256 digest, the Mac17,3/M5/32-GiB
   hardware/OS class, matching toolchain versions, and the release executable
   digest. It creates a new dated record and refuses overwriting an old one.
+- `snapback-fork-promotion-bench` v3 retains those bindings and adds 128 raw
+  benchmark-SQL request-to-commit samples across eight real SQLite writer
+  connections behind the production `canonical_mutation_admission` gate and
+  an active production promotion reservation. The timed commit after that gate
+  is a benchmark transaction, not the full envelope mutation path. It records
+  nearest-rank p50/p95/p99/max plus a per-worker initial-defer count and refuses
+  unless all eight initial samples were actually deferred. This is recorder
+  readiness, not a dated Air result or complete writer-path proof.
+- `snapback-agent-safe-paired` reconstructs the pre-profile executable from
+  revision `2ab36e28c74c450213b65f17ef81c0d6652ba33a` plus the exact three
+  instrumentation blobs from `3109a3b4f5068595a71448b10788b56b4fa358f5`.
+  A measurement-time provenance record must bind those blob digests,
+  toolchain/profile, and executable digest; the runner independently binds the
+  accepted baseline artifact digest, exact clean candidate revision, and
+  candidate executable digest. It performs one warm-up per executable then 11
+  time-local AB/BA pairs, and the candidate activates the actual
+  ordinary-mutation manifest and carries a server-issued range through the
+  production envelope seam. The output forces `fullRow13ProtocolQualified:
+  false`: paired idle CPU/RSS/disk and active-covered allocation/retention are
+  still absent, and no Air artifact exists.
 - `fork_promotion::tests::production_contention_terms_bound_reservation_quota_and_writer_admission`,
   `exhausted_rebase_budget_refuses_before_canonical_mutation`, and
   `rebase_reexecutes_into_fresh_branch_and_reseals_only_equal_facts` bind the

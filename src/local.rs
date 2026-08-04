@@ -11839,6 +11839,89 @@ impl LocalSnapback {
             .0
     }
 
+    /// Prepare one private acceptance fixture with the actual public-carrier
+    /// issuance and ordinary-mutation coverage state. This is deliberately
+    /// crate-private and does not create a supported profile-off/on product
+    /// switch; only the dated paired recorder calls it on a fresh database.
+    ///
+    /// @ref LLP 0162#measurement-gate — the active-path comparison must carry
+    ///   authenticated issuance through the covered production choke point.
+    pub(crate) fn prepare_agent_safe_active_lane_benchmark(
+        &mut self,
+        input: &HandlerInput,
+    ) -> SnapbackResult<crate::commit_envelope::ClientIdentityRangeV1> {
+        let authority = self.admission.admit_dev().and_then(|admission| {
+            InvocationGate::prepare_admitted_dev_input(
+                InvocationSource::LocalMutation,
+                ServerProfile::Dev,
+                input,
+                admission,
+            )
+        })?;
+        // The ordinary benchmark fixture predates identity streams; create
+        // its server-owned stream before asking the public range issuer to
+        // bind a range to it.
+        self.db.data_version_stream()?;
+        let range = self.issue_client_operation_identity_range(
+            &authority,
+            "agent-safe-bench-client",
+            None,
+            None,
+        )?;
+        self.db
+            .activate_ordinary_mutation_coverage_for_evidence(now_millis())?;
+        Ok(range)
+    }
+
+    /// Invoke the same staged issuance-bearing mutation body used by the HTTP
+    /// carrier after it has authenticated the request. Range and counter facts
+    /// are server-issued; this helper never accepts a host identity.
+    pub(crate) fn invoke_agent_safe_active_lane_benchmark_mutation(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        range: &crate::commit_envelope::ClientIdentityRangeV1,
+        counter: u64,
+    ) -> SnapbackResult<MutationOutput> {
+        if counter < range.range_start || counter >= range.range_end_exclusive {
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_RANGE_EXHAUSTED",
+                "protocol",
+                "acceptance benchmark counter escaped its server-issued range",
+            ));
+        }
+        let authority = self.admission.admit_dev().and_then(|admission| {
+            InvocationGate::prepare_admitted_dev_input(
+                InvocationSource::LocalMutation,
+                ServerProfile::Dev,
+                &input,
+                admission,
+            )
+        })?;
+        let issuance = crate::commit_envelope::OperationIssuanceV1::ClientRange {
+            epoch_id: range.epoch_id.clone(),
+            counter,
+            range_start: range.range_start,
+            range_end_exclusive: range.range_end_exclusive,
+            authority_authenticator_digest: range.authority_authenticator_digest.clone(),
+        };
+        let client_mutation_id = format!("agent-safe-bench-{counter}");
+        let (_preflight, staged) =
+            self.stage_recorded_authorization_mutation_with_generation_and_settlement(
+                name,
+                input,
+                Some(client_mutation_id),
+                None,
+                &[],
+                "agent-safe-paired-recorder",
+                authority,
+                None,
+                Some(issuance),
+                MutationSettlement::default(),
+            )?;
+        self.commit_staged_recorded_authorization_mutation(staged)?.0
+    }
+
     pub(crate) fn invoke_mutation_with_authority(
         &mut self,
         name: &str,

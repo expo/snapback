@@ -15,7 +15,7 @@
 
 use std::time::{Duration, Instant};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::ephemeral::{AuthContext, EphemeralCollection, PublishRequest, Scope, SubscribeRequest};
@@ -82,7 +82,7 @@ impl BenchConfig {
 }
 
 /// Every named metric, each a number with its unit in the field name.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BenchReport {
     pub iterations: usize,
     /// Per-invocation VM cost: create + eval of a trivial handler that touches
@@ -195,7 +195,7 @@ struct ProcessUsage {
 /// The three helper-splice module shapes the OQ1 measurement compares. Each
 /// variant computes the same civil-date result (the Streak Lab shape that
 /// motivated the mechanism); only the module's splice factoring differs.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct HelperSpliceBench {
     /// The logic inlined in the handler expression — zero-helper emission,
     /// byte-identical to the v1 module shape.
@@ -211,7 +211,7 @@ pub struct HelperSpliceBench {
 /// bytes), per-invocation latency distribution over individually timed fresh
 /// invocations, and the resident-memory delta across the timed loop (KiB via
 /// `ps -o rss`; ~0 expected because every invocation drops its VM).
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct HelperVariantBench {
     pub module_bytes: usize,
     pub invoke_p50_us: f64,
@@ -309,10 +309,34 @@ const HELPER_BENCH_EPOCH_MS: i64 = 1_785_456_000_000;
 
 /// Run the whole harness and return the report.
 pub fn run(config: &BenchConfig) -> crate::diagnostic::SnapbackResult<BenchReport> {
+    run_with_active_covered_lane(config, false)
+}
+
+/// Run the fixed step-0 fixture with the ordinary mutation metric routed
+/// through authenticated client-range issuance and an active coverage
+/// manifest. The paired recorder is the only caller; this does not expose a
+/// runtime profile toggle.
+///
+/// @ref LLP 0162#measurement-gate — comparable candidate evidence exercises
+///   the active public covered lane.
+pub fn run_agent_safe_active_covered(
+    config: &BenchConfig,
+) -> crate::diagnostic::SnapbackResult<BenchReport> {
+    run_with_active_covered_lane(config, true)
+}
+
+fn run_with_active_covered_lane(
+    config: &BenchConfig,
+    active_covered_lane: bool,
+) -> crate::diagnostic::SnapbackResult<BenchReport> {
     let vm_cost_us = measure_vm_cost(config)?;
     let vm_create_us = crate::runtime::bench_runtime_create_us(config.iterations);
     let warm_invoke_us = measure_warm_invoke(config)?;
-    let single_writer = measure_single_writer(config)?;
+    let single_writer = if active_covered_lane {
+        measure_single_writer_active_covered(config)?
+    } else {
+        measure_single_writer(config)?
+    };
     let current_reads = measure_current_reads(config)?;
     let write_bytes = measure_write_bytes()?;
     let (matcher_skip_us_per_sub, fanout_us_per_affected_sub) = measure_fanout(config)?;
@@ -373,6 +397,7 @@ fn schema() -> SchemaManifest {
     };
     SchemaManifest {
         schema_hash: Some("bench-v0".to_owned()),
+        inputs_hash: Some("bench-inputs-v0".to_owned()),
         tables: vec![
             TableManifest {
                 name: "todos".to_owned(),
@@ -464,6 +489,8 @@ fn functions() -> FunctionManifest {
         def
     };
     FunctionManifest {
+        bundle_hash: Some("bench-functions-v0".to_owned()),
+        inputs_hash: Some("bench-inputs-v0".to_owned()),
         functions: vec![
             noop,
             live_query("listTodos", "todos"),
@@ -577,6 +604,47 @@ fn measure_single_writer(
         let start = Instant::now();
         snapback.invoke_mutation("createTodo", args(json!({ "title": n.to_string() })))?;
         samples.push(start.elapsed().as_secs_f64() * 1_000_000.0);
+    }
+    let elapsed_us = samples.iter().sum::<f64>();
+    samples.sort_by(|left, right| left.total_cmp(right));
+    Ok(SingleWriterBench {
+        mutations_per_sec: if elapsed_us > 0.0 {
+            config.iterations as f64 * 1_000_000.0 / elapsed_us
+        } else {
+            f64::INFINITY
+        },
+        p50_us: percentile_sorted(&samples, 0.50),
+        p95_us: percentile_sorted(&samples, 0.95),
+    })
+}
+
+fn measure_single_writer_active_covered(
+    config: &BenchConfig,
+) -> crate::diagnostic::SnapbackResult<SingleWriterBench> {
+    let mut snapback = configured()?;
+    let input = args(json!({ "title": "warm" }));
+    let range = snapback.prepare_agent_safe_active_lane_benchmark(&input)?;
+    let mut counter = range.range_start;
+    for _ in 0..4 {
+        snapback.invoke_agent_safe_active_lane_benchmark_mutation(
+            "createTodo",
+            input.clone(),
+            &range,
+            counter,
+        )?;
+        counter += 1;
+    }
+    let mut samples = Vec::with_capacity(config.iterations);
+    for n in 0..config.iterations {
+        let started = Instant::now();
+        snapback.invoke_agent_safe_active_lane_benchmark_mutation(
+            "createTodo",
+            args(json!({ "title": n.to_string() })),
+            &range,
+            counter,
+        )?;
+        samples.push(started.elapsed().as_secs_f64() * 1_000_000.0);
+        counter += 1;
     }
     let elapsed_us = samples.iter().sum::<f64>();
     samples.sort_by(|left, right| left.total_cmp(right));
@@ -1505,6 +1573,15 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn agent_safe_active_covered_worker_exercises_issuance_bearing_commits() {
+        let report = run_agent_safe_active_covered(&BenchConfig::smoke())
+            .expect("active covered acceptance worker");
+        assert!(report.single_writer_mutations_per_sec > 0.0);
+        assert!(report.single_writer_mutation_p50_us > 0.0);
+        assert!(report.single_writer_mutation_p95_us > 0.0);
     }
 
     fn run_and_check_smoke() -> Result<(), String> {

@@ -44,6 +44,31 @@ impl LocalDatabase {
         Ok(stream)
     }
 
+    /// Activate the server-owned ordinary-mutation coverage cut on this
+    /// database. No production caller invokes this while LLP 0163 remains
+    /// Draft; the paired acceptance recorder uses it only on a fresh private
+    /// fixture so it can measure the real covered write seam without
+    /// advertising the capability.
+    ///
+    /// @ref LLP 0162#measurement-gate — candidate evidence must exercise the
+    ///   issuance-bearing covered lane, not merely the dormant implementation.
+    pub(crate) fn activate_ordinary_mutation_coverage_for_evidence(
+        &mut self,
+        activated_at_ms: u64,
+    ) -> SnapbackResult<()> {
+        let stream = self.data_version_stream()?;
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        crate::operation_ledger::activate_ordinary_mutation_coverage_in(
+            &tx,
+            &stream,
+            activated_at_ms,
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
     /// Reserve one never-reused boot sequence in the same transaction that
     /// reads the authorization incarnation it names. A crash consumes the
     /// reservation; rollback makes it available because no issuer escaped.
