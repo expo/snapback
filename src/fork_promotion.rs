@@ -17,7 +17,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::Instant;
 
-use rusqlite::{Connection, OptionalExtension, Transaction, params};
+use rusqlite::types::{Value as SqlValue, ValueRef};
+use rusqlite::{Connection, OptionalExtension, Transaction, params, params_from_iter};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -1452,12 +1453,693 @@ fn aggregate_fact_set(domain: &[u8], values: Vec<Value>) -> SnapbackResult<Envel
     })
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct PromotionColumnV1 {
+    name: String,
+    declared_type: String,
+    primary_key_ordinal: i64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct PromotionTableV1 {
+    name: String,
+    columns: Vec<PromotionColumnV1>,
+    primary_key_index: usize,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct PromotionJournalFactV1 {
+    table_name: String,
+    row_id: String,
+    operation: &'static str,
+    row: Option<Value>,
+}
+
+/// Read-only canonical state exposed to command replay. The underlying SQLite
+/// connection stays private: callers can observe declared application rows,
+/// but cannot execute raw SQL or bypass the promotion journal.
+pub struct PromotionReplayContextV1<'a> {
+    canonical: &'a Connection,
+}
+
+impl PromotionReplayContextV1<'_> {
+    pub fn read_row(&self, table_name: &str, row_id: &str) -> SnapbackResult<Option<Value>> {
+        let table = promotion_table(self.canonical, table_name)?;
+        scan_promotion_row(self.canonical, &table, row_id)
+    }
+}
+
+fn quote_identifier(identifier: &str) -> String {
+    format!("\"{}\"", identifier.replace('"', "\"\""))
+}
+
+fn promotion_write_refused(message: impl Into<String>) -> SnapbackError {
+    error("SNAPBACK_PROMOTION_WRITE_PATH_UNCOVERED", message)
+}
+
+fn ensure_no_inbound_write_side_effects(
+    conn: &Connection,
+    target_table: &str,
+) -> SnapbackResult<()> {
+    let foreign_keys_enabled: i64 = conn.query_row("PRAGMA foreign_keys", [], |row| row.get(0))?;
+    if foreign_keys_enabled == 0 {
+        return Ok(());
+    }
+    let mut tables = conn.prepare(
+        "SELECT name FROM sqlite_schema
+          WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+    )?;
+    let names = tables
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    for source_table in names {
+        let mut foreign_keys = conn.prepare(&format!(
+            "PRAGMA foreign_key_list({})",
+            quote_identifier(&source_table)
+        ))?;
+        let mut query = foreign_keys.query([])?;
+        while let Some(row) = query.next()? {
+            let referenced_table: String = row.get(2)?;
+            let on_delete: String = row.get(6)?;
+            if referenced_table == target_table
+                && !matches!(on_delete.as_str(), "NO ACTION" | "RESTRICT")
+            {
+                return Err(promotion_write_refused(format!(
+                    "promotion target table {target_table:?} has an inbound {on_delete} foreign-key action from {source_table:?}"
+                )));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn ensure_internal_promotion_path_has_no_triggers(conn: &Connection) -> SnapbackResult<()> {
+    let trigger_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_schema
+          WHERE type = 'trigger' AND substr(tbl_name,1,10) = '_snapback_'",
+        [],
+        |row| row.get(0),
+    )?;
+    if trigger_count != 0 {
+        return Err(promotion_write_refused(
+            "canonical Snapback tables have trigger side paths outside the promotion journal proof",
+        ));
+    }
+    Ok(())
+}
+
+fn promotion_table(conn: &Connection, table_name: &str) -> SnapbackResult<PromotionTableV1> {
+    if table_name.trim().is_empty()
+        || table_name.starts_with("_snapback_")
+        || table_name.starts_with("sqlite_")
+        || table_name.contains('\0')
+    {
+        return Err(promotion_write_refused(
+            "promotion writes may target only named application tables",
+        ));
+    }
+    let table_sql: Option<String> = conn
+        .query_row(
+            "SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = ?1",
+            params![table_name],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let table_sql = table_sql.ok_or_else(|| {
+        promotion_write_refused(format!(
+            "promotion target table {table_name:?} is missing or is not an ordinary table"
+        ))
+    })?;
+    if table_sql.to_ascii_uppercase().contains("VIRTUAL TABLE") {
+        return Err(promotion_write_refused(format!(
+            "promotion target table {table_name:?} is virtual"
+        )));
+    }
+    let trigger_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_schema WHERE type = 'trigger' AND tbl_name = ?1",
+        params![table_name],
+        |row| row.get(0),
+    )?;
+    if trigger_count != 0 {
+        return Err(promotion_write_refused(format!(
+            "promotion target table {table_name:?} has a trigger whose writes cannot be journal-proven"
+        )));
+    }
+    ensure_no_inbound_write_side_effects(conn, table_name)?;
+
+    let mut statement = conn.prepare(&format!(
+        "PRAGMA table_xinfo({})",
+        quote_identifier(table_name)
+    ))?;
+    let mut query = statement.query([])?;
+    let mut columns = Vec::new();
+    while let Some(row) = query.next()? {
+        let hidden: i64 = row.get(6)?;
+        if hidden != 0 {
+            return Err(promotion_write_refused(format!(
+                "promotion target table {table_name:?} has generated or hidden columns"
+            )));
+        }
+        columns.push(PromotionColumnV1 {
+            name: row.get(1)?,
+            declared_type: row.get(2)?,
+            primary_key_ordinal: row.get(5)?,
+        });
+    }
+    let primary_keys = columns
+        .iter()
+        .enumerate()
+        .filter(|(_, column)| column.primary_key_ordinal > 0)
+        .collect::<Vec<_>>();
+    if columns.is_empty() || primary_keys.len() != 1 || primary_keys[0].1.primary_key_ordinal != 1 {
+        return Err(promotion_write_refused(format!(
+            "promotion target table {table_name:?} must have exactly one declared primary key"
+        )));
+    }
+    let primary_key_index = primary_keys[0].0;
+    drop(primary_keys);
+    Ok(PromotionTableV1 {
+        name: table_name.to_owned(),
+        columns,
+        primary_key_index,
+    })
+}
+
+fn json_from_sql_value(value: ValueRef<'_>) -> SnapbackResult<Value> {
+    match value {
+        ValueRef::Null => Ok(Value::Null),
+        ValueRef::Integer(value) => Ok(json!(value)),
+        ValueRef::Real(value) => serde_json::Number::from_f64(value)
+            .map(Value::Number)
+            .ok_or_else(|| {
+                promotion_write_refused("promotion boundary contains a non-finite numeric value")
+            }),
+        ValueRef::Text(value) => Ok(Value::String(
+            std::str::from_utf8(value)
+                .map_err(|_| {
+                    promotion_write_refused("promotion boundary contains non-UTF-8 text")
+                })?
+                .to_owned(),
+        )),
+        ValueRef::Blob(_) => Err(promotion_write_refused(
+            "promotion boundary does not yet cover blob-valued application columns",
+        )),
+    }
+}
+
+fn row_id_from_json(value: &Value) -> SnapbackResult<String> {
+    match value {
+        Value::String(value) => Ok(value.clone()),
+        Value::Number(value) if value.as_i64().is_some() => Ok(value.to_string()),
+        Value::Number(value) if value.as_u64().is_some() => Ok(value.to_string()),
+        _ => Err(promotion_write_refused(
+            "promotion row identity must be a string or integral JSON number",
+        )),
+    }
+}
+
+fn sql_from_json_value(value: &Value) -> SnapbackResult<SqlValue> {
+    match value {
+        Value::Null => Ok(SqlValue::Null),
+        Value::Bool(value) => Ok(SqlValue::Integer(i64::from(*value))),
+        Value::Number(value) => {
+            if let Some(value) = value.as_i64() {
+                Ok(SqlValue::Integer(value))
+            } else if let Some(value) = value.as_u64() {
+                i64::try_from(value).map(SqlValue::Integer).map_err(|_| {
+                    promotion_write_refused("promotion integer exceeds SQLite's signed range")
+                })
+            } else if let Some(value) = value.as_f64() {
+                Ok(SqlValue::Real(value))
+            } else {
+                Err(promotion_write_refused(
+                    "promotion write contains a non-canonical numeric value",
+                ))
+            }
+        }
+        Value::String(value) => Ok(SqlValue::Text(value.clone())),
+        Value::Array(_) | Value::Object(_) => Err(promotion_write_refused(
+            "promotion writes do not infer physical encodings for structured application columns",
+        )),
+    }
+}
+
+fn row_value(row: &rusqlite::Row<'_>, table: &PromotionTableV1) -> SnapbackResult<Value> {
+    let mut object = serde_json::Map::new();
+    for (index, column) in table.columns.iter().enumerate() {
+        object.insert(column.name.clone(), json_from_sql_value(row.get_ref(index)?)?);
+    }
+    Ok(Value::Object(object))
+}
+
+fn scan_promotion_row(
+    conn: &Connection,
+    table: &PromotionTableV1,
+    row_id: &str,
+) -> SnapbackResult<Option<Value>> {
+    let columns = table
+        .columns
+        .iter()
+        .map(|column| quote_identifier(&column.name))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let primary_key = &table.columns[table.primary_key_index].name;
+    let mut statement = conn.prepare(&format!(
+        "SELECT {columns} FROM {} WHERE {} = ?1",
+        quote_identifier(&table.name),
+        quote_identifier(primary_key),
+    ))?;
+    let mut rows = statement.query(params![row_id])?;
+    let value = rows
+        .next()?
+        .map(|row| row_value(row, table))
+        .transpose()?;
+    if let Some(value) = &value {
+        let actual_id = row_id_from_json(&value[primary_key])?;
+        if actual_id != row_id {
+            return Err(promotion_write_refused(format!(
+                "promotion row identity {row_id:?} is not canonical; storage returned {actual_id:?}"
+            )));
+        }
+    }
+    Ok(value)
+}
+
+fn scan_promotion_table(
+    conn: &Connection,
+    table: &PromotionTableV1,
+) -> SnapbackResult<Vec<BoundaryRowV1>> {
+    let columns = table
+        .columns
+        .iter()
+        .map(|column| quote_identifier(&column.name))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let primary_key = &table.columns[table.primary_key_index].name;
+    let mut statement = conn.prepare(&format!(
+        "SELECT {columns} FROM {} ORDER BY {}",
+        quote_identifier(&table.name),
+        quote_identifier(primary_key),
+    ))?;
+    let mut query = statement.query([])?;
+    let mut rows = Vec::new();
+    while let Some(row) = query.next()? {
+        let value = row_value(row, table)?;
+        rows.push(BoundaryRowV1 {
+            qualified_table: table.name.clone(),
+            row_id: row_id_from_json(&value[primary_key])?,
+            value,
+        });
+    }
+    Ok(rows)
+}
+
+fn scan_promotion_scope(
+    conn: &Connection,
+    scope: &BTreeSet<String>,
+) -> SnapbackResult<(Vec<PromotionTableV1>, Vec<BoundaryRowV1>)> {
+    let mut tables = Vec::new();
+    let mut rows = Vec::new();
+    for table_name in scope {
+        let table = promotion_table(conn, table_name)?;
+        rows.extend(scan_promotion_table(conn, &table)?);
+        tables.push(table);
+    }
+    Ok((tables, rows))
+}
+
+fn promotion_scope(operations: &[BranchOperationV1]) -> SnapbackResult<BTreeSet<String>> {
+    let mut scope = BTreeSet::new();
+    for operation in operations {
+        if !operation.approved_facts.writes.is_empty()
+            && operation.approved_facts.coverage.covered_lanes.is_empty()
+        {
+            return Err(error(
+                "SNAPBACK_PROMOTION_WRITE_COVERAGE_INCOMPLETE",
+                "an operation with approved writes has no covered journal lane",
+            ));
+        }
+        if !operation.approved_facts.coverage.uncovered_lanes.is_empty() {
+            return Err(error(
+                "SNAPBACK_PROMOTION_WRITE_COVERAGE_INCOMPLETE",
+                "an operation retains uncovered lanes and cannot produce a complete envelope",
+            ));
+        }
+        for write in &operation.approved_facts.writes {
+            if write.table_name.trim().is_empty() || write.row_id.trim().is_empty() {
+                return Err(error(
+                    "SNAPBACK_PROMOTION_APPROVED_FACTS_INVALID",
+                    "approved write table and row identity must be non-empty",
+                ));
+            }
+            scope.insert(write.table_name.clone());
+        }
+    }
+    Ok(scope)
+}
+
+fn folded_approved_writes(
+    base_rows: &[BoundaryRowV1],
+    operations: &[BranchOperationV1],
+) -> SnapbackResult<Vec<PromotionApprovedWriteV1>> {
+    let base = base_rows
+        .iter()
+        .map(|row| {
+            (
+                (row.qualified_table.clone(), row.row_id.clone()),
+                canonicalize_json(row.value.clone()),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    if base.len() != base_rows.len() {
+        return Err(error(
+            "SNAPBACK_PROMOTION_BASE_DUPLICATE_ROW",
+            "trusted base scan produced a duplicate row identity",
+        ));
+    }
+    let mut final_rows = base.clone();
+    for operation in operations {
+        for write in &operation.approved_facts.writes {
+            let key = (write.table_name.clone(), write.row_id.clone());
+            match &write.after {
+                Some(post_image) => {
+                    final_rows.insert(key, canonicalize_json(post_image.clone()));
+                }
+                None => {
+                    if final_rows.remove(&key).is_none() {
+                        return Err(error(
+                            "SNAPBACK_PROMOTION_APPROVED_FACTS_CONFLICT",
+                            format!(
+                                "approved delete targets absent row {:?}/{:?}",
+                                write.table_name, write.row_id
+                            ),
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    let keys = base
+        .keys()
+        .chain(final_rows.keys())
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let mut writes = Vec::new();
+    for (table_name, row_id) in keys {
+        let before = base.get(&(table_name.clone(), row_id.clone()));
+        let after = final_rows.get(&(table_name.clone(), row_id.clone()));
+        let kind = match (before, after) {
+            (None, Some(_)) => Some(PromotionWriteKindV1::Insert),
+            (Some(_), None) => Some(PromotionWriteKindV1::Delete),
+            (Some(before), Some(after)) if before != after => Some(PromotionWriteKindV1::Update),
+            _ => None,
+        };
+        if let Some(kind) = kind {
+            writes.push(PromotionApprovedWriteV1 {
+                qualified_table: table_name,
+                row_id,
+                kind,
+                post_image: after.cloned(),
+            });
+        }
+    }
+    Ok(writes)
+}
+
+fn validate_diff_against_approved_facts(
+    diff: &ForkDiffReceiptV1,
+    base_rows: &[BoundaryRowV1],
+    operations: &[BranchOperationV1],
+    approved_writes: &[PromotionApprovedWriteV1],
+) -> SnapbackResult<()> {
+    let expected_attribution = operations
+        .iter()
+        .flat_map(|operation| {
+            operation
+                .approved_facts
+                .writes
+                .iter()
+                .enumerate()
+                .map(move |(ordinal, write)| AttributedChangeV1 {
+                    child_version: operation.child_version,
+                    operation_identity: operation.identity.clone(),
+                    principal_id: operation.principal_id.clone(),
+                    write_ordinal: ordinal as u64,
+                    write: write.clone(),
+                })
+        })
+        .collect::<Vec<_>>();
+    if diff.attributed_changes != expected_attribution {
+        return Err(error(
+            "SNAPBACK_PROMOTION_DIFF_FACTS_MISMATCH",
+            "sealed diff attribution does not match the sealed operation write facts",
+        ));
+    }
+    let base = base_rows
+        .iter()
+        .map(|row| {
+            (
+                (row.qualified_table.clone(), row.row_id.clone()),
+                canonicalize_json(row.value.clone()),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let mut diff_writes = Vec::new();
+    let mut prior: Option<(&str, &str)> = None;
+    for row in &diff.net_diff {
+        let key = (row.table_name.as_str(), row.row_id.as_str());
+        if prior.is_some_and(|previous| previous >= key) {
+            return Err(error(
+                "SNAPBACK_PROMOTION_DIFF_FACTS_MISMATCH",
+                "sealed net diff is not unique and canonically ordered",
+            ));
+        }
+        prior = Some(key);
+        if row.before.as_ref().map(|value| canonicalize_json(value.clone()))
+            != base.get(&(row.table_name.clone(), row.row_id.clone())).cloned()
+        {
+            return Err(error(
+                "SNAPBACK_PROMOTION_DIFF_FACTS_MISMATCH",
+                "sealed net diff pre-image does not match the immutable base",
+            ));
+        }
+        diff_writes.push(PromotionApprovedWriteV1 {
+            qualified_table: row.table_name.clone(),
+            row_id: row.row_id.clone(),
+            kind: match row.disposition {
+                NetDiffDispositionV1::Added => PromotionWriteKindV1::Insert,
+                NetDiffDispositionV1::Updated => PromotionWriteKindV1::Update,
+                NetDiffDispositionV1::Deleted => PromotionWriteKindV1::Delete,
+            },
+            post_image: row.after.clone().map(canonicalize_json),
+        });
+    }
+    if diff_writes != approved_writes {
+        return Err(error(
+            "SNAPBACK_PROMOTION_DIFF_FACTS_MISMATCH",
+            "sealed net diff is inconsistent with the independently folded approved write facts",
+        ));
+    }
+    Ok(())
+}
+
+fn apply_approved_write(
+    tx: &Transaction<'_>,
+    table: &PromotionTableV1,
+    write: &LogicalWriteFactV1,
+    version: u64,
+    now_ms: u64,
+    aggregate_operation_id: &str,
+) -> SnapbackResult<PromotionJournalFactV1> {
+    let before = scan_promotion_row(tx, table, &write.row_id)?;
+    let primary_key = &table.columns[table.primary_key_index].name;
+    let (operation, actual_row) = if let Some(after) = &write.after {
+        let after = canonicalize_json(after.clone());
+        let object = after.as_object().ok_or_else(|| {
+            promotion_write_refused("approved row post-image must be a complete JSON object")
+        })?;
+        if object.len() != table.columns.len()
+            || table
+                .columns
+                .iter()
+                .any(|column| !object.contains_key(&column.name))
+        {
+            return Err(promotion_write_refused(format!(
+                "approved post-image for {:?}/{:?} is not a complete physical row",
+                table.name, write.row_id
+            )));
+        }
+        if row_id_from_json(&object[primary_key])? != write.row_id {
+            return Err(promotion_write_refused(format!(
+                "approved post-image identity does not match {:?}/{:?}",
+                table.name, write.row_id
+            )));
+        }
+        let values = table
+            .columns
+            .iter()
+            .map(|column| sql_from_json_value(&object[&column.name]))
+            .collect::<SnapbackResult<Vec<_>>>()?;
+        let operation = if before.is_some() { "update" } else { "insert" };
+        if before.is_some() {
+            let assignments = table
+                .columns
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| *index != table.primary_key_index)
+                .map(|(index, column)| format!("{} = ?{}", quote_identifier(&column.name), index + 1))
+                .collect::<Vec<_>>();
+            if assignments.is_empty() {
+                return Err(promotion_write_refused(
+                    "promotion cannot journal an update to a primary-key-only table",
+                ));
+            }
+            let mut update_values = values.clone();
+            update_values.push(values[table.primary_key_index].clone());
+            let changed = tx.execute(
+                &format!(
+                    "UPDATE {} SET {} WHERE {} = ?{}",
+                    quote_identifier(&table.name),
+                    assignments.join(", "),
+                    quote_identifier(primary_key),
+                    update_values.len(),
+                ),
+                params_from_iter(update_values.iter()),
+            )?;
+            if changed != 1 {
+                return Err(promotion_write_refused(
+                    "constrained promotion update did not affect exactly one row",
+                ));
+            }
+        } else {
+            let columns = table
+                .columns
+                .iter()
+                .map(|column| quote_identifier(&column.name))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let placeholders = (1..=values.len())
+                .map(|index| format!("?{index}"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let changed = tx.execute(
+                &format!(
+                    "INSERT INTO {} ({columns}) VALUES ({placeholders})",
+                    quote_identifier(&table.name),
+                ),
+                params_from_iter(values.iter()),
+            )?;
+            if changed != 1 {
+                return Err(promotion_write_refused(
+                    "constrained promotion insert did not affect exactly one row",
+                ));
+            }
+        }
+        let actual = scan_promotion_row(tx, table, &write.row_id)?.ok_or_else(|| {
+            promotion_write_refused("promoted row disappeared before journal capture")
+        })?;
+        if actual != after {
+            return Err(promotion_write_refused(
+                "physical row encoding diverged from the approved logical post-image",
+            ));
+        }
+        (operation, Some(actual))
+    } else {
+        let before = before.ok_or_else(|| {
+            error(
+                "SNAPBACK_PROMOTION_APPROVED_FACTS_CONFLICT",
+                "approved delete targets a row absent from staged canonical state",
+            )
+        })?;
+        let primary_key_value = sql_from_json_value(&before[primary_key])?;
+        let changed = tx.execute(
+            &format!(
+                "DELETE FROM {} WHERE {} = ?1",
+                quote_identifier(&table.name),
+                quote_identifier(primary_key),
+            ),
+            params_from_iter([primary_key_value].iter()),
+        )?;
+        if changed != 1 || scan_promotion_row(tx, table, &write.row_id)?.is_some() {
+            return Err(promotion_write_refused(
+                "constrained promotion delete did not remove exactly one row",
+            ));
+        }
+        ("delete", None)
+    };
+    let op = match operation {
+        "insert" => crate::storage::ChangeOp::Insert,
+        "update" => crate::storage::ChangeOp::Update,
+        "delete" => crate::storage::ChangeOp::Delete,
+        _ => unreachable!("closed promotion journal operation"),
+    };
+    crate::storage::record_promotion_change(
+        tx,
+        version,
+        &table.name,
+        &write.row_id,
+        op,
+        actual_row.as_ref(),
+        now_ms,
+        aggregate_operation_id,
+    )?;
+    Ok(PromotionJournalFactV1 {
+        table_name: table.name.clone(),
+        row_id: write.row_id.clone(),
+        operation,
+        row: actual_row,
+    })
+}
+
+struct JournalCompletenessProofV1;
+
+fn verify_promotion_journal(
+    tx: &Transaction<'_>,
+    version: u64,
+    expected: &[PromotionJournalFactV1],
+) -> SnapbackResult<JournalCompletenessProofV1> {
+    let mut statement = tx.prepare(
+        "SELECT table_name,row_id,op,row_json FROM _snapback_changes
+          WHERE version = ?1 ORDER BY id",
+    )?;
+    let mut query = statement.query(params![version as i64])?;
+    let mut actual = Vec::new();
+    while let Some(row) = query.next()? {
+        let raw: Option<String> = row.get(3)?;
+        actual.push(PromotionJournalFactV1 {
+            table_name: row.get(0)?,
+            row_id: row.get(1)?,
+            operation: match row.get::<_, String>(2)?.as_str() {
+                "insert" => "insert",
+                "update" => "update",
+                "delete" => "delete",
+                _ => {
+                    return Err(promotion_write_refused(
+                        "promotion journal contains an unknown operation",
+                    ));
+                }
+            },
+            row: raw
+                .map(|raw| decode_json::<Value>(raw.as_bytes(), "promotion journal row"))
+                .transpose()?
+                .map(canonicalize_json),
+        });
+    }
+    if actual != expected {
+        return Err(promotion_write_refused(
+            "canonical promotion writes are not completely represented in the change journal",
+        ));
+    }
+    Ok(JournalCompletenessProofV1)
+}
+
 fn build_aggregate_envelope(
     request: &PromotionRequestV1,
     operations: &[BranchOperationV1],
     canonical_version: u64,
     receipt_digest: String,
     now_ms: i64,
+    _journal_completeness: &JournalCompletenessProofV1,
 ) -> SnapbackResult<CommitEnvelopeV1> {
     let reads = operations
         .iter()
@@ -1550,9 +2232,10 @@ fn build_aggregate_envelope(
 }
 
 /// The sole promotion entry point. `reexecute` receives retained invocation
-/// inputs and runs the command against a hidden canonical transaction. It may
-/// not receive branch row post-images. Any fact divergence aborts the entire
-/// transaction before the single version publication.
+/// inputs and a read-only canonical context. It cannot execute SQL. After each
+/// replay reproduces its sealed facts, the product-owned transaction seam
+/// applies only those approved logical writes and records every one through
+/// the canonical change/history journal before publication.
 pub fn promote_by_reexecution<F>(
     canonical: &mut Connection,
     workspace: &MaterializedBase,
@@ -1562,11 +2245,13 @@ pub fn promote_by_reexecution<F>(
     authority: &PromotionAuthorityDecisionV1,
     now_ms: i64,
     schema_hash: &str,
-    scan_boundary: impl Fn(&Connection) -> SnapbackResult<Vec<BoundaryRowV1>>,
     mut reexecute: F,
 ) -> SnapbackResult<PromotionResultV1>
 where
-    F: FnMut(&Transaction<'_>, &BranchOperationV1) -> SnapbackResult<ApprovedOperationFactsV1>,
+    F: FnMut(
+        &PromotionReplayContextV1<'_>,
+        &BranchOperationV1,
+    ) -> SnapbackResult<ApprovedOperationFactsV1>,
 {
     ensure_promotion_tables(canonical)?;
     if let Some(stored) = stored_promotion_result(
@@ -1670,6 +2355,7 @@ where
             "promotion boundary proof requires a schema identity",
         ));
     }
+    ensure_internal_promotion_path_has_no_triggers(canonical)?;
     let boundary_header = PromotionDigestHeaderV1 {
         algorithm_version: 1,
         promotion_identity: request.aggregate_identity.key.operation_id.clone(),
@@ -1682,21 +2368,14 @@ where
         operation_log_digest: request.operation_log_digest.clone(),
         approved_facts_digest: request.approved_facts_digest.clone(),
     };
-    let base_rows = scan_boundary(workspace.immutable_base())?;
-    let approved_writes = diff
-        .net_diff
-        .iter()
-        .map(|row| PromotionApprovedWriteV1 {
-            qualified_table: row.table_name.clone(),
-            row_id: row.row_id.clone(),
-            kind: match row.disposition {
-                NetDiffDispositionV1::Added => PromotionWriteKindV1::Insert,
-                NetDiffDispositionV1::Updated => PromotionWriteKindV1::Update,
-                NetDiffDispositionV1::Deleted => PromotionWriteKindV1::Delete,
-            },
-            post_image: row.after.clone(),
-        })
-        .collect::<Vec<_>>();
+    // @ref LLP 0165#concrete-v1-digest-preimages-and-derivations--2026-08-03 —
+    // expected state is predecessor-derived from the immutable base plus the
+    // sealed operation write facts. The reviewed diff is only a separately
+    // sealed consistency witness and never supplies proof post-images.
+    let scope = promotion_scope(&operations)?;
+    let (base_tables, base_rows) = scan_promotion_scope(workspace.immutable_base(), &scope)?;
+    let approved_writes = folded_approved_writes(&base_rows, &operations)?;
+    validate_diff_against_approved_facts(diff, &base_rows, &operations, &approved_writes)?;
     let expected_boundary =
         derive_promotion_expected_digest(&boundary_header, &base_rows, &approved_writes)?;
     let new_version = crate::storage::next_storage_version(head)?;
@@ -1712,8 +2391,39 @@ where
             "canonical head advanced at transaction admission",
         ));
     }
+    let (canonical_tables, _) = scan_promotion_scope(&tx, &scope)?;
+    if canonical_tables != base_tables {
+        return Err(error(
+            "SNAPBACK_PROMOTION_SCHEMA_DIVERGED",
+            "canonical and immutable-base promotion table shapes differ",
+        ));
+    }
+    let journal_rows_at_version: i64 = tx
+        .query_row(
+            "SELECT COUNT(*) FROM _snapback_changes WHERE version = ?1",
+            params![new_version as i64],
+            |row| row.get(0),
+        )
+        .map_err(|cause| {
+            promotion_write_refused(format!(
+                "canonical change journal is unavailable before promotion: {cause}"
+            ))
+        })?;
+    if journal_rows_at_version != 0 {
+        return Err(promotion_write_refused(
+            "canonical change journal already contains rows for the proposed promotion version",
+        ));
+    }
+    let tables = canonical_tables
+        .into_iter()
+        .map(|table| (table.name.clone(), table))
+        .collect::<BTreeMap<_, _>>();
+    let mut expected_journal = Vec::new();
     for operation in &operations {
-        let replayed = reexecute(&tx, operation)?;
+        let replayed = reexecute(
+            &PromotionReplayContextV1 { canonical: &tx },
+            operation,
+        )?;
         if replayed != operation.approved_facts {
             return Err(error(
                 "SNAPBACK_PROMOTION_REPLAY_DIVERGED",
@@ -1723,13 +2433,26 @@ where
                 ),
             ));
         }
+        for write in &replayed.writes {
+            let table = tables.get(&write.table_name).ok_or_else(|| {
+                promotion_write_refused("replayed write escaped the sealed promotion scope")
+            })?;
+            expected_journal.push(apply_approved_write(
+                &tx,
+                table,
+                write,
+                new_version,
+                now_ms.max(0) as u64,
+                &request.aggregate_identity.key.operation_id,
+            )?);
+        }
     }
-    let actual_rows = scan_boundary(&tx)?;
+    let (_, actual_rows) = scan_promotion_scope(&tx, &scope)?;
     let actual_boundary = promotion_boundary_digest(&boundary_header, &actual_rows)?;
     let boundary_proof = BoundaryProofV1::independent(
         expected_boundary,
         actual_boundary,
-        "immutable materialized base plus sealed exact-diff final writes",
+        "immutable materialized base plus deterministically folded sealed operation write facts",
     )?;
     if !boundary_proof.matches {
         return Err(error(
@@ -1748,10 +2471,8 @@ where
             "staged promotion exceeded its declared maximum commit duration",
         ));
     }
-    tx.execute(
-        "UPDATE _snapback_version SET version = ?1 WHERE id = 1",
-        params![new_version as i64],
-    )?;
+    let journal_completeness = verify_promotion_journal(&tx, new_version, &expected_journal)?;
+    crate::storage::set_promotion_version(&tx, new_version)?;
     let source_write_fact_count = operations
         .iter()
         .map(|operation| operation.approved_facts.writes.len() as u64)
@@ -1770,8 +2491,14 @@ where
         committed_at_ms: now_ms,
     };
     let receipt_digest = digest_json(b"promotion-receipt", &receipt)?;
-    let envelope =
-        build_aggregate_envelope(request, &operations, new_version, receipt_digest, now_ms)?;
+    let envelope = build_aggregate_envelope(
+        request,
+        &operations,
+        new_version,
+        receipt_digest,
+        now_ms,
+        &journal_completeness,
+    )?;
     for (source_ordinal, operation) in operations.iter().enumerate() {
         let operation_json = json_bytes(operation, "source operation join")?;
         if operation.approved_facts.writes.is_empty() {
@@ -2061,6 +2788,30 @@ mod tests {
         let mut conn = Connection::open_in_memory().expect("source");
         conn.execute_batch(
             "CREATE TABLE _snapback_version (id INTEGER PRIMARY KEY, version INTEGER NOT NULL);
+             CREATE TABLE _snapback_changes (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               version INTEGER NOT NULL,
+               table_name TEXT NOT NULL,
+               row_id TEXT NOT NULL,
+               op TEXT NOT NULL,
+               row_json TEXT,
+               changed_at_ms INTEGER NOT NULL
+             );
+             CREATE TABLE _snapback_history_policies_v1 (
+               table_name TEXT PRIMARY KEY,
+               retain_ms INTEGER NOT NULL,
+               max_rows INTEGER NOT NULL
+             );
+             CREATE TABLE _snapback_record_history_v1 (
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               version INTEGER NOT NULL,
+               table_name TEXT NOT NULL,
+               row_id TEXT NOT NULL,
+               op TEXT NOT NULL,
+               row_json TEXT,
+               changed_at_ms INTEGER NOT NULL,
+               operation_id TEXT
+             );
              CREATE TABLE widgets (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
              INSERT INTO widgets VALUES (1, 'alpha'), (2, 'beta');",
         )
@@ -2202,17 +2953,6 @@ mod tests {
             })
         })?;
         Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
-    }
-
-    fn scan_widget_boundary(conn: &Connection) -> SnapbackResult<Vec<BoundaryRowV1>> {
-        Ok(scan_widgets(conn)?
-            .into_iter()
-            .map(|row| BoundaryRowV1 {
-                qualified_table: row.table_name,
-                row_id: row.row_id,
-                value: row.row,
-            })
-            .collect())
     }
 
     fn branch_with_rename() -> (Connection, MaterializedBase, ForkDiffReceiptV1) {
@@ -2549,8 +3289,16 @@ mod tests {
     #[test]
     fn sealed_strict_promotion_reexecutes_once_and_retries_from_receipt() {
         let (mut canonical, workspace, diff) = branch_with_rename();
+        canonical
+            .execute(
+                "INSERT INTO _snapback_history_policies_v1(table_name,retain_ms,max_rows)
+                 VALUES('widgets',60000,100)",
+                [],
+            )
+            .expect("history policy");
         let key = PromotionSealKey::from_server_secret([7_u8; 32]).expect("key");
         let ticket_identity = host_identity("canonical", "promotion-ticket-1", "app-1");
+        let aggregate_operation_id = ticket_identity.key.operation_id.clone();
         let ticket = issue_promotion_ticket(
             &mut canonical,
             ticket_identity.clone(),
@@ -2596,14 +3344,17 @@ mod tests {
             },
             2_002,
             &sha('f'),
-            scan_widget_boundary,
-            |tx, operation| {
+            |context, operation| {
                 replay_count += 1;
-                let id = operation.canonical_arguments["id"].as_i64().expect("id");
+                assert_eq!(
+                    context
+                        .read_row("widgets", "1")?
+                        .expect("canonical widget")["name"],
+                    "alpha"
+                );
                 let name = operation.canonical_arguments["name"]
                     .as_str()
                     .expect("name");
-                tx.execute("UPDATE widgets SET name=?2 WHERE id=?1", params![id, name])?;
                 Ok(facts(name))
             },
         )
@@ -2623,6 +3374,33 @@ mod tests {
             scan_widgets(&canonical).expect("rows")[0].row["name"],
             "ALPHA"
         );
+        let journal: (String, String, String, Option<String>) = canonical
+            .query_row(
+                "SELECT table_name,row_id,op,row_json FROM _snapback_changes WHERE version=6",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .expect("promotion journal");
+        assert_eq!(journal.0, "widgets");
+        assert_eq!(journal.1, "1");
+        assert_eq!(journal.2, "update");
+        assert_eq!(
+            decode_json::<Value>(
+                journal.3.as_deref().expect("journal post-image").as_bytes(),
+                "journal assertion",
+            )
+            .expect("journal JSON"),
+            json!({ "id": 1, "name": "ALPHA" })
+        );
+        let history_operation_id: String = canonical
+            .query_row(
+                "SELECT operation_id FROM _snapback_record_history_v1 WHERE version=6",
+                [],
+                |row| row.get(0),
+            )
+            .expect("history operation identity");
+        assert_eq!(history_operation_id, aggregate_operation_id);
+        assert!(promoted.aggregate_envelope.coverage.uncovered_lanes.is_empty());
         let retry = promote_by_reexecution(
             &mut canonical,
             &workspace,
@@ -2632,7 +3410,6 @@ mod tests {
             &PromotionAuthorityDecisionV1::Denied,
             2_003,
             &sha('f'),
-            scan_widget_boundary,
             |_, _| panic!("stored retry must not reexecute"),
         )
         .expect("stored receipt");
@@ -2651,8 +3428,22 @@ mod tests {
     }
 
     #[test]
-    fn promotion_boundary_mismatch_rolls_back_before_publication() {
-        let (mut canonical, workspace, diff) = branch_with_rename();
+    fn forged_diff_postimage_cannot_supply_the_expected_promotion_boundary() {
+        let (mut canonical, workspace, mut diff) = branch_with_rename();
+        diff.net_diff[0].after = Some(json!({ "id": 1, "name": "FORGED" }));
+        diff.diff_digest = digest_json(
+            b"exact-fork-diff",
+            &(
+                &diff.base_stream,
+                diff.base_version,
+                &diff.child_stream_id,
+                diff.child_head,
+                &diff.coverage,
+                &diff.attributed_changes,
+                &diff.net_diff,
+            ),
+        )
+        .expect("forge internally consistent diff digest");
         let key = PromotionSealKey::from_server_secret([17_u8; 32]).expect("key");
         let aggregate = host_identity("canonical", "promotion-proof-negative", "app-1");
         let ticket = issue_promotion_ticket(
@@ -2687,7 +3478,7 @@ mod tests {
             2_001,
         )
         .expect("seal");
-        let scans = std::cell::Cell::new(0_u8);
+        let mut replay_count = 0;
         let error = promote_by_reexecution(
             &mut canonical,
             &workspace,
@@ -2700,34 +3491,181 @@ mod tests {
             },
             2_002,
             &sha('f'),
-            |conn| {
-                let mut rows = scan_widget_boundary(conn)?;
-                let call = scans.get();
-                scans.set(call + 1);
-                if call == 1 {
-                    rows[0].value["name"] = json!("tampered-scan");
-                }
-                Ok(rows)
-            },
-            |tx, operation| {
-                let id = operation.canonical_arguments["id"].as_i64().expect("id");
+            |_, operation| {
+                replay_count += 1;
                 let name = operation.canonical_arguments["name"]
                     .as_str()
                     .expect("name");
-                tx.execute("UPDATE widgets SET name=?2 WHERE id=?1", params![id, name])?;
                 Ok(facts(name))
             },
         )
-        .expect_err("independent boundary mismatch");
+        .expect_err("diff cannot override approved write facts");
         assert_eq!(
             error.diagnostic.code,
-            "SNAPBACK_PROMOTION_BOUNDARY_MISMATCH"
+            "SNAPBACK_PROMOTION_DIFF_FACTS_MISMATCH"
         );
+        assert_eq!(replay_count, 0, "diff consistency fails before staging");
         assert_eq!(
             crate::storage::current_version_on(&canonical).expect("head"),
             5
         );
         assert_eq!(scan_widgets(&canonical).expect("rows")[0].row["name"], "alpha");
+    }
+
+    #[test]
+    fn unjournaled_trigger_side_path_cannot_publish_a_proof_or_complete_envelope() {
+        let (mut canonical, workspace, diff) = branch_with_rename();
+        canonical
+            .execute_batch(
+                "CREATE TABLE shadow_writes (widget_id INTEGER NOT NULL);
+                 CREATE TRIGGER widgets_shadow AFTER UPDATE ON widgets
+                 BEGIN
+                   INSERT INTO shadow_writes(widget_id) VALUES (NEW.id);
+                 END;",
+            )
+            .expect("unjournaled trigger fixture");
+        let key = PromotionSealKey::from_server_secret([18_u8; 32]).expect("key");
+        let aggregate = host_identity("canonical", "promotion-trigger-negative", "app-1");
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            aggregate.clone(),
+            &diff.branch_id,
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1 {
+                reservation_after_losses: 2,
+                reservation_interval_ms: 1_000,
+                reservation_quota: 1,
+                maximum_commit_duration_ms: 500,
+            },
+        )
+        .expect("ticket");
+        let request = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+                approved_at_ms: 2_001,
+                expires_at_ms: 50_000,
+            },
+            ticket,
+            aggregate,
+            &key,
+            2_001,
+        )
+        .expect("seal");
+        let mut replay_count = 0;
+        let error = promote_by_reexecution(
+            &mut canonical,
+            &workspace,
+            &diff,
+            &request,
+            &key,
+            &PromotionAuthorityDecisionV1::Revalidated {
+                grant_id: "grant-1".to_owned(),
+                authority_fingerprint: sha('d'),
+            },
+            2_002,
+            &sha('f'),
+            |_, operation| {
+                replay_count += 1;
+                Ok(facts(
+                    operation.canonical_arguments["name"]
+                        .as_str()
+                        .expect("name"),
+                ))
+            },
+        )
+        .expect_err("trigger is outside the closed journal path");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_PROMOTION_WRITE_PATH_UNCOVERED"
+        );
+        assert_eq!(replay_count, 0, "preflight refuses before replay");
+        assert_eq!(
+            crate::storage::current_version_on(&canonical).expect("head"),
+            5
+        );
+        assert_eq!(scan_widgets(&canonical).expect("rows")[0].row["name"], "alpha");
+        assert_eq!(
+            canonical
+                .query_row("SELECT COUNT(*) FROM shadow_writes", [], |row| row.get::<_, i64>(0))
+                .expect("shadow count"),
+            0
+        );
+        assert_eq!(
+            canonical
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_promotion_envelopes",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .expect("envelope count"),
+            0
+        );
+    }
+
+    #[test]
+    fn approved_write_folding_is_ordered_and_refuses_impossible_deletes() {
+        let (_, workspace, diff) = branch_with_rename();
+        let mut operations = branch_operation_log(&workspace.conn, &diff.branch_id)
+            .expect("operation log");
+        operations[0].approved_facts.writes = vec![
+            LogicalWriteFactV1 {
+                table_name: "widgets".to_owned(),
+                row_id: "2".to_owned(),
+                after: Some(json!({ "id": 2, "name": "BETA" })),
+            },
+            LogicalWriteFactV1 {
+                table_name: "widgets".to_owned(),
+                row_id: "1".to_owned(),
+                after: None,
+            },
+            LogicalWriteFactV1 {
+                table_name: "widgets".to_owned(),
+                row_id: "1".to_owned(),
+                after: Some(json!({ "id": 1, "name": "OMEGA" })),
+            },
+        ];
+        let (_, base_rows) = scan_promotion_scope(
+            workspace.immutable_base(),
+            &BTreeSet::from(["widgets".to_owned()]),
+        )
+        .expect("trusted base scan");
+        let folded = folded_approved_writes(&base_rows, &operations).expect("fold");
+        assert_eq!(folded.len(), 2);
+        assert_eq!(
+            (
+                folded[0].qualified_table.as_str(),
+                folded[0].row_id.as_str()
+            ),
+            ("widgets", "1")
+        );
+        assert_eq!(folded[0].kind, PromotionWriteKindV1::Update);
+        assert_eq!(folded[0].post_image, Some(json!({ "id": 1, "name": "OMEGA" })));
+        assert_eq!(
+            (
+                folded[1].qualified_table.as_str(),
+                folded[1].row_id.as_str()
+            ),
+            ("widgets", "2")
+        );
+
+        operations[0].approved_facts.writes = vec![LogicalWriteFactV1 {
+            table_name: "widgets".to_owned(),
+            row_id: "missing".to_owned(),
+            after: None,
+        }];
+        let error = folded_approved_writes(&base_rows, &operations)
+            .expect_err("delete of an absent row is a sealed-fact conflict");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_PROMOTION_APPROVED_FACTS_CONFLICT"
+        );
     }
 
     #[test]
@@ -2793,7 +3731,6 @@ mod tests {
             },
             2_003,
             &sha('f'),
-            scan_widget_boundary,
             |_, _| unreachable!(),
         )
         .expect_err("head changed");
@@ -2848,7 +3785,6 @@ mod tests {
             },
             2_003,
             &sha('f'),
-            scan_widget_boundary,
             |_, _| unreachable!(),
         )
         .expect_err("strict CAS");
@@ -2918,11 +3854,7 @@ mod tests {
             },
             2_002,
             &sha('f'),
-            scan_widget_boundary,
-            |tx, _| {
-                tx.execute("UPDATE widgets SET name='WRONG' WHERE id=1", [])?;
-                Ok(facts("WRONG"))
-            },
+            |_, _| Ok(facts("WRONG")),
         )
         .expect_err("facts diverge");
         assert_eq!(error.diagnostic.code, "SNAPBACK_PROMOTION_REPLAY_DIVERGED");
@@ -3112,5 +4044,17 @@ mod tests {
             .next()
             .expect("product source");
         assert!(!product_source.contains("apply_write"));
+        let promotion_surface = product_source
+            .split("pub fn promote_by_reexecution<F>(")
+            .nth(1)
+            .expect("promotion implementation")
+            .split("pub enum CanonicalAdmissionV1")
+            .next()
+            .expect("promotion implementation boundary");
+        assert!(promotion_surface.contains("PromotionReplayContextV1"));
+        assert!(!promotion_surface.contains("scan_boundary"));
+        assert!(!promotion_surface.contains("FnMut(&Transaction"));
+        assert!(promotion_surface.contains("verify_promotion_journal"));
+        assert!(product_source.contains("folded_approved_writes(&base_rows, &operations)"));
     }
 }

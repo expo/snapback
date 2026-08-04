@@ -17784,6 +17784,48 @@ fn record_change(
     row: Option<&Value>,
     now_ms: u64,
 ) -> SnapbackResult<()> {
+    record_change_with_operation_id(tx, version, table, id, op, row, now_ms, None)
+}
+
+/// The canonical promotion seam is the only writer outside `LocalDatabase`'s
+/// generated mutation executors. It uses the same change/history journal path
+/// and binds history rows to the aggregate promotion operation identity.
+///
+/// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — promotion publishes
+/// one canonical version with durable write and operation-envelope truth.
+pub(crate) fn record_promotion_change(
+    tx: &Transaction<'_>,
+    version: u64,
+    table: &str,
+    id: &str,
+    op: ChangeOp,
+    row: Option<&Value>,
+    now_ms: u64,
+    operation_id: &str,
+) -> SnapbackResult<()> {
+    record_change_with_operation_id(
+        tx,
+        version,
+        table,
+        id,
+        op,
+        row,
+        now_ms,
+        Some(operation_id),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn record_change_with_operation_id(
+    tx: &Transaction<'_>,
+    version: u64,
+    table: &str,
+    id: &str,
+    op: ChangeOp,
+    row: Option<&Value>,
+    now_ms: u64,
+    operation_id: Option<&str>,
+) -> SnapbackResult<()> {
     let operation = match op {
         ChangeOp::Insert => "insert",
         ChangeOp::Update => "update",
@@ -17812,7 +17854,7 @@ fn record_change(
         operation,
         row_json.as_deref(),
         now_ms,
-        None,
+        operation_id,
     )?;
     Ok(())
 }
@@ -17829,6 +17871,13 @@ fn set_version(tx: &Transaction<'_>, version: u64) -> SnapbackResult<()> {
         .with_detail("updatedRows", changed));
     }
     Ok(())
+}
+
+pub(crate) fn set_promotion_version(
+    tx: &Transaction<'_>,
+    version: u64,
+) -> SnapbackResult<()> {
+    set_version(tx, version)
 }
 
 pub(crate) fn row_to_document(

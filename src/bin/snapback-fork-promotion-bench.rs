@@ -18,19 +18,19 @@ use serde::Serialize;
 use serde_json::json;
 use snapback::branches::{BranchId, ChildStreamId, MaterializedBase};
 use snapback::commit_envelope::{
-    OperationBoundFactsV1, OperationIdentityV1, OperationIssuanceV1, OperationKeyV1,
-    OperationOriginatorClassV1,
+    IdentityEpochStateV1, IdentityEpochV1, OperationBoundFactsV1, OperationIdentityV1,
+    OperationIssuanceV1, OperationKeyV1, OperationOriginatorClassV1, derive_host_operation_id,
 };
 use snapback::diagnostic::SnapbackResult;
 use snapback::fork_promotion::{
     ApprovedOperationFactsV1, BranchGrantV1, BranchLimitsV1, BranchOperationDraftV1,
     BranchOperationV1, ForkCoverageV1, ForkEgressPolicyV1, InAppBranchCreateV1, LogicalWriteFactV1,
     PromotionApprovalV1, PromotionAuthorityDecisionV1, PromotionContentionPolicyV1,
-    PromotionSealKey, ReplayCustodyClassV1, RetainedReplayInputV1, SnapshotRowV1,
+    PromotionReplayContextV1, PromotionSealKey, ReplayCustodyClassV1, RetainedReplayInputV1,
+    SnapshotRowV1,
     create_in_app_branch, exact_fork_diff, execute_branch_operation, issue_promotion_ticket,
     promote_by_reexecution, reap_expired_in_app_branches, seal_promotion_request,
 };
-use snapback::proof_checkpoint::BoundaryRowV1;
 
 const RECORDED_RUNS: usize = 11;
 const LOCAL_WARMUPS: usize = 4;
@@ -229,7 +229,6 @@ fn run_once(seed: u64) -> anyhow::Result<Run> {
         },
         now + 4,
         &sha('f'),
-        scan_widget_boundary,
         rename_replay,
     )?;
     let promotion_us = micros(started);
@@ -252,6 +251,30 @@ fn source() -> anyhow::Result<Connection> {
     let mut conn = Connection::open_in_memory()?;
     conn.execute_batch(
         "CREATE TABLE _snapback_version (id INTEGER PRIMARY KEY, version INTEGER NOT NULL);
+         CREATE TABLE _snapback_changes (
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           version INTEGER NOT NULL,
+           table_name TEXT NOT NULL,
+           row_id TEXT NOT NULL,
+           op TEXT NOT NULL,
+           row_json TEXT,
+           changed_at_ms INTEGER NOT NULL
+         );
+         CREATE TABLE _snapback_history_policies_v1 (
+           table_name TEXT PRIMARY KEY,
+           retain_ms INTEGER NOT NULL,
+           max_rows INTEGER NOT NULL
+         );
+         CREATE TABLE _snapback_record_history_v1 (
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           version INTEGER NOT NULL,
+           table_name TEXT NOT NULL,
+           row_id TEXT NOT NULL,
+           op TEXT NOT NULL,
+           row_json TEXT,
+           changed_at_ms INTEGER NOT NULL,
+           operation_id TEXT
+         );
          CREATE TABLE widgets (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
          INSERT INTO _snapback_version VALUES (1, 9);",
     )?;
@@ -262,6 +285,22 @@ fn source() -> anyhow::Result<Connection> {
             params![id, format!("widget-{id}")],
         )?;
     }
+    snapback::operation_ledger::create_infra(&tx)?;
+    snapback::operation_ledger::register_epoch_in(
+        &tx,
+        &IdentityEpochV1 {
+            schema_version: 1,
+            originator_class: OperationOriginatorClassV1::Host,
+            audience: "bench-app".to_owned(),
+            authority_instance_id: "bench-authority".to_owned(),
+            epoch_id: "bench-epoch".to_owned(),
+            epoch_sequence: 1,
+            state: IdentityEpochStateV1::Open,
+            issued_at_ms: 1,
+            terminated_at_ms: None,
+            authority_authenticator_digest: sha('a'),
+        },
+    )?;
     tx.commit()?;
     Ok(conn)
 }
@@ -297,16 +336,17 @@ fn create_request(seed: u64, ordinal: u64, base_version: u64, now: i64) -> InApp
 }
 
 fn identity(stream: &str, operation: &str, function: &str) -> OperationIdentityV1 {
+    let upstream_identity = format!("bench-upstream-{operation}");
     OperationIdentityV1 {
         schema_version: 1,
         key: OperationKeyV1 {
             stream_id: stream.to_owned(),
             originator_class: OperationOriginatorClassV1::Host,
-            operation_id: operation.to_owned(),
+            operation_id: derive_host_operation_id(&upstream_identity, 0),
         },
         issuance: OperationIssuanceV1::HostIncarnation {
             epoch_id: "bench-epoch".to_owned(),
-            upstream_identity: format!("bench-upstream-{operation}"),
+            upstream_identity,
             commit_ordinal: 0,
             authority_authenticator_digest: sha('a'),
         },
@@ -379,13 +419,13 @@ fn rename(
 }
 
 fn rename_replay(
-    tx: &Transaction<'_>,
+    context: &PromotionReplayContextV1<'_>,
     operation: &BranchOperationV1,
 ) -> SnapbackResult<ApprovedOperationFactsV1> {
+    let _current = context.read_row("widgets", "1")?;
     let name = operation.canonical_arguments["name"]
         .as_str()
         .unwrap_or_default();
-    tx.execute("UPDATE widgets SET name=?1 WHERE id=1", params![name])?;
     Ok(facts(name))
 }
 
@@ -401,21 +441,6 @@ fn scan_widgets(conn: &Connection) -> SnapbackResult<Vec<SnapshotRowV1>> {
         })
     })?;
     Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
-}
-
-fn scan_widget_boundary(conn: &Connection) -> SnapbackResult<Vec<BoundaryRowV1>> {
-    let mut rows = scan_widgets(conn)?
-        .into_iter()
-        .map(|row| BoundaryRowV1 {
-            qualified_table: row.table_name,
-            row_id: row.row_id,
-            value: row.row,
-        })
-        .collect::<Vec<_>>();
-    rows.sort_by(|left, right| {
-        (&left.qualified_table, &left.row_id).cmp(&(&right.qualified_table, &right.row_id))
-    });
-    Ok(rows)
 }
 
 fn summarize(runs: &[Run]) -> BTreeMap<&'static str, Statistics> {
