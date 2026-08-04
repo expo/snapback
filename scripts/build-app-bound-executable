@@ -58,6 +58,8 @@ binding="$stage/application-binding.canonical.json"
 entry="$stage/snapback-app-parent.bundle.mjs"
 generated_policy="$stage/ibex-policy.app-bound-parent.json"
 
+# @ref LLP 0062#6-packaging-phases — only the stable app/release binding is
+# embedded; the current API envelope remains target-fetched dynamic data.
 node - "$ORIGIN" "$APP_ID" "$ENGINE" "$PUBLISHER_KEY_ID" "$CHANNEL" "$RECIPE_DIGEST" >"$binding" <<'NODE'
 const [originText, appId, engine, publisherKeyId, channel, recipeDigest] = process.argv.slice(2);
 let parsed;

@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed-commit: 37ed952672d43abdfede88a9d51a76e04a11da5b
 ---
 
 # Capability index
@@ -86,7 +86,7 @@ and `guide-gap`.
 | clients.poll-hosted | Socketless hosted demand ownership and poll delivery | hosted polling, poll hosted | cloudflare | partial | cloudflare/src/coordinator.js | llp/0093, llp/0095 | GAP (owner: Charlie, review: 2026-08-31) |
 | clients.external-store | Shared current-value/subscription store | external store | local | shipped | `createExternalQueryStoreRegistry` in packages/snapback-client/external-store.mjs | llp/0012, llp/0064 | clients/headless.md |
 | clients.framework-bindings | React/Contract bindings | bindings | local | partial | `SNAPBACK_EXTERNAL_STORE_PROTOCOL` in packages/snapback-client/external-store.mjs | llp/0012, llp/0034, llp/0064 | clients/framework-bindings.md |
-| clients.app-cli | Local artifact/served-envelope app CLI, brokered code mode, and stable two-section `agentDigest.v1` introspection with cursor/static deltas, coarse whole dynamic replay, byte/item budgets, and honest elisions. Public inspection does not yet supply row-count magnitudes or D1 verdicts; local projection identities are not served-envelope claims; hosted and the one-file Ibex executable remain GAPs | app cli, code mode, introspect, agent digest, changed since, digest cursor | local | partial | `buildAgentDigest` in packages/snapback-app-cli/digest.mjs | llp/0062, llp/0146 | clients/app-cli.md |
+| clients.app-cli | Local artifact/served-envelope app CLI, brokered code mode, stable two-section `agentDigest.v1` introspection, and an experimental app-bound Ibex one-file build for qualified platform tuples. Public inspection still lacks row-count magnitudes and D1 verdicts; hosted targets and the complete host-portable one-file acceptance matrix remain GAPs. | app cli, code mode, introspect, agent digest, changed since, digest cursor, one-file executable | local | partial | `buildAgentDigest` in packages/snapback-app-cli/digest.mjs + scripts/build-app-bound-executable + packages/snapback-app-cli/code-mode-ibex.test.mjs | llp/0062, llp/0146 | clients/app-cli.md |
 | clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
 | clients.contract-provider-generation | Provider-neutral Contract manifest, bindings, metadata, types, fixtures, and docs from a provider declaration | provider declaration, contract sidecar generator, convex bindings | local | shipped | `generateFromDeclaration` in demos/partiful-matrix/scripts/generate-contract-provider.mjs | llp/0063 | clients/contract-adapter.md |
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
@@ -6748,13 +6748,13 @@ id: clients.app-cli
 order: 2
 audience: agent-first
 capabilities: [clients.app-cli]
-authorities: [llp/0062-generated-app-cli-and-code-mode.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/cli.mjs, packages/snapback-app-cli/digest.mjs, packages/snapback-app-cli/agent-digest.schema.json, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/code-mode.mjs, packages/snapback-app-cli/result-core.mjs, packages/snapback-client/app-data.mjs]
-examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, packages/snapback-app-cli/code-mode.test.mjs, packages/snapback-app-cli/cli.test.mjs, packages/snapback-app-cli/digest.test.mjs, demos/todo/snapback/generated]
+authorities: [llp/0062-generated-app-cli-and-code-mode.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/cli.mjs, packages/snapback-app-cli/digest.mjs, packages/snapback-app-cli/agent-digest.schema.json, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/code-mode.mjs, packages/snapback-app-cli/code-mode-ibex.mjs, packages/snapback-app-cli/schema-interpreter.mjs, packages/snapback-app-cli/ibex-bundle.mjs, packages/snapback-app-cli/result-core.mjs, packages/snapback-client/app-data.mjs, scripts/build-app-bound-executable]
+examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, packages/snapback-app-cli/code-mode.test.mjs, packages/snapback-app-cli/code-mode-ibex.test.mjs, packages/snapback-app-cli/schema-interpreter.test.mjs, packages/snapback-app-cli/ibex-bundle.test.mjs, packages/snapback-app-cli/cli.test.mjs, packages/snapback-app-cli/digest.test.mjs, demos/todo/snapback/generated]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: dab2410b6793ffa5685069a0a4054f0e2b21608a
+reviewed-commit: 37ed952672d43abdfede88a9d51a76e04a11da5b
 ---
 
 # The artifact-driven app CLI
@@ -6770,10 +6770,12 @@ descriptor, and exposes the generic `snapback-app` command. Calls carry the
 five-part generated identity so a deploy between discovery and dispatch
 refuses rather than running against different code.
 
-The local phase-1 engine is shipped. The capability remains marked partial
-because hosted targets do not advertise it and the app-bound, single-file Ibex
-executable is phase 2, blocked on the Ibex embedding contract. The current
-download is the Node package, not the promised one-file executable.
+The local phase-1 engine is shipped. Phase 2 now has an app-bound Ibex builder,
+embedded coordinator, and literal executable proof on the qualified macOS
+arm64 tuple. The capability remains partial: hosted targets do not advertise
+it, and ticket 0062-08 keeps qualified Linux plus the full host-portable
+lifecycle and acceptance matrix open. The ordinary supported download remains
+the Node package until that matrix is complete.
 
 ## Discover the app surface
 
@@ -6930,10 +6932,42 @@ function ids, safe codes, attribution, and counters but no intermediate
 values. Valid hazardous names such as `then` lose their property alias and
 remain callable only through `snapback.function(id)`.
 
-The child-process split is a credential non-transmission contract, not a
+The Node child-process split is a credential non-transmission contract, not a
 hostile-code sandbox. A Node `vm` escape has the invoking OS user's authority;
-run only scripts trusted at that level. The future Ibex host strengthens
-enforcement while keeping the same broker ABI.
+run only scripts trusted at that level. The app-bound Ibex checkpoint keeps the
+same broker shape while running the admitted script in a separate restricted
+Hermes runtime with no ambient filesystem, network, environment, subprocess,
+clock/randomness, import, or dynamic-code authority.
+
+## Build the experimental app-bound executable
+
+Release producers can build from an app-bound Ibex release kit and pin the
+app's normalized HTTPS origin, app id, engine compatibility identity,
+publisher key identity, and reproducible recipe digest:
+
+```sh
+scripts/build-app-bound-executable --ibex /opt/ibex-app-release/ibex --origin https://example.snapback.app --app-id example --engine-compatibility sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA --publisher-key-id release-key-1 --recipe-digest sha256-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBA --output ./example
+```
+
+The builder inspects the result and refuses unless its Stub V4 contract reports
+the requested binding. Qualified outputs are literal single files with no Node,
+npm tree, Hermes framework, shared library, catalog, or policy sidecar beside
+them. Their command shape is:
+
+```sh
+./example introspect
+./example call createTodo --args-json '{"text":"Buy milk"}'
+./example run analysis.ts
+```
+
+`--server`, `--app`, and `--artifacts` are unavailable in this mode: the
+executable admits only its embedded app identity. The current API envelope is
+dynamic data fetched from that origin, so ordinary function and schema deploys
+do not alter the fixed binding. Rebuilds are intended only for that binding,
+the trusted engine/runtime, policy/protocol, platform, or release provenance;
+ticket 0062-08 still owns the comprehensive §7 disclosure, ceiling, lifecycle,
+and race matrix. Unsupported producer tuples refuse instead of emitting a
+wrapper or sidecar approximation.
 
 ## Run the packaged agent journey
 
@@ -6966,8 +7000,10 @@ semantics and durable daemon custody, read
   profile.
 - Do not infer agent safety from a hostname; the phase-1 lane requires a
   literal loopback origin and peer.
-- Do not describe the Node package as the app-bound one-file executable; that
-  phase is blocked on the Ibex contract.
+- Do not present the app-bound build checkpoint as a generally released
+  download until ticket 0062-08's host-portable acceptance matrix is complete.
+- Do not describe the Node package as the app-bound one-file executable; they
+  remain distinct products with different trust and distribution postures.
 
 ---
 
