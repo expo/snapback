@@ -7497,12 +7497,12 @@ order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
 authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-react/index.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs]
-examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, demos/rn-durable-store-witness/probe-App.tsx]
+examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, demos/rn-durable-store-witness/probe-App.tsx]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-04
+reviewed-commit: 41c2db8804ba08071c39641cc46251c9084c7a31
 ---
 
 # React Expo Online clients
@@ -7769,13 +7769,24 @@ expose its internal handles, and the provider currently has no app-lifecycle
 seam of its own — on that path leave the provider attached and let the
 stream manager's reconnect own recovery.
 
-**Known limitation (under investigation):** on the Expo simulator the
-provider connection has been observed cycling `live → stale` on a ~2s
-reconnect loop while idle, with a retainable public query blanking after the
-first cycle — see
-`issues/20260801-0137-a1expo-f7-rn-connection-cycles.md`. Until that closes,
-treat sustained `live` on RN as unproven and render the connection fact
-honestly rather than assuming the cycle away.
+A token-resume re-establishment can complete **rowlessly**: the HTTP
+acknowledgement names the new subscription while the authoritative
+`current_as_of` or replay frame travels on the durable socket. Either transport
+may arrive first. The client buffers the bounded pre-ack durable window,
+installs the response's subscription ID, and replays only matching frames in
+arrival order. During that window, persisted rows remain `retained` and the
+held server-minted token continues to prove `retention.retainable`; the durable
+completion advances them to `current` and refreshes both the token and the
+retention fact. If the bound overflows, the client discards the unproved prefix
+and performs one tokenless fresh-snapshot resubscribe instead of claiming
+current state.
+
+This ordering rule is carrier-independent, but RN reconnect timing exposed the
+original defect. The shared memory/Expo resume suite covers WebSocket
+completion overtaking the HTTP response and overflow recovery. The earlier
+~2s Expo reconnect-loop investigation is resolved under
+`issues/closed/20260801-0137-a1expo-f7-rn-connection-cycles.md`; it is no longer
+a current limitation.
 
 ## Anti-patterns
 
