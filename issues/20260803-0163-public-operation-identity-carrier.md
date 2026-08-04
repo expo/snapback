@@ -9,18 +9,19 @@ The public client range carrier, ordinary-mutation choke points, protected
 explanation custody, job/cron action children, and migration transaction
 carriers are implemented. Production targets still do not activate a coverage
 manifest, the public explanation lane has closed positive evaluators only for
-exact generated owner create/update facts, and the migration carrier remains
-explicitly uncovered: publication and terminal settlement are distinct
-transactions that the current terminal-only operation ledger cannot represent
-honestly.
+exact generated owner create/update facts, and migration remains explicitly
+uncovered. The aggregate publication/terminal split now has a truthful
+Pending→supplement lifecycle, but H1/H2/C remain carrier-only and
+review/publication gates are still open.
 
 The remaining closure gates are:
 
 - inventory every durable writer per target, route each covered writer through
   the envelope hook, activate a versioned manifest only after bypass and
   asymmetric-retention corpus pass, and keep undeclared lanes explicit;
-- accept and implement the pending→terminal migration amendment and crash
-  corpus mapped below before adding that specialized lane to coverage;
+- independently review and accept the implemented pending→terminal migration
+  amendment and complete the remaining asymmetric/performance gates before
+  adding that specialized lane to coverage;
 - complete the remaining real current-policy evaluators for the public
   explanation lane; exact generated owner create/update are closed, generated
   delete is a normative current-row-absent refusal, and the public/admin
@@ -130,12 +131,12 @@ Landed in the migration transaction-carrier slice:
 - generated journal artifacts that declare the Host carrier while explicitly
   declaring migration envelope coverage absent.
 
-## Migration pending → terminal lifecycle map — 2026-08-04
+## Migration pending → terminal lifecycle implementation map — 2026-08-04
 
-This map is a design/corpus prerequisite, not an amendment to LLP 0163 and not
-an implementation claim. The current Spec and ledger remain terminal-only;
-the `migrationTransition` lane must stay out of every coverage manifest until
-a separately reviewed amendment owns the lifecycle below.
+This dated map is now implemented as an amendment to Draft LLP 0163. It is
+implementation/corpus evidence, not independent review, author acceptance, or
+capability publication. The aggregate boundary and `migrationTransition` lane
+stay out of every coverage manifest.
 
 ### Current durable cuts
 
@@ -144,18 +145,17 @@ a separately reviewed amendment owns the lifecycle below.
 | H0 — authority | Ensure the current data-version stream and range-less migration Host incarnation. | Server authority only; not an application operation and no envelope. It commits before H1 so later rollback cannot change retry issuance. |
 | H1 — admission | Migration operation row, lease/fence, checkpoint setup, and `admitted` + `barriered` journal rows. | One authenticated approval-derived Host child for the transaction; carrier-only and uncovered. |
 | H2 — private work | Each staged/backfill/verification transaction and its migration journal row(s). | One Host child per transaction; private/staged work remains carrier-only and uncovered. |
-| P — publication | Successor schema/generation, application version P, retention floor, one schema-resync `_snapback_changes` row, and `published-held`. | This is the application-visible write cut. It has a Host carrier but no envelope because no terminal receipt exists yet. |
-| T-release — terminal success | `released`, fence deletion, terminal forward receipt, and operation state. | Separate from P and writes no application version. A terminal envelope here would not be atomic with P. |
-| T-rollback — terminal rollback | `rolling-back`, predecessor republish at version R, rollback-resync change row, `rolled-back`, fence deletion, and forward + rollback receipts. | One transaction/Host child, but it terminates an aggregate that already published at P; it cannot retroactively make P atomic. |
+| P — publication | Successor schema/generation, application version P, retention floor, one schema-resync `_snapback_changes` row, `published-held`, aggregate Pending envelope, and pending lifecycle. | One atomic application-visible cut under the approval-derived aggregate Host identity; the receipt truthfully says outcome pending. |
+| T-release — terminal success | `released`, fence deletion, terminal forward receipt, and digest-linked `Committed` supplement. | Separate from P and writes no application version; it appends the terminal truth without rewriting P. |
+| T-rollback — terminal rollback | `rolling-back`, predecessor republish at version R, one rollback-resync change row, `rolled-back`, fence deletion, forward + rollback receipts, and digest-linked `RolledBack` supplement. | One atomic rollback/finalization transaction linked to the exact identity, P, and pending digest. |
 | C — cleanup | `cleanup-pending`, physical garbage drops, and the repeated terminal journal state across two resumable cuts. | Post-terminal maintenance children; never substitutes for P or T settlement and remains uncovered. |
 
-`record_operation_in` currently rejects
-`OperationReceiptStateV1::Pending`. Consequently there is no honest placement
-for a migration `CommitEnvelopeV1`: a terminal receipt at P is false, while a
-first envelope at T-release misses the application write and journal atomicity
-required by LLP 0162.
+The ordinary terminal-only `record_operation_in` seam still rejects
+`OperationReceiptStateV1::Pending`. The additive migration aggregate seam owns
+Pending lifecycle and terminal supplement tables instead; it does not widen or
+rewrite the existing v1 suppression/tombstone vocabulary.
 
-### Required amendment shape
+### Implemented amendment shape (unpublished)
 
 1. Define one aggregate migration operation identity whose stable source is
    the approved migration `operationId`. Per-transaction Host children remain
@@ -170,11 +170,10 @@ required by LLP 0162.
    bound facts retain the existing fail-closed reused-identity disposition.
 4. T-release or T-rollback atomically finalizes that exact pending record to
    `Committed` or the amendment's explicitly named rollback outcome. The
-   finalizer must compare the aggregate identity, P, and the pending receipt
+   finalizer compares the aggregate identity, P, and the pending receipt
    digest/chain; a second equal finalizer is replay, while a different one is
-   corruption/refusal. The amendment must decide whether finalization mutates
-   the pending envelope under a digest-linked transition or appends a terminal
-   supplement; current v1 artifacts authorize neither choice.
+   corruption/refusal. Finalization appends a new digest-linked supplement and
+   never mutates the pending envelope.
 5. Pending records are non-reclaimable, non-acknowledgeable, and hold their
    Host epoch open. Terminal retention, tombstones, purge, and epoch closure
    begin only at the finalization time and follow the declared Host window.
@@ -203,6 +202,26 @@ directions, journal-count equality at P and rollback R, the paired active-lane
 performance record, independent review, and author acceptance. Until then the
 migration lane and every aggregate capability remain `Missing`.
 
+### Dated implementation and corpus evidence — 2026-08-04
+
+- P retains exactly one application version, schema-resync row, Pending
+  envelope, and pending lifecycle in the publication transaction. The
+  envelope write count is checked against the transaction's exact journal
+  count.
+- Lookup re-decodes and validates the retained envelope and recomputes its JCS
+  receipt digest. Identity, P, Pending state, digest, timestamp, and payload
+  must all equal the lifecycle; a swapped payload refuses.
+- T-release and T-rollback read their retained receipt JSON back from the
+  owning operation row before digesting it, append a payload-free terminal
+  supplement atomically, and re-verify those retained bytes on public lookup.
+  Rollback R must contain exactly one rollback-resync row.
+- Focused fixtures cover the ten mapped crash/replay categories, exact and
+  divergent pending/terminal retry, one-entry capacity refusal, inert pending
+  ACK, response loss on both exits, cleanup resume, and host-window
+  compaction. The existing v1 suppression/tombstone schemas are unchanged.
+- The generated migration journal artifact names aggregate P/T as implemented
+  but uncovered and keeps H1/H2/C carrier-only. Capabilities remain `Missing`.
+
 Landed in the local SQLite write-authority slice:
 
 - a module-private generated writer token classifies the two ordinary and two
@@ -225,8 +244,9 @@ publication blockers; capabilities stay `Missing`.
 
 Still required before this ticket closes:
 
-- a separately reviewed pending→terminal migration lifecycle amendment and
-  its full atomic crash/replay corpus before any migration coverage claim;
+- independent review and author acceptance of the pending→terminal migration
+  lifecycle amendment, plus its remaining asymmetric-retention and
+  active-lane performance gates, before any migration coverage claim;
 - the remainder of per-fact current-policy evaluation for public explanation:
   aggregate/non-row, hand-written/opaque, predicate, membership,
   effect-bearing, and other unsupported shapes stay fail-closed; exact
@@ -262,7 +282,7 @@ Still required before this ticket closes:
   operation outcome on the thrown error. Focused full outbox corpus is green.
 
 This is additional Partial evidence only. Production coverage remains dormant;
-the migration host adapter, recreated-branch end-to-end lifecycle corpus,
+the complete migration writer/asymmetric-retention proof, recreated-branch end-to-end lifecycle corpus,
 complete target writer/bypass inventory, distinct durable result-gone outbox
 state, fixed-Air active/idle/retention performance artifact, independent
 review, and author acceptance remain required. LLP 0163 remains Draft and all

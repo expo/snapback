@@ -5,7 +5,11 @@
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (public current-policy evaluation tail — exact
+**Revised:** 2026-08-04 (migration aggregate settlement tail — P now atomically
+retains a truthful Pending envelope/lifecycle and T appends a digest-linked
+Committed/RolledBack supplement with bounded Host retention; H1/H2/C and the
+aggregate boundary remain uncovered, the Spec remains Draft, and every
+capability stays Missing); 2026-08-04 (public current-policy evaluation tail — exact
 generated `owned-crud.v1` / `owner.v1` create envelopes can now project only
 after their current row, retained insert postimage, write, receipt, and exact
 private mint-site chain agree; the private settlement observation is stripped
@@ -50,7 +54,12 @@ they can version independently of the profile umbrella)
 **Related:** LLP 0012, LLP 0037, LLP 0043, LLP 0055, LLP 0095, LLP 0133,
 LLP 0148, LLP 0162
 
-**Implementation evidence:** 2026-08-04 (the closed public owner evaluator now
+**Implementation evidence:** 2026-08-04 (the approval-derived migration
+aggregate has an immutable P-side Pending envelope plus an additive,
+receipt-byte-verified T supplement; exact replay, divergent refusal, P/R
+journal singleton checks, response loss, cleanup resume, capacity, corruption,
+and bounded Host-window retention are exercised without activating coverage);
+2026-08-04 (the closed public owner evaluator now
 admits exact generated create as well as update, binds create's private mint
 observation to the active plan's exact site/id/occurrence, strips that private
 ledger before projection, recognizes generated delete but refuses it because
@@ -325,26 +334,79 @@ This is provenance carriage, not migration envelope coverage. Publication
 commits the live successor schema, application version, schema-resync change
 row, and `published-held` journal transition at version P. A later transaction
 records `released`, deletes the fence, and seals the terminal migration
-receipt; rollback has its own republish-and-terminal cut. The current
-operation ledger refuses `Pending` receipts, so attaching a terminal envelope
-to publication would lie and attaching it only at release would violate the
-atomic data/journal/envelope rule. The `migrationTransition` lane therefore
-remains absent from every coverage manifest and the generated journal-machine
-artifact declares it `uncovered`. The dated pending→terminal lifecycle and
-crash-corpus map is recorded in
-[`issues/20260803-0163-public-operation-identity-carrier.md`](../issues/20260803-0163-public-operation-identity-carrier.md);
-implementing it requires a separately reviewed amendment rather than silently
-widening this Draft Spec.
+receipt; rollback has its own republish-and-terminal cut. The aggregate
+settlement amendment below now represents that split truthfully, but neither
+the aggregate P/T boundary nor the H1/H2/C transaction children have been
+activated in a coverage manifest. The generated journal artifact therefore
+continues to declare every migration boundary uncovered.
 
 | LLP 0162 acceptance row | Status after this slice |
 | --- | --- |
 | 1 | **Partial** — migration transactions now have durable Host carriers, but publication and terminal receipt remain non-atomic across transactions and no migration envelope is written. |
-| 2 | **Partial** — a rolled-back migration journal cut retries under the same identity even after fencing-lease supersession; the aggregate pending/terminal replay contract is not implemented. |
+| 2 | **Partial** — a rolled-back migration journal cut retries under the same identity even after fencing-lease supersession; the aggregate pending/terminal replay contract was not part of this carrier-only slice and is implemented by the amendment immediately below. |
 | 4 | **Partial** — the generated migration artifact explicitly declares the lane uncovered; no coverage manifest includes it, so it cannot inflate the complete-target writer claim. |
 | 13 | **Partial** — unchanged: the qualified paired active-lane measurement remains required for lanes eligible for publication. |
 | 14 | **Partial** — first-party migration transaction identities are now production-reachable and authenticated; migration aggregate settlement plus the remaining capacity/purge corpus are open. |
 
 Every related capability remains `Missing`; this slice makes no advertisement.
+
+## Implementation record: 2026-08-04, migration aggregate settlement tail
+
+One migration aggregate identity is derived from the approved migration
+`operationId`, authenticated by the durable range-less Host incarnation, and
+persisted at admission. Attempt time, executor identity, and fencing lease are
+not identity facts. The separate per-transaction H1/H2/C children remain
+provenance carriers only.
+
+Publication P is one SQLite transaction containing the live successor
+schema/generation, application version P, retention floor, exactly one
+schema-resync change row, `published-held`, an immutable
+`CommitEnvelopeV1` whose receipt state is `Pending`, and a pending lifecycle
+row. Its produced snapshot is P; its one write fact is the exact schema-resync
+row. Lookup decodes and validates the retained envelope, recomputes the JCS
+pending-receipt digest from its actual retained projection, and requires exact
+identity, P, state, digest, timestamp, and payload equality. A missing,
+swapped, or corrupt envelope refuses; an exact pending lookup returns
+`published-held`/outcome-pending without writing.
+
+T-release and T-rollback never rewrite P. In the same transaction as the
+terminal migration journal/receipt cut, they append
+`PendingOperationTerminalSupplementV1`, binding the exact aggregate identity,
+P, pending receipt digest, terminal outcome (`Committed` or `RolledBack`),
+terminal write-set digest/count, and terminal receipt digest. The migration
+adapter computes that receipt digest from the receipt JSON read back from the
+owning `_snapback_migration_ops` columns and re-verifies those retained bytes
+on public lookup. The supplement contains no duplicate terminal payload and
+uses a new additive outcome vocabulary; the existing v1 suppression and
+tombstone schemas are unchanged.
+
+Pending is not ACKable or reclaimable, consumes the one-entry migration
+aggregate lane budget, and holds its Host epoch through an effectively
+unbounded lease. T completes that lease and starts the ordinary 24-hour Host
+receipt window. A rotated epoch cannot close while the supplement is young;
+after the window it atomically compacts the Pending envelope payload and
+removes both lifecycle rows. Thus no terminal plaintext is duplicated and no
+full supplement is retained forever.
+
+The dated corpus cuts P before commit, P transaction interior, after P/before
+T, T-release interior and response loss, T-rollback interior and response
+loss, cleanup resume, divergent pending/terminal replay, capacity pressure,
+and retained-envelope corruption. It also asserts exact singleton
+schema-resync counts at P and rollback-resync counts at R. Exact terminal
+retry returns the stored receipt; divergent finalization or approval facts
+refuse before application writes.
+
+| LLP 0162 acceptance row | Status after this amendment |
+| --- | --- |
+| 1 | **Partial** — aggregate P and terminal T/R facts now have truthful atomic carriers, while full target coverage and H1/H2/C envelope mapping remain open. |
+| 2 | **Partial** — pending and terminal retry/corruption cuts are green for the aggregate; the complete named-target corpus remains open. |
+| 4 | **Partial** — the generated artifact enumerates aggregate P/T plus carrier-only H1/H2/C as uncovered, so this implementation cannot inflate coverage. |
+| 13 | **Partial** — unchanged: fixed-Air paired active-lane performance and its independent gate remain required. |
+| 14 | **Partial** — aggregate lifecycle/capacity/retention are production-reachable, but remaining writer, performance, review, and publication gates stay open. |
+
+This is an implementation amendment to the Draft Spec, not author acceptance
+or capability publication. Independent review is still required. Every
+related capability remains `Missing`.
 
 ## Implementation record — 2026-08-04, lifecycle and atomic-envelope tail
 

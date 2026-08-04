@@ -20,8 +20,12 @@ use super::{
     timestamp_to_sql_millis, version_to_sql_integer,
 };
 use crate::commit_envelope::{
-    derive_host_operation_id, OperationBoundFactsV1, OperationIdentityV1, OperationIssuanceV1,
-    OperationKeyV1, OperationOriginatorClassV1,
+    CommitEnvelopeV1, EnvelopeAuthorityFactsV1, EnvelopeCoverageV1, EnvelopeEffectFactsV1,
+    EnvelopeFactSetV1, FactProvenanceV1, LaneFactV1, OperationBoundFactsV1, OperationIdentityV1,
+    OperationIssuanceV1, OperationKeyV1, OperationOriginatorClassV1, OperationReceiptStateV1,
+    OperationReceiptV1, PendingOperationLifecycleV1, PendingOperationTerminalOutcomeV1,
+    PendingOperationTerminalSupplementV1, RetainedEnvelopeDetailV1, SnapshotAssociationKindV1,
+    StreamQualifiedVersionV1, derive_host_operation_id,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{BinaryOp, HandlerInput, SchemaManifest, TableManifest, UnaryOp, ValueExpr};
@@ -77,6 +81,13 @@ fn run_migration_execution_value_hook(field: &str, value: Value) -> Value {
 pub const MIGRATION_JOURNAL_SCHEMA_VERSION: &str = "migration-journal-v1";
 const MIGRATION_HOST_AUTHORITY_INSTANCE_ID_V1: &str = "snapback:migration-executor:v1";
 const MIGRATION_HOST_OPERATION_KIND_V1: &str = "migrationTransition";
+const MIGRATION_AGGREGATE_LANE_V1: &str = "migrationAggregate";
+/// Per-transaction children consume journal-row ordinals from zero upward.
+/// The aggregate reserves the unreachable maximum ordinal so its identity is
+/// deterministic from the approval operation id without colliding with H1/H2
+/// or cleanup transaction carriers.
+const MIGRATION_AGGREGATE_COMMIT_ORDINAL_V1: u64 = u64::MAX;
+const MIGRATION_PENDING_CAPACITY_V1: u64 = 1;
 
 /// The reserved change-journal table name for schema-transition events.
 /// The schema-transition vocabulary now lives with the journal grammar in
@@ -514,7 +525,9 @@ fn ensure_migration_tables(tx: &Transaction<'_>) -> SnapbackResult<()> {
            lease_epoch INTEGER NOT NULL,
            cancel_requested INTEGER NOT NULL DEFAULT 0,
            receipt_json TEXT,
-           rollback_receipt_json TEXT
+           rollback_receipt_json TEXT,
+           approval_digest TEXT,
+           aggregate_identity_json TEXT
          );
          CREATE TABLE IF NOT EXISTS _snapback_migration_checkpoint (
            operation_id TEXT NOT NULL,
@@ -544,6 +557,16 @@ fn ensure_migration_tables(tx: &Transaction<'_>) -> SnapbackResult<()> {
         Ok(_) => {}
         Err(error) if error.to_string().contains("duplicate column name") => {}
         Err(error) => return Err(error.into()),
+    }
+    for column in ["approval_digest TEXT", "aggregate_identity_json TEXT"] {
+        match tx.execute(
+            &format!("ALTER TABLE _snapback_migration_ops ADD COLUMN {column}"),
+            [],
+        ) {
+            Ok(_) => {}
+            Err(error) if error.to_string().contains("duplicate column name") => {}
+            Err(error) => return Err(error.into()),
+        }
     }
     Ok(())
 }
@@ -745,6 +768,345 @@ fn ensure_migration_host_authority(
     )?;
     tx.commit()?;
     Ok(())
+}
+
+fn migration_aggregate_bound_facts(
+    artifact: &MigrationPlanArtifactV1,
+    approval: &MigrationApprovalV1,
+    authority_audience: &str,
+) -> SnapbackResult<OperationBoundFactsV1> {
+    Ok(OperationBoundFactsV1 {
+        audience: authority_audience.to_owned(),
+        principal_fingerprint: migration_host_digest(
+            b"snapback:migration-aggregate-principal:v1\n",
+            &json!({
+                "approver": approval.approver,
+                "policyDigest": approval.policy_digest,
+            }),
+        ),
+        authority_instance_id: MIGRATION_HOST_AUTHORITY_INSTANCE_ID_V1.to_owned(),
+        operation_kind: MIGRATION_AGGREGATE_LANE_V1.to_owned(),
+        function_or_command: artifact.plan_id.clone(),
+        input_fingerprint: migration_host_digest(
+            b"snapback:migration-aggregate-input:v1\n",
+            &json!({
+                "approvalDigest": approval_digest(approval)?,
+                "operationId": approval.operation_id,
+                "planDigest": artifact.plan_digest,
+            }),
+        ),
+    })
+}
+
+/// Return the one aggregate identity persisted at H1. A resumed executor uses
+/// those original authenticated issuance facts even if the host incarnation
+/// rotated between P and T; only request-bound facts are re-derived and
+/// compared.
+fn migration_aggregate_identity_in(
+    tx: &Transaction<'_>,
+    artifact: &MigrationPlanArtifactV1,
+    approval: &MigrationApprovalV1,
+    issued_at_ms: u64,
+) -> SnapbackResult<OperationIdentityV1> {
+    let stream_id =
+        crate::seed_identity::strict_current_data_version_stream(tx)?.ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_OPERATION_STREAM_UNAVAILABLE",
+                "storage",
+                "migration aggregate identity requires an initialized data-version stream",
+            )
+        })?;
+    let stored: Option<Option<String>> = tx
+        .query_row(
+            "SELECT aggregate_identity_json FROM _snapback_migration_ops WHERE operation_id=?1",
+            [&approval.operation_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if let Some(Some(stored)) = stored {
+        let identity: OperationIdentityV1 = serde_json::from_str(&stored)
+            .map_err(|_| journal_corrupt("aggregate identity does not parse".to_owned()))?;
+        let recorded_audience = crate::operation_ledger::resolve_operation_audience_for_lookup(
+            tx,
+            &identity.issuance,
+            MIGRATION_HOST_AUTHORITY_INSTANCE_ID_V1,
+        )?;
+        let expected_bound =
+            migration_aggregate_bound_facts(artifact, approval, &recorded_audience)?;
+        let exact_source = matches!(
+            &identity.issuance,
+            OperationIssuanceV1::HostIncarnation {
+                upstream_identity,
+                commit_ordinal,
+                ..
+            } if upstream_identity == &approval.operation_id
+                && *commit_ordinal == MIGRATION_AGGREGATE_COMMIT_ORDINAL_V1
+        );
+        if identity.key.stream_id != stream_id
+            || identity.key.originator_class != OperationOriginatorClassV1::Host
+            || identity.key.operation_id
+                != derive_host_operation_id(
+                    &approval.operation_id,
+                    MIGRATION_AGGREGATE_COMMIT_ORDINAL_V1,
+                )
+            || identity.bound_facts != expected_bound
+            || !exact_source
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+                "storage",
+                "migration aggregate identity was reused with divergent approval, plan, audience, or principal facts",
+            ));
+        }
+        return Ok(identity);
+    }
+    let authority = crate::operation_ledger::ensure_host_incarnation_in(
+        tx,
+        &stream_id,
+        MIGRATION_HOST_AUTHORITY_INSTANCE_ID_V1,
+        issued_at_ms,
+    )?;
+    let issuance = OperationIssuanceV1::HostIncarnation {
+        epoch_id: authority.epoch_id,
+        upstream_identity: approval.operation_id.clone(),
+        commit_ordinal: MIGRATION_AGGREGATE_COMMIT_ORDINAL_V1,
+        authority_authenticator_digest: authority.authority_authenticator_digest,
+    };
+    let identity = OperationIdentityV1 {
+        schema_version: OperationIdentityV1::SCHEMA_VERSION,
+        key: OperationKeyV1 {
+            stream_id,
+            originator_class: OperationOriginatorClassV1::Host,
+            operation_id: derive_host_operation_id(
+                &approval.operation_id,
+                MIGRATION_AGGREGATE_COMMIT_ORDINAL_V1,
+            ),
+        },
+        issuance,
+        bound_facts: migration_aggregate_bound_facts(artifact, approval, &authority.audience)?,
+    };
+    crate::operation_ledger::authenticate_host_identity(tx, &identity)?;
+    Ok(identity)
+}
+
+fn prefixed_migration_plan_digest(artifact: &MigrationPlanArtifactV1) -> String {
+    format!("sha256:{}", artifact.plan_digest)
+}
+
+fn migration_fact_set(domain: &[u8], detail: Value, count: u64) -> EnvelopeFactSetV1 {
+    EnvelopeFactSetV1 {
+        digest: migration_host_digest(domain, &detail),
+        count,
+        provenance: FactProvenanceV1::ServerCaptured,
+        detail: RetainedEnvelopeDetailV1::InlineRedacted { detail },
+    }
+}
+
+/// P-side aggregate record. The caller has already published the live schema,
+/// application version, and exact schema-transition row in this transaction.
+fn record_migration_pending_aggregate_in(
+    tx: &Transaction<'_>,
+    artifact: &MigrationPlanArtifactV1,
+    approval: &MigrationApprovalV1,
+    aggregate_identity: &OperationIdentityV1,
+    input_version: u64,
+    publication_version: u64,
+    transition_body: &crate::storage::SchemaTransitionEventBodyV1,
+    recorded_at_ms: u64,
+    lease_epoch: u64,
+) -> SnapbackResult<()> {
+    let transition_count: i64 = tx.query_row(
+        "SELECT COUNT(*) FROM _snapback_changes
+          WHERE version=?1 AND table_name=?2 AND row_id=?3 AND op=?4",
+        params![
+            version_to_sql_integer(publication_version)?,
+            crate::storage::SCHEMA_TRANSITION_JOURNAL_TABLE,
+            approval.operation_id,
+            crate::storage::SchemaTransitionKind::SchemaResync.as_op(),
+        ],
+        |row| row.get(0),
+    )?;
+    if transition_count != 1 {
+        return Err(journal_corrupt(format!(
+            "publication P must contain exactly one schema-resync change row (found {transition_count})"
+        )));
+    }
+    let pending_detail = json!({
+        "outcome": "pending",
+        "publicationVersion": publication_version,
+        "state": "published-held",
+    });
+    let pending_payload = RetainedEnvelopeDetailV1::InlineRedacted {
+        detail: pending_detail,
+    };
+    let retained_pending_projection = serde_json::to_value(&pending_payload)
+        .map_err(|_| journal_corrupt("pending receipt projection serialize".to_owned()))?;
+    let pending_receipt_digest =
+        crate::operation_ledger::pending_operation_receipt_digest(&retained_pending_projection)?;
+    let transition_detail = json!({
+        "kind": "schema-resync",
+        "version": publication_version,
+        "body": transition_body,
+    });
+    let empty = json!([]);
+    let coverage_digest = migration_host_digest(
+        b"snapback:migration-aggregate-uncovered:v1\n",
+        &json!({
+            "covered": [],
+            "lane": MIGRATION_AGGREGATE_LANE_V1,
+            "uncovered": ["migrationTransitionH1", "migrationTransitionH2", "migrationCleanup"],
+        }),
+    );
+    let envelope = CommitEnvelopeV1 {
+        schema_version: CommitEnvelopeV1::SCHEMA_VERSION,
+        identity: aggregate_identity.clone(),
+        snapshot: StreamQualifiedVersionV1 {
+            stream_id: aggregate_identity.key.stream_id.clone(),
+            version: publication_version,
+            association: SnapshotAssociationKindV1::ProducedCommit,
+        },
+        principal_session_or_invocation_id: approval.approver.clone(),
+        authority: EnvelopeAuthorityFactsV1 {
+            audience: aggregate_identity.bound_facts.audience.clone(),
+            grant_or_policy_identity: LaneFactV1::Defined(approval.policy_digest.clone()),
+            fencing_token_or_epoch: LaneFactV1::Defined(format!("migration-lease:{lease_epoch}")),
+        },
+        executable_artifact_digest: LaneFactV1::NotDefinedForLane,
+        argument_digest: migration_host_digest(
+            b"snapback:migration-aggregate-arguments:v1\n",
+            &json!({
+                "approvalDigest": approval_digest(approval)?,
+                "operationId": approval.operation_id,
+            }),
+        ),
+        plan_digest: LaneFactV1::Defined(prefixed_migration_plan_digest(artifact)),
+        base_version: LaneFactV1::Defined(StreamQualifiedVersionV1 {
+            stream_id: aggregate_identity.key.stream_id.clone(),
+            version: input_version,
+            association: SnapshotAssociationKindV1::ObservedSnapshot,
+        }),
+        read_set: migration_fact_set(
+            b"snapback:migration-aggregate-read-set:v1\n",
+            empty.clone(),
+            0,
+        ),
+        write_set: migration_fact_set(
+            b"snapback:migration-aggregate-write-set:v1\n",
+            json!([transition_detail]),
+            u64::try_from(transition_count)
+                .map_err(|_| journal_corrupt("publication change count overflow".to_owned()))?,
+        ),
+        ctx_answers: migration_fact_set(b"snapback:migration-aggregate-ctx:v1\n", empty.clone(), 0),
+        effects: EnvelopeEffectFactsV1 {
+            facts: migration_fact_set(b"snapback:migration-aggregate-effects:v1\n", empty, 0),
+            egress_families: Vec::new(),
+            settlement_capabilities: Vec::new(),
+        },
+        receipt: OperationReceiptV1 {
+            state: OperationReceiptStateV1::Pending,
+            receipt_digest: pending_receipt_digest.clone(),
+            payload: pending_payload,
+        },
+        coverage: EnvelopeCoverageV1 {
+            covered_lanes: Vec::new(),
+            uncovered_lanes: vec![MIGRATION_AGGREGATE_LANE_V1.to_owned()],
+            coverage_digest,
+        },
+        recorded_at_ms,
+    };
+    let lifecycle = PendingOperationLifecycleV1 {
+        schema_version: 1,
+        lane: MIGRATION_AGGREGATE_LANE_V1.to_owned(),
+        identity: aggregate_identity.clone(),
+        publication: envelope.snapshot.clone(),
+        pending_receipt_digest,
+        pending_payload: retained_pending_projection,
+        pending_at_ms: recorded_at_ms,
+    };
+    crate::operation_ledger::record_pending_operation_in(
+        tx,
+        &envelope,
+        &lifecycle,
+        MIGRATION_PENDING_CAPACITY_V1,
+    )
+}
+
+/// T-side digest-linked supplement. The terminal projection is read back from
+/// its owning migration receipt columns before this call, so the digest is
+/// over retained bytes rather than a caller assertion. Returns false only for
+/// a legacy published-held operation created before aggregate P records.
+fn finalize_migration_aggregate_in(
+    tx: &Transaction<'_>,
+    aggregate_identity: &OperationIdentityV1,
+    terminal_outcome: PendingOperationTerminalOutcomeV1,
+    retained_terminal_projection: &Value,
+    terminal_write_detail: &Value,
+    terminal_write_count: u64,
+    terminal_at_ms: u64,
+) -> SnapbackResult<bool> {
+    let terminal_write_set_digest = migration_host_digest(
+        b"snapback:migration-aggregate-terminal-write-set:v1\n",
+        terminal_write_detail,
+    );
+    let pending = match crate::operation_ledger::lookup_pending_operation(tx, aggregate_identity)? {
+        crate::operation_ledger::PendingOperationLookupV1::Novel => return Ok(false),
+        crate::operation_ledger::PendingOperationLookupV1::IdentityHorizonPassed => {
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED",
+                "storage",
+                "migration aggregate identity is below the retained Host outcome horizon",
+            ));
+        }
+        crate::operation_ledger::PendingOperationLookupV1::Pending(pending) => pending,
+        crate::operation_ledger::PendingOperationLookupV1::Terminal(existing) => {
+            let expected = crate::operation_ledger::pending_operation_terminal_receipt_digest(
+                retained_terminal_projection,
+            )?;
+            if existing.terminal_outcome == terminal_outcome
+                && existing.terminal_receipt_digest == expected
+                && existing.terminal_write_set_digest == terminal_write_set_digest
+                && existing.terminal_write_set_count == terminal_write_count
+            {
+                return Ok(true);
+            }
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_TERMINAL_DIVERGED",
+                "storage",
+                "migration aggregate already has a different terminal supplement",
+            ));
+        }
+    };
+    let terminal_receipt_digest =
+        crate::operation_ledger::pending_operation_terminal_receipt_digest(
+            retained_terminal_projection,
+        )?;
+    let transition_digest = crate::operation_ledger::pending_operation_transition_digest(
+        aggregate_identity,
+        &pending.publication,
+        &pending.pending_receipt_digest,
+        terminal_outcome,
+        &terminal_receipt_digest,
+        &terminal_write_set_digest,
+        terminal_write_count,
+    );
+    let supplement = PendingOperationTerminalSupplementV1 {
+        schema_version: 1,
+        identity: aggregate_identity.clone(),
+        publication: pending.publication,
+        pending_receipt_digest: pending.pending_receipt_digest,
+        terminal_outcome,
+        terminal_receipt_digest,
+        terminal_write_set_digest,
+        terminal_write_set_count: terminal_write_count,
+        terminal_at_ms,
+        transition_digest,
+    };
+    crate::operation_ledger::finalize_pending_operation_in(
+        tx,
+        &supplement,
+        retained_terminal_projection,
+    )?;
+    Ok(true)
 }
 
 struct JournalAppend<'a> {
@@ -1086,6 +1448,24 @@ impl LocalDatabase {
         if let Some(receipt) = stored_receipt_on(&self.conn, &approval.operation_id)?
             && receipt.state.is_terminal()
         {
+            if receipt.plan_digest != artifact.plan_digest
+                || receipt.approval_digest != approval_digest(approval)?
+                || receipt.audience != approval.audience
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+                    "storage",
+                    "completed migration operation identity was reused with divergent plan, approval, or audience facts",
+                ));
+            }
+            if matches!(receipt.state, MigrationExecState::Released) {
+                // A caller can lose the response after T committed but before
+                // the serving handle adopted the successor. Exact replay is
+                // read-only with respect to storage, but it must repair that
+                // in-memory serving posture before returning the retained
+                // terminal receipt.
+                self.schema = successor_schema.clone();
+            }
             return Ok(receipt);
         }
         let resuming_operation = latest_state_on(&self.conn, &approval.operation_id)?.is_some();
@@ -1113,6 +1493,16 @@ impl LocalDatabase {
 
         // ---- Exclusivity. --------------------------------------------------
         if let Some(other) = active_other_operation(&self.conn, &approval.operation_id)? {
+            if matches!(
+                latest_state_on(&self.conn, &other)?,
+                Some(MigrationExecState::PublishedHeld)
+            ) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_OPERATION_PENDING_CAPACITY_FULL",
+                    "storage",
+                    "migration aggregate pending capacity is full; new admission refuses rather than evicting or finalizing the held publication",
+                ));
+            }
             return Err(SnapbackError::error(
                 "SNAPBACK_MIGRATION_EXECUTOR_UNAVAILABLE",
                 "storage",
@@ -1146,11 +1536,20 @@ impl LocalDatabase {
 
         // ---- Admission transaction: lease, fence, journal head. -----------
         let resuming = resuming_operation;
-        let (lease_epoch, input_version, admission) = {
+        let (lease_epoch, input_version, admission, aggregate_identity) = {
             let tx = self
                 .conn
                 .transaction_with_behavior(TransactionBehavior::Immediate)?;
             ensure_migration_tables(&tx)?;
+            let aggregate_identity =
+                migration_aggregate_identity_in(&tx, artifact, approval, now_ms)?;
+            crate::operation_ledger::require_pending_operation_capacity_in(
+                &tx,
+                MIGRATION_AGGREGATE_LANE_V1,
+                &aggregate_identity.bound_facts.audience,
+                Some(&aggregate_identity),
+                MIGRATION_PENDING_CAPACITY_V1,
+            )?;
             let head = current_version_on(&tx)?;
             // Barrier-time resource-ceiling preconditions: growth past the
             // reviewed bounds refuses and requires a new preview/approval.
@@ -1225,11 +1624,15 @@ impl LocalDatabase {
             };
             let audience_json = serde_json::to_string(&approval.audience)
                 .map_err(|_| journal_corrupt("audience does not serialize".to_owned()))?;
+            let approval_digest_value = approval_digest(approval)?;
+            let aggregate_identity_json = serde_json::to_string(&aggregate_identity)
+                .map_err(|_| journal_corrupt("aggregate identity serialize".to_owned()))?;
             if !resuming {
                 tx.execute(
                     "INSERT INTO _snapback_migration_ops(operation_id, audience_json, \
-                     plan_digest, state_json, lease_epoch, cancel_requested, rehearsal) \
-                     VALUES(?1, ?2, ?3, ?4, ?5, 0, ?6)",
+                     plan_digest, state_json, lease_epoch, cancel_requested, rehearsal, \
+                     approval_digest, aggregate_identity_json) \
+                     VALUES(?1, ?2, ?3, ?4, ?5, 0, ?6, ?7, ?8)",
                     params![
                         approval.operation_id,
                         audience_json,
@@ -1238,12 +1641,42 @@ impl LocalDatabase {
                             .map_err(|_| journal_corrupt("state serialize".to_owned()))?,
                         lease_epoch as i64,
                         i64::from(rehearsal.is_some()),
+                        approval_digest_value,
+                        aggregate_identity_json,
                     ],
                 )?;
             } else {
+                let stored_binding: (String, String, Option<String>) = tx.query_row(
+                    "SELECT plan_digest,audience_json,approval_digest
+                       FROM _snapback_migration_ops WHERE operation_id=?1",
+                    [&approval.operation_id],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )?;
+                if stored_binding.0 != artifact.plan_digest
+                    || stored_binding.1 != audience_json
+                    || stored_binding
+                        .2
+                        .as_deref()
+                        .is_some_and(|digest| digest != approval_digest_value)
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+                        "storage",
+                        "migration operation identity was reused with divergent plan, approval, or audience facts",
+                    ));
+                }
                 tx.execute(
-                    "UPDATE _snapback_migration_ops SET lease_epoch = ?2 WHERE operation_id = ?1",
-                    params![approval.operation_id, lease_epoch as i64],
+                    "UPDATE _snapback_migration_ops
+                        SET lease_epoch=?2,
+                            approval_digest=COALESCE(approval_digest,?3),
+                            aggregate_identity_json=COALESCE(aggregate_identity_json,?4)
+                      WHERE operation_id=?1",
+                    params![
+                        approval.operation_id,
+                        lease_epoch as i64,
+                        approval_digest_value,
+                        aggregate_identity_json,
+                    ],
                 )?;
             }
             let journal = JournalHandle {
@@ -1276,6 +1709,7 @@ impl LocalDatabase {
                     head
                 },
                 admission,
+                aggregate_identity,
             )
         };
 
@@ -1308,6 +1742,7 @@ impl LocalDatabase {
                 successor_schema,
                 lease_epoch,
                 input_version,
+                &aggregate_identity,
                 now_ms,
             );
         }
@@ -1319,6 +1754,7 @@ impl LocalDatabase {
             successor_schema,
             lease_epoch,
             input_version,
+            &aggregate_identity,
             now_ms,
         );
         match outcome {
@@ -1355,6 +1791,7 @@ impl LocalDatabase {
         successor_schema: &SchemaManifest,
         lease_epoch: u64,
         input_version: u64,
+        aggregate_identity: &OperationIdentityV1,
         now_ms: u64,
     ) -> SnapbackResult<MigrationReceiptV1> {
         let journal_so_far = journal_entries_on(&self.conn, &approval.operation_id)?;
@@ -1536,20 +1973,21 @@ impl LocalDatabase {
             // closed-vocabulary operation, not an informal row).
             set_version(&tx, publication_version)?;
             save_retention_floor_on(&tx, publication_version)?;
+            let transition_body = crate::storage::SchemaTransitionEventBodyV1 {
+                operation_id: approval.operation_id.clone(),
+                plan_id: artifact.plan_id.clone(),
+                predecessor_schema_hash: artifact.body.predecessor_schema_hash.clone(),
+                successor_schema_hash: artifact.body.successor_schema_hash.clone(),
+                predecessor_generation: artifact.body.predecessor_generation,
+                successor_generation: artifact.body.predecessor_generation + 1,
+                retention_floor: publication_version,
+                compatibility_posture: artifact.body.compatibility_posture,
+            };
             crate::storage::record_schema_transition_event(
                 &tx,
                 publication_version,
                 crate::storage::SchemaTransitionKind::SchemaResync,
-                &crate::storage::SchemaTransitionEventBodyV1 {
-                    operation_id: approval.operation_id.clone(),
-                    plan_id: artifact.plan_id.clone(),
-                    predecessor_schema_hash: artifact.body.predecessor_schema_hash.clone(),
-                    successor_schema_hash: artifact.body.successor_schema_hash.clone(),
-                    predecessor_generation: artifact.body.predecessor_generation,
-                    successor_generation: artifact.body.predecessor_generation + 1,
-                    retention_floor: publication_version,
-                    compatibility_posture: artifact.body.compatibility_posture,
-                },
+                &transition_body,
                 now_ms,
             )?;
             let journal = JournalHandle {
@@ -1566,6 +2004,20 @@ impl LocalDatabase {
                 barrier_elapsed_ms: Some(elapsed(at)),
                 ..JournalAppend::of(&MigrationExecState::PublishedHeld)
             })?;
+            // @ref LLP 0163#implementation-record-2026-08-04-migration-aggregate-settlement-tail
+            //   — P is one atomic cut: live publication, application version,
+            //   schema-resync row, immutable Pending envelope, and lifecycle.
+            record_migration_pending_aggregate_in(
+                &tx,
+                artifact,
+                approval,
+                aggregate_identity,
+                input_version,
+                publication_version,
+                &transition_body,
+                at,
+                lease_epoch,
+            )?;
             tx.commit()?;
         }
 
@@ -1576,6 +2028,7 @@ impl LocalDatabase {
             successor_schema,
             lease_epoch,
             input_version,
+            aggregate_identity,
             step_results,
         )
     }
@@ -1591,6 +2044,7 @@ impl LocalDatabase {
         successor_schema: &SchemaManifest,
         lease_epoch: u64,
         input_version: u64,
+        aggregate_identity: &OperationIdentityV1,
         _now_ms: u64,
     ) -> SnapbackResult<MigrationReceiptV1> {
         self.migrate_release_inner(
@@ -1600,6 +2054,7 @@ impl LocalDatabase {
             successor_schema,
             lease_epoch,
             input_version,
+            aggregate_identity,
             BTreeMap::new(),
         )
     }
@@ -1613,6 +2068,7 @@ impl LocalDatabase {
         successor_schema: &SchemaManifest,
         lease_epoch: u64,
         input_version: u64,
+        aggregate_identity: &OperationIdentityV1,
         step_results: BTreeMap<String, Value>,
     ) -> SnapbackResult<MigrationReceiptV1> {
         let at = now_millis();
@@ -1643,9 +2099,30 @@ impl LocalDatabase {
                 None,
             )?;
             store_receipt(&tx, &approval.operation_id, &receipt)?;
+            let retained_receipt_json: String = tx.query_row(
+                "SELECT receipt_json FROM _snapback_migration_ops WHERE operation_id=?1",
+                [&approval.operation_id],
+                |row| row.get(0),
+            )?;
+            let retained_terminal_projection: Value = serde_json::from_str(&retained_receipt_json)
+                .map_err(|_| {
+                    journal_corrupt("stored terminal receipt does not parse".to_owned())
+                })?;
+            finalize_migration_aggregate_in(
+                &tx,
+                aggregate_identity,
+                PendingOperationTerminalOutcomeV1::Committed,
+                &retained_terminal_projection,
+                &json!([]),
+                0,
+                at,
+            )?;
             tx.commit()?;
             receipt
         };
+        // Test-only response-loss seam: T is durable before the caller sees
+        // its receipt, so retry must return the singleton retained result.
+        kill_point_check("terminal-response");
         // The serving handle adopts the successor schema.
         self.schema = successor_schema.clone();
         // The physical cleanup tail (§3/§4): the rollback window closed at
@@ -1783,6 +2260,15 @@ impl LocalDatabase {
         validate_local_audience(&approval.audience, audience)?;
         // Completed-rollback replay returns the sealed rollback receipt.
         if let Some(receipt) = stored_rollback_receipt_on(&self.conn, &approval.operation_id)? {
+            if receipt.plan_digest != artifact.plan_digest
+                || receipt.approval_digest != approval_digest(approval)?
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+                    "storage",
+                    "completed rollback identity was reused with divergent plan or approval facts",
+                ));
+            }
             return Ok(receipt);
         }
         let rollback_timestamp_ms =
@@ -1823,6 +2309,7 @@ impl LocalDatabase {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         ensure_migration_tables(&tx)?;
+        let aggregate_identity = migration_aggregate_identity_in(&tx, artifact, approval, now_ms)?;
         let lease_epoch = current_lease_epoch(&tx)? + 1;
         upsert_meta(&tx, META_MIGRATION_LEASE_EPOCH, &lease_epoch.to_string())?;
         let head = current_version_on(&tx)?;
@@ -1922,22 +2409,39 @@ impl LocalDatabase {
         // and the kind carries the direction: the plan's predecessor was
         // republished, its storage generation advanced to
         // `restored_storage_generation`.
+        let rollback_transition_body = crate::storage::SchemaTransitionEventBodyV1 {
+            operation_id: approval.operation_id.clone(),
+            plan_id: artifact.plan_id.clone(),
+            predecessor_schema_hash: artifact.body.predecessor_schema_hash.clone(),
+            successor_schema_hash: artifact.body.successor_schema_hash.clone(),
+            predecessor_generation: artifact.body.predecessor_generation,
+            successor_generation: restored_storage_generation,
+            retention_floor: republished_version,
+            compatibility_posture: artifact.body.compatibility_posture,
+        };
         crate::storage::record_schema_transition_event(
             &tx,
             republished_version,
             crate::storage::SchemaTransitionKind::RollbackResync,
-            &crate::storage::SchemaTransitionEventBodyV1 {
-                operation_id: approval.operation_id.clone(),
-                plan_id: artifact.plan_id.clone(),
-                predecessor_schema_hash: artifact.body.predecessor_schema_hash.clone(),
-                successor_schema_hash: artifact.body.successor_schema_hash.clone(),
-                predecessor_generation: artifact.body.predecessor_generation,
-                successor_generation: restored_storage_generation,
-                retention_floor: republished_version,
-                compatibility_posture: artifact.body.compatibility_posture,
-            },
+            &rollback_transition_body,
             rollback_timestamp_ms,
         )?;
+        let rollback_transition_count: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM _snapback_changes
+              WHERE version=?1 AND table_name=?2 AND row_id=?3 AND op=?4",
+            params![
+                version_to_sql_integer(republished_version)?,
+                crate::storage::SCHEMA_TRANSITION_JOURNAL_TABLE,
+                approval.operation_id,
+                crate::storage::SchemaTransitionKind::RollbackResync.as_op(),
+            ],
+            |row| row.get(0),
+        )?;
+        if rollback_transition_count != 1 {
+            return Err(journal_corrupt(format!(
+                "rollback R must contain exactly one rollback-resync change row (found {rollback_transition_count})"
+            )));
+        }
 
         journal.append(JournalAppend {
             output_version: Some(republished_version),
@@ -1975,13 +2479,14 @@ impl LocalDatabase {
             journal_entries: entries.len() as u64,
             journal_digest,
         };
+        let rollback_receipt_json = serde_json::to_string(&rollback_receipt)
+            .map_err(|_| journal_corrupt("rollback receipt serialize".to_owned()))?;
         tx.execute(
             "UPDATE _snapback_migration_ops SET rollback_receipt_json = ?2, state_json = ?3 \
              WHERE operation_id = ?1",
             params![
                 approval.operation_id,
-                serde_json::to_string(&rollback_receipt)
-                    .map_err(|_| journal_corrupt("rollback receipt serialize".to_owned()))?,
+                rollback_receipt_json,
                 serde_json::to_string(&MigrationExecState::RolledBack)
                     .map_err(|_| journal_corrupt("state serialize".to_owned()))?,
             ],
@@ -2004,7 +2509,35 @@ impl LocalDatabase {
             None,
         )?;
         store_receipt(&tx, &approval.operation_id, &forward)?;
+        let retained: (String, String) = tx.query_row(
+            "SELECT receipt_json,rollback_receipt_json FROM _snapback_migration_ops
+              WHERE operation_id=?1",
+            [&approval.operation_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        let retained_terminal_projection = json!({
+            "forwardReceipt": serde_json::from_str::<Value>(&retained.0)
+                .map_err(|_| journal_corrupt("stored forward receipt does not parse".to_owned()))?,
+            "rollbackReceipt": serde_json::from_str::<Value>(&retained.1)
+                .map_err(|_| journal_corrupt("stored rollback receipt does not parse".to_owned()))?,
+        });
+        let rollback_write_detail = json!([{
+            "kind": "rollback-resync",
+            "version": republished_version,
+            "body": rollback_transition_body,
+        }]);
+        finalize_migration_aggregate_in(
+            &tx,
+            &aggregate_identity,
+            PendingOperationTerminalOutcomeV1::RolledBack,
+            &retained_terminal_projection,
+            &rollback_write_detail,
+            u64::try_from(rollback_transition_count)
+                .map_err(|_| journal_corrupt("rollback change count overflow".to_owned()))?,
+            now_ms,
+        )?;
         tx.commit()?;
+        kill_point_check("rollback-response");
         // The rollback's cleanup tail: the republished predecessor is
         // authoritative, so orphaned staged successor generations drop.
         // Same resumable posture as the release tail.
@@ -4278,6 +4811,110 @@ impl LocalDatabase {
         journal_entries_on(&self.conn, operation_id)
     }
 
+    /// Read-only aggregate settlement lookup. While P is held it returns the
+    /// retained `published-held`/outcome-pending lifecycle and never drives
+    /// publication or release; after T it returns the digest-linked terminal
+    /// supplement.
+    pub fn migration_aggregate_lookup(
+        &self,
+        operation_id: &str,
+    ) -> SnapbackResult<Option<crate::operation_ledger::PendingOperationLookupV1>> {
+        if !super::sqlite_table_exists(&self.conn, "_snapback_migration_ops")? {
+            return Ok(None);
+        }
+        let has_identity: bool = self.conn.query_row(
+            "SELECT EXISTS(
+               SELECT 1 FROM pragma_table_info('_snapback_migration_ops')
+                WHERE name='aggregate_identity_json'
+             )",
+            [],
+            |row| row.get(0),
+        )?;
+        if !has_identity {
+            return Ok(None);
+        }
+        let identity: Option<Option<String>> = self
+            .conn
+            .query_row(
+                "SELECT aggregate_identity_json FROM _snapback_migration_ops WHERE operation_id=?1",
+                [operation_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let Some(Some(identity)) = identity else {
+            return Ok(None);
+        };
+        let identity: OperationIdentityV1 = serde_json::from_str(&identity)
+            .map_err(|_| journal_corrupt("aggregate identity does not parse".to_owned()))?;
+        let lookup = crate::operation_ledger::lookup_pending_operation(&self.conn, &identity)?;
+        if matches!(
+            lookup,
+            crate::operation_ledger::PendingOperationLookupV1::Pending(_)
+        ) {
+            let terminal_receipt_present: bool = self.conn.query_row(
+                "SELECT receipt_json IS NOT NULL FROM _snapback_migration_ops
+                 WHERE operation_id=?1",
+                [operation_id],
+                |row| row.get(0),
+            )?;
+            if terminal_receipt_present {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_OPERATION_LEDGER_INVALID",
+                    "storage",
+                    "terminal migration receipt survived without its aggregate supplement",
+                ));
+            }
+        }
+        if let crate::operation_ledger::PendingOperationLookupV1::Terminal(terminal) = &lookup {
+            // The supplement holds only digests. Recompute the terminal
+            // receipt digest from the exact migration receipt bytes still
+            // owned by `_snapback_migration_ops`; a swapped or corrupt owner
+            // can never authenticate merely because the supplement survived.
+            let retained_projection = match terminal.terminal_outcome {
+                PendingOperationTerminalOutcomeV1::Committed => {
+                    let receipt: String = self.conn.query_row(
+                        "SELECT receipt_json FROM _snapback_migration_ops
+                         WHERE operation_id=?1 AND receipt_json IS NOT NULL",
+                        [operation_id],
+                        |row| row.get(0),
+                    )?;
+                    serde_json::from_str::<Value>(&receipt).map_err(|_| {
+                        journal_corrupt("stored terminal receipt does not parse".to_owned())
+                    })?
+                }
+                PendingOperationTerminalOutcomeV1::RolledBack => {
+                    let receipts: (String, String) = self.conn.query_row(
+                        "SELECT receipt_json,rollback_receipt_json
+                         FROM _snapback_migration_ops
+                         WHERE operation_id=?1
+                           AND receipt_json IS NOT NULL
+                           AND rollback_receipt_json IS NOT NULL",
+                        [operation_id],
+                        |row| Ok((row.get(0)?, row.get(1)?)),
+                    )?;
+                    json!({
+                        "forwardReceipt": serde_json::from_str::<Value>(&receipts.0)
+                            .map_err(|_| journal_corrupt("stored forward receipt does not parse".to_owned()))?,
+                        "rollbackReceipt": serde_json::from_str::<Value>(&receipts.1)
+                            .map_err(|_| journal_corrupt("stored rollback receipt does not parse".to_owned()))?,
+                    })
+                }
+            };
+            let retained_digest =
+                crate::operation_ledger::pending_operation_terminal_receipt_digest(
+                    &retained_projection,
+                )?;
+            if retained_digest != terminal.terminal_receipt_digest {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_OPERATION_LEDGER_INVALID",
+                    "storage",
+                    "migration aggregate terminal supplement does not match its retained receipt bytes",
+                ));
+            }
+        }
+        Ok(Some(lookup))
+    }
+
     pub fn migration_fence(&self) -> SnapbackResult<Option<MigrationFenceV1>> {
         migration_fence_on(&self.conn)
     }
@@ -4371,7 +5008,15 @@ pub fn migration_journal_artifact() -> Value {
         "cleanupTailRule": "cleanup-pending extends exactly the terminal it was entered from and ends in that same terminal",
         "fencingToken": "leaseEpoch — validated against the stored epoch before every append",
         "hostTransactionIdentity": "new entries carry one authenticated Host OperationIdentityV1 per physical journal transaction; parent=approval operationId and ordinal=durable pre-transaction journal row count; legacy entries may omit",
-        "envelopeCoverage": "uncovered — publication at published-held and the terminal receipt at released or rolled-back are distinct transactions",
+        "aggregateSettlement": {
+            "identity": "one approval-operationId-derived authenticated Host identity",
+            "publicationCut": "P atomically retains application version, schema-resync row, Pending CommitEnvelopeV1, and pending lifecycle",
+            "terminalCut": "T-release or T-rollback atomically appends a digest-linked terminal supplement without rewriting P",
+            "terminalOutcomes": ["committed", "rolled-back"],
+            "coveredBoundaries": [],
+            "uncoveredBoundaries": ["aggregate-P/T", "H1", "H2", "C"],
+        },
+        "envelopeCoverage": "uncovered — aggregate P/T settlement is implemented for corpus evidence but remains unpublished; H1/H2/C remain carrier-only",
     })
 }
 
@@ -5026,6 +5671,7 @@ mod tests {
     #[test]
     fn transition_outside_the_relation_is_corruption() {
         let mut db = seeded_db();
+        ensure_migration_host_authority(&mut db.conn, 1).expect("migration host authority");
         let tx = db
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)
@@ -5222,6 +5868,7 @@ mod tests {
             default_ceilings(),
         );
         let approval = approval_for(&plan, now_millis());
+        ensure_migration_host_authority(&mut db.conn, 1).expect("migration host authority");
         // Manufacture an admitted non-terminal operation with a cancel
         // request already recorded, then resume: the executor honors the
         // cancel at its first boundary.
@@ -5245,9 +5892,10 @@ mod tests {
             .expect("fence");
             tx.execute(
                 "INSERT INTO _snapback_migration_ops(operation_id, audience_json, plan_digest, \
-                 state_json, lease_epoch, cancel_requested) VALUES(?1, '{}', ?2, ?3, 1, 0)",
+                 state_json, lease_epoch, cancel_requested) VALUES(?1, ?2, ?3, ?4, 1, 0)",
                 params![
                     approval.operation_id,
+                    serde_json::to_string(&approval.audience).expect("audience JSON"),
                     plan.plan_digest,
                     serde_json::to_string(&MigrationExecState::Barriered).unwrap()
                 ],
@@ -5366,9 +6014,10 @@ mod tests {
             .expect("fence");
             tx.execute(
                 "INSERT INTO _snapback_migration_ops(operation_id, audience_json, plan_digest, \
-                 state_json, lease_epoch, cancel_requested) VALUES(?1, '{}', ?2, ?3, 9, 0)",
+                 state_json, lease_epoch, cancel_requested) VALUES(?1, ?2, ?3, ?4, 9, 0)",
                 params![
                     approval2.operation_id,
+                    serde_json::to_string(&approval2.audience).expect("audience JSON"),
                     plan2.plan_digest,
                     serde_json::to_string(&MigrationExecState::PublishedHeld).unwrap()
                 ],
@@ -5532,6 +6181,538 @@ mod tests {
             now_ms: now_millis(),
             rehearsal: None,
         })
+    }
+
+    fn aggregate_identity_for(db: &LocalDatabase, operation_id: &str) -> OperationIdentityV1 {
+        let body: String = db
+            .conn
+            .query_row(
+                "SELECT aggregate_identity_json FROM _snapback_migration_ops
+                 WHERE operation_id=?1",
+                [operation_id],
+                |row| row.get(0),
+            )
+            .expect("aggregate identity");
+        serde_json::from_str(&body).expect("aggregate identity JSON")
+    }
+
+    fn scalar_count(db: &LocalDatabase, sql: &str) -> u64 {
+        db.conn
+            .query_row(sql, [], |row| row.get(0))
+            .expect("count query")
+    }
+
+    fn crash_after_publication_p(
+        db: &mut LocalDatabase,
+        plan: &MigrationPlanArtifactV1,
+        approval: &MigrationApprovalV1,
+    ) {
+        arm_migration_kill_point("released", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            staged_apply(db, plan, approval)
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err(), "release transaction kill point must fire");
+        assert_eq!(
+            latest_state_for_test(db, &approval.operation_id)
+                .expect("state")
+                .expect("journaled")
+                .kind(),
+            "published-held"
+        );
+    }
+
+    // LLP 0163 amendment corpus: P publishes one successor/version/resync row
+    // and one truthful Pending envelope atomically. Lookup and ACK are
+    // read-only while held, divergent reuse refuses, lane capacity refuses
+    // rather than evicting, and T-release appends one linked terminal record.
+    #[test]
+    fn llp0163_migration_aggregate_pending_release_corpus() {
+        let mut db = seeded_db();
+        let head_before = db.current_version().expect("head");
+        let plan = staged_plan(None);
+        let approval = approval_for(&plan, now_millis());
+        crash_after_publication_p(&mut db, &plan, &approval);
+
+        let identity = aggregate_identity_for(&db, &approval.operation_id);
+        let pending = match db
+            .migration_aggregate_lookup(&approval.operation_id)
+            .expect("pending lookup")
+            .expect("aggregate identity")
+        {
+            crate::operation_ledger::PendingOperationLookupV1::Pending(pending) => pending,
+            other => panic!("expected pending aggregate, got {other:?}"),
+        };
+        assert_eq!(pending.identity, identity);
+        assert_eq!(pending.publication.version, head_before + 1);
+        assert_eq!(pending.pending_payload["detail"]["state"], "published-held");
+        assert_eq!(pending.pending_payload["detail"]["outcome"], "pending");
+
+        let envelope_body: String = db
+            .conn
+            .query_row(
+                "SELECT envelope_json FROM _snapback_commit_envelopes_v1
+                 WHERE operation_id=?1",
+                [&identity.key.operation_id],
+                |row| row.get(0),
+            )
+            .expect("aggregate envelope");
+        let envelope: CommitEnvelopeV1 =
+            serde_json::from_str(&envelope_body).expect("aggregate envelope JSON");
+        assert_eq!(envelope.receipt.state, OperationReceiptStateV1::Pending);
+        assert_eq!(envelope.snapshot, pending.publication);
+        assert_eq!(envelope.write_set.count, 1);
+        assert!(envelope.coverage.covered_lanes.is_empty());
+        assert_eq!(
+            envelope.coverage.uncovered_lanes,
+            vec![MIGRATION_AGGREGATE_LANE_V1.to_owned()]
+        );
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_changes
+                     WHERE version=?1 AND table_name=?2 AND row_id=?3 AND op=?4",
+                    params![
+                        version_to_sql_integer(pending.publication.version).expect("version"),
+                        crate::storage::SCHEMA_TRANSITION_JOURNAL_TABLE,
+                        approval.operation_id,
+                        crate::storage::SchemaTransitionKind::SchemaResync.as_op(),
+                    ],
+                    |row| row.get::<_, u64>(0),
+                )
+                .expect("P journal count"),
+            1
+        );
+        assert_eq!(
+            scalar_count(&db, "SELECT COUNT(*) FROM _snapback_operation_pending_v1"),
+            1
+        );
+        assert_eq!(
+            scalar_count(
+                &db,
+                "SELECT COUNT(*) FROM _snapback_operation_terminal_supplements_v1"
+            ),
+            0
+        );
+
+        // Repeated lookup cannot republish, release, or add another carrier.
+        let counts_before = (
+            scalar_count(&db, "SELECT COUNT(*) FROM _snapback_changes"),
+            scalar_count(&db, "SELECT COUNT(*) FROM _snapback_commit_envelopes_v1"),
+            scalar_count(&db, "SELECT COUNT(*) FROM _snapback_operation_pending_v1"),
+        );
+        for _ in 0..2 {
+            assert!(matches!(
+                db.migration_aggregate_lookup(&approval.operation_id)
+                    .expect("stable pending lookup"),
+                Some(crate::operation_ledger::PendingOperationLookupV1::Pending(
+                    _
+                ))
+            ));
+        }
+        assert_eq!(
+            counts_before,
+            (
+                scalar_count(&db, "SELECT COUNT(*) FROM _snapback_changes"),
+                scalar_count(&db, "SELECT COUNT(*) FROM _snapback_commit_envelopes_v1"),
+                scalar_count(&db, "SELECT COUNT(*) FROM _snapback_operation_pending_v1"),
+            )
+        );
+
+        // Pending has no ordinary suppression to ACK/reclaim, and its host
+        // lease is effectively unbounded until the terminal supplement.
+        {
+            let tx = db.conn.transaction().expect("ACK transaction");
+            crate::operation_ledger::acknowledge_and_reclaim_in(&tx, &identity, now_millis())
+                .expect("pending ACK is inert");
+            tx.commit().expect("ACK commit");
+        }
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT expires_at_ms FROM _snapback_host_identity_leases_v1
+                     WHERE operation_id=?1 AND completed_at_ms IS NULL",
+                    [&identity.key.operation_id],
+                    |row| row.get::<_, u64>(0),
+                )
+                .expect("pending lease"),
+            crate::operation_ledger::PENDING_HOST_IDENTITY_LEASE_EXPIRY_MS_V1
+        );
+
+        let second = approval_for(&plan, now_millis());
+        let capacity = staged_apply(&mut db, &plan, &second).expect_err("pending lane full");
+        assert_eq!(
+            capacity.diagnostic.code,
+            "SNAPBACK_OPERATION_PENDING_CAPACITY_FULL"
+        );
+        let mut divergent_identity = identity.clone();
+        divergent_identity
+            .bound_facts
+            .function_or_command
+            .push_str("-divergent");
+        let divergent =
+            crate::operation_ledger::lookup_pending_operation(&db.conn, &divergent_identity)
+                .expect_err("divergent pending identity");
+        assert_eq!(
+            divergent.diagnostic.code,
+            "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
+        );
+
+        let released = staged_apply(&mut db, &plan, &approval).expect("release retry");
+        let terminal = match db
+            .migration_aggregate_lookup(&approval.operation_id)
+            .expect("terminal lookup")
+            .expect("aggregate identity")
+        {
+            crate::operation_ledger::PendingOperationLookupV1::Terminal(terminal) => terminal,
+            other => panic!("expected terminal aggregate, got {other:?}"),
+        };
+        assert_eq!(
+            terminal.terminal_outcome,
+            PendingOperationTerminalOutcomeV1::Committed
+        );
+        assert_eq!(terminal.terminal_write_set_count, 0);
+        assert!(terminal.terminal_at_ms >= pending.pending_at_ms);
+        assert_eq!(
+            scalar_count(
+                &db,
+                "SELECT COUNT(*) FROM _snapback_operation_terminal_supplements_v1"
+            ),
+            1
+        );
+        assert_eq!(
+            scalar_count(
+                &db,
+                "SELECT COUNT(*) FROM _snapback_operation_suppression_v1"
+            ),
+            0,
+            "the additive terminal carrier does not widen v1 suppression"
+        );
+        assert_eq!(
+            staged_apply(&mut db, &plan, &approval).expect("exact terminal replay"),
+            released
+        );
+        assert_eq!(
+            scalar_count(
+                &db,
+                "SELECT COUNT(*) FROM _snapback_operation_terminal_supplements_v1"
+            ),
+            1
+        );
+        let mut divergent_approval = approval.clone();
+        divergent_approval.approver = "other-operator".to_owned();
+        let divergent = staged_apply(&mut db, &plan, &divergent_approval)
+            .expect_err("divergent terminal replay");
+        assert_eq!(
+            divergent.diagnostic.code,
+            "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
+        );
+
+        // The additive supplement pins the retired host epoch for the full
+        // terminal window, then compacts with its Pending lifecycle and the
+        // envelope payload. It is neither forever-retained nor reclaimable
+        // while outcome is pending.
+        let OperationIssuanceV1::HostIncarnation { epoch_id, .. } = &identity.issuance else {
+            panic!("aggregate uses host issuance");
+        };
+        let epoch_sequence: u64 = db
+            .conn
+            .query_row(
+                "SELECT epoch_sequence FROM _snapback_operation_epochs_v1
+                 WHERE originator_class='host' AND audience=?1 AND epoch_id=?2",
+                params![identity.bound_facts.audience, epoch_id],
+                |row| row.get(0),
+            )
+            .expect("aggregate epoch sequence");
+        let rotate_at = terminal.terminal_at_ms + 1;
+        let successor = crate::commit_envelope::IdentityEpochV1 {
+            schema_version: 1,
+            originator_class: OperationOriginatorClassV1::Host,
+            audience: identity.bound_facts.audience.clone(),
+            authority_instance_id: "snapback:migration-executor:v1:rotated".to_owned(),
+            epoch_id: "migration-aggregate-successor-epoch".to_owned(),
+            epoch_sequence: epoch_sequence + 1,
+            state: crate::commit_envelope::IdentityEpochStateV1::Open,
+            issued_at_ms: rotate_at,
+            terminated_at_ms: None,
+            authority_authenticator_digest: format!("sha256:{}", "b".repeat(64)),
+        };
+        {
+            let tx = db.conn.transaction().expect("host rotation transaction");
+            crate::operation_ledger::rotate_host_incarnation_in(
+                &tx,
+                &identity.bound_facts.audience,
+                epoch_id,
+                &successor,
+                rotate_at,
+            )
+            .expect("rotate aggregate host epoch");
+            assert!(
+                !crate::operation_ledger::close_epoch_if_complete_in(
+                    &tx,
+                    OperationOriginatorClassV1::Host,
+                    &identity.bound_facts.audience,
+                    epoch_id,
+                    terminal.terminal_at_ms + crate::operation_ledger::HOST_RECEIPT_WINDOW_MS_V1
+                        - 1,
+                )
+                .expect("young supplement pins epoch")
+            );
+            assert!(
+                crate::operation_ledger::close_epoch_if_complete_in(
+                    &tx,
+                    OperationOriginatorClassV1::Host,
+                    &identity.bound_facts.audience,
+                    epoch_id,
+                    terminal.terminal_at_ms
+                        + crate::operation_ledger::HOST_RECEIPT_WINDOW_MS_V1
+                        + 1,
+                )
+                .expect("elapsed supplement compacts")
+            );
+            tx.commit().expect("host closure commit");
+        }
+        assert_eq!(
+            scalar_count(
+                &db,
+                "SELECT COUNT(*) FROM _snapback_operation_terminal_supplements_v1"
+            ),
+            0
+        );
+        assert_eq!(
+            scalar_count(&db, "SELECT COUNT(*) FROM _snapback_operation_pending_v1"),
+            0
+        );
+        let compacted: String = db
+            .conn
+            .query_row(
+                "SELECT envelope_json FROM _snapback_commit_envelopes_v1
+                 WHERE operation_id=?1",
+                [&identity.key.operation_id],
+                |row| row.get(0),
+            )
+            .expect("compacted aggregate envelope");
+        let compacted: CommitEnvelopeV1 =
+            serde_json::from_str(&compacted).expect("compacted envelope JSON");
+        assert_eq!(compacted.receipt.payload, RetainedEnvelopeDetailV1::Expired);
+        assert!(matches!(
+            db.migration_aggregate_lookup(&approval.operation_id)
+                .expect("closed aggregate lookup"),
+            Some(crate::operation_ledger::PendingOperationLookupV1::IdentityHorizonPassed)
+        ));
+    }
+
+    #[test]
+    fn llp0163_migration_aggregate_rejects_swapped_pending_envelope() {
+        let mut db = seeded_db();
+        let plan = staged_plan(None);
+        let approval = approval_for(&plan, now_millis());
+        crash_after_publication_p(&mut db, &plan, &approval);
+        let identity = aggregate_identity_for(&db, &approval.operation_id);
+        let body: String = db
+            .conn
+            .query_row(
+                "SELECT envelope_json FROM _snapback_commit_envelopes_v1
+                 WHERE operation_id=?1",
+                [&identity.key.operation_id],
+                |row| row.get(0),
+            )
+            .expect("envelope");
+        let mut envelope: CommitEnvelopeV1 = serde_json::from_str(&body).expect("envelope JSON");
+        envelope.receipt.payload = RetainedEnvelopeDetailV1::InlineRedacted {
+            detail: json!({
+                "outcome": "pending",
+                "publicationVersion": envelope.snapshot.version + 1,
+                "state": "published-held",
+            }),
+        };
+        db.conn
+            .execute(
+                "UPDATE _snapback_commit_envelopes_v1 SET envelope_json=?1
+                 WHERE operation_id=?2",
+                params![
+                    serde_json::to_string(&envelope).expect("mutated envelope JSON"),
+                    identity.key.operation_id,
+                ],
+            )
+            .expect("corrupt envelope fixture");
+        let error = db
+            .migration_aggregate_lookup(&approval.operation_id)
+            .expect_err("swapped envelope must refuse");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_OPERATION_LEDGER_INVALID");
+
+        let mut terminal_db = seeded_db();
+        let terminal_plan = staged_plan(None);
+        let terminal_approval = approval_for(&terminal_plan, now_millis());
+        staged_apply(&mut terminal_db, &terminal_plan, &terminal_approval)
+            .expect("terminal fixture");
+        terminal_db
+            .conn
+            .execute(
+                "UPDATE _snapback_migration_ops SET receipt_json='{}'
+                 WHERE operation_id=?1",
+                [&terminal_approval.operation_id],
+            )
+            .expect("corrupt terminal receipt fixture");
+        let error = terminal_db
+            .migration_aggregate_lookup(&terminal_approval.operation_id)
+            .expect_err("swapped terminal receipt must refuse");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_OPERATION_LEDGER_INVALID");
+    }
+
+    #[test]
+    fn llp0163_migration_aggregate_publication_and_terminal_response_crashes_are_atomic() {
+        // Kill inside P: publication, resync journal, Pending envelope, and
+        // lifecycle all roll back together.
+        let mut before_p = seeded_db();
+        let head = before_p.current_version().expect("head");
+        let plan = staged_plan(None);
+        let approval = approval_for(&plan, now_millis());
+        arm_migration_kill_point("published-held", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            staged_apply(&mut before_p, &plan, &approval)
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err());
+        assert_eq!(
+            before_p.current_version().expect("head after P crash"),
+            head
+        );
+        assert_eq!(
+            scalar_count(
+                &before_p,
+                "SELECT COUNT(*) FROM _snapback_operation_pending_v1"
+            ),
+            0
+        );
+        assert_eq!(
+            scalar_count(
+                &before_p,
+                "SELECT COUNT(*) FROM _snapback_commit_envelopes_v1"
+            ),
+            0
+        );
+
+        // Lose the response after T-release commits. Lookup is terminal and
+        // exact retry returns the singleton receipt without another P or T.
+        let mut after_t = seeded_db();
+        let plan = staged_plan(None);
+        let approval = approval_for(&plan, now_millis());
+        arm_migration_kill_point("terminal-response", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            staged_apply(&mut after_t, &plan, &approval)
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err());
+        assert!(matches!(
+            after_t
+                .migration_aggregate_lookup(&approval.operation_id)
+                .expect("terminal lookup after response loss"),
+            Some(crate::operation_ledger::PendingOperationLookupV1::Terminal(
+                _
+            ))
+        ));
+        let receipt = staged_apply(&mut after_t, &plan, &approval)
+            .expect("exact retry after terminal response loss");
+        assert_eq!(receipt.state.kind(), "released");
+        assert!(
+            after_t
+                .schema()
+                .table("items")
+                .expect("items")
+                .field("note")
+                .is_some(),
+            "terminal replay repairs the serving handle's successor posture"
+        );
+        assert_eq!(
+            scalar_count(
+                &after_t,
+                "SELECT COUNT(*) FROM _snapback_operation_terminal_supplements_v1"
+            ),
+            1
+        );
+    }
+
+    #[test]
+    fn llp0163_migration_aggregate_rollback_terminal_is_singleton() {
+        let mut db = seeded_db();
+        let plan = staged_plan(Some(PUBLICATION_TS + 1));
+        let approval = approval_for(&plan, now_millis());
+        let (_, resolved) = audience();
+        crash_after_publication_p(&mut db, &plan, &approval);
+
+        arm_migration_kill_point("rolling-back", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            db.migrate_rollback(&plan, &approval, &resolved, now_millis())
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err());
+        assert!(matches!(
+            db.migration_aggregate_lookup(&approval.operation_id)
+                .expect("pending after rollback interior crash"),
+            Some(crate::operation_ledger::PendingOperationLookupV1::Pending(
+                _
+            ))
+        ));
+
+        arm_migration_kill_point("rollback-response", 0);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            db.migrate_rollback(&plan, &approval, &resolved, now_millis())
+        }));
+        disarm_migration_kill_point();
+        assert!(outcome.is_err(), "rollback response-loss seam must fire");
+        let terminal = match db
+            .migration_aggregate_lookup(&approval.operation_id)
+            .expect("rollback terminal lookup")
+            .expect("aggregate")
+        {
+            crate::operation_ledger::PendingOperationLookupV1::Terminal(terminal) => terminal,
+            other => panic!("expected rollback terminal, got {other:?}"),
+        };
+        assert_eq!(
+            terminal.terminal_outcome,
+            PendingOperationTerminalOutcomeV1::RolledBack
+        );
+        assert_eq!(terminal.terminal_write_set_count, 1);
+        let rollback = db
+            .migrate_rollback(&plan, &approval, &resolved, now_millis())
+            .expect("rollback exact replay");
+        assert_eq!(
+            db.migrate_rollback(&plan, &approval, &resolved, now_millis())
+                .expect("second rollback exact replay"),
+            rollback
+        );
+        assert_eq!(
+            scalar_count(
+                &db,
+                "SELECT COUNT(*) FROM _snapback_operation_terminal_supplements_v1"
+            ),
+            1
+        );
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_changes
+                     WHERE table_name=?1 AND row_id=?2 AND op=?3",
+                    params![
+                        crate::storage::SCHEMA_TRANSITION_JOURNAL_TABLE,
+                        approval.operation_id,
+                        crate::storage::SchemaTransitionKind::RollbackResync.as_op(),
+                    ],
+                    |row| row.get::<_, u64>(0),
+                )
+                .expect("R journal count"),
+            1
+        );
+        db.resume_pending_migration_cleanup()
+            .expect("resume rollback cleanup");
+        assert!(matches!(
+            db.migration_aggregate_lookup(&approval.operation_id)
+                .expect("terminal survives cleanup resume"),
+            Some(crate::operation_ledger::PendingOperationLookupV1::Terminal(
+                _
+            ))
+        ));
     }
 
     #[test]

@@ -33,6 +33,7 @@ use crate::commit_envelope::{
     OperationExplanationRequestV1, OperationExplanationResponseV1, OperationExplanationV1,
     OperationIdentityRangeRequestV1, OperationIdentityRangeResponseV1,
     OperationIdentityTombstoneV1, OperationIdentityV1, OperationSuppressionRecordV1,
+    PendingOperationLifecycleV1, PendingOperationTerminalSupplementV1,
 };
 use crate::data_tier::{DataTierCorpusCase, DataTierCorpusManifest, DataTierProfile};
 use crate::deploy::{
@@ -184,6 +185,14 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "operation.suppression-v1.schema.json",
             schemars::schema_for!(OperationSuppressionRecordV1),
+        ),
+        finish(
+            "operation.pending-lifecycle-v1.schema.json",
+            schemars::schema_for!(PendingOperationLifecycleV1),
+        ),
+        finish(
+            "operation.pending-terminal-supplement-v1.schema.json",
+            schemars::schema_for!(PendingOperationTerminalSupplementV1),
         ),
         finish(
             "operation.identity-tombstone-v1.schema.json",
