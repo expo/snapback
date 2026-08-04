@@ -172,7 +172,7 @@ pub struct BenchReport {
 /// One fixed no-request observation for the step-0 idle guard. The dated
 /// baseline runner records eleven independent five-second observations after
 /// all active measurements finish.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IdleObservation {
     pub duration_ms: u64,
@@ -338,7 +338,11 @@ fn run_with_active_covered_lane(
         measure_single_writer(config)?
     };
     let current_reads = measure_current_reads(config)?;
-    let write_bytes = measure_write_bytes()?;
+    let write_bytes = if active_covered_lane {
+        measure_write_bytes_active_covered()?
+    } else {
+        measure_write_bytes()?
+    };
     let (matcher_skip_us_per_sub, fanout_us_per_affected_sub) = measure_fanout(config)?;
     let fanout_delta_us_per_affected_sub = measure_fanout_delta_projection(config);
     let read_set_validation_us_per_dep = measure_read_set_validation(config)?;
@@ -505,6 +509,18 @@ fn functions() -> FunctionManifest {
 
 pub(crate) fn configured() -> crate::diagnostic::SnapbackResult<LocalSnapback> {
     let mut snapback = LocalSnapback::memory()?;
+    snapback.apply_schema(schema())?;
+    snapback.load_functions(functions());
+    Ok(snapback)
+}
+
+/// File-backed acceptance twin for the agent-safe active-lane byte and idle
+/// observations. Unlike the feature-gated telemetry fixture below, this is
+/// compiled only as a private input to the dated paired recorder.
+fn configured_file_agent_safe(
+    path: impl AsRef<std::path::Path>,
+) -> crate::diagnostic::SnapbackResult<LocalSnapback> {
+    let mut snapback = LocalSnapback::open(path)?;
     snapback.apply_schema(schema())?;
     snapback.load_functions(functions());
     Ok(snapback)
@@ -758,6 +774,36 @@ fn measure_write_bytes() -> crate::diagnostic::SnapbackResult<WriteBytesBench> {
     result
 }
 
+fn measure_write_bytes_active_covered() -> crate::diagnostic::SnapbackResult<WriteBytesBench> {
+    let directory = std::env::temp_dir().join(format!(
+        "snapback-agent-safe-active-write-{}",
+        uuid::Uuid::now_v7()
+    ));
+    std::fs::create_dir(&directory).map_err(bench_io_error)?;
+    let path = directory.join("fixture.sqlite3");
+    let result = (|| {
+        let mut snapback = configured_file_agent_safe(&path)?;
+        let input = args(json!({ "title": "agent-safe active write amplification" }));
+        let range = snapback.prepare_agent_safe_active_lane_benchmark(&input)?;
+        let before = file_family_bytes(&path)?;
+        snapback.invoke_agent_safe_active_lane_benchmark_mutation(
+            "createTodo",
+            input,
+            &range,
+            range.range_start,
+        )?;
+        let during = file_family_bytes(&path)?;
+        drop(snapback);
+        let after = file_family_bytes(&path)?;
+        Ok(WriteBytesBench {
+            allocated: during.saturating_sub(before),
+            retained: after.saturating_sub(before),
+        })
+    })();
+    let _ = std::fs::remove_dir_all(&directory);
+    result
+}
+
 fn file_family_bytes(path: &std::path::Path) -> crate::diagnostic::SnapbackResult<u64> {
     let mut total = std::fs::metadata(path)
         .map(|metadata| metadata.len())
@@ -790,6 +836,52 @@ pub fn measure_idle(duration: Duration) -> crate::diagnostic::SnapbackResult<Idl
         let resident_kb_after = resident_kb();
         let database_family_bytes_after = file_family_bytes(&path)?;
         drop(database);
+        Ok(IdleObservation {
+            duration_ms: duration.as_millis().try_into().unwrap_or(u64::MAX),
+            cpu_user_us: usage_after.user_us.saturating_sub(usage_before.user_us),
+            cpu_system_us: usage_after.system_us.saturating_sub(usage_before.system_us),
+            output_block_operations: usage_after
+                .output_blocks
+                .saturating_sub(usage_before.output_blocks),
+            resident_kb_before,
+            resident_kb_after,
+            database_family_bytes_before,
+            database_family_bytes_after,
+        })
+    })();
+    let _ = std::fs::remove_dir_all(&directory);
+    result
+}
+
+/// Observe an otherwise-idle file-backed instance after the agent-safe public
+/// carrier has installed real ordinary-mutation coverage and a server-issued
+/// finite client range. The range and coverage state stay live for the entire
+/// interval; setup work is outside the observation window.
+///
+/// @ref LLP 0162#measurement-gate — idle evidence must measure the active
+///   profile, not a dormant manifest or a runtime profile toggle.
+pub fn measure_idle_agent_safe_active_covered(
+    duration: Duration,
+) -> crate::diagnostic::SnapbackResult<IdleObservation> {
+    let directory = std::env::temp_dir().join(format!(
+        "snapback-agent-safe-active-idle-{}",
+        uuid::Uuid::now_v7()
+    ));
+    std::fs::create_dir(&directory).map_err(bench_io_error)?;
+    let path = directory.join("fixture.sqlite3");
+    let result = (|| {
+        let mut snapback = configured_file_agent_safe(&path)?;
+        let input = args(json!({ "title": "agent-safe active idle fixture" }));
+        let range = snapback.prepare_agent_safe_active_lane_benchmark(&input)?;
+        let database_family_bytes_before = file_family_bytes(&path)?;
+        let resident_kb_before = resident_kb();
+        let usage_before = process_usage()?;
+        std::thread::sleep(duration);
+        let usage_after = process_usage()?;
+        let resident_kb_after = resident_kb();
+        let database_family_bytes_after = file_family_bytes(&path)?;
+        std::hint::black_box((&snapback, &range));
+        drop(snapback);
         Ok(IdleObservation {
             duration_ms: duration.as_millis().try_into().unwrap_or(u64::MAX),
             cpu_user_us: usage_after.user_us.saturating_sub(usage_before.user_us),
@@ -1582,6 +1674,11 @@ mod tests {
         assert!(report.single_writer_mutations_per_sec > 0.0);
         assert!(report.single_writer_mutation_p50_us > 0.0);
         assert!(report.single_writer_mutation_p95_us > 0.0);
+        assert!(report.allocated_write_bytes_per_operation > 0);
+        let idle = measure_idle_agent_safe_active_covered(Duration::from_millis(5))
+            .expect("active covered idle acceptance worker");
+        assert_eq!(idle.duration_ms, 5);
+        assert!(idle.resident_kb_before > 0.0);
     }
 
     fn run_and_check_smoke() -> Result<(), String> {
