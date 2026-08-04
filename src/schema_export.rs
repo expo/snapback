@@ -60,7 +60,7 @@ use crate::fork_promotion::{
 use crate::handler_wire::{HandlerHostCallRequest, HandlerInvokeRequest, HandlerInvokeResponse};
 use crate::host_ops::{
     DryRunReport, HostOpsResult, HostReadyDescriptor, ManagedBranchCreateHostInputV1,
-    ManagedBranchIdHostInputV1, ManagedBranchListHostInputV1,
+    ManagedBranchExecuteHostInputV1, ManagedBranchIdHostInputV1, ManagedBranchListHostInputV1,
 };
 use crate::live_wire::{
     KitSocketReplyFrame, KitSocketRequestFrame, LiveEnvelope, LiveSocketClientMessage,
@@ -256,6 +256,10 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "branch.host-create-input-v1.schema.json",
             schemars::schema_for!(ManagedBranchCreateHostInputV1),
+        ),
+        finish(
+            "branch.host-execute-input-v1.schema.json",
+            schemars::schema_for!(ManagedBranchExecuteHostInputV1),
         ),
         finish(
             "branch.host-list-input-v1.schema.json",

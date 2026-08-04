@@ -2023,6 +2023,70 @@ impl LocalDatabase {
         crate::fork_promotion::inspect_managed_in_app_branch(&self.conn, path, branch_id, now_ms)
     }
 
+    pub(crate) fn managed_in_app_branch_path(
+        &self,
+        branch_id: &crate::branches::BranchId,
+        now_ms: i64,
+    ) -> SnapbackResult<PathBuf> {
+        let path = self.path.as_deref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
+                "storage",
+                "managed in-app branches require a file-backed canonical database",
+            )
+        })?;
+        crate::fork_promotion::managed_in_app_branch_path(&self.conn, path, branch_id, now_ms)
+    }
+
+    pub(crate) fn branch_operation_retry(
+        &self,
+        branch_id: &crate::branches::BranchId,
+        draft: &crate::fork_promotion::BranchOperationDraftV1,
+    ) -> SnapbackResult<Option<crate::fork_promotion::BranchOperationV1>> {
+        crate::fork_promotion::branch_operation_retry(&self.conn, branch_id, draft)
+    }
+
+    pub(crate) fn inspect_local_in_app_branch(
+        &self,
+        branch_id: &crate::branches::BranchId,
+    ) -> SnapbackResult<crate::fork_promotion::InAppBranchReceiptV1> {
+        crate::fork_promotion::inspect_in_app_branch(&self.conn, branch_id)
+    }
+
+    pub(crate) fn foreclose_branch_operation_admission(
+        &mut self,
+        branch_id: &crate::branches::BranchId,
+        draft: &crate::fork_promotion::BranchOperationDraftV1,
+        now_ms: i64,
+    ) -> SnapbackResult<()> {
+        crate::fork_promotion::foreclose_branch_operation_admission(
+            &mut self.conn,
+            branch_id,
+            draft,
+            now_ms,
+        )
+    }
+
+    pub(crate) fn retain_committed_branch_mutation(
+        &mut self,
+        branch_id: &crate::branches::BranchId,
+        draft: &crate::fork_promotion::BranchOperationDraftV1,
+        committed_version: u64,
+        result: Value,
+        ctx_answers: Value,
+        now_ms: i64,
+    ) -> SnapbackResult<crate::fork_promotion::BranchOperationV1> {
+        crate::fork_promotion::retain_committed_branch_mutation(
+            &mut self.conn,
+            branch_id,
+            draft,
+            committed_version,
+            result,
+            ctx_answers,
+            now_ms,
+        )
+    }
+
     pub(crate) fn reap_expired_managed_in_app_branches(
         &mut self,
         now_ms: i64,
@@ -5778,13 +5842,19 @@ impl LocalDatabase {
             job_producer,
             asset_admissions,
         } = effects;
-        if !job_enqueues.is_empty()
-            && let Some(runtime) = self.derived_fork()
-        {
-            return Err(runtime.deny(
-                crate::instance_fork::EgressFamily::JobsEnqueue,
-                now_millis(),
-            ));
+        if !job_enqueues.is_empty() {
+            if let Some(runtime) = self.derived_fork() {
+                return Err(runtime.deny(
+                    crate::instance_fork::EgressFamily::JobsEnqueue,
+                    now_millis(),
+                ));
+            }
+            if let Some(runtime) = self.in_app_branch() {
+                return Err(runtime.deny(
+                    crate::instance_fork::EgressFamily::JobsEnqueue,
+                    now_millis(),
+                ));
+            }
         }
         if !job_enqueues.is_empty() && job_producer.is_none() {
             return Err(SnapbackError::error(
