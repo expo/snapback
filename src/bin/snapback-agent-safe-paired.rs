@@ -1,21 +1,28 @@
 //! Experimentally paired/interleaved active-lane recorder for LLP 0162 row 13.
 //!
-//! The baseline executable is the pre-profile `snapback-bench` binary. This
-//! executable alternates that process with a child invocation of itself whose
-//! mutation fixture activates ordinary-mutation coverage and carries a
-//! server-issued client-range identity through the production commit seam.
+//! The baseline executable is a separately provenance-bound observation
+//! wrapper linked by path to the exact pre-profile tree. The wrapper does not
+//! alter the accepted three product instrumentation paths. This executable
+//! alternates that process with a child invocation of itself whose mutation
+//! fixture activates ordinary-mutation coverage and carries a server-issued
+//! client-range identity through the production commit seam.
 //!
 //! @ref LLP 0162#measurement-gate — compare the named baseline binary and the
 //!   active covered lane in time-local AB/BA pairs, bound to exact bytes.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
 
 use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use snapback::bench::{BenchConfig, BenchReport, run_agent_safe_active_covered};
+use snapback::bench::{
+    BenchConfig, BenchReport, IdleObservation, measure_idle_agent_safe_active_covered,
+    run_agent_safe_active_covered,
+};
 
 const RECORDED_PAIRS: usize = 11;
 const BOOTSTRAP_SAMPLES: usize = 20_000;
@@ -23,10 +30,36 @@ const ACCEPTED_BASELINE_SHA256: &str =
     "d28d8514f48db3f8a0e4d0c33a1381f12e4ad13eaf6a69187aef9b7fe822ab91";
 const BASELINE_REVISION: &str = "2ab36e28c74c450213b65f17ef81c0d6652ba33a";
 const BASELINE_INSTRUMENTATION_COMMIT: &str = "3109a3b4f5068595a71448b10788b56b4fa358f5";
+const BASELINE_ROOT_CARGO_LOCK_SHA256: &str =
+    "sha256:496569d9a3cb87609b6e79974f69126dbaccba53eb71d093f5dcf090fe1a36b1";
+const BASELINE_WORKER_CARGO_LOCK_SHA256: &str =
+    "sha256:05bd0af1ed649011354f091e2cd371f38aaf5c229437c6a98b4807c7d0eead3d";
 const BASELINE_DIRTY_PATHS: [&str; 3] = [
     "src/bench.rs",
     "src/bin/snapback-agent-safe-step0.rs",
     "src/bin/snapback-bench.rs",
+];
+const BASELINE_WORKER_FILES: [(&str, &str); 5] = [
+    (
+        "tools/agent-safe-baseline-worker/.gitignore",
+        "sha256:306fd52e74fca6746e12acc750f232de15e71da917756a1270d74c91f5eb7368",
+    ),
+    (
+        "tools/agent-safe-baseline-worker/Cargo.lock",
+        BASELINE_WORKER_CARGO_LOCK_SHA256,
+    ),
+    (
+        "tools/agent-safe-baseline-worker/Cargo.toml",
+        "sha256:24c6ee237f07fcbb6df72ce9609368eeb8201d1927c0d583ac7851eb2f0a6a63",
+    ),
+    (
+        "tools/agent-safe-baseline-worker/build.rs",
+        "sha256:6026942fdd10ca697a163fa327d0c6cf8a899d7ac2fb58115309f8651c9ee958",
+    ),
+    (
+        "tools/agent-safe-baseline-worker/src/main.rs",
+        "sha256:62b82d5b15c8db63637ff91e426a14644cc34b113ce140e695e7ecec012ea0cc",
+    ),
 ];
 
 #[derive(Serialize)]
@@ -42,10 +75,12 @@ struct Artifact {
     protocol: Protocol,
     raw_pairs: Vec<RawPair>,
     comparisons: Vec<Comparison>,
+    byte_comparisons: Vec<ByteComparison>,
+    idle_gates: IdleGates,
     measured_comparative_thresholds_passed: bool,
     full_row_13_protocol_qualified: bool,
     measurement_coverage: MeasurementCoverage,
-    remaining_row_13_gates: [&'static str; 6],
+    remaining_row_13_gates: [&'static str; 4],
     claim_boundary: &'static str,
 }
 
@@ -59,6 +94,10 @@ struct BaselineBinding {
     source_posture: String,
     build_provenance_sha256: String,
     build_provenance: BaselineBuildProvenance,
+    source_root_cargo_lock_path: String,
+    source_root_cargo_lock_sha256: String,
+    external_worker_cargo_lock_path: String,
+    external_worker_cargo_lock_sha256: String,
     executable_path: String,
     executable_sha256: String,
 }
@@ -70,10 +109,24 @@ struct BaselineBuildProvenance {
     source_revision: String,
     instrumentation_source_commit: String,
     instrumentation_files: Vec<InstrumentationFile>,
+    external_worker: ExternalWorkerProvenance,
     build_profile: String,
     rustc_version: String,
     cargo_version: String,
     executable_sha256: String,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ExternalWorkerProvenance {
+    package_name: String,
+    source_tree_path: String,
+    snapback_path_dependency: String,
+    path_dependency_source_revision: String,
+    baseline_root_cargo_lock_sha256: String,
+    derived_cargo_lock_sha256: String,
+    lock_derivation: String,
+    files: Vec<InstrumentationFile>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -130,9 +183,10 @@ struct Protocol {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct MeasurementCoverage {
-    paired_active_covered_metrics: [&'static str; 9],
-    retained_but_not_qualified_from_raw_report: [&'static str; 2],
-    explicitly_unmeasured_or_inactive: [&'static str; 2],
+    paired_active_covered_threshold_metrics: [&'static str; 9],
+    paired_active_covered_unbounded_byte_metrics: [&'static str; 4],
+    paired_active_covered_idle_gates: [&'static str; 3],
+    retained_but_not_qualified_from_raw_report: [&'static str; 1],
 }
 
 #[derive(Serialize)]
@@ -141,7 +195,9 @@ struct RawPair {
     pair: usize,
     order: &'static str,
     baseline: BenchReport,
+    baseline_idle: IdleObservation,
     candidate_active_covered: BenchReport,
+    candidate_active_covered_idle: IdleObservation,
 }
 
 #[derive(Serialize)]
@@ -158,17 +214,59 @@ struct Comparison {
     passed: bool,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ByteComparison {
+    metric: &'static str,
+    baseline_values: Vec<u64>,
+    candidate_active_covered_values: Vec<u64>,
+    baseline_median: u64,
+    candidate_active_covered_median: u64,
+    paired_change_percent: Vec<Option<f64>>,
+    threshold_status: &'static str,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct IdleGates {
+    duration_ms: u64,
+    baseline_combined_cpu_us: Vec<u64>,
+    candidate_combined_cpu_us: Vec<u64>,
+    candidate_cpu_max_observed_us: u64,
+    cpu_resolution_us: u64,
+    cpu_passed: bool,
+    baseline_rss_before_kb: Vec<f64>,
+    candidate_rss_before_kb: Vec<f64>,
+    baseline_rss_median_kb: f64,
+    candidate_rss_median_kb: f64,
+    paired_rss_regressions_percent: Vec<f64>,
+    paired_rss_median_regression_percent: f64,
+    bootstrap_90_percent_lower: f64,
+    bootstrap_90_percent_upper: f64,
+    rss_equivalence_bound_percent: f64,
+    rss_passed: bool,
+    candidate_output_block_operations: Vec<u64>,
+    candidate_database_family_byte_deltas: Vec<i64>,
+    every_candidate_output_block_count_zero: bool,
+    every_candidate_database_family_delta_zero: bool,
+    disk_passed: bool,
+    passed: bool,
+}
+
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct ActiveWorkerObservation {
+struct WorkerObservation {
     protocol: String,
     report: BenchReport,
+    idle: IdleObservation,
 }
 
 struct Arguments {
     output: PathBuf,
     baseline_artifact: PathBuf,
     baseline_provenance: PathBuf,
+    baseline_root_cargo_lock: PathBuf,
+    baseline_worker_cargo_lock: PathBuf,
     baseline_executable: PathBuf,
     baseline_executable_sha256: String,
     expected_revision: String,
@@ -186,6 +284,19 @@ struct Metric {
     direction: Direction,
     bound_kind: &'static str,
     bound: f64,
+}
+
+struct ByteMetric {
+    name: &'static str,
+    value: fn(&BenchReport) -> u64,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct LockPackage {
+    name: String,
+    version: String,
+    source: Option<String>,
+    checksum: Option<String>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -232,6 +343,20 @@ fn main() -> anyhow::Result<()> {
     validate_baseline_provenance(&baseline_provenance, &toolchain)?;
     validate_candidate_source(&arguments.expected_revision)?;
 
+    let (baseline_root_cargo_lock, baseline_root_cargo_lock_sha256, baseline_root_lock_bytes) =
+        bind_lockfile(
+            &arguments.baseline_root_cargo_lock,
+            BASELINE_ROOT_CARGO_LOCK_SHA256,
+            "baseline source-root Cargo.lock",
+        )?;
+    let (baseline_worker_cargo_lock, baseline_worker_cargo_lock_sha256, worker_lock_bytes) =
+        bind_lockfile(
+            &arguments.baseline_worker_cargo_lock,
+            BASELINE_WORKER_CARGO_LOCK_SHA256,
+            "external baseline worker Cargo.lock",
+        )?;
+    validate_worker_lock_derivation(&baseline_root_lock_bytes, &worker_lock_bytes)?;
+
     let baseline_executable = canonical_regular_file(&arguments.baseline_executable)?;
     let baseline_executable_sha256 = digest_file(&baseline_executable)?;
     if baseline_executable_sha256 != normalize_sha256(&arguments.baseline_executable_sha256) {
@@ -263,18 +388,25 @@ fn main() -> anyhow::Result<()> {
         raw_pairs.push(RawPair {
             pair: pair + 1,
             order,
-            baseline,
-            candidate_active_covered: candidate,
+            baseline: baseline.report,
+            baseline_idle: baseline.idle,
+            candidate_active_covered: candidate.report,
+            candidate_active_covered_idle: candidate.idle,
         });
     }
     let comparisons = metrics()
         .iter()
         .map(|metric| compare(&raw_pairs, metric))
         .collect::<anyhow::Result<Vec<_>>>()?;
+    let byte_comparisons = byte_metrics()
+        .iter()
+        .map(|metric| compare_bytes(&raw_pairs, metric))
+        .collect::<Vec<_>>();
+    let idle_gates = compare_idle(&raw_pairs)?;
     let measured_comparative_thresholds_passed =
-        comparisons.iter().all(|comparison| comparison.passed);
+        comparisons.iter().all(|comparison| comparison.passed) && idle_gates.passed;
     let artifact = Artifact {
-        schema_version: "snapback.agent-safe-active-paired.v1",
+        schema_version: "snapback.agent-safe-active-paired.v2",
         artifact_name: "agent-safe-active-covered-paired-2026-08-04",
         date: "2026-08-04",
         baseline: BaselineBinding {
@@ -294,6 +426,10 @@ fn main() -> anyhow::Result<()> {
                 .to_owned(),
             build_provenance_sha256: baseline_provenance_sha256,
             build_provenance: baseline_provenance,
+            source_root_cargo_lock_path: baseline_root_cargo_lock.display().to_string(),
+            source_root_cargo_lock_sha256: baseline_root_cargo_lock_sha256,
+            external_worker_cargo_lock_path: baseline_worker_cargo_lock.display().to_string(),
+            external_worker_cargo_lock_sha256: baseline_worker_cargo_lock_sha256,
             executable_path: baseline_executable.display().to_string(),
             executable_sha256: baseline_executable_sha256,
         },
@@ -314,17 +450,19 @@ fn main() -> anyhow::Result<()> {
             estimator: "median of 11 time-local paired regression percentages",
             confidence_interval: "deterministic bootstrap 90% interval over paired medians; interval must lie wholly inside the registered bound",
             bootstrap_samples: BOOTSTRAP_SAMPLES,
-            bootstrap_seed: "snapback-agent-safe-active-paired-v1/2026-08-04",
+            bootstrap_seed: "snapback-agent-safe-active-paired-v2/2026-08-04",
             quiescence_rule: "direct release binary refuses unless no cargo or rustc process exists",
-            baseline_worker_protocol: "external pre-profile snapback-bench --agent-safe-step0 --json",
-            candidate_worker_protocol: "same executable --active-covered-worker on a fresh database per observation",
+            baseline_worker_protocol: "external digest-bound wrapper and lockfile path-linked to the exact pre-profile tree; original baseline product posture remains exactly three instrumentation paths",
+            candidate_worker_protocol: "same executable --active-covered-worker on fresh active-covered mutation and idle fixtures per observation",
         },
         raw_pairs,
         comparisons,
+        byte_comparisons,
+        idle_gates,
         measured_comparative_thresholds_passed,
         full_row_13_protocol_qualified: false,
         measurement_coverage: MeasurementCoverage {
-            paired_active_covered_metrics: [
+            paired_active_covered_threshold_metrics: [
                 "currentPointReadP50Us",
                 "currentPointReadP95Us",
                 "currentRangeReadP50Us",
@@ -335,18 +473,22 @@ fn main() -> anyhow::Result<()> {
                 "singleWriterMutationP50Us",
                 "singleWriterMutationP95Us",
             ],
+            paired_active_covered_unbounded_byte_metrics: [
+                "allocatedWriteBytesPerChangedRow",
+                "allocatedWriteBytesPerOperation",
+                "retainedBytesPerChangedRow",
+                "retainedBytesPerOperation",
+            ],
+            paired_active_covered_idle_gates: [
+                "combinedCpuAtFiveSeconds",
+                "residentMemoryEquivalence",
+                "outputBlocksAndDatabaseFamilyBytesUnchanged",
+            ],
             retained_but_not_qualified_from_raw_report: [
                 "fanout metrics do not activate the LLP 0163 covered lane",
-                "write-byte metrics still use the dormant one-row storage fixture",
-            ],
-            explicitly_unmeasured_or_inactive: [
-                "paired idle CPU/RSS/disk observations",
-                "active-covered allocated/retained bytes per row and operation",
             ],
         },
         remaining_row_13_gates: [
-            "paired idle CPU/RSS/disk observations",
-            "active-covered allocation/retention measurement",
             "dated fixed-Air execution of this exact clean revision",
             "dated p99 contention record",
             "RFC-author ratification of absolute fork/promotion bounds",
@@ -372,11 +514,13 @@ fn active_worker() -> anyhow::Result<()> {
         bail!("active covered worker must be a --release binary");
     }
     let report = run_agent_safe_active_covered(&BenchConfig::agent_safe_step0())?;
+    let idle = measure_idle_agent_safe_active_covered(Duration::from_secs(5))?;
     println!(
         "{}",
-        serde_json::to_string(&ActiveWorkerObservation {
-            protocol: "agentSafeActiveCoveredWorkerV1".to_owned(),
+        serde_json::to_string(&WorkerObservation {
+            protocol: "agentSafeActiveCoveredWorkerV2".to_owned(),
             report,
+            idle,
         })?
     );
     Ok(())
@@ -386,6 +530,8 @@ fn arguments() -> anyhow::Result<Arguments> {
     let mut output = None;
     let mut baseline_artifact = None;
     let mut baseline_provenance = None;
+    let mut baseline_root_cargo_lock = None;
+    let mut baseline_worker_cargo_lock = None;
     let mut baseline_executable = None;
     let mut baseline_executable_sha256 = None;
     let mut expected_revision = None;
@@ -395,11 +541,13 @@ fn arguments() -> anyhow::Result<Arguments> {
             Some("--output") => &mut output,
             Some("--baseline-artifact") => &mut baseline_artifact,
             Some("--baseline-provenance") => &mut baseline_provenance,
+            Some("--baseline-root-cargo-lock") => &mut baseline_root_cargo_lock,
+            Some("--baseline-worker-cargo-lock") => &mut baseline_worker_cargo_lock,
             Some("--baseline-executable") => &mut baseline_executable,
             Some("--baseline-executable-sha256") => &mut baseline_executable_sha256,
             Some("--expected-revision") => &mut expected_revision,
             _ => bail!(
-                "usage: snapback-agent-safe-paired --output PATH --baseline-artifact PATH --baseline-provenance PATH --baseline-executable PATH --baseline-executable-sha256 SHA256 --expected-revision REV"
+                "usage: snapback-agent-safe-paired --output PATH --baseline-artifact PATH --baseline-provenance PATH --baseline-root-cargo-lock PATH --baseline-worker-cargo-lock PATH --baseline-executable PATH --baseline-executable-sha256 SHA256 --expected-revision REV"
             ),
         };
         *slot = arguments.next().map(PathBuf::from);
@@ -413,6 +561,10 @@ fn arguments() -> anyhow::Result<Arguments> {
         output: output.context("--output is required")?,
         baseline_artifact: baseline_artifact.context("--baseline-artifact is required")?,
         baseline_provenance: baseline_provenance.context("--baseline-provenance is required")?,
+        baseline_root_cargo_lock: baseline_root_cargo_lock
+            .context("--baseline-root-cargo-lock is required")?,
+        baseline_worker_cargo_lock: baseline_worker_cargo_lock
+            .context("--baseline-worker-cargo-lock is required")?,
         baseline_executable: baseline_executable.context("--baseline-executable is required")?,
         baseline_executable_sha256: string(
             baseline_executable_sha256,
@@ -427,7 +579,7 @@ fn validate_baseline_provenance(
     toolchain: &Toolchain,
 ) -> anyhow::Result<()> {
     anyhow::ensure!(
-        provenance.schema_version == "snapback.agent-safe-baseline-build-provenance.v1"
+        provenance.schema_version == "snapback.agent-safe-baseline-build-provenance.v2"
             && provenance.source_revision == BASELINE_REVISION
             && provenance.instrumentation_source_commit == BASELINE_INSTRUMENTATION_COMMIT
             && provenance.build_profile == "release"
@@ -458,6 +610,30 @@ fn validate_baseline_provenance(
     anyhow::ensure!(
         observed == expected,
         "baseline instrumentation blob digests diverge"
+    );
+    anyhow::ensure!(
+        provenance.external_worker.package_name == "snapback-agent-safe-baseline-worker"
+            && provenance.external_worker.source_tree_path == "tools/agent-safe-baseline-worker"
+            && provenance.external_worker.snapback_path_dependency == "../.."
+            && provenance.external_worker.path_dependency_source_revision == BASELINE_REVISION
+            && provenance.external_worker.baseline_root_cargo_lock_sha256
+                == BASELINE_ROOT_CARGO_LOCK_SHA256
+            && provenance.external_worker.derived_cargo_lock_sha256
+                == BASELINE_WORKER_CARGO_LOCK_SHA256
+            && provenance.external_worker.lock_derivation
+                == "seed exact baseline root lock; resolve isolated wrapper offline; require every shared package name/version/source/checksum tuple to match and the wrapper to be the only addition",
+        "external baseline worker does not bind the exact path dependency/tree"
+    );
+    let mut observed_worker = provenance
+        .external_worker
+        .files
+        .iter()
+        .map(|file| (file.path.as_str(), file.sha256.as_str()))
+        .collect::<Vec<_>>();
+    observed_worker.sort_unstable();
+    anyhow::ensure!(
+        observed_worker == BASELINE_WORKER_FILES,
+        "external baseline worker source/lock digests diverge"
     );
     anyhow::ensure!(
         is_sha256(&provenance.executable_sha256),
@@ -514,6 +690,117 @@ fn validate_candidate_source(expected_revision: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn bind_lockfile(
+    path: &Path,
+    expected_sha256: &str,
+    subject: &str,
+) -> anyhow::Result<(PathBuf, String, Vec<u8>)> {
+    let metadata = std::fs::symlink_metadata(path)
+        .with_context(|| format!("inspect {subject} {}", path.display()))?;
+    anyhow::ensure!(
+        metadata.file_type().is_file() && !metadata.file_type().is_symlink(),
+        "{subject} must be a regular non-symlink file"
+    );
+    let canonical = path
+        .canonicalize()
+        .with_context(|| format!("canonicalize {subject} {}", path.display()))?;
+    let bytes = std::fs::read(&canonical)
+        .with_context(|| format!("read {subject} {}", canonical.display()))?;
+    let digest = format!("sha256:{:x}", Sha256::digest(&bytes));
+    anyhow::ensure!(
+        digest == expected_sha256,
+        "{subject} bytes do not match the registered digest"
+    );
+    Ok((canonical, digest, bytes))
+}
+
+fn validate_worker_lock_derivation(root: &[u8], worker: &[u8]) -> anyhow::Result<()> {
+    let root = parse_lock_packages(root)?;
+    let worker = parse_lock_packages(worker)?;
+    let wrapper = LockPackage {
+        name: "snapback-agent-safe-baseline-worker".to_owned(),
+        version: "0.1.0".to_owned(),
+        source: None,
+        checksum: None,
+    };
+    let additions = worker.difference(&root).cloned().collect::<BTreeSet<_>>();
+    anyhow::ensure!(
+        additions == BTreeSet::from([wrapper.clone()]),
+        "external worker lock adds or changes a package beyond the wrapper: {additions:?}"
+    );
+    anyhow::ensure!(
+        worker.contains(&LockPackage {
+            name: "snapback".to_owned(),
+            version: "0.1.0".to_owned(),
+            source: None,
+            checksum: None,
+        }),
+        "external worker lock does not path-link the baseline snapback package"
+    );
+    Ok(())
+}
+
+fn parse_lock_packages(bytes: &[u8]) -> anyhow::Result<BTreeSet<LockPackage>> {
+    let text = std::str::from_utf8(bytes).context("Cargo.lock is not UTF-8")?;
+    let mut packages = BTreeSet::new();
+    let mut current: Option<(
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    )> = None;
+    let flush = |current: &mut Option<(
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+    )>,
+                 packages: &mut BTreeSet<LockPackage>|
+     -> anyhow::Result<()> {
+        let Some((name, version, source, checksum)) = current.take() else {
+            return Ok(());
+        };
+        let package = LockPackage {
+            name: name.context("Cargo.lock package is missing name")?,
+            version: version.context("Cargo.lock package is missing version")?,
+            source,
+            checksum,
+        };
+        anyhow::ensure!(
+            packages.insert(package.clone()),
+            "Cargo.lock repeats package identity {package:?}"
+        );
+        Ok(())
+    };
+    for line in text.lines() {
+        if line == "[[package]]" {
+            flush(&mut current, &mut packages)?;
+            current = Some((None, None, None, None));
+            continue;
+        }
+        let Some((name, version, source, checksum)) = current.as_mut() else {
+            continue;
+        };
+        for (prefix, slot) in [
+            ("name = ", name),
+            ("version = ", version),
+            ("source = ", source),
+            ("checksum = ", checksum),
+        ] {
+            if let Some(value) = line.strip_prefix(prefix) {
+                *slot = Some(
+                    serde_json::from_str::<String>(value)
+                        .with_context(|| format!("decode Cargo.lock {prefix}value"))?,
+                );
+                break;
+            }
+        }
+    }
+    flush(&mut current, &mut packages)?;
+    anyhow::ensure!(!packages.is_empty(), "Cargo.lock contains no packages");
+    Ok(packages)
+}
+
 fn hardware() -> anyhow::Result<Hardware> {
     Ok(Hardware {
         os: checked_command(&["sw_vers", "-productVersion"])?,
@@ -565,9 +852,8 @@ fn canonical_regular_file(path: &Path) -> anyhow::Result<PathBuf> {
         .with_context(|| format!("canonicalize executable {}", path.display()))
 }
 
-fn run_baseline(executable: &Path) -> anyhow::Result<BenchReport> {
+fn run_baseline(executable: &Path) -> anyhow::Result<WorkerObservation> {
     let output = Command::new(executable)
-        .args(["--agent-safe-step0", "--json"])
         .output()
         .with_context(|| format!("run baseline worker {}", executable.display()))?;
     if !output.status.success() {
@@ -576,10 +862,16 @@ fn run_baseline(executable: &Path) -> anyhow::Result<BenchReport> {
             String::from_utf8_lossy(&output.stderr).trim()
         );
     }
-    serde_json::from_slice(&output.stdout).context("decode baseline worker report")
+    let observation: WorkerObservation =
+        serde_json::from_slice(&output.stdout).context("decode baseline worker report")?;
+    anyhow::ensure!(
+        observation.protocol == "agentSafeDormantBaselineWorkerV1",
+        "baseline worker did not attest the dormant pre-profile protocol"
+    );
+    Ok(observation)
 }
 
-fn run_candidate(executable: &Path) -> anyhow::Result<BenchReport> {
+fn run_candidate(executable: &Path) -> anyhow::Result<WorkerObservation> {
     let output = Command::new(executable)
         .arg("--active-covered-worker")
         .output()
@@ -590,13 +882,13 @@ fn run_candidate(executable: &Path) -> anyhow::Result<BenchReport> {
             String::from_utf8_lossy(&output.stderr).trim()
         );
     }
-    let observation: ActiveWorkerObservation =
+    let observation: WorkerObservation =
         serde_json::from_slice(&output.stdout).context("decode candidate worker report")?;
     anyhow::ensure!(
-        observation.protocol == "agentSafeActiveCoveredWorkerV1",
+        observation.protocol == "agentSafeActiveCoveredWorkerV2",
         "candidate worker did not attest the active covered protocol"
     );
-    Ok(observation.report)
+    Ok(observation)
 }
 
 fn metrics() -> [Metric; 9] {
@@ -667,6 +959,27 @@ fn metrics() -> [Metric; 9] {
     ]
 }
 
+fn byte_metrics() -> [ByteMetric; 4] {
+    [
+        ByteMetric {
+            name: "allocatedWriteBytesPerChangedRow",
+            value: |report| report.allocated_write_bytes_per_changed_row,
+        },
+        ByteMetric {
+            name: "allocatedWriteBytesPerOperation",
+            value: |report| report.allocated_write_bytes_per_operation,
+        },
+        ByteMetric {
+            name: "retainedBytesPerChangedRow",
+            value: |report| report.retained_bytes_per_changed_row,
+        },
+        ByteMetric {
+            name: "retainedBytesPerOperation",
+            value: |report| report.retained_bytes_per_operation,
+        },
+    ]
+}
+
 fn metric(
     name: &'static str,
     value: fn(&BenchReport) -> f64,
@@ -717,6 +1030,146 @@ fn compare(pairs: &[RawPair], metric: &Metric) -> anyhow::Result<Comparison> {
         bootstrap_90_percent_lower: lower,
         bootstrap_90_percent_upper: upper,
         passed,
+    })
+}
+
+fn compare_bytes(pairs: &[RawPair], metric: &ByteMetric) -> ByteComparison {
+    let baseline_values = pairs
+        .iter()
+        .map(|pair| (metric.value)(&pair.baseline))
+        .collect::<Vec<_>>();
+    let candidate_active_covered_values = pairs
+        .iter()
+        .map(|pair| (metric.value)(&pair.candidate_active_covered))
+        .collect::<Vec<_>>();
+    let paired_change_percent = baseline_values
+        .iter()
+        .zip(&candidate_active_covered_values)
+        .map(|(baseline, candidate)| {
+            (*baseline > 0).then(|| 100.0 * (*candidate as f64 / *baseline as f64 - 1.0))
+        })
+        .collect();
+    let mut sorted_baseline = baseline_values.clone();
+    sorted_baseline.sort_unstable();
+    let mut sorted_candidate = candidate_active_covered_values.clone();
+    sorted_candidate.sort_unstable();
+    ByteComparison {
+        metric: metric.name,
+        baseline_values,
+        candidate_active_covered_values,
+        baseline_median: sorted_baseline[sorted_baseline.len() / 2],
+        candidate_active_covered_median: sorted_candidate[sorted_candidate.len() / 2],
+        paired_change_percent,
+        threshold_status: "observed; LLP 0162 registers the metric but no numeric byte bound",
+    }
+}
+
+fn compare_idle(pairs: &[RawPair]) -> anyhow::Result<IdleGates> {
+    anyhow::ensure!(
+        !pairs.is_empty(),
+        "idle comparison requires paired observations"
+    );
+    anyhow::ensure!(
+        pairs.iter().all(|pair| {
+            pair.baseline_idle.duration_ms == 5_000
+                && pair.candidate_active_covered_idle.duration_ms == 5_000
+        }),
+        "idle worker observations must each cover exactly five seconds"
+    );
+    let baseline_combined_cpu_us = pairs
+        .iter()
+        .map(|pair| {
+            pair.baseline_idle
+                .cpu_user_us
+                .saturating_add(pair.baseline_idle.cpu_system_us)
+        })
+        .collect::<Vec<_>>();
+    let candidate_combined_cpu_us = pairs
+        .iter()
+        .map(|pair| {
+            pair.candidate_active_covered_idle
+                .cpu_user_us
+                .saturating_add(pair.candidate_active_covered_idle.cpu_system_us)
+        })
+        .collect::<Vec<_>>();
+    let candidate_cpu_max_observed_us =
+        candidate_combined_cpu_us.iter().copied().max().unwrap_or(0);
+    let baseline_rss_before_kb = pairs
+        .iter()
+        .map(|pair| pair.baseline_idle.resident_kb_before)
+        .collect::<Vec<_>>();
+    let candidate_rss_before_kb = pairs
+        .iter()
+        .map(|pair| pair.candidate_active_covered_idle.resident_kb_before)
+        .collect::<Vec<_>>();
+    anyhow::ensure!(
+        baseline_rss_before_kb
+            .iter()
+            .chain(&candidate_rss_before_kb)
+            .all(|rss| rss.is_finite() && *rss > 0.0),
+        "idle RSS observations must be finite and positive"
+    );
+    let paired_rss_regressions_percent = baseline_rss_before_kb
+        .iter()
+        .zip(&candidate_rss_before_kb)
+        .map(|(baseline, candidate)| 100.0 * (candidate / baseline - 1.0))
+        .collect::<Vec<_>>();
+    let (bootstrap_90_percent_lower, bootstrap_90_percent_upper) =
+        bootstrap_median_interval(&paired_rss_regressions_percent);
+    let mut sorted_rss_regressions = paired_rss_regressions_percent.clone();
+    sorted_rss_regressions.sort_by(f64::total_cmp);
+    let mut sorted_baseline_rss = baseline_rss_before_kb.clone();
+    sorted_baseline_rss.sort_by(f64::total_cmp);
+    let mut sorted_candidate_rss = candidate_rss_before_kb.clone();
+    sorted_candidate_rss.sort_by(f64::total_cmp);
+    let candidate_output_block_operations = pairs
+        .iter()
+        .map(|pair| pair.candidate_active_covered_idle.output_block_operations)
+        .collect::<Vec<_>>();
+    let candidate_database_family_byte_deltas = pairs
+        .iter()
+        .map(|pair| {
+            let observation = &pair.candidate_active_covered_idle;
+            i64::try_from(
+                observation.database_family_bytes_after as i128
+                    - observation.database_family_bytes_before as i128,
+            )
+            .context("idle database-family byte delta exceeds i64")
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    let cpu_passed = candidate_cpu_max_observed_us <= 5_000;
+    let rss_passed = bootstrap_90_percent_lower >= -5.0 && bootstrap_90_percent_upper <= 5.0;
+    let every_candidate_output_block_count_zero = candidate_output_block_operations
+        .iter()
+        .all(|operations| *operations == 0);
+    let every_candidate_database_family_delta_zero = candidate_database_family_byte_deltas
+        .iter()
+        .all(|delta| *delta == 0);
+    let disk_passed =
+        every_candidate_output_block_count_zero && every_candidate_database_family_delta_zero;
+    Ok(IdleGates {
+        duration_ms: 5_000,
+        baseline_combined_cpu_us,
+        candidate_combined_cpu_us,
+        candidate_cpu_max_observed_us,
+        cpu_resolution_us: 5_000,
+        cpu_passed,
+        baseline_rss_before_kb,
+        candidate_rss_before_kb,
+        baseline_rss_median_kb: median(&sorted_baseline_rss),
+        candidate_rss_median_kb: median(&sorted_candidate_rss),
+        paired_rss_regressions_percent,
+        paired_rss_median_regression_percent: median(&sorted_rss_regressions),
+        bootstrap_90_percent_lower,
+        bootstrap_90_percent_upper,
+        rss_equivalence_bound_percent: 5.0,
+        rss_passed,
+        candidate_output_block_operations,
+        candidate_database_family_byte_deltas,
+        every_candidate_output_block_count_zero,
+        every_candidate_database_family_delta_zero,
+        disk_passed,
+        passed: cpu_passed && rss_passed && disk_passed,
     })
 }
 
@@ -824,5 +1277,43 @@ mod tests {
             bootstrap_median_interval(&values),
             bootstrap_median_interval(&values)
         );
+    }
+
+    #[test]
+    fn worker_lock_derivation_allows_only_matching_baseline_packages_and_wrapper() {
+        let root = br#"version = 4
+
+[[package]]
+name = "serde"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "abc"
+
+[[package]]
+name = "snapback"
+version = "0.1.0"
+"#;
+        let worker = br#"version = 4
+
+[[package]]
+name = "serde"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "abc"
+
+[[package]]
+name = "snapback"
+version = "0.1.0"
+
+[[package]]
+name = "snapback-agent-safe-baseline-worker"
+version = "0.1.0"
+"#;
+        validate_worker_lock_derivation(root, worker).expect("matching derived worker lock");
+
+        let changed = String::from_utf8(worker.to_vec())
+            .unwrap()
+            .replace("version = \"1.0.1\"", "version = \"1.0.2\"");
+        assert!(validate_worker_lock_derivation(root, changed.as_bytes()).is_err());
     }
 }

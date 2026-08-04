@@ -37,7 +37,7 @@ not authorize capability publication.
 | 10 — strict promotion | Partial | Frozen v1 contention terms, quota/defer/release behavior, exhausted-budget refusal, and identical-write/divergent-read-or-result re-seal negatives are covered. The non-atomic execution carrier durably reserves exact request facts and forecloses before the handler: terminal retries replay, outcome-unknown retries refuse, divergent reuse collides, and a second operation refuses. Move operation retention into the app commit, then complete the real concurrent-writer fairness/crash matrix, conditional-progress proof, and provisional/transitive effect chains. |
 | 11 — history/checkpoint | Partial | Schema publication now atomically projects finite v2 per-record policy, removal erases retained detail, and current/per-version auth plus visible-only pagination/horizon and per-record pruning are covered without changing legacy v1 `maxRows`. The registered-copy sweep invalidates the complete materialized inventory before deletion and preserves crash/unreachable obligations, but it is not yet atomic with canonical protected-record deletion; close that new-checkpoint race and the remaining lifecycle corpus. |
 | 12 — boundary proof | Partial | Promotion and full migration verification are independently derived; migration's separate evaluator has explicit-value/equivalence plus executor-drift and staged-corruption negatives. Checkpoint concurrent-writer/publication/receipt-only no-upcast negatives are covered. Finish the remaining row-wide boundary integrations/coverage before an aggregate claim. |
-| 13 — performance | Partial | The final-integrated absolute rerun is recorded. The successor absolute recorder now includes a 128-sample/8-writer request-to-commit p99 behind a production promotion reservation. A second recorder alternates an exactly reconstructed pre-profile executable with the active issuance-bearing covered lane in 11 AB/BA pairs, but intentionally covers only the registered point/range/query-plan and single-writer metrics. Run both on the fixed Air; add paired idle CPU/RSS/disk and active-covered allocation/retention; obtain dated RFC-author absolute-bound ratification; pass every applicable crash/reopen gate. |
+| 13 — performance | Partial | The final-integrated absolute rerun is recorded. The successor absolute recorder includes a 128-sample/8-writer request-to-commit p99 behind a production promotion reservation. A second recorder now pairs the exactly reconstructed pre-profile tree with the active issuance-bearing covered lane in 11 AB/BA observations: registered point/range/query-plan and single-writer thresholds, active allocation/retention observations, and five-second CPU/RSS/disk gates. Run both exact clean recorders on the fixed Air; obtain dated RFC-author absolute-bound ratification; pass every applicable crash/reopen gate. |
 | 14 — identity lifecycle | Partial | Wire first-party host job/cron/migration callers and transport-level client exclusion, then finish capacity/purge/current-authority negative fixtures beyond the landed promotion-ticket lease. |
 
 The detailed LLP 0163 public-carrier work remains in its existing focused
@@ -84,18 +84,26 @@ the guide-gap ticket rather than being conflated with this implementation tail.
   nearest-rank p50/p95/p99/max plus a per-worker initial-defer count and refuses
   unless all eight initial samples were actually deferred. This is recorder
   readiness, not a dated Air result or complete writer-path proof.
-- `snapback-agent-safe-paired` reconstructs the pre-profile executable from
+- `snapback-agent-safe-paired` reconstructs the pre-profile tree from
   revision `2ab36e28c74c450213b65f17ef81c0d6652ba33a` plus the exact three
   instrumentation blobs from `3109a3b4f5068595a71448b10788b56b4fa358f5`.
-  A measurement-time provenance record must bind those blob digests,
-  toolchain/profile, and executable digest; the runner independently binds the
-  accepted baseline artifact digest, exact clean candidate revision, and
-  candidate executable digest. It performs one warm-up per executable then 11
-  time-local AB/BA pairs, and the candidate activates the actual
-  ordinary-mutation manifest and carries a server-issued range through the
-  production envelope seam. The output forces `fullRow13ProtocolQualified:
-  false`: paired idle CPU/RSS/disk and active-covered allocation/retention are
-  still absent, and no Air artifact exists.
+  A separate external wrapper links by exact path to that tree without becoming
+  a fourth accepted product instrumentation path. Measurement-time provenance
+  must independently bind the wrapper source/path dependency, the exact
+  baseline root lock, the wrapper lock derived from that baseline resolution,
+  those three blob digests, toolchain/profile, and wrapper executable digest.
+  The runner compares every shared package name/version/source/checksum tuple,
+  permits only the wrapper package as an addition, and also binds the accepted
+  baseline artifact digest, exact clean candidate revision, and candidate
+  executable digest. It performs one warm-up per
+  executable then 11 time-local AB/BA pairs. The candidate activates the actual
+  ordinary-mutation manifest, carries a server-issued range through the
+  production envelope seam, measures allocated/retained file-family bytes for
+  one such mutation after setup, and holds active coverage/range state across
+  each five-second CPU/RSS/disk idle observation. Byte observations remain
+  unbounded because LLP 0162 registers no numeric byte threshold. The output
+  forces `fullRow13ProtocolQualified: false`: no fixed-Air artifact exists, and
+  the p99, author-bound, and applicable correctness gates remain independent.
 - `fork_promotion::tests::production_contention_terms_bound_reservation_quota_and_writer_admission`,
   `exhausted_rebase_budget_refuses_before_canonical_mutation`, and
   `rebase_reexecutes_into_fresh_branch_and_reseals_only_equal_facts` bind the
@@ -170,7 +178,7 @@ intent/settlement ledger, later-effect settlement is unbuilt, retention is not
 atomic with the app commit, only one operation is admitted per foreclosed
 branch, and the remaining actual-handler/per-class/resource matrix has not
 passed. It also does not establish the global writer-token/SQLite-authorizer
-choke point, p99 contention, active-covered-lane paired performance, author
+choke point, a dated fixed-Air p99 or active-covered paired record, author
 bounds, or any capability claim; every related capability remains `Missing`.
 
 ## Review and publication gates

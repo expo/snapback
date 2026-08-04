@@ -83,16 +83,23 @@ Landed as row-13 evidence scaffolding, without changing capability state:
 
 - a release-only recorder that binds the accepted baseline artifact bytes,
   exact pre-profile revision plus three-blob instrumentation provenance,
-  baseline and candidate executable digests, exact clean candidate revision,
-  fixed Air hardware/OS, and the accepted toolchain;
+  a separately digest-bound external wrapper source/path dependency and lock
+  derived from the exact baseline root resolution (all shared package tuples
+  must match and only the wrapper package may be added),
+  baseline-wrapper and candidate executable digests, exact clean candidate
+  revision, fixed Air hardware/OS, and the accepted toolchain; the wrapper is
+  not a fourth accepted product instrumentation path;
 - 11 experimentally time-local comparisons in alternating AB/BA order whose
   candidate worker activates the actual `ordinaryMutation` coverage manifest,
   obtains a server-issued client range, and commits issuance-bearing mutations
-  through the production envelope seam; and
-- an explicit non-qualification boundary: the recorder covers the registered
-  read and single-writer metrics only. Paired idle CPU/RSS/disk,
-  active-covered allocation/retention, the fixed-Air dated result, and the
-  other row-13 gates remain open.
+  through the production envelope seam;
+- paired active allocation/retention observations for one file-backed covered
+  mutation after setup, retained without inventing a numeric byte threshold;
+  and
+- paired five-second idle observations with the active coverage/range state
+  held open, enforcing the registered CPU, RSS-equivalence, output-block, and
+  database-family-byte rules. The fixed-Air dated result and the other row-13
+  gates remain open, so the recorder still forces non-qualification.
 
 Landed in the host action-child carrier slice:
 
@@ -121,6 +128,6 @@ Still required before this ticket closes:
   remain unprovable because their private minted-id context is non-empty;
 - the complete target writer/bypass/asymmetric-retention acceptance corpus;
   and
-- the genuinely paired, baseline-digest-bound active-lane row-13 performance
-  record (including the still-unmeasured active byte and idle legs) and the
-  required independent review/author acceptance.
+- the dated fixed-Air execution of the paired active-lane recorder and p99
+  recorder, plus the required independent review/author acceptance and every
+  applicable row-13 correctness gate.
