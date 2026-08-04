@@ -155,7 +155,7 @@ export interface GeneratedMutationDatabase extends GeneratedQueryDatabase {
   delete<Table extends GeneratedDeletableTableName>(table: Table, id: Id<Table>): Promise<unknown>;
 }
 export interface GeneratedAnonymousAuthContext { readonly userId: null; readonly sessionId: null; readonly isAuthenticated: false }
-export interface GeneratedAuthenticatedAuthContext { readonly userId: Principal; readonly sessionId: string | null; readonly isAuthenticated: true; readonly provider?: string; readonly roles: readonly string[]; readonly kind: "human" | "agent"; readonly actor?: { readonly userId: Principal; readonly kind: "agent"; readonly grantId: string } }
+export interface GeneratedAuthenticatedAuthContext { readonly userId: Principal; readonly sessionId: string | null; readonly isAuthenticated: true; readonly provider?: string; readonly roles: readonly string[]; readonly kind: "human" | "agent"; readonly actor?: { readonly userId: Principal; readonly kind: "agent"; readonly grantId: string }; readonly actorKind?: "asset-callbacks" }
 export type GeneratedAuthContext = GeneratedAnonymousAuthContext | GeneratedAuthenticatedAuthContext;
 export interface GeneratedRuntimeContext { now(): number; id(): string }
 export type GeneratedPushAudienceReference = Readonly<{ audience: "selectedGuests"; args: Readonly<{ "principalIds": readonly Principal[] }> }>;

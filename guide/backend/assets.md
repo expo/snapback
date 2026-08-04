@@ -158,6 +158,64 @@ id-shaped string written into a `v.assetRef` field fails the commit with
 reference edge commits in the same changeset. Deleting an asset refuses
 while typed references remain.
 
+## Run lifecycle callbacks
+
+An explicit upload intent may name an ordinary mutation for `ready` and/or
+`rejected`. The mutation must declare exactly `{ event: v.string(), assetId:
+v.string(), facts: v.json() }`; the facts are safe lifecycle metadata, never
+byte authority, staging keys, or delivery bearers.
+
+```js source=tests/acceptance/fixtures/asset-conformance/functions.mjs
+export const fileUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/octet-stream', 'application/zip'], maxBytes: 100_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'owner-only' },
+  on: { ready: 'recordAssetReady' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
+```js source=tests/acceptance/fixtures/asset-conformance/functions.mjs
+export const recordAssetReady = defineJsMutation({
+  auth: 'authenticated',
+  args: { event: v.string(), assetId: v.string(), facts: v.json() },
+  source: 'handlers.mjs',
+  exportName: 'recordAssetReady',
+  writes: ['assetCallbackLog'],
+});
+```
+
+The runner uses the stable mutation identity
+`asset-cb:<asset>:<event>:<generation>`, so retrying the same work cannot
+double the committed effect. A callback failure retries independently and
+never degrades an already-ready asset.
+
+Authority differs honestly by auth mode. Dev callbacks preserve the existing
+asset-owner dev authority. Sessions callbacks run under one per-app, narrowly
+granted service principal named `asset-callbacks`; Snapback never mints an
+owner session or bearer. In sessions callbacks `ctx.auth.sessionId` is `null`,
+`ctx.auth.kind` is `"agent"`, and `ctx.auth.actorKind` is
+`"asset-callbacks"`, so application code and stored audit rows can distinguish
+the scheduled actor from an interactive user. The callback still follows the
+ordinary staged mutation, commit-time grant validation, authorization-event,
+and receipt path. The asset work-completion receipt records the service actor
+and exact grant, without carrying any bearer.
+
+```js source=tests/acceptance/fixtures/asset-conformance/handlers.mjs
+  async recordAssetReady(ctx, args) {
+    return await ctx.db.insert('assetCallbackLog', {
+      assetId: args.assetId,
+      event: args.event,
+      actorId: ctx.auth.userId,
+      actorKind: ctx.auth.actorKind,
+      provider: ctx.auth.provider,
+      sessionId: ctx.auth.sessionId,
+    });
+  },
+```
+
 ## Put typed photos directly in a live feed
 
 `v.assetRef` is a first-class result-contract leaf. A query or live query may

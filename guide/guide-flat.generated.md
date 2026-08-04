@@ -53,7 +53,7 @@ and `guide-gap`.
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.sequences | Experimental incarnation-scoped dense sequences through handler `ctx.sequence.allocate(counterName, scopeId)` and generated `AllocateSequence`, with abort-disclosure, commit-order/contention, exact replay, incarnation restart, exhaustion, Relay, Campfire, and mutation-atomic lane-Q qualification. Only the exact contributor-source local target publishes `sequence_allocation_v1`; public packages and hosted targets remain structured GAPs | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json + tests/conformance/sequence-allocation-publication-v1.receipt.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public-package attestation and hosted target qualification/publication; owner: Charlie, review: 2026-09-30); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
-| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks, deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, upload, object storage, media, browser upload, vite relay, asset export, logical backup, signing key rotation | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation) + demos/file-drop/tests/acceptance/browser-relay.mjs (browser path) | llp/0044 | backend/assets.md |
+| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks (including sessions execution under the per-app `asset-callbacks` service principal), deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, upload, object storage, media, browser upload, vite relay, asset export, logical backup, signing key rotation | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs + src/assets_image.rs + src/assets_video.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation; sessions callback authority) + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
 | backend.expo-push-seam | Shipped local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized and paced `ctx.push.send`, crash-safe intent/batch/message ledger, safe pre-transmit recovery, bounded ticket/receipt maintenance, a privacy-bounded generated ledger query, explicit ambiguous redrive risk, structured `notifications.expoPushSeam` facts, and a retained physical-device `ok` receipt witness. The complete hosted conjunction remains a GAP; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json (`expoPushSeam`) + packages/snapback-cli/fake-expo-push.test.mjs + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs + LLP 0143 implementation record (2026-08-03 physical-device witness) | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.observability-v1 | Shipped local Phase-1 backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, Health/Logs projections, and retained clean-release idle/benchmark evidence; hosted arms and declared product analytics remain later capabilities | telemetry, observability, health, logs, metrics, traces | local | shipped | tests/acceptance/telemetry-phase1-evidence.v1.json | llp/0154 | operating/observability.md |
@@ -3641,6 +3641,64 @@ id-shaped string written into a `v.assetRef` field fails the commit with
 `SNAPBACK_ASSET_REF_UNVERIFIED` on every write path, and the reverse
 reference edge commits in the same changeset. Deleting an asset refuses
 while typed references remain.
+
+## Run lifecycle callbacks
+
+An explicit upload intent may name an ordinary mutation for `ready` and/or
+`rejected`. The mutation must declare exactly `{ event: v.string(), assetId:
+v.string(), facts: v.json() }`; the facts are safe lifecycle metadata, never
+byte authority, staging keys, or delivery bearers.
+
+```js source=tests/acceptance/fixtures/asset-conformance/functions.mjs
+export const fileUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/octet-stream', 'application/zip'], maxBytes: 100_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'owner-only' },
+  on: { ready: 'recordAssetReady' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
+```js source=tests/acceptance/fixtures/asset-conformance/functions.mjs
+export const recordAssetReady = defineJsMutation({
+  auth: 'authenticated',
+  args: { event: v.string(), assetId: v.string(), facts: v.json() },
+  source: 'handlers.mjs',
+  exportName: 'recordAssetReady',
+  writes: ['assetCallbackLog'],
+});
+```
+
+The runner uses the stable mutation identity
+`asset-cb:<asset>:<event>:<generation>`, so retrying the same work cannot
+double the committed effect. A callback failure retries independently and
+never degrades an already-ready asset.
+
+Authority differs honestly by auth mode. Dev callbacks preserve the existing
+asset-owner dev authority. Sessions callbacks run under one per-app, narrowly
+granted service principal named `asset-callbacks`; Snapback never mints an
+owner session or bearer. In sessions callbacks `ctx.auth.sessionId` is `null`,
+`ctx.auth.kind` is `"agent"`, and `ctx.auth.actorKind` is
+`"asset-callbacks"`, so application code and stored audit rows can distinguish
+the scheduled actor from an interactive user. The callback still follows the
+ordinary staged mutation, commit-time grant validation, authorization-event,
+and receipt path. The asset work-completion receipt records the service actor
+and exact grant, without carrying any bearer.
+
+```js source=tests/acceptance/fixtures/asset-conformance/handlers.mjs
+  async recordAssetReady(ctx, args) {
+    return await ctx.db.insert('assetCallbackLog', {
+      assetId: args.assetId,
+      event: args.event,
+      actorId: ctx.auth.userId,
+      actorKind: ctx.auth.actorKind,
+      provider: ctx.auth.provider,
+      sessionId: ctx.auth.sessionId,
+    });
+  },
+```
 
 ## Put typed photos directly in a live feed
 

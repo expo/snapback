@@ -1,8 +1,8 @@
 # Sessions-mode lifecycle-callback execution authority — design question
 
-**Status:** OPEN — RULED 2026-08-03, now implementable (assessment
-recorded during W2e (2026-07-31); W2c refused sessions callbacks at
-generation pending this design)
+**Status:** CLOSED — IMPLEMENTED 2026-08-04 (ruled 2026-08-03;
+W2c's sessions-generation refusal has been replaced by the scoped
+service-principal execution path)
 
 Dev-lane callbacks execute through the staged-mutation path under the
 asset owner's dev-admitted authority with client-mutation-ledger
@@ -51,3 +51,25 @@ amendment: per-app `asset-callbacks` service principal (2026-08-03)
 records the scoped-grant classification. The ticket is now
 implementable (still open until W2c's generation-time refusal is
 replaced by the ruled execution path).
+
+## Resolution (2026-08-04)
+
+Implemented option (a). Sessions-mode lifecycle callbacks now resolve one
+protected-catalog `asset-callbacks` agent principal per app and an immutable
+exact-function grant per callback mutation in
+`src/storage/auth_asset_callbacks.rs`. `src/local.rs` executes the declared
+callback through the same staged mutation, commit-time validation, receipt,
+and client-mutation-ledger idempotency path used by dev callbacks, without
+minting an owner bearer or user session. `src/auth/invocation.rs` seals the
+honest handler projection (`kind: "agent"`, `actorKind: "asset-callbacks"`,
+`sessionId: null`) and preserves explicit service-principal attribution. The
+asset work-completion receipt names the service actor and exact grant, never a
+bearer.
+
+W2c's codegen refusal has been removed. Unit coverage pins per-app principal
+and exact-grant scoping plus the `actorKind` projection; the real-server
+sessions witness in `tests/acceptance/asset-conformance-v1.mjs` uploads an
+asset, drives its lifecycle work, observes the committed callback row, and
+proves the actor is not the uploader's session principal. LLP 0039, LLP 0044,
+LLP 0055, the asset guide, and the lifecycle evidence map now record the
+implemented posture.

@@ -552,8 +552,10 @@ export const docUpload = defineAssetUpload({
 }
 
 {
-  // Sessions-mode schemas refuse callback declarations at generation: the
-  // dev-lane owner authority is the only execution design v1 has.
+  // Sessions-mode schemas admit the same contract-pinned declaration. The
+  // runtime supplies the per-app `asset-callbacks` service principal; codegen
+  // still owns exact target/argument validation rather than inventing a
+  // sessions-specific callback contract.
   const schema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
@@ -575,8 +577,7 @@ export const docUpload = defineAssetUpload({
 });
 `;
   const { result } = await runCase({ schema, functions });
-  assert.equal(result.ok, false);
-  assert.ok(codes(result).includes('SNAPBACK_ASSET_CALLBACK_SESSIONS_UNSUPPORTED'), JSON.stringify(result.diagnostics));
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
 }
 
 // --- reference GC (W2c): schema-level opt-in, bounds, and the warning ------

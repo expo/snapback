@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "858a3de6f37ae24972df13e35f0ade6447ce47dd"
+    "commit": "a4f54d00a1f20666732d169a8da37865566d900e"
   },
   "nav": {
     ".": [
@@ -721,7 +721,7 @@
       ],
       "reviewed": "2026-08-04",
       "reviewedCommit": "67bcac6316606055130fc63bfc61f9351e0fcf91",
-      "sha256": "6652b17c878899d98bf73d83fcfef061f417e926499106621f451aacad441c90",
+      "sha256": "34cb36130e6328c8f55c0c10092fb363df2cea4668e8ac4354b9b58f66c79d24",
       "snippets": [
         {
           "lang": "js",
@@ -744,6 +744,21 @@
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-codegen/asset-upload-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "tests/acceptance/fixtures/asset-conformance/handlers.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "tests/acceptance/fixtures/asset-conformance/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "tests/acceptance/fixtures/asset-conformance/functions.mjs"
         },
         {
           "lang": "js",
@@ -1425,7 +1440,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "e5713886657c1a7e1fff4f7e0235ea68db3df56d9c42049c63486febf503282e",
+      "sha256": "7eb1563c98004556db177a7937cc84376a07563e61144ef71914fd55130e7fc4",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2944,5 +2959,5 @@
     "routes": 105,
     "hostOps": 35
   },
-  "contentHash": "a31079576654a356d4ea6a5a09132262e85c6a0eec7492e321cdd551265ededa"
+  "contentHash": "0d605e70ad3ad5c6187e25b025c6be7704474da115e9ec7204b6894e8447dc4f"
 }

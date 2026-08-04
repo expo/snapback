@@ -53,6 +53,13 @@ pub(crate) mod auth_agents;
 #[path = "storage/auth_agent_credentials.rs"]
 pub(crate) mod auth_agent_credentials;
 
+// @ref LLP 0055#dated-amendment-per-app-asset-callbacks-service-principal-2026-08-03
+//   — the sessions asset runner uses one protected-catalog principal and
+//   immutable exact-function grants; it never mints a user session or an
+//   owner bearer.
+#[path = "storage/auth_asset_callbacks.rs"]
+pub(crate) mod auth_asset_callbacks;
+
 // @ref LLP 0055#grants — immutable exact-function scopes bind a durable basis
 //   generation; removal and authority-significant manifest changes leave
 //   tombstones so old consent cannot revive after re-add or restart.

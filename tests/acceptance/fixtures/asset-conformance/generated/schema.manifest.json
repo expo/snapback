@@ -7,12 +7,12 @@
   },
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:b2be9352d4551a42f9f5d1f36a90dd9a58a5aa733f345b68f424dca7b8c8bb0b",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:5b011bf6d364fd947edb58deb0455ef61721da6069ee8f8dc81043e2ac391bff",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:613e8acdf7cb59e84bf07e4551e2fd14bb5f2d018b0e709c1b15aa371d9ae3bb",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:f4122c7b795682bdc01c2f880827d8ad6c1cf0bf3f7d7d3630977b3dfc651d29",
   "schemaVersion": "snapback.v1",
   "tables": [
     {
@@ -96,6 +96,43 @@
       },
       "name": "workspaceMembers",
       "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "assetId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "event",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "actorId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "actorKind",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "provider",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "sessionId",
+          "optional": true
+        }
+      ],
+      "indexes": [],
+      "name": "assetCallbackLog",
+      "syncable": true
     },
     {
       "assetSharing": {

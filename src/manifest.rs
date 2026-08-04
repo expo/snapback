@@ -1378,8 +1378,9 @@ pub struct AssetReferenceGcPolicyV1 {
 }
 
 /// Declared lifecycle callbacks: each names an ordinary generated mutation
-/// invoked with typed facts under the asset owner's authority — never raw
-/// byte authority (LLP 0044 §Declarative processing).
+/// invoked with typed facts — under owner authority in dev mode or the ruled
+/// `asset-callbacks` service principal in sessions mode — never raw byte
+/// authority (LLP 0044 §Declarative processing).
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AssetCallbackPolicy {

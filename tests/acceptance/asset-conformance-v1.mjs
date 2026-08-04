@@ -252,6 +252,57 @@ try {
   const graceAssets = new SnapbackAssetClient(grace.client, { chunkBytes: 64 });
   const png = redPng(8);
 
+  // Sessions-mode callback authority (LLP 0039 dated amendment): the ready
+  // transition invokes an ordinary declared mutation under the app-scoped
+  // `asset-callbacks` principal. The ordinary staged mutation path performs
+  // commit-time grant revalidation; the committed row witnesses both that
+  // validation and that app code can distinguish the actor from Ada's session.
+  const callbackAsset = await uploadReady(
+    ada,
+    adaAssets,
+    Buffer.from('sessions callback witness'),
+    api.fileUpload,
+  );
+  const callbackDrive = await hostOp(
+    sessionsServer,
+    'asset.retry',
+    { assetId: callbackAsset.assetId },
+  );
+  const callbackInspection = await hostOp(
+    sessionsServer,
+    'asset.inspect',
+    { assetId: callbackAsset.assetId },
+  );
+  assert.ok(
+    callbackDrive.runner?.completed >= 1,
+    `sessions callback work completes: ${JSON.stringify({ callbackDrive, callbackInspection })}`,
+  );
+  const callbackDeadline = Date.now() + 5_000;
+  let callbackRows = [];
+  while (Date.now() < callbackDeadline) {
+    const response = await ada.client.query('listAssetCallbackLog', { args: {} });
+    callbackRows = response.rows ?? [];
+    if (callbackRows.some((row) => row.assetId === callbackAsset.assetId)) break;
+    await sleep(20);
+  }
+  const callbackRow = callbackRows.find((row) => row.assetId === callbackAsset.assetId);
+  assert.ok(callbackRow, `sessions callback committed its write: ${JSON.stringify(callbackRows)}`);
+  assert.equal(callbackRow.event, 'ready');
+  assert.equal(callbackRow.actorKind, 'asset-callbacks');
+  assert.equal(callbackRow.provider, 'snapback-service-principal');
+  assert.equal(callbackRow.sessionId, null);
+  assert.notEqual(callbackRow.actorId, ada.credential.session.userId);
+  const callbackReceipt = callbackInspection.receipts?.find(
+    (receipt) => receipt.event === 'work-completed'
+      && receipt.details?.kind === 'lifecycle-callback',
+  );
+  assert.ok(callbackReceipt, `sessions callback has a completion receipt: ${JSON.stringify(callbackInspection)}`);
+  assert.equal(callbackReceipt.details.authority?.actorKind, 'asset-callbacks');
+  assert.equal(callbackReceipt.details.authority?.sessionId, null);
+  assert.notEqual(callbackReceipt.details.authority?.actorUserId, ada.credential.session.userId);
+  assert.match(callbackReceipt.details.authority?.grantId ?? '', /^grt_/);
+  checks.sessionsCallbackServicePrincipal = true;
+
   // Vector 1 — upload publishes ready under bearer custody, end-to-end
   // verified, with both required variants and typed image facts.
   const first = await uploadReady(ada, adaAssets, png, api.photoUpload);

@@ -700,7 +700,7 @@
     // members.
     var parsedAuth = trustedJsonParse(authJson || "{}");
     var auth = trustedReflectApply(trustedCreate, Object, [null]);
-    var authKeys = ["userId", "sessionId", "isAuthenticated", "provider", "roles", "kind", "actor"];
+    var authKeys = ["userId", "sessionId", "isAuthenticated", "provider", "roles", "kind", "actor", "actorKind"];
     for (var authIndex = 0; authIndex < authKeys.length; authIndex++) {
       var authKey = authKeys[authIndex];
       if (!trustedReflectApply(trustedHasOwnProperty, parsedAuth, [authKey])) continue;

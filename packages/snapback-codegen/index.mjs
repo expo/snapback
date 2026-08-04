@@ -3322,19 +3322,11 @@ export async function generateInProcess(backendDir, options = {}) {
       // Declared lifecycle callbacks (LLP 0044 §Declarative processing):
       // each names an ordinary declared mutation whose args contract is
       // exactly the closed callback shape — typed facts, never byte
-      // authority. Sessions-mode callback execution has no authority
-      // design yet, so a sessions schema refuses at generation (the
-      // manifest-keyed idiom; runtime dev admission is the defense).
+      // authority. Sessions mode is admitted because the runtime executes
+      // this exact declared target through the ruled per-app service grant.
+      // @ref LLP 0039#dated-amendment-sessions-asset-callback-execution-authority-2026-08-03
+      // @ref LLP 0055#dated-amendment-per-app-asset-callbacks-service-principal-2026-08-03
       if (def.on !== undefined) {
-        if (authMode === 'sessions') {
-          err(
-            'SNAPBACK_ASSET_CALLBACK_SESSIONS_UNSUPPORTED',
-            'asset',
-            `${exportName}: lifecycle callbacks execute under the asset owner's dev-lane authority; a sessions-mode schema cannot declare them yet`,
-            { intent: exportName },
-          );
-          continue;
-        }
         let callbacksValid = true;
         for (const [event, handler] of Object.entries(def.on)) {
           const target = functions.find((fn) => fn.name === handler);
@@ -8715,7 +8707,7 @@ function renderApiTypes(
     // are omitted for anonymous calls. Keep that distinction exact so a
     // helper must narrow before treating optional-user authority as human.
     'export interface GeneratedAnonymousAuthContext { readonly userId: null; readonly sessionId: null; readonly isAuthenticated: false }',
-    'export interface GeneratedAuthenticatedAuthContext { readonly userId: Principal; readonly sessionId: string | null; readonly isAuthenticated: true; readonly provider?: string; readonly roles: readonly string[]; readonly kind: "human" | "agent"; readonly actor?: { readonly userId: Principal; readonly kind: "agent"; readonly grantId: string } }',
+    'export interface GeneratedAuthenticatedAuthContext { readonly userId: Principal; readonly sessionId: string | null; readonly isAuthenticated: true; readonly provider?: string; readonly roles: readonly string[]; readonly kind: "human" | "agent"; readonly actor?: { readonly userId: Principal; readonly kind: "agent"; readonly grantId: string }; readonly actorKind?: "asset-callbacks" }',
     'export type GeneratedAuthContext = GeneratedAnonymousAuthContext | GeneratedAuthenticatedAuthContext;',
     'export interface GeneratedRuntimeContext { now(): number; id(): string }',
   );

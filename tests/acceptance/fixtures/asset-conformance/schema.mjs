@@ -29,6 +29,14 @@ export default defineSchema(
       createdBy: v.principal(),
     }).sync(),
     workspaceMembers,
+    assetCallbackLog: defineTable({
+      assetId: v.string(),
+      event: v.string(),
+      actorId: v.principal(),
+      actorKind: v.string(),
+      provider: v.string(),
+      sessionId: v.optional(v.string()),
+    }).sync(),
     notes: defineTable({
       workspaceId: v.id('workspaces'),
       authorId: v.principal(),

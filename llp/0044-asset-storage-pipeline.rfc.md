@@ -5,7 +5,7 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-03 (two author decisions from decision sitting #2,
+**Revised:** 2026-08-04 (sessions lifecycle callbacks implemented under the ruled per-app `asset-callbacks` service principal). 2026-08-03 (two author decisions from decision sitting #2,
 `issues/20260803-author-decision-sitting-2.md` — §Video location policy
 and §Asset-intent implementation identity: a `video: { location }`
 sibling block is admitted with `image:` untouched and its frozen
@@ -2051,14 +2051,16 @@ typed reverse-reference edges protect, the grace clock is durable
 any attachment), reclamation rides the deletion cascade with
 policy-and-grace receipts, the enabling warning lists unprotected json
 fields, and the grace bounds are Enforced facts codegen checks.
-**Declared lifecycle callbacks** shipped dev-lane: `on: { ready?,
+**Declared lifecycle callbacks** ship in both auth modes: `on: { ready?,
 rejected? }` names ordinary declared mutations pinned to the closed
 args contract `{ event, assetId, facts }`, enqueued transactionally
-with the transition, driven at-least-once by the runner under the asset
-owner's authority with client-mutation-ledger idempotency (a re-driven
-row never doubles the observable effect), and callback failure isolated
-to the work row — a sessions-mode schema refuses callback declarations
-at generation until a sessions execution authority is designed.
+with the transition, and driven at-least-once by the runner with
+client-mutation-ledger idempotency (a re-driven row never doubles the
+observable effect). Dev preserves the asset owner's dev authority; sessions
+uses the per-app, exact-grant `asset-callbacks` service principal ruled in LLP
+0039/0055, with `ctx.auth.actorKind` explicit and no counterfeit owner session.
+Both use the ordinary staged mutation, commit-validation, authorization-event,
+and receipt machinery, and callback failure remains isolated to the work row.
 
 Also closed 2026-07-31, later same day (the completion-program W2d
 pass): **video finalization** (`asset_video_finalization_v1`) shipped on

@@ -7,6 +7,7 @@ import {
   authUserId,
   defineAssetUpload,
   defineJsMutation,
+  defineJsQuery,
   defineMutation,
   insert,
   returnBinding,
@@ -35,7 +36,24 @@ export const fileUpload = defineAssetUpload({
   accept: { mediaTypes: ['application/octet-stream', 'application/zip'], maxBytes: 100_000 },
   delivery: { kind: 'private-strict' },
   access: { read: 'owner-only' },
+  on: { ready: 'recordAssetReady' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+
+export const recordAssetReady = defineJsMutation({
+  auth: 'authenticated',
+  args: { event: v.string(), assetId: v.string(), facts: v.json() },
+  source: 'handlers.mjs',
+  exportName: 'recordAssetReady',
+  writes: ['assetCallbackLog'],
+});
+
+export const listAssetCallbackLog = defineJsQuery({
+  auth: 'authenticated',
+  args: {},
+  source: 'handlers.mjs',
+  exportName: 'listAssetCallbackLog',
+  reads: ['assetCallbackLog'],
 });
 
 // Large enough to force several default-size (4 MiB) TUS chunks: the
@@ -173,4 +191,3 @@ export const forgePhoto = defineJsMutation({
   exportName: 'forgePhoto',
   writes: ['photos'],
 });
-

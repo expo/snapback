@@ -5,7 +5,7 @@
 **Systems:** Auth, Sync, Storage, API, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-03 (sessions asset-callback execution authority — author decision sitting #2; see the dated amendment); 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (ENG-24913 G2 dated implementation amendment: the
+**Revised:** 2026-08-04 (implemented the sessions asset-callback service-principal amendment); 2026-08-03 (sessions asset-callback execution authority — author decision sitting #2; see the dated amendment); 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (ENG-24913 G2 dated implementation amendment: the
 non-production step-up slice now reuses the bounded challenge/mailbox protocol
 with a distinct operation-bound digest and transactional consumption; production
 human delivery remains fail-closed on LLP 0045); 2026-07-13 (ENG-24592 focused exact confirmation completed READY
@@ -1971,6 +1971,14 @@ never ambiguous. Callback writes participate in
 commit-time validation and can produce authorization events like any
 mutation; no new LLP 0053 machinery is expected. The grant scoping and
 lifecycle vocabulary is LLP 0055's (see its matching dated amendment).
+
+**Implemented 2026-08-04.** The asset runner now resolves the per-app
+principal and exact callback-mutation grant from the protected auth catalog,
+projects `ctx.auth.actorKind = "asset-callbacks"` with no session id, and sends
+the callback through the ordinary staged mutation, commit validation, receipt,
+and client-mutation-ledger path. The asset work-completion receipt names the
+service actor and exact grant. The sessions witness is
+`tests/acceptance/asset-conformance-v1.mjs`.
 
 ## Dated amendment: agent authority and lifecycle (2026-07-16)
 

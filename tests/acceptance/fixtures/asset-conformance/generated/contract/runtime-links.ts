@@ -12,6 +12,8 @@ export interface SnapbackContractLinks {
   createWorkspace(args: { name: string }): unknown;
   forgePhoto(args: { caption: string; assetId: string }): unknown;
   leaveWorkspace(args: { workspaceId: string }): unknown;
+  listAssetCallbackLog(args: Record<string, never>): unknown;
+  recordAssetReady(args: { event: string; assetId: string; facts: unknown }): unknown;
 }
 
 let links: SnapbackContractLinks | null = null;

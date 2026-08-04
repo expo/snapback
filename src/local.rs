@@ -3999,6 +3999,34 @@ impl LocalSnapback {
         &self,
         authority: &PreparedAuthority,
     ) -> SnapbackResult<()> {
+        if let Some(principal) = authority.asset_callbacks_service() {
+            let ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id,
+                grant_id,
+                ..
+            } = authority.resolved()
+            else {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                    "auth",
+                    "asset-callbacks authority lost its service-principal identity",
+                ));
+            };
+            if actor_user_id != &principal.actor_user_id
+                || grant_id != &principal.grant_id
+                || !self
+                    .db
+                    .asset_callbacks_service_principal_is_live(principal)?
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
+                    "auth",
+                    "the asset-callbacks service-principal grant is no longer current",
+                )
+                .with_details(json!({ "reason": "terminally_invalid_entry" })));
+            }
+            return Ok(());
+        }
         let ResolvedAppAuthority::ServicePrincipal {
             actor_user_id,
             effective_user_id,
@@ -4285,6 +4313,60 @@ impl LocalSnapback {
             profile,
             input,
             self.admission.admit_dev()?,
+        )
+    }
+
+    /// Mint/resolve the per-app bearer-free callback service and prepare its
+    /// exact mutation scope under the current sessions admission epoch.
+    ///
+    /// @ref LLP 0055#dated-amendment-per-app-asset-callbacks-service-principal-2026-08-03
+    ///   — callbacks receive a protected-catalog principal plus an immutable
+    ///   exact-function grant, never the asset owner's session authority.
+    fn prepare_asset_callbacks_authority(
+        &mut self,
+        handler: &str,
+    ) -> SnapbackResult<PreparedAuthority> {
+        let function = self.function(handler)?.clone();
+        let kind =
+            crate::storage::auth_grants::ScopedFunctionKind::from_function_kind(&function.kind)
+                .filter(|kind| {
+                    matches!(
+                        kind,
+                        crate::storage::auth_grants::ScopedFunctionKind::Mutation
+                    )
+                })
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_ASSET_CALLBACK_INVALID",
+                        "assets",
+                        "an asset lifecycle callback must remain a declared mutation",
+                    )
+                })?;
+        let basis = self
+            .db
+            .current_auth_scope_basis(&function.id, &function.kind, function.authority_creating)?
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
+                    "auth",
+                    "the callback mutation has no current exact-function scope basis",
+                )
+                .with_details(json!({ "reason": "missing_scope_basis" }))
+            })?;
+        let scope = crate::storage::auth_grants::ExactGrantScope {
+            function_id: function.id,
+            kind,
+            basis,
+            authority_creating: function.authority_creating,
+        };
+        let app_id = self.functions.app_id.clone();
+        let principal =
+            self.db
+                .ensure_asset_callbacks_service_principal(&app_id, scope, now_millis())?;
+        InvocationGate::prepare_admitted_asset_callbacks(
+            ServerProfile::Dev,
+            self.admission.admit_for_mode(AuthMode::Sessions)?,
+            principal,
         )
     }
 
@@ -10911,8 +10993,12 @@ impl LocalSnapback {
         for mut row in claimed {
             let outcome = self.asset_execute_work(&row, now_ms);
             self.db.asset_transaction(|tx| match &outcome {
-                Ok(()) => {
+                Ok(authority_receipt) => {
                     assets::transition_work(tx, &mut row, assets::AssetWorkState::Done, now_ms)?;
+                    let mut details = serde_json::json!({ "kind": row.kind });
+                    if let Some(authority) = authority_receipt {
+                        details["authority"] = authority.clone();
+                    }
                     assets::write_receipt(
                         tx,
                         &asset_receipt(
@@ -10921,7 +11007,7 @@ impl LocalSnapback {
                             &row.asset_id,
                             row.attempt_id.as_deref(),
                             now_ms,
-                            serde_json::json!({ "kind": row.kind }),
+                            details,
                         ),
                     )?;
                     report.completed += 1;
@@ -11010,7 +11096,7 @@ impl LocalSnapback {
         &mut self,
         row: &crate::assets::AssetWorkRowV1,
         now_ms: u64,
-    ) -> SnapbackResult<()> {
+    ) -> SnapbackResult<Option<Value>> {
         use crate::assets;
         match row.kind.as_str() {
             // Condemned-object cleanup completes on observation: the pass
@@ -11033,16 +11119,22 @@ impl LocalSnapback {
                     }
                 }
                 let _ = now_ms;
-                Ok(())
+                Ok(None)
             }
             // A declared lifecycle callback: an ordinary generated mutation
             // invoked with typed facts (asset/rendition ids and safe
             // metadata — never byte authority, staging keys, or bearer
-            // URLs) under the asset owner's dev-lane authority. Idempotency
-            // rides the client-mutation ledger: the stable id
-            // `asset-cb:{asset}:{event}:{generation}` makes a re-driven
-            // ledger row a replay, so the callback's observable effect
-            // never doubles (LLP 0044 §Processing runner).
+            // URLs). Dev mode preserves the asset-owner authority; sessions
+            // mode uses the bearer-free per-app `asset-callbacks` service
+            // principal. Idempotency rides the client-mutation ledger: the
+            // stable id `asset-cb:{asset}:{event}:{generation}` makes a
+            // re-driven ledger row a replay, so the callback's observable
+            // effect never doubles (LLP 0044 §Processing runner).
+            //
+            // @ref LLP 0039#dated-amendment-sessions-asset-callback-execution-authority-2026-08-03
+            //   — the sessions branch is explicitly service-principal
+            //   authority, while both branches retain the ordinary staged
+            //   mutation/commit-time validation path.
             assets::ASSET_WORK_KIND_LIFECYCLE_CALLBACK => {
                 let params = row.params.clone().unwrap_or_default();
                 let (Some(event), Some(handler)) = (
@@ -11086,32 +11178,54 @@ impl LocalSnapback {
                         })
                         .collect::<Vec<_>>(),
                 });
-                let input = crate::manifest::HandlerInput {
+                let mut input = crate::manifest::HandlerInput {
                     args: serde_json::json!({
                         "event": event,
                         "assetId": row.asset_id,
                         "facts": facts,
                     }),
-                    auth: crate::manifest::AuthInput {
-                        user_id: Some(asset.owner_principal.clone()),
-                        ..crate::manifest::AuthInput::default()
-                    },
                     ..crate::manifest::HandlerInput::default()
                 };
-                let authority = self.prepare_legacy_dev_authority(
-                    InvocationSource::LocalMutation,
-                    ServerProfile::Dev,
-                    &input,
-                )?;
+                let authority = match self.admission.diagnostic_snapshot().active_mode {
+                    AuthMode::Dev => {
+                        input.auth = crate::manifest::AuthInput {
+                            user_id: Some(asset.owner_principal.clone()),
+                            ..crate::manifest::AuthInput::default()
+                        };
+                        self.prepare_legacy_dev_authority(
+                            InvocationSource::AssetCallback,
+                            ServerProfile::Dev,
+                            &input,
+                        )?
+                    }
+                    AuthMode::Sessions => self.prepare_asset_callbacks_authority(&handler)?,
+                };
+                let authority_receipt = authority.asset_callbacks_service().map(|principal| {
+                    serde_json::json!({
+                        "actorKind": crate::storage::auth_asset_callbacks::ASSET_CALLBACKS_SERVICE_NAME,
+                        "actorUserId": principal.actor_user_id.clone(),
+                        "grantId": principal.grant_id.clone(),
+                        "sessionId": null,
+                    })
+                });
                 let idempotency_key = format!(
                     "asset-cb:{}:{event}:{}",
                     row.asset_id, row.lifecycle_generation
                 );
+                let authority_descriptor = if authority.active_mode() == AuthMode::Sessions {
+                    let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+                    Some(crate::auth::descriptor::descriptor_for_authority(
+                        &authority,
+                        incarnation.as_str(),
+                    )?)
+                } else {
+                    None
+                };
                 let (_preflight, staged) = self.stage_recorded_authorization_mutation(
                     &handler,
                     input,
                     Some(idempotency_key),
-                    None,
+                    authority_descriptor,
                     &[],
                     "asset-runner",
                     authority,
@@ -11123,7 +11237,7 @@ impl LocalSnapback {
                     self.commit_staged_recorded_authorization_mutation(staged)?;
                 outcome?;
                 let _ = now_ms;
-                Ok(())
+                Ok(authority_receipt)
             }
             // An optional declared rendition: render off the canonical
             // primary blob, stage through the publication protocol, and
@@ -11168,7 +11282,7 @@ impl LocalSnapback {
                         .is_some())
                 })?;
                 if already {
-                    return Ok(());
+                    return Ok(None);
                 }
                 let primary_key = self.db.asset_transaction(|tx| {
                     let asset = assets::load_asset(tx, &asset_id)?.ok_or_else(|| {
@@ -11241,7 +11355,7 @@ impl LocalSnapback {
                                 ),
                             )
                         })?;
-                        return Ok(());
+                        return Ok(None);
                     }
                     Err(error) => return Err(error),
                 };
@@ -11301,7 +11415,7 @@ impl LocalSnapback {
                     }
                     Ok(())
                 })?;
-                Ok(())
+                Ok(None)
             }
             #[cfg(test)]
             assets::ASSET_WORK_KIND_TEST_TRANSIENT_FAILURE => Err(SnapbackError::error(
@@ -30638,6 +30752,66 @@ globalThis.__snapbackHandlers = {
             "callback failure never degrades the asset"
         );
         assert_eq!(asset_callback_log_count(&mut snapback), 1);
+    }
+
+    #[test]
+    fn sessions_asset_lifecycle_callback_commits_as_service_principal() {
+        let mut snapback = asset_callback_snapback();
+        let asset_id = asset_ready(&mut snapback, "session-owner", b"callback-bytes");
+        snapback
+            .db
+            .activate_current_auth_catalog()
+            .expect("current auth catalog");
+        snapback
+            .db
+            .reconcile_auth_scope_bases(&snapback.functions)
+            .expect("callback scope basis");
+        snapback
+            .synchronize_auth_mode_admission(&settled_sessions_state())
+            .expect("activate sessions admission");
+
+        snapback.asset_runner_tick(now_millis() + 1).expect("tick");
+        let rows = snapback
+            .db
+            .asset_transaction(|tx| crate::assets::work_rows_for_asset(tx, &asset_id))
+            .expect("rows");
+        let callback = rows
+            .iter()
+            .find(|row| row.kind == crate::assets::ASSET_WORK_KIND_LIFECYCLE_CALLBACK)
+            .expect("callback work");
+        assert_eq!(
+            callback.state,
+            crate::assets::AssetWorkState::Done,
+            "sessions callback failure: {:?}",
+            callback.failure,
+        );
+        assert_eq!(asset_callback_log_count(&mut snapback), 1);
+        let receipts = snapback
+            .db
+            .asset_transaction(|tx| crate::assets::receipts_for_asset(tx, &asset_id, 200))
+            .expect("callback receipts");
+        let completed = receipts
+            .iter()
+            .find(|receipt| {
+                receipt.event == crate::assets::AssetReceiptEventV1::WorkCompleted
+                    && receipt.details.get("kind").and_then(Value::as_str)
+                        == Some(crate::assets::ASSET_WORK_KIND_LIFECYCLE_CALLBACK)
+            })
+            .expect("callback completion receipt");
+        assert_eq!(
+            completed.details["authority"]["actorKind"],
+            "asset-callbacks"
+        );
+        assert_eq!(completed.details["authority"]["sessionId"], Value::Null);
+        assert_ne!(
+            completed.details["authority"]["actorUserId"],
+            "session-owner"
+        );
+        assert!(
+            completed.details["authority"]["grantId"]
+                .as_str()
+                .is_some_and(|grant_id| grant_id.starts_with("grt_"))
+        );
     }
 
     #[test]
