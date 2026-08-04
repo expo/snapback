@@ -575,6 +575,16 @@ pub struct OperationExplanationRequestV1 {
     pub schema_version: u32,
     #[serde(default)]
     pub auth: crate::manifest::AuthInput,
+    /// Public transport derives the opaque operation audience from this
+    /// server-issued client-store identity and the live authority
+    /// incarnation. Admin transport leaves it absent because AdminRead is an
+    /// independent policy boundary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(
+        length(min = 1, max = REPLAY_OPAQUE_ID_MAX_BYTES),
+        pattern(REPLAY_OPAQUE_ID_PATTERN)
+    )]
+    pub client_audience_id: Option<String>,
     pub identity: OperationIdentityV1,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub authority_descriptor: Option<crate::manifest::AuthorityDescriptor>,

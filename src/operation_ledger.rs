@@ -67,9 +67,31 @@ pub struct CurrentExplanationAuthorityV1 {
     pub audience: String,
     pub principal_fingerprint: String,
     pub authority_instance_id: String,
+    pub current_artifact_digest: Option<String>,
     pub current_policy_provable: bool,
-    pub allow_non_row_facts: bool,
+    pub fact_policy: ExplanationFactPolicyV1,
     pub administrative: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OwnerMutationExplanationKindV1 {
+    Create,
+    Update,
+}
+
+/// Closed current-policy proofs admitted by the public explanation projector.
+/// `Unprovable` is deliberate: an opaque handler, a deleted owner row, or a
+/// fact class whose live policy cannot be reconstructed never falls back to
+/// principal/operation identity equality.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ExplanationFactPolicyV1 {
+    Unprovable,
+    OwnerMutationV1 {
+        subject: String,
+        table: String,
+        owner_field: String,
+        kind: OwnerMutationExplanationKindV1,
+    },
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -1746,18 +1768,14 @@ fn project_explanation(
         && authority.audience == bound.audience
         && (authority.administrative
             || (authority.principal_fingerprint == bound.principal_fingerprint
-                && authority.authority_instance_id == bound.authority_instance_id))
-        && authority.allow_non_row_facts;
+                && authority.authority_instance_id == bound.authority_instance_id
+                && matches!(
+                    (&envelope.executable_artifact_digest, &authority.current_artifact_digest),
+                    (crate::commit_envelope::LaneFactV1::Defined(recorded), Some(current))
+                        if recorded == current
+                )));
     if !authorized {
-        return Ok(StoredOperationExplanationV1 {
-            envelope,
-            disposition: ExplanationDispositionV1::AuthorizationUnprovable,
-            read_set_digest: None,
-            read_set_count: None,
-            write_set_digest: None,
-            write_set_count: None,
-            detail: None,
-        });
+        return Ok(authorization_unprovable(envelope));
     }
     let journal_count =
         if envelope.snapshot.association == SnapshotAssociationKindV1::ProducedCommit {
@@ -1770,6 +1788,19 @@ fn project_explanation(
             0
         };
     let (mut disposition, detail) = detail_projection(conn, &envelope);
+    if !authority.administrative {
+        // Public authorization is per retained fact. Truncation, expiry, or
+        // unavailable custody means at least one constituent can no longer be
+        // evaluated, so even aggregate counts/digests are withheld.
+        let fact_authorized = disposition == ExplanationDispositionV1::Complete
+            && detail.as_ref().is_some_and(|detail| {
+                public_fact_policy_allows(conn, &envelope, detail, &authority.fact_policy)
+                    .unwrap_or(false)
+            });
+        if !fact_authorized {
+            return Ok(authorization_unprovable(envelope));
+        }
+    }
     if envelope.snapshot.association == SnapshotAssociationKindV1::ProducedCommit
         && journal_count < envelope.write_set.count
     {
@@ -1784,6 +1815,259 @@ fn project_explanation(
         disposition,
         detail,
     })
+}
+
+fn authorization_unprovable(envelope: CommitEnvelopeV1) -> StoredOperationExplanationV1 {
+    StoredOperationExplanationV1 {
+        envelope,
+        disposition: ExplanationDispositionV1::AuthorizationUnprovable,
+        read_set_digest: None,
+        read_set_count: None,
+        write_set_digest: None,
+        write_set_count: None,
+        detail: None,
+    }
+}
+
+/// Evaluate the exact, finite public fact policy after protected custody has
+/// authenticated and opened every retained payload. Any unknown shape or
+/// unsupported class returns false; there is no permissive default.
+///
+/// @ref LLP 0162#acceptance — row facts require current plus retained-value
+///   policy; missing/predicate/membership/context/effect facts are decided per
+///   class, and one unprovable constituent redacts the whole aggregate.
+fn public_fact_policy_allows(
+    conn: &Connection,
+    envelope: &CommitEnvelopeV1,
+    detail: &Value,
+    policy: &ExplanationFactPolicyV1,
+) -> SnapbackResult<bool> {
+    let ExplanationFactPolicyV1::OwnerMutationV1 {
+        subject,
+        table,
+        owner_field,
+        kind,
+    } = policy
+    else {
+        return Ok(false);
+    };
+    // Public row/ctx/receipt detail is admitted only through authenticated
+    // protected custody. Empty effect facts are the one payload-free class.
+    if !matches!(
+        envelope.read_set.detail,
+        RetainedEnvelopeDetailV1::ProtectedLane { .. }
+    ) || !matches!(
+        envelope.write_set.detail,
+        RetainedEnvelopeDetailV1::ProtectedLane { .. }
+    ) || !matches!(
+        envelope.ctx_answers.detail,
+        RetainedEnvelopeDetailV1::ProtectedLane { .. }
+    ) || !matches!(
+        envelope.receipt.payload,
+        RetainedEnvelopeDetailV1::ProtectedLane { .. }
+    ) || envelope.effects.facts.count != 0
+        || !envelope.effects.egress_families.is_empty()
+        || !envelope.effects.settlement_capabilities.is_empty()
+    {
+        return Ok(false);
+    }
+    let Some(object) = detail.as_object() else {
+        return Ok(false);
+    };
+    let Some(read_value) = object.get("readSet") else {
+        return Ok(false);
+    };
+    let Some(write_value) = object.get("writeSet") else {
+        return Ok(false);
+    };
+    let Some(effect_value) = object.get("effects") else {
+        return Ok(false);
+    };
+    let Some(ctx_value) = object.get("ctxAnswers") else {
+        return Ok(false);
+    };
+    let Some(receipt_value) = object.get("receipt") else {
+        return Ok(false);
+    };
+    if effect_value
+        .as_array()
+        .is_none_or(|effects| !effects.is_empty())
+    {
+        return Ok(false);
+    }
+    let reads: Vec<crate::storage::CapturedReadDependency> =
+        match serde_json::from_value(read_value.clone()) {
+            Ok(reads) => reads,
+            Err(_) => return Ok(false),
+        };
+    let writes: Vec<crate::storage::ChangedRow> = match serde_json::from_value(write_value.clone())
+    {
+        Ok(writes) => writes,
+        Err(_) => return Ok(false),
+    };
+    if reads.len() as u64 != envelope.read_set.count
+        || writes.len() as u64 != envelope.write_set.count
+    {
+        return Ok(false);
+    }
+    let ctx: crate::manifest::CtxAnswerLedger = match serde_json::from_value(ctx_value.clone()) {
+        Ok(ctx) => ctx,
+        Err(_) => return Ok(false),
+    };
+    if envelope.ctx_answers.count != 1 || !ctx.ids.is_empty() || ctx.auth_fingerprint.is_some() {
+        return Ok(false);
+    }
+    let receipt: crate::manifest::MutationOutput =
+        match serde_json::from_value(receipt_value.clone()) {
+            Ok(receipt) => receipt,
+            Err(_) => return Ok(false),
+        };
+    let row_writes = writes
+        .iter()
+        .filter(|write| write.table == *table)
+        .collect::<Vec<_>>();
+    if row_writes.len() != 1 || writes.len() != 1 {
+        return Ok(false);
+    }
+    let write = row_writes[0];
+    let expected_op = match kind {
+        OwnerMutationExplanationKindV1::Create => crate::storage::ChangeOp::Insert,
+        OwnerMutationExplanationKindV1::Update => crate::storage::ChangeOp::Update,
+    };
+    if write.op != expected_op
+        || write
+            .row
+            .as_ref()
+            .and_then(Value::as_object)
+            .and_then(|row| row.get(owner_field))
+            .and_then(Value::as_str)
+            != Some(subject)
+        || current_owner(conn, table, owner_field, &write.id)?.as_deref() != Some(subject)
+    {
+        return Ok(false);
+    }
+    if envelope.receipt.state != crate::commit_envelope::OperationReceiptStateV1::Committed
+        || receipt.version != envelope.snapshot.version
+        || receipt.changed_count != 1
+        || receipt.result != write.row.clone().unwrap_or(Value::Null)
+        || receipt.ctx_ledger.as_ref() != Some(&ctx)
+        || !receipt.settlement_mint_observations.is_empty()
+        || receipt.settlement_time_observation.is_some()
+        || !receipt.settlement_sequence_allocations.is_empty()
+    {
+        return Ok(false);
+    }
+    for read in &reads {
+        match read.kind {
+            crate::storage::CapturedReadKind::Auth => {
+                if read.table.is_some()
+                    || read.id.is_some()
+                    || read.predicate.is_some()
+                    || !read.rows.is_empty()
+                    || read.field.as_deref() != Some("userId")
+                    || read.value.as_ref().and_then(Value::as_str) != Some(subject)
+                {
+                    return Ok(false);
+                }
+            }
+            crate::storage::CapturedReadKind::Permission => {
+                let expected_scope = format!("user:{subject}");
+                if read.table.is_some()
+                    || read.id.is_some()
+                    || read.predicate.is_some()
+                    || !read.rows.is_empty()
+                    || read.field.as_deref() != Some("scope")
+                    || read.value.as_ref().and_then(Value::as_str) != Some(expected_scope.as_str())
+                {
+                    // Membership and other permission facts have a different
+                    // shape and need their own live evaluator.
+                    return Ok(false);
+                }
+            }
+            crate::storage::CapturedReadKind::Row => {
+                if *kind != OwnerMutationExplanationKindV1::Update
+                    || read.table.as_deref() != Some(table)
+                    || read.id.as_deref() != Some(write.id.as_str())
+                    || historical_owner(conn, table, owner_field, &write.id, read.version)?
+                        .as_deref()
+                        != Some(subject)
+                {
+                    return Ok(false);
+                }
+            }
+            crate::storage::CapturedReadKind::MissingRow
+            | crate::storage::CapturedReadKind::Query => {
+                // A missing-row or predicate/result-membership fact has no
+                // retained owner post-image in v1. Do not infer its policy
+                // from the caller or enclosing operation.
+                return Ok(false);
+            }
+        }
+    }
+    let row_read_count = reads
+        .iter()
+        .filter(|read| read.kind == crate::storage::CapturedReadKind::Row)
+        .count();
+    Ok(match kind {
+        OwnerMutationExplanationKindV1::Create => row_read_count == 0,
+        OwnerMutationExplanationKindV1::Update => row_read_count == 1,
+    })
+}
+
+fn historical_owner(
+    conn: &Connection,
+    table: &str,
+    owner_field: &str,
+    id: &str,
+    version: Option<u64>,
+) -> SnapbackResult<Option<String>> {
+    let Some(version) = version else {
+        return Ok(None);
+    };
+    let mut statement = conn.prepare(
+        "SELECT op,row_json FROM _snapback_record_history_v1
+         WHERE table_name=?1 AND row_id=?2 AND version=?3 ORDER BY id LIMIT 2",
+    )?;
+    let mut rows = statement.query(params![
+        table,
+        id,
+        to_i64(version, "historical row version")?
+    ])?;
+    let Some(first) = rows.next()? else {
+        return Ok(None);
+    };
+    let op: String = first.get(0)?;
+    let row_json: Option<String> = first.get(1)?;
+    if rows.next()?.is_some() || !matches!(op.as_str(), "insert" | "update") {
+        return Ok(None);
+    }
+    let row: Option<Value> = row_json
+        .as_deref()
+        .map(serde_json::from_str)
+        .transpose()
+        .map_err(|_| invalid("retained historical operation row is invalid"))?;
+    Ok(row
+        .as_ref()
+        .and_then(Value::as_object)
+        .and_then(|row| row.get(owner_field))
+        .and_then(Value::as_str)
+        .map(str::to_owned))
+}
+
+fn current_owner(
+    conn: &Connection,
+    table: &str,
+    owner_field: &str,
+    id: &str,
+) -> SnapbackResult<Option<String>> {
+    let sql = format!(
+        "SELECT {} FROM {} WHERE _id=?1",
+        crate::storage::quote_ident(owner_field)?,
+        crate::storage::quote_ident(table)?,
+    );
+    conn.query_row(&sql, params![id], |row| row.get(0))
+        .optional()
+        .map_err(Into::into)
 }
 
 fn detail_projection(
@@ -2732,9 +3016,10 @@ mod tests {
             audience: "audience-1".to_owned(),
             principal_fingerprint: "principal-1".to_owned(),
             authority_instance_id: "authority-1".to_owned(),
+            current_artifact_digest: None,
             current_policy_provable: true,
-            allow_non_row_facts: true,
-            administrative: false,
+            fact_policy: ExplanationFactPolicyV1::Unprovable,
+            administrative: true,
         };
         let complete = explain_operation(&conn, &identity, &authority)
             .expect("explain")
@@ -2812,6 +3097,295 @@ mod tests {
             .diagnostic
             .code,
             "SNAPBACK_OPERATION_EXPLANATION_LIMIT_INVALID"
+        );
+    }
+
+    #[test]
+    fn public_owner_policy_rechecks_artifact_history_current_row_and_every_fact_class() {
+        let mut conn = connection();
+        crate::operation_detail::install(&conn, None).expect("install protected custody");
+        conn.execute_batch(
+            "CREATE TABLE todos(
+               _id TEXT PRIMARY KEY,
+               ownerId TEXT NOT NULL,
+               title TEXT NOT NULL
+             );
+             CREATE TABLE _snapback_record_history_v1(
+               id INTEGER PRIMARY KEY AUTOINCREMENT,
+               version INTEGER NOT NULL,
+               table_name TEXT NOT NULL,
+               row_id TEXT NOT NULL,
+               op TEXT NOT NULL,
+               row_json TEXT,
+               changed_at_ms INTEGER NOT NULL,
+               operation_id TEXT
+             );
+             INSERT INTO todos(_id,ownerId,title) VALUES('todo-1','alice','after');
+             INSERT INTO _snapback_record_history_v1(
+               version,table_name,row_id,op,row_json,changed_at_ms,operation_id
+             ) VALUES(
+               1,'todos','todo-1','insert',
+               '{\"_id\":\"todo-1\",\"_version\":1,\"ownerId\":\"alice\",\"title\":\"before\"}',
+               1,NULL
+             );",
+        )
+        .expect("owner history fixture");
+        let authenticator = register_client_authority(&mut conn, 1_000);
+        let mut identity = client_identity(0, "operation-owner-update", &authenticator);
+        identity.bound_facts.function_or_command = "todos.update".to_owned();
+        let artifact_digest = sha('f');
+        let read_value = serde_json::to_value(vec![crate::storage::CapturedReadDependency {
+            kind: crate::storage::CapturedReadKind::Row,
+            table: Some("todos".to_owned()),
+            id: Some("todo-1".to_owned()),
+            version: Some(1),
+            predicate: None,
+            rows: Vec::new(),
+            field: None,
+            value: None,
+            order: None,
+            limit: None,
+            result_count: None,
+            boundary: None,
+        }])
+        .expect("read detail");
+        let changed_row = crate::storage::ChangedRow {
+            table: "todos".to_owned(),
+            id: "todo-1".to_owned(),
+            op: crate::storage::ChangeOp::Update,
+            row: Some(json!({
+                "_id": "todo-1",
+                "_version": 2,
+                "ownerId": "alice",
+                "title": "after",
+            })),
+            changed_fields: vec!["title".to_owned()],
+        };
+        let write_value = serde_json::to_value(vec![changed_row.clone()]).expect("write detail");
+        let ctx = crate::manifest::CtxAnswerLedger {
+            version: crate::manifest::ctx_ledger_version(),
+            ids: Vec::new(),
+            now: 10,
+            auth_fingerprint: None,
+        };
+        let ctx_value = serde_json::to_value(&ctx).expect("ctx detail");
+        let receipt = crate::manifest::MutationOutput {
+            version: 2,
+            changed_count: 1,
+            result: changed_row.row.clone().expect("post image"),
+            ctx_ledger: Some(ctx.clone()),
+            settlement_mint_observations: Vec::new(),
+            settlement_time_observation: None,
+            settlement_sequence_allocations: Vec::new(),
+        };
+        let receipt_value = serde_json::to_value(&receipt).expect("receipt detail");
+        let tx = conn.transaction().expect("owner operation tx");
+        insert_covered_change(&tx, 2, "todo-1");
+        let protected = |tx: &Transaction<'_>,
+                         reference: &str,
+                         domain: &'static [u8],
+                         value: Value,
+                         count: u64|
+         -> EnvelopeFactSetV1 {
+            let digest = digest_fact_set(domain, &value);
+            let payload_bytes = crate::operation_detail::seal_in(tx, reference, &digest, &value)
+                .expect("seal protected fact");
+            EnvelopeFactSetV1 {
+                digest: digest.clone(),
+                count,
+                provenance: FactProvenanceV1::ServerCaptured,
+                detail: RetainedEnvelopeDetailV1::ProtectedLane {
+                    custody_reference: reference.to_owned(),
+                    payload_digest: digest,
+                    payload_bytes,
+                },
+            }
+        };
+        let mut retained = envelope(identity.clone(), 2, 1);
+        retained.executable_artifact_digest = LaneFactV1::Defined(artifact_digest.clone());
+        retained.read_set = protected(&tx, "owner:reads", b"owner:reads\n", read_value, 1);
+        retained.write_set = protected(&tx, "owner:writes", b"owner:writes\n", write_value, 1);
+        retained.ctx_answers = protected(&tx, "owner:ctx", b"owner:ctx\n", ctx_value, 1);
+        let receipt_digest = digest_fact_set(b"owner:receipt\n", &receipt_value);
+        let receipt_bytes =
+            crate::operation_detail::seal_in(&tx, "owner:receipt", &receipt_digest, &receipt_value)
+                .expect("seal receipt");
+        retained.receipt.receipt_digest = receipt_digest.clone();
+        retained.receipt.payload = RetainedEnvelopeDetailV1::ProtectedLane {
+            custody_reference: "owner:receipt".to_owned(),
+            payload_digest: receipt_digest,
+            payload_bytes: receipt_bytes,
+        };
+        record_operation_in(&tx, &retained).expect("record owner operation");
+        tx.commit().expect("commit owner operation");
+
+        let policy = ExplanationFactPolicyV1::OwnerMutationV1 {
+            subject: "alice".to_owned(),
+            table: "todos".to_owned(),
+            owner_field: "ownerId".to_owned(),
+            kind: OwnerMutationExplanationKindV1::Update,
+        };
+        let authority = CurrentExplanationAuthorityV1 {
+            audience: "audience-1".to_owned(),
+            principal_fingerprint: "principal-1".to_owned(),
+            authority_instance_id: "authority-1".to_owned(),
+            current_artifact_digest: Some(artifact_digest.clone()),
+            current_policy_provable: true,
+            fact_policy: policy.clone(),
+            administrative: false,
+        };
+        assert_eq!(
+            explain_operation(&conn, &identity, &authority)
+                .expect("owner explanation")
+                .expect("owner operation")
+                .disposition,
+            ExplanationDispositionV1::Complete
+        );
+        for (class, changed_authority) in [
+            (
+                "audience",
+                CurrentExplanationAuthorityV1 {
+                    audience: "audience-2".to_owned(),
+                    ..authority.clone()
+                },
+            ),
+            (
+                "principal",
+                CurrentExplanationAuthorityV1 {
+                    principal_fingerprint: "principal-2".to_owned(),
+                    ..authority.clone()
+                },
+            ),
+            (
+                "authority-incarnation",
+                CurrentExplanationAuthorityV1 {
+                    authority_instance_id: "authority-2".to_owned(),
+                    ..authority.clone()
+                },
+            ),
+            (
+                "absent-artifact",
+                CurrentExplanationAuthorityV1 {
+                    current_artifact_digest: None,
+                    ..authority.clone()
+                },
+            ),
+            (
+                "unsupported-policy",
+                CurrentExplanationAuthorityV1 {
+                    fact_policy: ExplanationFactPolicyV1::Unprovable,
+                    ..authority.clone()
+                },
+            ),
+        ] {
+            assert_eq!(
+                explain_operation(&conn, &identity, &changed_authority)
+                    .expect("authority drift decision")
+                    .expect("owner operation")
+                    .disposition,
+                ExplanationDispositionV1::AuthorizationUnprovable,
+                "{class} drift must remain fail-closed"
+            );
+        }
+
+        conn.execute("UPDATE todos SET ownerId='bob' WHERE _id='todo-1'", [])
+            .expect("change current owner");
+        assert_eq!(
+            explain_operation(&conn, &identity, &authority)
+                .expect("current owner denial")
+                .expect("owner operation")
+                .disposition,
+            ExplanationDispositionV1::AuthorizationUnprovable
+        );
+        conn.execute("UPDATE todos SET ownerId='alice' WHERE _id='todo-1'", [])
+            .expect("restore current owner");
+        conn.execute(
+            "UPDATE _snapback_record_history_v1
+             SET row_json='{\"_id\":\"todo-1\",\"_version\":1,\"ownerId\":\"bob\",\"title\":\"before\"}'
+             WHERE table_name='todos' AND row_id='todo-1' AND version=1",
+            [],
+        )
+        .expect("change historical owner");
+        assert_eq!(
+            explain_operation(&conn, &identity, &authority)
+                .expect("historical owner denial")
+                .expect("owner operation")
+                .disposition,
+            ExplanationDispositionV1::AuthorizationUnprovable
+        );
+        conn.execute(
+            "UPDATE _snapback_record_history_v1
+             SET row_json='{\"_id\":\"todo-1\",\"_version\":1,\"ownerId\":\"alice\",\"title\":\"before\"}'
+             WHERE table_name='todos' AND row_id='todo-1' AND version=1",
+            [],
+        )
+        .expect("restore historical owner");
+        assert_eq!(
+            explain_operation(
+                &conn,
+                &identity,
+                &CurrentExplanationAuthorityV1 {
+                    current_artifact_digest: Some(sha('9')),
+                    ..authority.clone()
+                },
+            )
+            .expect("artifact denial")
+            .expect("owner operation")
+            .disposition,
+            ExplanationDispositionV1::AuthorizationUnprovable
+        );
+
+        let (_, Some(detail)) = detail_projection(&conn, &retained) else {
+            panic!("protected owner detail opens");
+        };
+        for (class, changed) in [
+            ("missing-row", {
+                let mut value = detail.clone();
+                value["readSet"][0]["kind"] = json!("missingRow");
+                value
+            }),
+            ("predicate-membership", {
+                let mut value = detail.clone();
+                value["readSet"][0]["kind"] = json!("query");
+                value["readSet"][0]["predicate"] = json!({"ownerId":"alice"});
+                value
+            }),
+            ("membership-permission", {
+                let mut value = detail.clone();
+                value["readSet"][0]["kind"] = json!("permission");
+                value["readSet"][0]["predicate"] = json!({"resource":"room-1"});
+                value
+            }),
+            ("nonempty-ctx", {
+                let mut value = detail.clone();
+                value["ctxAnswers"]["ids"] = json!(["generated-secret"]);
+                value
+            }),
+            ("divergent-receipt", {
+                let mut value = detail.clone();
+                value["receipt"]["result"]["title"] = json!("different");
+                value
+            }),
+            ("nonempty-effect", {
+                let mut value = detail.clone();
+                value["effects"] = json!([{"family":"fetch"}]);
+                value
+            }),
+        ] {
+            assert!(
+                !public_fact_policy_allows(&conn, &retained, &changed, &policy)
+                    .expect("fact policy decision"),
+                "{class} must remain fail-closed"
+            );
+        }
+
+        let mut truncated = retained.clone();
+        truncated.read_set.detail = RetainedEnvelopeDetailV1::Truncated;
+        assert_eq!(
+            project_explanation(&conn, truncated, &authority)
+                .expect("truncated projection")
+                .disposition,
+            ExplanationDispositionV1::AuthorizationUnprovable
         );
     }
 

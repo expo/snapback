@@ -63,9 +63,12 @@ Landed in the explanation/protected-custody slice:
   `/_snapback/api/operations/explain` routes, with the latter strengthened to
   the existing secret-read lease gate in sessions mode;
 - current AdminRead policy evaluation and a public lane that resolves the live
-  principal/incarnation but deliberately returns `authorization-unprovable`
-  until row/non-row policy can be re-evaluated per fact (Partial, never an
-  authorization claim inferred from identity equality);
+  principal/incarnation, derives the current client audience, re-runs live
+  function/grant/profile policy, and projects only exact generated
+  `owned-crud.v1` / `owner.v1` create and update envelopes whose active
+  artifact, current and retained historical owners, and closed
+  read/write/context/effect/receipt facts all revalidate (Partial, never an
+  authorization claim inferred from identity equality or protected custody);
 - owner-only sidecar keys and XChaCha20-Poly1305 custody for read, write,
   context-answer, and receipt detail, with one fail-closed projection covering
   those four protected classes plus inline-redacted effects; and
@@ -80,9 +83,10 @@ Still required before this ticket closes:
 
 - first-party host identity adapters for jobs, cron, migrations, and stable
   child ordinals (promotion's authenticated host lease is already wired);
-- real per-fact current-policy evaluation for the public explanation lane (the
-  admin transport and protected custody are wired; public stays Partial and
-  fail-closed);
+- the remainder of per-fact current-policy evaluation for public explanation:
+  delete, aggregate/non-row, hand-written/opaque, predicate, membership,
+  effect-bearing, and other unsupported shapes stay fail-closed; the generated
+  owner create/update profile is the only current positive slice;
 - the complete target writer/bypass/asymmetric-retention acceptance corpus;
   and
 - the genuinely paired, baseline-digest-bound active-lane row-13 performance

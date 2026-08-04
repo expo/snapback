@@ -646,6 +646,11 @@ pub struct ClientMutationIdentity {
     pub auth_fingerprint: String,
     pub authority_instance_id: String,
     pub input_fingerprint: String,
+    /// Digest of the exact schema/function generation selected for an
+    /// issuance-bearing operation. It is retained separately from the input
+    /// collision digest so the envelope can compare today's policy artifact
+    /// before interpreting its plan.
+    pub artifact_generation_digest: Option<String>,
     /// Authenticated LLP 0163 issuance facts. Existing protocol clients leave
     /// this absent and therefore remain outside envelope coverage until the
     /// range carrier/negotiation amendment lands.
@@ -762,6 +767,7 @@ impl ClientMutationIdentity {
             //   every settle-time policy fact shares the durable collision
             //   boundary with args/readSet/ctxLedger.
             input_fingerprint: mutation_input_fingerprint(input, settlement),
+            artifact_generation_digest: None,
             operation_issuance: None,
         }
     }
@@ -778,6 +784,7 @@ impl ClientMutationIdentity {
         mut self,
         generation: &crate::manifest::ArtifactGeneration,
     ) -> Self {
+        self.artifact_generation_digest = Some(operation_artifact_generation_digest(generation));
         let canonical = canonical_json(json!({
             "artifactGeneration": generation,
             "inputFingerprint": self.input_fingerprint,
@@ -805,6 +812,7 @@ impl ClientMutationIdentity {
                 "clientMutationId": self.id,
                 "function": self.function,
                 "inputFingerprint": self.input_fingerprint,
+                "artifactGenerationDigest": self.artifact_generation_digest,
                 "operationIssuance": issuance,
             }),
             None => json!({
@@ -822,6 +830,15 @@ impl ClientMutationIdentity {
         digest.update(encoded);
         format!("sha256:{:x}", digest.finalize())
     }
+}
+
+pub(crate) fn operation_artifact_generation_digest(
+    generation: &crate::manifest::ArtifactGeneration,
+) -> String {
+    crate::operation_ledger::digest_fact_set(
+        b"snapback:operation-artifact-generation:v1\n",
+        &canonical_json(serde_json::to_value(generation).expect("artifact generation serializes")),
+    )
 }
 
 /// One executed IR mutation plan with its recorded deterministic answers —
@@ -19171,7 +19188,10 @@ fn record_covered_client_mutation_envelope_in(
             grant_or_policy_identity: LaneFactV1::NotDefinedForLane,
             fencing_token_or_epoch: LaneFactV1::Defined(identity.authority_instance_id.clone()),
         },
-        executable_artifact_digest: LaneFactV1::NotDefinedForLane,
+        executable_artifact_digest: identity
+            .artifact_generation_digest
+            .clone()
+            .map_or(LaneFactV1::NotDefinedForLane, LaneFactV1::Defined),
         argument_digest: crate::operation_ledger::digest_fact_set(
             b"snapback:operation-arguments:v1\n",
             &canonical_json(input.args.clone()),
@@ -22036,6 +22056,7 @@ mod guarded_commit_tests {
             auth_fingerprint: "sha256:test".to_owned(),
             authority_instance_id: Uuid::now_v7().to_string(),
             input_fingerprint: "sha256:input".to_owned(),
+            artifact_generation_digest: None,
             operation_issuance: None,
         };
         db.execute_mutation_idempotent(
@@ -23873,8 +23894,9 @@ mod guarded_commit_tests {
             audience: audience.clone(),
             principal_fingerprint: String::new(),
             authority_instance_id: String::new(),
+            current_artifact_digest: None,
             current_policy_provable: true,
-            allow_non_row_facts: true,
+            fact_policy: crate::operation_ledger::ExplanationFactPolicyV1::Unprovable,
             administrative: true,
         };
         let explanation = crate::operation_ledger::explain_operation(

@@ -243,6 +243,16 @@
         }
       ]
     },
+    "clientAudienceId": {
+      "description": "Public transport derives the opaque operation audience from this\nserver-issued client-store identity and the live authority\nincarnation. Admin transport leaves it absent because AdminRead is an\nindependent policy boundary.",
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "identity": {
       "$ref": "#/$defs/OperationIdentityV1"
     },

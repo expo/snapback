@@ -6561,13 +6561,8 @@ impl LocalSnapback {
                 "clientAudienceId must use the bounded opaque replay-id alphabet",
             ));
         }
-        use sha2::Digest as _;
-        let mut digest = sha2::Sha256::new();
-        digest.update(b"snapback:client-range-audience:v1\n");
-        digest.update(expected.authority_instance_id.as_bytes());
-        digest.update(b"\n");
-        digest.update(client_audience_id.as_bytes());
-        let audience = format!("sha256:{:x}", digest.finalize());
+        let audience =
+            operation_client_audience(&expected.authority_instance_id, client_audience_id)?;
         let _effect = authority.effect_guard("operation identity range issuance transaction")?;
         self.db.issue_client_operation_identity_range(
             &audience,
@@ -6583,6 +6578,7 @@ impl LocalSnapback {
         &mut self,
         authority: &PreparedAuthority,
         authority_descriptor: Option<&AuthorityDescriptor>,
+        client_audience_id: &str,
         identity: &crate::commit_envelope::OperationIdentityV1,
     ) -> SnapbackResult<Option<crate::commit_envelope::OperationExplanationV1>> {
         authority.validate_admission("operation explanation")?;
@@ -6592,16 +6588,45 @@ impl LocalSnapback {
         if authority.active_mode() == AuthMode::Sessions || authority_descriptor.is_some() {
             require_current_descriptor(authority_descriptor, &expected)?;
         }
+        let audience =
+            operation_client_audience(&expected.authority_instance_id, client_audience_id)?;
+        let current_artifact_digest = DeploymentIdentity::from_manifests(
+            authority.active_mode(),
+            self.db.schema(),
+            &self.functions,
+        )
+        .ok()
+        .map(|identity| ArtifactGeneration {
+            schema_version: identity.schema_version,
+            app_id: identity.app_id,
+            schema_hash: identity.schema_hash,
+            bundle_hash: identity.bundle_hash,
+            inputs_hash: identity.inputs_hash,
+        })
+        .map(|generation| crate::storage::operation_artifact_generation_digest(&generation));
+        let fact_policy = self
+            .functions
+            .function(&identity.bound_facts.function_or_command)
+            .filter(|function| {
+                InvocationGate::validate_current_function_policy(authority, function).is_ok()
+            })
+            .and_then(|function| {
+                owner_mutation_explanation_policy(function, self.db.schema(), authority)
+            })
+            .unwrap_or(crate::operation_ledger::ExplanationFactPolicyV1::Unprovable);
         let current = crate::operation_ledger::CurrentExplanationAuthorityV1 {
-            audience: identity.bound_facts.audience.clone(),
+            audience,
             principal_fingerprint: auth_fingerprint(&authority.canonical_auth_input()),
             authority_instance_id: expected.authority_instance_id,
-            // Exact current principal/incarnation matching is necessary but
-            // not sufficient to re-evaluate every row/non-row fact policy.
-            // Until the per-fact evaluator is wired, public transport stays
-            // fail-closed with an explicit authorization-unprovable result.
-            current_policy_provable: false,
-            allow_non_row_facts: false,
+            current_artifact_digest,
+            // The projector still checks every retained constituent. This
+            // bit means only that live admission/grant policy was re-run; it
+            // never upgrades an unsupported fact class.
+            current_policy_provable: !matches!(
+                fact_policy,
+                crate::operation_ledger::ExplanationFactPolicyV1::Unprovable
+            ),
+            fact_policy,
             administrative: false,
         };
         self.db.explain_operation(identity, &current)
@@ -6615,8 +6640,9 @@ impl LocalSnapback {
             audience: identity.bound_facts.audience.clone(),
             principal_fingerprint: String::new(),
             authority_instance_id: String::new(),
+            current_artifact_digest: None,
             current_policy_provable: true,
-            allow_non_row_facts: true,
+            fact_policy: crate::operation_ledger::ExplanationFactPolicyV1::Unprovable,
             administrative: true,
         };
         self.db.explain_operation(identity, &current)
@@ -23009,6 +23035,158 @@ fn capped_correlation(correlation: Option<Value>) -> Option<Value> {
 
 fn user_permission_scope(user_id: &str) -> String {
     format!("user:{user_id}")
+}
+
+/// The single derivation shared by finite-range issuance and public
+/// explanation. A caller-supplied retained `audience` is never accepted as
+/// proof that the live authority owns the operation namespace.
+///
+/// @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 — the
+///   audience is a compared fact derived from client-store identity plus the
+///   current server authority incarnation.
+fn operation_client_audience(
+    authority_instance_id: &str,
+    client_audience_id: &str,
+) -> SnapbackResult<String> {
+    if !crate::manifest::replay_opaque_id_is_valid(client_audience_id) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID",
+            "protocol",
+            "clientAudienceId must use the bounded opaque replay-id alphabet",
+        ));
+    }
+    use sha2::Digest as _;
+    let mut digest = sha2::Sha256::new();
+    digest.update(b"snapback:client-range-audience:v1\n");
+    digest.update(authority_instance_id.as_bytes());
+    digest.update(b"\n");
+    digest.update(client_audience_id.as_bytes());
+    Ok(format!("sha256:{:x}", digest.finalize()))
+}
+
+/// Recover only the generated owner-mutation policies whose complete shape is
+/// independently recognizable from the active artifact. A standardPattern
+/// string alone is not authority: hand-written, opaque, delete, and widened
+/// plans remain unprovable.
+fn owner_mutation_explanation_policy(
+    function: &FunctionDefinition,
+    schema: &SchemaManifest,
+    authority: &PreparedAuthority,
+) -> Option<crate::operation_ledger::ExplanationFactPolicyV1> {
+    let pattern = function.standard_pattern.as_ref()?;
+    if pattern.helper != "owned-crud.v1"
+        || pattern.profile != "owner.v1"
+        || pattern.membership.is_some()
+        || function.kind != FunctionKind::Mutation
+    {
+        return None;
+    }
+    let subject = authority.canonical_auth_input().user_id?;
+    let FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) = &function.runtime else {
+        return None;
+    };
+    let (table, owner_field, kind) = match plan.steps.as_slice() {
+        [
+            MutationStep::Insert {
+                table,
+                values,
+                bind_id_as: Some(bind_id_as),
+            },
+        ] => {
+            if !matches!(
+                plan.return_value.as_ref(),
+                Some(crate::manifest::ReturnValue::Document {
+                    table: result_table,
+                    id: ValueExpr::Binding(result_binding),
+                }) if result_table == table && result_binding == bind_id_as
+            ) {
+                return None;
+            }
+            let owner_fields = values
+                .iter()
+                .filter_map(|(field, value)| (value == &ValueExpr::AuthUserId).then_some(field))
+                .collect::<Vec<_>>();
+            if owner_fields.len() != 1 {
+                return None;
+            }
+            (
+                table.clone(),
+                owner_fields[0].clone(),
+                crate::operation_ledger::OwnerMutationExplanationKindV1::Create,
+            )
+        }
+        [
+            MutationStep::Get {
+                table,
+                id,
+                bind_as,
+                else_error: Some(missing),
+            },
+            MutationStep::Guard {
+                cond,
+                else_error: denied,
+            },
+            MutationStep::Patch {
+                table: patch_table,
+                id: patch_id,
+                values,
+            },
+        ] if table == patch_table
+            && id == patch_id
+            && missing == "SNAPBACK_ROW_NOT_FOUND"
+            && denied == "SNAPBACK_ROW_NOT_FOUND" =>
+        {
+            if !matches!(
+                plan.return_value.as_ref(),
+                Some(crate::manifest::ReturnValue::Document {
+                    table: result_table,
+                    id: result_id,
+                }) if result_table == table && result_id == id
+            ) {
+                return None;
+            }
+            let ValueExpr::Binary {
+                op: crate::manifest::BinaryOp::Eq,
+                left,
+                right,
+            } = cond
+            else {
+                return None;
+            };
+            let (ValueExpr::Field { base, key }, ValueExpr::AuthUserId) =
+                (left.as_ref(), right.as_ref())
+            else {
+                return None;
+            };
+            if base.as_ref() != &ValueExpr::Binding(bind_as.clone()) || values.contains_key(key) {
+                return None;
+            }
+            (
+                table.clone(),
+                key.clone(),
+                crate::operation_ledger::OwnerMutationExplanationKindV1::Update,
+            )
+        }
+        _ => return None,
+    };
+    let table_manifest = schema.table(&table)?;
+    let field = table_manifest.field(&owner_field)?;
+    if field.optional
+        || !matches!(
+            field.field_type,
+            crate::manifest::FieldType::String | crate::manifest::FieldType::Principal
+        )
+    {
+        return None;
+    }
+    Some(
+        crate::operation_ledger::ExplanationFactPolicyV1::OwnerMutationV1 {
+            subject,
+            table,
+            owner_field,
+            kind,
+        },
+    )
 }
 
 /// The manifest state a read-only query invocation needs, published as one
