@@ -5,7 +5,11 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-02 (the shared exact-link probe now allows fifteen
+**Revised:** 2026-08-03 (fresh-worktree Hermes reuse now requires the
+prepared receipt's authority-bound source-cache key to match the vendored Ibex
+revision before copy/use; incompatible sibling artifacts are skipped for the
+existing vendored download/build fallback, while Ibex `build.rs` remains the
+full exact-digest authority). 2026-08-02 (the shared exact-link probe now allows fifteen
 minutes for its bounded build: a clean disposable target with CI's required
 single Cargo job exceeded the former five-minute ceiling even though the
 checkout's cached bootstrap build succeeded; timeout termination and target
@@ -135,14 +139,20 @@ The Snapback bootstrap contract is:
   printing the recovery commands (move the stray directory aside, init the
   submodule, re-run the bootstrap) rather than deleting anything.
 - The bootstrap then validates the vendored Ibex artifact locations expected by
-  `vendor/ibex/build.rs`.
-- If those are incomplete, it prefers a sibling `../ibex` checkout with prepared
-  Hermes artifacts and an optional prebuilt `ibex` binary, copying/linking those
-  ignored artifacts into `vendor/ibex`.
+  `vendor/ibex/build.rs` and prefilters their profile-provenance receipt against
+  the authority-bound source-cache keys reconstructed from the vendored Ibex
+  revision. This is an early compatibility check; `vendor/ibex/build.rs` still
+  independently reconstructs and validates the complete reviewed identity.
+- If those are incomplete or profile-incompatible, it prefers a sibling
+  `../ibex` checkout with compatible prepared Hermes artifacts and an optional
+  prebuilt `ibex` binary, copying/linking those ignored artifacts into
+  `vendor/ibex`. A structurally complete sibling from another reviewed-profile
+  authority is skipped rather than copied.
 - Agents may point at a different prepared checkout with
-  `SNAPBACK_IBEX_CHECKOUT=/path/to/ibex`.
-- Only when no complete prepared artifact set exists should it fall back to
-  Ibex's platform setup scripts, which may download or build Hermes.
+  `SNAPBACK_IBEX_CHECKOUT=/path/to/ibex`; it must be compatible with the
+  vendored revision under the same prefilter.
+- Only when no complete compatible prepared artifact set exists should it fall
+  back to Ibex's platform setup scripts, which may download or build Hermes.
 - Agents should not start by building Hermes from source unless their task is
   explicitly about Ibex, Hermes, or runtime packaging.
 

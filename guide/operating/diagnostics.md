@@ -94,6 +94,14 @@ Cargo build/test/run:
 scripts/bootstrap-ibex-runtime
 ```
 
+Bootstrap distinguishes a structurally complete Hermes set from one compatible
+with the vendored Ibex revision. Before using installed artifacts or copying a
+prepared checkout, it reconstructs the vendored authority-bound source-cache
+keys and requires the artifact receipt to match. An incompatible `../ibex` (or
+`SNAPBACK_IBEX_CHECKOUT`) is skipped for the vendored download/build fallback;
+Ibex `build.rs` still performs the authoritative full-identity validation. Do
+not copy a receipt or edit its identity by hand.
+
 The stable bootstrap failure vocabulary is:
 `SNAPBACK_IBEX_SOURCE_MISSING`,
 `SNAPBACK_IBEX_SUBMODULE_BROKEN`,
@@ -213,8 +221,8 @@ rerun from the earliest stable code rather than patching later symptoms.
 - **Do not parse `message` text.** Use `diagnostic.code` and typed details.
 - **Do not expose full diagnostics on public endpoints.** Use the public
   classification projection.
-- **Do not rebuild Hermes first.** Doctor, then bootstrap from prepared sibling
-  artifacts when available.
+- **Do not rebuild Hermes first.** Doctor, then let bootstrap select compatible
+  prepared artifacts or the vendored fallback.
 - **Do not accept a zero-check or timeout-only test result.** Require the
 intended diagnostic and non-vacuous witnesses.
 
