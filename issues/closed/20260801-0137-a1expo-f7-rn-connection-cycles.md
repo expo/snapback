@@ -1,6 +1,8 @@
 # A1 Expo sweep: RN carrier connection cycles live→stale (~2s reconnect loop) and the retainable public query blanks permanently after the first cycle
 
 **Opened:** 2026-08-01
+**Status:** Resolved (2026-08-04 — both halves closed; see the closure
+section at the end)
 **Systems:** Realtime, Client integration, React/Expo
 **Related:** LLP 0137 (Track B A1 Expo iOS arm), LLP 0034 (freshness policy), demos/improvement-sweep/arms/a1-snapback-expo-ios/findings/0137-a1expo-f7-rn-connection-cycles-and-public-query-blanks.json
 
@@ -198,3 +200,55 @@ Either way the permanent-blanking half stays closed by the carrier-agnostic
 self-heal above, and the instrumentation stays in place to name any
 recurrence's close code directly. Ticket stays OPEN for the disposition
 call.
+
+---
+
+## 2026-08-04 — closure: HEAD-sha confirmation ran clean; loop-half closed per author decision sitting #3, ticket resolved
+
+The disposition call landed at author decision sitting #3
+(`issues/closed/20260804-author-decision-sitting-3.md`, ruling 1): confirm
+once at HEAD, then close the loop-half with the idle-hold receipt as a
+standing regression gate. The confirmation ran the same day.
+
+**The run:** same harness, same fleet MacBook Air, fresh dedicated
+iPhone 17 Pro / iOS 26.3.1 simulator (created for the run, deleted after) —
+but this time the entire stack bound to **origin/main
+`5fbea8e4d0348e7e22d0d0e90e9a7125c53eda7b`**: repo dev server (runtime
+binary stamped at the sha), repo `@expo/snapback-client`/`-react`/
+`-contract` overlaid on the 0.1.8 closure, HEAD-regenerated bindings,
+native Release/Hermes build. That tip carries both fixes for what blocked
+the 2026-08-03 HEAD legs: the Hermes `toSorted` carrier brick
+(`6c650e7ad`) and the provider subscribe retry storm (`5fbea8e4d`), both
+closed in `issues/closed/20260803-rn-carrier-bricked-tosorted-registration-ledger.md`.
+
+**Result: zero `lost` transitions — in fact zero stream-state transitions
+of any kind — across a 120-second idle hold**, connection `live` end to
+end, sites ready (3) and records ready (3) intact at hold start and hold
+end (screenshots), no query errors. The ticket's acceptance witness (idle
+provider with one public + one protected query holds `live` for 60s with
+rows intact, matching node) passed at 2× duration on current HEAD, the
+second consecutive clean hold after the 0.1.8-era run.
+
+**Both halves are now closed:**
+
+- **~2s reconnect loop:** never reproduced on any post-0.1.7 closure;
+  confirmed gone at HEAD `5fbea8e4d`. Closed on the sitting #3 ruling with
+  the receipt as the gate (below).
+- **Permanent public-query blanking:** closed 2026-08-01 by the
+  carrier-agnostic `pendingResumeConfirmation` self-heal (fix-wave Lane
+  β2, above), reconfirmed incidentally by both clean holds (retainable
+  rows intact throughout).
+
+**Standing regression gate:** the gate artifact is
+`demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/f7-rerun-20260804-head-confirm/`
+(`f7-evidence.json` receipt + hold screenshots + witness timeline; its
+README records the full binding and the rerun recipe). A future rerun
+executes the archived harness
+(`demos/improvement-sweep/arms/a1-snapback-expo-ios/evidence/f7-rerun-20260803/harness/f7-run-ios.mjs`)
+and compares against that receipt: the gate holds while
+`hold.lostDuringHold.totalLost` is 0 over a ≥120s idle hold with both
+queries' rows intact at hold end. Any recurrence self-identifies — the
+`ed8ee8764` loss detail (closeCode/closeReason/errorPreceded/sinceOpenMs)
+rides every `lost` transition.
+
+RESOLVED and closed.
