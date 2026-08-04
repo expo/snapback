@@ -6,6 +6,18 @@ PROOF_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROOF_MODE="${1:---check}"
 PROOF_RECEIPT="${SNAPBACK_TELEMETRY_PHASE1_RECEIPT:-$PROOF_ROOT/tests/acceptance/telemetry-phase1-evidence.v1.json}"
 
+# @ref LLP 0010#native-runtime-bootstrap — Cargo test harnesses link the
+# vendored engine too; give them the same supported loader environment as the
+# canonical local proof before the coded bootstrap validates the real binary.
+case "$(uname -s | tr '[:upper:]' '[:lower:]')" in
+    darwin)
+        export DYLD_FRAMEWORK_PATH="$PROOF_ROOT/vendor/ibex/ios/Frameworks:$PROOF_ROOT/vendor/ibex/ios/Frameworks/macosx${DYLD_FRAMEWORK_PATH:+:$DYLD_FRAMEWORK_PATH}"
+        ;;
+    linux)
+        export LD_LIBRARY_PATH="$PROOF_ROOT/vendor/ibex/linux/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        ;;
+esac
+
 prepare_rust_test_fixtures() {
     # @ref LLP 0032#phase-5--product-boundary-and-dx — P3's generated-artifact
     # contract: Rust unit fixtures include these ignored caches at compile
