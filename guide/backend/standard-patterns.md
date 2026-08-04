@@ -4,13 +4,13 @@ id: backend.standard-patterns
 order: 25
 audience: agent-first
 capabilities: [backend.standard-patterns]
-authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0113-qualification-and-publication-authority.spec.md, packages/snapback-codegen/standard-patterns.mjs, packages/snapback-codegen/define.mjs]
+authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0113-qualification-and-publication-authority.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, packages/snapback-codegen/standard-patterns.mjs, packages/snapback-codegen/define.mjs]
 examples: [packages/snapback-codegen/standard-patterns.test.mjs, packages/snapback-codegen/relation-activity-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-04
+reviewed-commit: HEAD
 ---
 
 # Safe standard data patterns
@@ -297,6 +297,14 @@ one pinned-snapshot batch via `defineSnapshotBatchQuery` — a further
 experimental capability (`snapshot_batch_v1`, which also requires
 `bounded_children_v1`) with its own page:
 [snapshot batches](./snapshot-batches.md).
+
+The neighboring experimental `single_table_v1` class is deliberately not an
+authoring helper. Codegen derives it automatically when an ordinary
+`defineLiveQuery` is public, authority-independent, ambient-free, and its
+complete read summary is the one table in its declarative plan. The generated
+artifact then requires the class; authors cannot assert membership. It remains
+single-node-only and uses Arm A authority-independent snapshot retention, not
+an `AuthorizedLease` and not `defineSnapshotBatchQuery`.
 
 The source operation is exactly `insert`, `patch`, or `delete`. Empty and
 storage-identical patches are not effects; missing targets and operation

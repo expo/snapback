@@ -54,7 +54,7 @@ const references = {
     "expectedGeneration": {
       "appId": "partiful-matrix",
       "bundleHash": "sha256:bd48576e7bd87503",
-      "inputsHash": "c3f0416cba1518184110dfd9a9622d57225520e104da0d8593eafcc74d676b50",
+      "inputsHash": "ede0df0ac5a518e1ed4b8589f0b4e9ea89dfd714c318ac38f882b3662260167a",
       "schemaHash": "sha256:26d156d624217aee",
       "schemaVersion": "snapback.v0"
     },
@@ -73,7 +73,7 @@ const references = {
         "plan/steps/2/insert/row-id",
         "plan/steps/3/insert/row-id"
       ],
-      "operationHash": "sha256:f51054f6ce38b7acd29ff02f19bcc80f351dfc0836f6d2aeea433f44a4cf8b8f",
+      "operationHash": "sha256:0e13351086a553744d87932a269c38e9ab410f1d781f2a8d59016b066f204c0a",
       "plan": {
         "return_value": {
           "Binding": "eventId"
@@ -293,7 +293,7 @@ const references = {
         "activation": {
           "appId": "partiful-matrix",
           "bundleHash": "sha256:bd48576e7bd87503",
-          "inputsHash": "c3f0416cba1518184110dfd9a9622d57225520e104da0d8593eafcc74d676b50",
+          "inputsHash": "ede0df0ac5a518e1ed4b8589f0b4e9ea89dfd714c318ac38f882b3662260167a",
           "schemaHash": "sha256:26d156d624217aee",
           "schemaVersion": "snapback.v0"
         },
@@ -326,7 +326,7 @@ const references = {
     "expectedGeneration": {
       "appId": "partiful-matrix",
       "bundleHash": "sha256:bd48576e7bd87503",
-      "inputsHash": "c3f0416cba1518184110dfd9a9622d57225520e104da0d8593eafcc74d676b50",
+      "inputsHash": "ede0df0ac5a518e1ed4b8589f0b4e9ea89dfd714c318ac38f882b3662260167a",
       "schemaHash": "sha256:26d156d624217aee",
       "schemaVersion": "snapback.v0"
     },
@@ -356,7 +356,7 @@ const references = {
     "expectedGeneration": {
       "appId": "partiful-matrix",
       "bundleHash": "sha256:bd48576e7bd87503",
-      "inputsHash": "c3f0416cba1518184110dfd9a9622d57225520e104da0d8593eafcc74d676b50",
+      "inputsHash": "ede0df0ac5a518e1ed4b8589f0b4e9ea89dfd714c318ac38f882b3662260167a",
       "schemaHash": "sha256:26d156d624217aee",
       "schemaVersion": "snapback.v0"
     },
@@ -387,7 +387,7 @@ const references = {
     "expectedGeneration": {
       "appId": "partiful-matrix",
       "bundleHash": "sha256:bd48576e7bd87503",
-      "inputsHash": "c3f0416cba1518184110dfd9a9622d57225520e104da0d8593eafcc74d676b50",
+      "inputsHash": "ede0df0ac5a518e1ed4b8589f0b4e9ea89dfd714c318ac38f882b3662260167a",
       "schemaHash": "sha256:26d156d624217aee",
       "schemaVersion": "snapback.v0"
     },
@@ -410,7 +410,7 @@ const references = {
     "expectedGeneration": {
       "appId": "partiful-matrix",
       "bundleHash": "sha256:bd48576e7bd87503",
-      "inputsHash": "c3f0416cba1518184110dfd9a9622d57225520e104da0d8593eafcc74d676b50",
+      "inputsHash": "ede0df0ac5a518e1ed4b8589f0b4e9ea89dfd714c318ac38f882b3662260167a",
       "schemaHash": "sha256:26d156d624217aee",
       "schemaVersion": "snapback.v0"
     },
@@ -448,7 +448,7 @@ const references = {
     "expectedGeneration": {
       "appId": "partiful-matrix",
       "bundleHash": "sha256:bd48576e7bd87503",
-      "inputsHash": "c3f0416cba1518184110dfd9a9622d57225520e104da0d8593eafcc74d676b50",
+      "inputsHash": "ede0df0ac5a518e1ed4b8589f0b4e9ea89dfd714c318ac38f882b3662260167a",
       "schemaHash": "sha256:26d156d624217aee",
       "schemaVersion": "snapback.v0"
     },
@@ -466,7 +466,7 @@ const references = {
       "mintSites": [
         "plan/steps/1/insert/row-id"
       ],
-      "operationHash": "sha256:54d2a55160512f76aba8b7166ad761cf2541abc5fd3125109e99160ab1dfe5f6",
+      "operationHash": "sha256:af45d159c99ef99a17f4a8b6c6fd0edfe898cf2346c3c1f40cf4f17fd55dd43c",
       "plan": {
         "return_value": {
           "Binding": "postId"
@@ -602,7 +602,7 @@ const references = {
         "activation": {
           "appId": "partiful-matrix",
           "bundleHash": "sha256:bd48576e7bd87503",
-          "inputsHash": "c3f0416cba1518184110dfd9a9622d57225520e104da0d8593eafcc74d676b50",
+          "inputsHash": "ede0df0ac5a518e1ed4b8589f0b4e9ea89dfd714c318ac38f882b3662260167a",
           "schemaHash": "sha256:26d156d624217aee",
           "schemaVersion": "snapback.v0"
         },
@@ -642,7 +642,7 @@ const references = {
     "expectedGeneration": {
       "appId": "partiful-matrix",
       "bundleHash": "sha256:bd48576e7bd87503",
-      "inputsHash": "c3f0416cba1518184110dfd9a9622d57225520e104da0d8593eafcc74d676b50",
+      "inputsHash": "ede0df0ac5a518e1ed4b8589f0b4e9ea89dfd714c318ac38f882b3662260167a",
       "schemaHash": "sha256:26d156d624217aee",
       "schemaVersion": "snapback.v0"
     },
@@ -660,7 +660,7 @@ const references = {
       "mintSites": [
         "plan/steps/2/insert/row-id"
       ],
-      "operationHash": "sha256:626a42b6a36a98c928b6797ee026c5d50a61c3fa016b51dd4836048d667a912e",
+      "operationHash": "sha256:b1256bc159f0e28e8e19389dc6c88059ed05046e63d4cde7bb7a4c1862e24f77",
       "plan": {
         "return_value": {
           "Binding": "rsvpId"
@@ -832,7 +832,7 @@ const references = {
         "activation": {
           "appId": "partiful-matrix",
           "bundleHash": "sha256:bd48576e7bd87503",
-          "inputsHash": "c3f0416cba1518184110dfd9a9622d57225520e104da0d8593eafcc74d676b50",
+          "inputsHash": "ede0df0ac5a518e1ed4b8589f0b4e9ea89dfd714c318ac38f882b3662260167a",
           "schemaHash": "sha256:26d156d624217aee",
           "schemaVersion": "snapback.v0"
         },

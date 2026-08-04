@@ -13,7 +13,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import {
   mkdir,
   mkdtemp,
@@ -47,11 +47,21 @@ import { startServer } from '../../demos/_kit/server-process.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, '../..');
-const DATE = '2026-08-03';
+const RUN_DATE = '2026-08-04';
+const WORKLOAD_DATE = '2026-08-03';
 const DEMO = join(ROOT, 'demos/triage-graph');
 const BACKEND = join(DEMO, 'snapback');
 const GENERATED = join(BACKEND, 'generated');
 const FIXTURE_DIR = join(ROOT, 'tests/acceptance/fixtures/triage-graph');
+const latestRetainedDate = () => {
+  const dates = readdirSync(FIXTURE_DIR)
+    .map((name) => name.match(/^move1-exit\.(\d{4}-\d{2}-\d{2})\.v1\.json$/u)?.[1])
+    .filter(Boolean)
+    .sort();
+  assert.ok(dates.length > 0, `no dated Triage Move-1 receipt in ${FIXTURE_DIR}`);
+  return dates.at(-1);
+};
+const DATE = process.argv.includes('--check') ? latestRetainedDate() : RUN_DATE;
 const RECEIPT_PATH = join(FIXTURE_DIR, `move1-exit.${DATE}.v1.json`);
 const BUDGET_PATH = join(FIXTURE_DIR, `budget-freeze.${DATE}.v1.json`);
 const EVIDENCE_PATH = join(ROOT, 'tests/acceptance/triage-graph-move1-v1-evidence.md');
@@ -95,7 +105,7 @@ function staticCompositionEvidence() {
   const inbox = byName.get('retainedInbox');
   const appSource = readFileSync(join(DEMO, 'src/App.tsx'), 'utf8');
   const workload = JSON.parse(readFileSync(
-    join(DEMO, `workload-manifest.${DATE}.v1.json`),
+    join(DEMO, `workload-manifest.${WORKLOAD_DATE}.v1.json`),
     'utf8',
   ));
   assert.equal(graph.runtime.HostPlan.SnapshotBatch.profile, 'snapshot-batch.v1');
@@ -631,7 +641,7 @@ function sourceProvenance() {
     'demos/triage-graph/demo.snapback.json',
     'demos/triage-graph/src/App.tsx',
     'demos/triage-graph/src/retained-registration.ts',
-    `demos/triage-graph/workload-manifest.${DATE}.v1.json`,
+    `demos/triage-graph/workload-manifest.${WORKLOAD_DATE}.v1.json`,
   ];
   return {
     revision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim(),
@@ -647,8 +657,10 @@ function evidenceMarkdown(receipt) {
   const budget = receipt.budgetFreeze?.frozenCeilings;
   return `# Triage Graph Move-1 exit evidence
 
-**Run date:** ${DATE}  
-**Source revision:** \`${receipt.source.revision}\` (dirty lane worktree)  
+**Run date:** ${DATE}
+
+**Source revision:** \`${receipt.source.revision}\` (dirty lane worktree)
+
 **Controlled run:** ${receipt.controlledRun.status}
 
 This is the Triage-only successor-app receipt. Fleet is excluded and remains
@@ -688,11 +700,26 @@ async function verifyRetainedArtifacts() {
     if (gate.status === 'BLOCKED') assert.match(gate.reason, /^SNAPBACK_TRIAGE_SANDBOX_SOCKET_BLOCKED:/u);
   }
   for (const file of receipt.source.files) {
-    assert.equal(sha256Hex(await readFile(join(ROOT, file.path))), file.sha256, file.path);
+    assert.equal(
+      sha256Hex(await readFile(join(ROOT, file.path))),
+      file.sha256,
+      `${file.path}: retained receipt source drifted from the working tree`,
+    );
   }
   if (receipt.controlledRun.status === 'PASS') {
     const budget = JSON.parse(await readFile(BUDGET_PATH, 'utf8'));
     assert.deepEqual(budget, receipt.budgetFreeze);
+    assert.equal(budget.date, DATE);
+    const activation = JSON.parse(await readFile(
+      join(BACKEND, 'trusted-composition-activation.json'),
+      'utf8',
+    ));
+    assert.equal(activation.format, 'snapback.trusted-composition-activation.v1');
+    assert.equal(receipt.controlledRun.activation.activationHash, activation.activationHash);
+    assert.equal(
+      receipt.controlledRun.activation.deploymentId,
+      activation.activation.deploymentId,
+    );
     assert.equal(receipt.summary.pass, 8);
     assert.equal(receipt.summary.blocked, 0);
   }

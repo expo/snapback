@@ -103,8 +103,10 @@ export const publicLive = defineLiveQuery({
   assert.equal(publicLive.authorityIndependent, true);
   assert.equal(publicLive.rqsEligible, undefined, 'rqsEligible remains derived, never authored');
   assert.deepEqual(publicLive.argsContract.fields.map((field) => field.name), ['zed', 'alpha']);
-  assert.equal(publicLive.requiredCapabilities.includes('single_table_v1'), false,
-    'the dormant class does not move a capability row');
+  assert.equal(publicLive.requiredCapabilities.includes('single_table_v1'), true,
+    'the activated host-derived class carries its experimental target requirement');
+  assert.equal(manifest.acknowledgedExperimentalCapabilities.includes('single_table_v1'), true,
+    'the generated artifact explicitly acknowledges the class maturity');
   const api = await import(`${pathToFileURL(join(dir, 'generated', 'api.mjs')).href}?single-table`);
   const composition = api.api.publicLive.composition;
   const node = composition.normalizedCompositePlan.nodes[0].nodePlan;
@@ -133,8 +135,8 @@ export const publicLive = defineLiveQuery({
   assert.match(composition.planHash, /^sha256:[0-9a-f]{64}$/u);
   assert.equal(
     composition.planHash,
-    'sha256:e98ec047024a9771647661d388d8cb67f23c9487d25b33d63c196c818410ec5e',
-    'SingleTablePlanV1 identity stays byte-identical to Rust reconstruction',
+    'sha256:5adc42769ab270a7deb6813bf9256316e7b38b98945faadea82f8b49f0247324',
+    'activated capability classification rotates identically in codegen and Rust reconstruction',
   );
 
   for (const name of ['myTodos', 'scopedTodos', 'publicTodos']) {

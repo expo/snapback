@@ -5,7 +5,9 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-04 (OQ5 dated ruling — write rung 2 (LLP 0155
+**Revised:** 2026-08-04 (read-lane capability activation record:
+`single_table_v1` registered/required and source-qualified local support
+published; no write-rung authority changes). 2026-08-04 (OQ5 dated ruling — write rung 2 (LLP 0155
 Move 4) opened: owner/timebox recorded, Candidate-A framing and the
 Calendar shipping-vs-lab disposition stated;
 `issues/20260804-0129-write-rung2-ruling.md`.)
@@ -1846,3 +1848,15 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
     should become conformance on both executions plus mismatch
     refusal/quarantine/resync tests — but naming that owner is the
     author's call.
+
+## Read-lane capability activation record — 2026-08-04
+
+The LLP 0155/0157/0166 read lane has activated `single_table_v1`: the id is
+registered at experimental maturity, qualifying generated artifacts require
+it, and the contributor-source local target publishes support only through
+LLP 0110's exact store/class carrier. The legacy-to-QMK path stays
+connected-only prove-or-fresh and pending-intent-safe; Arm A adds no
+`AuthorizedLease`. Public packages, remote/hosted targets, and Fleet remain
+false/GAP. This record satisfies the capability board for the introduction
+act and changes no Phase, Option-C trigger, write-rung owner/timebox, or
+current OQ disposition in this Plan.

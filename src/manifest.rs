@@ -109,6 +109,7 @@ mod single_table_v1_tests {
         function.required_capabilities = vec![
             "live_subscriptions".to_owned(),
             "host_plan_runtime".to_owned(),
+            "single_table_v1".to_owned(),
             "result_contract_v1".to_owned(),
             "args_contract_v1".to_owned(),
         ];
@@ -202,7 +203,7 @@ mod single_table_v1_tests {
             .expect("single-table identity exists");
         assert_eq!(
             identity.plan_hash,
-            "sha256:e98ec047024a9771647661d388d8cb67f23c9487d25b33d63c196c818410ec5e"
+            "sha256:5adc42769ab270a7deb6813bf9256316e7b38b98945faadea82f8b49f0247324"
         );
         let node = &identity.normalized_composite_plan["nodes"][0]["nodePlan"];
         assert_eq!(node["classId"], "single_table_v1");
@@ -8929,6 +8930,8 @@ pub enum TargetCapabilityId {
     SequenceAllocationV1,
     #[serde(rename = "snapshot_batch_v1")]
     SnapshotBatchV1,
+    #[serde(rename = "single_table_v1")]
+    SingleTableV1,
     #[serde(rename = "migration_keyset_scan_v1")]
     MigrationKeysetScanV1,
     #[serde(rename = "full_text_search_v1")]
@@ -8969,7 +8972,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 33] = [
+    pub const ALL: [Self; 34] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -8988,6 +8991,7 @@ impl TargetCapabilityId {
         Self::RelationalQueryV1,
         Self::SequenceAllocationV1,
         Self::SnapshotBatchV1,
+        Self::SingleTableV1,
         Self::MigrationKeysetScanV1,
         Self::FullTextSearchV1,
         Self::LiveFullTextSearchV1,
@@ -9025,6 +9029,7 @@ impl TargetCapabilityId {
             Self::RelationalQueryV1 => "relational_query_v1",
             Self::SequenceAllocationV1 => "sequence_allocation_v1",
             Self::SnapshotBatchV1 => "snapshot_batch_v1",
+            Self::SingleTableV1 => "single_table_v1",
             Self::MigrationKeysetScanV1 => "migration_keyset_scan_v1",
             Self::FullTextSearchV1 => "full_text_search_v1",
             Self::LiveFullTextSearchV1 => "live_full_text_search_v1",
@@ -9078,6 +9083,7 @@ impl TargetCapabilityId {
             | Self::RegisteredBundleBootV1
             | Self::SequenceAllocationV1
             | Self::SnapshotBatchV1
+            | Self::SingleTableV1
             | Self::LiveFullTextSearchV1
             | Self::VectorSearchV1
             | Self::ResultContractV1
@@ -9264,6 +9270,20 @@ impl TargetCapabilityId {
             Self::SnapshotBatchV1 => {
                 facts.snapshot_batch_v1_registered
                     && Self::BoundedChildrenV1.is_supported_by(manifest, facts)
+                    && Self::LiveSubscriptions.is_supported_by(manifest, facts)
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+            }
+            // @ref LLP 0110#local-persistent-store-publication-authority-amendment--2026-08-04
+            // — the host-derived class is supportable only on the exact
+            // contributor-source target whose embedded carrier binds the
+            // proof/wire/store receipts and sources. Registration and static
+            // experimental maturity alone never manufacture support.
+            // @ref LLP 0157#d1--the-node-algebra — class membership is
+            // host-derived, single-node-only, and not author-assertable.
+            Self::SingleTableV1 => {
+                facts.single_table_v1_registered
+                    && facts.local_persistent_store_publication_v1_verified
+                    && facts.host_plan_runtime
                     && Self::LiveSubscriptions.is_supported_by(manifest, facts)
                     && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
             }
@@ -9458,6 +9478,18 @@ const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
     "sha256:6560a24997dd07101f131f3f9e677a69da96866f56981577258d227fd67f20f9";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
+const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
+    include_bytes!("local-persistent-store-publication.v1.json");
+const LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256: &str =
+    "sha256:eb2aa9237457ab44a48cddcd5414832211a32539353c9fe9ad9be2f131657d97";
+const LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES: &[u8] = include_bytes!(
+    "../tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json"
+);
+const LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES: &[u8] =
+    include_bytes!("../tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json");
+const LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES: &[u8] = include_bytes!(
+    "../tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json"
+);
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -9492,6 +9524,32 @@ struct LocalSequenceAllocationPublicationV1 {
     maturity: String,
     #[serde(rename = "qualificationReceiptSha256")]
     qualification_receipt_sha256: String,
+    #[serde(rename = "executorSourceSha256")]
+    executor_source_sha256: BTreeMap<String, String>,
+    #[serde(rename = "schemaSourceSha256")]
+    schema_source_sha256: BTreeMap<String, String>,
+    #[serde(rename = "clientSourceSha256")]
+    client_source_sha256: BTreeMap<String, String>,
+    #[serde(rename = "packageClosureSha256")]
+    package_closure_sha256: Option<String>,
+    #[serde(rename = "buildProvenanceRequirement")]
+    build_provenance_requirement: String,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+struct LocalPersistentStorePublicationV1 {
+    #[serde(rename = "schemaVersion")]
+    schema_version: String,
+    #[serde(rename = "targetProfileId")]
+    target_profile_id: String,
+    #[serde(rename = "capabilityIds")]
+    capability_ids: Vec<String>,
+    maturity: String,
+    #[serde(rename = "qualificationReceiptSha256")]
+    qualification_receipt_sha256: String,
+    #[serde(rename = "supportingReceiptSha256")]
+    supporting_receipt_sha256: BTreeMap<String, String>,
     #[serde(rename = "executorSourceSha256")]
     executor_source_sha256: BTreeMap<String, String>,
     #[serde(rename = "schemaSourceSha256")]
@@ -9654,6 +9712,103 @@ fn local_sequence_allocation_publication_verified() -> bool {
     )
 }
 
+/// Validate the exact local store/class publication carrier. The carrier
+/// composes the retained carrier-exit receipt with the separately qualified
+/// Triage successor receipts; Fleet remains an explicit, non-supporting OQ5
+/// boundary. Public packages and other targets require their own authority.
+///
+/// @ref LLP 0110#local-persistent-store-publication-authority-amendment--2026-08-04
+/// — support follows the source-owned carrier and exact evidence/source
+/// bindings, never an application-authored capability string.
+/// @ref LLP 0166#local-publication-carrier-amendment--2026-08-04 — Arm A and
+/// connected prove-or-fresh store semantics remain part of the bound class.
+fn local_persistent_store_publication_verified_for(
+    build_distribution: &str,
+    carrier_bytes: &[u8],
+    expected_carrier_sha256: &str,
+    carrier_exit_receipt_bytes: &[u8],
+    triage_move1_receipt_bytes: &[u8],
+    triage_budget_receipt_bytes: &[u8],
+) -> bool {
+    if build_distribution != crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE {
+        return false;
+    }
+    if sha256_prefixed(carrier_bytes) != expected_carrier_sha256 {
+        return false;
+    }
+    let Ok(carrier) = serde_json::from_slice::<LocalPersistentStorePublicationV1>(carrier_bytes)
+    else {
+        return false;
+    };
+    carrier.schema_version == "snapback.local-capability-publication.v1"
+        && carrier.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+        && carrier.capability_ids == ["single_table_v1".to_owned()]
+        && carrier.maturity == "experimental"
+        && carrier.qualification_receipt_sha256 == sha256_prefixed(carrier_exit_receipt_bytes)
+        && carrier.supporting_receipt_sha256
+            == BTreeMap::from([
+                (
+                    "triageBudgetFreeze".to_owned(),
+                    sha256_prefixed(triage_budget_receipt_bytes),
+                ),
+                (
+                    "triageMove1Exit".to_owned(),
+                    sha256_prefixed(triage_move1_receipt_bytes),
+                ),
+            ])
+        && carrier.executor_source_sha256
+            == BTreeMap::from([
+                (
+                    "src/local.rs".to_owned(),
+                    "sha256:0e805dc28080ee8b3930ed998bc2931e1933d61ae6a50b420e4b92bf8ed7f241"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage.rs".to_owned(),
+                    "sha256:046f2a9e2274825b7c85ded21dd6cad9c0d0f67e77dd2105efd2cec5f2d3fd63"
+                        .to_owned(),
+                ),
+            ])
+        && carrier.schema_source_sha256
+            == BTreeMap::from([(
+                "packages/snapback-codegen/index.mjs".to_owned(),
+                "sha256:8af7420a8d1f642fa292f278c50bbc53a8e575f34e31e73cfe401a773166be39"
+                    .to_owned(),
+            )])
+        && carrier.client_source_sha256
+            == BTreeMap::from([
+                (
+                    "packages/snapback-client/local-read-admission.mjs".to_owned(),
+                    "sha256:7ffaf2ad7e59d98c3e4dd2a8195da7705882f11c187b1239725e33d84a04bc54"
+                        .to_owned(),
+                ),
+                (
+                    "packages/snapback-client/materialization-bridge.mjs".to_owned(),
+                    "sha256:3c5a4038feb347718e78385767c5cc867ab871e7410f1c335378c10d6d5af259"
+                        .to_owned(),
+                ),
+                (
+                    "packages/snapback-client/materialization-store.mjs".to_owned(),
+                    "sha256:bd7e4935d031af165c4cdfe57d25a89e871f0eff72932b02240b846163471063"
+                        .to_owned(),
+                ),
+            ])
+        && carrier.package_closure_sha256.is_none()
+        && carrier.build_provenance_requirement == "source-commit-and-embedded-carrier-sha256"
+}
+
+#[cfg(test)]
+fn local_persistent_store_publication_verified() -> bool {
+    local_persistent_store_publication_verified_for(
+        crate::identity::build_distribution(),
+        LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+        LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+        LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+        LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+        LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+    )
+}
+
 /// Code-owned implementation facts not representable by existing capability
 /// manifest fields. Constructors are internal so candidate artifacts cannot
 /// turn assertions into target authority.
@@ -9661,6 +9816,7 @@ fn local_sequence_allocation_publication_verified() -> bool {
 pub struct TargetCapabilityFacts {
     bounded_children_v1_registered: bool,
     snapshot_batch_v1_registered: bool,
+    single_table_v1_registered: bool,
     bounded_response_stream_v1_registered: bool,
     relational_query_v1_registered: bool,
     sequence_allocation_v1_registered: bool,
@@ -9688,6 +9844,7 @@ pub struct TargetCapabilityFacts {
     write_activity_v1_registered: bool,
     local_relation_activity_publication_v1_verified: bool,
     local_sequence_allocation_publication_v1_verified: bool,
+    local_persistent_store_publication_v1_verified: bool,
     asset_lifecycle_local_fs_registered: bool,
     asset_image_finalization_registered: bool,
     asset_reference_gc_registered: bool,
@@ -9714,6 +9871,15 @@ impl TargetCapabilityFacts {
                 LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256,
                 LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES,
             );
+        let local_persistent_store_publication_v1_verified =
+            local_persistent_store_publication_verified_for(
+                build_distribution,
+                LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+                LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+                LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+                LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+                LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+            );
         // @ref LLP 0109#166-the-manifest-is-an-executable-advertisement-gate — both local capability ids
         // are advertised only after the closed executable suite passes every
         // mandatory local row; LLP 0109 remains Review, so registry maturity
@@ -9728,6 +9894,10 @@ impl TargetCapabilityFacts {
             //   — exact tuple execution, `sbsb1` custody, and first-page live
             //   replacement are registered together on the local target.
             snapshot_batch_v1_registered: true,
+            // @ref LLP 0157#d1--the-node-algebra — registration enables
+            // only the host-derived, single-node class; the publication
+            // carrier below remains the independent support gate.
+            single_table_v1_registered: true,
             bounded_response_stream_v1_registered: true,
             relational_query_v1_registered: true,
             // @ref LLP 0135#18-ceilings-receipts-and-capability — handler and
@@ -9776,6 +9946,7 @@ impl TargetCapabilityFacts {
             write_activity_v1_registered: true,
             local_relation_activity_publication_v1_verified,
             local_sequence_allocation_publication_v1_verified,
+            local_persistent_store_publication_v1_verified,
         }
     }
 
@@ -9783,6 +9954,7 @@ impl TargetCapabilityFacts {
         Self {
             bounded_children_v1_registered: false,
             snapshot_batch_v1_registered: false,
+            single_table_v1_registered: false,
             mixed_bundle_boot_v2_registered: false,
             sequence_allocation_v1_registered: false,
             vector_search_v1_registered: false,
@@ -9794,6 +9966,7 @@ impl TargetCapabilityFacts {
             write_activity_v1_registered: false,
             local_relation_activity_publication_v1_verified: false,
             local_sequence_allocation_publication_v1_verified: false,
+            local_persistent_store_publication_v1_verified: false,
             ..Self::local_auth_aware()
         }
     }
@@ -9803,6 +9976,12 @@ impl TargetCapabilityFacts {
         self.snapshot_batch_v1_registered = false;
         self.write_activity_v1_registered = false;
         self.local_relation_activity_publication_v1_verified = false;
+        self
+    }
+
+    fn with_local_persistent_store_publication_withheld(mut self) -> Self {
+        self.single_table_v1_registered = false;
+        self.local_persistent_store_publication_v1_verified = false;
         self
     }
 
@@ -10403,6 +10582,7 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "bounded_response_stream_v1".to_owned(),
         "bounded_children_v1".to_owned(),
         "snapshot_batch_v1".to_owned(),
+        "single_table_v1".to_owned(),
         "mixed_bundle_boot_v2".to_owned(),
         "notifications".to_owned(),
         "ephemeral_hosted_adapter".to_owned(),
@@ -10428,6 +10608,12 @@ fn ensure_relation_activity_capability_gaps(gaps: &mut Vec<String>) {
 fn ensure_snapshot_batch_capability_gap(gaps: &mut Vec<String>) {
     if !gaps.iter().any(|gap| gap == "snapshot_batch_v1") {
         gaps.push("snapshot_batch_v1".to_owned());
+    }
+}
+
+fn ensure_single_table_capability_gap(gaps: &mut Vec<String>) {
+    if !gaps.iter().any(|gap| gap == "single_table_v1") {
+        gaps.push("single_table_v1".to_owned());
     }
 }
 
@@ -10458,6 +10644,11 @@ impl CapabilityManifest {
                 .retain(|gap| gap != "bounded_children_v1" && gap != "write_activity_v1");
         } else {
             ensure_relation_activity_capability_gaps(&mut capability_gaps);
+        }
+        if capability_facts.local_persistent_store_publication_v1_verified {
+            capability_gaps.retain(|gap| gap != "single_table_v1");
+        } else {
+            ensure_single_table_capability_gap(&mut capability_gaps);
         }
         let mut manifest = Self {
             artifact_kind: capability_manifest_kind(),
@@ -10678,8 +10869,9 @@ impl CapabilityManifest {
             .capability_gaps
             .push("notifications.expoPushSeam".to_owned());
         ensure_relation_activity_capability_gaps(&mut manifest.capability_gaps);
-        let mut facts =
-            TargetCapabilityFacts::local_auth_aware().with_relation_activity_publication_withheld();
+        let mut facts = TargetCapabilityFacts::local_auth_aware()
+            .with_relation_activity_publication_withheld()
+            .with_local_persistent_store_publication_withheld();
         facts.full_text_search_v1_registered = false;
         facts.vector_search_v1_registered = false;
         facts.asset_lifecycle_local_fs_registered = false;
@@ -10934,6 +11126,18 @@ impl CapabilityManifest {
                 .retain(|gap| gap != "snapshot_batch_v1");
         } else {
             ensure_snapshot_batch_capability_gap(&mut self.capability_gaps);
+        }
+        // @ref LLP 0113#1-closed-capability-registry-assignment — support is
+        // independently derived from the local carrier; maturity does not
+        // remove this structured GAP on any target where the predicate fails.
+        if self
+            .supported_capabilities
+            .contains(&TargetCapabilityId::SingleTableV1)
+        {
+            self.capability_gaps
+                .retain(|gap| gap != "single_table_v1");
+        } else {
+            ensure_single_table_capability_gap(&mut self.capability_gaps);
         }
         if self
             .supported_capabilities
@@ -12025,6 +12229,10 @@ mod membership_manifest_grammar_tests {
                 CapabilityMaturity::Experimental,
             ),
             (
+                TargetCapabilityId::SingleTableV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
                 TargetCapabilityId::VectorSearchV1,
                 CapabilityMaturity::Experimental,
             ),
@@ -12382,6 +12590,115 @@ mod membership_manifest_grammar_tests {
                 manifest.target_profile_id,
             );
         }
+    }
+
+    #[test]
+    fn single_table_publication_is_experimental_local_source_only() {
+        assert!(local_persistent_store_publication_verified());
+        assert_eq!(
+            TargetCapabilityId::SingleTableV1.maturity(),
+            CapabilityMaturity::Experimental,
+        );
+        for manifest in [
+            CapabilityManifest::local_v0_declared(),
+            CapabilityManifest::local_v0_instance(Vec::new(), true),
+        ] {
+            assert!(
+                manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::SingleTableV1),
+                "{} must publish the qualified host-derived class",
+                manifest.target_profile_id,
+            );
+            assert_eq!(
+                manifest
+                    .capability_maturity
+                    .get(&TargetCapabilityId::SingleTableV1),
+                Some(&CapabilityMaturity::Experimental),
+            );
+            assert!(
+                !manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "single_table_v1")
+            );
+        }
+        for manifest in [
+            CapabilityManifest::remote_service_sqlite_ibex_declared(),
+            CapabilityManifest::conformance_workerd_v8(json!({})),
+            CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+        ] {
+            assert!(
+                !manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::SingleTableV1),
+                "{} must not inherit contributor-source publication",
+                manifest.target_profile_id,
+            );
+            assert!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "single_table_v1"),
+                "{} must retain the structured single_table_v1 GAP",
+                manifest.target_profile_id,
+            );
+            assert!(
+                !manifest
+                    .capability_maturity
+                    .contains_key(&TargetCapabilityId::SingleTableV1),
+                "unsupported ids do not receive maturity annotations",
+            );
+        }
+
+        let withheld = CapabilityManifest::local_v0_with_facts(
+            Vec::new(),
+            TargetCapabilityFacts::local_auth_aware()
+                .with_local_persistent_store_publication_withheld(),
+        );
+        assert!(
+            !withheld
+                .supported_capabilities
+                .contains(&TargetCapabilityId::SingleTableV1)
+        );
+        assert!(
+            withheld
+                .capability_gaps
+                .iter()
+                .any(|gap| gap == "single_table_v1")
+        );
+    }
+
+    #[test]
+    fn single_table_publication_tamper_and_package_substitutions_fail_closed() {
+        let mut tampered_carrier = LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES.to_vec();
+        tampered_carrier[0] ^= 1;
+        assert!(!local_persistent_store_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+            &tampered_carrier,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+        ));
+        let mut stale_triage = LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES.to_vec();
+        stale_triage.push(b'\n');
+        assert!(!local_persistent_store_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+            &stale_triage,
+            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+        ));
+        assert!(!local_persistent_store_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+        ));
     }
 
     #[test]

@@ -36,6 +36,9 @@ pub const ORDINARY_MUTATION_LANE_V1: &str = "ordinaryMutation";
 const ORIGINATOR_CLIENT: &str = "client";
 const ORIGINATOR_HOST: &str = "host";
 
+// Lookup results cross the storage/runtime boundary as one explicit value.
+// Boxing the common exact-replay arm would add an allocation to every retry.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum OperationLookupV1 {
     Novel,
@@ -714,10 +717,10 @@ fn authenticate_operation_identity(
             || identity.key.operation_id
                 != derive_host_operation_id(upstream_identity, *commit_ordinal))
     {
-            return Err(refused(
-                "SNAPBACK_HOST_OPERATION_IDENTITY_INVALID",
-                "host operation id does not match its authenticated upstream derivation",
-            ));
+        return Err(refused(
+            "SNAPBACK_HOST_OPERATION_IDENTITY_INVALID",
+            "host operation id does not match its authenticated upstream derivation",
+        ));
     }
     let epoch: Option<(i64, String, String, String)> = conn
         .query_row(

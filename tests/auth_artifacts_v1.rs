@@ -236,6 +236,7 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "relational_query_v1",
             "sequence_allocation_v1",
             "snapshot_batch_v1",
+            "single_table_v1",
             "migration_keyset_scan_v1",
             "full_text_search_v1",
             // @ref LLP 0132#capabilities-targets-and-staging — the local
@@ -257,7 +258,7 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "asset_video_finalization_v1",
         ]
     );
-    assert_eq!(TargetCapabilityId::ALL.len(), 33);
+    assert_eq!(TargetCapabilityId::ALL.len(), 34);
     for capability in TargetCapabilityId::ALL {
         assert_eq!(
             capability.as_str().parse::<TargetCapabilityId>(),

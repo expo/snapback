@@ -5,7 +5,8 @@
 **Systems:** Application data API, Relational queries, Mutations, Code generation, Authorization, Live Queries, Storage portability, Contract/Exact, Diagnostics, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-03 (Accepted LLP 0157 boundary: this Spec keeps
+**Revised:** 2026-08-04 (local persistent-store / `single_table_v1`
+publication-authority amendment; see dated section). 2026-08-03 (Accepted LLP 0157 boundary: this Spec keeps
 `BoundedChildrenQueryPlanV1`, bounded-child body semantics, and frozen `sbbc1`
 bytes; LLP 0157 owns the shared cursor-family registry and composition
 identity); 2026-08-02 (Accepted LLP 0135 owner fold: sequence-allocation
@@ -1777,3 +1778,32 @@ and the committed `sbbc1` vector. LLP 0157 now owns the common
 positions carry bounded-child boundary state without embedding an `sbbc1`
 credential. Existing `sbbc1` bytes do not migrate. No support fact changes
 until the owning executable gates pass.
+
+## Local persistent-store publication authority amendment — 2026-08-04
+
+The local and packaged publication authority above admits one additional,
+separate `LocalCapabilityPublicationV1` carrier for the contributor-source
+`local-dev-sqlite-ibex` target. It binds exactly the experimental
+`single_table_v1` capability id and generalizes to no other class, target, or
+distribution. The carrier binds the LLP 0166 carrier-exit receipt, the
+qualified Triage successor's Move-1 and budget-freeze receipts, and the exact
+executor, schema/codegen, and client-store source bytes that implement the
+proof/wire/store path. The older carrier-exit receipt's Triage GAP is closed
+only by those separately digest-bound successor receipts; its Fleet GAP stays
+an explicit LLP 0135 OQ5 boundary and is not rewritten as success.
+
+The code-owned target registry may derive positive local support only when the
+embedded carrier parses, its compiled digest and every bound evidence/source
+digest match, the dedicated class registration is true, and the existing
+`live_subscriptions` plus host-plan/runtime dependencies are supported by that
+same target. Static experimental maturity remains independent and still
+requires artifact acknowledgment. A generated artifact cannot supply,
+replace, or broaden the carrier.
+
+Contributor source remains the only admitted distribution. Public packages
+continue to require the release-key-verified
+`PackageCapabilityAttestationV1` described above, and hosted/remote profiles
+require their own target-scoped publication authority; until those carriers
+exist, `single_table_v1` is absent from support and remains a structured GAP
+there. LLP 0166 cross-references this authority and continues to own the store,
+retention, Arm-A, and connected prove-or-fresh semantics.

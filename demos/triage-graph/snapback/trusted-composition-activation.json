@@ -2,7 +2,7 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v1",
-    "databaseId": "019fccdb-6a1d-7263-9a77-061b63feed38",
+    "databaseId": "019fcfb2-dceb-7e43-82ab-0801e67e4cb6",
     "deploymentId": "triage-graph-p3-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
@@ -11,18 +11,18 @@
       "appId": "triage-graph",
       "schemaHash": "snapback.v1:sessions:schema:sha256:90ede1caedc062ee4681ef3b7b385ce86eda76720b526209007e1046c8fd7898",
       "bundleHash": "snapback.v1:sessions:function:sha256:035a4b27a1080d3bc4317fcc6ee2954099b33160c1320cace3bb4b09feebc6fe",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:1a0bcc8d679ec646d71077842e9292115279bd5844cb29816b986b759935058d"
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:1364c23765775fa4af6342f9cd7c74d9d1454b659e24bdd4d49a959d276e327d"
     },
-    "proofKeyManifestDigest": "sha256:e6850e8fe0729e361a5a5218903bfde6bda36521e96700ce34fba3d07cc35ce0"
+    "proofKeyManifestDigest": "sha256:4491e76ec35ca9edd920ab3363bbce3d73bad8e63a54f4f7a54d4114f9f91f0d"
   },
-  "activationHash": "sha256:24a7913ae52d4face25a851fb39b8c4dd09ae9bb810d9878417863b1a753043d",
+  "activationHash": "sha256:8e1772130afd2d4c1a9329db8c079562e7d1341c5e519e2365bc33d865c19593",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.Ae5Y8jO7ycP-u0mxhp6tkg",
+        "proofKeyId": "sbpk1.vXe63CS7-331DYERJ_yRZg",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "S_kjoyreyo8FOF56k6mcIrBEOlqO3t1WCDGC7zyJDMs"
+        "publicKeyBase64url": "42KsZ8E7_qfPQ9mV3uUNlKennTCDzn8WttfSQGHBe9o"
       }
     ]
   }

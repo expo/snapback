@@ -17,7 +17,7 @@
 // carrier whose sources genuinely should not have changed is a review
 // question, not something this script can hide.
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,10 +34,88 @@ const CARRIERS = [
     test: 'tests/conformance/sequence-allocation-publication-v1.mjs',
     receipt: 'tests/conformance/sequence-allocation-publication-v1.receipt.json',
   },
+  {
+    carrier: 'src/local-persistent-store-publication.v1.json',
+    test: 'tests/conformance/local-persistent-store-publication-v1.mjs',
+    receipts: [
+      {
+        field: 'qualificationReceiptSha256',
+        path: 'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
+      },
+      {
+        field: 'supportingReceiptSha256',
+        key: 'triageBudgetFreeze',
+        latest: {
+          directory: 'tests/acceptance/fixtures/triage-graph',
+          stem: 'budget-freeze',
+          pairedStem: 'move1-exit',
+        },
+        manifestIncludePrefix: '../tests/acceptance/fixtures/triage-graph/budget-freeze.',
+      },
+      {
+        field: 'supportingReceiptSha256',
+        key: 'triageMove1Exit',
+        latest: {
+          directory: 'tests/acceptance/fixtures/triage-graph',
+          stem: 'move1-exit',
+          pairedStem: 'budget-freeze',
+        },
+        manifestIncludePrefix: '../tests/acceptance/fixtures/triage-graph/move1-exit.',
+      },
+    ],
+  },
 ];
 
 const digestOf = (path) =>
   `sha256:${createHash('sha256').update(readFileSync(path)).digest('hex')}`;
+
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+
+function selectedReceiptPath(receipt) {
+  if (receipt.path) return receipt.path;
+  const { directory, stem, pairedStem } = receipt.latest;
+  const pattern = new RegExp(`^${escapeRegExp(stem)}\\.(\\d{4}-\\d{2}-\\d{2})\\.v1\\.json$`, 'u');
+  const names = readdirSync(join(ROOT, directory));
+  const pairedDates = new Set(names
+    .map((name) => name.match(
+      new RegExp(`^${escapeRegExp(pairedStem)}\\.(\\d{4}-\\d{2}-\\d{2})\\.v1\\.json$`, 'u'),
+    )?.[1])
+    .filter(Boolean));
+  const candidates = names
+    .map((name) => ({ name, match: name.match(pattern) }))
+    .filter(({ match }) => match !== null && pairedDates.has(match[1]))
+    .sort((left, right) => left.match[1].localeCompare(right.match[1]));
+  if (candidates.length === 0) {
+    throw new Error(`${directory}: no complete dated ${stem}/${pairedStem} receipt pair is present`);
+  }
+  return join(directory, candidates.at(-1).name);
+}
+
+function requireRecordedDigest(recorded, label) {
+  if (typeof recorded !== 'string' || !/^sha256:[0-9a-f]{64}$/u.test(recorded)) {
+    throw new Error(`${label}: carrier digest is absent or malformed; refusing a partial refresh`);
+  }
+  return recorded;
+}
+
+function selectManifestReceiptPath(manifestText, receipt, selectedPath) {
+  if (!receipt.manifestIncludePrefix) return { manifestText, changed: false };
+  const pattern = new RegExp(
+    `${escapeRegExp(receipt.manifestIncludePrefix)}\\d{4}-\\d{2}-\\d{2}\\.v1\\.json`,
+    'gu',
+  );
+  const matches = manifestText.match(pattern) ?? [];
+  if (matches.length !== 1) {
+    throw new Error(
+      `${receipt.manifestIncludePrefix}: expected exactly one Rust include path, found ${matches.length}`,
+    );
+  }
+  const desired = `../${selectedPath}`;
+  return {
+    manifestText: manifestText.replace(pattern, desired),
+    changed: matches[0] !== desired,
+  };
+}
 
 const MANIFEST = join(ROOT, 'src/manifest.rs');
 
@@ -57,17 +135,37 @@ for (const entry of CARRIERS) {
       // Both the carrier and manifest.rs spell the same digest, so one textual
       // substitution per digest keeps every copy in step without reformatting
       // either file.
-      carrierText = carrierText.split(recorded).join(actual);
-      manifestText = manifestText.split(recorded).join(actual);
+      const pinned = requireRecordedDigest(recorded, `${entry.carrier}:${group}.${source}`);
+      carrierText = carrierText.split(pinned).join(actual);
+      manifestText = manifestText.split(pinned).join(actual);
       refreshed.push(source);
     }
   }
-  if (entry.receipt && carrier.qualificationReceiptSha256) {
+  if (entry.receipt) {
+    const recorded = requireRecordedDigest(
+      carrier.qualificationReceiptSha256,
+      `${entry.carrier}:qualificationReceiptSha256`,
+    );
     const actual = digestOf(join(ROOT, entry.receipt));
-    if (actual !== carrier.qualificationReceiptSha256) {
-      carrierText = carrierText.split(carrier.qualificationReceiptSha256).join(actual);
-      manifestText = manifestText.split(carrier.qualificationReceiptSha256).join(actual);
+    if (actual !== recorded) {
+      carrierText = carrierText.split(recorded).join(actual);
+      manifestText = manifestText.split(recorded).join(actual);
       refreshed.push(entry.receipt);
+    }
+  }
+  for (const receipt of entry.receipts ?? []) {
+    const recorded = requireRecordedDigest(receipt.key
+      ? carrier[receipt.field]?.[receipt.key]
+      : carrier[receipt.field], `${entry.carrier}:${receipt.field}${receipt.key ? `.${receipt.key}` : ''}`);
+    const receiptPath = selectedReceiptPath(receipt);
+    const selectedManifest = selectManifestReceiptPath(manifestText, receipt, receiptPath);
+    manifestText = selectedManifest.manifestText;
+    if (selectedManifest.changed) refreshed.push(`${receiptPath} (Rust include selection)`);
+    const actual = digestOf(join(ROOT, receiptPath));
+    if (actual !== recorded) {
+      carrierText = carrierText.split(recorded).join(actual);
+      manifestText = manifestText.split(recorded).join(actual);
+      refreshed.push(receiptPath);
     }
   }
 

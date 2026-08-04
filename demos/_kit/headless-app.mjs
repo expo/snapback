@@ -35,7 +35,10 @@ export async function openHeadlessApp(metaUrl, {
       artifactsPath: join(generatedDir, 'artifacts.json'),
     },
   });
-  const provisioner = new SnapbackClient(server.baseUrl, server.clientOptions);
+  const provisioner = new SnapbackClient(server.baseUrl, {
+    ...server.clientOptions,
+    rqsStore: null,
+  });
   const routesPath = join(generatedDir, 'routes.manifest.json');
   let provisioned;
   try {
@@ -69,8 +72,11 @@ export async function openHeadlessApp(metaUrl, {
     repoRoot,
     server,
     close: async () => {
-      await client.closeAuth();
-      await server.stop();
+      try {
+        await client.closeAuth();
+      } finally {
+        await server.stop();
+      }
     },
   };
 }
