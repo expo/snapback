@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "33f9cbfc85991d8b2d100182ac507a4b8c8ae444"
+    "commit": "dab2410b6793ffa5685069a0a4054f0e2b21608a"
   },
   "nav": {
     ".": [
@@ -242,6 +242,11 @@
         "id": "operating.error-tracking",
         "order": 6,
         "title": "Backend error tracking"
+      },
+      {
+        "id": "operating.instance-forks",
+        "order": 7,
+        "title": "Local instance forks"
       }
     ],
     "protocol": [
@@ -1405,7 +1410,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "870998b408cdc68621ab570ae3e320e4b0724ef240b67dd1dbc75796fd1442e2",
+      "sha256": "eb7485732c84341db36c5d144d25d7e03064e19ca3927da073f489f56c7d8160",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2058,7 +2063,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "12ecf33a7dd815acad4a58215f1011526d2d9dea9ee4dbe8b65a5ddd623effe7",
+      "sha256": "3e1619ce67179767403ddaff2d3b92e52e6c24c087ca9f0d48e6553d9e7edc72",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2197,6 +2202,44 @@
           "lang": "json",
           "class": "transcluded",
           "source": "tests/host_ops_v0.rs"
+        }
+      ]
+    },
+    "operating.instance-forks": {
+      "path": "guide/operating/instance-forks.md",
+      "title": "Local instance forks",
+      "order": 7,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "operating.instance-forks"
+      ],
+      "authorities": [
+        "llp/0158-instance-forking.rfc.md",
+        "src/cli.rs",
+        "src/instance_fork.rs",
+        "demos/_kit/instance-fork.mjs"
+      ],
+      "examples": [
+        "demos/todo/tests/acceptance/forked-parent.mjs",
+        "tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json"
+      ],
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "HEAD",
+      "sha256": "ef481a43159d22ba0993855b0ca24386c014ef325f9eda08385c53947a2ad6a8",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/tests/acceptance/forked-parent.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/todo/tests/acceptance/forked-parent.mjs"
         }
       ]
     },
@@ -2871,5 +2914,5 @@
     "routes": 105,
     "hostOps": 35
   },
-  "contentHash": "9d29705892e27040402b919b1ed3b50f9b1de4799a3f68e66fd6dfa7112ed4e2"
+  "contentHash": "b3fda347bc26ef3e86fd18de1eae9ddef9c70256b790f6527fefe4421e7e1e0e"
 }
