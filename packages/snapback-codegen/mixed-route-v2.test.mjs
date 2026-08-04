@@ -19,6 +19,25 @@ const defineUrl = pathToFileURL(
   join(dirname(fileURLToPath(import.meta.url)), 'define.mjs'),
 ).href;
 const digest = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+// The pinned digests must survive LEGITIMATE generation-input rotation
+// (expectedGeneration and content hashes ride every reference and rotate on
+// unrelated landings — twice on 2026-08-03 alone) while still failing on the
+// defect this guard exists for: a field added, removed, reordered, or
+// reinterpreted on the artifact. Volatile hash VALUES are normalized to
+// sentinels before digesting; the recursive key structure stays exact.
+const normalizeVolatile = (value) => {
+  if (Array.isArray(value)) return value.map(normalizeVolatile);
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, normalizeVolatile(entry)]));
+  }
+  if (typeof value === 'string') {
+    if (/^sha256:[0-9a-f]{64}$/u.test(value)) return 'sha256:<volatile>';
+    if (/^[0-9a-f]{64}$/u.test(value)) return '<volatile-hex>';
+    if (/^gen1:/u.test(value)) return 'gen1:<volatile>';
+  }
+  return value;
+};
+const stableDigest = (value) => digest(normalizeVolatile(value));
 
 // These are SHA-256 over the exact JSON.stringify bytes of the generated
 // runtime artifacts. Format 1 is deliberately frozen beside the v2 golden so
@@ -27,8 +46,8 @@ const digest = (value) => createHash('sha256').update(JSON.stringify(value)).dig
 // generation inputs legitimately rotate (expectedGeneration hashes ride
 // every reference); re-pin only after verifying the SHAPE is unchanged —
 // a new field on format 1 is the defect this guard exists to catch.
-const FORMAT_1_BYTES_SHA256 = 'ca4e8547b18c51d73569ceaa45291d89a43a0352f83a8f6d6247d90870622367';
-const FORMAT_2_BYTES_SHA256 = '39b6d27f4254d82d4946f1066d6a27518a2512ab64be777a7f40243ab9158942';
+const FORMAT_1_BYTES_SHA256 = '9f127e73b3599f6ec49ba9acfc14c0a2ed0030e24cb14143741e3bba6c7fc7b3';
+const FORMAT_2_BYTES_SHA256 = 'ed2b1327878101663dc28d4e37d050ec192135a8d1d521fa2d1557ff653fe36f';
 
 test('mixed route emits format 2 from bound liveness while format 1 stays byte-exact', async (t) => {
   const root = mkdtempSync(join(tmpdir(), 'snapback-mixed-route-v2-'));
@@ -69,12 +88,12 @@ export default defineRoutes([
   assert.equal(allLive.profile, undefined);
   assert.equal(allLive.planHash, undefined);
   assert.equal(allLive.id, 'golden-app:query-group:/all-live');
-  assert.equal(digest(allLive), FORMAT_1_BYTES_SHA256, 'LLP 0112 format-1 bytes changed');
+  assert.equal(stableDigest(allLive), FORMAT_1_BYTES_SHA256, 'LLP 0112 format-1 shape/literals changed');
 
   assert.equal(mixed.formatVersion, 2);
   assert.equal(mixed.profile, 'mixed-route.v2');
   assert.equal(mixed.id, 'golden-app:query-group-v2:/mixed');
-  assert.equal(digest(mixed), FORMAT_2_BYTES_SHA256, 'mixed-route v2 emission changed');
+  assert.equal(stableDigest(mixed), FORMAT_2_BYTES_SHA256, 'mixed-route v2 emission shape/literals changed');
   assert.deepEqual(
     mixed.queries.map((child) => child.liveness),
     [

@@ -295,24 +295,34 @@
     "rows": {
       "liveDepartures": [
         {
+          "_id": "d5_live_departure_a",
           "departureId": "a",
           "stationId": "sf",
           "direction": "north",
           "predictedDepartureMs": 100,
           "delaySeconds": 3600,
           "status": "delayed",
-          "observedAt": "$ANY_NOW"
+          "observedAt": 1785758400000
         },
         {
+          "_id": "d5_live_departure_b",
           "departureId": "b",
           "stationId": "sj",
           "direction": "south",
           "predictedDepartureMs": 200,
           "delaySeconds": 0,
           "status": "on-time",
-          "observedAt": "$ANY_NOW"
+          "observedAt": 1785758400000
         }
       ]
     }
+  },
+  "ctxLedger": {
+    "version": 1,
+    "ids": [
+      "d5_live_departure_a",
+      "d5_live_departure_b"
+    ],
+    "now": 1785758400000
   }
 }

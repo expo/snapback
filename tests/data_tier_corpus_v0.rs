@@ -10,16 +10,17 @@
 //! implementation in every language can run them; the corpus, not this
 //! runner, is the definition of correct.
 //!
-//! `$ANY_NOW` / `$ANY_ID` placeholders stand in for ledger-driven exactness
-//! until the ctx-answer ledger (Increment 2) makes outputs exact.
+//! Every case carries an exact ctx-answer replay ledger. Committing cases must
+//! consume it exactly and echo it as their output ledger; the corpus contains
+//! no nondeterministic placeholders.
 //!
 //! @ref LLP 0051#d5-conformance-the-corpus-becomes-the-data-tier-contract
 
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use snapback::data_tier::{
-    DATA_TIER_CORPUS_FORMAT_VERSION, DATA_TIER_CORPUS_NAME, DataTierCompatibilityOutcome,
-    DataTierCorpusCase, DataTierCorpusManifest, compatibility_outcome,
+    compatibility_outcome, DataTierCompatibilityOutcome, DataTierCorpusCase,
+    DataTierCorpusManifest, DATA_TIER_CORPUS_FORMAT_VERSION, DATA_TIER_CORPUS_NAME,
 };
 use snapback::manifest::{
     AuthInput, HandlerInput, MutationPlan, SchemaManifest, SeedData, TableManifest,
@@ -35,13 +36,10 @@ fn corpus_dir() -> PathBuf {
         .join("data-tier")
 }
 
-/// Placeholder-aware structural match: objects subset-match (every expected
-/// key must match; extra actual keys — system fields — are fine), arrays are
-/// exact-length elementwise, scalars compare by value.
+/// Objects subset-match for row projections (extra runtime-owned system fields
+/// are fine); arrays are exact-length elementwise and scalars compare exactly.
 fn value_matches(expected: &Value, actual: &Value) -> bool {
     match expected {
-        Value::String(s) if s == "$ANY_NOW" => actual.as_f64().is_some_and(|n| n > 0.0),
-        Value::String(s) if s == "$ANY_ID" => actual.as_str().is_some_and(|s| !s.is_empty()),
         Value::Object(fields) => {
             let Some(actual_fields) = actual.as_object() else {
                 return false;
@@ -104,6 +102,20 @@ fn scan_all_rows(db: &LocalDatabase, table: &str) -> Vec<Value> {
         .rows
 }
 
+fn normalized_public_rows(rows: Vec<Value>) -> Vec<Value> {
+    let mut rows = rows
+        .into_iter()
+        .map(|mut row| {
+            if let Some(fields) = row.as_object_mut() {
+                fields.retain(|key, _| !key.starts_with('_') || key == "_id");
+            }
+            row
+        })
+        .collect::<Vec<_>>();
+    rows.sort_by_cached_key(|row| serde_json::to_string(row).expect("public row serializes"));
+    rows
+}
+
 #[test]
 fn data_tier_corpus_cases_pass_on_the_host_evaluator() {
     let dir = corpus_dir();
@@ -146,6 +158,8 @@ fn data_tier_corpus_cases_pass_on_the_host_evaluator() {
         manifest.cases.len(),
         "manifest/case count drift"
     );
+    assert_eq!(paths.len(), 37, "the complete v1 D5 corpus has 37 cases");
+    let mut receipt_cases = Vec::with_capacity(paths.len());
 
     for path in paths {
         let raw = std::fs::read_to_string(&path).expect("read case");
@@ -176,6 +190,15 @@ fn data_tier_corpus_cases_pass_on_the_host_evaluator() {
         );
         let digest = format!("sha256:{:x}", Sha256::digest(raw.as_bytes()));
         assert_eq!(digest, entry.sha256, "{} content hash drift", case.name);
+        assert!(
+            !raw.contains("$ANY_"),
+            "{}: nondeterministic placeholder remains",
+            case.name
+        );
+        let expected_ledger = case
+            .ctx_ledger
+            .as_ref()
+            .unwrap_or_else(|| panic!("{}: exact input ctx ledger missing", case.name));
 
         let mut db = LocalDatabase::memory().expect("memory database");
         db.apply_schema(SchemaManifest {
@@ -205,13 +228,22 @@ fn data_tier_corpus_cases_pass_on_the_host_evaluator() {
 
         let outcome = db.execute_mutation(&case.plan, &input);
 
-        match (&case.expect.error, outcome) {
+        let mut receipt_case = match (&case.expect.error, &outcome) {
             (Some(expected_error), Err(actual)) => {
                 assert_eq!(
                     actual.diagnostic.code, expected_error.code,
                     "{}: error code mismatch ({})",
                     case.name, actual.diagnostic.message
                 );
+                serde_json::json!({
+                    "name": case.name,
+                    "status": "rejected",
+                    "result": null,
+                    "changedCount": null,
+                    "inputCtxLedger": expected_ledger,
+                    "outputCtxLedger": null,
+                    "rejectionCode": actual.diagnostic.code,
+                })
             }
             (Some(expected_error), Ok(commit)) => panic!(
                 "{}: expected error {} but the mutation committed: {:?}",
@@ -222,23 +254,42 @@ fn data_tier_corpus_cases_pass_on_the_host_evaluator() {
                 case.name, error.diagnostic.code, error.diagnostic.message
             ),
             (None, Ok(commit)) => {
-                if let Some(expected_count) = case.expect.changed_count {
-                    assert_eq!(
-                        commit.output.changed_count, expected_count,
-                        "{}: changed count",
+                let expected_count = case.expect.changed_count.unwrap_or_else(|| {
+                    panic!("{}: committing case does not pin changedCount", case.name)
+                });
+                assert_eq!(
+                    commit.output.changed_count, expected_count,
+                    "{}: changed count",
+                    case.name
+                );
+                let expected_result = case.expect.result.as_ref().unwrap_or_else(|| {
+                    panic!(
+                        "{}: committing case does not pin its whole-plan result",
                         case.name
-                    );
-                }
-                if let Some(expected_result) = &case.expect.result {
-                    assert!(
-                        value_matches(expected_result, &commit.output.result),
-                        "{}: result mismatch — expected {expected_result}, got {}",
-                        case.name,
-                        commit.output.result
-                    );
-                }
+                    )
+                });
+                assert_eq!(
+                    &commit.output.result, expected_result,
+                    "{}: whole-plan result",
+                    case.name
+                );
+                assert_eq!(
+                    commit.output.ctx_ledger.as_ref(),
+                    Some(expected_ledger),
+                    "{}: output ledger must echo the exact consumed recording",
+                    case.name
+                );
+                serde_json::json!({
+                    "name": case.name,
+                    "status": "committed",
+                    "result": commit.output.result,
+                    "changedCount": commit.output.changed_count,
+                    "inputCtxLedger": expected_ledger,
+                    "outputCtxLedger": commit.output.ctx_ledger,
+                    "rejectionCode": null,
+                })
             }
-        }
+        };
 
         if let Some(expected_tables) = &case.expect.rows {
             for (table, expected_rows) in expected_tables {
@@ -246,6 +297,49 @@ fn data_tier_corpus_cases_pass_on_the_host_evaluator() {
                 assert_rows_match(&case.name, table, expected_rows, &actual);
             }
         }
+        if case.expect.error.is_some() {
+            for table in &case.schema.tables {
+                let actual = scan_all_rows(&db, &table.name);
+                let seeded = case.seed.get(&table.name).map(Vec::as_slice).unwrap_or(&[]);
+                assert_rows_match(&case.name, &table.name, seeded, &actual);
+            }
+        }
+
+        let rows = case
+            .schema
+            .tables
+            .iter()
+            .map(|table| {
+                (
+                    table.name.clone(),
+                    normalized_public_rows(scan_all_rows(&db, &table.name)),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+        receipt_case
+            .as_object_mut()
+            .expect("receipt case is an object")
+            .insert(
+                "rows".to_owned(),
+                serde_json::to_value(rows).expect("receipt rows serialize"),
+            );
+        receipt_cases.push(receipt_case);
+    }
+
+    if let Some(path) = std::env::var_os("SNAPBACK_D5_RUST_OUTCOMES_PATH") {
+        let payload = serde_json::json!({
+            "artifactKind": "snapback.d5-rust-outcomes.v1",
+            "corpus": manifest.corpus,
+            "corpusFormatVersion": manifest.corpus_format_version,
+            "profileVersion": manifest.profile_version,
+            "ledgerVersion": manifest.ledger_version,
+            "cases": receipt_cases,
+        });
+        let mut rendered = serde_json::to_string_pretty(&payload).expect("receipt serializes");
+        rendered.push('\n');
+        std::fs::write(&path, rendered).unwrap_or_else(|error| {
+            panic!("failed to write {}: {error}", PathBuf::from(path).display())
+        });
     }
 }
 
@@ -262,15 +356,13 @@ fn get_reads_are_captured_server_side() {
     let mut db = LocalDatabase::memory().expect("memory database");
     db.apply_schema(SchemaManifest {
         schema_hash: Some("read-capture".to_owned()),
-        tables: vec![
-            serde_json::from_value::<TableManifest>(serde_json::json!({
-                "name": "rows",
-                "fields": [{ "name": "value", "field_type": "Json", "optional": true }],
-                "indexes": [],
-                "syncable": false
-            }))
-            .expect("table manifest"),
-        ],
+        tables: vec![serde_json::from_value::<TableManifest>(serde_json::json!({
+            "name": "rows",
+            "fields": [{ "name": "value", "field_type": "Json", "optional": true }],
+            "indexes": [],
+            "syncable": false
+        }))
+        .expect("table manifest")],
         ..SchemaManifest::default()
     })
     .expect("apply schema");

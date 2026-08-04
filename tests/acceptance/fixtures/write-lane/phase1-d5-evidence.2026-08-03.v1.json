@@ -1,0 +1,1014 @@
+{
+  "artifactKind": "snapback.phase1-d5-evidence-receipt.v1",
+  "baseRevision": "b2f37c00175f640b6c4e560e4848389df9ee338c",
+  "cases": [
+    {
+      "case": "all-aboard-apply-feed-tick",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": true,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:a7dfaa1231f2e08810ede3fb0a3371e623a54d60ab8218d88bbbb8a69c80b459",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "trainStatus",
+        "liveDepartures",
+        "feedTicks",
+        "feedRefreshState"
+      ]
+    },
+    {
+      "case": "all-aboard-apply-feed-tick-first-run",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": true,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:d8372f3c40c4570db49a423604276bc2e2de48aa6c0cbc9af357408045e83f13",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "trainStatus",
+        "liveDepartures",
+        "feedTicks",
+        "feedRefreshState"
+      ]
+    },
+    {
+      "case": "all-aboard-live-snapshot-fragments",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": true,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:d907360d33467b18462f6969c2c77ff7872af6be079e3baa511334ece58bd90b",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "trainStatus",
+        "liveDepartures",
+        "feedTicks",
+        "feedRefreshState"
+      ]
+    },
+    {
+      "case": "all-aboard-reset-feed",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": true,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:c98e5d8de2cf5a9a4b3b7746a299fb5e94840ba9c3a39c079facd3cabfa15af3",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "trainStatus",
+        "liveDepartures",
+        "feedTicks",
+        "feedRefreshState"
+      ]
+    },
+    {
+      "case": "delete-where-filtered",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:a988e42508522b1ed802098ab30d51840305cd0a4db902064965c4e8b7dd29ec",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "todos"
+      ]
+    },
+    {
+      "case": "expr-arithmetic-three-valued",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:4cf4991cb0f57deb534489e104039c408af6df7b6ce4712a40e159f7d40a7e27",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "expr-array-plus-zero-index",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:aaf75f0c687f222c47fe556c991e4d7fa80ca76e9a94eae18134535b34f1439c",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "expr-equality-value-model",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:2a889fc72faf928c4776e284adef8c71a66ce0f2fdbed64836cff56b21c65094",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "expr-field-null-propagation",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:6b992c2aafadedceca28ea91ee932687b219bc0d57d9a1ab2c12f663689661d0",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "expr-nonfinite-arithmetic-normalizes-null",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:97a4d3dd50c535606f1dd9ab63f09e465dbeb6a704c612869451dbadef16e362",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "expr-number-concat-boundaries",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:6383fb18b0cd738a413e8c2f5a3f00b0b745d4285518c5417d156f647b27cc48",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "expr-own-property-field-access",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:8a14d3d28a34ff006a105879b340fd57fc5d064d4dfbd08f9b0d985cf1299c51",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "expr-pinned-library",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:a6f90bba5f1bbe4c8445b485d43d06c029f8c3b3e9d7fb24693479329bb43135",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "expr-portable-trim-whitespace",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:83fe499aeb572cc83f26c51df16e6b804d78da30489232b9590c51a1d8c582cc",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "expr-record-proto-key",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:57c577b8654299ef88f4e69b9efc57457c2dfe0dd453d91b5e0e74bcaf722438",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "expr-string-template",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:c15b3c872fd451af6143c217f470609a065c2dc86b056577ee2ef755d7fdc201",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "expr-ternary-comparison",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:585a24ee0352ce2e3c2bc31c9aeff04a1717001dcca8d9fea12a1265d3bcd71f",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "expr-truthiness-or-vs-coalesce",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:cb1b924473720e9932030113759929ac7ae27c3296d5891a03bba82ac8e470c4",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "expr-unicode-scalar-order",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:d0db3593bd06e875b9dec8abef1c04311ecf6dd117c19cbe3c013d09cb94f9f4",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "get-else-error",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:cb0f02535a3787b4b249240d5a0bac813f3e0640c4d5f984c180a5ccf43a2fcf",
+      "pins": {
+        "atomicRollback": "exact-all-schema-tables",
+        "changedCount": "not-applicable-atomic-rejection",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "not-applicable-atomic-rejection",
+        "rejectionCode": "exact",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "not-applicable-atomic-rejection"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "todos"
+      ]
+    },
+    {
+      "case": "get-guard-read-check-write",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:855dfc89f956037b821838d5c4c7cbd4442b9c6510ac19e68ab14cfc15b8bc9f",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "todos"
+      ]
+    },
+    {
+      "case": "get-guard-rejects-non-owner",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:a6e569985332d362c653a9c03c5543ec51784f2a0ae142627aacf9b9278776c1",
+      "pins": {
+        "atomicRollback": "exact-all-schema-tables",
+        "changedCount": "not-applicable-atomic-rejection",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "not-applicable-atomic-rejection",
+        "rejectionCode": "exact",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "not-applicable-atomic-rejection"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "todos"
+      ]
+    },
+    {
+      "case": "let-binding-chain",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:ddecccc3f870e017160d1d84eb6cabdea75c93d5d0c735f3adf441c13073da28",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "reject-expr-over-depth-bound",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:868fa7cd2bae4511f61054a4a9290863f5e8c48142a2491f52c30ac97d7c1ad3",
+      "pins": {
+        "atomicRollback": "exact-all-schema-tables",
+        "changedCount": "not-applicable-atomic-rejection",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "not-applicable-atomic-rejection",
+        "rejectionCode": "exact",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "not-applicable-atomic-rejection"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "reject-inherited-strict-arg",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:cbf8d2e95ed6d5f13ce2088d2af3c373e8734e91c6b3ecbfcbeb6e99ebe65914",
+      "pins": {
+        "atomicRollback": "exact-all-schema-tables",
+        "changedCount": "not-applicable-atomic-rejection",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "not-applicable-atomic-rejection",
+        "rejectionCode": "exact",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "not-applicable-atomic-rejection"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "reject-insert-each-non-array",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": true,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:f75c9a052634a99a8afabc37f80738df2e719c19874c5900a3edeb7373a7ac12",
+      "pins": {
+        "atomicRollback": "exact-all-schema-tables",
+        "changedCount": "not-applicable-atomic-rejection",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "not-applicable-atomic-rejection",
+        "rejectionCode": "exact",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "not-applicable-atomic-rejection"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "trainStatus",
+        "liveDepartures",
+        "feedTicks",
+        "feedRefreshState"
+      ]
+    },
+    {
+      "case": "reject-insert-each-over-fanout",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:35721177e680400631e23b6a6161ac8b74d2da991ab468feef92573126c0c584",
+      "pins": {
+        "atomicRollback": "exact-all-schema-tables",
+        "changedCount": "not-applicable-atomic-rejection",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "not-applicable-atomic-rejection",
+        "rejectionCode": "exact",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "not-applicable-atomic-rejection"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "reject-missing-binding",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:aca92e48255ab24fd91bca3601b659cec304bf3a7accafcdfe6d00a6226045aa",
+      "pins": {
+        "atomicRollback": "exact-all-schema-tables",
+        "changedCount": "not-applicable-atomic-rejection",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "not-applicable-atomic-rejection",
+        "rejectionCode": "exact",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "not-applicable-atomic-rejection"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "reject-plan-over-step-bound",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:ba13a4d1c9ffe44b95ac5de4b6c3d50ce3927783691e9aa4e5a082a2a31d8e53",
+      "pins": {
+        "atomicRollback": "exact-all-schema-tables",
+        "changedCount": "not-applicable-atomic-rejection",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "not-applicable-atomic-rejection",
+        "rejectionCode": "exact",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "not-applicable-atomic-rejection"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "reject-strict-arg-missing",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:7b3ea7e7e19f8a414df414b62712df4e37c1dbe5f96b392f0d35b8e4d3e34a49",
+      "pins": {
+        "atomicRollback": "exact-all-schema-tables",
+        "changedCount": "not-applicable-atomic-rejection",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "not-applicable-atomic-rejection",
+        "rejectionCode": "exact",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "not-applicable-atomic-rejection"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "reject-unknown-function",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:d679775fd0a09823503a1a894526454e5fbfa01ae2fc80f35b8807aeba72c72a",
+      "pins": {
+        "atomicRollback": "exact-all-schema-tables",
+        "changedCount": "not-applicable-atomic-rejection",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "not-applicable-atomic-rejection",
+        "rejectionCode": "exact",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "not-applicable-atomic-rejection"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "rows"
+      ]
+    },
+    {
+      "case": "todo-create-guarded",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:763d97bf3b987fd739d54cf1289cca10e4cc93ec4284c338e03bc8dd1edacd69",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "todos"
+      ]
+    },
+    {
+      "case": "todo-create-guarded-empty-title",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:e51a4db20af66cfacbfe062052cf374bceeaec838fa97a03cc5ce996552efdd3",
+      "pins": {
+        "atomicRollback": "exact-all-schema-tables",
+        "changedCount": "not-applicable-atomic-rejection",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "not-applicable-atomic-rejection",
+        "rejectionCode": "exact",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "not-applicable-atomic-rejection"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "todos"
+      ]
+    },
+    {
+      "case": "todo-v2-create-todo",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:abe215a1b80a5330c7fc6a2c9a2681bd27267fcbba785681b18506220c3dc4fd",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "todos"
+      ]
+    },
+    {
+      "case": "todo-v2-delete-todo",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:127e13faa58a1be9020f3464bc2c65ece658dde99fb1a2a7ac480dd6e10cff37",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "todos"
+      ]
+    },
+    {
+      "case": "todo-v2-patch-missing-row-is-soft",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:15066f4723baab219bb1dd37e8b058eead31862c19745b61d374f1368e6dbe07",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "todos"
+      ]
+    },
+    {
+      "case": "todo-v2-set-completed",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "formerlySkippedMultiTable": false,
+      "js": "pass",
+      "normalizedOutcomeSha256": "sha256:080d37f989501dcbcbe4d13e2b398f6bd9c0c611a9c6e20b921e9c9741572421",
+      "pins": {
+        "atomicRollback": "not-applicable-commit",
+        "changedCount": "exact",
+        "inputCtxAnswerLedger": "exact-consumed-recording",
+        "outputCtxAnswerLedger": "exact-echo",
+        "rejectionCode": "not-applicable-commit",
+        "resultRows": "exact-all-schema-tables-after-system-field-normalization",
+        "wholePlanReturn": "exact"
+      },
+      "rust": "pass",
+      "sidecar": {
+        "reason": "D5 replays a complete seeded ephemeral workspace; partial-replica admission is out of scope.",
+        "required": false
+      },
+      "tables": [
+        "todos"
+      ]
+    }
+  ],
+  "corpus": {
+    "cases": 37,
+    "corpus": "snapback-data-tier",
+    "corpusFormatVersion": 1,
+    "ledgerVersion": 1,
+    "manifestPath": "tests/conformance/data-tier/corpus.manifest.json",
+    "manifestSha256": "sha256:ec6968a66ad7161cd37bdb5059965e08ed071c66cb77344bdb569fa56f98a3e1",
+    "placeholdersRemaining": 0,
+    "profileVersion": 1
+  },
+  "evidenceDate": "2026-08-03",
+  "exactness": {
+    "compared": [
+      "commit-or-rejection status",
+      "whole-plan return value",
+      "changed count",
+      "all declared table rows",
+      "input ctx-answer ledger",
+      "output ctx-answer ledger",
+      "typed rejection code"
+    ],
+    "rowNormalization": "Runtime-owned system fields are removed; every declared schema field is present (missing optional fields normalize to null); tables and rows are deterministically ordered.",
+    "statement": "For all 37 cases, Rust host and JS evidence execution produced identical normalized whole-plan outcomes.",
+    "status": "pass"
+  },
+  "executors": {
+    "javascript": {
+      "command": "node packages/snapback-contract/derived-overlay.test.mjs",
+      "evidenceWorkspace": "tests/conformance/data-tier/js-d5-harness.mjs",
+      "node": "v25.9.0",
+      "registration": "test-only-unregistered",
+      "shippedValueEvaluator": "packages/snapback-contract/derived-overlay.mjs",
+      "status": "pass",
+      "suite": "packages/snapback-contract/derived-overlay.test.mjs"
+    },
+    "rustHost": {
+      "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+      "command": "cargo test --locked --test data_tier_corpus_v0 data_tier_corpus_cases_pass_on_the_host_evaluator -- --nocapture",
+      "runner": "tests/data_tier_corpus_v0.rs",
+      "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+      "status": "pass"
+    }
+  },
+  "findings": [],
+  "gatePresentationDue": "2026-08-10",
+  "limits": [
+    "The JavaScript multi-table workspace is test-only evidence machinery, not an exported or registered shipping executor.",
+    "No coverage/read-requirement sidecar is needed for D5 full-workspace replay; this receipt does not establish partial-replica read admission.",
+    "This receipt makes no Parity, same-code, capability, React presentation, store/outbox, or settlement claim."
+  ],
+  "sourceHashes": {
+    "packages/snapback-codegen/data-tier-corpus.mjs": "sha256:fba1211d669fc87f19a7c15604f6f4df9f21ade4bfc8d2721d6c8b16592333b3",
+    "packages/snapback-contract/derived-overlay.mjs": "sha256:8b5324a45a8beaaa7db4eaf93361f8faf1008e152a74f9903844335d0f8e0a32",
+    "packages/snapback-contract/derived-overlay.test.mjs": "sha256:ac3b9b3a4d79258216a124d660f779a44203d1e40e1015803696e9a5f6848107",
+    "tests/acceptance/fixtures/write-lane/phase1-d5-evidence.2026-08-03.v1.mjs": "sha256:a4e69d4ca400faa200bc1ecf3f18d1048419159051034ee38e79876c2d1ff2ad",
+    "tests/conformance/data-tier/js-d5-harness.mjs": "sha256:2c2578a1ace8481c993e0e2563cae06c2ee1008b1c23cacdba6ae9d2fc3db5ce",
+    "tests/data_tier_corpus_v0.rs": "sha256:9f973e411f032d5f1733da90484622fa0b34f07c8eb367931ba1f68be65f57d8"
+  },
+  "summary": {
+    "blocked": 0,
+    "cases": 37,
+    "committed": 26,
+    "exactCrossRuntime": 37,
+    "multiTable": 5,
+    "rejected": 11,
+    "skipped": 0,
+    "unpinnable": 0
+  }
+}

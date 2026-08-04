@@ -10,7 +10,7 @@ inventory, capability manifest, and generated-artifact registry.
   a private, in-memory layer description.
 - `kanban-fixture.mjs` expresses the five Kanban operations as real serialized
   mutation-IR values.
-- `browser-evaluator.test.mjs` is a feasibility witness for the four admission
+- `browser-evaluator.spike.mjs` is a feasibility witness for the four admission
   outcomes, the five operations, ledger consumption, and the locked-card case.
 - `measure.mjs` reproduces the LLP 0145 browser-bundle method and prints JSON;
   it does not update a package baseline.

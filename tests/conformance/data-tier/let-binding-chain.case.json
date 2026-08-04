@@ -71,9 +71,17 @@
     "rows": {
       "rows": [
         {
+          "_id": "d5_let_binding_row",
           "value": 6
         }
       ]
     }
+  },
+  "ctxLedger": {
+    "version": 1,
+    "ids": [
+      "d5_let_binding_row"
+    ],
+    "now": 1785758400000
   }
 }

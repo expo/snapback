@@ -68,6 +68,7 @@
     "rows": {
       "rows": [
         {
+          "_id": "d5_expr_nonfinite_row",
           "value": {
             "quotient": null,
             "remainder": null
@@ -75,5 +76,12 @@
         }
       ]
     }
+  },
+  "ctxLedger": {
+    "version": 1,
+    "ids": [
+      "d5_expr_nonfinite_row"
+    ],
+    "now": 1785758400000
   }
 }

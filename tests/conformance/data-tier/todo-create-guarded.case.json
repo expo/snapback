@@ -94,16 +94,24 @@
   },
   "authUserId": "user-1",
   "expect": {
-    "result": "$ANY_ID",
+    "result": "d5_todo_guarded",
     "changedCount": 1,
     "rows": {
       "todos": [
         {
+          "_id": "d5_todo_guarded",
           "title": "Walk dog",
           "completed": false,
           "userId": "user-1"
         }
       ]
     }
+  },
+  "ctxLedger": {
+    "version": 1,
+    "ids": [
+      "d5_todo_guarded"
+    ],
+    "now": 1785758400000
   }
 }

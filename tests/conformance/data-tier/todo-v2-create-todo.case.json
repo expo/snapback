@@ -65,7 +65,7 @@
   },
   "authUserId": "user-1",
   "expect": {
-    "result": "$ANY_ID",
+    "result": "d5_todo_v2",
     "changedCount": 1,
     "rows": {
       "todos": [
@@ -74,9 +74,16 @@
           "priority": "high",
           "completed": false,
           "userId": "user-1",
-          "_id": "$ANY_ID"
+          "_id": "d5_todo_v2"
         }
       ]
     }
+  },
+  "ctxLedger": {
+    "version": 1,
+    "ids": [
+      "d5_todo_v2"
+    ],
+    "now": 1785758400000
   }
 }

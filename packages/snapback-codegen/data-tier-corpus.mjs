@@ -12,10 +12,9 @@
 // Exact-side evaluators (LLP 0329 E-A/E-C) consume the same files by
 // reference. Cases are data (plans + rows), never JS functions.
 //
-// Corpus staging note (LLP 0051 D5 status honesty): the LLP 0010 corpus
-// format and runners are designed, not built; until they land, these cases
-// stage here as the bridge, with $ANY_NOW/$ANY_ID placeholders standing in
-// for the ledger-driven exact outputs Increment 2/4 will enable.
+// Every case carries an exact ctx-answer replay ledger. The ledger is both an
+// input pin and the expected MutationOutput ledger: consumers must consume it
+// exactly, echo it on commit, and reject divergent consumption.
 //
 // @ref LLP 0051#d5-conformance-the-corpus-becomes-the-data-tier-contract
 
@@ -48,6 +47,22 @@ const DATA_TIER_PROFILE = JSON.parse(decodeUtf8Source(dataTierProfileBytes, data
 // The Rust-generated public profile is the authority. A profile bump now
 // walks corpus generation instead of relying on a mirrored JS literal.
 export const CORPUS_VERSION = DATA_TIER_PROFILE.profileVersion;
+
+// D5 replay answers are fixed evidence, not ambient test inputs. Every Insert
+// and InsertEach row-id allocation in the 37-case v1 corpus is named here;
+// adding a new allocating case without adding its answers fails both runners
+// with exact ledger exhaustion.
+export const D5_CTX_LEDGER_NOW = 1_785_758_400_000;
+export const D5_CTX_LEDGER_IDS = Object.freeze({
+  'all-aboard-live-snapshot-fragments': Object.freeze([
+    'd5_live_departure_a',
+    'd5_live_departure_b',
+  ]),
+  'expr-nonfinite-arithmetic-normalizes-null': Object.freeze(['d5_expr_nonfinite_row']),
+  'let-binding-chain': Object.freeze(['d5_let_binding_row']),
+  'todo-create-guarded': Object.freeze(['d5_todo_guarded']),
+  'todo-v2-create-todo': Object.freeze(['d5_todo_v2']),
+});
 
 // Mirrors demos/all-aboard/snapback/handlers.mjs:11 (module-scope constant;
 // data-tier-builder assertions in data-tier-corpus.test.mjs check the drift).
@@ -177,7 +192,16 @@ const serialize = (plan) => serializeMutationPlan(plan);
 
 export function buildCorpusCases() {
   const cases = [];
-  const pushCase = (c) => cases.push({ corpus: 'snapback-data-tier', corpusVersion: CORPUS_VERSION, ...c });
+  const pushCase = (c) => cases.push({
+    corpus: 'snapback-data-tier',
+    corpusVersion: CORPUS_VERSION,
+    ...c,
+    ctxLedger: {
+      version: DATA_TIER_PROFILE.ledgerVersion,
+      ids: [...(D5_CTX_LEDGER_IDS[c.name] ?? [])],
+      now: D5_CTX_LEDGER_NOW,
+    },
+  });
 
   // ---- Gate (a): todo / todo-v2 plain CRUD (the shipped plan shapes) ----
   pushCase({
@@ -194,9 +218,9 @@ export function buildCorpusCases() {
     args: { title: 'Buy milk', priority: 'high' },
     authUserId: 'user-1',
     expect: {
-      result: '$ANY_ID',
+      result: 'd5_todo_v2',
       changedCount: 1,
-      rows: { todos: [{ title: 'Buy milk', priority: 'high', completed: false, userId: 'user-1', _id: '$ANY_ID' }] },
+      rows: { todos: [{ title: 'Buy milk', priority: 'high', completed: false, userId: 'user-1', _id: 'd5_todo_v2' }] },
     },
   });
 
@@ -268,9 +292,9 @@ export function buildCorpusCases() {
     args: { title: '  Walk dog  ' },
     authUserId: 'user-1',
     expect: {
-      result: '$ANY_ID',
+      result: 'd5_todo_guarded',
       changedCount: 1,
-      rows: { todos: [{ title: 'Walk dog', completed: false, userId: 'user-1' }] },
+      rows: { todos: [{ _id: 'd5_todo_guarded', title: 'Walk dog', completed: false, userId: 'user-1' }] },
     },
   });
 
@@ -301,9 +325,9 @@ export function buildCorpusCases() {
       result: { tickIndex: 0 },
       changedCount: 8,
       rows: {
-        trainStatus: PATTERN_IDS.map((id) => ({ _id: id, delaySeconds: 0, status: 'on-time', observedAt: '$ANY_NOW' })),
+        trainStatus: PATTERN_IDS.map((id) => ({ _id: id, delaySeconds: 0, status: 'on-time', observedAt: D5_CTX_LEDGER_NOW })),
         liveDepartures: [],
-        feedRefreshState: [{ _id: 'caltrain', tickIndex: 0, lastSource: 'reset', lastRunTrigger: 'reset', lastError: '', lastUpstreamPollAt: 0, fetchedAt: '$ANY_NOW' }],
+        feedRefreshState: [{ _id: 'caltrain', tickIndex: 0, lastSource: 'reset', lastRunTrigger: 'reset', lastError: '', lastUpstreamPollAt: 0, fetchedAt: D5_CTX_LEDGER_NOW }],
       },
     },
   });
@@ -334,10 +358,10 @@ export function buildCorpusCases() {
           _id: id,
           delaySeconds: id === 'sb-local' ? 240 : id === 'nb-bullet' ? 60 : 0,
           status: id === 'sb-local' ? 'delayed' : 'on-time',
-          observedAt: '$ANY_NOW',
+          observedAt: D5_CTX_LEDGER_NOW,
         })),
         liveDepartures: [],
-        feedRefreshState: [{ _id: 'caltrain', tickIndex: 2, lastSource: 'recorded', lastRunTrigger: 'cron', lastError: '', fetchedAt: '$ANY_NOW' }],
+        feedRefreshState: [{ _id: 'caltrain', tickIndex: 2, lastSource: 'recorded', lastRunTrigger: 'cron', lastError: '', fetchedAt: D5_CTX_LEDGER_NOW }],
       },
     },
   });
@@ -361,7 +385,7 @@ export function buildCorpusCases() {
           _id: id,
           delaySeconds: id === 'sb-limited' ? 180 : 0,
           status: id === 'sb-limited' ? 'delayed' : 'on-time',
-          observedAt: '$ANY_NOW',
+          observedAt: D5_CTX_LEDGER_NOW,
         })),
         feedRefreshState: [],
       },
@@ -388,8 +412,8 @@ export function buildCorpusCases() {
       changedCount: 3,
       rows: {
         liveDepartures: [
-          { departureId: 'a', stationId: 'sf', direction: 'north', predictedDepartureMs: 100, delaySeconds: 3600, status: 'delayed', observedAt: '$ANY_NOW' },
-          { departureId: 'b', stationId: 'sj', direction: 'south', predictedDepartureMs: 200, delaySeconds: 0, status: 'on-time', observedAt: '$ANY_NOW' },
+          { _id: 'd5_live_departure_a', departureId: 'a', stationId: 'sf', direction: 'north', predictedDepartureMs: 100, delaySeconds: 3600, status: 'delayed', observedAt: D5_CTX_LEDGER_NOW },
+          { _id: 'd5_live_departure_b', departureId: 'b', stationId: 'sj', direction: 'south', predictedDepartureMs: 200, delaySeconds: 0, status: 'on-time', observedAt: D5_CTX_LEDGER_NOW },
         ],
       },
     },
@@ -579,7 +603,7 @@ export function buildCorpusCases() {
     expect: {
       result: 1,
       changedCount: 1,
-      rows: { rows: [{ value: { quotient: null, remainder: null } }] },
+      rows: { rows: [{ _id: 'd5_expr_nonfinite_row', value: { quotient: null, remainder: null } }] },
     },
   });
 
@@ -654,7 +678,7 @@ export function buildCorpusCases() {
     }).plan),
     args: {},
     authUserId: null,
-    expect: { result: 6, changedCount: 1, rows: { rows: [{ value: 6 }] } },
+    expect: { result: 6, changedCount: 1, rows: { rows: [{ _id: 'd5_let_binding_row', value: 6 }] } },
   });
 
   pushCase({
