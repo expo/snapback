@@ -4,13 +4,13 @@ id: operating.admin-console
 order: 4
 audience: agent-first
 capabilities: [operating.admin-console]
-authorities: [llp/0017-admin-console-inspection-surface.rfc.md, src/admin.rs, src/cli.rs, packages/snapback-admin-client/index.mjs, admin-ui/auth-prompt.mjs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs, tests/admin_claim_link_v0.rs]
+authorities: [llp/0017-admin-console-inspection-surface.rfc.md, src/admin.rs, src/admin_link.rs, src/cli.rs, packages/snapback-admin-client/index.mjs, admin-ui/auth-prompt.mjs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs, tests/admin_claim_link_v0.rs, tests/admin_reachability_v0.rs, tests/admin_tailscale_v0.rs]
 examples: [admin-ui]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: 3eb4b9714
+reviewed-commit: HEAD
 ---
 
 # Admin console
@@ -170,6 +170,60 @@ anonymous loopback caller can read the redemption record. Claim mint and
 exchange refuse hosted or non-loopback targets even when another admin bearer
 is present—remote access is always a tunnel terminating on loopback plus
 `--url-base`.
+
+### Open a phone console on the local network
+
+Keep the Snapback server on loopback and let the attached command own a
+short-lived relay on the one eligible physical LAN interface:
+
+```sh
+cargo run -- admin link --lan --qr \
+  --ready-file .snapback/dev.ready.json
+```
+
+If more than one interface is eligible, the command refuses and lists the
+candidates. Select one explicitly with `--lan=en0` or
+`--lan=192.168.1.20`; wildcard and loopback addresses are refused. The first
+line and the terminal QR encode the same URL bytes. Scan it while the command
+remains attached.
+
+The relay is deliberately plain HTTP. Read the mint-time warning: another
+party on that network can observe or hijack the session while it is live. The
+compensating bounds are the single-use claim, ten-minute sliding credential
+expiry, ninety-minute absolute cap, redemption record, and master revocation.
+Use the tailnet recipe below on a network you do not trust.
+
+Only the console shell/assets, the claim exchange, and requests already
+carrying the derived console credential cross this relay. It refuses the
+master exchange, the master-token header, non-console paths, ambiguous HTTP
+framing, and hostile Host/Origin values. Closing the command, revoking the
+claim, losing the observed server, or reaching claim/credential expiry closes
+the listener. `--lan` therefore cannot be combined with `--no-wait`.
+
+### Open the console across a tailnet
+
+With tailscaled running and the target server on `127.0.0.1`, publish only the
+Snapback namespace through tailnet-terminated HTTPS:
+
+```sh
+cargo run -- admin link --tailscale --qr \
+  --ready-file .snapback/dev.ready.json
+```
+
+The command creates or shares a Tailscale Serve mapping only for
+`/_snapback`, records its exact mapping and live owners in owner-only receipt
+files, and removes it when the last attached invocation exits. A later
+invocation sweeps a receipt-owned mapping stranded by a crash. Existing or
+externally changed operator mappings are refused and never removed. A missing
+or stopped tailscaled is a stable refusal; there is no LAN or loopback
+fallback. Like `--lan`, this mode cannot be detached with `--no-wait`.
+
+Credentials redeemed through either managed origin are stored only in the
+current tab's `sessionStorage`, keyed by reachability session and server
+startup identity. Reload first verifies both identities without sending the
+credential. Expiry, revocation, origin reuse by another backend, or early
+front termination clears or invalidates the record; it never falls back to
+`localStorage` on the relay or tailnet origin.
 
 ## Debug through declared views
 

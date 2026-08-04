@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "4f6b1bc3d98c9b9e3d1a946ff7cbd648854ea1a6"
+    "commit": "640bae8db90b9fc6f4b9acef6dfbad9d9dad7b11"
   },
   "nav": {
     ".": [
@@ -2115,6 +2115,7 @@
       "authorities": [
         "llp/0017-admin-console-inspection-surface.rfc.md",
         "src/admin.rs",
+        "src/admin_link.rs",
         "src/cli.rs",
         "packages/snapback-admin-client/index.mjs",
         "admin-ui/auth-prompt.mjs",
@@ -2123,14 +2124,16 @@
         "admin-ui/dev.mjs",
         "packages/snapback-contract/build-preset.mjs",
         "admin-ui/tests/fatal-rendering.mjs",
-        "tests/admin_claim_link_v0.rs"
+        "tests/admin_claim_link_v0.rs",
+        "tests/admin_reachability_v0.rs",
+        "tests/admin_tailscale_v0.rs"
       ],
       "examples": [
         "admin-ui"
       ],
       "reviewed": "2026-08-03",
-      "reviewedCommit": "3eb4b9714",
-      "sha256": "fb5ba4d4e1188e0f374832f74ccc5959ba36878fadde2b2bd64872a7fb765a53",
+      "reviewedCommit": "HEAD",
+      "sha256": "c298332674e5c45841c3ecf67b363bcc60117112b9771d480eaf5660cffb6815",
       "snippets": [
         {
           "lang": "js",
@@ -2679,12 +2682,13 @@
         "llp/0031-server-route-taxonomy.spec.md",
         "llp/0061-agent-first-snapback-guide.rfc.md",
         "src/server.rs",
-        "src/admin.rs"
+        "src/admin.rs",
+        "src/admin_link.rs"
       ],
       "examples": [],
       "reviewed": "2026-08-03",
-      "reviewedCommit": "3eb4b9714",
-      "sha256": "4183af67017cb42cd10276e04a2f5e04673adaad627e967751873d4b5858729f",
+      "reviewedCommit": "HEAD",
+      "sha256": "8f1ed96a0ec958c7e5c9e7ba01019ecbf15107079cb6e0c4926950e4eb029935",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -2956,8 +2960,8 @@
     ]
   },
   "surfaces": {
-    "routes": 105,
+    "routes": 110,
     "hostOps": 35
   },
-  "contentHash": "3d3619890eacf2b7e1e1489ae4ba8bb697c341c5a30a51820c9a92b1eebaa827"
+  "contentHash": "f39ff2c6bbdbf0fe4a88f007cc1b2de501cc68aa53f4f9f4264e45cb5803b11b"
 }

@@ -32,7 +32,7 @@ use anyhow::Context as _;
 use axum::Json;
 use axum::body::{Body, Bytes};
 use axum::extract::{ConnectInfo, Extension, FromRef, Path, Query, State};
-use axum::http::{HeaderMap, HeaderName, StatusCode, header};
+use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
 use base64::Engine as _;
@@ -328,6 +328,14 @@ const MAX_PENDING_CONSOLE_CLAIMS: usize = 64;
 const MAX_CONSOLE_CLAIM_RECORDS: usize = 256;
 const CONSOLE_CLAIM_MINTS_PER_MINUTE: u32 = 20;
 const CONSOLE_CLAIM_EXCHANGES_PER_MINUTE: u32 = 60;
+const CONSOLE_CREDENTIAL_EXCHANGES_PER_MINUTE: u32 = 60;
+
+/// A managed front must renew often enough that loss of the master-observed
+/// claim state closes its origin admission promptly. The CLI polls at 500ms,
+/// leaving several opportunities inside this interval without making tests or
+/// revocation depend on a long wall-clock wait.
+pub(crate) const CONSOLE_RELAY_LEASE_INTERVAL: Duration = Duration::from_secs(3);
+const MAX_CONSOLE_REACHABILITY_SESSIONS: usize = 128;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -406,6 +414,7 @@ struct ConsoleCredentialState {
     entries: HashMap<[u8; 32], ConsoleCredentialEntry>,
     claim_redemptions: HashMap<[u8; 32], ConsoleClaimRedemption>,
     persistence: Option<PathBuf>,
+    master_exchange_window: RateWindow,
 }
 
 impl fmt::Debug for ConsoleCredentialRegistry {
@@ -542,8 +551,25 @@ impl ConsoleCredentialRegistry {
                 entries,
                 claim_redemptions,
                 persistence: Some(path),
+                master_exchange_window: RateWindow::default(),
             })),
         })
+    }
+
+    pub(crate) fn admit_master_exchange(&self) -> Result<(), SnapbackError> {
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        if admit_rate(
+            &mut state.master_exchange_window,
+            now_millis(),
+            CONSOLE_CREDENTIAL_EXCHANGES_PER_MINUTE,
+        ) {
+            Ok(())
+        } else {
+            Err(console_claim_error(
+                "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_RATE_LIMITED",
+                "console master-credential exchange rate limit exceeded",
+            ))
+        }
     }
 
     fn mint(&self) -> Result<ConsoleCredentialResponse, SnapbackError> {
@@ -578,6 +604,7 @@ impl ConsoleCredentialRegistry {
             credential,
             expires_at_ms,
             provenance: None,
+            reachability: None,
         })
     }
 
@@ -639,6 +666,7 @@ impl ConsoleCredentialRegistry {
             credential,
             expires_at_ms,
             provenance: Some(ConsoleCredentialProvenance::OperatorClaim),
+            reachability: None,
         })
     }
 
@@ -682,6 +710,7 @@ impl ConsoleCredentialRegistry {
             expires_at_ms,
             provenance: (provenance == ConsoleCredentialProvenance::OperatorClaim)
                 .then_some(provenance),
+            reachability: None,
         }))
     }
 
@@ -920,6 +949,8 @@ struct ConsoleCredentialResponse {
     expires_at_ms: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     provenance: Option<ConsoleCredentialProvenance>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reachability: Option<ConsoleReachabilityCredentialBinding>,
 }
 
 impl fmt::Debug for ConsoleCredentialResponse {
@@ -929,6 +960,7 @@ impl fmt::Debug for ConsoleCredentialResponse {
             .field("credential", &"[REDACTED]")
             .field("expires_at_ms", &self.expires_at_ms)
             .field("provenance", &self.provenance)
+            .field("reachability", &self.reachability)
             .finish()
     }
 }
@@ -1444,11 +1476,473 @@ impl ConsoleClaimRegistry {
         credentials: &ConsoleCredentialRegistry,
     ) -> Result<ConsoleClaimStatusResponse, SnapbackError> {
         let candidate = console_credential_digest(claim_code);
-        let _state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
-        credentials
-            .revoke_claim_credential_at(&candidate, now_millis())?
-            .ok_or_else(console_claim_status_invalid)
+        let now_ms = now_millis();
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        if let Some(status) = credentials.revoke_claim_credential_at(&candidate, now_ms)? {
+            return Ok(status);
+        }
+        let matched = constant_time_matching_digest(&state.entries, &candidate)
+            .ok_or_else(console_claim_status_invalid)?;
+        let entry = state
+            .entries
+            .get_mut(&matched)
+            .expect("selected pending claim remains under the registry lock");
+        entry.consumed_at_ms = Some(now_ms);
+        entry.expires_at_ms = entry.expires_at_ms.min(now_ms);
+        Ok(ConsoleClaimStatusResponse {
+            status: "claim_expired",
+            claim_expires_at_ms: Some(entry.expires_at_ms),
+            redeemed_at_ms: None,
+            transport_peer: None,
+            transport_peer_source: None,
+            credential_digest_sha256: None,
+            credential_expires_at_ms: None,
+            credential_max_expires_at_ms: None,
+            revoked_at_ms: None,
+        })
     }
+
+    fn pending_claim_digest(&self, claim_code: &str) -> Result<[u8; 32], SnapbackError> {
+        let candidate = console_credential_digest(claim_code);
+        let now_ms = now_millis();
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        prune_console_claims(&mut state, now_ms);
+        let matched = constant_time_matching_digest(&state.entries, &candidate)
+            .ok_or_else(console_claim_status_invalid)?;
+        let entry = state
+            .entries
+            .get(&matched)
+            .expect("selected pending claim remains under the registry lock");
+        if entry.consumed_at_ms.is_some() || entry.expires_at_ms <= now_ms {
+            return Err(console_claim_status_invalid());
+        }
+        Ok(matched)
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConsoleReachabilityCredentialBinding {
+    session_id: String,
+    instance_id: String,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct ConsoleReachabilityRegistry {
+    state: Arc<StdMutex<ConsoleReachabilityState>>,
+}
+
+#[derive(Default)]
+struct ConsoleReachabilityState {
+    sessions: HashMap<String, ConsoleReachabilitySession>,
+    managed_claims: HashMap<[u8; 32], ManagedReachabilityClaim>,
+}
+
+#[derive(Clone, Debug)]
+struct ManagedReachabilityClaim {
+    session_id: String,
+    retain_until_ms: u64,
+}
+
+#[derive(Clone, Debug)]
+struct ConsoleReachabilitySession {
+    origin: String,
+    authority: String,
+    instance_id: String,
+    claim_digest: Option<[u8; 32]>,
+    credential_digest: Option<[u8; 32]>,
+    lease_expires_at_ms: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleReachabilityRegisterRequest {
+    origin: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConsoleReachabilityLeaseResponse {
+    session_id: String,
+    instance_id: String,
+    lease_expires_at_ms: u64,
+    lease_interval_ms: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleReachabilityClaimRequest {
+    session_id: String,
+    claim_code: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleReachabilityDropRequest {
+    session_id: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConsoleReachabilityDropResponse {
+    dropped: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConsoleReachabilityObservationResponse {
+    claim: ConsoleClaimStatusResponse,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    lease: Option<ConsoleReachabilityLeaseResponse>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleReachabilityIdentityQuery {
+    session: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ConsoleReachabilityIdentityResponse {
+    instance_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    session_id: Option<String>,
+}
+
+impl fmt::Debug for ConsoleReachabilityRegistry {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        prune_console_reachability(&mut state, now_millis());
+        formatter
+            .debug_struct("ConsoleReachabilityRegistry")
+            .field("active_sessions", &state.sessions.len())
+            .finish()
+    }
+}
+
+impl ConsoleReachabilityRegistry {
+    fn register(
+        &self,
+        origin: &str,
+        instance_id: &str,
+    ) -> Result<ConsoleReachabilityLeaseResponse, SnapbackError> {
+        let (origin, authority) = validated_reachability_origin(origin)?;
+        let now_ms = now_millis();
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        prune_console_reachability(&mut state, now_ms);
+        if state.sessions.len() >= MAX_CONSOLE_REACHABILITY_SESSIONS {
+            return Err(console_claim_error(
+                "SNAPBACK_ADMIN_REACHABILITY_CAPACITY",
+                "console reachability session capacity is exhausted",
+            ));
+        }
+        let session_id = format!("sbrs_{}", uuid::Uuid::new_v4().simple());
+        let lease_expires_at_ms = relay_lease_deadline(now_ms, u64::MAX);
+        state.sessions.insert(
+            session_id.clone(),
+            ConsoleReachabilitySession {
+                origin,
+                authority,
+                instance_id: instance_id.to_owned(),
+                claim_digest: None,
+                credential_digest: None,
+                lease_expires_at_ms,
+            },
+        );
+        Ok(ConsoleReachabilityLeaseResponse {
+            session_id,
+            instance_id: instance_id.to_owned(),
+            lease_expires_at_ms,
+            lease_interval_ms: CONSOLE_RELAY_LEASE_INTERVAL.as_millis() as u64,
+        })
+    }
+
+    fn bind_claim(
+        &self,
+        session_id: &str,
+        claim_digest: [u8; 32],
+        claim_expires_at_ms: u64,
+    ) -> Result<ConsoleReachabilityLeaseResponse, SnapbackError> {
+        let now_ms = now_millis();
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        prune_console_reachability(&mut state, now_ms);
+        if state
+            .managed_claims
+            .get(&claim_digest)
+            .is_some_and(|binding| binding.session_id != session_id)
+        {
+            return Err(console_claim_error(
+                "SNAPBACK_ADMIN_RELAY_LEASE_CLAIM_MISMATCH",
+                "console relay claim is already bound to another session",
+            ));
+        }
+        let session = state.sessions.get_mut(session_id).ok_or_else(|| {
+            console_claim_error(
+                "SNAPBACK_ADMIN_RELAY_LEASE_INVALID",
+                "console relay lease is unavailable",
+            )
+        })?;
+        if session.claim_digest.is_some_and(|bound| bound != claim_digest) {
+            return Err(console_claim_error(
+                "SNAPBACK_ADMIN_RELAY_LEASE_CLAIM_MISMATCH",
+                "console relay lease is already bound to another claim",
+            ));
+        }
+        session.claim_digest = Some(claim_digest);
+        session.lease_expires_at_ms = relay_lease_deadline(now_ms, claim_expires_at_ms);
+        let response = reachability_lease_response(session_id, session);
+        state.managed_claims.insert(
+            claim_digest,
+            ManagedReachabilityClaim {
+                session_id: session_id.to_owned(),
+                retain_until_ms: claim_expires_at_ms,
+            },
+        );
+        Ok(response)
+    }
+
+    fn renew(
+        &self,
+        session_id: &str,
+        claim_code: &str,
+        status: &ConsoleClaimStatusResponse,
+    ) -> Result<ConsoleReachabilityLeaseResponse, SnapbackError> {
+        let now_ms = now_millis();
+        let claim_digest = console_credential_digest(claim_code);
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        prune_console_reachability(&mut state, now_ms);
+        let session = state.sessions.get_mut(session_id).ok_or_else(|| {
+            console_claim_error(
+                "SNAPBACK_ADMIN_RELAY_LEASE_INVALID",
+                "console relay lease is unavailable",
+            )
+        })?;
+        if session.claim_digest != Some(claim_digest) {
+            return Err(console_claim_error(
+                "SNAPBACK_ADMIN_RELAY_LEASE_CLAIM_MISMATCH",
+                "console relay lease does not match this claim",
+            ));
+        }
+        let status_deadline = match status.status {
+            "pending" => status.claim_expires_at_ms,
+            "redeemed" => {
+                let encoded = status.credential_digest_sha256.as_deref().ok_or_else(|| {
+                    console_claim_error(
+                        "SNAPBACK_ADMIN_RELAY_LEASE_STATUS_INVALID",
+                        "redeemed console relay status omitted its credential binding",
+                    )
+                })?;
+                let credential_digest = decode_console_credential_digest(encoded).ok_or_else(|| {
+                    console_claim_error(
+                        "SNAPBACK_ADMIN_RELAY_LEASE_STATUS_INVALID",
+                        "redeemed console relay status carried an invalid credential binding",
+                    )
+                })?;
+                if session
+                    .credential_digest
+                    .is_some_and(|bound| bound != credential_digest)
+                {
+                    return Err(console_claim_error(
+                        "SNAPBACK_ADMIN_RELAY_LEASE_CREDENTIAL_MISMATCH",
+                        "console relay lease is bound to another credential",
+                    ));
+                }
+                session.credential_digest = Some(credential_digest);
+                status.credential_expires_at_ms
+            }
+            _ => {
+                state.sessions.remove(session_id);
+                return Err(console_claim_error(
+                    "SNAPBACK_ADMIN_RELAY_LEASE_TERMINAL",
+                    "console relay claim or credential is no longer active",
+                ));
+            }
+        }
+        .ok_or_else(|| {
+            console_claim_error(
+                "SNAPBACK_ADMIN_RELAY_LEASE_STATUS_INVALID",
+                "console relay status omitted its expiry",
+            )
+        })?;
+        session.lease_expires_at_ms = relay_lease_deadline(now_ms, status_deadline);
+        Ok(reachability_lease_response(session_id, session))
+    }
+
+    fn bind_redeemed_credential(
+        &self,
+        claim_code: &str,
+        credential: &str,
+    ) -> Result<Option<ConsoleReachabilityCredentialBinding>, SnapbackError> {
+        let claim_digest = console_credential_digest(claim_code);
+        let credential_digest = console_credential_digest(credential);
+        let now_ms = now_millis();
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        prune_console_reachability(&mut state, now_ms);
+        let Some(managed) = state.managed_claims.get(&claim_digest) else {
+            return Ok(None);
+        };
+        let session_id = managed.session_id.clone();
+        let session = state.sessions.get_mut(&session_id).ok_or_else(|| {
+            console_claim_error(
+                "SNAPBACK_ADMIN_RELAY_LEASE_TERMINAL",
+                "console relay lease expired before claim redemption",
+            )
+        })?;
+        if session.claim_digest != Some(claim_digest) {
+            return Err(console_claim_error(
+                "SNAPBACK_ADMIN_RELAY_LEASE_CLAIM_MISMATCH",
+                "console relay lease no longer matches this claim",
+            ));
+        }
+        if session
+            .credential_digest
+            .is_some_and(|bound| bound != credential_digest)
+        {
+            return Err(console_claim_error(
+                "SNAPBACK_ADMIN_RELAY_LEASE_CREDENTIAL_MISMATCH",
+                "console relay lease is bound to another credential",
+            ));
+        }
+        session.credential_digest = Some(credential_digest);
+        Ok(Some(ConsoleReachabilityCredentialBinding {
+            session_id,
+            instance_id: session.instance_id.clone(),
+        }))
+    }
+
+    fn binding_for_credential(
+        &self,
+        credential: &str,
+    ) -> Option<ConsoleReachabilityCredentialBinding> {
+        let credential_digest = console_credential_digest(credential);
+        let now_ms = now_millis();
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        prune_console_reachability(&mut state, now_ms);
+        let (session_id, session) = state
+            .sessions
+            .iter()
+            .find(|(_, session)| session.credential_digest == Some(credential_digest))?;
+        Some(ConsoleReachabilityCredentialBinding {
+            session_id: session_id.clone(),
+            instance_id: session.instance_id.clone(),
+        })
+    }
+
+    fn drop_session(&self, session_id: &str) -> bool {
+        self.state
+            .lock()
+            .unwrap_or_else(|lock| lock.into_inner())
+            .sessions
+            .remove(session_id)
+            .is_some()
+    }
+
+    pub(crate) fn admitted_origin(&self, origin: Option<&HeaderValue>) -> Option<HeaderValue> {
+        let origin = origin?.to_str().ok()?;
+        let now_ms = now_millis();
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        prune_console_reachability(&mut state, now_ms);
+        state
+            .sessions
+            .values()
+            .any(|session| session.origin == origin)
+            .then(|| HeaderValue::from_str(origin).ok())
+            .flatten()
+    }
+
+    fn identity_for_host(
+        &self,
+        host: &str,
+        requested_session: Option<&str>,
+    ) -> Option<ConsoleReachabilityIdentityResponse> {
+        let now_ms = now_millis();
+        let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
+        prune_console_reachability(&mut state, now_ms);
+        let matches_host = |session: &&ConsoleReachabilitySession| {
+            session.authority.eq_ignore_ascii_case(host)
+        };
+        if let Some(session_id) = requested_session {
+            let session = state.sessions.get(session_id)?;
+            if !matches_host(&session) {
+                return None;
+            }
+            return Some(ConsoleReachabilityIdentityResponse {
+                instance_id: session.instance_id.clone(),
+                session_id: Some(session_id.to_owned()),
+            });
+        }
+        let session = state.sessions.values().find(matches_host)?;
+        Some(ConsoleReachabilityIdentityResponse {
+            instance_id: session.instance_id.clone(),
+            session_id: None,
+        })
+    }
+}
+
+fn reachability_lease_response(
+    session_id: &str,
+    session: &ConsoleReachabilitySession,
+) -> ConsoleReachabilityLeaseResponse {
+    ConsoleReachabilityLeaseResponse {
+        session_id: session_id.to_owned(),
+        instance_id: session.instance_id.clone(),
+        lease_expires_at_ms: session.lease_expires_at_ms,
+        lease_interval_ms: CONSOLE_RELAY_LEASE_INTERVAL.as_millis() as u64,
+    }
+}
+
+fn relay_lease_deadline(now_ms: u64, status_deadline_ms: u64) -> u64 {
+    now_ms
+        .saturating_add(CONSOLE_RELAY_LEASE_INTERVAL.as_millis() as u64)
+        .min(status_deadline_ms)
+}
+
+fn prune_console_reachability(state: &mut ConsoleReachabilityState, now_ms: u64) {
+    // @ref LLP 0017#security-defaults — origin admission and the managed
+    // relay's fail-closed lifetime are the same short server-issued lease;
+    // observation loss cannot leave a reusable browser origin admitted.
+    state
+        .sessions
+        .retain(|_, session| session.lease_expires_at_ms > now_ms);
+    state
+        .managed_claims
+        .retain(|_, claim| claim.retain_until_ms > now_ms);
+}
+
+fn validated_reachability_origin(origin: &str) -> Result<(String, String), SnapbackError> {
+    let uri = origin.parse::<axum::http::Uri>().map_err(|_| {
+        console_claim_error(
+            "SNAPBACK_ADMIN_REACHABILITY_ORIGIN_INVALID",
+            "console reachability origin must be an absolute HTTP(S) origin",
+        )
+    })?;
+    let scheme = uri.scheme_str().unwrap_or_default();
+    let authority = uri.authority().ok_or_else(|| {
+        console_claim_error(
+            "SNAPBACK_ADMIN_REACHABILITY_ORIGIN_INVALID",
+            "console reachability origin must include a host",
+        )
+    })?;
+    let host = authority.host();
+    let host_ip = host.parse::<std::net::IpAddr>().ok();
+    if !matches!(scheme, "http" | "https")
+        || authority.as_str().contains('@')
+        || host.is_empty()
+        || host.eq_ignore_ascii_case("localhost")
+        || host_ip.is_some_and(|ip| ip.is_loopback() || ip.is_unspecified())
+        || !matches!(uri.path(), "" | "/")
+        || uri.query().is_some()
+    {
+        return Err(console_claim_error(
+            "SNAPBACK_ADMIN_REACHABILITY_ORIGIN_INVALID",
+            "console reachability origin must be a non-loopback HTTP(S) origin without credentials, path, query, or fragment",
+        ));
+    }
+    Ok((
+        format!("{scheme}://{authority}"),
+        authority.as_str().to_owned(),
+    ))
 }
 
 fn constant_time_matching_digest<T>(
@@ -1881,6 +2375,10 @@ pub struct AppState {
     /// seams. It never lends the app database lock to telemetry.
     pub telemetry: crate::telemetry::Telemetry,
     pub server: Arc<ServerContext>,
+    /// Exact published origins and claim/credential-bound leases for the two
+    /// managed claim-link fronts. This state is process-local by design: a
+    /// startup-nonce change invalidates every admission without recovery.
+    pub(crate) console_reachability: ConsoleReachabilityRegistry,
     /// Per-connection capability grants (ENG-23442): connection-scoped routes
     /// demand the token minted by `POST /connection/open`.
     pub connections: ConnectionRegistry,
@@ -2018,6 +2516,7 @@ impl AppState {
                 ephemeral,
                 telemetry,
                 server: Arc::new(server),
+                console_reachability: ConsoleReachabilityRegistry::default(),
                 connections,
                 bundle_pending: crate::bundle::PendingBundleRegistry::default(),
                 auth_terminal_lifecycle,
@@ -2589,6 +3088,21 @@ impl FromRef<AppState> for Arc<ServerContext> {
     }
 }
 
+impl FromRef<AppState> for ConsoleReachabilityRegistry {
+    fn from_ref(state: &AppState) -> Self {
+        state.console_reachability.clone()
+    }
+}
+
+#[derive(Clone)]
+struct ConsoleServerInstanceId(Arc<str>);
+
+impl FromRef<AppState> for ConsoleServerInstanceId {
+    fn from_ref(state: &AppState) -> Self {
+        Self(state.server_startup_nonce.clone())
+    }
+}
+
 impl FromRef<AppState> for ConnectionRegistry {
     fn from_ref(state: &AppState) -> Self {
         state.connections.clone()
@@ -3118,6 +3632,13 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             get(console_asset),
         ),
         RegisteredRoute::new(
+            system_static_route(
+                "GET",
+                "/_snapback/admin/reachability/identity",
+            ),
+            get(console_reachability_identity),
+        ),
+        RegisteredRoute::new(
             read(
                 "/_snapback/api/health",
                 ResponseSensitivity::OperatorMetadata,
@@ -3210,6 +3731,38 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::CredentialSecret,
             ),
             post(revoke_console_claim),
+        ),
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/console/reachability/register",
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(register_console_reachability),
+        ),
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/console/reachability/bind",
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(bind_console_reachability),
+        ),
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/console/reachability/renew",
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(renew_console_reachability),
+        ),
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/console/reachability/drop",
+                ResponseSensitivity::CredentialSecret,
+            ),
+            post(drop_console_reachability),
         ),
         // @ref LLP 0017#security-defaults — the browser may create and poll a
         // bounded device request, but only a token-holding local terminal can
@@ -3868,19 +4421,21 @@ async fn admin_health(
 /// local deployment, dev profile, and dev auth policy only.
 async fn mint_console_credential(
     State(ctx): State<Arc<ServerContext>>,
+    State(reachability): State<ConsoleReachabilityRegistry>,
     State(policy_mode): State<PolicyAuthMode>,
     headers: HeaderMap,
 ) -> Result<Json<ConsoleCredentialResponse>, ApiError> {
     require_console_mint_posture(&ctx)?;
     if let Some(credential) = provided_console_credential(&headers) {
         require_console_renewal_posture(&ctx, policy_mode)?;
-        let renewed = ctx.console_credentials.renew(credential)?.ok_or_else(|| {
+        let mut renewed = ctx.console_credentials.renew(credential)?.ok_or_else(|| {
             SnapbackError::error(
                 "SNAPBACK_ADMIN_TOKEN_REQUIRED",
                 "admin",
                 "renewing a console credential requires an active derived credential",
             )
         })?;
+        renewed.reachability = reachability.binding_for_credential(credential);
         return Ok(Json(renewed));
     }
     authorize_master(&ctx, &headers, policy_mode)?;
@@ -3899,6 +4454,7 @@ async fn mint_console_claim(
 
 async fn exchange_console_claim(
     State(ctx): State<Arc<ServerContext>>,
+    State(reachability): State<ConsoleReachabilityRegistry>,
     State(policy_mode): State<PolicyAuthMode>,
     peer: Option<Extension<ConnectInfo<SocketAddr>>>,
     Json(request): Json<ConsoleClaimCodeRequest>,
@@ -3912,11 +4468,27 @@ async fn exchange_console_claim(
                 "console claim exchange requires direct transport-peer metadata",
             )
         })?;
-    Ok(Json(ctx.console_claims.exchange(
+    let mut response = ctx.console_claims.exchange(
         &request.claim_code,
         transport_peer,
         &ctx.console_credentials,
-    )?))
+    )?;
+    response.reachability = match reachability
+        .bind_redeemed_credential(&request.claim_code, &response.credential)
+    {
+        Ok(binding) => binding,
+        Err(_) => {
+            // The claim was consumed concurrently with loss of its managed
+            // front. Revoke the just-issued credential before returning the
+            // ordinary opaque claim refusal; it must never escape without its
+            // tab/session binding.
+            let _ = ctx
+                .console_claims
+                .revoke(&request.claim_code, &ctx.console_credentials);
+            return Err(console_claim_invalid().into());
+        }
+    };
+    Ok(Json(response))
 }
 
 async fn status_console_claim(
@@ -3945,6 +4517,114 @@ async fn revoke_console_claim(
         ctx.console_claims
             .revoke(&request.claim_code, &ctx.console_credentials)?,
     ))
+}
+
+async fn register_console_reachability(
+    State(ctx): State<Arc<ServerContext>>,
+    State(reachability): State<ConsoleReachabilityRegistry>,
+    State(instance_id): State<ConsoleServerInstanceId>,
+    State(policy_mode): State<PolicyAuthMode>,
+    headers: HeaderMap,
+    Json(request): Json<ConsoleReachabilityRegisterRequest>,
+) -> Result<Json<ConsoleReachabilityLeaseResponse>, ApiError> {
+    require_console_claim_posture(&ctx, policy_mode)?;
+    authorize_master(&ctx, &headers, policy_mode)?;
+    Ok(Json(reachability.register(&request.origin, &instance_id.0)?))
+}
+
+async fn bind_console_reachability(
+    State(ctx): State<Arc<ServerContext>>,
+    State(reachability): State<ConsoleReachabilityRegistry>,
+    State(policy_mode): State<PolicyAuthMode>,
+    headers: HeaderMap,
+    Json(request): Json<ConsoleReachabilityClaimRequest>,
+) -> Result<Json<ConsoleReachabilityLeaseResponse>, ApiError> {
+    require_console_claim_posture(&ctx, policy_mode)?;
+    authorize_master(&ctx, &headers, policy_mode)?;
+    let claim_digest = ctx.console_claims.pending_claim_digest(&request.claim_code)?;
+    let status = ctx
+        .console_claims
+        .status(&request.claim_code, &ctx.console_credentials)?;
+    let claim_expires_at_ms = status.claim_expires_at_ms.ok_or_else(|| {
+        console_claim_error(
+            "SNAPBACK_ADMIN_RELAY_LEASE_STATUS_INVALID",
+            "pending console claim omitted its expiry",
+        )
+    })?;
+    Ok(Json(reachability.bind_claim(
+        &request.session_id,
+        claim_digest,
+        claim_expires_at_ms,
+    )?))
+}
+
+async fn renew_console_reachability(
+    State(ctx): State<Arc<ServerContext>>,
+    State(reachability): State<ConsoleReachabilityRegistry>,
+    State(policy_mode): State<PolicyAuthMode>,
+    headers: HeaderMap,
+    Json(request): Json<ConsoleReachabilityClaimRequest>,
+) -> Result<Json<ConsoleReachabilityObservationResponse>, ApiError> {
+    require_console_claim_posture(&ctx, policy_mode)?;
+    authorize_master(&ctx, &headers, policy_mode)?;
+    let claim = ctx
+        .console_claims
+        .status(&request.claim_code, &ctx.console_credentials)?;
+    let lease = if matches!(claim.status, "pending" | "redeemed") {
+        Some(reachability.renew(
+            &request.session_id,
+            &request.claim_code,
+            &claim,
+        )?)
+    } else {
+        reachability.drop_session(&request.session_id);
+        None
+    };
+    Ok(Json(ConsoleReachabilityObservationResponse {
+        claim,
+        lease,
+    }))
+}
+
+async fn drop_console_reachability(
+    State(ctx): State<Arc<ServerContext>>,
+    State(reachability): State<ConsoleReachabilityRegistry>,
+    State(policy_mode): State<PolicyAuthMode>,
+    headers: HeaderMap,
+    Json(request): Json<ConsoleReachabilityDropRequest>,
+) -> Result<Json<ConsoleReachabilityDropResponse>, ApiError> {
+    require_console_claim_posture(&ctx, policy_mode)?;
+    authorize_master(&ctx, &headers, policy_mode)?;
+    Ok(Json(ConsoleReachabilityDropResponse {
+        dropped: reachability.drop_session(&request.session_id),
+    }))
+}
+
+async fn console_reachability_identity(
+    State(reachability): State<ConsoleReachabilityRegistry>,
+    headers: HeaderMap,
+    Query(query): Query<ConsoleReachabilityIdentityQuery>,
+) -> Response {
+    let host = headers
+        .get(header::HOST)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default();
+    let Some(identity) = reachability.identity_for_host(host, query.session.as_deref())
+    else {
+        return diagnostic_response(
+            StatusCode::NOT_FOUND,
+            console_claim_error(
+                "SNAPBACK_ADMIN_REACHABILITY_SESSION_INVALID",
+                "console reachability session is unavailable",
+            ),
+        );
+    };
+    let mut response = Json(identity).into_response();
+    response.headers_mut().insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("no-store, private"),
+    );
+    response
 }
 
 async fn request_console_approval(
@@ -5760,6 +6440,183 @@ mod tests {
                 .diagnostic
                 .code,
             "SNAPBACK_ADMIN_CLAIM_RATE_LIMITED"
+        );
+    }
+
+    #[test]
+    fn reachability_lease_tracks_claim_then_credential_and_fails_closed() {
+        let claims = ConsoleClaimRegistry::default();
+        let credentials = ConsoleCredentialRegistry::default();
+        let reachability = ConsoleReachabilityRegistry::default();
+        let origin = "http://192.0.2.10:43123";
+        let lease = reachability.register(origin, "startup-nonce-a").unwrap();
+        assert_eq!(
+            reachability
+                .admitted_origin(Some(&HeaderValue::from_static(origin)))
+                .unwrap(),
+            origin
+        );
+        assert_eq!(
+            reachability
+                .identity_for_host("192.0.2.10:43123", None)
+                .unwrap()
+                .instance_id,
+            "startup-nonce-a"
+        );
+
+        let claim = claims.mint().unwrap();
+        let claim_digest = claims.pending_claim_digest(&claim.claim_code).unwrap();
+        reachability
+            .bind_claim(
+                &lease.session_id,
+                claim_digest,
+                claim.expires_at_ms,
+            )
+            .unwrap();
+        let mut exchanged = claims
+            .exchange(
+                &claim.claim_code,
+                "192.0.2.10:55000".to_owned(),
+                &credentials,
+            )
+            .unwrap();
+        exchanged.reachability = reachability
+            .bind_redeemed_credential(&claim.claim_code, &exchanged.credential)
+            .unwrap();
+        let binding = exchanged.reachability.expect("credential is relay-bound");
+        assert_eq!(binding.session_id, lease.session_id);
+        assert_eq!(binding.instance_id, "startup-nonce-a");
+
+        let status = claims.status(&claim.claim_code, &credentials).unwrap();
+        assert_eq!(status.status, "redeemed");
+        reachability
+            .renew(&lease.session_id, &claim.claim_code, &status)
+            .unwrap();
+        assert!(
+            reachability
+                .binding_for_credential(&exchanged.credential)
+                .is_some()
+        );
+
+        claims.revoke(&claim.claim_code, &credentials).unwrap();
+        let revoked = claims.status(&claim.claim_code, &credentials).unwrap();
+        let error = reachability
+            .renew(&lease.session_id, &claim.claim_code, &revoked)
+            .unwrap_err();
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ADMIN_RELAY_LEASE_TERMINAL");
+        assert!(
+            reachability
+                .admitted_origin(Some(&HeaderValue::from_static(origin)))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn managed_claim_cannot_escape_without_its_live_reachability_binding() {
+        let claims = ConsoleClaimRegistry::default();
+        let credentials = ConsoleCredentialRegistry::default();
+        let reachability = ConsoleReachabilityRegistry::default();
+        let lease = reachability
+            .register("http://192.0.2.10:43124", "startup-nonce-a")
+            .unwrap();
+        let claim = claims.mint().unwrap();
+        reachability
+            .bind_claim(
+                &lease.session_id,
+                claims.pending_claim_digest(&claim.claim_code).unwrap(),
+                claim.expires_at_ms,
+            )
+            .unwrap();
+        assert!(reachability.drop_session(&lease.session_id));
+        let exchanged = claims
+            .exchange(
+                &claim.claim_code,
+                "192.0.2.10:55001".to_owned(),
+                &credentials,
+            )
+            .unwrap();
+        assert_eq!(
+            reachability
+                .bind_redeemed_credential(&claim.claim_code, &exchanged.credential)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_ADMIN_RELAY_LEASE_TERMINAL"
+        );
+        claims.revoke(&claim.claim_code, &credentials).unwrap();
+        assert!(!credentials.allows(Some(&exchanged.credential)));
+    }
+
+    #[test]
+    fn reachability_origin_and_claim_bindings_are_exact() {
+        let reachability = ConsoleReachabilityRegistry::default();
+        for invalid in [
+            "http://127.0.0.1:4000",
+            "http://localhost:4000",
+            "http://0.0.0.0:4000",
+            "http://192.0.2.10:4000/path",
+            "http://user@192.0.2.10:4000",
+            "https://[::]:4000",
+        ] {
+            assert_eq!(
+                reachability
+                    .register(invalid, "startup-nonce")
+                    .unwrap_err()
+                    .diagnostic
+                    .code,
+                "SNAPBACK_ADMIN_REACHABILITY_ORIGIN_INVALID",
+                "{invalid}"
+            );
+        }
+        let first = reachability
+            .register("http://192.0.2.10:4000", "startup-nonce")
+            .unwrap();
+        let claim_a = console_credential_digest("sbcl_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        let claim_b = console_credential_digest("sbcl_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+        reachability
+            .bind_claim(&first.session_id, claim_a, now_millis() + 60_000)
+            .unwrap();
+        let second = reachability
+            .register("http://192.0.2.10:4001", "startup-nonce")
+            .unwrap();
+        assert_eq!(
+            reachability
+                .bind_claim(&second.session_id, claim_a, now_millis() + 60_000)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_ADMIN_RELAY_LEASE_CLAIM_MISMATCH",
+            "one claim cannot extend two managed fronts"
+        );
+        assert_eq!(
+            reachability
+                .bind_claim(&first.session_id, claim_b, now_millis() + 60_000)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_ADMIN_RELAY_LEASE_CLAIM_MISMATCH"
+        );
+        assert!(
+            reachability
+                .identity_for_host("192.0.2.10:4001", Some(&first.session_id))
+                .is_none(),
+            "a neighboring authority cannot reuse the registered identity"
+        );
+    }
+
+    #[test]
+    fn master_console_exchange_attempts_are_bounded_before_auth() {
+        let registry = ConsoleCredentialRegistry::default();
+        for _ in 0..CONSOLE_CREDENTIAL_EXCHANGES_PER_MINUTE {
+            registry.admit_master_exchange().unwrap();
+        }
+        assert_eq!(
+            registry
+                .admit_master_exchange()
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_RATE_LIMITED"
         );
     }
 
