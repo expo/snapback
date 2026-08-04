@@ -21,7 +21,7 @@ export const api = Object.freeze({
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "snapback.v1:sessions:function:sha256:a2e7e5df0a728153001b8dae5104630833b093e8847b1f037df1962da200c9b0",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:8bddac3e97288667a4985290d7db88749de47d3eee851f24048b10e72645617c",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:8ae8e9f470fac7ad168f406be640bdb3503e617cc67b5db12c386c9e3d7858dd",
       "schemaHash": "snapback.v1:sessions:schema:sha256:7644251e2733c8c64e6196470c890bc394e53553abe62be73e801d60af1a6b78",
       "schemaVersion": "snapback.v1"
     },
@@ -44,7 +44,7 @@ export const api = Object.freeze({
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "snapback.v1:sessions:function:sha256:a2e7e5df0a728153001b8dae5104630833b093e8847b1f037df1962da200c9b0",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:8bddac3e97288667a4985290d7db88749de47d3eee851f24048b10e72645617c",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:8ae8e9f470fac7ad168f406be640bdb3503e617cc67b5db12c386c9e3d7858dd",
       "schemaHash": "snapback.v1:sessions:schema:sha256:7644251e2733c8c64e6196470c890bc394e53553abe62be73e801d60af1a6b78",
       "schemaVersion": "snapback.v1"
     },
@@ -74,7 +74,7 @@ export const api = Object.freeze({
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "snapback.v1:sessions:function:sha256:a2e7e5df0a728153001b8dae5104630833b093e8847b1f037df1962da200c9b0",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:8bddac3e97288667a4985290d7db88749de47d3eee851f24048b10e72645617c",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:8ae8e9f470fac7ad168f406be640bdb3503e617cc67b5db12c386c9e3d7858dd",
       "schemaHash": "snapback.v1:sessions:schema:sha256:7644251e2733c8c64e6196470c890bc394e53553abe62be73e801d60af1a6b78",
       "schemaVersion": "snapback.v1"
     },
@@ -122,7 +122,7 @@ export const api = Object.freeze({
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "snapback.v1:sessions:function:sha256:a2e7e5df0a728153001b8dae5104630833b093e8847b1f037df1962da200c9b0",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:8bddac3e97288667a4985290d7db88749de47d3eee851f24048b10e72645617c",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:8ae8e9f470fac7ad168f406be640bdb3503e617cc67b5db12c386c9e3d7858dd",
       "schemaHash": "snapback.v1:sessions:schema:sha256:7644251e2733c8c64e6196470c890bc394e53553abe62be73e801d60af1a6b78",
       "schemaVersion": "snapback.v1"
     },

@@ -42,7 +42,7 @@ export const api = Object.freeze({
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "sha256:cc9bad51e34f9763",
-      "inputsHash": "9d502eb8b72958f6def8e5b85e6652f3a432049fa0927e89e0b321684ed57fa5",
+      "inputsHash": "69881e46b845a7540732e66b8abec4e7538a7c7277a9da7e09e2b82a5fc0b732",
       "schemaHash": "sha256:585de2f2715275bb",
       "schemaVersion": "snapback.v0"
     },
@@ -90,7 +90,7 @@ export const api = Object.freeze({
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "sha256:cc9bad51e34f9763",
-      "inputsHash": "9d502eb8b72958f6def8e5b85e6652f3a432049fa0927e89e0b321684ed57fa5",
+      "inputsHash": "69881e46b845a7540732e66b8abec4e7538a7c7277a9da7e09e2b82a5fc0b732",
       "schemaHash": "sha256:585de2f2715275bb",
       "schemaVersion": "snapback.v0"
     },
@@ -113,7 +113,7 @@ export const api = Object.freeze({
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "sha256:cc9bad51e34f9763",
-      "inputsHash": "9d502eb8b72958f6def8e5b85e6652f3a432049fa0927e89e0b321684ed57fa5",
+      "inputsHash": "69881e46b845a7540732e66b8abec4e7538a7c7277a9da7e09e2b82a5fc0b732",
       "schemaHash": "sha256:585de2f2715275bb",
       "schemaVersion": "snapback.v0"
     },
@@ -143,7 +143,7 @@ export const api = Object.freeze({
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "sha256:cc9bad51e34f9763",
-      "inputsHash": "9d502eb8b72958f6def8e5b85e6652f3a432049fa0927e89e0b321684ed57fa5",
+      "inputsHash": "69881e46b845a7540732e66b8abec4e7538a7c7277a9da7e09e2b82a5fc0b732",
       "schemaHash": "sha256:585de2f2715275bb",
       "schemaVersion": "snapback.v0"
     },
@@ -173,7 +173,7 @@ export const api = Object.freeze({
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "sha256:cc9bad51e34f9763",
-      "inputsHash": "9d502eb8b72958f6def8e5b85e6652f3a432049fa0927e89e0b321684ed57fa5",
+      "inputsHash": "69881e46b845a7540732e66b8abec4e7538a7c7277a9da7e09e2b82a5fc0b732",
       "schemaHash": "sha256:585de2f2715275bb",
       "schemaVersion": "snapback.v0"
     },
@@ -196,7 +196,7 @@ export const api = Object.freeze({
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "sha256:cc9bad51e34f9763",
-      "inputsHash": "9d502eb8b72958f6def8e5b85e6652f3a432049fa0927e89e0b321684ed57fa5",
+      "inputsHash": "69881e46b845a7540732e66b8abec4e7538a7c7277a9da7e09e2b82a5fc0b732",
       "schemaHash": "sha256:585de2f2715275bb",
       "schemaVersion": "snapback.v0"
     },
@@ -230,7 +230,7 @@ export const api = Object.freeze({
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "sha256:cc9bad51e34f9763",
-      "inputsHash": "9d502eb8b72958f6def8e5b85e6652f3a432049fa0927e89e0b321684ed57fa5",
+      "inputsHash": "69881e46b845a7540732e66b8abec4e7538a7c7277a9da7e09e2b82a5fc0b732",
       "schemaHash": "sha256:585de2f2715275bb",
       "schemaVersion": "snapback.v0"
     },

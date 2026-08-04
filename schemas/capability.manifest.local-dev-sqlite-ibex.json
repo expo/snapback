@@ -72,7 +72,8 @@
       "rejected"
     ],
     "lifecycleStores": [
-      "local-fs"
+      "local-fs",
+      "s3-compatible"
     ],
     "maxChunkBytes": 8388608,
     "maxOpenAttemptsPerApp": 64,
