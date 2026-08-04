@@ -179,11 +179,14 @@ const inventories = [
       'attribution.test.mjs',
       'auth.test.mjs',
       'cli.test.mjs',
+      'code-mode-ibex.test.mjs',
       'code-mode.test.mjs',
       'digest.test.mjs',
       'envelope.test.mjs',
+      'ibex-bundle.test.mjs',
       'package.test.mjs',
       'result-core.test.mjs',
+      'schema-interpreter.test.mjs',
     ],
   },
   {
@@ -527,7 +530,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // 193 -> 195 (2026-08-04, Move-3 Phase-1 lane M4): codegen gains the
 // generated mutation-IR identity/read-requirement suite; the client gains the
 // no-duplicate-transform, pre-settlement paint, and boot-replay suite.
-assert.equal(total, 195, 'reviewed package/admin test count changed');
+// 195 -> 198 (2026-08-04, LLP 0062 Phase 2): @expo/snapback-app-cli gains
+// the app-bound Ibex coordinator, bundle, and inert-schema suites.
+assert.equal(total, 198, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
