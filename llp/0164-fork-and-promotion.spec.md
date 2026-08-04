@@ -5,7 +5,14 @@
 **Systems:** Storage, Runtime, Effects, Auth, Agent experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (first in-app implementation slice — immutable
+**Revised:** 2026-08-04 (acceptance-tail checkpoint — in-app net diff is now
+journal-derived and independently checked against immutable-base/head scans,
+with a streaming digest-work byte bound and a separate attributed-sequence
+oracle; the derived deployment has an explicit post-fork parent-write
+invisibility fixture; the v2 absolute recorder binds the step-0 digest, exact
+clean source, fixed hardware/toolchain, and executable digest. Remaining rows,
+including global writer-authority completeness, performance/p99/author bounds,
+and publication, stay open and every capability stays `Missing`); 2026-08-03 (first in-app implementation slice — immutable
 current-head bases, replay-sufficient branch operations, independent exact
 diffs, bounded durable `DenyAll` markers, sealed strict-CAS promotion by
 re-execution, aggregate envelope/source joins, FIFO admission/rebase/re-seal,
@@ -29,7 +36,16 @@ sealed schema/request retry, and host-ticket lifecycle negatives are green.
 The aggregate envelope explicitly retains a coverage-manifest GAP, F0b is only
 the first derived-deployment consumer, and integrated latency is now recorded;
 author-ratified bounds, p99 contention, and the residual corpus remain missing,
-so the Spec stays Draft and every capability stays `Missing`)
+so the Spec stays Draft and every capability stays `Missing`); 2026-08-04
+(`exact_fork_diff` derives net state
+from the retained multi-commit operation journal, refuses divergence from an
+independent immutable-base/head oracle, separately emits the journal
+attribution sequence, and accounts/refuses bounded digest work; 32 × 48
+deterministic journalized operations and direct-SQL bypass negatives pass. A
+derived-deployment fixture proves later parent writes remain invisible. The
+successor absolute recorder is measurement-time baseline-digest/revision/
+hardware/toolchain/executable bound, but no successor Air result, p99 result,
+or author bound exists yet; status stays Draft and capabilities stay `Missing`.)
 
 ## Purpose
 
@@ -167,6 +183,41 @@ claim, and explicitly keeps capabilities `Missing`; it closes only the
 integrated-revision rerun sub-gate in row 13.
 `CaptureOnly`, exhaustive product egress mediation, and capability manifest
 publication are explicitly outside this slice.
+
+### Acceptance-tail checkpoint — 2026-08-04
+
+The in-app diff substrate is now
+`journalDerivedWithIndependentOracle`. The runtime folds canonical application
+row post-images from the replay-sufficient operation journal, compares the
+derived head with independently scanned immutable-base/head state, and refuses
+`SNAPBACK_BRANCH_DIFF_JOURNAL_INCOMPLETE` on any mismatch or unclassifiable
+fact. The 32-seed corpus now uses 48 separately committed branch operations per
+seed rather than mutating the fixture behind the journal, and a distinct oracle
+compares every `(childVersion, operationIdentity, writeOrdinal, write)` entry.
+This closes the prior randomized-fixture and attribution-oracle gaps for the
+enumerated in-app lane; schema/system coverage and the global generated-writer
+plus SQLite-authorizer completeness proof remain open.
+
+`BranchLimitsV1.maxDigestWorkBytes` bounds streaming serialization of the
+base/head oracle, retained journal, attribution, and net-diff inputs before the
+receipt digest is computed. `ForkDiffReceiptV1.digestWorkBytes` records the
+admitted work. A one-byte negative refuses stably without canonical mutation.
+This closes the named in-app digest-work leg of row 8, not the independent-clock
+or remaining resource corpus.
+
+The derived-deployment corpus now updates and inserts parent rows after fork
+publication and proves both are invisible to the copied child. This closes the
+specific row-5 parent-write fixture, not the full per-class product/runtime and
+credential matrix.
+
+The v2 absolute recorder is ready for an exact-revision Air run and will refuse
+unless the source tree is clean, its expected revision matches `HEAD`, the
+accepted step-0 artifact identity and SHA-256 are present, the host matches the
+baseline OS plus Mac17,3 / Apple M5 / 10-logical-CPU / 32-GiB class, the
+toolchain matches the baseline, and the record includes the toolchain and
+release-executable digest. It uses create-new publication so a
+dated record cannot be overwritten. No 2026-08-04 Air artifact, p99 contention
+record, or author-ratified bound is claimed by this checkpoint.
 
 ## Open items
 

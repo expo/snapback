@@ -57,6 +57,12 @@
           "minimum": 0,
           "type": "integer"
         },
+        "maxDigestWorkBytes": {
+          "description": "Maximum canonical JSON bytes admitted to one exact-diff derivation.\nThis bounds the base/head oracle, retained journal, attribution, and\nnet-diff inputs before the receipt digest is computed.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
         "maxLiveBranchesPerApp": {
           "format": "uint64",
           "minimum": 0,
@@ -88,6 +94,7 @@
         "maxOperations",
         "maxRetainedBytes",
         "maxDiffRows",
+        "maxDigestWorkBytes",
         "ttlMs"
       ],
       "type": "object"
