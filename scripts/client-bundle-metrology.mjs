@@ -211,6 +211,9 @@ const FINITE_CARRIER_COMPLETENESS_ROLLOVER_PROFILE_IDS = Object.freeze([
   ...OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS,
   'public-subpath-materialization-store',
 ]);
+const ROWLESS_RQS_RESUME_ROLLOVER_PROFILE_IDS = Object.freeze([
+  ...OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS,
+]);
 const ROLLOVER_LEDGER_SPECS = Object.freeze([
   Object.freeze({
     filename: 'baseline.local-persistent-store.v1.json',
@@ -368,6 +371,34 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/browser-closure.test.mjs']],
       ['node', ['packages/snapback-react/package.test.mjs']],
       ['node', ['packages/snapback-client/materialization-store.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.rowless-rqs-resume.v1.json',
+    profileFilename: 'rowless-rqs-resume-profiles.v1.json',
+    workloadVersion: 'llp-0091-rowless-rqs-resume-ordering.v1',
+    profileIds: ROWLESS_RQS_RESUME_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.finite-carrier-completeness.v1.json',
+        profileIds: ROWLESS_RQS_RESUME_ROLLOVER_PROFILE_IDS,
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0091#0b2-currentasof-envelope',
+      'LLP 0091#0b3-client-transition-table',
+      'LLP 0091#0b4-token-resume-wire-naming-and-dispatch-against-the-reattach-route',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-resume.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-resume-memory.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-resume-expo.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-resume-native.test.mjs']],
     ]),
   }),
 ]);
