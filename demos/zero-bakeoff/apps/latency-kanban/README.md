@@ -1,9 +1,12 @@
 # Latency Kanban (A2)
 
 Paired provider-native implementations of LLP 0138's 500-card optimistic
-board. Both arms inject 1,000 ms at the mutation authority boundary. Local
-prediction, server acknowledgement, and independent-observer convergence are
-recorded as different events.
+board. Both arms consume `protocol/acceptance/latency-kanban.v2.json` and the
+shared `optimistic` profile with its bounded client-observable latency envelope
+from `protocol/environment.v2.json`. Zero
+injects before commit; Snapback injects on post-commit egress. Local prediction,
+server acknowledgement, and independent-observer convergence are recorded as
+different events.
 
 ```sh
 cd demos/zero-bakeoff/apps/latency-kanban

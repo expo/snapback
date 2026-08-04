@@ -1,0 +1,52 @@
+{
+  "schemaVersion": "snapback.zero-bakeoff.environment.v2",
+  "observedAt": "2026-08-04T00:00:00-07:00",
+  "machine": {
+    "hostname": "Charlies-MacBook-Pro.local",
+    "platform": "darwin-arm64",
+    "cpu": "Apple M5 Max, 18-core",
+    "memoryGiB": 128
+  },
+  "runtime": {
+    "node": "25.9.0",
+    "bun": "1.3.12",
+    "postgres": "17.10",
+    "zero": "1.8.0",
+    "replicache": "15.3.0"
+  },
+  "networkProfiles": {
+    "normal": {
+      "name": "normal",
+      "mutationAckDelayMs": 0,
+      "liveDeltaDelayMs": 0,
+      "queryResponseDelayMs": 0,
+      "jitterMs": 0
+    },
+    "optimistic": {
+      "name": "optimistic",
+      "mutationAckDelayMs": 1000,
+      "liveDeltaDelayMs": 1000,
+      "queryResponseDelayMs": 0,
+      "jitterMs": 0
+    },
+    "demo-slow": {
+      "name": "demo-slow",
+      "mutationAckDelayMs": 2000,
+      "liveDeltaDelayMs": 2000,
+      "queryResponseDelayMs": 2000,
+      "jitterMs": 250
+    }
+  },
+  "latencyWindows": {
+    "optimistic": {
+      "actorAck": {"floorMs": 1000, "toleranceMs": 1000},
+      "observerDelta": {"floorMs": 1000, "toleranceMs": 1000}
+    }
+  },
+  "measurementDiscipline": "Windows (floor+tolerance ceiling) bound paced samples: sequential operations issued after the previous operation settled. Concurrent open-loop samples assert the floor only — commit-queue wait under concurrency is state-side scheduling, present under the normal profile too, and is not injected latency in either arm.",
+  "armInjectionPoints": {
+    "zero": "pre-commit",
+    "snapback": "post-commit"
+  },
+  "performanceRule": "Only same-machine, same-fixture, same-profile samples are comparative."
+}

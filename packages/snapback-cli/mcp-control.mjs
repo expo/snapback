@@ -216,6 +216,45 @@ const CONTROL_TOOLS = [
     annotations: { readOnlyHint: true, openWorldHint: false },
   },
   {
+    name: 'snapback_network_profile_get',
+    operation: 'debug.networkProfileGet',
+    title: 'Read the active network condition profile',
+    description: 'Return the active profile and activation provenance through debug.networkProfileGet.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_network_profile_set',
+    operation: 'debug.networkProfileSet',
+    title: 'Set the active network condition profile',
+    description: 'Activate a built-in name or inline profile through the server shared activation gate.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['profile'],
+      properties: {
+        profile: {
+          oneOf: [
+            { type: 'string', enum: ['normal', 'optimistic', 'demo-slow'] },
+            {
+              type: 'object',
+              additionalProperties: false,
+              required: ['name', 'mutationAckDelayMs', 'liveDeltaDelayMs', 'queryResponseDelayMs'],
+              properties: {
+                name: { type: 'string' },
+                mutationAckDelayMs: { type: 'integer', minimum: 0, maximum: 30000 },
+                liveDeltaDelayMs: { type: 'integer', minimum: 0, maximum: 30000 },
+                queryResponseDelayMs: { type: 'integer', minimum: 0, maximum: 30000 },
+                jitterMs: { type: 'integer', minimum: 0, maximum: 30000, default: 0 },
+              },
+            },
+          ],
+        },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
     name: 'snapback_telemetry_stats',
     operation: 'telemetry.stats',
     title: 'Read aggregate telemetry health',
@@ -780,6 +819,16 @@ export class McpControlServer {
       }
       case 'snapback_inspect':
         return this.servedResult({ operation: 'app.inspect' });
+      case 'snapback_network_profile_get':
+        return this.servedResult({ operation: 'debug.networkProfileGet' });
+      case 'snapback_network_profile_set':
+        // @ref LLP 0042#control-plane-server — control tools are thin
+        // projections over host-ops; the server owns parsing, authority, the
+        // activation gate, refusal codes, and the returned envelope.
+        return this.servedResult({
+          operation: 'debug.networkProfileSet',
+          input: args.profile,
+        });
       case 'snapback_telemetry_stats':
         return this.servedResult({ operation: 'telemetry.stats', input: args });
       case 'snapback_telemetry_events': {

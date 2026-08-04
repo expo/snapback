@@ -774,6 +774,52 @@ pub(crate) fn telemetry_query_result(
     result
 }
 
+/// Project a network-profile read or activation outcome through the ordinary
+/// host-ops envelope. Parsing and activation happen in the managed server,
+/// where every selector can terminate at `AppState::activate_network_profile`;
+/// this helper only stamps the shared DTO around that outcome.
+///
+/// @ref LLP 0167#authority-one-activation-chokepoint — host-ops is a thin
+///   projection over the same activation gate as the dedicated admin route.
+pub(crate) fn network_profile_result(
+    snapback: &LocalSnapback,
+    request: &HostOpsRequest,
+    server_url: Option<String>,
+    profile: crate::admin::ServerProfile,
+    outcome: Result<Value, SnapbackError>,
+) -> HostOpsResult {
+    let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
+    let operation = request.operation.clone();
+    let authority = match operation.as_str() {
+        "debug.networkProfileSet" => authority_admin("host-ops network-profile write gate"),
+        _ => authority_none(),
+    };
+    match outcome {
+        Ok(data) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            true,
+            authority,
+            data,
+            Vec::new(),
+        ),
+        Err(error) => host_ops_result(
+            snapback,
+            request_id,
+            operation,
+            server_url,
+            profile,
+            false,
+            authority,
+            Value::Object(Default::default()),
+            vec![error.diagnostic],
+        ),
+    }
+}
+
 pub(crate) fn host_op_handler_input(request: &HostOpsRequest) -> HandlerInput {
     HandlerInput {
         args: request

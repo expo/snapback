@@ -28,8 +28,28 @@ export async function createAdminSurface({ runtime, client }) {
   let errorNotice = '';
   let currentErrors = emptyErrorIssues();
   let currentErrorDetail = emptyErrorDetail();
+  let currentNetworkProfile = emptyNetworkProfile();
+  let networkProfileReadOnly = false;
+  let lastNetworkProfileError = null;
   let guideCatalog = null;
   const loadView = async () => buildView(...(await loadFacts(client)), lastVerify);
+  // @ref LLP 0167#honesty-requirements — one shared resource drives both the
+  //   all-surface banner and Developer panel, refreshed by the existing poll.
+  const loadNetworkProfile = async () => {
+    try {
+      currentNetworkProfile = shapeNetworkProfile(
+        await client.networkProfile(),
+        networkProfileReadOnly,
+        lastNetworkProfileError,
+      );
+    } catch (error) {
+      const failure = networkProfileError(error);
+      currentNetworkProfile = currentNetworkProfile.loaded
+        ? { ...currentNetworkProfile, hasError: true, ...failure }
+        : failedNetworkProfile(error);
+    }
+    return currentNetworkProfile;
+  };
   // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere-d5-discipline — the
   //   fixed console reuses the structural list and keeps raw detail explicit.
   const loadErrors = async () => {
@@ -95,6 +115,7 @@ export async function createAdminSurface({ runtime, client }) {
       // fixed Errors page and Health link tile. Raw exemplars remain unloaded.
       errorIssues: async () => loadErrors(),
       errorDetail: async () => currentErrorDetail,
+      networkProfile: async () => loadNetworkProfile(),
       tableScan: emptyScan,
       runResult: emptyRun,
       guidePage: async () => loadGuideHome(),
@@ -104,12 +125,45 @@ export async function createAdminSurface({ runtime, client }) {
         // An explicit refresh drops the transient probe-result note; the
         // durable verified state on each entry is what remains authoritative.
         lastVerify = null;
-        publishOne('inspect', await loadCommandView());
+        const [view, profile] = await Promise.all([loadCommandView(), loadNetworkProfile()]);
+        publishOne('inspect', view);
+        publishOne('networkProfile', profile);
         publishOne('errorIssues', await loadErrors());
       },
       refreshTelemetry: async (_args, { publishOne }) => {
-        publishOne('inspect', await loadCommandView());
+        const [view, profile] = await Promise.all([loadCommandView(), loadNetworkProfile()]);
+        publishOne('inspect', view);
+        publishOne('networkProfile', profile);
         publishOne('errorIssues', await loadErrors());
+      },
+      // The server owns validation and deployment policy. This command only
+      // projects Contract's string-valued form fields into the typed JSON body
+      // and retains any returned diagnostic verbatim for the panel.
+      activateNetworkProfile: async (input, { publishOne }) => {
+        try {
+          const requested = input.mode === 'custom'
+            ? inlineNetworkProfile(input)
+            : input.name;
+          const activated = await client.setNetworkProfile(requested);
+          if (!networkProfileReadOnly) lastNetworkProfileError = null;
+          currentNetworkProfile = shapeNetworkProfile(
+            activated,
+            networkProfileReadOnly,
+            lastNetworkProfileError,
+          );
+        } catch (error) {
+          lastNetworkProfileError = networkProfileError(error);
+          if (lastNetworkProfileError.errorCode === 'SNAPBACK_NETWORK_PROFILE_FORBIDDEN') {
+            networkProfileReadOnly = true;
+          }
+          currentNetworkProfile = {
+            ...currentNetworkProfile,
+            readOnly: networkProfileReadOnly,
+            hasError: true,
+            ...lastNetworkProfileError,
+          };
+        }
+        publishOne('networkProfile', currentNetworkProfile);
       },
       loadTelemetryLogs: async (filter, { publishOne }) => {
         publishOne('telemetryLogs', await loadLogs(filter));
@@ -237,6 +291,118 @@ const SYS_FIELDS = [
   { name: '_createdAt', type: 'Integer' },
   { name: '_updatedAt', type: 'Integer' },
 ];
+
+/* ---------------- network condition profile ---------------- */
+
+function emptyNetworkProfile() {
+  return {
+    id: 'networkProfile',
+    loaded: false,
+    available: false,
+    name: 'unknown',
+    mutationAckDelayMs: '—',
+    liveDeltaDelayMs: '—',
+    queryResponseDelayMs: '—',
+    jitterMs: '—',
+    source: 'unknown',
+    activatedAt: '—',
+    principal: '',
+    hasPrincipal: false,
+    isNormal: true,
+    showBanner: false,
+    readOnly: false,
+    hasError: false,
+    errorCode: '',
+    errorMessage: '',
+  };
+}
+
+function shapeNetworkProfile(payload, readOnly = false, error = null) {
+  const profile = payload?.profile || {};
+  const provenance = payload?.provenance || {};
+  const mutationAckDelayMs = profile.mutationAckDelayMs;
+  const liveDeltaDelayMs = profile.liveDeltaDelayMs;
+  const queryResponseDelayMs = profile.queryResponseDelayMs;
+  const jitterMs = profile.jitterMs;
+  const name = String(profile.name || 'unknown');
+  const isNormal = name === 'normal'
+    && mutationAckDelayMs === 0
+    && liveDeltaDelayMs === 0
+    && queryResponseDelayMs === 0
+    && jitterMs === 0;
+  const failure = error || { errorCode: '', errorMessage: '' };
+  return {
+    id: 'networkProfile',
+    loaded: true,
+    available: true,
+    name,
+    mutationAckDelayMs: delayLabel(mutationAckDelayMs),
+    liveDeltaDelayMs: delayLabel(liveDeltaDelayMs),
+    queryResponseDelayMs: delayLabel(queryResponseDelayMs),
+    jitterMs: delayLabel(jitterMs),
+    source: String(provenance.source || 'unknown'),
+    activatedAt: fmtTime(provenance.activatedAtMs),
+    principal: provenance.principal ? String(provenance.principal) : '',
+    hasPrincipal: !!provenance.principal,
+    isNormal,
+    showBanner: !isNormal,
+    readOnly,
+    hasError: !!failure.errorCode || !!failure.errorMessage,
+    errorCode: failure.errorCode,
+    errorMessage: failure.errorMessage,
+  };
+}
+
+function failedNetworkProfile(error) {
+  return {
+    ...emptyNetworkProfile(),
+    loaded: true,
+    hasError: true,
+    ...networkProfileError(error),
+  };
+}
+
+function networkProfileError(error) {
+  const diagnostic = error && typeof error === 'object'
+    ? error.diagnostic || error.details?.diagnostic || null
+    : null;
+  return {
+    errorCode: diagnostic?.code ? String(diagnostic.code) : 'SNAPBACK_NETWORK_PROFILE_UNAVAILABLE',
+    // Preserve the server diagnostic message itself, not Error.message (which
+    // the shared client prefixes with the code for logs and thrown errors).
+    errorMessage: diagnostic?.message
+      ? String(diagnostic.message)
+      : errorMessage(error),
+  };
+}
+
+function inlineNetworkProfile(input) {
+  return {
+    name: String(input.name ?? ''),
+    mutationAckDelayMs: profileFormInteger(input.mutationAckDelayMs, 'mutationAckDelayMs'),
+    liveDeltaDelayMs: profileFormInteger(input.liveDeltaDelayMs, 'liveDeltaDelayMs'),
+    queryResponseDelayMs: profileFormInteger(input.queryResponseDelayMs, 'queryResponseDelayMs'),
+    jitterMs: profileFormInteger(input.jitterMs, 'jitterMs'),
+  };
+}
+
+function profileFormInteger(value, field) {
+  const text = String(value ?? '').trim();
+  if (!/^\d+$/.test(text) || !Number.isSafeInteger(Number(text))) {
+    const message = `network profile field ${field} must be a non-negative integer`;
+    const error = new Error(message);
+    error.diagnostic = {
+      code: 'SNAPBACK_NETWORK_PROFILE_INVALID',
+      message,
+    };
+    throw error;
+  }
+  return Number(text);
+}
+
+function delayLabel(value) {
+  return Number.isFinite(value) ? `${value} ms` : '—';
+}
 
 /* ---------------- data explorer ---------------- */
 

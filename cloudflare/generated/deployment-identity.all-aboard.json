@@ -2,8 +2,8 @@
   "format": 2,
   "app": "all-aboard",
   "schemaHash": "sha256:deb0bcafd5cadc8712cb0f1a190bbddb65367547be332580f59408c66266c7f0",
-  "bundleHash": "sha256:2fcc014f13e44a3f4c8f5f46cd9f17dcb318183791205fd2a8fae5ba408764a5",
-  "inputsHash": "sha256:982acef548e5d81065ae009f17be4a047e72e024d78075c51b63c906d01f7437",
+  "bundleHash": "sha256:ecba677e86944cf0bd5e82958676b1f3db7a182b30ddba5c17dc672bd7226dc9",
+  "inputsHash": "sha256:d3ba29814f05410afd383c32191520f0169a98f2d72f9017dfe48c68b70a74cb",
   "inputs": [
     "cloudflare/app/all-aboard.app.js",
     "cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json",
@@ -13,6 +13,7 @@
     "cloudflare/src/handler-worker.js",
     "cloudflare/src/host-ops.js",
     "cloudflare/src/limits.js",
+    "cloudflare/src/network-profile.js",
     "cloudflare/src/platform-errors.js",
     "cloudflare/src/rqs-host.mjs",
     "cloudflare/src/subscription-selection.js",

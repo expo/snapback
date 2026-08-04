@@ -10,14 +10,16 @@ from-scratch redesign is logged in
 [diary 0005](../diaries/0005-admin-console-redesign.diary.md).
 
 It is an app-shell layout — a fixed sidebar (the Snapback toggle mark and
-navigation) beside a scrolling content pane — with nine surfaces:
+navigation) beside a scrolling content pane — with these surfaces:
 **Overview**, **Schema**, a paginated **Data**
 explorer, a **Functions** runner that shows captured read/write sets,
 **Capabilities** (the full capability manifest), **Realtime** (durable
 subscriptions, live-delivery stats, ephemeral counters), and **Diagnostics**.
 The **Secrets** surface reports write-only configuration status, and **Docs**
 renders the build-matched Snapback Guide from its served manifest without
-injecting HTML.
+injecting HTML. The **Developer** surface controls the server's network
+condition profile; the existing five-second console poll refreshes the one
+shared profile resource that also drives the non-normal banner on every tab.
 Every surface renders only what the admin API actually reports — no placeholder
 controls — and read-only operations stay open on loopback while writes honor
 `writes_require_token`.
@@ -103,7 +105,7 @@ remaining verification.
 
 ## Layout
 
-- `app.contract` — the console UI: the app-shell sidebar + the nine surfaces,
+- `app.contract` — the console UI: the app-shell sidebar + the console surfaces,
   built from reusable components (`Card`, `Kv`, `Badge`, `StatTile`, `FieldRow`,
   `DiagRow`) and `when` panels. Code/JSON output (run payloads, host plans,
   diagnostic details) renders in fixed-height `scroll` blocks so content
@@ -122,8 +124,9 @@ remaining verification.
 - `generate-contract-bindings.mjs` / `generated/contract/` — generated
   `use … from` targets, `.contract-meta.ts` semantics sidecars, and runtime
   links for inspect/refresh, tableScan/loadTable, runResult/runFunction, and the
-  ephemeral `cleanup` mutation.
-- `admin-client.mjs` — fetch client for `/_snapback/api/*`.
+  ephemeral `cleanup` mutation, plus network-profile read/activation.
+- `../packages/snapback-admin-client/index.mjs` — the shared fetch client for
+  `/_snapback/api/*`.
 - `admin-boundary.mjs` — declares the admin resources/commands and flattens the
   inspect payload into the `data.ui.*` view model the `.contract` renders; shared
   boundary/link lifecycle comes from `createSnapbackSystemContractSurface`.

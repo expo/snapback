@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "e61131eaf9690b9ca480e990e06462c8b13c8a03"
+    "commit": "03008ecff826e7bbc3949ec5d446900c2e7e87d4"
   },
   "nav": {
     ".": [
@@ -1440,7 +1440,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "37ed952672d43abdfede88a9d51a76e04a11da5b",
-      "sha256": "ed47dd8394f681212acedbc358422cc9fbedde2233acfb00f893191ebeb5b4b2",
+      "sha256": "3f7e118d6be7ac310c352bebcc68af4323ead8ed6993d402e750652f26b17a2f",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1679,11 +1679,12 @@
         "packages/snapback-client/webcrypto-fallback.test.mjs",
         "packages/snapback-react/webcrypto-fallback.test.mjs",
         "packages/snapback-client/rqs-store-expo.test.mjs",
+        "packages/snapback-client/rqs-resume-expo.test.mjs",
         "demos/rn-durable-store-witness/probe-App.tsx"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "bcf2b41877ad116a24b5e03cf91c909890163bad05bf08314dcb2850b110b3ea",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "41c2db8804ba08071c39641cc46251c9084c7a31",
+      "sha256": "60e5d6006cce3123653743b314c6ffef912d5265cf0b5373cf92e7af14be12fd",
       "snippets": [
         {
           "lang": "ts",
@@ -2695,7 +2696,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "7b467cf16",
-      "sha256": "dd1c5f3d7c88ffd7a0861641cc7dc4ebdea33824af6d215449936ba323146d2f",
+      "sha256": "033b7ee51fa0cae413ec5b7d4c5050e6e68a12b0d89b6136361c0212e928c82b",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -2969,7 +2970,7 @@
   },
   "surfaces": {
     "routes": 111,
-    "hostOps": 35
+    "hostOps": 37
   },
-  "contentHash": "06b3ebf46b9b427359a1ac76387f5f8b8db956239c4de34399ad0ac2d357a37f"
+  "contentHash": "4e4fcc89d4c874dbb120a538550b2d54b8900ce4ea6e3131213eef7b73b6e0c6"
 }

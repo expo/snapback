@@ -1,6 +1,6 @@
 //! LLP 0032 P6: the host-ops first slice. One operation endpoint
 //! (`POST /_snapback/api/host-ops`), one `hostOpsResult` envelope per call,
-//! served ops app.inspect / schema.load / functions.load /
+//! served ops app.inspect / debug.networkProfile{Get,Set} / schema.load / functions.load /
 //! function.run / function.explain; pinned-not-built ops fail closed with a
 //! structured diagnostic; app.reset fails closed unless it executes through
 //! the authorization-stream coordinator; the readiness descriptor validates
@@ -8,10 +8,14 @@
 //! `tests/dry_run_v0.rs`.
 
 use serde_json::{Value, json};
+use snapback::admin::{AppState, ServerContext, ServerProfile};
 use snapback::host_ops::{HostOpsRequest, HostReadyDescriptor, execute_host_op};
 use snapback::local::LocalSnapback;
 use std::fs;
 use std::path::PathBuf;
+use axum::body::{Body, to_bytes};
+use axum::http::{Request, StatusCode, header};
+use tower::ServiceExt as _;
 
 fn generated(file: &str) -> Value {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -41,6 +45,143 @@ fn assert_reset_projection_unavailable(result: &Value) {
         result["diagnostics"][0]["code"],
         json!("SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"),
         "app.reset: {result}"
+    );
+}
+
+fn host_ops_http_request(token: &str, body: Value) -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri("/_snapback/api/host-ops")
+        .header(header::CONTENT_TYPE, "application/json")
+        .header("x-snapback-admin-token", token)
+        .body(Body::from(serde_json::to_vec(&body).unwrap()))
+        .unwrap()
+}
+
+async fn response_json(response: axum::response::Response) -> Value {
+    serde_json::from_slice(
+        &to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("host-ops response body"),
+    )
+    .expect("host-ops response JSON")
+}
+
+#[tokio::test]
+async fn network_profile_ops_share_the_activation_gate_and_standard_envelope() {
+    let mut test_context = ServerContext::detached();
+    test_context.profile = ServerProfile::Test;
+    test_context.admin_token = Some("host-ops-network-test".to_owned());
+    let test_app = snapback::server::app(AppState::from_snapback(
+        LocalSnapback::memory().expect("test-profile fixture"),
+        test_context,
+    ));
+
+    let initial = test_app
+        .clone()
+        .oneshot(host_ops_http_request(
+            "host-ops-network-test",
+            json!({
+                "schemaVersion": "snapback.v0",
+                "requestId": "hop_network_get_1",
+                "operation": "debug.networkProfileGet"
+            }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(initial.status(), StatusCode::OK);
+    let initial = response_json(initial).await;
+    assert_eq!(initial["schemaVersion"], "snapback.v0");
+    assert_eq!(initial["resultKind"], "hostOpsResult");
+    assert_eq!(initial["requestId"], "hop_network_get_1");
+    assert_eq!(initial["operation"], "debug.networkProfileGet");
+    assert_eq!(initial["ok"], true, "registered get: {initial}");
+    assert_eq!(initial["data"]["profile"]["name"], "normal");
+
+    let set = test_app
+        .clone()
+        .oneshot(host_ops_http_request(
+            "host-ops-network-test",
+            json!({
+                "schemaVersion": "snapback.v0",
+                "requestId": "hop_network_set_1",
+                "operation": "debug.networkProfileSet",
+                "input": "optimistic"
+            }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(set.status(), StatusCode::OK);
+    let set = response_json(set).await;
+    assert_eq!(set["resultKind"], "hostOpsResult");
+    assert_eq!(set["requestId"], "hop_network_set_1");
+    assert_eq!(set["operation"], "debug.networkProfileSet");
+    assert_eq!(set["ok"], true, "registered set: {set}");
+    assert_eq!(set["data"]["profile"]["name"], "optimistic");
+    assert_eq!(set["data"]["provenance"]["source"], "host-ops");
+    assert_ne!(
+        set["diagnostics"].get(0).and_then(|entry| entry.get("code")),
+        Some(&json!("SNAPBACK_HOST_OP_UNIMPLEMENTED"))
+    );
+
+    let inline = test_app
+        .clone()
+        .oneshot(host_ops_http_request(
+            "host-ops-network-test",
+            json!({
+                "operation": "debug.networkProfileSet",
+                "input": {
+                    "name": "inline-zero",
+                    "mutationAckDelayMs": 0,
+                    "liveDeltaDelayMs": 0,
+                    "queryResponseDelayMs": 0,
+                    "jitterMs": 0
+                }
+            }),
+        ))
+        .await
+        .unwrap();
+    let inline = response_json(inline).await;
+    assert_eq!(inline["ok"], true, "inline set: {inline}");
+    assert_eq!(inline["data"]["profile"]["name"], "inline-zero");
+
+    let active = test_app
+        .oneshot(host_ops_http_request(
+            "host-ops-network-test",
+            json!({ "operation": "debug.networkProfileGet" }),
+        ))
+        .await
+        .unwrap();
+    let active = response_json(active).await;
+    assert_eq!(active["data"], inline["data"]);
+
+    let mut prod_context = ServerContext::detached();
+    prod_context.profile = ServerProfile::Prod;
+    prod_context.admin_token = Some("host-ops-network-prod".to_owned());
+    let prod_app = snapback::server::app(AppState::from_snapback(
+        LocalSnapback::memory().expect("prod-profile fixture"),
+        prod_context,
+    ));
+    let forbidden = prod_app
+        .oneshot(host_ops_http_request(
+            "host-ops-network-prod",
+            json!({
+                "requestId": "hop_network_prod_1",
+                "operation": "debug.networkProfileSet",
+                "input": "optimistic"
+            }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(forbidden.status(), StatusCode::OK);
+    let forbidden = response_json(forbidden).await;
+    assert_eq!(forbidden["resultKind"], "hostOpsResult");
+    assert_eq!(forbidden["requestId"], "hop_network_prod_1");
+    assert_eq!(forbidden["operation"], "debug.networkProfileSet");
+    assert_eq!(forbidden["ok"], false);
+    assert_eq!(
+        forbidden["diagnostics"][0]["code"],
+        "SNAPBACK_NETWORK_PROFILE_FORBIDDEN"
     );
 }
 

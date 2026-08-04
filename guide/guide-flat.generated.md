@@ -100,7 +100,7 @@ and `guide-gap`.
 | operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
 | operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
 | operating.admin-console | Browser inspection surface with master-derived fragment, device approval, and one-time operator claim-link handoffs | admin, console, dashboard, admin link, claim link, remote browser | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
-| operating.network-profiles | Named network condition profiles: server-side egress latency injection (mutation ack, live delta, query response lanes) with fail-closed local-only activation, startup-env and admin-API toggles, and response markers | latency, slow network, network profile, delay, jitter, local-first testing | local | partial | route /_snapback/api/debug/network-profile | llp/0167 | GAP (socket frame marker via LLP 0093 wire types, host-ops/MCP + console toggles, Cloudflare arm, Latency Kanban server-side swap; owner: Charlie, review: 2026-08-31) |
+| operating.network-profiles | Named network condition profiles: server-side egress latency injection (mutation ack, live delta, query response lanes) with fail-closed local-only activation, startup-env and admin-API toggles, and response markers | latency, slow network, network profile, delay, jitter, local-first testing | local | partial | route /_snapback/api/debug/network-profile + demos/zero-bakeoff/protocol/environment.v2.json | llp/0167 | GAP (HTTP poll-lane frame marker, provenance source/principal fidelity, CF action-route refusal parity, OQ3 fork exception, timer coalescing; owner: Charlie, review: 2026-08-31) |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | operating/host-ops.md |
 | operating.diagnostics | Stable SNAPBACK_* codes; exact current-checkout link/launch diagnosis with one binary-selection recovery record; installed disposable vertical-slice doctor | diagnostics, errors, doctor, linker, missing symbols, stale binary, runtime recovery | all | shipped | `runRuntimeLinkProbe` in scripts/runtime-link-smoke.mjs | llp/0010, llp/0031, llp/0041, llp/0074 | operating/diagnostics.md |
 | operating.declaration-conformance | Per-invocation declared-vs-captured read/write report and local strict opt-in, plus `snapback verify` aggregation over explicitly registered acceptance paths: authoritative under-declarations and missing reports fail, universally extra declarations warn, and observed incomplete/unsupported provenance stays an explicit partial rather than a verdict. The Cloudflare target refuses `strictDeclarations: true` at compiled-schema load and `/app/ensure` with `SNAPBACK_STRICT_DECLARATIONS_TARGET_UNSUPPORTED`; it never admits the flag unenforced. Automatic discovery of every repository acceptance path, app-data-plane ring wiring, complete mutation-envelope provenance, and authoritative Cloudflare capture/reporting remain GAPs | declaration drift, undeclared read, undeclared write, strict declarations, conformance, coverage, missingReads, read set, write set | local | partial | `aggregateConformance` in packages/snapback-cli/verify.mjs | llp/0146, llp/0127, llp/0010 | GAP (guide page for the conformance report and strict opt-in; owner: ccheever, review: 2026-08-31) |
@@ -514,6 +514,8 @@ here (or listed here but gone from the code).
 | host_ops.schema.reload | operating.host-ops |
 | host_ops.functions.reload | operating.host-ops |
 | host_ops.acceptance.run | operating.host-ops |
+| host_ops.debug.networkProfileGet | operating.network-profiles |
+| host_ops.debug.networkProfileSet | operating.network-profiles |
 | host_ops.host.start | operating.host-ops |
 | host_ops.host.stop | operating.host-ops |
 | host_ops.host.restart | operating.host-ops |
@@ -7497,12 +7499,12 @@ order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
 authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-react/index.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs]
-examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, demos/rn-durable-store-witness/probe-App.tsx]
+examples: [demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, demos/rn-durable-store-witness/probe-App.tsx]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-04
+reviewed-commit: 41c2db8804ba08071c39641cc46251c9084c7a31
 ---
 
 # React Expo Online clients
@@ -7769,13 +7771,24 @@ expose its internal handles, and the provider currently has no app-lifecycle
 seam of its own — on that path leave the provider attached and let the
 stream manager's reconnect own recovery.
 
-**Known limitation (under investigation):** on the Expo simulator the
-provider connection has been observed cycling `live → stale` on a ~2s
-reconnect loop while idle, with a retainable public query blanking after the
-first cycle — see
-`issues/20260801-0137-a1expo-f7-rn-connection-cycles.md`. Until that closes,
-treat sustained `live` on RN as unproven and render the connection fact
-honestly rather than assuming the cycle away.
+A token-resume re-establishment can complete **rowlessly**: the HTTP
+acknowledgement names the new subscription while the authoritative
+`current_as_of` or replay frame travels on the durable socket. Either transport
+may arrive first. The client buffers the bounded pre-ack durable window,
+installs the response's subscription ID, and replays only matching frames in
+arrival order. During that window, persisted rows remain `retained` and the
+held server-minted token continues to prove `retention.retainable`; the durable
+completion advances them to `current` and refreshes both the token and the
+retention fact. If the bound overflows, the client discards the unproved prefix
+and performs one tokenless fresh-snapshot resubscribe instead of claiming
+current state.
+
+This ordering rule is carrier-independent, but RN reconnect timing exposed the
+original defect. The shared memory/Expo resume suite covers WebSocket
+completion overtaking the HTTP response and overflow recovery. The earlier
+~2s Expo reconnect-loop investigation is resolved under
+`issues/closed/20260801-0137-a1expo-f7-rn-connection-cycles.md`; it is no longer
+a current limitation.
 
 ## Anti-patterns
 

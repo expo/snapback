@@ -486,6 +486,17 @@ export class AdminClient {
     return this.#req('GET', '/inspect', undefined, {}, true, true);
   }
 
+  // @ref LLP 0167#authority-one-activation-chokepoint — the console is a thin
+  //   client of the shared AdminRead/AdminWrite profile routes; policy remains
+  //   entirely server-owned.
+  networkProfile() {
+    return this.#req('GET', '/debug/network-profile');
+  }
+
+  setNetworkProfile(profile) {
+    return this.#req('PUT', '/debug/network-profile', profile);
+  }
+
   telemetryStats(filter = {}) {
     return this.#req(
       'GET',

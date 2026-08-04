@@ -2683,6 +2683,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
 
     for envelope in [
         LiveEnvelope::LiveReplace {
+            network_profile: None,
             subscription_id: "sub_1".to_owned(),
             function: "listTodos".to_owned(),
             version: 7,
@@ -2690,6 +2691,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             resume: None,
         },
         LiveEnvelope::LiveDelta {
+            network_profile: None,
             subscription_id: "sub_1".to_owned(),
             function: "listTodos".to_owned(),
             version: 8,
@@ -2708,6 +2710,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             resume: None,
         },
         LiveEnvelope::ResyncRequired {
+            network_profile: None,
             reason: "outbox_overflow".to_owned(),
             subscription_id: None,
             scope: None,
@@ -2715,6 +2718,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             clear_retained: true,
         },
         LiveEnvelope::ResyncRequired {
+            network_profile: None,
             reason: "permission_epoch_changed".to_owned(),
             subscription_id: Some("sub_1".to_owned()),
             scope: Some("user:alice".to_owned()),
@@ -2730,6 +2734,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     assert_rejects(
         "live.envelope.schema.json",
         &serde_json::to_value(LiveEnvelope::ResyncRequired {
+            network_profile: None,
             reason: "permission_epoch_changed".to_owned(),
             subscription_id: Some("sub_1".to_owned()),
             scope: Some("user:alice".to_owned()),
@@ -3566,6 +3571,7 @@ fn outbox_drain_schema_accepts_the_served_batches_and_rejects_wrappers() {
     // `admitted.is_none()` arm of `drain_outbox`, LLP 0094 §0A.5).
     let synthesized = OutboxDrainOutput(vec![RealtimeEnvelope::Durable(DurableMessage::new(
         serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+            network_profile: None,
             reason: "unknown_or_reaped".to_owned(),
             subscription_id: None,
             scope: None,

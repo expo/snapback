@@ -2,8 +2,8 @@
   "format": 2,
   "app": "notes",
   "schemaHash": "sha256:f2ef26e3ea0cab12a02c5fd467e5a43388af931ccaa5ad5837e01dd94b2602a2",
-  "bundleHash": "sha256:aa2bf2dace7f7bb36e2cd342ece0d59fd90cfe0f48d748d19d6590d194415750",
-  "inputsHash": "sha256:3e83407e7eee6ce3a7e4d14f694282de67cc90c8559018ae3a1e94a7cd441581",
+  "bundleHash": "sha256:c2dd98bf5fbe08298037d5a8c6b6c65536c917073861a17234224ed345d09002",
+  "inputsHash": "sha256:ee735f5356674c010b184c9823b32b5e558b10995be0e652766c789b85e74a1f",
   "inputs": [
     "cloudflare/app/notes.app.js",
     "cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json",
@@ -13,6 +13,7 @@
     "cloudflare/src/handler-worker.js",
     "cloudflare/src/host-ops.js",
     "cloudflare/src/limits.js",
+    "cloudflare/src/network-profile.js",
     "cloudflare/src/platform-errors.js",
     "cloudflare/src/rqs-host.mjs",
     "cloudflare/src/subscription-selection.js",

@@ -195,6 +195,11 @@ export async function startProof({ app = 'notes', port = null, bindings = {}, se
     bundle('src/gateway.js', selected.bundle, { seedOverride }),
     bundle('src/handler-worker.js', selected.bundle, { seedOverride }),
   ]);
+  const gatewayBindings = { SNAPBACK_ADMIN_TOKEN: ADMIN_TOKEN, SNAPBACK_TESTING: '1', ...bindings };
+  // A null testing binding means authoritative classification is absent. The
+  // LLP 0167 refusal matrix needs to distinguish that from the literal "0";
+  // Miniflare bindings cannot carry undefined/null as a production binding.
+  if (bindings.SNAPBACK_TESTING === null) delete gatewayBindings.SNAPBACK_TESTING;
 
   // Byte-transparent capture proxy for one service-binding edge: forwards the
   // request to INNER unchanged, replays the response bytes, and reports the
@@ -254,7 +259,7 @@ export default {
       },
       // The admin-token gate on /_snapback/api/app/reset and /_snapback/api/object/evict (ENG-23587); the client
       // below presents it, and the acceptance suite asserts its absence 403s.
-      bindings: { SNAPBACK_ADMIN_TOKEN: ADMIN_TOKEN, SNAPBACK_TESTING: '1', ...bindings },
+      bindings: gatewayBindings,
       ...(assetsDirectory
         ? {
             assets: {

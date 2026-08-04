@@ -1427,6 +1427,30 @@ impl DurableMessage {
     fn is_network_ready(&self, now: std::time::Instant) -> bool {
         self.release_at.is_none_or(|deadline| deadline <= now)
     }
+
+    /// Produce the socket-lane bytes at the final serialization cut. The
+    /// marker is derived only from this message's admission snapshot; a
+    /// concurrent active-profile change cannot rewrite an in-flight frame.
+    /// Normal and compatibility payloads take the byte-preserving fast path.
+    ///
+    /// @ref LLP 0167#honesty-requirements — delayed socket frames identify
+    ///   the exact profile snapshot that supplied their deadline.
+    pub(crate) fn into_live_socket_payload(self) -> Vec<u8> {
+        let Self {
+            payload,
+            network_egress,
+            ..
+        } = self;
+        let Some(network_egress) = network_egress else {
+            return payload;
+        };
+        let Ok(envelope) = serde_json::from_slice::<crate::live_wire::LiveEnvelope>(&payload)
+        else {
+            return payload;
+        };
+        serde_json::to_vec(&envelope.with_network_profile(network_egress.profile_name().to_owned()))
+            .unwrap_or(payload)
+    }
 }
 
 fn retained_ephemeral_entry_message_bytes(entry: &EphemeralEntry) -> usize {
@@ -2179,6 +2203,7 @@ fn overflow_sentinel(effect_fence: Option<ConnectionEffectFence>) -> DurableMess
     // spelled this field `clearRetained`; the typed envelope unified it to
     // the durable lane's `clear_retained` (no shipped client read it).
     let payload = serde_json::to_vec(&crate::live_wire::LiveEnvelope::ResyncRequired {
+        network_profile: None,
         reason: "outbox_overflow".to_owned(),
         subscription_id: None,
         scope: None,
@@ -6922,6 +6947,21 @@ impl LocalEphemeralBackend {
     }
 
     #[cfg(test)]
+    pub(crate) fn durable_release_deadlines_for_test(
+        &self,
+        connection_id: &str,
+    ) -> Vec<Option<std::time::Instant>> {
+        let Some(outbox) = lock(&self.shared.outboxes).get(connection_id).cloned() else {
+            return Vec::new();
+        };
+        lock(&outbox)
+            .durable
+            .iter()
+            .map(|queued| queued.message.release_at())
+            .collect()
+    }
+
+    #[cfg(test)]
     pub(crate) fn enqueue_ephemeral_for_test(
         &self,
         connection_id: &str,
@@ -8759,10 +8799,7 @@ mod tests {
             )
             .unwrap();
         let second = profiles
-            .admit_result(
-                crate::network_profile::NetworkEgressLane::LiveDelta,
-                basis,
-            )
+            .admit_result(crate::network_profile::NetworkEgressLane::LiveDelta, basis)
             .unwrap();
         assert!(second.release_at() < first.release_at());
 
@@ -8790,6 +8827,78 @@ mod tests {
         );
         assert!(selected.is_empty(), "a future deadline owns no send lease");
         assert!(queue.durable.iter().all(|queued| queued.lease_id.is_none()));
+    }
+
+    #[test]
+    fn live_socket_marker_uses_admission_snapshot_and_normal_preserves_bytes() {
+        let profiles = crate::network_profile::NetworkProfileState::new();
+        let authority = crate::network_profile::NetworkProfileAuthority::classified(
+            crate::admin::ServerProfile::Test,
+            crate::auth::deployment::AuthDeploymentTarget::Local,
+            false,
+        );
+        profiles
+            .activate(
+                crate::network_profile::NetworkConditionProfile {
+                    name: "admission-snapshot".to_owned(),
+                    mutation_ack_delay_ms: 0,
+                    live_delta_delay_ms: 40,
+                    query_response_delay_ms: 0,
+                    jitter_ms: 0,
+                },
+                authority,
+                crate::network_profile::NetworkProfileSource::Api,
+                None,
+            )
+            .unwrap();
+        let admitted = profiles
+            .admit_result(
+                crate::network_profile::NetworkEgressLane::LiveDelta,
+                std::time::Instant::now()
+                    .checked_sub(std::time::Duration::from_millis(40))
+                    .unwrap(),
+            )
+            .expect("non-normal profile prepares delayed live egress");
+        let normal_bytes = serde_json::to_vec(&crate::live_wire::LiveEnvelope::LiveReplace {
+            network_profile: None,
+            subscription_id: "sub_1".to_owned(),
+            function: "listTodos".to_owned(),
+            version: 1,
+            rows: vec![],
+            resume: None,
+        })
+        .unwrap();
+        let delayed = DurableMessage::new(normal_bytes.clone()).with_network_egress(admitted);
+
+        profiles
+            .activate(
+                crate::network_profile::NetworkConditionProfile {
+                    name: "send-time-different".to_owned(),
+                    mutation_ack_delay_ms: 0,
+                    live_delta_delay_ms: 1,
+                    query_response_delay_ms: 0,
+                    jitter_ms: 0,
+                },
+                crate::network_profile::NetworkProfileAuthority::classified(
+                    crate::admin::ServerProfile::Test,
+                    crate::auth::deployment::AuthDeploymentTarget::Local,
+                    false,
+                ),
+                crate::network_profile::NetworkProfileSource::Api,
+                None,
+            )
+            .unwrap();
+
+        let delayed_bytes = delayed.into_live_socket_payload();
+        let delayed_wire: serde_json::Value = serde_json::from_slice(&delayed_bytes).unwrap();
+        assert_eq!(delayed_wire["network_profile"], "admission-snapshot");
+        assert_ne!(delayed_wire["network_profile"], "send-time-different");
+
+        assert_eq!(
+            DurableMessage::new(normal_bytes.clone()).into_live_socket_payload(),
+            normal_bytes,
+            "normal frames remain byte-identical and carry no marker member"
+        );
     }
 
     /// LLP 0032 L8 — an enqueue wakes the registered delivery waiter (and the
