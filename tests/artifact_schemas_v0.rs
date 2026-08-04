@@ -856,6 +856,20 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
             "authorizedLease": oversized_lease_query_instance
         }),
     );
+    let completeness_fixture: Value = serde_json::from_str(include_str!(
+        "conformance/completeness-proof-v1.json"
+    ))
+    .expect("parse completeness proof fixture");
+    assert_validates(
+        "authorized-lease.query.output.schema.json",
+        &json!({
+            "version": 19,
+            "rows": [],
+            "authorizedLease": authorized_lease.clone(),
+            "completenessProof": completeness_fixture["proof"].clone(),
+            "authorizationWitness": completeness_fixture["witness"].clone()
+        }),
+    );
     let cases = [
         (
             "auth.request-code.input.schema.json",
@@ -3591,6 +3605,39 @@ fn gap_row_schemas_accept_representative_values() {
         "dryRun": false
     });
     assert_validates("query.output.schema.json", &attributed);
+    let completeness_fixture: Value = serde_json::from_str(include_str!(
+        "conformance/completeness-proof-v1.json"
+    ))
+    .expect("parse completeness proof fixture");
+    let finite_carrier = json!({
+        "version": 43,
+        "rows": [{ "_id": "r1", "n": 1 }],
+        "completenessProof": completeness_fixture["proof"].clone(),
+        "authorizationWitness": completeness_fixture["witness"].clone(),
+        "pageSetManifest": {
+            "identity": concat!(
+                "sha256:",
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ),
+            "orderedProofDigests": [concat!(
+                "sha256:",
+                "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            )]
+        }
+    });
+    assert_validates("query.output.schema.json", &finite_carrier);
+    assert_validates(
+        "query.input.schema.json",
+        &json!({
+            "args": {},
+            "completenessNamespace": {
+                "clientStoreId": "store_1",
+                "queryKey": completeness_fixture["proof"]["materializationKey"].clone(),
+                "queryInstanceId": 17
+            },
+            "priorCompletenessProofs": [completeness_fixture["proof"].clone()]
+        }),
+    );
     let mut oversized = query_output.clone();
     oversized["version"] = json!(9_007_199_254_740_992_u64);
     assert_rejects("query.output.schema.json", &oversized);

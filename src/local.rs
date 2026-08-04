@@ -3738,10 +3738,17 @@ pub(crate) struct QueryInvocation {
 /// bound to the original admission epoch and complete unsigned lease issue.
 pub(crate) struct AuthorizedLeaseCapture {
     pub(crate) output: QueryOutput,
+    pub(crate) completeness: Option<FiniteCompletenessCarrier>,
     pub(crate) issue: AuthorizedLeaseIssue,
     pub(crate) target_profile_id: String,
     pub(crate) app_id: String,
     admission: AdmissionLease,
+}
+
+#[derive(Clone)]
+pub(crate) struct FiniteCompletenessCarrier {
+    pub(crate) proof: crate::completeness::CompletenessProofV1,
+    pub(crate) witness: crate::completeness::AuthorizationWitnessRecordV1,
 }
 
 struct AuthorizationResolutionFailure {
@@ -6919,6 +6926,53 @@ impl LocalSnapback {
             });
         finish_function_observation(span, &mut result);
         result
+    }
+
+    /// Ordinary finite query establishment with the optional LLP 0157 proof
+    /// carrier. Proof-requested calls deliberately use the coherent app lane:
+    /// result evaluation, witness capture, signing, and optional terminal
+    /// page-set composition all complete before the HTTP response can publish.
+    // @ref LLP 0094#llp-0157-finite-carrier-completeness-amendment--2026-08-04 — finite proof/witness/page-set members publish atomically.
+    pub(crate) fn invoke_finite_query_prepared_generation(
+        &self,
+        name: &str,
+        input: HandlerInput,
+        authority: PreparedAuthority,
+        expected_generation: Option<&ArtifactGeneration>,
+        namespace: Option<&QueryNamespace>,
+        prior_proofs: &[crate::completeness::CompletenessProofV1],
+    ) -> SnapbackResult<crate::manifest::FiniteQueryOutput> {
+        if namespace.is_none() && !prior_proofs.is_empty() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_COMPLETENESS_PROOF_ISSUANCE_FAILED",
+                "composition",
+                "prior completeness proofs require completenessNamespace",
+            ));
+        }
+        let proof_input = input.clone();
+        let invocation = self.invoke_query_with_dependencies_prepared_generation(
+            name,
+            input,
+            authority,
+            expected_generation,
+        )?;
+        let function = self.function(name)?;
+        let issued = self.issue_completeness_proof(
+            function,
+            &proof_input,
+            &invocation.output,
+            namespace,
+            prior_proofs,
+        )?;
+        Ok(match issued {
+            Some((proof, witness, page_set_manifest)) => crate::manifest::FiniteQueryOutput {
+                output: invocation.output,
+                completeness_proof: Some(proof),
+                authorization_witness: Some(witness),
+                page_set_manifest,
+            },
+            None => crate::manifest::FiniteQueryOutput::without_proof(invocation.output),
+        })
     }
 
     // -----------------------------------------------------------------
@@ -12037,6 +12091,7 @@ impl LocalSnapback {
         let authorization = invalidation.obligations.expectation().authorization.clone();
         let version_stream = invalidation.version_stream.clone();
         let admission = authority.admission_lease().clone();
+        let proof_input = input.clone();
         let output = self
             .invoke_query_with_dependencies_prepared(name, input, authority)?
             .output;
@@ -12052,6 +12107,9 @@ impl LocalSnapback {
         {
             let _capture = admission.effect_guard("authorized lease full-query capture")?;
         }
+        let completeness = self
+            .issue_completeness_proof(function, &proof_input, &output, Some(&lease_target), &[])?
+            .map(|(proof, witness, _)| FiniteCompletenessCarrier { proof, witness });
         Ok(AuthorizedLeaseCapture {
             issue: AuthorizedLeaseIssue {
                 lease_id: crate::ids::mint_time_ordered(crate::ids::Kind::Lease),
@@ -12074,6 +12132,7 @@ impl LocalSnapback {
                 authority_instance_id,
             },
             output,
+            completeness,
             target_profile_id,
             app_id: deployment.app_id,
             admission,
@@ -15996,13 +16055,14 @@ impl LocalSnapback {
             if answered_without_rows && !prove_held_single_table {
                 (None, None)
             } else {
-                self.issue_live_completeness_proof(
-                &function,
-                &subscription_input,
+                self.issue_completeness_proof(
+                    &function,
+                    &subscription_input,
                     &query.output,
                     proof_namespace.as_ref(),
+                    &[],
                 )?
-                .map_or((None, None), |(proof, witness)| {
+                .map_or((None, None), |(proof, witness, _)| {
                     (Some(proof), Some(witness))
                 })
             };
@@ -20178,16 +20238,18 @@ impl LocalSnapback {
         Ok(())
     }
 
-    fn issue_live_completeness_proof(
-        &mut self,
+    fn issue_completeness_proof(
+        &self,
         function: &FunctionDefinition,
         input: &HandlerInput,
         output: &QueryOutput,
         namespace: Option<&QueryNamespace>,
+        prior_proofs: &[crate::completeness::CompletenessProofV1],
     ) -> SnapbackResult<
         Option<(
             crate::completeness::CompletenessProofV1,
             crate::completeness::AuthorizationWitnessRecordV1,
+            Option<crate::completeness::PageSetManifestV1>,
         )>,
     > {
         let Some(namespace) = namespace else {
@@ -20207,6 +20269,11 @@ impl LocalSnapback {
                 message,
             )
         };
+        if prior_proofs.len() > 1024 {
+            return Err(issue_error(
+                "prior completeness proof chain exceeds 1024 entries".to_owned(),
+            ));
+        }
         let (plan_hash, nodes, profile_id) = match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(_)) => {
                 let identity =
@@ -20467,7 +20534,11 @@ impl LocalSnapback {
                 output: crate::completeness::CursorEndV1::output(profile_id, output_cursor),
             }
         };
-        let version_stream = self.db.data_version_stream()?;
+        // Activation installation exact-compares this identity with the
+        // database's durable stream. Reusing the bound immutable value keeps
+        // finite read issuance compatible with `&self` and cannot lazily mint
+        // a new stream at response time.
+        let version_stream = activation.activation.database_id.clone();
         let witness = self
             .auth_invalidation
             .as_ref()
@@ -20507,13 +20578,34 @@ impl LocalSnapback {
             .map_err(|error| issue_error(error.to_string()))?,
             proof_key_id: String::new(),
         };
-        let proof = self
+        let ring = self
             .proof_keyring
             .read()
-            .map_err(|_| issue_error("proof keyring lock is poisoned".to_owned()))?
+            .map_err(|_| issue_error("proof keyring lock is poisoned".to_owned()))?;
+        for prior in prior_proofs {
+            ring.verify(prior)
+                .map_err(|error| issue_error(error.to_string()))?;
+        }
+        let proof = ring
             .sign(unsigned)
             .map_err(|error| issue_error(error.to_string()))?;
-        Ok(Some((proof, witness)))
+        let page_set_manifest = if matches!(
+            function.runtime,
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(_))
+        ) && matches!(
+            &proof.page,
+            crate::completeness::PageIdentityV1::Visible {
+                output: crate::completeness::CursorEndV1::Terminal,
+                ..
+            } | crate::completeness::PageIdentityV1::SealedTerminal { .. }
+        ) {
+            let mut proofs = prior_proofs.to_vec();
+            proofs.push(proof.clone());
+            crate::completeness::PageSetManifestV1::compose(&proofs).ok()
+        } else {
+            None
+        };
+        Ok(Some((proof, witness, page_set_manifest)))
     }
 
     /// The caller-visible content identity for the active sessions pair.
@@ -41079,7 +41171,21 @@ globalThis.__snapbackHandlers = {
     // continuation, sealed absence, exact resume, and whole-batch live replace.
     #[test]
     fn snapshot_batch_three_node_cursor_sealing_and_live_acceptance() {
-        let (schema, functions, _plan) = snapshot_batch_publication_fixture(3, 2);
+        let (mut schema, mut functions, _plan) = snapshot_batch_publication_fixture(3, 2);
+        schema.app_id = "snapshot-batch-proof-app".to_owned();
+        schema.schema_hash = Some("sha256:snapshot-batch-proof-schema".to_owned());
+        schema.inputs_hash = Some("sha256:snapshot-batch-proof-inputs".to_owned());
+        functions.app_id = schema.app_id.clone();
+        functions.schema_version = schema.schema_version.clone();
+        functions.bundle_hash = Some("sha256:snapshot-batch-proof-functions".to_owned());
+        functions.inputs_hash = schema.inputs_hash.clone();
+        let expected_generation = ArtifactGeneration {
+            schema_version: schema.schema_version.clone(),
+            app_id: schema.app_id.clone(),
+            schema_hash: schema.schema_hash.clone().expect("schema identity"),
+            bundle_hash: functions.bundle_hash.clone().expect("function identity"),
+            inputs_hash: schema.inputs_hash.clone().expect("input identity"),
+        };
 
         let mut snapback = LocalSnapback::memory().expect("snapshot batch store");
         snapback.apply_schema(schema).expect("apply schema");
@@ -41091,6 +41197,23 @@ globalThis.__snapbackHandlers = {
                     != crate::diagnostic::DiagnosticSeverity::Error),
             "snapshot batch fixture must activate: {diagnostics:?}",
         );
+        let database_id = snapback.db.data_version_stream().expect("data stream");
+        let activation = crate::completeness::TrustedCompositionActivationV1::prepare(
+            database_id,
+            "snapshot-batch-proof-deployment",
+            crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+            "dev",
+            expected_generation,
+            snapback
+                .proof_keyring
+                .read()
+                .expect("proof keyring")
+                .manifest(),
+        )
+        .expect("prepare trusted activation");
+        snapback
+            .install_trusted_composition_activation(activation)
+            .expect("install trusted activation");
         seed_bounded_publication_fixture(&mut snapback, "private");
         let input = |parent: &str, cursor: Option<&str>| {
             let mut args = json!({"parentId": parent});
@@ -41106,10 +41229,35 @@ globalThis.__snapbackHandlers = {
                 ..HandlerInput::default()
             }
         };
+        let namespace = QueryNamespace {
+            client_store_id: "snapshot-batch-proof-store".to_owned(),
+            query_key: "qmk1.2pHUpZC2tE1XKzuxDTpdB_d7Sck3pN0ZHzs4CPiQXME".to_owned(),
+            query_instance_id: 23,
+        };
+        let first_input = input("parent-a", None);
+        let first_authority = InvocationGate::prepare_admitted_dev_input(
+            InvocationSource::LocalQuery,
+            ServerProfile::Dev,
+            &first_input,
+            snapback.admission.admit_dev().expect("admit first finite page"),
+        )
+        .expect("prepare first finite authority");
         let first = snapback
-            .invoke_query("boardView", input("parent-a", None))
+            .invoke_finite_query_prepared_generation(
+                "boardView",
+                first_input,
+                first_authority,
+                None,
+                Some(&namespace),
+                &[],
+            )
             .expect("first composite page");
-        let first_row = &first.rows[0];
+        let first_proof = first
+            .completeness_proof
+            .clone()
+            .expect("first continuation proof");
+        assert!(first.page_set_manifest.is_none());
+        let first_row = &first.output.rows[0];
         assert_eq!(first_row["kind"], "visible");
         let nodes = first_row["nodes"].as_array().expect("node tuple");
         assert_eq!(nodes.len(), 3);
@@ -41119,11 +41267,73 @@ globalThis.__snapbackHandlers = {
             .expect("coordinated continuation")
             .to_owned();
         assert!(cursor.starts_with("sbsb1."));
+        let mut tampered_prior = first_proof.clone();
+        tampered_prior.signature.replace_range(
+            0..1,
+            if tampered_prior.signature.starts_with('A') {
+                "B"
+            } else {
+                "A"
+            },
+        );
+        let refused_input = input("parent-a", Some(&cursor));
+        let refused_authority = InvocationGate::prepare_admitted_dev_input(
+            InvocationSource::LocalQuery,
+            ServerProfile::Dev,
+            &refused_input,
+            snapback
+                .admission
+                .admit_dev()
+                .expect("admit refused continuation"),
+        )
+        .expect("prepare refused continuation authority");
+        let refused = snapback
+            .invoke_finite_query_prepared_generation(
+                "boardView",
+                refused_input,
+                refused_authority,
+                None,
+                Some(&namespace),
+                &[tampered_prior],
+            )
+            .expect_err("tampered prior proof must refuse the whole carrier");
+        assert_eq!(
+            refused.diagnostic.code,
+            "SNAPBACK_COMPLETENESS_PROOF_ISSUANCE_FAILED"
+        );
+        let second_input = input("parent-a", Some(&cursor));
+        let second_authority = InvocationGate::prepare_admitted_dev_input(
+            InvocationSource::LocalQuery,
+            ServerProfile::Dev,
+            &second_input,
+            snapback.admission.admit_dev().expect("admit continuation page"),
+        )
+        .expect("prepare continuation authority");
         let second = snapback
-            .invoke_query("boardView", input("parent-a", Some(&cursor)))
+            .invoke_finite_query_prepared_generation(
+                "boardView",
+                second_input,
+                second_authority,
+                None,
+                Some(&namespace),
+                std::slice::from_ref(&first_proof),
+            )
             .expect("second composite page");
-        assert!(second.rows[0]["continuation"].is_null());
-        for node in second.rows[0]["nodes"].as_array().expect("node tuple") {
+        let second_proof = second
+            .completeness_proof
+            .clone()
+            .expect("terminal continuation proof");
+        let manifest = second
+            .page_set_manifest
+            .clone()
+            .expect("atomic terminal page-set manifest");
+        assert_eq!(
+            manifest,
+            crate::completeness::PageSetManifestV1::compose(&[first_proof, second_proof])
+                .expect("compose server page set"),
+        );
+        assert!(second.output.rows[0]["continuation"].is_null());
+        for node in second.output.rows[0]["nodes"].as_array().expect("node tuple") {
             let ids = node["children"]
                 .as_array()
                 .expect("children")

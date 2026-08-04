@@ -8249,6 +8249,37 @@ pub struct FunctionCallRequest {
     pub expected_generation: Option<ArtifactGeneration>,
 }
 
+/// Ordinary finite-query request. The legacy function-call fields remain
+/// flattened; the optional completeness context is query-only and never
+/// widens the action request family.
+// NOTE: no deny_unknown_fields — serde cannot combine it with the flattened
+// legacy request (it would reject the flattened fields themselves), and the
+// legacy finite route tolerated unknown members before this amendment.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct FiniteQueryRequest {
+    #[serde(flatten)]
+    pub request: FunctionCallRequest,
+    /// Non-authorizing finite completeness namespace. Old callers omit it and
+    /// receive the pre-amendment response shape.
+    // @ref LLP 0094#llp-0157-finite-carrier-completeness-amendment--2026-08-04 — finite proofs bind the exact caller-store namespace.
+    #[serde(
+        default,
+        rename = "completenessNamespace",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub completeness_namespace: Option<crate::auth::invalidation::QueryNamespace>,
+    /// Already-held ordered proofs used only to compose a terminal
+    /// snapshot-batch page-set manifest. Every entry is signature-verified
+    /// before use; the server never treats the array as authority.
+    #[serde(
+        default,
+        rename = "priorCompletenessProofs",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    #[schemars(length(max = 1024))]
+    pub prior_completeness_proofs: Vec<crate::completeness::CompletenessProofV1>,
+}
+
 /// Opaque server-issued consistency descriptor for one queued mutation.
 /// Possession grants no authority; the invocation gate first resolves a live
 /// credential and only then compares this value with its prepared authority.
@@ -8736,6 +8767,44 @@ pub struct QueryOutput {
     /// query and for terminal pages.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
+}
+
+/// Successful ordinary finite-query payload. The established rows/cursor keep
+/// their existing flattened wire shape; the proof fields are optional
+/// transport metadata admitted by the dated LLP 0093/0094 amendment.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+pub struct FiniteQueryOutput {
+    #[serde(flatten)]
+    pub output: QueryOutput,
+    #[serde(
+        default,
+        rename = "completenessProof",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub completeness_proof: Option<crate::completeness::CompletenessProofV1>,
+    #[serde(
+        default,
+        rename = "authorizationWitness",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authorization_witness: Option<crate::completeness::AuthorizationWitnessRecordV1>,
+    #[serde(
+        default,
+        rename = "pageSetManifest",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub page_set_manifest: Option<crate::completeness::PageSetManifestV1>,
+}
+
+impl FiniteQueryOutput {
+    pub fn without_proof(output: QueryOutput) -> Self {
+        Self {
+            output,
+            completeness_proof: None,
+            authorization_witness: None,
+            page_set_manifest: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
