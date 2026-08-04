@@ -2,7 +2,12 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (Track B integrated implementation pass)
-**Updated:** 2026-08-04 (refusal-first fork correction — creation/receipts pin
+**Updated:** 2026-08-04 (pre-result row-13 protocol repair: the author-ratified
+contention ceiling now matches the frozen 1,000-ms reservation and separate
+500-ms maximum promotion-commit duration; the absolute recorder binds exact
+baseline and compiled-candidate bytes, and its 128/eight-writer p99 uses the
+real active issuance-bearing ordinary-mutation carrier through COMMIT. No
+fixed-Air result or capability claim is made); 2026-08-04 (refusal-first fork correction — creation/receipts pin
 canonical schema and function-bundle SHA-256 identities; exact committed retry
 survives parent drift, while novel work refuses before handler bytes.
 CaptureOnly intent custody immediately makes the branch non-promotable, and
@@ -52,7 +57,7 @@ not authorize capability publication.
 | 10 — strict promotion | Partial | Frozen v1 no-effect contention/fairness/crash evidence is joined by atomic multi-operation retention. Any captured intent or approved effect fact—including effect-plus-write and transitive effect-dependent chains—refuses strict promotion before canonical mutation with `SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED`. Public effect-bearing promotion remains outside this Track B publication scope; global writer coverage and applicable performance/review remain independent gates. |
 | 11 — history/checkpoint | Partial | Schema publication now atomically projects finite v2 per-record policy, removal erases retained detail, and current/per-version auth plus visible-only pagination/horizon and per-record pruning are covered without changing legacy v1 `maxRows`. The registered-copy sweep invalidates the complete materialized inventory before deletion and preserves crash/unreachable obligations, but it is not yet atomic with canonical protected-record deletion; close that new-checkpoint race and the remaining lifecycle corpus. |
 | 12 — boundary proof | Partial | Promotion and full migration verification are independently derived; migration's separate evaluator has explicit-value/equivalence plus executor-drift and staged-corruption negatives. Checkpoint concurrent-writer/publication/receipt-only no-upcast negatives are covered. Finish the remaining row-wide boundary integrations/coverage before an aggregate claim. |
-| 13 — performance | Partial | The final-integrated absolute rerun is recorded. The successor absolute recorder includes a 128-sample/8-writer request-to-commit p99 behind a production promotion reservation. A second recorder now pairs the exactly reconstructed pre-profile tree with the active issuance-bearing covered lane in 11 AB/BA observations: registered point/range/query-plan and single-writer thresholds, active allocation/retention observations, and five-second CPU/RSS/disk gates. Run both exact clean recorders on the fixed Air; obtain dated RFC-author absolute-bound ratification; pass every applicable crash/reopen gate. |
+| 13 — performance | Partial | The final-integrated historical absolute rerun is recorded. Before the final result, LLP 0162 v0.13 ratifies the exact 1,000-ms reservation / 500-ms maximum promotion-commit terms and a 1,250,000-µs request-to-COMMIT p99 ceiling. The successor absolute recorder measures 128 active issuance-bearing envelope mutations across eight file-backed writers, binds the accepted baseline digest plus its compiled clean candidate identity, and separately scopes novel-operation timing to `DenyAll`/no-effects. A second recorder pairs the exactly reconstructed pre-profile tree with the active issuance-bearing covered lane in 11 AB/BA observations: registered point/range/query-plan and single-writer thresholds, active allocation/retention observations, and five-second CPU/RSS/disk gates. Run both exact clean recorders on the fixed Air and pass every applicable crash/reopen gate. |
 | 14 — identity lifecycle | Partial | Wire first-party host job/cron/migration callers and transport-level client exclusion, then finish capacity/purge/current-authority negative fixtures beyond the landed promotion-ticket lease. |
 
 The detailed LLP 0163 public-carrier work remains in its existing focused
@@ -96,14 +101,17 @@ the guide-gap ticket rather than being conflated with this implementation tail.
   the accepted step-0 artifact and its SHA-256 digest, the Mac17,3/M5/32-GiB
   hardware/OS class, matching toolchain versions, and the release executable
   digest. It creates a new dated record and refuses overwriting an old one.
-- `snapback-fork-promotion-bench` v3 retains those bindings and adds 128 raw
-  benchmark-SQL request-to-commit samples across eight real SQLite writer
-  connections behind the production `canonical_mutation_admission` gate and
-  an active production promotion reservation. The timed commit after that gate
-  is a benchmark transaction, not the full envelope mutation path. It records
-  nearest-rank p50/p95/p99/max plus a per-worker initial-defer count and refuses
-  unless all eight initial samples were actually deferred. This is recorder
-  readiness, not a dated Air result or complete writer-path proof.
+- `snapback-fork-promotion-bench` v3 binds the exact accepted baseline bytes and
+  the release executable's compiled clean revision, then records 128 raw
+  request-to-COMMIT samples across eight file-backed active
+  issuance-bearing ordinary-mutation carriers. Every timed request traverses
+  the production envelope/write-authority choke point; reservation refusal
+  retries the same server-issued operation identity, and timing ends only
+  after the real storage transaction commits. It retains nearest-rank
+  p50/p95/p99/max plus a per-worker initial-defer count and refuses unless all
+  eight initial samples were actually deferred. Novel-operation timing remains
+  explicitly `DenyAll`/no-effects. This is recorder readiness, not a dated Air
+  result or a `CaptureOnly` capability claim.
 - `snapback-agent-safe-paired` reconstructs the pre-profile tree from
   revision `2ab36e28c74c450213b65f17ef81c0d6652ba33a` plus the exact three
   instrumentation blobs from `3109a3b4f5068595a71448b10788b56b4fa358f5`.

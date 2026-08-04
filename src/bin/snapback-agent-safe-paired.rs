@@ -80,7 +80,7 @@ struct Artifact {
     measured_comparative_thresholds_passed: bool,
     full_row_13_protocol_qualified: bool,
     measurement_coverage: MeasurementCoverage,
-    remaining_row_13_gates: [&'static str; 4],
+    remaining_row_13_gates: [&'static str; 2],
     claim_boundary: &'static str,
 }
 
@@ -489,9 +489,7 @@ fn main() -> anyhow::Result<()> {
             ],
         },
         remaining_row_13_gates: [
-            "dated fixed-Air execution of this exact clean revision",
-            "dated p99 contention record",
-            "RFC-author ratification of absolute fork/promotion bounds",
+            "separate dated absolute-operation and active-carrier contention record for this exact frozen revision",
             "every applicable crash/reopen correctness gate",
         ],
         claim_boundary: "comparative evidence only; this artifact alone does not pass Acceptance 13, accept LLP 0163-0165, or advertise a capability",
