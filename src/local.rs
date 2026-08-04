@@ -6264,6 +6264,51 @@ impl LocalSnapback {
         )
     }
 
+    /// Evaluate explanation authorization from the live prepared authority;
+    /// callers cannot submit the `current_policy_provable` decision.
+    pub(crate) fn explain_operation_with_authority(
+        &mut self,
+        authority: &PreparedAuthority,
+        authority_descriptor: Option<&AuthorityDescriptor>,
+        identity: &crate::commit_envelope::OperationIdentityV1,
+    ) -> SnapbackResult<Option<crate::commit_envelope::OperationExplanationV1>> {
+        authority.validate_admission("operation explanation")?;
+        self.persist_and_validate_prepared_service_authority(authority)?;
+        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+        let expected = descriptor_for_authority(authority, incarnation.as_str())?;
+        if authority.active_mode() == AuthMode::Sessions || authority_descriptor.is_some() {
+            require_current_descriptor(authority_descriptor, &expected)?;
+        }
+        let current = crate::operation_ledger::CurrentExplanationAuthorityV1 {
+            audience: identity.bound_facts.audience.clone(),
+            principal_fingerprint: auth_fingerprint(&authority.canonical_auth_input()),
+            authority_instance_id: expected.authority_instance_id,
+            // Exact current principal/incarnation matching is necessary but
+            // not sufficient to re-evaluate every row/non-row fact policy.
+            // Until the per-fact evaluator is wired, public transport stays
+            // fail-closed with an explicit authorization-unprovable result.
+            current_policy_provable: false,
+            allow_non_row_facts: false,
+            administrative: false,
+        };
+        self.db.explain_operation(identity, &current)
+    }
+
+    pub(crate) fn explain_operation_as_admin(
+        &self,
+        identity: &crate::commit_envelope::OperationIdentityV1,
+    ) -> SnapbackResult<Option<crate::commit_envelope::OperationExplanationV1>> {
+        let current = crate::operation_ledger::CurrentExplanationAuthorityV1 {
+            audience: identity.bound_facts.audience.clone(),
+            principal_fingerprint: String::new(),
+            authority_instance_id: String::new(),
+            current_policy_provable: true,
+            allow_non_row_facts: true,
+            administrative: true,
+        };
+        self.db.explain_operation(identity, &current)
+    }
+
     pub(crate) fn acknowledge_client_mutations_with_authority_descriptor(
         &mut self,
         authority: &PreparedAuthority,

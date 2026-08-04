@@ -107,6 +107,10 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         disposition: CustodyDisposition::Scrub,
     },
     CustodyRule {
+        name: "_snapback_operation_protected_detail_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
         name: "_snapback_operation_floors_v1",
         disposition: CustodyDisposition::Scrub,
     },
@@ -465,6 +469,10 @@ pub const SIDECAR_CUSTODY: &[CustodyRule] = &[
         disposition: CustodyDisposition::Rotate,
     },
     CustodyRule {
+        name: "*.operation-detail-keyring.json",
+        disposition: CustodyDisposition::Rotate,
+    },
+    CustodyRule {
         name: "ready files and siblings",
         disposition: CustodyDisposition::Scrub,
     },
@@ -779,7 +787,12 @@ fn scrub_and_mint_with_cut(
     let admin_path = crate::admin::admin_token_sibling(database_path);
     let auth_keyring_path = crate::auth::keyring::AuthKeyringStore::keyring_path(database_path);
     let resume_path = database_path.with_file_name(crate::rqs::RESUME_KEYRING_FILE_NAME);
-    if admin_path.exists() || auth_keyring_path.exists() || resume_path.exists() {
+    let operation_detail_path = crate::operation_detail::keyring_path(database_path);
+    if admin_path.exists()
+        || auth_keyring_path.exists()
+        || resume_path.exists()
+        || operation_detail_path.exists()
+    {
         return Err(fork_error(
             "SNAPBACK_FORK_SIDECAR_COLLISION",
             "fork replacement sidecars must be minted into an empty staging namespace",
@@ -804,6 +817,8 @@ fn scrub_and_mint_with_cut(
     }
     sync_file(&resume_path, "sync fork resume keyring")?;
     maybe_cut(cut_at, PublicationCut::AfterResumeSidecar)?;
+    crate::operation_detail::mint_new_sidecar(database_path)?;
+    sync_file(&operation_detail_path, "sync fork operation detail keyring")?;
 
     let mut custody = classified.into_iter().collect::<BTreeMap<_, _>>();
     custody.extend(
@@ -985,6 +1000,9 @@ fn validate_minted_sidecars(database_path: &Path) -> SnapbackResult<()> {
         .map_err(|_| invalid())?;
     let resume_path = database_path.with_file_name(crate::rqs::RESUME_KEYRING_FILE_NAME);
     if !crate::rqs::ResumeKeyring::persisted_file_has_active_key(&resume_path) {
+        return Err(invalid());
+    }
+    if !crate::operation_detail::persisted_file_has_key(database_path) {
         return Err(invalid());
     }
     Ok(())
@@ -1886,7 +1904,7 @@ mod tests {
             TABLE_CUSTODY.len(),
             "table custody entries are unique"
         );
-        assert_eq!(SIDECAR_CUSTODY.len(), 8);
+        assert_eq!(SIDECAR_CUSTODY.len(), 9);
         assert_eq!(
             SIDECAR_CUSTODY
                 .iter()
@@ -1931,6 +1949,8 @@ mod tests {
     fn scrub_mints_non_promotable_identity_and_payload_free_marker() {
         let directory = tempfile::tempdir().unwrap();
         let source = source_database(directory.path());
+        let parent_operation_detail_key = fs::read(crate::operation_detail::keyring_path(&source))
+            .expect("parent operation detail key");
         let destination = directory.path().join("fork");
         let receipt = publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
         assert!(!receipt.lineage.promotable);
@@ -1941,10 +1961,27 @@ mod tests {
             );
         }
         let database = destination.join("app.sqlite3");
+        let child_operation_detail_key =
+            fs::read(crate::operation_detail::keyring_path(&database))
+                .expect("child operation detail key");
+        assert_ne!(
+            parent_operation_detail_key, child_operation_detail_key,
+            "derived forks rotate protected-detail custody rather than copying the parent key"
+        );
         let runtime = inspect_boot(&database).unwrap().unwrap();
         let error = runtime.deny(EgressFamily::Fetch, 43);
         assert_eq!(error.diagnostic.code, "SNAPBACK_FORK_EGRESS_DENIED");
         let conn = Connection::open(&database).unwrap();
+        assert_eq!(
+            conn.query_row(
+                "SELECT COUNT(*) FROM _snapback_operation_protected_detail_v1",
+                [],
+                |row| row.get::<_, u64>(0),
+            )
+            .unwrap(),
+            0,
+            "parent ciphertext is scrubbed before the derived fork becomes bootable"
+        );
         let row: (String, u64) = conn
             .query_row(
                 "SELECT family,attempts FROM _snapback_fork_egress_attempts_v1",
@@ -2356,7 +2393,7 @@ mod tests {
 
     #[test]
     fn boot_refuses_each_missing_minted_sidecar() {
-        for sidecar in ["admin", "auth", "resume"] {
+        for sidecar in ["admin", "auth", "resume", "operation-detail"] {
             let directory = tempfile::tempdir().unwrap();
             let source = source_database(directory.path());
             let destination = directory.path().join("fork");
@@ -2366,6 +2403,7 @@ mod tests {
                 "admin" => crate::admin::admin_token_sibling(&database),
                 "auth" => crate::auth::keyring::AuthKeyringStore::keyring_path(&database),
                 "resume" => destination.join(crate::rqs::RESUME_KEYRING_FILE_NAME),
+                "operation-detail" => crate::operation_detail::keyring_path(&database),
                 _ => unreachable!(),
             };
             fs::remove_file(path).unwrap();

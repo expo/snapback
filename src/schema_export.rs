@@ -30,7 +30,8 @@ use crate::auth::wire::{
 };
 use crate::commit_envelope::{
     ClientIdentityRangeV1, CommitEnvelopeV1, IdentityEpochV1, OperationCoverageManifestV1,
-    OperationExplanationV1, OperationIdentityRangeRequestV1, OperationIdentityRangeResponseV1,
+    OperationExplanationRequestV1, OperationExplanationResponseV1, OperationExplanationV1,
+    OperationIdentityRangeRequestV1, OperationIdentityRangeResponseV1,
     OperationIdentityTombstoneV1, OperationIdentityV1, OperationSuppressionRecordV1,
 };
 use crate::data_tier::{DataTierCorpusCase, DataTierCorpusManifest, DataTierProfile};
@@ -187,6 +188,14 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "operation.explanation-v1.schema.json",
             schemars::schema_for!(OperationExplanationV1),
+        ),
+        finish(
+            "operation.explanation-request-v1.schema.json",
+            schemars::schema_for!(OperationExplanationRequestV1),
+        ),
+        finish(
+            "operation.explanation-response-v1.schema.json",
+            schemars::schema_for!(OperationExplanationResponseV1),
         ),
         finish(
             "operation.coverage-manifest-v1.schema.json",

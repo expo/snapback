@@ -69,6 +69,7 @@ pub struct CurrentExplanationAuthorityV1 {
     pub authority_instance_id: String,
     pub current_policy_provable: bool,
     pub allow_non_row_facts: bool,
+    pub administrative: bool,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -90,6 +91,29 @@ pub struct StoredOperationExplanationV1 {
     pub write_set_digest: Option<String>,
     pub write_set_count: Option<u64>,
     pub detail: Option<Value>,
+}
+
+impl StoredOperationExplanationV1 {
+    pub(crate) fn into_public(self) -> crate::commit_envelope::OperationExplanationV1 {
+        let bound = &self.envelope.identity.bound_facts;
+        let authorized = self.disposition != ExplanationDispositionV1::AuthorizationUnprovable;
+        crate::commit_envelope::OperationExplanationV1 {
+            schema_version: crate::commit_envelope::operation_explanation_schema_version(),
+            key: self.envelope.identity.key.clone(),
+            operation_kind: authorized.then(|| bound.operation_kind.clone()),
+            function_or_command: authorized.then(|| bound.function_or_command.clone()),
+            principal_fingerprint: authorized.then(|| bound.principal_fingerprint.clone()),
+            principal_session_or_invocation_id: authorized
+                .then(|| self.envelope.principal_session_or_invocation_id.clone()),
+            snapshot: authorized.then(|| self.envelope.snapshot.clone()),
+            disposition: self.disposition,
+            read_set_digest: self.read_set_digest,
+            read_set_count: self.read_set_count,
+            write_set_digest: self.write_set_digest,
+            write_set_count: self.write_set_count,
+            detail: self.detail,
+        }
+    }
 }
 
 pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
@@ -118,6 +142,14 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
            expires_at_ms INTEGER NOT NULL CHECK(expires_at_ms > issued_at_ms),
            authenticator_digest TEXT NOT NULL,
            PRIMARY KEY(audience, epoch_id, range_start)
+         );
+         CREATE TABLE IF NOT EXISTS _snapback_operation_protected_detail_v1 (
+           custody_reference TEXT PRIMARY KEY,
+           key_id TEXT NOT NULL,
+           nonce BLOB NOT NULL CHECK(length(nonce)=24),
+           ciphertext BLOB NOT NULL,
+           payload_digest TEXT NOT NULL,
+           payload_bytes INTEGER NOT NULL CHECK(payload_bytes >= 0)
          );
          CREATE TABLE IF NOT EXISTS _snapback_operation_floors_v1 (
            originator_class TEXT NOT NULL,
@@ -1584,6 +1616,23 @@ pub fn prune_compact_envelope_in(
     tx: &Transaction<'_>,
     identity: &OperationIdentityV1,
 ) -> SnapbackResult<bool> {
+    let body: Option<String> = tx
+        .query_row(
+            "SELECT envelope_json FROM _snapback_commit_envelopes_v1
+             WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
+            params![
+                identity.key.stream_id,
+                originator(identity.key.originator_class),
+                identity.key.operation_id,
+            ],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let Some(body) = body else {
+        return Ok(false);
+    };
+    let envelope: CommitEnvelopeV1 = decode(&body, "commit envelope")?;
+    delete_protected_detail_in(tx, &envelope)?;
     Ok(tx.execute(
         "DELETE FROM _snapback_commit_envelopes_v1
          WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
@@ -1617,10 +1666,12 @@ pub fn expire_envelope_detail_in(
         return Ok(false);
     };
     let mut envelope: CommitEnvelopeV1 = decode(&body, "commit envelope")?;
+    delete_protected_detail_in(tx, &envelope)?;
     envelope.read_set.detail = RetainedEnvelopeDetailV1::Expired;
     envelope.write_set.detail = RetainedEnvelopeDetailV1::Expired;
     envelope.ctx_answers.detail = RetainedEnvelopeDetailV1::Expired;
     envelope.effects.facts.detail = RetainedEnvelopeDetailV1::Expired;
+    envelope.receipt.payload = RetainedEnvelopeDetailV1::Expired;
     tx.execute(
         "UPDATE _snapback_commit_envelopes_v1 SET envelope_json=?1
          WHERE stream_id=?2 AND originator_class=?3 AND operation_id=?4",
@@ -1693,8 +1744,9 @@ fn project_explanation(
     let bound = &envelope.identity.bound_facts;
     let authorized = authority.current_policy_provable
         && authority.audience == bound.audience
-        && authority.principal_fingerprint == bound.principal_fingerprint
-        && authority.authority_instance_id == bound.authority_instance_id
+        && (authority.administrative
+            || (authority.principal_fingerprint == bound.principal_fingerprint
+                && authority.authority_instance_id == bound.authority_instance_id))
         && authority.allow_non_row_facts;
     if !authorized {
         return Ok(StoredOperationExplanationV1 {
@@ -1717,7 +1769,7 @@ fn project_explanation(
         } else {
             0
         };
-    let (mut disposition, detail) = detail_projection(&envelope);
+    let (mut disposition, detail) = detail_projection(conn, &envelope);
     if envelope.snapshot.association == SnapshotAssociationKindV1::ProducedCommit
         && journal_count < envelope.write_set.count
     {
@@ -1734,30 +1786,79 @@ fn project_explanation(
     })
 }
 
-fn detail_projection(envelope: &CommitEnvelopeV1) -> (ExplanationDispositionV1, Option<Value>) {
-    let details = [&envelope.read_set.detail, &envelope.write_set.detail];
+fn detail_projection(
+    conn: &Connection,
+    envelope: &CommitEnvelopeV1,
+) -> (ExplanationDispositionV1, Option<Value>) {
+    let details = [
+        ("readSet", &envelope.read_set.detail),
+        ("writeSet", &envelope.write_set.detail),
+        ("ctxAnswers", &envelope.ctx_answers.detail),
+        ("effects", &envelope.effects.facts.detail),
+        ("receipt", &envelope.receipt.payload),
+    ];
     if details
         .iter()
-        .any(|detail| matches!(detail, RetainedEnvelopeDetailV1::Truncated))
+        .any(|(_, detail)| matches!(detail, RetainedEnvelopeDetailV1::Truncated))
     {
         return (ExplanationDispositionV1::DetailTruncated, None);
     }
     if details
         .iter()
-        .any(|detail| matches!(detail, RetainedEnvelopeDetailV1::Expired))
+        .any(|(_, detail)| matches!(detail, RetainedEnvelopeDetailV1::Expired))
     {
         return (ExplanationDispositionV1::DetailExpired, None);
     }
-    let mut projected = Vec::new();
-    for detail in details {
-        if let RetainedEnvelopeDetailV1::InlineRedacted { detail } = detail {
-            projected.push(detail.clone());
+    let mut projected = serde_json::Map::new();
+    for (name, detail) in details {
+        match detail {
+            RetainedEnvelopeDetailV1::InlineRedacted { detail } => {
+                projected.insert(name.to_owned(), detail.clone());
+            }
+            RetainedEnvelopeDetailV1::ProtectedLane {
+                custody_reference,
+                payload_digest,
+                ..
+            } => match crate::operation_detail::open(conn, custody_reference, payload_digest) {
+                Ok(Some(detail)) => {
+                    projected.insert(name.to_owned(), detail);
+                }
+                Ok(None) | Err(_) => {
+                    return (ExplanationDispositionV1::ProtectedCustodyUnavailable, None);
+                }
+            },
+            RetainedEnvelopeDetailV1::Truncated | RetainedEnvelopeDetailV1::Expired => {}
         }
     }
     (
         ExplanationDispositionV1::Complete,
-        Some(Value::Array(projected)),
+        Some(Value::Object(projected)),
     )
+}
+
+fn delete_protected_detail_in(
+    tx: &Transaction<'_>,
+    envelope: &CommitEnvelopeV1,
+) -> SnapbackResult<()> {
+    for detail in [
+        &envelope.read_set.detail,
+        &envelope.write_set.detail,
+        &envelope.ctx_answers.detail,
+        &envelope.effects.facts.detail,
+        &envelope.receipt.payload,
+    ] {
+        if let RetainedEnvelopeDetailV1::ProtectedLane {
+            custody_reference, ..
+        } = detail
+        {
+            tx.execute(
+                "DELETE FROM _snapback_operation_protected_detail_v1
+                 WHERE custody_reference=?1",
+                params![custody_reference],
+            )?;
+        }
+    }
+    Ok(())
 }
 
 fn compact_envelope_receipt_in(
@@ -2562,15 +2663,9 @@ mod tests {
 
         let recovered_second = {
             let tx = conn.transaction().expect("lost successor response retry");
-            let range = issue_client_range_in(
-                &tx,
-                "stream-issued",
-                audience,
-                authority,
-                Some(&first),
-                16,
-            )
-            .expect("re-serve unadmitted successor");
+            let range =
+                issue_client_range_in(&tx, "stream-issued", audience, authority, Some(&first), 16)
+                    .expect("re-serve unadmitted successor");
             tx.commit().expect("commit successor recovery no-op");
             range
         };
@@ -2639,6 +2734,7 @@ mod tests {
             authority_instance_id: "authority-1".to_owned(),
             current_policy_provable: true,
             allow_non_row_facts: true,
+            administrative: false,
         };
         let complete = explain_operation(&conn, &identity, &authority)
             .expect("explain")
@@ -2662,6 +2758,13 @@ mod tests {
         );
         assert_eq!(denied.read_set_digest, None);
         assert_eq!(denied.write_set_count, None);
+        let denied_public = denied.into_public();
+        assert_eq!(denied_public.key, identity.key);
+        assert_eq!(denied_public.operation_kind, None);
+        assert_eq!(denied_public.function_or_command, None);
+        assert_eq!(denied_public.principal_fingerprint, None);
+        assert_eq!(denied_public.principal_session_or_invocation_id, None);
+        assert_eq!(denied_public.snapshot, None);
 
         let tx = conn.transaction().expect("expire detail");
         expire_envelope_detail_in(&tx, &identity).expect("expire");

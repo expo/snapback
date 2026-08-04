@@ -1772,6 +1772,7 @@ impl LocalDatabase {
             order_field_bounds: Arc::new(BTreeMap::new()),
             sequence_declarations: Arc::new(BTreeMap::new()),
         };
+        crate::operation_detail::install(&db.conn, None)?;
         db.configure(false)?;
         db.create_infra()?;
         auth_mode::adopt_after_infra(&mut db, mode_inspection)?;
@@ -1814,6 +1815,7 @@ impl LocalDatabase {
             order_field_bounds: Arc::new(BTreeMap::new()),
             sequence_declarations: Arc::new(BTreeMap::new()),
         };
+        crate::operation_detail::install(&db.conn, Some(&path))?;
         db.configure(true)?;
         db.create_infra()?;
         // `_version` is a plain-JSON client cursor, not an arbitrary SQLite
@@ -2092,6 +2094,15 @@ impl LocalDatabase {
         )?;
         tx.commit()?;
         Ok(range)
+    }
+
+    pub(crate) fn explain_operation(
+        &self,
+        identity: &crate::commit_envelope::OperationIdentityV1,
+        authority: &crate::operation_ledger::CurrentExplanationAuthorityV1,
+    ) -> SnapbackResult<Option<crate::commit_envelope::OperationExplanationV1>> {
+        crate::operation_ledger::explain_operation(&self.conn, identity, authority)
+            .map(|explanation| explanation.map(|explanation| explanation.into_public()))
     }
 
     fn acknowledge_client_mutations_inner(
@@ -18872,16 +18883,46 @@ fn record_covered_client_mutation_envelope_in(
             "captured ctx answers could not be encoded",
         )
     })?;
-    let fact_set = |domain: &'static [u8], value: Value, count: u64| EnvelopeFactSetV1 {
-        digest: crate::operation_ledger::digest_fact_set(domain, &canonical_json(value.clone())),
-        count,
-        provenance: FactProvenanceV1::ServerCaptured,
-        detail: if serde_json::to_vec(&value).is_ok_and(|bytes| bytes.len() <= 65_536) {
-            RetainedEnvelopeDetailV1::InlineRedacted { detail: value }
-        } else {
-            RetainedEnvelopeDetailV1::Truncated
-        },
-    };
+    let custody_root = identity.activity_digest();
+    let protected_fact_set =
+        |domain: &'static [u8], value: Value, count: u64, name: &str| {
+            let digest = crate::operation_ledger::digest_fact_set(
+                domain,
+                &canonical_json(value.clone()),
+            );
+            let detail = if serde_json::to_vec(&value).is_ok_and(|bytes| bytes.len() <= 65_536) {
+                let custody_reference = format!("operation-detail:{custody_root}:{name}");
+                let payload_bytes = crate::operation_detail::seal_in(
+                    tx,
+                    &custody_reference,
+                    &digest,
+                    &value,
+                )?;
+                RetainedEnvelopeDetailV1::ProtectedLane {
+                    custody_reference,
+                    payload_digest: digest.clone(),
+                    payload_bytes,
+                }
+            } else {
+                RetainedEnvelopeDetailV1::Truncated
+            };
+            Ok::<EnvelopeFactSetV1, SnapbackError>(EnvelopeFactSetV1 {
+                digest,
+                count,
+                provenance: FactProvenanceV1::ServerCaptured,
+                detail,
+            })
+        };
+    let inline_public_fact_set =
+        |domain: &'static [u8], value: Value, count: u64| EnvelopeFactSetV1 {
+            digest: crate::operation_ledger::digest_fact_set(
+                domain,
+                &canonical_json(value.clone()),
+            ),
+            count,
+            provenance: FactProvenanceV1::ServerCaptured,
+            detail: RetainedEnvelopeDetailV1::InlineRedacted { detail: value },
+        };
     let output_value = serde_json::to_value(output).map_err(|_| {
         SnapbackError::error(
             "SNAPBACK_OPERATION_LEDGER_INVALID",
@@ -18893,6 +18934,13 @@ fn record_covered_client_mutation_envelope_in(
         b"snapback:operation-receipt:v1\n",
         &canonical_json(output_value.clone()),
     );
+    let receipt_custody_reference = format!("operation-detail:{custody_root}:receipt");
+    let receipt_payload_bytes = crate::operation_detail::seal_in(
+        tx,
+        &receipt_custody_reference,
+        &receipt_digest,
+        &output_value,
+    )?;
     let envelope = CommitEnvelopeV1 {
         schema_version: 1,
         identity: operation_identity,
@@ -18918,23 +18966,30 @@ fn record_covered_client_mutation_envelope_in(
         ),
         plan_digest: LaneFactV1::NotDefinedForLane,
         base_version: LaneFactV1::NotDefinedForLane,
-        read_set: fact_set(
+        read_set: protected_fact_set(
             b"snapback:operation-read-set:v1\n",
             read_detail,
             read_dependencies.len() as u64,
-        ),
-        write_set: fact_set(
+            "reads",
+        )?,
+        write_set: protected_fact_set(
             b"snapback:operation-write-set:v1\n",
             write_detail,
             changes.len() as u64,
-        ),
-        ctx_answers: fact_set(
+            "writes",
+        )?,
+        ctx_answers: protected_fact_set(
             b"snapback:operation-ctx-answers:v1\n",
             ctx_detail,
             usize::from(output.ctx_ledger.is_some()) as u64,
-        ),
+            "ctx-answers",
+        )?,
         effects: EnvelopeEffectFactsV1 {
-            facts: fact_set(b"snapback:operation-effects:v1\n", json!([]), 0),
+            facts: inline_public_fact_set(
+                b"snapback:operation-effects:v1\n",
+                json!([]),
+                0,
+            ),
             egress_families: Vec::new(),
             settlement_capabilities: Vec::new(),
         },
@@ -18942,17 +18997,9 @@ fn record_covered_client_mutation_envelope_in(
             state: OperationReceiptStateV1::Committed,
             receipt_digest: receipt_digest.clone(),
             payload: RetainedEnvelopeDetailV1::ProtectedLane {
-                custody_reference: format!("client-mutation-result:{}", identity.activity_digest()),
+                custody_reference: receipt_custody_reference,
                 payload_digest: receipt_digest,
-                payload_bytes: serde_json::to_vec(&output_value)
-                    .map_err(|_| {
-                        SnapbackError::error(
-                            "SNAPBACK_OPERATION_LEDGER_INVALID",
-                            "storage",
-                            "mutation receipt bytes could not be counted",
-                        )
-                    })?
-                    .len() as u64,
+                payload_bytes: receipt_payload_bytes,
             },
         },
         coverage: EnvelopeCoverageV1 {
@@ -23548,19 +23595,24 @@ mod guarded_commit_tests {
             .expect("covered buffered commit");
         assert_eq!(buffered.changes.len(), 1);
 
-        for identity in [&host_plan_identity, &buffered_identity] {
-            let operation = crate::commit_envelope::OperationIdentityV1::from_client_mutation(
-                stream.clone(),
-                audience.clone(),
-                identity
-                    .operation_issuance
-                    .clone()
-                    .expect("issuance retained"),
-                identity,
-                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
-            );
+        let operations = [&host_plan_identity, &buffered_identity]
+            .into_iter()
+            .map(|identity| {
+                crate::commit_envelope::OperationIdentityV1::from_client_mutation(
+                    stream.clone(),
+                    audience.clone(),
+                    identity
+                        .operation_issuance
+                        .clone()
+                        .expect("issuance retained"),
+                    identity,
+                    crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+                )
+            })
+            .collect::<Vec<_>>();
+        for operation in &operations {
             assert!(matches!(
-                crate::operation_ledger::lookup_operation(&db.conn, &operation)
+                crate::operation_ledger::lookup_operation(&db.conn, operation)
                     .expect("operation replay lookup"),
                 crate::operation_ledger::OperationLookupV1::ExactReplay(_)
             ));
@@ -23574,6 +23626,68 @@ mod guarded_commit_tests {
             )
             .expect("envelope count");
         assert_eq!(envelope_count, 2);
+        let protected_count: u64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_operation_protected_detail_v1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("protected detail count");
+        assert_eq!(protected_count, 8, "four protected fact classes per envelope");
+        let retained_envelopes: String = db
+            .conn
+            .query_row(
+                "SELECT group_concat(envelope_json, '\n') FROM _snapback_commit_envelopes_v1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("retained envelope JSON");
+        assert!(!retained_envelopes.contains("\"title\":\"one\""));
+        assert!(!retained_envelopes.contains("\"title\":\"two\""));
+        assert!(!retained_envelopes.contains("\"title\":\"buffered\""));
+
+        let admin = crate::operation_ledger::CurrentExplanationAuthorityV1 {
+            audience: audience.clone(),
+            principal_fingerprint: String::new(),
+            authority_instance_id: String::new(),
+            current_policy_provable: true,
+            allow_non_row_facts: true,
+            administrative: true,
+        };
+        let explanation = crate::operation_ledger::explain_operation(
+            &db.conn,
+            &operations[0],
+            &admin,
+        )
+        .expect("authorized protected explanation")
+        .expect("operation exists");
+        assert_eq!(
+            explanation.disposition,
+            crate::commit_envelope::ExplanationDispositionV1::Complete
+        );
+        let detail = explanation.detail.expect("all retained fact classes project");
+        for name in ["readSet", "writeSet", "ctxAnswers", "effects", "receipt"] {
+            assert!(detail.get(name).is_some(), "missing explanation fact {name}");
+        }
+        let receipt_reference = format!(
+            "operation-detail:{}:receipt",
+            host_plan_identity.activity_digest()
+        );
+        db.conn
+            .execute(
+                "DELETE FROM _snapback_operation_protected_detail_v1
+                 WHERE custody_reference=?1",
+                [&receipt_reference],
+            )
+            .expect("remove protected receipt fixture");
+        assert_eq!(
+            crate::operation_ledger::explain_operation(&db.conn, &operations[0], &admin)
+                .expect("fail-closed explanation")
+                .expect("operation remains")
+                .disposition,
+            crate::commit_envelope::ExplanationDispositionV1::ProtectedCustodyUnavailable
+        );
         let history_operation_ids = db
             .conn
             .prepare(

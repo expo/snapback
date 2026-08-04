@@ -56,12 +56,30 @@ Landed in the public client carrier slice:
   client wire corpus. The client carrier remains explicit opt-in while LLP
   0163 is Draft and capabilities are `Missing`.
 
+Landed in the explanation/protected-custody slice:
+
+- Rust-owned exact-operation request/response schemas plus authenticated
+  `/operations/explain` and AdminRead
+  `/_snapback/api/operations/explain` routes, with the latter strengthened to
+  the existing secret-read lease gate in sessions mode;
+- current AdminRead policy evaluation and a public lane that resolves the live
+  principal/incarnation but deliberately returns `authorization-unprovable`
+  until row/non-row policy can be re-evaluated per fact (Partial, never an
+  authorization claim inferred from identity equality);
+- owner-only sidecar keys and XChaCha20-Poly1305 custody for read, write,
+  context-answer, and receipt detail, with one fail-closed projection covering
+  those four protected classes plus inline-redacted effects; and
+- LLP 0158 fork custody extended so protected-detail ciphertext is scrubbed,
+  the key sidecar rotates, absent minted custody refuses boot evidence, and
+  neither parent key nor ciphertext crosses into a derived fork.
+
 Still required before this ticket closes:
 
 - first-party host identity adapters for jobs, cron, migrations, and stable
   child ordinals (promotion's authenticated host lease is already wired);
-- public/admin explanation transport, real current-policy evaluation, and
-  secret-bearing protected custody;
+- real per-fact current-policy evaluation for the public explanation lane (the
+  admin transport and protected custody are wired; public stays Partial and
+  fail-closed);
 - the complete target writer/bypass/asymmetric-retention acceptance corpus;
   and
 - the genuinely paired, baseline-digest-bound active-lane row-13 performance
