@@ -22,7 +22,8 @@ use crate::commit_envelope::{
     IdentityEpochV1, OperationCoverageManifestV1, OperationIdentityComparison,
     OperationIdentityTombstoneV1, OperationIdentityV1, OperationIssuanceV1,
     OperationLookupDispositionV1, OperationOriginatorClassV1, OperationSuppressionRecordV1,
-    OperationTerminalOutcomeV1, RetainedEnvelopeDetailV1, SnapshotAssociationKindV1,
+    OperationTerminalOutcomeV1, PendingOperationLifecycleV1, PendingOperationTerminalOutcomeV1,
+    PendingOperationTerminalSupplementV1, RetainedEnvelopeDetailV1, SnapshotAssociationKindV1,
     derive_host_operation_id,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
@@ -33,6 +34,10 @@ pub const HOST_RECEIPT_WINDOW_MS_V1: u64 = 24 * 60 * 60 * 1_000;
 pub const OPERATION_EXPLANATION_MAX_RESULTS_V1: usize = 100;
 pub const ORDINARY_MUTATION_LANE_V1: &str = "ordinaryMutation";
 pub const HOST_CHILD_MUTATION_LANE_V1: &str = "hostChildMutation";
+/// Pending host operations use an effectively non-expiring lease. The lease
+/// completes only with the digest-linked terminal supplement; wall-clock
+/// expiry must never make a pending publication reclaimable.
+pub const PENDING_HOST_IDENTITY_LEASE_EXPIRY_MS_V1: u64 = i64::MAX as u64;
 pub const ORDINARY_MUTATION_WRITERS_V1: [&str; 2] = [
     "LocalDatabase::execute_mutation_idempotent_guarded_with_settlement_time",
     "LocalDatabase::commit_buffered_writes_idempotent_guarded",
@@ -62,6 +67,20 @@ pub enum OperationLookupV1 {
         receipt_digest: String,
     },
     IdentityHorizonPassed,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum PendingOperationLookupV1 {
+    Novel,
+    Pending(PendingOperationLifecycleV1),
+    Terminal(PendingOperationTerminalSupplementV1),
+    IdentityHorizonPassed,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PendingOperationFinalizationV1 {
+    Applied,
+    ExactReplay,
 }
 
 impl OperationLookupV1 {
@@ -261,6 +280,29 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
            operation_count INTEGER NOT NULL CHECK(operation_count >= 0),
            operation_keys_digest TEXT NOT NULL,
            recorded_at_ms INTEGER NOT NULL CHECK(recorded_at_ms >= 0)
+         );
+         CREATE TABLE IF NOT EXISTS _snapback_operation_pending_v1 (
+           stream_id TEXT NOT NULL,
+           originator_class TEXT NOT NULL,
+           operation_id TEXT NOT NULL,
+           lane TEXT NOT NULL,
+           audience TEXT NOT NULL,
+           epoch_id TEXT NOT NULL,
+           lifecycle_json TEXT NOT NULL,
+           PRIMARY KEY(stream_id, originator_class, operation_id)
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_operation_pending_v1_capacity
+           ON _snapback_operation_pending_v1(lane, audience);
+         CREATE TABLE IF NOT EXISTS _snapback_operation_terminal_supplements_v1 (
+           stream_id TEXT NOT NULL,
+           originator_class TEXT NOT NULL,
+           operation_id TEXT NOT NULL,
+           lane TEXT NOT NULL,
+           audience TEXT NOT NULL,
+           epoch_id TEXT NOT NULL,
+           terminal_at_ms INTEGER NOT NULL CHECK(terminal_at_ms >= 0),
+           supplement_json TEXT NOT NULL,
+           PRIMARY KEY(stream_id, originator_class, operation_id)
          );",
     )?;
     let has_successor: bool = tx.query_row(
@@ -1303,6 +1345,496 @@ pub fn record_operation_in(
     Ok(())
 }
 
+/// Refuse a new pending operation when the lane/audience budget is full.
+/// The exact retained identity remains admissible so crash recovery can
+/// finish it; no pending row is ever selected for eviction.
+pub fn require_pending_operation_capacity_in(
+    conn: &Connection,
+    lane: &str,
+    audience: &str,
+    proposed: Option<&OperationIdentityV1>,
+    maximum: u64,
+) -> SnapbackResult<()> {
+    if lane.is_empty() || audience.is_empty() || maximum == 0 {
+        return Err(invalid("pending operation capacity arguments are invalid"));
+    }
+    let active: i64 = conn.query_row(
+        "SELECT COUNT(*)
+           FROM _snapback_operation_pending_v1 AS pending
+           LEFT JOIN _snapback_operation_terminal_supplements_v1 AS terminal
+             ON terminal.stream_id=pending.stream_id
+            AND terminal.originator_class=pending.originator_class
+            AND terminal.operation_id=pending.operation_id
+          WHERE pending.lane=?1 AND pending.audience=?2
+            AND terminal.operation_id IS NULL",
+        params![lane, audience],
+        |row| row.get(0),
+    )?;
+    if u64::try_from(active).unwrap_or(u64::MAX) < maximum {
+        return Ok(());
+    }
+    if let Some(proposed) = proposed {
+        let retained: Option<String> = conn
+            .query_row(
+                "SELECT lifecycle_json FROM _snapback_operation_pending_v1
+                  WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
+                params![
+                    proposed.key.stream_id,
+                    originator(proposed.key.originator_class),
+                    proposed.key.operation_id,
+                ],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if let Some(retained) = retained {
+            let retained: PendingOperationLifecycleV1 =
+                decode(&retained, "pending operation lifecycle")?;
+            reject_divergence(&retained.identity, proposed)?;
+            return Ok(());
+        }
+    }
+    Err(refused(
+        "SNAPBACK_OPERATION_PENDING_CAPACITY_FULL",
+        "pending operation capacity is full; admission refuses rather than evicting an outcome-pending publication",
+    ))
+}
+
+/// Record the immutable publication-side envelope plus its pending lifecycle
+/// row in the caller's application-visible transaction. Unlike
+/// `record_operation_in`, this seam deliberately accepts only Pending and does
+/// not create a terminal suppression record.
+pub fn record_pending_operation_in(
+    tx: &Transaction<'_>,
+    envelope: &CommitEnvelopeV1,
+    lifecycle: &PendingOperationLifecycleV1,
+    maximum_pending_for_lane_audience: u64,
+) -> SnapbackResult<()> {
+    envelope
+        .validate()
+        .map_err(|error| invalid(format!("pending commit envelope is invalid: {error:?}")))?;
+    let retained_pending_projection = serde_json::to_value(&envelope.receipt.payload)
+        .map_err(|_| invalid("pending receipt projection could not be encoded"))?;
+    if envelope.receipt.state != crate::commit_envelope::OperationReceiptStateV1::Pending
+        || lifecycle.schema_version != 1
+        || lifecycle.lane.is_empty()
+        || lifecycle.identity != envelope.identity
+        || lifecycle.publication != envelope.snapshot
+        || lifecycle.publication.association != SnapshotAssociationKindV1::ProducedCommit
+        || lifecycle.pending_receipt_digest != envelope.receipt.receipt_digest
+        || !valid_sha256(&lifecycle.pending_receipt_digest)
+        || pending_operation_receipt_digest(&retained_pending_projection)?
+            != lifecycle.pending_receipt_digest
+        || lifecycle.pending_at_ms != envelope.recorded_at_ms
+        || retained_pending_projection != lifecycle.pending_payload
+    {
+        return Err(invalid(
+            "pending lifecycle must exactly match its Pending commit envelope",
+        ));
+    }
+    let identity = &envelope.identity;
+    if identity.key.originator_class != OperationOriginatorClassV1::Host {
+        return Err(invalid(
+            "v1 pending durable operations require authenticated host issuance",
+        ));
+    }
+    let epoch_sequence = authenticate_operation_identity(tx, identity)?;
+    require_pending_operation_capacity_in(
+        tx,
+        &lifecycle.lane,
+        &identity.bound_facts.audience,
+        Some(identity),
+        maximum_pending_for_lane_audience,
+    )?;
+    match lookup_pending_operation(tx, identity)? {
+        PendingOperationLookupV1::Novel => {}
+        PendingOperationLookupV1::Pending(retained) => {
+            reject_divergence(&retained.identity, identity)?;
+            return Err(refused(
+                "SNAPBACK_OPERATION_ALREADY_RECORDED",
+                "pending publication was already recorded; use exact lookup instead of republishing",
+            ));
+        }
+        PendingOperationLookupV1::Terminal(retained) => {
+            reject_divergence(&retained.identity, identity)?;
+            return Err(refused(
+                "SNAPBACK_OPERATION_ALREADY_RECORDED",
+                "terminal operation cannot be republished as pending",
+            ));
+        }
+        PendingOperationLookupV1::IdentityHorizonPassed => {
+            return Err(refused(
+                "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED",
+                "pending operation identity is below the retained Host outcome horizon",
+            ));
+        }
+    }
+    if let Some(retained) = load_identity_for_key(tx, identity)? {
+        return match retained.compare(identity) {
+            OperationIdentityComparison::ExactReplay => Err(refused(
+                "SNAPBACK_OPERATION_ALREADY_RECORDED",
+                "pending publication was already recorded; use exact lookup instead of republishing",
+            )),
+            OperationIdentityComparison::BoundFactsDiverged => Err(refused(
+                "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+                "pending operation identity was reused with divergent bound facts",
+            )),
+            OperationIdentityComparison::Novel => unreachable!("lookup used the same key"),
+        };
+    }
+    let (epoch_id, _, _) = issuance_parts(identity);
+    tx.execute(
+        "INSERT INTO _snapback_commit_envelopes_v1(
+           stream_id, originator_class, operation_id, audience, epoch_id,
+           epoch_sequence, principal_fingerprint, principal_session_id,
+           recorded_at_ms, envelope_json
+         ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        params![
+            identity.key.stream_id,
+            originator(identity.key.originator_class),
+            identity.key.operation_id,
+            identity.bound_facts.audience,
+            epoch_id,
+            epoch_sequence,
+            identity.bound_facts.principal_fingerprint,
+            envelope.principal_session_or_invocation_id,
+            to_i64(envelope.recorded_at_ms, "pending operation record time")?,
+            serde_json::to_string(envelope)
+                .map_err(|_| invalid("pending envelope could not be encoded"))?,
+        ],
+    )?;
+    tx.execute(
+        "INSERT INTO _snapback_operation_pending_v1(
+           stream_id,originator_class,operation_id,lane,audience,epoch_id,lifecycle_json
+         ) VALUES(?1,?2,?3,?4,?5,?6,?7)",
+        params![
+            identity.key.stream_id,
+            originator(identity.key.originator_class),
+            identity.key.operation_id,
+            lifecycle.lane,
+            identity.bound_facts.audience,
+            epoch_id,
+            serde_json::to_string(lifecycle)
+                .map_err(|_| invalid("pending lifecycle could not be encoded"))?,
+        ],
+    )?;
+    register_host_identity_lease_in(tx, identity, PENDING_HOST_IDENTITY_LEASE_EXPIRY_MS_V1)?;
+    Ok(())
+}
+
+/// Digest of the append-only Pending→terminal link. This is public to the
+/// owning migration adapter so it can seal the supplement from the same
+/// terminal receipt bytes it stores in its journal transaction.
+pub fn pending_operation_transition_digest(
+    identity: &OperationIdentityV1,
+    publication: &crate::commit_envelope::StreamQualifiedVersionV1,
+    pending_receipt_digest: &str,
+    terminal_outcome: PendingOperationTerminalOutcomeV1,
+    terminal_receipt_digest: &str,
+    terminal_write_set_digest: &str,
+    terminal_write_set_count: u64,
+) -> String {
+    digest_json(
+        b"snapback:pending-operation-terminal-transition:v1\n",
+        &json!({
+            "identity": identity,
+            "publication": publication,
+            "pendingReceiptDigest": pending_receipt_digest,
+            "terminalOutcome": terminal_outcome,
+            "terminalReceiptDigest": terminal_receipt_digest,
+            "terminalWriteSetDigest": terminal_write_set_digest,
+            "terminalWriteSetCount": terminal_write_set_count,
+        }),
+    )
+}
+
+fn retained_projection_digest(domain: &[u8], projection: &Value) -> SnapbackResult<String> {
+    let canonical = crate::rqs::jcs(projection)
+        .map_err(|_| invalid("retained operation projection is not canonicalizable"))?;
+    let mut digest = Sha256::new();
+    digest.update(domain);
+    digest.update(canonical.as_bytes());
+    Ok(format!("sha256:{:x}", digest.finalize()))
+}
+
+pub fn pending_operation_receipt_digest(projection: &Value) -> SnapbackResult<String> {
+    retained_projection_digest(b"snapback:pending-operation-receipt:v1\n", projection)
+}
+
+pub fn pending_operation_terminal_receipt_digest(projection: &Value) -> SnapbackResult<String> {
+    retained_projection_digest(
+        b"snapback:pending-operation-terminal-receipt:v1\n",
+        projection,
+    )
+}
+
+fn load_validated_pending_lifecycle(
+    conn: &Connection,
+    proposed: &OperationIdentityV1,
+) -> SnapbackResult<Option<PendingOperationLifecycleV1>> {
+    let pending: Option<String> = conn
+        .query_row(
+            "SELECT lifecycle_json FROM _snapback_operation_pending_v1
+              WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
+            params![
+                proposed.key.stream_id,
+                originator(proposed.key.originator_class),
+                proposed.key.operation_id,
+            ],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let Some(pending) = pending else {
+        return Ok(None);
+    };
+    let pending: PendingOperationLifecycleV1 = decode(&pending, "pending operation lifecycle")?;
+    reject_divergence(&pending.identity, proposed)?;
+    let envelope: Option<String> = conn
+        .query_row(
+            "SELECT envelope_json FROM _snapback_commit_envelopes_v1
+              WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
+            params![
+                proposed.key.stream_id,
+                originator(proposed.key.originator_class),
+                proposed.key.operation_id,
+            ],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let Some(envelope) = envelope else {
+        return Err(invalid(
+            "pending lifecycle survived without its publication envelope",
+        ));
+    };
+    let envelope: CommitEnvelopeV1 = decode(&envelope, "pending commit envelope")?;
+    envelope
+        .validate()
+        .map_err(|error| invalid(format!("pending commit envelope is invalid: {error:?}")))?;
+    let retained_projection = serde_json::to_value(&envelope.receipt.payload)
+        .map_err(|_| invalid("pending receipt projection could not be encoded"))?;
+    if envelope.identity != pending.identity
+        || envelope.identity != *proposed
+        || envelope.receipt.state != crate::commit_envelope::OperationReceiptStateV1::Pending
+        || envelope.snapshot != pending.publication
+        || envelope.receipt.receipt_digest != pending.pending_receipt_digest
+        || pending_operation_receipt_digest(&retained_projection)? != pending.pending_receipt_digest
+        || retained_projection != pending.pending_payload
+        || envelope.recorded_at_ms != pending.pending_at_ms
+    {
+        return Err(invalid(
+            "pending lifecycle and publication envelope do not match exactly",
+        ));
+    }
+    Ok(Some(pending))
+}
+
+pub fn lookup_pending_operation(
+    conn: &Connection,
+    proposed: &OperationIdentityV1,
+) -> SnapbackResult<PendingOperationLookupV1> {
+    proposed
+        .validate()
+        .map_err(|error| invalid(format!("pending operation identity is invalid: {error:?}")))?;
+    let terminal: Option<String> = conn
+        .query_row(
+            "SELECT supplement_json FROM _snapback_operation_terminal_supplements_v1
+              WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
+            params![
+                proposed.key.stream_id,
+                originator(proposed.key.originator_class),
+                proposed.key.operation_id,
+            ],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if let Some(terminal) = terminal {
+        let terminal: PendingOperationTerminalSupplementV1 =
+            decode(&terminal, "pending operation terminal supplement")?;
+        reject_divergence(&terminal.identity, proposed)?;
+        let Some(pending) = load_validated_pending_lifecycle(conn, proposed)? else {
+            return Err(invalid(
+                "terminal supplement survived without its pending lifecycle",
+            ));
+        };
+        if terminal.publication != pending.publication
+            || terminal.pending_receipt_digest != pending.pending_receipt_digest
+            || terminal.terminal_at_ms < pending.pending_at_ms
+            || terminal.transition_digest
+                != pending_operation_transition_digest(
+                    &terminal.identity,
+                    &terminal.publication,
+                    &terminal.pending_receipt_digest,
+                    terminal.terminal_outcome,
+                    &terminal.terminal_receipt_digest,
+                    &terminal.terminal_write_set_digest,
+                    terminal.terminal_write_set_count,
+                )
+        {
+            return Err(invalid(
+                "terminal supplement does not match its pending publication",
+            ));
+        }
+        return Ok(PendingOperationLookupV1::Terminal(terminal));
+    }
+    let Some(pending) = load_validated_pending_lifecycle(conn, proposed)? else {
+        let envelope: Option<String> = conn
+            .query_row(
+                "SELECT envelope_json FROM _snapback_commit_envelopes_v1
+                  WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
+                params![
+                    proposed.key.stream_id,
+                    originator(proposed.key.originator_class),
+                    proposed.key.operation_id,
+                ],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if let Some(envelope) = envelope {
+            let envelope: CommitEnvelopeV1 = decode(&envelope, "pending commit envelope")?;
+            reject_divergence(&envelope.identity, proposed)?;
+            if envelope.receipt.payload != RetainedEnvelopeDetailV1::Expired {
+                return Err(invalid(
+                    "pending publication envelope survived without its lifecycle",
+                ));
+            }
+        }
+        let floor: Option<i64> = conn
+            .query_row(
+                "SELECT floor_sequence FROM _snapback_operation_floors_v1
+                 WHERE originator_class=?1 AND audience=?2",
+                params![
+                    originator(proposed.key.originator_class),
+                    proposed.bound_facts.audience,
+                ],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let epoch_sequence: Option<i64> = conn
+            .query_row(
+                "SELECT epoch_sequence FROM _snapback_operation_epochs_v1
+                 WHERE originator_class=?1 AND audience=?2 AND epoch_id=?3",
+                params![
+                    originator(proposed.key.originator_class),
+                    proposed.bound_facts.audience,
+                    issuance_parts(proposed).0,
+                ],
+                |row| row.get(0),
+            )
+            .optional()?;
+        return if matches!((floor, epoch_sequence), (Some(floor), Some(epoch)) if epoch < floor) {
+            Ok(PendingOperationLookupV1::IdentityHorizonPassed)
+        } else {
+            Ok(PendingOperationLookupV1::Novel)
+        };
+    };
+    Ok(PendingOperationLookupV1::Pending(pending))
+}
+
+/// Append the terminal supplement in the caller's T-release/T-rollback
+/// transaction. The Pending envelope and lifecycle row remain immutable
+/// evidence of P, while this additive carrier participates independently in
+/// host-window retention so the established v1 suppression wire shape does
+/// not need to change.
+pub fn finalize_pending_operation_in(
+    tx: &Transaction<'_>,
+    supplement: &PendingOperationTerminalSupplementV1,
+    retained_terminal_projection: &Value,
+) -> SnapbackResult<PendingOperationFinalizationV1> {
+    if supplement.schema_version != 1
+        || supplement.publication.association != SnapshotAssociationKindV1::ProducedCommit
+        || !valid_sha256(&supplement.pending_receipt_digest)
+        || !valid_sha256(&supplement.terminal_receipt_digest)
+        || !valid_sha256(&supplement.terminal_write_set_digest)
+        || pending_operation_terminal_receipt_digest(retained_terminal_projection)?
+            != supplement.terminal_receipt_digest
+        || supplement.transition_digest
+            != pending_operation_transition_digest(
+                &supplement.identity,
+                &supplement.publication,
+                &supplement.pending_receipt_digest,
+                supplement.terminal_outcome,
+                &supplement.terminal_receipt_digest,
+                &supplement.terminal_write_set_digest,
+                supplement.terminal_write_set_count,
+            )
+    {
+        return Err(invalid("pending operation terminal supplement is invalid"));
+    }
+    let identity = &supplement.identity;
+    let existing: Option<String> = tx
+        .query_row(
+            "SELECT supplement_json FROM _snapback_operation_terminal_supplements_v1
+              WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
+            params![
+                identity.key.stream_id,
+                originator(identity.key.originator_class),
+                identity.key.operation_id,
+            ],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if let Some(existing) = existing {
+        let existing: PendingOperationTerminalSupplementV1 =
+            decode(&existing, "pending operation terminal supplement")?;
+        reject_divergence(&existing.identity, identity)?;
+        if existing == *supplement {
+            return Ok(PendingOperationFinalizationV1::ExactReplay);
+        }
+        return Err(refused(
+            "SNAPBACK_OPERATION_TERMINAL_DIVERGED",
+            "pending operation was finalized with different terminal facts",
+        ));
+    }
+    let pending: Option<(String, String)> = tx
+        .query_row(
+            "SELECT lane,lifecycle_json FROM _snapback_operation_pending_v1
+              WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
+            params![
+                identity.key.stream_id,
+                originator(identity.key.originator_class),
+                identity.key.operation_id,
+            ],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let Some((lane, pending)) = pending else {
+        return Err(refused(
+            "SNAPBACK_OPERATION_PENDING_NOT_FOUND",
+            "terminal settlement requires the exact retained pending publication",
+        ));
+    };
+    let pending: PendingOperationLifecycleV1 = decode(&pending, "pending operation lifecycle")?;
+    reject_divergence(&pending.identity, identity)?;
+    if pending.publication != supplement.publication
+        || pending.pending_receipt_digest != supplement.pending_receipt_digest
+        || supplement.terminal_at_ms < pending.pending_at_ms
+    {
+        return Err(refused(
+            "SNAPBACK_OPERATION_TERMINAL_DIVERGED",
+            "terminal settlement does not link the exact pending publication and receipt digest",
+        ));
+    }
+    let (epoch_id, _, _) = issuance_parts(identity);
+    tx.execute(
+        "INSERT INTO _snapback_operation_terminal_supplements_v1(
+           stream_id,originator_class,operation_id,lane,audience,epoch_id,
+           terminal_at_ms,supplement_json
+         ) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
+        params![
+            identity.key.stream_id,
+            originator(identity.key.originator_class),
+            identity.key.operation_id,
+            lane,
+            identity.bound_facts.audience,
+            epoch_id,
+            to_i64(supplement.terminal_at_ms, "terminal supplement time")?,
+            serde_json::to_string(supplement)
+                .map_err(|_| invalid("terminal supplement could not be encoded"))?,
+        ],
+    )?;
+    complete_host_identity_lease_in(tx, identity, supplement.terminal_at_ms)?;
+    Ok(PendingOperationFinalizationV1::Applied)
+}
+
 /// Authenticate a host identity against the durable epoch authority before it
 /// can enter a host-only admission seam such as promotion ticket issuance.
 /// Structural `HostIncarnation` shape is insufficient: the epoch must be open,
@@ -1650,6 +2182,28 @@ pub fn acknowledge_and_reclaim_in(
             identity.key.operation_id,
         ],
     )?;
+    // A pending operation's terminal supplement is a bounded transition
+    // record, not a second forever-retained receipt. Once the owning
+    // suppression result is compacted, the ordinary tombstone above carries
+    // the outcome/digest anti-replay fact and both lifecycle rows can leave.
+    tx.execute(
+        "DELETE FROM _snapback_operation_terminal_supplements_v1
+         WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
+        params![
+            identity.key.stream_id,
+            originator(identity.key.originator_class),
+            identity.key.operation_id,
+        ],
+    )?;
+    tx.execute(
+        "DELETE FROM _snapback_operation_pending_v1
+         WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
+        params![
+            identity.key.stream_id,
+            originator(identity.key.originator_class),
+            identity.key.operation_id,
+        ],
+    )?;
     compact_envelope_receipt_in(tx, identity)?;
     Ok(())
 }
@@ -1865,9 +2419,27 @@ pub fn close_epoch_if_complete_in(
                     params![audience, epoch_id, to_i64(now_ms, "host closure time")?],
                     |row| row.get(0),
                 )?;
+                let outcome_pending: bool = tx.query_row(
+                    "SELECT EXISTS(
+                       SELECT 1
+                         FROM _snapback_operation_pending_v1 AS pending
+                         LEFT JOIN _snapback_operation_terminal_supplements_v1 AS terminal
+                           ON terminal.stream_id=pending.stream_id
+                          AND terminal.originator_class=pending.originator_class
+                          AND terminal.operation_id=pending.operation_id
+                        WHERE pending.audience=?1 AND pending.epoch_id=?2
+                          AND terminal.operation_id IS NULL
+                     )",
+                    params![audience, epoch_id],
+                    |row| row.get(0),
+                )?;
                 let young: bool = tx.query_row(
                     "SELECT EXISTS(
                        SELECT 1 FROM _snapback_operation_suppression_v1
+                       WHERE originator_class='host' AND audience=?1 AND epoch_id=?2
+                         AND terminal_at_ms > ?3
+                       UNION ALL
+                       SELECT 1 FROM _snapback_operation_terminal_supplements_v1
                        WHERE originator_class='host' AND audience=?1 AND epoch_id=?2
                          AND terminal_at_ms > ?3
                      )",
@@ -1881,7 +2453,7 @@ pub fn close_epoch_if_complete_in(
                     ],
                     |row| row.get(0),
                 )?;
-                !live_host_lease && !young
+                !live_host_lease && !outcome_pending && !young
             }
         }
     };
@@ -1892,6 +2464,28 @@ pub fn close_epoch_if_complete_in(
         let keys = suppression_identities_for_epoch(tx, originator_class, audience, epoch_id)?;
         for identity in keys {
             acknowledge_and_reclaim_in(tx, &identity, now_ms)?;
+        }
+        let pending_keys = pending_terminal_identities_for_epoch(tx, audience, epoch_id)?;
+        for identity in pending_keys {
+            compact_envelope_receipt_in(tx, &identity)?;
+            tx.execute(
+                "DELETE FROM _snapback_operation_terminal_supplements_v1
+                 WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
+                params![
+                    identity.key.stream_id,
+                    originator(identity.key.originator_class),
+                    identity.key.operation_id,
+                ],
+            )?;
+            tx.execute(
+                "DELETE FROM _snapback_operation_pending_v1
+                 WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
+                params![
+                    identity.key.stream_id,
+                    originator(identity.key.originator_class),
+                    identity.key.operation_id,
+                ],
+            )?;
         }
         tx.execute(
             "DELETE FROM _snapback_host_identity_leases_v1
@@ -2523,6 +3117,24 @@ fn suppression_identities_for_epoch(
     )?;
     rows.map(|row| decode(&row?, "suppression identity"))
         .collect()
+}
+
+fn pending_terminal_identities_for_epoch(
+    tx: &Transaction<'_>,
+    audience: &str,
+    epoch_id: &str,
+) -> SnapbackResult<Vec<OperationIdentityV1>> {
+    let mut statement = tx.prepare(
+        "SELECT supplement_json FROM _snapback_operation_terminal_supplements_v1
+         WHERE originator_class='host' AND audience=?1 AND epoch_id=?2",
+    )?;
+    let rows = statement.query_map(params![audience, epoch_id], |row| row.get::<_, String>(0))?;
+    rows.map(|row| {
+        let supplement: PendingOperationTerminalSupplementV1 =
+            decode(&row?, "pending terminal supplement")?;
+        Ok(supplement.identity)
+    })
+    .collect()
 }
 
 fn load_identity_for_key(

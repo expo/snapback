@@ -540,6 +540,63 @@ pub struct OperationSuppressionRecordV1 {
     pub acknowledged_at_ms: Option<u64>,
 }
 
+/// Immutable P-side lifecycle row for an operation whose application-visible
+/// publication precedes its terminal settlement. `CommitEnvelopeV1` already
+/// has a truthful Pending receipt state; this companion owns the exact lookup
+/// posture without widening or rewriting that v1 envelope.
+///
+/// @ref LLP 0163#implementation-record-2026-08-04-migration-aggregate-settlement-tail
+///   — migration publication retains its original pending truth and terminal
+///   settlement appends a digest-linked supplement.
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PendingOperationLifecycleV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub lane: String,
+    pub identity: OperationIdentityV1,
+    pub publication: StreamQualifiedVersionV1,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub pending_receipt_digest: String,
+    pub pending_payload: Value,
+    pub pending_at_ms: u64,
+}
+
+/// Terminal outcomes for an operation whose truthful v1 publication receipt
+/// was Pending. This additive carrier deliberately does not widen
+/// `OperationTerminalOutcomeV1`, whose existing suppression/tombstone wire
+/// contract remains unchanged.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PendingOperationTerminalOutcomeV1 {
+    Committed,
+    RolledBack,
+}
+
+/// Terminal supplement for a pending v1 envelope. The transition digest binds
+/// the exact identity, publication P, pending receipt digest, terminal outcome,
+/// and terminal receipt digest, so a finalizer can be replayed exactly but can
+/// never silently rewrite what publication said.
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PendingOperationTerminalSupplementV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub identity: OperationIdentityV1,
+    pub publication: StreamQualifiedVersionV1,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub pending_receipt_digest: String,
+    pub terminal_outcome: PendingOperationTerminalOutcomeV1,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub terminal_receipt_digest: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub terminal_write_set_digest: String,
+    pub terminal_write_set_count: u64,
+    pub terminal_at_ms: u64,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub transition_digest: String,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct OperationIdentityTombstoneV1 {
