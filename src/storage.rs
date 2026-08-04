@@ -925,6 +925,10 @@ pub struct LocalDatabase {
     /// LLP 0158's non-promotable derived-deployment carrier. LLP 0097 branch
     /// state never sets or consults this field.
     derived_fork: Option<crate::instance_fork::DerivedForkRuntime>,
+    /// LLP 0164's isolated in-app branch head. It shares the exhaustive host
+    /// egress choke with derived forks, but retains its own branch-local proof
+    /// and child-version state.
+    in_app_branch: Option<crate::fork_promotion::InAppBranchRuntime>,
     schema: SchemaManifest,
     // @ref LLP 0003#database-model — reads use a separate pool of WAL reader
     // connections so queries do not queue behind writes. `None` for in-memory
@@ -1745,6 +1749,7 @@ impl LocalDatabase {
             conn,
             path: None,
             derived_fork: None,
+            in_app_branch: None,
             schema: SchemaManifest::default(),
             reader_pool: None,
             authorization_interlock: None,
@@ -1766,6 +1771,14 @@ impl LocalDatabase {
         // @ref LLP 0158#design-sketch — local publication evidence gates boot
         // before SQLite open can perform additive migration.
         let derived_fork = crate::instance_fork::inspect_boot(&path)?;
+        let in_app_branch = crate::fork_promotion::inspect_in_app_branch_boot(&path)?;
+        if derived_fork.is_some() && in_app_branch.is_some() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_CUSTODY_INVALID",
+                "storage",
+                "one database cannot boot as both a derived deployment and an in-app branch",
+            ));
+        }
         let conn = Connection::open(&path)?;
         // Distinguish a genuinely empty database from an existing database
         // before any additive DDL/default write. Recreating a missing head at
@@ -1787,6 +1800,7 @@ impl LocalDatabase {
             conn,
             path: Some(path.clone()),
             derived_fork,
+            in_app_branch,
             schema: SchemaManifest::default(),
             reader_pool: None,
             authorization_interlock: None,
@@ -1845,6 +1859,10 @@ impl LocalDatabase {
         self.derived_fork.as_ref()
     }
 
+    pub(crate) fn in_app_branch(&self) -> Option<&crate::fork_promotion::InAppBranchRuntime> {
+        self.in_app_branch.as_ref()
+    }
+
     /// Capture an owned, in-memory read snapshot for detached handler
     /// execution when the live database has no WAL reader pool (`:memory:`).
     /// The backup runs while the caller holds the short instance lock; handler
@@ -1862,6 +1880,7 @@ impl LocalDatabase {
             conn,
             path: None,
             derived_fork: self.derived_fork.clone(),
+            in_app_branch: self.in_app_branch.clone(),
             schema: self.schema.clone(),
             reader_pool: None,
             authorization_interlock: None,
@@ -1935,6 +1954,89 @@ impl LocalDatabase {
     #[allow(dead_code)] // Consumed by the ENG-24596 keyring integration lane.
     pub(crate) fn database_path(&self) -> Option<&Path> {
         self.path.as_deref()
+    }
+
+    pub(crate) fn create_managed_in_app_branch(
+        &mut self,
+        request: &crate::fork_promotion::InAppBranchCreateV1,
+    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
+        let path = self.path.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
+                "storage",
+                "managed in-app branches require a file-backed canonical database",
+            )
+        })?;
+        if self.derived_fork.is_some() || self.in_app_branch.is_some() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_NESTING_UNSUPPORTED",
+                "storage",
+                "a fork or branch cannot create another managed in-app branch",
+            ));
+        }
+        crate::fork_promotion::create_managed_in_app_branch(&mut self.conn, &path, request)
+    }
+
+    pub(crate) fn list_managed_in_app_branches(
+        &self,
+        now_ms: i64,
+    ) -> SnapbackResult<Vec<crate::fork_promotion::ManagedInAppBranchReceiptV1>> {
+        let path = self.path.as_deref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
+                "storage",
+                "managed in-app branches require a file-backed canonical database",
+            )
+        })?;
+        crate::fork_promotion::list_managed_in_app_branches(&self.conn, path, now_ms)
+    }
+
+    pub(crate) fn inspect_managed_in_app_branch(
+        &self,
+        branch_id: &crate::branches::BranchId,
+        now_ms: i64,
+    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
+        let path = self.path.as_deref().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
+                "storage",
+                "managed in-app branches require a file-backed canonical database",
+            )
+        })?;
+        crate::fork_promotion::inspect_managed_in_app_branch(&self.conn, path, branch_id, now_ms)
+    }
+
+    pub(crate) fn reap_expired_managed_in_app_branches(
+        &mut self,
+        now_ms: i64,
+    ) -> SnapbackResult<Vec<crate::fork_promotion::ManagedInAppBranchReceiptV1>> {
+        let path = self.path.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
+                "storage",
+                "managed in-app branches require a file-backed canonical database",
+            )
+        })?;
+        crate::fork_promotion::reap_expired_managed_in_app_branches(
+            &mut self.conn,
+            &path,
+            now_ms,
+        )
+    }
+
+    pub(crate) fn drop_managed_in_app_branch(
+        &mut self,
+        branch_id: &crate::branches::BranchId,
+        now_ms: i64,
+    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
+        let path = self.path.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
+                "storage",
+                "managed in-app branches require a file-backed canonical database",
+            )
+        })?;
+        crate::fork_promotion::drop_managed_in_app_branch(&mut self.conn, &path, branch_id, now_ms)
     }
 
     /// One immediate write transaction over the asset system tables (LLP

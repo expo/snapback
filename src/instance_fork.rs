@@ -138,6 +138,10 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         disposition: CustodyDisposition::Scrub,
     },
     CustodyRule {
+        name: "_snapback_in_app_branch_custody_v1",
+        disposition: CustodyDisposition::Scrub,
+    },
+    CustodyRule {
         name: "_snapback_branch_operations",
         disposition: CustodyDisposition::Scrub,
     },
@@ -884,6 +888,36 @@ fn scrub_and_mint_with_cut(
     Ok(receipt)
 }
 
+/// Remove every copied bearer, grant, retry, operation-identity, and other
+/// closed `Scrub` table from an in-app branch head without minting a second
+/// deployment identity or any replacement credential. The immutable base is
+/// left byte-exact for diff proof; only the writable head is executable.
+///
+/// @ref LLP 0162#acceptance — canonical credentials are not branch authority;
+///   branch execution is admitted only through its stored scoped grant.
+pub(crate) fn scrub_copied_authority_for_in_app_branch(
+    conn: &mut Connection,
+) -> SnapbackResult<()> {
+    let tx = conn.transaction()?;
+    for rule in TABLE_CUSTODY {
+        if rule.disposition == CustodyDisposition::Scrub && table_exists(&tx, rule.name)? {
+            delete_table(&tx, rule.name)?;
+        }
+    }
+    if table_exists(&tx, "_snapback_record_history_v1")? {
+        tx.execute(
+            "UPDATE _snapback_record_history_v1 SET operation_id=NULL
+              WHERE operation_id IS NOT NULL",
+            [],
+        )?;
+    }
+    crate::storage::auth_stream::rotate_authorization_version_in(&tx)?;
+    crate::storage::auth_invalidation::clear_retry_episodes_in(&tx)?;
+    crate::storage::auth_invalidation::rotate_data_version_stream_in(&tx)?;
+    tx.commit()?;
+    Ok(())
+}
+
 pub fn inspect_boot(database_path: &Path) -> SnapbackResult<Option<DerivedForkRuntime>> {
     let directory = database_path.parent().unwrap_or_else(|| Path::new("."));
     if directory.join(STAGING_SENTINEL).exists() {
@@ -1008,6 +1042,21 @@ pub enum EgressFamily {
 }
 
 impl EgressFamily {
+    pub const ALL: [Self; 12] = [
+        Self::Fetch,
+        Self::PushSend,
+        Self::PushReceipt,
+        Self::StreamOpen,
+        Self::StreamRead,
+        Self::StreamCancel,
+        Self::JobsEnqueue,
+        Self::JobsDrain,
+        Self::CronTick,
+        Self::AssetProvider,
+        Self::TelemetryExport,
+        Self::UnclassifiedHostOperation,
+    ];
+
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Fetch => "fetch",
@@ -2173,20 +2222,7 @@ mod tests {
         let runtime = inspect_boot(&destination.join("app.sqlite3"))
             .unwrap()
             .unwrap();
-        let families = [
-            EgressFamily::Fetch,
-            EgressFamily::PushSend,
-            EgressFamily::PushReceipt,
-            EgressFamily::StreamOpen,
-            EgressFamily::StreamRead,
-            EgressFamily::StreamCancel,
-            EgressFamily::JobsEnqueue,
-            EgressFamily::JobsDrain,
-            EgressFamily::CronTick,
-            EgressFamily::AssetProvider,
-            EgressFamily::TelemetryExport,
-            EgressFamily::UnclassifiedHostOperation,
-        ];
+        let families = EgressFamily::ALL;
         for family in families {
             assert_eq!(
                 runtime.deny(family, 43).diagnostic.code,

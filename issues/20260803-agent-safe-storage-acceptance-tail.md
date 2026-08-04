@@ -23,10 +23,10 @@ not authorize capability publication.
 | 2 — retry settlement | Partial | Ship range issue/refresh plus atomic client range custody and finish restored-client, recreated-branch, delayed-delivery, host-retry, and exhaustion transport legs. |
 | 3 — provenance/explanation | Partial | Expose authorized public/admin explanation, wire real policy evaluators and protected secret custody, and complete aggregate/non-row authorization-change corpus. |
 | 4 — coverage honesty | Partial | Inventory every target writer and enforce the generated writer-token facade plus SQLite authorizer; finish specialized-lane and asymmetric-retention coverage fixtures. |
-| 5 — fork isolation | Partial | F0b proves the first derived-deployment consumer; add the derived post-fork-parent-write invisibility fixture, then close the in-app product/runtime surface and full per-class isolation/credential matrix. |
-| 6 — effect quarantine | Partial | Mediate every product host-egress family with bypass negatives; implement and prove `CaptureOnly` separately. |
-| 7 — identity/authority | Partial | Wire production auth and complete revoked/stale authority plus later-effect-settlement fixtures for both fork classes. |
-| 8 — resource containment | Partial | Add a digest-work limit plus replay-floor/envelope-window independent-clock corpus across reap/expiry and all declared resource limits. |
+| 5 — fork isolation | Partial | The 2026-08-04 managed-runtime slice adds the production-policy lifecycle carrier, server-owned crash-reconciled custody, current-head canonical/sibling/post-fork isolation, and scrubbed executable heads over immutable proof bases. Add the public branch-operation execution carrier, the remaining derived post-fork fixture, and the full per-class credential matrix. |
+| 6 — effect quarantine | Partial | The 2026-08-04 branch boot path routes all twelve inventoried local host-egress families, including the unclassified fallback, through durable payload-free `DenyAll` markers. Add actual branch-handler bypass negatives; implement and prove `CaptureOnly` separately with its intent/settlement ledger. |
+| 7 — identity/authority | Partial | The 2026-08-04 carrier server-derives grants/paths, scrubs copied canonical credentials, and proves denied, divergent-fingerprint, and expired strict-promotion authority refuse before replay. Wire production branch-operation auth and complete the per-class revoked/stale plus later-effect-settlement corpus. |
+| 8 — resource containment | Partial | The 2026-08-04 managed reaper enforces TTL/grant expiry exactly at the boundary with durable `tearing_down`, exact-file deletion, and crash/reopen reconciliation. Add a digest-work limit plus replay-floor/envelope-window independent-clock corpus across all declared resource limits. |
 | 9 — exact fork diff | Partial | Compare journal-derived net diff against the independent oracle; add a separate attributed-sequence oracle, schema/system-field, multiple-commit, and full journal-completeness coverage. |
 | 10 — strict promotion | Partial | Complete concurrent-writer fairness/crash cuts, exhausted-budget and identical-write/divergent-read-or-result re-seal negatives, conditional-progress terms, provisional/transitive effect chains, and production contention constants. |
 | 11 — history/checkpoint | Partial | Project finite history policy from schema declarations; complete per-version auth/pagination/horizon corpus and protected-copy erasure obligations. |
@@ -37,6 +37,25 @@ not authorize capability publication.
 The detailed LLP 0163 public-carrier work remains in its existing focused
 ticket. F1's operating guide and fork-aware acceptance-harness work remains in
 the guide-gap ticket rather than being conflated with this implementation tail.
+
+## Dated managed-runtime evidence — 2026-08-04
+
+The managed in-app branch slice is recorded in LLP 0164's dated implementation
+record. Focused operation-registry and HTTP negatives prove the five lifecycle
+operations are `SystemApi`/`AdminWrite`/admin-credential/operator operations and
+that unauthenticated requests cannot reach dispatch. Callers cannot provide a
+workspace path, branch identity, child stream, grant, or authority fingerprint.
+The canonical `creating` row precedes filesystem materialization and is
+reconciled after the profile-commit crash cut before a later mutable create can
+publish. The exact SQLite main-file binding, isolation matrix, executable-head
+credential scrub, twelve-family `DenyAll` persistence, exact-expiry reaping,
+and strict-promotion stale/revoked negatives are executable Rust tests.
+
+This evidence intentionally does not close rows 5-8. The product branch has no
+public operation-execution carrier yet, `CaptureOnly` has no intent/settlement
+ledger, later-effect settlement is unbuilt, digest-work/independent-clock
+coverage is incomplete, and the remaining per-class matrix has not passed. No
+capability state changes follow from this record.
 
 ## Review and publication gates
 
