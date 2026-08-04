@@ -5,7 +5,11 @@
 **Systems:** Product, Deployment, Runtime, Storage, Auth, Security, Billing, Observability, Developer experience, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-28
-**Revised:** 2026-08-01 (Phase 0 authorized by Charlie and execution
+**Revised:** 2026-08-03 (WfP access enabled; P0.1 real namespace run retained
+21/23 checks with exact HOST-only binding read-back and complete cleanup, but
+Gate 0 remains blocked because documented per-dispatch CPU/subrequest limits
+were accepted without enforcement; rapid Workers.dev activation instability
+is recorded for P0.2). 2026-08-01 (Phase 0 authorized by Charlie and execution
 begun: WfP access-gap receipt + enablement ticket, dated pricing facts
 — rows-written pricing confirms write amplification as the decisive
 margin input — and the locally-decisive P0.4 spikes; see §Status
@@ -514,15 +518,32 @@ execution began the same day. Per this section's own rule, each gate
 revision below carries machine-readable receipts and dated
 platform/pricing facts.
 
-**Phase-0 execution ledger (2026-08-01, first pass):**
+**Phase-0 execution ledger (2026-08-01 first pass; updated 2026-08-03):**
 
-- **Access reality (receipt `demos/eas-phase0/receipts/p0-access-wfp.json`):**
-  Workers for Platforms is a purchase-gated add-on NOT enabled on the
-  available Cloudflare account (API error 10121 on the dispatch-namespace
-  endpoint, token validity proven separately). P0.1's real-namespace run,
-  P0.2, and the WfP-bound Gate-0 items are access-gapped with an
-  enablement recipe (`issues/20260801-eas-phase0-wfp-enablement.md`) —
-  environment evidence, not product failure, per the LLP 0102 idiom.
+- **Access reality — RESOLVED 2026-08-03** (receipts
+  `demos/eas-phase0/receipts/p0-access-wfp.json` and
+  `demos/eas-phase0/receipts/p0-access-wfp-enabled.json`): the initial account
+  probe returned purchase gate 10121; after Charlie enabled Workers for
+  Platforms, the read-only namespace endpoint succeeded. The access recipe is
+  closed at `issues/closed/20260801-eas-phase0-wfp-enablement.md`. This proves
+  the proof account's entitlement, not production Expo-org credential custody.
+- **P0.1 real namespace — FAIL, 21/23 checks, 2026-08-03** `[observed]`
+  (location: `demos/eas-phase0/receipts/p0.1-wfp-dispatch-namespace.json`): the
+  disposable `eas-p0-spike-20260803` run uploaded two apps × two releases ×
+  handler/action, read back the exact single `HOST` service binding on all eight
+  user Workers, and passed untrusted-runtime, query/mutation host bridge,
+  app/release isolation, idempotent retry, forbidden scope arguments,
+  stale/tampered capability, handler egress denial, action allowlist, independent
+  handler/action progress, bounded queue/concurrency, and response-size checks.
+  The namespace and three ordinary Workers were deleted and independently
+  observed absent. Gate 0 does **not** qualify: Cloudflare accepted the
+  documented `{ cpuMs: 20, subRequests: 5 }` dispatch options, yet a
+  20-million-iteration CPU burn and twelve real allowlisted subrequests both
+  returned 200. Follow-up:
+  `issues/20260803-eas-phase0-wfp-custom-limits-not-enforced.md`. Concurrent
+  Workers.dev activation also produced intermittent Cloudflare 404 pages during
+  the disposable run; P0.2 must resolve that separately via
+  `issues/20260803-eas-phase0-workers-dev-activation-instability.md`.
 - **Dated platform/pricing facts
   (`demos/eas-phase0/receipts/p0-platform-pricing-facts.md`):** WfP
   $25/mo, 20M req + 60M CPU-ms + 1,000 scripts included; DO-SQLite rows

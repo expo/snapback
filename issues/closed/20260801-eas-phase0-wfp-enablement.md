@@ -1,6 +1,6 @@
 # EAS Phase 0: Workers for Platforms enablement needed on the Cloudflare account
 
-**Status:** OPEN — access gap, blocks the WfP-bound half of LLP 0105 Phase 0
+**Status:** RESOLVED 2026-08-03 — WfP access enabled and live namespace API proven
 
 Probe receipt: `demos/eas-phase0/receipts/p0-access-wfp.json` (2026-08-01).
 The account (`ccheever@expo.io account`, type standard) lacks the
@@ -41,3 +41,32 @@ is explicitly deferred as a maybe-later, which also descopes free-plan
 pricing facts from Phase-0 gates. Phase 0's live WfP spikes (P0.1
 namespace run, P0.2, P0.3) remain blocked on the org account existing;
 the workerd-emulated P0.1 half stays runnable meanwhile.
+
+---
+
+## Resolution — 2026-08-03
+
+Charlie purchased the Workers for Platforms add-on and the read-only namespace
+probe succeeded. The entitlement evidence is retained at
+`demos/eas-phase0/receipts/p0-access-wfp-enabled.json`.
+
+P0.1 then ran against the dedicated disposable namespace
+`eas-p0-spike-20260803`. The retained receipt is
+`demos/eas-phase0/receipts/p0.1-wfp-dispatch-namespace.json`; it records eight
+user Workers (two apps × two releases × handler/action), the exact requested
+`HOST`-only multipart binding metadata and authoritative bindings-endpoint
+read-back, 21 passing adversarial checks, two failing native-limit checks, and
+successful cleanup. A separate read-only post-run check confirmed the namespace
+and all three ordinary disposable Workers return HTTP 404.
+
+This closes the entitlement/access gap only. P0.1 does **not** pass: the account
+accepted documented dynamic-dispatch limits `{ cpuMs: 20, subRequests: 5 }`,
+but a 20-million-iteration CPU probe and twelve allowlisted external
+subrequests both completed successfully. That blocker continues in
+`issues/20260803-eas-phase0-wfp-custom-limits-not-enforced.md`. Rapid
+Workers.dev activation also returned intermittent Cloudflare 404 pages under
+concurrent probes; P0.2 owns that follow-up in
+`issues/20260803-eas-phase0-workers-dev-activation-instability.md`.
+
+Production Expo-org account and credential custody remain a Gate-0 concern;
+this resolution makes no production-custody claim.
