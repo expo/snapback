@@ -105,9 +105,9 @@ Key structure:
 
 ## Resolution (2026-08-03)
 
-Implemented all seven work items in `ebf41f116`, hardened the final
-security/audit edges in `26cd05a9b`, and reconciled the rebased mainline's
-exhaustive diagnostic inventory in `27f374e90`:
+Implemented all seven work items in `591f0f411`, hardened the final
+security/audit edges in `ddc57d1c9`, and reconciled the rebased mainline's
+exhaustive diagnostic inventory in `84de0bfda`:
 
 - added exact master-gated origin sessions and three-second claim-to-credential
   leases bound to the server startup identity, including opaque fail-closed
@@ -137,7 +137,7 @@ Verification completed cleanly:
   the repository codegen command so it matched the committed wire schemas)
 - `bun run test` and `bun run build` in `admin-ui/`
 - `node scripts/check-guide.mjs`
-- `./ref-check --verbose` (167 LLP documents, 3,742 refs, zero errors or
+- `./ref-check --verbose` (167 LLP documents, 3,744 refs, zero errors or
   unchecked references)
 
 ## References
