@@ -1,0 +1,317 @@
+{
+  "schemaVersion": "snapback.latency-kanban.move3-exit.v1",
+  "date": "2026-08-04",
+  "authority": [
+    "LLP 0155 Move 3",
+    "LLP 0129 Phase 1",
+    "LLP 0051 D5"
+  ],
+  "source": {
+    "revision": "6331b22634707f64024bd189c37372a9f4f63d53",
+    "dirty": true,
+    "files": [
+      {
+        "path": "tests/acceptance/latency-kanban-move3-v1.mjs",
+        "sha256": "d842aeebb9871a138cc1a772a723157bfa12ea9baee96fa3c83aac708a2a5ae3"
+      },
+      {
+        "path": "demos/latency-kanban/tests/reload-child.mjs",
+        "sha256": "65040eeb5392aad0d8840c4b6af7d59dbc8c7b7f94d917793d1ed789b667bdac"
+      },
+      {
+        "path": "demos/latency-kanban/snapback/schema.mjs",
+        "sha256": "e47cb4c18eb2ae018ab2b98a8817c97437000567ea9b4d13b290afaec79288e5"
+      },
+      {
+        "path": "demos/latency-kanban/snapback/functions.mjs",
+        "sha256": "907bdb9fd6223bb8f04c75edf20d61cd4539cf6d13d2353c1a93069bae9f8502"
+      },
+      {
+        "path": "demos/latency-kanban/snapback/trusted-composition-activation.json",
+        "sha256": "572bd403a9ae63e8e1ad9a3582fcccade77779f9a90249aefb9dea8493d3f47d"
+      },
+      {
+        "path": "demos/latency-kanban/snapback/generated/artifacts.json",
+        "sha256": "6ebd48a4cf627dbdb70f8ecf6f129cb5a7b0d5e1a6b9b7525b4a9de945ecd67c"
+      },
+      {
+        "path": "demos/latency-kanban/src/App.tsx",
+        "sha256": "740d7b0adb8396d728d2f8e08d359c857af646f4e94621632475b43a68c754d7"
+      },
+      {
+        "path": "packages/snapback-client/generated-mutation-ir.mjs",
+        "sha256": "22a49b5e26ac2ec1415ea230263433809a9ac8c310b7e86755d07dc06d463b44"
+      },
+      {
+        "path": "packages/snapback-codegen/index.mjs",
+        "sha256": "27956cc31cbe44ec4538c0c6833794395723738b3a03042f3dad2e31da8df4dc"
+      }
+    ]
+  },
+  "controlledRun": {
+    "status": "PASS",
+    "activation": {
+      "format": "snapback.composition-activation-preparation.v1",
+      "activationHash": "sha256:f54d175ef944790adee80e21bc0978518f932c4c5aad3451fd57e5cd5a3827fc",
+      "deploymentId": "latency-kanban-move3-exit"
+    },
+    "runtime": {
+      "serverBinary": "target/debug/snapback",
+      "serverBinarySha256": "2906061fdb40ba49333fe0e028140a74c74e8dd671b8c4b73954b93a1bfdafb6",
+      "launchRung": "configured"
+    }
+  },
+  "sections": {
+    "sourceIdentity": {
+      "status": "PASS",
+      "evidence": {
+        "generatedPlans": {
+          "createCard": {
+            "functionId": "latency-kanban:createCard",
+            "implementationHash": "sha256:f03e995e3d12c5ad56ae6f9e25748385b6ad457295dd3489b8ab1cedf3deb237",
+            "operationHash": "sha256:939da21909d274882c507673b6594a663160cadd2cbbb5de088904b1a4eac9d3",
+            "activation": {
+              "appId": "latency-kanban",
+              "bundleHash": "sha256:cb3a7e30a67878d9",
+              "inputsHash": "804042854f43b826786e5d4955ab8ceace02a4137814c0535aeabd04066741b0",
+              "schemaHash": "sha256:2d61ea4c9229d605",
+              "schemaVersion": "snapback.v0"
+            },
+            "steps": [
+              "Insert"
+            ],
+            "declaredReads": [],
+            "effectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
+            "capabilityClass": "local-executable"
+          },
+          "editCard": {
+            "functionId": "latency-kanban:editCard",
+            "implementationHash": "sha256:1e074ed6da2974b0ff55b4f3d1bcf3968539c1c629250fbac891b8be45be262e",
+            "operationHash": "sha256:37bf2521cd262993ac294e2afc283362023cd818f07ebe9bd55201e761ad10c2",
+            "activation": {
+              "appId": "latency-kanban",
+              "bundleHash": "sha256:cb3a7e30a67878d9",
+              "inputsHash": "804042854f43b826786e5d4955ab8ceace02a4137814c0535aeabd04066741b0",
+              "schemaHash": "sha256:2d61ea4c9229d605",
+              "schemaVersion": "snapback.v0"
+            },
+            "steps": [
+              "Get",
+              "Guard",
+              "Patch"
+            ],
+            "declaredReads": [
+              "cards"
+            ],
+            "effectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
+            "capabilityClass": "local-executable"
+          },
+          "assignCard": {
+            "functionId": "latency-kanban:assignCard",
+            "implementationHash": "sha256:f270b8b7c3513a55460013685e03cfafea8c0551bfa3286033d667359fac3015",
+            "operationHash": "sha256:3273fba8b709de7d86d295805d922653cdcb60c2bf4855b7c97d0b1bbc75d3ba",
+            "activation": {
+              "appId": "latency-kanban",
+              "bundleHash": "sha256:cb3a7e30a67878d9",
+              "inputsHash": "804042854f43b826786e5d4955ab8ceace02a4137814c0535aeabd04066741b0",
+              "schemaHash": "sha256:2d61ea4c9229d605",
+              "schemaVersion": "snapback.v0"
+            },
+            "steps": [
+              "Get",
+              "Guard",
+              "Patch"
+            ],
+            "declaredReads": [
+              "cards"
+            ],
+            "effectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
+            "capabilityClass": "local-executable"
+          },
+          "archiveCard": {
+            "functionId": "latency-kanban:archiveCard",
+            "implementationHash": "sha256:3a59d0ca596a41e7d6e1a97034bc5e27f7d293820c20c1fe270afaaa37b9ca8c",
+            "operationHash": "sha256:fcd624c22eea5a327ea31422bba69d2eed085a8efeae1f8dbaa4eecea48c8b59",
+            "activation": {
+              "appId": "latency-kanban",
+              "bundleHash": "sha256:cb3a7e30a67878d9",
+              "inputsHash": "804042854f43b826786e5d4955ab8ceace02a4137814c0535aeabd04066741b0",
+              "schemaHash": "sha256:2d61ea4c9229d605",
+              "schemaVersion": "snapback.v0"
+            },
+            "steps": [
+              "Get",
+              "Guard",
+              "Patch"
+            ],
+            "declaredReads": [
+              "cards"
+            ],
+            "effectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
+            "capabilityClass": "local-executable"
+          },
+          "reorderCard": {
+            "functionId": "latency-kanban:reorderCard",
+            "implementationHash": "sha256:432cb52a691537944d1b9c0765bce61701268709f71c0221ce340218ad974ee1",
+            "operationHash": "sha256:6e7df9dd49a11209517d7a34aab80a5a18d6eaed79a19a56f2e588a8e9e8bd96",
+            "activation": {
+              "appId": "latency-kanban",
+              "bundleHash": "sha256:cb3a7e30a67878d9",
+              "inputsHash": "804042854f43b826786e5d4955ab8ceace02a4137814c0535aeabd04066741b0",
+              "schemaHash": "sha256:2d61ea4c9229d605",
+              "schemaVersion": "snapback.v0"
+            },
+            "steps": [
+              "Get",
+              "Guard",
+              "Patch"
+            ],
+            "declaredReads": [
+              "cards"
+            ],
+            "effectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
+            "capabilityClass": "local-executable"
+          }
+        },
+        "applicationAuthoredDuplicateTransforms": 0
+      }
+    },
+    "localEvaluation": {
+      "status": "PASS",
+      "evidence": {
+        "allFivePaintedFromIr": true,
+        "latencyMs": {
+          "create": 21.189,
+          "edit": 11.676,
+          "assign": 10.076,
+          "archive": 11.198,
+          "reorder": 20.054
+        },
+        "lockedRefusalLocalMs": 15.181,
+        "rapidMoves": {
+          "count": 20,
+          "stackPaintMs": 262.354,
+          "peakLayers": 20,
+          "visibleRowsBefore": 2,
+          "visibleRowsAfter": 2
+        }
+      }
+    },
+    "settlement": {
+      "status": "PASS",
+      "evidence": {
+        "settlements": [
+          {
+            "verb": "create",
+            "clientMutationId": "mut_01kz696jbme7b9v6g4pby5tnxn",
+            "operationHash": "sha256:939da21909d274882c507673b6594a663160cadd2cbbb5de088904b1a4eac9d3",
+            "retiredLayer": true
+          },
+          {
+            "verb": "edit",
+            "clientMutationId": "mut_01kz696jcnfshtp754am2tnskj",
+            "operationHash": "sha256:37bf2521cd262993ac294e2afc283362023cd818f07ebe9bd55201e761ad10c2",
+            "retiredLayer": true
+          },
+          {
+            "verb": "assign",
+            "clientMutationId": "mut_01kz696jdme04vjkwhh93resac",
+            "operationHash": "sha256:3273fba8b709de7d86d295805d922653cdcb60c2bf4855b7c97d0b1bbc75d3ba",
+            "retiredLayer": true
+          },
+          {
+            "verb": "reorder",
+            "clientMutationId": "mut_01kz696jeef9697drgzehnwc38",
+            "operationHash": "sha256:6e7df9dd49a11209517d7a34aab80a5a18d6eaed79a19a56f2e588a8e9e8bd96",
+            "retiredLayer": true
+          },
+          {
+            "verb": "archive",
+            "clientMutationId": "mut_01kz696jfafa3bxyvkv7kw1trt",
+            "operationHash": "sha256:fcd624c22eea5a327ea31422bba69d2eed085a8efeae1f8dbaa4eecea48c8b59",
+            "retiredLayer": true
+          },
+          {
+            "verb": "create-locked",
+            "clientMutationId": "mut_01kz696jg7fawa15q36tk0nrmt",
+            "operationHash": "sha256:939da21909d274882c507673b6594a663160cadd2cbbb5de088904b1a4eac9d3",
+            "retiredLayer": true
+          }
+        ],
+        "rapidSettlementIdentities": [
+          "mut_01kz696jh0fx5rjsmq6f2q129b",
+          "mut_01kz696jh1ew8vwytgmpxfy30z",
+          "mut_01kz696jh1fvy8kryx8wt5536w",
+          "mut_01kz696jh1fkmtcfqdpcfm44gv",
+          "mut_01kz696jh1egb849s5p29t6d1r",
+          "mut_01kz696jh1e0n8dzrqkna6kss7",
+          "mut_01kz696jh1ej4r7ptn0gm4xs0d",
+          "mut_01kz696jh1f8vtn4z9xp1gb3jh",
+          "mut_01kz696jh2fb8r1w0s84s152bc",
+          "mut_01kz696jh2fkdswjh5fpee06sf",
+          "mut_01kz696jh2ez6rpftmm489x747",
+          "mut_01kz696jh2e2arctf50z4gd5e4",
+          "mut_01kz696jh2fa58jrvkbr2m0dd2",
+          "mut_01kz696jh2ea9tb6aw34wh1btk",
+          "mut_01kz696jh3fj0r8evf09dadzb8",
+          "mut_01kz696jh3f0nvgkpt27rtpr67",
+          "mut_01kz696jh3fsyvzf2jwz4crfzv",
+          "mut_01kz696jh4fjzrhatxg82vet0z",
+          "mut_01kz696jh4ff9aakes3sypnebw",
+          "mut_01kz696jh4e6f89cqx9jnvgwnp"
+        ],
+        "concurrentSettlementIdentities": [
+          "mut_01kz696kvmemjrskjnn4ty3m2c",
+          "mut_01kz696kvmemd9ftj98b7z1wx0"
+        ],
+        "refusal": {
+          "code": "KANBAN_CARD_LOCKED",
+          "surfaced": true
+        }
+      }
+    },
+    "observerConvergence": {
+      "status": "PASS",
+      "evidence": {
+        "secondClient": true,
+        "authoritativeRows": 3,
+        "signaturesEqual": true,
+        "concurrentMoves": {
+          "count": 2,
+          "finalCard": {
+            "_id": "cards_01kz696jc1fzs88vzwbs8dx4xm",
+            "_version": 29,
+            "_createdAt": 1785843632513,
+            "_updatedAt": 1785843634057,
+            "boardId": "boards_01kz696j3zfx88z785gmyc7dn0",
+            "title": "Edited in IR",
+            "column": "ready",
+            "rank": 800,
+            "assignee": "Ada",
+            "archived": true,
+            "locked": false,
+            "revision": 26
+          }
+        }
+      }
+    },
+    "lossFreeReload": {
+      "status": "PASS",
+      "evidence": {
+        "processKilledWith": "SIGKILL",
+        "queuedIdentity": "mut_01kz696m14fetb6dyqsxaqf4w5",
+        "preKillLayers": 1,
+        "relaunchLayers": 1,
+        "postIntentRowsBeforeNetwork": 1,
+        "replayed": 1,
+        "authoritativeApplications": 1
+      }
+    }
+  },
+  "summary": {
+    "pass": 5,
+    "blocked": 0,
+    "total": 5,
+    "capabilityClaimsChanged": false
+  }
+}

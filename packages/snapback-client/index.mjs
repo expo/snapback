@@ -5,9 +5,9 @@
 // @ref LLP 0012#runtime-state — subscribing returns the authoritative initial
 //   snapshot *and* the live stream as one "current value + subscription" seam, so
 //   no adapter races a manual prime against later updates.
-// @ref LLP 0012#react-and-expo-requirements — this is an Online-class adapter
-//   (speaks the wire protocol, server-authoritative mutations); it does NOT run
-//   handlers locally, so it makes no local-first/Parity claim.
+// @ref LLP 0155#execution-contract — generated mutation IR in the bounded
+//   Move-3 class replays locally as a private outbox-derived presentation;
+//   authoritative mutation execution and settlement remain server-owned.
 // @ref LLP 0034#2-d0--d1--a-liveness-signal-then-durable-push-to-the-browser — `liveQuery` gains a `stream`
 //   transport over the managed shared live socket (one socket, both lanes) with
 //   poll fallback, reconnect-by-fresh-subscribe, and the Exact LLP 0284 §2.2
@@ -67,6 +67,10 @@ import {
   evaluateLocalMutationWithReadAdmissionV1,
 } from './local-read-admission.mjs';
 import { createOptimisticRebaseEngineV1 } from './optimistic-rebase.mjs';
+import {
+  generatedMutationIrCapability,
+  prepareGeneratedMutationIrV1,
+} from './generated-mutation-ir.mjs';
 export { parseSearchQueryV1, search } from './search.mjs';
 export {
   CANONICAL_CLIENT_VALUE_V1_LIMITS,
@@ -1905,6 +1909,7 @@ export class SnapbackClient {
     this.__outboxReplayScheduled = false;
     this.__outboxDiagnostics = [];
     this.__outboxListeners = new Set();
+    this.__optimisticMutationViews = new Set();
     if (typeof strictWireVersion != 'boolean') {
       throw new TypeError('strictWireVersion must be boolean');
     }
@@ -4595,7 +4600,12 @@ export class SnapbackClient {
   // the retention axis and disposal releases that exact demand.
   async __registerActiveQueryDemand(ref, args, persistResume, preparedBridge = null) {
     const ledger = await this.__registrationLedgerPromise;
-    if (ledger === null) return () => {};
+    if (ledger === null) return Object.freeze({
+      registrationId: null,
+      publishLiveAnswer: () => false,
+      clearLiveAnswer: () => false,
+      release: () => {},
+    });
     // @ref LLP 0166#the-multi-context-demand-broker — persisted/brokered
     // context identities remain CSPRNG-only. A storeless Online client has no
     // cross-context identity to defend, so it uses process-local uniqueness
@@ -4656,8 +4666,18 @@ export class SnapbackClient {
       this.__activeRegistrations.delete(registrationId);
       throw error;
     }
+    const coverage = functionReference.localReadCoverage ?? null;
+    const liveMaterialization = coverage === null ? null : {
+      materializationKey: coverage.materializationKey,
+      queryInstanceId: preparedBridge?.record?.queryInstanceId ?? null,
+      planHash: coverage.planHash,
+      resultContractHash: coverage.resultContractHash,
+      authorityPartitionDigest: preparedBridge?.bridge?.authorityPartitionDigest
+        ?? functionReference.authorityPartitionDigest
+        ?? partition,
+    };
     let released = false;
-    return () => {
+    const release = () => {
       if (released) return;
       released = true;
       this.__activeRegistrations.delete(registrationId);
@@ -4671,6 +4691,23 @@ export class SnapbackClient {
         demands: remaining,
       });
     };
+    return Object.freeze({
+      registrationId,
+      publishLiveAnswer: ({ rows, version, subscriptionId }) => {
+        if (released || liveMaterialization === null) return false;
+        return ledger.publishLiveRegistrationAnswer({
+          registrationId,
+          rows,
+          version,
+          subscriptionId,
+          materialization: liveMaterialization,
+        });
+      },
+      clearLiveAnswer: () => (
+        released ? false : ledger.clearLiveRegistrationAnswer(registrationId)
+      ),
+      release,
+    });
   }
 
   // Internal OQ8 seam; intentionally absent from the package type surface.
@@ -4743,9 +4780,8 @@ export class SnapbackClient {
     });
   }
 
-  // Internal Move-3 Phase-1 composition seam. M4 owns the generated public
-  // authoring surface; this lane exposes the real outbox/registration/store
-  // composition without widening Online-class capability claims yet.
+  // Internal Move-3 Phase-1 composition seam retained for focused tests; M4's
+  // public view below wraps the same outbox/registration/store composition.
   async __createOptimisticRebaseEngine({
     initialAuthoritativeRows = {},
     connected = false,
@@ -4760,6 +4796,64 @@ export class SnapbackClient {
       }),
       initialAuthoritativeRows,
     });
+  }
+
+  // Public Move-3 view: authoritative rows are supplied by the app's live
+  // query, while every private layer is replayed from the durable outbox.
+  // @ref LLP 0155#rebase — delivery replaces the base and retires identities;
+  // remaining generated operations replay atomically in durable sequence.
+  async createOptimisticMutationView({
+    authoritativeRows = {},
+    connected = false,
+  } = {}) {
+    const outboxStore = this.#offlineQueueStore(true);
+    const ledger = await this.__registrationLedgerPromise;
+    let connectedState = connected === true;
+    const engine = createOptimisticRebaseEngineV1({
+      outboxStore,
+      registrationLedger: ledger,
+      readMaterializationAnswer: ({ address }) => this.__readQmk1LocalAnswer({
+        address,
+        connected: connectedState,
+      }),
+      initialAuthoritativeRows: authoritativeRows,
+    });
+    const entry = { engine, setConnected(value) { connectedState = value === true; } };
+    this.__optimisticMutationViews.add(entry);
+    let closed = false;
+    const prepare = (input = {}) => {
+      const { connected: nextConnected, ...rebaseInput } = input;
+      if (nextConnected !== undefined) entry.setConnected(nextConnected);
+      return rebaseInput;
+    };
+    const view = Object.freeze({
+      format: 'snapback.optimistic-mutation-view.v1',
+      rebase: (input = {}) => engine.rebase(prepare(input)),
+      reload: (input = {}) => engine.reload(prepare(input)),
+      refresh: (input = {}) => engine.refresh(prepare(input)),
+      getSnapshot: () => engine.getSnapshot(),
+      inspection: () => engine.inspection(),
+      subscribe: (listener) => engine.subscribe(listener),
+      close: () => {
+        if (closed) return;
+        closed = true;
+        this.__optimisticMutationViews.delete(entry);
+        engine.close();
+      },
+    });
+    try {
+      await engine.reload({ authoritativeRows, cause: 'boot-ir-replay' });
+    } catch (error) {
+      view.close();
+      throw error;
+    }
+    return view;
+  }
+
+  async #refreshOptimisticMutationViews(cause) {
+    await Promise.all([...this.__optimisticMutationViews].map(({ engine }) => (
+      engine.refresh({ cause })
+    )));
   }
 
   async authRequestCode(email) {
@@ -5160,6 +5254,10 @@ export class SnapbackClient {
 
   async closeAuth() {
     let firstError = null;
+    for (const entry of [...this.__optimisticMutationViews]) {
+      try { entry.engine.close(); } catch (error) { firstError ??= error; }
+      this.__optimisticMutationViews.delete(entry);
+    }
     for (const controller of this.__authControllers) {
       try { controller.abort(); } catch (error) { firstError ??= error; }
     }
@@ -6132,6 +6230,7 @@ export class SnapbackClient {
           error.outboxSettlementPersistenceFailure = true;
           throw error;
         }
+        await this.#refreshOptimisticMutationViews('settlement-confirmed-bridge');
         replayed += 1;
         this.#recordOutboxDiagnostic({
           code: 'SNAPBACK_OFFLINE_MUTATION_REPLAYED',
@@ -6167,6 +6266,7 @@ export class SnapbackClient {
           stopped = true;
           break;
         }
+        await this.#refreshOptimisticMutationViews('settlement-refused');
         failed += 1;
         this.#recordOutboxDiagnostic({
           code: 'SNAPBACK_OFFLINE_MUTATION_REPLAY_FAILED',
@@ -6206,6 +6306,49 @@ export class SnapbackClient {
     const name = functionName(ref);
     validateGeneratedArguments(ref, args, name);
     const generation = expectedGeneration(ref);
+    const generatedCapability = generatedMutationIrCapability(ref);
+    let generatedMutation = null;
+    if (generatedCapability.generated && optimisticOperation !== null) {
+      const error = new Error(
+        'SNAPBACK_GENERATED_IR_DUPLICATE_TRANSFORM: a generated mutation cannot accept an app-authored optimistic operation',
+      );
+      error.code = 'SNAPBACK_GENERATED_IR_DUPLICATE_TRANSFORM';
+      throw error;
+    }
+    if (generatedCapability.localExecutable) {
+      if (
+        ctxLedger !== null
+        || settlementLane !== null
+        || settlementIdentity !== null
+        || settlementClaims !== null
+        || boundedSkew !== null
+      ) {
+        const error = new Error(
+          'SNAPBACK_GENERATED_IR_DERIVED_OPTIONS_ONLY: generated local mutation settlement and ctx claims are codegen-owned',
+        );
+        error.code = 'SNAPBACK_GENERATED_IR_DERIVED_OPTIONS_ONLY';
+        throw error;
+      }
+      if (queue === false) {
+        const error = new Error(
+          'SNAPBACK_GENERATED_IR_DURABLE_OUTBOX_REQUIRED: generated local mutations require the durable outbox',
+        );
+        error.code = 'SNAPBACK_GENERATED_IR_DURABLE_OUTBOX_REQUIRED';
+        throw error;
+      }
+      clientMutationId ??= createClientMutationId();
+      generatedMutation = prepareGeneratedMutationIrV1({
+        reference: ref,
+        args,
+        clientMutationId,
+        authUserId: typeof userId === 'string' ? userId : null,
+      });
+      settlementLane = generatedMutation.settlementLane;
+      settlementIdentity = generatedMutation.settlementIdentity;
+      settlementClaims = generatedMutation.settlementClaims;
+      boundedSkew = generatedMutation.boundedSkew;
+      optimisticOperation = generatedMutation.optimisticOperation;
+    }
     if (queue !== 'auto' && queue !== false && queue !== true) {
       throw new TypeError("mutate queue option must be 'auto', true, or false");
     }
@@ -6222,7 +6365,9 @@ export class SnapbackClient {
     if (optimisticOperation !== null && clientMutationId === null) {
       clientMutationId = createClientMutationId();
     }
-    const queueStore = queue === false ? null : this.#offlineQueueStore(queue === true);
+    const queueStore = generatedMutation !== null
+      ? this.#offlineQueueStore(true)
+      : queue === false ? null : this.#offlineQueueStore(queue === true);
     const body = { args, auth: SnapbackClient.auth(userId), read_set: readSet };
     if (generation !== null) body.expectedGeneration = generation;
     // Opaque adapter correlation (LLP 0034 §3.2): sent verbatim, echoed on
@@ -6300,6 +6445,10 @@ export class SnapbackClient {
     if (queueStore && durableMutationRecord) {
       await queueStore.outboxEnqueue(durableMutationRecord);
       durableOnlineRecord = true;
+      this.#notifyOutboxListeners();
+      if (optimisticOperation !== null) {
+        await this.#refreshOptimisticMutationViews('generated-ir-enqueued');
+      }
     }
     let reservationRetryAuthorityCapture = authorityCapture;
     let reservationRetryExternalBearer = null;
@@ -6371,6 +6520,10 @@ export class SnapbackClient {
             error.outboxSettlementPersistenceFailure = true;
             throw error;
           }
+          this.#notifyOutboxListeners();
+          if (optimisticOperation !== null) {
+            await this.#refreshOptimisticMutationViews('settlement-confirmed-bridge');
+          }
         }
         // The response proves the origin ran its piggyback ACK stage.
         await confirmSentAcknowledgements();
@@ -6382,7 +6535,16 @@ export class SnapbackClient {
             attempts: attempt,
           });
         }
-        return json;
+        return generatedMutation === null
+          ? json
+          : {
+            ...json,
+            clientMutationId,
+            optimistic: {
+              operationHash: generatedMutation.operationHash,
+              settlementIdentity: clientMutationId,
+            },
+          };
       } catch (error) {
         if (error?.outboxSettlementPersistenceFailure === true) throw error;
         // A REJECTED mutation still produced its receipt (it rides the error
@@ -6423,14 +6585,42 @@ export class SnapbackClient {
                 capturedNow: Date.now(),
               },
             );
-            if (queued) return queued;
+            if (queued) {
+              return generatedMutation === null
+                ? queued
+                : { ...queued, operationHash: generatedMutation.operationHash };
+            }
           }
           if (durableOnlineRecord) {
-            await queueStore.outboxMarkFailed(clientMutationId, {
-              code: error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_MUTATION_REFUSED',
-              message: error?.message ?? String(error),
-            });
+            let failureMarked = true;
+            try {
+              await queueStore.outboxMarkFailed(clientMutationId, {
+                code: error?.diagnostic?.code ?? error?.code ?? 'SNAPBACK_MUTATION_REFUSED',
+                message: error?.message ?? String(error),
+              });
+            } catch (markError) {
+              if (markError?.code !== 'SNAPBACK_RQS_STORE_CLOSED') throw markError;
+              // Teardown may close the owned store while a transport refusal
+              // is still unwinding. Failure marking is a best-effort durable
+              // annotation at that cut: preserve the real mutation error and
+              // record why the annotation could not land. Every other store
+              // error remains fail-loud.
+              failureMarked = false;
+              this.#recordOutboxDiagnostic({
+                code: 'SNAPBACK_OUTBOX_FAILURE_MARK_SKIPPED_STORE_CLOSED',
+                mutation: name,
+                clientMutationId,
+                reason: markError.message,
+              });
+            }
+            if (failureMarked) {
+              this.#notifyOutboxListeners();
+              if (optimisticOperation !== null) {
+                await this.#refreshOptimisticMutationViews('settlement-refused');
+              }
+            }
           }
+          if (generatedMutation !== null) error.clientMutationId = clientMutationId;
           throw error;
         }
         if (this.authorityFence) {
@@ -7675,7 +7865,12 @@ export class SnapbackClient {
     }
     const name = functionName(ref);
     const client = this;
-    let releaseActiveRegistration = () => {};
+    let activeRegistration = Object.freeze({
+      registrationId: null,
+      publishLiveAnswer: () => false,
+      clearLiveAnswer: () => false,
+      release: () => {},
+    });
     // Resolve the store-scoped identity before allocating a live namespace.
     // Generated references without the trusted artifact stay on the legacy
     // path byte-for-byte.
@@ -7836,6 +8031,42 @@ export class SnapbackClient {
       authorizationState() {
         return authorizationFence?.snapshot?.() ?? null;
       },
+    };
+
+    // Move-3 admission reads the active registration's exact current row set,
+    // never an unproved rewrite of the durable materialization. The ledger
+    // owns the volatile sidecar so release/authority/transport transitions
+    // synchronously revoke it before a later mutation can admit stale rows.
+    //
+    // @ref LLP 0155#local-read-admission — demanded current live rows are the
+    //   admitted materialization while their registration remains active.
+    // @ref LLP 0166#d4--completeness-honest-local-answers — live delivery
+    //   authority does not mint or update a durable completeness proof.
+    const syncLiveRegistrationAnswer = () => {
+      const current = !disposed
+        && !paused
+        && !authorizationFaulted
+        && !needsResubscribe
+        && handle.authorizationDisposition === 'retain'
+        && handle.answerClass === 'authoritative'
+        && handle.freshness === 'current'
+        && currentSubscriptionId !== null
+        && (connection === 'live' || connection === 'polling');
+      if (!current) {
+        activeRegistration.clearLiveAnswer();
+        return;
+      }
+      try {
+        activeRegistration.publishLiveAnswer({
+          rows: handle.rows,
+          version: handle.version,
+          subscriptionId: currentSubscriptionId,
+        });
+      } catch {
+        // A malformed current row set remains visible only to the existing
+        // live handle contract; it cannot become mutation input.
+        activeRegistration.clearLiveAnswer();
+      }
     };
     const markKnownSubscriptionRetired = (subscriptionId) => {
       if (
@@ -8293,10 +8524,14 @@ export class SnapbackClient {
     };
 
     const setConnection = (next) => {
-      if (disposed && next !== 'disconnected') return;
-      if (connection === next) return;
+      if (disposed && next !== 'disconnected') {
+        syncLiveRegistrationAnswer();
+        return;
+      }
       const previous = connection;
       connection = next;
+      syncLiveRegistrationAnswer();
+      if (previous === next) return;
       if (onConnectionChange) {
         deliverAuthorityObservation(() => {
           deliverIsolated(onConnectionChange, next, { previous });
@@ -8345,6 +8580,7 @@ export class SnapbackClient {
           throw new TypeError('onAuthorizationBoundary must commit synchronously');
         }
         if (event.kind !== 'retain') deliverIsolated(onUpdate, handle.rows, detail);
+        syncLiveRegistrationAnswer();
       } catch (error) {
         handle.rows = previousRows;
         handle.version = previousVersion;
@@ -9179,6 +9415,7 @@ export class SnapbackClient {
         // D3 storage lifecycle). Auth-scoped data is never in the store, so
         // this is belt-and-braces for a query whose declaration changed.
         handle.answerClass = 'unknown';
+        syncLiveRegistrationAnswer();
         void removePersistedEntry();
         const reportingState = authorizationTaskState(updateCapture);
         void receiveAuthorizationProjection({
@@ -9217,6 +9454,7 @@ export class SnapbackClient {
           if (update.resume && !legacySingleTableAdoption) handle.rqsResume = update.resume;
           handle.freshness = 'current';
           handle.answerClass = 'authoritative';
+          syncLiveRegistrationAnswer();
           schedulePersist();
           deliverAuthorityObservation(() => {
             onUpdate?.(handle.rows, {
@@ -9245,6 +9483,7 @@ export class SnapbackClient {
         // proved current without touching them.
         handle.freshness = 'current';
         handle.answerClass = 'authoritative';
+        syncLiveRegistrationAnswer();
         if (pendingResumeConfirmation) {
           // Least-recently-resumed bookkeeping (LLP 0091 §0A.5): recency is
           // the last SUCCESSFUL authoritative resume of the persisted entry.
@@ -9319,6 +9558,7 @@ export class SnapbackClient {
             } else {
               handle.rqsResume = null;
               handle.answerClass = 'unknown';
+              syncLiveRegistrationAnswer();
               void removePersistedEntry();
               void resubscribe('rqs_digest_mismatch');
               return;
@@ -9326,6 +9566,7 @@ export class SnapbackClient {
           }
           handle.freshness = 'current';
           handle.answerClass = 'authoritative';
+          syncLiveRegistrationAnswer();
           schedulePersist();
           deliverAuthorityObservation(() => {
             onUpdate?.(handle.rows, {
@@ -9625,6 +9866,7 @@ export class SnapbackClient {
         resubscribeAttempts = 0;
         clearResubscribeRetry();
       }
+      syncLiveRegistrationAnswer();
       // LLP 0129 Phase 0: a landed fresh snapshot is this subscription's
       // full-resync barrier — schedule the single-flight outbox drain
       // (LLP 0008 §Mutation Replay: resync first, then ordered replay).
@@ -9758,6 +10000,7 @@ export class SnapbackClient {
         );
         needsResubscribe = true;
         pendingResubscribeReason = reason;
+        syncLiveRegistrationAnswer();
         return false;
       }
       // Resume/establish also use the fresh-subscribe queue. A resync demand
@@ -9774,6 +10017,7 @@ export class SnapbackClient {
       resubscribing = true;
       needsResubscribe = true;
       pendingResubscribeReason = reason;
+      syncLiveRegistrationAnswer();
       let attemptReason = reason;
       try {
         for (;;) {
@@ -10395,7 +10639,7 @@ export class SnapbackClient {
           establishTimer = null;
         }
         attempt(unregisterDurable);
-        attempt(releaseActiveRegistration);
+        attempt(activeRegistration.release);
         attempt(unregisterAuthMaterialization);
         attempt(unregisterExternalBearerHandle);
         attempt(() => detachStream?.());
@@ -10430,7 +10674,7 @@ export class SnapbackClient {
       // connection ownership.
     };
 
-    releaseActiveRegistration = await this.__registerActiveQueryDemand(
+    activeRegistration = await this.__registerActiveQueryDemand(
       ref,
       args,
       persistResume,
@@ -10439,7 +10683,7 @@ export class SnapbackClient {
     try {
       await establish();
     } catch (error) {
-      releaseActiveRegistration();
+      activeRegistration.release();
       throw error;
     }
     return handle;

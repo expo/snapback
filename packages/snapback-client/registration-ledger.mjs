@@ -178,6 +178,11 @@ export async function createRegistrationLedger({
   const addresses = new Map();
   const contexts = new Map();
   const revisions = new Map();
+  // Current rows belong to the volatile active registration that received
+  // them. They are deliberately outside storeMeta/materialization payload:
+  // a live delivery proves current presentation for this registration, not
+  // durable completeness after the registration disappears.
+  const liveAnswers = new Map();
   const grace = new Map();
   const scopes = new Map();
   const transitions = new Map();
@@ -367,6 +372,7 @@ export async function createRegistrationLedger({
       retentionRequest: retentionMaximum(beforeRows),
       idleTtlClass: ttlMaximum(beforeRows),
     };
+    liveAnswers.delete(registrationId);
     records.delete(registrationId);
     const ids = addresses.get(addressKey);
     ids?.delete(registrationId);
@@ -549,6 +555,63 @@ export async function createRegistrationLedger({
         .map((entry) => clone({ registration: entry.registration, resolution: entry.resolution }));
     },
 
+    // The liveQuery delivery path publishes only after its handle is both
+    // authoritative/current and transport-current. Clearing is synchronous,
+    // so connecting, stale, refused, paused, and disposed transitions revoke
+    // admission before a later mutation can observe the old rows.
+    //
+    // @ref LLP 0155#local-read-admission — admitted materialized rows include
+    //   the demanded active registration's current authoritative row set.
+    publishLiveRegistrationAnswer({
+      registrationId,
+      rows,
+      version,
+      subscriptionId,
+      materialization,
+    }) {
+      nonempty(registrationId, 'registrationId');
+      const entry = records.get(registrationId);
+      if (!entry || entry.registration.source !== 'active') return false;
+      if (
+        !Array.isArray(rows)
+        || !Number.isSafeInteger(version)
+        || version < 0
+        || typeof subscriptionId !== 'string'
+        || subscriptionId.length === 0
+        || !plain(materialization)
+      ) {
+        throw refused(
+          'SNAPBACK_LIVE_REGISTRATION_ANSWER_INVALID',
+          'live registration answer is outside the closed current-row shape',
+        );
+      }
+      let preparedRows;
+      let preparedMaterialization;
+      try {
+        preparedRows = JSON.parse(canonicalizeClientValueV1(rows));
+        preparedMaterialization = JSON.parse(canonicalizeClientValueV1(materialization));
+      } catch {
+        throw refused(
+          'SNAPBACK_LIVE_REGISTRATION_ANSWER_INVALID',
+          'live registration rows or identity are not canonical client values',
+        );
+      }
+      liveAnswers.set(registrationId, {
+        answerClass: 'authoritative',
+        freshness: 'current',
+        rows: preparedRows,
+        version,
+        subscriptionId,
+        materialization: preparedMaterialization,
+      });
+      return true;
+    },
+
+    clearLiveRegistrationAnswer(registrationId) {
+      nonempty(registrationId, 'registrationId');
+      return liveAnswers.delete(registrationId);
+    },
+
     // Move-3 read admission consumes this demand projection instead of
     // scanning carrier records. A grace-held record has no live registration
     // and therefore never becomes mutation input merely because bytes remain.
@@ -567,6 +630,7 @@ export async function createRegistrationLedger({
           registrations: entries.map((entry) => ({
             registration: entry.registration,
             resolution: entry.resolution,
+            liveAnswer: liveAnswers.get(entry.registration.registrationId) ?? null,
           })),
         });
       });

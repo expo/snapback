@@ -56,3 +56,43 @@ stays 0129's.
   base + stack + rebase record publish atomically. Gates 3/3
   (20-rapid-moves, locked-card, reload-during-settlement); S4 74/74.
   M4 (the Kanban exit application) is the last lane.
+- **M4 IMPLEMENTED; OUTSIDE-SANDBOX EXIT RERUN REQUIRED 2026-08-04.**
+  Codegen now attaches the closed Insert/Get/Guard/Patch plan, operation and
+  activation/schema identities, exact local reads, effect ceiling, and static
+  mint sites to the generated mutation reference. `client.mutate` derives the
+  sole durable optimistic operation from that carrier, enqueues before
+  transport, and projects/rebases it through M2 + M1 + M3; the application has
+  no duplicate reducer. Fresh `demos/latency-kanban` authors create/edit/
+  assign/archive/reorder once and has 3/3 demo checks with no degraded rows;
+  client 49/49, codegen 43/43, and inventory 195/195 are green. The retained
+  Move-3 receipt is structurally valid and source identity passes, but this
+  sandbox denied the controlled server's loopback bind (`EPERM`), so local
+  latency, settlement/refusal, observer convergence, and SIGKILL loss-free
+  reload remain four honestly BLOCKED sections with no fabricated timings.
+  The program stays open for the orchestrator's outside-sandbox gate rerun and
+  presentation.
+- **M4 LANDED 2026-08-04 — GATE GREEN 5/5, 0 BLOCKED.** Generated-IR
+  mutations (mutationIr carrier on generated references; app authors
+  each mutation once), demos/latency-kanban, diary 0055, and the
+  transcribed Move-3 exit
+  (tests/acceptance/latency-kanban-move3-v1.mjs + retained receipt):
+  sourceIdentity, localEvaluation (paint ~21-24ms per verb; locked
+  refusal 21.1ms; 20-move stack 257.7ms), settlement,
+  observerConvergence, lossFreeReload all PASS on a real served run.
+  The gate's first real run caught and fixed a genuine seam defect:
+  admission now consumes a covering live registration's volatile
+  authoritative-current answer (revoked on any degradation) with the
+  durable store as the proof-or-nothing relaunch source, and admission
+  records name the source class. The program's build lanes are
+  complete; the ticket stays open pending the Phase-1 gate
+  PRESENTATION to Charlie (due 2026-08-17).
+
+## Resolution (2026-08-04)
+
+**Program COMPLETE — Phase-1 exit ACCEPTED by Charlie 2026-08-04**
+(dated ruling in LLP 0129). All four lanes landed (M1 f231c6386, M2
+df77cbcbf, M3 ca392928b, M4 2ca5e7f7c); the Kanban gate passed 5/5 /
+0 blocked on a real served run with retained receipts. Phase-2
+scheduling returns to LLP 0129's machinery. Follow-on threads live in
+their own tickets (HTTP-family review debt, P1 finite-carrier
+amendment, 0146 live-target gaps, volatile-offline error typing).

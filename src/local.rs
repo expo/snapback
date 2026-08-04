@@ -2961,6 +2961,12 @@ pub struct LocalSnapback {
     telemetry_store_identity: Option<crate::telemetry::TelemetryStoreIdentity>,
     runtime: RuntimeManager,
     ephemeral: LocalEphemeralBackend,
+    /// Clone-shared process-local profile selector installed by AppState.
+    network_profiles: crate::network_profile::NetworkProfileState,
+    /// Prepared live-lane carrier for the commit currently producing frames.
+    /// It is cleared before Local authority is released.
+    current_live_network_egress:
+        Option<Option<crate::network_profile::PreparedNetworkEgress>>,
     // Physical mutex ownership is released before committed ephemeral
     // projections run. This clone-shared barrier keeps the logical managed
     // writer closed until those projections finish.
@@ -12082,6 +12088,7 @@ impl LocalSnapback {
                     job_changes: Vec::new(),
                     sequence_allocations,
                     authorization: None,
+                    network_egress: Default::default(),
                 };
                 let recorded = self.record_mutation_commit_after_publication_guard(
                     MutationReceiptPublication::new(
@@ -12163,6 +12170,7 @@ impl LocalSnapback {
                     job_changes: Vec::new(),
                     sequence_allocations,
                     authorization: None,
+                    network_egress: Default::default(),
                 };
                 let recorded = self.record_mutation_commit_after_publication_guard(
                     MutationReceiptPublication::new(
@@ -12357,8 +12365,34 @@ impl LocalSnapback {
         &mut self,
         staged: StagedRecordedMutation,
     ) -> SnapbackResult<(SnapbackResult<MutationOutput>, Receipt)> {
+        let (result, receipt, _network_egress) =
+            self.commit_staged_recorded_authorization_mutation_with_network_egress(staged)?;
+        Ok((result, receipt))
+    }
+
+    /// HTTP's prepared-egress carrier sibling. Keeping the carrier beside the
+    /// server-only staged result avoids adding implementation metadata to the
+    /// schema-generated Receipt wire type.
+    ///
+    /// @ref LLP 0167#observation-semantics--what-a-delay-means — the response
+    ///   leaves Local with bytes/facts plus one immutable deadline basis.
+    pub(crate) fn commit_staged_recorded_authorization_mutation_with_network_egress(
+        &mut self,
+        staged: StagedRecordedMutation,
+    ) -> SnapbackResult<(
+        SnapbackResult<MutationOutput>,
+        Receipt,
+        crate::network_profile::MutationEgressBasis,
+    )> {
         let staged = match staged {
-            StagedRecordedMutation::Done(recorded) => return Ok(*recorded),
+            StagedRecordedMutation::Done(recorded) => {
+                let (result, receipt) = *recorded;
+                return Ok((
+                    result,
+                    receipt,
+                    crate::network_profile::MutationEgressBasis::ResultReady,
+                ));
+            }
             StagedRecordedMutation::Ready(staged) => staged,
         };
         let StagedRecordedMutationCommit {
@@ -12411,6 +12445,10 @@ impl LocalSnapback {
             }
         }
         .and_then(|commit| self.finish_mutation_commit(epoch_scopes, commit, &admission));
+        let network_egress = result
+            .as_ref()
+            .map(|commit| commit.network_egress.clone())
+            .unwrap_or(crate::network_profile::MutationEgressBasis::ResultReady);
         let mut recorded = self.record_mutation_commit_after_publication_guard(
             MutationReceiptPublication::new(
                 &name,
@@ -12425,7 +12463,7 @@ impl LocalSnapback {
         // @ref LLP 0133#re-derivation-semantics-lane-l — only the final
         // guarded, recorded settlement is authoritative; preview is evidence.
         finish_function_observation(observation, &mut recorded.0);
-        Ok(recorded)
+        Ok((recorded.0, recorded.1, network_egress))
     }
 
     // Receipt recording deliberately keeps the mutation identity, settlement
@@ -12674,6 +12712,7 @@ impl LocalSnapback {
                     job_changes: Vec::new(),
                     sequence_allocations,
                     authorization: None,
+                    network_egress: Default::default(),
                 });
             }
         }
@@ -12716,6 +12755,7 @@ impl LocalSnapback {
                 job_changes: Vec::new(),
                 sequence_allocations,
                 authorization: None,
+                network_egress: Default::default(),
             });
         }
         // @ref LLP 0131#runtime-ingress-validation — fresh mutation admission
@@ -12917,9 +12957,35 @@ impl LocalSnapback {
     fn finish_mutation_commit(
         &mut self,
         epoch_scopes: BTreeSet<String>,
-        commit: MutationCommit,
+        mut commit: MutationCommit,
         admission: &AdmissionLease,
     ) -> SnapbackResult<MutationCommit> {
+        // Stamp immediately after the storage call returns from COMMIT. A
+        // successful no-op/replay has no observable state commit and keeps
+        // the result-readiness basis.
+        //
+        // @ref LLP 0167#observation-semantics--what-a-delay-means — ack and
+        //   deltas from a real commit share one commit-relative jitter sample.
+        let has_observable_effect = !commit.changes.is_empty()
+            || !commit.job_changes.is_empty()
+            || !commit.job_enqueues.is_empty()
+            || !commit.sequence_allocations.is_empty();
+        commit.network_egress =
+            if commit.authorization.is_some() && has_observable_effect {
+                self.network_profiles
+                    .admit_commit(Instant::now())
+                    .map(crate::network_profile::MutationEgressBasis::ProfiledCommit)
+                    .unwrap_or(crate::network_profile::MutationEgressBasis::NormalCommit)
+            } else {
+                crate::network_profile::MutationEgressBasis::ResultReady
+            };
+        self.current_live_network_egress = match &commit.network_egress {
+            crate::network_profile::MutationEgressBasis::ProfiledCommit(group) => Some(Some(
+                group.for_lane(crate::network_profile::NetworkEgressLane::LiveDelta),
+            )),
+            crate::network_profile::MutationEgressBasis::NormalCommit => Some(None),
+            crate::network_profile::MutationEgressBasis::ResultReady => None,
+        };
         #[cfg(test)]
         BEFORE_MUTATION_POSTCOMMIT_HOOK.with(|slot| {
             if let Some(hook) = slot.borrow_mut().take() {
@@ -13007,6 +13073,7 @@ impl LocalSnapback {
             }
             Ok(())
         })();
+        self.current_live_network_egress = None;
         if let Err(error) = postcommit {
             self.record_attached_diagnostics(vec![error.diagnostic]);
         }
@@ -18745,15 +18812,24 @@ impl LocalSnapback {
         subscription: &LiveSubscription,
         payload: Vec<u8>,
     ) -> crate::ephemeral::DurableEnqueueOutcome {
+        let network_egress = self.current_live_network_egress.clone().unwrap_or_else(|| {
+            self.network_profiles.admit_result(
+                crate::network_profile::NetworkEgressLane::LiveDelta,
+                Instant::now(),
+            )
+        });
         match subscription.effect_fence.clone() {
-            Some(effect_fence) => self.ephemeral.enqueue_durable_bound(
+            Some(effect_fence) => self.ephemeral.enqueue_durable_bound_with_network_egress(
                 subscription.connection_id.clone(),
                 payload,
                 effect_fence,
+                network_egress,
             ),
-            None => self
-                .ephemeral
-                .enqueue_durable(subscription.connection_id.clone(), payload),
+            None => self.ephemeral.enqueue_durable_with_network_egress(
+                subscription.connection_id.clone(),
+                payload,
+                network_egress,
+            ),
         }
     }
 
@@ -18763,17 +18839,27 @@ impl LocalSnapback {
         payload: Vec<u8>,
         authorization: crate::storage::AuthorizationVersion,
     ) -> crate::ephemeral::DurableEnqueueOutcome {
+        let network_egress = self.current_live_network_egress.clone().unwrap_or_else(|| {
+            self.network_profiles.admit_result(
+                crate::network_profile::NetworkEgressLane::LiveDelta,
+                Instant::now(),
+            )
+        });
         match subscription.effect_fence.clone() {
-            Some(effect_fence) => self.ephemeral.enqueue_authorized_durable_bound(
+            Some(effect_fence) => self
+                .ephemeral
+                .enqueue_authorized_durable_bound_with_network_egress(
+                    subscription.connection_id.clone(),
+                    payload,
+                    authorization,
+                    effect_fence,
+                    network_egress,
+                ),
+            None => self.ephemeral.enqueue_authorized_durable_with_network_egress(
                 subscription.connection_id.clone(),
                 payload,
                 authorization,
-                effect_fence,
-            ),
-            None => self.ephemeral.enqueue_authorized_durable(
-                subscription.connection_id.clone(),
-                payload,
-                authorization,
+                network_egress,
             ),
         }
     }
@@ -19280,6 +19366,8 @@ impl LocalSnapback {
             telemetry_store_identity,
             runtime,
             ephemeral: LocalEphemeralBackend::new(),
+            network_profiles: crate::network_profile::NetworkProfileState::new(),
+            current_live_network_egress: None,
             managed_local_handoff: Arc::new(crate::exec_guard::ManagedLocalHandoff::default()),
             cron,
             subscriptions: BTreeMap::new(),
@@ -19315,6 +19403,13 @@ impl LocalSnapback {
             routes: None,
             routes_manifest_hash: None,
         })
+    }
+
+    pub(crate) fn install_network_profile_state(
+        &mut self,
+        state: crate::network_profile::NetworkProfileState,
+    ) {
+        self.network_profiles = state;
     }
 
     pub(crate) fn function(

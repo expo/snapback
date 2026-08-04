@@ -385,17 +385,40 @@ const decodeAuthoritativeRows = (value) => {
   return rows;
 };
 
-const identityMatches = (identity, coverage) => (
+const decodeLiveRows = (value) => {
+  if (!Array.isArray(value)) return null;
+  const rows = [];
+  const ids = new Set();
+  try {
+    for (const row of value) {
+      if (!plain(row) || typeof row._id !== 'string' || ids.has(row._id)) return null;
+      ids.add(row._id);
+      rows.push(canonicalClone(row));
+    }
+  } catch {
+    return null;
+  }
+  return rows;
+};
+
+const identityMatches = (identity, coverage, sourceClass) => (
   plain(identity)
   && identity.materializationKey === coverage.materializationKey
   && identity.planHash === coverage.planHash
   && identity.resultContractHash === coverage.resultContractHash
-  && Number.isSafeInteger(identity.queryInstanceId)
-  && identity.queryInstanceId > 0
+  && (
+    (Number.isSafeInteger(identity.queryInstanceId) && identity.queryInstanceId > 0)
+    // A volatile-only test/unsupported-carrier registration may have no L2
+    // query instance. Its active registration + exact plan/result/partition
+    // identity still binds the current live rows; durable-store answers keep
+    // requiring the positive persisted instance id.
+    || (sourceClass === 'live-registration' && identity.queryInstanceId === null)
+  )
   && DIGEST.test(identity.authorityPartitionDigest ?? '')
 );
 
 const publicSource = (source) => ({
+  sourceClass: source.sourceClass,
   address: [...source.address],
   materializationKey: source.coverage.materializationKey,
   answerClass: source.answerClass,
@@ -403,6 +426,9 @@ const publicSource = (source) => ({
   coverage: source.coverage,
   queryInstanceId: source.identity?.queryInstanceId ?? null,
   authorityPartitionDigest: source.identity?.authorityPartitionDigest ?? null,
+  registrationId: source.registrationId ?? null,
+  subscriptionId: source.subscriptionId ?? null,
+  version: source.version ?? null,
   code: source.code,
 });
 
@@ -414,8 +440,10 @@ const missingReads = (declaredReads, requirements, code) => declaredReads.map((t
     id: requirement.id,
     state: 'missing',
     sourceMaterializationKeys: [],
+    sourceClasses: [],
   })),
   sources: [],
+  admittedSourceClasses: [],
   code,
 }));
 
@@ -514,6 +542,46 @@ export async function admitLocalMutationReadsV1({
     }
     if (coverages.size !== 1) continue;
     const coverage = [...coverages.values()][0];
+    const liveEntries = demand.registrations.filter((entry) => {
+      const entryCoverage = prepareLocalReadCoverageV1(
+        entry?.registration?.functionReference?.localReadCoverage,
+      );
+      return stableText(entryCoverage) === stableText(coverage)
+        && entry?.liveAnswer?.answerClass === 'authoritative'
+        && entry.liveAnswer.freshness === 'current';
+    });
+    if (liveEntries.length > 0) {
+      for (const entry of liveEntries) {
+        const answer = entry.liveAnswer;
+        const identity = answer.materialization ?? null;
+        let rows = null;
+        let code = null;
+        if (!identityMatches(identity, coverage, 'live-registration')) {
+          code = 'SNAPBACK_IR_READ_IDENTITY_MISMATCH';
+        } else {
+          rows = decodeLiveRows(answer.rows);
+          if (rows === null) code = 'SNAPBACK_IR_READ_RESULT_INVALID';
+        }
+        sources.push({
+          sourceClass: 'live-registration',
+          address: [...demand.address],
+          coverage,
+          answerClass: 'authoritative',
+          freshness: 'current',
+          identity,
+          rows,
+          code,
+          registrationId: entry.registration.registrationId,
+          subscriptionId: answer.subscriptionId ?? null,
+          version: answer.version ?? null,
+        });
+      }
+      continue;
+    }
+
+    // No authoritative-current live registration covers this address. The
+    // proof-validated durable answer remains the only fallback for relaunch,
+    // offline, connecting, stale, and refused live states.
     let answer = null;
     let errorCode = null;
     try {
@@ -532,13 +600,14 @@ export async function admitLocalMutationReadsV1({
     let code = errorCode;
     if (code === null && answerClass !== 'authoritative') {
       code = 'SNAPBACK_IR_READ_ANSWER_NOT_AUTHORITATIVE';
-    } else if (code === null && !identityMatches(identity, coverage)) {
+    } else if (code === null && !identityMatches(identity, coverage, 'durable-store')) {
       code = 'SNAPBACK_IR_READ_IDENTITY_MISMATCH';
     } else if (code === null) {
       rows = decodeAuthoritativeRows(answer.value);
       if (rows === null) code = 'SNAPBACK_IR_READ_RESULT_INVALID';
     }
     sources.push({
+      sourceClass: 'durable-store',
       address: [...demand.address],
       coverage,
       answerClass,
@@ -546,6 +615,9 @@ export async function admitLocalMutationReadsV1({
       identity,
       rows,
       code,
+      registrationId: null,
+      subscriptionId: null,
+      version: null,
     });
   }
 
@@ -593,6 +665,7 @@ export async function admitLocalMutationReadsV1({
           id: requirement.id,
           state: 'missing',
           sourceMaterializationKeys: facts.map((fact) => fact.source.coverage.materializationKey).sort(),
+          sourceClasses: [...new Set(facts.map((fact) => fact.source.sourceClass))].sort(),
         });
         failures.push({
           table,
@@ -606,6 +679,7 @@ export async function admitLocalMutationReadsV1({
           id: requirement.id,
           state: 'missing',
           sourceMaterializationKeys: facts.map((fact) => fact.source.coverage.materializationKey).sort(),
+          sourceClasses: [...new Set(facts.map((fact) => fact.source.sourceClass))].sort(),
         });
         failures.push({
           table,
@@ -620,7 +694,13 @@ export async function admitLocalMutationReadsV1({
         const sourceMaterializationKeys = present
           .map((fact) => fact.source.coverage.materializationKey)
           .sort();
-        points.push({ id: requirement.id, state: 'present', sourceMaterializationKeys });
+        const sourceClasses = [...new Set(present.map((fact) => fact.source.sourceClass))].sort();
+        points.push({
+          id: requirement.id,
+          state: 'present',
+          sourceMaterializationKeys,
+          sourceClasses,
+        });
         for (const fact of present) {
           admittedAuthorityPartitions.add(fact.source.identity.authorityPartitionDigest);
         }
@@ -628,13 +708,24 @@ export async function admitLocalMutationReadsV1({
         const sourceMaterializationKeys = absent
           .map((fact) => fact.source.coverage.materializationKey)
           .sort();
-        points.push({ id: requirement.id, state: 'absent', sourceMaterializationKeys });
+        const sourceClasses = [...new Set(absent.map((fact) => fact.source.sourceClass))].sort();
+        points.push({
+          id: requirement.id,
+          state: 'absent',
+          sourceMaterializationKeys,
+          sourceClasses,
+        });
         for (const fact of absent) {
           admittedAuthorityPartitions.add(fact.source.identity.authorityPartitionDigest);
         }
       } else {
         tableMissing = true;
-        points.push({ id: requirement.id, state: 'missing', sourceMaterializationKeys: [] });
+        points.push({
+          id: requirement.id,
+          state: 'missing',
+          sourceMaterializationKeys: [],
+          sourceClasses: [],
+        });
         const nonAuthoritative = tableSources.map(publicSource);
         failures.push({
           table,
@@ -658,6 +749,7 @@ export async function admitLocalMutationReadsV1({
       rows: rowsForTable,
       points,
       sources: tableSources.map(publicSource),
+      admittedSourceClasses: [...new Set(points.flatMap((point) => point.sourceClasses))].sort(),
       code: tableConflict
         ? 'SNAPBACK_IR_READ_CONFLICT'
         : tableMissing ? 'SNAPBACK_IR_READ_MISSING' : 'SNAPBACK_IR_READ_ADMITTED',

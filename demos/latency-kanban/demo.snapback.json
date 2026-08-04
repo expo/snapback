@@ -1,0 +1,17 @@
+{
+  "id": "latency-kanban",
+  "title": "Latency Kanban — Move-3 exit",
+  "description": "Provider-native Kanban proving generated-IR optimistic paint, Lane-L settlement, observer convergence, and loss-free retained replay.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs",
+    "generated": ["snapback/generated/artifacts.json"],
+    "stalenessPolicy": "manifest-only generated custody; regenerate from the complete source inputs"
+  },
+  "notClaiming": [
+    "an LLP status or capability-index change",
+    "local execution outside Insert/Get/Guard/Patch",
+    "authoritative client-side mutation decisions"
+  ]
+}

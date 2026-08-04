@@ -414,6 +414,20 @@ ban points at — but the reconciliation must be explicit:
   LLP 0162 precedent (capabilities stay Missing until acceptance passes)
   suggests the latter.
 
+## Implementation record
+
+- 2026-08-04 — Rust-arm core landed with this note: profile model and
+  built-ins, one fail-closed activation gate (env + admin API), two-phase
+  commit-relative deadline release on all three lanes with monotone
+  per-connection clamp on live durable queues, once-per-commit jitter,
+  HTTP marker (CORS-exposed) + telemetry snapshot, startup announcement,
+  refusal codes classified in the reviewed diagnostic table; capability
+  row `operating.network-profiles` is `partial`. Deferred with tickets:
+  socket frame marker via LLP 0093 wire types
+  (`issues/20260804-0167-live-wire-network-profile-marker.md`) and the
+  remaining corpus/stages — Cloudflare arm, bakeoff swap, host-ops/MCP,
+  console panel (`issues/20260804-0167-remaining-acceptance-corpus.md`).
+
 ## Revision history
 
 - v0.4 (2026-08-04) — **unreviewed** post-round-3 fixes for codex

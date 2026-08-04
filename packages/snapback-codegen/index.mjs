@@ -3927,6 +3927,7 @@ export async function generateInProcess(backendDir, options = {}) {
     appId,
     functionManifest.functions,
     functionsModule,
+    schemaManifest,
     ephemeralCollections,
     routesManifest,
     assetUploadIntents,
@@ -4934,6 +4935,234 @@ function mutationReadTables(plan) {
     }
   }
   return [...reads];
+}
+
+const GENERATED_LOCAL_MUTATION_FORMAT_V1 = 'snapback.generated-mutation-ir.v1';
+const GENERATED_LOCAL_MUTATION_EFFECT_CLASS_V1 =
+  'snapback.browser-ir.insert-get-guard-patch.v1';
+const GENERATED_LOCAL_MUTATION_STEPS_V1 = new Set(['Insert', 'Get', 'Guard', 'Patch']);
+const GENERATED_LOCAL_MUTATION_AUTHORITATIVE_EXPRESSIONS_V1 = new Set([
+  'AuthUserId',
+  'AuthKind',
+  'AuthActorKind',
+  'AuthActivityActorKind',
+  'AuthActorUserId',
+  'AuthGrantId',
+  'ClientMutationDigest',
+  'AuthIsDelegated',
+  'MembershipExists',
+]);
+
+function generatedMutationPlanExpressions(plan) {
+  const expressions = [];
+  for (const step of plan?.steps ?? []) {
+    const kind = Object.keys(step ?? {})[0];
+    const body = step?.[kind];
+    if (body?.id !== undefined) expressions.push(body.id);
+    if (body?.cond !== undefined) expressions.push(body.cond);
+    if (body?.values && typeof body.values === 'object') {
+      expressions.push(...Object.values(body.values));
+    }
+  }
+  if (plan?.return_value?.Document?.id !== undefined) {
+    expressions.push(plan.return_value.Document.id);
+  }
+  if (plan?.return_value?.Expr !== undefined) expressions.push(plan.return_value.Expr);
+  return expressions;
+}
+
+function generatedMutationExpressionKinds(expression, into = new Set()) {
+  if (typeof expression === 'string') {
+    into.add(expression);
+    return into;
+  }
+  if (expression === null || typeof expression !== 'object') return into;
+  const kind = Object.keys(expression)[0];
+  if (typeof kind !== 'string') return into;
+  into.add(kind);
+  const body = expression[kind];
+  if (kind === 'Field') generatedMutationExpressionKinds(body?.base, into);
+  if (kind === 'Binary') {
+    generatedMutationExpressionKinds(body?.left, into);
+    generatedMutationExpressionKinds(body?.right, into);
+  }
+  if (kind === 'Unary') generatedMutationExpressionKinds(body?.expr, into);
+  if (kind === 'If') {
+    generatedMutationExpressionKinds(body?.cond, into);
+    generatedMutationExpressionKinds(body?.then, into);
+    generatedMutationExpressionKinds(body?.else, into);
+  }
+  if (kind === 'Concat' && Array.isArray(body)) {
+    for (const part of body) generatedMutationExpressionKinds(part, into);
+  }
+  if (kind === 'Call' && Array.isArray(body?.args)) {
+    for (const argument of body.args) generatedMutationExpressionKinds(argument, into);
+  }
+  if (kind === 'Record' && body?.fields && typeof body.fields === 'object') {
+    for (const field of Object.values(body.fields)) {
+      generatedMutationExpressionKinds(field, into);
+    }
+  }
+  return into;
+}
+
+function collectGeneratedMutationBindingFields(expression, binding, fields) {
+  if (expression === null || typeof expression !== 'object') return;
+  const kind = Object.keys(expression)[0];
+  const body = expression[kind];
+  if (
+    kind === 'Field'
+    && body?.base?.Binding === binding
+    && typeof body.key === 'string'
+  ) fields.add(body.key);
+  if (kind === 'Field') collectGeneratedMutationBindingFields(body?.base, binding, fields);
+  if (kind === 'Binary') {
+    collectGeneratedMutationBindingFields(body?.left, binding, fields);
+    collectGeneratedMutationBindingFields(body?.right, binding, fields);
+  }
+  if (kind === 'Unary') collectGeneratedMutationBindingFields(body?.expr, binding, fields);
+  if (kind === 'If') {
+    collectGeneratedMutationBindingFields(body?.cond, binding, fields);
+    collectGeneratedMutationBindingFields(body?.then, binding, fields);
+    collectGeneratedMutationBindingFields(body?.else, binding, fields);
+  }
+  if (kind === 'Concat' && Array.isArray(body)) {
+    for (const part of body) collectGeneratedMutationBindingFields(part, binding, fields);
+  }
+  if (kind === 'Call' && Array.isArray(body?.args)) {
+    for (const argument of body.args) {
+      collectGeneratedMutationBindingFields(argument, binding, fields);
+    }
+  }
+  if (kind === 'Record' && body?.fields && typeof body.fields === 'object') {
+    for (const field of Object.values(body.fields)) {
+      collectGeneratedMutationBindingFields(field, binding, fields);
+    }
+  }
+}
+
+// @ref LLP 0155#execution-contract — the generated reference is the sole
+// authored write carrier: exact plan/source identity, effect ceiling, read
+// requirements, and capability class travel together to the browser.
+function generatedMutationIrV1(fn, schemaManifest, expectedGeneration) {
+  if (fn.kind !== 'Mutation') return null;
+  const hostPlan = fn.runtime?.HostPlan;
+  const plan = hostPlan?.Mutation ?? hostPlan?.WriteWithActivity?.mutation ?? null;
+  if (!plan) return null;
+
+  let capabilityClass = 'local-executable';
+  let capabilityCode = 'SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE';
+  const requirements = new Map();
+  const expressions = generatedMutationPlanExpressions(plan);
+  const expressionKinds = new Set();
+  for (const expression of expressions) {
+    generatedMutationExpressionKinds(expression, expressionKinds);
+  }
+  if (hostPlan?.Mutation === undefined) {
+    capabilityClass = 'server-only';
+    capabilityCode = 'SNAPBACK_GENERATED_IR_HOST_WRAPPER_SERVER_ONLY';
+  } else if ((plan.steps ?? []).some((step) => (
+    !GENERATED_LOCAL_MUTATION_STEPS_V1.has(Object.keys(step ?? {})[0])
+  ))) {
+    capabilityClass = 'server-only';
+    capabilityCode = 'SNAPBACK_GENERATED_IR_EFFECT_SERVER_ONLY';
+  } else if ([...expressionKinds].some((kind) => (
+    GENERATED_LOCAL_MUTATION_AUTHORITATIVE_EXPRESSIONS_V1.has(kind)
+  ))) {
+    capabilityClass = 'server-only';
+    capabilityCode = 'SNAPBACK_GENERATED_IR_AUTHORITATIVE_EXPR_SERVER_ONLY';
+  } else if (expressionKinds.has('RuntimeId')) {
+    // RuntimeId is in the M1 evaluator ceiling, but a branch-dependent mint
+    // stream needs a generated claim-program rather than a static site list.
+    // Phase-1's Insert/Get/Guard/Patch common path needs only Insert row ids.
+    capabilityClass = 'server-only';
+    capabilityCode = 'SNAPBACK_GENERATED_IR_DYNAMIC_MINT_SERVER_ONLY';
+  }
+
+  for (const step of plan.steps ?? []) {
+    const kind = Object.keys(step ?? {})[0];
+    if (kind !== 'Get' && kind !== 'Patch') continue;
+    const body = step[kind];
+    if (
+      body?.id === null
+      || typeof body?.id !== 'object'
+      || Object.keys(body.id).length !== 1
+      || typeof body.id.Arg !== 'string'
+    ) {
+      capabilityClass = 'server-only';
+      capabilityCode = 'SNAPBACK_GENERATED_IR_POINT_ID_SERVER_ONLY';
+      continue;
+    }
+    const key = `${body.table}\u0000${body.id.Arg}`;
+    const current = requirements.get(key) ?? {
+      kind: 'point',
+      table: body.table,
+      idArg: body.id.Arg,
+      binding: null,
+      requiredFields: ['_id'],
+    };
+    if (kind === 'Get') {
+      if (current.binding !== null && current.binding !== body.bind_as) {
+        capabilityClass = 'server-only';
+        capabilityCode = 'SNAPBACK_GENERATED_IR_POINT_BINDING_SERVER_ONLY';
+      }
+      current.binding = body.bind_as;
+    }
+    requirements.set(key, current);
+  }
+  for (const requirement of requirements.values()) {
+    if (requirement.binding === null) continue;
+    const fields = new Set(requirement.requiredFields);
+    for (const expression of expressions) {
+      collectGeneratedMutationBindingFields(expression, requirement.binding, fields);
+    }
+    requirement.requiredFields = [...fields].sort();
+  }
+
+  const schema = {
+    tables: (schemaManifest.tables ?? []).map((table) => ({
+      name: table.name,
+      fields: (table.fields ?? []).map((field) => ({ name: field.name })),
+    })),
+  };
+  const mintSites = (plan.steps ?? []).flatMap((step, stepIndex) => (
+    Object.keys(step ?? {})[0] === 'Insert'
+      ? [`plan/steps/${stepIndex}/insert/row-id`]
+      : []
+  ));
+  const declaredReads = [...new Set(
+    [...requirements.values()].map((requirement) => requirement.table),
+  )];
+  const descriptor = {
+    format: GENERATED_LOCAL_MUTATION_FORMAT_V1,
+    sourceIdentity: {
+      functionId: fn.id,
+      implementationHash: fn.implementationHash,
+      activation: expectedGeneration,
+    },
+    schemaIdentity: {
+      schemaVersion: expectedGeneration.schemaVersion,
+      appId: expectedGeneration.appId,
+      schemaHash: expectedGeneration.schemaHash,
+    },
+    capabilityClass,
+    capabilityCode,
+    declaredEffectClass: GENERATED_LOCAL_MUTATION_EFFECT_CLASS_V1,
+    declaredReads,
+    localReadRequirements: [...requirements.values()],
+    schema,
+    plan,
+    mintSites,
+    usesRuntimeNow: expressionKinds.has('RuntimeNow'),
+    boundedSkew: fn.boundedSkew ?? null,
+  };
+  return {
+    ...descriptor,
+    operationHash: compositionDomainHash(
+      'snapback:generated-mutation-ir:v1:',
+      descriptor,
+    ),
+  };
 }
 
 // Nested v.object field names are emitted as unquoted TS property names by
@@ -8339,6 +8568,7 @@ function renderApiModule(
   appId,
   functions,
   functionsModule,
+  schemaManifest,
   ephemeralCollections,
   routesManifest,
   assetUploadIntents = [],
@@ -8360,6 +8590,7 @@ function renderApiModule(
   }
   for (const fn of functions) {
     const composition = functionCompositionIdentityV1(fn);
+    const mutationIr = generatedMutationIrV1(fn, schemaManifest, expectedGeneration);
     refs[fn.name] = {
       artifactKind: 'functionReference',
       schemaVersion: SCHEMA_VERSION,
@@ -8371,6 +8602,7 @@ function renderApiModule(
       argsContractHash: fn.argsContractHash,
       resultContractHash: fn.resultContractHash,
       expectedGeneration,
+      ...(mutationIr ? { mutationIr } : {}),
       ...(composition ? {
         composition: {
           ...composition,
@@ -8519,6 +8751,22 @@ function renderApiTypes(
     'export interface GeneratedArtifacts { readonly trustedCompositionActivation: Readonly<Record<string, unknown>> | null }',
     'export const artifacts: GeneratedArtifacts;',
     "export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';",
+    "export interface GeneratedMutationIrV1 {",
+    "  readonly format: 'snapback.generated-mutation-ir.v1';",
+    "  readonly operationHash: `sha256:${string}`;",
+    "  readonly sourceIdentity: Readonly<{ functionId: string; implementationHash: string; activation: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }> }> ;",
+    "  readonly schemaIdentity: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string }> ;",
+    "  readonly capabilityClass: 'local-executable' | 'server-only';",
+    "  readonly capabilityCode: string;",
+    "  readonly declaredEffectClass: 'snapback.browser-ir.insert-get-guard-patch.v1';",
+    "  readonly declaredReads: readonly string[];",
+    "  readonly localReadRequirements: readonly Readonly<{ kind: 'point'; table: string; idArg: string; binding: string | null; requiredFields: readonly string[] }>[];",
+    "  readonly schema: Readonly<{ tables: readonly Readonly<{ name: string; fields: readonly Readonly<{ name: string }>[] }>[] }> ;",
+    "  readonly plan: Readonly<Record<string, unknown>>;",
+    "  readonly mintSites: readonly string[];",
+    "  readonly usesRuntimeNow: boolean;",
+    "  readonly boundedSkew: Readonly<{ field: string; maxSkewMs: number }> | null;",
+    "}",
     'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {',
     "  artifactKind: 'functionReference';",
     '  schemaVersion: SchemaVersion;',
@@ -8530,6 +8778,7 @@ function renderApiTypes(
     '  argsContractHash: string;',
     '  resultContractHash: string;',
     '  expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;',
+    '  mutationIr?: GeneratedMutationIrV1;',
     '  composition?: Readonly<{ normalizedCompositePlan: Readonly<Record<string, unknown>>; planHash: `sha256:${string}`; resultContract: Readonly<Record<string, unknown>> }>;',
     '  readonly artifacts?: GeneratedArtifacts;',
     '  argumentSchema: Readonly<Record<string, unknown>>;',

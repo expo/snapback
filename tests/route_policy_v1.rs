@@ -303,6 +303,10 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/_snapback/api/jobs/{id}"),
         ("POST", "/_snapback/api/push/maintenance"),
         ("POST", "/_snapback/api/ephemeral/cleanup"),
+        // LLP 0167: network condition profile read/toggle; PUT terminates at
+        // the fail-closed activation gate.
+        ("GET", "/_snapback/api/debug/network-profile"),
+        ("PUT", "/_snapback/api/debug/network-profile"),
     ]);
     assert_eq!(
         registry

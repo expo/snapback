@@ -142,8 +142,8 @@ test('cryptoless RN keeps Online clients usable and reports the optional store u
           reason: 'secure-random-unavailable',
         },
       );
-      const release = await client.__registerActiveQueryDemand('listRooms', {}, false);
-      release();
+      const registration = await client.__registerActiveQueryDemand('listRooms', {}, false);
+      registration.release();
       await client.closeAuth();
     });
   } finally {
@@ -179,8 +179,8 @@ test('Expo crypto injection enables the native store without mutating global cry
       assert.equal(client.rqsStoreInfo.implementation, 'file');
       await client.rqsStore.whenLockSettled();
       assert.match((await client.rqsStore.readStoreMeta()).handleKey, /^[0-9a-f]{64}$/u);
-      const release = await client.__registerActiveQueryDemand('listRooms', {}, true);
-      release();
+      const registration = await client.__registerActiveQueryDemand('listRooms', {}, true);
+      registration.release();
       await client.closeAuth();
     });
   } finally {

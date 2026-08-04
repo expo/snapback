@@ -980,6 +980,49 @@ test('explicit-id server refusal is failed locally and never acknowledged', asyn
   assert.deepEqual(await store.outboxPendingAcknowledgements(null), []);
 });
 
+test('mutate teardown preserves the real refusal when failure marking races store close', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const client = new SnapbackClient('http://127.0.0.1:9', {
+    rqsStore: store,
+    offlineQueue: true,
+  });
+  let markFetchEntered;
+  const fetchEntered = new Promise((resolve) => { markFetchEntered = resolve; });
+  let releaseResponse;
+  globalThis.fetch = async () => {
+    markFetchEntered();
+    return new Promise((resolve) => { releaseResponse = resolve; });
+  };
+
+  const pending = client.mutate('teardownRefusal', {
+    args: { value: 1 },
+    clientMutationId: 'cm-teardown-store-close',
+    queue: true,
+  });
+  const refusal = assert.rejects(
+    pending,
+    (error) => error?.diagnostic?.code === 'SNAPBACK_TEST_MUTATION_REFUSED',
+  );
+  await fetchEntered;
+  await store.close();
+  releaseResponse(Response.json({
+    diagnostic: {
+      code: 'SNAPBACK_TEST_MUTATION_REFUSED',
+      message: 'server refusal won the race',
+    },
+  }, { status: 409 }));
+  await refusal;
+  assert.equal(
+    client.outboxDiagnostics.at(-1)?.code,
+    'SNAPBACK_OUTBOX_FAILURE_MARK_SKIPPED_STORE_CLOSED',
+  );
+  assert.equal(
+    client.outboxDiagnostics.at(-1)?.clientMutationId,
+    'cm-teardown-store-close',
+  );
+});
+
 test('explicit id cannot be rebound to another durable replay identity', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();

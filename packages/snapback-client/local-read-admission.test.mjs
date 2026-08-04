@@ -151,11 +151,13 @@ async function demandedLedger({ complete }) {
 
 const positiveRows = [{ _id: 'todo-1', title: 'one', done: false }];
 const states = [
-  { name: 'authoritative', answerClass: 'authoritative', rows: positiveRows },
-  { name: 'labeled-retained', answerClass: 'labeled-retained', rows: positiveRows },
-  { name: 'unknown', answerClass: 'unknown', rows: positiveRows },
-  { name: 'refused', answerClass: 'refused', rows: positiveRows },
-  { name: 'empty-authoritative', answerClass: 'authoritative', rows: [] },
+  { name: 'authoritative', answerClass: 'authoritative', rows: positiveRows, sourceClass: 'durable-store' },
+  { name: 'labeled-retained', answerClass: 'labeled-retained', rows: positiveRows, sourceClass: 'durable-store' },
+  { name: 'unknown', answerClass: 'unknown', rows: positiveRows, sourceClass: 'durable-store' },
+  { name: 'refused', answerClass: 'refused', rows: positiveRows, sourceClass: 'durable-store' },
+  { name: 'empty-authoritative', answerClass: 'authoritative', rows: [], sourceClass: 'durable-store' },
+  { name: 'live-authoritative', answerClass: 'authoritative', rows: positiveRows, sourceClass: 'live-registration' },
+  { name: 'live-empty-authoritative', answerClass: 'authoritative', rows: [], sourceClass: 'live-registration' },
 ];
 
 const variants = [
@@ -169,6 +171,8 @@ const variants = [
       unknown: 'server-only',
       refused: 'server-only',
       'empty-authoritative': 'ready',
+      'live-authoritative': 'ready',
+      'live-empty-authoritative': 'ready',
     },
   },
   {
@@ -181,6 +185,8 @@ const variants = [
       unknown: 'server-only',
       refused: 'server-only',
       'empty-authoritative': 'server-only',
+      'live-authoritative': 'predictable-with-partial-input',
+      'live-empty-authoritative': 'server-only',
     },
   },
   {
@@ -209,7 +215,7 @@ const variants = [
   },
 ];
 
-test('M2 admission matrix: five store states x four evaluator paths', async () => {
+test('M2 admission matrix: five store states plus two live-source states x four evaluator paths', async () => {
   const ledgers = {
     complete: await demandedLedger({ complete: true }),
     partial: await demandedLedger({ complete: false }),
@@ -219,9 +225,30 @@ test('M2 admission matrix: five store states x four evaluator paths', async () =
   for (const variant of variants) {
     for (const state of states) {
       let reads = 0;
+      const ledger = ledgers[variant.ledger];
+      for (const demand of ledger.demandedMaterializations()) {
+        for (const entry of demand.registrations) {
+          ledger.clearLiveRegistrationAnswer(entry.registration.registrationId);
+          if (state.sourceClass === 'live-registration') {
+            ledger.publishLiveRegistrationAnswer({
+              registrationId: entry.registration.registrationId,
+              rows: state.rows,
+              version: 2,
+              subscriptionId: `live-${variant.ledger}`,
+              materialization: {
+                materializationKey: QMK,
+                queryInstanceId: 1,
+                planHash: digest('1'),
+                resultContractHash: digest('2'),
+                authorityPartitionDigest: digest('3'),
+              },
+            });
+          }
+        }
+      }
       const outcome = await evaluateLocalMutationWithReadAdmissionV1({
         operation: variant.operation,
-        registrationLedger: ledgers[variant.ledger],
+        registrationLedger: ledger,
         readMaterializationAnswer: async () => {
           reads += 1;
           return {
@@ -253,7 +280,7 @@ test('M2 admission matrix: five store states x four evaluator paths', async () =
         `${state.name} x ${variant.name}: evaluator consumes the exact class`,
       );
 
-      const predictsRows = state.name === 'authoritative'
+      const predictsRows = ['authoritative', 'live-authoritative'].includes(state.name)
         && ['complete-point', 'partial-positive-point'].includes(variant.name);
       if (predictsRows) {
         assert.equal(outcome.prediction.layer?.writes.length, 1);
@@ -266,7 +293,10 @@ test('M2 admission matrix: five store states x four evaluator paths', async () =
         );
       }
 
-      if (variant.name === 'complete-point' && state.name === 'empty-authoritative') {
+      if (
+        variant.name === 'complete-point'
+        && ['empty-authoritative', 'live-empty-authoritative'].includes(state.name)
+      ) {
         assert.equal(outcome.admission.reads[0].state, 'admitted');
         assert.deepEqual(outcome.admission.reads[0].rows, []);
         assert.equal(outcome.admission.reads[0].points[0].state, 'absent');
@@ -285,10 +315,21 @@ test('M2 admission matrix: five store states x four evaluator paths', async () =
       }
       if (['server-only-plan', 'refused-declaration'].includes(variant.name)) {
         assert.equal(reads, 0, 'plan/declaration refusal does not touch store answers');
+      } else if (state.sourceClass === 'live-registration') {
+        assert.equal(reads, 0, 'authoritative-current live rows take precedence over durable bytes');
+      } else {
+        assert.equal(reads, 1, 'the durable source is read exactly once without a current live answer');
+      }
+      if (outcome.admission.reads[0]?.state === 'admitted') {
+        assert.deepEqual(
+          outcome.admission.reads[0].admittedSourceClasses,
+          [state.sourceClass],
+          `${state.name} names the source class that admitted the point read`,
+        );
       }
     }
   }
-  assert.equal(cells, 20);
+  assert.equal(cells, 28);
   assert.deepEqual([...observedClasses].sort(), [
     'predictable-with-partial-input',
     'ready',
@@ -372,7 +413,7 @@ test('SnapbackClient resolves active generated demand through its checked QMK an
     offlineQueue: false,
     __materializationStore: store,
   });
-  const release = await client.__registerActiveQueryDemand(
+  const registration = await client.__registerActiveQueryDemand(
     ref,
     {},
     false,
@@ -392,5 +433,117 @@ test('SnapbackClient resolves active generated demand through its checked QMK an
   assert.equal(outcome.admission.classification, 'ready');
   assert.equal(outcome.prediction.layer.writes.length, 1);
   assert.equal(outcome.admission.reads[0].points[0].state, 'present');
-  release();
+  assert.deepEqual(outcome.admission.reads[0].admittedSourceClasses, ['durable-store']);
+  registration.release();
+});
+
+test('live_replace advances admission without rewriting the durable establishment fragment', async () => {
+  const coverageRef = generatedReference({ complete: true });
+  const coverage = deriveGeneratedLocalReadCoverageV1({
+    ref: coverageRef,
+    materializationKey: QMK,
+  });
+  const address = ['snapback:client-materialization-address:v1', 'store-1', QMK];
+  const materialization = {
+    materializationKey: QMK,
+    queryInstanceId: 1,
+    planHash: digest('1'),
+    activationHash: digest('4'),
+    resultContractHash: digest('2'),
+    authorityPartitionDigest: digest('3'),
+  };
+  let durableReads = 0;
+  const durableRows = [];
+  const materializationStore = {
+    observeMaterialization(_address, listener) {
+      listener({
+        format: 'snapback.materialization-observation.v1',
+        present: true,
+        generation: { queryInstanceId: 1, authorityGeneration: 0, queryGeneration: 0 },
+        status: 'complete',
+        freshness: 'retained',
+        materialization,
+      });
+      return () => {};
+    },
+    async beginEstablishment() {},
+    async readRenderable() {
+      durableReads += 1;
+      return encoder.encode(JSON.stringify(durableRows));
+    },
+  };
+  const ref = {
+    ...coverageRef,
+    name: 'watchTodos',
+    kind: 'LiveQuery',
+    materializationAddress: address,
+    authorityPartitionDigest: digest('3'),
+    localReadCoverage: coverage,
+  };
+  const client = new SnapbackClient('https://live-admission.test', {
+    clientStoreId: 'store-1',
+    rqsStore: null,
+    offlineQueue: false,
+    __materializationStore: materializationStore,
+  });
+  client.subscribeLive = async () => ({
+    subscription_id: 'live-admission-subscription',
+    snapshot: { rows: [], version: 1 },
+  });
+  client.unsubscribeLive = async () => ({ disposed: true });
+  const streamListeners = new Set();
+  client.liveStreamManager = () => ({
+    onState(listener) {
+      streamListeners.add(listener);
+      return () => streamListeners.delete(listener);
+    },
+    isOpen: () => true,
+  });
+
+  const live = await client.liveQuery(ref, {
+    connectionId: 'live-admission-connection',
+    transport: 'stream',
+    persistResume: false,
+  });
+  const initial = await client.__evaluateLocalMutationWithReadAdmission({
+    operation: operation({ layerId: 'initial-empty-live-layer' }),
+    connected: true,
+  });
+  assert.equal(initial.admission.reads[0].points[0].state, 'absent');
+  assert.deepEqual(initial.admission.reads[0].admittedSourceClasses, ['live-registration']);
+  assert.equal(initial.prediction.execution.rejectionCode, 'TODO_NOT_FOUND');
+  assert.equal(durableReads, 0, 'establishment-era durable bytes are not read while live is current');
+
+  const consumers = client.__laneConsumers.get('live-admission-connection')?.durable;
+  assert.equal(consumers?.size, 1, 'the real live delivery path owns one durable consumer');
+  for (const consumer of consumers) {
+    consumer({
+      kind: 'live_replace',
+      subscription_id: live.subscriptionId,
+      version: 2,
+      rows: positiveRows,
+    });
+  }
+  const delivered = await client.__evaluateLocalMutationWithReadAdmission({
+    operation: operation({ layerId: 'post-delivery-live-layer' }),
+    connected: true,
+  });
+  assert.equal(delivered.admission.reads[0].points[0].state, 'present');
+  assert.deepEqual(delivered.admission.reads[0].admittedSourceClasses, ['live-registration']);
+  assert.equal(delivered.admission.reads[0].sources[0].sourceClass, 'live-registration');
+  assert.equal(delivered.admission.reads[0].sources[0].subscriptionId, live.subscriptionId);
+  assert.equal(delivered.prediction.layer.writes.length, 1, 'the delivered point read produces a mutation layer');
+  assert.deepEqual(durableRows, [], 'the unproved delivery never rewrites the durable fragment');
+  assert.equal(durableReads, 0);
+
+  for (const listener of streamListeners) listener('budget-missed');
+  const staleFallback = await client.__evaluateLocalMutationWithReadAdmission({
+    operation: operation({ layerId: 'stale-live-fallback-layer' }),
+    connected: true,
+  });
+  assert.equal(staleFallback.admission.reads[0].points[0].state, 'absent');
+  assert.deepEqual(staleFallback.admission.reads[0].admittedSourceClasses, ['durable-store']);
+  assert.equal(durableReads, 1, 'a stale live registration falls back to the proof-validated store');
+
+  await live.dispose();
 });
