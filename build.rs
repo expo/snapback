@@ -260,6 +260,39 @@ fn emit_build_identity() {
     println!("cargo:rerun-if-changed=tests");
     println!("cargo:rerun-if-changed=scripts/check-agent-safe-publication.mjs");
     println!("cargo:rerun-if-changed=.gitmodules");
+    // The agent-safe digest binds vendored Ibex source and submodule state,
+    // so Snapback's build script must rerun whenever Cargo may rebuild that
+    // path dependency. Tracking only the parent gitlink is insufficient for
+    // an incremental build whose checked-out submodule changes in place.
+    for relative in [
+        "vendor/ibex/Cargo.toml",
+        "vendor/ibex/Cargo.lock",
+        "vendor/ibex/build.rs",
+        "vendor/ibex/src",
+        "vendor/ibex/ios/Frameworks",
+        "vendor/ibex/linux/lib",
+        "vendor/ibex/.git",
+    ] {
+        if manifest_dir.join(relative).exists() {
+            println!("cargo:rerun-if-changed={relative}");
+        }
+    }
+    let ibex_dir = manifest_dir.join("vendor/ibex");
+    if let Some(ibex_git_dir) = resolve_git_dir(&ibex_dir) {
+        for relative in ["HEAD", "index", "commondir"] {
+            let path = ibex_git_dir.join(relative);
+            if path.exists() {
+                println!("cargo:rerun-if-changed={}", path.display());
+            }
+        }
+        let ibex_common_dir = resolve_common_dir(&ibex_git_dir);
+        for relative in ["HEAD", "packed-refs", "refs"] {
+            let path = ibex_common_dir.join(relative);
+            if path.exists() {
+                println!("cargo:rerun-if-changed={}", path.display());
+            }
+        }
+    }
 
     // @ref LLP 0162#8-capability-honesty — the two agent-safe publication
     // carriers bind one canonical implementation-tree digest. The source-owned
@@ -478,7 +511,12 @@ fn resolve_git_dir(manifest_dir: &Path) -> Option<PathBuf> {
     let path = content
         .lines()
         .find_map(|line| line.strip_prefix("gitdir:"))?;
-    Some(PathBuf::from(path.trim()))
+    let pointed = PathBuf::from(path.trim());
+    Some(if pointed.is_absolute() {
+        pointed
+    } else {
+        manifest_dir.join(pointed)
+    })
 }
 
 fn framework_present(dir: &Path) -> bool {

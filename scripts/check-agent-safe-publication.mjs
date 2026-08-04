@@ -220,7 +220,23 @@ export function implementationDigestAt(root, commit) {
   return `sha256:${hash.digest('hex')}`;
 }
 
+function checkedOutImplementationGitlink(root) {
+  const expected = git(root, ['rev-parse', 'HEAD:vendor/ibex']);
+  const actual = git(root, ['-C', 'vendor/ibex', 'rev-parse', 'HEAD']);
+  const rootStatus = git(root, [
+    'status', '--porcelain', '--untracked-files=all', '--ignore-submodules=none',
+  ]);
+  const ibexStatus = git(root, [
+    '-C', 'vendor/ibex', 'status', '--porcelain', '--untracked-files=all',
+  ]);
+  if (actual !== expected || rootStatus !== '' || ibexStatus !== '') {
+    fail('publication worktree or checked-out vendor/ibex is dirty/mismatched');
+  }
+  return actual;
+}
+
 export function implementationDigestWorkingTree(root) {
+  const checkedOutIbex = checkedOutImplementationGitlink(root);
   const names = execFileSync('git', ['ls-files', '-z', '--', ...ROOTS], { cwd: root })
     .toString()
     .split('\0')
@@ -230,7 +246,7 @@ export function implementationDigestWorkingTree(root) {
   const hash = createHash('sha256');
   hash.update('snapback:agent-safe-implementation-tree:v1\n');
   for (const path of names) updateTreeDigest(hash, path, readFileSync(join(root, path)));
-  updateTreeDigest(hash, 'vendor/ibex', Buffer.from(git(root, ['rev-parse', 'HEAD:vendor/ibex'])));
+  updateTreeDigest(hash, 'vendor/ibex', Buffer.from(checkedOutIbex));
   return `sha256:${hash.digest('hex')}`;
 }
 
@@ -270,9 +286,196 @@ function readEvidenceJson(root, path, label) {
   }
 }
 
-function validatePairedPerformance(root, commit) {
-  const path = EVIDENCE[1][1];
-  const value = readEvidenceJson(root, path, 'paired performance');
+function closeNumber(left, right) {
+  return Number.isFinite(left) && Number.isFinite(right)
+    && Math.abs(left - right) <= 1e-9 * Math.max(1, Math.abs(left), Math.abs(right));
+}
+
+function requireClose(left, right, label) {
+  requireEvidence(closeNumber(left, right), `${label} disagrees with retained raw observations`);
+}
+
+function requireCloseArray(actual, expected, label) {
+  requireEvidence(Array.isArray(actual) && actual.length === expected.length,
+    `${label} population drifted`);
+  actual.forEach((value, index) => requireClose(value, expected[index], `${label}[${index}]`));
+}
+
+function upperMedian(values) {
+  const sorted = [...values].sort((left, right) => left - right);
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
+function bootstrapMedianInterval(values) {
+  let state = 0x7e57016220260804n;
+  const mask = (1n << 64n) - 1n;
+  const estimates = [];
+  for (let sampleIndex = 0; sampleIndex < 20_000; sampleIndex += 1) {
+    const sample = [];
+    for (let valueIndex = 0; valueIndex < values.length; valueIndex += 1) {
+      state = (state * 6364136223846793005n + 1442695040888963407n) & mask;
+      sample.push(values[Number(state % BigInt(values.length))]);
+    }
+    estimates.push(upperMedian(sample));
+  }
+  estimates.sort((left, right) => left - right);
+  return [estimates[1_000], estimates[19_000]];
+}
+
+const PAIRED_METRICS = [
+  ['currentPointReadP50Us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
+  ['currentPointReadP95Us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
+  ['currentRangeReadP50Us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
+  ['currentRangeReadP95Us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
+  ['currentQueryPlanReadP50Us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
+  ['currentQueryPlanReadP95Us', 'higherIsWorse', 'twoSidedEquivalence', 5, 'latency'],
+  ['singleWriterMutationsPerSec', 'lowerIsWorse', 'oneSidedRegression', 15, 'throughput'],
+  ['singleWriterMutationP50Us', 'higherIsWorse', 'oneSidedRegression', 15, 'latency'],
+  ['singleWriterMutationP95Us', 'higherIsWorse', 'oneSidedRegression', 15, 'latency'],
+];
+
+const BYTE_METRICS = [
+  'allocatedWriteBytesPerChangedRow',
+  'allocatedWriteBytesPerOperation',
+  'retainedBytesPerChangedRow',
+  'retainedBytesPerOperation',
+];
+
+function validatePairedComparisons(value) {
+  requireEvidence(Array.isArray(value.rawPairs) && value.rawPairs.length === 11,
+    'paired raw observation population drifted');
+  value.rawPairs.forEach((pair, index) => {
+    requireEvidence(pair.pair === index + 1
+      && pair.order === (index % 2 === 0 ? 'baselineThenCandidate' : 'candidateThenBaseline'),
+    `paired raw observation ${index + 1} order drifted`);
+  });
+  requireEvidence(Array.isArray(value.comparisons)
+    && value.comparisons.length === PAIRED_METRICS.length,
+  'paired comparison vocabulary drifted');
+  PAIRED_METRICS.forEach(([metric, direction, boundKind, boundPercent, mode], index) => {
+    const comparison = value.comparisons[index];
+    requireEvidence(comparison.metric === metric
+      && comparison.direction === direction
+      && comparison.boundKind === boundKind
+      && comparison.boundPercent === boundPercent,
+    `paired comparison ${metric} identity/bound drifted`);
+    const regressions = value.rawPairs.map((pair) => {
+      const baseline = pair.baseline?.[metric];
+      const candidate = pair.candidateActiveCovered?.[metric];
+      requireEvidence(Number.isFinite(baseline) && baseline > 0 && Number.isFinite(candidate),
+        `paired raw metric ${metric} is invalid`);
+      return mode === 'throughput'
+        ? 100 * (1 - candidate / baseline)
+        : 100 * (candidate / baseline - 1);
+    });
+    const [lower, upper] = bootstrapMedianInterval(regressions);
+    const passed = boundKind === 'twoSidedEquivalence'
+      ? lower >= -boundPercent && upper <= boundPercent
+      : upper <= boundPercent;
+    requireCloseArray(comparison.pairedRegressionsPercent, regressions,
+      `${metric} paired regressions`);
+    requireClose(comparison.pairedMedianRegressionPercent, upperMedian(regressions),
+      `${metric} paired median`);
+    requireClose(comparison.bootstrap90PercentLower, lower, `${metric} bootstrap lower`);
+    requireClose(comparison.bootstrap90PercentUpper, upper, `${metric} bootstrap upper`);
+    requireEvidence(comparison.passed === passed && passed,
+      `${metric} registered threshold failed`);
+  });
+
+  requireEvidence(Array.isArray(value.byteComparisons)
+    && value.byteComparisons.length === BYTE_METRICS.length,
+  'paired byte observation vocabulary drifted');
+  BYTE_METRICS.forEach((metric, index) => {
+    const comparison = value.byteComparisons[index];
+    const baseline = value.rawPairs.map((pair) => pair.baseline?.[metric]);
+    const candidate = value.rawPairs.map((pair) => pair.candidateActiveCovered?.[metric]);
+    requireEvidence(comparison.metric === metric
+      && comparison.thresholdStatus
+        === 'observed; LLP 0162 registers the metric but no numeric byte bound'
+      && baseline.every(Number.isSafeInteger)
+      && candidate.every(Number.isSafeInteger),
+    `${metric} byte observation identity/value drifted`);
+    requireEvidence(JSON.stringify(comparison.baselineValues) === JSON.stringify(baseline)
+      && JSON.stringify(comparison.candidateActiveCoveredValues) === JSON.stringify(candidate),
+    `${metric} byte observations disagree with raw pairs`);
+    requireEvidence(comparison.baselineMedian === upperMedian(baseline)
+      && comparison.candidateActiveCoveredMedian === upperMedian(candidate),
+    `${metric} byte median drifted`);
+    const change = baseline.map((base, pairIndex) => (base > 0
+      ? 100 * (candidate[pairIndex] / base - 1)
+      : null));
+    comparison.pairedChangePercent.forEach((actual, pairIndex) => {
+      if (change[pairIndex] === null) {
+        requireEvidence(actual === null, `${metric} zero-baseline change must be null`);
+      } else {
+        requireClose(actual, change[pairIndex], `${metric} paired change ${pairIndex}`);
+      }
+    });
+  });
+}
+
+function validatePairedIdle(value) {
+  const baselineCpu = [];
+  const candidateCpu = [];
+  const baselineRss = [];
+  const candidateRss = [];
+  const outputBlocks = [];
+  const databaseDeltas = [];
+  for (const pair of value.rawPairs) {
+    const baseline = pair.baselineIdle;
+    const candidate = pair.candidateActiveCoveredIdle;
+    requireEvidence(baseline?.durationMs === 5_000 && candidate?.durationMs === 5_000,
+      'paired idle duration drifted');
+    baselineCpu.push(baseline.cpuUserUs + baseline.cpuSystemUs);
+    candidateCpu.push(candidate.cpuUserUs + candidate.cpuSystemUs);
+    baselineRss.push(baseline.residentKbBefore);
+    candidateRss.push(candidate.residentKbBefore);
+    outputBlocks.push(candidate.outputBlockOperations);
+    databaseDeltas.push(candidate.databaseFamilyBytesAfter - candidate.databaseFamilyBytesBefore);
+  }
+  requireEvidence([...baselineRss, ...candidateRss]
+    .every((number) => Number.isFinite(number) && number > 0),
+  'paired idle RSS observations are invalid');
+  const rssRegressions = baselineRss.map((baseline, index) => (
+    100 * (candidateRss[index] / baseline - 1)
+  ));
+  const [rssLower, rssUpper] = bootstrapMedianInterval(rssRegressions);
+  const cpuMax = Math.max(...candidateCpu);
+  const cpuPassed = cpuMax <= 5_000;
+  const rssPassed = rssLower >= -5 && rssUpper <= 5;
+  const outputZero = outputBlocks.every((number) => number === 0);
+  const databaseZero = databaseDeltas.every((number) => number === 0);
+  const diskPassed = outputZero && databaseZero;
+  const idle = value.idleGates;
+  requireEvidence(idle?.durationMs === 5_000 && idle.cpuResolutionUs === 5_000
+    && idle.rssEquivalenceBoundPercent === 5,
+  'paired idle gate contract drifted');
+  requireEvidence(JSON.stringify(idle.baselineCombinedCpuUs) === JSON.stringify(baselineCpu)
+    && JSON.stringify(idle.candidateCombinedCpuUs) === JSON.stringify(candidateCpu)
+    && JSON.stringify(idle.candidateOutputBlockOperations) === JSON.stringify(outputBlocks)
+    && JSON.stringify(idle.candidateDatabaseFamilyByteDeltas) === JSON.stringify(databaseDeltas),
+  'paired idle summaries disagree with raw observations');
+  requireCloseArray(idle.baselineRssBeforeKb, baselineRss, 'baseline idle RSS');
+  requireCloseArray(idle.candidateRssBeforeKb, candidateRss, 'candidate idle RSS');
+  requireCloseArray(idle.pairedRssRegressionsPercent, rssRegressions, 'paired idle RSS regressions');
+  requireClose(idle.baselineRssMedianKb, upperMedian(baselineRss), 'baseline RSS median');
+  requireClose(idle.candidateRssMedianKb, upperMedian(candidateRss), 'candidate RSS median');
+  requireClose(idle.pairedRssMedianRegressionPercent, upperMedian(rssRegressions),
+    'paired RSS median regression');
+  requireClose(idle.bootstrap90PercentLower, rssLower, 'paired RSS bootstrap lower');
+  requireClose(idle.bootstrap90PercentUpper, rssUpper, 'paired RSS bootstrap upper');
+  requireEvidence(idle.candidateCpuMaxObservedUs === cpuMax
+    && idle.cpuPassed === cpuPassed
+    && idle.rssPassed === rssPassed
+    && idle.everyCandidateOutputBlockCountZero === outputZero
+    && idle.everyCandidateDatabaseFamilyDeltaZero === databaseZero
+    && idle.diskPassed === diskPassed
+    && idle.passed === (cpuPassed && rssPassed && diskPassed)
+    && idle.passed === true,
+  'paired idle gate failed or summary drifted');
+}
+
+export function validatePairedPerformanceArtifact(value, commit) {
   requireEvidence(value.schemaVersion === 'snapback.agent-safe-active-paired.v2', 'paired schema drifted');
   requireEvidence(value.artifactName === 'agent-safe-active-covered-paired-2026-08-04', 'paired artifact identity drifted');
   requireEvidence(value.date === '2026-08-04', 'paired date drifted');
@@ -298,21 +501,39 @@ function validatePairedPerformance(root, commit) {
     && value.protocol?.warmupsPerExecutable === 1
     && value.protocol?.bootstrapSamples === 20_000,
   'paired protocol population drifted');
-  requireEvidence(Array.isArray(value.rawPairs) && value.rawPairs.length === 11,
-    'paired raw observation population drifted');
-  requireEvidence(Array.isArray(value.comparisons) && value.comparisons.length === 9
-    && value.comparisons.every(({ passed }) => passed === true),
-  'paired registered thresholds did not all pass');
-  requireEvidence(value.idleGates?.passed === true
-    && value.measuredComparativeThresholdsPassed === true,
-  'paired CPU/RSS/disk or aggregate threshold failed');
+  validatePairedComparisons(value);
+  validatePairedIdle(value);
+  requireEvidence(value.measuredComparativeThresholdsPassed === true
+    && value.comparisons.every(({ passed }) => passed === true)
+    && value.idleGates.passed === true,
+  'paired aggregate threshold failed');
   requireEvidence(value.fullRow13ProtocolQualified === false,
     'paired artifact must defer full row 13 to composed evidence');
 }
 
-function validateAbsolutePerformance(root, commit) {
-  const path = EVIDENCE[2][1];
-  const value = readEvidenceJson(root, path, 'absolute performance');
+function validatePairedPerformance(root, commit) {
+  const path = EVIDENCE[1][1];
+  validatePairedPerformanceArtifact(readEvidenceJson(root, path, 'paired performance'), commit);
+}
+
+function statistics(values) {
+  const sorted = [...values].sort((left, right) => left - right);
+  const median = upperMedian(sorted);
+  return {
+    median,
+    mad: upperMedian(sorted.map((value) => Math.abs(value - median))),
+    min: sorted[0],
+    max: sorted.at(-1),
+  };
+}
+
+function nearestRank(values, quantile) {
+  const sorted = [...values].sort((left, right) => left - right);
+  const rank = Math.ceil(quantile * sorted.length);
+  return sorted[Math.max(0, Math.min(sorted.length - 1, rank - 1))];
+}
+
+export function validateAbsolutePerformanceArtifact(value, commit) {
   requireEvidence(value.schemaVersion === 'snapback.fork-promotion-performance.v3', 'absolute schema drifted');
   requireEvidence(value.artifactName === 'agent-safe-fork-promotion-absolute-2026-08-04', 'absolute artifact identity drifted');
   requireEvidence(value.date === '2026-08-04', 'absolute date drifted');
@@ -337,23 +558,56 @@ function validateAbsolutePerformance(root, commit) {
   'absolute fixture/protocol population drifted');
   requireEvidence(Array.isArray(value.rawRuns) && value.rawRuns.length === 11,
     'absolute raw-run population drifted');
-  requireEvidence(value.absoluteBoundsPassed === true,
-    'absolute operation bound failed');
+  for (const [summaryName, rawName] of [
+    ['forkCreation', 'forkCreationUs'],
+    ['exactDiff', 'exactDiffUs'],
+    ['promotion', 'promotionUs'],
+    ['ttlReap', 'ttlReapUs'],
+  ]) {
+    const raw = value.rawRuns.map((run) => run[rawName]);
+    requireEvidence(raw.every((number) => Number.isFinite(number) && number >= 0),
+      `absolute ${summaryName} raw observations are invalid`);
+    const computed = statistics(raw);
+    for (const key of ['median', 'mad', 'min', 'max']) {
+      requireClose(value.summaryUs?.[summaryName]?.[key], computed[key],
+        `absolute ${summaryName} ${key}`);
+    }
+  }
   requireEvidence(value.absoluteBounds?.forkCreationMedianUs === 1_000
     && value.absoluteBounds?.exactDiffMedianUs === 2_500
     && value.absoluteBounds?.promotionMedianUs === 7_500
     && value.absoluteBounds?.ttlReapMedianUs === 250
     && value.absoluteBounds?.ordinaryWriterContentionP99Us === 1_250_000,
   'absolute author-ratified bounds drifted');
-  requireEvidence(Array.isArray(value.contention?.rawRequestToCommitUs)
-    && value.contention.rawRequestToCommitUs.length === 128
+  const samples = value.contention?.rawRequestToCommitUs;
+  requireEvidence(value.contention?.metric === 'ordinaryWriterReservationRequestToCommitP99Us'
+    && value.contention?.reservationIntervalMs === 1_000
+    && value.contention?.maximumPromotionCommitDurationMs === 500
+    && Array.isArray(samples) && samples.length === 128
+    && samples.every((number) => Number.isFinite(number) && number >= 0)
     && value.contention.initialDeferredWorkerCount === 8
-    && value.contention.deferredSampleCount > 0
-    && value.contention.p99Us <= 1_250_000,
-  'active-carrier contention population or p99 failed');
+    && value.contention.deferredSampleCount > 0,
+  'active-carrier contention contract/population drifted');
+  for (const [key, quantile] of [['p50Us', 0.5], ['p95Us', 0.95], ['p99Us', 0.99]]) {
+    requireClose(value.contention[key], nearestRank(samples, quantile), `contention ${key}`);
+  }
+  requireClose(value.contention.maxUs, Math.max(...samples), 'contention max');
+  const boundsPassed = value.summaryUs.forkCreation.median <= 1_000
+    && value.summaryUs.exactDiff.median <= 2_500
+    && value.summaryUs.promotion.median <= 7_500
+    && value.summaryUs.ttlReap.median <= 250
+    && value.contention.p99Us <= 1_250_000;
+  requireEvidence(value.absoluteBoundsPassed === boundsPassed && boundsPassed,
+    'absolute operation/contention bound failed or summary drifted');
   requireEvidence(value.promotionEgressScope
     === 'DenyAll/no-effects only; CaptureOnly intent publication and settlement are not measured',
   'absolute artifact widened its egress scope');
+}
+
+function validateAbsolutePerformance(root, commit) {
+  const path = EVIDENCE[2][1];
+  const value = readEvidenceJson(root, path, 'absolute performance');
+  validateAbsolutePerformanceArtifact(value, commit);
 }
 
 function validateAcceptanceCorpus(root, commit, implementationTree) {
@@ -415,6 +669,15 @@ function validateReview(root, path, family, commit, implementationTree) {
     `${family} review widened the derived capability`);
   requireEvidence(markdownField(text, 'Broader capability facts') === 'Missing',
     `${family} review widened broader facts`);
+  requireEvidence(markdownField(text, 'Reviewed LLPs') === '0158, 0163, 0164, 0165',
+    `${family} review did not cover every status transition`);
+  requireEvidence(markdownField(text, 'Status recommendation') === 'Accepted',
+    `${family} review did not recommend Accepted status`);
+  requireEvidence(
+    markdownField(text, 'LLP 0158 OQ9 disposition')
+      === 'READY (in-document amendment pattern sufficient)',
+    `${family} review did not adjudicate LLP 0158 OQ9`,
+  );
 }
 
 function validateAuthorAcceptance(root, commit, implementationTree) {
@@ -538,7 +801,7 @@ export function runChecker(root) {
         || atQualification !== atPublication) {
       fail(`${result.id} P-vs-C implementation tree drifted`);
     }
-    if (git(root, ['status', '--porcelain']) !== '') fail(`${result.id} publication tree is dirty`);
+    checkedOutImplementationGitlink(root);
   }
   return results;
 }

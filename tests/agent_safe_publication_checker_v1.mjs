@@ -10,6 +10,8 @@ import {
   allowedPublicationPath,
   implementationDigestAt,
   runChecker,
+  validateAbsolutePerformanceArtifact,
+  validatePairedPerformanceArtifact,
   validatePublishedEvidenceSemantics,
   validatePublicationRecord,
 } from '../scripts/check-agent-safe-publication.mjs';
@@ -36,6 +38,172 @@ const derived = {
   receipt: 'tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json',
   components: ['derivedDeploymentForkSafetyV1'],
 };
+
+const pairedMetrics = [
+  ['currentPointReadP50Us', 'higherIsWorse', 'twoSidedEquivalence', 5],
+  ['currentPointReadP95Us', 'higherIsWorse', 'twoSidedEquivalence', 5],
+  ['currentRangeReadP50Us', 'higherIsWorse', 'twoSidedEquivalence', 5],
+  ['currentRangeReadP95Us', 'higherIsWorse', 'twoSidedEquivalence', 5],
+  ['currentQueryPlanReadP50Us', 'higherIsWorse', 'twoSidedEquivalence', 5],
+  ['currentQueryPlanReadP95Us', 'higherIsWorse', 'twoSidedEquivalence', 5],
+  ['singleWriterMutationsPerSec', 'lowerIsWorse', 'oneSidedRegression', 15],
+  ['singleWriterMutationP50Us', 'higherIsWorse', 'oneSidedRegression', 15],
+  ['singleWriterMutationP95Us', 'higherIsWorse', 'oneSidedRegression', 15],
+];
+const byteMetrics = [
+  'allocatedWriteBytesPerChangedRow',
+  'allocatedWriteBytesPerOperation',
+  'retainedBytesPerChangedRow',
+  'retainedBytesPerOperation',
+];
+
+function validPairedEvidence(commit) {
+  const report = Object.fromEntries([
+    ...pairedMetrics.map(([metric]) => [metric, 100]),
+    ...byteMetrics.map((metric) => [metric, 100]),
+  ]);
+  const idle = {
+    durationMs: 5_000,
+    cpuUserUs: 0,
+    cpuSystemUs: 0,
+    outputBlockOperations: 0,
+    residentKbBefore: 100,
+    residentKbAfter: 100,
+    databaseFamilyBytesBefore: 100,
+    databaseFamilyBytesAfter: 100,
+  };
+  const rawPairs = Array.from({ length: 11 }, (_, index) => ({
+    pair: index + 1,
+    order: index % 2 === 0 ? 'baselineThenCandidate' : 'candidateThenBaseline',
+    baseline: { ...report },
+    baselineIdle: { ...idle },
+    candidateActiveCovered: { ...report },
+    candidateActiveCoveredIdle: { ...idle },
+  }));
+  return {
+    schemaVersion: 'snapback.agent-safe-active-paired.v2',
+    artifactName: 'agent-safe-active-covered-paired-2026-08-04',
+    date: '2026-08-04',
+    baseline: {
+      artifactSha256: 'sha256:d28d8514f48db3f8a0e4d0c33a1381f12e4ad13eaf6a69187aef9b7fe822ab91',
+    },
+    candidate: {
+      sourceRevision: commit,
+      sourceTreeClean: true,
+      buildProfile: 'release',
+      activeProfile: 'serverIssuedClientRange+ordinaryMutationCoverageV1+productionEnvelopeChokePoint',
+    },
+    hardwareClass: {
+      model: 'Mac17,3', cpu: 'Apple M5', logicalCpus: 10, memoryBytes: 34_359_738_368,
+    },
+    protocol: { recordedPairs: 11, warmupsPerExecutable: 1, bootstrapSamples: 20_000 },
+    rawPairs,
+    comparisons: pairedMetrics.map(([metric, direction, boundKind, boundPercent]) => ({
+      metric,
+      direction,
+      boundKind,
+      boundPercent,
+      pairedRegressionsPercent: Array(11).fill(0),
+      pairedMedianRegressionPercent: 0,
+      bootstrap90PercentLower: 0,
+      bootstrap90PercentUpper: 0,
+      passed: true,
+    })),
+    byteComparisons: byteMetrics.map((metric) => ({
+      metric,
+      baselineValues: Array(11).fill(100),
+      candidateActiveCoveredValues: Array(11).fill(100),
+      baselineMedian: 100,
+      candidateActiveCoveredMedian: 100,
+      pairedChangePercent: Array(11).fill(0),
+      thresholdStatus: 'observed; LLP 0162 registers the metric but no numeric byte bound',
+    })),
+    idleGates: {
+      durationMs: 5_000,
+      baselineCombinedCpuUs: Array(11).fill(0),
+      candidateCombinedCpuUs: Array(11).fill(0),
+      candidateCpuMaxObservedUs: 0,
+      cpuResolutionUs: 5_000,
+      cpuPassed: true,
+      baselineRssBeforeKb: Array(11).fill(100),
+      candidateRssBeforeKb: Array(11).fill(100),
+      baselineRssMedianKb: 100,
+      candidateRssMedianKb: 100,
+      pairedRssRegressionsPercent: Array(11).fill(0),
+      pairedRssMedianRegressionPercent: 0,
+      bootstrap90PercentLower: 0,
+      bootstrap90PercentUpper: 0,
+      rssEquivalenceBoundPercent: 5,
+      rssPassed: true,
+      candidateOutputBlockOperations: Array(11).fill(0),
+      candidateDatabaseFamilyByteDeltas: Array(11).fill(0),
+      everyCandidateOutputBlockCountZero: true,
+      everyCandidateDatabaseFamilyDeltaZero: true,
+      diskPassed: true,
+      passed: true,
+    },
+    measuredComparativeThresholdsPassed: true,
+    fullRow13ProtocolQualified: false,
+  };
+}
+
+function validAbsoluteEvidence(commit) {
+  const rawRuns = Array.from({ length: 11 }, () => ({
+    forkCreationUs: 100,
+    exactDiffUs: 200,
+    promotionUs: 300,
+    ttlReapUs: 10,
+  }));
+  return {
+    schemaVersion: 'snapback.fork-promotion-performance.v3',
+    artifactName: 'agent-safe-fork-promotion-absolute-2026-08-04',
+    date: '2026-08-04',
+    sourceRevision: commit,
+    sourceTreeClean: true,
+    baselineArtifact: {
+      sha256: 'sha256:d28d8514f48db3f8a0e4d0c33a1381f12e4ad13eaf6a69187aef9b7fe822ab91',
+    },
+    hardwareClass: {
+      model: 'Mac17,3', cpu: 'Apple M5', logicalCpus: 10, memoryBytes: 34_359_738_368,
+    },
+    fixture: {
+      logicalRows: 512,
+      wholeRunWarmups: 1,
+      perMetricWarmups: 4,
+      recordedRuns: 11,
+      contentionSamples: 128,
+      contentionWorkers: 8,
+    },
+    rawRuns,
+    summaryUs: {
+      forkCreation: { median: 100, mad: 0, min: 100, max: 100 },
+      exactDiff: { median: 200, mad: 0, min: 200, max: 200 },
+      promotion: { median: 300, mad: 0, min: 300, max: 300 },
+      ttlReap: { median: 10, mad: 0, min: 10, max: 10 },
+    },
+    contention: {
+      metric: 'ordinaryWriterReservationRequestToCommitP99Us',
+      reservationIntervalMs: 1_000,
+      maximumPromotionCommitDurationMs: 500,
+      rawRequestToCommitUs: Array(128).fill(1_000),
+      deferredSampleCount: 8,
+      initialDeferredWorkerCount: 8,
+      p50Us: 1_000,
+      p95Us: 1_000,
+      p99Us: 1_000,
+      maxUs: 1_000,
+    },
+    absoluteBounds: {
+      forkCreationMedianUs: 1_000,
+      exactDiffMedianUs: 2_500,
+      promotionMedianUs: 7_500,
+      ttlReapMedianUs: 250,
+      ordinaryWriterContentionP99Us: 1_250_000,
+    },
+    absoluteBoundsPassed: true,
+    promotionEgressScope: 'DenyAll/no-effects only; CaptureOnly intent publication and settlement are not measured',
+  };
+}
 
 function fixture() {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-agent-safe-publication-'));
@@ -79,6 +247,37 @@ test('derived publication has no storage-evidence substitution path', () => {
   assert.throws(
     () => validatePublishedEvidenceSemantics(root, derived, head),
     /no dedicated end-to-end F0b performance evidence contract/u,
+  );
+});
+
+test('paired evidence is recomputed from raw observations', () => {
+  const commit = 'a'.repeat(40);
+  const valid = validPairedEvidence(commit);
+  validatePairedPerformanceArtifact(valid, commit);
+  for (let index = 0; index < 6; index += 1) {
+    valid.rawPairs[index].candidateActiveCovered.currentPointReadP50Us = 200;
+  }
+  assert.throws(
+    () => validatePairedPerformanceArtifact(valid, commit),
+    /disagrees with retained raw observations/u,
+  );
+});
+
+test('absolute summaries and p99 are recomputed from raw observations', () => {
+  const commit = 'b'.repeat(40);
+  const valid = validAbsoluteEvidence(commit);
+  validateAbsolutePerformanceArtifact(valid, commit);
+  valid.rawRuns[0].forkCreationUs = 2_000;
+  assert.throws(
+    () => validateAbsolutePerformanceArtifact(valid, commit),
+    /disagrees with retained raw observations/u,
+  );
+  const contention = validAbsoluteEvidence(commit);
+  contention.contention.rawRequestToCommitUs[0] = 2_000_000;
+  contention.contention.rawRequestToCommitUs[1] = 2_000_000;
+  assert.throws(
+    () => validateAbsolutePerformanceArtifact(contention, commit),
+    /contention p99Us disagrees with retained raw observations/u,
   );
 });
 

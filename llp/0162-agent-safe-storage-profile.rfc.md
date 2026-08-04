@@ -1513,7 +1513,10 @@ the carrier. The build independently verifies a clean root and an exact,
 clean checked-out `vendor/ibex` gitlink regardless of general build-identity
 environment overrides. The implementation tree includes Cargo/build inputs,
 Rust implementation, codegen and contract packages, the publication checker,
-recorders, and the `vendor/ibex` gitlink identity. The two anchors, carriers,
+recorders, and the `vendor/ibex` gitlink identity. Incremental builds track
+the vendored source directories plus the resolved submodule worktree and
+common-git metadata, so an in-place Ibex source, index, HEAD, or ref change
+cannot retain a cached clean digest. The two anchors, carriers,
 receipts, and closed dated evidence outputs are the only cycle exclusions. The
 history-aware checker, now in the canonical local proof, proves the
 qualification commit C
@@ -1521,8 +1524,11 @@ is an ancestor of publication commit P and that the implementation tree is
 identical at C and P; the carrier binds the receipt, which in turn binds the
 acceptance record, paired and absolute performance records, two independent
 reviews, and author acceptance by path and SHA-256. It also parses those
-artifacts semantically for exact clean candidate/hardware/protocol identity,
-passed paired and absolute gates, Acceptance rows 1–4/13/14, distinct Fable
+artifacts semantically for exact clean candidate/hardware/protocol identity.
+It recomputes every paired regression, bootstrap interval, idle gate,
+absolute median/MAD/range, and contention percentile from the retained raw
+observations before accepting the reported passed paired and absolute gates,
+Acceptance rows 1–4/13/14, distinct Fable
 and Codex `READY` verdicts, Charlie's scoped acceptance, and every wider fact
 remaining `Missing`.
 
