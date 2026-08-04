@@ -1676,16 +1676,26 @@ const clientCodedError = (error, code) => {
 
 const LEGACY_REGISTRATION_PARTITION = `sha256:${'0'.repeat(64)}`;
 
-function mintVolatileRegistrationId() {
-  const bytes = new Uint8Array(16);
-  if (typeof globalThis.crypto?.getRandomValues !== 'function') {
+let localRegistrationSequence = 0;
+function mintVolatileRegistrationId(randomBytes = undefined, { allowLocalFallback = false } = {}) {
+  const source = randomBytes ?? (typeof globalThis.crypto?.getRandomValues === 'function'
+    ? (length) => globalThis.crypto.getRandomValues(new Uint8Array(length))
+    : null);
+  if (source === null) {
+    if (allowLocalFallback) {
+      localRegistrationSequence += 1;
+      return `qreg1_local_${Date.now().toString(36)}_${localRegistrationSequence.toString(36)}`;
+    }
     const error = new Error(
       'SNAPBACK_QUERY_REGISTRATION_RANDOM_UNAVAILABLE: active registration identity requires crypto.getRandomValues',
     );
     error.code = 'SNAPBACK_QUERY_REGISTRATION_RANDOM_UNAVAILABLE';
     throw error;
   }
-  globalThis.crypto.getRandomValues(bytes);
+  const bytes = source(16);
+  if (!(bytes instanceof Uint8Array) || bytes.length !== 16) {
+    throw new TypeError('query registration randomBytes(16) must return exactly 16 Uint8Array bytes');
+  }
   return `qreg1_${[...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('')}`;
 }
 
@@ -1809,11 +1819,13 @@ export class SnapbackClient {
     // "not configured" and resolves the default ladder; explicit null/false
     // is the opt-out. The resolved implementation and durability mode are
     // always reported (LLP 0008 DK-9).
+    let registrationRandomBytes;
     if (rqsStore === undefined) {
       const resolved = resolveDefaultRqsStore({ baseUrl: this.baseUrl });
       this.rqsStore = resolved.store;
       this.rqsStoreInfo = resolved.info;
       this.__ownsRqsStore = resolved.store !== null;
+      registrationRandomBytes = resolved.randomBytes;
     } else if (rqsStore) {
       this.rqsStore = rqsStore;
       const durability = typeof rqsStore.durability === 'function'
@@ -1837,7 +1849,10 @@ export class SnapbackClient {
       this.__ownsRqsStore = false;
     }
     this.__rqsStoreClosePromise = null;
-    this.__registrationContextId = mintVolatileRegistrationId();
+    this.__registrationContextId = null;
+    this.__registrationRandomBytes = registrationRandomBytes;
+    this.__registrationRequiresSecureRandom = this.rqsStore !== null
+      || __materializationStore !== null;
     this.__materializationStore = __materializationStore;
     this.__materializationStorePromise = __materializationStore
       ? Promise.resolve(__materializationStore)
@@ -4573,7 +4588,16 @@ export class SnapbackClient {
   async __registerActiveQueryDemand(ref, args, persistResume, preparedBridge = null) {
     const ledger = await this.__registrationLedgerPromise;
     if (ledger === null) return () => {};
-    const registrationId = mintVolatileRegistrationId();
+    // @ref LLP 0166#the-multi-context-demand-broker — persisted/brokered
+    // context identities remain CSPRNG-only. A storeless Online client has no
+    // cross-context identity to defend, so it uses process-local uniqueness
+    // and does not make optional local storage a prerequisite for connecting.
+    const mintRegistrationId = () => mintVolatileRegistrationId(
+      this.__registrationRandomBytes,
+      { allowLocalFallback: !this.__registrationRequiresSecureRandom },
+    );
+    this.__registrationContextId ??= mintRegistrationId();
+    const registrationId = mintRegistrationId();
     const functionReference = typeof ref === 'object' && ref !== null
       ? structuredClone(ref)
       : { name: functionName(ref) };
@@ -5077,7 +5101,9 @@ export class SnapbackClient {
     this.__authParticipantUnregister = null;
     try {
       const ledger = await this.__registrationLedgerPromise;
-      ledger?.releaseContextDemands({ contextId: this.__registrationContextId });
+      if (this.__registrationContextId !== null) {
+        ledger?.releaseContextDemands({ contextId: this.__registrationContextId });
+      }
       this.__activeRegistrations.clear();
     } catch (error) { firstError ??= error; }
     // @ref LLP 0090#d3-channel-b--persisted-device-snapshot — the client

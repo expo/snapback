@@ -10,8 +10,9 @@ the declared retainable public query).
 
 Facts proven on the real carrier (`evidence/b1-witness.json`):
 
-- **Ladder resolution on real RN:** after the one-line root registration
-  (`registerExpoFileSystemRqsFiles(FileSystem)`), `resolveDefaultRqsStore`
+- **Ladder resolution on real RN:** after the root registration
+  (`registerExpoFileSystemRqsFiles(FileSystem)` in the recorded v2 run),
+  `resolveDefaultRqsStore`
   and the client constructor resolve
   `{ source: 'default', implementation: 'file', durable: true }` under
   `navigator.product === 'ReactNative'`.
@@ -44,3 +45,15 @@ The store-contract acceptance itself (the full Channel B resume suite) runs
 in CI on the node projection of the pinned expo-file-system API:
 `packages/snapback-client/rqs-resume-expo.test.mjs` and
 `rqs-store-expo.test.mjs`.
+
+## Format-v3 rerun note (2026-08-03)
+
+The recorded August 1 receipt predates LLP 0166's format-v3 store metadata.
+That format adds a CSPRNG local-row-handle key. The current probe source
+therefore registers both native modules:
+`registerExpoFileSystemRqsFiles(FileSystem, { crypto: Crypto })`, with
+`Crypto` imported from `expo-crypto`. This is direct dependency injection,
+not a `globalThis.crypto` polyfill. If the RNG is absent, ordinary Online
+queries still run but the optional store honestly reports
+`secure-random-unavailable`; a future on-device rerun must assert the injected
+file-store branch before claiming format-v3 relaunch retention.

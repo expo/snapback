@@ -24,6 +24,14 @@ function storeError(code, message, details = {}) {
 
 const unavailable = (message) => storeError('SNAPBACK_RQS_STORE_UNAVAILABLE', message);
 
+const randomBytesFromCrypto = (crypto) => {
+  if (crypto === undefined) return undefined;
+  if (typeof crypto?.getRandomValues !== 'function') {
+    throw unavailable('the Expo RQS resume store crypto module requires getRandomValues()');
+  }
+  return (length) => crypto.getRandomValues(new Uint8Array(length));
+};
+
 const assertFileSystem = (fileSystem) => {
   if (typeof fileSystem?.File !== 'function' || typeof fileSystem?.Directory !== 'function') {
     throw unavailable(
@@ -180,8 +188,10 @@ export function createExpoFilesAdapter(fileSystem) {
 /** Convenience constructor for an app-injected expo-file-system module. */
 export function createExpoRqsResumeStore({
   fileSystem,
+  crypto,
   directory,
   identity,
+  randomBytes = randomBytesFromCrypto(crypto),
   ...rest
 } = {}) {
   assertFileSystem(fileSystem);
@@ -190,15 +200,17 @@ export function createExpoRqsResumeStore({
     directory: directory ?? defaultDirectory(fileSystem),
     files: createExpoFilesAdapter(fileSystem),
     identity,
+    randomBytes,
   });
 }
 
 /** Register Expo files once at the app root for the default resolver ladder. */
-export function registerExpoFileSystemRqsFiles(fileSystem, { directory } = {}) {
+export function registerExpoFileSystemRqsFiles(fileSystem, { directory, crypto } = {}) {
   assertFileSystem(fileSystem);
   return registerNativeRqsFiles({
     files: createExpoFilesAdapter(fileSystem),
     directory: directory ?? defaultDirectory(fileSystem),
     implementation: 'expo-file-system',
+    randomBytes: randomBytesFromCrypto(crypto),
   });
 }

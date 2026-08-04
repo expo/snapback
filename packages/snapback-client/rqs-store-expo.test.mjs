@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 
 import { createFakeExpoFileSystem } from './fake-expo-file-system.mjs';
+import { SnapbackClient } from './index.mjs';
 import { argsHash, digestOfRows } from './rqs.mjs';
 import { rqsEntryKey } from './rqs-store.mjs';
 import {
@@ -42,6 +43,21 @@ async function makeFake(t) {
   t.after(() => rm(root, { recursive: true, force: true }));
   return createFakeExpoFileSystem(root);
 }
+
+const withoutGlobalCrypto = async (run) => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+  Object.defineProperty(globalThis, 'crypto', {
+    value: undefined,
+    configurable: true,
+    writable: true,
+  });
+  try {
+    return await run();
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis, 'crypto', descriptor);
+    else delete globalThis.crypto;
+  }
+};
 
 test('adapter refuses a module without the pinned File/Directory shape', () => {
   assert.throws(
@@ -97,6 +113,80 @@ test('the launch id is stable and exactly defines mobile-process liveness', asyn
   assert.equal(second.processId(), pid);
   assert.equal(first.processAlive(pid), true);
   assert.equal(first.processAlive(pid === 1 ? 2 : 1), false);
+});
+
+test('cryptoless RN keeps Online clients usable and reports the optional store unavailable', async (t) => {
+  const fake = await makeFake(t);
+  const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  const restoreNavigator = () => {
+    if (originalNavigator) Object.defineProperty(globalThis, 'navigator', originalNavigator);
+    else delete globalThis.navigator;
+  };
+
+  clearNativeRqsFiles();
+  try {
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { product: 'ReactNative' },
+      configurable: true,
+    });
+    await withoutGlobalCrypto(async () => {
+      registerExpoFileSystemRqsFiles(fake.module);
+      const client = new SnapbackClient('https://online.example');
+      assert.equal(client.rqsStore, null);
+      assert.deepEqual(
+        { ...client.rqsStoreInfo },
+        {
+          source: 'default',
+          implementation: null,
+          durable: false,
+          reason: 'secure-random-unavailable',
+        },
+      );
+      const release = await client.__registerActiveQueryDemand('listRooms', {}, false);
+      release();
+      await client.closeAuth();
+    });
+  } finally {
+    clearNativeRqsFiles();
+    restoreNavigator();
+  }
+});
+
+test('Expo crypto injection enables the native store without mutating global crypto', async (t) => {
+  const fake = await makeFake(t);
+  const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  const restoreNavigator = () => {
+    if (originalNavigator) Object.defineProperty(globalThis, 'navigator', originalNavigator);
+    else delete globalThis.navigator;
+  };
+  let randomByte = 0;
+  const crypto = {
+    getRandomValues(values) {
+      values.fill((randomByte += 1));
+      return values;
+    },
+  };
+
+  clearNativeRqsFiles();
+  try {
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { product: 'ReactNative' },
+      configurable: true,
+    });
+    await withoutGlobalCrypto(async () => {
+      registerExpoFileSystemRqsFiles(fake.module, { crypto });
+      const client = new SnapbackClient('https://persistent.example');
+      assert.equal(client.rqsStoreInfo.implementation, 'file');
+      await client.rqsStore.whenLockSettled();
+      assert.match((await client.rqsStore.readStoreMeta()).handleKey, /^[0-9a-f]{64}$/u);
+      const release = await client.__registerActiveQueryDemand('listRooms', {}, true);
+      release();
+      await client.closeAuth();
+    });
+  } finally {
+    clearNativeRqsFiles();
+    restoreNavigator();
+  }
 });
 
 test('Expo store defaults under Paths.document, survives relaunch, and reclaims a crashed lock', async (t) => {

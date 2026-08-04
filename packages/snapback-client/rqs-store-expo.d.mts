@@ -46,12 +46,17 @@ export interface ExpoFileSystemModuleLike {
   };
 }
 
+export interface ExpoCryptoModuleLike {
+  getRandomValues(typedArray: Uint8Array): Uint8Array;
+}
+
 export function createExpoFilesAdapter(
   fileSystem: ExpoFileSystemModuleLike,
 ): RqsFilesAdapter;
 
 export function createExpoRqsResumeStore(options: {
   readonly fileSystem: ExpoFileSystemModuleLike;
+  readonly crypto?: ExpoCryptoModuleLike;
   readonly directory?: string;
   readonly identity?: string | number | null;
   readonly now?: () => number;
@@ -70,5 +75,8 @@ export function createExpoRqsResumeStore(options: {
 
 export function registerExpoFileSystemRqsFiles(
   fileSystem: ExpoFileSystemModuleLike,
-  options?: { readonly directory?: string },
+  options?: {
+    readonly directory?: string;
+    readonly crypto?: ExpoCryptoModuleLike;
+  },
 ): Readonly<NativeRqsFilesProvider>;

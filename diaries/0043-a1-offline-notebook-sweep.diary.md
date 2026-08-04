@@ -317,6 +317,25 @@ conformance work. The web arm's verdict ("best local-first floor I have
 tested, not yet a product") becomes, on mobile: **the floor hasn't shipped
 to this carrier yet — and the receipts now say precisely what's missing.**
 
+## 2026-08-03 — Format-v3 RNG regression follow-up
+
+The local persistent-store L1 change briefly reopened f1 in a subtler form:
+ordinary Expo startup reached the new store metadata path, which eagerly
+needed `crypto.getRandomValues` for the local-row-handle key. On stock Hermes
+that internal refusal escaped into the app's loading UI. This was especially
+confusing because the August 1 fix and guide now promised crypto-free Online
+boot.
+
+The repaired shape feels right: Online connectivity and optional local
+storage are separate capabilities. With no secure RNG the client connects and
+reports `rqsStoreInfo.reason === "secure-random-unavailable"`; it never
+weakens a security-bearing key with `Math.random`. Apps that want relaunch
+persistence inject `expo-crypto` beside `expo-file-system` at the existing
+root registration seam, without authoring a global WebCrypto shim. Compared
+with Firebase/Supabase mobile setup, the extra native module is still visible
+friction, but the failure is now capability-shaped and the secure dependency
+is explicit instead of a red internal diagnostic.
+
 ## 2026-08-01 — PROBE: Firebase on the same floor (Stage 3 reference)
 
 **Probe, not an arm.** Reference observations only — no ranking claims.

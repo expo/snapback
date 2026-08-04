@@ -7310,16 +7310,21 @@ carrier-safe without polyfills:
 
 - **Binding digests** (`prepareReactBinding` manifest/contract hashes) fall
   back to the parity-tested pure-JS SHA-256 when `crypto.subtle` is absent.
-- **Local instance labels** (provider ids, optimistic-layer ids, client
-  store ids, mutation ids) fall back to time+sequence uniqueness.
+- **Process-local labels** (provider ids, optimistic-layer ids, mutation ids,
+  and storeless active-query bookkeeping) fall back to time+sequence
+  uniqueness.
 
 So a fresh Expo app on this path reaches a ready provider and a live query
 with zero consumer polyfills.
 
 **Security-bearing random identity is never synthesized.** Surfaces that
 mint unpredictable identity — seed operation ids, bundle-boot/register-mode
-idempotency keys, sender-constrained proof ids — refuse with one named,
-actionable code when no RNG exists:
+idempotency keys, sender-constrained proof ids, and the local store's handle
+key and cross-context registration ids — require a native RNG. The optional
+default store reports `reason: "secure-random-unavailable"` and stays disabled
+when none is available; this does not prevent the Online client from
+connecting. Explicit security-bearing operations refuse with one named,
+actionable code:
 
 ```js source=packages/snapback-client/webcrypto-fallback.test.mjs
   assert.throws(
@@ -7330,9 +7335,10 @@ actionable code when no RNG exists:
   );
 ```
 
-To use those surfaces on RN, install an RNG polyfill before constructing the
-client — Expo: `expo-crypto` (its `getRandomValues` polyfill), bare RN:
-`react-native-get-random-values`.
+To use those surfaces on RN, provide native secure randomness before
+constructing the client. Expo apps can hand `expo-crypto` directly to the
+store registration as shown below, without mutating `globalThis`; a global
+polyfill also works. Bare RN can use `react-native-get-random-values`.
 
 ## The store: relaunch-durable on-device once the app registers its filesystem
 
@@ -7343,12 +7349,13 @@ import would break non-Expo consumers). Instead the app hands the module in
 
 ```ts fragment reason="app-root composition; the registration + ladder behavior is CI-proven in packages/snapback-client/rqs-store-expo.test.mjs and the on-device witness in demos/rn-durable-store-witness/"
 import * as FileSystem from 'expo-file-system';
+import * as Crypto from 'expo-crypto';
 import { registerExpoFileSystemRqsFiles } from '@expo/snapback-client';
 
-registerExpoFileSystemRqsFiles(FileSystem);
+registerExpoFileSystemRqsFiles(FileSystem, { crypto: Crypto });
 ```
 
-After that one line, the default persistence ladder (explicit option → env
+After that root registration, the default persistence ladder (explicit option → env
 kill switch → browser IndexedDB → **React Native registered files** → node
 filesystem → in-memory) resolves the on-device file arm for every client on
 this carrier: `client.rqsStoreInfo` reports
@@ -7362,9 +7369,12 @@ fact, not "nothing persists": Expo's synchronous File/Directory API exposes
 no fsync-style cut, so the adapter declares `powerLossDurable: false` while
 the store still survives ordinary relaunch (the Node filesystem arm, which
 has that cut, reports `durable: true`). Without the registration the ladder
-stays in-memory with the actionable fact
+stays in-memory when secure randomness is available, with the actionable fact
 `{ implementation: 'memory', durable: false, reason:
-'no-native-files-registered' }` — do not claim retention over it.
+'no-native-files-registered' }`. Without secure randomness it disables the
+optional store with `{ implementation: null, durable: false, reason:
+'secure-random-unavailable' }`. Neither degradation blocks Online queries;
+do not claim retention over either one.
 
 What the registered file arm enables (proven on the iOS simulator against a
 release Hermes build — `demos/rn-durable-store-witness/`):
