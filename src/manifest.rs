@@ -1450,8 +1450,8 @@ impl FunctionManifest {
                         "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
                         "query",
                         "snapshot batch emitted identity does not match the host reconstruction",
-                ));
-            }
+                    ));
+                }
             }
             for declaration in &function.sequences {
                 match sequence_declarations.get(&declaration.name) {
@@ -7700,6 +7700,15 @@ pub struct MutationRequest {
         pattern(REPLAY_OPAQUE_ID_PATTERN)
     )]
     pub client_mutation_id: Option<String>,
+    /// Authenticated finite-range allocation for this exact operation id.
+    /// This extends `clientMutationId`; it is not a second retry identity.
+    #[serde(
+        default,
+        rename = "operationIssuance",
+        alias = "operation_issuance",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
     /// Required whenever `clientMutationId` is present after authority
     /// descriptor protocol v1 is negotiated. It is intentionally outside the
     /// flattened HandlerInput/ctx ledger so client-supplied replay answers can

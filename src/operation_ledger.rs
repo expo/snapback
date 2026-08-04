@@ -32,6 +32,10 @@ pub const CLIENT_IDENTITY_RANGE_WINDOW_MS_V1: u64 = 30 * 24 * 60 * 60 * 1_000;
 pub const HOST_RECEIPT_WINDOW_MS_V1: u64 = 24 * 60 * 60 * 1_000;
 pub const OPERATION_EXPLANATION_MAX_RESULTS_V1: usize = 100;
 pub const ORDINARY_MUTATION_LANE_V1: &str = "ordinaryMutation";
+pub const ORDINARY_MUTATION_WRITERS_V1: [&str; 2] = [
+    "LocalDatabase::execute_mutation_idempotent_guarded_with_settlement_time",
+    "LocalDatabase::commit_buffered_writes_idempotent_guarded",
+];
 
 const ORIGINATOR_CLIENT: &str = "client";
 const ORIGINATOR_HOST: &str = "host";
@@ -464,6 +468,350 @@ pub fn register_client_range_in(
         ],
     )?;
     Ok(())
+}
+
+/// Resolve the audience of an unwidened v1 client issuance from the exact
+/// server-recorded range and its authenticated authority epoch. Keeping this
+/// lookup below the public carrier preserves the shipped ClientRange shape
+/// while ensuring that a caller cannot select or substitute an audience.
+///
+/// @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 — the
+///   authority owns the range and mutation admission resolves its audience
+///   from durable custody.
+pub fn resolve_client_range_audience_in(
+    tx: &Transaction<'_>,
+    issuance: &OperationIssuanceV1,
+    authority_instance_id: &str,
+) -> SnapbackResult<String> {
+    let OperationIssuanceV1::ClientRange {
+        epoch_id,
+        counter,
+        range_start,
+        range_end_exclusive,
+        authority_authenticator_digest,
+    } = issuance
+    else {
+        return Err(invalid("client mutation requires client-range issuance"));
+    };
+    let mut statement = tx.prepare(
+        "SELECT r.audience
+           FROM _snapback_operation_ranges_v1 r
+           JOIN _snapback_operation_epochs_v1 e
+             ON e.originator_class='client'
+            AND e.audience=r.audience AND e.epoch_id=r.epoch_id
+          WHERE r.epoch_id=?1 AND r.range_start=?2 AND r.range_end_exclusive=?3
+            AND r.authenticator_digest=?4 AND e.authenticator_digest=?4
+            AND e.authority_instance_id=?5
+            AND r.range_start <= ?6 AND r.range_end_exclusive > ?6
+          ORDER BY r.audience LIMIT 2",
+    )?;
+    let mut rows = statement.query(params![
+        epoch_id,
+        to_i64(*range_start, "range start")?,
+        to_i64(*range_end_exclusive, "range end")?,
+        authority_authenticator_digest,
+        authority_instance_id,
+        to_i64(*counter, "operation counter")?,
+    ])?;
+    let Some(first) = rows.next()? else {
+        return Err(refused(
+            "SNAPBACK_OPERATION_RANGE_AUTH_INVALID",
+            "operation issuance does not resolve to a server-recorded authority range",
+        ));
+    };
+    let audience: String = first.get(0)?;
+    if rows.next()?.is_some() {
+        return Err(invalid(
+            "operation issuance ambiguously resolves to multiple audiences",
+        ));
+    }
+    Ok(audience)
+}
+
+/// Mint the next finite range under the exact live authority incarnation.
+/// A caller may present its prior range only as a continuity assertion; it
+/// never selects the audience, epoch, bounds, or authenticator. Issuance does
+/// not activate coverage.
+///
+/// @ref LLP 0162#1-the-universal-commit-envelope — offline identities come
+///   only from server-preallocated authenticated finite ranges.
+pub fn issue_client_range_in(
+    tx: &Transaction<'_>,
+    _stream_id: &str,
+    audience: &str,
+    authority_instance_id: &str,
+    previous: Option<&ClientIdentityRangeV1>,
+    issued_at_ms: u64,
+) -> SnapbackResult<ClientIdentityRangeV1> {
+    if audience.is_empty() || authority_instance_id.is_empty() {
+        return Err(invalid(
+            "identity range issuance requires audience and authority identity",
+        ));
+    }
+    if let Some(previous) = previous {
+        if !previous.validate()
+            || previous.audience != audience
+            || previous.authority_instance_id != authority_instance_id
+        {
+            return Err(refused(
+                "SNAPBACK_OPERATION_RANGE_AUTH_INVALID",
+                "prior range does not belong to the current authority incarnation",
+            ));
+        }
+        let exists: bool = tx.query_row(
+            "SELECT EXISTS(
+               SELECT 1 FROM _snapback_operation_ranges_v1
+               WHERE audience=?1 AND epoch_id=?2 AND range_start=?3
+                 AND range_end_exclusive=?4 AND authenticator_digest=?5
+             )",
+            params![
+                previous.audience,
+                previous.epoch_id,
+                to_i64(previous.range_start, "prior range start")?,
+                to_i64(previous.range_end_exclusive, "prior range end")?,
+                previous.authority_authenticator_digest,
+            ],
+            |row| row.get(0),
+        )?;
+        if !exists {
+            return Err(refused(
+                "SNAPBACK_OPERATION_RANGE_AUTH_INVALID",
+                "prior range is not a server-recorded range",
+            ));
+        }
+    }
+
+    let epoch: Option<(String, i64, String)> = tx
+        .query_row(
+            "SELECT epoch_id, epoch_sequence, authenticator_digest
+             FROM _snapback_operation_epochs_v1
+             WHERE originator_class='client' AND audience=?1
+               AND authority_instance_id=?2 AND state='open'
+             ORDER BY epoch_sequence DESC LIMIT 1",
+            params![audience, authority_instance_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    let (epoch_id, epoch_sequence, authenticator_digest) = match epoch {
+        Some((epoch_id, sequence, authenticator)) => {
+            let sequence =
+                u64::try_from(sequence).map_err(|_| invalid("client epoch sequence is invalid"))?;
+            (epoch_id, sequence, authenticator)
+        }
+        None => {
+            let sequence: i64 = tx.query_row(
+                "SELECT COALESCE(MAX(epoch_sequence), -1) + 1
+                 FROM _snapback_operation_epochs_v1
+                 WHERE originator_class='client' AND audience=?1",
+                params![audience],
+                |row| row.get(0),
+            )?;
+            let sequence =
+                u64::try_from(sequence).map_err(|_| invalid("client epoch sequence overflowed"))?;
+            let epoch_id = crate::ids::mint_time_ordered(crate::ids::Kind::Opaque);
+            let authenticator_digest = digest_json(
+                b"snapback:operation-range-authority:v1\n",
+                &json!({
+                    "audience": audience,
+                    "authorityInstanceId": authority_instance_id,
+                    "epochId": epoch_id,
+                    "epochSequence": sequence,
+                    "issuedAtMs": issued_at_ms,
+                }),
+            );
+            register_epoch_in(
+                tx,
+                &IdentityEpochV1 {
+                    schema_version: 1,
+                    originator_class: OperationOriginatorClassV1::Client,
+                    audience: audience.to_owned(),
+                    authority_instance_id: authority_instance_id.to_owned(),
+                    epoch_id: epoch_id.clone(),
+                    epoch_sequence: sequence,
+                    state: IdentityEpochStateV1::Open,
+                    issued_at_ms,
+                    terminated_at_ms: None,
+                    authority_authenticator_digest: authenticator_digest.clone(),
+                },
+            )?;
+            (epoch_id, sequence, authenticator_digest)
+        }
+    };
+    let latest_range: Option<(i64, i64, i64, i64, String)> = tx
+        .query_row(
+            "SELECT range_start, range_end_exclusive, issued_at_ms, expires_at_ms,
+                    authenticator_digest
+             FROM _snapback_operation_ranges_v1
+             WHERE audience=?1 AND epoch_id=?2
+             ORDER BY range_end_exclusive DESC LIMIT 1",
+            params![audience, epoch_id],
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            },
+        )
+        .optional()?;
+    match (latest_range.as_ref(), previous) {
+        (None, None) => {}
+        (Some((start, end, _, _, digest)), Some(previous))
+            if *start == to_i64(previous.range_start, "prior range start")?
+                && *end == to_i64(previous.range_end_exclusive, "prior range end")?
+                && digest == &previous.authority_authenticator_digest => {}
+        // A response can be lost after the server commits issuance but before
+        // the client atomically installs it. Re-serve that exact latest range
+        // only while no identity from its epoch has ever been admitted. Once
+        // any operation exists, omitting prior custody must fail closed.
+        (Some((start, end, issued, expires, digest)), None) => {
+            let admitted: bool = tx.query_row(
+                "SELECT EXISTS(
+                   SELECT 1 FROM _snapback_operation_suppression_v1
+                    WHERE originator_class='client' AND audience=?1 AND epoch_id=?2
+                   UNION ALL
+                   SELECT 1 FROM _snapback_commit_envelopes_v1
+                    WHERE originator_class='client' AND audience=?1 AND epoch_id=?2
+                   UNION ALL
+                   SELECT 1 FROM _snapback_operation_tombstones_v1
+                    WHERE originator_class='client' AND audience=?1 AND epoch_id=?2
+                 )",
+                params![audience, epoch_id],
+                |row| row.get(0),
+            )?;
+            if admitted {
+                return Err(refused(
+                    "SNAPBACK_OPERATION_RANGE_CONTINUITY_INVALID",
+                    "latest range has admitted identities; durable prior custody is required",
+                ));
+            }
+            return Ok(ClientIdentityRangeV1 {
+                schema_version: 1,
+                audience: audience.to_owned(),
+                authority_instance_id: authority_instance_id.to_owned(),
+                epoch_id,
+                epoch_sequence,
+                range_start: u64::try_from(*start)
+                    .map_err(|_| invalid("client range start is invalid"))?,
+                range_end_exclusive: u64::try_from(*end)
+                    .map_err(|_| invalid("client range end is invalid"))?,
+                issued_at_ms: u64::try_from(*issued)
+                    .map_err(|_| invalid("client range issue time is invalid"))?,
+                expires_at_ms: u64::try_from(*expires)
+                    .map_err(|_| invalid("client range expiry is invalid"))?,
+                authority_authenticator_digest: digest.clone(),
+            });
+        }
+        (None, Some(_)) | (Some(_), Some(_)) => {
+            return Err(refused(
+                "SNAPBACK_OPERATION_RANGE_CONTINUITY_INVALID",
+                "range refresh must present the latest server-recorded durable range",
+            ));
+        }
+    }
+    let start: i64 = tx.query_row(
+        "SELECT COALESCE(MAX(range_end_exclusive), 0)
+         FROM _snapback_operation_ranges_v1
+         WHERE audience=?1 AND epoch_id=?2",
+        params![audience, epoch_id],
+        |row| row.get(0),
+    )?;
+    let range_start = u64::try_from(start).map_err(|_| invalid("client range start is invalid"))?;
+    let range_end_exclusive = range_start
+        .checked_add(CLIENT_IDENTITY_RANGE_SIZE_V1)
+        .ok_or_else(|| {
+            refused(
+                "SNAPBACK_OPERATION_RANGE_EXHAUSTED",
+                "client range counter exhausted",
+            )
+        })?;
+    // SQLite storage uses signed integers even though the public counter is
+    // unsigned. Refuse before any wrapping or lossy projection.
+    to_i64(range_end_exclusive, "client range end")?;
+    let expires_at_ms = issued_at_ms
+        .checked_add(CLIENT_IDENTITY_RANGE_WINDOW_MS_V1)
+        .ok_or_else(|| invalid("client range expiry overflowed"))?;
+    let range = ClientIdentityRangeV1 {
+        schema_version: 1,
+        audience: audience.to_owned(),
+        authority_instance_id: authority_instance_id.to_owned(),
+        epoch_id,
+        epoch_sequence,
+        range_start,
+        range_end_exclusive,
+        issued_at_ms,
+        expires_at_ms,
+        authority_authenticator_digest: authenticator_digest,
+    };
+    register_client_range_in(tx, &range)?;
+    Ok(range)
+}
+
+/// Explicit publication cut for the ordinary-mutation writer inventory.
+/// Range issuance never calls this: activation is server-controlled only
+/// after the named target's corpus and review gates pass.
+#[allow(dead_code)] // Intentionally dormant while the public capability remains Missing.
+pub(crate) fn activate_ordinary_mutation_coverage_in(
+    tx: &Transaction<'_>,
+    stream_id: &str,
+    activated_at_ms: u64,
+) -> SnapbackResult<()> {
+    let current = active_coverage_manifest(tx, stream_id)?;
+    if current.as_ref().is_some_and(|manifest| {
+        manifest
+            .covered_lanes
+            .iter()
+            .any(|lane| lane == ORDINARY_MUTATION_LANE_V1)
+            && ORDINARY_MUTATION_WRITERS_V1.iter().all(|writer| {
+                manifest
+                    .writer_choke_points
+                    .iter()
+                    .any(|declared| declared == writer)
+            })
+    }) {
+        return Ok(());
+    }
+    let manifest_version: i64 = tx.query_row(
+        "SELECT COALESCE(MAX(manifest_version), 0) + 1
+         FROM _snapback_operation_coverage_v1",
+        [],
+        |row| row.get(0),
+    )?;
+    let manifest_version = u64::try_from(manifest_version)
+        .map_err(|_| invalid("coverage manifest version overflowed"))?;
+    let mut covered_lanes = current
+        .as_ref()
+        .map(|manifest| manifest.covered_lanes.clone())
+        .unwrap_or_default();
+    covered_lanes.push(ORDINARY_MUTATION_LANE_V1.to_owned());
+    covered_lanes.sort();
+    covered_lanes.dedup();
+    let mut writer_choke_points = current
+        .map(|manifest| manifest.writer_choke_points)
+        .unwrap_or_default();
+    writer_choke_points.extend(
+        ORDINARY_MUTATION_WRITERS_V1
+            .iter()
+            .map(|writer| (*writer).to_owned()),
+    );
+    writer_choke_points.sort();
+    writer_choke_points.dedup();
+    let manifest = OperationCoverageManifestV1 {
+        schema_version: 1,
+        manifest_version,
+        stream_id: stream_id.to_owned(),
+        covered_lanes: covered_lanes.clone(),
+        writer_choke_points: writer_choke_points.clone(),
+        coverage_digest: coverage_digest(
+            stream_id,
+            manifest_version,
+            &covered_lanes,
+            &writer_choke_points,
+        ),
+    };
+    register_coverage_in(tx, &manifest, activated_at_ms)
 }
 
 /// Insert one envelope and its suppression/receipt state in the caller's data
@@ -1665,10 +2013,10 @@ mod tests {
 
     fn manifest(stream: &str) -> OperationCoverageManifestV1 {
         let lanes = vec![ORDINARY_MUTATION_LANE_V1.to_owned()];
-        let writers = vec![
-            "storage::execute_mutation_plan".to_owned(),
-            "storage::commit_buffered_writes".to_owned(),
-        ];
+        let writers = ORDINARY_MUTATION_WRITERS_V1
+            .iter()
+            .map(|writer| (*writer).to_owned())
+            .collect::<Vec<_>>();
         OperationCoverageManifestV1 {
             schema_version: 1,
             manifest_version: 1,
@@ -1980,6 +2328,161 @@ mod tests {
             "SNAPBACK_OPERATION_RANGE_OVERLAP"
         );
         tx.commit().expect("range commit");
+    }
+
+    #[test]
+    fn public_range_issuance_is_server_owned_contiguous_and_response_loss_safe() {
+        let mut conn = connection();
+        let audience = "audience-issued-a";
+        let authority = "authority-issued";
+        let first = {
+            let tx = conn.transaction().expect("first issuance");
+            let range = issue_client_range_in(&tx, "stream-issued", audience, authority, None, 10)
+                .expect("issue first range");
+            tx.commit().expect("commit first range");
+            range
+        };
+        assert_eq!(first.range_start, 0);
+        assert_eq!(first.range_end_exclusive, CLIENT_IDENTITY_RANGE_SIZE_V1);
+
+        // Simulate losing the committed response before the client can install
+        // it: while the epoch has admitted no operation, retry returns the
+        // exact same range and never creates a gap.
+        let recovered = {
+            let tx = conn.transaction().expect("response loss retry");
+            let range = issue_client_range_in(&tx, "stream-issued", audience, authority, None, 11)
+                .expect("recover first response");
+            tx.commit().expect("commit no-op recovery");
+            range
+        };
+        assert_eq!(recovered, first);
+
+        // Issuance is not publication: neither this cohort nor another client
+        // under the same authority can turn coverage on.
+        assert!(
+            active_coverage_manifest(&conn, "stream-issued")
+                .expect("coverage lookup")
+                .is_none()
+        );
+        let independent = {
+            let tx = conn.transaction().expect("independent client issuance");
+            let range = issue_client_range_in(
+                &tx,
+                "stream-issued",
+                "audience-issued-b",
+                authority,
+                None,
+                12,
+            )
+            .expect("issue independent first range");
+            tx.commit().expect("commit independent range");
+            range
+        };
+        assert_ne!(independent.audience, first.audience);
+        assert_ne!(independent.epoch_id, first.epoch_id);
+        assert_ne!(
+            independent.authority_authenticator_digest,
+            first.authority_authenticator_digest
+        );
+
+        // A server-controlled publication cut is separate. Once activated,
+        // the unwidened v1 issuance resolves its audience transactionally and
+        // the exact envelope is admitted with that audience.
+        let identity = OperationIdentityV1 {
+            schema_version: 1,
+            key: OperationKeyV1 {
+                stream_id: "stream-issued".to_owned(),
+                originator_class: OperationOriginatorClassV1::Client,
+                operation_id: "operation-issued-0".to_owned(),
+            },
+            issuance: OperationIssuanceV1::ClientRange {
+                epoch_id: first.epoch_id.clone(),
+                counter: first.range_start,
+                range_start: first.range_start,
+                range_end_exclusive: first.range_end_exclusive,
+                authority_authenticator_digest: first.authority_authenticator_digest.clone(),
+            },
+            bound_facts: OperationBoundFactsV1 {
+                audience: first.audience.clone(),
+                principal_fingerprint: "principal-issued".to_owned(),
+                authority_instance_id: authority.to_owned(),
+                operation_kind: ORDINARY_MUTATION_LANE_V1.to_owned(),
+                function_or_command: "todos.create".to_owned(),
+                input_fingerprint: sha('b'),
+            },
+        };
+        {
+            let tx = conn
+                .transaction()
+                .expect("explicit activation and operation");
+            assert_eq!(
+                resolve_client_range_audience_in(&tx, &identity.issuance, authority)
+                    .expect("resolve recorded range audience"),
+                first.audience
+            );
+            activate_ordinary_mutation_coverage_in(&tx, "stream-issued", 13)
+                .expect("explicit activation");
+            let coverage = active_coverage_manifest(&tx, "stream-issued")
+                .expect("coverage lookup")
+                .expect("coverage explicitly active");
+            insert_covered_change(&tx, 1, "issued-covered");
+            let mut admitted = envelope(identity.clone(), 1, 1);
+            admitted.coverage.coverage_digest = coverage.coverage_digest;
+            record_operation_in(&tx, &admitted).expect("admit issued envelope");
+            tx.commit().expect("commit issued envelope");
+        }
+        assert!(matches!(
+            lookup_operation(&conn, &identity).expect("lookup admitted envelope"),
+            OperationLookupV1::ExactReplay(_)
+        ));
+
+        // Once an identity from the epoch is admitted, a response-loss retry
+        // without the durable previous range refuses instead of forking.
+        let tx = conn.transaction().expect("missing continuity refusal");
+        assert_eq!(
+            issue_client_range_in(&tx, "stream-issued", audience, authority, None, 14,)
+                .expect_err("admitted epoch requires durable custody")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_RANGE_CONTINUITY_INVALID"
+        );
+        tx.rollback().expect("rollback refusal");
+
+        let second = {
+            let tx = conn.transaction().expect("refresh issuance");
+            let range =
+                issue_client_range_in(&tx, "stream-issued", audience, authority, Some(&first), 15)
+                    .expect("issue contiguous successor");
+            tx.commit().expect("commit successor");
+            range
+        };
+        assert_eq!(second.range_start, first.range_end_exclusive);
+
+        let tx = conn.transaction().expect("stale continuity refusal");
+        assert_eq!(
+            issue_client_range_in(&tx, "stream-issued", audience, authority, Some(&first), 16,)
+                .expect_err("old range cannot fork allocation")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_RANGE_CONTINUITY_INVALID"
+        );
+        tx.rollback().expect("rollback refusal");
+
+        let coverage = active_coverage_manifest(&conn, "stream-issued")
+            .expect("coverage lookup")
+            .expect("ordinary coverage active");
+        assert!(
+            coverage
+                .covered_lanes
+                .iter()
+                .any(|lane| lane == ORDINARY_MUTATION_LANE_V1)
+        );
+        let mut expected_writers = ORDINARY_MUTATION_WRITERS_V1
+            .iter()
+            .map(|writer| (*writer).to_owned())
+            .collect::<Vec<_>>();
+        expected_writers.sort();
+        assert_eq!(coverage.writer_choke_points, expected_writers);
     }
 
     #[test]

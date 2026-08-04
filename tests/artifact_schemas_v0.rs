@@ -560,6 +560,7 @@ fn mutation_replay_bounds_match_the_public_data_tier_profile() {
         settlement: Default::default(),
         expected_generation: None,
         client_mutation_id: Some("cm_valid".to_owned()),
+        operation_issuance: None,
         authority_descriptor: Some(AuthorityDescriptor {
             descriptor_version: 1,
             authority_instance_id: "018f0d90-7b24-7a22-8c33-445566778899".to_owned(),
@@ -3125,6 +3126,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             settlement: Default::default(),
             expected_generation: None,
             client_mutation_id: Some("cm_schema_roundtrip".to_owned()),
+            operation_issuance: None,
             authority_descriptor: Some(AuthorityDescriptor {
                 descriptor_version: 1,
                 authority_instance_id: "018f0d90-7b24-7a22-8c33-445566778899".to_owned(),

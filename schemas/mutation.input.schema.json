@@ -144,6 +144,83 @@
       },
       "type": "object"
     },
+    "OperationIssuanceV1": {
+      "description": "Issuance facts are structurally disjoint across client and host namespaces.\nThe authenticator is represented by its non-secret digest; admission later\nverifies the underlying server-issued artifact before constructing this\nvalue.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "authority_authenticator_digest": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "counter": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "epoch_id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "clientRange",
+              "type": "string"
+            },
+            "range_end_exclusive": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "range_start": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "kind",
+            "epoch_id",
+            "counter",
+            "range_start",
+            "range_end_exclusive",
+            "authority_authenticator_digest"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "authority_authenticator_digest": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "commit_ordinal": {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "epoch_id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "hostIncarnation",
+              "type": "string"
+            },
+            "upstream_identity": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "epoch_id",
+            "upstream_identity",
+            "commit_ordinal",
+            "authority_authenticator_digest"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "ReadDependency": {
       "properties": {
         "id": {
@@ -325,6 +402,17 @@
         }
       ],
       "description": "Optional generated-artifact assertion; sessions targets compare it\natomically with mutation function selection before any receipt/ACK or\nhandler effect. Absent remains unchecked."
+    },
+    "operationIssuance": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/OperationIssuanceV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Authenticated finite-range allocation for this exact operation id.\nThis extends `clientMutationId`; it is not a second retry identity."
     },
     "read_set": {
       "default": [],

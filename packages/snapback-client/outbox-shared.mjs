@@ -48,6 +48,7 @@ export const isConnectivityFailureError = (error) => (
 
 const REPLAY_OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
 const SETTLEMENT_LANES = new Set(['replay-accept', 're-derive']);
+const SHA256_DIGEST = /^sha256:[0-9a-f]{64}$/;
 
 function outboxError(code, message, details = {}) {
   const error = new Error(`${code}: ${message}`);
@@ -130,6 +131,11 @@ export function normalizeOutboxRecordInput(record) {
     settlementIdentity: record.settlementIdentity ?? null,
     settlementClaims: record.settlementClaims ?? null,
     boundedSkew: record.boundedSkew ?? null,
+    // LLP 0163 widens the existing durable clientMutationId. The issuance is
+    // immutable after first transport admission and therefore participates
+    // in the outbox's exact replay identity.
+    operationIssuance: record.operationIssuance ?? null,
+    operationCoverageDisposition: record.operationCoverageDisposition ?? null,
     // Client-captured wall-clock at enqueue. A labeled claim for receipts
     // and UI (LLP 0129 ledger row 1, decision 10 taxonomy) — never
     // transmitted as authority and never used for ordering.
@@ -298,7 +304,12 @@ const reconcileSettledMintIds = (state, record, settlement) => {
 
 /// Shared state-shape helpers for arms that hold the outbox as one JSON
 /// section ({ sequence, records: {id -> record}, acks: [{id, userId}] }).
-export const emptyOutboxState = () => ({ sequence: 0, records: {}, acks: [] });
+export const emptyOutboxState = () => ({
+  sequence: 0,
+  records: {},
+  acks: [],
+  operationIdentityRanges: {},
+});
 
 export function validateOutboxState(value) {
   if (
@@ -307,8 +318,113 @@ export function validateOutboxState(value) {
     || !value.records || typeof value.records !== 'object' || Array.isArray(value.records)
     || !Array.isArray(value.acks)
   ) return null;
-  return value;
+  return {
+    ...value,
+    operationIdentityRanges: value.operationIdentityRanges
+      && typeof value.operationIdentityRanges === 'object'
+      && !Array.isArray(value.operationIdentityRanges)
+      ? value.operationIdentityRanges
+      : {},
+  };
 }
+
+const validRange = (range) => (
+  range && typeof range === 'object' && !Array.isArray(range)
+  && range.schemaVersion === 1
+  && typeof range.audience === 'string' && range.audience.length > 0
+  && typeof range.authorityInstanceId === 'string' && range.authorityInstanceId.length > 0
+  && typeof range.epochId === 'string' && range.epochId.length > 0
+  && Number.isSafeInteger(range.epochSequence) && range.epochSequence >= 0
+  && Number.isSafeInteger(range.rangeStart) && range.rangeStart >= 0
+  && Number.isSafeInteger(range.rangeEndExclusive)
+  && range.rangeEndExclusive > range.rangeStart
+  && Number.isSafeInteger(range.issuedAtMs) && range.issuedAtMs >= 0
+  && Number.isSafeInteger(range.expiresAtMs) && range.expiresAtMs > range.issuedAtMs
+  && typeof range.authorityAuthenticatorDigest === 'string'
+  && SHA256_DIGEST.test(range.authorityAuthenticatorDigest)
+);
+
+const custodyKey = (value) => {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw outboxError(
+      'SNAPBACK_OPERATION_RANGE_CUSTODY_INVALID',
+      'operation identity range custody requires a non-empty authority cohort key',
+    );
+  }
+  return value;
+};
+
+const installRange = (state, key, range) => {
+  if (!validRange(range)) {
+    throw outboxError(
+      'SNAPBACK_OPERATION_RANGE_INVALID',
+      'server operation identity range has an invalid public projection',
+    );
+  }
+  const prior = state.operationIdentityRanges?.[key] ?? null;
+  if (prior) {
+    const same = canonicalizeClientValueV1(prior.range)
+      === canonicalizeClientValueV1(range);
+    if (same) return state;
+    if (
+      prior.range.authorityInstanceId !== range.authorityInstanceId
+      || prior.range.audience !== range.audience
+      || prior.range.epochId !== range.epochId
+      || prior.range.rangeEndExclusive !== range.rangeStart
+    ) {
+      throw outboxError(
+        'SNAPBACK_OPERATION_RANGE_CONTINUITY_INVALID',
+        'replacement operation identity range is not the contiguous successor',
+      );
+    }
+  }
+  return {
+    ...state,
+    operationIdentityRanges: {
+      ...(state.operationIdentityRanges ?? {}),
+      [key]: { range: structuredClone(range), nextCounter: range.rangeStart },
+    },
+  };
+};
+
+const allocateIdentity = (state, key, now) => {
+  const current = state.operationIdentityRanges?.[key] ?? null;
+  if (current && !validRange(current.range)) {
+    throw outboxError(
+      'SNAPBACK_OPERATION_RANGE_CUSTODY_INVALID',
+      'persisted operation identity range custody is corrupt',
+    );
+  }
+  if (
+    !current
+    || !Number.isSafeInteger(current.nextCounter)
+    || current.nextCounter < current.range.rangeStart
+    || current.nextCounter >= current.range.rangeEndExclusive
+    || !Number.isSafeInteger(now)
+    || now >= current.range.expiresAtMs
+  ) {
+    return { state, issuance: null, disposition: 'uncovered-range-exhausted' };
+  }
+  const issuance = {
+    kind: 'clientRange',
+    epoch_id: current.range.epochId,
+    counter: current.nextCounter,
+    range_start: current.range.rangeStart,
+    range_end_exclusive: current.range.rangeEndExclusive,
+    authority_authenticator_digest: current.range.authorityAuthenticatorDigest,
+  };
+  return {
+    state: {
+      ...state,
+      operationIdentityRanges: {
+        ...state.operationIdentityRanges,
+        [key]: { ...current, nextCounter: current.nextCounter + 1 },
+      },
+    },
+    issuance,
+    disposition: 'covered',
+  };
+};
 
 /// Pure outbox transitions over the shared JSON section. Each returns
 /// { state, result } without mutating the input, so arms can commit the
@@ -352,6 +468,62 @@ export const outboxOps = {
       },
       result: stored,
     };
+  },
+  /// Atomically install a server response (when present), consume one finite
+  /// counter, and persist the queued intent. With no available counter the
+  /// intent is retained explicitly uncovered and MUST be assigned before
+  /// transport admission.
+  enqueueWithOperationIdentity(state, input, now, authorityCohortKey, range = null) {
+    const key = custodyKey(authorityCohortKey);
+    const existing = state.records[input?.id];
+    if (existing) {
+      return outboxOps.enqueue(state, {
+        ...input,
+        operationIssuance: input.operationIssuance ?? existing.operationIssuance,
+        operationCoverageDisposition:
+          input.operationCoverageDisposition ?? existing.operationCoverageDisposition,
+      }, now);
+    }
+    let working = range === null ? state : installRange(state, key, range);
+    const allocated = allocateIdentity(working, key, now);
+    working = allocated.state;
+    return outboxOps.enqueue(working, {
+      ...input,
+      operationIssuance: allocated.issuance,
+      operationCoverageDisposition: allocated.disposition,
+    }, now);
+  },
+  /// Bind an uncovered pending intent at reconnect in the same durable cut
+  /// that installs/advances the range. A crash leaves either the original
+  /// uncovered record or the fully assigned record and advanced counter.
+  assignOperationIdentity(state, id, now, authorityCohortKey, range = null) {
+    const key = custodyKey(authorityCohortKey);
+    let working = range === null ? state : installRange(state, key, range);
+    const existing = working.records[id];
+    if (!existing || existing.status !== 'pending') {
+      return { state: working, result: existing ?? null };
+    }
+    if (existing.operationIssuance !== null) return { state: working, result: existing };
+    const allocated = allocateIdentity(working, key, now);
+    const stored = {
+      ...existing,
+      operationIssuance: allocated.issuance,
+      operationCoverageDisposition: allocated.disposition,
+    };
+    if (outboxRecordBytes(stored) > OUTBOX_MAX_RECORD_BYTES) {
+      throw outboxOversizeError(outboxRecordBytes(stored));
+    }
+    return {
+      state: {
+        ...allocated.state,
+        records: { ...allocated.state.records, [id]: stored },
+      },
+      result: stored,
+    };
+  },
+  operationIdentityRange(state, authorityCohortKey) {
+    const current = state.operationIdentityRanges?.[custodyKey(authorityCohortKey)] ?? null;
+    return { state, result: current?.range ?? null };
   },
   settle(state, id) {
     if (!state.records[id]) return { state, result: false };

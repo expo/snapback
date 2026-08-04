@@ -113,6 +113,7 @@ here (or listed here but gone from the code).
 | /auth/session | auth.sessions |
 | /auth/step-up/request | auth.sessions |
 | /client-mutations/acknowledge | sync.offline |
+| /client-mutations/identity-range | sync.offline |
 | /connection/open | realtime.durable-push |
 | /ephemeral/collections/ensure | realtime.ephemeral |
 | /ephemeral/delete | realtime.ephemeral |

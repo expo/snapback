@@ -1702,6 +1702,10 @@ export class SnapbackClient {
     authInvalidationProtocol = null,
     authorityDescriptorProtocol = 1,
     authorizedLeaseProtocol = null,
+    // LLP 0163 pre-publication carrier. Explicit opt-in only while the Spec
+    // and capability rows remain Draft/Missing; v1 requires a durable outbox
+    // so range, next counter, and intent share one restart-safe transition.
+    operationIdentityProtocol = null,
     // Set only after capability preflight advertises the hosted ephemeral
     // authority offer. Old servers therefore never see an unknown member.
     ephemeralAuthorityProtocol = null,
@@ -1881,6 +1885,10 @@ export class SnapbackClient {
       throw new TypeError("offlineQueue must be 'auto', true, or false");
     }
     this.__offlineQueue = offlineQueue;
+    if (operationIdentityProtocol !== null && operationIdentityProtocol !== 1) {
+      throw new TypeError('operationIdentityProtocol must be null or 1');
+    }
+    this.__operationIdentityProtocol = operationIdentityProtocol;
     this.__outboxReplayTask = null;
     this.__outboxReplayScheduled = false;
     this.__outboxDiagnostics = [];
@@ -4220,6 +4228,7 @@ export class SnapbackClient {
     const authorizedLeaseRequest = path.startsWith('/query/')
       && path.endsWith('/authorized-lease');
     const standaloneAcknowledgement = path === '/client-mutations/acknowledge'
+      || path === '/client-mutations/identity-range'
       || path === '/live/authorization-invalidation/acknowledge'
       || path === '/live/authorization-invalidation/manual-retry';
     if (path.startsWith('/live/') || path.startsWith('/ephemeral/') || authorizedLeaseRequest) {
@@ -5885,6 +5894,43 @@ export class SnapbackClient {
     }
   }
 
+  #operationIdentityCohortKey(clientAudienceId) {
+    return `client-store:${clientAudienceId}`;
+  }
+
+  async #refreshOperationIdentityRange(
+    store,
+    authorityCohortKey,
+    clientAudienceId,
+    userId,
+    authorityDescriptor,
+    authorityCapture,
+  ) {
+    const previousRange = await store.outboxOperationIdentityRange(authorityCohortKey);
+    const body = {
+      schemaVersion: 1,
+      auth: SnapbackClient.auth(userId),
+      clientAudienceId,
+    };
+    if (authorityDescriptor) body.authorityDescriptor = authorityDescriptor;
+    if (previousRange) body.previousRange = previousRange;
+    const response = await this.#req(
+      'POST',
+      '/client-mutations/identity-range',
+      body,
+      undefined,
+      { expectedAuthorityCapture: authorityCapture },
+    );
+    if (response?.schemaVersion !== 1 || !response.range) {
+      const error = new Error(
+        'SNAPBACK_OPERATION_RANGE_RESPONSE_INVALID: server returned no v1 identity range',
+      );
+      error.code = 'SNAPBACK_OPERATION_RANGE_RESPONSE_INVALID';
+      throw error;
+    }
+    return response.range;
+  }
+
   /// Durable enqueue of one refused-by-connectivity mutation intent.
   /// Returns the queued marker, or null when the store refused (the caller
   /// then surfaces the ORIGINAL connectivity error — an enqueue failure must
@@ -6017,6 +6063,8 @@ export class SnapbackClient {
           settlementIdentity: record.settlementIdentity ?? null,
           settlementClaims: record.settlementClaims ?? null,
           boundedSkew: record.boundedSkew ?? null,
+          operationIssuance: record.operationIssuance ?? null,
+          operationCoverageDisposition: record.operationCoverageDisposition ?? null,
           queue: false,
           },
         );
@@ -6102,6 +6150,8 @@ export class SnapbackClient {
     settlementIdentity = null,
     settlementClaims = null,
     boundedSkew = null,
+    operationIssuance = null,
+    operationCoverageDisposition = null,
     authorityDescriptor = null,
     authorityCapture = null,
     // LLP 0129 Phase 0 (LLP 0043 M2): 'auto' queues this intent durably
@@ -6123,6 +6173,23 @@ export class SnapbackClient {
       throw new TypeError("mutate settlementLane must be 'replay-accept' or 're-derive'");
     }
     const queueStore = queue === false ? null : this.#offlineQueueStore(queue === true);
+    const operationIdentityEnabled = this.__operationIdentityProtocol === 1 && queueStore !== null;
+    if (operationIdentityEnabled) {
+      const requiredMethods = [
+        'readStoreMeta',
+        'outboxEnqueueWithOperationIdentity',
+        'outboxAssignOperationIdentity',
+        'outboxOperationIdentityRange',
+      ];
+      if (requiredMethods.some((method) => typeof queueStore[method] !== 'function')) {
+        const error = new Error(
+          'SNAPBACK_OPERATION_RANGE_STORE_INCAPABLE: durable store lacks atomic range custody',
+        );
+        error.code = 'SNAPBACK_OPERATION_RANGE_STORE_INCAPABLE';
+        throw error;
+      }
+      if (clientMutationId === null) clientMutationId = createClientMutationId();
+    }
     const body = { args, auth: SnapbackClient.auth(userId), read_set: readSet };
     if (generation !== null) body.expectedGeneration = generation;
     // Opaque adapter correlation (LLP 0034 §3.2): sent verbatim, echoed on
@@ -6133,6 +6200,7 @@ export class SnapbackClient {
     // id atomically with data changes and returns the original result on a
     // duplicate delivery.
     if (clientMutationId) body.clientMutationId = clientMutationId;
+    if (operationIssuance) body.operationIssuance = operationIssuance;
     if (authorityDescriptor) {
       body.authorityDescriptor = requireAuthorityDescriptor(
         authorityDescriptor,
@@ -6193,11 +6261,78 @@ export class SnapbackClient {
       settlementIdentity,
       settlementClaims,
       boundedSkew,
+      operationIssuance,
+      operationCoverageDisposition,
       capturedNow: Date.now(),
     } : null;
     let durableOnlineRecord = false;
     if (queueStore && durableMutationRecord) {
-      await queueStore.outboxEnqueue(durableMutationRecord);
+      if (operationIdentityEnabled) {
+        const clientAudienceId = (await queueStore.readStoreMeta())?.clientStoreId;
+        if (typeof clientAudienceId !== 'string' || !SNAPBACK_OPAQUE_ID.test(clientAudienceId)) {
+          const error = new Error(
+            'SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID: durable store has no valid client identity',
+          );
+          error.code = 'SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID';
+          throw error;
+        }
+        const authorityCohortKey = this.#operationIdentityCohortKey(clientAudienceId);
+        let stored = await queueStore.outboxEnqueueWithOperationIdentity(
+          durableMutationRecord,
+          authorityCohortKey,
+        );
+        if (stored.operationIssuance === null) {
+          let range;
+          try {
+            range = await this.#refreshOperationIdentityRange(
+              queueStore,
+              authorityCohortKey,
+              clientAudienceId,
+              userId,
+              body.authorityDescriptor,
+              authorityCapture,
+            );
+            stored = await queueStore.outboxAssignOperationIdentity(
+              stored.id,
+              authorityCohortKey,
+              range,
+            );
+          } catch (error) {
+            if (isConnectivityFailureError(error)) {
+              this.#recordOutboxDiagnostic({
+                code: 'SNAPBACK_OPERATION_RANGE_UNCOVERED_QUEUED',
+                mutation: name,
+                clientMutationId: stored.id,
+                disposition: 'uncovered-range-exhausted',
+              });
+              return {
+                queued: true,
+                clientMutationId: stored.id,
+                sequence: stored.sequence,
+                operationCoverageDisposition: 'uncovered-range-exhausted',
+              };
+            }
+            await queueStore.outboxMarkFailed(stored.id, {
+              code: error?.diagnostic?.code ?? error?.code
+                ?? 'SNAPBACK_OPERATION_RANGE_REFRESH_FAILED',
+              message: error?.message ?? String(error),
+            });
+            throw error;
+          }
+        }
+        if (!stored?.operationIssuance) {
+          const error = new Error(
+            'SNAPBACK_OPERATION_RANGE_EXHAUSTED: refreshed range supplied no operation identity',
+          );
+          error.code = 'SNAPBACK_OPERATION_RANGE_EXHAUSTED';
+          throw error;
+        }
+        body.operationIssuance = stored.operationIssuance;
+        durableMutationRecord.operationIssuance = stored.operationIssuance;
+        durableMutationRecord.operationCoverageDisposition = stored.operationCoverageDisposition;
+      } else {
+        await queueStore.outboxEnqueue(durableMutationRecord);
+      }
       durableOnlineRecord = true;
     }
     let reservationRetryAuthorityCapture = authorityCapture;

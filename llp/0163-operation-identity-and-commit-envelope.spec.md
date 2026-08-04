@@ -5,7 +5,11 @@
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (durable storage slice — authenticated epoch/range
+**Revised:** 2026-08-04 (public client carrier slice — server-owned issue/refresh transport,
+atomic file/IndexedDB outbox range custody, artifact-bound mutation carrier,
+ordinary-writer activation/refusal seam, and response-loss/exhaustion corpus
+landed; host caller and explanation transport residues keep the Spec Draft and
+all capabilities Missing); 2026-08-03 (durable storage slice — authenticated epoch/range
 admission, atomic envelope/suppression recording for issuance-bearing ordinary
 mutations, replay/tombstone/floor lifecycle, bounded explanation, and coverage
 guards landed; public issuance/client custody and runtime coverage activation
@@ -18,7 +22,11 @@ they can version independently of the profile umbrella)
 **Related:** LLP 0012, LLP 0037, LLP 0043, LLP 0055, LLP 0095, LLP 0133,
 LLP 0148, LLP 0162
 
-**Implementation evidence:** 2026-08-03 (the durable slice is integrated with
+**Implementation evidence:** 2026-08-04 (public range transport, atomic client
+custody, covered mutation carrier, and a dormant ordinary-writer activation
+seam are wired; no production target activates it;
+host callers, explanation transport/custody, complete acceptance corpus, and
+paired performance remain open); 2026-08-03 (the durable slice is integrated with
 ordinary history operation joins and dated candidate observations; the valid
 paired protocol, measurement-time baseline digest binding,
 public carrier, production coverage activation, protected explanation custody,
@@ -233,5 +241,59 @@ and prohibit capability publication.
 | 4 | **Partial** — a versioned stream manifest names both ordinary writer choke points and bypass/journal-retention adversaries are green; no production target activates a complete all-writer inventory. |
 | 13 | **Partial** — the dated comparable candidate observations are within the registered binary read/write/idle bounds on the step-0 machine, but the historical/candidate runs are not experimentally paired; a post-run baseline digest cannot supply measurement-time binding. No production target activates the public issuance-bearing covered lane, so a qualified digest-bound active-path run and applicable crash-cut corpus are still missing. |
 | 14 | **Partial** — host namespace authentication, client/host key separation, terminal receipt window, live promotion-ticket leases, and incarnation closure corpus are green; first-party host callers, transport-level client exclusion, and the full capacity/purge corpus are not wired. |
+
+Every related capability remains `Missing`; this slice makes no advertisement.
+
+## Implementation record — 2026-08-04, public client carrier slice
+
+The app-data router now serves the Rust-schema-owned
+`POST /client-mutations/identity-range` issue/refresh contract. Its credential
+is the live prepared authority; client-store identity, descriptor, and prior-
+range fields are non-authorizing continuity assertions. The server derives the
+audience from the authority and durable client-store identity, then chooses the
+epoch, counter bounds, expiry, and authenticator digest. Refresh must present the
+latest recorded range. A response lost after issuance is recoverable by
+re-serving that exact range only while the epoch has admitted no identity;
+after admission, missing durable custody refuses rather than risking counter
+reuse.
+
+`MutationRequest.operationIssuance` extends `clientMutationId` through the
+existing retry settlement path. The transport rejects issuance without that
+id and rejects the structurally disjoint host namespace. Covered retries bind
+the complete selected artifact generation in addition to the shipped
+function, canonical input, settlement, principal, audience, and authority
+facts. The v1 issuance shape remains unwidened; mutation admission resolves its
+audience from the exact durable range and authenticated authority epoch. Range
+issuance never activates coverage. A dormant server-controlled publication
+seam can activate a versioned entry naming both physical writer choke points;
+the focused corpus proves that, once explicitly activated, either writer
+refuses identity-less mutations before its first application write.
+
+The JavaScript client exposes this pre-publication carrier only through the
+explicit `operationIdentityProtocol: 1` opt-in. Its file and IndexedDB stores
+persist the installed range, next counter, and queued intent in the same
+existing outbox transaction. Range exhaustion queues an explicitly
+`uncovered-range-exhausted` intent and refreshes before admission; no uncovered
+intent is sent. Crash/reopen, exhaustion, server response-loss, contiguous
+refresh, automatic carrier transport, and all-store parity fixtures are green.
+The default remains disabled while this Spec is Draft and the capability rows
+remain `Missing`.
+
+This slice does not claim the remaining host-caller or explanation work.
+Jobs, cron occurrences, and migrations still need first-party host identity
+adapters (promotion already owns its authenticated host lease); public/admin
+explanation transport, current policy evaluators, and a secret-bearing
+protected-custody record also remain open. Acceptance row 13's genuinely
+paired active-lane performance artifact is owned by the Track B acceptance
+tail. No capability is advertised by this implementation record.
+
+| LLP 0162 acceptance row | State after public client carrier slice |
+| --- | --- |
+| 1 | **Partial** — public issuance-bearing HostPlan/Buffered mutations enter the atomic hook under explicit corpus activation, and that covered stream refuses identity-less writes; no production target activates it and the full crash matrix remains with the acceptance tail. |
+| 2 | **Partial** — server issue/refresh, response-loss recovery, atomic client custody, crash/reopen, exhaustion degradation, exact retry, and artifact binding are wired; cross-arm acceptance publication remains gated. |
+| 3 | **Partial** — unchanged durable explanation substrate; public/admin transport and real current-policy/protected custody remain missing. |
+| 4 | **Partial** — the dormant activation seam names both ordinary writer choke points and corpus activation refuses bypass; production activation plus full target inventory/asymmetric-retention acceptance remain gated. |
+| 13 | **Partial** — the carrier exists but no production covered lane is active; the genuinely paired baseline-digest-bound measurement record remains with the acceptance tail. |
+| 14 | **Partial** — client transport cannot mint `hostIncarnation`, and promotion holds authenticated host leases; job/cron/migration/child adapters remain missing. |
 
 Every related capability remains `Missing`; this slice makes no advertisement.
