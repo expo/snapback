@@ -9,11 +9,15 @@
 //
 // @ref LLP 0017#console-surfaces — the console composes the headless admin
 //   contract into views; the contract, not this file, is the source of truth.
+// @ref LLP 0167#honesty-requirements — one shared profile resource drives the
+//   persistent all-surface banner and the Developer controls.
 // @ref LLP 0156#e14--surface-typed-operations-projected-everywhere-d5-discipline — Errors
 //   is a fixed triage page, and Health only links into the same operation data.
 
 use inspect from "./generated/contract/inspect.query.ts"
 use refresh from "./generated/contract/refresh.mutation.ts"
+use networkProfile from "./generated/contract/networkProfile.query.ts"
+use activateNetworkProfile from "./generated/contract/activateNetworkProfile.mutation.ts"
 use telemetryLogs from "./generated/contract/telemetryLogs.query.ts"
 use errorIssues from "./generated/contract/errorIssues.query.ts"
 use errorDetail from "./generated/contract/errorDetail.query.ts"
@@ -51,8 +55,14 @@ component AdminConsole
   state logText = ""
   state logDetail = ""
   state errorDetailIssue = ""
+  state customProfileName = "custom"
+  state customMutationAckDelayMs = "0"
+  state customLiveDeltaDelayMs = "0"
+  state customQueryResponseDelayMs = "0"
+  state customJitterMs = "0"
 
   query state = inspect({})
+  query profileQ = networkProfile({})
   query scan = tableScan({})
   query logs = telemetryLogs({})
   query errorsQ = errorIssues({})
@@ -60,6 +70,7 @@ component AdminConsole
   query runResultQ = runResult({})
   query guide = guidePage({})
   mutation reloadInspect = refresh
+  mutation activateProfileMut = activateNetworkProfile
   mutation pollTelemetry = refreshTelemetry
   mutation loadLogs = loadTelemetryLogs
   mutation loadOlderLogs = loadOlderTelemetryLogs
@@ -84,6 +95,7 @@ component AdminConsole
   derive isSecrets = activeTab == "Secrets"
   derive isCapabilities = activeTab == "Capabilities"
   derive isRealtime = activeTab == "Realtime"
+  derive isDeveloper = activeTab == "Developer"
   derive isDiagnostics = activeTab == "Diagnostics"
   derive isDocs = activeTab == "Docs"
 
@@ -93,6 +105,20 @@ component AdminConsole
     pollTelemetry()
   action setTab(name) writes activeTab
     activeTab = name
+  action activateBuiltIn(name) mutates activateProfileMut
+    activateProfileMut({ mode: "builtin", name: name, mutationAckDelayMs: "", liveDeltaDelayMs: "", queryResponseDelayMs: "", jitterMs: "" })
+  action setCustomProfileName(value) writes customProfileName
+    customProfileName = value
+  action setCustomMutationAckDelayMs(value) writes customMutationAckDelayMs
+    customMutationAckDelayMs = value
+  action setCustomLiveDeltaDelayMs(value) writes customLiveDeltaDelayMs
+    customLiveDeltaDelayMs = value
+  action setCustomQueryResponseDelayMs(value) writes customQueryResponseDelayMs
+    customQueryResponseDelayMs = value
+  action setCustomJitterMs(value) writes customJitterMs
+    customJitterMs = value
+  action activateCustom mutates activateProfileMut
+    activateProfileMut({ mode: "custom", name: customProfileName, mutationAckDelayMs: customMutationAckDelayMs, liveDeltaDelayMs: customLiveDeltaDelayMs, queryResponseDelayMs: customQueryResponseDelayMs, jitterMs: customJitterMs })
   action syncSystemTheme(mode) writes theme
     theme = mode
   action openTable(name) writes dataTable, dataOffset mutates loadScan
@@ -164,6 +190,17 @@ component AdminConsole
 
       scroll flex=1 minWidth=0 minHeight=0 background=c.canvas borderLeftWidth=1 borderLeftColor=c.border
         column padding=28 gap=18 width="100%" maxWidth=1180
+
+          async profileQ
+            ready profileRows
+              each np in profileRows key=np.id
+                when np.showBanner
+                  row gap=12 align="center" wrap="wrap" width="100%" paddingTop=12 paddingBottom=12 paddingLeft=16 paddingRight=16 radius=10 background=c.warnSoft borderWidth=1 borderColor=c.warn testId="network-profile-banner"
+                    column gap=2 flex=1 minWidth=220
+                      text `Network profile “${np.name}” is active` size=13 weight=700 color=c.warn family=f.sans
+                      text `source: ${np.source}` size=11 color=c.warn family=f.mono
+                    button press=activateBuiltIn("normal") testId="network-profile-restore" paddingTop=7 paddingBottom=7 paddingLeft=14 paddingRight=14 radius=8 background=c.surface borderWidth=1 borderColor=c.warn
+                      text "Restore normal" size=12 weight=700 color=c.warn family=f.sans
 
           async state
             loading
@@ -681,6 +718,71 @@ component AdminConsole
                       row gap=12 wrap="wrap" width="100%"
                         each st in s.ui.ephemeral key=st.key
                           StatTile(c=c, label=st.label, value=st.value, alert=st.alert)
+
+                when isDeveloper
+                  async profileQ
+                    loading
+                      column padding=28 align="center" radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%"
+                        text "Loading network profile…" size=13 color=c.textMuted family=f.sans
+                    error profileErr
+                      column gap=6 padding=16 radius=12 background=c.errSoft width="100%"
+                        text "Network profile unavailable" size=13 weight=700 color=c.err family=f.sans
+                        text profileErr.message size=12 color=c.err family=f.mono
+                    ready profileRows
+                      each np in profileRows key=np.id
+                        column gap=16 width="100%"
+                          text "Server-side egress delay for mutation acknowledgements, live deltas, and query responses." size=13 color=c.textMuted family=f.sans
+                          when np.available
+                            row gap=14 wrap="wrap" align="stretch" width="100%"
+                              Card(c=c, title="ACTIVE PROFILE")
+                                Kv(c=c, k="Name", v=np.name, tone=np.isNormal ? "ok" : "warn", mono=true)
+                                Kv(c=c, k="Mutation ack", v=np.mutationAckDelayMs, mono=true)
+                                Kv(c=c, k="Live delta", v=np.liveDeltaDelayMs, mono=true)
+                                Kv(c=c, k="Query response", v=np.queryResponseDelayMs, mono=true)
+                                Kv(c=c, k="Jitter", v=np.jitterMs, mono=true)
+                              Card(c=c, title="PROVENANCE")
+                                Kv(c=c, k="Source", v=np.source, mono=true)
+                                Kv(c=c, k="Activated at", v=np.activatedAt, mono=true)
+                                when np.hasPrincipal
+                                  Kv(c=c, k="Principal", v=np.principal, mono=true)
+
+                          when np.hasError
+                            column gap=6 padding=14 radius=12 background=np.readOnly ? c.warnSoft : c.errSoft width="100%" testId="network-profile-refusal"
+                              text np.readOnly ? "Network profiles are read-only on this target" : "Network profile activation refused" size=13 weight=700 color=np.readOnly ? c.warn : c.err family=f.sans
+                              text np.errorCode size=12 weight=700 color=np.readOnly ? c.warn : c.err family=f.mono testId="network-profile-error-code"
+                              text np.errorMessage size=12 color=np.readOnly ? c.warn : c.err family=f.mono testId="network-profile-error-message"
+                              when np.readOnly
+                                text "Hosted and production targets permit only the normal identity profile. The server remains authoritative for this policy." size=12 color=c.textMuted family=f.sans
+
+                          when np.available == false
+                            column gap=6 padding=16 radius=12 background=c.errSoft width="100%"
+                              text "Network profile state could not be loaded." size=13 weight=700 color=c.err family=f.sans
+
+                          when np.available && np.readOnly == false
+                            column gap=10 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%" boxShadow=c.shadowCard
+                              text "BUILT-IN PROFILES" size=11 weight=700 letterSpacing=0.5 color=c.textMuted family=f.sans
+                              row gap=8 wrap="wrap" width="100%"
+                                button press=activateBuiltIn("normal") testId="network-profile-normal" paddingTop=9 paddingBottom=9 paddingLeft=16 paddingRight=16 radius=8 background=np.isNormal ? c.okSoft : c.surfaceRaised borderWidth=1 borderColor=np.isNormal ? c.ok : c.border
+                                  text "Normal" size=13 weight=600 color=np.isNormal ? c.ok : c.text family=f.sans
+                                button press=activateBuiltIn("optimistic") testId="network-profile-optimistic" paddingTop=9 paddingBottom=9 paddingLeft=16 paddingRight=16 radius=8 background=c.surfaceRaised borderWidth=1 borderColor=c.border
+                                  text "Optimistic · 1,000 ms ack/live" size=13 weight=600 color=c.text family=f.sans
+                                button press=activateBuiltIn("demo-slow") testId="network-profile-demo-slow" paddingTop=9 paddingBottom=9 paddingLeft=16 paddingRight=16 radius=8 background=c.surfaceRaised borderWidth=1 borderColor=c.border
+                                  text "Demo slow · 2,000 ms + jitter" size=13 weight=600 color=c.text family=f.sans
+
+                            column gap=12 padding=16 radius=12 background=c.surface borderWidth=1 borderColor=c.border width="100%" boxShadow=c.shadowCard
+                              column gap=2 width="100%"
+                                text "CUSTOM PROFILE" size=11 weight=700 letterSpacing=0.5 color=c.textMuted family=f.sans
+                                text "Each lane and each lane plus jitter must remain at or below 30,000 ms." size=12 color=c.textFaint family=f.sans
+                              input label="Name" value=customProfileName change=setCustomProfileName submit=activateCustom testId="network-profile-custom-name" width="100%" padding=9 radius=8 borderWidth=1 borderColor=c.borderStrong background=c.surfaceRaised color=c.text size=13 family=f.mono
+                              row gap=10 wrap="wrap" width="100%"
+                                input label="Mutation ack delay (ms)" value=customMutationAckDelayMs change=setCustomMutationAckDelayMs submit=activateCustom testId="network-profile-custom-ack" minWidth=210 flex=1 padding=9 radius=8 borderWidth=1 borderColor=c.borderStrong background=c.surfaceRaised color=c.text size=13 family=f.mono
+                                input label="Live delta delay (ms)" value=customLiveDeltaDelayMs change=setCustomLiveDeltaDelayMs submit=activateCustom testId="network-profile-custom-live" minWidth=210 flex=1 padding=9 radius=8 borderWidth=1 borderColor=c.borderStrong background=c.surfaceRaised color=c.text size=13 family=f.mono
+                              row gap=10 wrap="wrap" width="100%"
+                                input label="Query response delay (ms)" value=customQueryResponseDelayMs change=setCustomQueryResponseDelayMs submit=activateCustom testId="network-profile-custom-query" minWidth=210 flex=1 padding=9 radius=8 borderWidth=1 borderColor=c.borderStrong background=c.surfaceRaised color=c.text size=13 family=f.mono
+                                input label="Jitter (ms)" value=customJitterMs change=setCustomJitterMs submit=activateCustom testId="network-profile-custom-jitter" minWidth=210 flex=1 padding=9 radius=8 borderWidth=1 borderColor=c.borderStrong background=c.surfaceRaised color=c.text size=13 family=f.mono
+                              row justify="end" width="100%"
+                                button press=activateCustom testId="network-profile-custom-submit" paddingTop=9 paddingBottom=9 paddingLeft=18 paddingRight=18 radius=8 background=c.accent borderWidth=0
+                                  text "Activate custom profile" size=13 weight=600 color=c.onAccent family=f.sans
 
                 when isDiagnostics
                   column gap=14 width="100%"
