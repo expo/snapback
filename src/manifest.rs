@@ -8993,10 +8993,19 @@ pub enum TargetCapabilityId {
     AssetReferenceGcV1,
     #[serde(rename = "asset_video_finalization_v1")]
     AssetVideoFinalizationV1,
+    /// Registry identity for the LLP 0162 `agentSafe.v1` extension/component
+    /// fact vocabulary. It does not name the `AgentSafeV1` core aggregate and
+    /// registration does not imply that any target has passed the corpus.
+    #[serde(rename = "agent_safe_storage_v1")]
+    AgentSafeStorageV1,
+    /// Additive LLP 0158 derived-deployment fork tuple. This identity remains
+    /// independent from both the storage extension and in-app branch facts.
+    #[serde(rename = "agent_safe_derived_deployment_fork_v1")]
+    AgentSafeDerivedDeploymentForkV1,
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 33] = [
+    pub const ALL: [Self; 35] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -9030,6 +9039,8 @@ impl TargetCapabilityId {
         Self::AssetImagePipelineV1,
         Self::AssetReferenceGcV1,
         Self::AssetVideoFinalizationV1,
+        Self::AgentSafeStorageV1,
+        Self::AgentSafeDerivedDeploymentForkV1,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -9067,6 +9078,10 @@ impl TargetCapabilityId {
             Self::AssetVideoFinalizationV1 => "asset_video_finalization_v1",
             Self::AssetImagePipelineV1 => "asset_image_pipeline_v1",
             Self::AssetReferenceGcV1 => "asset_reference_gc_v1",
+            Self::AgentSafeStorageV1 => "agent_safe_storage_v1",
+            Self::AgentSafeDerivedDeploymentForkV1 => {
+                "agent_safe_derived_deployment_fork_v1"
+            }
         }
     }
 
@@ -9116,7 +9131,9 @@ impl TargetCapabilityId {
             | Self::AssetImageFinalizationV1
             | Self::AssetVideoFinalizationV1
             | Self::AssetImagePipelineV1
-            | Self::AssetReferenceGcV1 => CapabilityMaturity::Experimental,
+            | Self::AssetReferenceGcV1
+            | Self::AgentSafeStorageV1
+            | Self::AgentSafeDerivedDeploymentForkV1 => CapabilityMaturity::Experimental,
             Self::AuthSessionsV1
             | Self::BoundedResponseStreamV1
             | Self::Cron
@@ -9416,6 +9433,14 @@ impl TargetCapabilityId {
                         .as_ref()
                         .is_some_and(|assets| assets.reference_gc.is_some())
             }
+            // Registration reserves the extension/component-fact vocabulary,
+            // not the LLP 0162 core aggregate. No target has a positive
+            // publication predicate while the acceptance corpus remains open.
+            Self::AgentSafeStorageV1 => false,
+            // Derived-deployment support is independently reviewed and
+            // qualified; neither the registered storage extension nor the
+            // shipped source-only fork tooling can imply this additive claim.
+            Self::AgentSafeDerivedDeploymentForkV1 => false,
         }
     }
 }
@@ -9978,9 +10003,19 @@ pub enum AgentSafeAggregateStateV1 {
 /// even though their absence does not block the v1 core aggregate.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct AgentSafeEnvelopeCoverageByLaneV1 {
-    pub ordinary_ibex_mutation: AgentSafeEnvelopeCoverageV1,
-    pub host_plan_settlement: AgentSafeEnvelopeCoverageV1,
+pub struct AgentSafeEnvelopeCoverageByAdapterV1 {
+    pub host_plan: AgentSafeEnvelopeCoverageV1,
+    pub ibex_buffered: AgentSafeEnvelopeCoverageV1,
+}
+
+/// Exact logical-lane x physical-adapter coverage. The ordinary and Host
+/// namespaces each have both execution adapters; collapsing either axis would
+/// let one green writer silently stand in for another.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeEnvelopeCoverageByScopeV1 {
+    pub ordinary_mutation: AgentSafeEnvelopeCoverageByAdapterV1,
+    pub host_child_mutation: AgentSafeEnvelopeCoverageByAdapterV1,
     pub migration: AgentSafeEnvelopeCoverageV1,
     pub durable_background_work: AgentSafeEnvelopeCoverageV1,
     pub push: AgentSafeEnvelopeCoverageV1,
@@ -9994,18 +10029,115 @@ pub struct AgentSafeExplanationClassV1 {
     pub retention: AgentSafeExplanationRetentionV1,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Deserialize,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentSafeExplanationLogicalLaneV1 {
+    OrdinaryMutation,
+    HostChildMutation,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Deserialize,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentSafeExplanationAdapterV1 {
+    HostPlan,
+    IbexBuffered,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Deserialize,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentSafeExplanationAccessV1 {
+    PublicCurrentPolicy,
+    Administrative,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Deserialize,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentSafeExplanationProfileV1 {
+    GeneratedOwnedCrudOwnerCreateV1,
+    GeneratedOwnedCrudOwnerUpdateV1,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Deserialize,
+    Eq,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    schemars::JsonSchema,
+)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct AgentSafeExplanationByLaneV1 {
-    pub ordinary_ibex_mutation: AgentSafeExplanationClassV1,
-    pub host_plan_settlement: AgentSafeExplanationClassV1,
-    pub migration: AgentSafeExplanationClassV1,
-    pub durable_background_work: AgentSafeExplanationClassV1,
-    pub push: AgentSafeExplanationClassV1,
-    pub auth: AgentSafeExplanationClassV1,
+pub struct AgentSafeExplanationScopeV1 {
+    pub logical_lane: AgentSafeExplanationLogicalLaneV1,
+    pub adapter: AgentSafeExplanationAdapterV1,
+    pub access: AgentSafeExplanationAccessV1,
+    pub profile: AgentSafeExplanationProfileV1,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeScopedExplanationFactV1 {
+    pub scope: AgentSafeExplanationScopeV1,
+    pub class: AgentSafeExplanationClassV1,
+}
+
+/// Canonical sparse projection of explanation support. An empty list is the
+/// complete Missing projection. Positive entries are strictly scope-sorted,
+/// unique, and use only the closed profile/access/execution vocabulary above.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeExplanationFactsV1 {
+    pub scoped_facts: Vec<AgentSafeScopedExplanationFactV1>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AgentSafeForkAxesV1 {
     pub egress: AgentSafeForkEgressV1,
@@ -10048,8 +10180,8 @@ pub struct AgentSafeAggregateFactsV1 {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AgentSafeCapabilityFactsV1 {
-    pub envelope: AgentSafeEnvelopeCoverageByLaneV1,
-    pub explanation: AgentSafeExplanationByLaneV1,
+    pub envelope: AgentSafeEnvelopeCoverageByScopeV1,
+    pub explanation: AgentSafeExplanationFactsV1,
     pub forks: AgentSafeForkFactsV1,
     pub diff: AgentSafeDiffFactsV1,
     pub history: AgentSafeHistoryClassV1,
@@ -10067,12 +10199,36 @@ pub struct AgentSafeCapabilityFactsV1 {
 /// @ref LLP 0162#8-capability-honesty — target support and app-effective
 /// coverage are separate, every class is closed, and specialized lane gaps
 /// remain visible without silently widening the core aggregate.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AgentSafeCapabilityExtensionV1 {
     pub schema_version: AgentSafeCapabilitySchemaVersion,
     pub target: AgentSafeCapabilityFactsV1,
     pub app_effective: AgentSafeCapabilityFactsV1,
+}
+
+impl<'de> Deserialize<'de> for AgentSafeCapabilityExtensionV1 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase", deny_unknown_fields)]
+        struct Wire {
+            schema_version: AgentSafeCapabilitySchemaVersion,
+            target: AgentSafeCapabilityFactsV1,
+            app_effective: AgentSafeCapabilityFactsV1,
+        }
+
+        let wire = Wire::deserialize(deserializer)?;
+        let extension = Self {
+            schema_version: wire.schema_version,
+            target: wire.target,
+            app_effective: wire.app_effective,
+        };
+        extension.validate().map_err(serde::de::Error::custom)?;
+        Ok(extension)
+    }
 }
 
 impl Default for AgentSafeCapabilityExtensionV1 {
@@ -10112,10 +10268,6 @@ impl AgentSafeCapabilityExtensionV1 {
 
 impl AgentSafeCapabilityFactsV1 {
     fn missing() -> Self {
-        let explanation = || AgentSafeExplanationClassV1 {
-            detail: AgentSafeExplanationDetailV1::Missing,
-            retention: AgentSafeExplanationRetentionV1::Missing,
-        };
         let fork = || AgentSafeForkAxesV1 {
             egress: AgentSafeForkEgressV1::Missing,
             promotion: AgentSafeForkPromotionV1::Missing,
@@ -10123,21 +10275,22 @@ impl AgentSafeCapabilityFactsV1 {
             isolation: AgentSafeForkIsolationV1::Missing,
         };
         Self {
-            envelope: AgentSafeEnvelopeCoverageByLaneV1 {
-                ordinary_ibex_mutation: AgentSafeEnvelopeCoverageV1::Missing,
-                host_plan_settlement: AgentSafeEnvelopeCoverageV1::Missing,
+            envelope: AgentSafeEnvelopeCoverageByScopeV1 {
+                ordinary_mutation: AgentSafeEnvelopeCoverageByAdapterV1 {
+                    host_plan: AgentSafeEnvelopeCoverageV1::Missing,
+                    ibex_buffered: AgentSafeEnvelopeCoverageV1::Missing,
+                },
+                host_child_mutation: AgentSafeEnvelopeCoverageByAdapterV1 {
+                    host_plan: AgentSafeEnvelopeCoverageV1::Missing,
+                    ibex_buffered: AgentSafeEnvelopeCoverageV1::Missing,
+                },
                 migration: AgentSafeEnvelopeCoverageV1::Missing,
                 durable_background_work: AgentSafeEnvelopeCoverageV1::Missing,
                 push: AgentSafeEnvelopeCoverageV1::Missing,
                 auth: AgentSafeEnvelopeCoverageV1::Missing,
             },
-            explanation: AgentSafeExplanationByLaneV1 {
-                ordinary_ibex_mutation: explanation(),
-                host_plan_settlement: explanation(),
-                migration: explanation(),
-                durable_background_work: explanation(),
-                push: explanation(),
-                auth: explanation(),
+            explanation: AgentSafeExplanationFactsV1 {
+                scoped_facts: Vec::new(),
             },
             forks: AgentSafeForkFactsV1 {
                 in_app: fork(),
@@ -10163,7 +10316,37 @@ impl AgentSafeCapabilityFactsV1 {
     }
 
     fn validate_projection(&self) -> Result<(), &'static str> {
+        let mut prior_scope = None;
+        for fact in &self.explanation.scoped_facts {
+            if prior_scope.is_some_and(|prior| prior >= fact.scope) {
+                return Err("explanation facts must be strictly scope-sorted and unique");
+            }
+            if fact.class.detail == AgentSafeExplanationDetailV1::Missing
+                || fact.class.retention == AgentSafeExplanationRetentionV1::Missing
+            {
+                return Err("scoped explanation facts must carry positive detail and retention");
+            }
+            if fact.scope.logical_lane != AgentSafeExplanationLogicalLaneV1::OrdinaryMutation
+                || fact.scope.adapter != AgentSafeExplanationAdapterV1::HostPlan
+            {
+                return Err(
+                    "generated owner explanation profiles require ordinaryMutation HostPlan",
+                );
+            }
+            prior_scope = Some(fact.scope);
+        }
         for fork in [&self.forks.in_app, &self.forks.derived_deployment] {
+            let missing = fork.egress == AgentSafeForkEgressV1::Missing
+                && fork.promotion == AgentSafeForkPromotionV1::Missing
+                && fork.base == AgentSafeForkBaseV1::Missing
+                && fork.isolation == AgentSafeForkIsolationV1::Missing;
+            let complete = fork.egress != AgentSafeForkEgressV1::Missing
+                && fork.promotion != AgentSafeForkPromotionV1::Missing
+                && fork.base != AgentSafeForkBaseV1::Missing
+                && fork.isolation != AgentSafeForkIsolationV1::Missing;
+            if !missing && !complete {
+                return Err("fork facts must be wholly Missing or declare every axis");
+            }
             if fork.promotion == AgentSafeForkPromotionV1::Promotable
                 && fork.base != AgentSafeForkBaseV1::CurrentHead
             {
@@ -10175,71 +10358,24 @@ impl AgentSafeCapabilityFactsV1 {
                 return Err("Promotable forks require a declared egress policy");
             }
         }
-        if self.aggregate.core == AgentSafeAggregateStateV1::Supported && !self.satisfies_core() {
-            return Err("AgentSafeV1-core aggregate has a Missing required component");
-        }
-        if self.aggregate.history == AgentSafeAggregateStateV1::Supported
-            && (self.aggregate.core != AgentSafeAggregateStateV1::Supported
-                || self.history == AgentSafeHistoryClassV1::Missing)
+        if self.aggregate.core == AgentSafeAggregateStateV1::Supported
+            || self.aggregate.history == AgentSafeAggregateStateV1::Supported
         {
-            return Err("AgentSafeV1-history requires supported core and retained history");
+            return Err("agent-safe aggregates require a separately verified publication carrier");
         }
         Ok(())
-    }
-
-    fn satisfies_core(&self) -> bool {
-        self.envelope.ordinary_ibex_mutation == AgentSafeEnvelopeCoverageV1::Covered
-            && self.envelope.host_plan_settlement == AgentSafeEnvelopeCoverageV1::Covered
-            && self.explanation.ordinary_ibex_mutation.detail
-                != AgentSafeExplanationDetailV1::Missing
-            && self.explanation.ordinary_ibex_mutation.retention
-                != AgentSafeExplanationRetentionV1::Missing
-            && self.explanation.host_plan_settlement.detail != AgentSafeExplanationDetailV1::Missing
-            && self.explanation.host_plan_settlement.retention
-                != AgentSafeExplanationRetentionV1::Missing
-            && matches!(
-                self.forks.in_app.egress,
-                AgentSafeForkEgressV1::DenyAll | AgentSafeForkEgressV1::CaptureOnly
-            )
-            && self.forks.in_app.promotion == AgentSafeForkPromotionV1::Promotable
-            && self.forks.in_app.base == AgentSafeForkBaseV1::CurrentHead
-            && self.forks.in_app.isolation != AgentSafeForkIsolationV1::Missing
-            && self.diff.data == AgentSafeDiffCoverageV1::Exact
-            && self.diff.effects == AgentSafeDiffCoverageV1::Exact
-            && self.proof == AgentSafeProofClassV1::IndependentBoundaryProof
     }
 
     fn is_subset_of(&self, target: &Self) -> bool {
         fn class<T: Copy + PartialEq>(effective: T, target: T, missing: T) -> bool {
             effective == missing || effective == target
         }
-        let explanation = |effective: &AgentSafeExplanationClassV1,
-                           target: &AgentSafeExplanationClassV1| {
-            class(
-                effective.detail,
-                target.detail,
-                AgentSafeExplanationDetailV1::Missing,
-            ) && class(
-                effective.retention,
-                target.retention,
-                AgentSafeExplanationRetentionV1::Missing,
-            )
-        };
         let fork = |effective: &AgentSafeForkAxesV1, target: &AgentSafeForkAxesV1| {
-            class(
-                effective.egress,
-                target.egress,
-                AgentSafeForkEgressV1::Missing,
-            ) && class(
-                effective.promotion,
-                target.promotion,
-                AgentSafeForkPromotionV1::Missing,
-            ) && class(effective.base, target.base, AgentSafeForkBaseV1::Missing)
-                && class(
-                    effective.isolation,
-                    target.isolation,
-                    AgentSafeForkIsolationV1::Missing,
-                )
+            let missing = effective.egress == AgentSafeForkEgressV1::Missing
+                && effective.promotion == AgentSafeForkPromotionV1::Missing
+                && effective.base == AgentSafeForkBaseV1::Missing
+                && effective.isolation == AgentSafeForkIsolationV1::Missing;
+            missing || effective == target
         };
         let envelope = |effective: AgentSafeEnvelopeCoverageV1,
                         target: AgentSafeEnvelopeCoverageV1| {
@@ -10247,11 +10383,17 @@ impl AgentSafeCapabilityFactsV1 {
         };
 
         envelope(
-            self.envelope.ordinary_ibex_mutation,
-            target.envelope.ordinary_ibex_mutation,
+            self.envelope.ordinary_mutation.host_plan,
+            target.envelope.ordinary_mutation.host_plan,
         ) && envelope(
-            self.envelope.host_plan_settlement,
-            target.envelope.host_plan_settlement,
+            self.envelope.ordinary_mutation.ibex_buffered,
+            target.envelope.ordinary_mutation.ibex_buffered,
+        ) && envelope(
+            self.envelope.host_child_mutation.host_plan,
+            target.envelope.host_child_mutation.host_plan,
+        ) && envelope(
+            self.envelope.host_child_mutation.ibex_buffered,
+            target.envelope.host_child_mutation.ibex_buffered,
         ) && envelope(self.envelope.migration, target.envelope.migration)
             && envelope(
                 self.envelope.durable_background_work,
@@ -10259,21 +10401,18 @@ impl AgentSafeCapabilityFactsV1 {
             )
             && envelope(self.envelope.push, target.envelope.push)
             && envelope(self.envelope.auth, target.envelope.auth)
-            && explanation(
-                &self.explanation.ordinary_ibex_mutation,
-                &target.explanation.ordinary_ibex_mutation,
-            )
-            && explanation(
-                &self.explanation.host_plan_settlement,
-                &target.explanation.host_plan_settlement,
-            )
-            && explanation(&self.explanation.migration, &target.explanation.migration)
-            && explanation(
-                &self.explanation.durable_background_work,
-                &target.explanation.durable_background_work,
-            )
-            && explanation(&self.explanation.push, &target.explanation.push)
-            && explanation(&self.explanation.auth, &target.explanation.auth)
+            && self
+                .explanation
+                .scoped_facts
+                .iter()
+                .all(|fact| {
+                    target
+                        .explanation
+                        .scoped_facts
+                        .binary_search_by_key(&fact.scope, |candidate| candidate.scope)
+                        .ok()
+                        .is_some_and(|index| &target.explanation.scoped_facts[index] == fact)
+                })
             && fork(&self.forks.in_app, &target.forks.in_app)
             && fork(
                 &self.forks.derived_deployment,
@@ -11500,25 +11639,6 @@ impl CapabilityManifest {
             .collect();
     }
 
-    /// Crate-private seam for the later SHA/digest-bound publication carrier.
-    /// No current target calls it, and validation alone never removes a GAP or
-    /// inserts a [`TargetCapabilityId`].
-    #[allow(dead_code)]
-    pub(crate) fn with_agent_safe_publication_candidate(
-        mut self,
-        candidate: AgentSafeCapabilityExtensionV1,
-    ) -> SnapbackResult<Self> {
-        candidate.validate().map_err(|reason| {
-            SnapbackError::error(
-                "SNAPBACK_AGENT_SAFE_CAPABILITY_INVALID",
-                "capability",
-                reason,
-            )
-        })?;
-        self.agent_safe = candidate;
-        Ok(self)
-    }
-
     /// Validate one app-artifact requirement against the closed registry and
     /// this target's positive support set. Candidate claims and missing gaps
     /// are deliberately irrelevant. Callers with no acknowledgment channel
@@ -11608,33 +11728,49 @@ mod agent_safe_capability_tests {
     use super::*;
     use serde_json::json;
 
-    fn core_candidate() -> AgentSafeCapabilityExtensionV1 {
-        let mut candidate = AgentSafeCapabilityExtensionV1::missing();
-        let facts = &mut candidate.target;
-        facts.envelope.ordinary_ibex_mutation = AgentSafeEnvelopeCoverageV1::Covered;
-        facts.envelope.host_plan_settlement = AgentSafeEnvelopeCoverageV1::Covered;
-        facts.explanation.ordinary_ibex_mutation = AgentSafeExplanationClassV1 {
-            detail: AgentSafeExplanationDetailV1::BoundedFacts,
-            retention: AgentSafeExplanationRetentionV1::PolicyBounded,
-        };
-        facts.explanation.host_plan_settlement = AgentSafeExplanationClassV1 {
-            detail: AgentSafeExplanationDetailV1::BoundedFacts,
-            retention: AgentSafeExplanationRetentionV1::PolicyBounded,
-        };
-        facts.forks.in_app = AgentSafeForkAxesV1 {
-            egress: AgentSafeForkEgressV1::DenyAll,
-            promotion: AgentSafeForkPromotionV1::Promotable,
-            base: AgentSafeForkBaseV1::CurrentHead,
-            isolation: AgentSafeForkIsolationV1::HostMediated,
-        };
-        facts.diff = AgentSafeDiffFactsV1 {
-            data: AgentSafeDiffCoverageV1::Exact,
-            effects: AgentSafeDiffCoverageV1::Exact,
-        };
-        facts.proof = AgentSafeProofClassV1::IndependentBoundaryProof;
-        facts.aggregate.core = AgentSafeAggregateStateV1::Supported;
-        candidate.app_effective = candidate.target.clone();
-        candidate
+    fn owner_fact(
+        profile: AgentSafeExplanationProfileV1,
+    ) -> AgentSafeScopedExplanationFactV1 {
+        AgentSafeScopedExplanationFactV1 {
+            scope: AgentSafeExplanationScopeV1 {
+                logical_lane: AgentSafeExplanationLogicalLaneV1::OrdinaryMutation,
+                adapter: AgentSafeExplanationAdapterV1::HostPlan,
+                access: AgentSafeExplanationAccessV1::PublicCurrentPolicy,
+                profile,
+            },
+            class: AgentSafeExplanationClassV1 {
+                detail: AgentSafeExplanationDetailV1::BoundedFacts,
+                retention: AgentSafeExplanationRetentionV1::PolicyBounded,
+            },
+        }
+    }
+
+    #[test]
+    fn agent_safe_registry_ids_are_experimental_but_independently_unsupported() {
+        for (wire, id) in [
+            (
+                "agent_safe_storage_v1",
+                TargetCapabilityId::AgentSafeStorageV1,
+            ),
+            (
+                "agent_safe_derived_deployment_fork_v1",
+                TargetCapabilityId::AgentSafeDerivedDeploymentForkV1,
+            ),
+        ] {
+            assert_eq!(wire.parse::<TargetCapabilityId>(), Ok(id));
+            assert_eq!(id.maturity(), CapabilityMaturity::Experimental);
+            for manifest in [
+                CapabilityManifest::local_v0_declared(),
+                CapabilityManifest::remote_service_sqlite_ibex_declared(),
+                CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+            ] {
+                assert!(!id.is_supported_by(
+                    &manifest,
+                    TargetCapabilityFacts::local_auth_aware()
+                ));
+                assert!(!manifest.supported_capabilities.contains(&id));
+            }
+        }
     }
 
     #[test]
@@ -11680,23 +11816,39 @@ mod agent_safe_capability_tests {
     #[test]
     fn agent_safe_target_and_app_effective_are_independent_fail_closed_facts() {
         let mut candidate = AgentSafeCapabilityExtensionV1::missing();
-        candidate.app_effective.envelope.ordinary_ibex_mutation =
+        candidate
+            .app_effective
+            .envelope
+            .ordinary_mutation
+            .host_plan =
             AgentSafeEnvelopeCoverageV1::Covered;
-        let error = CapabilityManifest::local_v0_declared()
-            .with_agent_safe_publication_candidate(candidate)
-            .expect_err("app-effective coverage cannot mint target support");
         assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_AGENT_SAFE_CAPABILITY_INVALID"
+            candidate.validate(),
+            Err("appEffective facts exceed target support"),
+            "app-effective coverage cannot mint target support",
         );
+
+        let create = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerCreateV1);
+        let update = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerUpdateV1);
+        let mut scoped = AgentSafeCapabilityExtensionV1::missing();
+        scoped.target.explanation.scoped_facts = vec![create.clone(), update];
+        scoped.app_effective.explanation.scoped_facts = vec![create];
         assert_eq!(
-            error.diagnostic.message,
-            "appEffective facts exceed target support"
+            scoped.validate(),
+            Ok(()),
+            "appEffective may honestly select a strict subset of target explanation profiles",
         );
     }
 
     #[test]
     fn agent_safe_fork_axes_and_aggregate_requirements_are_exact() {
+        let mut partial = AgentSafeCapabilityExtensionV1::missing();
+        partial.target.forks.derived_deployment.egress = AgentSafeForkEgressV1::DenyAll;
+        assert_eq!(
+            partial.validate(),
+            Err("fork facts must be wholly Missing or declare every axis")
+        );
+
         let mut bad_fork = AgentSafeCapabilityExtensionV1::missing();
         bad_fork.target.forks.in_app = AgentSafeForkAxesV1 {
             egress: AgentSafeForkEgressV1::DenyAll,
@@ -11709,25 +11861,49 @@ mod agent_safe_capability_tests {
             Err("Promotable forks require currentHead base")
         );
 
-        let mut missing_component = AgentSafeCapabilityExtensionV1::missing();
-        missing_component.target.aggregate.core = AgentSafeAggregateStateV1::Supported;
+        let mut exact_derived = AgentSafeCapabilityExtensionV1::missing();
+        exact_derived.target.forks.derived_deployment = AgentSafeForkAxesV1 {
+            egress: AgentSafeForkEgressV1::DenyAll,
+            promotion: AgentSafeForkPromotionV1::NotPromotable,
+            base: AgentSafeForkBaseV1::CurrentHead,
+            isolation: AgentSafeForkIsolationV1::HostMediated,
+        };
+        assert_eq!(exact_derived.validate(), Ok(()));
+
+        let mut aggregate = AgentSafeCapabilityExtensionV1::missing();
+        aggregate.target.aggregate.core = AgentSafeAggregateStateV1::Supported;
         assert_eq!(
-            missing_component.validate(),
-            Err("AgentSafeV1-core aggregate has a Missing required component")
+            aggregate.validate(),
+            Err("agent-safe aggregates require a separately verified publication carrier")
+        );
+    }
+
+    #[test]
+    fn agent_safe_explanation_scopes_are_closed_sorted_and_unique() {
+        let create = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerCreateV1);
+        let update = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerUpdateV1);
+
+        let mut reversed = AgentSafeCapabilityExtensionV1::missing();
+        reversed.target.explanation.scoped_facts = vec![update.clone(), create.clone()];
+        assert_eq!(
+            reversed.validate(),
+            Err("explanation facts must be strictly scope-sorted and unique")
         );
 
-        let candidate = core_candidate();
-        let original_supported = CapabilityManifest::local_v0_declared().supported_capabilities;
-        let promoted = CapabilityManifest::local_v0_declared()
-            .with_agent_safe_publication_candidate(candidate)
-            .expect("a complete private candidate passes the future seam");
-        assert_eq!(promoted.supported_capabilities, original_supported);
-        assert!(
-            promoted
-                .capability_gaps
-                .iter()
-                .any(|gap| gap == "agent_safe_storage_v1"),
-            "validation alone cannot publish or remove the GAP",
+        let mut duplicate = AgentSafeCapabilityExtensionV1::missing();
+        duplicate.target.explanation.scoped_facts = vec![create.clone(), create.clone()];
+        assert_eq!(
+            duplicate.validate(),
+            Err("explanation facts must be strictly scope-sorted and unique")
+        );
+
+        let mut wrong_adapter = create;
+        wrong_adapter.scope.adapter = AgentSafeExplanationAdapterV1::IbexBuffered;
+        let mut incompatible = AgentSafeCapabilityExtensionV1::missing();
+        incompatible.target.explanation.scoped_facts = vec![wrong_adapter];
+        assert_eq!(
+            incompatible.validate(),
+            Err("generated owner explanation profiles require ordinaryMutation HostPlan")
         );
     }
 
@@ -11750,11 +11926,29 @@ mod agent_safe_capability_tests {
             "one scalar closed enum makes fork-axis alternatives mutually exclusive",
         );
 
-        let mut injected = encoded;
+        let mut injected = encoded.clone();
         injected["target"]["aggregate"]["agentSafeV2"] = json!("Supported");
         assert!(
             serde_json::from_value::<AgentSafeCapabilityExtensionV1>(injected).is_err(),
             "unknown extension members fail closed",
+        );
+
+        let mut unknown_adapter = encoded.clone();
+        unknown_adapter["target"]["envelope"]["ordinaryMutation"]["rawSql"] =
+            json!("Covered");
+        assert!(
+            serde_json::from_value::<AgentSafeCapabilityExtensionV1>(unknown_adapter).is_err(),
+            "unknown physical adapters fail closed",
+        );
+
+        let create = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerCreateV1);
+        let update = owner_fact(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerUpdateV1);
+        let mut unsorted = encoded;
+        unsorted["target"]["explanation"]["scopedFacts"] =
+            serde_json::to_value([update, create]).expect("facts serialize");
+        assert!(
+            serde_json::from_value::<AgentSafeCapabilityExtensionV1>(unsorted).is_err(),
+            "non-canonical scoped facts fail during wire decoding",
         );
     }
 }

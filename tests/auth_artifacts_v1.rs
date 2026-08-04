@@ -257,7 +257,7 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "asset_video_finalization_v1",
         ]
     );
-    assert_eq!(TargetCapabilityId::ALL.len(), 33);
+    assert_eq!(TargetCapabilityId::ALL.len(), 35);
     for capability in TargetCapabilityId::ALL {
         assert_eq!(
             capability.as_str().parse::<TargetCapabilityId>(),
