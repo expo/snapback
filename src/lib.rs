@@ -23,6 +23,8 @@ pub mod embed;
 #[doc(hidden)]
 pub mod admin;
 #[doc(hidden)]
+pub mod admin_link;
+#[doc(hidden)]
 pub mod admin_impersonation;
 #[doc(hidden)]
 pub mod admin_secret_read;

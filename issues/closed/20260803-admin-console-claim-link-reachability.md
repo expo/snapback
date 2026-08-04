@@ -1,7 +1,7 @@
 # Admin console: claim-link reachability affordances (--qr, --tailscale, --lan)
 
 **Date:** 2026-08-03
-**Status:** Open
+**Status:** Resolved (2026-08-03)
 **Area:** Admin console / operator auth (LLP 0017)
 
 ## Problem
@@ -95,11 +95,55 @@ Key structure:
    semantics on origin reuse/backend remap; end-to-end phone-shaped
    planted-link proof through a real relay.
 
-## Deferred / follow-on (altitude items from review)
+## Landing decisions / deliberate non-goals
 
-- Reattach (`--status`) re-hosting a dead relay vs observe-only — pick at
-  landing time.
-- Stale tab-scoped credential-record cleanup note in client docs.
+- Reattach (`--status`) remains observe-only. It does not recreate an
+  invocation-owned listener or tailscaled mapping after that owner exits.
+- Tab-scoped records are pruned lazily when the shared client starts or
+  observes expiry, revocation, or an identity mismatch; no cross-origin
+  browser-storage sweeper is added.
+
+## Resolution (2026-08-03)
+
+Implemented all seven work items in `220bc73aa`, hardened the final
+security/audit edges in `c6fac11c5`, and `ce69de09e` kept tailscaled
+calls bounded while tolerating a heavily scheduled host and made early test
+process exits report their stable diagnostic:
+
+- added exact master-gated origin sessions and three-second claim-to-credential
+  leases bound to the server startup identity, including opaque fail-closed
+  handling when redemption races a dead lease and a pre-auth master-exchange
+  attempt budget;
+- added byte-identical half-block terminal QR output, receipt-owned
+  path-scoped tailscaled serve publication, and the explicit-interface
+  ephemeral LAN relay with the ruled-cleartext warning;
+- made the relay the sole parser and serializer for its connection, with the
+  canonical-path/framing/header/Host/Origin checks and narrow console slice
+  required by LLP 0017; the master route and carriers never transit it;
+- added last-out compare-and-delete tailscale cleanup, owner locks, stale
+  crash sweeping, operator-mapping preservation, and bounded daemon calls;
+- added tab-only session/instance-bound credential restore with public identity
+  probes, no localStorage fallback, and clearing on terminal observations;
+- updated LLP 0017 plus the admin-console phone/tailnet guide and route surface
+  map; and
+- added the real non-loopback planted-link test, adversarial framing corpus,
+  graceful/SIGKILL/observer-loss/restart/concurrency lease cases, fake-tailscale
+  lifecycle matrix, QR identity proof, and browser-storage/backend-remap tests.
+
+After current main established its own pending-family diagnostic inventory,
+`c1a073a66` removed the superseded local fallback classifications so the
+newer reviewed result-transform HTTP families remain authoritative.
+
+Verification completed cleanly:
+
+- `DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks cargo build`
+- `DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks cargo test` (full suite;
+  the ignored worktree-local remote-service cache was regenerated first with
+  the repository codegen command so it matched the committed wire schemas)
+- `bun run test` and `bun run build` in `admin-ui/`
+- `node scripts/check-guide.mjs`
+- `./ref-check --verbose` (168 LLP documents, 3,800 refs, zero errors or
+  unchecked references)
 
 ## References
 

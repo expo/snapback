@@ -11130,6 +11130,24 @@ async fn enforce_registered_route_policy(
             ApiError::from(error).into_response(),
         );
     }
+    // Count initial master exchanges before the ordinary AdminWrite gate so
+    // wrong and missing master values cannot turn this endpoint into an
+    // unbounded token oracle. Derived-credential renewals have their own
+    // credential registry bounds and do not consume this lane.
+    let master_exchange_attempt = spec.path == "/_snapback/api/console/credential"
+        && (!request
+            .headers()
+            .contains_key("x-snapback-console-credential")
+            || request.headers().contains_key("x-snapback-admin-token")
+            || request.headers().contains_key(header::AUTHORIZATION));
+    if master_exchange_attempt
+        && let Err(error) = runtime.server.console_credentials.admit_master_exchange()
+    {
+        return apply_registered_response_controls(
+            effective,
+            ApiError::from(error).into_response(),
+        );
+    }
     // Provider paths are intentionally absent in active dev mode. Perform
     // this refusal before credential or body handling so a disabled provider
     // cannot become an oracle for bearer/body shape. `/auth/session`, added by
@@ -14677,15 +14695,23 @@ impl BoundSnapbackApp {
 }
 
 fn router_for_state(state: AppState) -> Router {
+    let reachability = state.console_reachability.clone();
     router_from_registrations(all_route_registrations(), state.clone())
         .with_state(state)
-        .layer(middleware::from_fn(local_dev_cors))
+        .layer(middleware::from_fn_with_state(
+            reachability,
+            local_dev_cors,
+        ))
 }
 
 fn app_from_registrations(registrations: Vec<RegisteredRoute>, state: AppState) -> SnapbackApp {
+    let reachability = state.console_reachability.clone();
     let router = router_from_registrations(registrations, state.clone())
         .with_state(state.clone())
-        .layer(middleware::from_fn(local_dev_cors));
+        .layer(middleware::from_fn_with_state(
+            reachability,
+            local_dev_cors,
+        ));
     SnapbackApp { router, state }
 }
 
@@ -16866,10 +16892,15 @@ pub fn spawn_cron_scheduler(state: SharedSnapback, autonomy_disabled: bool) -> J
     })
 }
 
-async fn local_dev_cors(request: Request<Body>, next: Next) -> Response {
+async fn local_dev_cors(
+    State(reachability): State<crate::admin::ConsoleReachabilityRegistry>,
+    request: Request<Body>,
+    next: Next,
+) -> Response {
     // @ref LLP 0025#demo-shape — web-only demos may be served by an ordinary
     // static/Vite origin while talking to the local Snapback server.
-    let allowed_origin = loopback_origin(request.headers().get(header::ORIGIN));
+    let origin = request.headers().get(header::ORIGIN);
+    let allowed_origin = loopback_origin(origin).or_else(|| reachability.admitted_origin(origin));
     with_cors_headers(next.run(request).await, allowed_origin)
 }
 
@@ -24307,6 +24338,8 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY"
         | "SNAPBACK_ADMIN_APPROVAL_RATE_LIMITED"
         | "SNAPBACK_ADMIN_CLAIM_RATE_LIMITED"
+        | "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_RATE_LIMITED"
+        | "SNAPBACK_ADMIN_REACHABILITY_CAPACITY"
         | "SNAPBACK_EPHEMERAL_RATE_LIMITED"
         | "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED"
         | "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT"
@@ -24930,11 +24963,31 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_V8_COMPAT_FLAG_REFUSED"
         | "SNAPBACK_WEBSOCKET_MESSAGE_INVALID"
         | "SNAPBACK_WEBSOCKET_SENDER_MISMATCH" => StatusCode::BAD_REQUEST,
+        "SNAPBACK_ADMIN_RELAY_BODY_REFUSED"
+        | "SNAPBACK_ADMIN_RELAY_CONNECT_REFUSED"
+        | "SNAPBACK_ADMIN_RELAY_FORWARDING_HEADER_REFUSED"
+        | "SNAPBACK_ADMIN_RELAY_FRAMING_REFUSED"
+        | "SNAPBACK_ADMIN_RELAY_PATH_REFUSED"
+        | "SNAPBACK_ADMIN_RELAY_TARGET_FORM_REFUSED"
+        | "SNAPBACK_ADMIN_REACHABILITY_ORIGIN_INVALID" => StatusCode::BAD_REQUEST,
         "SNAPBACK_ADMIN_CONSOLE_MINT_UNAVAILABLE"
         | "SNAPBACK_ADMIN_CONSOLE_RENEWAL_UNAVAILABLE"
         | "SNAPBACK_ADMIN_APPROVAL_UNAVAILABLE"
-        | "SNAPBACK_ADMIN_CLAIM_UNAVAILABLE" => StatusCode::FORBIDDEN,
-        "SNAPBACK_ADMIN_CLAIM_STATUS_INVALID" => StatusCode::NOT_FOUND,
+        | "SNAPBACK_ADMIN_CLAIM_UNAVAILABLE"
+        | "SNAPBACK_ADMIN_RELAY_MASTER_CREDENTIAL_REFUSED"
+        | "SNAPBACK_ADMIN_RELAY_MASTER_ROUTE_REFUSED"
+        | "SNAPBACK_ADMIN_RELAY_ORIGIN_REFUSED"
+        | "SNAPBACK_ADMIN_RELAY_ROUTE_REFUSED" => StatusCode::FORBIDDEN,
+        "SNAPBACK_ADMIN_CLAIM_STATUS_INVALID"
+        | "SNAPBACK_ADMIN_RELAY_LEASE_INVALID"
+        | "SNAPBACK_ADMIN_REACHABILITY_SESSION_INVALID" => StatusCode::NOT_FOUND,
+        "SNAPBACK_ADMIN_RELAY_HOST_REFUSED" => StatusCode::MISDIRECTED_REQUEST,
+        "SNAPBACK_ADMIN_RELAY_WEBSOCKET_UNAVAILABLE" => StatusCode::NOT_IMPLEMENTED,
+        "SNAPBACK_ADMIN_RELAY_UPSTREAM_FAILED" | "SNAPBACK_ADMIN_RELAY_UPSTREAM_INVALID" => {
+            StatusCode::BAD_GATEWAY
+        }
+        "SNAPBACK_ADMIN_RELAY_LEASE_CLAIM_MISMATCH"
+        | "SNAPBACK_ADMIN_RELAY_LEASE_CREDENTIAL_MISMATCH" => StatusCode::CONFLICT,
         "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED"
         | "SNAPBACK_AUTH_SENDER_PROOF_INVALID"
         | "SNAPBACK_AUTH_SENDER_PROOF_REPLAYED" => StatusCode::UNAUTHORIZED,
@@ -38242,6 +38295,110 @@ globalThis.__snapbackHandlers = {
             "environment variable naming the built admin snapshot",
         ),
         (
+            "SNAPBACK_ADMIN_LAN_BIND_FAILED",
+            "CLI-local managed-LAN lifecycle diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_LAN_CLEARTEXT",
+            "CLI-local ruled-cleartext warning marker; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_LAN_HOST_UNSUPPORTED",
+            "CLI-local managed-LAN capability diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_LAN_INTERFACE_AMBIGUOUS",
+            "CLI-local managed-LAN selection diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_LAN_INTERFACE_ENUMERATION_FAILED",
+            "CLI-local managed-LAN selection diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_LAN_INTERFACE_NOT_FOUND",
+            "CLI-local managed-LAN selection diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_LAN_RELAY_FAILED",
+            "CLI-local managed-LAN lifecycle diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_LAN_TARGET_INVALID",
+            "CLI-local managed-LAN target diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_LAN_WILDCARD_REFUSED",
+            "CLI-local managed-LAN bind diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_LINK_ATTACHED_REQUIRED",
+            "CLI-local claim-link usage diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_LINK_CONTROL_CONFLICT",
+            "CLI-local claim-link usage diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_LINK_ORIGIN_CONFLICT",
+            "CLI-local claim-link usage diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_QR_ENCODING_FAILED",
+            "CLI-local terminal presentation diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_QR_LOOPBACK_ONLY",
+            "CLI-local terminal reachability hint marker; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_RELAY_LEASE_RESPONSE_INVALID",
+            "CLI-local lease-client response validation diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_TAILSCALE_CLEANUP_FAILED",
+            "CLI-local tailscaled lifecycle diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_TAILSCALE_HOST_UNSUPPORTED",
+            "CLI-local tailscaled capability diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_TAILSCALE_MAPPING_CONFLICT",
+            "CLI-local tailscaled ownership diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_TAILSCALE_MAPPING_INVALID",
+            "CLI-local tailscaled ownership diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_TAILSCALE_MAPPING_MUTATED",
+            "CLI-local tailscaled compare-and-delete diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_TAILSCALE_RECEIPT_DIR",
+            "environment variable overriding the owner-only tailscaled receipt directory",
+        ),
+        (
+            "SNAPBACK_ADMIN_TAILSCALE_RECEIPT_INVALID",
+            "CLI-local tailscaled receipt diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_TAILSCALE_RECEIPT_UNAVAILABLE",
+            "CLI-local tailscaled receipt diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_TAILSCALE_STATUS_INVALID",
+            "CLI-local tailscaled status diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_TAILSCALE_TARGET_UNSUPPORTED",
+            "CLI-local tailscaled target diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
+            "SNAPBACK_ADMIN_TAILSCALE_UNAVAILABLE",
+            "CLI-local tailscaled availability diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
             "SNAPBACK_ADMIN_SECRET_READ_ROOT_PATH_INVALID",
             "CLI-local readiness path validation code; never emitted as an HTTP diagnostic",
         ),
@@ -38563,6 +38720,13 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_BUNDLE_MODE_INVALID",
         "SNAPBACK_BUNDLE_PARAMS_INVALID",
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID",
+        "SNAPBACK_ADMIN_REACHABILITY_ORIGIN_INVALID",
+        "SNAPBACK_ADMIN_RELAY_BODY_REFUSED",
+        "SNAPBACK_ADMIN_RELAY_CONNECT_REFUSED",
+        "SNAPBACK_ADMIN_RELAY_FORWARDING_HEADER_REFUSED",
+        "SNAPBACK_ADMIN_RELAY_FRAMING_REFUSED",
+        "SNAPBACK_ADMIN_RELAY_PATH_REFUSED",
+        "SNAPBACK_ADMIN_RELAY_TARGET_FORM_REFUSED",
         "SNAPBACK_TELEMETRY_EXPORT_CONTINUATION_INVALID",
         "SNAPBACK_TELEMETRY_EXPORT_PAGE_TOO_SMALL",
         "SNAPBACK_TELEMETRY_QUERY_INVALID",
@@ -38931,6 +39095,10 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ADMIN_CLAIM_UNAVAILABLE",
         "SNAPBACK_ADMIN_CONSOLE_MINT_UNAVAILABLE",
         "SNAPBACK_ADMIN_CONSOLE_RENEWAL_UNAVAILABLE",
+        "SNAPBACK_ADMIN_RELAY_MASTER_CREDENTIAL_REFUSED",
+        "SNAPBACK_ADMIN_RELAY_MASTER_ROUTE_REFUSED",
+        "SNAPBACK_ADMIN_RELAY_ORIGIN_REFUSED",
+        "SNAPBACK_ADMIN_RELAY_ROUTE_REFUSED",
         "SNAPBACK_FORK_EGRESS_DENIED",
         "SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED",
         "SNAPBACK_MIGRATION_APPROVAL_REQUIRED",
@@ -38972,6 +39140,8 @@ globalThis.__snapbackHandlers = {
 
     const NOT_FOUND_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ADMIN_CLAIM_STATUS_INVALID",
+        "SNAPBACK_ADMIN_RELAY_LEASE_INVALID",
+        "SNAPBACK_ADMIN_REACHABILITY_SESSION_INVALID",
         "SNAPBACK_AUTH_AGENT_UNKNOWN",
         "SNAPBACK_JOB_UNKNOWN",
         "SNAPBACK_BUNDLE_ROUTE_UNKNOWN",
@@ -38994,6 +39164,8 @@ globalThis.__snapbackHandlers = {
     ];
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ADMIN_RELAY_LEASE_CLAIM_MISMATCH",
+        "SNAPBACK_ADMIN_RELAY_LEASE_CREDENTIAL_MISMATCH",
         "SNAPBACK_VECTOR_CORPUS_BOUND",
         "SNAPBACK_TELEMETRY_EXPORT_CONTINUATION_STALE",
         "SNAPBACK_TELEMETRY_EXPORT_SNAPSHOT_STALE",
@@ -39110,6 +39282,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED",
         "SNAPBACK_ADMIN_APPROVAL_RATE_LIMITED",
         "SNAPBACK_ADMIN_CLAIM_RATE_LIMITED",
+        "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_RATE_LIMITED",
+        "SNAPBACK_ADMIN_REACHABILITY_CAPACITY",
         // LLP 0092 §0D.2/§0D.4 bundle rate and pending-owner capacity.
         "SNAPBACK_BUNDLE_PENDING_CAPACITY",
         "SNAPBACK_BUNDLE_RATE_LIMITED",
@@ -39146,6 +39320,8 @@ globalThis.__snapbackHandlers = {
     // distinct reviewed family: the upstream failed or is ambiguous, which is
     // neither author fault nor Snapback's own internal failure.
     const BAD_GATEWAY_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ADMIN_RELAY_UPSTREAM_FAILED",
+        "SNAPBACK_ADMIN_RELAY_UPSTREAM_INVALID",
         "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS",
         "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED",
         // Buffered ctx.fetch upstream outcomes (0137 a4-f1/a5-f1).
@@ -39155,6 +39331,10 @@ globalThis.__snapbackHandlers = {
         // ticket/receipt vocabulary is an upstream protocol failure.
         "SNAPBACK_PUSH_PROVIDER_SHAPE_INVALID",
     ];
+
+    const MISDIRECTED_REQUEST_DIAGNOSTICS: &[&str] = &["SNAPBACK_ADMIN_RELAY_HOST_REFUSED"];
+    const NOT_IMPLEMENTED_DIAGNOSTICS: &[&str] =
+        &["SNAPBACK_ADMIN_RELAY_WEBSOCKET_UNAVAILABLE"];
 
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
         // LLP 0132: index readiness is transient, but retry waits for the
@@ -39255,6 +39435,8 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_VECTOR_WORK_LIMIT",
         "SNAPBACK_BENCH_HELPER_SPLICE_MISMATCH",
         "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE",
+        "SNAPBACK_ADMIN_RELAY_LEASE_STATUS_INVALID",
+        "SNAPBACK_ADMIN_RELAY_LEASE_TERMINAL",
         // LLP 0062 §5 API-envelope admission refusals. These are admission-time
         // invariants on a provisioner-supplied artifact, not request classes:
         // no HTTP path produces them yet (serving and ingestion are ticket
@@ -39600,6 +39782,11 @@ globalThis.__snapbackHandlers = {
         (StatusCode::REQUEST_TIMEOUT, REQUEST_TIMEOUT_DIAGNOSTICS),
         (StatusCode::GATEWAY_TIMEOUT, GATEWAY_TIMEOUT_DIAGNOSTICS),
         (StatusCode::BAD_GATEWAY, BAD_GATEWAY_DIAGNOSTICS),
+        (
+            StatusCode::MISDIRECTED_REQUEST,
+            MISDIRECTED_REQUEST_DIAGNOSTICS,
+        ),
+        (StatusCode::NOT_IMPLEMENTED, NOT_IMPLEMENTED_DIAGNOSTICS),
         (
             StatusCode::SERVICE_UNAVAILABLE,
             SERVICE_UNAVAILABLE_DIAGNOSTICS,
