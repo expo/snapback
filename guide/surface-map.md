@@ -80,6 +80,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/push/maintenance | backend.expo-push-seam |
 | /_snapback/api/receipts | notAuthorFacing (operator projection) |
 | /_snapback/api/schema/load | backend.schema |
+| /_snapback/api/storage/operation-coverage/activate | notAuthorFacing (unpublished LLP 0163 coverage-publication substrate) |
 | /_snapback/api/storage/protected-erasure | notAuthorFacing (unpublished LLP 0165 protected-erasure acceptance substrate) |
 | /_snapback/api/telemetry/events | backend.observability-v1 |
 | /_snapback/api/telemetry/export | backend.observability-v1 |

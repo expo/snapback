@@ -2,16 +2,18 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (LLP 0163 durable storage slice)
-**Updated:** 2026-08-04 (closed 23-family local writer inventory, executable
-armed exclusions, and exact four-adapter production activation cut; the cut
-remains uninvoked pending performance, review, and author acceptance)
+**Updated:** 2026-08-04 (authenticated explicit local activation transport,
+closed 23-family writer inventory, executable armed exclusions, and exact
+four-adapter publication; activation remains operator-invoked and capabilities
+remain Missing pending performance, review, and author acceptance)
 **Systems:** Sync, Client integration, Storage, Jobs, Migrations, Testing
 **Related:** LLP 0043, LLP 0133, LLP 0162, LLP 0163
 
 The public client range carrier, ordinary-mutation choke points, protected
 explanation custody, job/cron action children, and migration transaction
-carriers are implemented. Production targets still do not activate a coverage
-manifest, the public explanation lane has closed positive evaluators only for
+carriers are implemented. Production targets do not activate a coverage
+manifest by default; an exact authenticated AdminWrite command can now activate
+the narrow local four-adapter profile. The public explanation lane has closed positive evaluators only for
 exact generated owner create/update facts, and migration remains explicitly
 uncovered. The aggregate publication/terminal split now has a truthful
 Pending→supplement lifecycle, but H1/H2/C remain carrier-only and
@@ -19,7 +21,7 @@ review/publication gates are still open.
 
 The remaining closure gates are:
 
-- invoke the closed production activation cut only after independent review,
+- invoke the closed production activation command only after independent review,
   author acceptance, the fixed-Air result, and every applicable crash and
   asymmetric-retention gate; the complete local writer inventory and its
   fail-closed exclusion policy are now implemented;
@@ -349,3 +351,26 @@ This closes the grouped-inventory defect and makes activation production
 callable, but does not invoke publication. Migration/cross-lane retention,
 fixed-Air performance, independent review, and author acceptance remain open;
 LLP 0163 stays Draft and every related capability stays `Missing`.
+
+## Explicit activation-transport evidence — 2026-08-04
+
+- `POST /_snapback/api/storage/operation-coverage/activate` is registered as
+  `SystemApi` / `AdminWrite` / admin-credential / operator metadata and has a
+  dedicated authority-only invocation source behind managed admission.
+- Rust-owned request and response schemas close the request to schema version
+  1, target `local-dev-sqlite-ibex`, and profile
+  `local-envelope-mapped-writers.v1`. The response returns the exact persisted
+  coverage manifest rather than inferring coverage from target naming.
+- Handler-time admin reauthorization plus fenced publication ensures an
+  unauthenticated, stale/revoked, wrong-target, wrong-profile, wrong-version,
+  or unknown-field request cannot arm coverage. The storage chokepoint still
+  rechecks the complete inventory and exact two-lane/four-writer cut.
+- Production-profile HTTP corpus proves refusal leaves coverage inactive,
+  exact activation returns the closed manifest, and an identical retry is
+  idempotent. The existing armed-exclusion corpus remains green.
+
+The command is never called by open, range issuance, or capability inspection,
+and this ticket does not request that an operator invoke it. Complete-target
+coverage, fixed-Air active-path performance, remaining applicable corpus,
+independent review, and named-author acceptance remain publication gates. LLP
+0163 stays Draft and every related capability stays `Missing`.

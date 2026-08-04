@@ -3970,6 +3970,17 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             ),
             post(admin_protected_record_erasure),
         ),
+        // @ref LLP 0162#acceptance — row 4 publication is an explicit
+        //   target-exact AdminWrite command; database open and range issuance
+        //   never activate a coverage manifest.
+        RegisteredRoute::new(
+            write(
+                "POST",
+                "/_snapback/api/storage/operation-coverage/activate",
+                ResponseSensitivity::OperatorMetadata,
+            ),
+            post(admin_operation_coverage_activate),
+        ),
         // The route has an AdminRead floor. Query versus mutation/action is an
         // operation-level split retained by the handler and operation registry.
         RegisteredRoute::new(
@@ -5113,6 +5124,69 @@ async fn admin_protected_record_erasure(
     Ok(Json(receipt))
 }
 
+async fn admin_operation_coverage_activate(
+    State(state): State<AppState>,
+    Extension(authority): Extension<PreparedAuthority>,
+    headers: HeaderMap,
+    Json(request): Json<crate::commit_envelope::OperationCoverageActivationRequestV1>,
+) -> Result<Json<crate::commit_envelope::OperationCoverageActivationResponseV1>, ApiError> {
+    if authority.source() != crate::auth::invocation::InvocationSource::OperationCoverageActivation
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_INVOCATION_SOURCE_INVALID",
+            "auth",
+            "operation coverage activation requires its registered authority source",
+        )
+        .into());
+    }
+    authorize_for_mode(
+        &state.server,
+        &headers,
+        true,
+        state.active_policy_auth_mode(),
+    )?;
+    if request.schema_version
+        != crate::commit_envelope::operation_coverage_activation_schema_version()
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_COVERAGE_ACTIVATION_VERSION_UNSUPPORTED",
+            "storage",
+            "operation coverage activation request schema version is unsupported",
+        )
+        .into());
+    }
+    let target_profile_id = request.target_profile_id;
+    let coverage_profile = request.coverage_profile;
+    let now_ms = now_millis();
+    let manifest = crate::server::with_snapback(&state.snapback, move |snapback| {
+        authority
+            .try_fenced_publication(now_ms, Instant::now(), || {
+                let _mode_publication =
+                    authority.effect_guard("operation coverage activation publication")?;
+                snapback
+                    .auth_database_mut()
+                    .activate_local_target_operation_coverage(now_ms)
+            })?
+            .ok_or_else(|| {
+                ApiError::from(SnapbackError::error(
+                    "SNAPBACK_OPERATION_COVERAGE_ACTIVATION_AUTHORITY_INVALID",
+                    "storage",
+                    "operation coverage activation authority was revoked before publication",
+                ))
+            })
+    })
+    .await?;
+    Ok(Json(
+        crate::commit_envelope::OperationCoverageActivationResponseV1 {
+            schema_version:
+                crate::commit_envelope::operation_coverage_activation_schema_version(),
+            target_profile_id,
+            coverage_profile,
+            manifest,
+        },
+    ))
+}
+
 async fn admin_run_function(
     State(state): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
@@ -5593,6 +5667,186 @@ mod tests {
         .await
         .expect("scan canonical rows after erasure");
         assert!(remaining.rows.is_empty());
+    }
+
+    #[test]
+    fn operation_coverage_activation_route_is_exact_admin_write_metadata() {
+        let route = crate::server::route_registry()
+            .into_iter()
+            .find(|route| {
+                route.path == "/_snapback/api/storage/operation-coverage/activate"
+                    && route.method == "POST"
+            })
+            .expect("registered operation-coverage activation route");
+        assert_eq!(route.class, RouteClass::SystemApi);
+        assert_eq!(route.path_policy, RoutePolicy::AdminWrite);
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::AdminCredential
+        );
+        assert_eq!(route.invocation_authority, InvocationAuthority::Operator);
+        assert_eq!(route.response_sensitivity, ResponseSensitivity::OperatorMetadata);
+    }
+
+    #[tokio::test]
+    async fn operation_coverage_activation_is_authenticated_exact_and_idempotent_in_prod() {
+        use crate::commit_envelope::{
+            OperationCoverageActivationProfileV1, OperationCoverageActivationResponseV1,
+            OperationCoverageActivationTargetV1,
+        };
+        use crate::manifest::{FieldManifest, FieldType, SchemaManifest, TableManifest};
+        use axum::http::Request;
+        use tower::ServiceExt as _;
+
+        let mut snapback = LocalSnapback::memory().expect("memory app");
+        snapback
+            .apply_schema(SchemaManifest {
+                schema_hash: Some("sha256:coverage-activation-http-test".to_owned()),
+                tables: vec![TableManifest {
+                    name: "items".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "value".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    indexes: Vec::new(),
+                    search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
+                    search_live_limits: None,
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                    asset_sharing: None,
+                    history: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("apply coverage activation schema");
+        let mut context = ServerContext::detached();
+        context.profile = ServerProfile::Prod;
+        context.admin_token = Some("coverage-activation-admin".to_owned());
+        let state = AppState::from_snapback(snapback, context);
+        let shared = state.snapback.clone();
+        let router = crate::server::app(state);
+        let exact_body = serde_json::json!({
+            "schemaVersion": 1,
+            "targetProfileId": "local-dev-sqlite-ibex",
+            "coverageProfile": "local-envelope-mapped-writers.v1",
+        });
+        let request = |body: &serde_json::Value, authenticated: bool| {
+            let mut builder = Request::builder()
+                .method("POST")
+                .uri("/_snapback/api/storage/operation-coverage/activate")
+                .header(header::CONTENT_TYPE, "application/json");
+            if authenticated {
+                builder = builder.header(
+                    header::AUTHORIZATION,
+                    "Bearer coverage-activation-admin",
+                );
+            }
+            builder
+                .body(Body::from(
+                    serde_json::to_vec(body).expect("coverage activation request JSON"),
+                ))
+                .expect("coverage activation request")
+        };
+
+        let unauthorized = router
+            .clone()
+            .oneshot(request(&exact_body, false))
+            .await
+            .expect("unauthorized response");
+        assert_eq!(unauthorized.status(), StatusCode::UNAUTHORIZED);
+
+        let wrong_target = router
+            .clone()
+            .oneshot(request(
+                &serde_json::json!({
+                    "schemaVersion": 1,
+                    "targetProfileId": "remote-service-sqlite-ibex",
+                    "coverageProfile": "local-envelope-mapped-writers.v1",
+                }),
+                true,
+            ))
+            .await
+            .expect("wrong-target response");
+        assert!(!wrong_target.status().is_success());
+
+        let wrong_version = router
+            .clone()
+            .oneshot(request(
+                &serde_json::json!({
+                    "schemaVersion": 2,
+                    "targetProfileId": "local-dev-sqlite-ibex",
+                    "coverageProfile": "local-envelope-mapped-writers.v1",
+                }),
+                true,
+            ))
+            .await
+            .expect("wrong-version response");
+        assert!(!wrong_version.status().is_success());
+
+        let covered_before_success = crate::server::with_snapback(&shared, |snapback| {
+            snapback
+                .auth_database_mut()
+                .operation_lane_covered(crate::operation_ledger::ORDINARY_MUTATION_LANE_V1)
+        })
+        .await
+        .expect("read coverage after refused requests");
+        assert!(!covered_before_success);
+
+        let activate = router
+            .clone()
+            .oneshot(request(&exact_body, true))
+            .await
+            .expect("activation response");
+        assert_eq!(activate.status(), StatusCode::OK);
+        let first = serde_json::from_slice::<OperationCoverageActivationResponseV1>(
+            &axum::body::to_bytes(activate.into_body(), 1_000_000)
+                .await
+                .expect("activation response body"),
+        )
+        .expect("activation response JSON");
+        assert_eq!(first.schema_version, 1);
+        assert_eq!(
+            first.target_profile_id,
+            OperationCoverageActivationTargetV1::LocalDevSqliteIbex
+        );
+        assert_eq!(
+            first.coverage_profile,
+            OperationCoverageActivationProfileV1::LocalEnvelopeMappedWritersV1
+        );
+        assert_eq!(
+            first.manifest.covered_lanes,
+            vec![
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned(),
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned(),
+            ]
+        );
+        assert_eq!(
+            first.manifest.writer_choke_points,
+            crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+                .into_iter()
+                .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
+                .map(str::to_owned)
+                .collect::<std::collections::BTreeSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>()
+        );
+
+        let retry = router
+            .oneshot(request(&exact_body, true))
+            .await
+            .expect("idempotent activation response");
+        assert_eq!(retry.status(), StatusCode::OK);
+        let second = serde_json::from_slice::<OperationCoverageActivationResponseV1>(
+            &axum::body::to_bytes(retry.into_body(), 1_000_000)
+                .await
+                .expect("idempotent response body"),
+        )
+        .expect("idempotent response JSON");
+        assert_eq!(second, first, "retry must return the exact active manifest");
     }
 
     #[test]

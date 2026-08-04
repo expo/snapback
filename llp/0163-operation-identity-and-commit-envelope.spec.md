@@ -5,7 +5,12 @@
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (writer-inventory activation tail — the local target
+**Revised:** 2026-08-04 (explicit activation transport — an authenticated,
+managed-admission AdminWrite command now accepts only the versioned local
+target/profile pair and publishes the exact four-adapter manifest; it remains
+inactive until an operator invokes it, and independent review, author
+acceptance, performance, and complete-target publication gates keep the Spec
+Draft and every capability Missing); 2026-08-04 (writer-inventory activation tail — the local target
 now has 23 individually named physical writer families, stable executable
 exclusion reasons instead of a grouped specialized row, fail-closed armed
 refusal for every non-envelope app writer, and one production storage cut that
@@ -196,9 +201,11 @@ plus
 [`operation.suppression-v1.schema.json`](../schemas/operation.suppression-v1.schema.json),
 [`operation.identity-tombstone-v1.schema.json`](../schemas/operation.identity-tombstone-v1.schema.json),
 [`operation.explanation-v1.schema.json`](../schemas/operation.explanation-v1.schema.json),
+[`operation.coverage-activation-request-v1.schema.json`](../schemas/operation.coverage-activation-request-v1.schema.json),
+[`operation.coverage-activation-response-v1.schema.json`](../schemas/operation.coverage-activation-response-v1.schema.json),
 and
 [`operation.coverage-manifest-v1.schema.json`](../schemas/operation.coverage-manifest-v1.schema.json),
-both generated from
+all generated from
 [`src/commit_envelope.rs`](../src/commit_envelope.rs). Schema presence is an
 implementation substrate, not evidence that any lane has envelope coverage.
 
@@ -695,3 +702,31 @@ withholds stored metadata, counts, digests, and detail behind the stable
 aggregate/non-row, effect-bearing, opaque/hand-written, and other generated
 profiles still have no positive evaluator, so row 3 remains **Partial**, the
 Spec remains Draft, and every related capability remains `Missing`.
+
+## Implementation record — 2026-08-04, explicit local activation transport
+
+The production server now registers authenticated
+`POST /_snapback/api/storage/operation-coverage/activate` as a managed-
+admission `AdminWrite` command with a dedicated authority-only invocation
+source. Its Rust-owned closed request accepts only schema version 1, target
+`local-dev-sqlite-ibex`, and coverage profile
+`local-envelope-mapped-writers.v1`; unknown targets, profiles, versions, and
+fields refuse before publication. The handler revalidates administrative
+authority, fences publication against revocation, and then calls the existing
+storage chokepoint that rechecks the complete 23-family inventory before
+persisting and arming exactly the two ordinary and two host-child adapters.
+
+Database open, operation-range issuance, and capability inspection do not call
+the command. A repeated exact request is idempotent and returns the same active
+manifest. Focused production-profile HTTP corpus proves unauthenticated,
+wrong-target, and wrong-version refusal without arming; exact activation;
+exact lane/writer contents; and idempotent retry. The existing corpus continues
+to prove every excluded app-effective writer refuses after arming.
+
+This transport closes the previously private activation reachability gap, not
+the complete-target coverage or publication gates. Excluded app-effective
+writers remain outside the manifest; the fixed-Air active-lane performance
+record, applicable cross-lane/asymmetric-retention corpus, independent review,
+and named-author acceptance remain required. LLP 0163 therefore remains
+Draft, no activation occurs by default, and every related capability remains
+`Missing`.

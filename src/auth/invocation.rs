@@ -770,6 +770,9 @@ pub enum InvocationSource {
     /// Registered AdminWrite product command for canonical protected-record
     /// erasure and checkpoint-copy obligation custody.
     ProtectedRecordErasure,
+    /// Registered AdminWrite product command that explicitly publishes the
+    /// exact local envelope-writer coverage cut.
+    OperationCoverageActivation,
     /// A real handler executing against a server-custodied in-app branch.
     /// The only admitted authority is the server-constructed branch principal;
     /// neither an admin bypass nor body-supplied authority is compatible.
@@ -819,7 +822,7 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 35] = [
+    pub const ALL: [Self; 36] = [
         Self::BootstrapHandshake,
         Self::AuthRefresh,
         Self::AuthLogout,
@@ -836,6 +839,7 @@ impl InvocationSource {
         Self::HostOperationFunctionRun,
         Self::HostOperationMutationDryRun,
         Self::ProtectedRecordErasure,
+        Self::OperationCoverageActivation,
         Self::BranchOperation,
         Self::Cron,
         Self::NestedMutation,
@@ -879,6 +883,7 @@ impl InvocationSource {
             | Self::PushTokenRegistry
             | Self::AgentGrantManagement
             | Self::ProtectedRecordErasure
+            | Self::OperationCoverageActivation
             | Self::MutationSettlementAcknowledgement
             | Self::InvalidationAcknowledgement
             | Self::AssetTransfer
@@ -1834,7 +1839,8 @@ fn source_allows_authority(
         InvocationSource::DirectAdminRunner
         | InvocationSource::HostOperationFunctionRun
         | InvocationSource::HostOperationMutationDryRun
-        | InvocationSource::ProtectedRecordErasure => admin,
+        | InvocationSource::ProtectedRecordErasure
+        | InvocationSource::OperationCoverageActivation => admin,
         InvocationSource::BranchOperation => matches!(
             resolved,
             ResolvedAppAuthority::DevImpersonation {
@@ -2546,7 +2552,8 @@ mod tests {
                 InvocationSource::DirectAdminRunner
                 | InvocationSource::HostOperationFunctionRun
                 | InvocationSource::HostOperationMutationDryRun
-                | InvocationSource::ProtectedRecordErasure => admin,
+                | InvocationSource::ProtectedRecordErasure
+                | InvocationSource::OperationCoverageActivation => admin,
                 InvocationSource::BranchOperation => matches!(kind, Kind::Branch),
                 InvocationSource::Cron => matches!(kind, Kind::System),
                 InvocationSource::NestedMutation | InvocationSource::LiveRerun => false,

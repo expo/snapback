@@ -1,0 +1,90 @@
+{
+  "$defs": {
+    "OperationCoverageActivationProfileV1": {
+      "description": "The exact manifest cut published by the v1 command. The name deliberately\nsays envelope-mapped writers rather than complete target coverage: excluded\napp-effective writers remain visible and fail closed after publication.",
+      "enum": [
+        "local-envelope-mapped-writers.v1"
+      ],
+      "type": "string"
+    },
+    "OperationCoverageActivationTargetV1": {
+      "description": "The exact target accepted by the v1 coverage-publication command. A closed\nenum keeps a future target from inheriting the local SQLite inventory by\nstring convention.",
+      "enum": [
+        "local-dev-sqlite-ibex"
+      ],
+      "type": "string"
+    },
+    "OperationCoverageManifestV1": {
+      "additionalProperties": false,
+      "properties": {
+        "coverageDigest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "coveredLanes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "manifestVersion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "schemaVersion": {
+          "format": "uint32",
+          "maximum": 1,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "streamId": {
+          "type": "string"
+        },
+        "writerChokePoints": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "manifestVersion",
+        "streamId",
+        "coveredLanes",
+        "writerChokePoints",
+        "coverageDigest"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/operation.coverage-activation-response-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "coverageProfile": {
+      "$ref": "#/$defs/OperationCoverageActivationProfileV1"
+    },
+    "manifest": {
+      "$ref": "#/$defs/OperationCoverageManifestV1"
+    },
+    "schemaVersion": {
+      "format": "uint32",
+      "maximum": 1,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "targetProfileId": {
+      "$ref": "#/$defs/OperationCoverageActivationTargetV1"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "targetProfileId",
+    "coverageProfile",
+    "manifest"
+  ],
+  "title": "OperationCoverageActivationResponseV1",
+  "type": "object"
+}

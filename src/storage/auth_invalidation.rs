@@ -90,11 +90,10 @@ impl LocalDatabase {
     ///
     /// @ref LLP 0162#acceptance — row 4 requires a complete target inventory
     ///   and makes every excluded app-effective writer remain visibly Missing.
-    #[allow(dead_code)] // Intentionally gated on LLP 0163 publication.
     pub(crate) fn activate_local_target_operation_coverage(
         &mut self,
         activated_at_ms: u64,
-    ) -> SnapbackResult<()> {
+    ) -> SnapbackResult<crate::commit_envelope::OperationCoverageManifestV1> {
         let before = self.local_writer_coverage_inventory()?;
         if !before.all_physical_writers_enumerated || !before.all_app_effective_writers_accounted {
             return Err(SnapbackError::error(
@@ -148,8 +147,9 @@ impl LocalDatabase {
             ));
         }
         tx.commit()?;
-        self.writer_authority.arm_manifest(&self.conn, manifest)?;
-        Ok(())
+        self.writer_authority
+            .arm_manifest(&self.conn, manifest.clone())?;
+        Ok(manifest)
     }
 
     /// Reserve one never-reused boot sequence in the same transaction that
