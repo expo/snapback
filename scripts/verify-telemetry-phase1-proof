@@ -6,12 +6,32 @@ PROOF_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROOF_MODE="${1:---check}"
 PROOF_RECEIPT="${SNAPBACK_TELEMETRY_PHASE1_RECEIPT:-$PROOF_ROOT/tests/acceptance/telemetry-phase1-evidence.v1.json}"
 
+prepare_rust_test_fixtures() {
+    # @ref LLP 0032#phase-5--product-boundary-and-dx — P3's generated-artifact
+    # contract: Rust unit fixtures include these ignored caches at compile
+    # time, so a fresh proof must materialize them before invoking Cargo.
+    node "$PROOF_ROOT/packages/snapback-codegen/index.mjs" \
+        "$PROOF_ROOT/demos/todo/snapback"
+    node "$PROOF_ROOT/packages/snapback-codegen/index.mjs" \
+        "$PROOF_ROOT/demos/rbac/snapback"
+    if ! git diff --quiet -- \
+        demos/todo/snapback/generated \
+        demos/rbac/snapback/generated \
+        || ! git diff --cached --quiet -- \
+            demos/todo/snapback/generated \
+            demos/rbac/snapback/generated; then
+        printf 'SNAPBACK_TELEMETRY_PHASE1_GENERATED_FIXTURE_DRIFT\n' >&2
+        exit 1
+    fi
+}
+
 case "$PROOF_MODE" in
     --check)
         exec node "$PROOF_ROOT/scripts/telemetry-phase1-evidence.mjs" validate "$PROOF_RECEIPT"
         ;;
     --smoke)
         cd "$PROOF_ROOT"
+        prepare_rust_test_fixtures
         scripts/bootstrap-ibex-runtime
         node --check scripts/telemetry-phase1-idle-proof.mjs
         cargo test --locked --features telemetry-phase1-proof --lib \
@@ -25,6 +45,7 @@ case "$PROOF_MODE" in
             exit 1
         fi
         PROOF_REVISION="$(git rev-parse HEAD)"
+        prepare_rust_test_fixtures
         scripts/bootstrap-ibex-runtime
         cargo test --locked --features telemetry-phase1-proof --lib \
             telemetry::phase1_bench::tests::phase1_benchmark_smoke_exercises_every_gate \
