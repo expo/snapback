@@ -5894,8 +5894,11 @@ export class SnapbackClient {
     }
   }
 
-  #operationIdentityCohortKey(clientAudienceId) {
-    return `client-store:${clientAudienceId}`;
+  #operationIdentityCohortKey(clientAudienceId, userId, authorityDescriptor) {
+    const authorityCohort = typeof authorityDescriptor?.authorityInstanceId === 'string'
+      ? `authority:${authorityDescriptor.authorityInstanceId}`
+      : `dev:${typeof userId === 'string' ? userId : 'anonymous'}`;
+    return `client-store:${clientAudienceId}:${authorityCohort}`;
   }
 
   async #refreshOperationIdentityRange(
@@ -6043,6 +6046,41 @@ export class SnapbackClient {
       if (prepared?.status !== 'ready' || !prepared.record) continue;
       record = prepared.record;
       try {
+        if (this.__operationIdentityProtocol === 1 && record.operationIssuance === null) {
+          const clientAudienceId = (await store.readStoreMeta())?.clientStoreId;
+          if (typeof clientAudienceId !== 'string' || !SNAPBACK_OPAQUE_ID.test(clientAudienceId)) {
+            const error = new Error(
+              'SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID: durable store has no valid client identity',
+            );
+            error.code = 'SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID';
+            throw error;
+          }
+          const authorityCohortKey = this.#operationIdentityCohortKey(
+            clientAudienceId,
+            record.userId,
+            record.authorityDescriptor,
+          );
+          const range = await this.#refreshOperationIdentityRange(
+            store,
+            authorityCohortKey,
+            clientAudienceId,
+            record.userId,
+            record.authorityDescriptor,
+            null,
+          );
+          record = await store.outboxAssignOperationIdentity(
+            record.id,
+            authorityCohortKey,
+            range,
+          );
+          if (!record?.operationIssuance) {
+            const error = new Error(
+              'SNAPBACK_OPERATION_RANGE_EXHAUSTED: reconnect supplied no operation identity',
+            );
+            error.code = 'SNAPBACK_OPERATION_RANGE_EXHAUSTED';
+            throw error;
+          }
+        }
         // Redelivery under the SAME client-minted durable identity: the
         // server's settlement ledger returns the original result on a
         // duplicate, so a crash between settle and remove cannot double-
@@ -6276,7 +6314,11 @@ export class SnapbackClient {
           error.code = 'SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID';
           throw error;
         }
-        const authorityCohortKey = this.#operationIdentityCohortKey(clientAudienceId);
+        const authorityCohortKey = this.#operationIdentityCohortKey(
+          clientAudienceId,
+          userId,
+          body.authorityDescriptor,
+        );
         let stored = await queueStore.outboxEnqueueWithOperationIdentity(
           durableMutationRecord,
           authorityCohortKey,
