@@ -656,53 +656,81 @@ pub fn issue_client_range_in(
             },
         )
         .optional()?;
+    let range_has_admitted_identity = |start: i64, end: i64| -> SnapbackResult<bool> {
+        tx.query_row(
+            "SELECT EXISTS(
+               SELECT 1 FROM _snapback_operation_suppression_v1
+                WHERE originator_class='client' AND audience=?1 AND epoch_id=?2
+                  AND counter >= ?3 AND counter < ?4
+               UNION ALL
+               SELECT 1 FROM _snapback_operation_tombstones_v1
+                WHERE originator_class='client' AND audience=?1 AND epoch_id=?2
+                  AND counter >= ?3 AND counter < ?4
+             )",
+            params![audience, epoch_id, start, end],
+            |row| row.get(0),
+        )
+        .map_err(Into::into)
+    };
+    let retained_range = |start: i64,
+                          end: i64,
+                          issued: i64,
+                          expires: i64,
+                          digest: &str|
+     -> SnapbackResult<ClientIdentityRangeV1> {
+        Ok(ClientIdentityRangeV1 {
+            schema_version: 1,
+            audience: audience.to_owned(),
+            authority_instance_id: authority_instance_id.to_owned(),
+            epoch_id: epoch_id.clone(),
+            epoch_sequence,
+            range_start: u64::try_from(start)
+                .map_err(|_| invalid("client range start is invalid"))?,
+            range_end_exclusive: u64::try_from(end)
+                .map_err(|_| invalid("client range end is invalid"))?,
+            issued_at_ms: u64::try_from(issued)
+                .map_err(|_| invalid("client range issue time is invalid"))?,
+            expires_at_ms: u64::try_from(expires)
+                .map_err(|_| invalid("client range expiry is invalid"))?,
+            authority_authenticator_digest: digest.to_owned(),
+        })
+    };
     match (latest_range.as_ref(), previous) {
         (None, None) => {}
         (Some((start, end, _, _, digest)), Some(previous))
             if *start == to_i64(previous.range_start, "prior range start")?
                 && *end == to_i64(previous.range_end_exclusive, "prior range end")?
                 && digest == &previous.authority_authenticator_digest => {}
+        // The successor may have committed while its response was lost. The
+        // client still presents the exact immediate predecessor it durably
+        // owns; re-serve the successor only until one of its counters is
+        // admitted. Earlier-range admissions do not make this recovery
+        // ambiguous because the latest range is finite and disjoint.
+        (Some((start, end, issued, expires, digest)), Some(previous))
+            if *start == to_i64(previous.range_end_exclusive, "prior range end")?
+                && previous.epoch_id == epoch_id
+                && digest == &previous.authority_authenticator_digest =>
+        {
+            if range_has_admitted_identity(*start, *end)? {
+                return Err(refused(
+                    "SNAPBACK_OPERATION_RANGE_CONTINUITY_INVALID",
+                    "latest successor range has admitted identities; durable successor custody is required",
+                ));
+            }
+            return retained_range(*start, *end, *issued, *expires, digest);
+        }
         // A response can be lost after the server commits issuance but before
         // the client atomically installs it. Re-serve that exact latest range
         // only while no identity from its epoch has ever been admitted. Once
         // any operation exists, omitting prior custody must fail closed.
         (Some((start, end, issued, expires, digest)), None) => {
-            let admitted: bool = tx.query_row(
-                "SELECT EXISTS(
-                   SELECT 1 FROM _snapback_operation_suppression_v1
-                    WHERE originator_class='client' AND audience=?1 AND epoch_id=?2
-                   UNION ALL
-                   SELECT 1 FROM _snapback_commit_envelopes_v1
-                    WHERE originator_class='client' AND audience=?1 AND epoch_id=?2
-                   UNION ALL
-                   SELECT 1 FROM _snapback_operation_tombstones_v1
-                    WHERE originator_class='client' AND audience=?1 AND epoch_id=?2
-                 )",
-                params![audience, epoch_id],
-                |row| row.get(0),
-            )?;
-            if admitted {
+            if range_has_admitted_identity(*start, *end)? {
                 return Err(refused(
                     "SNAPBACK_OPERATION_RANGE_CONTINUITY_INVALID",
                     "latest range has admitted identities; durable prior custody is required",
                 ));
             }
-            return Ok(ClientIdentityRangeV1 {
-                schema_version: 1,
-                audience: audience.to_owned(),
-                authority_instance_id: authority_instance_id.to_owned(),
-                epoch_id,
-                epoch_sequence,
-                range_start: u64::try_from(*start)
-                    .map_err(|_| invalid("client range start is invalid"))?,
-                range_end_exclusive: u64::try_from(*end)
-                    .map_err(|_| invalid("client range end is invalid"))?,
-                issued_at_ms: u64::try_from(*issued)
-                    .map_err(|_| invalid("client range issue time is invalid"))?,
-                expires_at_ms: u64::try_from(*expires)
-                    .map_err(|_| invalid("client range expiry is invalid"))?,
-                authority_authenticator_digest: digest.clone(),
-            });
+            return retained_range(*start, *end, *issued, *expires, digest);
         }
         (None, Some(_)) | (Some(_), Some(_)) => {
             return Err(refused(
@@ -874,6 +902,36 @@ pub fn record_operation_in(
             )),
             OperationIdentityComparison::Novel => unreachable!("lookup used the same key"),
         };
+    }
+    if identity.key.originator_class == OperationOriginatorClassV1::Client {
+        let counter = counter.expect("client issuance has a counter");
+        let occupied: bool = tx.query_row(
+            "SELECT EXISTS(
+               SELECT 1 FROM _snapback_operation_suppression_v1
+                WHERE originator_class='client' AND audience=?1 AND epoch_id=?2
+                  AND counter=?3
+                  AND NOT (stream_id=?4 AND operation_id=?5)
+               UNION ALL
+               SELECT 1 FROM _snapback_operation_tombstones_v1
+                WHERE originator_class='client' AND audience=?1 AND epoch_id=?2
+                  AND counter=?3
+                  AND NOT (stream_id=?4 AND operation_id=?5)
+             )",
+            params![
+                identity.bound_facts.audience,
+                epoch_id,
+                to_i64(counter, "operation counter")?,
+                identity.key.stream_id,
+                identity.key.operation_id,
+            ],
+            |row| row.get(0),
+        )?;
+        if occupied {
+            return Err(refused(
+                "SNAPBACK_OPERATION_RANGE_COUNTER_REUSED",
+                "operation range counter is already retained under another operation identity",
+            ));
+        }
     }
 
     let envelope_json = serde_json::to_string(envelope)
@@ -2184,6 +2242,50 @@ mod tests {
     }
 
     #[test]
+    fn restored_client_cannot_rebind_an_admitted_or_tombstoned_range_counter() {
+        let mut conn = connection();
+        let authenticator = register_client_authority(&mut conn, 1_000);
+        let original = client_identity(0, "operation-original", &authenticator);
+        let tx = conn.transaction().expect("original tx");
+        insert_covered_change(&tx, 1, "original-row");
+        record_operation_in(&tx, &envelope(original.clone(), 1, 1)).expect("record original");
+        tx.commit().expect("commit original");
+
+        let squatted = client_identity(0, "operation-restored-copy", &authenticator);
+        let tx = conn.transaction().expect("counter squat tx");
+        insert_covered_change(&tx, 2, "squat-rolled-back");
+        assert_eq!(
+            record_operation_in(&tx, &envelope(squatted.clone(), 2, 1))
+                .expect_err("same ranged counter cannot bind another operation")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_RANGE_COUNTER_REUSED"
+        );
+        tx.rollback().expect("rollback counter squat");
+        let app_row_count: u64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM app_rows WHERE id='squat-rolled-back'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("count rolled-back row");
+        assert_eq!(app_row_count, 0);
+
+        let tx = conn.transaction().expect("reclaim original");
+        acknowledge_and_reclaim_in(&tx, &original, 20).expect("retain tombstone");
+        tx.commit().expect("commit tombstone");
+        let tx = conn.transaction().expect("tombstone counter squat tx");
+        assert_eq!(
+            record_operation_in(&tx, &envelope(squatted, 1, 0))
+                .expect_err("tombstoned counter remains occupied")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_RANGE_COUNTER_REUSED"
+        );
+        tx.rollback().expect("rollback tombstone squat");
+    }
+
+    #[test]
     fn retry_collision_range_exhaustion_and_floor_lifecycle_fail_closed() {
         let mut conn = connection();
         let authenticator = register_client_authority(&mut conn, 100);
@@ -2458,9 +2560,46 @@ mod tests {
         };
         assert_eq!(second.range_start, first.range_end_exclusive);
 
+        let recovered_second = {
+            let tx = conn.transaction().expect("lost successor response retry");
+            let range = issue_client_range_in(
+                &tx,
+                "stream-issued",
+                audience,
+                authority,
+                Some(&first),
+                16,
+            )
+            .expect("re-serve unadmitted successor");
+            tx.commit().expect("commit successor recovery no-op");
+            range
+        };
+        assert_eq!(recovered_second, second);
+
+        let mut second_identity = identity.clone();
+        second_identity.key.operation_id = "operation-issued-successor".to_owned();
+        second_identity.issuance = OperationIssuanceV1::ClientRange {
+            epoch_id: second.epoch_id.clone(),
+            counter: second.range_start,
+            range_start: second.range_start,
+            range_end_exclusive: second.range_end_exclusive,
+            authority_authenticator_digest: second.authority_authenticator_digest.clone(),
+        };
+        {
+            let tx = conn.transaction().expect("admit successor identity");
+            let coverage = active_coverage_manifest(&tx, "stream-issued")
+                .expect("coverage lookup")
+                .expect("coverage active");
+            insert_covered_change(&tx, 2, "issued-successor-covered");
+            let mut admitted = envelope(second_identity, 2, 1);
+            admitted.coverage.coverage_digest = coverage.coverage_digest;
+            record_operation_in(&tx, &admitted).expect("admit successor identity");
+            tx.commit().expect("commit successor identity");
+        }
+
         let tx = conn.transaction().expect("stale continuity refusal");
         assert_eq!(
-            issue_client_range_in(&tx, "stream-issued", audience, authority, Some(&first), 16,)
+            issue_client_range_in(&tx, "stream-issued", audience, authority, Some(&first), 17,)
                 .expect_err("old range cannot fork allocation")
                 .diagnostic
                 .code,

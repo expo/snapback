@@ -650,6 +650,125 @@ test('opt-in client range transport allocates before first mutation and reuses o
   assert.equal(retained[0].status, 'settled');
 });
 
+test('uncovered offline intent obtains and durably assigns a range before reconnect admission', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  globalThis.fetch = async () => { throw new TypeError('fetch failed'); };
+  const client = new SnapbackClient('https://operation-reconnect.example', {
+    rqsStore: store,
+    operationIdentityProtocol: 1,
+  });
+  const queued = await client.mutate('createThing', {
+    args: { title: 'offline-before-range' },
+    userId: 'user-a',
+  });
+  assert.equal(queued.operationCoverageDisposition, 'uncovered-range-exhausted');
+  assert.equal((await store.outboxPending())[0].operationIssuance, null);
+
+  const requests = [];
+  const issuedAtMs = Date.now();
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init.body);
+    requests.push({ url: String(url), body });
+    if (String(url).endsWith('/client-mutations/identity-range')) {
+      return Response.json({
+        schemaVersion: 1,
+        range: {
+          schemaVersion: 1,
+          audience: 'audience-reconnect',
+          authorityInstanceId: 'authority-reconnect',
+          epochId: 'epoch-reconnect',
+          epochSequence: 0,
+          rangeStart: 0,
+          rangeEndExclusive: 256,
+          issuedAtMs,
+          expiresAtMs: issuedAtMs + 60_000,
+          authorityAuthenticatorDigest: `sha256:${'d'.repeat(64)}`,
+        },
+      });
+    }
+    assert(body.operationIssuance, 'mutation transport must never see an uncovered replay');
+    return Response.json({ result: { ok: true }, version: 1 });
+  };
+  const replay = await client.replayQueuedMutations();
+  assert.deepEqual(
+    { replayed: replay.replayed, failed: replay.failed, remaining: replay.remaining },
+    { replayed: 1, failed: 0, remaining: 0 },
+  );
+  assert.equal(
+    requests.filter(({ url }) => url.endsWith('/mutation/createThing')).length,
+    1,
+  );
+  assert.equal(requests[1].body.operationIssuance.epoch_id, 'epoch-reconnect');
+});
+
+test('authority rotation allocates a disjoint range without rebinding old queued identity', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const descriptorA = TEST_AUTHORITY_DESCRIPTOR;
+  const descriptorB = {
+    descriptorVersion: 1,
+    authorityInstanceId: '018f0d90-7b24-7a22-8c33-4455667788aa',
+    sessionGeneration: 2,
+  };
+  const rangeRequests = [];
+  const issuedAtMs = Date.now();
+  let refuseAuthorityAMutation = true;
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init.body);
+    if (String(url).endsWith('/client-mutations/identity-range')) {
+      rangeRequests.push(body);
+      const descriptor = body.authorityDescriptor;
+      const suffix = descriptor.authorityInstanceId === descriptorA.authorityInstanceId ? 'a' : 'b';
+      return Response.json({
+        schemaVersion: 1,
+        range: {
+          schemaVersion: 1,
+          audience: `audience-${suffix}`,
+          authorityInstanceId: descriptor.authorityInstanceId,
+          epochId: `epoch-${suffix}`,
+          epochSequence: 0,
+          rangeStart: 0,
+          rangeEndExclusive: 256,
+          issuedAtMs,
+          expiresAtMs: issuedAtMs + 60_000,
+          authorityAuthenticatorDigest: `sha256:${suffix.repeat(64)}`,
+        },
+      });
+    }
+    if (body.authorityDescriptor?.authorityInstanceId === descriptorA.authorityInstanceId
+        && refuseAuthorityAMutation) {
+      refuseAuthorityAMutation = false;
+      throw new TypeError('response lost');
+    }
+    return Response.json({ result: { ok: true }, version: 1 });
+  };
+  const client = new SnapbackClient('https://operation-rotation.example', {
+    rqsStore: store,
+    operationIdentityProtocol: 1,
+  });
+  const oldQueued = await client.mutate('createThing', {
+    args: { title: 'old authority' },
+    userId: 'user-a',
+    authorityDescriptor: descriptorA,
+  });
+  const oldRecordBefore = (await store.outboxRecords())
+    .find(({ id }) => id === oldQueued.clientMutationId);
+  assert.equal(oldRecordBefore.operationIssuance.epoch_id, 'epoch-a');
+
+  await client.mutate('createThing', {
+    args: { title: 'new authority' },
+    userId: 'user-a',
+    authorityDescriptor: descriptorB,
+  });
+  assert.equal(rangeRequests.length, 2);
+  assert.equal(rangeRequests[1].previousRange, undefined);
+  const oldRecordAfter = (await store.outboxRecords())
+    .find(({ id }) => id === oldQueued.clientMutationId);
+  assert.equal(oldRecordAfter.authorityDescriptor.authorityInstanceId, descriptorA.authorityInstanceId);
+  assert.deepEqual(oldRecordAfter.operationIssuance, oldRecordBefore.operationIssuance);
+});
+
 test('mixed lane-Q and lane-L intents replay in sequence with immutable per-item policy', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
