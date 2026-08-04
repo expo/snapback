@@ -43,7 +43,7 @@ pub(crate) enum ScopedFunctionKind {
 }
 
 impl ScopedFunctionKind {
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             Self::Query => "query",
             Self::Mutation => "mutation",
@@ -68,6 +68,15 @@ impl ScopedFunctionKind {
             Self::Mutation => FunctionKind::Mutation,
             Self::LiveQuery => FunctionKind::LiveQuery,
             Self::Action => FunctionKind::Action,
+        }
+    }
+
+    pub(crate) fn from_function_kind(kind: &FunctionKind) -> Option<Self> {
+        match kind {
+            FunctionKind::Query => Some(Self::Query),
+            FunctionKind::Mutation => Some(Self::Mutation),
+            FunctionKind::LiveQuery => Some(Self::LiveQuery),
+            FunctionKind::Action => Some(Self::Action),
         }
     }
 }
@@ -1099,7 +1108,7 @@ fn require_scope_bases_current_on(
     Ok(())
 }
 
-fn canonical_scopes_json(scopes: &[ExactGrantScope]) -> SnapbackResult<String> {
+pub(super) fn canonical_scopes_json(scopes: &[ExactGrantScope]) -> SnapbackResult<String> {
     let encoded = serde_json::to_string(scopes).map_err(|_| grant_state_corrupt())?;
     if encoded.len() > GRANT_SCOPE_BYTES_CAP {
         return Err(grant_scope_invalid());

@@ -370,6 +370,26 @@ impl DeliveryNotifier {
         });
     }
 
+    fn wake_at(self: &Arc<Self>, connection_id: String, deadline: std::time::Instant) {
+        let notifier = Arc::clone(self);
+        crate::exec_guard::run_or_defer_after_local(move || {
+            let delay = deadline.saturating_duration_since(std::time::Instant::now());
+            if delay.is_zero() {
+                notifier.wake_now(&connection_id);
+                return;
+            }
+            // Server transports always run inside Tokio. An embedding without
+            // a runtime can still poll after the deadline; it merely has no
+            // process-owned asynchronous wake source.
+            if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+                runtime.spawn(async move {
+                    tokio::time::sleep(delay).await;
+                    notifier.wake_now(&connection_id);
+                });
+            }
+        });
+    }
+
     fn wake_now(&self, connection_id: &str) {
         if let Some(registration) = self.lock_state().waiters.get(connection_id) {
             registration.notify.notify_one();
@@ -1312,6 +1332,18 @@ pub struct DurableMessage {
     #[serde(skip)]
     #[schemars(skip)]
     effect_fence: Option<ConnectionEffectFence>,
+    /// Immutable non-wire profile snapshot for this live frame. The separate
+    /// release field may also be populated on a subsequent normal item when
+    /// FIFO clamps it behind a delayed predecessor.
+    ///
+    /// @ref LLP 0167#honesty-requirements — delay and any future wire marker
+    ///   must read the same admission snapshot.
+    #[serde(skip)]
+    #[schemars(skip)]
+    network_egress: Option<crate::network_profile::PreparedNetworkEgress>,
+    #[serde(skip)]
+    #[schemars(skip)]
+    release_at: Option<std::time::Instant>,
 }
 
 impl DurableMessage {
@@ -1320,6 +1352,8 @@ impl DurableMessage {
             payload,
             authorization: None,
             effect_fence: None,
+            network_egress: None,
+            release_at: None,
         }
     }
 
@@ -1328,6 +1362,8 @@ impl DurableMessage {
             payload,
             authorization: Some(authorization),
             effect_fence: None,
+            network_egress: None,
+            release_at: None,
         }
     }
 
@@ -1336,6 +1372,8 @@ impl DurableMessage {
             payload,
             authorization: None,
             effect_fence: Some(effect_fence),
+            network_egress: None,
+            release_at: None,
         }
     }
 
@@ -1348,6 +1386,8 @@ impl DurableMessage {
             payload,
             authorization: Some(authorization),
             effect_fence: Some(effect_fence),
+            network_egress: None,
+            release_at: None,
         }
     }
 
@@ -1357,6 +1397,35 @@ impl DurableMessage {
 
     fn effect_fence(&self) -> Option<&ConnectionEffectFence> {
         self.effect_fence.as_ref()
+    }
+
+    fn with_network_egress(
+        mut self,
+        network_egress: crate::network_profile::PreparedNetworkEgress,
+    ) -> Self {
+        self.release_at = Some(network_egress.release_at());
+        self.network_egress = Some(network_egress);
+        self
+    }
+
+    fn release_at(&self) -> Option<std::time::Instant> {
+        self.release_at
+    }
+
+    fn clamp_release_at(&mut self, predecessor: Option<std::time::Instant>) {
+        if let Some(network_egress) = &mut self.network_egress {
+            network_egress.clamp_release_at(predecessor);
+            self.release_at = Some(network_egress.release_at());
+        } else if let Some(predecessor) = predecessor {
+            self.release_at = Some(
+                self.release_at
+                    .map_or(predecessor, |own| own.max(predecessor)),
+            );
+        }
+    }
+
+    fn is_network_ready(&self, now: std::time::Instant) -> bool {
+        self.release_at.is_none_or(|deadline| deadline <= now)
     }
 }
 
@@ -2051,6 +2120,10 @@ struct OutboundQueue {
     active_lease_effect_fence: Option<ConnectionEffectFence>,
     active_lease_binding_bytes: usize,
     next_drain_lease_id: u64,
+    /// Last prepared durable deadline for this readable connection. New
+    /// items clamp against it, producing pipeline latency rather than N x D
+    /// head-of-line service.
+    last_durable_release: Option<std::time::Instant>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -2158,6 +2231,7 @@ impl OutboundQueue {
             active_lease_effect_fence: None,
             active_lease_binding_bytes: 0,
             next_drain_lease_id: 1,
+            last_durable_release: None,
         }
     }
 
@@ -2199,6 +2273,11 @@ impl OutboundQueue {
                 message.message.as_ref(),
             ))
         });
+        self.last_durable_release = self
+            .durable
+            .iter()
+            .filter_map(|queued| queued.message.release_at())
+            .max();
     }
 
     fn retained_bytes(&self) -> usize {
@@ -2248,6 +2327,7 @@ impl OutboundQueue {
         self.overflow_marker_leases.clear();
         self.active_lease_effect_fence = None;
         self.active_lease_binding_bytes = 0;
+        self.last_durable_release = None;
         self.all_authorities_poisoned = true;
         self.recompute_overflow_marker_bytes();
         debug_assert!(self.retained_bytes() <= MAX_OUTBOX_RETAINED_BYTES);
@@ -2503,6 +2583,24 @@ impl OutboundQueue {
         self.durable_bytes = self.durable_bytes.saturating_add(retained_bytes);
         self.durable.push_back(QueuedDurableMessage::new(message));
         QueueOverflow::default()
+    }
+
+    /// Stamp the per-connection monotone deadline before the item enters the
+    /// physical queue. This is preparation only; no timer or wait runs under
+    /// the outbox lock.
+    ///
+    /// @ref LLP 0167#observation-semantics--what-a-delay-means — FIFO is a
+    ///   monotone deadline clamp, so a burst shifts once instead of N times.
+    fn prepare_durable_deadline(
+        &mut self,
+        message: &mut DurableMessage,
+    ) -> Option<std::time::Instant> {
+        message.clamp_release_at(self.last_durable_release);
+        let deadline = message.release_at();
+        if let Some(deadline) = deadline {
+            self.last_durable_release = Some(deadline);
+        }
+        deadline
     }
 
     /// Drop the lanes that belong to the ephemeral epoch world — the
@@ -2980,6 +3078,7 @@ impl OutboundQueue {
         let mut removed_stale = false;
         let mut handoff_bytes = OUTBOX_HANDOFF_BATCH_OVERHEAD;
         let mut handoff_full = false;
+        let network_now = std::time::Instant::now();
         while durable_index < self.durable.len() && selected.len() < max_batch {
             if self.durable[durable_index].lease_id.is_some() {
                 durable_index += 1;
@@ -2992,6 +3091,18 @@ impl OutboundQueue {
             };
             match disposition {
                 FrameAuthorityDisposition::Send => {
+                    // A not-yet-due head remains physical queue ownership and
+                    // therefore holds no publication permit. Stop this FIFO
+                    // lane; the deadline scheduler will wake the connection.
+                    //
+                    // @ref LLP 0167#observation-semantics--what-a-delay-means —
+                    //   all wall-clock waiting is outside admission authority.
+                    if !self.durable[durable_index]
+                        .message
+                        .is_network_ready(network_now)
+                    {
+                        break;
+                    }
                     let estimated = estimated_durable_handoff_bytes(
                         self.durable[durable_index].message.as_ref(),
                     );
@@ -6297,6 +6408,21 @@ impl LocalEphemeralBackend {
         self.enqueue_durable_message(connection_id, DurableMessage::new(payload))
     }
 
+    pub(crate) fn enqueue_durable_with_network_egress(
+        &self,
+        connection_id: impl Into<String>,
+        payload: Vec<u8>,
+        network_egress: Option<crate::network_profile::PreparedNetworkEgress>,
+    ) -> DurableEnqueueOutcome {
+        match network_egress {
+            Some(network_egress) => self.enqueue_network_profiled_durable_message(
+                connection_id,
+                DurableMessage::new(payload).with_network_egress(network_egress),
+            ),
+            None => self.enqueue_durable(connection_id, payload),
+        }
+    }
+
     /// Retire one exact predecessor durable backlog at a sessions deployment
     /// cut. Authority-independent live frames carry no authorization-version
     /// stamp, but production still binds them to their connection effect
@@ -6342,16 +6468,39 @@ impl LocalEphemeralBackend {
         true
     }
 
+    #[cfg(test)]
     pub(crate) fn enqueue_authorized_durable(
         &self,
         connection_id: impl Into<String>,
         payload: Vec<u8>,
         authorization: AuthorizationVersion,
     ) -> DurableEnqueueOutcome {
-        self.enqueue_durable_message(
+        self.enqueue_authorized_durable_with_network_egress(
             connection_id,
-            DurableMessage::authorized(payload, authorization),
+            payload,
+            authorization,
+            None,
         )
+    }
+
+    pub(crate) fn enqueue_authorized_durable_with_network_egress(
+        &self,
+        connection_id: impl Into<String>,
+        payload: Vec<u8>,
+        authorization: AuthorizationVersion,
+        network_egress: Option<crate::network_profile::PreparedNetworkEgress>,
+    ) -> DurableEnqueueOutcome {
+        match network_egress {
+            Some(network_egress) => self.enqueue_network_profiled_durable_message(
+                connection_id,
+                DurableMessage::authorized(payload, authorization)
+                    .with_network_egress(network_egress),
+            ),
+            None => self.enqueue_durable_message(
+                connection_id,
+                DurableMessage::authorized(payload, authorization),
+            ),
+        }
     }
 
     pub(crate) fn enqueue_durable_bound(
@@ -6363,17 +6512,42 @@ impl LocalEphemeralBackend {
         self.enqueue_durable_message(connection_id, DurableMessage::bound(payload, effect_fence))
     }
 
-    pub(crate) fn enqueue_authorized_durable_bound(
+    pub(crate) fn enqueue_durable_bound_with_network_egress(
+        &self,
+        connection_id: impl Into<String>,
+        payload: Vec<u8>,
+        effect_fence: ConnectionEffectFence,
+        network_egress: Option<crate::network_profile::PreparedNetworkEgress>,
+    ) -> DurableEnqueueOutcome {
+        match network_egress {
+            Some(network_egress) => self.enqueue_network_profiled_durable_message(
+                connection_id,
+                DurableMessage::bound(payload, effect_fence)
+                    .with_network_egress(network_egress),
+            ),
+            None => self.enqueue_durable_bound(connection_id, payload, effect_fence),
+        }
+    }
+
+    pub(crate) fn enqueue_authorized_durable_bound_with_network_egress(
         &self,
         connection_id: impl Into<String>,
         payload: Vec<u8>,
         authorization: AuthorizationVersion,
         effect_fence: ConnectionEffectFence,
+        network_egress: Option<crate::network_profile::PreparedNetworkEgress>,
     ) -> DurableEnqueueOutcome {
-        self.enqueue_durable_message(
-            connection_id,
-            DurableMessage::authorized_bound(payload, authorization, effect_fence),
-        )
+        match network_egress {
+            Some(network_egress) => self.enqueue_network_profiled_durable_message(
+                connection_id,
+                DurableMessage::authorized_bound(payload, authorization, effect_fence)
+                    .with_network_egress(network_egress),
+            ),
+            None => self.enqueue_durable_message(
+                connection_id,
+                DurableMessage::authorized_bound(payload, authorization, effect_fence),
+            ),
+        }
     }
 
     fn enqueue_durable_message(
@@ -6405,6 +6579,45 @@ impl LocalEphemeralBackend {
         // interaction note — enqueues are no longer serialized by the global
         // mutex).
         self.shared.delivery.wake(&connection_id);
+        DurableEnqueueOutcome {
+            overflowed_now: overflow.overflowed,
+            parked_behind_overflow,
+        }
+    }
+
+    fn enqueue_network_profiled_durable_message(
+        &self,
+        connection_id: impl Into<String>,
+        mut message: DurableMessage,
+    ) -> DurableEnqueueOutcome {
+        let connection_id = connection_id.into();
+        let outbox = self.ensure_outbox(&connection_id);
+        let mut queue = lock(&outbox);
+        let effect_fence = message.effect_fence().cloned();
+        let release_at = queue
+            .prepare_durable_deadline(&mut message)
+            .expect("profiled durable egress always carries a deadline");
+        let overflow = queue.push_durable(message);
+        let parked_behind_overflow = queue.is_overflowed(effect_fence.as_ref());
+        drop(queue);
+        if overflow.overflowed {
+            self.shared
+                .counters
+                .outbox_overflows
+                .fetch_add(1, Ordering::Relaxed);
+        }
+        if overflow.resync_count > 0 {
+            self.shared
+                .counters
+                .resync_required
+                .fetch_add(overflow.resync_count as u64, Ordering::Relaxed);
+        }
+        // A newly parked overflow marker is immediate work, while the exact
+        // durable item retains its independent absolute-deadline wake.
+        if parked_behind_overflow {
+            self.shared.delivery.wake(&connection_id);
+        }
+        self.shared.delivery.wake_at(connection_id, release_at);
         DurableEnqueueOutcome {
             overflowed_now: overflow.overflowed,
             parked_behind_overflow,
@@ -8516,6 +8729,68 @@ impl ClientEphemeralOverlay {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn network_deadline_clamp_preserves_fifo_without_leasing_early() {
+        let profiles = crate::network_profile::NetworkProfileState::new();
+        profiles
+            .activate(
+                crate::network_profile::NetworkConditionProfile {
+                    name: "live-test".to_owned(),
+                    mutation_ack_delay_ms: 0,
+                    live_delta_delay_ms: 40,
+                    query_response_delay_ms: 0,
+                    jitter_ms: 0,
+                },
+                crate::network_profile::NetworkProfileAuthority::classified(
+                    crate::admin::ServerProfile::Test,
+                    crate::auth::deployment::AuthDeploymentTarget::Local,
+                    false,
+                ),
+                crate::network_profile::NetworkProfileSource::Api,
+                None,
+            )
+            .unwrap();
+        let basis = std::time::Instant::now();
+        let first = profiles
+            .admit_result(
+                crate::network_profile::NetworkEgressLane::LiveDelta,
+                basis + std::time::Duration::from_millis(40),
+            )
+            .unwrap();
+        let second = profiles
+            .admit_result(
+                crate::network_profile::NetworkEgressLane::LiveDelta,
+                basis,
+            )
+            .unwrap();
+        assert!(second.release_at() < first.release_at());
+
+        let mut queue = OutboundQueue::new();
+        let mut first_message =
+            DurableMessage::new(b"first".to_vec()).with_network_egress(first.clone());
+        let first_deadline = queue
+            .prepare_durable_deadline(&mut first_message)
+            .unwrap();
+        queue.push_durable(first_message);
+        let mut second_message =
+            DurableMessage::new(b"second".to_vec()).with_network_egress(second);
+        let second_deadline = queue
+            .prepare_durable_deadline(&mut second_message)
+            .unwrap();
+        queue.push_durable(second_message);
+
+        assert_eq!(second_deadline, first_deadline);
+        let selected = queue.drain_with_authority_bounded_and_handoff_limit(
+            None,
+            MAX_OUTBOX_DRAIN_BATCH,
+            MAX_OUTBOX_HANDOFF_BYTES,
+            |_| FrameAuthorityDisposition::Send,
+            |_| FrameAuthorityDisposition::Send,
+        );
+        assert!(selected.is_empty(), "a future deadline owns no send lease");
+        assert!(queue.durable.iter().all(|queued| queued.lease_id.is_none()));
+    }
 
     /// LLP 0032 L8 — an enqueue wakes the registered delivery waiter (and the
     /// wake permit survives a race with a not-yet-waiting task), while an

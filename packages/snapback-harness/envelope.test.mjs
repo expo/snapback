@@ -82,6 +82,49 @@ async function settleExpression(expression) {
   ));
 }
 
+test('sealed auth projection carries the asset-callback actor kind', async () => {
+  const context = vm.createContext({});
+  vm.runInContext('globalThis.__hostCall = function() { return "null"; };', context);
+  vm.runInContext(bootstrap, context, { filename: 'ctx-bootstrap.js' });
+  vm.runInContext(`
+    globalThis.__snapbackHandlers = {
+      probe: async function(ctx) {
+        return {
+          actorKind: ctx.auth.actorKind,
+          sessionId: ctx.auth.sessionId,
+          frozen: Object.isFrozen(ctx.auth),
+          intruder: ctx.auth.intruder,
+        };
+      }
+    };
+  `, context);
+  const decoded = parseHandlerEnvelope(await context.__snapbackSettle(
+    'probe',
+    '{}',
+    JSON.stringify({
+      userId: 'usr_asset_callbacks',
+      sessionId: null,
+      isAuthenticated: true,
+      kind: 'agent',
+      actorKind: 'asset-callbacks',
+      intruder: 'discard-me',
+    }),
+    'mutation',
+    null,
+    null,
+    '1',
+    () => 'null',
+  ));
+  assert.deepEqual(decoded, {
+    ok: true,
+    value: {
+      actorKind: 'asset-callbacks',
+      sessionId: null,
+      frozen: true,
+    },
+  });
+});
+
 test('settle extraction isolates hostile name/constructor/stack/message getters', async () => {
   for (const getter of ['name', 'constructor', 'stack', 'message']) {
     const decoded = parseHandlerEnvelope(await settleHostile(getter));

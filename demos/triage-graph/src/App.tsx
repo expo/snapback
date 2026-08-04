@@ -1,32 +1,58 @@
 import { useEffect, useRef, useState } from 'react';
 
-import api from '../snapback/generated/api.mjs';
+import api from '../snapback/generated/api';
+import type {
+  FunctionReference,
+  FunctionResult,
+} from '../snapback/generated/api';
 import { retainInboxRegistration } from './retained-registration';
 
-type QueryHandle = {
-  rows: any[];
+type QueryHandle<Result = unknown> = {
+  rows: Result;
   answerClass?: string;
   freshness?: string;
   dispose(): Promise<void> | void;
 };
 
+type QueryDetail = {
+  answerClass?: string;
+  freshness?: string;
+};
+
+type QueryReference = FunctionReference<
+  string,
+  'Query' | 'LiveQuery',
+  unknown,
+  unknown
+>;
+
 type Client = {
   authRequestCode(email: string): Promise<{ challengeId: string }>;
   authExchange(input: { challengeId: string; code: string }): Promise<unknown>;
-  liveQuery(reference: unknown, options: Record<string, unknown>): Promise<QueryHandle>;
+  liveQuery<Reference extends QueryReference>(
+    reference: Reference,
+    options: {
+      args?: Record<string, unknown>;
+      connectionId: string;
+      persistResume: boolean;
+      onUpdate?: (rows: FunctionResult<Reference>, detail: QueryDetail) => void;
+    },
+  ): Promise<QueryHandle<FunctionResult<Reference>>>;
 };
+
+type RetainedInboxRows = FunctionResult<typeof api.retainedInbox>;
 
 export function App({ client }: { client: Client }) {
   const [email, setEmail] = useState('owner@triage-graph.test');
   const [challengeId, setChallengeId] = useState('');
   const [code, setCode] = useState('');
   const [boardId, setBoardId] = useState(() => localStorage.getItem('triage-graph.board') ?? '');
-  const [issues, setIssues] = useState<any[]>([]);
-  const [transitions, setTransitions] = useState<any[]>([]);
-  const [retained, setRetained] = useState<any[]>([]);
+  const [issues, setIssues] = useState<readonly any[]>([]);
+  const [transitions, setTransitions] = useState<readonly any[]>([]);
+  const [retained, setRetained] = useState<RetainedInboxRows>([]);
   const [retainedClass, setRetainedClass] = useState('unknown');
   const [status, setStatus] = useState('Ready to sign in or relaunch retained custody.');
-  const handles = useRef<QueryHandle[]>([]);
+  const handles = useRef<QueryHandle<unknown>[]>([]);
 
   const disposeHandles = async () => {
     const prior = handles.current.splice(0);
@@ -43,7 +69,7 @@ export function App({ client }: { client: Client }) {
     const inboxPromise = client.liveQuery(api.retainedInbox, {
       connectionId: `triage-retained-${Date.now()}`,
       persistResume: true,
-      onUpdate: (rows: any[], detail: any) => {
+      onUpdate: (rows, detail) => {
         setRetained(rows);
         setRetainedClass(`${detail.answerClass ?? 'unknown'} / ${detail.freshness ?? 'unknown'}`);
       },
@@ -53,7 +79,7 @@ export function App({ client }: { client: Client }) {
           args: { boardId },
           connectionId: `triage-graph-${Date.now()}`,
           persistResume: false,
-          onUpdate: (rows: any[]) => {
+          onUpdate: (rows) => {
             const result = rows[0];
             if (result?.kind !== 'visible') return;
             setIssues(result.nodes[0].children);

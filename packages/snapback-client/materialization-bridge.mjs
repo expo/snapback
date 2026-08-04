@@ -11,6 +11,7 @@ import {
 import { snapbackAuthFingerprint } from '@expo/snapback-contract/client-store';
 
 import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
+import { deriveGeneratedLocalReadCoverageV1 } from './local-read-admission.mjs';
 import {
   decodeMaterializationRecordV1,
   materializationAddressKey,
@@ -165,6 +166,10 @@ export function deriveGeneratedMaterializationBridge({
     && declaredRetained
     && (!declaredAuthorized || authorizedLeaseAvailable === true);
   const leaseRequired = retentionRequested && declaredAuthorized;
+  const localReadCoverage = deriveGeneratedLocalReadCoverageV1({
+    ref,
+    materializationKey,
+  });
   return Object.freeze({
     activation: structuredClone(activation),
     address: Object.freeze(address),
@@ -201,6 +206,7 @@ export function deriveGeneratedMaterializationBridge({
     nodes: nodesFromPlan(composition.normalizedCompositePlan),
     resultContract: structuredClone(composition.resultContract),
     resultContractHash: ref.resultContractHash,
+    localReadCoverage,
     retentionClass,
     retentionRequested,
     leaseRequired,
@@ -264,6 +270,10 @@ export async function findRetainedGeneratedMaterializationBridge({
     view.storeMeta.materializationLeaseCustody[materializationAddressKey(address)] ?? null
   ));
   const leaseRequired = AUTHORIZED_CLASSES.has(retentionClass);
+  const localReadCoverage = deriveGeneratedLocalReadCoverageV1({
+    ref,
+    materializationKey: address[2],
+  });
   return Object.freeze({
     activation: structuredClone(activation),
     address: Object.freeze(address),
@@ -282,6 +292,7 @@ export async function findRetainedGeneratedMaterializationBridge({
     nodes: nodesFromPlan(composition.normalizedCompositePlan),
     resultContract: structuredClone(composition.resultContract),
     resultContractHash: ref.resultContractHash,
+    localReadCoverage,
     retentionClass,
     retentionRequested: true,
     leaseRequired,
@@ -316,9 +327,7 @@ const custodyValidShape = (value) => (
 
 export async function loadMaterializationLeaseCustody(storeHandle, bridge, now = Date.now()) {
   if (!bridge.leaseRequired || !storeHandle?.materializationTransaction) {
-    return bridge.retentionRequested
-      ? { leaseStatus: 'valid', authorizedLeaseHash: null, witness: null }
-      : { leaseStatus: 'not-required', authorizedLeaseHash: null, witness: null };
+    return { leaseStatus: 'not-required', authorizedLeaseHash: null, witness: null };
   }
   return storeHandle.materializationTransaction('readwrite', (view) => {
     const custody = view.storeMeta.materializationLeaseCustody[bridge.addressKey] ?? null;

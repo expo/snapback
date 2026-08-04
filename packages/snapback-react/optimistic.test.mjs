@@ -6,9 +6,24 @@ import {
   createSnapbackReactProvider,
   invokeSnapbackMutation,
   observeSnapbackQueries,
+  projectRecordFields,
 } from './index.mjs';
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+// Capture the dev replay advisory (LLP 0107 replay-safety affordances) so the
+// fixtures below can assert exactly when it fires; everything else passes
+// through to the real console.
+const replayWarnings = [];
+const originalConsoleWarn = console.warn;
+console.warn = (...parts) => {
+  const line = parts.join(' ');
+  if (line.includes('SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT')) {
+    replayWarnings.push(line);
+    return;
+  }
+  originalConsoleWarn(...parts);
+};
 const queryContract = {
   kind: 'records',
   record: {
@@ -216,6 +231,13 @@ await assert.rejects(
 );
 assert.equal(client.inspection().dispatches, 5, 'invalid projection refuses before dispatch');
 
+// The increment reducer above is exactly the action-shaped anti-pattern the
+// dev replay advisory exists to catch: replayed over its own output it
+// double-applies. One warning per (mutation, query) site, not per attempt.
+assert.equal(replayWarnings.length, 1, 'the replay advisory warns once per mutation site');
+assert.match(replayWarnings[0], /increment over feed/);
+assert.match(replayWarnings[0], /guide\/recipes\/optimistic-toggle\.md/);
+
 observer.dispose();
 await flush();
 await provider.dispose();
@@ -381,9 +403,148 @@ likeClient.emit('profilePosts', [{ id: 'p1', liked: true, likeCount: 12 }]);
 assert.equal(view().profile.data[0].liked, true, 'other surfaces settle authoritatively');
 assert.equal(view().profile.data[0].likeCount, 12);
 
+// The recipe's capture-and-set projection is replay-stable, so the advisory
+// stayed silent across the whole toggle section.
+assert.equal(replayWarnings.length, 1, 'capture-and-set projections pass the replay advisory');
+
 likeObserver.dispose();
 await flush();
 await likeProvider.dispose();
 assert.equal(likeClient.inspection().handles, 0);
 
-console.log('optimistic.test.mjs: overlap, rollback, matcher ordering, rebase failure, install refusal, and the toggle recipe pass');
+// projectRecordFields derives the same recipe shape from one declaration: an
+// idempotent capture-and-set update plus a complete-receipt matcher, spread
+// into the ordinary optimistic options.
+const helperClient = fakeSurfacesClient({
+  timeline: [{ id: 'p2', liked: false, likeCount: 3 }],
+  profilePosts: [{ id: 'p2', liked: false, likeCount: 3 }],
+});
+const helperBinding = await prepareReactBindingForClient(helperClient, { generatedManifest: likeFunctions });
+const helperProvider = createSnapbackReactProvider(helperBinding, { connectionId: 'optimistic-helper-test' });
+const helperObserver = observeSnapbackQueries(
+  helperProvider,
+  { timeline: { ref: timeline, args: {} } },
+  () => {},
+);
+await flush();
+const helperView = () => helperObserver.snapshot().queries.timeline.data[0];
+
+// One declaration derives the idempotent capture-and-set update and the
+// complete-receipt matcher; spread it into the ordinary optimistic options.
+const optimisticHelperLike = {
+  query: timeline,
+  args: {},
+  ...projectRecordFields('p2', { liked: true, likeCount: 4 }, { idField: 'id' }),
+};
+const helperLike = invokeSnapbackMutation(
+  helperProvider,
+  toggleLike,
+  { postId: 'p2' },
+  { optimistic: optimisticHelperLike },
+);
+assert.equal(helperView().liked, true, 'helper update sets both fields atomically');
+assert.equal(helperView().likeCount, 4);
+
+// A partial authoritative delivery rebases the helper's layer instead of
+// retiring it: the derived matcher wants the complete receipt.
+helperClient.emit('timeline', [{ id: 'p2', liked: true, likeCount: 3 }]);
+assert.equal(helperView().liked, true, 'helper projection does not invert on replay');
+assert.equal(helperView().likeCount, 4, 'partial delivery keeps the helper layer installed');
+
+helperClient.inspection().attempts[0].resolve({ liked: true, likeCount: 4 });
+assert.deepEqual(await helperLike, { liked: true, likeCount: 4 });
+helperClient.emit('timeline', [{ id: 'p2', liked: true, likeCount: 4 }]);
+helperClient.emit('timeline', [{ id: 'p2', liked: true, likeCount: 5 }]);
+assert.equal(helperView().likeCount, 5, 'helper matcher retired on the complete receipt');
+assert.equal(replayWarnings.length, 1, 'projectRecordFields is replay-safe by construction');
+
+// Declaration-time refusals: the helper only expresses capture-and-set over
+// primitive intended outcomes.
+assert.throws(() => projectRecordFields('', { liked: true }), TypeError);
+assert.throws(() => projectRecordFields('p2', {}), TypeError);
+assert.throws(() => projectRecordFields('p2', { nested: { deep: true } }), TypeError);
+
+// The advisory is development-only: an explicit production NODE_ENV admits
+// the same action-shaped reducer silently, and development warns again for a
+// site that has not warned before.
+const actionShaped = {
+  query: timeline,
+  args: {},
+  update: (posts) => posts.map((post) => ({ ...post, likeCount: post.likeCount + 1 })),
+};
+const priorNodeEnv = process.env.NODE_ENV;
+process.env.NODE_ENV = 'production';
+let silent;
+try {
+  silent = invokeSnapbackMutation(
+    helperProvider,
+    toggleLike,
+    { postId: 'p2' },
+    { optimistic: actionShaped },
+  );
+  assert.equal(replayWarnings.length, 1, 'production skips the replay advisory');
+} finally {
+  if (priorNodeEnv === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = priorNodeEnv;
+}
+helperClient.inspection().attempts[1].resolve({ liked: true, likeCount: 6 });
+await silent;
+const noisy = invokeSnapbackMutation(
+  helperProvider,
+  toggleLike,
+  { postId: 'p2' },
+  { optimistic: actionShaped },
+);
+assert.equal(replayWarnings.length, 2, 'development warns on the action-shaped reducer');
+assert.match(replayWarnings[1], /toggleLike over timeline/);
+helperClient.inspection().attempts[2].resolve({ liked: true, likeCount: 7 });
+await noisy;
+helperClient.emit('timeline', [{ id: 'p2', liked: true, likeCount: 7 }]);
+
+// A reducer that throws when replayed over its own output takes the
+// advisory's failure branch: the warning fires (fresh site — the profile
+// query) and admission is untouched, so the projection still displays.
+const profileObserver = observeSnapbackQueries(
+  helperProvider,
+  { profile: { ref: profilePosts, args: {} } },
+  () => {},
+);
+await flush();
+const throwsOnReplay = invokeSnapbackMutation(
+  helperProvider,
+  toggleLike,
+  { postId: 'p2' },
+  {
+    optimistic: {
+      query: profilePosts,
+      args: {},
+      update: (posts) => {
+        if (posts[0].likeCount === 0) throw new Error('replayed over own output');
+        return posts.map((post) => ({ ...post, likeCount: 0 }));
+      },
+    },
+  },
+);
+assert.equal(replayWarnings.length, 3, 'a throw over the reducer\'s own output warns');
+assert.match(replayWarnings[2], /failed when replayed over its own output/);
+assert.equal(
+  profileObserver.snapshot().queries.profile.data[0].likeCount,
+  0,
+  'the advisory is observational: the projection was still admitted',
+);
+helperClient.inspection().attempts[3].resolve({ liked: true, likeCount: 0 });
+await throwsOnReplay;
+helperClient.emit('profilePosts', [{ id: 'p2', liked: true, likeCount: 0 }]);
+profileObserver.dispose();
+
+// Declaration-time refusals for the id-field seam.
+assert.throws(() => projectRecordFields('p2', { liked: true }, { idField: '' }), TypeError);
+assert.throws(() => projectRecordFields('p2', { id: 'p3', liked: true }, { idField: 'id' }), TypeError);
+
+helperObserver.dispose();
+await flush();
+await helperProvider.dispose();
+assert.equal(helperClient.inspection().handles, 0);
+console.warn = originalConsoleWarn;
+
+console.log('optimistic.test.mjs: overlap, rollback, matcher ordering, rebase failure, install refusal, the toggle recipe, the replay advisory, and projectRecordFields pass');

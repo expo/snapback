@@ -46,6 +46,10 @@ additional exports are required.
     authInvalidationProtocol = null,
     authorityDescriptorProtocol = 1,
     authorizedLeaseProtocol = null,
+    // LLP 0163 pre-publication carrier. Explicit opt-in only while the Spec
+    // and capability rows remain Draft/Missing; v1 requires a durable outbox
+    // so range, next counter, and intent share one restart-safe transition.
+    operationIdentityProtocol = null,
     // Set only after capability preflight advertises the hosted ephemeral
     // authority offer. Old servers therefore never see an unknown member.
     ephemeralAuthorityProtocol = null,

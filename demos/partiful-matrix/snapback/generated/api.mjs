@@ -53,14 +53,255 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "partiful-matrix",
-      "bundleHash": "sha256:f22325f6017392cd",
-      "inputsHash": "aa31ce2f6ed4db22c461ed3ed4aff0dd04fb4d1fd52898dfbab2d0ce799def9e",
-      "schemaHash": "sha256:e9b2d95c06fea123",
+      "bundleHash": "sha256:8a8565c9daefb3a3",
+      "inputsHash": "cdd9b70ba9a3a24a658bb1adea2c59ee57ea33de5f08ce54f01a2a12a01cd788",
+      "schemaHash": "sha256:708ea8cbdc53fd4f",
       "schemaVersion": "snapback.v0"
     },
     "id": "partiful-matrix:createEvent",
     "implementationHash": "sha256:9f23cdd2b20288d8109c250fe892ec6c253e025a31d9866ebb4675e488136d64",
     "kind": "Mutation",
+    "mutationIr": {
+      "boundedSkew": null,
+      "capabilityClass": "server-only",
+      "capabilityCode": "SNAPBACK_GENERATED_IR_AUTHORITATIVE_EXPR_SERVER_ONLY",
+      "declaredEffectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
+      "declaredReads": [],
+      "format": "snapback.generated-mutation-ir.v1",
+      "localReadRequirements": [],
+      "mintSites": [
+        "plan/steps/2/insert/row-id",
+        "plan/steps/3/insert/row-id"
+      ],
+      "operationHash": "sha256:e66278d0bd3fa6ce5c013bec4bab33917b5cac0509848dc5145cdd081077bebe",
+      "plan": {
+        "return_value": {
+          "Binding": "eventId"
+        },
+        "steps": [
+          {
+            "Guard": {
+              "cond": {
+                "Binary": {
+                  "left": {
+                    "Call": {
+                      "args": [
+                        {
+                          "Arg": "title"
+                        }
+                      ],
+                      "func": "trim"
+                    }
+                  },
+                  "op": "Ne",
+                  "right": {
+                    "Literal": ""
+                  }
+                }
+              },
+              "else_error": "SNAPBACK_EVENT_TITLE_REQUIRED"
+            }
+          },
+          {
+            "Guard": {
+              "cond": {
+                "Binary": {
+                  "left": {
+                    "Call": {
+                      "args": [
+                        {
+                          "Arg": "location"
+                        }
+                      ],
+                      "func": "trim"
+                    }
+                  },
+                  "op": "Ne",
+                  "right": {
+                    "Literal": ""
+                  }
+                }
+              },
+              "else_error": "SNAPBACK_EVENT_LOCATION_REQUIRED"
+            }
+          },
+          {
+            "Insert": {
+              "bind_id_as": "eventId",
+              "table": "events",
+              "values": {
+                "accent": {
+                  "Arg": "accent"
+                },
+                "description": {
+                  "Call": {
+                    "args": [
+                      {
+                        "Arg": "description"
+                      }
+                    ],
+                    "func": "trim"
+                  }
+                },
+                "emoji": {
+                  "If": {
+                    "cond": {
+                      "Binary": {
+                        "left": {
+                          "Arg": "emoji"
+                        },
+                        "op": "Ne",
+                        "right": {
+                          "Literal": ""
+                        }
+                      }
+                    },
+                    "else": {
+                      "Literal": "✨"
+                    },
+                    "then": {
+                      "Arg": "emoji"
+                    }
+                  }
+                },
+                "hostId": "AuthUserId",
+                "hostName": {
+                  "Arg": "hostName"
+                },
+                "location": {
+                  "Call": {
+                    "args": [
+                      {
+                        "Arg": "location"
+                      }
+                    ],
+                    "func": "trim"
+                  }
+                },
+                "startsAt": {
+                  "Arg": "startsAt"
+                },
+                "title": {
+                  "Call": {
+                    "args": [
+                      {
+                        "Arg": "title"
+                      }
+                    ],
+                    "func": "trim"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "Insert": {
+              "bind_id_as": null,
+              "table": "rsvps",
+              "values": {
+                "eventId": {
+                  "Binding": "eventId"
+                },
+                "guestName": {
+                  "Arg": "hostName"
+                },
+                "status": {
+                  "Literal": "host"
+                },
+                "userId": "AuthUserId"
+              }
+            }
+          }
+        ]
+      },
+      "schema": {
+        "tables": [
+          {
+            "fields": [
+              {
+                "name": "title"
+              },
+              {
+                "name": "emoji"
+              },
+              {
+                "name": "description"
+              },
+              {
+                "name": "location"
+              },
+              {
+                "name": "startsAt"
+              },
+              {
+                "name": "hostId"
+              },
+              {
+                "name": "hostName"
+              },
+              {
+                "name": "accent"
+              }
+            ],
+            "name": "events"
+          },
+          {
+            "fields": [
+              {
+                "name": "eventId"
+              },
+              {
+                "name": "userId"
+              },
+              {
+                "name": "guestName"
+              },
+              {
+                "name": "status"
+              }
+            ],
+            "name": "rsvps"
+          },
+          {
+            "fields": [
+              {
+                "name": "eventId"
+              },
+              {
+                "name": "authorId"
+              },
+              {
+                "name": "authorName"
+              },
+              {
+                "name": "message"
+              },
+              {
+                "name": "createdAt"
+              }
+            ],
+            "name": "posts"
+          }
+        ]
+      },
+      "schemaIdentity": {
+        "appId": "partiful-matrix",
+        "schemaHash": "sha256:708ea8cbdc53fd4f",
+        "schemaVersion": "snapback.v0"
+      },
+      "sourceIdentity": {
+        "activation": {
+          "appId": "partiful-matrix",
+          "bundleHash": "sha256:8a8565c9daefb3a3",
+          "inputsHash": "cdd9b70ba9a3a24a658bb1adea2c59ee57ea33de5f08ce54f01a2a12a01cd788",
+          "schemaHash": "sha256:708ea8cbdc53fd4f",
+          "schemaVersion": "snapback.v0"
+        },
+        "functionId": "partiful-matrix:createEvent",
+        "implementationHash": "sha256:9f23cdd2b20288d8109c250fe892ec6c253e025a31d9866ebb4675e488136d64"
+      },
+      "usesRuntimeNow": false
+    },
     "name": "createEvent",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
     "schemaVersion": "snapback.v0"
@@ -84,9 +325,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "partiful-matrix",
-      "bundleHash": "sha256:f22325f6017392cd",
-      "inputsHash": "aa31ce2f6ed4db22c461ed3ed4aff0dd04fb4d1fd52898dfbab2d0ce799def9e",
-      "schemaHash": "sha256:e9b2d95c06fea123",
+      "bundleHash": "sha256:8a8565c9daefb3a3",
+      "inputsHash": "cdd9b70ba9a3a24a658bb1adea2c59ee57ea33de5f08ce54f01a2a12a01cd788",
+      "schemaHash": "sha256:708ea8cbdc53fd4f",
       "schemaVersion": "snapback.v0"
     },
     "id": "partiful-matrix:eventDetails",
@@ -114,9 +355,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "partiful-matrix",
-      "bundleHash": "sha256:f22325f6017392cd",
-      "inputsHash": "aa31ce2f6ed4db22c461ed3ed4aff0dd04fb4d1fd52898dfbab2d0ce799def9e",
-      "schemaHash": "sha256:e9b2d95c06fea123",
+      "bundleHash": "sha256:8a8565c9daefb3a3",
+      "inputsHash": "cdd9b70ba9a3a24a658bb1adea2c59ee57ea33de5f08ce54f01a2a12a01cd788",
+      "schemaHash": "sha256:708ea8cbdc53fd4f",
       "schemaVersion": "snapback.v0"
     },
     "id": "partiful-matrix:eventWall",
@@ -145,9 +386,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "partiful-matrix",
-      "bundleHash": "sha256:f22325f6017392cd",
-      "inputsHash": "aa31ce2f6ed4db22c461ed3ed4aff0dd04fb4d1fd52898dfbab2d0ce799def9e",
-      "schemaHash": "sha256:e9b2d95c06fea123",
+      "bundleHash": "sha256:8a8565c9daefb3a3",
+      "inputsHash": "cdd9b70ba9a3a24a658bb1adea2c59ee57ea33de5f08ce54f01a2a12a01cd788",
+      "schemaHash": "sha256:708ea8cbdc53fd4f",
       "schemaVersion": "snapback.v0"
     },
     "id": "partiful-matrix:guestList",
@@ -168,9 +409,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "partiful-matrix",
-      "bundleHash": "sha256:f22325f6017392cd",
-      "inputsHash": "aa31ce2f6ed4db22c461ed3ed4aff0dd04fb4d1fd52898dfbab2d0ce799def9e",
-      "schemaHash": "sha256:e9b2d95c06fea123",
+      "bundleHash": "sha256:8a8565c9daefb3a3",
+      "inputsHash": "cdd9b70ba9a3a24a658bb1adea2c59ee57ea33de5f08ce54f01a2a12a01cd788",
+      "schemaHash": "sha256:708ea8cbdc53fd4f",
       "schemaVersion": "snapback.v0"
     },
     "id": "partiful-matrix:listEvents",
@@ -206,14 +447,170 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "partiful-matrix",
-      "bundleHash": "sha256:f22325f6017392cd",
-      "inputsHash": "aa31ce2f6ed4db22c461ed3ed4aff0dd04fb4d1fd52898dfbab2d0ce799def9e",
-      "schemaHash": "sha256:e9b2d95c06fea123",
+      "bundleHash": "sha256:8a8565c9daefb3a3",
+      "inputsHash": "cdd9b70ba9a3a24a658bb1adea2c59ee57ea33de5f08ce54f01a2a12a01cd788",
+      "schemaHash": "sha256:708ea8cbdc53fd4f",
       "schemaVersion": "snapback.v0"
     },
     "id": "partiful-matrix:postMessage",
     "implementationHash": "sha256:4ef8e444d653c8a5713b8077aafd140e04732671c5bd73a22e3c8ed417ac8f24",
     "kind": "Mutation",
+    "mutationIr": {
+      "boundedSkew": null,
+      "capabilityClass": "server-only",
+      "capabilityCode": "SNAPBACK_GENERATED_IR_AUTHORITATIVE_EXPR_SERVER_ONLY",
+      "declaredEffectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
+      "declaredReads": [],
+      "format": "snapback.generated-mutation-ir.v1",
+      "localReadRequirements": [],
+      "mintSites": [
+        "plan/steps/1/insert/row-id"
+      ],
+      "operationHash": "sha256:711cbef636b3a7c7fdf0a09f372f947bb3074a362b31c775bdeda501c4e744ba",
+      "plan": {
+        "return_value": {
+          "Binding": "postId"
+        },
+        "steps": [
+          {
+            "Guard": {
+              "cond": {
+                "Binary": {
+                  "left": {
+                    "Call": {
+                      "args": [
+                        {
+                          "Arg": "message"
+                        }
+                      ],
+                      "func": "trim"
+                    }
+                  },
+                  "op": "Ne",
+                  "right": {
+                    "Literal": ""
+                  }
+                }
+              },
+              "else_error": "SNAPBACK_POST_MESSAGE_REQUIRED"
+            }
+          },
+          {
+            "Insert": {
+              "bind_id_as": "postId",
+              "table": "posts",
+              "values": {
+                "authorId": "AuthUserId",
+                "authorName": {
+                  "Arg": "authorName"
+                },
+                "createdAt": "RuntimeNow",
+                "eventId": {
+                  "Arg": "eventId"
+                },
+                "message": {
+                  "Call": {
+                    "args": [
+                      {
+                        "Arg": "message"
+                      }
+                    ],
+                    "func": "trim"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "schema": {
+        "tables": [
+          {
+            "fields": [
+              {
+                "name": "title"
+              },
+              {
+                "name": "emoji"
+              },
+              {
+                "name": "description"
+              },
+              {
+                "name": "location"
+              },
+              {
+                "name": "startsAt"
+              },
+              {
+                "name": "hostId"
+              },
+              {
+                "name": "hostName"
+              },
+              {
+                "name": "accent"
+              }
+            ],
+            "name": "events"
+          },
+          {
+            "fields": [
+              {
+                "name": "eventId"
+              },
+              {
+                "name": "userId"
+              },
+              {
+                "name": "guestName"
+              },
+              {
+                "name": "status"
+              }
+            ],
+            "name": "rsvps"
+          },
+          {
+            "fields": [
+              {
+                "name": "eventId"
+              },
+              {
+                "name": "authorId"
+              },
+              {
+                "name": "authorName"
+              },
+              {
+                "name": "message"
+              },
+              {
+                "name": "createdAt"
+              }
+            ],
+            "name": "posts"
+          }
+        ]
+      },
+      "schemaIdentity": {
+        "appId": "partiful-matrix",
+        "schemaHash": "sha256:708ea8cbdc53fd4f",
+        "schemaVersion": "snapback.v0"
+      },
+      "sourceIdentity": {
+        "activation": {
+          "appId": "partiful-matrix",
+          "bundleHash": "sha256:8a8565c9daefb3a3",
+          "inputsHash": "cdd9b70ba9a3a24a658bb1adea2c59ee57ea33de5f08ce54f01a2a12a01cd788",
+          "schemaHash": "sha256:708ea8cbdc53fd4f",
+          "schemaVersion": "snapback.v0"
+        },
+        "functionId": "partiful-matrix:postMessage",
+        "implementationHash": "sha256:4ef8e444d653c8a5713b8077aafd140e04732671c5bd73a22e3c8ed417ac8f24"
+      },
+      "usesRuntimeNow": true
+    },
     "name": "postMessage",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
     "schemaVersion": "snapback.v0"
@@ -244,14 +641,206 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "partiful-matrix",
-      "bundleHash": "sha256:f22325f6017392cd",
-      "inputsHash": "aa31ce2f6ed4db22c461ed3ed4aff0dd04fb4d1fd52898dfbab2d0ce799def9e",
-      "schemaHash": "sha256:e9b2d95c06fea123",
+      "bundleHash": "sha256:8a8565c9daefb3a3",
+      "inputsHash": "cdd9b70ba9a3a24a658bb1adea2c59ee57ea33de5f08ce54f01a2a12a01cd788",
+      "schemaHash": "sha256:708ea8cbdc53fd4f",
       "schemaVersion": "snapback.v0"
     },
     "id": "partiful-matrix:rsvp",
     "implementationHash": "sha256:b6313a4af4fa6afb23d79f3fc11bc28af40099813356ce15b20d11c47fc2a98c",
     "kind": "Mutation",
+    "mutationIr": {
+      "boundedSkew": null,
+      "capabilityClass": "server-only",
+      "capabilityCode": "SNAPBACK_GENERATED_IR_EFFECT_SERVER_ONLY",
+      "declaredEffectClass": "snapback.browser-ir.insert-get-guard-patch.v1",
+      "declaredReads": [],
+      "format": "snapback.generated-mutation-ir.v1",
+      "localReadRequirements": [],
+      "mintSites": [
+        "plan/steps/2/insert/row-id"
+      ],
+      "operationHash": "sha256:8a148545d4ff4ef6a2073ca00bdc87f3c0ca0e2a4bad1e72b95fd0b5809beacb",
+      "plan": {
+        "return_value": {
+          "Binding": "rsvpId"
+        },
+        "steps": [
+          {
+            "Guard": {
+              "cond": {
+                "Binary": {
+                  "left": {
+                    "Binary": {
+                      "left": {
+                        "Arg": "status"
+                      },
+                      "op": "Eq",
+                      "right": {
+                        "Literal": "going"
+                      }
+                    }
+                  },
+                  "op": "Or",
+                  "right": {
+                    "Binary": {
+                      "left": {
+                        "Binary": {
+                          "left": {
+                            "Arg": "status"
+                          },
+                          "op": "Eq",
+                          "right": {
+                            "Literal": "maybe"
+                          }
+                        }
+                      },
+                      "op": "Or",
+                      "right": {
+                        "Binary": {
+                          "left": {
+                            "Arg": "status"
+                          },
+                          "op": "Eq",
+                          "right": {
+                            "Literal": "cant"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "else_error": "SNAPBACK_RSVP_STATUS_INVALID"
+            }
+          },
+          {
+            "DeleteWhere": {
+              "filter": [
+                {
+                  "field": "eventId",
+                  "op": "Eq",
+                  "value": {
+                    "Arg": "eventId"
+                  }
+                },
+                {
+                  "field": "userId",
+                  "op": "Eq",
+                  "value": "AuthUserId"
+                }
+              ],
+              "table": "rsvps"
+            }
+          },
+          {
+            "Insert": {
+              "bind_id_as": "rsvpId",
+              "table": "rsvps",
+              "values": {
+                "eventId": {
+                  "Arg": "eventId"
+                },
+                "guestName": {
+                  "Arg": "guestName"
+                },
+                "status": {
+                  "Arg": "status"
+                },
+                "userId": "AuthUserId"
+              }
+            }
+          }
+        ]
+      },
+      "schema": {
+        "tables": [
+          {
+            "fields": [
+              {
+                "name": "title"
+              },
+              {
+                "name": "emoji"
+              },
+              {
+                "name": "description"
+              },
+              {
+                "name": "location"
+              },
+              {
+                "name": "startsAt"
+              },
+              {
+                "name": "hostId"
+              },
+              {
+                "name": "hostName"
+              },
+              {
+                "name": "accent"
+              }
+            ],
+            "name": "events"
+          },
+          {
+            "fields": [
+              {
+                "name": "eventId"
+              },
+              {
+                "name": "userId"
+              },
+              {
+                "name": "guestName"
+              },
+              {
+                "name": "status"
+              }
+            ],
+            "name": "rsvps"
+          },
+          {
+            "fields": [
+              {
+                "name": "eventId"
+              },
+              {
+                "name": "authorId"
+              },
+              {
+                "name": "authorName"
+              },
+              {
+                "name": "message"
+              },
+              {
+                "name": "createdAt"
+              }
+            ],
+            "name": "posts"
+          }
+        ]
+      },
+      "schemaIdentity": {
+        "appId": "partiful-matrix",
+        "schemaHash": "sha256:708ea8cbdc53fd4f",
+        "schemaVersion": "snapback.v0"
+      },
+      "sourceIdentity": {
+        "activation": {
+          "appId": "partiful-matrix",
+          "bundleHash": "sha256:8a8565c9daefb3a3",
+          "inputsHash": "cdd9b70ba9a3a24a658bb1adea2c59ee57ea33de5f08ce54f01a2a12a01cd788",
+          "schemaHash": "sha256:708ea8cbdc53fd4f",
+          "schemaVersion": "snapback.v0"
+        },
+        "functionId": "partiful-matrix:rsvp",
+        "implementationHash": "sha256:b6313a4af4fa6afb23d79f3fc11bc28af40099813356ce15b20d11c47fc2a98c"
+      },
+      "usesRuntimeNow": false
+    },
     "name": "rsvp",
     "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
     "schemaVersion": "snapback.v0"

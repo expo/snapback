@@ -806,6 +806,46 @@ async fn console_credential_is_derived_sliding_and_no_store() {
 }
 
 #[tokio::test]
+async fn master_console_exchange_rate_counts_invalid_master_attempts() {
+    let app = app_with_context(
+        seeded_snapback(),
+        loopback_context(Some("master-secret")),
+    );
+    for attempt in 0..60 {
+        let mut request = post_with_token(
+            "/_snapback/api/console/credential",
+            json!({}),
+            "wrong-master",
+        );
+        if attempt % 2 == 1 {
+            request.headers_mut().insert(
+                "x-snapback-console-credential",
+                "sbcc_bogus".parse().unwrap(),
+            );
+        }
+        let response = app
+            .clone()
+            .oneshot(request)
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+    let bounded = app
+        .oneshot(post_with_token(
+            "/_snapback/api/console/credential",
+            json!({}),
+            "master-secret",
+        ))
+        .await
+        .unwrap();
+    assert_eq!(bounded.status(), StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(
+        json(bounded).await["diagnostic"]["code"],
+        "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_RATE_LIMITED"
+    );
+}
+
+#[tokio::test]
 async fn console_credential_cannot_satisfy_sessions_secret_read() {
     let state = AppState::from_snapback(seeded_snapback(), loopback_context(Some("master-secret")))
         .with_policy_auth_mode(PolicyAuthMode::Sessions);

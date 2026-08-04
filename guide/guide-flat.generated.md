@@ -51,9 +51,9 @@ and `guide-gap`.
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
 | backend.codegen | Generate a digest-verified review manifest, input-hash cache, client API, and Contract bindings with deterministic human/JSON summaries | codegen, generate, artifacts, cache, custody, review manifest | all | shipped | `createReviewManifest` in packages/snapback-codegen/review-surface.mjs | llp/0010, llp/0012, llp/0037, llp/0041 | getting-started/generated-artifacts.md |
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
-| backend.sequences | Experimental declared, incarnation-scoped sequences have an in-tree local substrate spanning `ctx.sequence.allocate(counterName, scopeId)`, generated `AllocateSequence`, mutation-atomic lane-Q withholding, membership/public scope reach, exact settlement replay, safe-integer exhaustion, storage-enforced string order-field bounds, and A6 evidence. The capability remains unpublished and support-false until the complete LLP 0135 §5.1 qualification and LLP 0113 publication train | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | none | partial | `sequence.allocate` in packages/snapback-harness/ctx-bootstrap.js + demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs + focused generated-plan/lane-Q proof (substrate evidence only; no capability publication witness) | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (qualified `sequence_allocation_v1` publication; owner: Charlie, review: 2026-08-31; issue: issues/20260803-sequence-allocation-qualification.md); backend/sequences.md |
+| backend.sequences | Experimental incarnation-scoped dense sequences through handler `ctx.sequence.allocate(counterName, scopeId)` and generated `AllocateSequence`, with abort-disclosure, commit-order/contention, exact replay, incarnation restart, exhaustion, Relay, Campfire, and mutation-atomic lane-Q qualification. Only the exact contributor-source local target publishes `sequence_allocation_v1`; public packages and hosted targets remain structured GAPs | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | local | partial | src/local-sequence-allocation-publication.v1.json + tests/conformance/sequence-allocation-publication-v1.receipt.json | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (public-package attestation and hosted target qualification/publication; owner: Charlie, review: 2026-09-30); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
-| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks, deletion/GC, receipts (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; transcoding and hosted targets remain design-only | files, images, video, upload, object storage, media, browser upload, vite relay | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids in supportedCapabilities; `assets` facts block with Enforced image and video ceilings) + src/assets.rs + src/assets_image.rs + src/assets_video.rs suites + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
+| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks (including sessions execution under the per-app `asset-callbacks` service principal), deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, upload, object storage, media, browser upload, vite relay, asset export, logical backup, signing key rotation | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs + src/assets_image.rs + src/assets_video.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation; sessions callback authority) + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
 | backend.expo-push-seam | Shipped local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized and paced `ctx.push.send`, crash-safe intent/batch/message ledger, safe pre-transmit recovery, bounded ticket/receipt maintenance, a privacy-bounded generated ledger query, explicit ambiguous redrive risk, structured `notifications.expoPushSeam` facts, and a retained physical-device `ok` receipt witness. The complete hosted conjunction remains a GAP; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json (`expoPushSeam`) + packages/snapback-cli/fake-expo-push.test.mjs + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs + LLP 0143 implementation record (2026-08-03 physical-device witness) | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.observability-v1 | Shipped local Phase-1 backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, Health/Logs projections, and retained clean-release idle/benchmark evidence; hosted arms and declared product analytics remain later capabilities | telemetry, observability, health, logs, metrics, traces | local | shipped | tests/acceptance/telemetry-phase1-evidence.v1.json | llp/0154 | operating/observability.md |
@@ -67,6 +67,7 @@ and `guide-gap`.
 | realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner. The contributor local target additionally ships Experimental `mixed_bundle_boot_v2`: a disjoint LLP 0157 `mixed-route.v2` artifact/wire evaluates live and ordinary children at one pinned snapshot, registers only identity-bound live children, and returns plain children honestly read-only. `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register and mixed mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) | llp/0090, llp/0092, llp/0157 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | sync.offline-js-arm | Experimental JS/React offline substrate: default IndexedDB + Web Locks in capable browsers, durable file storage in capable Node hosts, and in-memory fallback; declared public authority-independent retained queries; durable M2 outbox with exact ordered replay and pending-intent projection. Node/file and React-stub tests pass, and LLP 0155 proves real-Chrome `SIGKILL` persistence plus two-tab lock refusal/takeover. End-to-end browser React/server retained-current, resync/replay, settlement, observer convergence, and protected-refusal proof remain GAPs; no local execution or `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, retainability opt-in, pending intent render | local | partial | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs + `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` (Node/file, same-process) + `demos/zero-bakeoff/stage0/browser/run.mjs` (real-browser carrier substrate only) | llp/0043, llp/0090, llp/0129, llp/0155 | GAP (end-to-end browser product proof; owner: Charlie, review: 2026-08-31; issue: issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md); sync/offline-and-retention.md |
+| sync.local-persistent-store | LLP 0166 store + hydration bridge: one store domain per clientStoreId, registration-led establishment from the generated trusted activation only, completeness-proof + lease validation before any page commit, durable registrations behind the internal OQ8 seam, and proof-revalidated `authoritative`/`retained` relaunch answers for owner-scoped generated relational queries; snapshot-batch stays volatile (`none` retention); capability publication and the finite-carrier proof amendment remain GAPs | retained render, materialization, completeness proof, qmk1, hydration bridge, relaunch, answer class | local | partial | tests/acceptance/local-store-carrier-exit-v1.mjs --check in scripts/verify-local-proof (receipt 15 PASS / 2 GAP) + demos/triage-graph acceptance (8/8) | llp/0166, llp/0157, llp/0094 | GAP (publication-gated receipt rows; owner: Charlie, review: 2026-08-31; issue: issues/20260803-p1-server-proof-issuance.md); sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention (LLP 0043 M1 custody) on the JS/React arm — the Contract arm ships it; this arm does not yet | offline auth browser, lease js | none | design-only | llp/0129-local-first-program.plan.md (Phase 0 status note; no shipped witness) | llp/0043, llp/0053, llp/0129 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260731-js-arm-lease-custody-and-sessions-outbox.md) |
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-31) |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
@@ -85,13 +86,13 @@ and `guide-gap`.
 | clients.poll-hosted | Socketless hosted demand ownership and poll delivery | hosted polling, poll hosted | cloudflare | partial | cloudflare/src/coordinator.js | llp/0093, llp/0095 | GAP (owner: Charlie, review: 2026-08-31) |
 | clients.external-store | Shared current-value/subscription store | external store | local | shipped | `createExternalQueryStoreRegistry` in packages/snapback-client/external-store.mjs | llp/0012, llp/0064 | clients/headless.md |
 | clients.framework-bindings | React/Contract bindings | bindings | local | partial | `SNAPBACK_EXTERNAL_STORE_PROTOCOL` in packages/snapback-client/external-store.mjs | llp/0012, llp/0034, llp/0064 | clients/framework-bindings.md |
-| clients.app-cli | Local app CLI and brokered code mode | app cli, code mode | local | partial | `snapback-app` in packages/snapback-app-cli/cli.mjs | llp/0062 | clients/app-cli.md |
+| clients.app-cli | Local artifact/served-envelope app CLI, brokered code mode, and stable two-section `agentDigest.v1` introspection with cursor/static deltas, coarse whole dynamic replay, byte/item budgets, and honest elisions. Public inspection does not yet supply row-count magnitudes or D1 verdicts; local projection identities are not served-envelope claims; hosted and the one-file Ibex executable remain GAPs | app cli, code mode, introspect, agent digest, changed since, digest cursor | local | partial | `buildAgentDigest` in packages/snapback-app-cli/digest.mjs | llp/0062, llp/0146 | clients/app-cli.md |
 | clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
 | clients.contract-provider-generation | Provider-neutral Contract manifest, bindings, metadata, types, fixtures, and docs from a provider declaration | provider declaration, contract sidecar generator, convex bindings | local | shipped | `generateFromDeclaration` in demos/partiful-matrix/scripts/generate-contract-provider.mjs | llp/0063 | clients/contract-adapter.md |
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
 | clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
-| clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, result inference, typed mutation, optimistic rollback, presence, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackOutbox` in packages/snapback-react/index.d.mts + mixed group acceptance in packages/snapback-react/package.test.mjs | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
+| clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackOutbox` in packages/snapback-react/index.d.mts + mixed group acceptance in packages/snapback-react/package.test.mjs | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
 | clients.react-expo | React Expo Online surface; independent Android and iOS implementation evidence | react native, expo, android, ios, mobile | local | shipped | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
 | operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI with fork-per-worktree guidance and an opt-in fork-instead-of-seed acceptance path; implementation, guide, harness, and fleet evidence are not a capability claim while LLP 0158 stays Draft | fork, derived instance, fork per worktree, realistic test data, diff, reap | none | partial | `ForkCommand` in src/cli.rs + `startForkedServer` in demos/_kit/instance-fork.mjs + demos/todo/tests/acceptance/forked-parent.mjs (unpublished source witnesses) | llp/0158 | GAP (LLP 0158 author acceptance and capability publication; owner: Charlie, review: 2026-08-31); operating/instance-forks.md |
@@ -99,9 +100,11 @@ and `guide-gap`.
 | operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
 | operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
 | operating.admin-console | Browser inspection surface with master-derived fragment, device approval, and one-time operator claim-link handoffs | admin, console, dashboard, admin link, claim link, remote browser | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
+| operating.network-profiles | Named network condition profiles: server-side egress latency injection (mutation ack, live delta, query response lanes) with fail-closed local-only activation, startup-env and admin-API toggles, and response markers | latency, slow network, network profile, delay, jitter, local-first testing | local | partial | route /_snapback/api/debug/network-profile | llp/0167 | GAP (socket frame marker via LLP 0093 wire types, host-ops/MCP + console toggles, Cloudflare arm, Latency Kanban server-side swap; owner: Charlie, review: 2026-08-31) |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | operating/host-ops.md |
 | operating.diagnostics | Stable SNAPBACK_* codes; exact current-checkout link/launch diagnosis with one binary-selection recovery record; installed disposable vertical-slice doctor | diagnostics, errors, doctor, linker, missing symbols, stale binary, runtime recovery | all | shipped | `runRuntimeLinkProbe` in scripts/runtime-link-smoke.mjs | llp/0010, llp/0031, llp/0041, llp/0074 | operating/diagnostics.md |
-| operating.declaration-conformance | Per-invocation declared-vs-captured read/write conformance report (class-tagged deltas, per-class provenance) on the admin runner result and `function.run` envelope/recent-invocation ring (host-op invocations only), plus the per-app `strictDeclarations` opt-in that refuses undeclared application-table reads/writes at the local runtime seam with `SNAPBACK_HANDLER_UNDECLARED_READ`/`SNAPBACK_HANDLER_UNDECLARED_WRITE`. The `verify` coverage aggregation (D2), the agent digest (D3), app-data-plane ring wiring, and any Cloudflare-arm enforcement are not claimed | declaration drift, undeclared read, undeclared write, strict declarations, conformance, missingReads, read set, write set | local | partial | `conformance_report` in src/conformance.rs | llp/0146, llp/0127, llp/0010 | GAP (guide page for the conformance report and strict opt-in; owner: ccheever, review: 2026-08-31) |
+| operating.declaration-conformance | Per-invocation declared-vs-captured read/write report and local strict opt-in, plus `snapback verify` aggregation over explicitly registered acceptance paths: authoritative under-declarations and missing reports fail, universally extra declarations warn, and observed incomplete/unsupported provenance stays an explicit partial rather than a verdict. Automatic discovery of every repository acceptance path, app-data-plane ring wiring, complete mutation-envelope provenance, the escape-class vocabulary, and Cloudflare enforcement/capture remain GAPs | declaration drift, undeclared read, undeclared write, strict declarations, conformance, coverage, missingReads, read set, write set | local | partial | `aggregateConformance` in packages/snapback-cli/verify.mjs | llp/0146, llp/0127, llp/0010 | GAP (guide page for the conformance report and strict opt-in; owner: ccheever, review: 2026-08-31) |
+| operating.verify | Five-stage CLI done-oracle with source-regenerated artifact identity, digest-bound runtime readiness, local admission plus registered-path D1 aggregation, generated capability resolution, registered acceptance execution, identity/test-byte-bound receipt, ordered next actions, and mechanically unique recommendation. Live-target admission, automatic acceptance-path discovery, `acceptance.run`, product-completeness claims, and CV-14 semantic-review custody are explicit nonclaims | verify, done oracle, receipt, recommended next, test bytes, readiness | local | partial | `runVerify` in packages/snapback-cli/verify.mjs | llp/0146, llp/0010 | testing/verify.md |
 | operating.served-guide | Server embeds and serves this guide (pages + flat.md, hash-bound) | docs endpoint, llms.txt, served docs | all | shipped | route /_snapback/guide/flat.md | llp/0061 | index.md |
 | operating.guide-mcp | Read-only MCP resources for the build-bound guide corpus | mcp docs, guide resources | all | shipped | `run_stdio` in src/guide_mcp.rs | llp/0061 | index.md |
 | testing.acceptance | Headless-first acceptance harness and package-owned backend comparator profile | tests, acceptance, harness, comparator, backend bake-off, native push receipt | local | shipped | `runComparatorAcceptance` in packages/snapback-cli/comparator-profile.mjs | llp/0010, llp/0012, llp/0013, llp/0034 | testing/acceptance.md |
@@ -129,8 +132,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-04
+reviewed-commit: dab2410b6793ffa5685069a0a4054f0e2b21608a
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -205,7 +208,8 @@ you never build around a feature because you didn't know it existed.
   (experimental).
 - [Assets](./backend/assets.md) — generated upload intents, TUS resumable
   transfer, trusted SHA-256 finalization, typed `v.assetRef` attachment,
-  private-strict delivery (local target; image pipeline still a GAP).
+  private-strict delivery, consistent-cut logical export, and signing-key
+  rotation (local target; byte-level backup remains a nonclaim).
 - [Versioned seeds](./backend/versioned-seeds.md) — content-addressed fixture
   identity, non-destructive matching, explicit reset-install/clear, and
   migration boundaries (experimental).
@@ -273,6 +277,9 @@ you never build around a feature because you didn't know it existed.
 ### Testing
 - [Acceptance testing](./testing/acceptance.md) — headless-first harness,
   vacuous-pass protection, safe server lifecycle.
+- [Verify the declared app contract](./testing/verify.md) — compose artifact,
+  runtime, D1 coverage, capabilities, and registered acceptance into one
+  identity-bound partial done-oracle receipt.
 
 ### Operating
 - [Local instance forks](./operating/instance-forks.md) — give each worktree a
@@ -342,13 +349,13 @@ id: meta.surface-map
 order: 3
 audience: agent-first
 capabilities: []
-authorities: [llp/0024-agent-operating-surface.spec.md, llp/0031-server-route-taxonomy.spec.md, llp/0061-agent-first-snapback-guide.rfc.md, src/server.rs, src/admin.rs]
+authorities: [llp/0024-agent-operating-surface.spec.md, llp/0031-server-route-taxonomy.spec.md, llp/0061-agent-first-snapback-guide.rfc.md, src/server.rs, src/admin.rs, src/admin_link.rs]
 examples: []
 status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: 3eb4b9714
+reviewed-commit: 7b467cf16
 ---
 
 # Surface map
@@ -366,6 +373,7 @@ here (or listed here but gone from the code).
 | / | operating.inspect |
 | /_snapback/admin | operating.admin-console |
 | /_snapback/admin/ | operating.admin-console |
+| /_snapback/admin/reachability/identity | operating.admin-console |
 | /_snapback/admin/setup | operating.secrets-config |
 | /_snapback/admin/{*path} | operating.admin-console |
 | /_snapback/guide | operating.served-guide |
@@ -381,6 +389,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/client-mutations/purge | notAuthorFacing (operator settlement maintenance) |
 | /_snapback/api/config/plan | operating.secrets-config |
 | /_snapback/api/config/set | operating.secrets-config |
+| /_snapback/api/debug/network-profile | operating.network-profiles |
 | /_snapback/api/config/status | operating.secrets-config |
 | /_snapback/api/config/unset | operating.secrets-config |
 | /_snapback/api/config/verify | operating.secrets-config |
@@ -390,6 +399,10 @@ here (or listed here but gone from the code).
 | /_snapback/api/console/claim/exchange | operating.admin-console |
 | /_snapback/api/console/claim/status | operating.admin-console |
 | /_snapback/api/console/claim/revoke | operating.admin-console |
+| /_snapback/api/console/reachability/register | operating.admin-console |
+| /_snapback/api/console/reachability/bind | operating.admin-console |
+| /_snapback/api/console/reachability/renew | operating.admin-console |
+| /_snapback/api/console/reachability/drop | operating.admin-console |
 | /_snapback/api/console/approval/request | operating.admin-console |
 | /_snapback/api/console/approval/poll | operating.admin-console |
 | /_snapback/api/console/approval/approve | operating.admin-console |
@@ -408,9 +421,11 @@ here (or listed here but gone from the code).
 | /_snapback/api/jobs | backend.jobs-one-off |
 | /_snapback/api/jobs/drain | backend.jobs-one-off |
 | /_snapback/api/jobs/{id} | backend.jobs-one-off |
+| /_snapback/api/operations/explain | notAuthorFacing (unpublished LLP 0163 acceptance substrate) |
 | /_snapback/api/push/maintenance | backend.expo-push-seam |
 | /_snapback/api/receipts | notAuthorFacing (operator projection) |
 | /_snapback/api/schema/load | backend.schema |
+| /_snapback/api/storage/protected-erasure | notAuthorFacing (unpublished LLP 0165 protected-erasure acceptance substrate) |
 | /_snapback/api/telemetry/events | backend.observability-v1 |
 | /_snapback/api/telemetry/export | backend.observability-v1 |
 | /_snapback/api/telemetry/stats | backend.observability-v1 |
@@ -451,6 +466,7 @@ here (or listed here but gone from the code).
 | /auth/session | auth.sessions |
 | /auth/step-up/request | auth.sessions |
 | /client-mutations/acknowledge | sync.offline |
+| /client-mutations/identity-range | sync.offline |
 | /connection/open | realtime.durable-push |
 | /ephemeral/collections/ensure | realtime.ephemeral |
 | /ephemeral/delete | realtime.ephemeral |
@@ -465,6 +481,7 @@ here (or listed here but gone from the code).
 | /live/{name}/subscribe | realtime.live-queries |
 | /live/{name}/unsubscribe | realtime.live-queries |
 | /mutation/{name} | backend.functions |
+| /operations/explain | notAuthorFacing (unpublished LLP 0163 acceptance substrate) |
 | /outbox/{connection_id} | sync.offline |
 | /query/{name} | backend.functions |
 | /query/{name}/authorized-lease | auth.authorized-leases |
@@ -3485,13 +3502,13 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
 examples: [demos/party-wall, demos/file-drop]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-04
+reviewed-commit: 4f6b1bc3d98c9b9e3d1a946ff7cbd648854ea1a6
 ---
 
 # Assets
@@ -3503,11 +3520,13 @@ reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 > atoms blanked in place, no transcoding) all ship on the local target
 > with the filesystem store, TUS resumable transfer, and
 > `private-strict` delivery. Location-bearing media require an explicit
-> `location` declaration either way: a `"strip"` **image or video**
-> intent admits and publishes here with location metadata provably
-> absent from served bytes; `"retain"` preserves the source bytes
-> identically and records the choice in lifecycle evidence. Hosted
-> targets report the whole capability Missing.
+> media-specific location declaration either way: images use
+> `image: { location }`, while videos use the distinct sibling
+> `video: { location }`. A `"strip"` image or video intent admits and
+> publishes here with location metadata provably absent from served
+> bytes; `"retain"` preserves the source bytes identically and records
+> the choice in lifecycle evidence. Hosted targets report the whole
+> capability Missing.
 
 Use an asset when your app stores a file: bytes live outside document rows
 under a Snapback-owned lifecycle — upload, trusted finalization, typed
@@ -3636,6 +3655,64 @@ id-shaped string written into a `v.assetRef` field fails the commit with
 `SNAPBACK_ASSET_REF_UNVERIFIED` on every write path, and the reverse
 reference edge commits in the same changeset. Deleting an asset refuses
 while typed references remain.
+
+## Run lifecycle callbacks
+
+An explicit upload intent may name an ordinary mutation for `ready` and/or
+`rejected`. The mutation must declare exactly `{ event: v.string(), assetId:
+v.string(), facts: v.json() }`; the facts are safe lifecycle metadata, never
+byte authority, staging keys, or delivery bearers.
+
+```js source=tests/acceptance/fixtures/asset-conformance/functions.mjs
+export const fileUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/octet-stream', 'application/zip'], maxBytes: 100_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'owner-only' },
+  on: { ready: 'recordAssetReady' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
+```js source=tests/acceptance/fixtures/asset-conformance/functions.mjs
+export const recordAssetReady = defineJsMutation({
+  auth: 'authenticated',
+  args: { event: v.string(), assetId: v.string(), facts: v.json() },
+  source: 'handlers.mjs',
+  exportName: 'recordAssetReady',
+  writes: ['assetCallbackLog'],
+});
+```
+
+The runner uses the stable mutation identity
+`asset-cb:<asset>:<event>:<generation>`, so retrying the same work cannot
+double the committed effect. A callback failure retries independently and
+never degrades an already-ready asset.
+
+Authority differs honestly by auth mode. Dev callbacks preserve the existing
+asset-owner dev authority. Sessions callbacks run under one per-app, narrowly
+granted service principal named `asset-callbacks`; Snapback never mints an
+owner session or bearer. In sessions callbacks `ctx.auth.sessionId` is `null`,
+`ctx.auth.kind` is `"agent"`, and `ctx.auth.actorKind` is
+`"asset-callbacks"`, so application code and stored audit rows can distinguish
+the scheduled actor from an interactive user. The callback still follows the
+ordinary staged mutation, commit-time grant validation, authorization-event,
+and receipt path. The asset work-completion receipt records the service actor
+and exact grant, without carrying any bearer.
+
+```js source=tests/acceptance/fixtures/asset-conformance/handlers.mjs
+  async recordAssetReady(ctx, args) {
+    return await ctx.db.insert('assetCallbackLog', {
+      assetId: args.assetId,
+      event: args.event,
+      actorId: ctx.auth.userId,
+      actorKind: ctx.auth.actorKind,
+      provider: ctx.auth.provider,
+      sessionId: ctx.auth.sessionId,
+    });
+  },
+```
 
 ## Put typed photos directly in a live feed
 
@@ -3790,6 +3867,22 @@ rejects the asset with a structured `SNAPBACK_ASSET_IMAGE_*` diagnostic.
 Retain-declared intents (`location: 'retain'`) keep metadata intact and
 record that policy in the asset's lifecycle evidence.
 
+## Video
+
+Video location policy is a sibling declaration, not an alias through the
+image block. Use `video.location` for accepted video types; an intent that
+accepts both location-bearing images and videos declares both blocks. On the
+local target, `strip` blanks MP4/QuickTime location atoms in place without
+transcoding, while `retain` publishes the received bytes unchanged.
+
+```js source=packages/snapback-codegen/asset-upload-authoring.test.mjs
+export const clipUpload = defineAssetUpload({
+  accept: { mediaTypes: ['video/mp4'], maxBytes: 100_000_000 },
+  video: { location: 'strip' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
 ## Operate
 
 The CLI drives the same lifecycle for agents and fixtures (dev/test
@@ -3830,6 +3923,102 @@ then invoke `asset.gcSweep` (or the CLI command above) with the suite's
 chosen clock. Host operations do not keep a response replay ledger; the sweep
 itself is idempotent, and each reclaimed asset receives its canonical
 `reference-gc` lifecycle receipt exactly once.
+
+## Export the asset component of a logical backup
+
+The local target advertises `assets.export.cutExport: true`. Capture its asset
+component into an absolute, empty-or-absent directory:
+
+```sh
+snapback assets export-cut \
+  --dir "$PWD/backups/assets-2026-08-04" \
+  --ready-file .snapback/server-ready.json
+```
+
+The command opens one read transaction and pins its storage head as
+`cutVersion`. That transaction captures all `ready` asset records and their
+`ready` renditions, deleted-asset tombstones, each referenced immutable blob
+exactly once, and the settled quota snapshot. It deliberately excludes
+in-flight attempts, pending/rejected assets, staging bytes, and reverse
+reference edges; the edges derive from application rows and belong to the
+app-data export component.
+
+After the transaction closes, Snapback copies the immutable blobs under
+`blobs/sha256/`, verifies each copy against its recorded SHA-256 and length,
+then writes `asset-cut.manifest.json` last. An unreadable or mismatched blob
+fails the command instead of producing an admissible partial cut. The failed
+directory may contain copied objects but no valid complete manifest; retry
+into a new empty directory.
+
+This is a **logical export component**, not a full application or SQLite
+backup. The capability manifest still lists `asset-byte-backup` as Missing,
+and a portable application export must coordinate the separately owned
+app-data component.
+
+### Validate the complete cut before restore
+
+`importValidation: true` is the refuse-partial half of the shipped surface.
+Without `--apply`, `import-cut` only validates the tagged manifest digest and
+every declared blob object:
+
+```sh
+snapback assets import-cut \
+  --dir "$PWD/backups/assets-2026-08-04" \
+  --ready-file .snapback/server-ready.json
+```
+
+A missing object, changed byte length, digest mismatch, or tampered manifest
+returns a structured refusal before any asset row lands. Restore application
+is a separate experimental capability (`importApply: "experimental"`):
+`--apply` requires the server-side `SNAPBACK_ASSET_IMPORT_EXPERIMENTAL=1`
+acknowledgment and an empty asset state. It is not the paved full-app restore
+path.
+
+### Invalidate every outstanding signed URL
+
+Rotate the instance signing key when every already-issued `private-signed`
+URL must stop validating immediately:
+
+```sh
+snapback assets rotate-signing-key --ready-file .snapback/server-ready.json
+```
+
+Rotation retires every active signing key, mints a fresh one, and emits an
+instance-scoped receipt without returning key ids or key material. New signed
+URL issuance works under the fresh key. This is deliberately a wide operator
+action; use ordinary authorization changes when the intent is to revoke one
+principal rather than every outstanding signed bearer URL.
+
+The local proof drives these exact native CLI commands against a real server,
+checks the pinned manifest, observes an issued URL fail after rotation, and
+proves incomplete-cut validation exits non-zero with the structured refusal:
+
+```js source=tests/acceptance/asset-conformance-v1.mjs
+  const rotation = await runAssetsCli(sessionsServer, 'rotate-signing-key');
+  assert.equal(rotation.exitCode, 0);
+  assert.equal(rotation.envelope.ok, true);
+  assert.equal(rotation.envelope.data.rotated, true);
+  const signedAfterRotation = await fetch(`${sessionsServer.baseUrl}${issuanceBody.url}`);
+  assert.equal(signedAfterRotation.status, 403, 'rotation invalidates the outstanding signed URL');
+
+  const exportDir = join(scratch, 'asset-cut-export');
+  const exported = await runAssetsCli(sessionsServer, 'export-cut', '--dir', exportDir);
+  assert.equal(exported.exitCode, 0);
+  assert.equal(exported.envelope.ok, true);
+  assert.equal(exported.envelope.data.cut.formatVersion, 'snapback.asset-cut.v1');
+  assert.ok(exported.envelope.data.cut.assetCount > 0);
+  assert.ok(exported.envelope.data.cut.blobCount > 0);
+  const cutManifest = await readJson(join(exportDir, 'asset-cut.manifest.json'));
+  assert.equal(cutManifest.cutVersion, exported.envelope.data.cut.cutVersion);
+  assert.equal(cutManifest.manifestDigest, exported.envelope.data.cut.manifestDigest);
+
+  await rm(join(exportDir, cutManifest.blobs[0].objectPath));
+  const incomplete = await runAssetsCli(sessionsServer, 'import-cut', '--dir', exportDir);
+  assert.notEqual(incomplete.exitCode, 0);
+  assert.equal(incomplete.envelope.ok, false);
+  assert.equal(incomplete.envelope.diagnostics[0].code, 'SNAPBACK_ASSET_IMPORT_INCOMPLETE');
+  checks.nativeCliCutExportAndRotation = true;
+```
 
 ## Evidence and limits
 
@@ -4389,7 +4578,12 @@ export const booksWithAuthors = defineRelationalQuery({
   projection: {
     title: { root: 'title' },
     authorName: { joined: 'name' },
+    score: { root: 'score' },
+    available: { root: 'available' },
     shelf: { literal: 'fiction' },
+    featured: { literal: true },
+    edition: { literal: 1 },
+    note: { literal: null },
   },
   take: 50,
   rootIndex: 'by_owner_title',
@@ -4861,23 +5055,22 @@ id: backend.sequences
 order: 28
 audience: agent-first
 capabilities: [backend.sequences]
-authorities: [llp/0113-qualification-and-publication-authority.spec.md, llp/0128-popular-app-storage-scale.research.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, src/manifest.rs, src/runtime.rs, src/storage.rs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/sequence-authoring.test.mjs, packages/snapback-harness/ctx-bootstrap.js, demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs]
+authorities: [llp/0113-qualification-and-publication-authority.spec.md, llp/0128-popular-app-storage-scale.research.md, llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, src/local-sequence-allocation-publication.v1.json, src/manifest.rs, src/runtime.rs, src/storage.rs, tests/conformance/sequence-allocation-publication-v1.receipt.json, packages/snapback-codegen/define.mjs, packages/snapback-codegen/sequence-authoring.test.mjs, packages/snapback-contract/derived-overlay.test.mjs, packages/snapback-harness/ctx-bootstrap.js, demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs]
 examples: [demos/improvement-sweep/arms/a6-snapback-web/evidence/app]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-04
+reviewed-commit: HEAD
 ---
 
 # Scoped sequences
 
-> **Unpublished local substrate; no supporting target yet.** The contributor
-> tree contains handler-tier `ctx.sequence.allocate`, generated
-> `AllocateSequence`, mutation-atomic lane-Q withholding, and A6 evidence, but
-> `sequence_allocation_v1` remains support-false with a structured GAP until the
-> complete LLP 0135 §5.1 qualification and LLP 0113 publication train land. Do
-> not make an application depend on it yet.
+> **Local target only.** Contributor-source builds of the local dev/test target
+> publish `sequence_allocation_v1` at Experimental maturity. Generated
+> applications acknowledge that dependency. Public runtime packages and hosted
+> targets retain a structured GAP because neither has its required publication
+> authority or target-specific evidence.
 
 The accepted surface is intended for dense, monotonic human-facing numbers such
 as JOB-42 without an application-owned read/increment/write counter. The local
@@ -4915,9 +5108,10 @@ recreating the row starts a new sequence at 1, even when the application row id
 is reused. The last admitted value is `Number.MAX_SAFE_INTEGER`; later
 allocation refuses with `SNAPBACK_SEQUENCE_EXHAUSTED` and commits nothing.
 
-Codegen emits the experimental capability requirement and acknowledgment, but
-because target support remains false, an artifact requiring the capability
-must be refused rather than served. In the observed substrate, allocation
+Codegen emits the Experimental capability requirement and acknowledgment. The
+local target admits that requirement only when its compiled qualification
+carrier matches the §5.1 receipt and bound source bytes. A public-package build,
+hosted target, altered carrier, or stale receipt stays support-false. Allocation
 facts are settlement evidence: direct receipts carry the exact counter, scope,
 incarnation, and value, while ordinary live fanout strips them. A sequence-only
 migration mutation may use `writes: []`; do not invent an application write
@@ -4934,12 +5128,12 @@ writer rejects oversized values with
 
 ## Current limits
 
-- No target currently publishes `sequence_allocation_v1` support. The local
-  handler implementation and A6 run are substrate evidence only; the full
-  LLP 0135 §5.1 corpus remains the qualification boundary.
-- The generated `AllocateSequence` plan step and lane-Q mutation-atomic
-  optimistic withholding are implemented substrate with focused proof. They do
-  not complete §5.1 or authorize target publication.
+- Only contributor-source builds of `local-dev-sqlite-ibex` publish
+  `sequence_allocation_v1`. Public packages, remote-service profiles,
+  conformance twins, and hosted targets remain structured GAPs.
+- Publication is Experimental. LLP 0113 governs support publication but cannot
+  mint Stable maturity; that would require a separate digest-bound LLP 0134
+  promotion act.
 - One mutation can allocate at most once.
 - A counter's current or next value is never readable through the API.
 - Lane-L local execution of allocating mutations remains out of scope; do not
@@ -4949,9 +5143,9 @@ writer rejects oversized values with
   ordinary committed sequence allocations; there is no authored start-value
   escape hatch.
 - Snapshot-batch composition is a separate LLP 0135 Part 2 capability. The
-  experimental local target now supports it; see
-  [Snapshot batches](./snapshot-batches.md). That does not qualify or publish
-  `sequence_allocation_v1`.
+  experimental local target supports it independently; see
+  [Snapshot batches](./snapshot-batches.md). Sequence qualification did not
+  change that capability.
 
 ---
 
@@ -6117,6 +6311,10 @@ additional exports are required.
     authInvalidationProtocol = null,
     authorityDescriptorProtocol = 1,
     authorizedLeaseProtocol = null,
+    // LLP 0163 pre-publication carrier. Explicit opt-in only while the Spec
+    // and capability rows remain Draft/Missing; v1 requires a durable outbox
+    // so range, next counter, and intent share one restart-safe transition.
+    operationIdentityProtocol = null,
     // Set only after capability preflight advertises the hosted ephemeral
     // authority offer. Old servers therefore never see an unknown member.
     ephemeralAuthorityProtocol = null,
@@ -6561,13 +6759,13 @@ id: clients.app-cli
 order: 2
 audience: agent-first
 capabilities: [clients.app-cli]
-authorities: [llp/0062-generated-app-cli-and-code-mode.rfc.md, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/cli.mjs, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/code-mode.mjs, packages/snapback-app-cli/result-core.mjs, packages/snapback-client/app-data.mjs]
-examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, packages/snapback-app-cli/code-mode.test.mjs, packages/snapback-app-cli/cli.test.mjs, demos/todo/snapback/generated]
+authorities: [llp/0062-generated-app-cli-and-code-mode.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/cli.mjs, packages/snapback-app-cli/digest.mjs, packages/snapback-app-cli/agent-digest.schema.json, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/code-mode.mjs, packages/snapback-app-cli/result-core.mjs, packages/snapback-client/app-data.mjs]
+examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, packages/snapback-app-cli/code-mode.test.mjs, packages/snapback-app-cli/cli.test.mjs, packages/snapback-app-cli/digest.test.mjs, demos/todo/snapback/generated]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-01
-reviewed-commit: 01fc75d2182b5d0a5ef8b122597984d37e04a2b8
+reviewed: 2026-08-04
+reviewed-commit: dab2410b6793ffa5685069a0a4054f0e2b21608a
 ---
 
 # The artifact-driven app CLI
@@ -6609,6 +6807,41 @@ name, kind, auth requirement, and schema. A mismatch refuses with
 `SNAPBACK_APP_CLI_ARTIFACT_IDENTITY_MISMATCH`; an unknown function reports the
 available manifest names. Discovery never imports `api.mjs`, a handler bundle,
 or server-provided JavaScript.
+
+## Pull a bounded agent digest
+
+`introspect` emits `snapback.agent-digest.v1`: a stable, value-free document
+with a static section keyed by `envelopeHash` and a dynamic section keyed by
+the returned `digestCursor`. Pass that cursor back on the next call:
+
+```sh
+snapback-app --server http://127.0.0.1:3000 --artifacts ./snapback/generated introspect --budget-bytes 32768 --budget-items 256
+snapback-app --server http://127.0.0.1:3000 --artifacts ./snapback/generated introspect --changed-since 'sbad1.…'
+```
+
+The static section contains artifact identities, table summaries, operation
+signatures and contracts, and capability gaps in key order. Its cursor carries
+the prior item hashes, so one changed schema item can produce one changed
+item without retained server state. A bare envelope hash remains accepted:
+when it matches, the static delta is empty and the dynamic section is still
+sent whole.
+
+The dynamic v0 is deliberately coarse. It always re-emits its complete
+available observation section and reports
+`coarse-resolution-v0-no-observation-retention`; cursors minted by v0 do not
+expire and Snapback retains no prior observation manifest. Unknown or
+structurally expired cursors return a named full-digest degradation, never an
+empty success. Budgets apply to canonical JSON bytes and item count. Every
+omission carries an elision marker naming the section, omitted count, and the
+flags to increase.
+
+This projection never includes row values, call arguments, result payloads,
+credential material, or raw diagnostic messages/details. The public app-data
+inspection surface does not currently expose per-table row counts or D1
+conformance observations, so those dynamic items carry explicit unavailable
+reasons. Local artifacts use a deterministic
+`local-generated-static-projection` identity when there is no served API
+envelope; that is not represented as a served-envelope claim.
 
 ## Choose authority explicitly
 
@@ -6761,8 +6994,8 @@ examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-04
+reviewed-commit: 8154744c87ed58816703093bd526bd7a40d95a56
 ---
 
 # The React client
@@ -6994,6 +7227,15 @@ complete-receipt matching across partial deliveries, response/query ordering,
 and the one-canonical-store rule when the same record renders on several
 query surfaces — use
 [the optimistic toggle recipe](../recipes/optimistic-toggle.md).
+
+For the common "set these fields on this row" shape, spread
+`projectRecordFields(recordId, fields)` into the optimistic options instead
+of hand-writing the pair: it derives an idempotent capture-and-set `update`
+and the complete-receipt `isAuthoritative` from one declaration. In
+development, hand-written reducers are checked at admission — a reducer
+whose result diverges when replayed over its own output logs one
+`SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` warning per (mutation, query)
+site; production builds skip the check.
 
 ## Publish and observe presence
 
@@ -7312,16 +7554,21 @@ carrier-safe without polyfills:
 
 - **Binding digests** (`prepareReactBinding` manifest/contract hashes) fall
   back to the parity-tested pure-JS SHA-256 when `crypto.subtle` is absent.
-- **Local instance labels** (provider ids, optimistic-layer ids, client
-  store ids, mutation ids) fall back to time+sequence uniqueness.
+- **Process-local labels** (provider ids, optimistic-layer ids, mutation ids,
+  and storeless active-query bookkeeping) fall back to time+sequence
+  uniqueness.
 
 So a fresh Expo app on this path reaches a ready provider and a live query
 with zero consumer polyfills.
 
 **Security-bearing random identity is never synthesized.** Surfaces that
 mint unpredictable identity — seed operation ids, bundle-boot/register-mode
-idempotency keys, sender-constrained proof ids — refuse with one named,
-actionable code when no RNG exists:
+idempotency keys, sender-constrained proof ids, and the local store's handle
+key and cross-context registration ids — require a native RNG. The optional
+default store reports `reason: "secure-random-unavailable"` and stays disabled
+when none is available; this does not prevent the Online client from
+connecting. Explicit security-bearing operations refuse with one named,
+actionable code:
 
 ```js source=packages/snapback-client/webcrypto-fallback.test.mjs
   assert.throws(
@@ -7332,9 +7579,10 @@ actionable code when no RNG exists:
   );
 ```
 
-To use those surfaces on RN, install an RNG polyfill before constructing the
-client — Expo: `expo-crypto` (its `getRandomValues` polyfill), bare RN:
-`react-native-get-random-values`.
+To use those surfaces on RN, provide native secure randomness before
+constructing the client. Expo apps can hand `expo-crypto` directly to the
+store registration as shown below, without mutating `globalThis`; a global
+polyfill also works. Bare RN can use `react-native-get-random-values`.
 
 ## The store: relaunch-durable on-device once the app registers its filesystem
 
@@ -7345,12 +7593,13 @@ import would break non-Expo consumers). Instead the app hands the module in
 
 ```ts fragment reason="app-root composition; the registration + ladder behavior is CI-proven in packages/snapback-client/rqs-store-expo.test.mjs and the on-device witness in demos/rn-durable-store-witness/"
 import * as FileSystem from 'expo-file-system';
+import * as Crypto from 'expo-crypto';
 import { registerExpoFileSystemRqsFiles } from '@expo/snapback-client';
 
-registerExpoFileSystemRqsFiles(FileSystem);
+registerExpoFileSystemRqsFiles(FileSystem, { crypto: Crypto });
 ```
 
-After that one line, the default persistence ladder (explicit option → env
+After that root registration, the default persistence ladder (explicit option → env
 kill switch → browser IndexedDB → **React Native registered files** → node
 filesystem → in-memory) resolves the on-device file arm for every client on
 this carrier: `client.rqsStoreInfo` reports
@@ -7364,9 +7613,12 @@ fact, not "nothing persists": Expo's synchronous File/Directory API exposes
 no fsync-style cut, so the adapter declares `powerLossDurable: false` while
 the store still survives ordinary relaunch (the Node filesystem arm, which
 has that cut, reports `durable: true`). Without the registration the ladder
-stays in-memory with the actionable fact
+stays in-memory when secure randomness is available, with the actionable fact
 `{ implementation: 'memory', durable: false, reason:
-'no-native-files-registered' }` — do not claim retention over it.
+'no-native-files-registered' }`. Without secure randomness it disables the
+optional store with `{ implementation: null, durable: false, reason:
+'secure-random-unavailable' }`. Neither degradation blocks Online queries;
+do not claim retention over either one.
 
 What the registered file arm enables (proven on the iOS simulator against a
 release Hermes build — `demos/rn-durable-store-witness/`):
@@ -9636,13 +9888,13 @@ id: operating.admin-console
 order: 4
 audience: agent-first
 capabilities: [operating.admin-console]
-authorities: [llp/0017-admin-console-inspection-surface.rfc.md, src/admin.rs, src/cli.rs, packages/snapback-admin-client/index.mjs, admin-ui/auth-prompt.mjs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs, tests/admin_claim_link_v0.rs]
+authorities: [llp/0017-admin-console-inspection-surface.rfc.md, src/admin.rs, src/admin_link.rs, src/cli.rs, packages/snapback-admin-client/index.mjs, admin-ui/auth-prompt.mjs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs, tests/admin_claim_link_v0.rs, tests/admin_reachability_v0.rs, tests/admin_tailscale_v0.rs]
 examples: [admin-ui]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: 3eb4b9714
+reviewed-commit: ce69de09e
 ---
 
 # Admin console
@@ -9802,6 +10054,60 @@ anonymous loopback caller can read the redemption record. Claim mint and
 exchange refuse hosted or non-loopback targets even when another admin bearer
 is present—remote access is always a tunnel terminating on loopback plus
 `--url-base`.
+
+### Open a phone console on the local network
+
+Keep the Snapback server on loopback and let the attached command own a
+short-lived relay on the one eligible physical LAN interface:
+
+```sh
+cargo run -- admin link --lan --qr \
+  --ready-file .snapback/dev.ready.json
+```
+
+If more than one interface is eligible, the command refuses and lists the
+candidates. Select one explicitly with `--lan=en0` or
+`--lan=192.168.1.20`; wildcard and loopback addresses are refused. The first
+line and the terminal QR encode the same URL bytes. Scan it while the command
+remains attached.
+
+The relay is deliberately plain HTTP. Read the mint-time warning: another
+party on that network can observe or hijack the session while it is live. The
+compensating bounds are the single-use claim, ten-minute sliding credential
+expiry, ninety-minute absolute cap, redemption record, and master revocation.
+Use the tailnet recipe below on a network you do not trust.
+
+Only the console shell/assets, the claim exchange, and requests already
+carrying the derived console credential cross this relay. It refuses the
+master exchange, the master-token header, non-console paths, ambiguous HTTP
+framing, and hostile Host/Origin values. Closing the command, revoking the
+claim, losing the observed server, or reaching claim/credential expiry closes
+the listener. `--lan` therefore cannot be combined with `--no-wait`.
+
+### Open the console across a tailnet
+
+With tailscaled running and the target server on `127.0.0.1`, publish only the
+Snapback namespace through tailnet-terminated HTTPS:
+
+```sh
+cargo run -- admin link --tailscale --qr \
+  --ready-file .snapback/dev.ready.json
+```
+
+The command creates or shares a Tailscale Serve mapping only for
+`/_snapback`, records its exact mapping and live owners in owner-only receipt
+files, and removes it when the last attached invocation exits. A later
+invocation sweeps a receipt-owned mapping stranded by a crash. Existing or
+externally changed operator mappings are refused and never removed. A missing
+or stopped tailscaled is a stable refusal; there is no LAN or loopback
+fallback. Like `--lan`, this mode cannot be detached with `--no-wait`.
+
+Credentials redeemed through either managed origin are stored only in the
+current tab's `sessionStorage`, keyed by reachability session and server
+startup identity. Reload first verifies both identities without sending the
+credential. Expiry, revocation, origin reuse by another backend, or early
+front termination clears or invalidates the record; it never falls back to
+`localStorage` on the relay or tailnet origin.
 
 ## Debug through declared views
 
@@ -11278,7 +11584,7 @@ examples: [packages/snapback-react/optimistic.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
+reviewed: 2026-08-04
 reviewed-commit: HEAD
 ---
 
@@ -11384,6 +11690,42 @@ assert.equal(view().timeline.data[0].liked, true, 'replay does not invert the he
 assert.equal(view().timeline.data[0].likeCount, 11, 'partial delivery keeps the layer installed');
 ```
 
+## Or declare it: `projectRecordFields`
+
+Both rules are mechanical, so `@expo/snapback-react` derives them from one
+declaration. `projectRecordFields(recordId, fields)` returns a frozen
+`{ update, isAuthoritative }` pair — the idempotent capture-and-set
+projection and the complete-receipt matcher — to spread into the same
+optimistic options:
+
+```js source=packages/snapback-react/optimistic.test.mjs
+// One declaration derives the idempotent capture-and-set update and the
+// complete-receipt matcher; spread it into the ordinary optimistic options.
+const optimisticHelperLike = {
+  query: timeline,
+  args: {},
+  ...projectRecordFields('p2', { liked: true, likeCount: 4 }, { idField: 'id' }),
+};
+```
+
+The fixture's rows key on `id`; generated application rows carry the default
+`_id`, so application code omits the `idField` option. Intended values must
+be primitives (`boolean | number | string | null`) — the helper deliberately
+expresses only the capture-and-set shape, so it cannot encode the replay
+hazard. Prefer it over a hand-written reducer whenever the projection is
+"set these fields on this row".
+
+Hand-written reducers get a development safety net: at admission the
+provider replays the just-validated projection through the reducer a second
+time, and a reducer that returns a different result over its own output — a
+toggle or an increment — logs one
+`SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` console warning per
+(mutation, query) site, pointing back at this recipe. The advisory is
+observational only: it never changes admission, and an explicit production
+`NODE_ENV` skips it. (The heuristic is deliberately broad: a reducer that
+intentionally appends a row — an optimistic create, which has no paved path
+yet — also trips it.)
+
 ## Response and query authority can arrive in either order
 
 The mutation's HTTP response and the live query's delivery of the resulting
@@ -11463,7 +11805,9 @@ not.
   survives rejection, and fights the live delivery. Model the fact in the
   query result and project it optimistically.
 - **Do not toggle or increment inside `update`.** The projection is replayed
-  during rebase; capture the intended outcome and set it.
+  during rebase; capture the intended outcome and set it (or let
+  `projectRecordFields` do both rules for you). In development the replay
+  advisory warns when a reducer diverges over its own output.
 - **Do not retire on a partial receipt.** Match every field the mutation
   returns in `isAuthoritative`, or a delivery carrying half the outcome
   retires the layer early and the UI dips.
@@ -11472,6 +11816,13 @@ not.
 - **Do not fan one optimistic config out to every store showing the record.**
   v1 targets one canonical query/args pair; sibling surfaces settle through
   their own subscriptions.
+- **Do not write a matcher that may never become true.** A layer with an
+  `isAuthoritative` never uses the fallback next-delivery retirement: if the
+  matched row can be filtered out of the query result, or a matched field
+  can settle to a value differing from both receipt and intent, the
+  confirmed layer stays installed (and keeps its subscription pin) until the
+  store tears down. Match rows the query is guaranteed to keep returning,
+  and match fields the mutation actually settles.
 
 ---
 
@@ -11481,14 +11832,14 @@ title: Offline retention and mutation replay
 id: sync.offline-and-retention
 order: 1
 audience: agent-first
-capabilities: [sync.offline, sync.offline-js-arm]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs]
-examples: [demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
+capabilities: [sync.offline, sync.offline-js-arm, sync.local-persistent-store]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs]
+examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-04
+reviewed-commit: d3e80b7d4981c4fa14535e2a852e8cc2bc82e95d
 ---
 
 # Offline retention and mutation replay
@@ -11607,6 +11958,99 @@ witness proves:
     'replay is ordered by sequence and keeps the minted durable identity',
   );
 ```
+
+## Render retained rows proof-validated after relaunch (the materialization bridge)
+
+Since the LLP 0166 store and its hydration bridge landed, an owner-scoped
+**generated relational query** can come back from disk on a completely fresh
+client — server unreachable — as an `authoritative` answer, because the
+stored fragments were installed only after server-side completeness-proof
+and lease validation. This is the strongest retained-render path on the
+JS arm and it is receipt-proven end to end by
+[`tests/acceptance/local-store-carrier-exit-v1.mjs`](repo:tests/acceptance/local-store-carrier-exit-v1.mjs)
+(run in the local proof; receipt currently **15 PASS / 2 GAP**, the two
+GAPs being capability-publication rows, not mechanism gaps).
+
+Evidence scope, stated precisely: local target, Node process, file carrier,
+owner-scoped generated relational queries. It is not a browser-restart
+proof (that GAP is tracked separately, see the JS-arm section above), and
+it is not a hosted claim.
+
+### What is retainable, and what deliberately is not
+
+- **Owner-scoped generated relational queries** (`defineRelationalQuery`
+  composites) — retainable: their materializations carry qmk1 identity,
+  a completeness proof, and lease custody, so a fresh client may re-render
+  them offline as `authoritative` / `retained`.
+- **Snapshot-batch composites** (`snapshot-batch.v1`) — deliberately
+  volatile: retention is `none`. Stored grace payloads exist only to smooth
+  release; they are **never** authoritative offline answers. Do not read a
+  grace payload's presence as renderability — the answer classes below are
+  the only authority.
+
+### The controlled local recipe
+
+1. Prepare and regenerate the trusted activation (the generated artifact
+   graph is the **only** activation source the bridge trusts):
+
+```sh
+snapback composition-activation-prepare --db app.db \
+  --generated demos/your-app/snapback/generated --deployment-id dev
+node demos/_kit/codegen.mjs demos/your-app/snapback
+```
+
+2. Establish under sessions with a persistent store and `persistResume`,
+   then render live — the handle reports the answer classes directly:
+
+```js source=tests/acceptance/local-store-carrier-exit-v1.mjs
+    const live = await firstClient.liveQuery(generatedApi.api.booksWithAuthors, {
+      connectionId: 'carrier-exit-retained-render-live',
+      persistResume: true,
+    });
+    assert.deepEqual(live.rows, [{ title: 'proof-backed', authorName: 'Ada' }]);
+    assert.equal(live.answerClass, 'authoritative');
+    assert.equal(live.freshness, 'current');
+    assert.equal(live.retention.retainable, true);
+```
+
+3. Stop the server, construct a **fresh client** over the same store
+   directory, and re-render — the bridge revalidates proof and lease
+   custody before it will call the stored rows authoritative:
+
+```js source=tests/acceptance/local-store-carrier-exit-v1.mjs
+    assert.deepEqual(relaunched.rows, [{ title: 'proof-backed', authorName: 'Ada' }]);
+    assert.equal(relaunched.answerClass, 'authoritative');
+    assert.equal(relaunched.freshness, 'retained');
+```
+
+### Answer classes control offline rendering
+
+The store's answer table (LLP 0166 §D4) is the honesty contract; render
+decisions key off `answerClass` + `freshness`, never off "bytes exist":
+
+| `answerClass` | Meaning | Render offline? |
+| --- | --- | --- |
+| `authoritative` (`freshness: current`) | Live, connected, proof-backed | Yes |
+| `authoritative` (`freshness: retained`) | Relaunch answer whose proof and lease custody revalidated | Yes, marked retained |
+| `labeled-retained` | Rows retained but authority could not be revalidated | Only with an explicit degraded label |
+| `unknown` | Store cannot classify (no proof, no custody) | No — treat as no data |
+| `refused` | Policy or authorization refused the read | No — surface the refusal |
+
+Inspect stored volatile grace payloads separately from authorized rows with
+`StorePolicyInspectionV1` (`store-policy.test.mjs` exercises it): grace
+payloads report their release pinning, not an answer class, which is how
+the two populations stay visibly distinct.
+
+### The registration boundary (no public durable-authoring API yet)
+
+Active live queries register demand automatically — subscribing IS the
+registration, and the sync set equals the registration set. A **durable
+programmatic registration** surface (registering demand with no live
+handle) intentionally has **no public API yet** (LLP 0166 OQ8): the
+methods you may notice underscored on the client are internal seams, not
+product API, and this page deliberately does not teach them. Until the
+surface is ruled public, keep a live handle (or `persistResume` + relaunch)
+as the supported way to keep a query in the sync set.
 
 ## Opt a live query into cold retention (`rqsEligible`)
 
@@ -12295,3 +12739,65 @@ admin-gated operations with the server-issued `server.adminToken`.
   needs an admin-token reset or a second control port, the app's reset hook
   is not seed-true — fix the hook (see "Reset to the literal seed state")
   instead of wrapping it.
+
+---
+
+<!-- snapback-guide-source: guide/testing/verify.md -->
+---
+title: Verify the declared app contract
+id: testing.verify
+order: 2
+audience: agent-first
+capabilities: [operating.verify]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0146-agentic-authoring-affordances.rfc.md, packages/snapback-cli/verify.mjs, packages/snapback-cli/verify-receipt.schema.json]
+examples: [packages/snapback-cli/verify.test.mjs]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-04
+reviewed-commit: dab2410b6793ffa5685069a0a4054f0e2b21608a
+---
+
+# Verify the declared app contract
+
+> **Local target, partial surface.** This page describes generated-artifact
+> admission and explicitly registered acceptance paths. Live-target admission
+> and automatic discovery of every repository acceptance suite remain GAPs.
+
+`snapback verify --json` is the CLI-owned readiness composition from LLP 0146
+D2. It is not the unbuilt `acceptance.run` host operation. In fixed receipt
+order it checks fresh generated identity, the digest-bound LLP 0010 runtime
+readiness receipt, local schema/function admission plus registered D1
+coverage, generated target capabilities, and registered acceptance profiles:
+
+```sh
+snapback runtime-qualify --persist
+snapback verify ./snapback --config ./snapback.verify.config.mjs --receipt ./.snapback/verify-receipt.json --json
+```
+
+A config default-exports `defineVerifyConfig({ schemaVersion:
+'snapback.verify-config.v1', ... })`. Each profile names the actual test files,
+required capabilities, and every expected path with a closed kind (`success`,
+`failure`, `action`, `relational`, `search`, or `snapshot-bundle`) and target
+profile. Its runner returns `ok`, the target/data/authority/seed identity in
+force, and one six-field D1 conformance report per path. Missing registered
+path evidence and non-empty `missingReads`/`missingWrites` fail coverage.
+Those deltas are authoritative only for a class whose provenance is
+`complete`; an observed `incomplete` or `unsupported` class stays visible as
+partial coverage and is never labeled conformant.
+`extraReads`/`extraWrites` become a warning only when their intersection over
+every complete class observation for the function stays non-empty, which preserves a table
+used only on a conditional path.
+
+The package-owned `snapback.verify-receipt.v1` schema binds the profile-set
+identity, digest of the config and actual test bytes, artifact target, data,
+authority, seed, all five stage verdicts, and ordered `next[]` actions.
+`recommendedNext` appears only when exactly one stage failed. With no
+registered profiles, a fresh app can pass the platform checks, but the receipt
+says `no-registered-acceptance-paths` and does not claim D1 aggregate coverage.
+
+The current admission authority is the locally regenerated generated-artifact
+set. It does not claim that a live target admitted those bytes, does not
+implement `acceptance.run`, does not prove product completeness, and does not
+perform or custody CV-14 semantic review. Build acceptance profiles with the
+headless-first discipline in [Acceptance testing](acceptance.md).

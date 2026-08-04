@@ -41,7 +41,12 @@ export const booksWithAuthors = defineRelationalQuery({
   projection: {
     title: { root: 'title' },
     authorName: { joined: 'name' },
+    score: { root: 'score' },
+    available: { root: 'available' },
     shelf: { literal: 'fiction' },
+    featured: { literal: true },
+    edition: { literal: 1 },
+    note: { literal: null },
   },
   take: 50,
   rootIndex: 'by_owner_title',

@@ -265,6 +265,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/_snapback/admin"),
         ("GET", "/_snapback/admin/"),
         ("GET", "/_snapback/admin/setup"),
+        ("GET", "/_snapback/admin/reachability/identity"),
         ("GET", "/_snapback/admin/{*path}"),
         ("GET", "/_snapback/guide"),
         ("GET", "/_snapback/guide/flat.md"),
@@ -281,6 +282,10 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/_snapback/api/console/claim/exchange"),
         ("POST", "/_snapback/api/console/claim/status"),
         ("POST", "/_snapback/api/console/claim/revoke"),
+        ("POST", "/_snapback/api/console/reachability/register"),
+        ("POST", "/_snapback/api/console/reachability/bind"),
+        ("POST", "/_snapback/api/console/reachability/renew"),
+        ("POST", "/_snapback/api/console/reachability/drop"),
         ("POST", "/_snapback/api/console/approval/request"),
         ("POST", "/_snapback/api/console/approval/poll"),
         ("POST", "/_snapback/api/console/approval/approve"),
@@ -298,6 +303,10 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/_snapback/api/jobs/{id}"),
         ("POST", "/_snapback/api/push/maintenance"),
         ("POST", "/_snapback/api/ephemeral/cleanup"),
+        // LLP 0167: network condition profile read/toggle; PUT terminates at
+        // the fail-closed activation gate.
+        ("GET", "/_snapback/api/debug/network-profile"),
+        ("PUT", "/_snapback/api/debug/network-profile"),
     ]);
     assert_eq!(
         registry
@@ -449,6 +458,39 @@ fn console_claim_routes_pin_authority_and_secret_response_policy() {
         exchange.response_sensitivity,
         ResponseSensitivity::CredentialSecret
     );
+}
+
+#[test]
+fn console_reachability_routes_are_master_gated_and_path_scoped() {
+    let routes = route_registry()
+        .into_iter()
+        .filter(|route| route.path.contains("/console/reachability/"))
+        .collect::<Vec<_>>();
+    assert_eq!(routes.len(), 4);
+    for route in routes {
+        assert_eq!(route.method, "POST", "{}", route.path);
+        assert_eq!(route.path_policy, RoutePolicy::AdminWrite, "{}", route.path);
+        assert_eq!(
+            route.credential_resolution,
+            CredentialResolution::AdminCredential,
+            "{}",
+            route.path
+        );
+        assert_eq!(route.invocation_authority, InvocationAuthority::Operator);
+        assert_eq!(
+            route.response_sensitivity,
+            ResponseSensitivity::CredentialSecret,
+            "{}",
+            route.path
+        );
+    }
+    let identity = route_registry()
+        .into_iter()
+        .find(|route| route.path == "/_snapback/admin/reachability/identity")
+        .expect("registered public identity probe");
+    assert_eq!(identity.method, "GET");
+    assert_eq!(identity.path_policy, RoutePolicy::Public);
+    assert_eq!(identity.credential_resolution, CredentialResolution::None);
 }
 
 /// @ref LLP 0057#routes-operations-and-dtos — the auth provider and agent

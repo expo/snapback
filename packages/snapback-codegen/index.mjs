@@ -312,15 +312,111 @@ function snapshotBatchIdentityV1(plan, argsContract) {
   };
 }
 
+function serializedValueUsesAuthorityOrAmbientInput(value) {
+  if (typeof value === 'string') {
+    return value === 'AuthUserId'
+      || value === 'AuthKind'
+      || value === 'AuthActorKind'
+      || value === 'AuthActivityActorKind'
+      || value === 'AuthActorUserId'
+      || value === 'AuthGrantId'
+      || value === 'ClientMutationDigest'
+      || value === 'AuthIsDelegated'
+      || value === 'RuntimeId'
+      || value === 'RuntimeNow';
+  }
+  if (value === null || typeof value !== 'object') return false;
+  if ('MembershipExists' in value) return true;
+  if ('Field' in value) return serializedValueUsesAuthorityOrAmbientInput(value.Field.base);
+  if ('Binary' in value) {
+    return serializedValueUsesAuthorityOrAmbientInput(value.Binary.left)
+      || serializedValueUsesAuthorityOrAmbientInput(value.Binary.right);
+  }
+  if ('Unary' in value) return serializedValueUsesAuthorityOrAmbientInput(value.Unary.expr);
+  if ('If' in value) {
+    return serializedValueUsesAuthorityOrAmbientInput(value.If.cond)
+      || serializedValueUsesAuthorityOrAmbientInput(value.If.then)
+      || serializedValueUsesAuthorityOrAmbientInput(value.If.else);
+  }
+  if ('Concat' in value) return value.Concat.some(serializedValueUsesAuthorityOrAmbientInput);
+  if ('Call' in value) return value.Call.args.some(serializedValueUsesAuthorityOrAmbientInput);
+  if ('Record' in value) {
+    return Object.values(value.Record.fields).some(serializedValueUsesAuthorityOrAmbientInput);
+  }
+  return false;
+}
+
+// @ref LLP 0092#0c2-the-rqseligible-served-manifest-predicate — class selection
+// is a projection of the served function's derived fact, never an authored
+// class marker.
+function singleTableRqsDigestKind(fn) {
+  const plan = fn.runtime?.HostPlan?.Query;
+  const summary = fn.readSetSummary;
+  if (fn.authorityIndependent !== true
+    || fn.kind !== 'LiveQuery'
+    || fn.authRequirement !== 'public'
+    || (fn.uses?.length ?? 0) !== 0
+    || (fn.authorizationDependence?.length ?? 0) !== 0
+    || !plan
+    || (plan.membershipFilters?.length ?? 0) !== 0
+    || (plan.filters ?? []).some((filter) => serializedValueUsesAuthorityOrAmbientInput(filter.value))
+    || summary?.mode !== 'singleTable'
+    || summary?.primaryTable !== plan.table
+    || summary?.tables?.length !== 1
+    || summary.tables[0] !== plan.table
+    || summary.authScopeField != null) {
+    return null;
+  }
+  return (plan.order?.length ?? 0) === 0 && plan.limit == null ? 'mset1' : 'seq1';
+}
+
+// @ref LLP 0007#dated-owner-amendment-singletableplanv1-portability-2026-08-03 — the
+// generated identity uses the closed typed normalization, including explicit
+// nulls and the snake_case-to-camelCase `indexedBy` translation.
+function normalizeSingleTablePlanV1(plan, rqsDigestKind) {
+  return {
+    format: 'snapback.single-table-plan.v1',
+    query: {
+      table: plan.table,
+      filters: (plan.filters ?? []).map((filter) => ({
+        field: filter.field,
+        op: filter.op,
+        value: filter.value,
+      })),
+      membershipFilters: [],
+      order: (plan.order ?? []).map((order) => ({
+        field: order.field,
+        direction: order.direction,
+        maxEncodedBytes: order.maxEncodedBytes ?? null,
+      })),
+      limit: plan.limit ?? null,
+      indexedBy: plan.indexed_by ?? null,
+    },
+    rqsDigestKind,
+    examinedEntryCeiling: 1024,
+  };
+}
+
 function singleNodeIdentityV1(fn) {
   const hostPlan = fn.runtime?.HostPlan;
   const relational = hostPlan?.RelationalQuery;
   const bounded = hostPlan?.BoundedChildrenQuery;
-  if (!relational && !bounded) return null;
-  const classId = relational ? 'relational_query_v1' : 'bounded_children_v1';
-  const retention = relational && fn.retainable === true
-    ? 'opaque-authorized-snapshot-v1'
-    : 'none';
+  const rqsDigestKind = singleTableRqsDigestKind(fn);
+  const singleTable = rqsDigestKind ? hostPlan.Query : null;
+  if (!relational && !bounded && !singleTable) return null;
+  const classId = relational
+    ? 'relational_query_v1'
+    : bounded
+      ? 'bounded_children_v1'
+      : 'single_table_v1';
+  const retention = singleTable
+    ? 'rqs-authority-independent-snapshot-v1'
+    : relational && fn.retainable === true
+      ? 'opaque-authorized-snapshot-v1'
+      : 'none';
+  const normalizedPlan = singleTable
+    ? normalizeSingleTablePlanV1(singleTable, rqsDigestKind)
+    : relational ?? bounded;
   const argumentBindings = (fn.argsContract?.fields ?? []).map((field) => {
     const contract = {
       format: 'snapback.argument-binding-contract.v1',
@@ -336,20 +432,31 @@ function singleNodeIdentityV1(fn) {
       ),
     };
   });
+  // @ref LLP 0008#decision-dk-3--delta-shape-and-read-lane-2026-07-01 — exact unordered document
+  // results may use live_delta, with live_replace retained as the fallback;
+  // every ordered or limited result remains replace-only.
+  const delivery = singleTable
+    && rqsDigestKind === 'mset1'
+    && fn.resultContract?.kind === 'documents'
+    && fn.resultContract.table === singleTable.table
+    ? 'live_delta'
+    : 'live_replace';
   const live = fn.kind === 'LiveQuery'
-    ? { kind: 'admitted', delivery: 'live_replace', pageDomain: 'cursor-free-first-page' }
+    ? { kind: 'admitted', delivery, pageDomain: 'cursor-free-first-page' }
     : { kind: 'none' };
   const nodePlan = {
     format: 'snapback.node-plan.v1',
     classId,
     classVersion: 1,
-    normalizedPlan: relational ?? bounded,
+    normalizedPlan,
     argumentBindings,
     capability: {
       exportKind: fn.kind,
       live,
       retention,
-      requiredCapabilityIds: [classId],
+      requiredCapabilityIds: singleTable
+        ? [...new Set(fn.requiredCapabilities ?? [])].sort()
+        : [classId],
     },
   };
   const nodePlanHash = compositionDomainHash('snapback:node-plan:v1:', nodePlan);
@@ -370,7 +477,9 @@ function singleNodeIdentityV1(fn) {
       live: fn.kind === 'LiveQuery'
         ? live
         : { kind: 'none', delivery: 'none', pageDomain: 'none' },
-      invalidation: fn.kind === 'LiveQuery' ? 'table-granular-resnapshot' : 'none',
+      invalidation: singleTable
+        ? 'proved-disjoint-write-set'
+        : fn.kind === 'LiveQuery' ? 'table-granular-resnapshot' : 'none',
       retention,
     },
     parentAuthorizationGroups: [],
@@ -2345,7 +2454,10 @@ export async function generateInProcess(backendDir, options = {}) {
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
         reads: [plan.root, plan.joined],
-        result: { kind: 'list', row: relationalRowDescriptor(plan, tables) },
+        // The canonical effective-result pass below derives this from the
+        // closed plan and overwrites the placeholder before introspection or
+        // any generated TypeScript is emitted.
+        result: { kind: 'list', row: { shape: 'unknown' } },
         serverRunnable: true,
         localRunnable: false,
         ...contractQueryLivenessFields(def),
@@ -3070,11 +3182,10 @@ export async function generateInProcess(backendDir, options = {}) {
     binding.resultHash = fn.resultContractHash;
     binding.resultContract = fn.resultContract;
   }
-  // @ref LLP 0044#generated-upload-intents — generation-time admission: the
-  //   location policy is mandatory for location-bearing media, `strip` is
-  //   admissible only where the target advertises the matching
-  //   metadata-rewriting fact, and the reference freezes the admitted policy
-  //   identity as `intentPolicyHash`.
+  // @ref LLP 0044#video-location-policy-the-video--location--sibling-block-dated-decision-2026-08-03 —
+  //   generation requires the media-specific image.location/video.location
+  //   sibling, keeps the image policy preimage intact, and admits `strip`
+  //   only where the target advertises the matching rewriting fact.
   const assetUploadIntents = [];
   {
     const supportedTargetCapabilities = new Set(
@@ -3141,43 +3252,59 @@ export async function generateInProcess(backendDir, options = {}) {
         }
       }
       const bearing = def.accept.mediaTypes.filter(locationBearing);
-      if (bearing.length > 0 && def.image?.location === undefined) {
+      const images = bearing.filter((type) => type.toLowerCase().startsWith('image/'));
+      const videos = bearing.filter((type) => type.toLowerCase().startsWith('video/'));
+      const missingLocationPolicies = [
+        ...(images.length > 0 && def.image?.location === undefined ? ['image.location'] : []),
+        ...(videos.length > 0 && def.video?.location === undefined ? ['video.location'] : []),
+      ];
+      if (missingLocationPolicies.length > 0) {
+        const declaration = missingLocationPolicies.length === 1
+          ? `${missingLocationPolicies[0]} ('strip' or 'retain')`
+          : `${missingLocationPolicies.join(' and ')} (each 'strip' or 'retain')`;
         err(
           'SNAPBACK_ASSET_INTENT_LOCATION_POLICY_REQUIRED',
           'asset',
-          `${exportName}: media types ${bearing.join(', ')} carry location metadata; declare image.location ('strip' or 'retain') — omission refuses at generation, there is no implicit fallback`,
-          { intent: exportName, mediaTypes: bearing },
+          `${exportName}: media types ${bearing.join(', ')} carry location metadata; declare ${declaration} — omission refuses at generation, there is no implicit fallback`,
+          { intent: exportName, mediaTypes: bearing, policyFields: missingLocationPolicies },
         );
         continue;
       }
-      if (def.image !== undefined && bearing.length === 0) {
+      if (def.image !== undefined && images.length === 0) {
         err(
           'SNAPBACK_ASSET_INTENT_IMAGE_SPEC_INVALID',
           'asset',
-          `${exportName}: image policy declared but no accepted media type is an image or video`,
+          `${exportName}: image policy declared but no accepted media type is an image`,
           { intent: exportName, mediaTypes: def.accept.mediaTypes },
         );
         continue;
       }
-      if (def.image?.location === 'strip') {
-        const images = bearing.filter((type) => type.toLowerCase().startsWith('image/'));
-        const videos = bearing.filter((type) => type.toLowerCase().startsWith('video/'));
-        const missing = [];
-        if (images.length > 0 && !supportedTargetCapabilities.has('asset_image_finalization_v1')) {
-          missing.push({ capability: 'asset_image_finalization_v1', mediaTypes: images });
-        }
-        if (videos.length > 0 && !supportedTargetCapabilities.has('asset_video_finalization_v1')) {
-          missing.push({ capability: 'asset_video_finalization_v1', mediaTypes: videos });
-        }
-        if (missing.length > 0) {
-          err(
-            'SNAPBACK_ASSET_INTENT_LOCATION_STRIP_UNSUPPORTED',
-            'asset',
-            `${exportName}: location 'strip' requires ${missing.map((entry) => entry.capability).join(' and ')}, which target ${canonicalCapability.manifest?.targetProfileId ?? targetProfile} does not advertise; an explicit 'retain' admits without the rewriting fact`,
-            { intent: exportName, missing },
-          );
-          continue;
-        }
+      if (def.video !== undefined && videos.length === 0) {
+        err(
+          'SNAPBACK_ASSET_INTENT_VIDEO_SPEC_INVALID',
+          'asset',
+          `${exportName}: video policy declared but no accepted media type is a video`,
+          { intent: exportName, mediaTypes: def.accept.mediaTypes },
+        );
+        continue;
+      }
+      const missing = [];
+      if (def.image?.location === 'strip'
+        && !supportedTargetCapabilities.has('asset_image_finalization_v1')) {
+        missing.push({ capability: 'asset_image_finalization_v1', mediaTypes: images });
+      }
+      if (def.video?.location === 'strip'
+        && !supportedTargetCapabilities.has('asset_video_finalization_v1')) {
+        missing.push({ capability: 'asset_video_finalization_v1', mediaTypes: videos });
+      }
+      if (missing.length > 0) {
+        err(
+          'SNAPBACK_ASSET_INTENT_LOCATION_STRIP_UNSUPPORTED',
+          'asset',
+          `${exportName}: location 'strip' requires ${missing.map((entry) => entry.capability).join(' and ')}, which target ${canonicalCapability.manifest?.targetProfileId ?? targetProfile} does not advertise; an explicit 'retain' admits without the rewriting fact`,
+          { intent: exportName, missing },
+        );
+        continue;
       }
       // Delivery-profile admission is manifest-keyed like strip admission:
       // a target advertises supported profiles and refuses an intent it
@@ -3196,19 +3323,11 @@ export async function generateInProcess(backendDir, options = {}) {
       // Declared lifecycle callbacks (LLP 0044 §Declarative processing):
       // each names an ordinary declared mutation whose args contract is
       // exactly the closed callback shape — typed facts, never byte
-      // authority. Sessions-mode callback execution has no authority
-      // design yet, so a sessions schema refuses at generation (the
-      // manifest-keyed idiom; runtime dev admission is the defense).
+      // authority. Sessions mode is admitted because the runtime executes
+      // this exact declared target through the ruled per-app service grant.
+      // @ref LLP 0039#dated-amendment-sessions-asset-callback-execution-authority-2026-08-03
+      // @ref LLP 0055#dated-amendment-per-app-asset-callbacks-service-principal-2026-08-03
       if (def.on !== undefined) {
-        if (authMode === 'sessions') {
-          err(
-            'SNAPBACK_ASSET_CALLBACK_SESSIONS_UNSUPPORTED',
-            'asset',
-            `${exportName}: lifecycle callbacks execute under the asset owner's dev-lane authority; a sessions-mode schema cannot declare them yet`,
-            { intent: exportName },
-          );
-          continue;
-        }
         let callbacksValid = true;
         for (const [event, handler] of Object.entries(def.on)) {
           const target = functions.find((fn) => fn.name === handler);
@@ -3281,6 +3400,9 @@ export async function generateInProcess(backendDir, options = {}) {
         delivery: def.delivery,
         access: def.access,
         image: def.image ?? null,
+        // Presence-only is deliberate: adding the sibling must not alter the
+        // canonical preimage (and frozen hashes) of existing image intents.
+        ...(def.video ? { video: def.video } : {}),
         // Spread-when-present keeps pre-existing intent policy hashes
         // unchanged for intents that declare no callbacks.
         ...(def.on ? { on: def.on } : {}),
@@ -3313,6 +3435,7 @@ export async function generateInProcess(backendDir, options = {}) {
         delivery: def.delivery,
         access: def.access,
         ...(def.image ? { image: def.image } : {}),
+        ...(def.video ? { video: def.video } : {}),
         ...(def.on ? { on: def.on } : {}),
         declaredReads: def.reads ?? [],
         runtime: {
@@ -3805,6 +3928,7 @@ export async function generateInProcess(backendDir, options = {}) {
     appId,
     functionManifest.functions,
     functionsModule,
+    schemaManifest,
     ephemeralCollections,
     routesManifest,
     assetUploadIntents,
@@ -4814,6 +4938,234 @@ function mutationReadTables(plan) {
   return [...reads];
 }
 
+const GENERATED_LOCAL_MUTATION_FORMAT_V1 = 'snapback.generated-mutation-ir.v1';
+const GENERATED_LOCAL_MUTATION_EFFECT_CLASS_V1 =
+  'snapback.browser-ir.insert-get-guard-patch.v1';
+const GENERATED_LOCAL_MUTATION_STEPS_V1 = new Set(['Insert', 'Get', 'Guard', 'Patch']);
+const GENERATED_LOCAL_MUTATION_AUTHORITATIVE_EXPRESSIONS_V1 = new Set([
+  'AuthUserId',
+  'AuthKind',
+  'AuthActorKind',
+  'AuthActivityActorKind',
+  'AuthActorUserId',
+  'AuthGrantId',
+  'ClientMutationDigest',
+  'AuthIsDelegated',
+  'MembershipExists',
+]);
+
+function generatedMutationPlanExpressions(plan) {
+  const expressions = [];
+  for (const step of plan?.steps ?? []) {
+    const kind = Object.keys(step ?? {})[0];
+    const body = step?.[kind];
+    if (body?.id !== undefined) expressions.push(body.id);
+    if (body?.cond !== undefined) expressions.push(body.cond);
+    if (body?.values && typeof body.values === 'object') {
+      expressions.push(...Object.values(body.values));
+    }
+  }
+  if (plan?.return_value?.Document?.id !== undefined) {
+    expressions.push(plan.return_value.Document.id);
+  }
+  if (plan?.return_value?.Expr !== undefined) expressions.push(plan.return_value.Expr);
+  return expressions;
+}
+
+function generatedMutationExpressionKinds(expression, into = new Set()) {
+  if (typeof expression === 'string') {
+    into.add(expression);
+    return into;
+  }
+  if (expression === null || typeof expression !== 'object') return into;
+  const kind = Object.keys(expression)[0];
+  if (typeof kind !== 'string') return into;
+  into.add(kind);
+  const body = expression[kind];
+  if (kind === 'Field') generatedMutationExpressionKinds(body?.base, into);
+  if (kind === 'Binary') {
+    generatedMutationExpressionKinds(body?.left, into);
+    generatedMutationExpressionKinds(body?.right, into);
+  }
+  if (kind === 'Unary') generatedMutationExpressionKinds(body?.expr, into);
+  if (kind === 'If') {
+    generatedMutationExpressionKinds(body?.cond, into);
+    generatedMutationExpressionKinds(body?.then, into);
+    generatedMutationExpressionKinds(body?.else, into);
+  }
+  if (kind === 'Concat' && Array.isArray(body)) {
+    for (const part of body) generatedMutationExpressionKinds(part, into);
+  }
+  if (kind === 'Call' && Array.isArray(body?.args)) {
+    for (const argument of body.args) generatedMutationExpressionKinds(argument, into);
+  }
+  if (kind === 'Record' && body?.fields && typeof body.fields === 'object') {
+    for (const field of Object.values(body.fields)) {
+      generatedMutationExpressionKinds(field, into);
+    }
+  }
+  return into;
+}
+
+function collectGeneratedMutationBindingFields(expression, binding, fields) {
+  if (expression === null || typeof expression !== 'object') return;
+  const kind = Object.keys(expression)[0];
+  const body = expression[kind];
+  if (
+    kind === 'Field'
+    && body?.base?.Binding === binding
+    && typeof body.key === 'string'
+  ) fields.add(body.key);
+  if (kind === 'Field') collectGeneratedMutationBindingFields(body?.base, binding, fields);
+  if (kind === 'Binary') {
+    collectGeneratedMutationBindingFields(body?.left, binding, fields);
+    collectGeneratedMutationBindingFields(body?.right, binding, fields);
+  }
+  if (kind === 'Unary') collectGeneratedMutationBindingFields(body?.expr, binding, fields);
+  if (kind === 'If') {
+    collectGeneratedMutationBindingFields(body?.cond, binding, fields);
+    collectGeneratedMutationBindingFields(body?.then, binding, fields);
+    collectGeneratedMutationBindingFields(body?.else, binding, fields);
+  }
+  if (kind === 'Concat' && Array.isArray(body)) {
+    for (const part of body) collectGeneratedMutationBindingFields(part, binding, fields);
+  }
+  if (kind === 'Call' && Array.isArray(body?.args)) {
+    for (const argument of body.args) {
+      collectGeneratedMutationBindingFields(argument, binding, fields);
+    }
+  }
+  if (kind === 'Record' && body?.fields && typeof body.fields === 'object') {
+    for (const field of Object.values(body.fields)) {
+      collectGeneratedMutationBindingFields(field, binding, fields);
+    }
+  }
+}
+
+// @ref LLP 0155#execution-contract — the generated reference is the sole
+// authored write carrier: exact plan/source identity, effect ceiling, read
+// requirements, and capability class travel together to the browser.
+function generatedMutationIrV1(fn, schemaManifest, expectedGeneration) {
+  if (fn.kind !== 'Mutation') return null;
+  const hostPlan = fn.runtime?.HostPlan;
+  const plan = hostPlan?.Mutation ?? hostPlan?.WriteWithActivity?.mutation ?? null;
+  if (!plan) return null;
+
+  let capabilityClass = 'local-executable';
+  let capabilityCode = 'SNAPBACK_GENERATED_IR_LOCAL_EXECUTABLE';
+  const requirements = new Map();
+  const expressions = generatedMutationPlanExpressions(plan);
+  const expressionKinds = new Set();
+  for (const expression of expressions) {
+    generatedMutationExpressionKinds(expression, expressionKinds);
+  }
+  if (hostPlan?.Mutation === undefined) {
+    capabilityClass = 'server-only';
+    capabilityCode = 'SNAPBACK_GENERATED_IR_HOST_WRAPPER_SERVER_ONLY';
+  } else if ((plan.steps ?? []).some((step) => (
+    !GENERATED_LOCAL_MUTATION_STEPS_V1.has(Object.keys(step ?? {})[0])
+  ))) {
+    capabilityClass = 'server-only';
+    capabilityCode = 'SNAPBACK_GENERATED_IR_EFFECT_SERVER_ONLY';
+  } else if ([...expressionKinds].some((kind) => (
+    GENERATED_LOCAL_MUTATION_AUTHORITATIVE_EXPRESSIONS_V1.has(kind)
+  ))) {
+    capabilityClass = 'server-only';
+    capabilityCode = 'SNAPBACK_GENERATED_IR_AUTHORITATIVE_EXPR_SERVER_ONLY';
+  } else if (expressionKinds.has('RuntimeId')) {
+    // RuntimeId is in the M1 evaluator ceiling, but a branch-dependent mint
+    // stream needs a generated claim-program rather than a static site list.
+    // Phase-1's Insert/Get/Guard/Patch common path needs only Insert row ids.
+    capabilityClass = 'server-only';
+    capabilityCode = 'SNAPBACK_GENERATED_IR_DYNAMIC_MINT_SERVER_ONLY';
+  }
+
+  for (const step of plan.steps ?? []) {
+    const kind = Object.keys(step ?? {})[0];
+    if (kind !== 'Get' && kind !== 'Patch') continue;
+    const body = step[kind];
+    if (
+      body?.id === null
+      || typeof body?.id !== 'object'
+      || Object.keys(body.id).length !== 1
+      || typeof body.id.Arg !== 'string'
+    ) {
+      capabilityClass = 'server-only';
+      capabilityCode = 'SNAPBACK_GENERATED_IR_POINT_ID_SERVER_ONLY';
+      continue;
+    }
+    const key = `${body.table}\u0000${body.id.Arg}`;
+    const current = requirements.get(key) ?? {
+      kind: 'point',
+      table: body.table,
+      idArg: body.id.Arg,
+      binding: null,
+      requiredFields: ['_id'],
+    };
+    if (kind === 'Get') {
+      if (current.binding !== null && current.binding !== body.bind_as) {
+        capabilityClass = 'server-only';
+        capabilityCode = 'SNAPBACK_GENERATED_IR_POINT_BINDING_SERVER_ONLY';
+      }
+      current.binding = body.bind_as;
+    }
+    requirements.set(key, current);
+  }
+  for (const requirement of requirements.values()) {
+    if (requirement.binding === null) continue;
+    const fields = new Set(requirement.requiredFields);
+    for (const expression of expressions) {
+      collectGeneratedMutationBindingFields(expression, requirement.binding, fields);
+    }
+    requirement.requiredFields = [...fields].sort();
+  }
+
+  const schema = {
+    tables: (schemaManifest.tables ?? []).map((table) => ({
+      name: table.name,
+      fields: (table.fields ?? []).map((field) => ({ name: field.name })),
+    })),
+  };
+  const mintSites = (plan.steps ?? []).flatMap((step, stepIndex) => (
+    Object.keys(step ?? {})[0] === 'Insert'
+      ? [`plan/steps/${stepIndex}/insert/row-id`]
+      : []
+  ));
+  const declaredReads = [...new Set(
+    [...requirements.values()].map((requirement) => requirement.table),
+  )];
+  const descriptor = {
+    format: GENERATED_LOCAL_MUTATION_FORMAT_V1,
+    sourceIdentity: {
+      functionId: fn.id,
+      implementationHash: fn.implementationHash,
+      activation: expectedGeneration,
+    },
+    schemaIdentity: {
+      schemaVersion: expectedGeneration.schemaVersion,
+      appId: expectedGeneration.appId,
+      schemaHash: expectedGeneration.schemaHash,
+    },
+    capabilityClass,
+    capabilityCode,
+    declaredEffectClass: GENERATED_LOCAL_MUTATION_EFFECT_CLASS_V1,
+    declaredReads,
+    localReadRequirements: [...requirements.values()],
+    schema,
+    plan,
+    mintSites,
+    usesRuntimeNow: expressionKinds.has('RuntimeNow'),
+    boundedSkew: fn.boundedSkew ?? null,
+  };
+  return {
+    ...descriptor,
+    operationHash: compositionDomainHash(
+      'snapback:generated-mutation-ir:v1:',
+      descriptor,
+    ),
+  };
+}
+
 // Nested v.object field names are emitted as unquoted TS property names by
 // typeForValidator (api.d.ts, runtime-links.ts, per-binding Args types) and as
 // manifest keys, so they must satisfy IDENT like every other codegen
@@ -5403,52 +5755,6 @@ function rowDescriptor(table) {
     const descriptor = prim ? { shape: 'primitive', name: prim } : { shape: 'unknown' };
     if (f.optional) descriptor.optional = true;
     fields[f.name] = descriptor;
-  }
-  return { shape: 'object', fields };
-}
-
-// The projected relational row: declared leaves only — no system fields ride
-// along (LLP 0080 §2's result is the projection, and the opaque cursor, not
-// the row, carries pagination identity). Joined leaves are optional under a
-// left join because an unmatched or invisible joined row nulls them.
-function relationalRowDescriptor(plan, tables) {
-  const primOf = (tableName, fieldName) => {
-    const field = (tables[tableName]?.fields ?? []).find((f) => f.name === fieldName);
-    if (!field) return { shape: 'unknown' };
-    if (field.field_type?.Vector) {
-      return {
-        shape: 'array',
-        items: {
-          shape: 'primitive',
-          name: 'number',
-          minimum: -VECTOR_COMPONENT_ABS_MAX,
-          maximum: VECTOR_COMPONENT_ABS_MAX,
-        },
-        minItems: field.field_type.Vector.dimensions,
-        maxItems: field.field_type.Vector.dimensions,
-        ...(field.optional ? { optional: true } : {}),
-      };
-    }
-    const prim = field.field_type === 'Principal' || idFieldTypeTable(field.field_type) !== null
-      ? 'string'
-      : { String: 'string', Boolean: 'boolean', Integer: 'number', Real: 'number' }[field.field_type];
-    const descriptor = prim ? { shape: 'primitive', name: prim } : { shape: 'unknown' };
-    if (field.optional) descriptor.optional = true;
-    return descriptor;
-  };
-  const fields = dict();
-  for (const leaf of plan.projection) {
-    if (leaf.source.RootField) {
-      fields[leaf.name] = primOf(plan.root, leaf.source.RootField);
-    } else if (leaf.source.JoinedField) {
-      const descriptor = primOf(plan.joined, leaf.source.JoinedField);
-      if (plan.joinKind === 'Left') descriptor.optional = true;
-      fields[leaf.name] = descriptor;
-    } else {
-      const literal = leaf.source.Literal;
-      const prim = { string: 'string', number: 'number', boolean: 'boolean' }[typeof literal];
-      fields[leaf.name] = prim ? { shape: 'primitive', name: prim } : { shape: 'unknown' };
-    }
   }
   return { shape: 'object', fields };
 }
@@ -8263,6 +8569,7 @@ function renderApiModule(
   appId,
   functions,
   functionsModule,
+  schemaManifest,
   ephemeralCollections,
   routesManifest,
   assetUploadIntents = [],
@@ -8284,6 +8591,7 @@ function renderApiModule(
   }
   for (const fn of functions) {
     const composition = functionCompositionIdentityV1(fn);
+    const mutationIr = generatedMutationIrV1(fn, schemaManifest, expectedGeneration);
     refs[fn.name] = {
       artifactKind: 'functionReference',
       schemaVersion: SCHEMA_VERSION,
@@ -8295,6 +8603,7 @@ function renderApiModule(
       argsContractHash: fn.argsContractHash,
       resultContractHash: fn.resultContractHash,
       expectedGeneration,
+      ...(mutationIr ? { mutationIr } : {}),
       ...(composition ? {
         composition: {
           ...composition,
@@ -8443,6 +8752,22 @@ function renderApiTypes(
     'export interface GeneratedArtifacts { readonly trustedCompositionActivation: Readonly<Record<string, unknown>> | null }',
     'export const artifacts: GeneratedArtifacts;',
     "export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';",
+    "export interface GeneratedMutationIrV1 {",
+    "  readonly format: 'snapback.generated-mutation-ir.v1';",
+    "  readonly operationHash: `sha256:${string}`;",
+    "  readonly sourceIdentity: Readonly<{ functionId: string; implementationHash: string; activation: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }> }> ;",
+    "  readonly schemaIdentity: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string }> ;",
+    "  readonly capabilityClass: 'local-executable' | 'server-only';",
+    "  readonly capabilityCode: string;",
+    "  readonly declaredEffectClass: 'snapback.browser-ir.insert-get-guard-patch.v1';",
+    "  readonly declaredReads: readonly string[];",
+    "  readonly localReadRequirements: readonly Readonly<{ kind: 'point'; table: string; idArg: string; binding: string | null; requiredFields: readonly string[] }>[];",
+    "  readonly schema: Readonly<{ tables: readonly Readonly<{ name: string; fields: readonly Readonly<{ name: string }>[] }>[] }> ;",
+    "  readonly plan: Readonly<Record<string, unknown>>;",
+    "  readonly mintSites: readonly string[];",
+    "  readonly usesRuntimeNow: boolean;",
+    "  readonly boundedSkew: Readonly<{ field: string; maxSkewMs: number }> | null;",
+    "}",
     'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {',
     "  artifactKind: 'functionReference';",
     '  schemaVersion: SchemaVersion;',
@@ -8454,6 +8779,7 @@ function renderApiTypes(
     '  argsContractHash: string;',
     '  resultContractHash: string;',
     '  expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;',
+    '  mutationIr?: GeneratedMutationIrV1;',
     '  composition?: Readonly<{ normalizedCompositePlan: Readonly<Record<string, unknown>>; planHash: `sha256:${string}`; resultContract: Readonly<Record<string, unknown>> }>;',
     '  readonly artifacts?: GeneratedArtifacts;',
     '  argumentSchema: Readonly<Record<string, unknown>>;',
@@ -8631,7 +8957,7 @@ function renderApiTypes(
     // are omitted for anonymous calls. Keep that distinction exact so a
     // helper must narrow before treating optional-user authority as human.
     'export interface GeneratedAnonymousAuthContext { readonly userId: null; readonly sessionId: null; readonly isAuthenticated: false }',
-    'export interface GeneratedAuthenticatedAuthContext { readonly userId: Principal; readonly sessionId: string | null; readonly isAuthenticated: true; readonly provider?: string; readonly roles: readonly string[]; readonly kind: "human" | "agent"; readonly actor?: { readonly userId: Principal; readonly kind: "agent"; readonly grantId: string } }',
+    'export interface GeneratedAuthenticatedAuthContext { readonly userId: Principal; readonly sessionId: string | null; readonly isAuthenticated: true; readonly provider?: string; readonly roles: readonly string[]; readonly kind: "human" | "agent"; readonly actor?: { readonly userId: Principal; readonly kind: "agent"; readonly grantId: string }; readonly actorKind?: "asset-callbacks" }',
     'export type GeneratedAuthContext = GeneratedAnonymousAuthContext | GeneratedAuthenticatedAuthContext;',
     'export interface GeneratedRuntimeContext { now(): number; id(): string }',
   );

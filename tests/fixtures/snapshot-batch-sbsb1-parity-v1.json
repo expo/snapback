@@ -1,0 +1,55 @@
+{
+  "formatVersion": "snapshot-batch-sbsb1-parity-v1",
+  "rootHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "nonceHex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7",
+  "body": {
+    "formatVersion": 1,
+    "keyGeneration": "generation-1",
+    "appId": "app",
+    "databaseId": "db",
+    "targetProfileId": "local",
+    "streamEpoch": "stream",
+    "function": "boardView",
+    "planHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "args": {
+      "boardId": "board-1"
+    },
+    "parentGroups": [
+      {
+        "groupIndex": 0,
+        "parentAuthorizationKeyDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "parentId": "board-1",
+        "parentIncarnation": "018f4d5a-0000-7000-8000-000000000001",
+        "parentVersion": 7
+      }
+    ],
+    "nodes": [
+      {
+        "position": 0,
+        "nodePlanHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "state": {
+          "kind": "boundary",
+          "orderFields": [
+            "position"
+          ],
+          "boundary": [
+            9
+          ],
+          "rowId": "card-9"
+        }
+      },
+      {
+        "position": 1,
+        "nodePlanHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "state": {
+          "kind": "terminal"
+        }
+      }
+    ],
+    "authorityPartition": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "issuedAt": 10000,
+    "expiresAt": 1209610000
+  },
+  "expectedPlaintext": "{\"formatVersion\":1,\"keyGeneration\":\"generation-1\",\"appId\":\"app\",\"databaseId\":\"db\",\"targetProfileId\":\"local\",\"streamEpoch\":\"stream\",\"function\":\"boardView\",\"planHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"args\":{\"boardId\":\"board-1\"},\"parentGroups\":[{\"groupIndex\":0,\"parentAuthorizationKeyDigest\":\"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"parentId\":\"board-1\",\"parentIncarnation\":\"018f4d5a-0000-7000-8000-000000000001\",\"parentVersion\":7}],\"nodes\":[{\"position\":0,\"nodePlanHash\":\"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"state\":{\"kind\":\"boundary\",\"orderFields\":[\"position\"],\"boundary\":[9],\"rowId\":\"card-9\"}},{\"position\":1,\"nodePlanHash\":\"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"state\":{\"kind\":\"terminal\"}}],\"authorityPartition\":\"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"issuedAt\":10000,\"expiresAt\":1209610000}",
+  "expectedWire": "sbsb1.oKGio6SlpqeoqaqrrK2ur7CxsrO0tba3kYjFdAtilxeGZdH8SasYsZC4q7DZdgjpGvEqxlblTAK7sstbNymQZogfh3xHEcvx4nGiJqnAdkSUfpLoSjlMKnExM2bS10zo_eCLhnVz8Wxfax7gd_iii1eK8i2rPTR9a5aIS7T_ZiKu5yCR26WI0poaJp0rvJLitHt-ezEkQ-yK9Uzqhg9-zyCiVWQFjBNR2u-T-8Sc9swgAjjJSGzuxTtiTolRXkhEkbCV2bMBbqvf6tknaD4OeysfgVdwjHOcOjH0a9h-eYWY90UTh0sRSbYTZS3yW439miPaEQiKDNuana2seJ_KmBWn-NHxVGJxtFGCzDEqbLKzUkQH853WdXRvW3F4AJv-V9-yAB1k4IHqDCvOnZ9pOjcigRvV2dRYOXEfUh3jSK6vffzS0JxQUbJewox_WWJ_MWhyeXcXRnBE35eYA3SDgoT2c7IKuF_tZfFZjX2vRvwNGFPI3YszjQsOnmUCBsv3HwBP7198YYSZ0tYbcYH6gaOUfVcDvx34CWSjieyd-p7yMEPjilBhAWdmVhEtlLbtQneQK1t_s5AJtdtZX5-I7TkdAkxt2XD5FAX-JdakQvThouwrIpfzqoFSNP5uh8ZEqPqoSwXsy3huA5UlFrXgAooSqBrpA5InoF_FYz4PJOQBcYEX_pkWLBJOzE7IfzcEQvoIlN8jrxjURWNui9C8aH6g9MV7mhctkl_krbkxa1BSpWm0ZEBmWoY5WiB5TK7nOI41H6f1zZaCqYzN4eFX_1eJ7lObICJMOo4D9J8LOpPuTzG63I0ctRdqm87Ew8PrDM9_n0CCu_aJSlH8nXbWNYAUBXNWKK8ZHjpg27cNa37gAbMSvOANAMynaxH3X3hnFFU468omDmpr-MehWdbK5Sj_xgmZ_fhU14KvKcyTT9-ZBg6JvzAggyn6ggNNTGfHqdHbNsFfFUHyiXJPHkJgkibVLZ5GBA0LuoRbr0RJw_h_Ach4ZNJPK6O8eOE2HocsDOJT7dqErroTP-MofKx3xQhlUFKfWPWK2KYR5sp4SWriHlBbz2Q19eJzhszxXaRbu_Fd32w2I6zaOE_VefInk113nEWJCqhGJtGgPbfRgbGtvfjfLI38frcFeRfbWV66GOmfx7wiYEVrY3pnMhod7dzGXBMuq29Tz_r4BSSQTMZImo99avK3q6U0WR1cnQzsOJqBJkOXxzWC5QdVs8BBZULoS04oHAcyv6oFV45aIRrUipwxVcYwNCZxG0zkyLyqR6U0VnJ661W3Xeh12lyhSV5cFtxYeU6r5WZmUpeYjIgIOX51_qGOFQxGiTYPuYvgloHz0lo"
+}

@@ -2437,6 +2437,9 @@ fn scrub_details(details: Option<Value>) -> Option<Value> {
         "level",
         "message",
         "method",
+        // @ref LLP 0167#honesty-requirements — latency-bearing HTTP spans
+        //   retain the immutable egress profile snapshot that caused it.
+        "networkProfile",
         "rawPath",
         "referer",
         "severity",

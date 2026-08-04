@@ -51,6 +51,7 @@ const inventories = [
       'mcp-control.test.mjs',
       'package.test.mjs',
       'sessions-dev-loop.test.mjs',
+      'verify.test.mjs',
     ],
   },
   {
@@ -65,6 +66,7 @@ const inventories = [
     packageDir: 'packages/snapback-client',
     testDir: '.',
     suffix: '.test.mjs',
+    scriptNames: ['pretest', 'test'],
     expectedFiles: [
       'app-data.test.mjs',
       'argument-validation.test.mjs',
@@ -79,17 +81,21 @@ const inventories = [
       'ephemeral-room.test.mjs',
       'evaluation-floor.test.mjs',
       'external-store.test.mjs',
+      'generated-mutation-ir.test.mjs',
       'hosted-browser.test.mjs',
       'hosted-ephemeral.test.mjs',
       'ir-evaluator.test.mjs',
       'lifecycle-disposal.test.mjs',
       'lease-convergence.test.mjs',
+      'local-read-admission.test.mjs',
       'logout-v3-bridge.test.mjs',
       'materialization-bridge.test.mjs',
       'materialization-store.test.mjs',
       'mixed-route-v2.test.mjs',
       'micro-operational.test.mjs',
       'micro.test.mjs',
+      'optimistic-rebase-acceptance.test.mjs',
+      'optimistic-rebase.test.mjs',
       'outbox-store.test.mjs',
       'package.test.mjs',
       'push-registry.test.mjs',
@@ -160,6 +166,7 @@ const inventories = [
       'optimistic.test.mjs',
       'package.test.mjs',
       'presence.test.mjs',
+      'subscribe-retry.test.mjs',
       'webcrypto-fallback.test.mjs',
     ],
   },
@@ -173,6 +180,7 @@ const inventories = [
       'auth.test.mjs',
       'cli.test.mjs',
       'code-mode.test.mjs',
+      'digest.test.mjs',
       'envelope.test.mjs',
       'package.test.mjs',
       'result-core.test.mjs',
@@ -183,6 +191,7 @@ const inventories = [
     packageDir: 'packages/snapback-codegen',
     testDir: '.',
     suffix: '.test.mjs',
+    scriptNames: ['pretest', 'test'],
     expectedFiles: [
       'api-envelope-members.test.mjs',
       'args-contract-goldens.test.mjs',
@@ -196,6 +205,7 @@ const inventories = [
       'dependency-graph.test.mjs',
       'effect-ceiling.test.mjs',
       'function-id.test.mjs',
+      'generated-mutation-ir.test.mjs',
       'identifier-validation.test.mjs',
       'inline-helper-sharing.test.mjs',
       'inline-result-contracts.test.mjs',
@@ -503,7 +513,21 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // private-layer, and complete 37-case D5 conformance suite.
 // 186 -> 187 (2026-08-03, P5 result-transform lane): @expo/snapback-client
 // gains the dormant result-transform.v1 D5-extension suite.
-assert.equal(total, 187, 'reviewed package/admin test count changed');
+// 187 -> 188 (2026-08-04, RN carrier retry-storm fix 5fbea8e4d):
+// @expo/snapback-react gains subscribe-retry.test.mjs (bounded per-store
+// failure window); that landing updated the package test script but not
+// this canonical inventory, which broke this check on main.
+// 188 -> 190 (2026-08-04, LLP 0146 D2/D3): @expo/snapback-cli gains the
+// done-oracle suite and @expo/snapback-app-cli gains the agent-digest suite.
+// 190 -> 191 (2026-08-04, Move-3 Phase-1 lane M2): @expo/snapback-client
+// gains the local-read admission matrix over demanded QMK answers.
+// 191 -> 193 (2026-08-04, Move-3 Phase-1 lane M3): @expo/snapback-client
+// gains the optimistic layer/rebase unit suite and the three-leg in-process
+// acceptance (20 rapid moves, locked card, reload during settlement).
+// 193 -> 195 (2026-08-04, Move-3 Phase-1 lane M4): codegen gains the
+// generated mutation-IR identity/read-requirement suite; the client gains the
+// no-duplicate-transform, pre-settlement paint, and boot-replay suite.
+assert.equal(total, 195, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

@@ -58,6 +58,13 @@ pub(crate) mod auth_agents;
 #[path = "storage/auth_agent_credentials.rs"]
 pub(crate) mod auth_agent_credentials;
 
+// @ref LLP 0055#dated-amendment-per-app-asset-callbacks-service-principal-2026-08-03
+//   — the sessions asset runner uses one protected-catalog principal and
+//   immutable exact-function grants; it never mints a user session or an
+//   owner bearer.
+#[path = "storage/auth_asset_callbacks.rs"]
+pub(crate) mod auth_asset_callbacks;
+
 // @ref LLP 0055#grants — immutable exact-function scopes bind a durable basis
 //   generation; removal and authority-significant manifest changes leave
 //   tombstones so old consent cannot revive after re-add or restart.
@@ -661,6 +668,14 @@ pub struct MutationCommit {
     /// transaction, including ordinary commits that did not advance it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub authorization: Option<AuthorizationCommitWitness>,
+    /// Server-only post-commit egress carrier. Storage constructs the
+    /// result-readiness default; Local replaces it immediately after a real
+    /// commit, before preparing live bytes or the caller receipt.
+    ///
+    /// @ref LLP 0167#observation-semantics--what-a-delay-means — the commit
+    ///   group transports one snapshot/basis without changing durable wire.
+    #[serde(skip)]
+    pub(crate) network_egress: crate::network_profile::MutationEgressBasis,
 }
 
 /// A server-admitted lane-L override for one direct RuntimeNow field. The
@@ -4094,13 +4109,8 @@ impl LocalDatabase {
         let touched = seed.tables.keys().cloned().collect();
         validate_touched_managed_tables(&tx, &schema, &touched, current_version)?;
         preflight_membership_activation_sources(&tx, &schema, current_version)?;
-        let changes = seed_into_transaction(
-            &tx,
-            &schema,
-            seed,
-            next_version,
-            &self.order_field_bounds,
-        )?;
+        let changes =
+            seed_into_transaction(&tx, &schema, seed, next_version, &self.order_field_bounds)?;
         maintain_derived_indexes_in_tx(&tx, &schema, &changes, next_version)?;
         validate_membership_activation(&tx, &schema, next_version)?;
         tx.rollback()?;
@@ -4439,15 +4449,15 @@ impl LocalDatabase {
             }
         }
         self.validate_sequence_scope_activation(
-            &successor_tables.into_iter().map(ToOwned::to_owned).collect(),
+            &successor_tables
+                .into_iter()
+                .map(ToOwned::to_owned)
+                .collect(),
         )?;
         validate_sequence_counter_rows(&self.conn, declarations)
     }
 
-    pub(crate) fn set_order_field_bounds(
-        &mut self,
-        bounds: BTreeMap<(String, String), u64>,
-    ) {
+    pub(crate) fn set_order_field_bounds(&mut self, bounds: BTreeMap<(String, String), u64>) {
         self.order_field_bounds = Arc::new(bounds);
     }
 
@@ -4507,13 +4517,7 @@ impl LocalDatabase {
         approval: &crate::migration::MigrationApprovalV1,
         now_ms: u64,
     ) -> SnapbackResult<crate::vector::VectorRebuildProgressV1> {
-        crate::vector::rebuild::begin_rebuild(
-            &mut self.conn,
-            &self.schema,
-            plan,
-            approval,
-            now_ms,
-        )
+        crate::vector::rebuild::begin_rebuild(&mut self.conn, &self.schema, plan, approval, now_ms)
     }
 
     pub fn resume_vector_rebuild(
@@ -4521,12 +4525,7 @@ impl LocalDatabase {
         operation_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<crate::vector::VectorRebuildProgressV1> {
-        crate::vector::rebuild::resume_rebuild(
-            &mut self.conn,
-            &self.schema,
-            operation_id,
-            now_ms,
-        )
+        crate::vector::rebuild::resume_rebuild(&mut self.conn, &self.schema, operation_id, now_ms)
     }
 
     pub fn activate_vector_rebuild(
@@ -4541,12 +4540,7 @@ impl LocalDatabase {
         table: &str,
         index: &str,
     ) -> SnapbackResult<crate::vector::VectorRebuildReceiptV1> {
-        crate::vector::rebuild::rollback_generation(
-            &mut self.conn,
-            &self.schema,
-            table,
-            index,
-        )
+        crate::vector::rebuild::rollback_generation(&mut self.conn, &self.schema, table, index)
     }
 
     pub fn inspect_vector_rebuild(
@@ -4785,22 +4779,14 @@ impl LocalDatabase {
             CoveredMutationLaneV1::Ordinary,
             Some(identity),
         )?;
-        if let Some(output) = self.client_mutation_result(identity)? {
-            let sequence_allocations = output.settlement_sequence_allocations.clone();
-            return Ok(MutationCommit {
-                output,
-                changes: Vec::new(),
-                read_dependencies: Vec::new(),
-                write_dependencies: Vec::new(),
-                job_enqueues: Vec::new(),
-                job_changes: Vec::new(),
-                sequence_allocations,
-                authorization: None,
-            });
+        if let Some(commit) = self.replayed_mutation_commit(identity)? {
+            return Ok(commit);
         }
-        Ok(self
-            .execute_mutation_plan(plan, input, true, Some(identity), None)?
-            .commit)
+        let attempted = self.execute_mutation_plan(plan, input, true, Some(identity), None);
+        match attempted {
+            Ok(execution) => Ok(execution.commit),
+            Err(error) => self.replay_after_concurrent_settlement(identity, error),
+        }
     }
 
     pub(crate) fn execute_mutation_idempotent_guarded<G, BeforeCommit>(
@@ -4818,31 +4804,23 @@ impl LocalDatabase {
             CoveredMutationLaneV1::Ordinary,
             Some(identity),
         )?;
-        if let Some(output) = self.client_mutation_result(identity)? {
-            let sequence_allocations = output.settlement_sequence_allocations.clone();
-            return Ok(MutationCommit {
-                output,
-                changes: Vec::new(),
-                read_dependencies: Vec::new(),
-                write_dependencies: Vec::new(),
-                job_enqueues: Vec::new(),
-                job_changes: Vec::new(),
-                sequence_allocations,
-                authorization: None,
-            });
+        if let Some(commit) = self.replayed_mutation_commit(identity)? {
+            return Ok(commit);
         }
-        Ok(self
-            .execute_mutation_plan_with_lifecycle_and_settlement_time(
-                write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
-                plan,
-                input,
-                true,
-                Some(identity),
-                None,
-                &|| Ok(()),
-                before_commit,
-            )?
-            .commit)
+        let attempted = self.execute_mutation_plan_with_lifecycle_and_settlement_time(
+            write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
+            plan,
+            input,
+            true,
+            Some(identity),
+            None,
+            &|| Ok(()),
+            before_commit,
+        );
+        match attempted {
+            Ok(execution) => Ok(execution.commit),
+            Err(error) => self.replay_after_concurrent_settlement(identity, error),
+        }
     }
 
     pub(crate) fn execute_host_mutation_guarded<
@@ -4895,19 +4873,9 @@ impl LocalDatabase {
         )?;
         check_live()?;
         if let Some(identity) = identity
-            && let Some(output) = self.client_mutation_result(identity)?
+            && let Some(commit) = self.replayed_mutation_commit(identity)?
         {
-            let sequence_allocations = output.settlement_sequence_allocations.clone();
-            return Ok(MutationCommit {
-                output,
-                changes: Vec::new(),
-                read_dependencies: Vec::new(),
-                write_dependencies: Vec::new(),
-                job_enqueues: Vec::new(),
-                job_changes: Vec::new(),
-                sequence_allocations,
-                authorization: None,
-            });
+            return Ok(commit);
         }
         Ok(self
             .execute_mutation_plan_with_lifecycle_and_settlement_time(
@@ -4997,9 +4965,32 @@ impl LocalDatabase {
             CoveredMutationLaneV1::Ordinary,
             Some(identity),
         )?;
-        if let Some(output) = self.client_mutation_result(identity)? {
+        if let Some(commit) = self.replayed_mutation_commit(identity)? {
+            return Ok(commit);
+        }
+        let attempted = self.execute_mutation_plan_with_lifecycle_and_settlement_time(
+            write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
+            plan,
+            input,
+            true,
+            Some(identity),
+            policy,
+            &|| Ok(()),
+            before_commit,
+        );
+        match attempted {
+            Ok(execution) => Ok(execution.commit),
+            Err(error) => self.replay_after_concurrent_settlement(identity, error),
+        }
+    }
+
+    fn replayed_mutation_commit(
+        &self,
+        identity: &ClientMutationIdentity,
+    ) -> SnapbackResult<Option<MutationCommit>> {
+        Ok(self.client_mutation_result(identity)?.map(|output| {
             let sequence_allocations = output.settlement_sequence_allocations.clone();
-            return Ok(MutationCommit {
+            MutationCommit {
                 output,
                 changes: Vec::new(),
                 read_dependencies: Vec::new(),
@@ -5008,20 +4999,27 @@ impl LocalDatabase {
                 job_changes: Vec::new(),
                 sequence_allocations,
                 authorization: None,
-            });
+                network_egress: Default::default(),
+            }
+        }))
+    }
+
+    /// A same-id writer can settle after the optimistic replay lookup but
+    /// before this connection acquires SQLite's write transaction. The losing
+    /// transaction rolls back at the unique settlement row; turn that race into
+    /// the exact durable replay promised by the mutation identity contract.
+    ///
+    /// @ref LLP 0135#14-idempotent-re-allocation — sequential and concurrent
+    ///   duplicate deliveries must replay the same allocated value byte-for-byte.
+    fn replay_after_concurrent_settlement(
+        &self,
+        identity: &ClientMutationIdentity,
+        attempted_error: SnapbackError,
+    ) -> SnapbackResult<MutationCommit> {
+        match self.replayed_mutation_commit(identity)? {
+            Some(commit) => Ok(commit),
+            None => Err(attempted_error),
         }
-        Ok(self
-            .execute_mutation_plan_with_lifecycle_and_settlement_time(
-                write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
-                plan,
-                input,
-                true,
-                Some(identity),
-                policy,
-                &|| Ok(()),
-                before_commit,
-            )?
-            .commit)
     }
 
     fn execute_mutation_plan(
@@ -5746,6 +5744,7 @@ impl LocalDatabase {
                         None,
                         None,
                         false,
+                        None,
                     )?;
                     let rows = {
                         let mut statement = tx.prepare(&sql)?;
@@ -6072,6 +6071,7 @@ impl LocalDatabase {
                 job_changes: Vec::new(),
                 sequence_allocations: sequence_allocation_facts,
                 authorization,
+                network_egress: Default::default(),
             },
             generated_ids,
             now_ms,
@@ -6161,19 +6161,9 @@ impl LocalDatabase {
     {
         require_covered_mutation_identity_for_lane(&self.conn, lane, identity)?;
         if let Some(identity) = identity
-            && let Some(output) = self.client_mutation_result(identity)?
+            && let Some(commit) = self.replayed_mutation_commit(identity)?
         {
-            let sequence_allocations = output.settlement_sequence_allocations.clone();
-            return Ok(MutationCommit {
-                output,
-                changes: Vec::new(),
-                read_dependencies: Vec::new(),
-                write_dependencies: Vec::new(),
-                job_enqueues: Vec::new(),
-                job_changes: Vec::new(),
-                sequence_allocations,
-                authorization: None,
-            });
+            return Ok(commit);
         }
         let BufferedCommitPayload {
             writes,
@@ -6186,7 +6176,7 @@ impl LocalDatabase {
             job_producer,
             asset_admissions,
         } = payload;
-        self.apply_buffered_writes_with_lifecycle(
+        let attempted = self.apply_buffered_writes_with_lifecycle(
             match lane {
                 CoveredMutationLaneV1::Ordinary => {
                     write_authority::LocalWriterLaneV1::OrdinaryIbexBuffered
@@ -6213,7 +6203,14 @@ impl LocalDatabase {
             },
             &check_live,
             before_commit,
-        )
+        );
+        match (attempted, identity) {
+            (Ok(commit), _) => Ok(commit),
+            (Err(error), Some(identity)) => {
+                self.replay_after_concurrent_settlement(identity, error)
+            }
+            (Err(error), None) => Err(error),
+        }
     }
 
     /// Dry-run the buffered-write commit (LLP 0051 D8): identical read-set
@@ -6824,6 +6821,7 @@ impl LocalDatabase {
             job_changes,
             sequence_allocations,
             authorization,
+            network_egress: Default::default(),
         })
     }
 
@@ -8374,6 +8372,7 @@ impl LocalDatabase {
             None,
             None,
             false,
+            None,
         )?;
         let mut statement = tx.prepare(&sql)?;
         let columns = statement
@@ -8466,6 +8465,7 @@ impl LocalDatabase {
                 None,
                 None,
                 false,
+                None,
             )?;
             let mut statement = tx.prepare(&sql)?;
             let columns = statement
@@ -8720,6 +8720,7 @@ fn projection_logical_row(
                 Some(2),
                 None,
                 false,
+                None,
             )?;
             let mut statement = tx.prepare(&sql)?;
             let columns = statement
@@ -8952,6 +8953,7 @@ fn maintain_projections_in_tx(
                 Some(plan.fan_out_limit as usize + 1),
                 None,
                 false,
+                None,
             )?;
             let mut statement = tx.prepare(&sql)?;
             let columns = statement
@@ -9020,6 +9022,7 @@ fn maintain_projections_in_tx(
                         Some(1),
                         None,
                         false,
+                        None,
                     )?;
                     let mut statement = tx.prepare(&sql)?;
                     let columns = statement
@@ -9414,6 +9417,7 @@ pub(crate) fn query_on_keyset(
         false,
         keyset,
         true,
+        None,
     )
 }
 
@@ -9434,6 +9438,27 @@ fn query_on_with_storage_limit_visibility(
         allow_private_membership,
         None,
         false,
+        None,
+    )
+}
+
+fn query_on_with_examined_entry_ceiling(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    plan: &QueryPlan,
+    input: &HandlerInput,
+    examined_entry_ceiling: usize,
+) -> SnapbackResult<QueryOutput> {
+    query_on_with_storage_limit_visibility_keyset(
+        conn,
+        schema,
+        plan,
+        input,
+        effective_query_limit(plan),
+        false,
+        None,
+        false,
+        Some(examined_entry_ceiling),
     )
 }
 
@@ -9447,6 +9472,7 @@ fn query_on_with_storage_limit_visibility_keyset(
     allow_private_membership: bool,
     keyset: Option<&KeysetAfter>,
     force_id_order: bool,
+    examined_entry_ceiling: Option<usize>,
 ) -> SnapbackResult<QueryOutput> {
     with_pinned_read_snapshot(conn, |conn| {
         crate::exec_guard::debug_assert_off_async_worker("a SQLite query");
@@ -9511,7 +9537,30 @@ fn query_on_with_storage_limit_visibility_keyset(
             Some(storage_limit),
             keyset,
             force_id_order,
+            examined_entry_ceiling.map(|_| "__snapback_single_table_examined_entry_guard"),
         )?;
+        let examined_entry_guard_exceeded =
+            std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        if let Some(ceiling) = examined_entry_ceiling {
+            let examined = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            let exceeded = examined_entry_guard_exceeded.clone();
+            conn.create_scalar_function(
+                "__snapback_single_table_examined_entry_guard",
+                0,
+                rusqlite::functions::FunctionFlags::SQLITE_UTF8
+                    | rusqlite::functions::FunctionFlags::SQLITE_DIRECTONLY,
+                move |_| {
+                    let entry = examined.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+                    if entry > ceiling {
+                        exceeded.store(true, std::sync::atomic::Ordering::Relaxed);
+                        return Err(rusqlite::Error::UserFunctionError(Box::new(
+                            std::io::Error::other("single-table examined-entry ceiling exceeded"),
+                        )));
+                    }
+                    Ok(1_i64)
+                },
+            )?;
+        }
         let mut statement = conn.prepare(&sql)?;
         let columns = statement
             .column_names()
@@ -9521,18 +9570,43 @@ fn query_on_with_storage_limit_visibility_keyset(
         let mut rows = statement.query(params_from_iter(values.iter()))?;
         let mut output = Vec::new();
 
-        while let Some(row) = rows.next()? {
+        loop {
+            let row = match rows.next() {
+                Ok(Some(row)) => row,
+                Ok(None) => break,
+                Err(_)
+                    if examined_entry_guard_exceeded.load(std::sync::atomic::Ordering::Relaxed) =>
+                {
+                    // @ref LLP 0004#dated-owner-amendment-single_table_v11-2026-08-03 —
+                    // the non-deterministic SQL guard is the first WHERE term,
+                    // so entry 1,025 refuses before application predicates can
+                    // examine it. Only the node-class entry point injects it.
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SINGLE_TABLE_EXAMINED_ENTRY_CEILING_EXCEEDED",
+                        "query",
+                        format!(
+                            "single-table establishment would examine more than {} storage entries",
+                            examined_entry_ceiling.expect("exceeded guard has a ceiling")
+                        ),
+                    )
+                    .with_details(serde_json::json!({
+                        "examinedEntryCeiling": examined_entry_ceiling,
+                    })));
+                }
+                Err(error) => return Err(error.into()),
+            };
             let document = row_to_document(row, table, &columns)?;
             validate_document_version_at_most(&document, snapshot_version, &table.name)?;
             output.push(document);
         }
+        drop(rows);
+        let fullscan_steps = statement.get_status(rusqlite::StatementStatus::FullscanStep);
         #[cfg(test)]
         {
-            drop(rows);
             KEYSET_SCAN_STATS.with(|stats| {
                 stats.borrow_mut().push(KeysetScanStats {
                     table: table.name.clone(),
-                    fullscan_steps: statement.get_status(rusqlite::StatementStatus::FullscanStep),
+                    fullscan_steps,
                     vm_steps: statement.get_status(rusqlite::StatementStatus::VmStep),
                     fetched_rows: output.len(),
                 });
@@ -9946,6 +10020,25 @@ impl DbRead<'_> {
         match self {
             DbRead::Pinned { conn, schema } => query_on(conn, schema, plan, input),
             _ => self.live().expect("live db").query(plan, input),
+        }
+    }
+
+    /// The new node-class establishment entry point. Keeping the ceiling on a
+    /// distinct method makes it structurally impossible for the ordinary
+    /// application Query/LiveQuery path to inherit the new refusal.
+    pub(crate) fn query_with_examined_entry_ceiling(
+        &self,
+        plan: &QueryPlan,
+        input: &HandlerInput,
+        ceiling: usize,
+    ) -> SnapbackResult<QueryOutput> {
+        match self {
+            DbRead::Pinned { conn, schema } => {
+                query_on_with_examined_entry_ceiling(conn, schema, plan, input, ceiling)
+            }
+            DbRead::Live(db) => {
+                query_on_with_examined_entry_ceiling(&db.conn, &db.schema, plan, input, ceiling)
+            }
         }
     }
 
@@ -12793,6 +12886,7 @@ fn build_query_sql(
     sql_limit: Option<usize>,
     keyset: Option<&KeysetAfter>,
     force_id_order: bool,
+    examined_entry_guard_function: Option<&str>,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
     // Always give the primary table an explicit alias. A membership table may
     // itself be the query's primary table; without distinct aliases the inner
@@ -12806,7 +12900,12 @@ fn build_query_sql(
         quote_ident(&table.name)?
     );
     let mut values = Vec::new();
-    let mut where_parts = Vec::new();
+    // This non-deterministic guard deliberately leads the predicate list. It
+    // counts every physical candidate before authored filters inspect it, and
+    // is injected only for single-table node establishment/re-establishment.
+    let mut where_parts = examined_entry_guard_function
+        .map(|name| vec![format!("{name}() = 1")])
+        .unwrap_or_default();
     let mut in_items = 0usize;
     let mut filter_bindings = 0usize;
 
@@ -14989,11 +15088,7 @@ impl MembershipPlan {
     }
 }
 
-fn mutation_plan_refusal(
-    code: &str,
-    message: impl Into<String>,
-    details: Value,
-) -> SnapbackError {
+fn mutation_plan_refusal(code: &str, message: impl Into<String>, details: Value) -> SnapbackError {
     // A generated WWA scope read deliberately collapses a missing parent and
     // a present-but-hidden parent to one byte-identical public refusal. The
     // builder assigns this code to both the Get and owner Guard; do not leak
@@ -19010,8 +19105,7 @@ fn normalize_json_value(value: Value, field_type: &FieldType) -> SnapbackResult<
                 .collect::<SnapbackResult<Vec<_>>>()?;
             let bytes =
                 crate::vector::storage::encode_vector_binary64_le(&components, *dimensions)?;
-            let canonical =
-                crate::vector::storage::decode_vector_binary64_le(&bytes, *dimensions)?;
+            let canonical = crate::vector::storage::decode_vector_binary64_le(&bytes, *dimensions)?;
             Ok(Value::Array(
                 canonical
                     .into_iter()
@@ -20103,6 +20197,7 @@ mod guarded_commit_tests {
     use super::*;
     use std::cell::Cell;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::{Arc, Barrier};
 
     fn migration_scan_database() -> LocalDatabase {
         use crate::manifest::IndexManifest;
@@ -21065,6 +21160,15 @@ mod guarded_commit_tests {
         db
     }
 
+    fn generated_sequence_file_database(path: &Path) -> LocalDatabase {
+        let mut db = LocalDatabase::open(path).expect("open shared sequence database");
+        db.apply_schema(relation_schema())
+            .expect("apply shared relation schema");
+        db.install_sequence_declarations(generated_sequence_declarations(), false)
+            .expect("install shared sequence declarations");
+        db
+    }
+
     fn insert_generated_sequence_scope(db: &mut LocalDatabase, owner: &str, title: &str) {
         db.commit_buffered_writes(
             &HandlerInput::default(),
@@ -21259,6 +21363,218 @@ mod guarded_commit_tests {
         assert_eq!(sequence_next(&db, &incarnation), Some(3));
     }
 
+    // @ref LLP 0135#51-sequence-allocation — Relay's generated
+    // write-with-activity arm returns source, activity, and allocated value
+    // together; all effects share the settlement version and exact replay is
+    // non-executing.
+    #[test]
+    fn relay_move_card_sequence_result_is_atomic_and_byte_exactly_replayable() {
+        let mut db = generated_sequence_database();
+        insert_generated_sequence_scope(&mut db, "user-1", "board");
+        let incarnation = DbRead::Live(&db)
+            .active_relation_incarnation("parents", "parent-1")
+            .unwrap()
+            .expect("active board incarnation");
+        let mut plan = generated_sequence_wwa_plan();
+        plan.return_value = Some(ReturnValue::Expr(ValueExpr::Record {
+            fields: BTreeMap::from([
+                (
+                    "activityId".to_owned(),
+                    ValueExpr::Binding("activityId".to_owned()),
+                ),
+                (
+                    "cardId".to_owned(),
+                    ValueExpr::Binding("sourceId".to_owned()),
+                ),
+                (
+                    "sequence".to_owned(),
+                    ValueExpr::Binding("position".to_owned()),
+                ),
+            ]),
+        }));
+        let input = generated_sequence_input("user-1", "moved card");
+        let identity = ClientMutationIdentity::new("cm-relay-move-card", "moveCard", &input);
+        let fresh = db
+            .execute_mutation_idempotent(&plan, &input, &identity)
+            .expect("Relay moveCard commits");
+        assert_eq!(fresh.output.result["sequence"], 1);
+        assert!(fresh.output.result["cardId"].is_string());
+        assert!(fresh.output.result["activityId"].is_string());
+        assert_eq!(fresh.changes.len(), 2);
+        assert!(fresh.changes.iter().all(|change| {
+            change
+                .row
+                .as_ref()
+                .is_some_and(|row| row["_version"] == fresh.output.version)
+        }));
+        assert_eq!(sequence_next(&db, &incarnation), Some(2));
+        let encoded_fresh = serde_json::to_vec(&fresh.output).unwrap();
+
+        let replay = db
+            .execute_mutation_idempotent(&plan, &input, &identity)
+            .expect("Relay exact replay");
+        assert_eq!(serde_json::to_vec(&replay.output).unwrap(), encoded_fresh);
+        assert!(replay.changes.is_empty());
+        assert_eq!(replay.sequence_allocations, fresh.sequence_allocations);
+        assert_eq!(sequence_next(&db, &incarnation), Some(2));
+    }
+
+    // @ref LLP 0135#51-sequence-allocation — exact duplicate settlement is
+    // non-executing even when several SQLite writers race the first commit.
+    #[test]
+    fn sequence_concurrent_duplicate_replay_advances_once_and_returns_exact_bytes() {
+        const WRITERS: usize = 8;
+        let dir = tempfile::tempdir().expect("sequence duplicate tempdir");
+        let path = dir.path().join("sequence-duplicates.sqlite3");
+        {
+            let mut setup = generated_sequence_file_database(&path);
+            insert_generated_sequence_scope(&mut setup, "user-1", "scope");
+        }
+        let writers = (0..WRITERS)
+            .map(|_| generated_sequence_file_database(&path))
+            .collect::<Vec<_>>();
+        let barrier = Arc::new(Barrier::new(WRITERS + 1));
+        let handles = writers
+            .into_iter()
+            .map(|mut db| {
+                let barrier = Arc::clone(&barrier);
+                std::thread::spawn(move || {
+                    let input = generated_sequence_input("user-1", "same duplicate");
+                    let identity = ClientMutationIdentity::new(
+                        "cm-sequence-concurrent-duplicate",
+                        "addJob",
+                        &input,
+                    );
+                    barrier.wait();
+                    db.execute_mutation_idempotent(
+                        &generated_sequence_wwa_plan(),
+                        &input,
+                        &identity,
+                    )
+                    .expect("concurrent duplicate settles or exact-replays")
+                })
+            })
+            .collect::<Vec<_>>();
+        barrier.wait();
+        let commits = handles
+            .into_iter()
+            .map(|handle| handle.join().expect("duplicate writer joins"))
+            .collect::<Vec<_>>();
+
+        let canonical =
+            serde_json::to_vec(&commits[0].output).expect("canonical retained result bytes");
+        assert!(commits.iter().all(|commit| {
+            serde_json::to_vec(&commit.output).expect("retained result bytes") == canonical
+                && commit.sequence_allocations == commits[0].sequence_allocations
+        }));
+        assert_eq!(
+            commits
+                .iter()
+                .filter(|commit| !commit.changes.is_empty())
+                .count(),
+            1,
+            "one duplicate executes; every other caller receives retained replay",
+        );
+        let verify = generated_sequence_file_database(&path);
+        let incarnation = DbRead::Live(&verify)
+            .active_relation_incarnation("parents", "parent-1")
+            .unwrap()
+            .expect("active parent");
+        assert_eq!(sequence_next(&verify, &incarnation), Some(2));
+        assert_eq!(verify.scan_table("children", 10, 0).unwrap().total, 1);
+        assert_eq!(verify.scan_table("activity", 10, 0).unwrap().total, 1);
+    }
+
+    // @ref LLP 0135#51-sequence-allocation — the contributor local target's
+    // multi-writer proof binds sequence order directly to commit-version order
+    // and retains a deliberately loose, repeatable contention budget.
+    #[test]
+    fn sequence_multi_writer_commit_order_and_performance_qualification() {
+        const WRITERS: usize = 24;
+        const MAX_ELAPSED_MS: u128 = 15_000;
+        let dir = tempfile::tempdir().expect("sequence contention tempdir");
+        let path = dir.path().join("sequence-contention.sqlite3");
+        {
+            let mut setup = generated_sequence_file_database(&path);
+            insert_generated_sequence_scope(&mut setup, "user-1", "scope");
+        }
+        let writers = (0..WRITERS)
+            .map(|_| generated_sequence_file_database(&path))
+            .collect::<Vec<_>>();
+        let barrier = Arc::new(Barrier::new(WRITERS + 1));
+        let handles = writers
+            .into_iter()
+            .enumerate()
+            .map(|(index, mut db)| {
+                let barrier = Arc::clone(&barrier);
+                std::thread::spawn(move || {
+                    let input =
+                        generated_sequence_input("user-1", &format!("contended writer {index}"));
+                    let identity = ClientMutationIdentity::new(
+                        format!("cm-sequence-writer-{index}"),
+                        "addJob",
+                        &input,
+                    );
+                    barrier.wait();
+                    let started = std::time::Instant::now();
+                    let commit = db
+                        .execute_mutation_idempotent(
+                            &generated_sequence_wwa_plan(),
+                            &input,
+                            &identity,
+                        )
+                        .expect("contended writer commits within SQLite busy budget");
+                    (commit, started.elapsed().as_millis())
+                })
+            })
+            .collect::<Vec<_>>();
+        let started = std::time::Instant::now();
+        barrier.wait();
+        let mut observations = handles
+            .into_iter()
+            .map(|handle| handle.join().expect("contention writer joins"))
+            .collect::<Vec<_>>();
+        let elapsed_ms = started.elapsed().as_millis();
+        observations.sort_by_key(|(commit, _)| commit.output.version);
+        let committed_values = observations
+            .iter()
+            .map(|(commit, _)| commit.sequence_allocations[0].value)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            committed_values,
+            (1..=WRITERS as u64).collect::<Vec<_>>(),
+            "value order must equal commit-version order",
+        );
+        assert!(
+            observations
+                .windows(2)
+                .all(|pair| pair[0].0.output.version < pair[1].0.output.version),
+            "every contended commit has a unique increasing receipt version",
+        );
+        assert!(
+            elapsed_ms <= MAX_ELAPSED_MS,
+            "{WRITERS} writers took {elapsed_ms}ms, above the {MAX_ELAPSED_MS}ms qualification budget",
+        );
+        let mut latencies = observations
+            .iter()
+            .map(|(_, latency_ms)| *latency_ms)
+            .collect::<Vec<_>>();
+        latencies.sort_unstable();
+        let p95_ms = latencies[(latencies.len() * 95).div_ceil(100) - 1];
+        println!(
+            "{}",
+            json!({
+                "schemaVersion": "snapback.sequence-allocation-contention-observation.v1",
+                "targetProfileId": "local-dev-sqlite-ibex",
+                "writers": WRITERS,
+                "elapsedMs": elapsed_ms,
+                "p95Ms": p95_ms,
+                "minimumThroughputPerSecond": (WRITERS as f64 * 1000.0) / elapsed_ms.max(1) as f64,
+                "commitOrderValues": committed_values,
+            })
+        );
+    }
+
     #[test]
     fn generated_sequence_scope_refusals_are_byte_identical() {
         let plan = generated_sequence_wwa_plan();
@@ -21307,32 +21623,64 @@ mod guarded_commit_tests {
                  ) VALUES('jobs', 'parents', 'parent-1', ?1, ?2)",
                 params![
                     predecessor,
-                    i64::try_from(SEQUENCE_MAX_SAFE_INTEGER).unwrap()
+                    i64::try_from(SEQUENCE_MAX_SAFE_INTEGER - 1).unwrap()
                 ],
             )
             .unwrap();
-        let allocate = MutationPlan {
-            steps: vec![MutationStep::AllocateSequence {
-                counter: "jobs".to_owned(),
-                scope: ValueExpr::Literal(json!("parent-1")),
-                into: "position".to_owned(),
-            }],
-            return_value: Some(ReturnValue::Binding("position".to_owned())),
-        };
+        let allocate = generated_sequence_wwa_plan();
+        let penultimate = db
+            .execute_mutation(
+                &allocate,
+                &generated_sequence_input("user-1", "penultimate"),
+            )
+            .expect("MAX_SAFE_INTEGER - 1 is allocatable");
+        assert_eq!(
+            penultimate.output.result,
+            json!(SEQUENCE_MAX_SAFE_INTEGER - 1)
+        );
         let maximum = db
-            .execute_mutation(&allocate, &HandlerInput::default())
+            .execute_mutation(&allocate, &generated_sequence_input("user-1", "maximum"))
             .expect("MAX_SAFE_INTEGER is allocatable");
         assert_eq!(maximum.output.result, json!(SEQUENCE_MAX_SAFE_INTEGER));
         assert_eq!(
             sequence_next(&db, &predecessor),
             Some(i64::try_from(SEQUENCE_MAX_SAFE_INTEGER + 1).unwrap()),
         );
-        for _ in 0..2 {
+        let children_before = db.scan_table("children", 10, 0).unwrap().total;
+        let activity_before = db.scan_table("activity", 10, 0).unwrap().total;
+        let head_before = db.current_version().unwrap();
+        let mut refusal_bytes = Vec::new();
+        for attempt in 0..2 {
+            let input = generated_sequence_input("user-1", "must not commit");
+            let identity = ClientMutationIdentity::new(
+                format!("cm-sequence-exhausted-{attempt}"),
+                "addJob",
+                &input,
+            );
             let error = db
-                .execute_mutation(&allocate, &HandlerInput::default())
+                .execute_mutation_idempotent(&allocate, &input, &identity)
                 .expect_err("post-maximum allocation refuses stably");
             assert_eq!(error.diagnostic.code, "SNAPBACK_SEQUENCE_EXHAUSTED");
+            refusal_bytes.push(serde_json::to_vec(&error.diagnostic).unwrap());
+            assert!(
+                db.client_mutation_result(&identity).unwrap().is_none(),
+                "an exhausted attempt retains no settlement result bytes",
+            );
         }
+        assert_eq!(refusal_bytes[0], refusal_bytes[1]);
+        assert_eq!(db.current_version().unwrap(), head_before);
+        assert_eq!(
+            db.scan_table("children", 10, 0).unwrap().total,
+            children_before
+        );
+        assert_eq!(
+            db.scan_table("activity", 10, 0).unwrap().total,
+            activity_before
+        );
+        assert_eq!(
+            sequence_next(&db, &predecessor),
+            Some(i64::try_from(SEQUENCE_MAX_SAFE_INTEGER + 1).unwrap()),
+        );
 
         db.commit_buffered_writes(
             &HandlerInput::default(),
@@ -21351,7 +21699,7 @@ mod guarded_commit_tests {
             .expect("successor incarnation");
         assert_ne!(successor, predecessor);
         let restarted = db
-            .execute_mutation(&allocate, &HandlerInput::default())
+            .execute_mutation(&allocate, &generated_sequence_input("user-1", "successor"))
             .expect("successor incarnation restarts at one");
         assert_eq!(restarted.output.result, json!(1));
         let identities: i64 = db
@@ -21365,6 +21713,70 @@ mod guarded_commit_tests {
             )
             .unwrap();
         assert_eq!(identities, 2);
+    }
+
+    // @ref LLP 0135#11-counter-identity-and-scope — a restarted value is
+    // safe only when its client-observable uniqueness key includes the
+    // framework-owned relation incarnation; predecessor rows remain physical.
+    #[test]
+    fn sequence_recreation_keeps_orphaned_rows_and_prefixed_unique_values_distinct() {
+        let mut schema = relation_schema();
+        schema
+            .tables
+            .iter_mut()
+            .find(|table| table.name == "children")
+            .expect("children table")
+            .indexes[0]
+            .unique = true;
+        let mut db = LocalDatabase::memory().expect("incarnation unique database");
+        db.apply_schema(schema)
+            .expect("apply unique relation schema");
+        db.install_sequence_declarations(generated_sequence_declarations(), false)
+            .expect("install sequence declarations");
+        insert_generated_sequence_scope(&mut db, "user-1", "predecessor");
+        let predecessor = db
+            .execute_mutation(
+                &generated_sequence_wwa_plan(),
+                &generated_sequence_input("user-1", "predecessor child"),
+            )
+            .expect("predecessor value one");
+        assert_eq!(predecessor.sequence_allocations[0].value, 1);
+        let predecessor_incarnation = predecessor.sequence_allocations[0]
+            .scope_incarnation
+            .clone();
+
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Delete {
+                table: "parents".to_owned(),
+                id: "parent-1".to_owned(),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("delete predecessor scope");
+        insert_generated_sequence_scope(&mut db, "user-1", "successor");
+        let successor = db
+            .execute_mutation(
+                &generated_sequence_wwa_plan(),
+                &generated_sequence_input("user-1", "successor child"),
+            )
+            .expect("new incarnation admits restarted value one");
+        assert_eq!(successor.sequence_allocations[0].value, 1);
+        assert_ne!(
+            successor.sequence_allocations[0].scope_incarnation,
+            predecessor_incarnation,
+        );
+
+        let rows = db.scan_table("children", 10, 0).expect("physical children");
+        assert_eq!(rows.total, 2, "orphaned predecessor child stays physical");
+        let incarnations = rows
+            .rows
+            .iter()
+            .map(|row| row["parentIncarnation"].as_str().unwrap().to_owned())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(incarnations.len(), 2);
+        assert!(rows.rows.iter().all(|row| row["position"] == 1));
     }
 
     fn item_sequence_declarations() -> BTreeMap<String, crate::manifest::SequenceDeclaration> {
@@ -31817,6 +32229,7 @@ mod membership_write_tests {
             None,
             None,
             false,
+            None,
         )
         .expect("lower internal semi-join");
         assert!(sql.contains("AS \"__snapback_outer\""));

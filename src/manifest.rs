@@ -63,6 +63,238 @@ fn schema_manifest_kind() -> String {
     "schemaManifest".to_owned()
 }
 
+#[cfg(test)]
+mod single_table_v1_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn eligible_function() -> FunctionDefinition {
+        let plan = QueryPlan {
+            table: "todos".to_owned(),
+            filters: vec![FilterExpr {
+                field: "title".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Arg("zed".to_owned()),
+            }],
+            membership_filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        };
+        let mut function = FunctionDefinition::new(
+            "publicLive",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(plan)),
+        );
+        function.auth_requirement = Some(AuthRequirement::Public);
+        function.authority_independent = true;
+        function.args_contract = Some(FunctionArgsContract {
+            fields: vec![
+                ResultObjectFieldContract {
+                    name: "zed".to_owned(),
+                    required: true,
+                    value: ResultValueContract::String {
+                        max_bytes: 1024 * 1024,
+                    },
+                },
+                ResultObjectFieldContract {
+                    name: "alpha".to_owned(),
+                    required: true,
+                    value: ResultValueContract::String {
+                        max_bytes: 1024 * 1024,
+                    },
+                },
+            ],
+        });
+        function.required_capabilities = vec![
+            "live_subscriptions".to_owned(),
+            "host_plan_runtime".to_owned(),
+            "result_contract_v1".to_owned(),
+            "args_contract_v1".to_owned(),
+        ];
+        function.read_set_summary = DependencySummary {
+            primary_table: Some("todos".to_owned()),
+            tables: vec!["todos".to_owned()],
+            mode: Some("singleTable".to_owned()),
+            auth_scope_field: None,
+        };
+        function
+    }
+
+    fn empty_todos_schema() -> SchemaManifest {
+        let table = serde_json::from_value(json!({
+            "name": "todos",
+            "fields": [],
+            "indexes": [],
+            "searchIndexes": [],
+            "vectorIndexes": [],
+            "syncable": true
+        }))
+        .expect("minimal table fixture");
+        SchemaManifest {
+            tables: vec![table],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn exact_empty_document_contract() -> FunctionResultContract {
+        let safe_integer = || ResultValueContract::Integer {
+            min: 0,
+            max: 9_007_199_254_740_991,
+        };
+        FunctionResultContract::Documents {
+            table: "todos".to_owned(),
+            document: ResultValueContract::Object {
+                fields: vec![
+                    ResultObjectFieldContract {
+                        name: "_id".to_owned(),
+                        required: true,
+                        value: ResultValueContract::Id {
+                            table: "todos".to_owned(),
+                        },
+                    },
+                    ResultObjectFieldContract {
+                        name: "_version".to_owned(),
+                        required: true,
+                        value: safe_integer(),
+                    },
+                    ResultObjectFieldContract {
+                        name: "_createdAt".to_owned(),
+                        required: true,
+                        value: safe_integer(),
+                    },
+                    ResultObjectFieldContract {
+                        name: "_updatedAt".to_owned(),
+                        required: true,
+                        value: safe_integer(),
+                    },
+                ],
+                allow_extra: false,
+            },
+        }
+    }
+
+    #[test]
+    fn normalization_and_identity_match_the_codegen_golden() {
+        let mut function = eligible_function();
+        let normalized = single_table_plan_v1(&function)
+            .expect("normalization succeeds")
+            .expect("derived predicate selects the class");
+        assert_eq!(
+            serde_json::to_value(&normalized).expect("serialize normalized plan"),
+            json!({
+                "format": "snapback.single-table-plan.v1",
+                "query": {
+                    "table": "todos",
+                    "filters": [{ "field": "title", "op": "Eq", "value": { "Arg": "zed" } }],
+                    "membershipFilters": [],
+                    "order": [],
+                    "limit": null,
+                    "indexedBy": null
+                },
+                "rqsDigestKind": "mset1",
+                "examinedEntryCeiling": 1024
+            })
+        );
+        function.result_contract = exact_empty_document_contract();
+        let identity = single_node_identity_v1(&function, Some(&empty_todos_schema()))
+            .expect("identity reconstruction succeeds")
+            .expect("single-table identity exists");
+        assert_eq!(
+            identity.plan_hash,
+            "sha256:e98ec047024a9771647661d388d8cb67f23c9487d25b33d63c196c818410ec5e"
+        );
+        let node = &identity.normalized_composite_plan["nodes"][0]["nodePlan"];
+        assert_eq!(node["classId"], "single_table_v1");
+        assert_eq!(node["capability"]["live"]["delivery"], "live_delta");
+        assert_eq!(
+            node["argumentBindings"]
+                .as_array()
+                .expect("bindings")
+                .iter()
+                .map(|binding| binding["name"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            vec!["zed", "alpha"]
+        );
+    }
+
+    #[test]
+    fn selector_and_closed_refusals_preserve_null_and_order_semantics() {
+        let mut function = eligible_function();
+        if let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &mut function.runtime {
+            plan.limit = Some(0);
+        }
+        assert_eq!(
+            single_table_plan_v1(&function)
+                .unwrap()
+                .unwrap()
+                .rqs_digest_kind,
+            "seq1"
+        );
+        if let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &mut function.runtime {
+            plan.limit = None;
+            plan.order.push(OrderExpr {
+                field: "title".to_owned(),
+                direction: OrderDirection::Asc,
+                max_encoded_bytes: Some(0),
+            });
+        }
+        assert_eq!(
+            single_table_plan_v1(&function)
+                .expect_err("zero maxEncodedBytes refuses")
+                .diagnostic
+                .code,
+            "SNAPBACK_SINGLE_TABLE_PLAN_INVALID"
+        );
+        let mut serialized =
+            serde_json::to_value(single_table_plan_v1(&eligible_function()).unwrap().unwrap())
+                .unwrap();
+        serialized["unexpected"] = json!(true);
+        assert!(serde_json::from_value::<SingleTablePlanV1>(serialized).is_err());
+        for outside_profile in [
+            json!({
+                "format": "wrong",
+                "query": { "table": "todos", "filters": [], "membershipFilters": [], "order": [], "limit": null, "indexedBy": null },
+                "rqsDigestKind": "mset1", "examinedEntryCeiling": 1024
+            }),
+            json!({
+                "format": "snapback.single-table-plan.v1",
+                "query": { "table": "todos", "filters": [], "membershipFilters": [{}], "order": [], "limit": null, "indexedBy": null },
+                "rqsDigestKind": "mset1", "examinedEntryCeiling": 1024
+            }),
+            json!({
+                "format": "snapback.single-table-plan.v1",
+                "query": { "table": "todos", "filters": [], "membershipFilters": [], "order": [], "limit": 0, "indexedBy": null },
+                "rqsDigestKind": "mset1", "examinedEntryCeiling": 1024
+            }),
+            json!({
+                "format": "snapback.single-table-plan.v1",
+                "query": { "table": "todos", "filters": [], "membershipFilters": [], "order": [], "limit": 1025, "indexedBy": null },
+                "rqsDigestKind": "seq1", "examinedEntryCeiling": 1024
+            }),
+            json!({
+                "format": "snapback.single-table-plan.v1",
+                "query": { "table": "todos", "filters": [], "membershipFilters": [], "order": [], "limit": null, "indexedBy": null },
+                "rqsDigestKind": "mset1", "examinedEntryCeiling": 1025
+            }),
+        ] {
+            assert!(
+                serde_json::from_value::<SingleTablePlanV1>(outside_profile).is_err(),
+                "closed profile must refuse exact near-misses"
+            );
+        }
+
+        let mut ineligible = eligible_function();
+        ineligible.authority_independent = false;
+        assert!(single_table_plan_v1(&ineligible).unwrap().is_none());
+        assert!(
+            single_node_identity_v1(&ineligible, None)
+                .unwrap()
+                .is_none()
+        );
+    }
+}
+
 fn function_manifest_kind() -> String {
     "functionManifest".to_owned()
 }
@@ -1117,8 +1349,8 @@ pub struct AssetUploadIntentDefinition {
     pub implementation_hash: Option<String>,
     #[serde(default, rename = "argsContractHash", alias = "args_contract_hash")]
     pub args_contract_hash: Option<String>,
-    /// Hash over the declared accept/delivery/access/image/auth facts — the
-    /// admitted policy identity an attempt finalizes under.
+    /// Hash over the declared accept/delivery/access/image/video/auth facts —
+    /// the admitted policy identity an attempt finalizes under.
     #[serde(rename = "intentPolicyHash", alias = "intent_policy_hash")]
     pub intent_policy_hash: String,
     #[serde(default, rename = "authRequirement", alias = "auth_requirement")]
@@ -1128,6 +1360,11 @@ pub struct AssetUploadIntentDefinition {
     pub access: AssetAccessPolicy,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image: Option<AssetImagePolicy>,
+    /// @ref LLP 0044#video-location-policy-the-video--location--sibling-block-dated-decision-2026-08-03 —
+    /// video location policy has its own manifest carrier rather than
+    /// overloading or aliasing the frozen image-policy spelling.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub video: Option<AssetVideoPolicy>,
     /// Declared lifecycle callbacks; absent stays canonical so pre-existing
     /// intent policy hashes are unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1159,8 +1396,9 @@ pub struct AssetReferenceGcPolicyV1 {
 }
 
 /// Declared lifecycle callbacks: each names an ordinary generated mutation
-/// invoked with typed facts under the asset owner's authority — never raw
-/// byte authority (LLP 0044 §Declarative processing).
+/// invoked with typed facts — under owner authority in dev mode or the ruled
+/// `asset-callbacks` service principal in sessions mode — never raw byte
+/// authority (LLP 0044 §Declarative processing).
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AssetCallbackPolicy {
@@ -1199,6 +1437,14 @@ pub struct AssetImagePolicy {
     pub location: AssetLocationPolicy,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub variants: Vec<AssetImageVariant>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AssetVideoPolicy {
+    /// Mandatory-explicit for location-bearing video; there is no implicit
+    /// fallback (LLP 0044 §Video location policy).
+    pub location: AssetLocationPolicy,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -2988,6 +3234,152 @@ pub(crate) fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> b
     }
 }
 
+fn single_table_plan_invalid(message: impl Into<String>) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_SINGLE_TABLE_PLAN_INVALID",
+        "query",
+        message.into(),
+    )
+}
+
+fn normalize_single_table_value_expr(value: &ValueExpr) -> SnapbackResult<SingleTableValueExprV1> {
+    let normalized = match value {
+        ValueExpr::Args => SingleTableValueExprV1::Args,
+        ValueExpr::Arg(path) => SingleTableValueExprV1::Arg(path.clone()),
+        ValueExpr::Binding(name) => SingleTableValueExprV1::Binding(name.clone()),
+        ValueExpr::Literal(literal) => {
+            // JCS is the cross-target numeric/literal profile. In particular,
+            // it refuses integers outside the interoperable 53-bit domain.
+            crate::rqs::jcs(literal).map_err(|_| {
+                single_table_plan_invalid(
+                    "single-table literal is outside the RFC 8785 portable JSON profile",
+                )
+            })?;
+            SingleTableValueExprV1::Literal(literal.clone())
+        }
+        ValueExpr::Field { base, key } => SingleTableValueExprV1::Field {
+            base: Box::new(normalize_single_table_value_expr(base)?),
+            key: key.clone(),
+        },
+        ValueExpr::Binary { op, left, right } => SingleTableValueExprV1::Binary {
+            op: *op,
+            left: Box::new(normalize_single_table_value_expr(left)?),
+            right: Box::new(normalize_single_table_value_expr(right)?),
+        },
+        ValueExpr::Unary { op, expr } => SingleTableValueExprV1::Unary {
+            op: *op,
+            expr: Box::new(normalize_single_table_value_expr(expr)?),
+        },
+        ValueExpr::If { cond, then, r#else } => SingleTableValueExprV1::If {
+            cond: Box::new(normalize_single_table_value_expr(cond)?),
+            then: Box::new(normalize_single_table_value_expr(then)?),
+            r#else: Box::new(normalize_single_table_value_expr(r#else)?),
+        },
+        ValueExpr::Concat(values) => SingleTableValueExprV1::Concat(
+            values
+                .iter()
+                .map(normalize_single_table_value_expr)
+                .collect::<SnapbackResult<Vec<_>>>()?,
+        ),
+        ValueExpr::Call { func, args } => SingleTableValueExprV1::Call {
+            func: func.clone(),
+            args: args
+                .iter()
+                .map(normalize_single_table_value_expr)
+                .collect::<SnapbackResult<Vec<_>>>()?,
+        },
+        ValueExpr::Record { fields } => SingleTableValueExprV1::Record {
+            fields: fields
+                .iter()
+                .map(|(name, value)| Ok((name.clone(), normalize_single_table_value_expr(value)?)))
+                .collect::<SnapbackResult<BTreeMap<_, _>>>()?,
+        },
+        ValueExpr::AuthUserId
+        | ValueExpr::AuthKind
+        | ValueExpr::AuthActorKind
+        | ValueExpr::AuthActivityActorKind
+        | ValueExpr::AuthActorUserId
+        | ValueExpr::AuthGrantId
+        | ValueExpr::ClientMutationDigest
+        | ValueExpr::AuthIsDelegated
+        | ValueExpr::RuntimeId
+        | ValueExpr::RuntimeNow
+        | ValueExpr::MembershipExists(_) => {
+            return Err(single_table_plan_invalid(
+                "single-table value expression uses an authority, ambient, or membership input",
+            ));
+        }
+    };
+    Ok(normalized)
+}
+
+/// Reconstruct the typed class plan from the served function. Returning
+/// `None` is the non-erroring class-selection outcome; only a function that
+/// already passed the derived predicate can receive a typed normalization
+/// refusal.
+pub fn single_table_plan_v1(
+    function: &FunctionDefinition,
+) -> SnapbackResult<Option<SingleTablePlanV1>> {
+    let Some(digest_kind) = rqs_eligible_digest_kind(function) else {
+        return Ok(None);
+    };
+    let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime else {
+        unreachable!("rqs eligibility admits only HostPlan Query")
+    };
+    validate_query_plan_shape(plan)?;
+    let filters = plan
+        .filters
+        .iter()
+        .map(|filter| {
+            let op = match filter.op {
+                FilterOp::Eq => SingleTableFilterOpV1::Eq,
+                FilterOp::In => SingleTableFilterOpV1::In,
+                FilterOp::Lt => SingleTableFilterOpV1::Lt,
+                FilterOp::Lte => SingleTableFilterOpV1::Lte,
+                FilterOp::Gt => SingleTableFilterOpV1::Gt,
+                FilterOp::Gte => SingleTableFilterOpV1::Gte,
+            };
+            Ok(SingleTableFilterV1 {
+                field: filter.field.clone(),
+                op,
+                value: normalize_single_table_value_expr(&filter.value)?,
+            })
+        })
+        .collect::<SnapbackResult<Vec<_>>>()?;
+    let order = plan
+        .order
+        .iter()
+        .map(|order| {
+            if order
+                .max_encoded_bytes
+                .is_some_and(|bound| bound == 0 || bound > 9_007_199_254_740_991)
+            {
+                return Err(single_table_plan_invalid(
+                    "single-table maxEncodedBytes must be a positive safe integer",
+                ));
+            }
+            Ok(SingleTableOrderV1 {
+                field: order.field.clone(),
+                direction: order.direction.clone(),
+                max_encoded_bytes: order.max_encoded_bytes,
+            })
+        })
+        .collect::<SnapbackResult<Vec<_>>>()?;
+    Ok(Some(SingleTablePlanV1 {
+        format: "snapback.single-table-plan.v1".to_owned(),
+        query: SingleTableQueryV1 {
+            table: plan.table.clone(),
+            filters,
+            membership_filters: Vec::new(),
+            order,
+            limit: plan.limit,
+            indexed_by: plan.indexed_by.clone(),
+        },
+        rqs_digest_kind: digest_kind.as_str().to_owned(),
+        examined_entry_ceiling: 1_024,
+    }))
+}
+
 /// Closed caller-authority dimensions that a query result may depend on.
 /// Retention v1 accepts `userId` plus the effective principal `kind`, which is
 /// an immutable function of that identity; spelling the rejected dimensions
@@ -4368,6 +4760,102 @@ pub struct SingleNodeIdentityV1 {
     pub node_plan_hash: String,
 }
 
+/// Exact schema-derived document contract gate for DK-3 delivery. A direct
+/// manifest can spell `Documents` with arbitrary nested bounds, so the enum
+/// tag and table name alone do not prove that raw committed rows satisfy the
+/// declared egress shape.
+pub fn single_table_delta_contract_matches_schema(
+    contract: &FunctionResultContract,
+    plan: &QueryPlan,
+    schema: &SchemaManifest,
+) -> bool {
+    let FunctionResultContract::Documents { table, document } = contract else {
+        return false;
+    };
+    if table != &plan.table {
+        return false;
+    }
+    let Some(table) = schema.table(table) else {
+        return false;
+    };
+
+    let safe_integer = || ResultValueContract::Integer {
+        min: 0,
+        max: 9_007_199_254_740_991,
+    };
+    let mut fields = vec![
+        ResultObjectFieldContract {
+            name: "_id".to_owned(),
+            required: true,
+            value: ResultValueContract::Id {
+                table: table.name.clone(),
+            },
+        },
+        ResultObjectFieldContract {
+            name: "_version".to_owned(),
+            required: true,
+            value: safe_integer(),
+        },
+        ResultObjectFieldContract {
+            name: "_createdAt".to_owned(),
+            required: true,
+            value: safe_integer(),
+        },
+        ResultObjectFieldContract {
+            name: "_updatedAt".to_owned(),
+            required: true,
+            value: safe_integer(),
+        },
+    ];
+    fields.extend(table.fields.iter().map(|field| {
+        let value = match &field.field_type {
+            FieldType::String => ResultValueContract::String {
+                max_bytes: 1024 * 1024,
+            },
+            FieldType::Boolean => ResultValueContract::Boolean,
+            FieldType::Integer => ResultValueContract::Integer {
+                min: -9_007_199_254_740_991,
+                max: 9_007_199_254_740_991,
+            },
+            FieldType::Real => ResultValueContract::FiniteReal {
+                min: -f64::MAX,
+                max: f64::MAX,
+            },
+            FieldType::Vector { dimensions } => ResultValueContract::Vector {
+                dimensions: *dimensions,
+            },
+            FieldType::Json => ResultValueContract::Json {
+                max_depth: 16,
+                max_bytes: 1024 * 1024,
+            },
+            FieldType::Principal => ResultValueContract::Principal,
+            FieldType::Id { table } => ResultValueContract::Id {
+                table: table.clone(),
+            },
+            FieldType::RelationIncarnation { .. } => ResultValueContract::String { max_bytes: 64 },
+            FieldType::AssetRef { .. } => ResultValueContract::AssetRef,
+        };
+        let value = if field.optional && !matches!(value, ResultValueContract::Json { .. }) {
+            ResultValueContract::Union {
+                variants: vec![ResultValueContract::Null, value],
+            }
+        } else {
+            value
+        };
+        ResultObjectFieldContract {
+            name: field.name.clone(),
+            required: true,
+            value,
+        }
+    }));
+
+    document
+        == &ResultValueContract::Object {
+            fields,
+            allow_extra: false,
+        }
+}
+
 fn domain_hash(domain: &[u8], value: &Value) -> SnapbackResult<String> {
     let canonical = crate::rqs::jcs(value).map_err(|_| {
         SnapbackError::error(
@@ -4382,17 +4870,19 @@ fn domain_hash(domain: &[u8], value: &Value) -> SnapbackResult<String> {
     Ok(format!("sha256:{:x}", digest.finalize()))
 }
 
-/// Rebuild LLP 0157's single-node plan identity for the two admitted owner
+/// Rebuild LLP 0157's single-node plan identity for the admitted owner
 /// classes. The function declaration, rather than plan shape, supplies the
 /// liveness axis; retention remains the independent owner-issued flag.
 // @ref LLP 0157#d2--plan-identity — a single-node hash includes every declared argument contract and explicit capability classification.
 pub fn single_node_identity_v1(
     function: &FunctionDefinition,
+    schema: Option<&SchemaManifest>,
 ) -> SnapbackResult<Option<SingleNodeIdentityV1>> {
-    let (class_id, normalized_plan, retention) = match &function.runtime {
-        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => (
-            "relational_query_v1",
-            serde_json::to_value(plan).map_err(|_| {
+    let (class_id, normalized_plan, retention, delivery, invalidation, required_capability_ids) =
+        match &function.runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => (
+                "relational_query_v1",
+                serde_json::to_value(plan).map_err(|_| {
                 SnapbackError::error(
                     "SNAPBACK_COMPOSITION_PLAN_INVALID",
                     "query",
@@ -4401,23 +4891,59 @@ pub fn single_node_identity_v1(
             })?,
             if function.retainable {
                 "opaque-authorized-snapshot-v1"
-            } else {
-                "none"
-            },
-        ),
-        FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => (
-            "bounded_children_v1",
+                } else {
+                    "none"
+                },
+                "live_replace",
+                "table-granular-resnapshot",
+                vec!["relational_query_v1".to_owned()],
+            ),
+            FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => (
+                "bounded_children_v1",
             serde_json::to_value(plan).map_err(|_| {
                 SnapbackError::error(
                     "SNAPBACK_COMPOSITION_PLAN_INVALID",
                     "query",
                     "bounded-children plan does not serialize",
+                    )
+                })?,
+                "none",
+                "live_replace",
+                "table-granular-resnapshot",
+                vec!["bounded_children_v1".to_owned()],
+            ),
+            FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) => {
+                let Some(normalized) = single_table_plan_v1(function)? else {
+                    return Ok(None);
+                };
+                let delivery = if normalized.rqs_digest_kind == "mset1"
+                    && schema.is_some_and(|schema| {
+                        single_table_delta_contract_matches_schema(
+                            &function.result_contract,
+                            plan,
+                            schema,
+                        )
+                    }) {
+                    "live_delta"
+                } else {
+                    "live_replace"
+                };
+                let mut required = function.required_capabilities.clone();
+                required.sort();
+                required.dedup();
+                (
+                    "single_table_v1",
+                    serde_json::to_value(normalized).map_err(|_| {
+                        single_table_plan_invalid("single-table plan does not serialize")
+                    })?,
+                    "rqs-authority-independent-snapshot-v1",
+                    delivery,
+                    "proved-disjoint-write-set",
+                    required,
                 )
-            })?,
-            "none",
-        ),
-        _ => return Ok(None),
-    };
+            }
+            _ => return Ok(None),
+        };
     let contract = function.args_contract.as_ref().ok_or_else(|| {
         SnapbackError::error(
             "SNAPBACK_COMPOSITION_PLAN_INVALID",
@@ -4450,7 +4976,7 @@ pub fn single_node_identity_v1(
     let live = if function.kind == FunctionKind::LiveQuery {
         serde_json::json!({
             "kind": "admitted",
-            "delivery": "live_replace",
+            "delivery": delivery,
             "pageDomain": "cursor-free-first-page",
         })
     } else {
@@ -4466,7 +4992,7 @@ pub fn single_node_identity_v1(
             "exportKind": if function.kind == FunctionKind::LiveQuery { "LiveQuery" } else { "Query" },
             "live": live,
             "retention": retention,
-            "requiredCapabilityIds": [class_id],
+            "requiredCapabilityIds": required_capability_ids,
         },
     });
     let node_plan_hash = domain_hash(b"snapback:node-plan:v1:", &node_plan)?;
@@ -4478,7 +5004,7 @@ pub fn single_node_identity_v1(
     let classification_live = if function.kind == FunctionKind::LiveQuery {
         serde_json::json!({
             "kind": "admitted",
-            "delivery": "live_replace",
+            "delivery": delivery,
             "pageDomain": "cursor-free-first-page",
         })
     } else {
@@ -4496,7 +5022,7 @@ pub fn single_node_identity_v1(
         "classification": {
             "callable": true,
             "live": classification_live,
-            "invalidation": if function.kind == FunctionKind::LiveQuery { "table-granular-resnapshot" } else { "none" },
+            "invalidation": if function.kind == FunctionKind::LiveQuery { invalidation } else { "none" },
             "retention": retention,
         },
         "parentAuthorizationGroups": [],
@@ -6878,6 +7404,195 @@ pub struct QueryPlan {
     pub indexed_by: Option<String>,
 }
 
+/// The closed, owner-normalized plan carried by the `single_table_v1@1`
+/// node identity. This is deliberately distinct from [`QueryPlan`]: the
+/// latter remains the ordinary application API, while this record freezes the
+/// narrower portable class profile and its explicit-null identity semantics.
+///
+/// @ref LLP 0004#dated-owner-amendment-single_table_v11-2026-08-03 — exact
+///   SingleTablePlanV1 carrier and class-only examined-entry ceiling.
+/// @ref LLP 0007#dated-owner-amendment-singletableplanv1-portability-2026-08-03 — closed
+///   typed expression grammar, explicit nulls, declaration order, and digest
+///   selector semantics.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SingleTablePlanV1 {
+    pub format: String,
+    pub query: SingleTableQueryV1,
+    pub rqs_digest_kind: String,
+    pub examined_entry_ceiling: usize,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SingleTableQueryV1 {
+    pub table: String,
+    pub filters: Vec<SingleTableFilterV1>,
+    /// The only admitted value is empty. Keeping it as a typed field rather
+    /// than omitting it preserves exact identity and makes a widened producer
+    /// fail comparison.
+    pub membership_filters: Vec<Value>,
+    pub order: Vec<SingleTableOrderV1>,
+    pub limit: Option<usize>,
+    pub indexed_by: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct SingleTableFilterV1 {
+    pub field: String,
+    pub op: SingleTableFilterOpV1,
+    pub value: SingleTableValueExprV1,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum SingleTableFilterOpV1 {
+    Eq,
+    In,
+    Lt,
+    Lte,
+    Gt,
+    Gte,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SingleTableOrderV1 {
+    pub field: String,
+    pub direction: OrderDirection,
+    pub max_encoded_bytes: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub enum SingleTableValueExprV1 {
+    Args,
+    Arg(String),
+    Binding(String),
+    Literal(Value),
+    Field {
+        base: Box<SingleTableValueExprV1>,
+        key: String,
+    },
+    Binary {
+        op: BinaryOp,
+        left: Box<SingleTableValueExprV1>,
+        right: Box<SingleTableValueExprV1>,
+    },
+    Unary {
+        op: UnaryOp,
+        expr: Box<SingleTableValueExprV1>,
+    },
+    If {
+        cond: Box<SingleTableValueExprV1>,
+        then: Box<SingleTableValueExprV1>,
+        #[serde(rename = "else")]
+        r#else: Box<SingleTableValueExprV1>,
+    },
+    Concat(Vec<SingleTableValueExprV1>),
+    Call {
+        func: String,
+        args: Vec<SingleTableValueExprV1>,
+    },
+    Record {
+        fields: BTreeMap<String, SingleTableValueExprV1>,
+    },
+}
+
+impl<'de> Deserialize<'de> for SingleTablePlanV1 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase", deny_unknown_fields)]
+        struct RawSingleTablePlanV1 {
+            format: String,
+            query: SingleTableQueryV1,
+            rqs_digest_kind: String,
+            examined_entry_ceiling: usize,
+        }
+
+        fn expression_in_profile(expr: &SingleTableValueExprV1, depth: usize) -> bool {
+            if depth > crate::value_expr::MAX_EXPR_DEPTH {
+                return false;
+            }
+            match expr {
+                SingleTableValueExprV1::Literal(value) => crate::rqs::jcs(value).is_ok(),
+                SingleTableValueExprV1::Field { base, .. } => {
+                    expression_in_profile(base, depth + 1)
+                }
+                SingleTableValueExprV1::Binary { left, right, .. } => {
+                    expression_in_profile(left, depth + 1)
+                        && expression_in_profile(right, depth + 1)
+                }
+                SingleTableValueExprV1::Unary { expr, .. } => {
+                    expression_in_profile(expr, depth + 1)
+                }
+                SingleTableValueExprV1::If { cond, then, r#else } => {
+                    expression_in_profile(cond, depth + 1)
+                        && expression_in_profile(then, depth + 1)
+                        && expression_in_profile(r#else, depth + 1)
+                }
+                SingleTableValueExprV1::Concat(values)
+                | SingleTableValueExprV1::Call { args: values, .. } => values
+                    .iter()
+                    .all(|value| expression_in_profile(value, depth + 1)),
+                SingleTableValueExprV1::Record { fields } => fields
+                    .values()
+                    .all(|value| expression_in_profile(value, depth + 1)),
+                SingleTableValueExprV1::Args
+                | SingleTableValueExprV1::Arg(_)
+                | SingleTableValueExprV1::Binding(_) => true,
+            }
+        }
+
+        let raw = RawSingleTablePlanV1::deserialize(deserializer)?;
+        let expected_digest = if raw.query.order.is_empty() && raw.query.limit.is_none() {
+            "mset1"
+        } else {
+            "seq1"
+        };
+        let literal_in_items = raw
+            .query
+            .filters
+            .iter()
+            .filter(|filter| filter.op == SingleTableFilterOpV1::In)
+            .filter_map(|filter| match &filter.value {
+                SingleTableValueExprV1::Literal(Value::Array(items)) => Some(items.len()),
+                _ => None,
+            })
+            .sum::<usize>();
+        let valid = raw.format == "snapback.single-table-plan.v1"
+            && raw.query.membership_filters.is_empty()
+            && raw.query.limit.is_none_or(|limit| limit <= QUERY_MAX_LIMIT)
+            && raw.query.order.iter().all(|order| {
+                order.max_encoded_bytes.is_none_or(|bound| {
+                    (1..=9_007_199_254_740_991).contains(&bound)
+                })
+            })
+            && raw
+                .query
+                .filters
+                .iter()
+                .all(|filter| expression_in_profile(&filter.value, 0))
+            && literal_in_items <= QUERY_MAX_IN_ITEMS
+            && raw.rqs_digest_kind == expected_digest
+            && raw.examined_entry_ceiling == 1_024;
+        if !valid {
+            return Err(serde::de::Error::custom(
+                "SingleTablePlanV1 is outside the closed class profile",
+            ));
+        }
+        Ok(Self {
+            format: raw.format,
+            query: raw.query,
+            rqs_digest_kind: raw.rqs_digest_kind,
+            examined_entry_ceiling: raw.examined_entry_ceiling,
+        })
+    }
+}
+
 /// A declaration-bound membership semi-join: the structured-filter IR node the
 /// `eventMembers.memberOf(resourceRef)` / `eventMembers.hasRole(resourceRef,
 /// …)` rule helpers lower to. There is deliberately **no** global
@@ -8486,10 +9201,24 @@ impl TargetCapabilityId {
             // (e.g. the Cloudflare host-ops path) does not thereby implement
             // the relational executor (LLP 0080 §2's capability-gap rule).
             Self::RelationalQueryV1 => facts.relational_query_v1_registered,
-            // @ref LLP 0135#18-ceilings-receipts-and-capability — the local
-            //   target advertises only the code-owned registered execution
-            //   seam; maturity remains experimental until LLP 0134 promotion.
-            Self::SequenceAllocationV1 => facts.sequence_allocation_v1_registered,
+            // @ref LLP 0135#18-ceilings-receipts-and-capability — publication
+            // is an exact local-source conjunction over both allocation
+            // surfaces, settlement/read-set dependencies, and the compiled
+            // qualification carrier. Maturity remains experimental until a
+            // separate LLP 0134 promotion act.
+            // @ref LLP 0113#1-closed-capability-registry-assignment — neither
+            // app artifacts nor an unqualified target may mint support.
+            Self::SequenceAllocationV1 => {
+                facts.sequence_allocation_v1_registered
+                    && facts.local_sequence_allocation_publication_v1_verified
+                    && facts.host_plan_runtime
+                    && facts.ibex_ctx_db_host_bridge_available
+                    && facts.result_contract_v1_registered
+                    && facts.mutation_read_set_validator_registered
+                    && Self::WriteActivityV1.is_supported_by(manifest, facts)
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+                    && manifest.mutation_isolation_mode == "handler-captured-read-set-validation"
+            }
             Self::SnapshotBatchV1 => {
                 facts.snapshot_batch_v1_registered
                     && Self::BoundedChildrenV1.is_supported_by(manifest, facts)
@@ -8678,9 +9407,15 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:18b738a0fef20f0933957b82c44a023507349d005052ebcf8ec37dda3788b80a";
+    "sha256:78d009203e7925678fb619eda9aa432017b84bdcad88908abf260e345d24d91f";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
+const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
+    include_bytes!("local-sequence-allocation-publication.v1.json");
+const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
+    "sha256:bcb4503c1b85f3f313e131db07ed8edf941ecacf6db2bef46cc633b6266865ee";
+const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
+    include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -8697,6 +9432,30 @@ struct LocalRelationActivityPublicationV1 {
     executor_source_sha256: BTreeMap<String, String>,
     #[serde(rename = "schemaSourceSha256")]
     schema_source_sha256: BTreeMap<String, String>,
+    #[serde(rename = "packageClosureSha256")]
+    package_closure_sha256: Option<String>,
+    #[serde(rename = "buildProvenanceRequirement")]
+    build_provenance_requirement: String,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+struct LocalSequenceAllocationPublicationV1 {
+    #[serde(rename = "schemaVersion")]
+    schema_version: String,
+    #[serde(rename = "targetProfileId")]
+    target_profile_id: String,
+    #[serde(rename = "capabilityIds")]
+    capability_ids: Vec<String>,
+    maturity: String,
+    #[serde(rename = "qualificationReceiptSha256")]
+    qualification_receipt_sha256: String,
+    #[serde(rename = "executorSourceSha256")]
+    executor_source_sha256: BTreeMap<String, String>,
+    #[serde(rename = "schemaSourceSha256")]
+    schema_source_sha256: BTreeMap<String, String>,
+    #[serde(rename = "clientSourceSha256")]
+    client_source_sha256: BTreeMap<String, String>,
     #[serde(rename = "packageClosureSha256")]
     package_closure_sha256: Option<String>,
     #[serde(rename = "buildProvenanceRequirement")]
@@ -8748,19 +9507,19 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:3f50ad9d7ba9395f32f0b928d336e62b0d9a0e9b0bba475e429183c58d2ddd6b"
+                    "sha256:4e6f8f842416433f2d8b8b0c30b2abe0049ecf2bedfd4a46145fc8d1b0204f19"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:8f9dd3df80217b4f5f0bce26a4256490d784b0bc565e5ef66366769bb4715c96"
+                    "sha256:734b4c69dd1ddb76ea2200748eb98f2b6b7589e6c524a1b17fa4b9cababd563a"
                         .to_owned(),
                 ),
             ])
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:5c3589b2b24a2fb7bef39de2c9eca1c0b7b258eb86423892f8f23300a752ddab"
+                "sha256:d96dbaf3f3b41618bbcb44c23b7346093b1668dc03d6eaa6b2b1f711dd75f3f9"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
@@ -8774,6 +9533,82 @@ fn local_relation_activity_publication_verified() -> bool {
         LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES,
         LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256,
         LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES,
+    )
+}
+
+/// Validate the dedicated sequence qualification carrier. This is local
+/// contributor-source authority only: public packages require the signed
+/// package attestation, and hosted profiles require their own LLP 0113 family
+/// plus exact target corpus.
+///
+/// @ref LLP 0135#18-ceilings-receipts-and-capability — support follows the
+/// complete §5.1 receipt; a carrier/source/target mismatch remains a GAP.
+/// @ref LLP 0113#6-acceptance — support publication and static maturity are
+/// distinct, fail-closed dimensions.
+fn local_sequence_allocation_publication_verified_for(
+    build_distribution: &str,
+    carrier_bytes: &[u8],
+    expected_carrier_sha256: &str,
+    qualification_receipt_bytes: &[u8],
+) -> bool {
+    if build_distribution != crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE {
+        return false;
+    }
+    if sha256_prefixed(carrier_bytes) != expected_carrier_sha256 {
+        return false;
+    }
+    let Ok(carrier) = serde_json::from_slice::<LocalSequenceAllocationPublicationV1>(carrier_bytes)
+    else {
+        return false;
+    };
+    carrier.schema_version == "snapback.local-capability-publication.v1"
+        && carrier.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+        && carrier.capability_ids == ["sequence_allocation_v1".to_owned()]
+        && carrier.maturity == "experimental"
+        && carrier.qualification_receipt_sha256 == sha256_prefixed(qualification_receipt_bytes)
+        && carrier.executor_source_sha256
+            == BTreeMap::from([
+                (
+                    "src/runtime.rs".to_owned(),
+                    "sha256:f0af858c0a4d1f5f95f353a1bf7725ceeafe40dc9170ab8fd49e23f094588fe0"
+                        .to_owned(),
+                ),
+                (
+                    "src/storage.rs".to_owned(),
+                    "sha256:734b4c69dd1ddb76ea2200748eb98f2b6b7589e6c524a1b17fa4b9cababd563a"
+                        .to_owned(),
+                ),
+            ])
+        && carrier.schema_source_sha256
+            == BTreeMap::from([(
+                "packages/snapback-codegen/define.mjs".to_owned(),
+                "sha256:d96dbaf3f3b41618bbcb44c23b7346093b1668dc03d6eaa6b2b1f711dd75f3f9"
+                    .to_owned(),
+            )])
+        && carrier.client_source_sha256
+            == BTreeMap::from([
+                (
+                    "packages/snapback-contract/derived-overlay.mjs".to_owned(),
+                    "sha256:8b5324a45a8beaaa7db4eaf93361f8faf1008e152a74f9903844335d0f8e0a32"
+                        .to_owned(),
+                ),
+                (
+                    "packages/snapback-contract/index.mjs".to_owned(),
+                    "sha256:a7631cb2c37d32987929b207c3aec279bc97f8884918e2b06780d3eddceeeda7"
+                        .to_owned(),
+                ),
+            ])
+        && carrier.package_closure_sha256.is_none()
+        && carrier.build_provenance_requirement == "source-commit-and-embedded-carrier-sha256"
+}
+
+#[cfg(test)]
+fn local_sequence_allocation_publication_verified() -> bool {
+    local_sequence_allocation_publication_verified_for(
+        crate::identity::build_distribution(),
+        LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES,
+        LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256,
+        LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES,
     )
 }
 
@@ -8810,6 +9645,7 @@ pub struct TargetCapabilityFacts {
     mixed_bundle_boot_v2_registered: bool,
     write_activity_v1_registered: bool,
     local_relation_activity_publication_v1_verified: bool,
+    local_sequence_allocation_publication_v1_verified: bool,
     asset_lifecycle_local_fs_registered: bool,
     asset_image_finalization_registered: bool,
     asset_reference_gc_registered: bool,
@@ -8829,6 +9665,13 @@ impl TargetCapabilityFacts {
                 LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256,
                 LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES,
             );
+        let local_sequence_allocation_publication_v1_verified =
+            local_sequence_allocation_publication_verified_for(
+                build_distribution,
+                LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES,
+                LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256,
+                LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES,
+            );
         // @ref LLP 0109#166-the-manifest-is-an-executable-advertisement-gate — both local capability ids
         // are advertised only after the closed executable suite passes every
         // mandatory local row; LLP 0109 remains Review, so registry maturity
@@ -8846,10 +9689,9 @@ impl TargetCapabilityFacts {
             bounded_response_stream_v1_registered: true,
             relational_query_v1_registered: true,
             // @ref LLP 0135#18-ceilings-receipts-and-capability — handler and
-            // generated execution substrate exists, but the complete §5.1
-            // qualification/publication receipt has not landed. Keep the
-            // served capability GAP until that evidence is reviewed.
-            sequence_allocation_v1_registered: false,
+            // generated execution are registered independently from the
+            // compiled §5.1 publication receipt checked below.
+            sequence_allocation_v1_registered: true,
             migration_keyset_scan_v1_registered: true,
             full_text_search_v1_registered: true,
             // Authoring and closed carriers exist, but no wire/runtime/live
@@ -8891,6 +9733,7 @@ impl TargetCapabilityFacts {
             mixed_bundle_boot_v2_registered: true,
             write_activity_v1_registered: true,
             local_relation_activity_publication_v1_verified,
+            local_sequence_allocation_publication_v1_verified,
         }
     }
 
@@ -8908,6 +9751,7 @@ impl TargetCapabilityFacts {
             expo_push_seam_v1_registered: false,
             write_activity_v1_registered: false,
             local_relation_activity_publication_v1_verified: false,
+            local_sequence_allocation_publication_v1_verified: false,
             ..Self::local_auth_aware()
         }
     }
@@ -8917,6 +9761,13 @@ impl TargetCapabilityFacts {
         self.snapshot_batch_v1_registered = false;
         self.write_activity_v1_registered = false;
         self.local_relation_activity_publication_v1_verified = false;
+        self
+    }
+
+    #[cfg(test)]
+    fn with_sequence_allocation_publication_withheld(mut self) -> Self {
+        self.sequence_allocation_v1_registered = false;
+        self.local_sequence_allocation_publication_v1_verified = false;
         self
     }
 }
@@ -11125,6 +11976,10 @@ mod membership_manifest_grammar_tests {
                 CapabilityMaturity::Experimental,
             ),
             (
+                TargetCapabilityId::SequenceAllocationV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
                 TargetCapabilityId::SnapshotBatchV1,
                 CapabilityMaturity::Experimental,
             ),
@@ -11175,12 +12030,12 @@ mod membership_manifest_grammar_tests {
         ]);
         assert_eq!(disabled.capability_maturity, experimental);
         assert!(
-            !disabled
+            disabled
                 .supported_capabilities
                 .contains(&TargetCapabilityId::SequenceAllocationV1)
         );
         assert!(
-            disabled
+            !disabled
                 .capability_gaps
                 .iter()
                 .any(|gap| gap == "sequence_allocation_v1")
@@ -11252,6 +12107,7 @@ mod membership_manifest_grammar_tests {
             "relational_query_v1",
             "bounded_response_stream_v1",
             "live_subscriptions",
+            "sequence_allocation_v1",
             "write_activity_v1",
             "not.a.known.capability",
         ]);
@@ -11270,6 +12126,9 @@ mod membership_manifest_grammar_tests {
         enabled
             .require_capability_acknowledging("write_activity_v1", &acknowledged)
             .expect("acknowledged write/activity support admits");
+        enabled
+            .require_capability_acknowledging("sequence_allocation_v1", &acknowledged)
+            .expect("acknowledged experimental sequence support admits");
         assert_eq!(
             disabled
                 .require_capability_acknowledging("bounded_response_stream_v1", &acknowledged)
@@ -11306,18 +12165,41 @@ mod membership_manifest_grammar_tests {
     }
 
     #[test]
-    fn unpublished_sequence_capability_always_carries_a_structured_gap() {
+    fn sequence_publication_is_experimental_local_source_only() {
+        assert!(local_sequence_allocation_publication_verified());
         for manifest in [
             CapabilityManifest::local_v0(Vec::new()),
             CapabilityManifest::local_v0_instance(Vec::new(), true),
+        ] {
+            assert!(
+                manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::SequenceAllocationV1)
+            );
+            assert!(
+                !manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "sequence_allocation_v1")
+            );
+            assert_eq!(
+                manifest
+                    .capability_maturity
+                    .get(&TargetCapabilityId::SequenceAllocationV1),
+                Some(&CapabilityMaturity::Experimental),
+                "LLP 0113 publication cannot mint stable maturity",
+            );
+        }
+        for manifest in [
             CapabilityManifest::remote_service_sqlite_ibex_declared(),
+            CapabilityManifest::conformance_workerd_v8(json!({})),
             CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
         ] {
             assert!(
                 !manifest
                     .supported_capabilities
                     .contains(&TargetCapabilityId::SequenceAllocationV1),
-                "{} must not publish the sequence substrate",
+                "{} must not inherit the local sequence publication",
                 manifest.target_profile_id,
             );
             assert!(
@@ -11335,6 +12217,70 @@ mod membership_manifest_grammar_tests {
                 "unsupported ids do not receive maturity annotations",
             );
         }
+
+        let withheld = CapabilityManifest::local_v0_with_facts(
+            Vec::new(),
+            TargetCapabilityFacts::local_auth_aware()
+                .with_sequence_allocation_publication_withheld(),
+        );
+        assert!(
+            !withheld
+                .supported_capabilities
+                .contains(&TargetCapabilityId::SequenceAllocationV1)
+        );
+        assert!(
+            withheld
+                .capability_gaps
+                .iter()
+                .any(|gap| gap == "sequence_allocation_v1")
+        );
+    }
+
+    #[test]
+    fn sequence_publication_tamper_and_package_substitutions_fail_closed() {
+        let mut tampered_carrier = LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES.to_vec();
+        tampered_carrier[0] ^= 1;
+        assert!(!local_sequence_allocation_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+            &tampered_carrier,
+            LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256,
+            LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES,
+        ));
+        let mut stale_receipt = LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES.to_vec();
+        stale_receipt.push(b'\n');
+        assert!(!local_sequence_allocation_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+            LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES,
+            LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256,
+            &stale_receipt,
+        ));
+        assert!(!local_sequence_allocation_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+            LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES,
+            LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256,
+            LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES,
+        ));
+        let package = CapabilityManifest::local_v0_with_facts(
+            Vec::new(),
+            TargetCapabilityFacts::local_auth_aware_for_distribution(
+                crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+            ),
+        );
+        assert!(
+            !package
+                .supported_capabilities
+                .contains(&TargetCapabilityId::SequenceAllocationV1)
+        );
+        assert!(
+            package
+                .capability_gaps
+                .iter()
+                .any(|gap| gap == "sequence_allocation_v1")
+        );
+        assert_eq!(
+            TargetCapabilityId::SequenceAllocationV1.maturity(),
+            CapabilityMaturity::Experimental,
+        );
     }
 
     #[test]
@@ -12179,6 +13125,7 @@ mod asset_upload_intent_manifest_tests {
                 read: crate::assets::AssetReadAccessPolicy::OwnerOnly,
             },
             image: None,
+            video: None,
             on: None,
             declared_reads: Vec::new(),
             runtime: FunctionRuntime::IbexModule(IbexModule {

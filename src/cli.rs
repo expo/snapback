@@ -879,6 +879,21 @@ pub enum AdminCommand {
         /// Substitute this HTTP(S) origin in the printed browser link.
         #[arg(long)]
         url_base: Option<String>,
+        /// Render the selected claim URL as a Unicode half-block terminal QR.
+        #[arg(long)]
+        qr: bool,
+        /// Publish /_snapback through a receipt-owned tailscaled Serve mapping.
+        #[arg(long)]
+        tailscale: bool,
+        /// Bind an ephemeral cleartext relay to one LAN address or interface.
+        #[arg(
+            long,
+            value_name = "ADDR|INTERFACE",
+            num_args = 0..=1,
+            default_missing_value = "",
+            require_equals = true
+        )]
+        lan: Option<String>,
         /// Query a previously minted claim by its raw claim code.
         #[arg(long, value_name = "CLAIM", conflicts_with = "revoke")]
         status: Option<String>,
@@ -1423,7 +1438,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         None => run(cli.serve).await,
         Some(HostCommand::Start(args)) => run(args).await,
         Some(HostCommand::Stop { ready_file }) => host_stop(&ready_file),
-        Some(HostCommand::Admin(args)) => admin_command(args),
+        Some(HostCommand::Admin(args)) => admin_command(args).await,
         Some(HostCommand::Inspect(target)) => {
             host_op_via_http(&target, json!({ "operation": "app.inspect" }))
         }
@@ -3241,7 +3256,7 @@ struct ConsoleClaimMintCliResponse {
     expires_in: u64,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ConsoleClaimStatusCliResponse {
     status: String,
@@ -3255,27 +3270,83 @@ struct ConsoleClaimStatusCliResponse {
     revoked_at_ms: Option<u64>,
 }
 
-fn admin_command(args: AdminArgs) -> anyhow::Result<()> {
+#[derive(Clone, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleReachabilityLeaseCliResponse {
+    session_id: String,
+    instance_id: String,
+    lease_expires_at_ms: u64,
+    lease_interval_ms: u64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleReachabilityObservationCliResponse {
+    claim: ConsoleClaimStatusCliResponse,
+    lease: Option<ConsoleReachabilityLeaseCliResponse>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConsoleReachabilityDropCliResponse {
+    dropped: bool,
+}
+
+async fn admin_command(args: AdminArgs) -> anyhow::Result<()> {
     match args.command {
         Some(AdminCommand::Approve { code, target }) => approve_console_code(&target, &code),
         Some(AdminCommand::Link {
             target,
             no_wait,
             url_base,
+            qr,
+            tailscale,
+            lan,
             status,
             revoke,
-        }) => admin_claim_link(&target, no_wait, url_base.as_deref(), status, revoke),
+        }) => {
+            admin_claim_link(
+                &target,
+                no_wait,
+                url_base.as_deref(),
+                qr,
+                tailscale,
+                lan.as_deref(),
+                status,
+                revoke,
+            )
+            .await
+        }
         None => launch_admin_console(&args.target, args.no_open),
     }
 }
 
-fn admin_claim_link(
+async fn admin_claim_link(
     target: &TargetArgs,
     no_wait: bool,
     url_base: Option<&str>,
+    qr: bool,
+    tailscale: bool,
+    lan: Option<&str>,
     status: Option<String>,
     revoke: Option<String>,
 ) -> anyhow::Result<()> {
+    let selector_count = usize::from(url_base.is_some())
+        + usize::from(tailscale)
+        + usize::from(lan.is_some());
+    anyhow::ensure!(
+        selector_count <= 1,
+        "SNAPBACK_ADMIN_LINK_ORIGIN_CONFLICT: --url-base, --tailscale, and --lan are mutually exclusive"
+    );
+    anyhow::ensure!(
+        !(no_wait && (tailscale || lan.is_some())),
+        "SNAPBACK_ADMIN_LINK_ATTACHED_REQUIRED: --tailscale and --lan conflict with --no-wait"
+    );
+    anyhow::ensure!(
+        !((status.is_some() || revoke.is_some())
+            && (url_base.is_some() || qr || tailscale || lan.is_some() || no_wait)),
+        "SNAPBACK_ADMIN_LINK_CONTROL_CONFLICT: --status/--revoke cannot create or present a new reachability link"
+    );
     let resolved = resolve_admin_console_target(target)?;
     if let Some(claim_code) = status {
         let status = console_claim_control_request(
@@ -3298,10 +3369,172 @@ fn admin_claim_link(
         return Ok(());
     }
 
-    let printed_origin = match url_base {
-        Some(origin) => validated_console_origin(origin)?,
-        None => validated_console_origin(&resolved.server_url)?,
+    let mut relay_observations = None;
+    let (printed_origin, front) = if let Some(selector) = lan {
+        let candidates = crate::admin_link::lan_candidates()?;
+        let selected = crate::admin_link::select_lan_address(Some(selector), &candidates)?;
+        let (relay, observations) =
+            crate::admin_link::start_lan_relay(selected.address, &resolved.server_url).await?;
+        // @ref LLP 0017#security-defaults — cleartext LAN ingress is the
+        // explicit ruled posture. Name the exposure and every compensating
+        // bound at mint time; hostile networks should use the HTTPS tailnet.
+        eprintln!(
+            "WARNING SNAPBACK_ADMIN_LAN_CLEARTEXT: {} is plain HTTP on {} ({}). On-link attackers can observe or hijack this session. Bounds: single-use claim exchange, ten-minute idle expiry, ninety-minute absolute cap, redemption record, and master revocation. Use --tailscale on networks you do not trust.",
+            relay.origin, selected.interface, selected.address
+        );
+        relay_observations = Some(observations);
+        (relay.origin.clone(), Some(AdminLinkFront::Lan(relay)))
+    } else if tailscale {
+        let upstream = resolved.server_url.clone();
+        let guard = tokio::task::spawn_blocking(move || {
+            crate::admin_link::acquire_tailscale(&upstream, None)
+        })
+        .await
+        .map_err(|error| {
+            anyhow::anyhow!("SNAPBACK_ADMIN_TAILSCALE_UNAVAILABLE: lifecycle task failed: {error}")
+        })??;
+        (
+            guard.origin().to_owned(),
+            Some(AdminLinkFront::Tailscale(guard)),
+        )
+    } else {
+        (
+            match url_base {
+                Some(origin) => validated_console_origin(origin)?,
+                None => validated_console_origin(&resolved.server_url)?,
+            },
+            None,
+        )
     };
+    let mut managed = if let Some(front) = front {
+        let lease: ConsoleReachabilityLeaseCliResponse = console_reachability_request(
+            &resolved,
+            "/_snapback/api/console/reachability/register",
+            serde_json::json!({ "origin": printed_origin }),
+            "reachability registration",
+        )?;
+        validate_reachability_lease(&lease, None, None)?;
+        Some(ManagedAdminLink::new(resolved.clone(), lease, front))
+    } else {
+        None
+    };
+    let claim = mint_console_claim(&resolved)?;
+    if let Some(managed) = managed.as_mut() {
+        managed.claim_code = Some(claim.claim_code.clone());
+        let lease: ConsoleReachabilityLeaseCliResponse = console_reachability_request(
+            &resolved,
+            "/_snapback/api/console/reachability/bind",
+            serde_json::json!({
+                "sessionId": managed.lease.session_id,
+                "claimCode": claim.claim_code,
+            }),
+            "relay lease binding",
+        )?;
+        validate_reachability_lease(
+            &lease,
+            Some(&managed.lease.session_id),
+            Some(&managed.lease.instance_id),
+        )?;
+        managed.lease = lease;
+    }
+    // @ref LLP 0017#security-defaults — this is intentionally the only human
+    // carrier: a process-ephemeral single-use code in a fragment. The request
+    // URL and server logs never receive it, and the link is inert after the
+    // attached observer reports redemption or expiry.
+    let link = console_claim_fragment_url(&printed_origin, &claim.claim_code);
+    println!("{link}");
+    if qr {
+        println!("{}", crate::admin_link::render_terminal_qr(&link)?);
+        if origin_is_loopback(&printed_origin) {
+            eprintln!(
+                "SNAPBACK_ADMIN_QR_LOOPBACK_ONLY: this QR is reachable only from the Snapback server machine; use --lan or --tailscale for another device"
+            );
+        }
+    }
+    use std::io::Write as _;
+    std::io::stdout().flush()?;
+    if no_wait {
+        return Ok(());
+    }
+    let shutdown = admin_link_termination_signal();
+    tokio::pin!(shutdown);
+    let mut redemption_reported = false;
+    loop {
+        tokio::select! {
+            _ = &mut shutdown => {
+                if let Some(managed) = managed.take() {
+                    managed.finish(true).await?;
+                }
+                return Ok(());
+            }
+            observation = next_relay_observation(&mut relay_observations), if managed.is_some() => {
+                let Some(observation) = observation else {
+                    let cleanup = managed.take().expect("managed relay exists").finish(true).await;
+                    cleanup?;
+                    anyhow::bail!("SNAPBACK_ADMIN_LAN_RELAY_FAILED: the relay listener stopped before its lease ended");
+                };
+                println!("relay-observed peer {}", observation.peer);
+            }
+            _ = tokio::time::sleep(std::time::Duration::from_millis(500)) => {
+                let status = if let Some(managed) = managed.as_ref() {
+                    let observed: ConsoleReachabilityObservationCliResponse =
+                        console_reachability_request(
+                            &resolved,
+                            "/_snapback/api/console/reachability/renew",
+                            serde_json::json!({
+                                "sessionId": managed.lease.session_id,
+                                "claimCode": claim.claim_code,
+                            }),
+                            "relay lease renewal",
+                        )?;
+                    if let Some(lease) = observed.lease.as_ref() {
+                        validate_reachability_lease(
+                            lease,
+                            Some(&managed.lease.session_id),
+                            Some(&managed.lease.instance_id),
+                        )?;
+                    }
+                    observed.claim
+                } else {
+                    console_claim_control_request(
+                        &resolved,
+                        "/_snapback/api/console/claim/status",
+                        &claim.claim_code,
+                        "claim status",
+                    )?
+                };
+                match status.status.as_str() {
+                    "pending" => continue,
+                    "redeemed" if managed.is_some() => {
+                        if !redemption_reported {
+                            print_console_claim_status(&status);
+                            redemption_reported = true;
+                        }
+                    }
+                    "redeemed" | "claim_expired" | "credential_expired" | "revoked" => {
+                        print_console_claim_status(&status);
+                        if let Some(managed) = managed.take() {
+                            managed.finish(false).await?;
+                        }
+                        return Ok(());
+                    }
+                    _ => {
+                        if let Some(managed) = managed.take() {
+                            managed.finish(true).await?;
+                        }
+                        return Err(anyhow::anyhow!(
+                            "SNAPBACK_ADMIN_CLAIM_STATUS_RESPONSE_INVALID: claim status response carried an unknown state"
+                        ));
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn mint_console_claim(
+    resolved: &ResolvedAdminConsoleTarget,
+) -> anyhow::Result<ConsoleClaimMintCliResponse> {
     let mut request = ureq::post(&format!(
         "{}/_snapback/api/console/claim",
         resolved.server_url
@@ -3329,38 +3562,207 @@ fn admin_claim_link(
             && claim.expires_in > 0,
         "SNAPBACK_ADMIN_CLAIM_RESPONSE_INVALID: console claim response was invalid"
     );
-    // @ref LLP 0017#security-defaults — this is intentionally the only human
-    // carrier: a process-ephemeral single-use code in a fragment. The request
-    // URL and server logs never receive it, and the link is inert after the
-    // attached observer reports redemption or expiry.
-    let link = console_claim_fragment_url(&printed_origin, &claim.claim_code);
-    println!("{link}");
-    use std::io::Write as _;
-    std::io::stdout().flush()?;
-    if no_wait {
-        return Ok(());
-    }
-    loop {
-        std::thread::sleep(std::time::Duration::from_millis(500));
-        let status = console_claim_control_request(
-            &resolved,
-            "/_snapback/api/console/claim/status",
-            &claim.claim_code,
-            "claim status",
-        )?;
-        match status.status.as_str() {
-            "pending" => continue,
-            "redeemed" | "claim_expired" | "credential_expired" | "revoked" => {
-                print_console_claim_status(&status);
-                return Ok(());
-            }
-            _ => {
-                return Err(anyhow::anyhow!(
-                    "SNAPBACK_ADMIN_CLAIM_STATUS_RESPONSE_INVALID: claim status response carried an unknown state"
-                ));
-            }
+    Ok(claim)
+}
+
+fn console_reachability_request<T: serde::de::DeserializeOwned>(
+    resolved: &ResolvedAdminConsoleTarget,
+    path: &str,
+    body: Value,
+    operation: &str,
+) -> anyhow::Result<T> {
+    let timeout = crate::admin::CONSOLE_RELAY_LEASE_INTERVAL / 3;
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(timeout)
+        .timeout_read(timeout)
+        .timeout_write(timeout)
+        .build();
+    let response = agent
+        .post(&format!("{}{path}", resolved.server_url))
+        .set("x-snapback-admin-token", &resolved.token)
+        .send_json(body);
+    let response = match response {
+        Ok(response) => response,
+        Err(ureq::Error::Status(status, response)) => {
+            return Err(admin_http_error(status, response, operation));
+        }
+        Err(error) => {
+            return Err(anyhow::anyhow!(
+                "SNAPBACK_ADMIN_CONSOLE_UNREACHABLE: {operation} request failed: {error}"
+            ));
+        }
+    };
+    response.into_json().map_err(|_| {
+        anyhow::anyhow!(
+            "SNAPBACK_ADMIN_RELAY_LEASE_RESPONSE_INVALID: {operation} response was not the expected JSON shape"
+        )
+    })
+}
+
+fn validate_reachability_lease(
+    lease: &ConsoleReachabilityLeaseCliResponse,
+    expected_session: Option<&str>,
+    expected_instance: Option<&str>,
+) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        lease.session_id.starts_with("sbrs_")
+            && lease.session_id.len() == 37
+            && !lease.instance_id.is_empty()
+            && lease.lease_interval_ms
+                == crate::admin::CONSOLE_RELAY_LEASE_INTERVAL.as_millis() as u64
+            && lease.lease_expires_at_ms > crate::server::now_millis()
+            && expected_session.is_none_or(|expected| expected == lease.session_id)
+            && expected_instance.is_none_or(|expected| expected == lease.instance_id),
+        "SNAPBACK_ADMIN_RELAY_LEASE_RESPONSE_INVALID: relay lease identity or lifetime was invalid"
+    );
+    Ok(())
+}
+
+enum AdminLinkFront {
+    Lan(crate::admin_link::LanRelay),
+    Tailscale(crate::admin_link::TailscaleGuard),
+}
+
+struct ManagedAdminLink {
+    resolved: ResolvedAdminConsoleTarget,
+    lease: ConsoleReachabilityLeaseCliResponse,
+    claim_code: Option<String>,
+    front: Option<AdminLinkFront>,
+    closed: bool,
+}
+
+impl ManagedAdminLink {
+    fn new(
+        resolved: ResolvedAdminConsoleTarget,
+        lease: ConsoleReachabilityLeaseCliResponse,
+        front: AdminLinkFront,
+    ) -> Self {
+        Self {
+            resolved,
+            lease,
+            claim_code: None,
+            front: Some(front),
+            closed: false,
         }
     }
+
+    async fn finish(mut self, revoke_early: bool) -> anyhow::Result<()> {
+        self.closed = true;
+        let mut first_error = None;
+        // Close ingress before any best-effort network teardown. A dead or
+        // wedged observation server must never keep the listener or mapping
+        // alive while revocation/drop waits for an answer.
+        if let Some(front) = self.front.take() {
+            let result = match front {
+                AdminLinkFront::Lan(relay) => relay.close().await,
+                AdminLinkFront::Tailscale(guard) => {
+                    tokio::task::spawn_blocking(move || guard.close())
+                        .await
+                        .map_err(|error| {
+                            anyhow::anyhow!(
+                                "SNAPBACK_ADMIN_TAILSCALE_CLEANUP_FAILED: lifecycle task failed: {error}"
+                            )
+                        })?
+                }
+            };
+            if let Err(error) = result {
+                first_error = Some(error);
+            }
+        }
+        if revoke_early
+            && let Some(claim_code) = self.claim_code.as_deref()
+            && let Err(error) = console_claim_control_request(
+                &self.resolved,
+                "/_snapback/api/console/claim/revoke",
+                claim_code,
+                "early front credential revocation",
+            )
+        {
+            first_error = Some(error);
+        }
+        if let Err(error) = drop_console_reachability(&self.resolved, &self.lease.session_id)
+            && first_error.is_none()
+        {
+            first_error = Some(error);
+        }
+        if let Some(error) = first_error {
+            return Err(error);
+        }
+        Ok(())
+    }
+}
+
+impl Drop for ManagedAdminLink {
+    fn drop(&mut self) {
+        if self.closed {
+            return;
+        }
+        // Drop owns the fail-closed fallback for every `?` in the observation
+        // loop. Ingress dies before synchronous revocation is attempted.
+        self.front.take();
+        if let Some(claim_code) = self.claim_code.as_deref() {
+            let _ = console_claim_control_request(
+                &self.resolved,
+                "/_snapback/api/console/claim/revoke",
+                claim_code,
+                "early front credential revocation",
+            );
+        }
+        let _ = drop_console_reachability(&self.resolved, &self.lease.session_id);
+        self.closed = true;
+    }
+}
+
+fn drop_console_reachability(
+    resolved: &ResolvedAdminConsoleTarget,
+    session_id: &str,
+) -> anyhow::Result<()> {
+    let response: ConsoleReachabilityDropCliResponse = console_reachability_request(
+        resolved,
+        "/_snapback/api/console/reachability/drop",
+        serde_json::json!({ "sessionId": session_id }),
+        "reachability teardown",
+    )?;
+    let _ = response.dropped;
+    Ok(())
+}
+
+async fn next_relay_observation(
+    receiver: &mut Option<tokio::sync::mpsc::UnboundedReceiver<crate::admin_link::RelayObservation>>,
+) -> Option<crate::admin_link::RelayObservation> {
+    match receiver {
+        Some(receiver) => receiver.recv().await,
+        None => std::future::pending().await,
+    }
+}
+
+#[cfg(unix)]
+async fn admin_link_termination_signal() {
+    let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        .expect("install SIGTERM handler");
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {}
+        _ = terminate.recv() => {}
+    }
+}
+
+#[cfg(not(unix))]
+async fn admin_link_termination_signal() {
+    let _ = tokio::signal::ctrl_c().await;
+}
+
+fn origin_is_loopback(origin: &str) -> bool {
+    origin
+        .parse::<axum::http::Uri>()
+        .ok()
+        .and_then(|uri| uri.authority().map(|authority| authority.host().to_owned()))
+        .is_some_and(|host| {
+            host.eq_ignore_ascii_case("localhost")
+                || host
+                    .parse::<std::net::IpAddr>()
+                    .ok()
+                    .is_some_and(|address| address.is_loopback())
+        })
 }
 
 fn console_claim_control_request(
@@ -3547,6 +3949,7 @@ fn approve_console_code(target: &TargetArgs, code: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Clone)]
 struct ResolvedAdminConsoleTarget {
     server_url: String,
     token: String,
@@ -4509,6 +4912,25 @@ async fn run_composed(
         }
         None => app_state,
     };
+    // Startup selection uses the same gate as runtime PUT, after hosted
+    // authority has reached its final pre-bind classification.
+    //
+    // @ref LLP 0167#authority-one-activation-chokepoint — env activation is
+    //   a startup failure on ceiling or environment refusal, never a clamp.
+    let startup_network_profile_env = match std::env::var("SNAPBACK_NETWORK_PROFILE") {
+        Ok(value) => Some(value),
+        Err(std::env::VarError::NotPresent) => None,
+        Err(std::env::VarError::NotUnicode(_)) => {
+            return Err(anyhow::Error::new(crate::diagnostic::SnapbackError::error(
+                crate::network_profile::NETWORK_PROFILE_INVALID_CODE,
+                "network-profile",
+                "SNAPBACK_NETWORK_PROFILE must be valid Unicode",
+            )));
+        }
+    };
+    let startup_network_profile = app_state
+        .activate_network_profile_env(startup_network_profile_env.as_deref())
+        .map_err(anyhow::Error::new)?;
     // @ref LLP 0098#24-renewal-and-the-honest-cost-of-pre-signing — an admission
     // lives at most five minutes, so a deployment that serves longer needs its
     // authority replaced in place. The loop only ever installs another
@@ -4721,6 +5143,14 @@ async fn run_composed(
     }
 
     println!("snapback listening on http://{local_addr}");
+    if !startup_network_profile.profile.is_normal() {
+        // @ref LLP 0167#honesty-requirements — a non-normal boot profile is
+        //   visible in startup/readiness output rather than silently active.
+        println!(
+            "network profile: {} (startup env)",
+            startup_network_profile.profile.name
+        );
+    }
     println!("admin console: http://{local_addr}/_snapback/admin");
     if let Some(db_path) = database_path {
         println!("sqlite database: {}", db_path.display());
@@ -6682,6 +7112,9 @@ mod tests {
                         url_base,
                         status: None,
                         revoke: None,
+                        qr: false,
+                        tailscale: false,
+                        lan: None,
                     }),
                 ..
             })) => {
@@ -6691,6 +7124,28 @@ mod tests {
             }
             other => panic!("expected admin claim-link command, got {other:?}"),
         }
+
+        let lan_link = Cli::parse_from([
+            "snapback",
+            "admin",
+            "link",
+            "--lan",
+            "--qr",
+            "--ready-file",
+            "ready.json",
+        ]);
+        assert!(matches!(
+            lan_link.command,
+            Some(HostCommand::Admin(AdminArgs {
+                command: Some(AdminCommand::Link {
+                    lan: Some(selector),
+                    qr: true,
+                    tailscale: false,
+                    ..
+                }),
+                ..
+            })) if selector.is_empty()
+        ));
 
         let status = Cli::parse_from([
             "snapback",

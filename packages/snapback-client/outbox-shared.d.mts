@@ -16,6 +16,7 @@ export interface OutboxRecordInput {
   readonly functionId: string;
   readonly args: unknown;
   readonly capturedAt?: string;
+  readonly optimisticOperation?: Readonly<Record<string, unknown>> | null;
   readonly expectedGeneration?: Readonly<{
     schemaVersion: string;
     appId: string;

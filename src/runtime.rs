@@ -4977,18 +4977,22 @@ mod private_failure_carrier_tests {
 
 #[cfg(test)]
 mod membership_bridge_tests {
-    use super::{IbexHostContext, run_ibex_handler_with_context};
+    use super::{IbexHostContext, run_ibex_handler_with_context, with_host_call_trace};
     use crate::auth::admission::AdmissionLease;
     use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
     use crate::manifest::{
         AuthInput, FieldManifest, FieldType, HandlerInput, IbexModule, MembershipLastHolder,
         MembershipManifest, MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget,
-        MembershipTransition, SchemaManifest, SeedData, SequenceDeclaration, SequenceScopeAccess,
-        TableManifest,
+        MembershipTransition, SchemaManifest, SeedData, SequenceDeclaration,
+        SequenceExistingOwnerAccess, SequenceScopeAccess, TableManifest,
     };
-    use crate::storage::{BufferedCommitPayload, DbRead, LocalDatabase, MembershipWriter};
+    use crate::storage::{
+        BufferedCommitPayload, ClientMutationIdentity, DbRead, LocalDatabase, MembershipWriter,
+    };
     use serde_json::{Map, json};
     use std::collections::BTreeMap;
+    use std::path::Path;
+    use std::sync::{Arc, Barrier};
 
     fn schema() -> SchemaManifest {
         SchemaManifest {
@@ -5061,6 +5065,30 @@ mod membership_bridge_tests {
                 },
                 TableManifest {
                     name: "scopes".to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "title".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "owner".to_owned(),
+                            field_type: FieldType::Principal,
+                            optional: true,
+                        },
+                    ],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
+                    search_live_limits: None,
+                    membership: None,
+                    asset_sharing: None,
+                },
+                TableManifest {
+                    name: "events".to_owned(),
                     fields: vec![FieldManifest {
                         name: "title".to_owned(),
                         field_type: FieldType::String,
@@ -5078,7 +5106,7 @@ mod membership_bridge_tests {
                     history: None,
                 },
                 TableManifest {
-                    name: "events".to_owned(),
+                    name: "sequence_activity".to_owned(),
                     fields: vec![FieldManifest {
                         name: "title".to_owned(),
                         field_type: FieldType::String,
@@ -5212,6 +5240,74 @@ mod membership_bridge_tests {
         db
     }
 
+    fn ready_file_db(path: &Path) -> LocalDatabase {
+        let mut db = LocalDatabase::open(path).expect("open shared handler sequence database");
+        db.activate_current_auth_catalog().expect("auth catalog");
+        db.apply_schema(schema()).expect("shared handler schema");
+        db
+    }
+
+    fn public_sequence_declaration() -> SequenceDeclaration {
+        SequenceDeclaration {
+            name: "eventNumber".to_owned(),
+            scope_table: "scopes".to_owned(),
+            scope_access: SequenceScopeAccess::Public("public.v1".to_owned()),
+        }
+    }
+
+    fn sequence_input(title: &str) -> HandlerInput {
+        HandlerInput {
+            args: json!({ "scopeId": "event-a", "title": title }),
+            ..HandlerInput::default()
+        }
+    }
+
+    fn anonymous_sequence_context<'a>(
+        db: &'a LocalDatabase,
+        input: HandlerInput,
+    ) -> IbexHostContext<'a> {
+        let authority = ResolvedAppAuthority::Anonymous;
+        let mut ctx = IbexHostContext::new_with_projection(
+            DbRead::Live(db),
+            input,
+            HandlerAuthProjection::from_authority(&authority),
+            AdmissionLease::unmanaged(0, 0),
+            MembershipWriter::from_resolved(&authority),
+            true,
+        )
+        .expect("anonymous sequence context");
+        ctx.declared_sequences = vec![public_sequence_declaration()];
+        ctx
+    }
+
+    fn take_sequence_payload(
+        mut ctx: IbexHostContext<'_>,
+        result: serde_json::Value,
+    ) -> BufferedCommitPayload {
+        let ctx_ledger = ctx.take_ctx_ledger().expect("sequence ctx ledger");
+        let IbexHostContext {
+            writes,
+            sequence_allocations,
+            job_enqueues,
+            membership_commands,
+            reads,
+            asset_admissions,
+            ..
+        } = ctx;
+        assert!(membership_commands.is_empty());
+        BufferedCommitPayload {
+            writes,
+            sequence_allocations,
+            membership_plans: Vec::new(),
+            read_dependencies: reads,
+            result,
+            ctx_ledger,
+            job_enqueues,
+            job_producer: None,
+            asset_admissions,
+        }
+    }
+
     #[test]
     fn sequence_host_bridge_is_declared_scoped_and_commits_with_the_mutation() {
         let mut db = ready_db();
@@ -5297,6 +5393,350 @@ mod membership_bridge_tests {
             missing.diagnostic,
             super::sequence_parent_unavailable().diagnostic,
             "missing scope uses the invariant non-oracle refusal"
+        );
+
+        let private = SequenceDeclaration {
+            name: "eventNumber".to_owned(),
+            scope_table: "scopes".to_owned(),
+            scope_access: SequenceScopeAccess::ExistingOwner(SequenceExistingOwnerAccess {
+                kind: "existing-owner.v1".to_owned(),
+                owner_field: "owner".to_owned(),
+            }),
+        };
+        let mut hidden = anonymous_sequence_context(&db, HandlerInput::default());
+        hidden.declared_sequences = vec![private.clone()];
+        let hidden_error = hidden
+            .handle_host_call(
+                "sequence.allocate",
+                json!({ "counter": "eventNumber", "scopeId": "event-a" }),
+            )
+            .expect_err("anonymous caller cannot reach an owner-only scope");
+        let mut absent = anonymous_sequence_context(&db, HandlerInput::default());
+        absent.declared_sequences = vec![private];
+        let absent_error = absent
+            .handle_host_call(
+                "sequence.allocate",
+                json!({ "counter": "eventNumber", "scopeId": "absent" }),
+            )
+            .expect_err("absent owner-only scope refuses");
+        assert_eq!(
+            serde_json::to_vec(&hidden_error.diagnostic).unwrap(),
+            serde_json::to_vec(&absent_error.diagnostic).unwrap(),
+            "hidden and absent handler scopes are byte-identical",
+        );
+
+        let mut closed_api = anonymous_sequence_context(&db, HandlerInput::default());
+        let result = run_ibex_handler_with_context(
+            &IbexModule {
+                source: r#"
+globalThis.__snapbackHandlers = {
+  async inspect(ctx) {
+    return {
+      allocate: typeof ctx.sequence.allocate,
+      current: typeof ctx.sequence.current,
+      next: typeof ctx.sequence.next,
+    };
+  }
+};
+"#
+                .to_owned(),
+                export: "inspect".to_owned(),
+            },
+            &mut closed_api,
+            None,
+        )
+        .expect("inspect closed sequence surface");
+        assert_eq!(
+            result,
+            json!({ "allocate": "function", "current": "undefined", "next": "undefined" }),
+            "the handler surface exposes allocation but no current/next-value API",
+        );
+    }
+
+    // @ref LLP 0135#51-sequence-allocation — the two named app-authored
+    // disclosure channels may reveal a tentative value, but neither an
+    // invalidated commit nor a handler throw may retain any durable/result
+    // trace of that attempt.
+    #[test]
+    fn sequence_abort_disclosure_channels_leave_no_durable_or_result_trace() {
+        const COMPLETE_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async disclose(ctx, args) {
+    const sequence = await ctx.sequence.allocate('eventNumber', args.scopeId);
+    await ctx.db.insert('sequence_activity', { title: args.title });
+    console.log('tentative:' + sequence);
+    return { sequence };
+  }
+};
+"#;
+        const THROW_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async disclose(ctx, args) {
+    const sequence = await ctx.sequence.allocate('eventNumber', args.scopeId);
+    await ctx.db.insert('sequence_activity', { title: args.title });
+    throw new Error('tentative:' + sequence);
+  }
+};
+"#;
+        let module = |source: &str| IbexModule {
+            source: source.to_owned(),
+            export: "disclose".to_owned(),
+        };
+        let seed_scope = |db: &mut LocalDatabase| {
+            db.seed(SeedData {
+                tables: BTreeMap::from([(
+                    "scopes".to_owned(),
+                    vec![Map::from_iter([
+                        ("_id".to_owned(), json!("event-a")),
+                        ("title".to_owned(), json!("A")),
+                    ])],
+                )]),
+            })
+            .expect("seed sequence scope");
+        };
+
+        // Run A: T1 discloses value 1 and pauses. T2 commits that same
+        // tentative value first, so T1's captured counter read is stale.
+        let mut db = ready_db();
+        seed_scope(&mut db);
+        let t1_input = sequence_input("t1-aborted-activity");
+        let mut t1_ctx = anonymous_sequence_context(&db, t1_input.clone());
+        let (t1_result, t1_trace) = with_host_call_trace(|| {
+            run_ibex_handler_with_context(&module(COMPLETE_SOURCE), &mut t1_ctx, None)
+        });
+        let t1_result = t1_result.expect("T1 handler completes before commit invalidation");
+        assert_eq!(t1_result, json!({ "sequence": 1 }));
+        let disclosed = t1_trace
+            .iter()
+            .find(|entry| entry.op == "runtime.log")
+            .expect("console disclosure trace");
+        assert!(
+            disclosed.args["message"]
+                .to_string()
+                .contains("tentative:1"),
+            "console trace carries the tentative value"
+        );
+        let t1_payload = take_sequence_payload(t1_ctx, t1_result);
+
+        let t2_input = sequence_input("t2-committed-activity");
+        let mut t2_ctx = anonymous_sequence_context(&db, t2_input.clone());
+        let t2_result = run_ibex_handler_with_context(&module(COMPLETE_SOURCE), &mut t2_ctx, None)
+            .expect("T2 handler");
+        assert_eq!(t2_result, json!({ "sequence": 1 }));
+        let t2_identity = ClientMutationIdentity::new("cm-sequence-t2", "send", &t2_input);
+        let t2_commit = db
+            .commit_buffered_writes_idempotent_guarded(
+                &t2_input,
+                take_sequence_payload(t2_ctx, t2_result.clone()),
+                Some(&t2_identity),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("T2 commits first");
+        assert_eq!(t2_commit.output.result, t2_result);
+        let committed_version = t2_commit.output.version;
+
+        let t1_identity = ClientMutationIdentity::new("cm-sequence-t1", "send", &t1_input);
+        let t1_error = db
+            .commit_buffered_writes_idempotent_guarded(
+                &t1_input,
+                t1_payload,
+                Some(&t1_identity),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect_err("T1's stale counter read aborts the whole attempt");
+        assert_eq!(t1_error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+        assert_eq!(db.current_version().unwrap(), committed_version);
+        assert!(db.client_mutation_result(&t1_identity).unwrap().is_none());
+        let activities = db
+            .scan_table("sequence_activity", 10, 0)
+            .expect("activity rows");
+        assert_eq!(activities.total, 1);
+        assert_eq!(activities.rows[0]["title"], "t2-committed-activity");
+        let incarnation = DbRead::Live(&db)
+            .active_relation_incarnation("scopes", "event-a")
+            .unwrap()
+            .expect("active scope incarnation");
+        assert_eq!(
+            DbRead::Live(&db)
+                .sequence_next_value("eventNumber", "scopes", "event-a", &incarnation)
+                .unwrap(),
+            2,
+            "the aborted attempt did not burn a second value"
+        );
+
+        // Run B: the handler's own throw is the abort cause. Its typed error
+        // details carry the authored message, but no buffered effect is handed
+        // to the durable commit seam.
+        let mut throw_db = ready_db();
+        seed_scope(&mut throw_db);
+        let throw_input = sequence_input("throw-aborted-activity");
+        let throw_identity = ClientMutationIdentity::new("cm-sequence-throw", "send", &throw_input);
+        let mut throw_ctx = anonymous_sequence_context(&throw_db, throw_input);
+        let throw_error =
+            run_ibex_handler_with_context(&module(THROW_SOURCE), &mut throw_ctx, None)
+                .expect_err("the handler throw rejects before commit");
+        assert_eq!(throw_error.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
+        assert_eq!(throw_error.diagnostic.details["message"], "tentative:1");
+        assert_eq!(
+            throw_db
+                .scan_table("sequence_activity", 10, 0)
+                .unwrap()
+                .total,
+            0
+        );
+        assert!(
+            throw_db
+                .client_mutation_result(&throw_identity)
+                .unwrap()
+                .is_none(),
+            "a throwing handler retains no settlement result bytes"
+        );
+        let throw_incarnation = DbRead::Live(&throw_db)
+            .active_relation_incarnation("scopes", "event-a")
+            .unwrap()
+            .expect("throw scope incarnation");
+        assert_eq!(
+            DbRead::Live(&throw_db)
+                .sequence_next_value("eventNumber", "scopes", "event-a", &throw_incarnation,)
+                .unwrap(),
+            1,
+            "throwing before commit leaves the counter uncreated"
+        );
+    }
+
+    // @ref LLP 0135#51-sequence-allocation — Campfire's public-scope handler
+    // arm must remain anonymous-callable, range-read-free, dense under
+    // concurrent senders, and atomic with the inserted message.
+    #[test]
+    fn public_handler_sequence_is_dense_atomic_and_range_free_under_concurrent_senders() {
+        const SENDERS: usize = 8;
+        const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async send(ctx, args) {
+    const sequence = await ctx.sequence.allocate('eventNumber', args.scopeId);
+    const activityId = await ctx.db.insert('sequence_activity', { title: args.title });
+    return { activityId, sequence };
+  }
+};
+"#;
+        let dir = tempfile::tempdir().expect("handler sequence tempdir");
+        let path = dir.path().join("handler-sequence.sqlite3");
+        {
+            let mut setup = ready_file_db(&path);
+            setup
+                .install_sequence_declarations(
+                    BTreeMap::from([("eventNumber".to_owned(), public_sequence_declaration())]),
+                    false,
+                )
+                .expect("enroll public sequence scope");
+            setup
+                .seed(SeedData {
+                    tables: BTreeMap::from([(
+                        "scopes".to_owned(),
+                        vec![Map::from_iter([
+                            ("_id".to_owned(), json!("event-a")),
+                            ("title".to_owned(), json!("A")),
+                        ])],
+                    )]),
+                })
+                .expect("seed public scope");
+        }
+        let writers = (0..SENDERS)
+            .map(|_| ready_file_db(&path))
+            .collect::<Vec<_>>();
+        let barrier = Arc::new(Barrier::new(SENDERS + 1));
+        let handles = writers
+            .into_iter()
+            .enumerate()
+            .map(|(index, mut db)| {
+                let barrier = Arc::clone(&barrier);
+                std::thread::spawn(move || {
+                    let input = sequence_input(&format!("anonymous-message-{index}"));
+                    let identity = ClientMutationIdentity::new(
+                        format!("cm-anonymous-send-{index}"),
+                        "send",
+                        &input,
+                    );
+                    let module = IbexModule {
+                        source: SOURCE.to_owned(),
+                        export: "send".to_owned(),
+                    };
+                    barrier.wait();
+                    for attempt in 1..=32 {
+                        let mut ctx = anonymous_sequence_context(&db, input.clone());
+                        let (result, trace) = with_host_call_trace(|| {
+                            run_ibex_handler_with_context(&module, &mut ctx, None)
+                        });
+                        let result = result.expect("anonymous public-scope handler runs");
+                        assert!(
+                            trace.iter().all(|entry| entry.op != "db.query"),
+                            "sequence derivation performs no application range read"
+                        );
+                        let payload = take_sequence_payload(ctx, result.clone());
+                        match db.commit_buffered_writes_idempotent_guarded(
+                            &input,
+                            payload,
+                            Some(&identity),
+                            || Ok(()),
+                            || Ok(()),
+                        ) {
+                            Ok(commit) => {
+                                let value = commit.sequence_allocations[0].value;
+                                assert_eq!(commit.output.result["sequence"], value);
+                                assert_eq!(commit.changes.len(), 1);
+                                assert_eq!(commit.changes[0].table, "sequence_activity");
+                                assert_eq!(
+                                    commit.changes[0].row.as_ref().unwrap()["_version"],
+                                    commit.output.version,
+                                    "message and counter receipt share the commit version"
+                                );
+                                return (commit.output.version, value, attempt);
+                            }
+                            Err(error) if error.diagnostic.code == "SNAPBACK_MUTATION_CONFLICT" => {
+                                continue;
+                            }
+                            Err(error) => panic!(
+                                "anonymous sender failed outside the admitted retry shape: {error:?}"
+                            ),
+                        }
+                    }
+                    panic!("anonymous sender exceeded the contention retry budget")
+                })
+            })
+            .collect::<Vec<_>>();
+        barrier.wait();
+        let mut committed = handles
+            .into_iter()
+            .map(|handle| handle.join().expect("anonymous sender joins"))
+            .collect::<Vec<_>>();
+        committed.sort_by_key(|(version, _, _)| *version);
+        assert_eq!(
+            committed
+                .iter()
+                .map(|(_, value, _)| *value)
+                .collect::<Vec<_>>(),
+            (1..=SENDERS as u64).collect::<Vec<_>>()
+        );
+        let verify = ready_file_db(&path);
+        assert_eq!(
+            verify
+                .scan_table("sequence_activity", SENDERS, 0)
+                .unwrap()
+                .total,
+            SENDERS
+        );
+        println!(
+            "{}",
+            json!({
+                "schemaVersion": "snapback.sequence-allocation-public-handler-observation.v1",
+                "targetProfileId": "local-dev-sqlite-ibex",
+                "anonymousSenders": SENDERS,
+                "commitOrderValues": committed.iter().map(|(_, value, _)| *value).collect::<Vec<_>>(),
+                "attempts": committed.iter().map(|(_, _, attempts)| *attempts).collect::<Vec<_>>(),
+                "rangeReads": 0,
+            })
         );
     }
 

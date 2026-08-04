@@ -1,0 +1,788 @@
+// CLI-owned done-oracle composition.
+//
+// @ref LLP 0146#d2-snapback-verify--the-done-oracle — verification composes
+// existing authorities in a fixed order and emits a portable, identity-bound
+// receipt; it is intentionally not a new acceptance.run host operation.
+// @ref LLP 0146#d1-declarationobservation-conformance — registered acceptance
+// paths must contribute the exact D1 read/write conformance report. Aggregate
+// over-declaration is the intersection across complete observations, so a
+// conditionally used table is not mislabeled as dead declaration surface.
+
+import { createHash } from 'node:crypto';
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { dirname, join, relative, resolve, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+import { generate } from '@expo/snapback-codegen';
+import {
+  resolveGeneratedArtifact,
+  verifyGeneratedGraph,
+} from '@expo/snapback-codegen/review-surface';
+
+export const VERIFY_CONFIG_SCHEMA_VERSION = 'snapback.verify-config.v1';
+export const VERIFY_RECEIPT_SCHEMA_VERSION = 'snapback.verify-receipt.v1';
+
+export const VERIFY_STAGE_IDS = Object.freeze([
+  'artifact-freshness',
+  'runtime-readiness',
+  'admission-and-conformance',
+  'capability-resolution',
+  'acceptance-profiles',
+]);
+
+const PATH_KINDS = new Set([
+  'success',
+  'failure',
+  'action',
+  'relational',
+  'search',
+  'snapshot-bundle',
+]);
+const REPORT_KEYS = Object.freeze([
+  'missingReads',
+  'missingWrites',
+  'extraReads',
+  'extraWrites',
+]);
+const PROVENANCE = new Set(['complete', 'incomplete', 'unsupported']);
+const NEXT_BY_STAGE = Object.freeze({
+  'artifact-freshness': Object.freeze({
+    code: 'SNAPBACK_VERIFY_REGENERATE_ARTIFACTS',
+    command: 'snapback generate <backend-dir>',
+    reason: 'generated artifacts are absent, invalid, or do not match current source bytes',
+  }),
+  'runtime-readiness': Object.freeze({
+    code: 'SNAPBACK_VERIFY_QUALIFY_RUNTIME',
+    command: 'snapback runtime-qualify --persist',
+    reason: 'the selected runtime has no valid digest-bound readiness receipt',
+  }),
+  'admission-and-conformance': Object.freeze({
+    code: 'SNAPBACK_VERIFY_FIX_ADMISSION_OR_COVERAGE',
+    command: 'fix schema/function admission failures and rerun every registered coverage path',
+    reason: 'generated identities disagree or D1 coverage evidence is missing/under-declared',
+  }),
+  'capability-resolution': Object.freeze({
+    code: 'SNAPBACK_VERIFY_SELECT_CAPABLE_TARGET',
+    command: 'select a target profile that supplies every required capability, then regenerate',
+    reason: 'the generated target profile does not satisfy the application and profile requirements',
+  }),
+  'acceptance-profiles': Object.freeze({
+    code: 'SNAPBACK_VERIFY_FIX_ACCEPTANCE',
+    command: 'repair the failing registered acceptance profile and rerun snapback verify',
+    reason: 'one or more registered acceptance profiles failed',
+  }),
+});
+
+function verifyError(code, message, details = undefined) {
+  const error = new Error(`${code}: ${message}`);
+  error.code = code;
+  error.diagnostic = {
+    code,
+    severity: 'error',
+    subsystem: 'verify',
+    message,
+    ...(details === undefined ? {} : { details }),
+  };
+  return error;
+}
+
+function assert(condition, message, details = undefined) {
+  if (!condition) throw verifyError('SNAPBACK_VERIFY_CONFIG_INVALID', message, details);
+}
+
+function plainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function stableJson(value) {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (plainObject(value)) {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function diagnostic(code, message, details = undefined, severity = 'error') {
+  return Object.freeze({
+    code,
+    severity,
+    subsystem: 'verify',
+    message,
+    ...(details === undefined ? {} : { details }),
+  });
+}
+
+function normalizedStringArray(value, label) {
+  assert(Array.isArray(value), `${label} must be an array`);
+  const output = value.map((entry, index) => {
+    assert(typeof entry === 'string' && entry.length > 0, `${label}[${index}] must be a non-empty string`);
+    return entry;
+  });
+  assert(new Set(output).size === output.length, `${label} must not contain duplicates`);
+  return Object.freeze([...output].sort());
+}
+
+function normalizeContext(value = {}) {
+  assert(plainObject(value), 'context must be an object');
+  const normalizeIdentity = (entry, label, fallbackKind) => {
+    const selected = entry ?? { kind: fallbackKind, identity: null };
+    assert(plainObject(selected), `context.${label} must be an object`);
+    assert(typeof selected.kind === 'string' && selected.kind.length > 0, `context.${label}.kind must be a non-empty string`);
+    assert(selected.identity === null || (typeof selected.identity === 'string' && selected.identity.length > 0), `context.${label}.identity must be null or a non-empty string`);
+    return Object.freeze({ kind: selected.kind, identity: selected.identity });
+  };
+  const authority = value.authority ?? {
+    kind: 'not-exercised', identity: null, principalClass: 'not-exercised',
+  };
+  assert(plainObject(authority), 'context.authority must be an object');
+  assert(typeof authority.kind === 'string' && authority.kind.length > 0, 'context.authority.kind must be a non-empty string');
+  assert(authority.identity === null || (typeof authority.identity === 'string' && authority.identity.length > 0), 'context.authority.identity must be null or a non-empty string');
+  assert(typeof authority.principalClass === 'string' && authority.principalClass.length > 0, 'context.authority.principalClass must be a non-empty string');
+  return Object.freeze({
+    target: normalizeIdentity(value.target, 'target', 'local-generated-artifact'),
+    data: normalizeIdentity(value.data, 'data', 'not-exercised'),
+    authority: Object.freeze({
+      kind: authority.kind,
+      identity: authority.identity,
+      principalClass: authority.principalClass,
+    }),
+    seed: normalizeIdentity(value.seed, 'seed', 'not-exercised'),
+  });
+}
+
+function normalizePath(path, profileId, index) {
+  assert(plainObject(path), `profiles[${profileId}].paths[${index}] must be an object`);
+  assert(typeof path.id === 'string' && path.id.length > 0, `profiles[${profileId}].paths[${index}].id must be a non-empty string`);
+  assert(PATH_KINDS.has(path.kind), `profiles[${profileId}].paths[${index}].kind must be a closed D1 path kind`);
+  assert(typeof path.targetProfileId === 'string' && path.targetProfileId.length > 0, `profiles[${profileId}].paths[${index}].targetProfileId must be a non-empty string`);
+  assert(path.functionId === null || path.functionId === undefined || (typeof path.functionId === 'string' && path.functionId.length > 0), `profiles[${profileId}].paths[${index}].functionId must be null or a non-empty string`);
+  return Object.freeze({
+    id: path.id,
+    kind: path.kind,
+    targetProfileId: path.targetProfileId,
+    functionId: path.functionId ?? null,
+  });
+}
+
+function normalizeProfile(profile, index, configDirectory) {
+  assert(plainObject(profile), `profiles[${index}] must be an object`);
+  assert(typeof profile.id === 'string' && profile.id.length > 0, `profiles[${index}].id must be a non-empty string`);
+  assert(typeof profile.run === 'function', `profiles[${profile.id}].run must be a function`);
+  const paths = (profile.paths ?? []).map((path, pathIndex) => normalizePath(path, profile.id, pathIndex));
+  assert(new Set(paths.map(({ id }) => id)).size === paths.length, `profiles[${profile.id}].paths must have unique ids`);
+  return Object.freeze({
+    id: profile.id,
+    title: typeof profile.title === 'string' && profile.title.length > 0 ? profile.title : profile.id,
+    testFiles: Object.freeze((profile.testFiles ?? []).map((path) => realpathSync(resolve(configDirectory, path))).sort()),
+    requiredCapabilities: normalizedStringArray(profile.requiredCapabilities ?? [], `profiles[${profile.id}].requiredCapabilities`),
+    paths: Object.freeze(paths),
+    run: profile.run,
+  });
+}
+
+export function defineVerifyConfig(config) {
+  assert(plainObject(config), 'verify config must be an object');
+  assert(config.schemaVersion === VERIFY_CONFIG_SCHEMA_VERSION, `schemaVersion must be ${VERIFY_CONFIG_SCHEMA_VERSION}`);
+  return config;
+}
+
+export async function loadVerifyConfig(path, { backendDirectory = null } = {}) {
+  const configPath = realpathSync(resolve(path));
+  const imported = await import(`${pathToFileURL(configPath).href}?verify=${Date.now()}`);
+  const value = imported.default;
+  assert(plainObject(value), 'verify config default export must be an object');
+  assert(value.schemaVersion === VERIFY_CONFIG_SCHEMA_VERSION, `schemaVersion must be ${VERIFY_CONFIG_SCHEMA_VERSION}`);
+  const configDirectory = dirname(configPath);
+  const profiles = (value.profiles ?? []).map((profile, index) => normalizeProfile(profile, index, configDirectory));
+  assert(new Set(profiles.map(({ id }) => id)).size === profiles.length, 'profile ids must be unique');
+  return Object.freeze({
+    schemaVersion: VERIFY_CONFIG_SCHEMA_VERSION,
+    configPath,
+    backendDirectory: resolve(configDirectory, backendDirectory ?? value.backendDirectory ?? 'snapback'),
+    generatedDirectory: value.generatedDirectory === undefined
+      ? null
+      : resolve(configDirectory, value.generatedDirectory),
+    context: normalizeContext(value.context),
+    profiles: Object.freeze(profiles),
+  });
+}
+
+export function defaultVerifyConfig({ backendDirectory = 'snapback' } = {}) {
+  return Object.freeze({
+    schemaVersion: VERIFY_CONFIG_SCHEMA_VERSION,
+    configPath: null,
+    backendDirectory: resolve(backendDirectory),
+    generatedDirectory: null,
+    context: normalizeContext(),
+    profiles: Object.freeze([]),
+  });
+}
+
+function readJson(path, code) {
+  try {
+    return JSON.parse(readFileSync(path, 'utf8'));
+  } catch (cause) {
+    const error = verifyError(code, `could not read generated artifact ${path}`, { path });
+    error.cause = cause;
+    throw error;
+  }
+}
+
+function copyBackendSource(source, destination) {
+  cpSync(source, destination, {
+    recursive: true,
+    filter(path) {
+      if (path === source) return true;
+      const name = relative(source, path).split(sep)[0];
+      return !['generated', '.snapback', 'node_modules'].includes(name);
+    },
+  });
+}
+
+export async function probeArtifactFreshness(config) {
+  const backendRoot = realpathSync(config.backendDirectory);
+  const generatedRoot = resolve(config.generatedDirectory ?? join(backendRoot, 'generated'));
+  const verified = verifyGeneratedGraph(generatedRoot);
+  const artifactIndex = readJson(join(generatedRoot, 'artifacts.json'), 'SNAPBACK_VERIFY_ARTIFACT_INVALID');
+  const capability = readJson(resolveGeneratedArtifact(generatedRoot, 'capability.manifest.json'), 'SNAPBACK_VERIFY_ARTIFACT_INVALID');
+  const targetProfile = capability.targetProfileId ?? 'local-dev-sqlite-ibex';
+  const scratch = mkdtempSync(join(dirname(backendRoot), '.snapback-verify-'));
+  let regenerated;
+  try {
+    copyBackendSource(backendRoot, scratch);
+    regenerated = await generate(scratch, { targetProfile });
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+  if (!regenerated?.ok) {
+    return {
+      ok: false,
+      diagnostics: regenerated?.diagnostics ?? [diagnostic(
+        'SNAPBACK_VERIFY_ARTIFACT_REGEN_FAILED',
+        'source could not be regenerated for freshness comparison',
+      )],
+    };
+  }
+  const keys = ['appId', 'schemaVersion', 'schemaHash', 'bundleHash', 'inputsHash'];
+  const expected = Object.fromEntries(keys.map((key) => [key, artifactIndex[key] ?? null]));
+  const observed = Object.fromEntries(keys.map((key) => [key, regenerated.artifactIndex?.[key] ?? null]));
+  const mismatches = keys.filter((key) => expected[key] !== observed[key]);
+  if (mismatches.length > 0) {
+    return {
+      ok: false,
+      diagnostics: [diagnostic(
+        'SNAPBACK_VERIFY_ARTIFACT_STALE',
+        'generated artifact identity does not match a fresh source regeneration',
+        { mismatches, expected, observed },
+      )],
+    };
+  }
+  return {
+    ok: true,
+    identity: expected,
+    seedIdentity: (() => {
+      const seedPath = join(backendRoot, 'seed.json');
+      try {
+        return {
+          kind: 'authored-seed-bytes',
+          identity: `sha256:${createHash('sha256').update(readFileSync(seedPath)).digest('hex')}`,
+        };
+      } catch (error) {
+        if (error?.code === 'ENOENT') return { kind: 'no-authored-seed', identity: null };
+        throw error;
+      }
+    })(),
+    generatedRoot,
+    verifiedGraph: {
+      inputsHash: verified.manifest.inputsHash,
+      files: verified.manifest.files?.length ?? 0,
+    },
+    manifests: {
+      artifactIndex,
+      schema: readJson(resolveGeneratedArtifact(generatedRoot, 'schema.manifest.json'), 'SNAPBACK_VERIFY_ARTIFACT_INVALID'),
+      functions: readJson(resolveGeneratedArtifact(generatedRoot, 'functions.manifest.json'), 'SNAPBACK_VERIFY_ARTIFACT_INVALID'),
+      capability,
+    },
+    diagnostics: [],
+  };
+}
+
+export function probeAdmission(artifact) {
+  if (!artifact?.ok) return { ok: false, blocked: true, diagnostics: [] };
+  const { artifactIndex, schema, functions, capability } = artifact.manifests;
+  const identity = artifact.identity;
+  const mismatches = [];
+  for (const [manifestName, manifest] of Object.entries({ schema, functions })) {
+    for (const key of ['appId', 'schemaVersion', 'inputsHash']) {
+      if (manifest[key] !== identity[key]) mismatches.push({ manifest: manifestName, key, expected: identity[key], observed: manifest[key] ?? null });
+    }
+  }
+  if (schema.schemaHash !== identity.schemaHash) mismatches.push({ manifest: 'schema', key: 'schemaHash', expected: identity.schemaHash, observed: schema.schemaHash ?? null });
+  if (functions.bundleHash !== identity.bundleHash) mismatches.push({ manifest: 'functions', key: 'bundleHash', expected: identity.bundleHash, observed: functions.bundleHash ?? null });
+  if (artifactIndex.artifactKind !== 'artifactIndex' || schema.artifactKind !== 'schemaManifest' || functions.artifactKind !== 'functionManifest' || capability.artifactKind !== 'capabilityManifest') {
+    mismatches.push({ manifest: 'artifact-set', key: 'artifactKind', expected: 'closed known kinds', observed: 'invalid' });
+  }
+  return mismatches.length === 0
+    ? { ok: true, mode: 'generated-artifact-local-admission', diagnostics: [] }
+    : {
+      ok: false,
+      mode: 'generated-artifact-local-admission',
+      diagnostics: [diagnostic('SNAPBACK_VERIFY_ADMISSION_IDENTITY_MISMATCH', 'schema/function artifact admission identities disagree', { mismatches })],
+    };
+}
+
+export function probeCapabilities(artifact, profiles) {
+  if (!artifact?.ok) return { ok: false, blocked: true, diagnostics: [], required: [], supported: [], missing: [] };
+  const required = new Set(artifact.manifests.schema.requiredCapabilities ?? []);
+  for (const fn of artifact.manifests.functions.functions ?? []) {
+    for (const capability of fn.requiredCapabilities ?? []) required.add(capability);
+  }
+  for (const profile of profiles) {
+    for (const capability of profile.requiredCapabilities) required.add(capability);
+  }
+  const supported = new Set(artifact.manifests.capability.supportedCapabilities ?? []);
+  const missing = [...required].filter((capability) => !supported.has(capability)).sort();
+  return {
+    ok: missing.length === 0,
+    targetProfileId: artifact.manifests.capability.targetProfileId ?? null,
+    required: [...required].sort(),
+    supported: [...supported].sort(),
+    missing,
+    diagnostics: missing.length === 0 ? [] : [diagnostic(
+      'SNAPBACK_VERIFY_CAPABILITY_GAP',
+      'the selected target profile is missing required capabilities',
+      { missing },
+    )],
+  };
+}
+
+function digestFiles(configPath, paths) {
+  const files = [...new Set([...(configPath === null ? [] : [configPath]), ...paths])].sort();
+  const baseDirectory = configPath === null ? process.cwd() : dirname(configPath);
+  const hash = createHash('sha256');
+  hash.update('snapback:verify-test-bytes:v1\n', 'utf8');
+  let bytes = 0;
+  const records = files.map((path) => {
+    const content = readFileSync(path);
+    const portablePath = relative(baseDirectory, path).split(sep).join('/');
+    const fileDigest = createHash('sha256').update(content).digest('hex');
+    bytes += content.byteLength;
+    hash.update(`${Buffer.byteLength(portablePath)}:${portablePath}${content.byteLength}:`, 'utf8');
+    hash.update(content);
+    return Object.freeze({ path: portablePath, bytes: content.byteLength, sha256: `sha256:${fileDigest}` });
+  });
+  return Object.freeze({
+    algorithm: 'sha256-path-length-content.v1',
+    sha256: `sha256:${hash.digest('hex')}`,
+    bytes,
+    files: Object.freeze(records),
+  });
+}
+
+function normalizeReport(report, label) {
+  assert(plainObject(report), `${label}.report must be an object`);
+  for (const key of REPORT_KEYS) assert(Array.isArray(report[key]), `${label}.report.${key} must be an array`);
+  assert(PROVENANCE.has(report.readProvenance), `${label}.report.readProvenance must be complete, incomplete, or unsupported`);
+  assert(PROVENANCE.has(report.writeProvenance), `${label}.report.writeProvenance must be complete, incomplete, or unsupported`);
+  return Object.freeze({
+    missingReads: normalizedStringArray(report.missingReads, `${label}.report.missingReads`),
+    missingWrites: normalizedStringArray(report.missingWrites, `${label}.report.missingWrites`),
+    extraReads: normalizedStringArray(report.extraReads, `${label}.report.extraReads`),
+    extraWrites: normalizedStringArray(report.extraWrites, `${label}.report.extraWrites`),
+    readProvenance: report.readProvenance,
+    writeProvenance: report.writeProvenance,
+  });
+}
+
+function intersection(sets) {
+  if (sets.length === 0) return [];
+  return [...sets.slice(1).reduce(
+    (common, entries) => new Set([...common].filter((entry) => entries.has(entry))),
+    new Set(sets[0]),
+  )].sort();
+}
+
+export function aggregateConformance(profiles, results) {
+  if (profiles.length === 0) {
+    return Object.freeze({
+      status: 'not-claimed',
+      disposition: 'no-registered-acceptance-paths',
+      scope: 'explicitly-registered-paths-only',
+      limitationReason: 'repository acceptance suites have no universal D1 path-evidence registry in v0',
+      complete: false,
+      expectedPaths: 0,
+      observedPaths: 0,
+      pathEvidence: Object.freeze([]),
+      underDeclarations: Object.freeze([]),
+      overDeclarations: Object.freeze([]),
+      diagnostics: Object.freeze([]),
+    });
+  }
+  const resultByProfile = new Map(results.map((result) => [result.profileId, result]));
+  const evidence = [];
+  const diagnostics = [];
+  for (const profile of profiles) {
+    const returned = resultByProfile.get(profile.id)?.conformance ?? [];
+    const byPath = new Map();
+    for (const [index, item] of returned.entries()) {
+      assert(plainObject(item), `profile ${profile.id} conformance[${index}] must be an object`);
+      assert(typeof item.pathId === 'string' && item.pathId.length > 0, `profile ${profile.id} conformance[${index}].pathId must be a non-empty string`);
+      assert(!byPath.has(item.pathId), `profile ${profile.id} returned duplicate conformance for ${item.pathId}`);
+      byPath.set(item.pathId, item);
+    }
+    for (const path of profile.paths) {
+      const item = byPath.get(path.id);
+      if (!item || item.status !== 'observed') {
+        const status = item?.status === 'unsupported' ? 'unsupported' : 'incomplete';
+        evidence.push(Object.freeze({ profileId: profile.id, ...path, status, report: null }));
+        diagnostics.push(diagnostic(
+          status === 'unsupported' ? 'SNAPBACK_VERIFY_COVERAGE_PATH_UNSUPPORTED' : 'SNAPBACK_VERIFY_COVERAGE_PATH_INCOMPLETE',
+          `registered acceptance path ${profile.id}/${path.id} has no complete D1 conformance observation`,
+          { profileId: profile.id, pathId: path.id, kind: path.kind, targetProfileId: path.targetProfileId },
+        ));
+        continue;
+      }
+      const report = normalizeReport(item.report, `profile ${profile.id} path ${path.id}`);
+      const status = report.readProvenance === 'unsupported' && report.writeProvenance === 'unsupported'
+        ? 'unsupported'
+        : report.readProvenance === 'complete' && report.writeProvenance === 'complete'
+          ? 'authoritative'
+          : 'incomplete';
+      evidence.push(Object.freeze({ profileId: profile.id, ...path, status, report }));
+      if (status !== 'authoritative') {
+        diagnostics.push(diagnostic(
+          status === 'unsupported'
+            ? 'SNAPBACK_VERIFY_COVERAGE_EVIDENCE_UNSUPPORTED'
+            : 'SNAPBACK_VERIFY_COVERAGE_EVIDENCE_INCOMPLETE',
+          `registered path ${profile.id}/${path.id} was observed without complete read/write provenance`,
+          {
+            profileId: profile.id,
+            pathId: path.id,
+            readProvenance: report.readProvenance,
+            writeProvenance: report.writeProvenance,
+          },
+          'warning',
+        ));
+      }
+      const authoritativeMissingReads = report.readProvenance === 'complete' ? report.missingReads : [];
+      const authoritativeMissingWrites = report.writeProvenance === 'complete' ? report.missingWrites : [];
+      if (authoritativeMissingReads.length > 0 || authoritativeMissingWrites.length > 0) {
+        diagnostics.push(diagnostic(
+          'SNAPBACK_VERIFY_UNDER_DECLARATION',
+          `registered path ${profile.id}/${path.id} observed undeclared reads or writes`,
+          { profileId: profile.id, pathId: path.id, missingReads: authoritativeMissingReads, missingWrites: authoritativeMissingWrites },
+        ));
+      }
+    }
+    const extras = [...byPath.keys()].filter((pathId) => !profile.paths.some(({ id }) => id === pathId)).sort();
+    assert(extras.length === 0, `profile ${profile.id} returned conformance for unregistered paths: ${extras.join(', ')}`);
+  }
+  evidence.sort((left, right) => `${left.targetProfileId}\0${left.kind}\0${left.profileId}\0${left.id}`.localeCompare(`${right.targetProfileId}\0${right.kind}\0${right.profileId}\0${right.id}`));
+  const observed = evidence.filter(({ report }) => report !== null);
+  const authoritative = evidence.filter(({ status }) => status === 'authoritative');
+  const underDeclarations = observed.flatMap((entry) => {
+    const missingReads = entry.report.readProvenance === 'complete' ? entry.report.missingReads : [];
+    const missingWrites = entry.report.writeProvenance === 'complete' ? entry.report.missingWrites : [];
+    return missingReads.length === 0 && missingWrites.length === 0
+      ? []
+      : [{ profileId: entry.profileId, pathId: entry.id, functionId: entry.functionId, missingReads, missingWrites }];
+  });
+  const byFunction = new Map();
+  for (const entry of observed) {
+    if (entry.functionId === null) continue;
+    const current = byFunction.get(entry.functionId) ?? [];
+    current.push(entry);
+    byFunction.set(entry.functionId, current);
+  }
+  const overDeclarations = [...byFunction.entries()].flatMap(([functionId, entries]) => {
+    const readEntries = entries.filter(({ report }) => report.readProvenance === 'complete');
+    const writeEntries = entries.filter(({ report }) => report.writeProvenance === 'complete');
+    const extraReads = intersection(readEntries.map(({ report }) => new Set(report.extraReads)));
+    const extraWrites = intersection(writeEntries.map(({ report }) => new Set(report.extraWrites)));
+    return extraReads.length === 0 && extraWrites.length === 0 ? [] : [{
+      functionId,
+      completeObservedPaths: { reads: readEntries.length, writes: writeEntries.length },
+      extraReads,
+      extraWrites,
+      severity: 'warning',
+    }];
+  }).sort((left, right) => left.functionId.localeCompare(right.functionId));
+  const missingEvidence = evidence.filter(({ report }) => report === null);
+  const partialPaths = evidence.filter(({ status }) => status === 'incomplete' || status === 'unsupported');
+  const complete = authoritative.length === evidence.length;
+  const ok = missingEvidence.length === 0 && underDeclarations.length === 0;
+  return Object.freeze({
+    status: ok ? (complete ? 'passed' : 'partial') : 'failed',
+    disposition: 'registered-path-aggregate-v0',
+    scope: 'explicitly-registered-paths-only',
+    limitationReason: 'repository acceptance suites have no universal D1 path-evidence registry in v0',
+    complete,
+    expectedPaths: evidence.length,
+    observedPaths: observed.length,
+    authoritativePaths: authoritative.length,
+    partialPaths: partialPaths.length,
+    pathEvidence: Object.freeze(evidence),
+    underDeclarations: Object.freeze(underDeclarations),
+    overDeclarations: Object.freeze(overDeclarations),
+    diagnostics: Object.freeze(diagnostics),
+  });
+}
+
+async function runProfiles(config, context) {
+  const output = [];
+  for (const profile of config.profiles) {
+    // Capture the bytes before execution. A runner that rewrites its own test
+    // file cannot make the retained receipt describe post-run bytes instead
+    // of the program that was selected to execute.
+    const testBytes = digestFiles(config.configPath, profile.testFiles);
+    const startedAtMs = Date.now();
+    let returned;
+    try {
+      returned = await profile.run(Object.freeze({
+        artifact: context.artifact,
+        backendDirectory: config.backendDirectory,
+        generatedDirectory: context.artifact?.generatedRoot ?? config.generatedDirectory,
+        profileId: profile.id,
+      }));
+      assert(plainObject(returned), `profile ${profile.id} must return an object`);
+      assert(typeof returned.ok === 'boolean', `profile ${profile.id} must return boolean ok`);
+    } catch (error) {
+      returned = {
+        ok: false,
+        diagnostics: [error?.diagnostic ?? diagnostic(
+          error?.code ?? 'SNAPBACK_VERIFY_PROFILE_THREW',
+          error?.message ?? String(error),
+        )],
+        conformance: [],
+      };
+    }
+    const finishedAtMs = Date.now();
+    let identityContext;
+    try {
+      identityContext = normalizeContext(returned.context ?? context.identityContext);
+    } catch (error) {
+      identityContext = context.identityContext;
+      returned = {
+        ...returned,
+        ok: false,
+        diagnostics: [
+          ...(returned.diagnostics ?? []),
+          error?.diagnostic ?? diagnostic(
+            error?.code ?? 'SNAPBACK_VERIFY_PROFILE_IDENTITY_INVALID',
+            error?.message ?? String(error),
+          ),
+        ],
+      };
+    }
+    const identityGaps = [
+      identityContext.target.identity === null ? 'target.identity' : null,
+      identityContext.data.identity === null ? 'data.identity' : null,
+      identityContext.authority.identity === null ? 'authority.identity' : null,
+      identityContext.seed.kind === 'not-exercised' ? 'seed.kind' : null,
+    ].filter(Boolean);
+    if (identityGaps.length > 0) {
+      returned = {
+        ...returned,
+        ok: false,
+        diagnostics: [
+          ...(returned.diagnostics ?? []),
+          diagnostic(
+            'SNAPBACK_VERIFY_PROFILE_IDENTITY_INCOMPLETE',
+            `acceptance profile ${profile.id} did not bind every required execution identity`,
+            { profileId: profile.id, identityGaps },
+          ),
+        ],
+      };
+    }
+    output.push(Object.freeze({
+      profileId: profile.id,
+      title: profile.title,
+      status: returned.ok ? 'passed' : 'failed',
+      startedAtMs,
+      finishedAtMs,
+      durationMs: finishedAtMs - startedAtMs,
+      testBytes,
+      context: identityContext,
+      conformance: Array.isArray(returned.conformance) ? returned.conformance : [],
+      diagnostics: Object.freeze(returned.diagnostics ?? []),
+    }));
+  }
+  return Object.freeze(output);
+}
+
+function stage(id, result, { blocked = false } = {}) {
+  const ok = result?.ok === true;
+  return Object.freeze({
+    id,
+    status: blocked || result?.blocked ? 'blocked' : ok ? 'passed' : 'failed',
+    diagnostics: Object.freeze(result?.diagnostics ?? []),
+    evidence: result?.evidence ?? null,
+  });
+}
+
+async function safeProbe(probe, ...args) {
+  try {
+    return await probe(...args);
+  } catch (error) {
+    return {
+      ok: false,
+      diagnostics: [error?.diagnostic ?? diagnostic(
+        error?.code ?? 'SNAPBACK_VERIFY_PROBE_FAILED',
+        error?.message ?? String(error),
+      )],
+    };
+  }
+}
+
+export async function runVerify(config, options = {}) {
+  const startedAtMs = options.now?.() ?? Date.now();
+  const profileSetTestBytes = digestFiles(
+    config.configPath,
+    config.profiles.flatMap(({ testFiles }) => testFiles),
+  );
+  const artifact = await safeProbe(options.artifactProbe ?? probeArtifactFreshness, config);
+  const runtime = artifact.ok
+    ? await safeProbe(
+      options.runtimeProbe ?? (() => ({ ok: false, diagnostics: [diagnostic('SNAPBACK_VERIFY_RUNTIME_PROBE_MISSING', 'no runtime readiness verifier was supplied')]})),
+      config,
+    )
+    : { ok: false, blocked: true, diagnostics: [] };
+  const admission = artifact.ok && runtime.ok
+    ? await safeProbe(options.admissionProbe ?? probeAdmission, artifact, config)
+    : { ok: false, blocked: true, diagnostics: [] };
+  const capabilities = artifact.ok && admission.ok
+    ? await safeProbe(options.capabilityProbe ?? probeCapabilities, artifact, config.profiles, config)
+    : { ok: false, blocked: true, diagnostics: [], required: [], supported: [], missing: [] };
+  // Profile execution is the observation source for D1 coverage, whose
+  // judgement precedes capability and acceptance verdicts in the receipt.
+  // Capability resolution still gates the final acceptance stage; a missing
+  // capability never turns a profile outcome into a passing acceptance claim.
+  const canRunProfiles = artifact.ok && runtime.ok && admission.ok;
+  const identityContext = normalizeContext({
+    ...config.context,
+    target: config.context.target.identity === null && artifact.identity?.inputsHash
+      ? { ...config.context.target, identity: artifact.identity.inputsHash }
+      : config.context.target,
+    seed: config.context.seed.identity === null && artifact.seedIdentity
+      ? artifact.seedIdentity
+      : config.context.seed,
+  });
+  const profileResults = canRunProfiles
+    ? await runProfiles(config, { artifact, identityContext })
+    : Object.freeze([]);
+  const conformance = canRunProfiles
+    ? aggregateConformance(config.profiles, profileResults)
+    : Object.freeze({
+      status: 'blocked', disposition: 'upstream-stage-failed', complete: false,
+      scope: 'explicitly-registered-paths-only',
+      limitationReason: 'repository acceptance suites have no universal D1 path-evidence registry in v0',
+      expectedPaths: config.profiles.reduce((count, profile) => count + profile.paths.length, 0), observedPaths: 0,
+      pathEvidence: [], underDeclarations: [], overDeclarations: [], diagnostics: [],
+    });
+  const admissionAndConformance = {
+    ok: admission.ok && ['passed', 'partial', 'not-claimed'].includes(conformance.status),
+    blocked: admission.blocked,
+    diagnostics: [...(admission.diagnostics ?? []), ...(conformance.diagnostics ?? [])],
+    evidence: {
+      admissionMode: admission.mode ?? null,
+      conformance,
+    },
+  };
+  const acceptance = {
+    ok: canRunProfiles && capabilities.ok && profileResults.every(({ status }) => status === 'passed'),
+    blocked: !canRunProfiles || !capabilities.ok,
+    diagnostics: profileResults.flatMap(({ diagnostics }) => diagnostics),
+    evidence: { profiles: profileResults },
+  };
+  const stages = Object.freeze([
+    stage('artifact-freshness', {
+      ...artifact,
+      evidence: artifact.ok ? {
+        identity: artifact.identity,
+        generatedRoot: artifact.generatedRoot,
+        verifiedGraph: artifact.verifiedGraph ?? null,
+      } : null,
+    }),
+    stage('runtime-readiness', {
+      ...runtime,
+      evidence: runtime.ok ? (runtime.evidence ?? runtime.receipt ?? null) : null,
+    }),
+    stage('admission-and-conformance', admissionAndConformance),
+    stage('capability-resolution', {
+      ...capabilities,
+      evidence: capabilities.blocked ? null : {
+        targetProfileId: capabilities.targetProfileId ?? null,
+        required: capabilities.required,
+        supported: capabilities.supported,
+        missing: capabilities.missing,
+      },
+    }),
+    stage('acceptance-profiles', acceptance),
+  ]);
+  const next = Object.freeze(stages.filter(({ status }) => status === 'failed').map(({ id }) => NEXT_BY_STAGE[id]));
+  const finishedAtMs = options.now?.() ?? Date.now();
+  const receipt = {
+    artifactKind: 'snapbackVerifyReceipt',
+    schemaVersion: VERIFY_RECEIPT_SCHEMA_VERSION,
+    ok: stages.every(({ status }) => status === 'passed'),
+    status: stages.every(({ status }) => status === 'passed') ? 'passed' : 'failed',
+    startedAtMs,
+    finishedAtMs,
+    durationMs: finishedAtMs - startedAtMs,
+    profileSet: {
+      ids: config.profiles.map(({ id }) => id).sort(),
+      identity: `sha256:${createHash('sha256').update(stableJson(config.profiles.map((profile) => ({
+        id: profile.id,
+        requiredCapabilities: profile.requiredCapabilities,
+        paths: profile.paths,
+      })))).digest('hex')}`,
+      testBytes: profileSetTestBytes,
+    },
+    context: identityContext,
+    stages,
+    acceptanceProfiles: profileResults,
+    next,
+    ...(next.length === 1 ? { recommendedNext: next[0] } : {}),
+    nonclaims: Object.freeze([
+      'a passing receipt proves readiness under the registered contract, not product completion',
+      'no registered acceptance paths means D1 aggregate coverage is not claimed',
+      'generated-artifact-local-admission does not claim a live target admitted the same bytes',
+      'this receipt does not perform semantic review or satisfy LLP 0115 CV-14 review custody',
+    ]),
+  };
+  return Object.freeze(receipt);
+}
+
+export function validateVerifyReceipt(receipt) {
+  if (!plainObject(receipt) || receipt.artifactKind !== 'snapbackVerifyReceipt' || receipt.schemaVersion !== VERIFY_RECEIPT_SCHEMA_VERSION) {
+    throw verifyError('SNAPBACK_VERIFY_RECEIPT_INVALID', 'receipt kind or schema version is invalid');
+  }
+  if (!Array.isArray(receipt.stages) || receipt.stages.length !== VERIFY_STAGE_IDS.length
+    || receipt.stages.some((entry, index) => entry.id !== VERIFY_STAGE_IDS[index])) {
+    throw verifyError('SNAPBACK_VERIFY_RECEIPT_INVALID', 'receipt does not contain the five ordered verify stages');
+  }
+  if (!Array.isArray(receipt.next) || (receipt.recommendedNext !== undefined && (receipt.next.length !== 1 || stableJson(receipt.recommendedNext) !== stableJson(receipt.next[0])))) {
+    throw verifyError('SNAPBACK_VERIFY_RECEIPT_INVALID', 'recommendedNext is present without one mechanically unique next action');
+  }
+  return receipt;
+}
+
+export function writeVerifyReceipt(path, receipt) {
+  validateVerifyReceipt(receipt);
+  const output = resolve(path);
+  const temporary = `${output}.tmp-${process.pid}`;
+  mkdirSync(dirname(output), { recursive: true });
+  writeFileSync(temporary, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 });
+  renameSync(temporary, output);
+  return output;
+}

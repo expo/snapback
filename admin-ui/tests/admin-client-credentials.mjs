@@ -30,10 +30,14 @@ globalThis.localStorage = {
   },
 };
 const sessionWrites = [];
+const sessionStorageRecords = new Map();
 globalThis.sessionStorage = {
-  getItem() { return null; },
-  setItem(key, value) { sessionWrites.push([key, String(value)]); },
-  removeItem() {},
+  getItem(key) { return sessionStorageRecords.get(key) ?? null; },
+  setItem(key, value) {
+    sessionWrites.push([key, String(value)]);
+    sessionStorageRecords.set(key, String(value));
+  },
+  removeItem(key) { sessionStorageRecords.delete(key); },
 };
 const indexedDbCalls = [];
 globalThis.indexedDB = {
@@ -666,6 +670,173 @@ assert.equal(
   'the raw claim never enters browser storage',
 );
 
+// A credential received through a managed LAN/tailnet origin belongs only to
+// this browser tab and this exact server process/session. Reload restoration
+// probes public identity first and never sends a bearer while identity is
+// missing, mismatched, or indeterminate.
+const REACHABILITY_CLAIM = 'sbcl_11111111111111111111111111111111';
+const REACHABILITY_DERIVED = 'sbcc_reachability-derived';
+const REACHABILITY_SESSION = 'sbrs_11111111111111111111111111111111';
+const REACHABILITY_INSTANCE = 'startup-instance-a';
+const reachabilityExpiry = Date.now() + 10 * 60_000;
+fetchOverride = async (url) => {
+  assert.equal(url.endsWith('/console/claim/exchange'), true);
+  return response(200, {
+    credential: REACHABILITY_DERIVED,
+    expiresAtMs: reachabilityExpiry,
+    provenance: 'operatorClaim',
+    reachability: {
+      sessionId: REACHABILITY_SESSION,
+      instanceId: REACHABILITY_INSTANCE,
+    },
+  });
+};
+const reachableClient = new AdminClient('http://snapback.test/_snapback/api');
+await reachableClient.exchangeConsoleClaim(REACHABILITY_CLAIM);
+assert.equal(
+  storage.has('snapback_console_credential_v1'),
+  false,
+  'a reachability credential never falls back to localStorage',
+);
+const reachabilityKey = `snapback_reachability_credential_v1:${REACHABILITY_SESSION}:${REACHABILITY_INSTANCE}`;
+assert.equal(
+  JSON.parse(sessionStorageRecords.get(reachabilityKey)).credential,
+  REACHABILITY_DERIVED,
+  'the reachability credential is retained in this tab only',
+);
+assert.deepEqual(
+  JSON.parse(sessionStorageRecords.get('snapback_reachability_sessions_v1')),
+  [reachabilityKey],
+);
+
+const restoreRequests = [];
+storage.set('snapback_console_credential_v1', JSON.stringify({
+  credential: 'sbcc_stale-ordinary',
+  expiresAtMs: reachabilityExpiry,
+  provenance: 'operatorClaim',
+}));
+fetchOverride = async (url, options = {}) => {
+  restoreRequests.push({ url, options });
+  if (url.endsWith('/_snapback/admin/reachability/identity')) {
+    return response(200, { instanceId: REACHABILITY_INSTANCE });
+  }
+  if (url.includes('/_snapback/admin/reachability/identity?session=')) {
+    return response(200, {
+      instanceId: REACHABILITY_INSTANCE,
+      sessionId: REACHABILITY_SESSION,
+    });
+  }
+  return response(200, { ok: true });
+};
+const reachableReload = new AdminClient('http://snapback.test/_snapback/api');
+assert.equal(
+  storage.has('snapback_console_credential_v1'),
+  false,
+  'a reachability restore candidate removes an older ordinary-storage fallback',
+);
+await reachableReload.inspect();
+assert.equal(restoreRequests.length, 3);
+assert.equal(
+  restoreRequests[0].options.headers,
+  undefined,
+  'the process identity probe carries no credential',
+);
+assert.equal(
+  restoreRequests[1].options.headers,
+  undefined,
+  'the exact-session identity probe carries no credential',
+);
+assert.equal(
+  restoreRequests[2].options.headers['x-snapback-console-credential'],
+  REACHABILITY_DERIVED,
+  'only an exact instance and session match releases the tab credential',
+);
+
+const mismatchRequests = [];
+fetchOverride = async (url, options = {}) => {
+  mismatchRequests.push({ url, options });
+  if (url.endsWith('/_snapback/admin/reachability/identity')) {
+    return response(200, { instanceId: 'startup-instance-b' });
+  }
+  return response(200, { ok: true });
+};
+const mismatchedReload = new AdminClient('http://snapback.test/_snapback/api');
+await mismatchedReload.inspect();
+assert.equal(mismatchRequests.length, 2);
+assert.equal(
+  mismatchRequests[1].options.headers['x-snapback-console-credential'],
+  undefined,
+  'origin reuse by a different backend never receives the old bearer',
+);
+assert.equal(sessionStorageRecords.has(reachabilityKey), false);
+
+const reachabilityRenewalRequests = [];
+fetchOverride = async (url, options = {}) => {
+  reachabilityRenewalRequests.push({ url, options });
+  if (url.endsWith('/console/claim/exchange')) {
+    return response(200, {
+      credential: REACHABILITY_DERIVED,
+      expiresAtMs: Date.now() + 1_000,
+      provenance: 'operatorClaim',
+      reachability: {
+        sessionId: REACHABILITY_SESSION,
+        instanceId: REACHABILITY_INSTANCE,
+      },
+    });
+  }
+  if (url.endsWith('/console/credential')) {
+    return response(200, {
+      credential: REACHABILITY_DERIVED,
+      expiresAtMs: Date.now() + 10 * 60_000,
+      provenance: 'operatorClaim',
+    });
+  }
+  return response(200, { ok: true });
+};
+const leaseLostDuringRenewal = new AdminClient('http://snapback.test/_snapback/api');
+await leaseLostDuringRenewal.exchangeConsoleClaim(REACHABILITY_CLAIM);
+await assert.rejects(
+  () => leaseLostDuringRenewal.inspect(),
+  (error) => error.diagnostic?.code === 'SNAPBACK_RESPONSE_INVALID',
+  'renewal without the exact reachability binding fails closed',
+);
+assert.equal(
+  reachabilityRenewalRequests.some(({ url }) => url.endsWith('/inspect')),
+  false,
+  'a downgraded renewal cannot proceed to an API request',
+);
+assert.equal(sessionStorageRecords.has(reachabilityKey), false);
+assert.equal(storage.has('snapback_console_credential_v1'), false);
+
+fetchOverride = async (url) => {
+  if (url.endsWith('/console/claim/exchange')) {
+    return response(200, {
+      credential: REACHABILITY_DERIVED,
+      expiresAtMs: reachabilityExpiry,
+      provenance: 'operatorClaim',
+      reachability: {
+        sessionId: REACHABILITY_SESSION,
+        instanceId: REACHABILITY_INSTANCE,
+      },
+    });
+  }
+  return response(401, {
+    diagnostic: {
+      code: 'SNAPBACK_ADMIN_TOKEN_REQUIRED',
+      message: 'console reachability credential was revoked',
+    },
+  });
+};
+const revokedReachability = new AdminClient('http://snapback.test/_snapback/api');
+await revokedReachability.exchangeConsoleClaim(REACHABILITY_CLAIM);
+await assert.rejects(() => revokedReachability.inspect());
+assert.equal(
+  sessionStorageRecords.has(reachabilityKey),
+  false,
+  'an observed authorization failure clears the tab-scoped reachability record',
+);
+assert.equal(storage.has('snapback_console_credential_v1'), false);
+
 let refusedFragmentStripped = false;
 fetchOverride = async () => response(401, {
   diagnostic: {
@@ -792,6 +963,9 @@ function response(status, body) {
     status,
     async text() {
       return JSON.stringify(body);
+    },
+    async json() {
+      return body;
     },
   };
 }

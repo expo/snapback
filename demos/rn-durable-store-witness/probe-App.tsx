@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { AppState, Platform, StyleSheet, Text, View } from 'react-native';
+import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
 import {
@@ -23,8 +24,9 @@ import { api } from './src/generated/api-notebook.mjs';
 import { fetchServerUrl } from './src/config';
 import { harness, errorFacts } from './src/harness';
 
-// The one-line root registration this probe exists to witness.
-registerExpoFileSystemRqsFiles(FileSystem);
+// Root registration carries both the files arm and the CSPRNG required by
+// format-v3 store metadata. It does not install a global WebCrypto polyfill.
+registerExpoFileSystemRqsFiles(FileSystem, { crypto: Crypto });
 
 const protocolHeaders = {
   'content-type': 'application/json',

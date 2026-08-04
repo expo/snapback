@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-04
+reviewed-commit: dab2410b6793ffa5685069a0a4054f0e2b21608a
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -85,7 +85,8 @@ you never build around a feature because you didn't know it existed.
   (experimental).
 - [Assets](./backend/assets.md) — generated upload intents, TUS resumable
   transfer, trusted SHA-256 finalization, typed `v.assetRef` attachment,
-  private-strict delivery (local target; image pipeline still a GAP).
+  private-strict delivery, consistent-cut logical export, and signing-key
+  rotation (local target; byte-level backup remains a nonclaim).
 - [Versioned seeds](./backend/versioned-seeds.md) — content-addressed fixture
   identity, non-destructive matching, explicit reset-install/clear, and
   migration boundaries (experimental).
@@ -153,6 +154,9 @@ you never build around a feature because you didn't know it existed.
 ### Testing
 - [Acceptance testing](./testing/acceptance.md) — headless-first harness,
   vacuous-pass protection, safe server lifecycle.
+- [Verify the declared app contract](./testing/verify.md) — compose artifact,
+  runtime, D1 coverage, capabilities, and registered acceptance into one
+  identity-bound partial done-oracle receipt.
 
 ### Operating
 - [Local instance forks](./operating/instance-forks.md) — give each worktree a

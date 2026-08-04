@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "snapback.sequence-allocation-publication-evidence.v1",
+  "date": "2026-08-04",
+  "repositoryLocal": {
+    "status": "passed",
+    "targetProfileId": "local-dev-sqlite-ibex",
+    "cases": [
+      {
+        "id": "dense-abort-and-commit-order-contention",
+        "status": "passed",
+        "runner": "rust",
+        "tests": [
+          "storage::guarded_commit_tests::generated_sequence_host_plan_is_atomic_gapless_and_exactly_replayable",
+          "storage::guarded_commit_tests::sequence_multi_writer_commit_order_and_performance_qualification"
+        ],
+        "observation": {
+          "writers": 24,
+          "elapsedMs": 364,
+          "p95Ms": 359,
+          "minimumThroughputPerSecond": 65.93406593406593,
+          "maximumQualifiedElapsedMs": 15000,
+          "commitOrderValues": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
+        }
+      },
+      {
+        "id": "two-transaction-stale-first-writer",
+        "status": "passed",
+        "runner": "rust+ibex",
+        "test": "runtime::membership_bridge_tests::sequence_abort_disclosure_channels_leave_no_durable_or_result_trace"
+      },
+      {
+        "id": "console-and-throw-abort-disclosure-trace-free",
+        "status": "passed",
+        "runner": "rust+ibex",
+        "test": "runtime::membership_bridge_tests::sequence_abort_disclosure_channels_leave_no_durable_or_result_trace"
+      },
+      {
+        "id": "delete-recreate-incarnation-prefixed-uniqueness",
+        "status": "passed",
+        "runner": "rust",
+        "tests": [
+          "storage::guarded_commit_tests::generated_sequence_exhaustion_and_scope_recreation_are_incarnation_scoped",
+          "storage::guarded_commit_tests::sequence_recreation_keeps_orphaned_rows_and_prefixed_unique_values_distinct"
+        ]
+      },
+      {
+        "id": "brownfield-reviewed-backfill",
+        "status": "passed",
+        "runner": "rust",
+        "test": "storage::guarded_commit_tests::sequence_enrollment_orders_fresh_brownfield_and_relation_activation"
+      },
+      {
+        "id": "sequential-and-concurrent-exact-settlement-replay",
+        "status": "passed",
+        "runner": "rust",
+        "tests": [
+          "storage::guarded_commit_tests::generated_sequence_host_plan_is_atomic_gapless_and_exactly_replayable",
+          "storage::guarded_commit_tests::sequence_concurrent_duplicate_replay_advances_once_and_returns_exact_bytes"
+        ]
+      },
+      {
+        "id": "lane-q-cross-projection-mutation-atomic-withholding",
+        "status": "passed",
+        "runner": "node",
+        "commands": [
+          "node packages/snapback-contract/derived-overlay.test.mjs",
+          "node packages/snapback-contract/offline-replay.test.mjs"
+        ]
+      },
+      {
+        "id": "exhaustion-oracle-collapse-and-closed-api",
+        "status": "passed",
+        "runner": "rust+node",
+        "tests": [
+          "storage::guarded_commit_tests::generated_sequence_exhaustion_and_scope_recreation_are_incarnation_scoped",
+          "storage::guarded_commit_tests::generated_sequence_scope_refusals_are_byte_identical",
+          "runtime::membership_bridge_tests::sequence_host_bridge_is_declared_scoped_and_commits_with_the_mutation",
+          "packages/snapback-codegen/sequence-authoring.test.mjs"
+        ]
+      },
+      {
+        "id": "relay-move-card-generated-write-activity",
+        "status": "passed",
+        "runner": "rust",
+        "test": "storage::guarded_commit_tests::relay_move_card_sequence_result_is_atomic_and_byte_exactly_replayable"
+      },
+      {
+        "id": "campfire-anonymous-public-concurrent-send",
+        "status": "passed",
+        "runner": "rust+ibex",
+        "test": "runtime::membership_bridge_tests::public_handler_sequence_is_dense_atomic_and_range_free_under_concurrent_senders",
+        "observation": {
+          "anonymousSenders": 8,
+          "commitOrderValues": [1, 2, 3, 4, 5, 6, 7, 8],
+          "rangeReads": 0
+        }
+      }
+    ]
+  },
+  "publication": {
+    "status": "published-local-source",
+    "authority": "LocalCapabilityPublicationV1",
+    "targetProfileIds": ["local-dev-sqlite-ibex"],
+    "capabilityIds": ["sequence_allocation_v1"],
+    "maturity": "experimental",
+    "capabilitiesPublished": true,
+    "acknowledgmentRequired": true,
+    "artifactAuthority": false,
+    "hostedAuthority": false,
+    "residualGates": [
+      "public package attestation",
+      "hosted target corpus and LLP 0113 family amendment",
+      "LLP 0134 digest-bound maturity promotion"
+    ]
+  },
+  "publicPackage": {
+    "status": "withheld-structured-gap",
+    "buildDistribution": "public-package",
+    "authority": null,
+    "capabilityGaps": ["sequence_allocation_v1"],
+    "reason": "PackageCapabilityAttestationV1 is not embedded and release-key verified"
+  },
+  "hostedTargets": {
+    "status": "withheld-structured-gaps",
+    "authority": null,
+    "capabilityGaps": ["sequence_allocation_v1"],
+    "reason": "No hosted target has the exact qualification corpus or LLP 0113 capability-family publication"
+  }
+}

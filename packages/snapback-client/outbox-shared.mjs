@@ -106,6 +106,27 @@ export function normalizeOutboxRecordInput(record) {
       'outbox settlement lane must be replay-accept or re-derive',
     );
   }
+  let optimisticOperation = null;
+  if (record.optimisticOperation != null) {
+    try {
+      optimisticOperation = JSON.parse(canonicalizeClientValueV1(record.optimisticOperation));
+    } catch {
+      throw outboxError(
+        'SNAPBACK_OUTBOX_RECORD_INVALID',
+        'outbox optimistic operation must be a finite canonical client value',
+      );
+    }
+    if (optimisticOperation === null || typeof optimisticOperation !== 'object' || Array.isArray(optimisticOperation)) {
+      throw outboxError(
+        'SNAPBACK_OUTBOX_RECORD_INVALID',
+        'outbox optimistic operation must be an object',
+      );
+    }
+    // The protocol identity is the layer identity. Callers may capture the IR
+    // before minting an id; normalize the durable copy once rather than retain
+    // a second local-only identity that cannot match settlement.
+    optimisticOperation.layerId = id;
+  }
   return {
     id,
     function: functionName,
@@ -136,6 +157,11 @@ export function normalizeOutboxRecordInput(record) {
     // in the outbox's exact replay identity.
     operationIssuance: record.operationIssuance ?? null,
     operationCoverageDisposition: record.operationCoverageDisposition ?? null,
+    // Move-3 lane-L intent payload. The durable outbox owns the immutable IR
+    // operation; private layers are always recomputed from it and never become
+    // a second persistence authority.
+    // @ref LLP 0155#rebase — reload replays remaining operations in sequence.
+    optimisticOperation,
     // Client-captured wall-clock at enqueue. A labeled claim for receipts
     // and UI (LLP 0129 ledger row 1, decision 10 taxonomy) — never
     // transmitted as authority and never used for ordering.

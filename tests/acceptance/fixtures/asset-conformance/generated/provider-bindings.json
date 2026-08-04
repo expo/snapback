@@ -175,9 +175,48 @@
           "supported": false
         },
         "resultType": "unknown"
+      },
+      {
+        "argumentsType": "{ \"assetId\": string; \"event\": string; \"facts\": unknown }",
+        "effects": {
+          "invalidates": [
+            "assetCallbackLog"
+          ],
+          "writes": [
+            "assetCallbackLog"
+          ]
+        },
+        "name": "recordAssetReady",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        },
+        "resultType": "unknown"
       }
     ],
-    "queries": []
+    "queries": [
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "assetCallbackLog"
+          ]
+        },
+        "name": "listAssetCallbackLog",
+        "resultType": "ReadonlyArray<unknown>"
+      }
+    ]
   },
   "provider": {
     "id": "snapback",
@@ -185,7 +224,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "snapback.v1:sessions:inputs:sha256:b2be9352d4551a42f9f5d1f36a90dd9a58a5aa733f345b68f424dca7b8c8bb0b",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:5b011bf6d364fd947edb58deb0455ef61721da6069ee8f8dc81043e2ac391bff",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

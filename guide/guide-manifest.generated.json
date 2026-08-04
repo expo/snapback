@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "dab2410b6793ffa5685069a0a4054f0e2b21608a"
+    "commit": "129873f40e31dbdb909a3133a3862e04e26503d2"
   },
   "nav": {
     ".": [
@@ -302,6 +302,11 @@
         "id": "testing.acceptance",
         "order": 1,
         "title": "Acceptance testing"
+      },
+      {
+        "id": "testing.verify",
+        "order": 2,
+        "title": "Verify the declared app contract"
       }
     ]
   },
@@ -707,6 +712,8 @@
         "llp/0044-asset-storage-pipeline.rfc.md",
         "llp/0096-auth-profiles-for-protocol-clients.spec.md",
         "src/assets.rs",
+        "src/assets_cut.rs",
+        "src/cli.rs",
         "src/local.rs",
         "src/server.rs",
         "packages/snapback-codegen/define.mjs",
@@ -717,9 +724,9 @@
         "demos/party-wall",
         "demos/file-drop"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "0868d565eac8518888adc5ea5d6d7fbd503396c7711458af1adbb0159a14c6a2",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "4f6b1bc3d98c9b9e3d1a946ff7cbd648854ea1a6",
+      "sha256": "9491184c32f63bda691f470ce3b92d95f6f54c243c2570c4b31b0f7e35b5b7f8",
       "snippets": [
         {
           "lang": "js",
@@ -751,6 +758,21 @@
         {
           "lang": "js",
           "class": "transcluded",
+          "source": "tests/acceptance/fixtures/asset-conformance/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "tests/acceptance/fixtures/asset-conformance/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "tests/acceptance/fixtures/asset-conformance/handlers.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
           "source": "demos/party-wall/snapback/schema.mjs"
         },
         {
@@ -766,6 +788,16 @@
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-codegen/asset-upload-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/asset-upload-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "tests/acceptance/asset-conformance-v1.mjs"
         }
       ]
     },
@@ -1036,7 +1068,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "6a0852a25f19a713ef711a5d736662c8ef0fd0f9ed7c4bc33a0f72e0a020bd73",
+      "sha256": "e518c989907e4b7eeaeb71f1a899e366040ed6eb99e7575b16f0f8b9775965f8",
       "snippets": [
         {
           "lang": "js",
@@ -1067,20 +1099,23 @@
         "llp/0128-popular-app-storage-scale.research.md",
         "llp/0135-sequence-allocation-and-snapshot-batch.spec.md",
         "llp/0157-composition-algebra-and-completeness.spec.md",
+        "src/local-sequence-allocation-publication.v1.json",
         "src/manifest.rs",
         "src/runtime.rs",
         "src/storage.rs",
+        "tests/conformance/sequence-allocation-publication-v1.receipt.json",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/sequence-authoring.test.mjs",
+        "packages/snapback-contract/derived-overlay.test.mjs",
         "packages/snapback-harness/ctx-bootstrap.js",
         "demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs"
       ],
       "examples": [
         "demos/improvement-sweep/arms/a6-snapback-web/evidence/app"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "f3084141ec9d6b36d28b41eeacd8ffda88121b13443f9c32fb2444cdebe94b48",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "HEAD",
+      "sha256": "08945588c0bc749b80ca54b8c58764639248beecbb77c550247c0ae1fbd04d12",
       "snippets": [
         {
           "lang": "js",
@@ -1410,7 +1445,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "eb7485732c84341db36c5d144d25d7e03064e19ca3927da073f489f56c7d8160",
+      "sha256": "c14552a999d5617886b29c9f4e75a7236868827fe9f7b99d514039786f62420a",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1427,8 +1462,11 @@
       ],
       "authorities": [
         "llp/0062-generated-app-cli-and-code-mode.rfc.md",
+        "llp/0146-agentic-authoring-affordances.rfc.md",
         "packages/snapback-app-cli/index.mjs",
         "packages/snapback-app-cli/cli.mjs",
+        "packages/snapback-app-cli/digest.mjs",
+        "packages/snapback-app-cli/agent-digest.schema.json",
         "packages/snapback-app-cli/auth.mjs",
         "packages/snapback-app-cli/code-mode.mjs",
         "packages/snapback-app-cli/result-core.mjs",
@@ -1439,11 +1477,12 @@
         "packages/snapback-app-cli/auth.test.mjs",
         "packages/snapback-app-cli/code-mode.test.mjs",
         "packages/snapback-app-cli/cli.test.mjs",
+        "packages/snapback-app-cli/digest.test.mjs",
         "demos/todo/snapback/generated"
       ],
-      "reviewed": "2026-08-01",
-      "reviewedCommit": "01fc75d2182b5d0a5ef8b122597984d37e04a2b8",
-      "sha256": "79ba47e82c25e55e6b57dcf5d146ba16ec002452ebf1ea3b4488e80b6850e491",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "dab2410b6793ffa5685069a0a4054f0e2b21608a",
+      "sha256": "b72179cffc809ed5273b1f2c85a58f9c3f466ed73dc9a0ef6775c7b8f23e2c27",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -1592,7 +1631,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "e986f68a06746c0536492392e69f3f184c8d5095cdef72497aa680d59b917ae0",
+      "sha256": "bb2f86339e7725946128c26fc03dfed4def9759065271ab101cff805b2eaef91",
       "snippets": [
         {
           "lang": "js",
@@ -1642,7 +1681,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "bdbcb429f20e7a6a5ddf5d88f5a5382ab973501cd88c3bc9b5129c8f7926320c",
+      "sha256": "bcf2b41877ad116a24b5e03cf91c909890163bad05bf08314dcb2850b110b3ea",
       "snippets": [
         {
           "lang": "ts",
@@ -1709,9 +1748,9 @@
         "packages/snapback-react/offline.test.mjs",
         "packages/snapback-react/exact-result-types.fixture.ts"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "99a4e9e909696d707ea06b7918d0797bd76ecb5dc9a11e50adddefd4df1f715e",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "8154744c87ed58816703093bd526bd7a40d95a56",
+      "sha256": "4eda21c9d00e769483300783cf4f8c5c762c698a5e5045e9ad3b94e276138663",
       "snippets": [
         {
           "lang": "ts",
@@ -2061,9 +2100,9 @@
         "demos/card-game",
         "demos/partiful-matrix"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "3e1619ce67179767403ddaff2d3b92e52e6c24c087ca9f0d48e6553d9e7edc72",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "dab2410b6793ffa5685069a0a4054f0e2b21608a",
+      "sha256": "3d4479d7ea8c413350a7b2b68bbb170731211b3f3f95701619f57a51f37ed128",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2081,6 +2120,7 @@
       "authorities": [
         "llp/0017-admin-console-inspection-surface.rfc.md",
         "src/admin.rs",
+        "src/admin_link.rs",
         "src/cli.rs",
         "packages/snapback-admin-client/index.mjs",
         "admin-ui/auth-prompt.mjs",
@@ -2089,14 +2129,16 @@
         "admin-ui/dev.mjs",
         "packages/snapback-contract/build-preset.mjs",
         "admin-ui/tests/fatal-rendering.mjs",
-        "tests/admin_claim_link_v0.rs"
+        "tests/admin_claim_link_v0.rs",
+        "tests/admin_reachability_v0.rs",
+        "tests/admin_tailscale_v0.rs"
       ],
       "examples": [
         "admin-ui"
       ],
       "reviewed": "2026-08-03",
-      "reviewedCommit": "3eb4b9714",
-      "sha256": "fb5ba4d4e1188e0f374832f74ccc5959ba36878fadde2b2bd64872a7fb765a53",
+      "reviewedCommit": "ce69de09e",
+      "sha256": "7661f9d4f0d56e0022b9325e471fde70b28f9ae9a681b4e41fca063c59ab4b86",
       "snippets": [
         {
           "lang": "js",
@@ -2568,9 +2610,9 @@
       "examples": [
         "packages/snapback-react/optimistic.test.mjs"
       ],
-      "reviewed": "2026-08-03",
+      "reviewed": "2026-08-04",
       "reviewedCommit": "HEAD",
-      "sha256": "8e12e5761f477d2b1532dac8e71a7a983e85008b33966d96f1ef71e96b717eeb",
+      "sha256": "bde9cea17a62cb21561596a38104f98922ca2891406c16971cb97453dbc924ee",
       "snippets": [
         {
           "lang": "js",
@@ -2580,6 +2622,11 @@
         {
           "lang": "tsx",
           "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/optimistic.test.mjs"
         },
         {
           "lang": "js",
@@ -2678,12 +2725,13 @@
         "llp/0031-server-route-taxonomy.spec.md",
         "llp/0061-agent-first-snapback-guide.rfc.md",
         "src/server.rs",
-        "src/admin.rs"
+        "src/admin.rs",
+        "src/admin_link.rs"
       ],
       "examples": [],
       "reviewed": "2026-08-03",
-      "reviewedCommit": "3eb4b9714",
-      "sha256": "4183af67017cb42cd10276e04a2f5e04673adaad627e967751873d4b5858729f",
+      "reviewedCommit": "7b467cf16",
+      "sha256": "c5b8eb256ce0672e382b0e22f983c801a007d52607d37360b401a1929916a996",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -2697,7 +2745,8 @@
       "maturity": "partial",
       "capabilities": [
         "sync.offline",
-        "sync.offline-js-arm"
+        "sync.offline-js-arm",
+        "sync.local-persistent-store"
       ],
       "authorities": [
         "llp/0043-offline-replay-retention.rfc.md",
@@ -2706,6 +2755,10 @@
         "llp/0090-resumable-query-snapshots.rfc.md",
         "llp/0129-local-first-program.plan.md",
         "llp/0133-local-settlement.spec.md",
+        "llp/0157-composition-algebra-and-completeness.spec.md",
+        "llp/0166-local-persistent-store.spec.md",
+        "packages/snapback-client/materialization-bridge.mjs",
+        "tests/acceptance/local-store-carrier-exit-v1.mjs",
         "packages/snapback-contract/index.mjs",
         "packages/snapback-contract/offline-replay.test.mjs",
         "packages/snapback-client/index.mjs",
@@ -2715,15 +2768,16 @@
         "packages/snapback-react/index.mjs"
       ],
       "examples": [
+        "demos/triage-graph",
         "demos/card-game",
         "demos/todo-v2/surfaces/contract",
         "demos/public-dashboard",
         "packages/snapback-contract/agent-authority-contract.test.mjs",
         "packages/snapback-react/offline.test.mjs"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "135955ca060509089e9c1fac84d04d806fb327b4488d73335f345fa9c7423a88",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "d3e80b7d4981c4fa14535e2a852e8cc2bc82e95d",
+      "sha256": "000d8b237d734d20d0cf62bd6d308a9a7c8e7d4690cfbb49e11abc9aa86d728e",
       "snippets": [
         {
           "lang": "js",
@@ -2734,6 +2788,16 @@
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-client/outbox-store.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "tests/acceptance/local-store-carrier-exit-v1.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "tests/acceptance/local-store-carrier-exit-v1.mjs"
         },
         {
           "lang": "js",
@@ -2830,6 +2894,32 @@
           "source": "demos/all-aboard/tests/acceptance/headless.mjs"
         }
       ]
+    },
+    "testing.verify": {
+      "path": "guide/testing/verify.md",
+      "title": "Verify the declared app contract",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "operating.verify"
+      ],
+      "authorities": [
+        "llp/0010-agent-dx-and-acceptance.spec.md",
+        "llp/0146-agentic-authoring-affordances.rfc.md",
+        "packages/snapback-cli/verify.mjs",
+        "packages/snapback-cli/verify-receipt.schema.json"
+      ],
+      "examples": [
+        "packages/snapback-cli/verify.test.mjs"
+      ],
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "dab2410b6793ffa5685069a0a4054f0e2b21608a",
+      "sha256": "597f438bf61fadb1cf7a1b47a983c56ed914e9537f19eb03de5ae8a5024f842b",
+      "snippets": []
     }
   },
   "capabilities": {
@@ -2889,6 +2979,7 @@
       "operating.secrets-config",
       "operating.served-guide",
       "operating.server-lifecycle",
+      "operating.verify",
       "realtime.durable-push",
       "realtime.ephemeral",
       "realtime.live-queries",
@@ -2905,14 +2996,16 @@
       "clients.poll-hosted",
       "operating.declaration-conformance",
       "operating.instance-forks",
+      "operating.network-profiles",
+      "sync.local-persistent-store",
       "sync.offline-js-arm",
       "sync.offline-js-arm-protected",
       "sync.settlement-bounded-skew"
     ]
   },
   "surfaces": {
-    "routes": 105,
+    "routes": 115,
     "hostOps": 35
   },
-  "contentHash": "b3fda347bc26ef3e86fd18de1eae9ddef9c70256b790f6527fefe4421e7e1e0e"
+  "contentHash": "c33000c21b0b4f12c1630603d8cdc377c68660cd4ce7fed59efe65d1475b2aca"
 }

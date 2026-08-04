@@ -4,6 +4,7 @@ export interface NativeRqsFilesProvider {
   readonly files: RqsFilesAdapter;
   readonly directory: string;
   readonly implementation?: string | null;
+  readonly randomBytes?: (length: number) => Uint8Array;
 }
 
 /** DK-9 degradation fact: which store the ladder resolved and why.

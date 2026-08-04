@@ -52,12 +52,21 @@ export interface MaterializationObservationV1 {
   readonly present: boolean;
   readonly generation: MaterializationFenceV1 | null;
   readonly status: 'unknown' | 'complete' | 'refused' | null;
+  readonly materialization: Readonly<{
+    readonly materializationKey: QueryMaterializationKeyV1;
+    readonly queryInstanceId: number;
+    readonly planHash: DigestV1;
+    readonly activationHash: DigestV1;
+    readonly resultContractHash: string | null;
+    readonly authorityPartitionDigest: DigestV1;
+  }> | null;
 }
 
 export interface MaterializationStoreV1 {
   initialize(address: ClientMaterializationAddressV1, identities: Readonly<Record<string, unknown>>, authorityBarrierReceipt?: Readonly<Record<string, unknown>> | null): Promise<MaterializationRecordV1>;
   beginEstablishment(address: ClientMaterializationAddressV1, requestedScope: RequestedCompletenessScopeV1, expectedFence: MaterializationFenceV1): Promise<MaterializationRecordV1>;
   commitPage(address: ClientMaterializationAddressV1, fragment: Readonly<Record<string, unknown>>, proof: CompletenessProofV1, resolutionBundle: Readonly<Record<string, unknown>> | null, expectedFence: MaterializationFenceV1): Promise<MaterializationRecordV1>;
+  commitLegacyAdoption(address: ClientMaterializationAddressV1, legacyKey: string, expectedLegacyRecord: Readonly<Record<string, unknown>>, fragment: Readonly<Record<string, unknown>>, proof: CompletenessProofV1, resolutionBundle: Readonly<Record<string, unknown>> | null, expectedFence: MaterializationFenceV1): Promise<MaterializationRecordV1>;
   commitPageSet(address: ClientMaterializationAddressV1, set: PageSetManifestV1, expectedFence: MaterializationFenceV1): Promise<MaterializationRecordV1>;
   recordAttemptOutcome(address: ClientMaterializationAddressV1, outcome: Readonly<Record<string, unknown>>, expectedFence: MaterializationFenceV1): Promise<MaterializationRecordV1>;
   applyAuthorizationTransition(address: ClientMaterializationAddressV1, ownerTransition: Readonly<Record<string, unknown>>): Promise<MaterializationRecordV1>;

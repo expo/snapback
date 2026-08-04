@@ -20,6 +20,8 @@ import {
   isPreparedReactQueryGroup,
   consumePreparedReactQueryGroup,
   abandonConsumedReactQueryGroup,
+  LIVE_RECONNECT_BASE_DELAY_MS,
+  LIVE_RECONNECT_MAX_DELAY_MS,
 } from '@expo/snapback-client';
 export { bindSnapbackAppLifecycle } from '@expo/snapback-client';
 import { createAssetClient } from '@expo/snapback-client/assets';
@@ -141,6 +143,19 @@ function deepFreeze(value, seen = new Set()) {
 
 function immutableClone(value) {
   return deepFreeze(structuredClone(value));
+}
+
+function projectionEquals(a, b) {
+  if (Object.is(a, b)) return true;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length
+      && a.every((value, index) => projectionEquals(value, b[index]));
+  }
+  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  return aKeys.length === bKeys.length
+    && aKeys.every((key) => Object.hasOwn(b, key) && projectionEquals(a[key], b[key]));
 }
 
 function validateResultContract(contract, value, {
@@ -588,8 +603,42 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     }), generation);
   };
 
+  // @ref LLP 0114#bounded-subscribe-failure-window--2026-08-04 — a store whose
+  // subscribe rejects holds its error snapshot behind a timer-owned failure
+  // window (the client's 250ms→10s reconnect ladder, held at the cap while
+  // demanded). Render- and mutation-driven startStore calls during the window
+  // are inert, so render cadence can never set subscribe-attempt cadence
+  // (RN carrier storm, issues/closed/20260803-rn-carrier-bricked-tosorted-
+  // registration-ledger.md). Success, supersession, or any stopStore
+  // lifecycle event (idle release, custody movement, dispose) clears it.
+  const clearSubscribeFailureWindow = (store) => {
+    if (store.subscribeFailureRetryTimer !== null) {
+      clearTimeout(store.subscribeFailureRetryTimer);
+      store.subscribeFailureRetryTimer = null;
+    }
+    store.subscribeFailureAttempts = 0;
+  };
+
+  const scheduleSubscribeRetry = (store) => {
+    if (terminal || custodyPaused || store.subscribeFailureRetryTimer !== null) return;
+    if (store.consumers === 0 && store.pins === 0) return;
+    const delay = Math.min(
+      LIVE_RECONNECT_BASE_DELAY_MS * 2 ** Math.min(store.subscribeFailureAttempts, 30),
+      LIVE_RECONNECT_MAX_DELAY_MS,
+    );
+    store.subscribeFailureAttempts += 1;
+    store.subscribeFailureRetryTimer = setTimeout(() => {
+      store.subscribeFailureRetryTimer = null;
+      if (terminal || custodyPaused || store.handle) return;
+      if (store.consumers === 0 && store.pins === 0) return;
+      startStore(store);
+    }, delay);
+    store.subscribeFailureRetryTimer.unref?.();
+  };
+
   const stopStore = (store, { blank = false } = {}) => {
     store.generation += 1;
+    clearSubscribeFailureWindow(store);
     const handle = store.handle;
     store.handle = null;
     if (blank) {
@@ -613,6 +662,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   const startStore = (store, supersedes = null) => {
     if (terminal || custodyPaused || store.handle || (store.consumers === 0 && store.pins === 0)) return;
     if (store.readOnlySnapshot !== null) return null;
+    // A one-for-one supersession must carry its exact predecessor witness to
+    // the server now; it is an explicit invalidation, so it resets any held
+    // failure window rather than waiting behind it.
+    if (supersedes !== null) clearSubscribeFailureWindow(store);
+    else if (store.subscribeFailureRetryTimer !== null) return;
     if (
       store.registeredSubscription !== null
       && !registeredConnectionAttached
@@ -688,6 +742,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     allHandles.add(handle);
     void handle.started().then(() => {
       if (store.generation !== generation || store.handle !== handle) return;
+      store.subscribeFailureAttempts = 0;
       if (store.blockedPreparedPublication) return;
       if (store.unadoptedSubscriptionId !== null) {
         unadoptedPreparedSubscriptions.delete(store.unadoptedSubscriptionId);
@@ -736,6 +791,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         freshness: 'unknown',
         retention: store.retention,
       }), generation);
+      scheduleSubscribeRetry(store);
     });
     void handle.settled().finally(() => allHandles.delete(handle));
     notifyConnection();
@@ -779,6 +835,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       generation: 0,
       idleEpoch: 0,
       handoffPending: 0,
+      subscribeFailureAttempts: 0,
+      subscribeFailureRetryTimer: null,
       resultContract: descriptor.resultContract,
       authoritativeData: readOnlySnapshot?.rows ?? Object.freeze([]),
       authoritativeRevision: readOnlySnapshot === null ? 0 : 1,
@@ -813,6 +871,49 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       retention: store.retention,
       ...(store.bootDelivery === null ? {} : { bootDelivery: store.bootDelivery }),
     }));
+  };
+
+  // @ref LLP 0107#replay-safety-affordances — dev-only advisory: an
+  // optimistic update is a replayable projection, so a reducer that diverges
+  // over its own output is action-shaped (toggle/increment) and would re-run
+  // the user action during rebase. Observational only — warns once per
+  // (mutation, query) pair and never changes admission or layer state.
+  const replayAdvisoryKeys = new Set();
+  const warnIfReplayDivergent = (mutationReference, queryReference, layer, store, initialProjection) => {
+    // The exact `process.env.NODE_ENV` member expression stays inlinable by
+    // bundler defines; the catch covers hosts with no process global.
+    let nodeEnv;
+    try {
+      nodeEnv = process.env.NODE_ENV;
+    } catch {
+      nodeEnv = undefined;
+    }
+    if (nodeEnv === 'production') return;
+    const key = `${mutationReference.id} ${queryReference.id}`;
+    if (replayAdvisoryKeys.has(key)) return;
+    let detail = null;
+    try {
+      const replayed = validateResultContract(
+        store.resultContract,
+        layer.update(initialProjection, layer.mutationArgs),
+        { requireKnown: true },
+      );
+      if (!projectionEquals(replayed, initialProjection)) {
+        detail = 'returned a different projection when replayed over its own output';
+      }
+    } catch (error) {
+      detail = 'failed when replayed over its own output '
+        + `(${error?.code ?? error?.message ?? String(error)})`;
+    }
+    if (detail === null) return;
+    replayAdvisoryKeys.add(key);
+    console.warn(
+      `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT: the optimistic update for ${mutationReference.name} `
+      + `over ${queryReference.name} ${detail}. Optimistic updates are replayable projections over an `
+      + 'evolving authoritative base: capture the intended outcome and set it (or use '
+      + 'projectRecordFields) instead of toggling or incrementing the incoming rows. See '
+      + 'guide/recipes/optimistic-toggle.md.',
+    );
   };
 
   const runMutation = async (mutationReference, mutationArgs, optimistic = null) => {
@@ -905,6 +1006,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       layer.update(immutableClone(store.snapshot.data), frozenArgs),
       { requireKnown: true },
     );
+    warnIfReplayDivergent(admittedMutation, queryReference, layer, store, initialProjection);
     store.optimisticLayers.push(layer);
     store.pendingMutations.set(id, layer);
     store.pins += 1;
@@ -2171,6 +2273,57 @@ export function useSnapbackQueries(entries) {
     return next;
   }, [provider, descriptors]);
   return useSyncExternalStore(subscribe, read, read);
+}
+
+// @ref LLP 0107#replay-safety-affordances — declarative capture-and-set
+// projection over the records result shape: one declaration derives an
+// idempotent update and a complete-receipt matcher, so the paved toggle
+// recipe cannot express the replay hazard or the partial-receipt dip.
+export function projectRecordFields(recordId, fields, { idField = '_id' } = {}) {
+  if (typeof recordId !== 'string' || recordId.length === 0) {
+    throw new TypeError('projectRecordFields requires a non-empty string record id');
+  }
+  if (typeof idField !== 'string' || idField.length === 0) {
+    throw new TypeError('projectRecordFields requires a non-empty string idField');
+  }
+  if (fields === null || typeof fields !== 'object' || Array.isArray(fields)) {
+    throw new TypeError('projectRecordFields requires an object of intended field values');
+  }
+  const names = Object.keys(fields);
+  if (names.length === 0) {
+    throw new TypeError('projectRecordFields requires at least one intended field');
+  }
+  if (names.includes(idField)) {
+    throw new TypeError(
+      'projectRecordFields must not project the id field it matches rows by',
+    );
+  }
+  for (const name of names) {
+    const value = fields[name];
+    if (value !== null && !['boolean', 'number', 'string'].includes(typeof value)) {
+      throw new TypeError(
+        `projectRecordFields field "${name}" must be a primitive intended outcome`,
+      );
+    }
+  }
+  const intended = Object.freeze({ ...fields });
+  return Object.freeze({
+    update: (rows) => {
+      if (!Array.isArray(rows)) {
+        throw new TypeError('projectRecordFields projects over a records query result');
+      }
+      return rows.map((row) => (row?.[idField] === recordId ? { ...row, ...intended } : row));
+    },
+    isAuthoritative: (rows, receipt) => Array.isArray(rows) && rows.some((row) => {
+      if (row?.[idField] !== recordId) return false;
+      return names.every((name) => {
+        const expected = receipt !== null && typeof receipt === 'object' && Object.hasOwn(receipt, name)
+          ? receipt[name]
+          : intended[name];
+        return row[name] === expected;
+      });
+    }),
+  });
 }
 
 export function useSnapbackMutation(reference, options = {}) {

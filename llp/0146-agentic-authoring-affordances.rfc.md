@@ -7,7 +7,47 @@ verification, Diagnostics, Schema and storage, Live queries, Developer
 experience
 **Author:** Charlie Cheever / Claude (Opus 5)
 **Date:** 2026-08-01
-**Revised:** 2026-08-03 (D1 first-tranche implementation record
+**Revised:** 2026-08-04 (author decision sitting #3
+(`issues/closed/20260804-author-decision-sitting-3.md`), two rulings on
+the D1 tranche's accumulated author questions: (1) **no escape hatch in
+v1** — the boolean `strictDeclarations` opt-in ships as-is, and the
+per-dependency-class vocabulary gets defined only when a real app hits a
+conservative or unobservable class (evidence-driven); (2) the strict
+flag is **refused at load with a named code** on targets that cannot
+enforce it (Cloudflare arm today) — the flag must never ride through
+unenforced; the load/ensure-time refusal with a named `SNAPBACK_*` code
+plus test is added to the tranche's next steps. Ruling 2 partially
+resolves OQ14 in the refuse direction — what constitutes an
+authoritative capture on Cloudflare stays open.) 2026-08-04 (D2/D3 first-tranche implementation record
+(`issues/20260803-0146-d1-d3-tranche.md`): `snapback verify` is a
+package-owned CLI composition in `packages/snapback-cli/verify.mjs`, not an
+`acceptance.run` host operation. Its five ordered stages cover
+source-regenerated artifact identity, the digest-bound LLP 0010 runtime
+readiness verifier, local generated schema/function admission plus D1
+coverage, generated target capabilities, and registered acceptance
+profiles. `snapback.verify-receipt.v1` binds the profile set and actual config/
+test bytes, target/data/authority/seed context, stage evidence and ordered
+actions; `recommendedNext` exists only for one failure. D1 surface 2 uses the
+minimal honest aggregate: every explicitly registered path must return the
+six-field D1 report; a missing report and authoritative under-declaration fail,
+while observed incomplete/unsupported provenance is retained as an honest
+partial and over-declaration is the intersection across complete class
+evidence for a function. It does not auto-discover unregistered repository suites, and a
+zero-profile pass records `no-registered-acceptance-paths`, not coverage.
+`snapback-app introspect` now emits `snapback.agent-digest.v1` with stable
+static/dynamic sections, a cursor embedding the envelope identity and static
+item hashes, minimal static item deltas, bare-envelope compatibility,
+byte/item budgets, and explicit elisions. OQ10's visible v0 choice is coarse
+dynamic replay: no observation manifest is retained, every available dynamic
+item is sent whole, and unknown/structurally expired cursors degrade to a
+named full digest. The public app-data projection does not expose per-table
+row counts or D1 observations, so those items are explicit unavailable facts;
+local artifacts use a named local projection identity rather than claiming a
+served envelope. Tests are `packages/snapback-cli/verify.test.mjs` and
+`packages/snapback-app-cli/digest.test.mjs`. Not claimed: live-target
+admission, automatic acceptance-path discovery, dynamic observation custody,
+the missing public row-count/D1 projections, `acceptance.run`, D4–D7, or
+anything CV-14.) 2026-08-03 (D1 first-tranche implementation record 2026-08-03 (D1 first-tranche implementation record
 (`issues/20260803-0146-d1-d3-tranche.md`): D1 surfaces 1 and 3 are
 implemented on the local target — the per-invocation class-tagged report
 with per-class provenance lands on the admin runner's `FunctionRunResult`
@@ -445,6 +485,11 @@ declarations are evidence, and LLP 0108 sequences ceiling enforcement as
 "its own later decision, decoupled" (`llp/0108`). This RFC is that later
 decision, taken narrowly. The escape hatch is per-dependency-class
 (explicitly conservative or unobservable classes), never a blanket disable.
+(Ruled 2026-08-04, author sitting #3: **no hatch ships in v1** — the
+boolean opt-in ships as-is, and the class vocabulary gets defined only when
+a real app hits a conservative or unobservable class. Also ruled: the
+strict flag is refused at load with a named code on targets that cannot
+enforce it — see §Open questions.)
 
 **Cloudflare disposition.** Report and coverage did not by themselves fix
 the fan-out defect, so the arm independently landed conservative widening:
@@ -563,6 +608,16 @@ only coarsely and the dynamic section is always sent whole. Each differs in
 retention, expiry, and authority. An unknown or expired cursor must degrade
 to a full digest with a named reason — never an error, and never an empty
 delta, which reads as "nothing changed." OQ10 carries this.
+
+**Implemented v0 disposition (2026-08-04).** The cursor carries the static
+item-hash index needed for a minimal static delta, but Snapback retains no
+dynamic observation manifest. The dynamic section is therefore always sent
+whole at coarse resolution and names
+`coarse-resolution-v0-no-observation-retention`. Cursors minted by v0 have no
+expiry; an unknown cursor, or a structurally valid future/external cursor whose
+declared expiry has passed, degrades to a named full digest. This is the
+commissioned v0 fallback, not a claim that OQ10's longer-term custody policy is
+settled.
 
 Contents: artifact identities, schema summary, operation signatures with
 argument and result contracts (LLP 0131), capability gaps, row-count
@@ -1104,6 +1159,26 @@ OQ7 (CV-14 custody trigger) was deliberately **not** ruled —
 implementation must not claim CV-14 custody satisfaction without the
 custody owner's ratification. The remaining questions stay open.
 
+**Ruled 2026-08-04 — author decision sitting #3
+(`issues/closed/20260804-author-decision-sitting-3.md`).** Two rulings
+on the D1 tranche's accumulated author questions
+(`issues/20260803-0146-d1-d3-tranche.md`):
+
+- **Escape hatch: none in v1.** The boolean `strictDeclarations`
+  strict-mode opt-in ships as-is. The per-dependency-class vocabulary
+  ("explicitly conservative or unobservable classes") gets defined only
+  when a real app hits such a class — evidence-driven, not speculative.
+- **Strict flag on non-enforcing targets: REFUSE AT LOAD** with a named
+  code on targets that cannot enforce `strictDeclarations` (the
+  Cloudflare arm today). The flag must never ride through unenforced.
+  The implementation item (load/ensure-time refusal with a named
+  `SNAPBACK_*` code, plus test) belongs to the tranche's continuation
+  and is recorded in the tranche ticket's next steps. This ruling
+  **partially resolves OQ14**: when strict mode is requested on a
+  target without enforcement authority, the answer is refusal, not
+  unenforced ride-through; OQ14's broader question — what constitutes
+  an authoritative capture on Cloudflare — stays open.
+
 1. **D1 strict-mode default.** Opt-in per app is proposed. Does a
    newly generated app opt in by default, making the *legacy* case the
    opt-out? That would make declarations enforced ceilings for all new
@@ -1145,7 +1220,10 @@ custody owner's ratification. The remaining questions stay open.
     denoted — server-side digest manifests, client-presented prior digest,
     or coarse resolution with the dynamic section always sent whole? What
     retention, expiry, and authority boundary applies? (The carrier is
-    settled — one flag, cursor embeds the envelope hash; custody is not.)
+    settled — one flag, cursor embeds the envelope hash; custody is not. The
+    2026-08-04 v0 implementation selects coarse whole-dynamic replay with no
+    retained observation manifest and records that selection in every digest;
+    a longer-term custody/expiry policy remains open.)
 11. **Generalising `membership.lastHolder`.** D5 withdraws
     protected-last-member because memberships already enforce it. Should a
     generic protected-cardinality invariant exist, and if so does it reuse
@@ -1162,6 +1240,10 @@ custody owner's ratification. The remaining questions stay open.
 14. **Conformance evidence on non-local targets.** D1's provenance states
     are defined against local capture. What constitutes an authoritative
     capture on Cloudflare, where captured reads are recorded but unused?
+    *Partially resolved 2026-08-04 (author sitting #3): a strict flag on a
+    target that cannot enforce it is refused at load with a named code —
+    never unenforced ride-through. The capture-authority question above
+    stays open.*
 
 ## Status
 
@@ -1169,10 +1251,12 @@ Draft. No implementation was authorized by this document as written;
 on 2026-08-03 the author ratified the D1–D3 first tranche for
 implementation (author decision sitting #2, see §Open questions and
 `issues/20260803-0146-d1-d3-tranche.md`) — the remaining decisions stay
-unratified. The D1 report and strict-mode surfaces landed the same day on
-the local target (see the dated implementation record in the Revised
-header); D1's coverage surface rides D2, and D2/D3 remain unimplemented.
-D1, D2, and D3 are
+unratified. The D1 report and strict-mode surfaces landed that day on the local
+target; the D2/D3 v0 surfaces landed in the 2026-08-04 worktree record (see the
+dated records in the Revised header). D1 surface 2 is implemented over
+explicitly registered paths, while automatic suite discovery remains a named
+GAP. D3's public dynamic projection honestly reports unavailable row-count and
+D1 observations and uses the recorded coarse OQ10 fallback. D1, D2, and D3 are
 the intended first tranche and are the smallest of the seven; D5 and D6 are
 substantial subsystems and should be re-scoped after Wave 1 lands, when the
 conformance and verification surfaces will have made some of their

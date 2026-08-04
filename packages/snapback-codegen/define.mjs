@@ -152,7 +152,7 @@ const SEARCH_TABLE_LIVE_LIMIT_FIELDS = new Set(['maxLiveSubscriptionsPerTable'])
 // @ref LLP 0044#generated-upload-intents — the closed authoring surface for
 //   one upload intent; the client cannot supply or widen any declared fact.
 const ASSET_UPLOAD_FIELDS = new Set([
-  'args', 'auth', 'reads', 'accept', 'delivery', 'access', 'image', 'on',
+  'args', 'auth', 'reads', 'accept', 'delivery', 'access', 'image', 'video', 'on',
   'authorize', 'source', 'exportName',
 ]);
 const ASSET_CALLBACK_EVENTS = ['ready', 'rejected'];
@@ -180,6 +180,7 @@ const ASSET_DELIVERY_KINDS = new Set(['public-immutable', 'private-signed', 'pri
 const ASSET_READ_ACCESS = new Set(['owner-only', 'via-references']);
 const ASSET_LOCATION_POLICIES = new Set(['strip', 'retain']);
 const ASSET_IMAGE_FIELDS = new Set(['location', 'variants']);
+const ASSET_VIDEO_FIELDS = new Set(['location']);
 const ASSET_VARIANT_FIELDS = new Set(['key', 'width', 'required']);
 // @ref LLP 0007#dated-amendment-asset-references-sharing-declarations-and-admission-2026-07-31
 //   — the sharing declaration reuses the shipped closed visibility union.
@@ -2155,6 +2156,34 @@ function relationalJoinKeyClass(validator, where) {
   return undefined;
 }
 
+function relationalProjectionScalar(validator, where) {
+  const type = validator?.fieldType;
+  const scalar = (
+    type === 'String'
+    || type === 'Principal'
+    || type === 'Boolean'
+    || type === 'Integer'
+    || type === 'Real'
+    || (type && typeof type === 'object' && (type.Id || type.AssetRef))
+  );
+  assert(
+    scalar,
+    `${where} must be a portable scalar field (string, principal, id, asset reference, boolean, integer, or real)`,
+  );
+  return validator;
+}
+
+function relationalProjectionLiteral(value, where) {
+  assert(
+    value === null
+      || typeof value === 'string'
+      || typeof value === 'boolean'
+      || (typeof value === 'number' && Number.isFinite(value)),
+    `${where} must be a finite JSON scalar literal`,
+  );
+  return value;
+}
+
 function relationalVisibility(facts, visibility, where) {
   assert(
     visibility && typeof visibility === 'object' && !Array.isArray(visibility),
@@ -2299,18 +2328,25 @@ export function defineRelationalQuery(spec) {
       `projection.${leafName} must be exactly one of { root }, { joined }, { literal }`,
     );
     if (typeof source.root === 'string') {
-      assert(rootFacts.fields[source.root], `projection.${leafName} names unknown field ${rootFacts.name}.${source.root}`);
+      const field = rootFacts.fields[source.root];
+      assert(field, `projection.${leafName} names unknown field ${rootFacts.name}.${source.root}`);
+      relationalProjectionScalar(field, `projection.${leafName} source ${rootFacts.name}.${source.root}`);
       return { name: leafName, source: { RootField: source.root } };
     }
     if (typeof source.joined === 'string') {
-      assert(joinedFacts.fields[source.joined], `projection.${leafName} names unknown field ${joinedFacts.name}.${source.joined}`);
+      const field = joinedFacts.fields[source.joined];
+      assert(field, `projection.${leafName} names unknown field ${joinedFacts.name}.${source.joined}`);
+      relationalProjectionScalar(field, `projection.${leafName} source ${joinedFacts.name}.${source.joined}`);
       return { name: leafName, source: { JoinedField: source.joined } };
     }
     assert(
       Object.hasOwn(source, 'literal'),
       `projection.${leafName} must be exactly one of { root }, { joined }, { literal }`,
     );
-    return { name: leafName, source: { Literal: source.literal ?? null } };
+    return {
+      name: leafName,
+      source: { Literal: relationalProjectionLiteral(source.literal, `projection.${leafName}`) },
+    };
   });
 
   const visibilityFilters = (visibility) => (
@@ -3605,6 +3641,15 @@ export function defineAssetUpload(spec) {
     assert(variants.length <= 8, 'AssetUpload image.variants is bounded to 8');
     image = { location: spec.image.location, ...(variants.length > 0 ? { variants } : {}) };
   }
+  // @ref LLP 0044#video-location-policy-the-video--location--sibling-block-dated-decision-2026-08-03 —
+  //   video location policy is a distinct sibling declaration; it is not an
+  //   alias for image policy, whose frozen authoring/hash spelling is intact.
+  let video;
+  if (spec.video !== undefined) {
+    exactObject(spec.video, 'AssetUpload video', ASSET_VIDEO_FIELDS);
+    assert(ASSET_LOCATION_POLICIES.has(spec.video.location), "AssetUpload video.location must be 'strip' or 'retain' — there is no implicit fallback");
+    video = { location: spec.video.location };
+  }
   let on;
   if (spec.on !== undefined) {
     exactObject(spec.on, 'AssetUpload on', new Set(ASSET_CALLBACK_EVENTS));
@@ -3630,6 +3675,7 @@ export function defineAssetUpload(spec) {
     delivery,
     access,
     ...(image ? { image } : {}),
+    ...(video ? { video } : {}),
     ...(on ? { on } : {}),
     ...(inline
       ? { authorize: spec.authorize }

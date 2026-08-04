@@ -53,7 +53,7 @@ export const actorAware = defineLiveQuery({
 
 {
   const functions = `
-import { authUserId, defineQuery, eq } from '${defineUrl}';
+import { arg, authUserId, defineLiveQuery, defineQuery, eq, v } from '${defineUrl}';
 export const myTodos = defineQuery({
   table: 'todos',
   filter: [eq('ownerId', authUserId())],
@@ -69,6 +69,13 @@ export const publicTodos = defineQuery({
   auth: 'public',
   authorityIndependent: true,
   retainable: true,
+});
+export const publicLive = defineLiveQuery({
+  table: 'todos',
+  args: { zed: v.string(), alpha: v.string() },
+  filter: [eq('title', arg('zed'))],
+  auth: 'public',
+  authorityIndependent: true,
 });
 `;
   const dir = backend(functions);
@@ -91,6 +98,44 @@ export const publicTodos = defineQuery({
   assert.equal(byName.get('publicTodos').retainable, true);
   assert.equal(byName.get('publicTodos').authorityIndependent, true);
   assert.equal(Object.hasOwn(byName.get('publicTodos'), 'authorizationDependence'), false);
+
+  const publicLive = byName.get('publicLive');
+  assert.equal(publicLive.authorityIndependent, true);
+  assert.equal(publicLive.rqsEligible, undefined, 'rqsEligible remains derived, never authored');
+  assert.deepEqual(publicLive.argsContract.fields.map((field) => field.name), ['zed', 'alpha']);
+  assert.equal(publicLive.requiredCapabilities.includes('single_table_v1'), false,
+    'the dormant class does not move a capability row');
+  const api = await import(`${pathToFileURL(join(dir, 'generated', 'api.mjs')).href}?single-table`);
+  const composition = api.api.publicLive.composition;
+  const node = composition.normalizedCompositePlan.nodes[0].nodePlan;
+  assert.equal(node.classId, 'single_table_v1');
+  assert.equal(node.classVersion, 1);
+  assert.deepEqual(node.argumentBindings.map((binding) => binding.name), ['zed', 'alpha']);
+  assert.deepEqual(node.normalizedPlan, {
+    format: 'snapback.single-table-plan.v1',
+    query: {
+      table: 'todos',
+      filters: [{ field: 'title', op: 'Eq', value: { Arg: 'zed' } }],
+      membershipFilters: [],
+      order: [],
+      limit: null,
+      indexedBy: null,
+    },
+    rqsDigestKind: 'mset1',
+    examinedEntryCeiling: 1024,
+  });
+  assert.equal(node.capability.live.delivery, 'live_delta');
+  assert.equal(node.capability.retention, 'rqs-authority-independent-snapshot-v1');
+  assert.deepEqual(node.capability.requiredCapabilityIds,
+    [...publicLive.requiredCapabilities].sort());
+  assert.equal(composition.normalizedCompositePlan.classification.invalidation,
+    'proved-disjoint-write-set');
+  assert.match(composition.planHash, /^sha256:[0-9a-f]{64}$/u);
+  assert.equal(
+    composition.planHash,
+    'sha256:e98ec047024a9771647661d388d8cb67f23c9487d25b33d63c196c818410ec5e',
+    'SingleTablePlanV1 identity stays byte-identical to Rust reconstruction',
+  );
 
   for (const name of ['myTodos', 'scopedTodos', 'publicTodos']) {
     assert.equal(contract.queries[name].retainable, true);

@@ -6,7 +6,7 @@ export const clipUpload = defineAssetUpload({
   accept: { mediaTypes: ['video/mp4'], maxBytes: 130_000_000 },
   delivery: { kind: 'private-signed' },
   access: { read: 'owner-only' },
-  image: { location: 'strip' },
+  video: { location: 'strip' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 

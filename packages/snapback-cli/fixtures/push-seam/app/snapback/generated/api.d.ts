@@ -16,6 +16,22 @@ export interface VectorPageV1<Fields extends Readonly<Record<string, unknown>> =
 export interface GeneratedArtifacts { readonly trustedCompositionActivation: Readonly<Record<string, unknown>> | null }
 export const artifacts: GeneratedArtifacts;
 export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';
+export interface GeneratedMutationIrV1 {
+  readonly format: 'snapback.generated-mutation-ir.v1';
+  readonly operationHash: `sha256:${string}`;
+  readonly sourceIdentity: Readonly<{ functionId: string; implementationHash: string; activation: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }> }> ;
+  readonly schemaIdentity: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string }> ;
+  readonly capabilityClass: 'local-executable' | 'server-only';
+  readonly capabilityCode: string;
+  readonly declaredEffectClass: 'snapback.browser-ir.insert-get-guard-patch.v1';
+  readonly declaredReads: readonly string[];
+  readonly localReadRequirements: readonly Readonly<{ kind: 'point'; table: string; idArg: string; binding: string | null; requiredFields: readonly string[] }>[];
+  readonly schema: Readonly<{ tables: readonly Readonly<{ name: string; fields: readonly Readonly<{ name: string }>[] }>[] }> ;
+  readonly plan: Readonly<Record<string, unknown>>;
+  readonly mintSites: readonly string[];
+  readonly usesRuntimeNow: boolean;
+  readonly boundedSkew: Readonly<{ field: string; maxSkewMs: number }> | null;
+}
 export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
   artifactKind: 'functionReference';
   schemaVersion: SchemaVersion;
@@ -27,6 +43,7 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   argsContractHash: string;
   resultContractHash: string;
   expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;
+  mutationIr?: GeneratedMutationIrV1;
   composition?: Readonly<{ normalizedCompositePlan: Readonly<Record<string, unknown>>; planHash: `sha256:${string}`; resultContract: Readonly<Record<string, unknown>> }>;
   readonly artifacts?: GeneratedArtifacts;
   argumentSchema: Readonly<Record<string, unknown>>;
@@ -155,7 +172,7 @@ export interface GeneratedMutationDatabase extends GeneratedQueryDatabase {
   delete<Table extends GeneratedDeletableTableName>(table: Table, id: Id<Table>): Promise<unknown>;
 }
 export interface GeneratedAnonymousAuthContext { readonly userId: null; readonly sessionId: null; readonly isAuthenticated: false }
-export interface GeneratedAuthenticatedAuthContext { readonly userId: Principal; readonly sessionId: string | null; readonly isAuthenticated: true; readonly provider?: string; readonly roles: readonly string[]; readonly kind: "human" | "agent"; readonly actor?: { readonly userId: Principal; readonly kind: "agent"; readonly grantId: string } }
+export interface GeneratedAuthenticatedAuthContext { readonly userId: Principal; readonly sessionId: string | null; readonly isAuthenticated: true; readonly provider?: string; readonly roles: readonly string[]; readonly kind: "human" | "agent"; readonly actor?: { readonly userId: Principal; readonly kind: "agent"; readonly grantId: string }; readonly actorKind?: "asset-callbacks" }
 export type GeneratedAuthContext = GeneratedAnonymousAuthContext | GeneratedAuthenticatedAuthContext;
 export interface GeneratedRuntimeContext { now(): number; id(): string }
 export type GeneratedPushAudienceReference = Readonly<{ audience: "selectedGuests"; args: Readonly<{ "principalIds": readonly Principal[] }> }>;

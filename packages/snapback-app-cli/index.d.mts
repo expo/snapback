@@ -10,6 +10,11 @@ export interface AppFunctionDescriptor {
   readonly kind: AppFunctionKind;
   readonly authRequirement: unknown;
   readonly argsSchema: unknown;
+  readonly argsContract?: unknown;
+  readonly resultContract?: unknown;
+  readonly readSetSummary?: unknown;
+  readonly writeSetSummary?: unknown;
+  readonly requiredCapabilities?: readonly string[];
 }
 
 export interface AppArtifacts {
@@ -18,6 +23,8 @@ export interface AppArtifacts {
   readonly bundleHash: string | null;
   readonly functions: readonly AppFunctionDescriptor[];
   readonly generation?: Readonly<Record<string, string>> | null;
+  readonly schemaManifest?: Readonly<Record<string, unknown>> | null;
+  readonly capabilityManifest?: Readonly<Record<string, unknown>> | null;
   readonly appBindings?: string | null;
   readonly apiDeclarations?: string | null;
 }
@@ -235,6 +242,11 @@ export interface ServedFunctionDescriptor {
   readonly kind: AppFunctionKind;
   readonly authRequirement: unknown;
   readonly argsSchema: unknown;
+  readonly argsContract?: unknown;
+  readonly resultContract?: unknown;
+  readonly readSetSummary?: unknown;
+  readonly writeSetSummary?: unknown;
+  readonly requiredCapabilities?: readonly string[];
 }
 
 export interface ServedAppSurface {
@@ -244,6 +256,8 @@ export interface ServedAppSurface {
   readonly envelopeSha256: string;
   readonly bundleHash: string | null;
   readonly generation: Readonly<Record<string, string>> | null;
+  readonly schemaManifest: null;
+  readonly capabilityManifest: null;
   readonly functions: readonly ServedFunctionDescriptor[];
   readonly appBindings: string;
   readonly apiDeclarations: null;
@@ -293,6 +307,16 @@ export function storeCachedEnvelope(cacheDir: string, baseUrl: string, verified:
   readonly limits?: { readonly perOriginEnvelopes: number; readonly globalBytes: number };
 }): Promise<void>;
 export function defaultCacheDir(): string;
+
+export {
+  AGENT_DIGEST_CURSOR_PREFIX,
+  AGENT_DIGEST_FORMAT_VERSION,
+  DEFAULT_DIGEST_BUDGET_BYTES,
+  DEFAULT_DIGEST_BUDGET_ITEMS,
+  buildAgentDigest,
+  canonicalJson as canonicalDigestJson,
+  parseDigestCursor,
+} from './digest.mjs';
 
 // --- Principal projection and code mode (LLP 0062 §§3–4) -----------------
 

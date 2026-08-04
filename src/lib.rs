@@ -23,6 +23,8 @@ pub mod embed;
 #[doc(hidden)]
 pub mod admin;
 #[doc(hidden)]
+pub mod admin_link;
+#[doc(hidden)]
 pub mod admin_impersonation;
 #[doc(hidden)]
 pub mod admin_secret_read;
@@ -113,6 +115,8 @@ pub mod migration;
 #[doc(hidden)]
 pub mod migration_presentation;
 pub(crate) mod operation_detail;
+#[doc(hidden)]
+pub mod network_profile;
 #[doc(hidden)]
 pub mod operation_ledger;
 #[doc(hidden)]

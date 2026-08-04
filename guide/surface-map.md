@@ -4,13 +4,13 @@ id: meta.surface-map
 order: 3
 audience: agent-first
 capabilities: []
-authorities: [llp/0024-agent-operating-surface.spec.md, llp/0031-server-route-taxonomy.spec.md, llp/0061-agent-first-snapback-guide.rfc.md, src/server.rs, src/admin.rs]
+authorities: [llp/0024-agent-operating-surface.spec.md, llp/0031-server-route-taxonomy.spec.md, llp/0061-agent-first-snapback-guide.rfc.md, src/server.rs, src/admin.rs, src/admin_link.rs]
 examples: []
 status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: 3eb4b9714
+reviewed-commit: 7b467cf16
 ---
 
 # Surface map
@@ -28,6 +28,7 @@ here (or listed here but gone from the code).
 | / | operating.inspect |
 | /_snapback/admin | operating.admin-console |
 | /_snapback/admin/ | operating.admin-console |
+| /_snapback/admin/reachability/identity | operating.admin-console |
 | /_snapback/admin/setup | operating.secrets-config |
 | /_snapback/admin/{*path} | operating.admin-console |
 | /_snapback/guide | operating.served-guide |
@@ -43,6 +44,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/client-mutations/purge | notAuthorFacing (operator settlement maintenance) |
 | /_snapback/api/config/plan | operating.secrets-config |
 | /_snapback/api/config/set | operating.secrets-config |
+| /_snapback/api/debug/network-profile | operating.network-profiles |
 | /_snapback/api/config/status | operating.secrets-config |
 | /_snapback/api/config/unset | operating.secrets-config |
 | /_snapback/api/config/verify | operating.secrets-config |
@@ -52,6 +54,10 @@ here (or listed here but gone from the code).
 | /_snapback/api/console/claim/exchange | operating.admin-console |
 | /_snapback/api/console/claim/status | operating.admin-console |
 | /_snapback/api/console/claim/revoke | operating.admin-console |
+| /_snapback/api/console/reachability/register | operating.admin-console |
+| /_snapback/api/console/reachability/bind | operating.admin-console |
+| /_snapback/api/console/reachability/renew | operating.admin-console |
+| /_snapback/api/console/reachability/drop | operating.admin-console |
 | /_snapback/api/console/approval/request | operating.admin-console |
 | /_snapback/api/console/approval/poll | operating.admin-console |
 | /_snapback/api/console/approval/approve | operating.admin-console |
@@ -74,6 +80,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/push/maintenance | backend.expo-push-seam |
 | /_snapback/api/receipts | notAuthorFacing (operator projection) |
 | /_snapback/api/schema/load | backend.schema |
+| /_snapback/api/storage/protected-erasure | notAuthorFacing (unpublished LLP 0165 protected-erasure acceptance substrate) |
 | /_snapback/api/telemetry/events | backend.observability-v1 |
 | /_snapback/api/telemetry/export | backend.observability-v1 |
 | /_snapback/api/telemetry/stats | backend.observability-v1 |

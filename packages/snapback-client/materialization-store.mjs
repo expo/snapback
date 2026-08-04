@@ -7,6 +7,7 @@ import { compileResultContractValidator } from '@expo/snapback-contract/result-c
 
 import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
 import { refuseLocalEvaluation } from './evaluation-floor.mjs';
+import { pendingOutboxRecords } from './outbox-shared.mjs';
 import { allocateQueryInstanceIdInMeta } from './rqs-store-meta.mjs';
 import { base64UrlNoPad, hex, jcs, jcsBytes, sha256 } from './rqs.mjs';
 
@@ -640,10 +641,7 @@ function validateProof(record, fragment, suppliedProof, context, signatureReceip
   }
   if (
     record.productState.freshness === 'retained'
-    && (
-      context.leaseStatus !== 'valid'
-      || context.authorizedLeaseHash !== fragment.authorizedLeaseHash
-    )
+    && !retainedAuthorityValid(context, fragment.authorizedLeaseHash)
   ) {
     refuse('SNAPBACK_COMPLETENESS_LEASE_INVALID', 'retained fragment does not match valid owner lease custody');
   }
@@ -782,15 +780,29 @@ function snapshotFor(record, previousFence = null) {
       present: false,
       generation: previousFence === null ? null : { ...previousFence },
       status: null,
+      materialization: null,
     });
   }
   const fence = fenceOf(record);
+  const resultContractHashes = [...new Set(
+    record.fragments.map((fragment) => fragment.resultContractHash),
+  )];
   return deepFreeze({
     format: 'snapback.materialization-observation.v1',
     present: true,
     address: [...record.address],
     queryInstanceId: record.queryInstanceId,
     generation: fence,
+    materialization: {
+      materializationKey: record.address[2],
+      queryInstanceId: record.queryInstanceId,
+      planHash: record.planHash,
+      activationHash: record.activationHash,
+      resultContractHash: resultContractHashes.length === 1
+        ? resultContractHashes[0]
+        : null,
+      authorityPartitionDigest: record.authorityPartitionDigest,
+    },
     lifecycle: record.productState.lifecycle,
     effectiveDisposition: record.productState.effectiveDisposition,
     freshness: record.productState.freshness,
@@ -971,6 +983,21 @@ function requireContext(resolveValidationContext, address, record, phase) {
   return context;
 }
 
+const INDEPENDENT_RETENTION_AUTHORITY = 'rqs-authority-independent-snapshot-v1';
+
+function retainedAuthorityValid(context, fragmentAuthorizedLeaseHash = undefined) {
+  if (context.retentionAuthority === INDEPENDENT_RETENTION_AUTHORITY) {
+    return context.leaseStatus === 'not-required'
+      && context.authorizedLeaseHash === null
+      && (fragmentAuthorizedLeaseHash === undefined || fragmentAuthorizedLeaseHash === null);
+  }
+  return context.leaseStatus === 'valid'
+    && (
+      fragmentAuthorizedLeaseHash === undefined
+      || context.authorizedLeaseHash === fragmentAuthorizedLeaseHash
+    );
+}
+
 function validatePageSet(record, manifest, context, signatureReceipts) {
   const fragments = new Map(record.fragments.map((fragment) => [
     completenessProofDigestV1(fragment.proof), fragment,
@@ -1094,7 +1121,7 @@ function revalidateRetainedRecord(
     const input = context.ownerTransitionForRetainedFailure?.('activation-mismatch', clone(record));
     return { record: applyOwnerInput(view, key, record, input), changed: true };
   }
-  if (context.leaseStatus !== 'valid') {
+  if (!retainedAuthorityValid(context)) {
     const input = context.ownerTransitionForRetainedFailure?.('lease-invalid', clone(record));
     return { record: applyOwnerInput(view, key, record, input), changed: true };
   }
@@ -1377,6 +1404,94 @@ export async function createMaterializationStore(storeHandle, {
     },
   );
 
+  const commitPageInView = (
+    view,
+    key,
+    admittedAddress,
+    fragmentInput,
+    proofInput,
+    resolutionBundle,
+    expectedFence,
+    signatureReceipts,
+  ) => {
+    const record = loadFrom(view, key);
+    if (record === null) refuse('SNAPBACK_MATERIALIZATION_NOT_INITIALIZED', 'page commit cannot allocate an instance');
+    assertActive(record);
+    assertFence(record, expectedFence);
+    exact(fragmentInput, [
+      'pageIdentityDigest', 'resultContractHash', 'bytes', 'authorizedLeaseHash',
+      'memberships', 'freshness',
+    ], 'fragment input');
+    if (!['current', 'retained'].includes(fragmentInput.freshness)) {
+      refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', 'fragment freshness is invalid');
+    }
+    if (fragmentInput.freshness === 'retained' && record.storageProfile !== 'durable-fragments-v1') {
+      refuse(
+        'SNAPBACK_MATERIALIZATION_STORAGE_PROFILE_GAP',
+        'volatile-online-v1 cannot install retained payload',
+        { requiredCapability: 'durable_fragments_v1' },
+      );
+    }
+    if (!Array.isArray(fragmentInput.memberships)) {
+      refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', 'fragment memberships must be an array');
+    }
+    const fragment = prepareFragment({
+      pageIdentityDigest: fragmentInput.pageIdentityDigest,
+      resultContractHash: fragmentInput.resultContractHash,
+      bytes: fragmentInput.bytes,
+      proof: proofInput,
+      authorizedLeaseHash: fragmentInput.authorizedLeaseHash,
+    });
+    const context = requireContext(resolveValidationContext, admittedAddress, record, 'commit');
+    if (
+      fragmentInput.freshness === 'retained'
+      && !retainedAuthorityValid(context, fragmentInput.authorizedLeaseHash)
+    ) {
+      refuse(
+        'SNAPBACK_COMPLETENESS_LEASE_INVALID',
+        'retained commit requires exact valid owner lease custody',
+      );
+    }
+    fragment.proof = validateProof(record, fragment, proofInput, context, signatureReceipts);
+    const memberships = fragmentInput.memberships.map((entry, index) => prepareMembership(entry, `fragment.memberships[${index}]`));
+    for (const membership of memberships) {
+      if (
+        membership.materializationKey !== record.address[2]
+        || membership.pageIdentityDigest !== fragment.pageIdentityDigest
+      ) refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', 'membership does not bind the committed page');
+    }
+    if (resolutionBundle !== null) applyOwnerInput(view, key, record, resolutionBundle);
+    if (record.authorityState.effective_disposition === 'delete') {
+      return { value: clone(record), snapshot: snapshotFor(record) };
+    }
+    record.fragments = record.fragments.filter((entry) => entry.pageIdentityDigest !== fragment.pageIdentityDigest);
+    record.fragments.push(fragment);
+    record.memberships = record.memberships.filter((entry) => entry.pageIdentityDigest !== fragment.pageIdentityDigest);
+    for (const [membershipKeyValue, entry] of view.memberships) {
+      if (
+        entry?.materializationKey === record.address[2]
+        && entry?.pageIdentityDigest === fragment.pageIdentityDigest
+      ) view.memberships.delete(membershipKeyValue);
+    }
+    for (const membership of memberships) {
+      record.memberships.push(membership);
+      view.memberships.set(membershipKey(key, membership), clone(membership));
+    }
+    record.productState.heldProofs = record.productState.heldProofs.filter((entry) => (
+      pageIdentityDigestV1(entry.page) !== fragment.pageIdentityDigest
+    ));
+    record.productState.heldProofs.push(fragment.proof);
+    record.productState.freshness = fragmentInput.freshness;
+    record.productState.attempt = 'idle';
+    projectAuthority(record, record.authorityState);
+    view.materializations.set(key, encodeRecord(record));
+    const budgetError = enforceMaterializationEnvelope(view, key, materializationLimits, now());
+    const storedAfterBudget = loadFrom(view, key);
+    return budgetError
+      ? { error: budgetError, snapshot: snapshotFor(storedAfterBudget) }
+      : { value: clone(storedAfterBudget), snapshot: snapshotFor(storedAfterBudget) };
+  };
+
   const commitPage = async (
     address,
     fragmentInput,
@@ -1389,86 +1504,73 @@ export async function createMaterializationStore(storeHandle, {
       assertFence(record, expectedFence);
       return [proofInput];
     });
-    return write(address, (view, key, admittedAddress) => {
-      const record = loadFrom(view, key);
-      if (record === null) refuse('SNAPBACK_MATERIALIZATION_NOT_INITIALIZED', 'page commit cannot allocate an instance');
+    return write(address, (view, key, admittedAddress) => commitPageInView(
+      view,
+      key,
+      admittedAddress,
+      fragmentInput,
+      proofInput,
+      resolutionBundle,
+      expectedFence,
+      signatureReceipts,
+    ));
+  };
+
+  // The sole staged-migration writer: validate the exact legacy record, the
+  // empty-outbox precondition, the QMK proof/result, and the current fence in
+  // one carrier transaction; only then delete the legacy alias.
+  // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — there is
+  // no interval in which both records are renderable and no crash cut after
+  // legacy deletion but before proof-validated QMK publication.
+  const commitLegacyAdoption = async (
+    address,
+    legacyKey,
+    expectedLegacyRecord,
+    fragmentInput,
+    proofInput,
+    resolutionBundle,
+    expectedFence,
+  ) => {
+    if (typeof legacyKey !== 'string' || legacyKey.length === 0) {
+      refuse('SNAPBACK_SINGLE_TABLE_ADOPTION_LEGACY_MISMATCH', 'legacy adoption key is invalid');
+    }
+    const signatureReceipts = await preverifyAddressProofs(address, 'commit', (record) => {
       assertActive(record);
       assertFence(record, expectedFence);
-      exact(fragmentInput, [
-        'pageIdentityDigest', 'resultContractHash', 'bytes', 'authorizedLeaseHash',
-        'memberships', 'freshness',
-      ], 'fragment input');
-      if (!['current', 'retained'].includes(fragmentInput.freshness)) {
-        refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', 'fragment freshness is invalid');
+      return [proofInput];
+    });
+    return write(address, (view, key, admittedAddress) => {
+      if (!(view.entries instanceof Map)) {
+        refuse('SNAPBACK_SINGLE_TABLE_ADOPTION_DOMAIN_UNAVAILABLE', 'carrier omits legacy entries from the materialization transaction');
       }
-      if (fragmentInput.freshness === 'retained' && record.storageProfile !== 'durable-fragments-v1') {
+      let pending;
+      try { pending = pendingOutboxRecords(view.outbox); } catch { pending = [null]; }
+      if (pending.length > 0) {
         refuse(
-          'SNAPBACK_MATERIALIZATION_STORAGE_PROFILE_GAP',
-          'volatile-online-v1 cannot install retained payload',
-          { requiredCapability: 'durable_fragments_v1' },
+          'SNAPBACK_SINGLE_TABLE_ADOPTION_PENDING_OUTBOX',
+          'legacy adoption waits for the durable mutation outbox to settle',
         );
       }
-      if (!Array.isArray(fragmentInput.memberships)) {
-        refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', 'fragment memberships must be an array');
-      }
-      const fragment = prepareFragment({
-        pageIdentityDigest: fragmentInput.pageIdentityDigest,
-        resultContractHash: fragmentInput.resultContractHash,
-        bytes: fragmentInput.bytes,
-        proof: proofInput,
-        authorizedLeaseHash: fragmentInput.authorizedLeaseHash,
-      });
-      const context = requireContext(resolveValidationContext, admittedAddress, record, 'commit');
-      if (
-        fragmentInput.freshness === 'retained'
-        && (
-          context.leaseStatus !== 'valid'
-          || context.authorizedLeaseHash !== fragmentInput.authorizedLeaseHash
-        )
-      ) {
+      const currentLegacyRecord = view.entries.get(legacyKey);
+      if (currentLegacyRecord === undefined || !same(currentLegacyRecord, expectedLegacyRecord)) {
         refuse(
-          'SNAPBACK_COMPLETENESS_LEASE_INVALID',
-          'retained commit requires exact valid owner lease custody',
+          'SNAPBACK_SINGLE_TABLE_ADOPTION_LEGACY_MISMATCH',
+          'legacy adoption candidate changed before the atomic switch',
         );
       }
-      fragment.proof = validateProof(record, fragment, proofInput, context, signatureReceipts);
-      const memberships = fragmentInput.memberships.map((entry, index) => prepareMembership(entry, `fragment.memberships[${index}]`));
-      for (const membership of memberships) {
-        if (
-          membership.materializationKey !== record.address[2]
-          || membership.pageIdentityDigest !== fragment.pageIdentityDigest
-        ) refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', 'membership does not bind the committed page');
-      }
-      if (resolutionBundle !== null) applyOwnerInput(view, key, record, resolutionBundle);
-      if (record.authorityState.effective_disposition === 'delete') {
-        return { value: clone(record), snapshot: snapshotFor(record) };
-      }
-      record.fragments = record.fragments.filter((entry) => entry.pageIdentityDigest !== fragment.pageIdentityDigest);
-      record.fragments.push(fragment);
-      record.memberships = record.memberships.filter((entry) => entry.pageIdentityDigest !== fragment.pageIdentityDigest);
-      for (const [membershipKeyValue, entry] of view.memberships) {
-        if (
-          entry?.materializationKey === record.address[2]
-          && entry?.pageIdentityDigest === fragment.pageIdentityDigest
-        ) view.memberships.delete(membershipKeyValue);
-      }
-      for (const membership of memberships) {
-        record.memberships.push(membership);
-        view.memberships.set(membershipKey(key, membership), clone(membership));
-      }
-      record.productState.heldProofs = record.productState.heldProofs.filter((entry) => (
-        pageIdentityDigestV1(entry.page) !== fragment.pageIdentityDigest
-      ));
-      record.productState.heldProofs.push(fragment.proof);
-      record.productState.freshness = fragmentInput.freshness;
-      record.productState.attempt = 'idle';
-      projectAuthority(record, record.authorityState);
-      view.materializations.set(key, encodeRecord(record));
-      const budgetError = enforceMaterializationEnvelope(view, key, materializationLimits, now());
-      const storedAfterBudget = loadFrom(view, key);
-      return budgetError
-        ? { error: budgetError, snapshot: snapshotFor(storedAfterBudget) }
-        : { value: clone(storedAfterBudget), snapshot: snapshotFor(storedAfterBudget) };
+      const committed = commitPageInView(
+        view,
+        key,
+        admittedAddress,
+        fragmentInput,
+        proofInput,
+        resolutionBundle,
+        expectedFence,
+        signatureReceipts,
+      );
+      if (committed.error) throw committed.error;
+      view.entries.delete(legacyKey);
+      return committed;
     });
   };
 
@@ -1687,7 +1789,7 @@ export async function createMaterializationStore(storeHandle, {
         const next = applyOwnerInput(view, key, record, ownerInput);
         return { bytes: null, snapshot: snapshotFor(next) };
       }
-      if (record.productState.freshness === 'retained' && context.leaseStatus !== 'valid') {
+      if (record.productState.freshness === 'retained' && !retainedAuthorityValid(context)) {
         const ownerInput = context.ownerTransitionForRetainedFailure?.('lease-invalid', clone(record));
         const next = applyOwnerInput(view, key, record, ownerInput);
         return { bytes: null, snapshot: snapshotFor(next) };
@@ -1829,6 +1931,7 @@ export async function createMaterializationStore(storeHandle, {
     initialize,
     beginEstablishment,
     commitPage,
+    commitLegacyAdoption,
     commitPageSet,
     recordAttemptOutcome,
     applyAuthorizationTransition,

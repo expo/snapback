@@ -41,10 +41,14 @@ export function registerNativeRqsFiles(provider) {
       throw new TypeError(`native RQS files registration requires files.${method}()`);
     }
   }
+  if (provider.randomBytes !== undefined && typeof provider.randomBytes !== 'function') {
+    throw new TypeError('native RQS files registration randomBytes must be a function');
+  }
   nativeRqsFiles = Object.freeze({
     files: provider.files,
     directory: provider.directory,
     implementation: provider.implementation ?? null,
+    randomBytes: provider.randomBytes,
   });
   return nativeRqsFiles;
 }
@@ -58,15 +62,39 @@ const env = (name) => {
   return typeof value === 'string' && value.length > 0 ? value : null;
 };
 
-const memoryFallback = (reason) => ({
-  store: createMemoryRqsResumeStore(),
+const unavailableFallback = (reason) => ({
+  store: null,
   info: Object.freeze({
     source: 'default',
-    implementation: 'memory',
+    implementation: null,
     durable: false,
     reason,
   }),
 });
+
+// @ref LLP 0008#decision-dk-9--client-local-store-mandate-2026-07-02 — an
+// unavailable optional store degrades without taking the Online client down.
+// LLP 0157's store-local handle key still stays CSPRNG-only: when even the
+// memory carrier cannot mint it, report the unavailable rung instead of
+// weakening the key or surfacing an internal constructor diagnostic.
+const memoryFallback = (reason) => {
+  try {
+    return {
+      store: createMemoryRqsResumeStore(),
+      info: Object.freeze({
+        source: 'default',
+        implementation: 'memory',
+        durable: false,
+        reason,
+      }),
+    };
+  } catch (error) {
+    if (error?.code === 'SNAPBACK_RQS_STORE_RANDOM_UNAVAILABLE') {
+      return unavailableFallback('secure-random-unavailable');
+    }
+    throw error;
+  }
+};
 
 /// Stable per-origin identity for the default file store: two clients of the
 /// same server share (single-writer) one blob; different servers never do.
@@ -113,15 +141,21 @@ export function resolveDefaultRqsStore({ baseUrl } = {}) {
   // the root, keeping Metro's static closure free of platform imports.
   if (globalThis.navigator?.product === 'ReactNative') {
     if (nativeRqsFiles === null) return memoryFallback('no-native-files-registered');
+    if (
+      typeof nativeRqsFiles.randomBytes !== 'function'
+      && typeof globalThis.crypto?.getRandomValues !== 'function'
+    ) return unavailableFallback('secure-random-unavailable');
     try {
       const store = createFileRqsResumeStore({
         directory: nativeRqsFiles.directory,
         files: nativeRqsFiles.files,
         identity: originIdentity(baseUrl),
+        randomBytes: nativeRqsFiles.randomBytes,
       });
       const durable = store.durability().durable === true;
       return {
         store,
+        randomBytes: nativeRqsFiles.randomBytes,
         info: Object.freeze({
           source: 'default',
           implementation: 'file',

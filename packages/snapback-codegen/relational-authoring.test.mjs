@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -17,6 +18,7 @@ const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
     authorSlug: v.optional(v.string()),
     ownerId: v.string(),
     score: v.real(),
+    payload: v.json(),
   }).index('by_owner_title', ['ownerId', 'title']);
   const authors = defineTable({
     slug: v.string(),
@@ -111,6 +113,27 @@ const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
     /take must be an integer from 0 through 1024/,
   );
   assert.throws(
+    () => defineRelationalQuery({
+      ...base,
+      projection: { payload: { root: 'payload' } },
+    }),
+    /must be a portable scalar field/,
+    'every admitted schema-sourced leaf has a fully derivable scalar contract',
+  );
+  assert.throws(
+    () => defineRelationalQuery({
+      ...base,
+      projection: { payload: { literal: { nested: true } } },
+    }),
+    /must be a finite JSON scalar literal/,
+    'literal leaves stay inside the result-contract literal vocabulary',
+  );
+  assert.throws(
+    () => defineRelationalQuery({ ...base, result: {} }),
+    /unknown field result|unexpected field/i,
+    'the closed relational profile does not admit a declared result contract',
+  );
+  assert.throws(
     () => defineRelationalQuery({ ...base, joinKind: 'inner' }),
     /unknown field joinKind|unexpected field/i,
     'the spec vocabulary is closed',
@@ -134,12 +157,15 @@ export const books = defineTable({
   title: v.string(),
   authorSlug: v.optional(v.string()),
   ownerId: v.principal(),
+  score: v.real(),
+  available: v.boolean(),
 })
   .index('by_owner_title', ['ownerId', 'title'])
   .sync();
 export const authors = defineTable({
   slug: v.string(),
   name: v.string(),
+  penName: v.optional(v.string()),
   ownerId: v.principal(),
 })
   .index('by_slug', ['slug'], { unique: true })
@@ -163,9 +189,35 @@ export const booksWithAuthors = defineRelationalQuery({
   projection: {
     title: { root: 'title' },
     authorName: { joined: 'name' },
+    score: { root: 'score' },
+    available: { root: 'available' },
     shelf: { literal: 'fiction' },
+    featured: { literal: true },
+    edition: { literal: 1 },
+    note: { literal: null },
   },
   take: 50,
+  rootIndex: 'by_owner_title',
+  joinedIndex: 'by_slug',
+});
+
+export const booksWithMaybeAuthors = defineRelationalQuery({
+  root: schema.tables.books,
+  joined: schema.tables.authors,
+  join: [{ root: 'authorSlug', joined: 'slug' }],
+  kind: 'left',
+  visibility: {
+    root: { kind: 'owner', field: 'ownerId' },
+    joined: { kind: 'owner', field: 'ownerId' },
+    output: 'owner',
+  },
+  projection: {
+    title: { root: 'title' },
+    authorName: { joined: 'name' },
+    penName: { joined: 'penName' },
+    shelf: { literal: 'fiction' },
+  },
+  take: 25,
   rootIndex: 'by_owner_title',
   joinedIndex: 'by_slug',
 });
@@ -190,7 +242,7 @@ export const booksWithAuthors = defineRelationalQuery({
   ]);
   assert.deepEqual(
     plan.projection.map((leaf) => leaf.name).sort(),
-    ['authorName', 'shelf', 'title'],
+    ['authorName', 'available', 'edition', 'featured', 'note', 'score', 'shelf', 'title'],
   );
   assert.equal(plan.take, 50);
   assert.equal(plan.rootIndex, 'by_owner_title');
@@ -211,6 +263,92 @@ export const booksWithAuthors = defineRelationalQuery({
     hostOperations: [],
     authorizationInputs: ['authUserId'],
   });
+
+  assert.equal(fn.resultContract.kind, 'records');
+  assert.deepEqual(fn.resultContract.rows, { minItems: 0, maxItems: 50 });
+  const resultFields = Object.fromEntries(
+    fn.resultContract.record.fields.map((field) => [field.name, field]),
+  );
+  assert.equal(resultFields.title.value.kind, 'string', 'root strings derive from schema');
+  assert.equal(resultFields.score.value.kind, 'finiteReal', 'root reals derive from schema');
+  assert.equal(resultFields.available.value.kind, 'boolean', 'root booleans derive from schema');
+  assert.deepEqual(resultFields.shelf.value, { kind: 'literal', value: 'fiction' });
+  assert.deepEqual(resultFields.featured.value, { kind: 'literal', value: true });
+  assert.deepEqual(resultFields.edition.value, { kind: 'literal', value: 1 });
+  assert.deepEqual(resultFields.note.value, { kind: 'literal', value: null });
+
+  const leftFn = manifest.functions.find((candidate) => candidate.name === 'booksWithMaybeAuthors');
+  assert(leftFn, 'left relational function must be emitted');
+  const leftFields = Object.fromEntries(
+    leftFn.resultContract.record.fields.map((field) => [field.name, field]),
+  );
+  assert.deepEqual(leftFields.authorName, {
+    name: 'authorName',
+    required: true,
+    value: {
+      kind: 'union',
+      variants: [
+        { kind: 'null' },
+        { kind: 'string', maxBytes: 1_048_576 },
+      ],
+    },
+  }, 'a required joined scalar becomes a present nullable field under a left join');
+  assert.deepEqual(leftFields.penName.value, {
+    kind: 'union',
+    variants: [
+      { kind: 'null' },
+      { kind: 'string', maxBytes: 1_048_576 },
+    ],
+  }, 'schema optionality and left-join absence collapse to one null union');
+
+  const leftProvider = result.providerIntrospection.operations.queries
+    .find((candidate) => candidate.name === 'booksWithMaybeAuthors');
+  assert.deepEqual(leftProvider.result.row.fields.authorName, {
+    shape: 'union',
+    variants: [
+      { shape: 'literal', value: null },
+      { shape: 'primitive', name: 'string' },
+    ],
+  });
+  assert.deepEqual(leftProvider.result.row.fields.shelf, {
+    shape: 'literal',
+    value: 'fiction',
+  });
+  assert(
+    !result.diagnostics.some(
+      ({ code, path }) => code === 'PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED'
+        && path?.startsWith('queries.booksWith'),
+    ),
+    'fully derived relational results must not emit the degraded provider diagnostic',
+  );
+
+  writeFileSync(join(dir, 'relational-types.fixture.ts'), `
+import api, { type FunctionResult } from './generated/api';
+
+declare const inner: FunctionResult<typeof api.booksWithAuthors>[number];
+inner.title.toUpperCase();
+inner.score.toFixed();
+inner.available.valueOf();
+const shelf: 'fiction' = inner.shelf;
+const featured: true = inner.featured;
+const edition: 1 = inner.edition;
+const note: null = inner.note;
+
+declare const left: FunctionResult<typeof api.booksWithMaybeAuthors>[number];
+left.authorName?.toUpperCase();
+left.penName?.toUpperCase();
+// @ts-expect-error left-join-sourced fields must be checked for null
+left.authorName.toUpperCase();
+void [shelf, featured, edition, note];
+`);
+  execFileSync(join(packageDir, '../../node_modules/.bin/tsc'), [
+    '--noEmit',
+    '--strict',
+    '--target', 'es2022',
+    '--module', 'esnext',
+    '--moduleResolution', 'bundler',
+    'relational-types.fixture.ts',
+  ], { cwd: dir, stdio: 'pipe' });
 
   const first = readFileSync(join(dir, 'generated', 'functions.manifest.json'));
   const regenerated = await generate(dir);

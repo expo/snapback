@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "snapback.v1:sessions:function:sha256:ab58ec332310b74c8fde817952b140ce01134a887e8c36beb6e21207ec6fa4f9",
+  "bundleHash": "snapback.v1:sessions:function:sha256:45e1068b84b6be268e217bf3ea185c3000eab70be2c1e8f990ac1924b0f523b1",
   "capabilities": {
     "branchableFixtures": false,
     "derivedOptimisticOverlays": true,
@@ -15,7 +15,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:b2be9352d4551a42f9f5d1f36a90dd9a58a5aa733f345b68f424dca7b8c8bb0b",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:5b011bf6d364fd947edb58deb0455ef61721da6069ee8f8dc81043e2ac391bff",
   "manifestVersion": 2,
   "mutations": {
     "addMember": {
@@ -34,7 +34,7 @@
         }
       },
       "argsHash": "sha256:7fd4b159214366f06365950428581020b84601ac1cfb18d5fed54dd8d0d2c1d6",
-      "implementationHash": "sha256:b2aa9656acc794a6b0a913f7a7aeb09db97db8dd38b1476593bcd09711a62837",
+      "implementationHash": "sha256:b1a5d8964d20eb15a5fbdaba6bcf5b62bc17259fd3bde96d544b8c34c6a3eaf8",
       "invalidates": [
         "workspaceMembers"
       ],
@@ -60,7 +60,7 @@
         }
       },
       "argsHash": "sha256:ca67c710f648a629d1cb092bceab13599722f02a42745c33175f491af06a3539",
-      "implementationHash": "sha256:27077933d7ee2aeaad287285a87af61b9d5434de27808db2dc809f9d642d1cbb",
+      "implementationHash": "sha256:4a05ba82e9d15319558d44ea27178d875fa08c9bf235e6f06229fabf6653dd9a",
       "invalidates": [
         "photos"
       ],
@@ -258,7 +258,7 @@
         }
       },
       "argsHash": "sha256:8f0a63b50f2cc4d9aee241ff37e9f3e0a91e536ca7f058be2641f73598be030f",
-      "implementationHash": "sha256:24206a9e0dd7a18451c38a2b35ffbf8e8bc6e9474bc55d060c22746467a1beef",
+      "implementationHash": "sha256:a42c3d540eed44d8477063c058bbacdb5a525ab76b7d50687ecb0f64d9289be3",
       "invalidates": [
         "photos"
       ],
@@ -337,7 +337,7 @@
         }
       },
       "argsHash": "sha256:cf32b5ef0a7af7a40594ca003f2a1fcc7dd1f7516184c439e8e405d176c458d4",
-      "implementationHash": "sha256:151d09f635493ca4f6dd79148563d1ac98f9e11592435707bdc551e656570eb9",
+      "implementationHash": "sha256:e6d12dc93de45ccc838796df750e094edb65510d06b814e259315f60d5bf7919",
       "invalidates": [
         "workspaces",
         "workspaceMembers"
@@ -370,7 +370,7 @@
         }
       },
       "argsHash": "sha256:8f0a63b50f2cc4d9aee241ff37e9f3e0a91e536ca7f058be2641f73598be030f",
-      "implementationHash": "sha256:facba1fc80008bc2d98690d99a42382704a1b8327e69d52ba7117c0cfc523c58",
+      "implementationHash": "sha256:382eb2740a2d303bc2372bf149e909a60bee07c4b04aaca1a51de265b6cebd6f",
       "invalidates": [
         "photos"
       ],
@@ -396,7 +396,7 @@
         }
       },
       "argsHash": "sha256:7acf7f3e4aff848544e5e42c8d78f9c3d0ff54b2bbca08dd0903313c402649c3",
-      "implementationHash": "sha256:48e9bdca5ce7b9e0405293c6db526f50b484b54df9db0e3c329f4bfb7473c93f",
+      "implementationHash": "sha256:9a9524155337164ebaaf6b7267f9d9842ba990c00d86e149d9fcccc030c3a463",
       "invalidates": [
         "workspaceMembers"
       ],
@@ -410,11 +410,75 @@
       "writes": [
         "workspaceMembers"
       ]
+    },
+    "recordAssetReady": {
+      "argOrder": [
+        "event",
+        "assetId",
+        "facts"
+      ],
+      "args": {
+        "assetId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "event": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "facts": {
+          "shape": "unknown"
+        }
+      },
+      "argsHash": "sha256:92370550a56707302c271cf9d586b83cae1b73030c75d4422f772113ba2fc4eb",
+      "implementationHash": "sha256:1d700b6753a041e823cf3d90b3c53a442028050f688bea6716cccedb2c36a3e7",
+      "invalidates": [
+        "assetCallbackLog"
+      ],
+      "name": "recordAssetReady",
+      "optimistic": false,
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "writes": [
+        "assetCallbackLog"
+      ]
     }
   },
   "provider": "snapback",
-  "queries": {},
+  "queries": {
+    "listAssetCallbackLog": {
+      "argOrder": [],
+      "args": {},
+      "argsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "defaultLive": false,
+      "ephemeral": false,
+      "implementationHash": "sha256:8ae130b75f029a0c3a83f529242aabadf27925700bed7623f21ae92a7c89e5b4",
+      "initialSnapshot": false,
+      "livePush": false,
+      "localRunnable": false,
+      "mode": "snapshot",
+      "name": "listAssetCallbackLog",
+      "reads": [
+        "assetCallbackLog"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "shape": "unknown"
+        }
+      },
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "serverRunnable": true,
+      "subscription": "none"
+    }
+  },
   "receipts": "mutation+subscription",
-  "schemaHash": "snapback.v1:sessions:schema:sha256:613e8acdf7cb59e84bf07e4551e2fd14bb5f2d018b0e709c1b15aa371d9ae3bb",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:f4122c7b795682bdc01c2f880827d8ad6c1cf0bf3f7d7d3630977b3dfc651d29",
   "schemaVersion": "snapback.v1"
 }

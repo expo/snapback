@@ -1,0 +1,219 @@
+{
+  "startedAt": "2026-08-04T08:13:18.329Z",
+  "idleHoldMs": 120000,
+  "identities": {
+    "platform": "ios 26.3.1",
+    "hermes": true,
+    "simulator": "1E44BDCE-FFE6-4172-9D1F-2C5D649BD292",
+    "server": "http://127.0.0.1:4287 (repo dev server, runtime binary @ origin/main)",
+    "app": "/Users/ccheever/f7-rerun/dd/Build/Products/Release-iphonesimulator/ImprovementSweepNeutralShell.app"
+  },
+  "userId": "usr_6tkb4vpp3yndpn7j7bdmsjs274",
+  "headlessProbe": {
+    "result": {
+      "rows": 3,
+      "freshness": "current",
+      "connection": "live"
+    }
+  },
+  "setupFailures": [
+    {
+      "step": "notebook-presentation",
+      "error": "timeout waiting for event: notebook presents 3 sites + 3 records"
+    }
+  ],
+  "holdStartedAt": "2026-08-04T08:14:30.258Z",
+  "hold": {
+    "durationMs": 120003,
+    "streamTransitions": 0,
+    "lostDuringHold": {
+      "totalLost": 0,
+      "signatures": []
+    },
+    "lostOverall": {
+      "totalLost": 0,
+      "signatures": []
+    },
+    "connectionStatusFlips": []
+  },
+  "finalNotebook": {
+    "connection": {
+      "status": "live"
+    },
+    "sites": {
+      "status": "ready",
+      "connection": "live",
+      "error": null,
+      "freshness": "current",
+      "retention": {
+        "retainable": true,
+        "code": null,
+        "reason": null,
+        "store": {
+          "source": "default",
+          "implementation": "memory",
+          "durable": false,
+          "reason": "no-native-files-registered"
+        }
+      },
+      "rows": 3
+    },
+    "records": {
+      "status": "pending",
+      "connection": "idle",
+      "error": null,
+      "freshness": "unknown",
+      "retention": null,
+      "rows": null
+    },
+    "suppressedSinceLast": 3
+  },
+  "queryErrors": [],
+  "tapHeartbeats": [
+    {
+      "receivedAt": 1785831207044,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831212314,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831217544,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831222564,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831227831,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831232863,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831237876,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831242897,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831247910,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831252947,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831258008,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831263029,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831268045,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831273314,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831278327,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831283347,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831288609,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831293616,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831298644,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831303879,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831309131,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831314181,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831319211,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831324248,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831329295,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831334565,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831339613,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831344646,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831349645,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831354898,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831359931,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831364982,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831369996,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831375032,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831380045,
+      "managerCount": 2
+    },
+    {
+      "receivedAt": 1785831385298,
+      "managerCount": 2
+    }
+  ],
+  "finishedAt": "2026-08-04T08:16:30.655Z"
+}

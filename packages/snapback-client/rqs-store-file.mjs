@@ -467,6 +467,8 @@ export function createFileRqsResumeStore({
     if (closed) throw storeError('SNAPBACK_RQS_STORE_CLOSED', 'RQS resume store is closed');
   };
 
+  // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — legacy
+  // entries, outbox, and QMK sections share the adoption commit domain.
   const materializationTransaction = async (mode, operation) => {
     requireOpen();
     if (mode !== 'readonly' && mode !== 'readwrite') {
@@ -484,6 +486,8 @@ export function createFileRqsResumeStore({
       materializations: new Map(Object.entries(structuredClone(state.materializations))),
       pageSets: new Map(Object.entries(structuredClone(state.pageSets))),
       memberships: new Map(Object.entries(structuredClone(state.memberships))),
+      entries: new Map(Object.entries(structuredClone(state.entries))),
+      outbox: structuredClone(state.outbox),
       storeMeta: structuredClone(state.storeMeta),
     };
     const result = operation(view);
@@ -498,6 +502,8 @@ export function createFileRqsResumeStore({
         materializations: Object.fromEntries(view.materializations),
         pageSets: Object.fromEntries(view.pageSets),
         memberships: Object.fromEntries(view.memberships),
+        entries: Object.fromEntries(view.entries),
+        outbox: view.outbox,
         storeMeta: preparedMeta,
       });
     }

@@ -82,6 +82,12 @@ import {
   runComparatorAcceptance,
 } from './comparator-profile.mjs';
 import {
+  defaultVerifyConfig,
+  loadVerifyConfig,
+  runVerify,
+  writeVerifyReceipt,
+} from './verify.mjs';
+import {
   createHostedPlan,
   invokeHostedLifecycle,
   runHostedRead,
@@ -137,6 +143,21 @@ export {
   validateComparatorReceipt,
   writeComparatorReceipt,
 } from './comparator-profile.mjs';
+export {
+  VERIFY_CONFIG_SCHEMA_VERSION,
+  VERIFY_RECEIPT_SCHEMA_VERSION,
+  VERIFY_STAGE_IDS,
+  aggregateConformance,
+  defaultVerifyConfig,
+  defineVerifyConfig,
+  loadVerifyConfig,
+  probeAdmission,
+  probeArtifactFreshness,
+  probeCapabilities,
+  runVerify,
+  validateVerifyReceipt,
+  writeVerifyReceipt,
+} from './verify.mjs';
 export {
   HOSTED_ASSETS,
   HOSTED_COMMAND_REGISTRY,
@@ -2673,6 +2694,44 @@ export async function runCli(argv, options = {}) {
     });
     printResult(result, json);
     return result.exitCode;
+  }
+  if (command === 'verify') {
+    const configPath = takeFlag(args, '--config');
+    const receiptPath = takeFlag(args, '--receipt');
+    const runtimeReceiptPath = takeFlag(args, '--runtime-receipt');
+    const runtimeBinary = takeFlag(args, '--runtime-binary');
+    const backendDirectory = args.shift() ?? null;
+    if (args.length > 0) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        'usage: snapback verify [<backend-dir>] [--config <verify.config.mjs>] [--receipt <receipt.json>] [--runtime-binary <path>] [--runtime-receipt <path>] [--json]',
+      );
+    }
+    const config = configPath === null
+      ? defaultVerifyConfig({ backendDirectory: backendDirectory ?? 'snapback' })
+      : await loadVerifyConfig(configPath, { backendDirectory });
+    const result = await runVerify(config, {
+      ...options.verifyOptions,
+      runtimeProbe() {
+        const verdict = packagedRuntimeReadiness({
+          ...options,
+          verify: true,
+          ...(runtimeBinary === null ? {} : { runtimeBinary }),
+          ...(runtimeReceiptPath === null ? {} : { receiptPath: runtimeReceiptPath }),
+        });
+        return {
+          ok: verdict.ok,
+          receipt: verdict.ok ? {
+            receiptPath: verdict.receiptPath,
+            receipt: verdict.receipt,
+          } : null,
+          diagnostics: verdict.ok || verdict.diagnostic === null ? [] : [verdict.diagnostic],
+        };
+      },
+    });
+    if (receiptPath !== null) writeVerifyReceipt(receiptPath, result);
+    printResult(result, json);
+    return result.ok ? 0 : 1;
   }
   if (command === 'new') {
     const target = args.shift();

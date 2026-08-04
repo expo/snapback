@@ -335,7 +335,7 @@
     },
     "AssetCallbackPolicy": {
       "additionalProperties": false,
-      "description": "Declared lifecycle callbacks: each names an ordinary generated mutation\ninvoked with typed facts under the asset owner's authority — never raw\nbyte authority (LLP 0044 §Declarative processing).",
+      "description": "Declared lifecycle callbacks: each names an ordinary generated mutation\ninvoked with typed facts — under owner authority in dev mode or the ruled\n`asset-callbacks` service principal in sessions mode — never raw byte\nauthority (LLP 0044 §Declarative processing).",
       "properties": {
         "ready": {
           "type": [
@@ -902,7 +902,7 @@
           ]
         },
         "intentPolicyHash": {
-          "description": "Hash over the declared accept/delivery/access/image/auth facts — the\nadmitted policy identity an attempt finalizes under.",
+          "description": "Hash over the declared accept/delivery/access/image/video/auth facts —\nthe admitted policy identity an attempt finalizes under.",
           "type": "string"
         },
         "name": {
@@ -932,6 +932,17 @@
             }
           ],
           "default": null
+        },
+        "video": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssetVideoPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "@ref LLP 0044#video-location-policy-the-video--location--sibling-block-dated-decision-2026-08-03 —\nvideo location policy has its own manifest carrier rather than\noverloading or aliasing the frozen image-policy spelling."
         }
       },
       "required": [
@@ -1002,6 +1013,19 @@
         "maxMetadataBytes",
         "stepTimeBudgetMs",
         "maxParseBytes"
+      ],
+      "type": "object"
+    },
+    "AssetVideoPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "location": {
+          "$ref": "#/$defs/AssetLocationPolicy",
+          "description": "Mandatory-explicit for location-bearing video; there is no implicit\nfallback (LLP 0044 §Video location policy)."
+        }
+      },
+      "required": [
+        "location"
       ],
       "type": "object"
     },

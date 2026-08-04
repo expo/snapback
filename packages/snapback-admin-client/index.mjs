@@ -11,6 +11,8 @@
 // are broken — the bootstrap property LLP 0017 requires.
 
 const CONSOLE_STORAGE_KEY = 'snapback_console_credential_v1';
+const REACHABILITY_STORAGE_PREFIX = 'snapback_reachability_credential_v1:';
+const REACHABILITY_INDEX_KEY = 'snapback_reachability_sessions_v1';
 const LEGACY_MASTER_STORAGE_KEY = 'snapback_admin_token';
 const CREDENTIAL_REDACTION = '[REDACTED]';
 
@@ -25,10 +27,27 @@ export class AdminClient {
     // intentionally memory-only. They are never restored from browser
     // storage and are attached only to response-bearing inspection calls.
     this.secretReadLease = '';
-    const stored = this.masterToken ? null : storedConsoleCredential();
+    this.reachabilityCandidates = this.masterToken
+      ? []
+      : storedReachabilityCredentials(this.baseUrl);
+    // A tab-scoped reachability record makes backend identity validation the
+    // only restoration path for this origin. Never let an older ordinary
+    // localStorage credential bypass that fail-closed check.
+    const stored = this.masterToken || this.reachabilityCandidates.length
+      ? null
+      : storedConsoleCredential();
+    if (this.reachabilityCandidates.length) {
+      try {
+        if (typeof localStorage !== 'undefined') localStorage.removeItem(CONSOLE_STORAGE_KEY);
+      } catch {
+        // The candidate still remains ineligible until both identity probes.
+      }
+    }
     this.consoleCredential = stored?.credential ?? '';
     this.consoleExpiresAtMs = stored?.expiresAtMs ?? 0;
     this.consoleProvenance = stored?.provenance ?? '';
+    this.consoleReachability = null;
+    this.reachabilityRestoreAttempted = false;
     this.consoleRenewalAttemptedAtMs = 0;
     this.consoleRenewalPromise = null;
     clearLegacyStoredMaster();
@@ -174,6 +193,14 @@ export class AdminClient {
     if (
       includeCredential
       && path !== '/console/credential'
+      && !this.consoleCredential
+      && this.reachabilityCandidates.length
+    ) {
+      await this.#restoreReachabilityCredential();
+    }
+    if (
+      includeCredential
+      && path !== '/console/credential'
       && this.#consoleCredentialNeedsRenewal()
     ) {
       await this.#renewConsoleCredential();
@@ -217,6 +244,9 @@ export class AdminClient {
       }
     }
     if (!res.ok) {
+      if (res.status === 401 && this.consoleReachability) {
+        this.#replaceConsoleCredential(null);
+      }
       if (preserveCredentialResponse) throw opaqueCredentialResponseError();
       const rawDiagnostic = json && json.diagnostic
         ? json.diagnostic
@@ -323,6 +353,60 @@ export class AdminClient {
     return '';
   }
 
+  async #restoreReachabilityCredential() {
+    if (this.reachabilityRestoreAttempted) return;
+    this.reachabilityRestoreAttempted = true;
+    const candidates = this.reachabilityCandidates;
+    this.reachabilityCandidates = [];
+    let activeIdentity = null;
+    try {
+      const response = await fetch(`${adminOrigin(this.baseUrl)}/_snapback/admin/reachability/identity`, {
+        method: 'GET',
+        cache: 'no-store',
+      });
+      if (response.ok) {
+        activeIdentity = projectReachabilityIdentity(await response.json(), false);
+      }
+    } catch {
+      // A credential is never sent while backend identity is indeterminate.
+    }
+    for (const candidate of candidates) {
+      const binding = candidate.reachability;
+      if (
+        !activeIdentity
+        || activeIdentity.instanceId !== binding.instanceId
+        || candidate.origin !== adminOrigin(this.baseUrl)
+      ) {
+        removeReachabilityCredential(candidate);
+        continue;
+      }
+      try {
+        const response = await fetch(
+          `${adminOrigin(this.baseUrl)}/_snapback/admin/reachability/identity?session=${encodeURIComponent(binding.sessionId)}`,
+          { method: 'GET', cache: 'no-store' },
+        );
+        const identity = response.ok
+          ? projectReachabilityIdentity(await response.json(), true)
+          : null;
+        if (
+          identity
+          && identity.sessionId === binding.sessionId
+          && identity.instanceId === binding.instanceId
+          && candidate.expiresAtMs > Date.now()
+        ) {
+          this.consoleCredential = candidate.credential;
+          this.consoleExpiresAtMs = candidate.expiresAtMs;
+          this.consoleProvenance = candidate.provenance;
+          this.consoleReachability = binding;
+          return;
+        }
+      } catch {
+        // Identity loss is a refusal, not a reason to optimistically restore.
+      }
+      removeReachabilityCredential(candidate);
+    }
+  }
+
   #consoleCredentialNeedsRenewal() {
     return !!this.#activeConsoleCredential()
       && this.consoleExpiresAtMs <= Date.now() + 2 * 60_000
@@ -347,6 +431,19 @@ export class AdminClient {
         if (!credential || credential.expiresAtMs <= Date.now()) {
           throw responseShapeError('console credential renewal returned an invalid credential');
         }
+        if (
+          this.consoleReachability
+          && (
+            !credential.reachability
+            || credential.reachability.sessionId !== this.consoleReachability.sessionId
+            || credential.reachability.instanceId !== this.consoleReachability.instanceId
+          )
+        ) {
+          this.#replaceConsoleCredential(null);
+          throw responseShapeError(
+            'console reachability credential renewal lost its session binding',
+          );
+        }
         this.#replaceConsoleCredential(credential);
       } catch (error) {
         // Renewal is a sliding convenience. Preserve an active credential for
@@ -361,15 +458,22 @@ export class AdminClient {
   }
 
   #replaceConsoleCredential(record) {
+    const previousReachability = this.consoleReachability;
     this.consoleCredential = record?.credential ?? '';
     this.consoleExpiresAtMs = record?.expiresAtMs ?? 0;
     this.consoleProvenance = record?.provenance ?? '';
+    this.consoleReachability = record?.reachability ?? null;
+    this.reachabilityCandidates = [];
+    this.reachabilityRestoreAttempted = true;
     try {
-      if (typeof localStorage === 'undefined') return;
       clearLegacyStoredMaster();
-      if (record) {
+      if (previousReachability) removeReachabilityCredential({ reachability: previousReachability });
+      if (record?.reachability) {
+        if (typeof localStorage !== 'undefined') localStorage.removeItem(CONSOLE_STORAGE_KEY);
+        persistReachabilityCredential(this.baseUrl, record);
+      } else if (typeof localStorage !== 'undefined' && record) {
         localStorage.setItem(CONSOLE_STORAGE_KEY, JSON.stringify(record));
-      } else {
+      } else if (typeof localStorage !== 'undefined') {
         localStorage.removeItem(CONSOLE_STORAGE_KEY);
       }
     } catch {
@@ -517,7 +621,8 @@ export class AdminClient {
 
 // Consume the CLI's fragment handoff before the console makes any request.
 // The fragment is removed from the visible/history URL before validation or
-// persistence, and only the derived credential record reaches localStorage.
+// persistence. Ordinary credentials use localStorage; reachability-bound
+// credentials are selected by their response binding and use sessionStorage.
 export async function consumeConsoleCredentialFragment(
   client,
   locationObject = globalThis.location,
@@ -582,6 +687,18 @@ function guideBaseUrl(adminApiBaseUrl) {
   return `${base}/guide`;
 }
 
+function adminOrigin(adminApiBaseUrl) {
+  const base = String(adminApiBaseUrl ?? '').replace(/\/$/, '');
+  if (base.endsWith('/_snapback/api')) {
+    return base.slice(0, -'/_snapback/api'.length);
+  }
+  try {
+    return new URL(base).origin;
+  } catch {
+    return base;
+  }
+}
+
 function guideTransportError(code, message) {
   const error = new Error(`${code}: ${message}`);
   error.code = code;
@@ -619,6 +736,117 @@ function storedConsoleCredential() {
   }
 }
 
+function reachabilityStorageKey(binding) {
+  return `${REACHABILITY_STORAGE_PREFIX}${binding.sessionId}:${binding.instanceId}`;
+}
+
+function projectReachabilityBinding(value) {
+  if (!exactRecord(value, ['sessionId', 'instanceId'])) return null;
+  if (
+    typeof value.sessionId !== 'string'
+    || !/^sbrs_[A-Za-z0-9]+$/.test(value.sessionId)
+    || typeof value.instanceId !== 'string'
+    || !/^[A-Za-z0-9-]+$/.test(value.instanceId)
+  ) {
+    return null;
+  }
+  return { sessionId: value.sessionId, instanceId: value.instanceId };
+}
+
+function projectReachabilityIdentity(value, withSession) {
+  const keys = withSession ? ['instanceId', 'sessionId'] : ['instanceId'];
+  if (!exactRecord(value, keys)) return null;
+  if (typeof value.instanceId !== 'string' || !/^[A-Za-z0-9-]+$/.test(value.instanceId)) {
+    return null;
+  }
+  if (withSession) {
+    if (typeof value.sessionId !== 'string' || !/^sbrs_[A-Za-z0-9]+$/.test(value.sessionId)) {
+      return null;
+    }
+    return { instanceId: value.instanceId, sessionId: value.sessionId };
+  }
+  return { instanceId: value.instanceId };
+}
+
+function reachabilityIndex() {
+  if (typeof sessionStorage === 'undefined') return [];
+  const raw = sessionStorage.getItem(REACHABILITY_INDEX_KEY);
+  if (!raw) return [];
+  const parsed = JSON.parse(raw);
+  if (!Array.isArray(parsed) || parsed.some((key) => (
+    typeof key !== 'string' || !key.startsWith(REACHABILITY_STORAGE_PREFIX)
+  ))) {
+    sessionStorage.removeItem(REACHABILITY_INDEX_KEY);
+    return [];
+  }
+  return [...new Set(parsed)];
+}
+
+function writeReachabilityIndex(keys) {
+  if (typeof sessionStorage === 'undefined') return;
+  const unique = [...new Set(keys)];
+  if (unique.length) {
+    sessionStorage.setItem(REACHABILITY_INDEX_KEY, JSON.stringify(unique));
+  } else {
+    sessionStorage.removeItem(REACHABILITY_INDEX_KEY);
+  }
+}
+
+function persistReachabilityCredential(baseUrl, record) {
+  if (typeof sessionStorage === 'undefined') return;
+  const key = reachabilityStorageKey(record.reachability);
+  const stored = {
+    credential: record.credential,
+    expiresAtMs: record.expiresAtMs,
+    provenance: record.provenance,
+    reachability: record.reachability,
+    origin: adminOrigin(baseUrl),
+  };
+  sessionStorage.setItem(key, JSON.stringify(stored));
+  writeReachabilityIndex([...reachabilityIndex(), key]);
+}
+
+function removeReachabilityCredential(record) {
+  try {
+    if (typeof sessionStorage === 'undefined' || !record?.reachability) return;
+    const key = reachabilityStorageKey(record.reachability);
+    sessionStorage.removeItem(key);
+    writeReachabilityIndex(reachabilityIndex().filter((candidate) => candidate !== key));
+  } catch {
+    // A storage failure cannot make a reachability credential eligible.
+  }
+}
+
+function storedReachabilityCredentials(baseUrl) {
+  try {
+    if (typeof sessionStorage === 'undefined') return [];
+    const expectedOrigin = adminOrigin(baseUrl);
+    const retained = [];
+    const candidates = [];
+    for (const key of reachabilityIndex()) {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      const projected = projectConsoleCredential(parsed);
+      if (
+        !projected?.reachability
+        || parsed.origin !== expectedOrigin
+        || parsed.expiresAtMs <= Date.now()
+        || key !== reachabilityStorageKey(projected.reachability)
+      ) {
+        sessionStorage.removeItem(key);
+        continue;
+      }
+      retained.push(key);
+      candidates.push({ ...projected, origin: parsed.origin });
+    }
+    writeReachabilityIndex(retained);
+    return candidates;
+  } catch {
+    return [];
+  }
+}
+
 function clearLegacyStoredMaster() {
   try {
     if (typeof localStorage !== 'undefined') {
@@ -638,13 +866,21 @@ function responseShapeError(message) {
 function projectConsoleCredential(value, forbiddenMaster = '') {
   const standard = exactRecord(value, ['credential', 'expiresAtMs']);
   const provenanced = exactRecord(value, ['credential', 'expiresAtMs', 'provenance']);
-  if (!standard && !provenanced) return null;
+  const reachable = exactRecord(
+    value,
+    ['credential', 'expiresAtMs', 'provenance', 'reachability'],
+  );
+  const storedReachable = exactRecord(
+    value,
+    ['credential', 'expiresAtMs', 'provenance', 'reachability', 'origin'],
+  );
+  if (!standard && !provenanced && !reachable && !storedReachable) return null;
   if (
     typeof value.credential !== 'string' ||
     !/^sbcc_[A-Za-z0-9-]+$/.test(value.credential) ||
     !Number.isSafeInteger(value.expiresAtMs) ||
     value.expiresAtMs < 0
-    || (provenanced && value.provenance !== 'operatorClaim')
+    || ((provenanced || reachable || storedReachable) && value.provenance !== 'operatorClaim')
   ) {
     return null;
   }
@@ -652,7 +888,12 @@ function projectConsoleCredential(value, forbiddenMaster = '') {
     credential: value.credential,
     expiresAtMs: value.expiresAtMs,
   };
-  if (provenanced) projected.provenance = value.provenance;
+  if (provenanced || reachable || storedReachable) projected.provenance = value.provenance;
+  if (reachable || storedReachable) {
+    const reachability = projectReachabilityBinding(value.reachability);
+    if (!reachability) return null;
+    projected.reachability = reachability;
+  }
   // @ref LLP 0060#c1-the-v1-custody-claim — an exact response shape still
   // fails closed when the derived record would persist its minting authority
   // in any key or value, including an all-numeric master reflected as the

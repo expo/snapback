@@ -5,7 +5,7 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-08-03 (per-app `asset-callbacks` service principal for
+**Revised:** 2026-08-04 (implemented the per-app `asset-callbacks` principal and exact grants). 2026-08-03 (per-app `asset-callbacks` service principal for
 sessions-mode asset lifecycle callbacks — author decision sitting #2;
 see the dated amendment). 2026-08-01 (LLP 0062 app-CLI credentialed lane: exact scoped-token
 release, server-relative TTL receipts, actor/effective tuple re-attestation,
@@ -2363,6 +2363,14 @@ receipts keep "who ran this" explicit. The `ctx.auth` projection and
 commit-time validation obligations of the class are recorded in LLP
 0039's matching dated amendment; the classification here is the
 0039/0055-side prerequisite the ticket required before implementation.
+
+**Implemented 2026-08-04.** `src/storage/auth_asset_callbacks.rs` maintains one
+protected-catalog agent principal per app and one immutable exact-function
+grant per callback mutation. It mints no user session, credential, scoped-token
+secret, or owner bearer. Fresh execution and commit both revalidate the app
+provenance, principal, live grant, and current scope basis; mutation receipts
+retain the ordinary authority binding, and the asset work-completion receipt
+explicitly records the service actor and exact grant.
 
 ## Status
 

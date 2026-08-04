@@ -5,8 +5,9 @@ import { fileURLToPath } from 'node:url';
 
 import { readGeneratedJson } from '../../_kit/generated-artifacts.mjs';
 
+const generatedDirectory = fileURLToPath(new URL('../snapback/generated', import.meta.url));
 const functions = readGeneratedJson(
-  fileURLToPath(new URL('../snapback/generated', import.meta.url)),
+  generatedDirectory,
   'functions.manifest.json',
 ).functions;
 const byName = new Map(functions.map((definition) => [definition.name, definition]));
@@ -25,6 +26,39 @@ test('the required screen is generated composition, not a JavaScript collection 
   const source = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
   assert.equal(source.includes('.filter('), false);
   assert.equal(source.includes('.reduce('), false);
+});
+
+test('retained inbox publishes its complete derived row contract without degradation', async () => {
+  const introspection = readGeneratedJson(generatedDirectory, 'provider-introspection.json');
+  const retained = introspection.operations.queries
+    .find(({ name }) => name === 'retainedInbox');
+  assert.deepEqual(retained.result.row, {
+    shape: 'object',
+    fields: {
+      issueKey: { shape: 'primitive', name: 'string' },
+      priority: { shape: 'primitive', name: 'number' },
+      projectKey: { shape: 'primitive', name: 'string' },
+      projectName: { shape: 'primitive', name: 'string' },
+      rank: { shape: 'primitive', name: 'number' },
+      state: { shape: 'primitive', name: 'string' },
+      title: { shape: 'primitive', name: 'string' },
+    },
+  });
+
+  const artifacts = readGeneratedJson(generatedDirectory, 'artifacts.json');
+  assert.equal(artifacts.summary.counts.degradedResults, 0);
+  assert.equal(artifacts.summary.counts.warnings, 0);
+  assert.deepEqual(artifacts.summary.degradedResults, []);
+
+  const apiTypes = await readFile(new URL('../snapback/generated/api.d.ts', import.meta.url), 'utf8');
+  const retainedLine = apiTypes.split('\n')
+    .find((line) => line.includes("FunctionReference<'retainedInbox'"));
+  assert.match(retainedLine, /ReadonlyArray<\{ "issueKey": string; .*"projectName": string \}>/u);
+  assert.equal(retainedLine.includes('unknown'), false);
+
+  const source = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
+  assert.match(source, /useState<RetainedInboxRows>/u);
+  assert.equal(source.includes('useState<any[]>([])'), false);
 });
 
 test('OQ13 freezes a fresh successor manifest and excludes Fleet', async () => {

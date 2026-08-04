@@ -37,7 +37,7 @@
       "sourceSpan": {
         "column": 14,
         "file": "functions.mjs",
-        "line": 50
+        "line": 68
       }
     },
     {
@@ -74,7 +74,7 @@
       "sourceSpan": {
         "column": 14,
         "file": "functions.mjs",
-        "line": 63
+        "line": 81
       }
     },
     {
@@ -97,9 +97,12 @@
       "exportedName": "fileUpload",
       "handlerForm": "inline",
       "id": "fixtures:fileUpload",
-      "implementationHash": "sha256:10ac37bef75d95306494bed53d7fa0cf792692c3da04b4c61cf1d17070e2eaed",
-      "intentPolicyHash": "sha256:1b8f012edc6ba3428a9b485672be4fcc51380dd78be7f2d90c598c50770cd906",
+      "implementationHash": "sha256:a7afbe3d44bfc68a1f2c99993b53552125deeec19d7c0669060f1417043989e6",
+      "intentPolicyHash": "sha256:bf066ee7f8344dc15fcd015bfdbfb4e3db7868d034add5be66d6ae5c29cab1e6",
       "name": "fileUpload",
+      "on": {
+        "ready": "recordAssetReady"
+      },
       "runtime": {
         "IbexModule": {
           "export": "fileUpload",
@@ -109,7 +112,7 @@
       "sourceSpan": {
         "column": 14,
         "file": "functions.mjs",
-        "line": 38
+        "line": 40
       }
     },
     {
@@ -159,7 +162,7 @@
       "sourceSpan": {
         "column": 14,
         "file": "functions.mjs",
-        "line": 29
+        "line": 30
       }
     },
     {
@@ -196,11 +199,11 @@
       "sourceSpan": {
         "column": 14,
         "file": "functions.mjs",
-        "line": 73
+        "line": 91
       }
     }
   ],
-  "bundleHash": "snapback.v1:sessions:function:sha256:ab58ec332310b74c8fde817952b140ce01134a887e8c36beb6e21207ec6fa4f9",
+  "bundleHash": "snapback.v1:sessions:function:sha256:45e1068b84b6be268e217bf3ea185c3000eab70be2c1e8f990ac1924b0f523b1",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -246,7 +249,7 @@
       "exportedName": "addMember",
       "handlerForm": "module",
       "id": "fixtures:addMember",
-      "implementationHash": "sha256:b2aa9656acc794a6b0a913f7a7aeb09db97db8dd38b1476593bcd09711a62837",
+      "implementationHash": "sha256:b1a5d8964d20eb15a5fbdaba6bcf5b62bc17259fd3bde96d544b8c34c6a3eaf8",
       "kind": "Mutation",
       "name": "addMember",
       "readSetSummary": {
@@ -268,7 +271,7 @@
       "runtime": {
         "IbexModule": {
           "export": "addMember",
-          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
+          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async recordAssetReady(ctx, args) {\n    return await ctx.db.insert('assetCallbackLog', {\n      assetId: args.assetId,\n      event: args.event,\n      actorId: ctx.auth.userId,\n      actorKind: ctx.auth.actorKind,\n      provider: ctx.auth.provider,\n      sessionId: ctx.auth.sessionId,\n    });\n  },\n\n  async listAssetCallbackLog(ctx) {\n    return await ctx.db.query('assetCallbackLog').collect();\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
         }
       },
       "sourceSpan": null,
@@ -316,7 +319,7 @@
       "exportedName": "clearPhoto",
       "handlerForm": "module",
       "id": "fixtures:clearPhoto",
-      "implementationHash": "sha256:27077933d7ee2aeaad287285a87af61b9d5434de27808db2dc809f9d642d1cbb",
+      "implementationHash": "sha256:4a05ba82e9d15319558d44ea27178d875fa08c9bf235e6f06229fabf6653dd9a",
       "kind": "Mutation",
       "name": "clearPhoto",
       "readSetSummary": {
@@ -338,7 +341,7 @@
       "runtime": {
         "IbexModule": {
           "export": "clearPhoto",
-          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
+          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async recordAssetReady(ctx, args) {\n    return await ctx.db.insert('assetCallbackLog', {\n      assetId: args.assetId,\n      event: args.event,\n      actorId: ctx.auth.userId,\n      actorKind: ctx.auth.actorKind,\n      provider: ctx.auth.provider,\n      sessionId: ctx.auth.sessionId,\n    });\n  },\n\n  async listAssetCallbackLog(ctx) {\n    return await ctx.db.query('assetCallbackLog').collect();\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
         }
       },
       "sourceSpan": null,
@@ -705,7 +708,7 @@
       "exportedName": "createPhoto",
       "handlerForm": "module",
       "id": "fixtures:createPhoto",
-      "implementationHash": "sha256:24206a9e0dd7a18451c38a2b35ffbf8e8bc6e9474bc55d060c22746467a1beef",
+      "implementationHash": "sha256:a42c3d540eed44d8477063c058bbacdb5a525ab76b7d50687ecb0f64d9289be3",
       "kind": "Mutation",
       "name": "createPhoto",
       "readSetSummary": {
@@ -727,7 +730,7 @@
       "runtime": {
         "IbexModule": {
           "export": "createPhoto",
-          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
+          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async recordAssetReady(ctx, args) {\n    return await ctx.db.insert('assetCallbackLog', {\n      assetId: args.assetId,\n      event: args.event,\n      actorId: ctx.auth.userId,\n      actorKind: ctx.auth.actorKind,\n      provider: ctx.auth.provider,\n      sessionId: ctx.auth.sessionId,\n    });\n  },\n\n  async listAssetCallbackLog(ctx) {\n    return await ctx.db.query('assetCallbackLog').collect();\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
         }
       },
       "sourceSpan": null,
@@ -882,7 +885,7 @@
       "exportedName": "createWorkspace",
       "handlerForm": "module",
       "id": "fixtures:createWorkspace",
-      "implementationHash": "sha256:151d09f635493ca4f6dd79148563d1ac98f9e11592435707bdc551e656570eb9",
+      "implementationHash": "sha256:e6d12dc93de45ccc838796df750e094edb65510d06b814e259315f60d5bf7919",
       "kind": "Mutation",
       "name": "createWorkspace",
       "readSetSummary": {
@@ -904,7 +907,7 @@
       "runtime": {
         "IbexModule": {
           "export": "createWorkspace",
-          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
+          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async recordAssetReady(ctx, args) {\n    return await ctx.db.insert('assetCallbackLog', {\n      assetId: args.assetId,\n      event: args.event,\n      actorId: ctx.auth.userId,\n      actorKind: ctx.auth.actorKind,\n      provider: ctx.auth.provider,\n      sessionId: ctx.auth.sessionId,\n    });\n  },\n\n  async listAssetCallbackLog(ctx) {\n    return await ctx.db.query('assetCallbackLog').collect();\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
         }
       },
       "sourceSpan": null,
@@ -961,7 +964,7 @@
       "exportedName": "forgePhoto",
       "handlerForm": "module",
       "id": "fixtures:forgePhoto",
-      "implementationHash": "sha256:facba1fc80008bc2d98690d99a42382704a1b8327e69d52ba7117c0cfc523c58",
+      "implementationHash": "sha256:382eb2740a2d303bc2372bf149e909a60bee07c4b04aaca1a51de265b6cebd6f",
       "kind": "Mutation",
       "name": "forgePhoto",
       "readSetSummary": {
@@ -983,7 +986,7 @@
       "runtime": {
         "IbexModule": {
           "export": "forgePhoto",
-          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
+          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async recordAssetReady(ctx, args) {\n    return await ctx.db.insert('assetCallbackLog', {\n      assetId: args.assetId,\n      event: args.event,\n      actorId: ctx.auth.userId,\n      actorKind: ctx.auth.actorKind,\n      provider: ctx.auth.provider,\n      sessionId: ctx.auth.sessionId,\n    });\n  },\n\n  async listAssetCallbackLog(ctx) {\n    return await ctx.db.query('assetCallbackLog').collect();\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
         }
       },
       "sourceSpan": null,
@@ -1032,7 +1035,7 @@
       "exportedName": "leaveWorkspace",
       "handlerForm": "module",
       "id": "fixtures:leaveWorkspace",
-      "implementationHash": "sha256:48e9bdca5ce7b9e0405293c6db526f50b484b54df9db0e3c329f4bfb7473c93f",
+      "implementationHash": "sha256:9a9524155337164ebaaf6b7267f9d9842ba990c00d86e149d9fcccc030c3a463",
       "kind": "Mutation",
       "name": "leaveWorkspace",
       "readSetSummary": {
@@ -1054,7 +1057,7 @@
       "runtime": {
         "IbexModule": {
           "export": "leaveWorkspace",
-          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
+          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async recordAssetReady(ctx, args) {\n    return await ctx.db.insert('assetCallbackLog', {\n      assetId: args.assetId,\n      event: args.event,\n      actorId: ctx.auth.userId,\n      actorKind: ctx.auth.actorKind,\n      provider: ctx.auth.provider,\n      sessionId: ctx.auth.sessionId,\n    });\n  },\n\n  async listAssetCallbackLog(ctx) {\n    return await ctx.db.query('assetCallbackLog').collect();\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
         }
       },
       "sourceSpan": null,
@@ -1067,10 +1070,158 @@
           "workspaceMembers"
         ]
       }
+    },
+    {
+      "argsContract": {
+        "fields": []
+      },
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "bundleEntrypoint": "listAssetCallbackLog",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "assetCallbackLog"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "listAssetCallbackLog",
+      "handlerForm": "module",
+      "id": "fixtures:listAssetCallbackLog",
+      "implementationHash": "sha256:8ae130b75f029a0c3a83f529242aabadf27925700bed7623f21ae92a7c89e5b4",
+      "kind": "Query",
+      "name": "listAssetCallbackLog",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "assetCallbackLog",
+        "tables": [
+          "assetCallbackLog"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "listAssetCallbackLog",
+          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async recordAssetReady(ctx, args) {\n    return await ctx.db.insert('assetCallbackLog', {\n      assetId: args.assetId,\n      event: args.event,\n      actorId: ctx.auth.userId,\n      actorKind: ctx.auth.actorKind,\n      provider: ctx.auth.provider,\n      sessionId: ctx.auth.sessionId,\n    });\n  },\n\n  async listAssetCallbackLog(ctx) {\n    return await ctx.db.query('assetCallbackLog').collect();\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "online-only",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "argsContract": {
+        "fields": [
+          {
+            "name": "event",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "assetId",
+            "required": true,
+            "value": {
+              "kind": "string",
+              "maxBytes": 1048576
+            }
+          },
+          {
+            "name": "facts",
+            "required": true,
+            "value": {
+              "kind": "json",
+              "maxBytes": 1048576,
+              "maxDepth": 16
+            }
+          }
+        ]
+      },
+      "argsContractHash": "sha256:92370550a56707302c271cf9d586b83cae1b73030c75d4422f772113ba2fc4eb",
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "recordAssetReady",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "assetCallbackLog"
+          }
+        ]
+      },
+      "exportedName": "recordAssetReady",
+      "handlerForm": "module",
+      "id": "fixtures:recordAssetReady",
+      "implementationHash": "sha256:1d700b6753a041e823cf3d90b3c53a442028050f688bea6716cccedb2c36a3e7",
+      "kind": "Mutation",
+      "name": "recordAssetReady",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "kind": "unknown"
+      },
+      "resultContractHash": "sha256:83146ba0b603efeb66cae240e6629fd65f9438468f90fca249d5940300e20532",
+      "runtime": {
+        "IbexModule": {
+          "export": "recordAssetReady",
+          "source": "// Asset conformance fixture handlers. `createPhoto` is the guide's\n// transcluded attach example; `forgePhoto` proves the commit hook refuses a\n// raw id-shaped string on the handler path.\nglobalThis.__snapbackHandlers = {\n  async createWorkspace(ctx, args) {\n    return await ctx.membership.workspaceMembers.bootstrap({\n      name: String(args.name ?? '').trim(),\n      createdBy: ctx.auth.userId,\n    });\n  },\n\n  async addMember(ctx, args) {\n    return await ctx.membership.workspaceMembers.insert({\n      workspaceId: args.workspaceId,\n      userId: args.userId,\n      role: 'member',\n    });\n  },\n\n  async leaveWorkspace(ctx, args) {\n    await ctx.membership.workspaceMembers.removeSelf(args.workspaceId);\n    return null;\n  },\n\n  async recordAssetReady(ctx, args) {\n    return await ctx.db.insert('assetCallbackLog', {\n      assetId: args.assetId,\n      event: args.event,\n      actorId: ctx.auth.userId,\n      actorKind: ctx.auth.actorKind,\n      provider: ctx.auth.provider,\n      sessionId: ctx.auth.sessionId,\n    });\n  },\n\n  async listAssetCallbackLog(ctx) {\n    return await ctx.db.query('assetCallbackLog').collect();\n  },\n\n  async createPhoto(ctx, args) {\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: await ctx.assets.attach(args.assetId, { upload: 'photoUpload' }),\n    });\n  },\n\n  async clearPhoto(ctx, args) {\n    await ctx.db.patch('photos', args.id, { image: null });\n    return null;\n  },\n\n  async forgePhoto(ctx, args) {\n    // Deliberately no attach: the raw string must fail the commit with\n    // SNAPBACK_ASSET_REF_UNVERIFIED (LLP 0044 §Typed references).\n    return await ctx.db.insert('photos', {\n      ownerId: ctx.auth.userId,\n      caption: String(args.caption ?? '').trim(),\n      image: args.assetId,\n    });\n  },\n\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "assetCallbackLog",
+        "tables": [
+          "assetCallbackLog"
+        ]
+      }
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:b2be9352d4551a42f9f5d1f36a90dd9a58a5aa733f345b68f424dca7b8c8bb0b",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:5b011bf6d364fd947edb58deb0455ef61721da6069ee8f8dc81043e2ac391bff",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": [
     {
@@ -1160,6 +1311,24 @@
         "function": "leaveWorkspace"
       },
       "message": "leaveWorkspace: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "listAssetCallbackLog"
+      },
+      "message": "listAssetCallbackLog: no precise result contract was declared; runtime enforcement is limited to the general result budget",
+      "severity": "info",
+      "subsystem": "function"
+    },
+    {
+      "code": "SNAPBACK_HANDLER_RESULT_CONTRACT_DEGRADED",
+      "details": {
+        "function": "recordAssetReady"
+      },
+      "message": "recordAssetReady: no precise result contract was declared; runtime enforcement is limited to the general result budget",
       "severity": "info",
       "subsystem": "function"
     },

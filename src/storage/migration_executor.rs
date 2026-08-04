@@ -3297,6 +3297,7 @@ impl LocalDatabase {
                 Some(BACKFILL_BATCH_ROWS),
                 boundary.as_ref(),
                 true,
+                None,
             )?;
             let page_rows: Vec<Value> = {
                 let mut statement = tx.prepare(&sql)?;
@@ -4439,6 +4440,7 @@ fn read_id_page(
         Some(BACKFILL_BATCH_ROWS),
         boundary.as_ref(),
         true,
+        None,
     )?;
     let mut statement = tx.prepare(&sql)?;
     let columns = statement

@@ -20,10 +20,10 @@ export const clipUpload = defineAssetUpload({
   accept: { mediaTypes: ['video/mp4'], maxBytes: 200_000_000 },
   delivery: { kind: 'private-strict' },
   access: { read: 'via-references' },
-  // Codegen refuses video intents without a location policy; 'strip' for
-  // video refuses at generation (asset-video-finalization is a declared
-  // Missing nonclaim), so 'retain' is the only admissible video policy.
-  image: { location: 'retain' },
+  // Video policy has its own sibling block. This baseline deliberately
+  // retains location so the driver can prove survival, then separately
+  // generates a strip-policy deployment and proves removal.
+  video: { location: 'retain' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 
@@ -35,7 +35,7 @@ export const shareClipUpload = defineAssetUpload({
   accept: { mediaTypes: ['video/mp4'], maxBytes: 200_000_000 },
   delivery: { kind: 'private-signed' },
   access: { read: 'owner-only' },
-  image: { location: 'retain' },
+  video: { location: 'retain' },
   authorize: async (ctx) => ({ owner: ctx.auth.userId }),
 });
 

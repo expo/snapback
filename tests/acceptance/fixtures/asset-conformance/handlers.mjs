@@ -22,6 +22,21 @@ globalThis.__snapbackHandlers = {
     return null;
   },
 
+  async recordAssetReady(ctx, args) {
+    return await ctx.db.insert('assetCallbackLog', {
+      assetId: args.assetId,
+      event: args.event,
+      actorId: ctx.auth.userId,
+      actorKind: ctx.auth.actorKind,
+      provider: ctx.auth.provider,
+      sessionId: ctx.auth.sessionId,
+    });
+  },
+
+  async listAssetCallbackLog(ctx) {
+    return await ctx.db.query('assetCallbackLog').collect();
+  },
+
   async createPhoto(ctx, args) {
     return await ctx.db.insert('photos', {
       ownerId: ctx.auth.userId,

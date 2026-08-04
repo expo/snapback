@@ -4,13 +4,13 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
 examples: [demos/party-wall, demos/file-drop]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-04
+reviewed-commit: 4f6b1bc3d98c9b9e3d1a946ff7cbd648854ea1a6
 ---
 
 # Assets
@@ -22,11 +22,13 @@ reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
 > atoms blanked in place, no transcoding) all ship on the local target
 > with the filesystem store, TUS resumable transfer, and
 > `private-strict` delivery. Location-bearing media require an explicit
-> `location` declaration either way: a `"strip"` **image or video**
-> intent admits and publishes here with location metadata provably
-> absent from served bytes; `"retain"` preserves the source bytes
-> identically and records the choice in lifecycle evidence. Hosted
-> targets report the whole capability Missing.
+> media-specific location declaration either way: images use
+> `image: { location }`, while videos use the distinct sibling
+> `video: { location }`. A `"strip"` image or video intent admits and
+> publishes here with location metadata provably absent from served
+> bytes; `"retain"` preserves the source bytes identically and records
+> the choice in lifecycle evidence. Hosted targets report the whole
+> capability Missing.
 
 Use an asset when your app stores a file: bytes live outside document rows
 under a Snapback-owned lifecycle — upload, trusted finalization, typed
@@ -155,6 +157,64 @@ id-shaped string written into a `v.assetRef` field fails the commit with
 `SNAPBACK_ASSET_REF_UNVERIFIED` on every write path, and the reverse
 reference edge commits in the same changeset. Deleting an asset refuses
 while typed references remain.
+
+## Run lifecycle callbacks
+
+An explicit upload intent may name an ordinary mutation for `ready` and/or
+`rejected`. The mutation must declare exactly `{ event: v.string(), assetId:
+v.string(), facts: v.json() }`; the facts are safe lifecycle metadata, never
+byte authority, staging keys, or delivery bearers.
+
+```js source=tests/acceptance/fixtures/asset-conformance/functions.mjs
+export const fileUpload = defineAssetUpload({
+  args: {},
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/octet-stream', 'application/zip'], maxBytes: 100_000 },
+  delivery: { kind: 'private-strict' },
+  access: { read: 'owner-only' },
+  on: { ready: 'recordAssetReady' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
+```js source=tests/acceptance/fixtures/asset-conformance/functions.mjs
+export const recordAssetReady = defineJsMutation({
+  auth: 'authenticated',
+  args: { event: v.string(), assetId: v.string(), facts: v.json() },
+  source: 'handlers.mjs',
+  exportName: 'recordAssetReady',
+  writes: ['assetCallbackLog'],
+});
+```
+
+The runner uses the stable mutation identity
+`asset-cb:<asset>:<event>:<generation>`, so retrying the same work cannot
+double the committed effect. A callback failure retries independently and
+never degrades an already-ready asset.
+
+Authority differs honestly by auth mode. Dev callbacks preserve the existing
+asset-owner dev authority. Sessions callbacks run under one per-app, narrowly
+granted service principal named `asset-callbacks`; Snapback never mints an
+owner session or bearer. In sessions callbacks `ctx.auth.sessionId` is `null`,
+`ctx.auth.kind` is `"agent"`, and `ctx.auth.actorKind` is
+`"asset-callbacks"`, so application code and stored audit rows can distinguish
+the scheduled actor from an interactive user. The callback still follows the
+ordinary staged mutation, commit-time grant validation, authorization-event,
+and receipt path. The asset work-completion receipt records the service actor
+and exact grant, without carrying any bearer.
+
+```js source=tests/acceptance/fixtures/asset-conformance/handlers.mjs
+  async recordAssetReady(ctx, args) {
+    return await ctx.db.insert('assetCallbackLog', {
+      assetId: args.assetId,
+      event: args.event,
+      actorId: ctx.auth.userId,
+      actorKind: ctx.auth.actorKind,
+      provider: ctx.auth.provider,
+      sessionId: ctx.auth.sessionId,
+    });
+  },
+```
 
 ## Put typed photos directly in a live feed
 
@@ -309,6 +369,22 @@ rejects the asset with a structured `SNAPBACK_ASSET_IMAGE_*` diagnostic.
 Retain-declared intents (`location: 'retain'`) keep metadata intact and
 record that policy in the asset's lifecycle evidence.
 
+## Video
+
+Video location policy is a sibling declaration, not an alias through the
+image block. Use `video.location` for accepted video types; an intent that
+accepts both location-bearing images and videos declares both blocks. On the
+local target, `strip` blanks MP4/QuickTime location atoms in place without
+transcoding, while `retain` publishes the received bytes unchanged.
+
+```js source=packages/snapback-codegen/asset-upload-authoring.test.mjs
+export const clipUpload = defineAssetUpload({
+  accept: { mediaTypes: ['video/mp4'], maxBytes: 100_000_000 },
+  video: { location: 'strip' },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+```
+
 ## Operate
 
 The CLI drives the same lifecycle for agents and fixtures (dev/test
@@ -349,6 +425,102 @@ then invoke `asset.gcSweep` (or the CLI command above) with the suite's
 chosen clock. Host operations do not keep a response replay ledger; the sweep
 itself is idempotent, and each reclaimed asset receives its canonical
 `reference-gc` lifecycle receipt exactly once.
+
+## Export the asset component of a logical backup
+
+The local target advertises `assets.export.cutExport: true`. Capture its asset
+component into an absolute, empty-or-absent directory:
+
+```sh
+snapback assets export-cut \
+  --dir "$PWD/backups/assets-2026-08-04" \
+  --ready-file .snapback/server-ready.json
+```
+
+The command opens one read transaction and pins its storage head as
+`cutVersion`. That transaction captures all `ready` asset records and their
+`ready` renditions, deleted-asset tombstones, each referenced immutable blob
+exactly once, and the settled quota snapshot. It deliberately excludes
+in-flight attempts, pending/rejected assets, staging bytes, and reverse
+reference edges; the edges derive from application rows and belong to the
+app-data export component.
+
+After the transaction closes, Snapback copies the immutable blobs under
+`blobs/sha256/`, verifies each copy against its recorded SHA-256 and length,
+then writes `asset-cut.manifest.json` last. An unreadable or mismatched blob
+fails the command instead of producing an admissible partial cut. The failed
+directory may contain copied objects but no valid complete manifest; retry
+into a new empty directory.
+
+This is a **logical export component**, not a full application or SQLite
+backup. The capability manifest still lists `asset-byte-backup` as Missing,
+and a portable application export must coordinate the separately owned
+app-data component.
+
+### Validate the complete cut before restore
+
+`importValidation: true` is the refuse-partial half of the shipped surface.
+Without `--apply`, `import-cut` only validates the tagged manifest digest and
+every declared blob object:
+
+```sh
+snapback assets import-cut \
+  --dir "$PWD/backups/assets-2026-08-04" \
+  --ready-file .snapback/server-ready.json
+```
+
+A missing object, changed byte length, digest mismatch, or tampered manifest
+returns a structured refusal before any asset row lands. Restore application
+is a separate experimental capability (`importApply: "experimental"`):
+`--apply` requires the server-side `SNAPBACK_ASSET_IMPORT_EXPERIMENTAL=1`
+acknowledgment and an empty asset state. It is not the paved full-app restore
+path.
+
+### Invalidate every outstanding signed URL
+
+Rotate the instance signing key when every already-issued `private-signed`
+URL must stop validating immediately:
+
+```sh
+snapback assets rotate-signing-key --ready-file .snapback/server-ready.json
+```
+
+Rotation retires every active signing key, mints a fresh one, and emits an
+instance-scoped receipt without returning key ids or key material. New signed
+URL issuance works under the fresh key. This is deliberately a wide operator
+action; use ordinary authorization changes when the intent is to revoke one
+principal rather than every outstanding signed bearer URL.
+
+The local proof drives these exact native CLI commands against a real server,
+checks the pinned manifest, observes an issued URL fail after rotation, and
+proves incomplete-cut validation exits non-zero with the structured refusal:
+
+```js source=tests/acceptance/asset-conformance-v1.mjs
+  const rotation = await runAssetsCli(sessionsServer, 'rotate-signing-key');
+  assert.equal(rotation.exitCode, 0);
+  assert.equal(rotation.envelope.ok, true);
+  assert.equal(rotation.envelope.data.rotated, true);
+  const signedAfterRotation = await fetch(`${sessionsServer.baseUrl}${issuanceBody.url}`);
+  assert.equal(signedAfterRotation.status, 403, 'rotation invalidates the outstanding signed URL');
+
+  const exportDir = join(scratch, 'asset-cut-export');
+  const exported = await runAssetsCli(sessionsServer, 'export-cut', '--dir', exportDir);
+  assert.equal(exported.exitCode, 0);
+  assert.equal(exported.envelope.ok, true);
+  assert.equal(exported.envelope.data.cut.formatVersion, 'snapback.asset-cut.v1');
+  assert.ok(exported.envelope.data.cut.assetCount > 0);
+  assert.ok(exported.envelope.data.cut.blobCount > 0);
+  const cutManifest = await readJson(join(exportDir, 'asset-cut.manifest.json'));
+  assert.equal(cutManifest.cutVersion, exported.envelope.data.cut.cutVersion);
+  assert.equal(cutManifest.manifestDigest, exported.envelope.data.cut.manifestDigest);
+
+  await rm(join(exportDir, cutManifest.blobs[0].objectPath));
+  const incomplete = await runAssetsCli(sessionsServer, 'import-cut', '--dir', exportDir);
+  assert.notEqual(incomplete.exitCode, 0);
+  assert.equal(incomplete.envelope.ok, false);
+  assert.equal(incomplete.envelope.diagnostics[0].code, 'SNAPBACK_ASSET_IMPORT_INCOMPLETE');
+  checks.nativeCliCutExportAndRotation = true;
+```
 
 ## Evidence and limits
 

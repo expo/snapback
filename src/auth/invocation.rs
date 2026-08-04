@@ -20,9 +20,13 @@ use crate::manifest::{
     AuthInput, AuthMode, AuthRequirement, FunctionDefinition, FunctionKind, HandlerInput,
 };
 use crate::storage::auth_agent_credentials::ResolvedScopedToken;
+use crate::storage::auth_asset_callbacks::{
+    ASSET_CALLBACKS_SERVICE_NAME, AssetCallbacksServicePrincipal,
+};
 use crate::storage::auth_grants::ExactGrantScope;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::time::Instant;
 
@@ -579,6 +583,8 @@ pub struct HandlerAuthProjection {
     kind: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     actor: Option<HandlerAuthActorProjection>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    actor_kind: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -649,6 +655,7 @@ impl HandlerAuthProjection {
                 roles: Some(Vec::new()),
                 kind: Some("human".to_owned()),
                 actor: None,
+                actor_kind: None,
             },
             ResolvedAppAuthority::DevImpersonation { user_id, roles, .. } => Self {
                 user_id: Some(user_id.clone()),
@@ -658,6 +665,7 @@ impl HandlerAuthProjection {
                 roles: Some(roles.clone()),
                 kind: Some("human".to_owned()),
                 actor: None,
+                actor_kind: None,
             },
             ResolvedAppAuthority::ServicePrincipal {
                 actor_user_id,
@@ -682,6 +690,7 @@ impl HandlerAuthProjection {
                         kind: "agent".to_owned(),
                         grant_id: grant_id.clone(),
                     }),
+                actor_kind: None,
             },
             ResolvedAppAuthority::Anonymous
             | ResolvedAppAuthority::AdminBypass { .. }
@@ -693,7 +702,29 @@ impl HandlerAuthProjection {
                 roles: None,
                 kind: None,
                 actor: None,
+                actor_kind: None,
             },
+        }
+    }
+
+    /// Exact handler projection for the bearer-free callback service. The
+    /// ordinary autonomous-agent projection would say `agent-credential`,
+    /// which is false here, and would not identify the actor class. Keep the
+    /// sealed value honest and explicitly distinguishable from sessions.
+    ///
+    /// @ref LLP 0039#dated-amendment-sessions-asset-callback-execution-authority-2026-08-03
+    ///   — `ctx.auth.actorKind` names the service principal; no interactive
+    ///   session projection is counterfeited.
+    fn for_asset_callbacks(principal: &AssetCallbacksServicePrincipal) -> Self {
+        Self {
+            user_id: Some(principal.actor_user_id.clone()),
+            session_id: None,
+            is_authenticated: true,
+            provider: Some("snapback-service-principal".to_owned()),
+            roles: Some(Vec::new()),
+            kind: Some("agent".to_owned()),
+            actor: None,
+            actor_kind: Some(ASSET_CALLBACKS_SERVICE_NAME.to_owned()),
         }
     }
 
@@ -729,6 +760,10 @@ pub enum InvocationSource {
     LocalQuery,
     LocalMutation,
     LocalAction,
+    /// Bearer-free lifecycle work. Dev mode uses the existing owner
+    /// impersonation; sessions mode uses the per-app `asset-callbacks`
+    /// service principal.
+    AssetCallback,
     DirectAdminRunner,
     HostOperationFunctionRun,
     HostOperationMutationDryRun,
@@ -784,7 +819,7 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 34] = [
+    pub const ALL: [Self; 35] = [
         Self::BootstrapHandshake,
         Self::AuthRefresh,
         Self::AuthLogout,
@@ -796,6 +831,7 @@ impl InvocationSource {
         Self::LocalQuery,
         Self::LocalMutation,
         Self::LocalAction,
+        Self::AssetCallback,
         Self::DirectAdminRunner,
         Self::HostOperationFunctionRun,
         Self::HostOperationMutationDryRun,
@@ -828,6 +864,7 @@ impl InvocationSource {
             }
             Self::HttpMutation
             | Self::LocalMutation
+            | Self::AssetCallback
             | Self::HostOperationMutationDryRun
             | Self::NestedMutation => InvocationTarget::Function(FunctionKindConstraint::Mutation),
             Self::HttpAction | Self::LocalAction | Self::Cron => {
@@ -899,6 +936,11 @@ pub struct PreparedAuthority {
     /// this carrier also applies to the diagnostic `/auth/session` projection.
     service_publication: Option<ServiceAuthorityPublication>,
     authorization_stream_incarnation: Option<String>,
+    /// The internal callback service has durable principal/grant authority
+    /// but deliberately no credential/token carrier. Presence selects its
+    /// exact protected-catalog revalidation path; it is never inferred from
+    /// ids or names.
+    asset_callbacks_service: Option<AssetCallbacksServicePrincipal>,
 }
 
 /// Bearer-free authority retained by a durable live subscription. It carries
@@ -975,7 +1017,23 @@ impl PreparedAuthority {
     }
 
     pub(crate) fn canonical_auth_input(&self) -> AuthInput {
+        if let Some(principal) = &self.asset_callbacks_service {
+            return AuthInput {
+                user_id: Some(principal.actor_user_id.clone()),
+                ..AuthInput::default()
+            }
+            .with_authorization_projection(Some("agent"), Some(ASSET_CALLBACKS_SERVICE_NAME), false)
+            .with_activity_provenance(
+                Some(&principal.actor_user_id),
+                Some(ASSET_CALLBACKS_SERVICE_NAME),
+                Some(&principal.grant_id),
+            );
+        }
         self.resolved.legacy_input()
+    }
+
+    pub(crate) fn asset_callbacks_service(&self) -> Option<&AssetCallbacksServicePrincipal> {
+        self.asset_callbacks_service.as_ref()
     }
 
     pub(crate) fn with_fenced_publication(mut self, publication: FencedPublication) -> Self {
@@ -1479,7 +1537,49 @@ impl InvocationGate {
             publication: None,
             service_publication: None,
             authorization_stream_incarnation: None,
+            asset_callbacks_service: None,
         })
+    }
+
+    /// Prepare the ruled bearer-free service principal under the same closed
+    /// function gate as external LLP 0055 service principals. Only the carrier
+    /// validation differs: the protected catalog contains a principal and
+    /// immutable grant, but no credential or token secret.
+    pub(crate) fn prepare_admitted_asset_callbacks(
+        profile: ServerProfile,
+        admission: AdmissionLease,
+        principal: AssetCallbacksServicePrincipal,
+    ) -> SnapbackResult<PreparedAuthority> {
+        let credential_id = derived_asset_callbacks_id(
+            crate::ids::Kind::AgentCredential,
+            &[&principal.actor_user_id],
+        );
+        let token_id = derived_asset_callbacks_id(
+            crate::ids::Kind::AgentToken,
+            &[&principal.actor_user_id, &principal.grant_id],
+        );
+        let resolved = ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id: principal.actor_user_id.clone(),
+            credential_id,
+            credential_generation: 1,
+            grant_id: principal.grant_id.clone(),
+            token_id,
+            effective_user_id: None,
+            scopes: vec![ResolvedGrantScope::from_exact(principal.scope.clone())],
+            token_expires_at_ms: u64::MAX,
+        };
+        let mut authority = Self::prepare_admitted_authority_inner(
+            InvocationSource::AssetCallback,
+            AuthMode::Sessions,
+            profile,
+            admission,
+            &WireAuthorityFields::default(),
+            resolved,
+            false,
+        )?;
+        authority.projection = HandlerAuthProjection::for_asset_callbacks(&principal);
+        authority.asset_callbacks_service = Some(principal);
+        Ok(authority)
     }
 
     #[cfg(test)]
@@ -1725,6 +1825,12 @@ fn source_allows_authority(
         InvocationSource::LocalQuery
         | InvocationSource::LocalMutation
         | InvocationSource::LocalAction => mode == AuthMode::Dev && ordinary,
+        InvocationSource::AssetCallback => match mode {
+            AuthMode::Dev => ordinary,
+            AuthMode::Sessions => {
+                matches!(resolved, ResolvedAppAuthority::ServicePrincipal { .. })
+            }
+        },
         InvocationSource::DirectAdminRunner
         | InvocationSource::HostOperationFunctionRun
         | InvocationSource::HostOperationMutationDryRun
@@ -1745,6 +1851,19 @@ fn source_allows_authority(
         }
         InvocationSource::NestedMutation => false,
     }
+}
+
+fn derived_asset_callbacks_id(kind: crate::ids::Kind, values: &[&str]) -> String {
+    let mut digest = Sha256::new();
+    digest.update(b"snapback.asset-callbacks.internal-carrier.v1");
+    for value in values {
+        digest.update((value.len() as u64).to_be_bytes());
+        digest.update(value.as_bytes());
+    }
+    let hash = digest.finalize();
+    let mut bytes = [0_u8; 16];
+    bytes.copy_from_slice(&hash[..16]);
+    crate::ids::format_id(kind, &bytes)
 }
 
 fn function_kind_matches(constraint: FunctionKindConstraint, kind: &FunctionKind) -> bool {
@@ -1998,6 +2117,33 @@ mod tests {
                     "kind": "agent",
                     "grantId": "grant_1"
                 }
+            })
+        );
+    }
+
+    #[test]
+    fn asset_callbacks_projection_names_the_noninteractive_actor_kind() {
+        let principal = AssetCallbacksServicePrincipal {
+            app_id: "app-test".to_owned(),
+            actor_user_id: "usr_asset_callbacks".to_owned(),
+            grant_id: "grt_asset_callbacks".to_owned(),
+            scope: ExactGrantScope {
+                function_id: "fn:onAssetReady".to_owned(),
+                kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+                basis: 4,
+                authority_creating: false,
+            },
+        };
+        assert_eq!(
+            serde_json::to_value(HandlerAuthProjection::for_asset_callbacks(&principal)).unwrap(),
+            json!({
+                "userId": "usr_asset_callbacks",
+                "sessionId": null,
+                "isAuthenticated": true,
+                "provider": "snapback-service-principal",
+                "roles": [],
+                "kind": "agent",
+                "actorKind": "asset-callbacks"
             })
         );
     }
@@ -2393,6 +2539,10 @@ mod tests {
                 InvocationSource::LocalQuery
                 | InvocationSource::LocalMutation
                 | InvocationSource::LocalAction => mode == AuthMode::Dev && ordinary,
+                InvocationSource::AssetCallback => match mode {
+                    AuthMode::Dev => ordinary,
+                    AuthMode::Sessions => matches!(kind, Kind::Service),
+                },
                 InvocationSource::DirectAdminRunner
                 | InvocationSource::HostOperationFunctionRun
                 | InvocationSource::HostOperationMutationDryRun

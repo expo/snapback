@@ -108,6 +108,17 @@ composition chores:
   server-authoritative admission, and the leg-1/0090/Contract-arm/0166
   boundaries, with four open points for the author. Still awaiting
   ratification; leg 2 remains unimplementable until then.
+  **2026-08-04 — posture RATIFIED** at author decision sitting #3
+  (`issues/closed/20260804-author-decision-sitting-3.md`): all four open
+  points ruled (server-refusal-only v1; `SNAPBACK_AUTH_STALE_RESULT`
+  surfaces as stranded; cross-principal delete-with-diagnostic-count;
+  read/discard/re-record-as-new-`clientMutationId`). The design
+  commission (`issues/closed/20260803-0043-sessions-custody-design.md`)
+  is closed complete. **Leg 2 implementation is now an available lane**
+  — implement per the ratified LLP 0043 §Auth posture subsection; the
+  `SNAPBACK_OFFLINE_QUEUE_CUSTODY_UNSUPPORTED` fence stands until the
+  lane lands. This ticket stays open tracking the implementation legs.
 
 Next owner: leg 1 with its acceptance rows first (it unblocks the
-restart-witness conjunction), then leg 2's decision.
+restart-witness conjunction), then leg 2's now-ratified implementation
+lane.
