@@ -190,6 +190,23 @@ const GENERATED_MUTATION_IR_ROLLOVER_PROFILE_IDS = Object.freeze([
   'push-registry-root-negative',
   'react-external',
 ]);
+const OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'app-data-operation-live',
+  'full-operation-call',
+  'full-operation-live',
+  'full-public-surface',
+  'full-sessions',
+  'micro-root-negative',
+  'online-operation-live',
+  'public-subpath-app-data',
+  'public-subpath-hosted-browser',
+  'public-subpath-online',
+  'public-subpath-push-registry',
+  'public-subpath-root',
+  'public-subpath-vector-search',
+  'push-registry-attach',
+  'push-registry-root-negative',
+]);
 const ROLLOVER_LEDGER_SPECS = Object.freeze([
   Object.freeze({
     filename: 'baseline.local-persistent-store.v1.json',
@@ -295,6 +312,30 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/local-read-admission.test.mjs']],
       ['node', ['packages/snapback-client/optimistic-rebase.test.mjs']],
       ['node', ['packages/snapback-client/optimistic-rebase-acceptance.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.offline-unavailable.v1.json',
+    profileFilename: 'offline-unavailable-profiles.v1.json',
+    workloadVersion: 'llp-0166-offline-unavailable.v1',
+    profileIds: OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.generated-mutation-ir.v1.json',
+        profileIds: OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS,
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0166#d4--completeness-honest-local-answers',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/argument-validation.test.mjs']],
+      ['node', ['packages/snapback-client/materialization-bridge.test.mjs']],
     ]),
   }),
 ]);

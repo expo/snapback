@@ -69,6 +69,12 @@ the M4 exit. Their declarative inventories are
 `generated-mutation-ir-profiles.v1.json`; each receipt retains its complete
 predecessor by digest rather than rewriting an earlier ceiling.
 
+The typed offline-unavailable refusal that implements LLP 0166 D4 changes
+only the Full/root profiles that contain the public client entry. Its
+`offline-unavailable-profiles.v1.json` declaration rolls those exact profiles
+forward from the generated-mutation-IR receipt; the M4-only and unaffected
+ceilings remain active.
+
 The OQ2 extension is `baseline.push-installation-expo.v1.json`, backed by
 `push-installation-expo-profiles.v1.json`. It freezes the optional Expo
 installation-storage subpath independently, including a closure assertion that
