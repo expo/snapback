@@ -87,8 +87,9 @@ use crate::migration::{
 use crate::proof_checkpoint::{
     BoundaryDigestV1, BoundaryProofV1, CheckpointDigestHeaderV1, CheckpointRegistryRecordV1,
     HistoryRetentionPolicyV1, NamedCheckpointReceiptV1, NamedCheckpointRequestV1,
-    PromotionApprovedWriteV1, PromotionDigestHeaderV1,
-    ProtectedRecordCheckpointErasureReceiptV1, RecordHistoryPageV1,
+    PromotionApprovedWriteV1, PromotionDigestHeaderV1, ProtectedRecordCheckpointErasureReceiptV1,
+    ProtectedRecordErasureAuthorityFactsV1, ProtectedRecordErasureReceiptV1,
+    ProtectedRecordErasureWireRequestV1, RecordHistoryPageV1,
 };
 use crate::result_transform::{ResultTransformCorpusCaseV1, ResultTransformCorpusManifestV1};
 use crate::seed_identity::{
@@ -252,6 +253,18 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "checkpoint.protected-record-erasure-receipt-v1.schema.json",
             schemars::schema_for!(ProtectedRecordCheckpointErasureReceiptV1),
+        ),
+        finish(
+            "protected-record-erasure.authority-facts-v1.schema.json",
+            schemars::schema_for!(ProtectedRecordErasureAuthorityFactsV1),
+        ),
+        finish(
+            "protected-record-erasure.request-v1.schema.json",
+            schemars::schema_for!(ProtectedRecordErasureWireRequestV1),
+        ),
+        finish(
+            "protected-record-erasure.receipt-v1.schema.json",
+            schemars::schema_for!(ProtectedRecordErasureReceiptV1),
         ),
         finish(
             "history.retention-policy-v1.schema.json",

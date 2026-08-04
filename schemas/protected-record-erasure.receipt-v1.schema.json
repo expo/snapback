@@ -1,0 +1,128 @@
+{
+  "$defs": {
+    "CheckpointCopyDispositionV1": {
+      "enum": [
+        "reachable",
+        "destroyed",
+        "invalidUnreachable"
+      ],
+      "type": "string"
+    },
+    "ProtectedCheckpointCopyErasureV1": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpointId": {
+          "type": "string"
+        },
+        "disposition": {
+          "$ref": "#/$defs/CheckpointCopyDispositionV1"
+        },
+        "locationClass": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "checkpointId",
+        "owner",
+        "locationClass",
+        "disposition"
+      ],
+      "type": "object"
+    },
+    "ProtectedRecordErasureAuthorityFactsV1": {
+      "additionalProperties": false,
+      "properties": {
+        "authorityFingerprint": {
+          "type": "string"
+        },
+        "authorityInstanceId": {
+          "type": "string"
+        },
+        "principalId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "principalId",
+        "authorityInstanceId",
+        "authorityFingerprint"
+      ],
+      "type": "object"
+    },
+    "ProtectedRecordErasureStateV1": {
+      "enum": [
+        "openObligations",
+        "complete"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/protected-record-erasure.receipt-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Product-level receipt for the atomic protected-record command. Unlike the\nolder checkpoint-only sweep, this binds authority and canonical deletion.",
+  "properties": {
+    "authority": {
+      "$ref": "#/$defs/ProtectedRecordErasureAuthorityFactsV1"
+    },
+    "canonicalDeleteVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "copies": {
+      "items": {
+        "$ref": "#/$defs/ProtectedCheckpointCopyErasureV1"
+      },
+      "type": "array"
+    },
+    "createdAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "erasureId": {
+      "type": "string"
+    },
+    "formatVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "qualifiedTable": {
+      "type": "string"
+    },
+    "rowId": {
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/ProtectedRecordErasureStateV1"
+    },
+    "updatedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "formatVersion",
+    "erasureId",
+    "operationId",
+    "authority",
+    "qualifiedTable",
+    "rowId",
+    "canonicalDeleteVersion",
+    "state",
+    "copies",
+    "createdAtMs",
+    "updatedAtMs"
+  ],
+  "title": "ProtectedRecordErasureReceiptV1",
+  "type": "object"
+}

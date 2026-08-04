@@ -4,11 +4,13 @@
 //! schemas is deliberately not a capability claim: LLP 0162's corpus and
 //! performance rows still gate advertisement.
 
+use crate::admin::{ProtectedErasureAdminCredentialBinding, ServerProfile};
+use crate::auth::invocation::{InvocationSource, PreparedAuthority, ResolvedAppAuthority};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::manifest::SchemaManifest;
+use crate::manifest::{AuthMode, SchemaManifest};
 use crate::rqs::jcs;
 use rusqlite::backup::StepResult;
-use rusqlite::{Connection, OptionalExtension, Transaction, params};
+use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -24,6 +26,8 @@ pub const CHECKPOINT_DIGEST_DOMAIN_V1: &str = "snapback:checkpoint-boundary:v1";
 const BOUNDARY_DIGEST_TRAILER_V1: &str = "snapback:boundary-digest:v1:trailer";
 const CHECKPOINT_REGISTRY_TABLE: &str = "_snapback_checkpoint_registry_v1";
 const PROTECTED_CHECKPOINT_ERASURE_TABLE: &str = "_snapback_protected_checkpoint_erasure_v1";
+const PROTECTED_RECORD_ERASURE_TABLE: &str = "_snapback_protected_record_erasure_v1";
+const PROTECTED_ERASURE_GENERATION_TABLE: &str = "_snapback_protected_erasure_generation_v1";
 const HISTORY_POLICY_TABLE: &str = "_snapback_history_policies_v1";
 const HISTORY_POLICY_TABLE_V2: &str = "_snapback_history_policies_v2";
 const RECORD_HISTORY_TABLE: &str = "_snapback_record_history_v1";
@@ -42,9 +46,28 @@ pub const HISTORY_PAGE_MAX: u32 = 1_000;
 thread_local! {
     static CHECKPOINT_AFTER_PIN_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
         const { std::cell::RefCell::new(None) };
+    static CHECKPOINT_AFTER_INTENT_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+        const { std::cell::RefCell::new(None) };
     static CHECKPOINT_SYNC_HOOK: std::cell::RefCell<
         Option<Box<dyn FnOnce(&Path) -> SnapbackResult<()>>>
     > = const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+fn install_checkpoint_after_intent_hook(hook: impl FnOnce() + 'static) {
+    CHECKPOINT_AFTER_INTENT_HOOK.with(|slot| {
+        assert!(slot.borrow().is_none(), "checkpoint intent hook is one-shot");
+        *slot.borrow_mut() = Some(Box::new(hook));
+    });
+}
+
+fn run_checkpoint_after_intent_hook() {
+    #[cfg(test)]
+    CHECKPOINT_AFTER_INTENT_HOOK.with(|slot| {
+        if let Some(hook) = slot.borrow_mut().take() {
+            hook();
+        }
+    });
 }
 
 #[cfg(test)]
@@ -553,6 +576,7 @@ struct CheckpointRecoveryIntentV1 {
     lease_expires_at_ms: u64,
     max_copy_bytes: u64,
     max_retained_wal_bytes: u64,
+    protected_erasure_generation: u64,
     destination: Option<String>,
     database_file_name: String,
 }
@@ -590,6 +614,10 @@ pub struct CheckpointRegistryRecordV1 {
     pub staging: Option<String>,
     pub updated_at_ms: u64,
     pub open_erasure_obligation: bool,
+    /// True from durable intent admission until publication, ordinary abort,
+    /// or a stale-generation producer's durable cleanup acknowledgement.
+    #[serde(default)]
+    pub producer_active: bool,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -620,6 +648,167 @@ pub struct ProtectedRecordCheckpointErasureReceiptV1 {
     pub copies: Vec<ProtectedCheckpointCopyErasureV1>,
     pub created_at_ms: u64,
     pub updated_at_ms: u64,
+}
+
+/// Authenticated authority prepared by a product dispatcher. Its fields are
+/// intentionally private: callers outside the crate cannot mint an erasure
+/// authority by filling a public request structure.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProtectedRecordErasureAuthorityV1 {
+    principal_id: String,
+    authority_instance_id: String,
+    authority_fingerprint: String,
+}
+
+impl ProtectedRecordErasureAuthorityV1 {
+    /// Derive the internal carrier from the exact authority admitted for the
+    /// registered product route. No wire DTO can deserialize this type.
+    pub(crate) fn from_prepared(
+        authority: &PreparedAuthority,
+        credential: &ProtectedErasureAdminCredentialBinding,
+    ) -> SnapbackResult<Self> {
+        authority.validate_admission("protected-record erasure authority derivation")?;
+        if authority.source() != InvocationSource::ProtectedRecordErasure {
+            return Err(proof_error(
+                "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
+                "protected-record erasure requires its registered product invocation source",
+            ));
+        }
+        let (mode, principal_id, audit_class) = match (
+            authority.active_mode(),
+            authority.resolved(),
+        ) {
+            (AuthMode::Dev, ResolvedAppAuthority::Anonymous) => {
+                ("dev", "operator:local-admin", "anonymous-admin-transport")
+            }
+            (AuthMode::Sessions, ResolvedAppAuthority::AdminBypass { .. }) => {
+                ("sessions", "operator:admin-bypass", "admin-bypass")
+            }
+            _ => {
+                return Err(proof_error(
+                    "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
+                    "protected-record erasure requires current administrative authority",
+                ));
+            }
+        };
+        let profile = match authority.profile() {
+            ServerProfile::Dev => "dev",
+            ServerProfile::Demo => "demo",
+            ServerProfile::Test => "test",
+            ServerProfile::Prod => "prod",
+        };
+        let authorization_stream_incarnation = authority
+            .authorization_stream_incarnation()
+            .unwrap_or("dev-no-stream");
+        let authority_instance_id = format!(
+            "protected-erasure-admin-v1:{mode}:{profile}:{}:{}:{}:{}",
+            authority.transition_generation(),
+            credential.credential_class(),
+            credential.credential_digest_sha256(),
+            authorization_stream_incarnation,
+        );
+        let fingerprint_preimage = json!({
+            "domain": "snapback:protected-erasure-authority:v1",
+            "principalId": principal_id,
+            "authorityInstanceId": authority_instance_id,
+            "mode": mode,
+            "profile": profile,
+            "transitionGeneration": authority.transition_generation(),
+            "auditClass": audit_class,
+            "credentialClass": credential.credential_class(),
+            "credentialDigestSha256": credential.credential_digest_sha256(),
+            "authorizationStreamIncarnation": authorization_stream_incarnation,
+        });
+        let authority_fingerprint = format!(
+            "sha256:{}",
+            hex(&Sha256::digest(canonical(&fingerprint_preimage)?.as_bytes()))
+        );
+        Ok(Self {
+            principal_id: principal_id.to_owned(),
+            authority_instance_id,
+            authority_fingerprint,
+        })
+    }
+
+    pub fn principal_id(&self) -> &str {
+        &self.principal_id
+    }
+
+    pub fn authority_instance_id(&self) -> &str {
+        &self.authority_instance_id
+    }
+
+    pub fn authority_fingerprint(&self) -> &str {
+        &self.authority_fingerprint
+    }
+
+    fn facts(&self) -> ProtectedRecordErasureAuthorityFactsV1 {
+        ProtectedRecordErasureAuthorityFactsV1 {
+            principal_id: self.principal_id.clone(),
+            authority_instance_id: self.authority_instance_id.clone(),
+            authority_fingerprint: self.authority_fingerprint.clone(),
+        }
+    }
+}
+
+/// Public request shape for the registered protected-record erasure route.
+/// Authority and time are deliberately absent and are supplied by the server.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProtectedRecordErasureWireRequestV1 {
+    pub operation_id: String,
+    pub qualified_table: String,
+    pub row_id: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProtectedRecordErasureAuthorityFactsV1 {
+    pub principal_id: String,
+    pub authority_instance_id: String,
+    pub authority_fingerprint: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProtectedRecordErasureRequestV1 {
+    pub operation_id: String,
+    pub authority: ProtectedRecordErasureAuthorityV1,
+    pub qualified_table: String,
+    pub row_id: String,
+    pub now_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum ProtectedRecordErasureStateV1 {
+    OpenObligations,
+    Complete,
+}
+
+/// Product-level receipt for the atomic protected-record command. Unlike the
+/// older checkpoint-only sweep, this binds authority and canonical deletion.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ProtectedRecordErasureReceiptV1 {
+    pub format_version: u32,
+    pub erasure_id: String,
+    pub operation_id: String,
+    pub authority: ProtectedRecordErasureAuthorityFactsV1,
+    pub qualified_table: String,
+    pub row_id: String,
+    pub canonical_delete_version: u64,
+    pub state: ProtectedRecordErasureStateV1,
+    pub copies: Vec<ProtectedCheckpointCopyErasureV1>,
+    pub created_at_ms: u64,
+    pub updated_at_ms: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ProtectedRecordErasureCutV1 {
+    BeforeAtomicCommit,
+    AfterAtomicCommit,
+    AfterFirstPhysicalDestroy,
+    AfterAllPhysicalDestroy,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -691,6 +880,21 @@ pub(crate) fn create_infra(conn: &Connection) -> SnapbackResult<()> {
            receipt_json TEXT NOT NULL,
            updated_at_ms INTEGER NOT NULL
          );
+         CREATE TABLE IF NOT EXISTS {PROTECTED_RECORD_ERASURE_TABLE} (
+           erasure_id TEXT PRIMARY KEY,
+           operation_id TEXT NOT NULL UNIQUE,
+           qualified_table TEXT NOT NULL,
+           row_id TEXT NOT NULL,
+           state TEXT NOT NULL,
+           receipt_json TEXT NOT NULL,
+           updated_at_ms INTEGER NOT NULL
+         );
+         CREATE TABLE IF NOT EXISTS {PROTECTED_ERASURE_GENERATION_TABLE} (
+           id INTEGER PRIMARY KEY CHECK(id = 1),
+           generation INTEGER NOT NULL CHECK(generation >= 0)
+         );
+         INSERT INTO {PROTECTED_ERASURE_GENERATION_TABLE}(id,generation)
+         VALUES(1,0) ON CONFLICT(id) DO NOTHING;
          CREATE TABLE IF NOT EXISTS {HISTORY_POLICY_TABLE} (
            table_name TEXT PRIMARY KEY,
            retain_ms INTEGER NOT NULL CHECK(retain_ms > 0),
@@ -1440,6 +1644,285 @@ fn save_protected_erasure(
     Ok(())
 }
 
+fn protected_record_erasure_by_operation(
+    conn: &Connection,
+    operation_id: &str,
+) -> SnapbackResult<Option<ProtectedRecordErasureReceiptV1>> {
+    let encoded = conn
+        .query_row(
+            &format!(
+                "SELECT receipt_json FROM {PROTECTED_RECORD_ERASURE_TABLE} \
+                 WHERE operation_id=?1"
+            ),
+            [operation_id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    encoded
+        .map(|encoded| {
+            serde_json::from_str(&encoded).map_err(|_| {
+                proof_error(
+                    "SNAPBACK_PROTECTED_ERASURE_REGISTRY_CORRUPT",
+                    "protected-record erasure receipt is malformed",
+                )
+            })
+        })
+        .transpose()
+}
+
+fn save_protected_record_erasure(
+    conn: &Connection,
+    receipt: &ProtectedRecordErasureReceiptV1,
+) -> SnapbackResult<()> {
+    let encoded = serde_json::to_string(receipt).map_err(|_| {
+        proof_error(
+            "SNAPBACK_PROTECTED_ERASURE_REGISTRY_CORRUPT",
+            "protected-record erasure receipt could not be encoded",
+        )
+    })?;
+    conn.execute(
+        &format!(
+            "INSERT INTO {PROTECTED_RECORD_ERASURE_TABLE}(
+               erasure_id,operation_id,qualified_table,row_id,state,receipt_json,updated_at_ms
+             ) VALUES(?1,?2,?3,?4,?5,?6,?7)
+             ON CONFLICT(erasure_id) DO UPDATE SET
+               state=excluded.state,receipt_json=excluded.receipt_json,
+               updated_at_ms=excluded.updated_at_ms"
+        ),
+        params![
+            receipt.erasure_id,
+            receipt.operation_id,
+            receipt.qualified_table,
+            receipt.row_id,
+            serde_json::to_value(receipt.state)
+                .expect("erasure state serializes")
+                .as_str()
+                .unwrap_or_default(),
+            encoded,
+            receipt.updated_at_ms,
+        ],
+    )?;
+    Ok(())
+}
+
+fn validate_protected_record_erasure_request(
+    schema: &SchemaManifest,
+    request: &ProtectedRecordErasureRequestV1,
+) -> SnapbackResult<()> {
+    crate::manifest::validate_portable_timestamp_millis(request.now_ms)?;
+    if request.operation_id.trim().is_empty()
+        || request.qualified_table.trim().is_empty()
+        || request.row_id.trim().is_empty()
+        || request.authority.principal_id.trim().is_empty()
+        || request.authority.authority_instance_id.trim().is_empty()
+        || request.authority.authority_fingerprint.trim().is_empty()
+        || schema.table(&request.qualified_table).is_none()
+    {
+        return Err(proof_error(
+            "SNAPBACK_PROTECTED_ERASURE_REQUEST_INVALID",
+            "protected-record erasure requires an authenticated exact application-row target",
+        ));
+    }
+    Ok(())
+}
+
+fn request_matches_protected_record_erasure(
+    request: &ProtectedRecordErasureRequestV1,
+    receipt: &ProtectedRecordErasureReceiptV1,
+) -> bool {
+    receipt.operation_id == request.operation_id
+        && receipt.authority == request.authority.facts()
+        && receipt.qualified_table == request.qualified_table
+        && receipt.row_id == request.row_id
+}
+
+fn checkpoint_erasure_fence_open(conn: &Connection) -> SnapbackResult<bool> {
+    Ok(conn.query_row(
+        &format!(
+            "SELECT EXISTS(
+               SELECT 1 FROM {PROTECTED_RECORD_ERASURE_TABLE}
+               WHERE state='openObligations'
+             )"
+        ),
+        [],
+        |row| row.get(0),
+    )?)
+}
+
+fn refuse_checkpoint_if_erasure_fenced(conn: &Connection) -> SnapbackResult<()> {
+    if checkpoint_erasure_fence_open(conn)? {
+        return Err(proof_error(
+            "SNAPBACK_CHECKPOINT_PROTECTED_ERASURE_FENCED",
+            "checkpoint admission and publication refuse while protected erasure is open",
+        ));
+    }
+    Ok(())
+}
+
+fn open_protected_record_erasure(
+    conn: &Connection,
+) -> SnapbackResult<Option<ProtectedRecordErasureReceiptV1>> {
+    let encoded = conn
+        .query_row(
+            &format!(
+                "SELECT receipt_json FROM {PROTECTED_RECORD_ERASURE_TABLE}
+                 WHERE state='openObligations' LIMIT 1"
+            ),
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    encoded
+        .map(|encoded| {
+            serde_json::from_str(&encoded).map_err(|_| {
+                proof_error(
+                    "SNAPBACK_PROTECTED_ERASURE_REGISTRY_CORRUPT",
+                    "open protected-record erasure receipt is malformed",
+                )
+            })
+        })
+        .transpose()
+}
+
+/// The admitted producer, or its explicit recovery successor after a crash,
+/// owns the cancellation acknowledgement. It first destroys both exact paths
+/// named by its durable intent, then atomically marks itself quiescent and
+/// discharges the matching product-erasure obligation.
+fn acknowledge_cancelled_checkpoint_producer(
+    conn: &Connection,
+    checkpoint_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<CheckpointRegistryRecordV1> {
+    let record = registry_record(conn, checkpoint_id)?.ok_or_else(|| {
+        proof_error(
+            "SNAPBACK_CHECKPOINT_REGISTRY_CORRUPT",
+            "cancelled checkpoint producer lost its registry record",
+        )
+    })?;
+    if record.state != CheckpointRegistryStateV1::Invalid || !record.producer_active {
+        return Ok(record);
+    }
+    let mut paths = Vec::new();
+    for path in [&record.destination, &record.staging].into_iter().flatten() {
+        let path = PathBuf::from(path);
+        if !paths.contains(&path) {
+            paths.push(path);
+        }
+    }
+    for path in paths {
+        match fs::remove_dir_all(&path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == ErrorKind::NotFound => {}
+            Err(error) => {
+                return Err(io_error(
+                    "destroy stale-generation checkpoint producer bytes",
+                    error,
+                ));
+            }
+        }
+    }
+
+    let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)?;
+    let mut record = registry_record(&tx, checkpoint_id)?.ok_or_else(|| {
+        proof_error(
+            "SNAPBACK_CHECKPOINT_REGISTRY_CORRUPT",
+            "cancelled checkpoint producer lost its registry record",
+        )
+    })?;
+    if record.state != CheckpointRegistryStateV1::Invalid || !record.producer_active {
+        tx.commit()?;
+        return Ok(record);
+    }
+    record.producer_active = false;
+    record.state = CheckpointRegistryStateV1::Erased;
+    record.open_erasure_obligation = false;
+    record.receipt.copy_disposition = Some(CheckpointCopyDispositionV1::Destroyed);
+    record.staging = None;
+    record.updated_at_ms = now_ms;
+    save_registry_record(&tx, &record)?;
+
+    if let Some(mut receipt) = open_protected_record_erasure(&tx)? {
+        let copy = receipt
+            .copies
+            .iter_mut()
+            .find(|copy| copy.checkpoint_id == checkpoint_id)
+            .ok_or_else(|| {
+                proof_error(
+                    "SNAPBACK_PROTECTED_ERASURE_REGISTRY_CORRUPT",
+                    "producer cancellation is absent from the protected-erasure inventory",
+                )
+            })?;
+        copy.disposition = CheckpointCopyDispositionV1::Destroyed;
+        receipt.updated_at_ms = now_ms;
+        if receipt
+            .copies
+            .iter()
+            .all(|copy| copy.disposition == CheckpointCopyDispositionV1::Destroyed)
+        {
+            receipt.state = ProtectedRecordErasureStateV1::Complete;
+        }
+        save_protected_record_erasure(&tx, &receipt)?;
+    }
+    tx.commit()?;
+    Ok(record)
+}
+
+fn ensure_checkpoint_producer_current(
+    conn: &Connection,
+    checkpoint_id: &str,
+    expected_erasure_generation: u64,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    let record = registry_record(conn, checkpoint_id)?.ok_or_else(|| {
+        proof_error(
+            "SNAPBACK_CHECKPOINT_REGISTRY_CORRUPT",
+            "checkpoint producer lost its registry intent",
+        )
+    })?;
+    if record.state == CheckpointRegistryStateV1::Intent
+        && record.producer_active
+        && !checkpoint_erasure_fence_open(conn)?
+        && protected_erasure_generation(conn)? == expected_erasure_generation
+    {
+        return Ok(());
+    }
+    if record.state == CheckpointRegistryStateV1::Invalid && record.producer_active {
+        acknowledge_cancelled_checkpoint_producer(conn, checkpoint_id, now_ms)?;
+    }
+    Err(proof_error(
+        "SNAPBACK_CHECKPOINT_PROTECTED_ERASURE_FENCED",
+        "checkpoint producer crossed a protected-erasure generation and cancelled its bytes",
+    ))
+}
+
+fn protected_erasure_generation(conn: &Connection) -> SnapbackResult<u64> {
+    conn.query_row(
+        &format!(
+            "SELECT generation FROM {PROTECTED_ERASURE_GENERATION_TABLE} WHERE id=1"
+        ),
+        [],
+        |row| row.get(0),
+    )
+    .map_err(Into::into)
+}
+
+fn advance_protected_erasure_generation(conn: &Connection) -> SnapbackResult<()> {
+    let changed = conn.execute(
+        &format!(
+            "UPDATE {PROTECTED_ERASURE_GENERATION_TABLE}
+             SET generation=generation+1 WHERE id=1"
+        ),
+        [],
+    )?;
+    if changed != 1 {
+        return Err(proof_error(
+            "SNAPBACK_PROTECTED_ERASURE_REGISTRY_CORRUPT",
+            "protected erasure generation authority is missing",
+        ));
+    }
+    Ok(())
+}
+
 fn database_copy_size(conn: &Connection) -> SnapbackResult<u64> {
     let pages: u64 = conn.query_row("PRAGMA page_count", [], |row| row.get(0))?;
     let page_size: u64 = conn.query_row("PRAGMA page_size", [], |row| row.get(0))?;
@@ -1510,6 +1993,7 @@ fn checkpoint_recovery_intent(
     source_stream_id: &str,
     source_version: u64,
     schema_hash: &str,
+    protected_erasure_generation: u64,
     destination: Option<&Path>,
     source_database: &Path,
 ) -> CheckpointRecoveryIntentV1 {
@@ -1529,6 +2013,7 @@ fn checkpoint_recovery_intent(
         lease_expires_at_ms: request.lease_expires_at_ms,
         max_copy_bytes: request.max_copy_bytes,
         max_retained_wal_bytes: request.max_retained_wal_bytes,
+        protected_erasure_generation,
         destination: destination.map(|path| path.to_string_lossy().into_owned()),
         database_file_name: source_database
             .file_name()
@@ -1536,6 +2021,80 @@ fn checkpoint_recovery_intent(
             .unwrap_or_default()
             .to_owned(),
     }
+}
+
+fn checkpoint_erasure_generation_still_current(
+    conn: &Connection,
+    expected: u64,
+) -> SnapbackResult<()> {
+    if protected_erasure_generation(conn)? != expected {
+        return Err(proof_error(
+            "SNAPBACK_CHECKPOINT_PROTECTED_ERASURE_FENCED",
+            "checkpoint publication crossed a protected-erasure generation",
+        ));
+    }
+    Ok(())
+}
+
+fn admit_checkpoint_intent(
+    conn: &Connection,
+    record: &CheckpointRegistryRecordV1,
+    intent: &CheckpointRecoveryIntentV1,
+) -> SnapbackResult<()> {
+    let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)?;
+    refuse_checkpoint_if_erasure_fenced(&tx)?;
+    checkpoint_erasure_generation_still_current(&tx, intent.protected_erasure_generation)?;
+    save_registry_record(&tx, record)?;
+    save_registry_intent(&tx, intent)?;
+    tx.commit()?;
+    Ok(())
+}
+
+fn finalize_checkpoint_publication(
+    conn: &Connection,
+    record: &CheckpointRegistryRecordV1,
+) -> SnapbackResult<()> {
+    let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)?;
+    refuse_checkpoint_if_erasure_fenced(&tx)?;
+    let intent = registry_intent(&tx, &record.receipt.checkpoint_id)?.ok_or_else(|| {
+        proof_error(
+            "SNAPBACK_CHECKPOINT_REGISTRY_CORRUPT",
+            "checkpoint publication lost its durable recovery intent",
+        )
+    })?;
+    checkpoint_erasure_generation_still_current(&tx, intent.protected_erasure_generation)?;
+    let retained = registry_record(&tx, &record.receipt.checkpoint_id)?.ok_or_else(|| {
+        proof_error(
+            "SNAPBACK_CHECKPOINT_REGISTRY_CORRUPT",
+            "checkpoint publication lost its durable admission intent",
+        )
+    })?;
+    if retained.state != CheckpointRegistryStateV1::Intent
+        || !retained.producer_active
+        || retained.receipt.operation_id != record.receipt.operation_id
+    {
+        return Err(proof_error(
+            "SNAPBACK_CHECKPOINT_PROTECTED_ERASURE_FENCED",
+            "checkpoint publication was invalidated after admission",
+        ));
+    }
+    save_registry_record(&tx, record)?;
+    tx.commit()?;
+    Ok(())
+}
+
+fn publish_receipt_only_checkpoint(
+    conn: &Connection,
+    record: &CheckpointRegistryRecordV1,
+    intent: &CheckpointRecoveryIntentV1,
+) -> SnapbackResult<()> {
+    let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)?;
+    refuse_checkpoint_if_erasure_fenced(&tx)?;
+    checkpoint_erasure_generation_still_current(&tx, intent.protected_erasure_generation)?;
+    save_registry_record(&tx, record)?;
+    save_registry_intent(&tx, intent)?;
+    tx.commit()?;
+    Ok(())
 }
 
 /// Create a named checkpoint under the OQ13 budget-or-refusal contract.
@@ -1554,6 +2113,8 @@ fn create_named_checkpoint_inner(
     cut_at: Option<CheckpointPublicationCut>,
 ) -> SnapbackResult<NamedCheckpointReceiptV1> {
     validate_checkpoint_request(request)?;
+    refuse_checkpoint_if_erasure_fenced(conn)?;
+    let erasure_generation = protected_erasure_generation(conn)?;
     let schema_hash = required_checkpoint_schema_hash(schema)?;
     let (source_stream_id, source_version) = current_source_facts(conn)?;
     let checkpoint_id = format!("checkpoint-v1:{}", Uuid::now_v7());
@@ -1621,29 +2182,26 @@ fn create_named_checkpoint_inner(
                 schema_hash,
             )
         };
-        save_registry_record(
-            conn,
-            &CheckpointRegistryRecordV1 {
-                state: CheckpointRegistryStateV1::Published,
-                receipt: receipt.clone(),
-                destination: None,
-                staging: None,
-                updated_at_ms: request.now_ms,
-                open_erasure_obligation: false,
-            },
-        )?;
-        save_registry_intent(
-            conn,
-            &checkpoint_recovery_intent(
-                &checkpoint_id,
-                request,
-                &source_stream_id,
-                source_version,
-                schema_hash,
-                None,
-                source_database,
-            ),
-        )?;
+        let record = CheckpointRegistryRecordV1 {
+            state: CheckpointRegistryStateV1::Published,
+            receipt: receipt.clone(),
+            destination: None,
+            staging: None,
+            updated_at_ms: request.now_ms,
+            open_erasure_obligation: false,
+            producer_active: false,
+        };
+        let intent = checkpoint_recovery_intent(
+            &checkpoint_id,
+            request,
+            &source_stream_id,
+            source_version,
+            schema_hash,
+            erasure_generation,
+            None,
+            source_database,
+        );
+        publish_receipt_only_checkpoint(conn, &record, &intent)?;
         return Ok(receipt);
     }
 
@@ -1688,34 +2246,46 @@ fn create_named_checkpoint_inner(
         source_version,
         schema_hash,
     );
-    save_registry_record(
-        conn,
-        &CheckpointRegistryRecordV1 {
-            state: CheckpointRegistryStateV1::Intent,
-            receipt: intent_receipt,
-            destination: Some(destination.to_string_lossy().into_owned()),
-            staging: Some(staging.to_string_lossy().into_owned()),
-            updated_at_ms: request.now_ms,
-            open_erasure_obligation: false,
-        },
-    )?;
+    let intent_record = CheckpointRegistryRecordV1 {
+        state: CheckpointRegistryStateV1::Intent,
+        receipt: intent_receipt,
+        destination: Some(destination.to_string_lossy().into_owned()),
+        staging: Some(staging.to_string_lossy().into_owned()),
+        updated_at_ms: request.now_ms,
+        open_erasure_obligation: false,
+        producer_active: true,
+    };
     let recovery_intent = checkpoint_recovery_intent(
         &checkpoint_id,
         request,
         &source_stream_id,
         source_version,
         schema_hash,
+        erasure_generation,
         Some(destination),
         source_database,
     );
-    save_registry_intent(conn, &recovery_intent)?;
+    admit_checkpoint_intent(conn, &intent_record, &recovery_intent)?;
     maybe_cut(cut_at, CheckpointPublicationCut::AfterRegistryIntent)?;
+    run_checkpoint_after_intent_hook();
+    ensure_checkpoint_producer_current(
+        conn,
+        &checkpoint_id,
+        erasure_generation,
+        request.now_ms,
+    )?;
     fs::create_dir(&staging).map_err(|error| io_error("create checkpoint staging", error))?;
     File::create(staging.join(CHECKPOINT_SENTINEL))
         .and_then(|file| file.sync_all())
         .map_err(|error| io_error("write checkpoint staging sentinel", error))?;
     sync_directory(&staging)?;
     maybe_cut(cut_at, CheckpointPublicationCut::AfterSentinelSync)?;
+    ensure_checkpoint_producer_current(
+        conn,
+        &checkpoint_id,
+        erasure_generation,
+        request.now_ms,
+    )?;
 
     let source =
         Connection::open_with_flags(source_database, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
@@ -1793,6 +2363,12 @@ fn create_named_checkpoint_inner(
     drop(target);
     tx.commit()?;
     maybe_cut(cut_at, CheckpointPublicationCut::AfterCopy)?;
+    ensure_checkpoint_producer_current(
+        conn,
+        &checkpoint_id,
+        erasure_generation,
+        request.now_ms,
+    )?;
 
     let copied = Connection::open_with_flags(
         &staging_database,
@@ -1828,11 +2404,29 @@ fn create_named_checkpoint_inner(
         .map_err(|error| io_error("sync checkpoint database", error))?;
     sync_directory(&staging)?;
     maybe_cut(cut_at, CheckpointPublicationCut::AfterEvidenceSync)?;
+    ensure_checkpoint_producer_current(
+        conn,
+        &checkpoint_id,
+        erasure_generation,
+        request.now_ms,
+    )?;
     fs::rename(&staging, destination)
         .map_err(|error| io_error("publish checkpoint rename", error))?;
     maybe_cut(cut_at, CheckpointPublicationCut::AfterRename)?;
+    ensure_checkpoint_producer_current(
+        conn,
+        &checkpoint_id,
+        erasure_generation,
+        request.now_ms,
+    )?;
     sync_directory(parent)?;
     maybe_cut(cut_at, CheckpointPublicationCut::AfterParentSync)?;
+    ensure_checkpoint_producer_current(
+        conn,
+        &checkpoint_id,
+        erasure_generation,
+        request.now_ms,
+    )?;
     let record = CheckpointRegistryRecordV1 {
         state: CheckpointRegistryStateV1::Published,
         receipt: receipt.clone(),
@@ -1840,8 +2434,9 @@ fn create_named_checkpoint_inner(
         staging: None,
         updated_at_ms: request.now_ms,
         open_erasure_obligation: false,
+        producer_active: false,
     };
-    save_registry_record(conn, &record)?;
+    finalize_checkpoint_publication(conn, &record)?;
     maybe_cut(cut_at, CheckpointPublicationCut::AfterRegistryFinalize)?;
     fs::remove_file(destination.join(CHECKPOINT_SENTINEL))
         .map_err(|error| io_error("remove checkpoint staging sentinel", error))?;
@@ -1873,6 +2468,10 @@ pub(crate) fn create_named_checkpoint(
     let Some(record) = registry_record_by_operation(conn, &request.operation_id)? else {
         return Err(error);
     };
+    if record.state == CheckpointRegistryStateV1::Invalid && record.producer_active {
+        acknowledge_cancelled_checkpoint_producer(conn, &record.receipt.checkpoint_id, request.now_ms)?;
+        return Err(error);
+    }
     match recover_checkpoint(conn, &record.receipt.checkpoint_id, request.now_ms) {
         Ok(recovered) if recovered.state == CheckpointRegistryStateV1::Published => {
             Ok(recovered.receipt)
@@ -1979,14 +2578,20 @@ fn erase_checkpoint_with(
     if let Some(destination) = &record.destination {
         match destroy(Path::new(destination)) {
             Ok(()) => {
-                record.state = CheckpointRegistryStateV1::Erased;
-                record.open_erasure_obligation = false;
-                record.receipt.copy_disposition = Some(CheckpointCopyDispositionV1::Destroyed);
+                if !record.producer_active {
+                    record.state = CheckpointRegistryStateV1::Erased;
+                    record.open_erasure_obligation = false;
+                    record.receipt.copy_disposition =
+                        Some(CheckpointCopyDispositionV1::Destroyed);
+                }
             }
             Err(error) if error.kind() == ErrorKind::NotFound => {
-                record.state = CheckpointRegistryStateV1::Erased;
-                record.open_erasure_obligation = false;
-                record.receipt.copy_disposition = Some(CheckpointCopyDispositionV1::Destroyed);
+                if !record.producer_active {
+                    record.state = CheckpointRegistryStateV1::Erased;
+                    record.open_erasure_obligation = false;
+                    record.receipt.copy_disposition =
+                        Some(CheckpointCopyDispositionV1::Destroyed);
+                }
             }
             Err(_) => {
                 // The registry's invalid state already outvotes local evidence.
@@ -1995,6 +2600,7 @@ fn erase_checkpoint_with(
         }
     } else {
         record.state = CheckpointRegistryStateV1::Erased;
+        record.producer_active = false;
     }
     record.updated_at_ms = now_ms;
     save_registry_record(conn, &record)?;
@@ -2025,6 +2631,293 @@ pub(crate) fn erase_protected_record_checkpoint_copies(
         |path| fs::remove_dir_all(path),
         false,
     )
+}
+
+/// Execute the product-level protected-record erasure command. The caller can
+/// only supply an authority carrier minted by an authenticated in-crate
+/// dispatcher. The first IMMEDIATE transaction binds operation identity,
+/// authority and exact target; deletes the canonical row plus retained
+/// journal/history detail; invalidates the complete checkpoint inventory; and
+/// installs the durable fence/receipt. Physical copy destruction resumes only
+/// after that commit.
+///
+/// @ref LLP 0165#protected-deletion-authority-audit--2026-08-04 — generic
+/// `BufferedWrite::Delete` has no protected-erasure authority; this deliberate
+/// command owns canonical deletion, registry fencing, and copy obligations.
+pub(crate) fn erase_protected_record(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    request: &ProtectedRecordErasureRequestV1,
+) -> SnapbackResult<ProtectedRecordErasureReceiptV1> {
+    erase_protected_record_with(conn, schema, request, |path| fs::remove_dir_all(path), None)
+}
+
+fn begin_protected_record_erasure(
+    tx: &Transaction<'_>,
+    schema: &SchemaManifest,
+    request: &ProtectedRecordErasureRequestV1,
+    cut: Option<ProtectedRecordErasureCutV1>,
+) -> SnapbackResult<ProtectedRecordErasureReceiptV1> {
+    validate_protected_record_erasure_request(schema, request)?;
+    if let Some(existing) = protected_record_erasure_by_operation(tx, &request.operation_id)? {
+        if !request_matches_protected_record_erasure(request, &existing) {
+            return Err(proof_error(
+                "SNAPBACK_PROTECTED_ERASURE_IDENTITY_REUSED",
+                "protected-record erasure identity was reused with divergent authority or target facts",
+            ));
+        }
+        return Ok(existing);
+    }
+    if protected_erasure_by_operation(tx, &request.operation_id)?.is_some() {
+        return Err(proof_error(
+            "SNAPBACK_PROTECTED_ERASURE_IDENTITY_REUSED",
+            "protected-record erasure identity collides with a checkpoint-only operation",
+        ));
+    }
+    if checkpoint_erasure_fence_open(tx)? {
+        return Err(proof_error(
+            "SNAPBACK_PROTECTED_ERASURE_BUSY",
+            "a different protected-record erasure still has open copy obligations",
+        ));
+    }
+
+    let table = schema.table(&request.qualified_table).ok_or_else(|| {
+        proof_error(
+            "SNAPBACK_PROTECTED_ERASURE_REQUEST_INVALID",
+            "protected-record erasure target is not a declared application table",
+        )
+    })?;
+    let deleted = tx.execute(
+        &format!(
+            "DELETE FROM {} WHERE _id=?1",
+            crate::storage::quote_ident(&table.name)?
+        ),
+        params![request.row_id],
+    )?;
+    if deleted != 1 {
+        return Err(proof_error(
+            "SNAPBACK_PROTECTED_ERASURE_TARGET_NOT_FOUND",
+            "protected-record erasure requires one present canonical target row",
+        ));
+    }
+    tx.execute(
+        "UPDATE _snapback_relation_incarnations_v1
+            SET active=0
+          WHERE table_name=?1 AND row_id=?2 AND active=1",
+        params![request.qualified_table, request.row_id],
+    )?;
+    tx.execute(
+        "DELETE FROM _snapback_changes WHERE table_name=?1 AND row_id=?2",
+        params![request.qualified_table, request.row_id],
+    )?;
+    tx.execute(
+        &format!("DELETE FROM {RECORD_HISTORY_TABLE} WHERE table_name=?1 AND row_id=?2"),
+        params![request.qualified_table, request.row_id],
+    )?;
+
+    let current_version = crate::storage::current_version_on(tx)?;
+    let canonical_delete_version = current_version
+        .checked_add(1)
+        .filter(|version| *version <= crate::manifest::PORTABLE_STORAGE_VERSION_MAX)
+        .ok_or_else(|| {
+            proof_error(
+                "SNAPBACK_STORAGE_VERSION_EXHAUSTED",
+                "protected-record erasure cannot advance the canonical version",
+            )
+        })?;
+    crate::storage::set_promotion_version(tx, canonical_delete_version)?;
+    let journal_version = i64::try_from(canonical_delete_version).map_err(|_| {
+        proof_error(
+            "SNAPBACK_STORAGE_VERSION_EXHAUSTED",
+            "protected-record erasure version does not fit SQLite's integer carrier",
+        )
+    })?;
+    let changed_at_ms = i64::try_from(request.now_ms).map_err(|_| {
+        proof_error(
+            "SNAPBACK_PROTECTED_ERASURE_REQUEST_INVALID",
+            "protected-record erasure timestamp does not fit SQLite's integer carrier",
+        )
+    })?;
+    tx.execute(
+        "INSERT INTO _snapback_changes(
+           version,table_name,row_id,op,row_json,changed_at_ms
+         ) VALUES(?1,?2,?3,'delete',NULL,?4)",
+        params![
+            journal_version,
+            request.qualified_table,
+            request.row_id,
+            changed_at_ms,
+        ],
+    )?;
+
+    let mut copies = Vec::new();
+    for mut record in registry_records(tx)? {
+        let materialized = record.receipt.substrate == CheckpointSubstrateV1::Materialized;
+        let terminal = matches!(
+            record.state,
+            CheckpointRegistryStateV1::Erased | CheckpointRegistryStateV1::Aborted
+        );
+        if materialized {
+            copies.push(ProtectedCheckpointCopyErasureV1 {
+                checkpoint_id: record.receipt.checkpoint_id.clone(),
+                owner: record.receipt.owner.clone(),
+                location_class: record.receipt.location_class.clone(),
+                disposition: if terminal {
+                    CheckpointCopyDispositionV1::Destroyed
+                } else {
+                    CheckpointCopyDispositionV1::InvalidUnreachable
+                },
+            });
+        }
+        if !terminal {
+            record.state = CheckpointRegistryStateV1::Invalid;
+            record.open_erasure_obligation = materialized
+                && (record.destination.is_some() || record.staging.is_some());
+            if materialized {
+                record.receipt.copy_disposition =
+                    Some(CheckpointCopyDispositionV1::InvalidUnreachable);
+            }
+            record.updated_at_ms = request.now_ms;
+            save_registry_record(tx, &record)?;
+        }
+    }
+    advance_protected_erasure_generation(tx)?;
+
+    let receipt = ProtectedRecordErasureReceiptV1 {
+        format_version: 1,
+        erasure_id: format!("protected-record-erasure-v1:{}", Uuid::now_v7()),
+        operation_id: request.operation_id.clone(),
+        authority: request.authority.facts(),
+        qualified_table: request.qualified_table.clone(),
+        row_id: request.row_id.clone(),
+        canonical_delete_version,
+        state: ProtectedRecordErasureStateV1::OpenObligations,
+        copies,
+        created_at_ms: request.now_ms,
+        updated_at_ms: request.now_ms,
+    };
+    save_protected_record_erasure(tx, &receipt)?;
+    if cut == Some(ProtectedRecordErasureCutV1::BeforeAtomicCommit) {
+        return Err(proof_error(
+            "SNAPBACK_PROTECTED_ERASURE_TEST_CRASH_CUT",
+            "injected crash before the protected-erasure transaction commit",
+        ));
+    }
+    Ok(receipt)
+}
+
+fn erase_protected_record_with(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    request: &ProtectedRecordErasureRequestV1,
+    mut destroy: impl FnMut(&Path) -> std::io::Result<()>,
+    cut: Option<ProtectedRecordErasureCutV1>,
+) -> SnapbackResult<ProtectedRecordErasureReceiptV1> {
+    let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)?;
+    let mut receipt = begin_protected_record_erasure(&tx, schema, request, cut)?;
+    tx.commit()?;
+    if cut == Some(ProtectedRecordErasureCutV1::AfterAtomicCommit) {
+        return Err(proof_error(
+            "SNAPBACK_PROTECTED_ERASURE_TEST_CRASH_CUT",
+            "injected crash after the protected-erasure fence committed",
+        ));
+    }
+    if receipt.state == ProtectedRecordErasureStateV1::Complete {
+        return Ok(receipt);
+    }
+
+    let mut destroyed_any = false;
+    for copy_index in 0..receipt.copies.len() {
+        if receipt.copies[copy_index].disposition == CheckpointCopyDispositionV1::Destroyed {
+            continue;
+        }
+        let checkpoint_id = receipt.copies[copy_index].checkpoint_id.clone();
+        let mut record = registry_record(conn, &checkpoint_id)?.ok_or_else(|| {
+            proof_error(
+                "SNAPBACK_PROTECTED_ERASURE_REGISTRY_CORRUPT",
+                "protected erasure obligation names a missing checkpoint record",
+            )
+        })?;
+        if record.state == CheckpointRegistryStateV1::Erased {
+            receipt.copies[copy_index].disposition = CheckpointCopyDispositionV1::Destroyed;
+            continue;
+        }
+        if record.state != CheckpointRegistryStateV1::Invalid {
+            return Err(proof_error(
+                "SNAPBACK_PROTECTED_ERASURE_REGISTRY_CORRUPT",
+                "protected erasure obligation lost registry invalidity",
+            ));
+        }
+        let mut paths = Vec::new();
+        for path in [&record.destination, &record.staging].into_iter().flatten() {
+            let path = PathBuf::from(path);
+            if !paths.contains(&path) {
+                paths.push(path);
+            }
+        }
+        let mut all_destroyed = true;
+        let mut physically_destroyed = false;
+        for path in paths {
+            match destroy(&path) {
+                Ok(()) => {
+                    physically_destroyed = true;
+                    destroyed_any = true;
+                }
+                Err(error) if error.kind() == ErrorKind::NotFound => {}
+                Err(_) => all_destroyed = false,
+            }
+        }
+        if cut == Some(ProtectedRecordErasureCutV1::AfterFirstPhysicalDestroy)
+            && physically_destroyed
+        {
+            return Err(proof_error(
+                "SNAPBACK_PROTECTED_ERASURE_TEST_CRASH_CUT",
+                "injected crash after physical destruction and before obligation closure",
+            ));
+        }
+        if record.producer_active {
+            // Only the admitted producer (or explicit recovery successor)
+            // can attest that it has stopped creating paths. Physical absence
+            // alone is not closure authority for this obligation.
+            continue;
+        }
+        if !all_destroyed {
+            continue;
+        }
+
+        let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)?;
+        record.state = CheckpointRegistryStateV1::Erased;
+        record.producer_active = false;
+        record.open_erasure_obligation = false;
+        record.receipt.copy_disposition = Some(CheckpointCopyDispositionV1::Destroyed);
+        record.staging = None;
+        record.updated_at_ms = request.now_ms;
+        save_registry_record(&tx, &record)?;
+        receipt.copies[copy_index].disposition = CheckpointCopyDispositionV1::Destroyed;
+        receipt.updated_at_ms = request.now_ms;
+        save_protected_record_erasure(&tx, &receipt)?;
+        tx.commit()?;
+    }
+
+    let complete = receipt
+        .copies
+        .iter()
+        .all(|copy| copy.disposition == CheckpointCopyDispositionV1::Destroyed);
+    if complete && cut == Some(ProtectedRecordErasureCutV1::AfterAllPhysicalDestroy) {
+        let _ = destroyed_any;
+        return Err(proof_error(
+            "SNAPBACK_PROTECTED_ERASURE_TEST_CRASH_CUT",
+            "injected crash after physical destruction and before fence closure",
+        ));
+    }
+    if complete {
+        let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)?;
+        receipt.state = ProtectedRecordErasureStateV1::Complete;
+        receipt.updated_at_ms = request.now_ms;
+        save_protected_record_erasure(&tx, &receipt)?;
+        tx.commit()?;
+    }
+    Ok(receipt)
 }
 
 fn erase_protected_record_checkpoint_copies_with(
@@ -2329,6 +3222,9 @@ pub(crate) fn recover_checkpoint(
         }
         return Ok(record);
     }
+    if record.state == CheckpointRegistryStateV1::Invalid && record.producer_active {
+        return acknowledge_cancelled_checkpoint_producer(conn, checkpoint_id, now_ms);
+    }
     if record.state != CheckpointRegistryStateV1::Intent {
         return Ok(record);
     }
@@ -2381,9 +3277,10 @@ pub(crate) fn recover_checkpoint(
         sync_directory(parent)?;
         record.receipt = receipt;
         record.state = CheckpointRegistryStateV1::Published;
+        record.producer_active = false;
         record.staging = None;
         record.updated_at_ms = now_ms;
-        save_registry_record(conn, &record)?;
+        finalize_checkpoint_publication(conn, &record)?;
         fs::remove_file(destination.join(CHECKPOINT_SENTINEL))
             .map_err(|error| io_error("remove recovered checkpoint sentinel", error))?;
         sync_directory(destination)?;
@@ -2397,6 +3294,7 @@ pub(crate) fn recover_checkpoint(
         }
     }
     record.state = CheckpointRegistryStateV1::Aborted;
+    record.producer_active = false;
     record.staging = None;
     record.updated_at_ms = now_ms;
     save_registry_record(conn, &record)?;
@@ -2406,6 +3304,8 @@ pub(crate) fn recover_checkpoint(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::admission::AdmissionController;
+    use crate::auth::invocation::{InvocationGate, WireAuthorityFields};
     use crate::manifest::{
         FieldManifest, FieldType, HandlerInput, SchemaManifest, SeedData, TableManifest,
     };
@@ -2945,6 +3845,125 @@ mod tests {
         }
     }
 
+    fn protected_erasure_request(
+        operation_id: &str,
+        authority_label: &str,
+        row_id: &str,
+        now_ms: u64,
+    ) -> ProtectedRecordErasureRequestV1 {
+        let transition_generation = match authority_label {
+            "operator-a" => 7,
+            "operator-b" => 8,
+            _ => 9,
+        };
+        let prepared = InvocationGate::prepare_authority(
+            InvocationSource::ProtectedRecordErasure,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            transition_generation,
+            1,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::AdminBypass {
+                reason: "protected erasure test transport".to_owned(),
+            },
+        )
+        .expect("prepare registered protected-erasure authority");
+        let credential = ProtectedErasureAdminCredentialBinding::for_test(
+            "master-admin",
+            authority_label,
+        );
+        ProtectedRecordErasureRequestV1 {
+            operation_id: operation_id.to_owned(),
+            authority: ProtectedRecordErasureAuthorityV1::from_prepared(&prepared, &credential)
+                .expect("derive protected-erasure authority"),
+            qualified_table: "items".to_owned(),
+            row_id: row_id.to_owned(),
+            now_ms,
+        }
+    }
+
+    #[test]
+    fn protected_erasure_authority_requires_exact_current_registered_admin_source() {
+        let controller = AdmissionController::new(11, true).expect("dev admission");
+        let prepared = InvocationGate::prepare_admitted_authority(
+            InvocationSource::ProtectedRecordErasure,
+            AuthMode::Dev,
+            ServerProfile::Test,
+            controller.admit().expect("admit protected erasure"),
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::Anonymous,
+        )
+        .expect("prepare registered admin command");
+        let credential =
+            ProtectedErasureAdminCredentialBinding::for_test("master-admin", "admin-a");
+        let carrier = ProtectedRecordErasureAuthorityV1::from_prepared(&prepared, &credential)
+            .expect("derive current carrier");
+        assert_eq!(carrier.principal_id(), "operator:local-admin");
+        assert!(carrier.authority_fingerprint().starts_with("sha256:"));
+        assert_eq!(carrier.authority_fingerprint().len(), 71);
+        let different_credential =
+            ProtectedErasureAdminCredentialBinding::for_test("master-admin", "admin-b");
+        let different_carrier = ProtectedRecordErasureAuthorityV1::from_prepared(
+            &prepared,
+            &different_credential,
+        )
+        .expect("derive other concrete admin credential");
+        assert_ne!(
+            carrier.authority_instance_id(),
+            different_carrier.authority_instance_id(),
+            "two validated credentials cannot exact-replay as one authority instance"
+        );
+        assert_ne!(
+            carrier.authority_fingerprint(),
+            different_carrier.authority_fingerprint()
+        );
+
+        let wrong_source = InvocationGate::prepare_authority(
+            InvocationSource::DirectAdminRunner,
+            AuthMode::Dev,
+            ServerProfile::Test,
+            11,
+            1,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::Anonymous,
+        )
+        .expect("prepare different admin source");
+        assert_eq!(
+            ProtectedRecordErasureAuthorityV1::from_prepared(&wrong_source, &credential)
+                .expect_err("another admin source cannot mint this carrier")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID"
+        );
+
+        assert_eq!(
+            InvocationGate::prepare_authority(
+                InvocationSource::ProtectedRecordErasure,
+                AuthMode::Sessions,
+                ServerProfile::Test,
+                11,
+                1,
+                &WireAuthorityFields::default(),
+                ResolvedAppAuthority::Anonymous,
+            )
+            .expect_err("non-admin sessions authority is refused")
+            .diagnostic
+            .code,
+            "SNAPBACK_INVOCATION_SOURCE_INVALID"
+        );
+
+        controller
+            .begin_transition_for_test(Duration::ZERO)
+            .expect_err("live authority prevents immediate transition drain");
+        assert_eq!(
+            ProtectedRecordErasureAuthorityV1::from_prepared(&prepared, &credential)
+                .expect_err("retired admission cannot mint erasure authority")
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+    }
+
     #[test]
     fn receipt_only_checkpoint_stays_inventory_and_cannot_be_upcast() {
         let temp = tempfile::tempdir().expect("tempdir");
@@ -3269,6 +4288,494 @@ mod tests {
             .expect("record");
         assert_eq!(erased.state, CheckpointRegistryStateV1::Erased);
         assert!(!erased.open_erasure_obligation);
+    }
+
+    #[test]
+    fn authenticated_protected_erasure_is_atomic_retry_bound_and_inventory_complete() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let database_path = temp.path().join("source.sqlite");
+        let active_path = temp.path().join("checkpoint-active");
+        let expired_path = temp.path().join("checkpoint-expired");
+        let mut database = seeded_file_database(&database_path);
+        let active = database
+            .create_named_checkpoint(Some(&active_path), &checkpoint_request(1_000))
+            .expect("active checkpoint");
+        let mut expired_request = checkpoint_request(1_100);
+        expired_request.operation_id.push_str("-expired");
+        expired_request.lease_expires_at_ms = 1_101;
+        let expired = database
+            .create_named_checkpoint(Some(&expired_path), &expired_request)
+            .expect("soon-expired checkpoint");
+        let mut receipt_request = checkpoint_request(1_200);
+        receipt_request.operation_id.push_str("-receipt");
+        receipt_request.substrate = CheckpointSubstrateV1::ReceiptOnly;
+        let receipt_only = database
+            .create_named_checkpoint(None, &receipt_request)
+            .expect("receipt-only inventory");
+
+        let request = protected_erasure_request("erase:item-a", "operator-a", "item-a", 70_000);
+        let registry = Connection::open(&database_path).expect("erasure connection");
+        let denied = expired_path.clone();
+        let open = erase_protected_record_with(
+            &registry,
+            &schema(),
+            &request,
+            move |path| {
+                if path == denied {
+                    Err(std::io::Error::from(ErrorKind::PermissionDenied))
+                } else {
+                    fs::remove_dir_all(path)
+                }
+            },
+            None,
+        )
+        .expect("atomic erasure retains unreachable obligation");
+        assert_eq!(open.state, ProtectedRecordErasureStateV1::OpenObligations);
+        assert_eq!(open.copies.len(), 2, "all materialized registry entries bind");
+        assert!(!active_path.exists());
+        assert!(expired_path.exists(), "unreachable expired copy stays an obligation");
+        let canonical_and_detail: (u64, u64, u64) = registry
+            .query_row(
+                &format!(
+                    "SELECT
+                       (SELECT COUNT(*) FROM items WHERE _id='item-a'),
+                       (SELECT COUNT(*) FROM _snapback_changes
+                         WHERE table_name='items' AND row_id='item-a'),
+                       (SELECT COUNT(*) FROM {RECORD_HISTORY_TABLE}
+                         WHERE table_name='items' AND row_id='item-a')"
+                ),
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("atomic erasure facts");
+        assert_eq!(
+            canonical_and_detail,
+            (0, 1, 0),
+            "protected detail is purged while one payload-free delete tombstone remains"
+        );
+        let tombstone: (String, Option<String>, u64) = registry
+            .query_row(
+                "SELECT op,row_json,version FROM _snapback_changes
+                 WHERE table_name='items' AND row_id='item-a'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("minimal canonical delete tombstone");
+        assert_eq!(tombstone.0, "delete");
+        assert!(tombstone.1.is_none());
+        assert_eq!(tombstone.2, open.canonical_delete_version);
+        for (checkpoint_id, expected_state) in [
+            (
+                active.checkpoint_id.as_str(),
+                CheckpointRegistryStateV1::Erased,
+            ),
+            (
+                expired.checkpoint_id.as_str(),
+                CheckpointRegistryStateV1::Invalid,
+            ),
+            (
+                receipt_only.checkpoint_id.as_str(),
+                CheckpointRegistryStateV1::Invalid,
+            ),
+        ] {
+            assert_eq!(
+                registry_record(&registry, checkpoint_id)
+                    .expect("registry")
+                    .expect("checkpoint")
+                    .state,
+                expected_state,
+                "complete registry inventory is invalidated or physically erased independent of lease/substrate"
+            );
+        }
+        let blocked_destination = temp.path().join("blocked-checkpoint");
+        assert_eq!(
+            database
+                .create_named_checkpoint(Some(&blocked_destination), &checkpoint_request(70_001))
+                .expect_err("open erasure fence blocks checkpoint admission")
+                .diagnostic
+                .code,
+            "SNAPBACK_CHECKPOINT_PROTECTED_ERASURE_FENCED"
+        );
+        let divergent_authority = protected_erasure_request(
+            "erase:item-a",
+            "operator-b",
+            "item-a",
+            70_002,
+        );
+        assert_eq!(
+            database
+                .erase_protected_record(&divergent_authority)
+                .expect_err("authority facts are operation-bound")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROTECTED_ERASURE_IDENTITY_REUSED"
+        );
+
+        drop(registry);
+        drop(database);
+        let reopened = LocalDatabase::open(&database_path).expect("reopen source");
+        let mut retry = request.clone();
+        retry.now_ms = 70_003;
+        let complete = reopened
+            .erase_protected_record(&retry)
+            .expect("exact retry resumes unreachable copy");
+        assert_eq!(complete.erasure_id, open.erasure_id);
+        assert_eq!(complete.state, ProtectedRecordErasureStateV1::Complete);
+        assert!(!expired_path.exists());
+        let replay_reader = Connection::open(&database_path).expect("open stale-client replay");
+        let (replay, cutoff) = crate::storage::versioned_changes_to_table_batch(
+            &replay_reader,
+            "items",
+            0,
+            complete.canonical_delete_version,
+            1_000,
+        )
+        .expect("decode canonical replay after erasure");
+        assert_eq!(cutoff, complete.canonical_delete_version);
+        let target_replay = replay
+            .iter()
+            .filter(|change| change.change.id == "item-a")
+            .collect::<Vec<_>>();
+        assert_eq!(target_replay.len(), 1);
+        assert_eq!(target_replay[0].change.op, crate::storage::ChangeOp::Delete);
+        assert!(target_replay[0].change.row.is_none());
+        drop(reopened);
+
+        let mut reopened = LocalDatabase::open(&database_path).expect("reopen complete source");
+        let after_path = temp.path().join("checkpoint-after-erasure");
+        let after = reopened
+            .create_named_checkpoint(Some(&after_path), &checkpoint_request(70_004))
+            .expect("new checkpoint is admitted after fence completion");
+        let copied_database = after_path.join(
+            database_path
+                .file_name()
+                .expect("database filename"),
+        );
+        let copied_rows: u64 = Connection::open(copied_database)
+            .expect("open post-erasure copy")
+            .query_row("SELECT COUNT(*) FROM items WHERE _id='item-a'", [], |row| row.get(0))
+            .expect("copied target count");
+        assert_eq!(copied_rows, 0, "new copies cannot resurrect erased bytes");
+        reopened
+            .inspect_named_checkpoint(&after.checkpoint_id, 70_005)
+            .expect("post-completion checkpoint is usable");
+    }
+
+    #[test]
+    fn protected_erasure_crash_cuts_reopen_to_none_or_resumable_completion() {
+        let cuts = [
+            ProtectedRecordErasureCutV1::BeforeAtomicCommit,
+            ProtectedRecordErasureCutV1::AfterAtomicCommit,
+            ProtectedRecordErasureCutV1::AfterFirstPhysicalDestroy,
+            ProtectedRecordErasureCutV1::AfterAllPhysicalDestroy,
+        ];
+        for (index, cut) in cuts.into_iter().enumerate() {
+            let temp = tempfile::tempdir().expect("tempdir");
+            let database_path = temp.path().join("source.sqlite");
+            let destination = temp.path().join("checkpoint");
+            let mut database = seeded_file_database(&database_path);
+            database
+                .create_named_checkpoint(
+                    Some(&destination),
+                    &checkpoint_request(80_000 + index as u64),
+                )
+                .expect("checkpoint");
+            drop(database);
+            let conn = Connection::open(&database_path).expect("erasure connection");
+            let request = protected_erasure_request(
+                &format!("erase-cut-{index}"),
+                "operator-a",
+                "item-a",
+                81_000 + index as u64,
+            );
+            let error = erase_protected_record_with(
+                &conn,
+                &schema(),
+                &request,
+                |path| fs::remove_dir_all(path),
+                Some(cut),
+            )
+            .expect_err("inject protected erasure cut");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_PROTECTED_ERASURE_TEST_CRASH_CUT"
+            );
+            let row_present: bool = conn
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM items WHERE _id='item-a')",
+                    [],
+                    |row| row.get(0),
+                )
+                .expect("canonical target state");
+            if cut == ProtectedRecordErasureCutV1::BeforeAtomicCommit {
+                assert!(row_present, "precommit cut rolls every authority back");
+                assert!(destination.exists());
+                assert!(
+                    protected_record_erasure_by_operation(&conn, &request.operation_id)
+                        .expect("erasure lookup")
+                        .is_none()
+                );
+            } else {
+                assert!(!row_present, "postcommit cuts retain canonical deletion");
+                assert_eq!(
+                    protected_record_erasure_by_operation(&conn, &request.operation_id)
+                        .expect("erasure lookup")
+                        .expect("durable fence")
+                        .state,
+                    ProtectedRecordErasureStateV1::OpenObligations
+                );
+            }
+            drop(conn);
+            if cut == ProtectedRecordErasureCutV1::BeforeAtomicCommit {
+                continue;
+            }
+            let reopened = LocalDatabase::open(&database_path).expect("reopen after cut");
+            let mut retry = request.clone();
+            retry.now_ms += 100;
+            let complete = reopened
+                .erase_protected_record(&retry)
+                .expect("exact retry completes after reopen");
+            assert_eq!(complete.state, ProtectedRecordErasureStateV1::Complete);
+            assert!(!destination.exists());
+        }
+    }
+
+    #[test]
+    fn checkpoint_pin_and_publication_cannot_cross_protected_erasure() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let database_path = temp.path().join("source.sqlite");
+        let destination = temp.path().join("racing-checkpoint");
+        let mut database = seeded_file_database(&database_path);
+        let erasure_request = protected_erasure_request(
+            "erase-racing-checkpoint",
+            "operator-a",
+            "item-a",
+            90_000,
+        );
+        let hook_database = database_path.clone();
+        let hook_request = erasure_request.clone();
+        install_checkpoint_after_pin_hook(move || {
+            let conn = Connection::open(&hook_database).expect("concurrent erasure connection");
+            let receipt = erase_protected_record_with(
+                &conn,
+                &schema(),
+                &hook_request,
+                |_| Err(std::io::Error::from(ErrorKind::PermissionDenied)),
+                None,
+            )
+            .expect("concurrent erasure installs an open fence");
+            assert_eq!(receipt.state, ProtectedRecordErasureStateV1::OpenObligations);
+        });
+        let error = database
+            .create_named_checkpoint(Some(&destination), &checkpoint_request(89_000))
+            .expect_err("a pre-erasure pin cannot publish across the fence");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_CHECKPOINT_PROTECTED_ERASURE_FENCED"
+        );
+        let mut retry = erasure_request.clone();
+        retry.now_ms = 90_001;
+        assert_eq!(
+            database
+                .erase_protected_record(&retry)
+                .expect("resume the racing checkpoint obligation")
+                .state,
+            ProtectedRecordErasureStateV1::Complete
+        );
+        assert!(!destination.exists());
+
+        let publication_path = temp.path().join("rename-cut-checkpoint");
+        let mut after_request = checkpoint_request(90_002);
+        after_request.operation_id.push_str("-after");
+        database
+            .create_named_checkpoint_at_cut_for_test(
+                Some(&publication_path),
+                &after_request,
+                CheckpointPublicationCut::AfterRename,
+            )
+            .expect_err("pause at publication rename");
+        let checkpoint_id: String = Connection::open(&database_path)
+            .expect("registry reader")
+            .query_row(
+                &format!(
+                    "SELECT checkpoint_id FROM {CHECKPOINT_REGISTRY_TABLE}
+                     WHERE operation_id=?1"
+                ),
+                [&after_request.operation_id],
+                |row| row.get(0),
+            )
+            .expect("publication intent");
+        let second_erasure = protected_erasure_request(
+            "erase-absent-successor",
+            "operator-a",
+            "missing-after-first-erasure",
+            90_003,
+        );
+        assert_eq!(
+            database
+                .erase_protected_record(&second_erasure)
+                .expect_err("novel erasure still requires a present target")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROTECTED_ERASURE_TARGET_NOT_FOUND"
+        );
+        let recovered = database
+            .recover_named_checkpoint(&checkpoint_id, 90_004)
+            .expect("ordinary rename-cut recovery remains valid after completed erasure");
+        assert_eq!(recovered.state, CheckpointRegistryStateV1::Published);
+    }
+
+    #[test]
+    fn erasure_after_checkpoint_intent_waits_for_creator_cancellation_ack() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let database_path = temp.path().join("source.sqlite");
+        let destination = temp.path().join("intent-race-checkpoint");
+        let mut database = seeded_file_database(&database_path);
+        let request = checkpoint_request(91_000);
+        let erasure = protected_erasure_request(
+            "erase-after-checkpoint-intent",
+            "operator-a",
+            "item-a",
+            91_001,
+        );
+        let hook_database = database_path.clone();
+        let hook_erasure = erasure.clone();
+        install_checkpoint_after_intent_hook(move || {
+            let conn = Connection::open(&hook_database).expect("concurrent erasure connection");
+            let open = erase_protected_record_with(
+                &conn,
+                &schema(),
+                &hook_erasure,
+                |path| fs::remove_dir_all(path),
+                None,
+            )
+            .expect("erasure commits while the admitted producer is paused");
+            assert_eq!(open.state, ProtectedRecordErasureStateV1::OpenObligations);
+        });
+
+        let error = database
+            .create_named_checkpoint(Some(&destination), &request)
+            .expect_err("stale-generation producer cancels");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_CHECKPOINT_PROTECTED_ERASURE_FENCED"
+        );
+        assert!(!destination.exists());
+        let conn = Connection::open(&database_path).expect("inspect reconciled race");
+        let record = registry_record_by_operation(&conn, &request.operation_id)
+            .expect("registry lookup")
+            .expect("checkpoint record");
+        assert_eq!(record.state, CheckpointRegistryStateV1::Erased);
+        assert!(!record.producer_active);
+        assert!(!record.open_erasure_obligation);
+        assert!(
+            std::fs::read_dir(temp.path())
+                .expect("list checkpoint parent")
+                .filter_map(Result::ok)
+                .all(|entry| !entry
+                    .file_name()
+                    .to_string_lossy()
+                    .contains("intent-race-checkpoint.staging")),
+            "the stale creator leaves no staging generation"
+        );
+        let durable = protected_record_erasure_by_operation(&conn, &erasure.operation_id)
+            .expect("receipt lookup")
+            .expect("durable receipt");
+        assert_eq!(durable.state, ProtectedRecordErasureStateV1::Complete);
+        drop(conn);
+        drop(database);
+
+        let reopened = LocalDatabase::open(&database_path).expect("reopen race database");
+        let mut retry = erasure;
+        retry.now_ms += 10;
+        assert_eq!(
+            reopened
+                .erase_protected_record(&retry)
+                .expect("exact retry observes completed cancellation")
+                .state,
+            ProtectedRecordErasureStateV1::Complete
+        );
+        assert!(!destination.exists());
+    }
+
+    #[test]
+    fn crashed_checkpoint_producers_require_recovery_ack_before_erasure_closes() {
+        for (index, cut) in [
+            CheckpointPublicationCut::AfterRegistryIntent,
+            CheckpointPublicationCut::AfterCopy,
+            CheckpointPublicationCut::AfterRename,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let temp = tempfile::tempdir().expect("tempdir");
+            let database_path = temp.path().join("source.sqlite");
+            let destination = temp.path().join(format!("crashed-producer-{index}"));
+            let mut database = seeded_file_database(&database_path);
+            let checkpoint_request = checkpoint_request(92_000 + index as u64);
+            database
+                .create_named_checkpoint_at_cut_for_test(
+                    Some(&destination),
+                    &checkpoint_request,
+                    cut,
+                )
+                .expect_err("leave exact producer crash evidence");
+            let conn = Connection::open(&database_path).expect("inspect producer intent");
+            let record = registry_record_by_operation(&conn, &checkpoint_request.operation_id)
+                .expect("registry lookup")
+                .expect("checkpoint record");
+            assert_eq!(record.state, CheckpointRegistryStateV1::Intent);
+            assert!(record.producer_active);
+            let checkpoint_id = record.receipt.checkpoint_id.clone();
+            let staging = record.staging.clone().map(PathBuf::from);
+
+            let erasure = protected_erasure_request(
+                &format!("erase-crashed-producer-{index}"),
+                "operator-a",
+                "item-a",
+                93_000 + index as u64,
+            );
+            let open = erase_protected_record_with(
+                &conn,
+                &schema(),
+                &erasure,
+                |path| fs::remove_dir_all(path),
+                None,
+            )
+            .expect("external sweeper invalidates and destroys visible paths");
+            assert_eq!(open.state, ProtectedRecordErasureStateV1::OpenObligations);
+            let mut early_retry = erasure.clone();
+            early_retry.now_ms += 1;
+            assert_eq!(
+                erase_protected_record(&conn, &schema(), &early_retry)
+                    .expect("exact external retry remains honest")
+                    .state,
+                ProtectedRecordErasureStateV1::OpenObligations,
+                "path absence alone cannot close an in-flight producer"
+            );
+            drop(conn);
+            drop(database);
+
+            let reopened = LocalDatabase::open(&database_path).expect("reopen after producer crash");
+            let recovered = reopened
+                .recover_named_checkpoint(&checkpoint_id, 94_000 + index as u64)
+                .expect("recovery successor destroys stale generation and acknowledges");
+            assert_eq!(recovered.state, CheckpointRegistryStateV1::Erased);
+            assert!(!recovered.producer_active);
+            let mut final_retry = erasure;
+            final_retry.now_ms += 2;
+            assert_eq!(
+                reopened
+                    .erase_protected_record(&final_retry)
+                    .expect("exact retry closes after recovery acknowledgement")
+                    .state,
+                ProtectedRecordErasureStateV1::Complete
+            );
+            assert!(!destination.exists());
+            if let Some(staging) = staging {
+                assert!(!staging.exists());
+            }
+        }
     }
 
     #[test]
