@@ -1,0 +1,133 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+IBEX=""
+ORIGIN=""
+APP_ID=""
+ENGINE=""
+PUBLISHER_KEY_ID=""
+CHANNEL="stable"
+RECIPE_DIGEST=""
+OUTPUT=""
+POLICY=""
+BUNDLER="${BUN:-}"
+
+usage() {
+  printf '%s\n' \
+    'usage: scripts/build-app-bound-executable --ibex FILE --origin HTTPS_ORIGIN --app-id ID' \
+    '       --engine-compatibility ID --publisher-key-id ID --recipe-digest sha256-BASE64URL' \
+    '       --output FILE [--channel NAME] [--policy FILE] [--bundler BUN]' >&2
+  exit 2
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --ibex) IBEX="${2:-}"; shift 2 ;;
+    --origin) ORIGIN="${2:-}"; shift 2 ;;
+    --app-id) APP_ID="${2:-}"; shift 2 ;;
+    --engine-compatibility) ENGINE="${2:-}"; shift 2 ;;
+    --publisher-key-id) PUBLISHER_KEY_ID="${2:-}"; shift 2 ;;
+    --channel) CHANNEL="${2:-}"; shift 2 ;;
+    --recipe-digest) RECIPE_DIGEST="${2:-}"; shift 2 ;;
+    --output) OUTPUT="${2:-}"; shift 2 ;;
+    --policy) POLICY="${2:-}"; shift 2 ;;
+    --bundler) BUNDLER="${2:-}"; shift 2 ;;
+    -h|--help) usage ;;
+    *) usage ;;
+  esac
+done
+
+[[ -x "$IBEX" && -n "$ORIGIN" && -n "$APP_ID" && -n "$ENGINE" \
+  && -n "$PUBLISHER_KEY_ID" && -n "$RECIPE_DIGEST" && -n "$OUTPUT" ]] || usage
+
+if [[ -z "$BUNDLER" ]]; then BUNDLER="$(command -v bun || true)"; fi
+[[ -x "$BUNDLER" ]] || { printf '%s\n' 'app-bound builds require Bun or --bundler BUN' >&2; exit 2; }
+
+case "$(uname -s)-$(uname -m)" in
+  Darwin-arm64) TARGET_TRIPLE="aarch64-apple-darwin" ;;
+  Linux-x86_64) TARGET_TRIPLE="x86_64-unknown-linux-gnu" ;;
+  *) printf 'unsupported app-bound producer host: %s-%s\n' "$(uname -s)" "$(uname -m)" >&2; exit 2 ;;
+esac
+
+stage="$(mktemp -d "${TMPDIR:-/tmp}/snapback-app-bound.XXXXXX")"
+cleanup() { rm -rf "$stage"; }
+trap cleanup EXIT
+binding="$stage/application-binding.canonical.json"
+entry="$stage/snapback-app-parent.bundle.mjs"
+generated_policy="$stage/ibex-policy.app-bound-parent.json"
+
+# @ref LLP 0062#6-packaging-phases — only the stable app/release binding is
+# embedded; the current API envelope remains target-fetched dynamic data.
+node - "$ORIGIN" "$APP_ID" "$ENGINE" "$PUBLISHER_KEY_ID" "$CHANNEL" "$RECIPE_DIGEST" >"$binding" <<'NODE'
+const [originText, appId, engine, publisherKeyId, channel, recipeDigest] = process.argv.slice(2);
+let parsed;
+try { parsed = new URL(originText); } catch { throw new Error('origin must be an absolute URL'); }
+if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.pathname !== '/'
+  || parsed.search || parsed.hash || parsed.origin !== originText) {
+  throw new Error('origin must be its exact normalized HTTPS origin with no path, query, fragment, or userinfo');
+}
+const validDigest = (value) => {
+  if (!/^sha256-[A-Za-z0-9_-]{43}$/u.test(value)) return false;
+  const encoded = value.slice('sha256-'.length);
+  const bytes = Buffer.from(encoded, 'base64url');
+  return bytes.length === 32 && bytes.toString('base64url') === encoded;
+};
+if (!validDigest(engine)) throw new Error('engine compatibility identity is malformed');
+if (!validDigest(recipeDigest)) throw new Error('recipe digest is malformed');
+const canonical = (value) => {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`;
+};
+process.stdout.write(canonical({
+  schema: 'ibex/app-bound-parent/1',
+  origin: parsed.origin,
+  appId,
+  engineCompatibility: [engine],
+  brokerProtocols: ['ibex/restricted-worker-broker/1'],
+  releaseLineage: {
+    schema: 'ibex/app-cli-release-lineage/1',
+    publisherKeyId,
+    channel,
+    recipeDigest,
+  },
+}));
+NODE
+
+"$BUNDLER" build "$ROOT/packages/snapback-app-cli/cli.mjs" \
+  --target=node --format=esm --minify-identifiers --outfile="$entry"
+node "$ROOT/packages/snapback-app-cli/ibex-bundle.mjs" "$entry"
+if [[ -z "$POLICY" ]]; then
+  (
+    cd "$stage"
+    "$IBEX" policy generate \
+      --entry "$entry" \
+      --out "$generated_policy" \
+      --mode enforce \
+      --target-profile sfe-v1 \
+      --target-triple "$TARGET_TRIPLE" \
+      --mount-profile compiled-app-work-v1
+  )
+  POLICY="$generated_policy"
+fi
+
+command=("$IBEX" compile-app "$entry" --binding "$binding" --output "$OUTPUT" --deny-unsupported --policy "$POLICY")
+"${command[@]}"
+chmod 755 "$OUTPUT"
+
+inspection="$stage/inspection.json"
+"$IBEX" inspect-executable "$OUTPUT" >"$inspection"
+node - "$inspection" "$ORIGIN" "$APP_ID" <<'NODE'
+const [path, origin, appId] = process.argv.slice(2);
+const report = JSON.parse(require('node:fs').readFileSync(path, 'utf8'));
+if (report.schema !== 'ibex/executable-inspection/4'
+  || report.appBound?.origin !== origin
+  || report.appBound?.appId !== appId
+  || report.appBound?.availability !== 'enabled-and-advertised') {
+  throw new Error('built executable did not report its exact enabled app binding');
+}
+NODE
+
+printf 'built literal app-bound executable: %s\n' "$OUTPUT"

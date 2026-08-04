@@ -1301,12 +1301,15 @@ dependencies = [
 name = "ibex-sfe-catalog"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "base64",
  "capsec-semantics",
+ "dirs",
  "ibex-sfe-format",
  "serde",
  "serde_json",
  "sha2",
+ "tempfile",
  "thiserror 2.0.18",
 ]
 
@@ -1320,6 +1323,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "thiserror 2.0.18",
+ "unicode-normalization",
 ]
 
 [[package]]
@@ -3083,6 +3087,16 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest",
+ "sha2-asm",
+]
+
+[[package]]
+name = "sha2-asm"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b845214d6175804686b2bd482bcffe96651bb2d1200742b712003504a2dac1ab"
+dependencies = [
+ "cc",
 ]
 
 [[package]]

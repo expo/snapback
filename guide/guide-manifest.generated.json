@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "d4d480492edba67df798ad12ddd01c090b9a1277"
+    "commit": "e61131eaf9690b9ca480e990e06462c8b13c8a03"
   },
   "nav": {
     ".": [
@@ -1439,8 +1439,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "35aa7d5f667a16ef50beb2935a82225ce94ed557c24f2bdda04d92ad4bf1e286",
+      "reviewedCommit": "37ed952672d43abdfede88a9d51a76e04a11da5b",
+      "sha256": "ed47dd8394f681212acedbc358422cc9fbedde2233acfb00f893191ebeb5b4b2",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1464,20 +1464,27 @@
         "packages/snapback-app-cli/agent-digest.schema.json",
         "packages/snapback-app-cli/auth.mjs",
         "packages/snapback-app-cli/code-mode.mjs",
+        "packages/snapback-app-cli/code-mode-ibex.mjs",
+        "packages/snapback-app-cli/schema-interpreter.mjs",
+        "packages/snapback-app-cli/ibex-bundle.mjs",
         "packages/snapback-app-cli/result-core.mjs",
-        "packages/snapback-client/app-data.mjs"
+        "packages/snapback-client/app-data.mjs",
+        "scripts/build-app-bound-executable"
       ],
       "examples": [
         "packages/snapback-app-cli/package.test.mjs",
         "packages/snapback-app-cli/auth.test.mjs",
         "packages/snapback-app-cli/code-mode.test.mjs",
+        "packages/snapback-app-cli/code-mode-ibex.test.mjs",
+        "packages/snapback-app-cli/schema-interpreter.test.mjs",
+        "packages/snapback-app-cli/ibex-bundle.test.mjs",
         "packages/snapback-app-cli/cli.test.mjs",
         "packages/snapback-app-cli/digest.test.mjs",
         "demos/todo/snapback/generated"
       ],
       "reviewed": "2026-08-04",
-      "reviewedCommit": "dab2410b6793ffa5685069a0a4054f0e2b21608a",
-      "sha256": "b72179cffc809ed5273b1f2c85a58f9c3f466ed73dc9a0ef6775c7b8f23e2c27",
+      "reviewedCommit": "37ed952672d43abdfede88a9d51a76e04a11da5b",
+      "sha256": "39e4c2d3186ed30c52b2f30192f7b6752bec361fb5579b159e2d54bd3f29e339",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -2964,5 +2971,5 @@
     "routes": 111,
     "hostOps": 35
   },
-  "contentHash": "bb2cd23c1cbff3892894314290408f83a92e43f1283e3d1b497d75d98d704c14"
+  "contentHash": "06b3ebf46b9b427359a1ac76387f5f8b8db956239c4de34399ad0ac2d357a37f"
 }

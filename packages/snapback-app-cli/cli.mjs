@@ -36,6 +36,7 @@ import {
   resultExitCode,
   wrapCallResult,
 } from './result-core.mjs';
+import { runIbexCodeMode } from './code-mode-ibex.mjs';
 
 const ENGINE = Object.freeze({ name: '@expo/snapback-app-cli', version: '0.1.0' });
 const argv = process.argv.slice(2);
@@ -81,7 +82,9 @@ const parsed = (() => {
 const value = (flag) => parsed.flags.get(flag) ?? null;
 const has = (flag) => parsed.flags.has(flag);
 const command = parsed.positionals[0] ?? 'help';
-const server = value('--server');
+const appBoundBridge = globalThis.__ibexAppBoundWorkerV1 ?? null;
+const appBoundContract = appBoundBridge === null ? null : JSON.parse(appBoundBridge.contract);
+const server = appBoundContract?.origin ?? value('--server');
 const numberValue = (flag) => {
   const selected = value(flag);
   if (selected === null) return undefined;
@@ -94,8 +97,11 @@ const numberValue = (flag) => {
 
 const stdinText = async () => {
   const chunks = [];
-  for await (const chunk of process.stdin) chunks.push(chunk);
-  return Buffer.concat(chunks).toString('utf8');
+  return new Promise((resolve, reject) => {
+    process.stdin.on('data', (chunk) => chunks.push(chunk));
+    process.stdin.once('error', reject);
+    process.stdin.once('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+  });
 };
 
 const jsonInput = async (flag, fallback) => {
@@ -126,7 +132,10 @@ const loadSurface = async ({ includeInspection = false } = {}) => {
     });
   }
   if (server === null) throw Object.assign(new Error('--server or --artifacts is required'), { code: 'SNAPBACK_APP_CLI_ARTIFACTS_REQUIRED' });
-  const served = await loadServedApp(server, { offline: has('--offline'), appId: value('--app') });
+  const served = await loadServedApp(server, {
+    offline: has('--offline'),
+    appId: appBoundContract?.appId ?? value('--app'),
+  });
   if (served?.status === 'unavailable') {
     throw Object.assign(
       new Error('this target serves no API envelope; supply its local generated artifact directory with --artifacts'),
@@ -234,6 +243,12 @@ const help = () => {
 };
 
 try {
+  if (appBoundContract !== null && (has('--server') || has('--app') || has('--artifacts'))) {
+    throw Object.assign(
+      new Error('the app-bound executable fixes --server, --app, and its artifact source at build time'),
+      { code: 'SNAPBACK_APP_CLI_USAGE' },
+    );
+  }
   if (command === 'help' || has('--help')) {
     help();
   } else if (command === 'introspect') {
@@ -411,7 +426,7 @@ try {
     });
     try {
       const script = scriptPath === '-' ? await stdinText() : await readFile(scriptPath, 'utf8');
-      const result = await runCodeMode({
+      const result = await (appBoundBridge === null ? runCodeMode : runIbexCodeMode)({
         client: principal.client,
         surface,
         script,

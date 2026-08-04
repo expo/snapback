@@ -5,12 +5,15 @@
 **Systems:** Client integration, Developer experience, Tooling, API, Auth, Docs
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-17
-**Revised:** 2026-08-01, latest (Snapback phase 1 implemented: tickets 01–06
-and 09 are closed; the credentialed lanes and Node/POSIX code-mode host landed
-in `f245965c` with executable-mode correction `46adfb69`; phase 2 remains
-honestly blocked on ticket 07's reviewed Ibex external-script/worker contract
-and ticket 08's literal one-file packaging proof; see the dated implementation
-checkpoint below). Earlier same day (shared result core landed: the LLP 0024
+**Revised:** 2026-08-04, latest (phase-2 implementation checkpoint: the Ibex
+contract blocker is removed and the qualified macOS arm64 build exercises the
+literal app-bound path; ticket 08 remains open for qualified Linux and the
+complete §7 host-portable disclosure, ceiling, lifecycle, and race proof; see the
+dated record below). 2026-08-01 (Snapback phase 1 implemented: tickets 01–06 and 09 are
+closed; the credentialed lanes and Node/POSIX code-mode host landed in
+`f245965c` with executable-mode correction `46adfb69`; phase 2 was then blocked
+on ticket 07's reviewed Ibex external-script/worker contract and ticket 08's
+literal one-file packaging proof). Earlier same day (shared result core landed: the LLP 0024
 amendment with `AppDataResultCoreV1` + the wrapper-to-core mapping, the
 engine taxonomy module in `packages/snapback-app-cli/result-core.mjs`,
 residues #8/#10 frozen — unknown codes fall back by wire locus and never
@@ -1657,6 +1660,24 @@ Revisions r1–r10 were made 2026-07-17, one per /llp-super-refine round;
 full review artifacts are under
 `llp/reviews/0062-*.{fable,codex}.md`. Later dated amendments are author
 direction or implementation reconciliation, not additional review rounds.
+
+- **2026-08-04 phase-2 implementation checkpoint** — Ibex now publishes the
+  app-bound Stub V4/Catalog V2 profile with a restricted Hermes worker and
+  typed native broker. Snapback supplies an embedded trusted coordinator and a
+  release builder that fixes the HTTPS origin and app id while leaving the API
+  envelope dynamic. A literal output has been exercised on the qualified
+  macOS arm64 tuple. The available Linux producer correctly refused promotion
+  because its GLIBC 2.39 closure exceeded the declared GLIBC 2.35 floor; a
+  qualified Linux build remains open. On macOS arm64, live anonymous
+  introspection, session-authenticated query and mutation, file and stdin
+  TypeScript execution, cached offline introspection after relocation, and
+  envelope rotation without rebuilding all passed. Two identical builds were
+  byte-identical at SHA-256
+  `9914b6a1408bc6e1098627a11c6662169f903b5c6e12d144c1553e9f8150a50c`;
+  changing only publisher lineage changed the binding and executable digests.
+  This is implementation evidence, not author acceptance of this RFC and not
+  completion of ticket 08: the full §7 host-portable lifecycle, disclosure,
+  ceiling, and race matrix remains open.
 
 - **2026-08-01 app-bound executable direction** — replaces the vague
   standalone phase with the intended downloadable product: one

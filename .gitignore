@@ -1,5 +1,6 @@
 /target/
 /.snapback/
+/.llp/ship-runs/
 **/.snapback/codegen-cache/
 /.snapback.snapback.restore.lock
 node_modules/
