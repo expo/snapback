@@ -106,7 +106,7 @@ Key structure:
 ## Resolution (2026-08-03)
 
 Implemented all seven work items in `220bc73aa`, hardened the final
-security/audit edges in `c6fac11c5`, and `e7d544b56` kept tailscaled
+security/audit edges in `c6fac11c5`, and `ce69de09e` kept tailscaled
 calls bounded while tolerating a heavily scheduled host and made early test
 process exits report their stable diagnostic:
 
@@ -142,7 +142,7 @@ Verification completed cleanly:
   the repository codegen command so it matched the committed wire schemas)
 - `bun run test` and `bun run build` in `admin-ui/`
 - `node scripts/check-guide.mjs`
-- `./ref-check --verbose` (168 LLP documents, 3,777 refs, zero errors or
+- `./ref-check --verbose` (168 LLP documents, 3,800 refs, zero errors or
   unchecked references)
 
 ## References
