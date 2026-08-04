@@ -22,6 +22,10 @@ use crate::storage::migration_executor::{MigrationReceiptV1, MigrationRollbackRe
 
 pub const STANDARD_PRESENTATION_WIDTH: usize = 88;
 pub const NARROW_PRESENTATION_WIDTH: usize = 48;
+/// Stable identifier for the human-only presentation grammar pinned by the
+/// committed golden fixtures. A breaking presentation change mints a new
+/// identifier and fixture set; it never changes an LLP 0081 artifact schema.
+pub const MIGRATION_PRESENTATION_CONTRACT_VERSION: &str = "migration-presentation-v1";
 const MIN_PRESENTATION_WIDTH: usize = 40;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -242,6 +246,9 @@ pub fn render_plan(
         abbreviated(&artifact.plan_id),
         artifact.body.steps.len(),
         strategy(artifact.body.execution_strategy)
+    ));
+    output.push_str(&format!(
+        "Presentation contract: {MIGRATION_PRESENTATION_CONTRACT_VERSION}\n"
     ));
     output.push_str(match options.face {
         MigrationPresentationFace::Review => "Review face — constants revealed\n",
@@ -558,9 +565,10 @@ pub fn render_approval(
 pub fn render_receipt(receipt: &MigrationReceiptV1, width: usize) -> String {
     let width = width.max(MIN_PRESENTATION_WIDTH);
     let mut output = format!(
-        "Migration receipt {} ({})\nNarration face — constants and row values redacted\n",
+        "Migration receipt {} ({})\nPresentation contract: {}\nNarration face — constants and row values redacted\n",
         abbreviated(&receipt.operation_id),
-        receipt.state.kind()
+        receipt.state.kind(),
+        MIGRATION_PRESENTATION_CONTRACT_VERSION
     );
     output.push_str("\nIdentity\n");
     push_field(&mut output, "operation id", &receipt.operation_id, width);
@@ -637,8 +645,9 @@ pub fn render_receipt(receipt: &MigrationReceiptV1, width: usize) -> String {
 pub fn render_rollback_receipt(receipt: &MigrationRollbackReceiptV1, width: usize) -> String {
     let width = width.max(MIN_PRESENTATION_WIDTH);
     let mut output = format!(
-        "Migration rollback receipt {}\nNarration face — constants and row values redacted\n",
-        abbreviated(&receipt.operation_id)
+        "Migration rollback receipt {}\nPresentation contract: {}\nNarration face — constants and row values redacted\n",
+        abbreviated(&receipt.operation_id),
+        MIGRATION_PRESENTATION_CONTRACT_VERSION
     );
     push_field(&mut output, "operation id", &receipt.operation_id, width);
     push_field(&mut output, "plan digest", &receipt.plan_digest, width);
@@ -671,9 +680,9 @@ pub fn render_rollback_receipt(receipt: &MigrationRollbackReceiptV1, width: usiz
 
 pub fn render_verification(value: &Value, width: usize) -> String {
     let width = width.max(MIN_PRESENTATION_WIDTH);
-    let mut output =
-        "Migration receipt verification\nNarration face — recorded proof values redacted\n"
-            .to_owned();
+    let mut output = format!(
+        "Migration receipt verification\nPresentation contract: {MIGRATION_PRESENTATION_CONTRACT_VERSION}\nNarration face — recorded proof values redacted\n"
+    );
     for (label, pointer) in [
         ("operation id", "/operationId"),
         ("state", "/state"),
@@ -709,7 +718,9 @@ pub fn render_verification(value: &Value, width: usize) -> String {
 
 pub fn render_action(operation: &str, operation_id: &str, state: &str, width: usize) -> String {
     let width = width.max(MIN_PRESENTATION_WIDTH);
-    let mut output = format!("Migration {operation}\nNarration face — constants redacted\n");
+    let mut output = format!(
+        "Migration {operation}\nPresentation contract: {MIGRATION_PRESENTATION_CONTRACT_VERSION}\nNarration face — constants redacted\n"
+    );
     push_field(&mut output, "operation id", operation_id, width);
     push_field(&mut output, "state", state, width);
     output
@@ -978,6 +989,10 @@ mod tests {
         assert_eq!(presentation_width_from_columns(Some("12")), 40);
         assert_eq!(presentation_width_from_columns(Some("72")), 72);
         assert_eq!(presentation_width_from_columns(Some("999")), 88);
+        assert_eq!(
+            MIGRATION_PRESENTATION_CONTRACT_VERSION,
+            "migration-presentation-v1"
+        );
         let review = render_plan(
             &artifact,
             &observation,
@@ -989,6 +1004,7 @@ mod tests {
             MigrationPresentationOptions::narration(88),
         );
         assert!(review.contains("\"openai\""));
+        assert!(review.contains("Presentation contract: migration-presentation-v1"));
         assert!(!narration.contains("openai"));
         assert!(narration.contains("[redacted]"));
         assert!(!review.contains('\u{1b}'));

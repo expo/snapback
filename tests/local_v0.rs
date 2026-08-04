@@ -5284,6 +5284,9 @@ fn e4_query_validation_is_predicate_granular() {
 /// rewriting existing data). The physical column keeps its old affinity, so a
 /// silent accept would return values decoded under the old declaration while
 /// the schema and generated client types promise the new one.
+const REVIEWED_MIGRATION_NEXT_STEP: &str =
+    ". Run `snapback migrate preview --help` to start the reviewed migration workflow";
+
 #[test]
 fn apply_schema_rejects_field_type_change_on_existing_column() {
     let mut db = LocalDatabase::memory().unwrap();
@@ -5319,12 +5322,12 @@ fn apply_schema_rejects_field_type_change_on_existing_column() {
     assert_eq!(error.diagnostic.details["field"], "rank");
     assert_eq!(error.diagnostic.details["existingType"], "Integer");
     assert_eq!(error.diagnostic.details["requestedType"], "String");
-    assert!(
-        error
-            .diagnostic
-            .message
-            .contains("snapback migrate preview --help"),
-        "the refusal points to the reviewed migration workflow"
+    assert_eq!(
+        error.diagnostic.message,
+        format!(
+            "field todos.rank cannot change type from Integer to String; retyping stored data is not supported — add a new field instead{REVIEWED_MIGRATION_NEXT_STEP}"
+        ),
+        "the complete refusal text is a stable front-door contract"
     );
 
     // Affinity-preserving retypes still change how stored values decode
@@ -5341,6 +5344,12 @@ fn apply_schema_rejects_field_type_change_on_existing_column() {
         .apply_schema(same_affinity)
         .expect_err("same-affinity retype must fail schema apply");
     assert_eq!(error.diagnostic.code, "SNAPBACK_SCHEMA_FIELD_RETYPED");
+    assert_eq!(
+        error.diagnostic.message,
+        format!(
+            "field todos.title cannot change type from String to Json; retyping stored data is not supported — add a new field instead{REVIEWED_MIGRATION_NEXT_STEP}"
+        )
+    );
 
     // The stored manifest is untouched: rank is still declared Integer, and a
     // matching re-apply (the normal redeploy path) still succeeds.
@@ -5388,12 +5397,12 @@ fn apply_schema_rejects_affinity_mismatch_with_surviving_physical_column() {
     assert_eq!(error.diagnostic.code, "SNAPBACK_SCHEMA_FIELD_RETYPED");
     assert_eq!(error.diagnostic.details["existingType"], "INTEGER");
     assert_eq!(error.diagnostic.details["requestedType"], "TEXT");
-    assert!(
-        error
-            .diagnostic
-            .message
-            .contains("snapback migrate preview --help"),
-        "the physical backstop points to the reviewed migration workflow"
+    assert_eq!(
+        error.diagnostic.message,
+        format!(
+            "field todos.rank cannot change storage type from INTEGER to TEXT; retyping stored data is not supported — add a new field instead{REVIEWED_MIGRATION_NEXT_STEP}"
+        ),
+        "the complete physical-backstop refusal is stable"
     );
 }
 
@@ -5491,12 +5500,12 @@ fn required_field_tightening_with_nulls_rolls_back_manifest_and_rows() {
         "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED"
     );
     assert_eq!(error.diagnostic.details["existingNullRows"], json!(1));
-    assert!(
-        error
-            .diagnostic
-            .message
-            .contains("snapback migrate preview --help"),
-        "the tightening refusal points to the reviewed migration workflow"
+    assert_eq!(
+        error.diagnostic.message,
+        format!(
+            "field todos.rank cannot become physically required while 1 stored rows are null{REVIEWED_MIGRATION_NEXT_STEP}"
+        ),
+        "the complete tightening refusal is stable"
     );
     assert!(db.schema().tables[0].field("rank").expect("rank").optional);
     assert!(!physical_column_not_null(&path, "todos", "rank"));
@@ -5539,12 +5548,12 @@ fn required_field_removal_or_optionalization_preserves_prior_schema_and_data() {
         "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED"
     );
     assert_eq!(removal.diagnostic.details["requestedChange"], "remove");
-    assert!(
-        removal
-            .diagnostic
-            .message
-            .contains("snapback migrate preview --help"),
-        "the removal refusal points to the reviewed migration workflow"
+    assert_eq!(
+        removal.diagnostic.message,
+        format!(
+            "required field todos.rank cannot be removed or made optional while its preserved SQLite column is NOT NULL; explicit drop/backfill migrations are not supported{REVIEWED_MIGRATION_NEXT_STEP}"
+        ),
+        "the complete removal refusal is stable"
     );
 
     let mut optional = required.clone();
@@ -5564,6 +5573,13 @@ fn required_field_removal_or_optionalization_preserves_prior_schema_and_data() {
     assert_eq!(
         loosening.diagnostic.details["requestedChange"],
         "makeOptional"
+    );
+    assert_eq!(
+        loosening.diagnostic.message,
+        format!(
+            "required field todos.rank cannot be removed or made optional while its preserved SQLite column is NOT NULL; explicit drop/backfill migrations are not supported{REVIEWED_MIGRATION_NEXT_STEP}"
+        ),
+        "the complete optionalization refusal is stable"
     );
 
     assert!(
@@ -5668,12 +5684,12 @@ fn new_required_field_is_allowed_only_on_an_empty_table() {
         "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED"
     );
     assert_eq!(error.diagnostic.details["existingRows"], json!(1));
-    assert!(
-        error
-            .diagnostic
-            .message
-            .contains("snapback migrate preview --help"),
-        "the required-field refusal points to the reviewed migration workflow"
+    assert_eq!(
+        error.diagnostic.message,
+        format!(
+            "required field todos.requiredLater cannot be added to 1 existing rows without a default/backfill{REVIEWED_MIGRATION_NEXT_STEP}"
+        ),
+        "the complete required-field refusal is stable"
     );
     assert!(
         populated.schema().tables[0]
@@ -5683,6 +5699,51 @@ fn new_required_field_is_allowed_only_on_an_empty_table() {
     assert_eq!(
         populated.get("todos", "existing").unwrap().unwrap()["title"],
         json!("existing")
+    );
+}
+
+#[test]
+fn readded_table_cannot_hide_a_preserved_required_physical_column() {
+    let mut db = LocalDatabase::memory().unwrap();
+    db.apply_schema(todo_schema())
+        .expect("optional predecessor");
+    insert_schema_test_row(
+        &mut db,
+        "preserved",
+        json!({
+            "title": "preserved",
+            "completed": false,
+            "rank": 7,
+            "userId": "u"
+        }),
+    );
+    db.apply_schema(rank_required(todo_schema()))
+        .expect("tighten the populated non-null field");
+
+    db.apply_schema(SchemaManifest {
+        schema_hash: Some("without-todos".to_owned()),
+        ..SchemaManifest::default()
+    })
+    .expect("whole-table removal preserves physical storage");
+
+    let mut readded = todo_schema();
+    readded.tables[0]
+        .fields
+        .retain(|field| field.name != "rank");
+    let error = db
+        .apply_schema(readded)
+        .expect_err("the physical NOT NULL backstop must refuse the hidden column");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED"
+    );
+    assert_eq!(error.diagnostic.details["requestedChange"], "remove");
+    assert_eq!(
+        error.diagnostic.message,
+        format!(
+            "table todos cannot omit preserved required field rank; its SQLite column is still NOT NULL{REVIEWED_MIGRATION_NEXT_STEP}"
+        ),
+        "the complete physical required-field backstop is stable"
     );
 }
 

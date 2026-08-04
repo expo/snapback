@@ -1,4 +1,5 @@
 Migration plan migration-v1:aaaaaaa… (4 steps, exclusive single-writer)
+Presentation contract: migration-presentation-v1
 Review face — constants revealed
 
 Identity
