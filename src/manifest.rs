@@ -9380,13 +9380,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:0a5a9704526ef083bde6c0ec997936013487746d511c2f7115b22803c1c8a16a";
+    "sha256:80b4b6f3eddb07e2532aed6e13e5b0a68131d3afade571e9522dac5bc95997e2";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:1df7a947b6a71e100dccce45b8e65eff40c28f6e51c2d1b797630e3a775d0d46";
+    "sha256:84ea848a1d42554e3ace139026a38105ae0062bda4e002d721598a2aa112c1cb";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 
@@ -9485,7 +9485,7 @@ fn local_relation_activity_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:79df8cce872e8bfb62b3e9702cddb96a97bea28a87d185d311c7c3430cbab728"
+                    "sha256:57418bb1946d1b32c5cb23df1180df805093c9362038956f8b58ee5846d53304"
                         .to_owned(),
                 ),
             ])
@@ -9548,7 +9548,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:79df8cce872e8bfb62b3e9702cddb96a97bea28a87d185d311c7c3430cbab728"
+                    "sha256:57418bb1946d1b32c5cb23df1180df805093c9362038956f8b58ee5846d53304"
                         .to_owned(),
                 ),
             ])

@@ -139,3 +139,45 @@ lane did not edit the fork code. After all eight LLP 0166 lanes landed, their
 complete client package suite is green, as are all 77 declaration surfaces
 and the expanded 179-file test inventory. The L2 owner fix and a subsequent
 zero-failure GitHub run remain the closing prerequisites.
+
+## Wave-end batch drift continuation — 2026-08-04
+
+The resumed pass used the latest complete KEEP-GOING summary available at its
+checkpoint: main run `30893050396` at `eb98ed3d`, with 13 failed gates. Run
+`30896598147` at `a4f54d00` completed while the pass was in flight; its retained
+step log reached GitHub's output ceiling before the terminal summary, but the
+recoverable gate failures through the Rust suite agree with the same drift
+classes. The batch attribution and disposition are:
+
+| Failed gate | Introducing landing(s) | 2026-08-04 disposition |
+| --- | --- | --- |
+| Client bundle metrology | LLP 0166 L1–L8 (`6537ebb4` through `d5d90b16`) plus Move-3 M1/M2/M3 (`f231c6386`, `df77cbcb`, `ca392928`) expanded the shipped browser closures after the earlier freeze. | Added immutable local-read-admission rollovers and per-profile ledgers; the exact Node 24.18.0 check passes 43 profiles with no frozen-ceiling regression. |
+| Package export declarations | P3 Triage (`dab2410b`) exported the trusted-composition activation validator without its declaration. Later F0a packaging also omitted two shipped declaration files. | Added the validator declaration here; `a306def5` independently landed the two F0a files. The gate passes 82 subpaths across 10 packages. |
+| Relation/sequence publication carriers | Track-B checkpoint/fork storage landings (`19d79f87`, `40c117a0`, `a2f1f564` and successors) and the sequence publication (`eb3f78a6`) changed pinned sources. | Regenerated both digest chains after the final strict-Clippy edits. Relation, sequence, and SBSB1 parity all pass. |
+| Demo setup | Chirp (`c5733dba`/`cdec3e94`) and P3 Triage (`dab2410b`) were absent from the intentional inventory. | Added both demos. Chirp provisions; Triage now reaches its real owner-held trusted-activation refusal described below rather than disappearing from coverage. |
+| Deployment identity / Cloudflare local suite | Hosted denial-witness and deployment-source landings, including `a7bfbbfa`, changed the normalized Cloudflare closure; the local-suite failure was its downstream duplicate. | Regenerated both deployment identities. The dedicated check passes and the pinned Node 24.18.0 local suite passes 27/27. |
+| Linux telemetry Phase 1 receipt | Every later Rust source landing after the receipt at `24857293` invalidated its source-input digest. | The stale receipt is not reused. A fresh Linux coded-bootstrap run is required only after this batch's final clean commit. |
+| Strict Clippy | The Track-B fork/checkpoint seams, Move-3 storage seams, and the later admin reachability landing accumulated mechanical Rust 1.97 findings. | Fixed forward without changing the protected push or F0a correctness seams. `cargo clippy --all-targets -- -D warnings` passes. |
+| Rust suite fixtures | Admin claims/schema work (`aaedc6b0` and successors) changed generated schemas and error classifications; sequence publication added `sequence_allocation_v1` to the closed capability registry. | Regenerated the Rust-owned schemas. Main independently landed the same sequence fixture in `c4a047c1`. The exhaustive local suite passes after reconciliation. |
+| Snapback CLI package | F0a answer-class declarations were shipped but absent from git. | `a306def5` supplied both files; the complete real-binary CLI package suite passes. |
+| Snapback Contract package | Sequence D5 coverage exposed the temporary optimistic-id mismatch before M3 settled the layer identity. | The F0a owner absorbed it in `ca392928`; the complete Contract package suite passes without a drift-lane fork-code edit. |
+| Admin build/test/browser/audit chain | `aaedc6b0` tightened browser credential minting to loopback, while the browser fixture still bound `0.0.0.0`. The later reachability landing also arrived with seven strict-Clippy findings. | Bound the fixture to `127.0.0.1`, separated setup's anonymous loopback posture from the master-to-derived admin exchange, and fixed the new mechanical Clippy debt. Build, unit tests, Chrome 150 CSP/Trusted Types proof, and production audit all pass; the audit reports no vulnerabilities. |
+
+Two failures are deliberately not repaired by this lane because they are
+correctness/evidence authority owned by active feature programs:
+
+- P3 Triage regeneration fails closed with
+  `TRUSTED_COMPOSITION_ACTIVATION_INVALID`; the dated handoff is in
+  `issues/closed/20260803-p3-triage-successor-app.md`. No activation was
+  reminted or weakened.
+- The LLP 0166 carrier-exit receipt is stale and still encodes the landed
+  Triage successor as a GAP; the exact digest handoff is in
+  `issues/20260803-local-first-continuation-program.md`. No knowingly false
+  successor receipt was minted.
+
+No PUSH-01 or F0a fork-code correctness failure remains for this lane to
+handoff. The batch-owned gates are green locally. The only honest closing
+sequence is: land this drift batch, mint the digest-bound Linux telemetry
+receipt through the coded bootstrap on that clean commit, obtain a zero-failure
+main proof after the two owner-held artifacts land, and only then evaluate the
+npm capstone prerequisites.

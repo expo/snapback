@@ -50,9 +50,9 @@ The wave-end batch pass at main `640bae8db90b9fc6f4b9acef6dfbad9d9dad7b11`
 cannot honestly regenerate the retained carrier-exit receipt. Its source
 closure guard reports that
 `packages/snapback-client/materialization-store.mjs` now hashes to
-`dea7124d0eef6fd9b33231445c27211f335f3687ce85e48e4ebba5791ecf5fe1`, while
+`dea7124b342782de1b97fa7216dcd77f1349d03dfae87ab9257fbd7a1313eff0`, while
 the retained evidence is bound to
-`c6bfcf36af707a309af83af8982d495c94f5bfc559831cb51660755615860a32`.
+`c6bfcf376263b4d78d2533f661e3f7fcf8dedb72b674f743c612583dbfab7a3a`.
 More importantly, the dated runner/evidence still treats the absence of the
 Triage successor as a structural GAP even though P3 has now landed. Rerunning
 that historical program unchanged would mint a knowingly false current

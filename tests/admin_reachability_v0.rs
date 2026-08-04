@@ -334,9 +334,8 @@ fn real_lan_relay_is_path_scoped_parser_strict_and_lease_bounded() {
         ),
         (
             "Host laundering",
-            format!(
-                "GET /_snapback/admin/ HTTP/1.1\r\nHost: 127.0.0.1:1\r\nConnection: close\r\n\r\n"
-            ),
+            "GET /_snapback/admin/ HTTP/1.1\r\nHost: 127.0.0.1:1\r\nConnection: close\r\n\r\n"
+                .to_string(),
             "SNAPBACK_ADMIN_RELAY_HOST_REFUSED",
         ),
         (

@@ -3305,32 +3305,46 @@ async fn admin_command(args: AdminArgs) -> anyhow::Result<()> {
             status,
             revoke,
         }) => {
-            admin_claim_link(
-                &target,
+            admin_claim_link(AdminClaimLinkRequest {
+                target,
                 no_wait,
-                url_base.as_deref(),
+                url_base,
                 qr,
                 tailscale,
-                lan.as_deref(),
+                lan,
                 status,
                 revoke,
-            )
+            })
             .await
         }
         None => launch_admin_console(&args.target, args.no_open),
     }
 }
 
-async fn admin_claim_link(
-    target: &TargetArgs,
+struct AdminClaimLinkRequest {
+    target: TargetArgs,
     no_wait: bool,
-    url_base: Option<&str>,
+    url_base: Option<String>,
     qr: bool,
     tailscale: bool,
-    lan: Option<&str>,
+    lan: Option<String>,
     status: Option<String>,
     revoke: Option<String>,
-) -> anyhow::Result<()> {
+}
+
+async fn admin_claim_link(request: AdminClaimLinkRequest) -> anyhow::Result<()> {
+    let AdminClaimLinkRequest {
+        target,
+        no_wait,
+        url_base,
+        qr,
+        tailscale,
+        lan,
+        status,
+        revoke,
+    } = request;
+    let url_base = url_base.as_deref();
+    let lan = lan.as_deref();
     let selector_count = usize::from(url_base.is_some())
         + usize::from(tailscale)
         + usize::from(lan.is_some());
@@ -3347,7 +3361,7 @@ async fn admin_claim_link(
             && (url_base.is_some() || qr || tailscale || lan.is_some() || no_wait)),
         "SNAPBACK_ADMIN_LINK_CONTROL_CONFLICT: --status/--revoke cannot create or present a new reachability link"
     );
-    let resolved = resolve_admin_console_target(target)?;
+    let resolved = resolve_admin_console_target(&target)?;
     if let Some(claim_code) = status {
         let status = console_claim_control_request(
             &resolved,
