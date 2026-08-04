@@ -107,7 +107,9 @@ Key structure:
 
 Implemented all seven work items in `591f0f411`, hardened the final
 security/audit edges in `ddc57d1c9`, and reconciled the rebased mainline's
-exhaustive diagnostic inventory in `84de0bfda`:
+exhaustive diagnostic inventory in `84de0bfda`; `bc05a0a12` kept tailscaled
+calls bounded while tolerating a heavily scheduled host and made early test
+process exits report their stable diagnostic:
 
 - added exact master-gated origin sessions and three-second claim-to-credential
   leases bound to the server startup identity, including opaque fail-closed
