@@ -142,7 +142,7 @@ Verification completed cleanly:
   the repository codegen command so it matched the committed wire schemas)
 - `bun run test` and `bun run build` in `admin-ui/`
 - `node scripts/check-guide.mjs`
-- `./ref-check --verbose` (168 LLP documents, 3,771 refs, zero errors or
+- `./ref-check --verbose` (168 LLP documents, 3,773 refs, zero errors or
   unchecked references)
 
 ## References
