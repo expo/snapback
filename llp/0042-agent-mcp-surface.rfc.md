@@ -61,7 +61,7 @@ control-plane tools:
   with the honest unimplemented posture below until `acceptance.run` is
   built server-side.
 - `snapback_network_profile_get` → `debug.networkProfileGet` — proposed LLP
-  0167 OQ2 ruling (2026-08-04; author may veto).
+  0167 OQ2 ruling (proposed 2026-08-04, author-ratified 2026-08-04).
 - `snapback_network_profile_set` → `debug.networkProfileSet` — same proposed
   ruling; the tool never reimplements activation validation or authority.
 
