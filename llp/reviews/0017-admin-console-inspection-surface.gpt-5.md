@@ -197,3 +197,120 @@ delta, not the whole document. Review body verbatim below.
    **Suggested fix:** Record these as implementation acceptance cases rather than adding further RFC-level protocol machinery.
 
 VERDICT: NOT READY
+
+---
+
+## Round: 2026-08-03 — amendment delta review #2 (claim-link reachability affordances)
+
+**Provenance:** reviewer = codex exec (OpenAI family, default model,
+model_reasoning_effort=xhigh), mutually blind to the concurrent Claude-family
+reviewer; orchestrator/reviser = Claude Fable 5 session (wrote the amendment;
+did not review). Target revision sha256
+`a2894d70d886e91f2c4bfedb4e89d31d5c69042c8f4de753ec08489a6637e828`
+(uncommitted amendment atop 59b9d9aed). Capsule: target + delta instructions
+only, structurally excluding llp/reviews/* and orchestrator notes. Scope: the
+four reachability-affordance edits (target is Accepted; single delta round
+authorized by the author — no status transition). Verdict binds to the delta.
+Review body verbatim below.
+
+1. **MATERIAL — IN-DELTA**
+
+   **Exact quoted text:**
+
+   > “without changing the server's bind or the loopback-only exchange rule.”
+
+   > “`--lan` makes the attached CLI process itself host an **ephemeral relay**: it enumerates the device's non-loopback interface addresses, binds the selected LAN interface on an OS-assigned port, and forwards to the server's loopback listener”
+
+   > “The server still sees only loopback peers”
+
+   > “the relay exposes one namespace for at most one credential lifetime, on an unguessable port”
+
+   **Concern:** This preserves only the server’s transport-peer check, not the security meaning of a loopback-only exchange. The exchange becomes reachable by non-loopback clients through a first-party proxy. That can be a legitimate delegated-ingress design, consistent with the previously accepted tunnel posture, but the amendment incorrectly treats it as having no trust-boundary change. It specifies no authenticated or encrypted browser-to-relay transport. If the resulting origin is plain HTTP, an active on-link attacker can modify the console JavaScript, read the claim from the fragment, race redemption, or capture the returned `AdminRead`/`AdminWrite` bearer. An OS-assigned port is also scannable, not unguessable.
+
+   **Suggested fix:** Explicitly define the relay as a trusted proxy that changes end-client reachability, remove port secrecy from the security argument, and require authenticated HTTPS for `--lan`—for example, a certificate/key explicitly supplied by the operator and trusted by the receiving device. If authenticated TLS cannot be provided, remove `--lan` or obtain an explicit threat-model ruling that active LAN peers are trusted; document that ruling prominently and require interactive acknowledgement.
+
+2. **MATERIAL — IN-DELTA**
+
+   **Exact quoted text:**
+
+   > “make the printed URL loadable where the human actually is”
+
+   > “`--tailscale` publishes the server's loopback port through a running tailscaled's `serve` proxy”
+
+   > “The relay is HTTP-aware”
+
+   > “the reflected localhost CORS (any `http(s)://127.0.0.1|localhost|[::1]:*` origin)”
+
+   > “browser write requests should have origin and CSRF protections appropriate to local development”
+
+   **Concern:** A console loaded from a LAN or tailnet origin sends that origin in POST and WebSocket handshakes, while the accepted server policy recognizes loopback origins only. The amendment neither admits the new origins nor defines safe Origin/Host translation, so the supposedly loadable console may fail its exchange or later API calls. Blindly stripping or rewriting `Origin` would make the server’s existing CSRF check meaningless unless the relay first enforces an equivalent policy. This is a new integration obligation of the managed affordances even though the older operator-managed `--url-base` posture has a similar latent gap.
+
+   **Suggested fix:** Pin an end-to-end origin contract. The LAN relay must accept only its exact generated `Host`, require absent or exactly matching `Origin` for state-changing requests and WebSocket upgrades, reject all others, then translate Host/Origin to the exact loopback upstream origin. Tailscale mode must either register one exact, claim-scoped HTTPS origin with the server through a master-authenticated operation or place an equivalent validating shim before the server. Do not broaden CORS to arbitrary non-loopback origins. Add acceptance tests for POST, preflight, redirects, hostile Host/Origin values, and WebSocket handshakes in both modes.
+
+3. **MATERIAL — IN-DELTA**
+
+   **Exact quoted text:**
+
+   > “The relay is HTTP-aware and forwards only the reserved `/_snapback/*` namespace (including WebSocket upgrades within it), refusing every other path with a stable diagnostic”
+
+   **Concern:** The namespace is a security boundary, but the RFC does not define which parsed representation is checked or require the relay and upstream router to interpret request targets identically. A raw-prefix check can be bypassed when the two hops disagree about absolute-form targets, percent-encoded separators or dot segments, duplicate framing headers, or normalization. Upgrade handling is also unspecified: the namespace must be validated before switching protocols, and untrusted forwarding headers must not survive the relay. Merely testing ordinary paths does not establish the claimed isolation from the app plane.
+
+   **Suggested fix:** Specify that the relay uses a standards-compliant HTTP stack, accepts only origin-form request targets (or the HTTP/2 equivalent), matches the canonical path against the exact `/_snapback/` segment, and rejects ambiguous encoding, dot segments, malformed framing, `CONNECT`, and conflicting `Content-Length`/`Transfer-Encoding`. Strip hop-by-hop and all client-supplied forwarding headers; allow `Upgrade` only for a validated WebSocket handshake whose canonical path and Origin passed policy before the `101`. Add adversarial validation cases for encoded separators/traversal, absolute-form requests, prefix lookalikes, conflicting framing, forwarded-header spoofing, and upgrade attempts outside the namespace.
+
+4. **MATERIAL — IN-DELTA**
+
+   **Exact quoted text:**
+
+   > “By default `snapback admin link` stays attached and reports redemption, expiry, or revocation as it observes them”
+
+   > “it dies immediately on revocation, on credential expiry, or with the CLI process”
+
+   **Concern:** “As it observes them” does not support “immediately.” The RFC does not say whether observation is polling, streaming, or leased; what happens when the status channel fails; or how server restart/startup-nonce change is handled. A relay that keeps listening during lost observation can outlive an invalidated unredeemed claim or a revoked/expired credential. Polling also necessarily creates an unstated revocation-delay window. Separate simultaneous claims must not accidentally extend one another’s relays.
+
+   **Suggested fix:** Define a fail-closed lifetime mechanism tied to the exact claim digest and then its exact credential digest. Prefer a short server-issued relay lease renewed over an authenticated status/watch channel; close the listener on explicit revocation/expiry, lease expiry, server startup-nonce change, or loss of observation. If polling is retained, replace “immediately” with a pinned maximum detection latency and close on the first failed or indeterminate status check. Validate unredeemed restart, redeemed restart, observer failure, revocation races, idle/sliding expiry, concurrent claims, graceful exit, and hard CLI termination.
+
+5. **MATERIAL — IN-DELTA**
+
+   **Exact quoted text:**
+
+   > “The CLI reuses a serve mapping that already covers the port, otherwise creates one and removes exactly what it created when its observation ends”
+
+   > “it never leaves behind standing serve configuration it did not find”
+
+   > “`--no-wait` prints the URL and exits”
+
+   > “`--lan` conflicts with `--no-wait`.”
+
+   **Concern:** The Tailscale ownership/lifetime contract is internally incomplete. If `--tailscale --no-wait` creates a mapping, observation ends immediately and cleanup makes the printed link unusable; if cleanup is deferred, the command violates its no-standing-configuration promise. A crash may also strand daemon-owned configuration unless Tailscale supplies a genuine disconnect-scoped lease. Reuse is unsafe without exact matching and concurrency rules: one invocation can reuse a mapping created by another, after which the creator removes it while the second claim still depends on it. “Covers the port” also does not establish the required root-path behavior, tailnet-only access policy, or absence of a broader/public exposure.
+
+   **Suggested fix:** Define an exact reusable mapping as tailnet-only HTTPS at the required root, targeting the exact loopback address and port, with no conflicting path or public policy. Manage command-created mappings through a foreground/disconnect-scoped lease or a locked, reference-counted ownership record with compare-and-delete cleanup and crash reconciliation. Allow `--no-wait` only when an independently owned exact mapping already exists, or make it conflict with `--tailscale`; otherwise introduce a separate bounded helper that owns the mapping through claim/credential termination. Add concurrent-owner, external-mutation, hard-crash, reused-mapping, and `--no-wait` tests.
+
+6. **MATERIAL — IN-DELTA**
+
+   **Exact quoted text:**
+
+   > “Opening the link exchanges the claim atomically for one newly derived `sbcc_` console credential through the ordinary credential path (`no-store`, fragment removed before boot, same storage rules)”
+
+   > “The shared client may persist the derived credential plus its expiry under `snapback_console_credential_v1`”
+
+   > “printing the relay origin in the link”
+
+   **Concern:** The ordinary persistent-client rule is not safe without qualification on an ephemeral or repointable origin. LAN ports can later be reused, and a stable tailnet HTTPS origin can be remapped to another Snapback instance or service. A still-valid bearer stored under the fixed origin/key can then be restored or disclosed to the later service. Early CLI exit tears down the LAN listener but does not currently revoke the bound credential or remove the browser’s persisted copy.
+
+   **Suggested fix:** Give reachability sessions distinct storage semantics: retain the credential only in tab-scoped `sessionStorage`, key it by an unguessable relay-session and instance identifier, and never restore or transmit it until the backend identity matches that session. Revoke the bound credential when an invocation-owned relay or mapping terminates early, and clear its browser record when expiry/revocation is observed. Validate port/origin reuse, backend remapping, reload, CLI exit, and stale-record behavior.
+
+7. **minor — IN-DELTA**
+
+   **Exact quoted text:**
+
+   > “Three composable `snapback admin link` options”
+
+   > “`--qr` renders whichever link the invocation selected (default loopback, `--url-base`, `--tailscale`, or `--lan`)”
+
+   > “it enumerates the device's non-loopback interface addresses, binds the selected LAN interface”
+
+   **Concern:** The option and address-selection grammar is underdetermined. `--qr` clearly composes with an origin selector, but `--url-base`, `--tailscale`, and `--lan` all select competing origins and have no precedence or conflict rule. `--lan` also names a “selected” interface without specifying how selection occurs on multi-homed or non-interactive hosts.
+
+   **Suggested fix:** State that `--qr` composes with at most one of `--url-base`, `--tailscale`, and `--lan`, while those three origin selectors are mutually exclusive with stable usage errors. Define `--lan=<interface-or-address>` or a deterministic interactive selection rule, refuse ambiguity when no TTY exists, and prohibit wildcard binding.
+
+VERDICT: NOT READY

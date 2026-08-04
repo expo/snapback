@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Runtime, Storage, Realtime, Security, Client integration, Contract/Exact, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-08-03 (implemented the one-time operator claim link end to end: bounded process-ephemeral digest-only claims, atomic single-winner exchange, provenance-capped renewal, durable digest-only redemption/status/revocation binding, attached/default and reattach CLI observation, console fragment exchange, loopback/hosted refusal, and planted-link acceptance proof). Same day: (designed the one-time operator claim link — `snapback admin link` mints a single-use thirty-minute process-ephemeral claim code redeemed from a `#claim=` URL, loopback-only, for one `sbcc_` credential with distinct provenance that slides within a ninety-minute absolute cap, a master-readable redemption record, and master revocation; the thirty/ninety windows are an author ruling widening the review round's five-minute/non-renewable-ten-minute bounds for parallel long-running sessions; added the "only ephemeral authority transits the human" design principle complementing LLP 0150, with the 401 master-paste prompt named as the acknowledged pre-existing exception; revised same day after a dual-family delta review round — both families NOT READY on the initial amendment (non-loopback contradiction, notification underspecification, renewal inheritance) — this text incorporates those fixes and is itself review-unreviewed). Same day: (`snapback admin` performs trusted ready-file discovery and hands only a derived `sbcc_` credential to the browser in a URL fragment; active dev/loopback credentials slide within an eight-hour cap and digest-only state reattaches beside file-backed databases; a short-TTL, rate-limited, single-use RFC-8628-shaped terminal approval flow covers remote browsers).
+**Revised:** 2026-08-03 (designed the claim link's reachability affordances — `--qr` terminal QR rendering, `--tailscale` publication through tailscaled's serve proxy path-scoped to `/_snapback` with receipt-owned mapping lifecycle, and `--lan` as an ephemeral CLI-hosted relay: lifetime-scoped master-registered origin admission, sole-parser anti-smuggling discipline, console-slice-only forwarding that categorically excludes the master-exchange path, a fail-closed server-issued lease, tab-scoped reachability-session credential storage, and an explicit ruled-cleartext LAN transport posture with mandatory warning; revised same day after a dual-family delta round — both families NOT READY on the initial affordances text (origin/CSRF contract, LAN transport confidentiality, whole-namespace exposure, tailscale crash cleanup, parser discipline, relay-lifetime observation, storage-on-reusable-origins) — this text incorporates those fixes and is itself review-unreviewed). Same day: (implemented the one-time operator claim link end to end: bounded process-ephemeral digest-only claims, atomic single-winner exchange, provenance-capped renewal, durable digest-only redemption/status/revocation binding, attached/default and reattach CLI observation, console fragment exchange, loopback/hosted refusal, and planted-link acceptance proof). Same day: (designed the one-time operator claim link — `snapback admin link` mints a single-use thirty-minute process-ephemeral claim code redeemed from a `#claim=` URL, loopback-only, for one `sbcc_` credential with distinct provenance that slides within a ninety-minute absolute cap, a master-readable redemption record, and master revocation; the thirty/ninety windows are an author ruling widening the review round's five-minute/non-renewable-ten-minute bounds for parallel long-running sessions; added the "only ephemeral authority transits the human" design principle complementing LLP 0150, with the 401 master-paste prompt named as the acknowledged pre-existing exception; revised same day after a dual-family delta review round — both families NOT READY on the initial amendment (non-loopback contradiction, notification underspecification, renewal inheritance) — this text incorporates those fixes and is itself review-unreviewed). Same day: (`snapback admin` performs trusted ready-file discovery and hands only a derived `sbcc_` credential to the browser in a URL fragment; active dev/loopback credentials slide within an eight-hour cap and digest-only state reattaches beside file-backed databases; a short-TTL, rate-limited, single-use RFC-8628-shaped terminal approval flow covers remote browsers).
 **Revised:** 2026-08-02 (0137 G1 follow-on: descriptor-scoped `P.secret-read-root` custody now retains an open handle to the adopted inode until teardown, preventing immediate inode-number reuse from making an identity-only guard delete a foreign replacement). 2026-08-01 (0137 G1: the `P.secret-read-root` sibling is descriptor-scoped custody — the serve process removes it identity-guarded with the ready descriptor at shutdown/teardown instead of orphaning it; the database-scoped `<db>.admin-token` reattach custody is unchanged). 2026-07-15 (the instance home now discovers the build-bound Snapback Guide for humans and its one-request flat projection for agent clients in every negotiated rendering). 2026-07-13 (ENG-24595: browsers exchange the master admin token for a short-lived, non-renewable console credential and never persist the master; config status exposes only closed verification state; the browser runner no longer manufactures app identity; earlier: ENG-24338 review follow-up: the readiness descriptor itself is atomically published owner-only at 0600, and CLI URL/token resolution uses one validated descriptor snapshot; ENG-24359 review follow-up: filesystem static assets are opened by a root-directory capability plus component-relative no-follow handles and read from the verified final descriptor; platforms without that primitive fail closed instead of retaining a canonicalize/read race; ENG-24338/ENG-24346/ENG-24359: trusted token discovery, owner-only no-follow capability files, and canonical static-asset containment; earlier: 2026-07-04 admin serving now has a single UI implementation: the Contract/Exact `admin-ui/dist` snapshot. The server auto-discovers a built repo-local dist when `SNAPBACK_ADMIN_DIST` is unset; if no dist is available, `/_snapback/admin` returns a missing-dist diagnostic instead of the deleted handwritten fallback console. Earlier: 2026-07-03 instance home is embedded-only again: the short-lived `home-ui/` Contract surface, `SNAPBACK_HOME_DIST`, and `/_snapback/home/*` lane were removed because `/` is a recovery/status page whose value is zero-toolchain reliability, while the admin dashboard remains the useful Contract/Exact dogfooding surface. Earlier: 2026-07-02 instance home briefly gained a Contract surface and shared-build-preset notes; this revision supersedes that slice. Earlier same day: added §Instance home page: the root `/` is now content-negotiated — a branded, embedded HTML homepage for browsers over the same public metadata object served as YAML/JSON/Markdown; app identity comes from the schema manifest's optional `app` block. Earlier same day: ENG-22598: Secrets surface was added to the then-existing admin consoles over the LLP 0036 config ops. Earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the console and admin API shipped per this RFC, hosted access still future; LLP 0032 R3: layout-kernel diagnosis corrected per LLP 0023/ENG-22199; "local safe by default" annotated with the S0 root-alias gating; LLP 0032 S1: v0-alias retirement completed per LLP 0031)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0016, LLP 0024, LLP 0036, LLP 0150
 
@@ -603,6 +603,116 @@ Local defaults:
   served by a tunnel terminating on loopback plus `--url-base`, not by a
   relaxed bind rule.
 
+  The claim link's **reachability affordances** (designed; not yet landed)
+  make the printed URL loadable where the human actually is — a phone on the
+  same Wi-Fi, another device on the operator's tailnet — without changing the
+  server's bind. The claim exchange still terminates on loopback, but the
+  affordances are honestly a **delegated-ingress** decision, not a no-op: a
+  Snapback-owned front makes the exchange reachable by non-loopback clients
+  for a bounded lifetime, and every rule below exists to bound that
+  delegation. `--url-base`, `--tailscale`, and `--lan` are mutually exclusive
+  origin selectors (combining them is a stable usage error); `--qr` composes
+  with any of them and renders, byte-identically, the one URL the invocation
+  selected as a terminal QR code beside it — pure presentation, no trust
+  delta (when the selected origin is plain loopback the CLI notes that the QR
+  is only reachable from this machine).
+
+  **The origin contract**, shared by both managed affordances: the server's
+  browser-write protection reflects loopback origins only, so a console page
+  served from a relay or tailnet origin must be *admitted*, never laundered.
+  When an affordance starts, the CLI registers the exact published origin
+  with the server over the master-authenticated channel; the server accepts
+  it for exactly the affordance's lifetime and drops it at teardown. The
+  front forwards `Origin` untouched — it never rewrites Origin or Host to
+  loopback, which would disguise arbitrary cross-origin LAN requests as
+  local. The relay additionally accepts only its own generated `Host` and,
+  for state-changing requests and WebSocket upgrades, an `Origin` that is
+  absent or exactly the registered origin.
+
+  `--tailscale` publishes the server through a running tailscaled's `serve`
+  proxy — the canonical tunnel-terminating-on-loopback — path-scoped to
+  `/_snapback` (the app plane is not published), and prints the tailnet
+  HTTPS origin. Exposure is bounded to the operator's tailnet — which may
+  include shared or team nodes; tailnet membership is the operator's own
+  trust decision — and transport is tailscale-terminated HTTPS. Forwarded
+  peer addresses fall under the existing trusted-proxy labeling rule.
+  Because created mappings are standing daemon state, ownership is explicit:
+  mappings the CLI creates are tagged as Snapback-created and recorded in an
+  owner-only reference-counted receipt; concurrent invocations share the
+  mapping through the receipt and the last observer out removes it
+  (compare-and-delete against what the receipt recorded); an invocation
+  never removes a mapping it did not find recorded there, and operator-made
+  mappings are never touched. A crash can strand a tagged mapping — the next
+  `--tailscale` invocation sweeps stale Snapback-tagged mappings whose
+  receipts have no live owner, and that bounded residue window is accepted
+  here explicitly. `--tailscale` conflicts with `--no-wait` (cleanup needs
+  the attached observation), and a missing or stopped tailscaled is a stable
+  refusal, never a silent fallback to a different origin.
+
+  `--lan` makes the attached CLI process itself host an **ephemeral relay**:
+  `--lan[=<addr|interface>]` binds the named interface, or with no argument
+  binds the single up, non-loopback, non-virtual interface when exactly one
+  exists and otherwise refuses with the enumerated candidates; wildcard
+  binds are prohibited, and without a TTY ambiguity is refused rather than
+  prompted. The relay listens on an ephemeral OS-assigned port — port number
+  is not part of the security argument — and serves **plain HTTP: this is an
+  explicit threat ruling**, not an omission. On the local network the
+  operator chose to bind, transport confidentiality is delegated to that
+  network; a passive or active on-link attacker can observe or hijack the
+  session for its lifetime. The mint command therefore prints an unmissable
+  warning naming the exposure and the compensating controls — single-use
+  exchange, ten-minute idle expiry, ninety-minute cap, redemption record,
+  master revocation — and names `--tailscale` as the posture for networks
+  the operator does not trust. (Ephemeral self-signed TLS was considered and
+  rejected for v1: browsers surface it as a scarier interstitial than the
+  cleartext it would replace, training exactly the click-through habit this
+  surface should not train.)
+
+  The relay is the **sole request parser** on each connection: it parses,
+  canonicalizes (origin-form targets only; path normalization before prefix
+  matching; ambiguous framing such as conflicting `Content-Length`/
+  `Transfer-Encoding`, `CONNECT`, and pipelined follow-on requests are
+  refused), strips hop-by-hop and client-supplied forwarding headers, and
+  re-serializes toward loopback — never byte-splicing except inside a
+  WebSocket upgrade whose canonical path and Origin passed policy before the
+  `101`. It forwards only what a claimed console session needs: the console
+  shell and assets, the claim exchange, and credential-authenticated
+  `/_snapback/api/*` — and it categorically refuses the master console-
+  credential exchange and any request carrying the master token header, so
+  the master-paste flow and the master itself never ride the relay. Every
+  other path gets the stable refusal diagnostic. (The master-exchange
+  endpoint also joins the enumerated rate/cap-bounded operations — a
+  settled-text amendment this passage carries.)
+
+  Relay lifetime is **fail-closed, not best-effort**: the relay holds a
+  short server-issued lease bound to the claim digest and, after redemption,
+  the issued credential's digest, renewed over the same master-authenticated
+  status channel the attached command already observes. The listener closes
+  on revocation, credential or claim expiry, lease-renewal failure, an
+  indeterminate status response, a server startup-nonce change, or CLI
+  exit — so the maximum exposure after any invalidating event is one lease
+  interval, and a relay that loses observation dies rather than lingers.
+  Concurrent claims never share or extend one another's relays. Because the
+  relay must outlive the mint command, `--lan` conflicts with `--no-wait`.
+  The server still sees only loopback peers; the relay, which does know the
+  true LAN peer, reports it in the attached observation output labeled as
+  relay-observed — CLI-side context, not part of the server's redemption
+  record.
+
+  A console session on a relay or tailnet origin also gets **distinct
+  storage semantics**: an OS-assigned relay port is a reusable browser
+  origin, and a stable tailnet origin can later point at a different
+  backend, so the shared client keeps reachability-session credentials in
+  tab-scoped `sessionStorage`, keyed to the session and the instance
+  identity, and never restores one against a backend that no longer matches;
+  when an invocation-owned front terminates early the CLI revokes the bound
+  credential, and the client clears its record on observed expiry or
+  revocation. The standing-surface comparison still holds, stated honestly:
+  a relaxed bind exposes every route indefinitely; a managed front exposes
+  the console slice of one namespace, behind an origin contract and a
+  fail-closed lease, for at most one claim-plus-credential lifetime, only
+  while an operator's terminal deliberately holds it open.
+
   Operator tooling may
   hand the shared client a derived `AdminSecretRead` lease for an explicit
   inspection session, but the client retains it only in the current JavaScript
@@ -740,6 +850,9 @@ Landed (steps 1–7 of the sketch):
   Defaults*;
 - the one safe ephemeral control: token-gated cleanup of expired entries.
 
+Designed in *Security Defaults* but not yet landed: the claim link's
+reachability affordances (`--qr`, `--tailscale`, `--lan`).
+
 Reported as honest capability gaps in the `admin` block, not as placeholder
 controls: direct admin row edits, raw SQL, and the remaining ephemeral mutating
 controls (force resync, delete entry, disconnect, simulated publish). The
@@ -831,6 +944,32 @@ The accepted local contract must keep the following acceptance proofs green:
   cap (never reaching the ordinary eight-hour cap), and are revocable by the
   master through the recorded redemption binding; a server restart
   invalidates unredeemed claims;
+- (reachability affordances, once landed) the published origin is registered
+  master-authenticated for exactly the affordance's lifetime and dropped at
+  teardown; the relay never rewrites Origin/Host toward loopback, accepts
+  only its generated Host, and requires absent-or-registered Origin on
+  state-changing requests and WebSocket upgrades; the relay forwards only
+  the console shell/assets, claim exchange, and credential-authenticated
+  `/_snapback/api/*`, refuses the master-exchange route and any request
+  carrying the master token header, and refuses every other path with a
+  stable diagnostic; adversarial framing is refused — absolute-form targets,
+  encoded-separator and dot-segment lookalikes, conflicting
+  `Content-Length`/`Transfer-Encoding`, `CONNECT`, pipelined follow-on
+  requests, spoofed forwarding headers, and upgrades outside the namespace;
+  the relay's lease closes it within one lease interval of revocation,
+  expiry, observation loss, or server startup-nonce change, and it never
+  outlives the ninety-minute credential cap; unredeemed and redeemed server
+  restarts, observer failure, revocation races, concurrent claims, graceful
+  exit, and hard CLI kill all end with a closed listener; `--lan` and
+  `--tailscale` each conflict with `--no-wait`, and
+  `--url-base`/`--tailscale`/`--lan` are mutually exclusive; `--lan` mint
+  prints the cleartext-transport warning; reachability-session credentials
+  live only in tab-scoped storage and are revoked on early front
+  termination; `--tailscale` mappings are path-scoped to `/_snapback`,
+  tagged, receipt-owned with last-out compare-and-delete cleanup, stale-swept
+  on the next invocation after a crash, and operator-made mappings are never
+  modified; master-exchange attempts are rate/cap bounded; `--qr` output
+  encodes byte-identically the URL printed beside it;
 - `snapback admin --no-open` prints a fragment-bearing URL whose only
   credential is derived `sbcc_`, and that credential authenticates the real
   admin API;
