@@ -42,6 +42,11 @@ const LOCAL_WARMUPS: usize = 4;
 const ROWS: usize = 512;
 const CONTENTION_SAMPLES: usize = 128;
 const CONTENTION_WORKERS: usize = 8;
+const FORK_CREATION_MEDIAN_BOUND_US: f64 = 1_000.0;
+const EXACT_DIFF_MEDIAN_BOUND_US: f64 = 2_500.0;
+const PROMOTION_MEDIAN_BOUND_US: f64 = 7_500.0;
+const TTL_REAP_MEDIAN_BOUND_US: f64 = 250.0;
+const ORDINARY_WRITER_CONTENTION_P99_BOUND_US: f64 = 750_000.0;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -60,8 +65,20 @@ struct Artifact {
     raw_runs: Vec<Run>,
     summary_us: BTreeMap<&'static str, Statistics>,
     contention: ContentionEvidence,
+    absolute_bounds: AbsoluteBounds,
+    absolute_bounds_passed: bool,
     bound_ratification: &'static str,
     claim_boundary: &'static str,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct AbsoluteBounds {
+    fork_creation_median_us: f64,
+    exact_diff_median_us: f64,
+    promotion_median_us: f64,
+    ttl_reap_median_us: f64,
+    ordinary_writer_contention_p99_us: f64,
 }
 
 #[derive(Serialize)]
@@ -240,6 +257,24 @@ fn main() -> anyhow::Result<()> {
         raw_runs.push(run_once(20_000 + index as u64)?);
     }
     let contention = measure_writer_contention()?;
+    let summary_us = summarize(&raw_runs);
+    let absolute_bounds = AbsoluteBounds {
+        fork_creation_median_us: FORK_CREATION_MEDIAN_BOUND_US,
+        exact_diff_median_us: EXACT_DIFF_MEDIAN_BOUND_US,
+        promotion_median_us: PROMOTION_MEDIAN_BOUND_US,
+        ttl_reap_median_us: TTL_REAP_MEDIAN_BOUND_US,
+        ordinary_writer_contention_p99_us: ORDINARY_WRITER_CONTENTION_P99_BOUND_US,
+    };
+    let absolute_bounds_passed = summary_us["forkCreation"].median
+        <= absolute_bounds.fork_creation_median_us
+        && summary_us["exactDiff"].median <= absolute_bounds.exact_diff_median_us
+        && summary_us["promotion"].median <= absolute_bounds.promotion_median_us
+        && summary_us["ttlReap"].median <= absolute_bounds.ttl_reap_median_us
+        && contention.p99_us <= absolute_bounds.ordinary_writer_contention_p99_us;
+    anyhow::ensure!(
+        absolute_bounds_passed,
+        "final fork/promotion measurements exceeded the author-ratified LLP 0162 absolute bounds"
+    );
     let artifact = Artifact {
         schema_version: "snapback.fork-promotion-performance.v3",
         artifact_name: "agent-safe-fork-promotion-absolute-2026-08-04",
@@ -271,10 +306,12 @@ fn main() -> anyhow::Result<()> {
             quiescence_rule: "direct binary invocation refuses while another cargo or rustc process exists",
             measurement_scope: "absolute latency only; no honest pre-profile product comparator exists",
         },
-        summary_us: summarize(&raw_runs),
+        summary_us,
         raw_runs,
         contention,
-        bound_ratification: "Missing: LLP 0162 author has not ratified absolute bounds beside the step-0 artifact",
+        absolute_bounds,
+        absolute_bounds_passed,
+        bound_ratification: "Ratified by Charlie Cheever in LLP 0162's dated 2026-08-04 absolute-bound record before this final run",
         claim_boundary: "instrumentation evidence only; fork and promotion capabilities remain Missing",
     };
     let mut output_file = std::fs::OpenOptions::new()
@@ -561,8 +598,7 @@ fn measure_writer_contention() -> anyhow::Result<ContentionEvidence> {
         }
     }
     anyhow::ensure!(
-        samples.len() == CONTENTION_SAMPLES
-            && initial_deferred_worker_count == CONTENTION_WORKERS,
+        samples.len() == CONTENTION_SAMPLES && initial_deferred_worker_count == CONTENTION_WORKERS,
         "contention fixture did not place every initial writer behind the reservation"
     );
     let mut sorted = samples.clone();
