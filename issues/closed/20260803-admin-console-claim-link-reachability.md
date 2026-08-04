@@ -105,8 +105,8 @@ Key structure:
 
 ## Resolution (2026-08-03)
 
-Implemented all seven work items in `1fa04da9a`, hardened the final
-security/audit edges in `c4325a058`, and `38ce3c5fc` kept tailscaled
+Implemented all seven work items in `220bc73aa`, hardened the final
+security/audit edges in `c6fac11c5`, and `e7d544b56` kept tailscaled
 calls bounded while tolerating a heavily scheduled host and made early test
 process exits report their stable diagnostic:
 
@@ -131,7 +131,7 @@ process exits report their stable diagnostic:
   lifecycle matrix, QR identity proof, and browser-storage/backend-remap tests.
 
 After current main established its own pending-family diagnostic inventory,
-`430ca7793` removed the superseded local fallback classifications so the
+`c1a073a66` removed the superseded local fallback classifications so the
 newer reviewed result-transform HTTP families remain authoritative.
 
 Verification completed cleanly:
