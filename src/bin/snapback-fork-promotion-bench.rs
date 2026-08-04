@@ -28,13 +28,14 @@ use snapback::commit_envelope::{
 };
 use snapback::diagnostic::SnapbackResult;
 use snapback::fork_promotion::{
-    ApprovedOperationFactsV1, BranchGrantV1, BranchLimitsV1, BranchOperationDraftV1,
-    BranchOperationV1, CanonicalAdmissionV1, ForkCoverageV1, ForkEgressPolicyV1,
-    InAppBranchCreateV1, LogicalWriteFactV1, PromotionApprovalV1, PromotionAuthorityDecisionV1,
-    PromotionContentionPolicyV1, PromotionReplayContextV1, PromotionSealKey, ReplayCustodyClassV1,
-    RetainedReplayInputV1, SnapshotRowV1, canonical_mutation_admission, create_in_app_branch,
-    exact_fork_diff, execute_branch_operation, issue_promotion_ticket, promote_by_reexecution,
-    reap_expired_in_app_branches, request_head_reservation, seal_promotion_request,
+    ApprovedOperationFactsV1, BranchArtifactBindingV1, BranchGrantV1, BranchLimitsV1,
+    BranchOperationDraftV1, BranchOperationV1, CanonicalAdmissionV1, ForkCoverageV1,
+    ForkEgressPolicyV1, InAppBranchCreateV1, LogicalWriteFactV1, PromotionApprovalV1,
+    PromotionAuthorityDecisionV1, PromotionContentionPolicyV1, PromotionReplayContextV1,
+    PromotionSealKey, ReplayCustodyClassV1, RetainedReplayInputV1, SnapshotRowV1,
+    canonical_mutation_admission, create_in_app_branch, exact_fork_diff, execute_branch_operation,
+    issue_promotion_ticket, promote_by_reexecution, reap_expired_in_app_branches,
+    request_head_reservation, seal_promotion_request,
 };
 
 const RECORDED_RUNS: usize = 11;
@@ -629,6 +630,10 @@ fn create_request(seed: u64, ordinal: u64, base_version: u64, now: i64) -> InApp
         child_stream_id: ChildStreamId(format!("bench-child-{seed}-{ordinal}")),
         base_stream: "canonical".to_owned(),
         base_version,
+        artifact_binding: BranchArtifactBindingV1 {
+            schema_hash: sha('1'),
+            function_bundle_hash: sha('2'),
+        },
         grant: BranchGrantV1 {
             principal_id: "bench-principal".to_owned(),
             grant_id: "bench-grant".to_owned(),

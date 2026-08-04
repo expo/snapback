@@ -2,11 +2,17 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (Track B integrated implementation pass)
-**Updated:** 2026-08-04 (atomic multi-operation public branch carrier,
-server-owned causal predecessors, payload-free ordered CaptureOnly intents,
-atomic canonical pending-effect publication, transitive provisional refusal,
-and fenced reopen-safe settlement added; capabilities remain Missing pending
-the integrated performance/review/publication gates); 2026-08-04
+**Updated:** 2026-08-04 (refusal-first fork correction — creation/receipts pin
+canonical schema and function-bundle SHA-256 identities; exact committed retry
+survives parent drift, while novel work refuses before handler bytes.
+CaptureOnly intent custody immediately makes the branch non-promotable, and
+effect-bearing strict promotion refuses before canonical mutation. Caller-
+asserted settlement is test-only/unexported; product provider custody, ordered
+settlement, and public effect-bearing promotion are outside this Track B
+publication scope. The closed post-image deviation remains untouched. Draft
+and Missing states are unchanged); 2026-08-04 (atomic multi-operation public
+branch carrier and CaptureOnly capture implementation, corrected by the
+refusal-first record above); 2026-08-04
 (authenticated, fail-closed explicit activation
 transport for the exact local four-adapter coverage profile; activation remains
 operator-invoked and all publication gates remain open); 2026-08-04 (real k=2–4 strict-promotion concurrency,
@@ -38,12 +44,12 @@ not authorize capability publication.
 | 2 — retry settlement | Partial | Ship range issue/refresh plus atomic client range custody and finish restored-client, recreated-branch, delayed-delivery, host-retry, and exhaustion transport legs. |
 | 3 — provenance/explanation | Partial | Public/admin transport and protected custody are wired. The public lane now revalidates the active artifact, current function/grant/profile policy, derived audience, current and retained historical owners, and every closed fact for exact generated owner-create/update envelopes. Create's private mint observation is exact-site-bound and stripped before projection; generated delete is recognized but remains a current-row-absent refusal. Complete positive evaluators, if justified, for aggregate/non-row, hand-written/opaque, predicate, membership, effect-bearing, and remaining policy classes. |
 | 4 — coverage honesty | Partial | The local target now names 23 physical writer families with no grouped row. Exactly four ordinary/host adapters are envelope-mapped; every other family has an executable exclusion reason, and non-envelope app writers refuse after arming. Raw/cached/trigger/system-field/DDL bypass, exact four-writer publication, target-vs-app-effective, crash/reopen, retry, and ordinary/host asymmetry fixtures are green. An authenticated managed-admission AdminWrite command accepts only the versioned local target/profile pair and idempotently publishes that exact manifest; open, range issuance, and capability inspection do not invoke it. Complete-target exclusions, fixed-Air, remaining corpus, review, and acceptance gates keep the row Partial and the command uninvoked by default. |
-| 5 — fork isolation | Partial | F0b and the derived post-fork-parent-write fixture cover the copied-instance leg; managed custody and `branch.execute.v1` run real mutations/actions only on the server-derived current-head workspace. The carrier now admits exact multiple operations and retains mutation facts atomically with app rows/journal/version. Final integrated correctness/review remains. |
-| 6 — effect quarantine | Partial | All inventoried local host-egress families route through branch mediation. `DenyAll` retains only bounded refusal markers; `CaptureOnly` retains server-ordered payload-free per-attempt intents and never initiates provider work, including a caught repeated-family handler fixture. Final integrated bypass/review evidence remains. |
-| 7 — identity/authority | Partial | Branch execution revalidates a digest-bound finite grant and uses a dedicated non-admin branch principal. Promotion copies authority-bound intents; every settlement attempt revalidates principal/grant/fingerprint/expiry/revocation, with revoked and expired negatives. Final integrated per-class review remains. |
+| 5 — fork isolation | Partial | F0b and the derived post-fork-parent-write fixture cover the copied-instance leg; managed custody and `branch.execute.v1` run real mutations/actions only on the server-derived current-head workspace. The carrier admits exact multiple operations, retains mutation facts atomically with app rows/journal/version, and pins canonical schema/function-bundle identities. Exact retries survive parent drift; novel requests refuse before handler bytes. Final integrated correctness/review remains. |
+| 6 — effect quarantine | Partial | All inventoried local host-egress families route through branch mediation. `DenyAll` retains only bounded refusal markers; `CaptureOnly` retains server-ordered payload-free per-attempt intents, never initiates provider work, and immediately makes the branch non-promotable. Product provider custody and settlement are outside this publication scope; final bypass/review evidence remains. |
+| 7 — identity/authority | Partial | Branch execution revalidates a digest-bound finite grant and uses a dedicated non-admin branch principal. Captured intents retain branch authority facts, but there is no product settlement authority seam. Complete per-class review remains; provider custody/ordered settlement is explicitly unclaimed. |
 | 8 — resource containment | Partial | Digest work, branch/grant TTL, intent count, retained operation bytes, and independent envelope/replay-floor/branch clocks have executable bounds. Final integrated resource/performance evidence remains. |
 | 9 — exact fork diff | Partial | The randomized multi-commit corpus compares journal-derived net state with an independent immutable-base/head oracle and verifies the attributed sequence separately. Exact ordinary HostPlan/Buffered postimages now match stored system fields under the SQLite authorizer, hidden trigger writes refuse, and all other physical writers are individually classified. Finish schema-transition coverage; excluded migration/seed/admin/projection/promotion writers still prevent a wider journal-completeness claim. |
-| 10 — strict promotion | Partial | Frozen v1 contention/fairness/crash evidence is joined by atomic multi-operation retention and CaptureOnly promotion: staged data, ordered canonical pending intents, joins, receipt, effect-bearing envelope, version, and ticket completion share one transaction. Server-owned causal predecessors enforce transitive provisional refusal; fenced settlement survives reopen and refuses stale authority or divergent terminal retry. Global writer coverage and applicable performance/review remain independent gates. |
+| 10 — strict promotion | Partial | Frozen v1 no-effect contention/fairness/crash evidence is joined by atomic multi-operation retention. Any captured intent or approved effect fact—including effect-plus-write and transitive effect-dependent chains—refuses strict promotion before canonical mutation with `SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED`. Public effect-bearing promotion remains outside this Track B publication scope; global writer coverage and applicable performance/review remain independent gates. |
 | 11 — history/checkpoint | Partial | Schema publication now atomically projects finite v2 per-record policy, removal erases retained detail, and current/per-version auth plus visible-only pagination/horizon and per-record pruning are covered without changing legacy v1 `maxRows`. The registered-copy sweep invalidates the complete materialized inventory before deletion and preserves crash/unreachable obligations, but it is not yet atomic with canonical protected-record deletion; close that new-checkpoint race and the remaining lifecycle corpus. |
 | 12 — boundary proof | Partial | Promotion and full migration verification are independently derived; migration's separate evaluator has explicit-value/equivalence plus executor-drift and staged-corruption negatives. Checkpoint concurrent-writer/publication/receipt-only no-upcast negatives are covered. Finish the remaining row-wide boundary integrations/coverage before an aggregate claim. |
 | 13 — performance | Partial | The final-integrated absolute rerun is recorded. The successor absolute recorder includes a 128-sample/8-writer request-to-commit p99 behind a production promotion reservation. A second recorder now pairs the exactly reconstructed pre-profile tree with the active issuance-bearing covered lane in 11 AB/BA observations: registered point/range/query-plan and single-writer thresholds, active allocation/retention observations, and five-second CPU/RSS/disk gates. Run both exact clean recorders on the fixed Air; obtain dated RFC-author absolute-bound ratification; pass every applicable crash/reopen gate. |
@@ -254,34 +260,38 @@ CaptureOnly now persists one bounded payload-free intent per attempted host
 effect before returning a fail-loud captured diagnostic. A handler that catches
 the first fetch refusal and attempts the same family again produces distinct
 server ordinals 0 and 1 and one final operation binding both ordered intents;
-the target sentinel is absent from the reopened database bytes. Intent-count
-and exact-TTL negatives refuse before further custody.
+the target sentinel is absent from the reopened database bytes. The first
+durable intent atomically marks the branch non-promotable; intent-count and
+exact-TTL negatives refuse before further custody.
 
-Strict promotion validates the operation facts against the complete intent
-ledger and copies each intent as `canonicalPending` in the same canonical
-transaction as staged writes, the journal proof, source joins, receipt,
-aggregate envelope, version advance, and ticket completion. The envelope
-includes the effect facts and settlement classes while still declaring
-`promotionCoverageManifest` uncovered. Conservative public predecessors feed
-transitive enforcement: a later ordinary write downstream of a captured effect
-refuses promotion unless the application supplied an explicit provisional
-representation; the runtime never invents pending semantics for a plain row.
+Strict promotion is no-effect-only in this publication scope. Sealing or
+executing any request whose workspace contains a captured intent or approved
+effect fact refuses `SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED` before
+canonical mutation. This covers same-operation effect-plus-write facts and
+transitive effect-dependent chains without inventing a provisional row or
+provider outcome. The earlier caller-asserted initiation/terminal functions
+are test-only, and their authority/initiation schemas are no longer exported.
+They are not product custody or acceptance evidence.
 
-The post-promotion seam durably fences initiation before provider work,
-revalidates current principal/grant/fingerprint/expiry/revocation on every
-attempt, and retains a stable provider idempotency key. Corpus covers revoked
-and exact-expiry refusals, valid initiation, canonical-store reopen, exact
-initiation retry, digest-only terminal success, exact terminal retry, and
-divergent-outcome refusal. No provider payload or terminal detail is retained.
+Managed branch creation and receipts additionally pin canonical SHA-256 schema
+and function-bundle identities. A committed exact retry is recovered from the
+pinned branch before consulting current parent artifacts or function presence;
+novel work after either parent identity changes refuses
+`SNAPBACK_BRANCH_ARTIFACT_DRIFT` before handler bytes. Reopen tests cover both
+identities and prove no extra branch operation or app row is produced.
 The inherited fork suite also repairs its strict-reexecution source locator and
 uses a valid compact envelope in the independent-clock test; the
 compile-disabled post-image `branches::promote` code is unchanged.
 
-These rows remain `Partial` only because the separate integrated
-writer-coverage, fixed-Air performance/p99, final own-correctness, independent
-review, author acceptance, and publication gates have not all completed in
-this lane. LLP 0164 remains `Draft`; no capability state changes above
-`Missing` are made here.
+Rows 6, 7, and 10 also remain `Partial` because product-owned provider custody,
+ordered settlement, and public effect-bearing strict promotion are explicitly
+outside this Track B publication scope. The closed
+[`branches::promote` post-image deviation](closed/20260803-branches-promote-postimage-deviation.md)
+explains why its compile-disabled code is not a foundation; it is not reopened
+or modified here. Remaining integrated writer coverage, fixed-Air
+performance/p99, final own-correctness, independent review, author acceptance,
+and publication gates also stay open. LLP 0164 remains `Draft`; no capability
+state changes above `Missing` are made here.
 
 ## Review and publication gates
 

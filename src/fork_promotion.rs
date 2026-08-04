@@ -360,6 +360,33 @@ impl ForkCoverageV1 {
     }
 }
 
+/// Exact parent artifacts frozen when a managed in-app branch is created.
+/// The writable database copy already pins the schema bytes; this binding also
+/// prevents a later parent function/schema reload from silently changing the
+/// handler generation used by an existing branch.
+#[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BranchArtifactBindingV1 {
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub schema_hash: String,
+    #[schemars(pattern(SHA256_PATTERN))]
+    pub function_bundle_hash: String,
+}
+
+impl BranchArtifactBindingV1 {
+    fn validate(&self) -> SnapbackResult<()> {
+        if !is_sha256_digest(&self.schema_hash)
+            || !is_sha256_digest(&self.function_bundle_hash)
+        {
+            return Err(error(
+                "SNAPBACK_BRANCH_ARTIFACT_IDENTITY_MISSING",
+                "managed branch creation requires canonical sha256 schema and function bundle identities",
+            ));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct InAppBranchCreateV1 {
@@ -369,6 +396,7 @@ pub struct InAppBranchCreateV1 {
     pub child_stream_id: ChildStreamId,
     pub base_stream: String,
     pub base_version: u64,
+    pub artifact_binding: BranchArtifactBindingV1,
     pub grant: BranchGrantV1,
     pub limits: BranchLimitsV1,
     pub coverage: ForkCoverageV1,
@@ -382,6 +410,7 @@ pub struct InAppBranchReceiptV1 {
     #[schemars(range(min = 1, max = 1))]
     pub schema_version: u32,
     pub branch: BranchRecord,
+    pub artifact_binding: BranchArtifactBindingV1,
     pub grant: BranchGrantV1,
     pub limits: BranchLimitsV1,
     pub coverage: ForkCoverageV1,
@@ -475,6 +504,7 @@ pub fn create_in_app_branch(
             "in-app branch request schemaVersion must be 1",
         ));
     }
+    request.artifact_binding.validate()?;
     request.limits.validate()?;
     if request.grant.expires_at_ms <= request.created_at_ms {
         return Err(error(
@@ -541,6 +571,7 @@ pub fn create_in_app_branch(
     Ok(InAppBranchReceiptV1 {
         schema_version: 1,
         branch,
+        artifact_binding: request.artifact_binding.clone(),
         grant: request.grant.clone(),
         limits: request.limits.clone(),
         coverage: request.coverage.clone().normalized(),
@@ -596,6 +627,7 @@ fn branch_profile(
         InAppBranchReceiptV1 {
             schema_version: 1,
             branch,
+            artifact_binding: profile.artifact_binding.clone(),
             grant: profile.grant,
             limits: profile.limits,
             coverage: profile.coverage.normalized(),
@@ -881,6 +913,7 @@ fn dropped_managed_receipt(profile: InAppBranchCreateV1) -> ManagedInAppBranchRe
                 created_at_ms: profile.created_at_ms,
                 ttl_ms: Some(profile.limits.ttl_ms),
             },
+            artifact_binding: profile.artifact_binding,
             grant: profile.grant,
             limits: profile.limits,
             coverage: profile.coverage.normalized(),
@@ -2190,6 +2223,19 @@ fn capture_effect_intent(
             context.now_ms,
         ],
     )?;
+    let foreclosed = tx.execute(
+        "UPDATE _snapback_in_app_branch_profiles
+            SET promotable=0,
+                foreclosed_by_operation_id=COALESCE(foreclosed_by_operation_id,?2)
+          WHERE branch_id=?1",
+        params![context.branch_id.0, operation_id],
+    )?;
+    if foreclosed != 1 {
+        return Err(error(
+            "SNAPBACK_BRANCH_PROFILE_MISSING",
+            "captured effect intent lost its branch promotion fence",
+        ));
+    }
     tx.commit()?;
     Ok(CapturedEffectIntentV1 {
         schema_version: 1,
@@ -3085,6 +3131,7 @@ pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
     Ok(())
 }
 
+#[cfg(test)]
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct EffectSettlementAuthorityV1 {
@@ -3096,6 +3143,7 @@ pub struct EffectSettlementAuthorityV1 {
     pub revoked: bool,
 }
 
+#[cfg(test)]
 #[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum EffectSettlementOutcomeV1 {
@@ -3104,6 +3152,7 @@ pub enum EffectSettlementOutcomeV1 {
     AmbiguousExternalEffect,
 }
 
+#[cfg(test)]
 impl EffectSettlementOutcomeV1 {
     fn state(self) -> CapturedEffectStateV1 {
         match self {
@@ -3140,6 +3189,7 @@ pub struct PromotedEffectIntentV1 {
     pub terminal_fact_digest: Option<String>,
 }
 
+#[cfg(test)]
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct EffectInitiationV1 {
@@ -3289,6 +3339,7 @@ pub fn promoted_effect_intents(
     rows.map(|row| decode_promoted_effect(row?)).collect()
 }
 
+#[cfg(test)]
 fn effect_authority_matches(
     intent: &PromotedEffectIntentV1,
     authority: &EffectSettlementAuthorityV1,
@@ -3305,6 +3356,7 @@ fn effect_authority_matches(
 /// A crash after this returns leaves an Initiated row with the same stable
 /// idempotency key; retry can recover it but cannot report the promotion as a
 /// no-op or launch under different authority.
+#[cfg(test)]
 pub fn begin_promoted_effect_settlement(
     canonical: &mut Connection,
     ticket_id: &str,
@@ -3367,6 +3419,7 @@ pub fn begin_promoted_effect_settlement(
     })
 }
 
+#[cfg(test)]
 pub fn finish_promoted_effect_settlement(
     canonical: &mut Connection,
     ticket_id: &str,
@@ -3628,6 +3681,9 @@ pub fn seal_promotion_request(
         ));
     }
     let (_, receipt) = branch_profile(&workspace.conn, &diff.branch_id)?;
+    let operations = branch_operation_log(&workspace.conn, &diff.branch_id)?;
+    let captured_intents = captured_effect_intents(&workspace.conn, &diff.branch_id)?;
+    refuse_captured_effect_promotion(&operations, &captured_intents)?;
     if !receipt.promotable
         || (receipt.egress_policy == ForkEgressPolicyV1::DenyAll
             && receipt.deny_all_attempt_count != 0)
@@ -3668,7 +3724,6 @@ pub fn seal_promotion_request(
             "branch head advanced after the reviewed diff",
         ));
     }
-    let operations = branch_operation_log(&workspace.conn, &diff.branch_id)?;
     let mut request = PromotionRequestV1 {
         schema_version: 1,
         branch_id: diff.branch_id.clone(),
@@ -4314,6 +4369,23 @@ fn validate_captured_effect_custody(
     Ok(())
 }
 
+fn refuse_captured_effect_promotion(
+    operations: &[BranchOperationV1],
+    intents: &[CapturedEffectIntentV1],
+) -> SnapbackResult<()> {
+    if !intents.is_empty()
+        || operations
+            .iter()
+            .any(|operation| !operation.approved_facts.effects.is_empty())
+    {
+        return Err(error(
+            "SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED",
+            "strict promotion refuses captured effects until product-owned provider custody and ordered settlement exist",
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) fn provisional_effect_dependencies(
     operations: &[BranchOperationV1],
 ) -> SnapbackResult<Vec<(String, u64)>> {
@@ -4916,6 +4988,12 @@ where
         &BranchOperationV1,
     ) -> SnapbackResult<ApprovedOperationFactsV1>,
 {
+    // CaptureOnly is intentionally a truthful capture-and-refuse lane. Read
+    // only the branch workspace first so an unsupported effect-bearing
+    // request cannot create or mutate canonical promotion state.
+    let operations = branch_operation_log(&workspace.conn, &request.branch_id)?;
+    let captured_intents = captured_effect_intents(&workspace.conn, &request.branch_id)?;
+    refuse_captured_effect_promotion(&operations, &captured_intents)?;
     ensure_promotion_tables(canonical)?;
     if let Some(stored) = stored_promotion_result(canonical, request)? {
         return Ok(stored);
@@ -4967,8 +5045,6 @@ where
             "branch changed after approval; request is invalid",
         ));
     }
-    let operations = branch_operation_log(&workspace.conn, &request.branch_id)?;
-    let captured_intents = captured_effect_intents(&workspace.conn, &request.branch_id)?;
     validate_captured_effect_custody(branch.egress_policy, &operations, &captured_intents)?;
     let provisional_dependencies = provisional_effect_dependencies(&operations)?;
     if operation_log_digest(&operations)? != request.operation_log_digest
@@ -5777,6 +5853,10 @@ mod tests {
             child_stream_id: ChildStreamId(stream.to_owned()),
             base_stream: "canonical".to_owned(),
             base_version: head,
+            artifact_binding: BranchArtifactBindingV1 {
+                schema_hash: sha('1'),
+                function_bundle_hash: sha('2'),
+            },
             grant: BranchGrantV1 {
                 principal_id: "agent-1".to_owned(),
                 grant_id: "grant-1".to_owned(),
@@ -5805,6 +5885,31 @@ mod tests {
             },
             egress_policy: ForkEgressPolicyV1::DenyAll,
             created_at_ms: now,
+        }
+    }
+
+    #[test]
+    fn branch_creation_requires_canonical_schema_and_bundle_digests() {
+        for field in ["schema", "bundle"] {
+            let mut canonical = source(1);
+            let mut request = create_request(
+                &format!("invalid-{field}"),
+                &format!("invalid-{field}-stream"),
+                1,
+                100,
+            );
+            if field == "schema" {
+                request.artifact_binding.schema_hash = "not-a-digest".to_owned();
+            } else {
+                request.artifact_binding.function_bundle_hash = "sha256:ABC".to_owned();
+            }
+            assert_eq!(
+                create_in_app_branch(&mut canonical, &request)
+                    .expect_err("managed branch artifact pins are canonical sha256 digests")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_BRANCH_ARTIFACT_IDENTITY_MISSING"
+            );
         }
     }
 
@@ -6936,7 +7041,7 @@ mod tests {
     }
 
     #[test]
-    fn capture_only_promotion_is_atomic_and_settlement_is_fenced_across_reopen() {
+    fn capture_only_effects_foreclose_strict_promotion_before_canonical_mutation() {
         let directory = tempfile::tempdir().expect("tempdir");
         let canonical_path = directory.path().join("canonical.sqlite3");
         let mut canonical = file_source(&canonical_path, 5);
@@ -6967,12 +7072,105 @@ mod tests {
         .expect("finalize effect operation")
         .expect("captured operation");
         assert_eq!(operation.approved_facts.effects.len(), 3);
+        let mut mixed_effect_and_write = operation.clone();
+        mixed_effect_and_write
+            .approved_facts
+            .writes
+            .push(LogicalWriteFactV1 {
+                table_name: "widgets".to_owned(),
+                row_id: "1".to_owned(),
+                after: Some(json!({"id": 1, "name": "must-not-promote"})),
+            });
+        assert_eq!(
+            refuse_captured_effect_promotion(&[mixed_effect_and_write], &[])
+                .expect_err("same-operation effect plus write remains non-promotable")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED"
+        );
         let diff = exact_fork_diff(&workspace, &create.branch_id, scan_widgets)
             .expect("effect-only exact diff");
 
         let seal_key = PromotionSealKey::from_server_secret([23_u8; 32]).expect("seal key");
         let ticket_identity = host_identity("canonical", "capture-promotion-ticket", "app-1");
-        let ticket_id = ticket_identity.key.operation_id.clone();
+        let ticket = issue_promotion_ticket(
+            &mut canonical,
+            ticket_identity.clone(),
+            &create.branch_id,
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("ticket");
+        let canonical_version_before = crate::storage::current_version_on(&canonical)
+            .expect("canonical version before refusal");
+        let refusal = seal_promotion_request(
+            &workspace,
+            &diff,
+            PromotionApprovalV1 {
+                approver_principal_id: "agent-1".to_owned(),
+                approver_grant_id: "grant-1".to_owned(),
+                authority_fingerprint: create.grant.authority_fingerprint.clone(),
+                approved_at_ms: 2_001,
+                expires_at_ms: 50_000,
+            },
+            ticket,
+            ticket_identity,
+            &sha('f'),
+            &seal_key,
+            2_001,
+        )
+        .expect_err("CaptureOnly effects remain capture-only and not promotable");
+        assert_eq!(
+            refusal.diagnostic.code,
+            "SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED"
+        );
+        assert_eq!(
+            crate::storage::current_version_on(&canonical)
+                .expect("canonical version after refusal"),
+            canonical_version_before
+        );
+        assert!(
+            !inspect_in_app_branch(&workspace.conn, &create.branch_id)
+                .expect("capture-only receipt")
+                .promotable
+        );
+    }
+
+    #[test]
+    fn captured_intent_after_review_refuses_promotion_entry_before_reexecution() {
+        let mut canonical = source(5);
+        let mut create = create_request("capture-after-review", "capture-reviewed", 5, 1_000);
+        create.egress_policy = ForkEgressPolicyV1::CaptureOnly;
+        create.coverage.effects_covered = true;
+        create.grant.authority_fingerprint = derive_branch_authority_fingerprint(
+            &create.grant.principal_id,
+            &create.grant.grant_id,
+            &create.grant.audience,
+        )
+        .expect("public branch authority fingerprint");
+        create_in_app_branch(&mut canonical, &create).expect("CaptureOnly branch");
+        let mut workspace = MaterializedBase::materialize(&canonical, None).expect("workspace");
+        let reviewed_draft = public_draft_for_create(&create, "reviewed-no-effect-operation");
+        let coverage = create.coverage.clone();
+        execute_branch_operation(
+            &mut workspace.conn,
+            &create.branch_id,
+            &reviewed_draft,
+            1_001,
+            |tx, _draft| {
+                tx.execute("UPDATE widgets SET name='REVIEWED' WHERE id=1", [])?;
+                let mut approved = facts("REVIEWED");
+                approved.coverage = coverage;
+                Ok(approved)
+            },
+        )
+        .expect("reviewable no-effect operation");
+        let diff = exact_fork_diff(&workspace, &create.branch_id, scan_widgets).expect("diff");
+        let seal_key = PromotionSealKey::from_server_secret([24_u8; 32]).expect("seal key");
+        let ticket_identity = host_identity("canonical", "capture-reviewed-ticket", "app-1");
         let ticket = issue_promotion_ticket(
             &mut canonical,
             ticket_identity.clone(),
@@ -7000,8 +7198,20 @@ mod tests {
             &seal_key,
             2_001,
         )
-        .expect("seal CaptureOnly promotion");
-        let result = promote_by_reexecution(
+        .expect("seal reviewed no-effect operation");
+
+        let late_context = BranchEffectExecutionContextV1::new(
+            create.branch_id.clone(),
+            public_draft_for_create(&create, "late-captured-effect"),
+            2_002,
+        );
+        capture_effect_intent(&mut workspace.conn, &late_context, "fetch", 0)
+            .expect("durable late capture");
+        let canonical_version_before = crate::storage::current_version_on(&canonical)
+            .expect("canonical version before promotion refusal");
+        let canonical_rows_before = scan_widgets(&canonical).expect("canonical rows before refusal");
+        let reexecuted = std::cell::Cell::new(false);
+        let refusal = promote_by_reexecution(
             &mut canonical,
             &workspace,
             &diff,
@@ -7011,148 +7221,27 @@ mod tests {
                 grant_id: "grant-1".to_owned(),
                 authority_fingerprint: create.grant.authority_fingerprint.clone(),
             },
-            2_002,
+            2_003,
             &sha('f'),
-            |_context, retained| Ok(retained.approved_facts.clone()),
+            |_context, retained| {
+                reexecuted.set(true);
+                Ok(retained.approved_facts.clone())
+            },
         )
-        .expect("atomic data plus pending-intent promotion");
-        assert_eq!(result.receipt.state, "committedEffectsPending");
-        assert_eq!(result.aggregate_envelope.effects.facts.count, 3);
-        assert_eq!(result.aggregate_envelope.write_set.count, 0);
-        assert!(
-            result
-                .aggregate_envelope
-                .coverage
-                .uncovered_lanes
-                .contains(&PROMOTION_COVERAGE_GAP_V1.to_owned()),
-            "effect support does not overclaim the separate global writer-coverage gate"
-        );
-
-        let promoted = promoted_effect_intents(&canonical, &ticket_id).expect("pending intents");
+        .expect_err("captured intent after review refuses at the promotion entry");
         assert_eq!(
-            promoted
-                .iter()
-                .map(|intent| intent.effect_ordinal)
-                .collect::<Vec<_>>(),
-            vec![0, 1, 2]
+            refusal.diagnostic.code,
+            "SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED"
         );
-        let revoked = EffectSettlementAuthorityV1 {
-            principal_id: "agent-1".to_owned(),
-            grant_id: "grant-1".to_owned(),
-            authority_fingerprint: create.grant.authority_fingerprint.clone(),
-            expires_at_ms: 50_000,
-            revoked: true,
-        };
+        assert!(!reexecuted.get(), "no retained handler facts were replayed");
         assert_eq!(
-            begin_promoted_effect_settlement(
-                &mut canonical,
-                &ticket_id,
-                &promoted[0].intent_id,
-                &revoked,
-                2_003,
-            )
-            .expect_err("revoked authority cannot initiate")
-            .diagnostic
-            .code,
-            "SNAPBACK_PROMOTION_EFFECT_AUTHORITY_DENIED"
-        );
-        let expired = EffectSettlementAuthorityV1 {
-            revoked: false,
-            expires_at_ms: 2_004,
-            ..revoked.clone()
-        };
-        assert_eq!(
-            begin_promoted_effect_settlement(
-                &mut canonical,
-                &ticket_id,
-                &promoted[1].intent_id,
-                &expired,
-                2_004,
-            )
-            .expect_err("expired authority cannot initiate")
-            .diagnostic
-            .code,
-            "SNAPBACK_PROMOTION_EFFECT_AUTHORITY_DENIED"
-        );
-        let current = EffectSettlementAuthorityV1 {
-            expires_at_ms: 50_000,
-            ..expired
-        };
-        let initiated = begin_promoted_effect_settlement(
-            &mut canonical,
-            &ticket_id,
-            &promoted[2].intent_id,
-            &current,
-            2_005,
-        )
-        .expect("durable initiation fence");
-        assert!(!initiated.already_initiated);
-        let settlement_intent_id = promoted[2].intent_id.clone();
-        drop(canonical);
-
-        let mut reopened = Connection::open(&canonical_path).expect("reopen canonical store");
-        let retry = begin_promoted_effect_settlement(
-            &mut reopened,
-            &ticket_id,
-            &settlement_intent_id,
-            &current,
-            2_006,
-        )
-        .expect("reopen recovers the initiation fence");
-        assert!(retry.already_initiated);
-        let terminal_digest = digest_json(
-            b"effect-settlement-terminal-fact-v1",
-            &json!({"providerDisposition": "accepted"}),
-        )
-        .expect("terminal fact digest");
-        let settled = finish_promoted_effect_settlement(
-            &mut reopened,
-            &ticket_id,
-            &settlement_intent_id,
-            EffectSettlementOutcomeV1::Succeeded,
-            &terminal_digest,
-            2_007,
-        )
-        .expect("settle initiated effect");
-        assert_eq!(settled.state, CapturedEffectStateV1::Succeeded);
-        assert_eq!(
-            finish_promoted_effect_settlement(
-                &mut reopened,
-                &ticket_id,
-                &settlement_intent_id,
-                EffectSettlementOutcomeV1::Succeeded,
-                &terminal_digest,
-                2_008,
-            )
-            .expect("exact terminal retry"),
-            settled
+            crate::storage::current_version_on(&canonical)
+                .expect("canonical version after promotion refusal"),
+            canonical_version_before
         );
         assert_eq!(
-            finish_promoted_effect_settlement(
-                &mut reopened,
-                &ticket_id,
-                &settlement_intent_id,
-                EffectSettlementOutcomeV1::Rejected,
-                &sha('9'),
-                2_009,
-            )
-            .expect_err("terminal retries cannot diverge")
-            .diagnostic
-            .code,
-            "SNAPBACK_PROMOTION_EFFECT_RESULT_DIVERGED"
-        );
-        let states = promoted_effect_intents(&reopened, &ticket_id)
-            .expect("settlement ledger after reopen")
-            .into_iter()
-            .map(|intent| intent.state)
-            .collect::<Vec<_>>();
-        assert_eq!(
-            states,
-            vec![
-                CapturedEffectStateV1::AuthorityRefused,
-                CapturedEffectStateV1::AuthorityRefused,
-                CapturedEffectStateV1::Succeeded,
-            ]
+            scan_widgets(&canonical).expect("canonical rows after refusal"),
+            canonical_rows_before
         );
     }
 

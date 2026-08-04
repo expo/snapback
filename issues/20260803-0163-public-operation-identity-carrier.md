@@ -2,7 +2,13 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (LLP 0163 durable storage slice)
-**Updated:** 2026-08-04 (authenticated explicit local activation transport,
+**Updated:** 2026-08-04 (fork-boundary correction — managed branches pin
+canonical schema/function-bundle identities and preserve exact retry across
+parent drift, but CaptureOnly is truthfully non-promotable. Product provider
+custody, ordered settlement, and public effect-bearing strict promotion are
+outside this Track B publication scope; they cannot count toward writer-lane
+coverage or capability activation. Draft/Missing states are unchanged);
+2026-08-04 (authenticated explicit local activation transport,
 closed 23-family writer inventory, executable armed exclusions, and exact
 four-adapter publication; activation remains operator-invoked and capabilities
 remain Missing pending performance, review, and author acceptance);
@@ -35,7 +41,12 @@ The remaining closure gates are:
 - complete the remaining real current-policy evaluators for the public
   explanation lane; exact generated owner create/update are closed, generated
   delete is a normative current-row-absent refusal, and the public/admin
-  transport and protected custody are already wired; and
+  transport and protected custody are already wired;
+- keep strict promotion outside every active coverage manifest: no-effect
+  promotion remains an explicitly excluded physical writer, CaptureOnly
+  captured effects refuse before canonical mutation, and test-only settlement
+  helpers cannot stand in for product provider custody or ordered settlement;
+  and
 - rerun LLP 0162 Acceptance row 13's comparable candidate protocol with the
   public issuance-bearing covered lane active under a genuinely paired,
   baseline-digest-bound protocol; the clean 2026-08-03 binary observations

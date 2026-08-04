@@ -1,5 +1,24 @@
 {
   "$defs": {
+    "BranchArtifactBindingV1": {
+      "additionalProperties": false,
+      "description": "Exact parent artifacts frozen when a managed in-app branch is created.\nThe writable database copy already pins the schema bytes; this binding also\nprevents a later parent function/schema reload from silently changing the\nhandler generation used by an existing branch.",
+      "properties": {
+        "functionBundleHash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "schemaHash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaHash",
+        "functionBundleHash"
+      ],
+      "type": "object"
+    },
     "BranchGrantV1": {
       "additionalProperties": false,
       "properties": {
@@ -215,6 +234,9 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "artifactBinding": {
+      "$ref": "#/$defs/BranchArtifactBindingV1"
+    },
     "branch": {
       "$ref": "#/$defs/BranchRecord"
     },
@@ -264,6 +286,7 @@
   "required": [
     "schemaVersion",
     "branch",
+    "artifactBinding",
     "grant",
     "limits",
     "coverage",
