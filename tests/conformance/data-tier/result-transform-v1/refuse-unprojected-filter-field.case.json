@@ -1,0 +1,50 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "refuse-unprojected-filter-field",
+  "notes": "Filter fields must be declared by the projected result contract.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [
+      {
+        "field": "secret",
+        "op": "eq",
+        "value": null
+      }
+    ],
+    "order": [],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": []
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:774837cab83213079cce52838a788c6c8ff19cc3c0287eebdab8064fa1a184a4",
+    "outcome": {
+      "status": "refused",
+      "code": "SNAPBACK_RESULT_TRANSFORM_FIELD_UNPROJECTED",
+      "reason": "unprojected-filter-field"
+    }
+  }
+}

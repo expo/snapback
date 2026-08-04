@@ -121,6 +121,8 @@ pub mod push;
 #[doc(hidden)]
 pub mod result_contract;
 #[doc(hidden)]
+pub mod result_transform;
+#[doc(hidden)]
 pub mod rqs;
 #[doc(hidden)]
 pub mod runtime;

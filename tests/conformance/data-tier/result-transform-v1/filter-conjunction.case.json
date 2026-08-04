@@ -1,0 +1,76 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "filter-conjunction",
+  "notes": "Filter entries compose as a conjunction in declaration order.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [
+      {
+        "field": "group",
+        "op": "eq",
+        "value": "g"
+      },
+      {
+        "field": "rank",
+        "op": "gte",
+        "value": 2
+      }
+    ],
+    "order": [],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "a",
+            "group": "g",
+            "rank": 1
+          },
+          {
+            "id": "b",
+            "group": "g",
+            "rank": 2
+          },
+          {
+            "id": "c",
+            "group": "h",
+            "rank": 3
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:41cfc5d03041a391b77ec79c2ad1bfbdcc9c4c59a35719db2c35d37448861e1a",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "b",
+          "group": "g",
+          "rank": 2
+        }
+      ]
+    }
+  }
+}

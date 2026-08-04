@@ -1,0 +1,49 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "refuse-unprojected-order-field",
+  "notes": "Order fields must be declared by the projected result contract.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [],
+    "order": [
+      {
+        "field": "secret",
+        "direction": "asc"
+      }
+    ],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": []
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:eb09b42cad4c0e75be7cd579341d20f3731df8382c9d9814838336e8be106a51",
+    "outcome": {
+      "status": "refused",
+      "code": "SNAPBACK_RESULT_TRANSFORM_FIELD_UNPROJECTED",
+      "reason": "unprojected-order-field"
+    }
+  }
+}

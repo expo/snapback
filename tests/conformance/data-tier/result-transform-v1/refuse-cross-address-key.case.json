@@ -1,0 +1,44 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "refuse-cross-address-key",
+  "notes": "A materialization key different from the executing address refuses.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.other-address",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [],
+    "order": [],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": []
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:c549069a1a7fafb50c78b653dece1007331293596260d917f1bd3b3e21b92276",
+    "outcome": {
+      "status": "refused",
+      "code": "SNAPBACK_RESULT_TRANSFORM_CROSS_ADDRESS",
+      "reason": "cross-address-materialization-key"
+    }
+  }
+}

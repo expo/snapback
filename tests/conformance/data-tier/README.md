@@ -21,6 +21,10 @@ correct.
 - **Consumed by reference** from Exact CI (Exact LLP 0329 E-A) and the
   `contract-native` data-tier evaluator (E-C). There is one Snapback-owned
   corpus; consumers never vendor a fork.
+- **Extended for result transforms.** The separately versioned
+  [`result-transform-v1/`](./result-transform-v1/) subcorpus applies the same
+  D5 discipline to LLP 0166 §D7 without changing the established 37-case
+  mutation-IR manifest or its compatibility tuple.
 
 ## Case shape
 

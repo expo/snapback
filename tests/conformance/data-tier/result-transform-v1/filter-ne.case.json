@@ -1,0 +1,63 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "filter-ne",
+  "notes": "ne is the complement of canonical scalar equality.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [
+      {
+        "field": "active",
+        "op": "ne",
+        "value": true
+      }
+    ],
+    "order": [],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "a",
+            "active": true
+          },
+          {
+            "id": "b",
+            "active": false
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:d076e0bf7a495ba504215446f08ebf7dc2161c334ed7b64d09787832df6e4d89",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "b",
+          "active": false
+        }
+      ]
+    }
+  }
+}

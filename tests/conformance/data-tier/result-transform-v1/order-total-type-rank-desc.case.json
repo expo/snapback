@@ -1,0 +1,82 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "order-total-type-rank-desc",
+  "notes": "Descending reverses the same total comparator, including type rank.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [],
+    "order": [
+      {
+        "field": "value",
+        "direction": "desc"
+      }
+    ],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "null",
+            "value": null
+          },
+          {
+            "id": "false",
+            "value": false
+          },
+          {
+            "id": "number",
+            "value": 0
+          },
+          {
+            "id": "string",
+            "value": "a"
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:9fb74e5bf8e991a169e242cc5cb4dba1ad0b4ca10ab1456e4bbcdc244eb34c7a",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "string",
+          "value": "a"
+        },
+        {
+          "id": "number",
+          "value": 0
+        },
+        {
+          "id": "false",
+          "value": false
+        },
+        {
+          "id": "null",
+          "value": null
+        }
+      ]
+    }
+  }
+}

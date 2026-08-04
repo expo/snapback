@@ -1,0 +1,71 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "filter-gte",
+  "notes": "gte includes numeric equality.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [
+      {
+        "field": "value",
+        "op": "gte",
+        "value": 2
+      }
+    ],
+    "order": [],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "a",
+            "value": 1
+          },
+          {
+            "id": "b",
+            "value": 2
+          },
+          {
+            "id": "c",
+            "value": 3
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:afc5e95b2d86ee1cd4f02f1382181f8fea85cc24722e977e94e55c6a8c0550ce",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "b",
+          "value": 2
+        },
+        {
+          "id": "c",
+          "value": 3
+        }
+      ]
+    }
+  }
+}

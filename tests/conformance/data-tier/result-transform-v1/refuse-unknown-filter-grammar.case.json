@@ -1,0 +1,44 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "refuse-unknown-filter-grammar",
+  "notes": "Only the basic-v1 filter grammar is admitted.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "locale-v1",
+    "filter": [],
+    "order": [],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": []
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": null,
+    "outcome": {
+      "status": "refused",
+      "code": "SNAPBACK_RESULT_TRANSFORM_PLAN_INVALID",
+      "reason": "unknown-filter-grammar"
+    }
+  }
+}

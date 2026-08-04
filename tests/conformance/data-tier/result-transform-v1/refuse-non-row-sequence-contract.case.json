@@ -1,0 +1,44 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "refuse-non-row-sequence-contract",
+  "notes": "V1 admits only established results whose contract shape is a row sequence.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [],
+    "order": [],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "scalar",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": []
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b",
+    "outcome": {
+      "status": "refused",
+      "code": "SNAPBACK_RESULT_TRANSFORM_BASE_INVALID",
+      "reason": "non-row-sequence"
+    }
+  }
+}

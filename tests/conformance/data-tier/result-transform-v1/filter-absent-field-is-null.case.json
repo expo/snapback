@@ -1,0 +1,61 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "filter-absent-field-is-null",
+  "notes": "An absent projected field reads as null during filtering.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [
+      {
+        "field": "value",
+        "op": "eq",
+        "value": null
+      }
+    ],
+    "order": [],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "missing"
+          },
+          {
+            "id": "present",
+            "value": 0
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:ec674ed581d471be3710c21954fa3b89f784a4342a6309be2f45970e5ce1fe0e",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "missing"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "filter-lt-cross-type",
+  "notes": "Range filters use the total type rank, so every non-string scalar is less than a string.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [
+      {
+        "field": "value",
+        "op": "lt",
+        "value": "a"
+      }
+    ],
+    "order": [],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "num",
+            "value": 5
+          },
+          {
+            "id": "bool",
+            "value": false
+          },
+          {
+            "id": "string",
+            "value": "b"
+          },
+          {
+            "id": "null",
+            "value": null
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:3a614400202ff1caf15a7edab6477b621970dac4a07a2888973324910ad72e30",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "num",
+          "value": 5
+        },
+        {
+          "id": "bool",
+          "value": false
+        },
+        {
+          "id": "null",
+          "value": null
+        }
+      ]
+    }
+  }
+}

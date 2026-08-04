@@ -1,0 +1,74 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "filter-in",
+  "notes": "in is a disjunction of canonical scalar equality over a nonempty array.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [
+      {
+        "field": "value",
+        "op": "in",
+        "value": [
+          null,
+          "x"
+        ]
+      }
+    ],
+    "order": [],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "a",
+            "value": null
+          },
+          {
+            "id": "b",
+            "value": "x"
+          },
+          {
+            "id": "c",
+            "value": false
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:86d4ba8f781a01f06a3a81e55dc7063be8d096978d79fc908430216afcb78f61",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "a",
+          "value": null
+        },
+        {
+          "id": "b",
+          "value": "x"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "refuse-overlay-input-missing",
+  "notes": "overlay apply requires client-materialized overlay rows; the server never synthesizes them.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "apply",
+    "filterGrammar": "basic-v1",
+    "filter": [],
+    "order": [],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": []
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:acdf5768d487fd3f5f190c292adf47bd720b60612dc5101e6ddc564b9e97e97c",
+    "outcome": {
+      "status": "refused",
+      "code": "SNAPBACK_RESULT_TRANSFORM_OVERLAY_INPUT_REQUIRED",
+      "reason": "client-overlay-rows-required"
+    }
+  }
+}

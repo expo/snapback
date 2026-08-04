@@ -1,0 +1,73 @@
+{
+  "$defs": {
+    "ResultTransformCorpusExpectationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "outcome": true,
+        "transformHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "outcome"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/result-transform-v1.case.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "base": true,
+    "clientOverlayRows": {
+      "items": true,
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "corpus": {
+      "type": "string"
+    },
+    "corpusVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "executingMaterializationKey": {
+      "type": "string"
+    },
+    "expect": {
+      "$ref": "#/$defs/ResultTransformCorpusExpectationV1"
+    },
+    "name": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "plan": true,
+    "projectedFields": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "corpus",
+    "corpusVersion",
+    "name",
+    "notes",
+    "plan",
+    "executingMaterializationKey",
+    "projectedFields",
+    "base",
+    "expect"
+  ],
+  "title": "ResultTransformCorpusCaseV1",
+  "type": "object"
+}

@@ -1,0 +1,698 @@
+{
+  "artifactKind": "snapback.result-transform-d5-extension-evidence.v1",
+  "baseRevision": "aeba33a8c40f44aff7dd191adf4dd7f7f99786ad",
+  "cases": [
+    {
+      "canonicalOutcomeSha256": "sha256:6344ff3207cdd9499c6008aea436855665d442580218563fe2ecf433fde047d5",
+      "case": "base-complete-page-chain",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:ecac2cd3465038c6684fe95f100329f78898c45feb9177dffd5da69d4504e4ba",
+      "case": "base-empty-result",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:93cbbd71aa60c5a92ce63de3771077a05d803da471c64ea6966ead043400c97e",
+      "case": "base-single-page-established-order",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:5f4fad8ab91e6c6051b1cf858db0179946f3b2f24e15490c55da356aa27d2526",
+      "case": "filter-absent-field-is-null",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:ec674ed581d471be3710c21954fa3b89f784a4342a6309be2f45970e5ce1fe0e"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:4ac2ece98d5c026dd57aff934149344b7f847f73cd2a98526d4111d9bcb60500",
+      "case": "filter-conjunction",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:41cfc5d03041a391b77ec79c2ad1bfbdcc9c4c59a35719db2c35d37448861e1a"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:e4092d5cfe9203f0a91a5d309e401635749cf107497db1b8fbd02a3cd1c97a15",
+      "case": "filter-eq",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:2023e6b9e225245b45fe78a55d1266b133597bdf317bbd88bdf5bd269ba7a653"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:e4092d5cfe9203f0a91a5d309e401635749cf107497db1b8fbd02a3cd1c97a15",
+      "case": "filter-equality-mixed-types",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:2023e6b9e225245b45fe78a55d1266b133597bdf317bbd88bdf5bd269ba7a653"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:c561e5d5b32ed4b792e56e3284491fce9d83677df800be877b5acfa482de72e8",
+      "case": "filter-gt",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:2e6679a39edcfeb015f3643a18a76ec9ded5e87cbd55def92617b0002e25221d"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:9c5ad9ad4113d2f8f1ec57ecf79ac5bd8b3715724a494b112cad28f1707a835d",
+      "case": "filter-gte",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:afc5e95b2d86ee1cd4f02f1382181f8fea85cc24722e977e94e55c6a8c0550ce"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:3c51e1b6a8b58420d3cc56445a1c5f878882c4ad9b0b0205c6330721a1648a14",
+      "case": "filter-in",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:86d4ba8f781a01f06a3a81e55dc7063be8d096978d79fc908430216afcb78f61"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:ba2f7c3808b1716ad1a418010c7e82de475d6066e7fef40de600f3b2e51ca953",
+      "case": "filter-lt-cross-type",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:3a614400202ff1caf15a7edab6477b621970dac4a07a2888973324910ad72e30"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:55c66ecdb9c9eeb44938dd5908bddec1784e8d325f4d3c34f1d036effda246df",
+      "case": "filter-lte",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:4b49339a761e78e7a417f3fb33ece0babf2a5e802fe182f049ec39e5e2c9d4f4"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:2b73785a30c61c95dc303497d62fea1ce8cd5ff667c20ce7eddd775ac9c2232b",
+      "case": "filter-ne",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:d076e0bf7a495ba504215446f08ebf7dc2161c334ed7b64d09787832df6e4d89"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:0ff2bc7abe6554f1b285399fa19a234e11a81318ef7d32731b377ce9c8db3390",
+      "case": "limit-exact-size",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:013f43309c83f95434a5b8f94e3b65bb9b2d3d688a4e193b22e17554f3e95ffc"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:c4a10ec4f4c569fa675131f923a2a655244548425a6d3076c640fe858c0fa0b9",
+      "case": "limit-one",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:97ba83d8d58741d62b42a087245fe698f3fdab9febda0fc7f10cfac2f5159eb6"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:0ff2bc7abe6554f1b285399fa19a234e11a81318ef7d32731b377ce9c8db3390",
+      "case": "limit-over-size",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:0dc5ddb605522e767c994ebee90865ad2d9d87fc320120aa3c5c39477e1f5e1f"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:ecac2cd3465038c6684fe95f100329f78898c45feb9177dffd5da69d4504e4ba",
+      "case": "limit-zero",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:3e186420a82eb664af386ecca094c8316823c833a3ed788a555475c3dfe17dd1"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:6779cb1aeca2c571fd277ce1d6bb2990e0784070969b9fd0e20e6b2da00c8a11",
+      "case": "order-absent-field-is-null",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:b76ae2699ddd6d7266530c8f30852e070bbfb4e64e0c6670003c9cd5a33c1a5a"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:1a72545fb0332c867a90b1ddcc046e3f4ab7496478e21e8fe21175cdf726401b",
+      "case": "order-booleans-false-before-true",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:b76ae2699ddd6d7266530c8f30852e070bbfb4e64e0c6670003c9cd5a33c1a5a"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:e61a8cb5ef3ab19a3cda83f7e965ff4dd2ff17065364e2dd9ba2eb47faa634f1",
+      "case": "order-multiple-fields",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:eb523ce353ecb38b481e77b1181bef77f3d9526acbf0d99f2db583af5c7ca263"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:bc1d69afb7781bfa9cba807a950aaf92c560572da3b4095c4c2054b6ab8026e1",
+      "case": "order-numbers-numeric",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:b76ae2699ddd6d7266530c8f30852e070bbfb4e64e0c6670003c9cd5a33c1a5a"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:cdb96bec5137e617f95bf11157ab9ce59203cc34b37fb9c70b45fe9e1abe0c8a",
+      "case": "order-stable-ties-preserve-base-order",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:7293f46ba59d256abb128550ac6a300fb70117d7b828b8132a9a1ea193fc809a"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:dc3e41dc50de754dfb929d0b1281a3bb812551bdbec4175783de8129eaf9ec8a",
+      "case": "order-strings-unsigned-utf8",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:b76ae2699ddd6d7266530c8f30852e070bbfb4e64e0c6670003c9cd5a33c1a5a"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:f44abeec0842ef904fe9e8ef7e315e4ef16f9d29d8e65570ff2819d1a97a78cb",
+      "case": "order-total-type-rank-asc",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:b76ae2699ddd6d7266530c8f30852e070bbfb4e64e0c6670003c9cd5a33c1a5a"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:3c6ee153e008fe546ac8529ef17437a220fc9250a33c3d2b99d6b3a41f8a09c9",
+      "case": "order-total-type-rank-desc",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:9fb74e5bf8e991a169e242cc5cb4dba1ad0b4ca10ab1456e4bbcdc244eb34c7a"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:fc6bfb0907d7ace0a779753919c3bc69da2e4c149099c71074992d4afb24a7e6",
+      "case": "overlay-only-row",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "client-materialized-input",
+      "rust": "pass",
+      "transformHash": "sha256:acdf5768d487fd3f5f190c292adf47bd720b60612dc5101e6ddc564b9e97e97c"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:680cf94ad51eec60795e7be9579903b68f779afa9029c7389ef894a8ad44b96c",
+      "case": "overlay-shadowing-base-row",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "client-materialized-input",
+      "rust": "pass",
+      "transformHash": "sha256:acdf5768d487fd3f5f190c292adf47bd720b60612dc5101e6ddc564b9e97e97c"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:1bc0ceeb4edf996160b2c9eb8887f1887b69a06bddcab1ff495c91d31d2c7b4d",
+      "case": "pipeline-composed-all-stages",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "client-materialized-input",
+      "rust": "pass",
+      "transformHash": "sha256:7ad5ae167e00c7c161270a9f59d9edacf5f4e0d458456ed7a7344e3ff94ae20f"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:e73f6152982e5deb0adeeea3292e9d44d3927318ac3cbb63c989ecd64cc37cfc",
+      "case": "pipeline-filter-before-order",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "ok",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:cdcaa0bd1c57f0bdc0b99583d543cfc6c1ac866982f0bb38cb038bb34823b7b5"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:6d2b26aa081c092cc425e9f716c5431712216c968e2e35447adf1da18cfb726b",
+      "case": "refuse-broken-page-chain",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:d04932298673795ce7409bc20913b9d4d2317c75cfd62178ecb975e5f10118db",
+      "case": "refuse-cross-address-key",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:c549069a1a7fafb50c78b653dece1007331293596260d917f1bd3b3e21b92276"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:4d93a657e2ca860b552b27c4bcbdc31d3ab6202c6d647adf10a0ae200c0314f9",
+      "case": "refuse-duplicate-order-field",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": null
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:ff20b7ee86e703707c6c7d67fb81e49ea74d5710fc6153879f3df1cbec3d64f2",
+      "case": "refuse-empty-in-operand",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": null
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:44b13ef192865e5ce55946e03bbd127deff000dc97c107cf2a0f10f1714afdd6",
+      "case": "refuse-empty-page-set",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:70b27b6620cd6e65e1282fb4b1b691bb21c8b8307835cb46bb79a8d2db4a1dce",
+      "case": "refuse-fractional-limit",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": null
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:f3280526ec7c5b4a083da4dbbcc7107954ebc1ec3ae448a6dd1d7f514fedf8a5",
+      "case": "refuse-missing-plan-field",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": null
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:c0575d42d942a6e95437b0f0ea86ff264548cd4d4005094bb45e22cbcd4c0011",
+      "case": "refuse-mixed-version-base",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:70b27b6620cd6e65e1282fb4b1b691bb21c8b8307835cb46bb79a8d2db4a1dce",
+      "case": "refuse-negative-limit",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": null
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:22ac130b322333dc43f2d0a66080ca7c76107dff692b703071f2ce62642a6a72",
+      "case": "refuse-non-record-row",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:daf70b3942e1aef187814b5f1b09d3ebf770878db11f9d2d8b636c96163db49c",
+      "case": "refuse-non-row-sequence-contract",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:98a733326c85c4c0ed1230a4009a5666f1e0977c74f10cda72c66433b7d6c42a",
+      "case": "refuse-non-scalar-filter-field",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:2023e6b9e225245b45fe78a55d1266b133597bdf317bbd88bdf5bd269ba7a653"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:0a952a23cfe0fc66405a005a0542327ea1b110dd8f40309d042742458f44ffed",
+      "case": "refuse-non-scalar-filter-operand",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:591be4ee2157d6ca642a85c34fe94cd1315996892a4f367d021d9f5f8c46f368"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:768581506596e1d4377bd499ac273aaaf204b0a88c42ba021fc0248e4468fdff",
+      "case": "refuse-non-scalar-in-element",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:66e9f0d5ed3a7d4772b3bcbd76f25d939068571da938b5b904bdf9bc75078b48"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:f882e31beac5c38fc9c48f7c68ecc21b921eb8bab061a14028352b2a8fa014df",
+      "case": "refuse-non-scalar-order-field",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:b76ae2699ddd6d7266530c8f30852e070bbfb4e64e0c6670003c9cd5a33c1a5a"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:c39759da3025dbebf91a74a15aea97efb068b26a929edef6fb4574c4bbf30b00",
+      "case": "refuse-normalization-attempt",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": null
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:94bdb9b4e435cb5e8fefa0215312f5522512d5cc548971ff083f14b468d354c2",
+      "case": "refuse-overlay-input-missing",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:acdf5768d487fd3f5f190c292adf47bd720b60612dc5101e6ddc564b9e97e97c"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:220887d8a39e6bf78523cd45c485ea5822f30e59dfad1f5efda488c8ec52e7a4",
+      "case": "refuse-unknown-comparator",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": null
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:5d0e98b374eae16f4184329552163c7ac868ccd0653156a56e8e8905e0418c51",
+      "case": "refuse-unknown-filter-grammar",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": null
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:2040ef0a16c6fbdab4ee3327f6a473add509c7acfe4e72b3f976f0270ced98c7",
+      "case": "refuse-unknown-filter-operator",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": null
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:15820541a2bb05c7dd46642ca4feeceda7ccb91623675595b466e40a9539fca5",
+      "case": "refuse-unknown-order-direction",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": null
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:077412eb1a221264dedf2422b77e466cd935b79a5a1328a27f50ba5a73848d32",
+      "case": "refuse-unknown-overlay-mode",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": null
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:250e917f802651043d5a88df1fa94efa057381b2e8d04096ba8a6a46aedfd060",
+      "case": "refuse-unknown-plan-field",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": null
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:9e6b4f28b5340aced37d308a31335f9041da42dea9aeb9485bb70b316b4413b1",
+      "case": "refuse-unknown-stage",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": null
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:88068467f054b39ebd68a4f731a4e18b8df6015148db25e396f5fbaa49820a8f",
+      "case": "refuse-unprojected-filter-field",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:774837cab83213079cce52838a788c6c8ff19cc3c0287eebdab8064fa1a184a4"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:9a79d4dd7b23374cd95d8225829af2a638c401fa6246ce2f38186bedaee6f6b9",
+      "case": "refuse-unprojected-order-field",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": "sha256:eb09b42cad4c0e75be7cd579341d20f3731df8382c9d9814838336e8be106a51"
+    },
+    {
+      "canonicalOutcomeSha256": "sha256:70b27b6620cd6e65e1282fb4b1b691bb21c8b8307835cb46bb79a8d2db4a1dce",
+      "case": "refuse-unsafe-limit",
+      "crossRuntimeExact": true,
+      "finding": null,
+      "javascript": "pass",
+      "outcome": "refused",
+      "overlayBoundary": "none",
+      "rust": "pass",
+      "transformHash": null
+    }
+  ],
+  "corpus": {
+    "cases": 56,
+    "corpus": "snapback-data-tier.result-transform-v1",
+    "corpusFormatVersion": 1,
+    "extensionOf": {
+      "cases": 37,
+      "corpus": "snapback-data-tier",
+      "manifestPath": "tests/conformance/data-tier/corpus.manifest.json"
+    },
+    "manifestPath": "tests/conformance/data-tier/result-transform-v1/corpus.manifest.json",
+    "manifestSha256": "sha256:03b9c0df6b388b3449dc8b3be797e9dbd8cf579301ed3e9cbc43dddf99e64f12",
+    "placeholdersRemaining": 0,
+    "profile": "result-transform.v1",
+    "profileVersion": 1
+  },
+  "evaluatorIdentities": {
+    "javascript": "snapback.result-transform.javascript.v1",
+    "rust": "snapback.result-transform.rust.v1"
+  },
+  "evidenceDate": "2026-08-03",
+  "exactness": {
+    "compared": [
+      "TransformHashV1 fixture identity",
+      "success-or-refusal status",
+      "complete ordered output row sequence",
+      "typed refusal code",
+      "typed refusal reason"
+    ],
+    "overlayBoundary": "Cases with clientOverlayRows consume the same already-materialized client-only layer output on both references; arbitrary optimistic callbacks are composed and tested only by the JavaScript suite.",
+    "statement": "For all 56 cases, the pinned Rust and JavaScript references produced identical TransformHashV1 values (or identical null for structurally invalid plans) and identical RFC 8785 outcome bytes.",
+    "status": "pass"
+  },
+  "executors": {
+    "javascriptReference": {
+      "command": "node packages/snapback-client/result-transform.test.mjs",
+      "module": "packages/snapback-client/result-transform.mjs",
+      "node": "v25.9.0",
+      "registration": "dormant-unexported-module",
+      "runner": "tests/conformance/data-tier/result-transform-v1/js-runner.mjs",
+      "status": "pass",
+      "suite": "packages/snapback-client/result-transform.test.mjs"
+    },
+    "rustReference": {
+      "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+      "command": "cargo test --locked --test result_transform_corpus_v1 result_transform_v1_corpus_is_exact_on_the_rust_reference -- --nocapture",
+      "runner": "tests/result_transform_corpus_v1.rs",
+      "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+      "status": "pass"
+    }
+  },
+  "findings": [],
+  "limits": [
+    "The evaluator modules remain dormant and are not imported by the store, evaluation floor, package root, or any live path.",
+    "This receipt does not prove arbitrary optimistic callbacks on a server; callback composition is client-only and covered by the JavaScript suite.",
+    "No retention-class capability or per-plan admission follows from this evidence. Every claiming carrier, S6 composition/admission legs, and owner reclassification remain ship-gate requirements."
+  ],
+  "sourceHashes": {
+    "packages/snapback-client/result-transform.mjs": "sha256:94060891d9da2853934984915b95242cfea1909eec0d7210618bb91593a0fac5",
+    "packages/snapback-client/result-transform.test.mjs": "sha256:c27984352f9c147e767ec2981875f273e37f4d304e0567dccf3ffa12536e207a",
+    "schemas/result-transform-v1.case.schema.json": "sha256:63f10031e1edd2f74b6d5bed85038809a52bca487c4d4238f6c2520d80e65eb9",
+    "schemas/result-transform-v1.corpus.schema.json": "sha256:48ce4e55304aa1b672aa0e0f9a24d43fd4d1ab6e6e89cdf059559094d5f92ee1",
+    "src/result_transform.rs": "sha256:a04e79ee7d671f234d4db4ce590b63ff082d571238c625365045d0ed380c6dc7",
+    "tests/acceptance/fixtures/write-lane/result-transform-d5-extension-evidence.2026-08-03.v1.mjs": "sha256:27995633a4ef38141a6537046d8e9f620822587d99ed82aafd8a436f655fc523",
+    "tests/conformance/data-tier/result-transform-v1/corpus-source.mjs": "sha256:cb4fd67995adf0ea33cbf949405425bdbd84d9b5fb69e38005a0de0a48d09732",
+    "tests/conformance/data-tier/result-transform-v1/js-runner.mjs": "sha256:e7eb284dc508640be558b70ccac32cfa98d16ae5cd9af631147e0ee39b045c85",
+    "tests/result_transform_corpus_v1.rs": "sha256:458f1f9ca0959683613ffe7935d1d56f1e77c0f9a7ecbb5d81b87c7be69f2394"
+  },
+  "summary": {
+    "blocked": 0,
+    "cases": 56,
+    "clientMaterializedOverlayInputs": 3,
+    "exactCrossRuntime": 56,
+    "refused": 27,
+    "skipped": 0,
+    "successful": 29
+  }
+}

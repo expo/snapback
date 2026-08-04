@@ -95,6 +95,7 @@ const inventories = [
       'push-registry.test.mjs',
       'registration-ledger.test.mjs',
       'reservation-retry.test.mjs',
+      'result-transform.test.mjs',
       'rqs-digest-parity.test.mjs',
       'rqs-resume-expo.test.mjs',
       'rqs-resume-memory.test.mjs',
@@ -500,7 +501,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // 185 -> 186 (2026-08-03, Move-3 Phase-1 lane M1): @expo/snapback-client
 // gains the shipping browser-safe IR evaluator, closed-admission,
 // private-layer, and complete 37-case D5 conformance suite.
-assert.equal(total, 186, 'reviewed package/admin test count changed');
+// 186 -> 187 (2026-08-03, P5 result-transform lane): @expo/snapback-client
+// gains the dormant result-transform.v1 D5-extension suite.
+assert.equal(total, 187, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

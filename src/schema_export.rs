@@ -84,6 +84,9 @@ use crate::proof_checkpoint::{
     HistoryRetentionPolicyV1, NamedCheckpointReceiptV1, NamedCheckpointRequestV1,
     PromotionApprovedWriteV1, PromotionDigestHeaderV1, RecordHistoryPageV1,
 };
+use crate::result_transform::{
+    ResultTransformCorpusCaseV1, ResultTransformCorpusManifestV1,
+};
 use crate::seed_identity::{
     ActiveSeedIdentityV1, ExpectedDataVersionStreamV1, InstallSeedRequestV1, ResetSeedRequestV1,
     SeedArtifactV1, SeedAssetFixturesV1, SeedEnsureResultV1, SeedInstallReceiptV1,
@@ -133,6 +136,17 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "data-tier.case.schema.json",
             schemars::schema_for!(DataTierCorpusCase),
+        ),
+        // @ref LLP 0051#d5-conformance-the-corpus-becomes-the-data-tier-contract
+        // — the result-transform extension follows the same Rust-owned,
+        // generated, committed corpus-envelope discipline.
+        finish(
+            "result-transform-v1.corpus.schema.json",
+            schemars::schema_for!(ResultTransformCorpusManifestV1),
+        ),
+        finish(
+            "result-transform-v1.case.schema.json",
+            schemars::schema_for!(ResultTransformCorpusCaseV1),
         ),
         finish(
             "capability.manifest.schema.json",

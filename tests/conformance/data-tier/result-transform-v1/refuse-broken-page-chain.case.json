@@ -1,0 +1,57 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "refuse-broken-page-chain",
+  "notes": "A complete page-set chain must have one terminal final page and no earlier terminal.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [],
+    "order": [],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "complete-page-set",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "a"
+          }
+        ]
+      },
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "b"
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b",
+    "outcome": {
+      "status": "refused",
+      "code": "SNAPBACK_RESULT_TRANSFORM_BASE_INVALID",
+      "reason": "broken-page-chain"
+    }
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "pipeline-composed-all-stages",
+  "notes": "Page assembly, client overlay, filter, descending order, and limit compose in the fixed order.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "apply",
+    "filterGrammar": "basic-v1",
+    "filter": [
+      {
+        "field": "active",
+        "op": "eq",
+        "value": true
+      }
+    ],
+    "order": [
+      {
+        "field": "rank",
+        "direction": "desc"
+      }
+    ],
+    "limit": 2
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "complete-page-set",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": false,
+        "rows": [
+          {
+            "id": "a",
+            "active": true,
+            "rank": 2
+          },
+          {
+            "id": "b",
+            "active": false,
+            "rank": 9
+          }
+        ]
+      },
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "c",
+            "active": true,
+            "rank": 1
+          },
+          {
+            "id": "d",
+            "active": true,
+            "rank": 3
+          }
+        ]
+      }
+    ]
+  },
+  "clientOverlayRows": [
+    {
+      "id": "a",
+      "active": true,
+      "rank": 4
+    },
+    {
+      "id": "c",
+      "active": true,
+      "rank": 1
+    },
+    {
+      "id": "d",
+      "active": true,
+      "rank": 3
+    },
+    {
+      "id": "e",
+      "active": true,
+      "rank": 2
+    }
+  ],
+  "expect": {
+    "transformHash": "sha256:7ad5ae167e00c7c161270a9f59d9edacf5f4e0d458456ed7a7344e3ff94ae20f",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "a",
+          "active": true,
+          "rank": 4
+        },
+        {
+          "id": "d",
+          "active": true,
+          "rank": 3
+        }
+      ]
+    }
+  }
+}

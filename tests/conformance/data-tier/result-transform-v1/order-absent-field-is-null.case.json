@@ -1,0 +1,64 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "order-absent-field-is-null",
+  "notes": "An absent projected order field reads as null and sorts before present scalars.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [],
+    "order": [
+      {
+        "field": "value",
+        "direction": "asc"
+      }
+    ],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "present",
+            "value": 0
+          },
+          {
+            "id": "missing"
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:b76ae2699ddd6d7266530c8f30852e070bbfb4e64e0c6670003c9cd5a33c1a5a",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "missing"
+        },
+        {
+          "id": "present",
+          "value": 0
+        }
+      ]
+    }
+  }
+}

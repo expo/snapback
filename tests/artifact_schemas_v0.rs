@@ -77,6 +77,14 @@ use snapback::manifest::{
 use snapback::runtime::{
     CapabilityState, IbexCliCapability, IbexSubmoduleCapability, RuntimeCapabilities,
 };
+use snapback::result_transform::{
+    RESULT_TRANSFORM_V1_CASE_SCHEMA_FILE, RESULT_TRANSFORM_V1_CORPUS,
+    RESULT_TRANSFORM_V1_CORPUS_FORMAT_VERSION, RESULT_TRANSFORM_V1_CORPUS_SCHEMA_FILE,
+    RESULT_TRANSFORM_V1_PROFILE_VERSION, ResultTransformCorpusBaselineV1,
+    ResultTransformCorpusCaseEntryV1, ResultTransformCorpusCaseV1,
+    ResultTransformCorpusExpectationV1, ResultTransformCorpusManifestV1,
+    ResultTransformEvaluatorIdentitiesV1,
+};
 use snapback::schema_export::{SchemaArtifact, artifact_instances, artifact_schemas};
 use snapback::service_profile::{
     PublishedArtifactRef, RemoteAuthCapabilityManifest, RemoteCredentialPolicy,
@@ -616,6 +624,75 @@ fn dk7_committed_public_instances_match_rust_types() {
             "{file} drifted from the Rust authority; regenerate with `cargo run --bin snapback-schemagen`"
         );
     }
+}
+
+#[test]
+fn result_transform_d5_extension_envelopes_match_the_generated_schemas() {
+    let case = ResultTransformCorpusCaseV1 {
+        corpus: RESULT_TRANSFORM_V1_CORPUS.to_owned(),
+        corpus_version: RESULT_TRANSFORM_V1_CORPUS_FORMAT_VERSION,
+        name: "empty-base".to_owned(),
+        notes: "representative schema value".to_owned(),
+        plan: json!({
+            "format": "snapback.result-transform.v1",
+            "materializationKey": "qmk1.fixture",
+            "overlay": "none",
+            "filterGrammar": "basic-v1",
+            "filter": [],
+            "order": [],
+            "limit": null,
+        }),
+        executing_materialization_key: "qmk1.fixture".to_owned(),
+        projected_fields: vec!["id".to_owned()],
+        base: json!({
+            "shape": "row-sequence",
+            "mode": "single-page",
+            "pages": [{ "version": "v1", "terminal": true, "rows": [] }],
+        }),
+        client_overlay_rows: None,
+        expect: ResultTransformCorpusExpectationV1 {
+            transform_hash: Some(format!("sha256:{}", "0".repeat(64))),
+            outcome: json!({ "status": "ok", "rows": [] }),
+        },
+    };
+    assert_validates(
+        RESULT_TRANSFORM_V1_CASE_SCHEMA_FILE
+            .strip_prefix("schemas/")
+            .expect("schema path is rooted under schemas"),
+        &serde_json::to_value(case).unwrap(),
+    );
+
+    let manifest = ResultTransformCorpusManifestV1 {
+        artifact_kind: "snapback.result-transform-corpus-manifest.v1".to_owned(),
+        corpus: RESULT_TRANSFORM_V1_CORPUS.to_owned(),
+        extension_of: ResultTransformCorpusBaselineV1 {
+            corpus: DATA_TIER_CORPUS_NAME.to_owned(),
+            manifest_path: "tests/conformance/data-tier/corpus.manifest.json".to_owned(),
+            cases: 37,
+        },
+        profile: "result-transform.v1".to_owned(),
+        corpus_format_version: RESULT_TRANSFORM_V1_CORPUS_FORMAT_VERSION,
+        profile_version: RESULT_TRANSFORM_V1_PROFILE_VERSION,
+        case_schema_path: RESULT_TRANSFORM_V1_CASE_SCHEMA_FILE.to_owned(),
+        evaluator_identities: ResultTransformEvaluatorIdentitiesV1 {
+            rust: "snapback.result-transform.rust.v1".to_owned(),
+            javascript: "snapback.result-transform.javascript.v1".to_owned(),
+        },
+        cases: vec![ResultTransformCorpusCaseEntryV1 {
+            name: "empty-base".to_owned(),
+            path: "empty-base.case.json".to_owned(),
+            sha256: format!("sha256:{}", "1".repeat(64)),
+            transform_hash: Some(format!("sha256:{}", "0".repeat(64))),
+            required_capabilities: vec!["resultTransformV1".to_owned()],
+            minimum_profile_version: 1,
+        }],
+    };
+    assert_validates(
+        RESULT_TRANSFORM_V1_CORPUS_SCHEMA_FILE
+            .strip_prefix("schemas/")
+            .expect("schema path is rooted under schemas"),
+        &serde_json::to_value(manifest).unwrap(),
+    );
 }
 
 #[test]

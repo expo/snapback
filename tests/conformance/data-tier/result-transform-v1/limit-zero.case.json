@@ -1,0 +1,56 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "limit-zero",
+  "notes": "limit 0 yields the empty result.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [],
+    "order": [],
+    "limit": 0
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "a",
+            "value": 3
+          },
+          {
+            "id": "b",
+            "value": 1
+          },
+          {
+            "id": "c",
+            "value": 2
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:3e186420a82eb664af386ecca094c8316823c833a3ed788a555475c3dfe17dd1",
+    "outcome": {
+      "status": "ok",
+      "rows": []
+    }
+  }
+}

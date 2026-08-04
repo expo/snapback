@@ -1,0 +1,63 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "filter-eq",
+  "notes": "eq uses canonical scalar equality without cross-type coercion.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [
+      {
+        "field": "value",
+        "op": "eq",
+        "value": 1
+      }
+    ],
+    "order": [],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "n",
+            "value": 1
+          },
+          {
+            "id": "s",
+            "value": "1"
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:2023e6b9e225245b45fe78a55d1266b133597bdf317bbd88bdf5bd269ba7a653",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "n",
+          "value": 1
+        }
+      ]
+    }
+  }
+}

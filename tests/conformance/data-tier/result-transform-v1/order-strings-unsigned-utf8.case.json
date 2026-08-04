@@ -1,0 +1,74 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "order-strings-unsigned-utf8",
+  "notes": "String order is unsigned UTF-8 bytes, distinguishing it from JS UTF-16 order.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [],
+    "order": [
+      {
+        "field": "value",
+        "direction": "asc"
+      }
+    ],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "supplementary",
+            "value": "😀"
+          },
+          {
+            "id": "private-use",
+            "value": ""
+          },
+          {
+            "id": "ascii",
+            "value": "a"
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:b76ae2699ddd6d7266530c8f30852e070bbfb4e64e0c6670003c9cd5a33c1a5a",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "ascii",
+          "value": "a"
+        },
+        {
+          "id": "private-use",
+          "value": ""
+        },
+        {
+          "id": "supplementary",
+          "value": "😀"
+        }
+      ]
+    }
+  }
+}

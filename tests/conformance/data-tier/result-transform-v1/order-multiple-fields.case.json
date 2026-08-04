@@ -1,0 +1,84 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "order-multiple-fields",
+  "notes": "Order entries compare in sequence with independent directions.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [],
+    "order": [
+      {
+        "field": "group",
+        "direction": "asc"
+      },
+      {
+        "field": "rank",
+        "direction": "desc"
+      }
+    ],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "a1",
+            "group": "a",
+            "rank": 1
+          },
+          {
+            "id": "b2",
+            "group": "b",
+            "rank": 2
+          },
+          {
+            "id": "a3",
+            "group": "a",
+            "rank": 3
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:eb523ce353ecb38b481e77b1181bef77f3d9526acbf0d99f2db583af5c7ca263",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "a3",
+          "group": "a",
+          "rank": 3
+        },
+        {
+          "id": "a1",
+          "group": "a",
+          "rank": 1
+        },
+        {
+          "id": "b2",
+          "group": "b",
+          "rank": 2
+        }
+      ]
+    }
+  }
+}

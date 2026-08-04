@@ -1,0 +1,74 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "order-stable-ties-preserve-base-order",
+  "notes": "Comparator ties use the frozen stable tiebreak: assembled base order.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [],
+    "order": [
+      {
+        "field": "tie",
+        "direction": "asc"
+      }
+    ],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "first",
+            "tie": 1
+          },
+          {
+            "id": "second",
+            "tie": 1
+          },
+          {
+            "id": "third",
+            "tie": 1
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:7293f46ba59d256abb128550ac6a300fb70117d7b828b8132a9a1ea193fc809a",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "first",
+          "tie": 1
+        },
+        {
+          "id": "second",
+          "tie": 1
+        },
+        {
+          "id": "third",
+          "tie": 1
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,583 @@
+{
+  "artifactKind": "snapback.result-transform-corpus-manifest.v1",
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "extensionOf": {
+    "corpus": "snapback-data-tier",
+    "manifestPath": "tests/conformance/data-tier/corpus.manifest.json",
+    "cases": 37
+  },
+  "profile": "result-transform.v1",
+  "corpusFormatVersion": 1,
+  "profileVersion": 1,
+  "caseSchemaPath": "schemas/result-transform-v1.case.schema.json",
+  "evaluatorIdentities": {
+    "rust": "snapback.result-transform.rust.v1",
+    "javascript": "snapback.result-transform.javascript.v1"
+  },
+  "cases": [
+    {
+      "name": "base-single-page-established-order",
+      "path": "base-single-page-established-order.case.json",
+      "sha256": "sha256:f2965bc4917e3fcbbdfe1e763c6790767fe151c6d08d50c7e0521fe0cb5a91bd",
+      "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "base-complete-page-chain",
+      "path": "base-complete-page-chain.case.json",
+      "sha256": "sha256:86f22afadc67d5b841f1b04448f581e55fb12779b5776c950b549d3a75318276",
+      "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "base-empty-result",
+      "path": "base-empty-result.case.json",
+      "sha256": "sha256:8d1dc6e3adbc3a23e056ed97caf534b62e00607625d7039599c0a1589600282f",
+      "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "overlay-only-row",
+      "path": "overlay-only-row.case.json",
+      "sha256": "sha256:b70132f2e68fc43af20b38d0daefc8085b15d74d167e5ef11ad74f2b25d7fd6d",
+      "transformHash": "sha256:acdf5768d487fd3f5f190c292adf47bd720b60612dc5101e6ddc564b9e97e97c",
+      "requiredCapabilities": [
+        "resultTransformV1",
+        "clientMaterializedOverlayInputV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "overlay-shadowing-base-row",
+      "path": "overlay-shadowing-base-row.case.json",
+      "sha256": "sha256:1b94009de7f5a3900f9189369267da55a9a5079c1e3e5ad7dda1e94aa1bc12e6",
+      "transformHash": "sha256:acdf5768d487fd3f5f190c292adf47bd720b60612dc5101e6ddc564b9e97e97c",
+      "requiredCapabilities": [
+        "resultTransformV1",
+        "clientMaterializedOverlayInputV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "filter-eq",
+      "path": "filter-eq.case.json",
+      "sha256": "sha256:bc544354b7ee99e3f12ccdf01749f509a6c1df5da6376be38fe59df3863e2bb4",
+      "transformHash": "sha256:2023e6b9e225245b45fe78a55d1266b133597bdf317bbd88bdf5bd269ba7a653",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "filter-ne",
+      "path": "filter-ne.case.json",
+      "sha256": "sha256:e3bbeec8f37fa80b99736e46e4512d08077f7824da2e45379a80327f91ae52bc",
+      "transformHash": "sha256:d076e0bf7a495ba504215446f08ebf7dc2161c334ed7b64d09787832df6e4d89",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "filter-lt-cross-type",
+      "path": "filter-lt-cross-type.case.json",
+      "sha256": "sha256:e837797bb483c3a5477ea05e3ca99975d896e7b4b6e0f1d4737513039552b03e",
+      "transformHash": "sha256:3a614400202ff1caf15a7edab6477b621970dac4a07a2888973324910ad72e30",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "filter-lte",
+      "path": "filter-lte.case.json",
+      "sha256": "sha256:e0d1c1b0167456ade679280dbc2c88bba461e4563ab5cad4a0fc293dc03d954f",
+      "transformHash": "sha256:4b49339a761e78e7a417f3fb33ece0babf2a5e802fe182f049ec39e5e2c9d4f4",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "filter-gt",
+      "path": "filter-gt.case.json",
+      "sha256": "sha256:5a570aab105b08b7dee0b7e04cba9e6c52c4ec5206ca34852ede307fa9938a0c",
+      "transformHash": "sha256:2e6679a39edcfeb015f3643a18a76ec9ded5e87cbd55def92617b0002e25221d",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "filter-gte",
+      "path": "filter-gte.case.json",
+      "sha256": "sha256:9d35d69536079a7d2ca775804d6ff683391c2be10cb04f1bfb2596dea896f555",
+      "transformHash": "sha256:afc5e95b2d86ee1cd4f02f1382181f8fea85cc24722e977e94e55c6a8c0550ce",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "filter-in",
+      "path": "filter-in.case.json",
+      "sha256": "sha256:0d5f737fb052234068536341e7c1c0f70232d225d8c00db6c2841018d1944423",
+      "transformHash": "sha256:86d4ba8f781a01f06a3a81e55dc7063be8d096978d79fc908430216afcb78f61",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "filter-conjunction",
+      "path": "filter-conjunction.case.json",
+      "sha256": "sha256:67a71ae45c313b763e05deda4c1f1330a995d970fe2e1ff157ad0c38f1c2642f",
+      "transformHash": "sha256:41cfc5d03041a391b77ec79c2ad1bfbdcc9c4c59a35719db2c35d37448861e1a",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "filter-absent-field-is-null",
+      "path": "filter-absent-field-is-null.case.json",
+      "sha256": "sha256:ceec0171c5c7f09bdc7b764e2b4602099ff76572681046d8df0f28e42d934fd5",
+      "transformHash": "sha256:ec674ed581d471be3710c21954fa3b89f784a4342a6309be2f45970e5ce1fe0e",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "filter-equality-mixed-types",
+      "path": "filter-equality-mixed-types.case.json",
+      "sha256": "sha256:b5bc21d2cd1b591e65f392e11dcbf26e63b6f875d5e23f365b77a612f92e1804",
+      "transformHash": "sha256:2023e6b9e225245b45fe78a55d1266b133597bdf317bbd88bdf5bd269ba7a653",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "order-total-type-rank-asc",
+      "path": "order-total-type-rank-asc.case.json",
+      "sha256": "sha256:6c927ff56d1152a240723d71b2977005a2a877c75c4dec220aa1575600cc8cdb",
+      "transformHash": "sha256:b76ae2699ddd6d7266530c8f30852e070bbfb4e64e0c6670003c9cd5a33c1a5a",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "order-total-type-rank-desc",
+      "path": "order-total-type-rank-desc.case.json",
+      "sha256": "sha256:28023076f567ae4631a94ba89b60d54bfa7daba17a9906aac420cc2d9d3bbbb2",
+      "transformHash": "sha256:9fb74e5bf8e991a169e242cc5cb4dba1ad0b4ca10ab1456e4bbcdc244eb34c7a",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "order-booleans-false-before-true",
+      "path": "order-booleans-false-before-true.case.json",
+      "sha256": "sha256:fa417049d6d0fc73bb644d6e7105406c817c2602fd26b846a59bec0e4c3e8780",
+      "transformHash": "sha256:b76ae2699ddd6d7266530c8f30852e070bbfb4e64e0c6670003c9cd5a33c1a5a",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "order-numbers-numeric",
+      "path": "order-numbers-numeric.case.json",
+      "sha256": "sha256:b8861b51d4c8c1fc85984071ab22efe0a246826ab8f610c912f47f95128bc49d",
+      "transformHash": "sha256:b76ae2699ddd6d7266530c8f30852e070bbfb4e64e0c6670003c9cd5a33c1a5a",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "order-strings-unsigned-utf8",
+      "path": "order-strings-unsigned-utf8.case.json",
+      "sha256": "sha256:0d55061a4683aa54b19a5c23ff60fdf1263f3730e60f9ab8b1c5122a79321456",
+      "transformHash": "sha256:b76ae2699ddd6d7266530c8f30852e070bbfb4e64e0c6670003c9cd5a33c1a5a",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "order-multiple-fields",
+      "path": "order-multiple-fields.case.json",
+      "sha256": "sha256:fe5a3c6ade8335503eb1ee6e499a105aa01925706a0c910d42ad6cd1f0774d8b",
+      "transformHash": "sha256:eb523ce353ecb38b481e77b1181bef77f3d9526acbf0d99f2db583af5c7ca263",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "order-stable-ties-preserve-base-order",
+      "path": "order-stable-ties-preserve-base-order.case.json",
+      "sha256": "sha256:ff226e95a16dd9bec77017f7163ac0246326b31562dc0c74b173cba963f6fa62",
+      "transformHash": "sha256:7293f46ba59d256abb128550ac6a300fb70117d7b828b8132a9a1ea193fc809a",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "order-absent-field-is-null",
+      "path": "order-absent-field-is-null.case.json",
+      "sha256": "sha256:cc2a72121cd43652fdef43c8154286482b8cb9648fbaefb01ad570547e9ce862",
+      "transformHash": "sha256:b76ae2699ddd6d7266530c8f30852e070bbfb4e64e0c6670003c9cd5a33c1a5a",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "limit-zero",
+      "path": "limit-zero.case.json",
+      "sha256": "sha256:08d023932ac5fc5701a9fcb77f53051b6107c6c6931c2886da186706579c93f1",
+      "transformHash": "sha256:3e186420a82eb664af386ecca094c8316823c833a3ed788a555475c3dfe17dd1",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "limit-one",
+      "path": "limit-one.case.json",
+      "sha256": "sha256:66bd0a275836bbfc21b1747e052c11c3f976469e362c052ec86e173c338bd2e1",
+      "transformHash": "sha256:97ba83d8d58741d62b42a087245fe698f3fdab9febda0fc7f10cfac2f5159eb6",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "limit-exact-size",
+      "path": "limit-exact-size.case.json",
+      "sha256": "sha256:48472e41aef5fb160b53a4cf8efd15f4c049e0d34cdfd963de2549261f1e0381",
+      "transformHash": "sha256:013f43309c83f95434a5b8f94e3b65bb9b2d3d688a4e193b22e17554f3e95ffc",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "limit-over-size",
+      "path": "limit-over-size.case.json",
+      "sha256": "sha256:d86d79dee9e180a81f4fc4954fe9c8f6a73d0969f1864d94b2fdabc69f211414",
+      "transformHash": "sha256:0dc5ddb605522e767c994ebee90865ad2d9d87fc320120aa3c5c39477e1f5e1f",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "pipeline-filter-before-order",
+      "path": "pipeline-filter-before-order.case.json",
+      "sha256": "sha256:ac3ea91a50159e155c19162b0e08e4ae0015f7707406dcd5abcad8cbcf80f14c",
+      "transformHash": "sha256:cdcaa0bd1c57f0bdc0b99583d543cfc6c1ac866982f0bb38cb038bb34823b7b5",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "pipeline-composed-all-stages",
+      "path": "pipeline-composed-all-stages.case.json",
+      "sha256": "sha256:a9cf0e0a79a17f1489e37961182665782075f829ae6c04be3c93b3f50d0aab38",
+      "transformHash": "sha256:7ad5ae167e00c7c161270a9f59d9edacf5f4e0d458456ed7a7344e3ff94ae20f",
+      "requiredCapabilities": [
+        "resultTransformV1",
+        "clientMaterializedOverlayInputV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-unknown-stage",
+      "path": "refuse-unknown-stage.case.json",
+      "sha256": "sha256:60e484a005ef7b126839c8a5458d29bb83375e1b08b00061ea658f6d499a7d1c",
+      "transformHash": null,
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-unknown-comparator",
+      "path": "refuse-unknown-comparator.case.json",
+      "sha256": "sha256:c06b797246d4858c41162f03fe69db59c2f34d19a892e0cfe7da93b588f3ca05",
+      "transformHash": null,
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-normalization-attempt",
+      "path": "refuse-normalization-attempt.case.json",
+      "sha256": "sha256:99a196f26c376b58df532d808f176ae82f0c5dc3267994ee0ff325842b2f4766",
+      "transformHash": null,
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-unknown-plan-field",
+      "path": "refuse-unknown-plan-field.case.json",
+      "sha256": "sha256:2b7354a604f91b4532392220cfe7dc67e92f20e63fa8f61a8767ec8234656d24",
+      "transformHash": null,
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-unknown-filter-grammar",
+      "path": "refuse-unknown-filter-grammar.case.json",
+      "sha256": "sha256:cab6c82589d6059202b761547c995782ecb77b1461013e1dcf737ab7a40833ca",
+      "transformHash": null,
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-unknown-filter-operator",
+      "path": "refuse-unknown-filter-operator.case.json",
+      "sha256": "sha256:32faebd098a1ff4171bac2f2e9124594e9adefe7ade8b651831c04d7772e3b19",
+      "transformHash": null,
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-empty-in-operand",
+      "path": "refuse-empty-in-operand.case.json",
+      "sha256": "sha256:33d1b9998c332d4eba1e445e2e5a408b32ed33ccceaf2710dd9d81f757a2855f",
+      "transformHash": null,
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-duplicate-order-field",
+      "path": "refuse-duplicate-order-field.case.json",
+      "sha256": "sha256:63348c3a371f2d8846c941d4000f02f95dca034007a8789a5ab7d5d8044b8ffe",
+      "transformHash": null,
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-negative-limit",
+      "path": "refuse-negative-limit.case.json",
+      "sha256": "sha256:37ceb692b9882b90274303e4227e31c07b8615032d4fa6aa5f6e47f97ae64748",
+      "transformHash": null,
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-fractional-limit",
+      "path": "refuse-fractional-limit.case.json",
+      "sha256": "sha256:46d8a27d026698318f892dce8bf19dd3eef06ed711c8716f226178591240e71d",
+      "transformHash": null,
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-unsafe-limit",
+      "path": "refuse-unsafe-limit.case.json",
+      "sha256": "sha256:b61615d654decebd868fca047001bd186533f628f49b363c5d7b6d874d5f905c",
+      "transformHash": null,
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-cross-address-key",
+      "path": "refuse-cross-address-key.case.json",
+      "sha256": "sha256:08f9ba98a068891b4f2a9d84c60709de0f88e8e39508e9807cad42dedbebee90",
+      "transformHash": "sha256:c549069a1a7fafb50c78b653dece1007331293596260d917f1bd3b3e21b92276",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-unprojected-filter-field",
+      "path": "refuse-unprojected-filter-field.case.json",
+      "sha256": "sha256:a8ea90c3f88bd2b06bc8a87e099c002578b037ac56481677e612d2e291e3dd65",
+      "transformHash": "sha256:774837cab83213079cce52838a788c6c8ff19cc3c0287eebdab8064fa1a184a4",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-unprojected-order-field",
+      "path": "refuse-unprojected-order-field.case.json",
+      "sha256": "sha256:343ce0dd1b068391782ba2303d8a13f1744508bf5f1eaa55eb54e60997ab7386",
+      "transformHash": "sha256:eb09b42cad4c0e75be7cd579341d20f3731df8382c9d9814838336e8be106a51",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-non-scalar-filter-operand",
+      "path": "refuse-non-scalar-filter-operand.case.json",
+      "sha256": "sha256:d9af1c0c7119fbf2fdb8401a41a3a6b0a6a614b3161116233bb0dddcf43485bb",
+      "transformHash": "sha256:591be4ee2157d6ca642a85c34fe94cd1315996892a4f367d021d9f5f8c46f368",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-non-scalar-in-element",
+      "path": "refuse-non-scalar-in-element.case.json",
+      "sha256": "sha256:fd2c68e448f138874de19fbc1cc5de61e6fdb0f238ce0b13cb78850d546585b1",
+      "transformHash": "sha256:66e9f0d5ed3a7d4772b3bcbd76f25d939068571da938b5b904bdf9bc75078b48",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-non-scalar-filter-field",
+      "path": "refuse-non-scalar-filter-field.case.json",
+      "sha256": "sha256:82fb85a7aadfa541e701c33860d11a5944771ce2e66cd99b5b5d4c6c4ff9c2ab",
+      "transformHash": "sha256:2023e6b9e225245b45fe78a55d1266b133597bdf317bbd88bdf5bd269ba7a653",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-non-scalar-order-field",
+      "path": "refuse-non-scalar-order-field.case.json",
+      "sha256": "sha256:31aba7bcdcab71e272e1f698c3bb0a1aa5baac5aa7fa6e3816fa5422ed039942",
+      "transformHash": "sha256:b76ae2699ddd6d7266530c8f30852e070bbfb4e64e0c6670003c9cd5a33c1a5a",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-mixed-version-base",
+      "path": "refuse-mixed-version-base.case.json",
+      "sha256": "sha256:25418ed1f40cc1b57286907a7c5d78be2f12e6ac126e401e57597b1c82fb08f0",
+      "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-broken-page-chain",
+      "path": "refuse-broken-page-chain.case.json",
+      "sha256": "sha256:52bc7cfc28932d064c979e8ab4fde68f176108b50e392d9abfddcfff8d78ec29",
+      "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-non-row-sequence-contract",
+      "path": "refuse-non-row-sequence-contract.case.json",
+      "sha256": "sha256:7dc549abedfc14ca6e5928505519ac17e6d57ea17669237ba372fe464fca7e1d",
+      "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-overlay-input-missing",
+      "path": "refuse-overlay-input-missing.case.json",
+      "sha256": "sha256:73d29f14364ecc218d29f85ce2a7d915cdd688922730e40d785a4d689f51c734",
+      "transformHash": "sha256:acdf5768d487fd3f5f190c292adf47bd720b60612dc5101e6ddc564b9e97e97c",
+      "requiredCapabilities": [
+        "resultTransformV1",
+        "clientMaterializedOverlayInputV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-missing-plan-field",
+      "path": "refuse-missing-plan-field.case.json",
+      "sha256": "sha256:0b6dffd00063214b3373bc5f9bc79997b20f64eb343233ed7d19d367c93a52c6",
+      "transformHash": null,
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-unknown-order-direction",
+      "path": "refuse-unknown-order-direction.case.json",
+      "sha256": "sha256:7075cf3bf0bd6fc90844b645557fe387fbd1569dacd51a6cb065ee40492e0be7",
+      "transformHash": null,
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-unknown-overlay-mode",
+      "path": "refuse-unknown-overlay-mode.case.json",
+      "sha256": "sha256:6b9d3e1c5d49cd1a1ebfee3dec6d99afc96777dd23524c8e17ddc93c1c193ab1",
+      "transformHash": null,
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-empty-page-set",
+      "path": "refuse-empty-page-set.case.json",
+      "sha256": "sha256:9da36b8b926ba8df813627d03a45c451437a5f5686d33f59061b317fe4acc357",
+      "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    },
+    {
+      "name": "refuse-non-record-row",
+      "path": "refuse-non-record-row.case.json",
+      "sha256": "sha256:2e00a010c23ea7894019937e71f9de7ef844fea9db0b0df4f20e4e15e19bc802",
+      "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b",
+      "requiredCapabilities": [
+        "resultTransformV1"
+      ],
+      "minimumProfileVersion": 1
+    }
+  ]
+}

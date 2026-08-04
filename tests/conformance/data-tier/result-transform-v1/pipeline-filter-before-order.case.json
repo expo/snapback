@@ -1,0 +1,73 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "pipeline-filter-before-order",
+  "notes": "A row filtered out before ordering cannot trigger an order-field non-scalar refusal.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [
+      {
+        "field": "active",
+        "op": "eq",
+        "value": true
+      }
+    ],
+    "order": [
+      {
+        "field": "value",
+        "direction": "asc"
+      }
+    ],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "filtered",
+            "active": false,
+            "value": {
+              "nested": true
+            }
+          },
+          {
+            "id": "kept",
+            "active": true,
+            "value": 1
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:cdcaa0bd1c57f0bdc0b99583d543cfc6c1ac866982f0bb38cb038bb34823b7b5",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "kept",
+          "active": true,
+          "value": 1
+        }
+      ]
+    }
+  }
+}

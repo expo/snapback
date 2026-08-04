@@ -1,0 +1,61 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "limit-one",
+  "notes": "limit 1 retains exactly the first row at the limit stage.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [],
+    "order": [],
+    "limit": 1
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "a",
+            "value": 3
+          },
+          {
+            "id": "b",
+            "value": 1
+          },
+          {
+            "id": "c",
+            "value": 2
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:97ba83d8d58741d62b42a087245fe698f3fdab9febda0fc7f10cfac2f5159eb6",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "a",
+          "value": 3
+        }
+      ]
+    }
+  }
+}

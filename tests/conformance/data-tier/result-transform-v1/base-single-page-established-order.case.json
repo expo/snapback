@@ -1,0 +1,57 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "base-single-page-established-order",
+  "notes": "Base assembly preserves one requested page in established row order.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [],
+    "order": [],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "b"
+          },
+          {
+            "id": "a"
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "b"
+        },
+        {
+          "id": "a"
+        }
+      ]
+    }
+  }
+}

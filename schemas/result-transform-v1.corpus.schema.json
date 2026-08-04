@@ -1,0 +1,133 @@
+{
+  "$defs": {
+    "ResultTransformCorpusBaselineV1": {
+      "additionalProperties": false,
+      "properties": {
+        "cases": {
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "corpus": {
+          "type": "string"
+        },
+        "manifestPath": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "corpus",
+        "manifestPath",
+        "cases"
+      ],
+      "type": "object"
+    },
+    "ResultTransformCorpusCaseEntryV1": {
+      "additionalProperties": false,
+      "properties": {
+        "minimumProfileVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "requiredCapabilities": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "transformHash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "path",
+        "sha256",
+        "requiredCapabilities",
+        "minimumProfileVersion"
+      ],
+      "type": "object"
+    },
+    "ResultTransformEvaluatorIdentitiesV1": {
+      "additionalProperties": false,
+      "properties": {
+        "javascript": {
+          "type": "string"
+        },
+        "rust": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "rust",
+        "javascript"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/result-transform-v1.corpus.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifactKind": {
+      "type": "string"
+    },
+    "caseSchemaPath": {
+      "type": "string"
+    },
+    "cases": {
+      "items": {
+        "$ref": "#/$defs/ResultTransformCorpusCaseEntryV1"
+      },
+      "type": "array"
+    },
+    "corpus": {
+      "type": "string"
+    },
+    "corpusFormatVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "evaluatorIdentities": {
+      "$ref": "#/$defs/ResultTransformEvaluatorIdentitiesV1"
+    },
+    "extensionOf": {
+      "$ref": "#/$defs/ResultTransformCorpusBaselineV1"
+    },
+    "profile": {
+      "type": "string"
+    },
+    "profileVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "artifactKind",
+    "corpus",
+    "extensionOf",
+    "profile",
+    "corpusFormatVersion",
+    "profileVersion",
+    "caseSchemaPath",
+    "evaluatorIdentities",
+    "cases"
+  ],
+  "title": "ResultTransformCorpusManifestV1",
+  "type": "object"
+}

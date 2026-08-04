@@ -1,0 +1,57 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "refuse-mixed-version-base",
+  "notes": "Base assembly never crosses result versions.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [],
+    "order": [],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "complete-page-set",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": false,
+        "rows": [
+          {
+            "id": "a"
+          }
+        ]
+      },
+      {
+        "version": "stream-v8",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "b"
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:ffcacef75e759feb6f85a6e9296b54764e33564fab16c609ee7b02e1ed1ce71b",
+    "outcome": {
+      "status": "refused",
+      "code": "SNAPBACK_RESULT_TRANSFORM_MIXED_VERSION",
+      "reason": "mixed-version-base"
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusVersion": 1,
+  "name": "filter-gt",
+  "notes": "gt excludes numeric equality.",
+  "plan": {
+    "format": "snapback.result-transform.v1",
+    "materializationKey": "qmk1.result-transform-fixture",
+    "overlay": "none",
+    "filterGrammar": "basic-v1",
+    "filter": [
+      {
+        "field": "value",
+        "op": "gt",
+        "value": 2
+      }
+    ],
+    "order": [],
+    "limit": null
+  },
+  "executingMaterializationKey": "qmk1.result-transform-fixture",
+  "projectedFields": [
+    "id",
+    "value",
+    "group",
+    "rank",
+    "tie",
+    "active",
+    "name"
+  ],
+  "base": {
+    "shape": "row-sequence",
+    "mode": "single-page",
+    "pages": [
+      {
+        "version": "stream-v7",
+        "terminal": true,
+        "rows": [
+          {
+            "id": "a",
+            "value": 2
+          },
+          {
+            "id": "b",
+            "value": 3
+          }
+        ]
+      }
+    ]
+  },
+  "expect": {
+    "transformHash": "sha256:2e6679a39edcfeb015f3643a18a76ec9ded5e87cbd55def92617b0002e25221d",
+    "outcome": {
+      "status": "ok",
+      "rows": [
+        {
+          "id": "b",
+          "value": 3
+        }
+      ]
+    }
+  }
+}
