@@ -19,6 +19,10 @@ use super::{
     now_millis, quote_ident, save_retention_floor_on, schema_table, set_version, sqlite_type,
     timestamp_to_sql_millis, version_to_sql_integer,
 };
+use crate::commit_envelope::{
+    derive_host_operation_id, OperationBoundFactsV1, OperationIdentityV1, OperationIssuanceV1,
+    OperationKeyV1, OperationOriginatorClassV1,
+};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{HandlerInput, SchemaManifest, TableManifest};
 use crate::migration::{
@@ -31,9 +35,12 @@ use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, 
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use serde_json::{Value, json};
+use std::cell::OnceCell;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub const MIGRATION_JOURNAL_SCHEMA_VERSION: &str = "migration-journal-v1";
+const MIGRATION_HOST_AUTHORITY_INSTANCE_ID_V1: &str = "snapback:migration-executor:v1";
+const MIGRATION_HOST_OPERATION_KIND_V1: &str = "migrationTransition";
 
 /// The reserved change-journal table name for schema-transition events.
 /// The schema-transition vocabulary now lives with the journal grammar in
@@ -186,6 +193,14 @@ pub struct MigrationJournalEntryV1 {
     pub version: String,
     pub operation_id: String,
     pub plan_id: String,
+    // @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 — migration journal
+    //   transactions carry authenticated approval-derived host identities,
+    //   but stay uncovered until their publication/terminal cuts are atomic.
+    /// Authenticated host identity of the physical SQLite transaction that
+    /// appended this row. Legacy entries remain readable without one; a new
+    /// transaction shares one value across every row it appends.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host_operation_identity: Option<OperationIdentityV1>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step_id: Option<String>,
     pub attempt: u64,
@@ -532,11 +547,81 @@ struct JournalHandle<'a> {
     plan_id: String,
     lease_epoch: u64,
     input_version: u64,
+    host_operation_identity: OnceCell<OperationIdentityV1>,
 }
 
 impl JournalHandle<'_> {
     fn latest_state(&self) -> SnapbackResult<Option<MigrationExecState>> {
         latest_state_on(self.tx, &self.operation_id)
+    }
+
+    fn host_operation_identity(&self, issued_at_ms: u64) -> SnapbackResult<&OperationIdentityV1> {
+        if self.host_operation_identity.get().is_none() {
+            let stream_id = crate::seed_identity::strict_current_data_version_stream(self.tx)?
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_OPERATION_STREAM_UNAVAILABLE",
+                        "storage",
+                        "migration host identity requires an initialized data-version stream",
+                    )
+                })?;
+            let prior_journal_rows: i64 = self.tx.query_row(
+                "SELECT COUNT(*) FROM _snapback_migration_journal WHERE operation_id=?1",
+                [&self.operation_id],
+                |row| row.get(0),
+            )?;
+            let commit_ordinal = u64::try_from(prior_journal_rows).map_err(|_| {
+                journal_corrupt("migration host child ordinal overflowed".to_owned())
+            })?;
+            let authority = crate::operation_ledger::ensure_host_incarnation_in(
+                self.tx,
+                &stream_id,
+                MIGRATION_HOST_AUTHORITY_INSTANCE_ID_V1,
+                issued_at_ms,
+            )?;
+            let issuance = OperationIssuanceV1::HostIncarnation {
+                epoch_id: authority.epoch_id,
+                upstream_identity: self.operation_id.clone(),
+                commit_ordinal,
+                authority_authenticator_digest: authority.authority_authenticator_digest,
+            };
+            let identity = OperationIdentityV1 {
+                schema_version: OperationIdentityV1::SCHEMA_VERSION,
+                key: OperationKeyV1 {
+                    stream_id,
+                    originator_class: OperationOriginatorClassV1::Host,
+                    operation_id: derive_host_operation_id(&self.operation_id, commit_ordinal),
+                },
+                issuance,
+                bound_facts: OperationBoundFactsV1 {
+                    audience: authority.audience,
+                    principal_fingerprint: migration_host_digest(
+                        b"snapback:migration-host-principal:v1\n",
+                        &json!({ "operationId": self.operation_id }),
+                    ),
+                    authority_instance_id: authority.authority_instance_id,
+                    operation_kind: MIGRATION_HOST_OPERATION_KIND_V1.to_owned(),
+                    function_or_command: self.plan_id.clone(),
+                    input_fingerprint: migration_host_digest(
+                        b"snapback:migration-host-commit:v1\n",
+                        &json!({
+                            "commitOrdinal": commit_ordinal,
+                            "inputVersion": self.input_version,
+                            "operationId": self.operation_id,
+                            "planId": self.plan_id,
+                        }),
+                    ),
+                },
+            };
+            crate::operation_ledger::authenticate_host_identity(self.tx, &identity)?;
+            self.host_operation_identity.set(identity).map_err(|_| {
+                journal_corrupt("migration transaction identity initialized twice".to_owned())
+            })?;
+        }
+        Ok(self
+            .host_operation_identity
+            .get()
+            .expect("migration host identity initialized above"))
     }
 
     /// Append one durable transition. Validates the fencing token against
@@ -564,10 +649,12 @@ impl JournalHandle<'_> {
                 "the first journal entry of an operation must be admitted".to_owned(),
             ));
         }
+        let host_operation_identity = self.host_operation_identity(entry_fields.at_ms)?.clone();
         let entry = MigrationJournalEntryV1 {
             version: MIGRATION_JOURNAL_SCHEMA_VERSION.to_owned(),
             operation_id: self.operation_id.clone(),
             plan_id: self.plan_id.clone(),
+            host_operation_identity: Some(host_operation_identity),
             step_id: entry_fields.step_id.map(str::to_owned),
             attempt: entry_fields.attempt,
             state: entry_fields.state.clone(),
@@ -595,6 +682,33 @@ impl JournalHandle<'_> {
         )?;
         Ok(())
     }
+}
+
+fn migration_host_digest(domain: &[u8], value: &Value) -> String {
+    use sha2::{Digest as _, Sha256};
+    let mut digest = Sha256::new();
+    digest.update(domain);
+    digest.update(serde_json::to_vec(value).expect("migration host identity JSON serializes"));
+    format!("sha256:{:x}", digest.finalize())
+}
+
+/// Provision the server-owned host epoch before a migration transaction can
+/// consume a child ordinal. If that later transaction rolls back, retry sees
+/// the same authenticated issuance facts as well as the same operation key.
+fn ensure_migration_host_authority(
+    conn: &mut Connection,
+    issued_at_ms: u64,
+) -> SnapbackResult<()> {
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let stream_id = super::auth_invalidation::ensure_data_version_stream_in(&tx)?;
+    crate::operation_ledger::ensure_host_incarnation_in(
+        &tx,
+        &stream_id,
+        MIGRATION_HOST_AUTHORITY_INSTANCE_ID_V1,
+        issued_at_ms,
+    )?;
+    tx.commit()?;
+    Ok(())
 }
 
 struct JournalAppend<'a> {
@@ -990,6 +1104,10 @@ impl LocalDatabase {
             ));
         }
 
+        // Provision outside the journal transaction so a rollback cannot
+        // rotate the host epoch and change retry issuance facts.
+        ensure_migration_host_authority(&mut self.conn, now_ms)?;
+
         // ---- Admission transaction: lease, fence, journal head. -----------
         let resuming = resuming_operation;
         let (lease_epoch, input_version, admission) = {
@@ -1098,6 +1216,7 @@ impl LocalDatabase {
                 plan_id: artifact.plan_id.clone(),
                 lease_epoch,
                 input_version: head,
+                host_operation_identity: OnceCell::new(),
             };
             if !resuming {
                 journal.append(JournalAppend {
@@ -1304,6 +1423,7 @@ impl LocalDatabase {
                 plan_id: artifact.plan_id.clone(),
                 lease_epoch,
                 input_version,
+                host_operation_identity: OnceCell::new(),
             };
             let proof = run_data_proof(
                 &tx,
@@ -1402,6 +1522,7 @@ impl LocalDatabase {
                 plan_id: artifact.plan_id.clone(),
                 lease_epoch,
                 input_version,
+                host_operation_identity: OnceCell::new(),
             };
             journal.append(JournalAppend {
                 output_version: Some(publication_version),
@@ -1469,6 +1590,7 @@ impl LocalDatabase {
                 plan_id: artifact.plan_id.clone(),
                 lease_epoch,
                 input_version,
+                host_operation_identity: OnceCell::new(),
             };
             journal.append(JournalAppend {
                 at_ms: at,
@@ -1541,6 +1663,7 @@ impl LocalDatabase {
             plan_id: artifact.plan_id.clone(),
             lease_epoch,
             input_version,
+            host_operation_identity: OnceCell::new(),
         };
         let latest = journal.latest_state()?;
         if !matches!(latest, Some(MigrationExecState::CancelRequested)) {
@@ -1657,6 +1780,8 @@ impl LocalDatabase {
             }
         }
 
+        ensure_migration_host_authority(&mut self.conn, now_ms)?;
+
         let predecessor_schema = self.schema.clone();
         let tx = self
             .conn
@@ -1672,6 +1797,7 @@ impl LocalDatabase {
             plan_id: artifact.plan_id.clone(),
             lease_epoch,
             input_version: head,
+            host_operation_identity: OnceCell::new(),
         };
         journal.append(JournalAppend {
             at_ms: now_ms,
@@ -1931,6 +2057,7 @@ impl LocalDatabase {
                 plan_id: plan_id.clone(),
                 lease_epoch,
                 input_version,
+                host_operation_identity: OnceCell::new(),
             };
             let state = MigrationExecState::Executing {
                 step: step_id.to_owned(),
@@ -2277,6 +2404,8 @@ pub(crate) fn run_cleanup_tail(
     retired_columns: &[(String, String)],
     schema: &SchemaManifest,
 ) -> SnapbackResult<Value> {
+    ensure_migration_host_authority(conn, now_millis())?;
+
     // Durable cut 1: the tail's intent survives a crash.
     {
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -2286,6 +2415,7 @@ pub(crate) fn run_cleanup_tail(
             plan_id: context.plan_id.clone(),
             lease_epoch: context.lease_epoch,
             input_version: context.input_version,
+            host_operation_identity: OnceCell::new(),
         };
         journal.append(JournalAppend {
             at_ms: now_millis(),
@@ -2309,6 +2439,11 @@ fn cleanup_sweep(
     retired_columns: &[(String, String)],
     schema: &SchemaManifest,
 ) -> SnapbackResult<Value> {
+    // Crash recovery may resume a legacy migration whose original executor
+    // never provisioned the host authority. Make the epoch durable before
+    // the terminal cleanup transaction starts.
+    ensure_migration_host_authority(conn, now_millis())?;
+
     let terminal_state = match terminal {
         CleanupTerminal::Released => MigrationExecState::Released,
         CleanupTerminal::RolledBack => MigrationExecState::RolledBack,
@@ -2384,6 +2519,7 @@ fn cleanup_sweep(
         plan_id: context.plan_id.clone(),
         lease_epoch: context.lease_epoch,
         input_version: context.input_version,
+        host_operation_identity: OnceCell::new(),
     };
     journal.append(JournalAppend {
         verification: Some(&summary),
@@ -2510,6 +2646,7 @@ fn journal_step_wrapper<'a>(
                 plan_id: plan_id.to_owned(),
                 lease_epoch,
                 input_version,
+                host_operation_identity: OnceCell::new(),
             };
             let state = MigrationExecState::Executing {
                 step: step_id.to_owned(),
@@ -3894,6 +4031,8 @@ pub fn migration_journal_artifact() -> Value {
             .collect::<Vec<_>>(),
         "cleanupTailRule": "cleanup-pending extends exactly the terminal it was entered from and ends in that same terminal",
         "fencingToken": "leaseEpoch — validated against the stored epoch before every append",
+        "hostTransactionIdentity": "new entries carry one authenticated Host OperationIdentityV1 per physical journal transaction; parent=approval operationId and ordinal=durable pre-transaction journal row count; legacy entries may omit",
+        "envelopeCoverage": "uncovered — publication at published-held and the terminal receipt at released or rolled-back are distinct transactions",
     })
 }
 
@@ -4125,6 +4264,181 @@ mod tests {
         })
     }
 
+    #[test]
+    fn llp0163_migration_journal_transactions_use_retry_stable_host_children() {
+        let mut db = seeded_db();
+        let operation_id = new_operation_id();
+        let plan_id = format!("migration-v1:{}", "a".repeat(64));
+        ensure_migration_host_authority(&mut db.conn, 1).expect("durable migration host epoch");
+        {
+            let tx = db
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .expect("admission transaction");
+            ensure_migration_tables(&tx).expect("migration tables");
+            upsert_meta(&tx, META_MIGRATION_LEASE_EPOCH, "1").expect("lease epoch");
+            tx.execute(
+                "INSERT INTO _snapback_migration_ops(
+                   operation_id,audience_json,plan_digest,state_json,lease_epoch,
+                   cancel_requested,rehearsal
+                 ) VALUES(?1,'{}','fixture',?2,1,0,0)",
+                params![
+                    operation_id,
+                    serde_json::to_string(&MigrationExecState::Admitted)
+                        .expect("initial state JSON")
+                ],
+            )
+            .expect("operation row");
+            let journal = JournalHandle {
+                tx: &tx,
+                operation_id: operation_id.clone(),
+                plan_id: plan_id.clone(),
+                lease_epoch: 1,
+                input_version: 1,
+                host_operation_identity: OnceCell::new(),
+            };
+            journal
+                .append(JournalAppend {
+                    at_ms: 10,
+                    ..JournalAppend::of(&MigrationExecState::Admitted)
+                })
+                .expect("admitted row");
+            journal
+                .append(JournalAppend {
+                    at_ms: 11,
+                    ..JournalAppend::of(&MigrationExecState::Barriered)
+                })
+                .expect("barriered row");
+            tx.commit().expect("admission commit");
+        }
+
+        let admitted = journal_entries_on(&db.conn, &operation_id).expect("admission journal");
+        assert_eq!(admitted.len(), 2);
+        let parent_identity = admitted[0]
+            .host_operation_identity
+            .as_ref()
+            .expect("admission host identity");
+        assert_eq!(
+            admitted[1].host_operation_identity.as_ref(),
+            Some(parent_identity),
+            "every journal row in one SQLite transaction shares one child identity"
+        );
+        let OperationIssuanceV1::HostIncarnation {
+            upstream_identity,
+            commit_ordinal,
+            ..
+        } = &parent_identity.issuance
+        else {
+            panic!("migration journal identity must use host issuance");
+        };
+        assert_eq!(upstream_identity, &operation_id);
+        assert_eq!(*commit_ordinal, 0);
+        crate::operation_ledger::authenticate_host_identity(&db.conn, parent_identity)
+            .expect("admission host identity authenticates");
+
+        let executing = MigrationExecState::Executing {
+            step: "fixture-step".to_owned(),
+            batch: 0,
+        };
+        let rolled_back_identity = {
+            let tx = db
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .expect("crashing step transaction");
+            let journal = JournalHandle {
+                tx: &tx,
+                operation_id: operation_id.clone(),
+                plan_id: plan_id.clone(),
+                lease_epoch: 1,
+                input_version: 1,
+                host_operation_identity: OnceCell::new(),
+            };
+            journal
+                .append(JournalAppend {
+                    step_id: Some("fixture-step"),
+                    at_ms: 12,
+                    ..JournalAppend::of(&executing)
+                })
+                .expect("provisional executing row");
+            let identity = journal
+                .host_operation_identity
+                .get()
+                .expect("provisional host identity")
+                .clone();
+            drop(journal);
+            tx.rollback().expect("simulated crash rollback");
+            identity
+        };
+        assert_eq!(
+            journal_entries_on(&db.conn, &operation_id)
+                .expect("rolled-back journal")
+                .len(),
+            2,
+            "a crash leaves neither the transition nor its carrier"
+        );
+
+        // A resumed executor owns a new fencing lease, but that attempt-local
+        // token cannot change the operation identity of the retried cut.
+        {
+            let tx = db
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .expect("resume lease transaction");
+            upsert_meta(&tx, META_MIGRATION_LEASE_EPOCH, "2").expect("superseding lease");
+            tx.commit().expect("resume lease commit");
+        }
+
+        {
+            let tx = db
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)
+                .expect("retry step transaction");
+            let journal = JournalHandle {
+                tx: &tx,
+                operation_id: operation_id.clone(),
+                plan_id: plan_id.clone(),
+                lease_epoch: 2,
+                input_version: 1,
+                host_operation_identity: OnceCell::new(),
+            };
+            journal
+                .append(JournalAppend {
+                    step_id: Some("fixture-step"),
+                    at_ms: 13,
+                    ..JournalAppend::of(&executing)
+                })
+                .expect("retried executing row");
+            tx.commit().expect("retry commit");
+        }
+        let retried = journal_entries_on(&db.conn, &operation_id).expect("retried journal");
+        let retry_identity = retried[2]
+            .host_operation_identity
+            .as_ref()
+            .expect("retry host identity");
+        assert_eq!(retry_identity, &rolled_back_identity);
+        let OperationIssuanceV1::HostIncarnation { commit_ordinal, .. } = &retry_identity.issuance
+        else {
+            panic!("retry identity must use host issuance");
+        };
+        assert_eq!(
+            *commit_ordinal, 2,
+            "the child ordinal is the durable pre-transaction journal-row count"
+        );
+        crate::operation_ledger::authenticate_host_identity(&db.conn, retry_identity)
+            .expect("retry host identity authenticates");
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_commit_envelopes_v1",
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .expect("migration envelope count"),
+            0,
+            "the carrier remains explicitly uncovered across PublishedHeld/Released"
+        );
+    }
+
     // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the happy
     //   path end to end: admission, barrier, batched backfill, validation,
     //   one publication transaction (successor manifest + version boundary
@@ -4153,6 +4467,36 @@ mod tests {
         );
         assert_eq!(db.current_version().expect("head"), publication);
         assert!(db.migration_fence().expect("fence read").is_none());
+
+        let migration_journal = db
+            .migration_journal(&approval.operation_id)
+            .expect("migration journal");
+        let mut first_row_by_child = BTreeMap::<String, usize>::new();
+        for (row_index, entry) in migration_journal.iter().enumerate() {
+            let identity = entry
+                .host_operation_identity
+                .as_ref()
+                .expect("new production migration row has a host carrier");
+            crate::operation_ledger::authenticate_host_identity(&db.conn, identity)
+                .expect("production migration carrier authenticates");
+            let OperationIssuanceV1::HostIncarnation {
+                upstream_identity,
+                commit_ordinal,
+                ..
+            } = &identity.issuance
+            else {
+                panic!("production migration carrier must use host issuance");
+            };
+            assert_eq!(upstream_identity, &approval.operation_id);
+            let first_row = first_row_by_child
+                .entry(identity.key.operation_id.clone())
+                .or_insert(row_index);
+            assert_eq!(
+                usize::try_from(*commit_ordinal).expect("ordinal fits usize"),
+                *first_row,
+                "each transaction child is derived from its durable pre-transaction row count"
+            );
+        }
 
         // Successor schema is authoritative and the rows carry the §4
         // identity rules: changed rows get the publication version and the
@@ -4326,6 +4670,7 @@ mod tests {
                 plan_id: "migration-v1:x".to_owned(),
                 lease_epoch: 1,
                 input_version: 0,
+                host_operation_identity: OnceCell::new(),
             };
             let error = stale
                 .append(JournalAppend {
@@ -4363,6 +4708,7 @@ mod tests {
             plan_id: "migration-v1:x".to_owned(),
             lease_epoch: 1,
             input_version: 0,
+            host_operation_identity: OnceCell::new(),
         };
         journal
             .append(JournalAppend {
@@ -4574,6 +4920,7 @@ mod tests {
                 plan_id: plan.plan_id.clone(),
                 lease_epoch: 1,
                 input_version: 1,
+                host_operation_identity: OnceCell::new(),
             };
             let at = now_millis();
             journal
@@ -4694,6 +5041,7 @@ mod tests {
                 plan_id: plan2.plan_id.clone(),
                 lease_epoch: 9,
                 input_version: publication,
+                host_operation_identity: OnceCell::new(),
             };
             journal
                 .append(JournalAppend {

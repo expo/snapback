@@ -1,7 +1,9 @@
 {
   "authority": "llp/0081-reviewed-storage-evolution-and-migrations.rfc.md#4-execution-journaling-and-crash-recovery",
   "cleanupTailRule": "cleanup-pending extends exactly the terminal it was entered from and ends in that same terminal",
+  "envelopeCoverage": "uncovered — publication at published-held and the terminal receipt at released or rolled-back are distinct transactions",
   "fencingToken": "leaseEpoch — validated against the stored epoch before every append",
+  "hostTransactionIdentity": "new entries carry one authenticated Host OperationIdentityV1 per physical journal transaction; parent=approval operationId and ordinal=durable pre-transaction journal row count; legacy entries may omit",
   "states": [
     "admitted",
     "barriered",
