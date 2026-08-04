@@ -53,7 +53,7 @@ and `guide-gap`.
 | backend.query-semantics | Read sets, snapshots, commit versions, conflict validation | consistency, transactions, conflicts | local | shipped | route /query/{name} | llp/0003, llp/0004, llp/0007 | backend/queries.md |
 | backend.sequences | Experimental declared, incarnation-scoped sequences have an in-tree local substrate spanning `ctx.sequence.allocate(counterName, scopeId)`, generated `AllocateSequence`, mutation-atomic lane-Q withholding, membership/public scope reach, exact settlement replay, safe-integer exhaustion, storage-enforced string order-field bounds, and A6 evidence. The capability remains unpublished and support-false until the complete LLP 0135 §5.1 qualification and LLP 0113 publication train | sequence, counter, ticket number, invoice number, monotonic allocation, maxEncodedBytes | none | partial | `sequence.allocate` in packages/snapback-harness/ctx-bootstrap.js + demos/improvement-sweep/arms/a6-snapback-web/evidence/app/acceptance.a6.mjs + focused generated-plan/lane-Q proof (substrate evidence only; no capability publication witness) | llp/0135, llp/0128, llp/0113, llp/0157 | GAP (qualified `sequence_allocation_v1` publication; owner: Charlie, review: 2026-08-31; issue: issues/20260803-sequence-allocation-qualification.md); backend/sequences.md |
 | backend.actions | Actions with gated outbound fetch: global `fetch` and target-portable host-mediated `ctx.fetch`, in closed-script module handlers or the inline form | action, fetch, ctx.fetch, side effects, notification, webhook | local | shipped | route /action/{name} | llp/0004, llp/0009, llp/0049 | backend/actions-and-fetch.md |
-| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks, deletion/GC, receipts (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; transcoding and hosted targets remain design-only | files, images, video, upload, object storage, media, browser upload, vite relay | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids in supportedCapabilities; `assets` facts block with Enforced image and video ceilings) + src/assets.rs + src/assets_image.rs + src/assets_video.rs suites + demos/file-drop/tests/acceptance/browser-relay.mjs (relay + sessions + typed upload reference browser path) | llp/0044 | backend/assets.md |
+| backend.assets | Authenticated asset lifecycle plus the media pipeline on the local target — generated upload intents, TUS 1.0.0 resumable transfer, trusted SHA-256 finalization with GPS-strip canonicalization for images (decode/rewrite) and MP4/QuickTime video (in-place location-atom blanking, no transcoding), declared renditions with ThumbHash placeholders, typed `v.assetRef` attachment, private-strict/private-signed/public-immutable delivery with ranges and best-variant selection, opt-in reference GC, lifecycle callbacks, deletion/GC, receipts, logical consistent-cut export with refuse-partial validation, and instance-wide signing-key rotation (`asset_lifecycle_v1`, `asset_image_finalization_v1`, `asset_image_pipeline_v1`, `asset_reference_gc_v1`, `asset_video_finalization_v1`); the paved browser path (stock `@expo/snapback-vite` relay over the `/assets/*` family, sessions custody, typed generated upload references) is CI-verified; byte-level backup, transcoding, and hosted targets remain nonclaims | files, images, video, upload, object storage, media, browser upload, vite relay, asset export, logical backup, signing key rotation | local | partial | schemas/capability.manifest.local-dev-sqlite-ibex.json (all five asset ids plus `assets.export.cutExport`/`importValidation`) + src/assets.rs + src/assets_cut.rs suites + tests/acceptance/asset-conformance-v1.mjs (native CLI export/refuse-partial/rotation) + demos/file-drop/tests/acceptance/browser-relay.mjs (browser path) | llp/0044 | backend/assets.md |
 | backend.expo-push-seam | Shipped local Expo integration seam: session-bound token custody, atomic rotation and retirement, declaration-checked/host-authorized and paced `ctx.push.send`, crash-safe intent/batch/message ledger, safe pre-transmit recovery, bounded ticket/receipt maintenance, a privacy-bounded generated ledger query, explicit ambiguous redrive risk, structured `notifications.expoPushSeam` facts, and a retained physical-device `ok` receipt witness. The complete hosted conjunction remains a GAP; this is not first-class notification delivery. | device token, expo push token, installation, ctx.push.send, handoff receipt, DeviceNotRegistered | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json (`expoPushSeam`) + packages/snapback-cli/fake-expo-push.test.mjs + `fake_expo_acceptance_covers_tickets_receipts_dedupe_ambiguity_and_authorization` in src/push.rs + LLP 0143 implementation record (2026-08-03 physical-device witness) | llp/0143, llp/0057, llp/0059, llp/0070 | backend/expo-push.md |
 | backend.notifications | First-class notification and effect delivery; application-authored table ledgers are not this product capability | notifications, push, email, delivery, effects | none | design-only | schemas/capability.manifest.local-dev-sqlite-ibex.json (`notifications: false`; explicit `notifications` gap) | llp/0045 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260728-guide-gap-assets-and-notifications-capability-rows.md) |
 | backend.observability-v1 | Shipped local Phase-1 backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, Health/Logs projections, and retained clean-release idle/benchmark evidence; hosted arms and declared product analytics remain later capabilities | telemetry, observability, health, logs, metrics, traces | local | shipped | tests/acceptance/telemetry-phase1-evidence.v1.json | llp/0154 | operating/observability.md |
@@ -206,7 +206,8 @@ you never build around a feature because you didn't know it existed.
   (experimental).
 - [Assets](./backend/assets.md) — generated upload intents, TUS resumable
   transfer, trusted SHA-256 finalization, typed `v.assetRef` attachment,
-  private-strict delivery (local target; image pipeline still a GAP).
+  private-strict delivery, consistent-cut logical export, and signing-key
+  rotation (local target; byte-level backup remains a nonclaim).
 - [Versioned seeds](./backend/versioned-seeds.md) — content-addressed fixture
   identity, non-destructive matching, explicit reset-install/clear, and
   migration boundaries (experimental).
@@ -3483,13 +3484,13 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
 examples: [demos/party-wall, demos/file-drop]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-04
+reviewed-commit: HEAD
 ---
 
 # Assets
@@ -3828,6 +3829,102 @@ then invoke `asset.gcSweep` (or the CLI command above) with the suite's
 chosen clock. Host operations do not keep a response replay ledger; the sweep
 itself is idempotent, and each reclaimed asset receives its canonical
 `reference-gc` lifecycle receipt exactly once.
+
+## Export the asset component of a logical backup
+
+The local target advertises `assets.export.cutExport: true`. Capture its asset
+component into an absolute, empty-or-absent directory:
+
+```sh
+snapback assets export-cut \
+  --dir "$PWD/backups/assets-2026-08-04" \
+  --ready-file .snapback/server-ready.json
+```
+
+The command opens one read transaction and pins its storage head as
+`cutVersion`. That transaction captures all `ready` asset records and their
+`ready` renditions, deleted-asset tombstones, each referenced immutable blob
+exactly once, and the settled quota snapshot. It deliberately excludes
+in-flight attempts, pending/rejected assets, staging bytes, and reverse
+reference edges; the edges derive from application rows and belong to the
+app-data export component.
+
+After the transaction closes, Snapback copies the immutable blobs under
+`blobs/sha256/`, verifies each copy against its recorded SHA-256 and length,
+then writes `asset-cut.manifest.json` last. An unreadable or mismatched blob
+fails the command instead of producing an admissible partial cut. The failed
+directory may contain copied objects but no valid complete manifest; retry
+into a new empty directory.
+
+This is a **logical export component**, not a full application or SQLite
+backup. The capability manifest still lists `asset-byte-backup` as Missing,
+and a portable application export must coordinate the separately owned
+app-data component.
+
+### Validate the complete cut before restore
+
+`importValidation: true` is the refuse-partial half of the shipped surface.
+Without `--apply`, `import-cut` only validates the tagged manifest digest and
+every declared blob object:
+
+```sh
+snapback assets import-cut \
+  --dir "$PWD/backups/assets-2026-08-04" \
+  --ready-file .snapback/server-ready.json
+```
+
+A missing object, changed byte length, digest mismatch, or tampered manifest
+returns a structured refusal before any asset row lands. Restore application
+is a separate experimental capability (`importApply: "experimental"`):
+`--apply` requires the server-side `SNAPBACK_ASSET_IMPORT_EXPERIMENTAL=1`
+acknowledgment and an empty asset state. It is not the paved full-app restore
+path.
+
+### Invalidate every outstanding signed URL
+
+Rotate the instance signing key when every already-issued `private-signed`
+URL must stop validating immediately:
+
+```sh
+snapback assets rotate-signing-key --ready-file .snapback/server-ready.json
+```
+
+Rotation retires every active signing key, mints a fresh one, and emits an
+instance-scoped receipt without returning key ids or key material. New signed
+URL issuance works under the fresh key. This is deliberately a wide operator
+action; use ordinary authorization changes when the intent is to revoke one
+principal rather than every outstanding signed bearer URL.
+
+The local proof drives these exact native CLI commands against a real server,
+checks the pinned manifest, observes an issued URL fail after rotation, and
+proves incomplete-cut validation exits non-zero with the structured refusal:
+
+```js source=tests/acceptance/asset-conformance-v1.mjs
+  const rotation = await runAssetsCli(sessionsServer, 'rotate-signing-key');
+  assert.equal(rotation.exitCode, 0);
+  assert.equal(rotation.envelope.ok, true);
+  assert.equal(rotation.envelope.data.rotated, true);
+  const signedAfterRotation = await fetch(`${sessionsServer.baseUrl}${issuanceBody.url}`);
+  assert.equal(signedAfterRotation.status, 403, 'rotation invalidates the outstanding signed URL');
+
+  const exportDir = join(scratch, 'asset-cut-export');
+  const exported = await runAssetsCli(sessionsServer, 'export-cut', '--dir', exportDir);
+  assert.equal(exported.exitCode, 0);
+  assert.equal(exported.envelope.ok, true);
+  assert.equal(exported.envelope.data.cut.formatVersion, 'snapback.asset-cut.v1');
+  assert.ok(exported.envelope.data.cut.assetCount > 0);
+  assert.ok(exported.envelope.data.cut.blobCount > 0);
+  const cutManifest = await readJson(join(exportDir, 'asset-cut.manifest.json'));
+  assert.equal(cutManifest.cutVersion, exported.envelope.data.cut.cutVersion);
+  assert.equal(cutManifest.manifestDigest, exported.envelope.data.cut.manifestDigest);
+
+  await rm(join(exportDir, cutManifest.blobs[0].objectPath));
+  const incomplete = await runAssetsCli(sessionsServer, 'import-cut', '--dir', exportDir);
+  assert.notEqual(incomplete.exitCode, 0);
+  assert.equal(incomplete.envelope.ok, false);
+  assert.equal(incomplete.envelope.diagnostics[0].code, 'SNAPBACK_ASSET_IMPORT_INCOMPLETE');
+  checks.nativeCliCutExportAndRotation = true;
+```
 
 ## Evidence and limits
 

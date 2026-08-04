@@ -4,13 +4,13 @@ id: backend.assets
 order: 9
 audience: agent-first
 capabilities: [backend.assets]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0044-asset-storage-pipeline.rfc.md, llp/0096-auth-profiles-for-protocol-clients.spec.md, src/assets.rs, src/assets_cut.rs, src/cli.rs, src/local.rs, src/server.rs, packages/snapback-codegen/define.mjs, packages/snapback-vite/allowlist.mjs, tests/acceptance/asset-lifecycle-v1-evidence.md]
 examples: [demos/party-wall, demos/file-drop]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-04
+reviewed-commit: HEAD
 ---
 
 # Assets
@@ -349,6 +349,102 @@ then invoke `asset.gcSweep` (or the CLI command above) with the suite's
 chosen clock. Host operations do not keep a response replay ledger; the sweep
 itself is idempotent, and each reclaimed asset receives its canonical
 `reference-gc` lifecycle receipt exactly once.
+
+## Export the asset component of a logical backup
+
+The local target advertises `assets.export.cutExport: true`. Capture its asset
+component into an absolute, empty-or-absent directory:
+
+```sh
+snapback assets export-cut \
+  --dir "$PWD/backups/assets-2026-08-04" \
+  --ready-file .snapback/server-ready.json
+```
+
+The command opens one read transaction and pins its storage head as
+`cutVersion`. That transaction captures all `ready` asset records and their
+`ready` renditions, deleted-asset tombstones, each referenced immutable blob
+exactly once, and the settled quota snapshot. It deliberately excludes
+in-flight attempts, pending/rejected assets, staging bytes, and reverse
+reference edges; the edges derive from application rows and belong to the
+app-data export component.
+
+After the transaction closes, Snapback copies the immutable blobs under
+`blobs/sha256/`, verifies each copy against its recorded SHA-256 and length,
+then writes `asset-cut.manifest.json` last. An unreadable or mismatched blob
+fails the command instead of producing an admissible partial cut. The failed
+directory may contain copied objects but no valid complete manifest; retry
+into a new empty directory.
+
+This is a **logical export component**, not a full application or SQLite
+backup. The capability manifest still lists `asset-byte-backup` as Missing,
+and a portable application export must coordinate the separately owned
+app-data component.
+
+### Validate the complete cut before restore
+
+`importValidation: true` is the refuse-partial half of the shipped surface.
+Without `--apply`, `import-cut` only validates the tagged manifest digest and
+every declared blob object:
+
+```sh
+snapback assets import-cut \
+  --dir "$PWD/backups/assets-2026-08-04" \
+  --ready-file .snapback/server-ready.json
+```
+
+A missing object, changed byte length, digest mismatch, or tampered manifest
+returns a structured refusal before any asset row lands. Restore application
+is a separate experimental capability (`importApply: "experimental"`):
+`--apply` requires the server-side `SNAPBACK_ASSET_IMPORT_EXPERIMENTAL=1`
+acknowledgment and an empty asset state. It is not the paved full-app restore
+path.
+
+### Invalidate every outstanding signed URL
+
+Rotate the instance signing key when every already-issued `private-signed`
+URL must stop validating immediately:
+
+```sh
+snapback assets rotate-signing-key --ready-file .snapback/server-ready.json
+```
+
+Rotation retires every active signing key, mints a fresh one, and emits an
+instance-scoped receipt without returning key ids or key material. New signed
+URL issuance works under the fresh key. This is deliberately a wide operator
+action; use ordinary authorization changes when the intent is to revoke one
+principal rather than every outstanding signed bearer URL.
+
+The local proof drives these exact native CLI commands against a real server,
+checks the pinned manifest, observes an issued URL fail after rotation, and
+proves incomplete-cut validation exits non-zero with the structured refusal:
+
+```js source=tests/acceptance/asset-conformance-v1.mjs
+  const rotation = await runAssetsCli(sessionsServer, 'rotate-signing-key');
+  assert.equal(rotation.exitCode, 0);
+  assert.equal(rotation.envelope.ok, true);
+  assert.equal(rotation.envelope.data.rotated, true);
+  const signedAfterRotation = await fetch(`${sessionsServer.baseUrl}${issuanceBody.url}`);
+  assert.equal(signedAfterRotation.status, 403, 'rotation invalidates the outstanding signed URL');
+
+  const exportDir = join(scratch, 'asset-cut-export');
+  const exported = await runAssetsCli(sessionsServer, 'export-cut', '--dir', exportDir);
+  assert.equal(exported.exitCode, 0);
+  assert.equal(exported.envelope.ok, true);
+  assert.equal(exported.envelope.data.cut.formatVersion, 'snapback.asset-cut.v1');
+  assert.ok(exported.envelope.data.cut.assetCount > 0);
+  assert.ok(exported.envelope.data.cut.blobCount > 0);
+  const cutManifest = await readJson(join(exportDir, 'asset-cut.manifest.json'));
+  assert.equal(cutManifest.cutVersion, exported.envelope.data.cut.cutVersion);
+  assert.equal(cutManifest.manifestDigest, exported.envelope.data.cut.manifestDigest);
+
+  await rm(join(exportDir, cutManifest.blobs[0].objectPath));
+  const incomplete = await runAssetsCli(sessionsServer, 'import-cut', '--dir', exportDir);
+  assert.notEqual(incomplete.exitCode, 0);
+  assert.equal(incomplete.envelope.ok, false);
+  assert.equal(incomplete.envelope.diagnostics[0].code, 'SNAPBACK_ASSET_IMPORT_INCOMPLETE');
+  checks.nativeCliCutExportAndRotation = true;
+```
 
 ## Evidence and limits
 

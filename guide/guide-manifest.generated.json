@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "9435e35023f635a922dace2e15b658356c942f59"
+    "commit": "5fbea8e4d0348e7e22d0d0e90e9a7125c53eda7b"
   },
   "nav": {
     ".": [
@@ -702,6 +702,8 @@
         "llp/0044-asset-storage-pipeline.rfc.md",
         "llp/0096-auth-profiles-for-protocol-clients.spec.md",
         "src/assets.rs",
+        "src/assets_cut.rs",
+        "src/cli.rs",
         "src/local.rs",
         "src/server.rs",
         "packages/snapback-codegen/define.mjs",
@@ -712,9 +714,9 @@
         "demos/party-wall",
         "demos/file-drop"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "0868d565eac8518888adc5ea5d6d7fbd503396c7711458af1adbb0159a14c6a2",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "HEAD",
+      "sha256": "e8a14c5920b74da3b632d226b12a70da58bf9f7f97c26b4e37e8a46235588200",
       "snippets": [
         {
           "lang": "js",
@@ -761,6 +763,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "packages/snapback-codegen/asset-upload-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "tests/acceptance/asset-conformance-v1.mjs"
         }
       ]
     },
@@ -1405,7 +1412,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "53a5cdd7a7e80b1fd8db84a58168be64afa34a6f7fad78abc88b1a5f7f91242b",
+      "sha256": "c5ef89db6a4411d12ecaa91b52701502eb9ff73062893bac88942911bc782521",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2058,7 +2065,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "12ecf33a7dd815acad4a58215f1011526d2d9dea9ee4dbe8b65a5ddd623effe7",
+      "sha256": "1a71f0fe73f964998426d5672d66775dd06919221a82ece8522d3cccc5e2cb9a",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2888,5 +2895,5 @@
     "routes": 105,
     "hostOps": 35
   },
-  "contentHash": "29bb6a4f05b22d108f80efc57a40e1e6d0e9c6bfa56fa4d0739890bebbeb3361"
+  "contentHash": "3b2cf2c3d98c70666224f5d341b10d6df178e8bd5b0eba6fe07fabe79a35b739"
 }

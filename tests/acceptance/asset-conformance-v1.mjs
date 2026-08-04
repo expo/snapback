@@ -20,10 +20,12 @@
 //   contract this suite implements for the JS SDK.
 
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { deflateSync } from 'node:zlib';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 
 import { SnapbackClient } from '../../packages/snapback-client/index.mjs';
@@ -45,6 +47,10 @@ const fixtureRoot = join(here, 'fixtures', 'asset-conformance');
 const cliArgs = process.argv.slice(2);
 const receiptFlag = cliArgs.indexOf('--receipt');
 const receiptPath = receiptFlag === -1 ? null : cliArgs[receiptFlag + 1];
+const execFileAsync = promisify(execFile);
+const snapbackBinary = process.env.SNAPBACK_BINARY
+  ?? process.env.SNAPBACK_SERVER_BINARY
+  ?? join(repositoryRoot, 'target', 'debug', process.platform === 'win32' ? 'snapback.exe' : 'snapback');
 
 const scratch = await mkdtemp(join(tmpdir(), 'snapback-asset-conformance-'));
 const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'));
@@ -195,6 +201,26 @@ async function hostOp(server, operation, input, userId = null) {
   assert.equal(response.status, 200, `${operation}: ${JSON.stringify(body)}`);
   assert.equal(body.ok, true, `${operation}: ${JSON.stringify(body.diagnostics ?? body)}`);
   return body.data ?? body.result ?? body;
+}
+
+async function runAssetsCli(server, ...args) {
+  const commandArgs = [
+    'assets',
+    ...args,
+    '--url', server.baseUrl,
+    '--token', server.adminToken,
+  ];
+  try {
+    const { stdout } = await execFileAsync(snapbackBinary, commandArgs, {
+      cwd: repositoryRoot,
+      env: process.env,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    return { exitCode: 0, envelope: JSON.parse(stdout) };
+  } catch (error) {
+    if (typeof error.stdout !== 'string' || error.stdout.trim().length === 0) throw error;
+    return { exitCode: error.code ?? 1, envelope: JSON.parse(error.stdout) };
+  }
 }
 
 try {
@@ -540,6 +566,40 @@ try {
     'strict delivery without the protocol offer keeps refusing',
   );
   checks.pasteableDeliveryHeaderless = true;
+
+  // Vector 12 — the native operator CLI itself witnesses the two shipped
+  // commands the guide teaches. Rotation immediately invalidates an already
+  // issued private-signed URL. Export writes a pinned, digest-addressed cut;
+  // validation then refuses an incomplete directory through the CLI's
+  // non-zero/structured-envelope projection.
+  // @ref LLP 0044#consistent-cut-exportimport-dated-design-addition-2026-07-31 —
+  // the author-facing witness must prove both capture and refuse-partial.
+  // @ref LLP 0044#private-signed — key rotation has immediate instance-wide
+  // bearer invalidation semantics, distinct from principal revocation.
+  const rotation = await runAssetsCli(sessionsServer, 'rotate-signing-key');
+  assert.equal(rotation.exitCode, 0);
+  assert.equal(rotation.envelope.ok, true);
+  assert.equal(rotation.envelope.data.rotated, true);
+  const signedAfterRotation = await fetch(`${sessionsServer.baseUrl}${issuanceBody.url}`);
+  assert.equal(signedAfterRotation.status, 403, 'rotation invalidates the outstanding signed URL');
+
+  const exportDir = join(scratch, 'asset-cut-export');
+  const exported = await runAssetsCli(sessionsServer, 'export-cut', '--dir', exportDir);
+  assert.equal(exported.exitCode, 0);
+  assert.equal(exported.envelope.ok, true);
+  assert.equal(exported.envelope.data.cut.formatVersion, 'snapback.asset-cut.v1');
+  assert.ok(exported.envelope.data.cut.assetCount > 0);
+  assert.ok(exported.envelope.data.cut.blobCount > 0);
+  const cutManifest = await readJson(join(exportDir, 'asset-cut.manifest.json'));
+  assert.equal(cutManifest.cutVersion, exported.envelope.data.cut.cutVersion);
+  assert.equal(cutManifest.manifestDigest, exported.envelope.data.cut.manifestDigest);
+
+  await rm(join(exportDir, cutManifest.blobs[0].objectPath));
+  const incomplete = await runAssetsCli(sessionsServer, 'import-cut', '--dir', exportDir);
+  assert.notEqual(incomplete.exitCode, 0);
+  assert.equal(incomplete.envelope.ok, false);
+  assert.equal(incomplete.envelope.diagnostics[0].code, 'SNAPBACK_ASSET_IMPORT_INCOMPLETE');
+  checks.nativeCliCutExportAndRotation = true;
 
   // --------------------------------------------------------------------- dev
   // The live-frame leg: dev mode is the lane where the reserved projection
