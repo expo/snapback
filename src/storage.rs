@@ -774,6 +774,23 @@ impl ClientMutationIdentity {
         self
     }
 
+    pub fn with_artifact_generation(
+        mut self,
+        generation: &crate::manifest::ArtifactGeneration,
+    ) -> Self {
+        let canonical = canonical_json(json!({
+            "artifactGeneration": generation,
+            "inputFingerprint": self.input_fingerprint,
+        }));
+        let mut digest = Sha256::new();
+        digest.update(b"snapback:client-mutation-artifact-binding:v1\n");
+        digest.update(
+            serde_json::to_vec(&canonical).expect("artifact-bound mutation identity serializes"),
+        );
+        self.input_fingerprint = format!("sha256:{:x}", digest.finalize());
+        self
+    }
+
     /// Provenance-only digest of the exact server-constructed durable
     /// settlement identity. The activity row never receives the opaque
     /// client mutation id or its authority/input fingerprints in cleartext.
@@ -2045,6 +2062,36 @@ impl LocalDatabase {
         ids: &[String],
     ) -> SnapbackResult<u64> {
         self.acknowledge_client_mutations_inner(auth_fingerprint, Some(authority_instance_id), ids)
+    }
+
+    pub(crate) fn issue_client_operation_identity_range(
+        &mut self,
+        audience: &str,
+        authority_instance_id: &str,
+        previous: Option<&crate::commit_envelope::ClientIdentityRangeV1>,
+        issued_at_ms: u64,
+    ) -> SnapbackResult<crate::commit_envelope::ClientIdentityRangeV1> {
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let stream_id = crate::seed_identity::strict_current_data_version_stream(&tx)?
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_OPERATION_STREAM_UNAVAILABLE",
+                    "storage",
+                    "operation identity range issuance requires an initialized data-version stream",
+                )
+            })?;
+        let range = crate::operation_ledger::issue_client_range_in(
+            &tx,
+            &stream_id,
+            audience,
+            authority_instance_id,
+            previous,
+            issued_at_ms,
+        )?;
+        tx.commit()?;
+        Ok(range)
     }
 
     fn acknowledge_client_mutations_inner(
@@ -4375,6 +4422,7 @@ impl LocalDatabase {
                 authorization: None,
             });
         }
+        require_covered_ordinary_mutation_identity(&self.conn, Some(identity))?;
         Ok(self
             .execute_mutation_plan_with_lifecycle_and_settlement_time(
                 plan,
@@ -5445,6 +5493,7 @@ impl LocalDatabase {
         Check: Fn() -> SnapbackResult<()>,
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        require_covered_ordinary_mutation_identity(&self.conn, identity)?;
         let BufferedCommitPayload {
             writes,
             sequence_allocations,
@@ -18719,6 +18768,34 @@ fn record_client_mutation_result(
     Ok(())
 }
 
+fn require_covered_ordinary_mutation_identity(
+    conn: &Connection,
+    identity: Option<&ClientMutationIdentity>,
+) -> SnapbackResult<()> {
+    let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(conn)? else {
+        return Ok(());
+    };
+    let covered = crate::operation_ledger::active_coverage_manifest(conn, &stream_id)?
+        .is_some_and(|manifest| {
+            manifest
+                .covered_lanes
+                .iter()
+                .any(|lane| lane == crate::operation_ledger::ORDINARY_MUTATION_LANE_V1)
+        });
+    if !covered
+        || identity
+            .and_then(|identity| identity.operation_issuance.as_ref())
+            .is_some()
+    {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_OPERATION_IDENTITY_REQUIRED",
+        "sync",
+        "ordinary mutation coverage is active; this mutation must carry a server-issued operation identity",
+    ))
+}
+
 /// The one ordinary-mutation envelope hook. Both HostPlan and Ibex buffered
 /// writers call this from their existing transaction after data/journal writes
 /// and before COMMIT; a future covered writer must use this hook rather than
@@ -18753,9 +18830,14 @@ fn record_covered_client_mutation_envelope_in(
                 "covered ordinary mutation requires an initialized data-version stream",
             )
         })?;
+    let audience = crate::operation_ledger::resolve_client_range_audience_in(
+        tx,
+        &issuance,
+        &identity.authority_instance_id,
+    )?;
     let operation_identity = OperationIdentityV1::from_client_mutation(
         stream_id.clone(),
-        identity.authority_instance_id.clone(),
+        audience.clone(),
         issuance,
         identity,
         crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
@@ -18825,7 +18907,7 @@ fn record_covered_client_mutation_envelope_in(
         },
         principal_session_or_invocation_id: identity.authority_instance_id.clone(),
         authority: EnvelopeAuthorityFactsV1 {
-            audience: identity.authority_instance_id.clone(),
+            audience,
             grant_or_policy_identity: LaneFactV1::NotDefinedForLane,
             fencing_token_or_epoch: LaneFactV1::Defined(identity.authority_instance_id.clone()),
         },

@@ -6227,6 +6227,43 @@ impl LocalSnapback {
         descriptor_for_authority(authority, incarnation.as_str())
     }
 
+    pub(crate) fn issue_client_operation_identity_range(
+        &mut self,
+        authority: &PreparedAuthority,
+        client_audience_id: &str,
+        authority_descriptor: Option<&AuthorityDescriptor>,
+        previous: Option<&crate::commit_envelope::ClientIdentityRangeV1>,
+    ) -> SnapbackResult<crate::commit_envelope::ClientIdentityRangeV1> {
+        authority.validate_admission("operation identity range issuance")?;
+        self.persist_and_validate_prepared_service_authority(authority)?;
+        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+        let expected = descriptor_for_authority(authority, incarnation.as_str())?;
+        if authority.active_mode() == AuthMode::Sessions || authority_descriptor.is_some() {
+            require_current_descriptor(authority_descriptor, &expected)?;
+        }
+        if !crate::manifest::replay_opaque_id_is_valid(client_audience_id) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_RANGE_AUDIENCE_INVALID",
+                "protocol",
+                "clientAudienceId must use the bounded opaque replay-id alphabet",
+            ));
+        }
+        use sha2::Digest as _;
+        let mut digest = sha2::Sha256::new();
+        digest.update(b"snapback:client-range-audience:v1\n");
+        digest.update(expected.authority_instance_id.as_bytes());
+        digest.update(b"\n");
+        digest.update(client_audience_id.as_bytes());
+        let audience = format!("sha256:{:x}", digest.finalize());
+        let _effect = authority.effect_guard("operation identity range issuance transaction")?;
+        self.db.issue_client_operation_identity_range(
+            &audience,
+            &expected.authority_instance_id,
+            previous,
+            now_millis(),
+        )
+    }
+
     pub(crate) fn acknowledge_client_mutations_with_authority_descriptor(
         &mut self,
         authority: &PreparedAuthority,
@@ -11983,6 +12020,7 @@ impl LocalSnapback {
             transport,
             authority,
             expected_generation,
+            None,
             MutationSettlement::default(),
         )
     }
@@ -11998,11 +12036,61 @@ impl LocalSnapback {
         transport: &str,
         authority: PreparedAuthority,
         expected_generation: Option<&ArtifactGeneration>,
+        operation_issuance: Option<crate::commit_envelope::OperationIssuanceV1>,
         settlement: MutationSettlement,
     ) -> SnapbackResult<(
         crate::storage::AuthorizationCommitPreflight,
         StagedRecordedMutation,
     )> {
+        if operation_issuance.is_some() && client_mutation_id.is_none() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_IDENTITY_REQUIRES_CLIENT_MUTATION_ID",
+                "protocol",
+                "operationIssuance extends clientMutationId and cannot be sent alone",
+            ));
+        }
+        if matches!(
+            operation_issuance,
+            Some(crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. })
+        ) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_OPERATION_HOST_IDENTITY_FORBIDDEN",
+                "protocol",
+                "client mutation transport cannot mint the host operation namespace",
+            ));
+        }
+        let artifact_generation = if operation_issuance.is_some() {
+            expected_generation.cloned().or_else(|| {
+                DeploymentIdentity::from_manifests(
+                    authority.active_mode(),
+                    self.db.schema(),
+                    &self.functions,
+                )
+                .ok()
+                .map(|identity| ArtifactGeneration {
+                    schema_version: identity.schema_version,
+                    app_id: identity.app_id,
+                    schema_hash: identity.schema_hash,
+                    bundle_hash: identity.bundle_hash,
+                    inputs_hash: identity.inputs_hash,
+                })
+            }).ok_or_else(|| SnapbackError::error(
+                "SNAPBACK_ARTIFACT_IDENTITY_MISMATCH",
+                "runtime",
+                "issuance-bearing mutation requires a derivable selected artifact generation",
+            ))?.into()
+        } else {
+            None
+        };
+        let bind_operation = |mut identity: ClientMutationIdentity| {
+            if let Some(generation) = artifact_generation.as_ref() {
+                identity = identity.with_artifact_generation(generation);
+            }
+            if let Some(issuance) = operation_issuance.clone() {
+                identity = identity.with_operation_issuance(issuance);
+            }
+            identity
+        };
         // @ref LLP 0043#settlement-consumption-and-acknowledgement-lifecycle-2026-08-01
         // A committed settlement is independent of the continued existence
         // of executable code. Re-attest the live authority and the exact
@@ -12018,13 +12106,13 @@ impl LocalSnapback {
             }
             let mut canonical_input = input.clone();
             canonical_input.auth = authority.canonical_auth_input();
-            let identity = ClientMutationIdentity::for_authority_with_settlement(
+            let identity = bind_operation(ClientMutationIdentity::for_authority_with_settlement(
                 id.clone(),
                 name.to_owned(),
                 &canonical_input,
                 expected.authority_instance_id,
                 &settlement,
-            );
+            ));
             if let Some(output) = self.db.client_mutation_result(&identity)? {
                 if !acknowledged_client_mutation_ids.is_empty() {
                     self.acknowledge_client_mutations_with_authority(
@@ -12101,13 +12189,13 @@ impl LocalSnapback {
                 let incarnation = self.db.ensure_authorization_stream_incarnation()?;
                 let expected =
                     descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
-                Some(ClientMutationIdentity::for_authority_with_settlement(
+                Some(bind_operation(ClientMutationIdentity::for_authority_with_settlement(
                     id,
                     name.to_owned(),
                     &input,
                     expected.authority_instance_id,
                     &settlement,
-                ))
+                )))
             } else {
                 None
             };
@@ -44423,6 +44511,7 @@ globalThis.__snapbackHandlers = {
                 "test",
                 authority,
                 None,
+                None,
                 settlement,
             )?;
         snapback.try_with_direct_authorization_write(preflight, move |snapback| {
@@ -45006,6 +45095,7 @@ globalThis.__snapbackHandlers = {
                 &[],
                 "test",
                 authority,
+                None,
                 None,
                 settlement.clone(),
             )

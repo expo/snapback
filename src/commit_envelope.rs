@@ -109,6 +109,7 @@ pub enum OperationIdentityValidationError {
     EmptyStreamId,
     InvalidOperationId,
     InvalidClientRange,
+    InvalidClientAudience,
     InvalidAuthenticatorDigest,
     InvalidInputFingerprint,
 }
@@ -186,6 +187,9 @@ impl OperationIdentityV1 {
                 || counter >= range_end_exclusive)
         {
             return Err(OperationIdentityValidationError::InvalidClientRange);
+        }
+        if self.bound_facts.audience.is_empty() {
+            return Err(OperationIdentityValidationError::InvalidClientAudience);
         }
         let authenticator = match &self.issuance {
             OperationIssuanceV1::ClientRange {
@@ -398,6 +402,45 @@ pub struct ClientIdentityRangeV1 {
     pub authority_authenticator_digest: String,
 }
 
+/// Public issue/refresh request for the finite client identity range. The
+/// live credential remains the authority; the optional descriptor and prior
+/// range are non-authorizing continuity assertions checked against the
+/// server-derived authority before any range is minted.
+///
+/// @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 — range
+///   issuance is bound to the authority incarnation and never grants caller-
+///   selected host namespace access.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperationIdentityRangeRequestV1 {
+    #[serde(default = "operation_identity_range_schema_version")]
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    #[serde(default)]
+    pub auth: crate::manifest::AuthInput,
+    #[schemars(
+        length(min = 1, max = REPLAY_OPAQUE_ID_MAX_BYTES),
+        pattern(REPLAY_OPAQUE_ID_PATTERN)
+    )]
+    pub client_audience_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authority_descriptor: Option<crate::manifest::AuthorityDescriptor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous_range: Option<ClientIdentityRangeV1>,
+}
+
+pub(crate) fn operation_identity_range_schema_version() -> u32 {
+    1
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperationIdentityRangeResponseV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub range: ClientIdentityRangeV1,
+}
+
 impl ClientIdentityRangeV1 {
     pub const SCHEMA_VERSION: u32 = 1;
 
@@ -596,6 +639,24 @@ mod tests {
             &shipped,
             "ordinaryMutation",
         )
+    }
+
+    #[test]
+    fn client_range_v1_legacy_shape_decodes_and_round_trips() {
+        let golden = serde_json::json!({
+            "kind": "clientRange",
+            "epoch_id": "epoch-legacy",
+            "counter": 7,
+            "range_start": 0,
+            "range_end_exclusive": 16,
+            "authority_authenticator_digest": sha('a'),
+        });
+        let decoded: OperationIssuanceV1 =
+            serde_json::from_value(golden.clone()).expect("decode pre-carrier v1 issuance");
+        assert_eq!(
+            serde_json::to_value(decoded).expect("encode pre-carrier v1 issuance"),
+            golden,
+        );
     }
 
     fn empty_facts() -> EnvelopeFactSetV1 {

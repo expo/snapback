@@ -8316,6 +8316,10 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             app_auth_route("POST", "/client-mutations/acknowledge"),
             post(acknowledge_mutations),
         ),
+        RegisteredRoute::new(
+            app_auth_route("POST", "/client-mutations/identity-range"),
+            post(issue_operation_identity_range),
+        ),
         // The snapshot bundle endpoint (LLP 0090 D1.2 / LLP 0092 §0D):
         // optional credential — anonymous accepted only for read mode against
         // publicInline-class routes; register mode is credentialed-only. The
@@ -9545,7 +9549,7 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/app/bundle" => Some(InvocationSource::HttpQuery),
         "/mutation/{name}" => Some(InvocationSource::HttpMutation),
         "/action/{name}" => Some(InvocationSource::HttpAction),
-        "/client-mutations/acknowledge" => {
+        "/client-mutations/acknowledge" | "/client-mutations/identity-range" => {
             Some(InvocationSource::MutationSettlementAcknowledgement)
         }
         "/live/authorization-invalidation/acknowledge"
@@ -19697,6 +19701,42 @@ async fn acknowledge_mutations(
     Ok(Json(MutationAcknowledgementResponse { acknowledged }))
 }
 
+async fn issue_operation_identity_range(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    input: Result<
+        Json<crate::commit_envelope::OperationIdentityRangeRequestV1>,
+        JsonRejection,
+    >,
+) -> Result<Json<crate::commit_envelope::OperationIdentityRangeResponseV1>, ApiError> {
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    if request.schema_version
+        != crate::commit_envelope::operation_identity_range_schema_version()
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_IDENTITY_RANGE_VERSION_UNSUPPORTED",
+            "protocol",
+            "operation identity range request schema version is unsupported",
+        )
+        .into());
+    }
+    let range = with_snapback(&state, move |snapback| {
+        snapback.issue_client_operation_identity_range(
+            &authority,
+            &request.client_audience_id,
+            request.authority_descriptor.as_ref(),
+            request.previous_range.as_ref(),
+        )
+    })
+    .await?;
+    Ok(Json(
+        crate::commit_envelope::OperationIdentityRangeResponseV1 {
+            schema_version: crate::commit_envelope::operation_identity_range_schema_version(),
+            range,
+        },
+    ))
+}
+
 // ---------------------------------------------------------------------------
 // Asset upload sessions (LLP 0044; tickets L1-04/L1-05).
 // ---------------------------------------------------------------------------
@@ -20202,6 +20242,7 @@ async fn invoke_mutation(
     let stage_authority_descriptor = request.authority_descriptor.clone();
     let stage_acknowledgements = request.acknowledged_client_mutation_ids.clone();
     let stage_expected_generation = request.expected_generation.clone();
+    let stage_operation_issuance = request.operation_issuance.clone();
     let stage_settlement = request.settlement.clone();
     let stage_authority = authority.clone();
     let (result, receipt, response_authority_descriptor) =
@@ -20220,6 +20261,7 @@ async fn invoke_mutation(
                         "http",
                         stage_authority.clone(),
                         stage_expected_generation.as_ref(),
+                        stage_operation_issuance.clone(),
                         stage_settlement.clone(),
                     )?;
                 Ok((preflight, (response_authority_descriptor, staged)))

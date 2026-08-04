@@ -30,8 +30,8 @@ use crate::auth::wire::{
 };
 use crate::commit_envelope::{
     ClientIdentityRangeV1, CommitEnvelopeV1, IdentityEpochV1, OperationCoverageManifestV1,
-    OperationExplanationV1, OperationIdentityTombstoneV1, OperationIdentityV1,
-    OperationSuppressionRecordV1,
+    OperationExplanationV1, OperationIdentityRangeRequestV1, OperationIdentityRangeResponseV1,
+    OperationIdentityTombstoneV1, OperationIdentityV1, OperationSuppressionRecordV1,
 };
 use crate::data_tier::{DataTierCorpusCase, DataTierCorpusManifest, DataTierProfile};
 use crate::deploy::{
@@ -84,9 +84,7 @@ use crate::proof_checkpoint::{
     HistoryRetentionPolicyV1, NamedCheckpointReceiptV1, NamedCheckpointRequestV1,
     PromotionApprovedWriteV1, PromotionDigestHeaderV1, RecordHistoryPageV1,
 };
-use crate::result_transform::{
-    ResultTransformCorpusCaseV1, ResultTransformCorpusManifestV1,
-};
+use crate::result_transform::{ResultTransformCorpusCaseV1, ResultTransformCorpusManifestV1};
 use crate::seed_identity::{
     ActiveSeedIdentityV1, ExpectedDataVersionStreamV1, InstallSeedRequestV1, ResetSeedRequestV1,
     SeedArtifactV1, SeedAssetFixturesV1, SeedEnsureResultV1, SeedInstallReceiptV1,
@@ -165,6 +163,14 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "operation.identity-range-v1.schema.json",
             schemars::schema_for!(ClientIdentityRangeV1),
+        ),
+        finish(
+            "operation.identity-range-request-v1.schema.json",
+            schemars::schema_for!(OperationIdentityRangeRequestV1),
+        ),
+        finish(
+            "operation.identity-range-response-v1.schema.json",
+            schemars::schema_for!(OperationIdentityRangeResponseV1),
         ),
         finish(
             "operation.identity-epoch-v1.schema.json",

@@ -107,6 +107,42 @@ test('commit/load roundtrip is atomic {rows, meta, token} and clears in-progress
   await store.close();
 });
 
+test('operation identity range counter and queued intent survive file-store reopen atomically', async (t) => {
+  const directory = await makeDirectory(t);
+  const range = {
+    schemaVersion: 1,
+    audience: 'authority-file',
+    authorityInstanceId: 'authority-file',
+    epochId: 'epoch-file',
+    epochSequence: 0,
+    rangeStart: 20,
+    rangeEndExclusive: 22,
+    issuedAtMs: 1,
+    expiresAtMs: 10_000,
+    authorityAuthenticatorDigest: `sha256:${'b'.repeat(64)}`,
+  };
+  const { store } = await makeStore(t, { directory, now: () => 2 });
+  const first = await store.outboxEnqueueWithOperationIdentity(
+    { id: 'cm-file-operation-1', function: 'createThing' },
+    'dev:file-user',
+    range,
+  );
+  assert.equal(first.operationIssuance.counter, 20);
+  await store.close();
+
+  const { store: reopened } = await makeStore(t, { directory, now: () => 3 });
+  const second = await reopened.outboxEnqueueWithOperationIdentity(
+    { id: 'cm-file-operation-2', function: 'createThing' },
+    'dev:file-user',
+  );
+  assert.equal(second.operationIssuance.counter, 21);
+  assert.deepEqual(
+    (await reopened.outboxPending()).map((record) => record.id),
+    ['cm-file-operation-1', 'cm-file-operation-2'],
+  );
+  await reopened.close();
+});
+
 test('React binding receipt is atomic, detached, bounded, uncounted, writer-gated, and durable', async (t) => {
   const directory = await makeDirectory(t);
   const { store } = await makeStore(t, { directory });

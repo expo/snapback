@@ -310,6 +310,39 @@ export function createMemoryRqsResumeStore({
       return structuredClone(applied.result);
     },
 
+    async outboxEnqueueWithOperationIdentity(record, authorityCohortKey, range = null) {
+      if (!requireWriter()) throw outboxNotWriterError();
+      const applied = outboxOps.enqueueWithOperationIdentity(
+        state.outbox,
+        record,
+        now(),
+        authorityCohortKey,
+        range,
+      );
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
+    async outboxAssignOperationIdentity(id, authorityCohortKey, range = null) {
+      if (!requireWriter()) return false;
+      const applied = outboxOps.assignOperationIdentity(
+        state.outbox,
+        id,
+        now(),
+        authorityCohortKey,
+        range,
+      );
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
+    async outboxOperationIdentityRange(authorityCohortKey) {
+      requireOpen();
+      return structuredClone(
+        outboxOps.operationIdentityRange(state.outbox, authorityCohortKey).result,
+      );
+    },
+
     async outboxPending() {
       requireOpen();
       return structuredClone(pendingOutboxRecords(state.outbox));

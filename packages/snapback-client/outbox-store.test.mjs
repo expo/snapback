@@ -194,6 +194,56 @@ test('memory arm carries the outbox contract', async () => {
   await store.close();
 });
 
+const OPERATION_RANGE = Object.freeze({
+  schemaVersion: 1,
+  audience: 'authority-a',
+  authorityInstanceId: 'authority-a',
+  epochId: 'epoch-a',
+  epochSequence: 0,
+  rangeStart: 10,
+  rangeEndExclusive: 12,
+  issuedAtMs: 1,
+  expiresAtMs: 10_000,
+  authorityAuthenticatorDigest: `sha256:${'a'.repeat(64)}`,
+});
+
+test('operation range, next counter, and intent move in one outbox transition', () => {
+  const first = outboxOps.enqueueWithOperationIdentity(
+    emptyOutboxState(),
+    { id: 'cm-operation-1', function: 'createThing' },
+    2,
+    'dev:user-a',
+    OPERATION_RANGE,
+  );
+  assert.equal(first.result.operationIssuance.counter, 10);
+  assert.equal(first.result.operationCoverageDisposition, 'covered');
+  assert.equal(first.state.operationIdentityRanges['dev:user-a'].nextCounter, 11);
+
+  // A JSON crash/reopen cut cannot preserve the intent without the advanced
+  // counter: both live in the same persisted outbox section.
+  const reopened = JSON.parse(JSON.stringify(first.state));
+  const second = outboxOps.enqueueWithOperationIdentity(
+    reopened,
+    { id: 'cm-operation-2', function: 'createThing' },
+    3,
+    'dev:user-a',
+  );
+  assert.equal(second.result.operationIssuance.counter, 11);
+  assert.equal(second.state.operationIdentityRanges['dev:user-a'].nextCounter, 12);
+
+  const exhausted = outboxOps.enqueueWithOperationIdentity(
+    second.state,
+    { id: 'cm-operation-3', function: 'createThing' },
+    4,
+    'dev:user-a',
+  );
+  assert.equal(exhausted.result.operationIssuance, null);
+  assert.equal(
+    exhausted.result.operationCoverageDisposition,
+    'uncovered-range-exhausted',
+  );
+});
+
 test('ACK pressure refuses settlement publication without losing pending intent', () => {
   const pending = outboxOps.enqueue(
     emptyOutboxState(),
@@ -543,6 +593,61 @@ test('mutate queues on connectivity failure and replays exactly-once', async (t)
     [],
     'a successful response confirms the sent acknowledgements',
   );
+});
+
+test('opt-in client range transport allocates before first mutation and reuses one retry carrier', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const store = createDurableTestStore();
+  const clientAudienceId = (await store.readStoreMeta()).clientStoreId;
+  const requests = [];
+  const issuedAtMs = Date.now();
+  globalThis.fetch = async (url, init) => {
+    const body = JSON.parse(init.body);
+    requests.push({ url: String(url), body });
+    if (String(url).endsWith('/client-mutations/identity-range')) {
+      return Response.json({
+        schemaVersion: 1,
+        range: {
+          schemaVersion: 1,
+          audience: 'dev-user-a',
+          authorityInstanceId: 'dev-user-a',
+          epochId: 'epoch-client-a',
+          epochSequence: 0,
+          rangeStart: 0,
+          rangeEndExclusive: 256,
+          issuedAtMs,
+          expiresAtMs: issuedAtMs + 60_000,
+          authorityAuthenticatorDigest: `sha256:${'c'.repeat(64)}`,
+        },
+      });
+    }
+    return Response.json({ result: { ok: true }, version: 1 });
+  };
+  const client = new SnapbackClient('https://operation-range.example', {
+    rqsStore: store,
+    operationIdentityProtocol: 1,
+  });
+  const result = await client.mutate('createThing', {
+    args: { title: 'covered' },
+    userId: 'user-a',
+  });
+  assert.deepEqual(result.result, { ok: true });
+  assert.equal(requests.length, 2);
+  assert.match(requests[0].url, /\/client-mutations\/identity-range$/);
+  assert.equal(requests[0].body.clientAudienceId, clientAudienceId);
+  assert.match(requests[1].url, /\/mutation\/createThing$/);
+  assert.match(requests[1].body.clientMutationId, /^mut_/u);
+  assert.deepEqual(requests[1].body.operationIssuance, {
+    kind: 'clientRange',
+    epoch_id: 'epoch-client-a',
+    counter: 0,
+    range_start: 0,
+    range_end_exclusive: 256,
+    authority_authenticator_digest: `sha256:${'c'.repeat(64)}`,
+  });
+  const retained = await store.outboxRecords();
+  assert.equal(retained[0].operationIssuance.counter, 0);
+  assert.equal(retained[0].status, 'settled');
 });
 
 test('mixed lane-Q and lane-L intents replay in sequence with immutable per-item policy', async (t) => {

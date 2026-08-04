@@ -559,6 +559,44 @@ export function createFileRqsResumeStore({
       });
     },
 
+    async outboxEnqueueWithOperationIdentity(record, authorityCohortKey, range = null) {
+      requireOpen();
+      return serialized(async () => {
+        const { result } = await outboxWrite(
+          (outbox) => outboxOps.enqueueWithOperationIdentity(
+            outbox,
+            record,
+            now(),
+            authorityCohortKey,
+            range,
+          ),
+          { throwWhenNotWriter: true },
+        );
+        return result;
+      });
+    },
+
+    async outboxAssignOperationIdentity(id, authorityCohortKey, range = null) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.assignOperationIdentity(
+          outbox,
+          id,
+          now(),
+          authorityCohortKey,
+          range,
+        ),
+      )).result);
+    },
+
+    async outboxOperationIdentityRange(authorityCohortKey) {
+      requireOpen();
+      return serialized(async () => outboxOps.operationIdentityRange(
+        (await readState()).outbox,
+        authorityCohortKey,
+      ).result);
+    },
+
     async outboxPending() {
       requireOpen();
       return serialized(async () => pendingOutboxRecords((await readState()).outbox));
