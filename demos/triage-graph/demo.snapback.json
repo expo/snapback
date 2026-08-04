@@ -1,0 +1,20 @@
+{
+  "id": "triage-graph",
+  "title": "Triage Graph — local-first successor",
+  "description": "Fresh provider-native Move-1 successor proving bounded graph composition, protected query churn, durable registration custody, and authoritative retained relaunch.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs",
+    "generated": ["snapback/generated/artifacts.json"],
+    "stalenessPolicy": "manifest-only generated custody; projections resolve from the immutable complete-input cache"
+  },
+  "manifestDecision": "workload-manifest.2026-08-03.v1.json",
+  "notClaiming": [
+    "Fleet exit",
+    "snapshot-batch retained execution",
+    "public durable-registration authoring",
+    "single-table materialization adoption",
+    "a capability or LLP status change"
+  ]
+}

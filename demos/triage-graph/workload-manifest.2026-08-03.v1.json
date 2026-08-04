@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "snapback.triage-successor-workload.v1",
+  "date": "2026-08-03",
+  "decisionAuthority": "LLP 0155 OQ13",
+  "reuseDecision": "refreeze-fresh-successor-manifest",
+  "predecessorLineageRetained": true,
+  "predecessorManifestCopied": false,
+  "predecessorTransformsCopied": false,
+  "reason": "The old workload supplies scale lineage and gate intent only. P3 authors a new owner-scoped snapshot-batch graph, a lease-retainable relational inbox, and a fresh deterministic 249000-plus-1000 event fixture.",
+  "fixture": {
+    "baselineEvents": 249000,
+    "updateBurst": 1000,
+    "totalEvents": 250000,
+    "activeMatches": 100,
+    "activePageSize": 50,
+    "transitionWindow": 20,
+    "queryChanges": 20
+  },
+  "fleetIncluded": false,
+  "fleetBlocker": "LLP 0135 OQ5"
+}

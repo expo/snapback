@@ -1,0 +1,267 @@
+{
+  "schemaVersion": "snapback.triage-graph.move1-exit.v1",
+  "date": "2026-08-03",
+  "authority": [
+    "LLP 0157#move-1-workload-exit-llp-0155-normative-transcription",
+    "LLP 0155 OQ9",
+    "LLP 0155 OQ13",
+    "LLP 0166#d4--completeness-honest-local-answers"
+  ],
+  "source": {
+    "revision": "f47abcfb982a61a003da2f45a42864f622d279df",
+    "dirty": true,
+    "files": [
+      {
+        "path": "tests/acceptance/triage-graph-move1-v1.mjs",
+        "sha256": "255918c9c6d5249d1e30062c73e8f8b0f7a7b05b2be2aef1b325b52ecc38aaf3"
+      },
+      {
+        "path": "demos/triage-graph/snapback/schema.mjs",
+        "sha256": "db72b875a82245c8e2106dde0d63aa7085c29f97dfd8857442b363b87e23f360"
+      },
+      {
+        "path": "demos/triage-graph/snapback/functions.mjs",
+        "sha256": "74622a7b1949c2216dc2936604dbd52ea836ff7c6b57a702cde775a6d8db5241"
+      },
+      {
+        "path": "demos/triage-graph/snapback/trusted-composition-activation.json",
+        "sha256": "9cc69effe83c198a45d4ac67fcfe42ec39d255d194f40a8d6d12db98b5d585d3"
+      },
+      {
+        "path": "demos/triage-graph/snapback/generated/artifacts.json",
+        "sha256": "0d6f205bd6c137f2d6fa8face297970f63634adca6c2766ab50de274fffb184e"
+      },
+      {
+        "path": "demos/triage-graph/demo.snapback.json",
+        "sha256": "4cefa0af8fab9471ef867dc6ec0ecd67f1289e94d72f451aa580754e721ff8af"
+      },
+      {
+        "path": "demos/triage-graph/src/App.tsx",
+        "sha256": "c9cbd731c6c9eea39df56315d0e4d9faa17776241c45dee2e2a047326e5eaafd"
+      },
+      {
+        "path": "demos/triage-graph/src/retained-registration.ts",
+        "sha256": "22423bb17be171c391248392c0a82da0770a1700329cc88d2072fda972c12f1f"
+      },
+      {
+        "path": "demos/triage-graph/workload-manifest.2026-08-03.v1.json",
+        "sha256": "3349caf8dab5caeaa0660bfa07389e0eb11d1dc23a762e99e799f947f85e250b"
+      }
+    ]
+  },
+  "controlledRun": {
+    "status": "PASS",
+    "runtime": {
+      "serverBinary": "target/debug/snapback",
+      "serverBinarySha256": "36babf90f2bdf64d82d22ac157b16eeb0d78747f3f96d49fd65d090c6be658be",
+      "launchRung": "configured",
+      "backendStoppedBeforeRelaunch": true
+    },
+    "activation": {
+      "format": "snapback.composition-activation-preparation.v1",
+      "activationHash": "sha256:b8a2d109d816b0ef55000e56ee40cfe06a1556a0ec61263253f5573a25074dc1",
+      "deploymentId": "triage-graph-p3-controlled-run"
+    }
+  },
+  "manifestDecision": "refreeze-fresh-successor-manifest",
+  "budgetFreeze": {
+    "schemaVersion": "snapback.triage-graph.budget-freeze.v1",
+    "date": "2026-08-03",
+    "authority": "LLP 0155 OQ9",
+    "feedsMeasuredRevision": "LLP 0166 OQ4",
+    "optimizationPerformedBeforeFreeze": false,
+    "controlledWorkload": {
+      "baselineEvents": 249000,
+      "updateBurst": 1000,
+      "totalEvents": 250000
+    },
+    "measured": {
+      "custody": {
+        "materializationRecords": 21,
+        "payloadBearingRecords": 21,
+        "volatileSnapshotRecords": 20,
+        "fragments": 21,
+        "storedResultRows": 120,
+        "authoritativeRetainedRows": 100,
+        "logicalBytes": 48016,
+        "resultBytes": 21561,
+        "proofBytes": 26455,
+        "durableRegistrations": 1,
+        "registrationBytes": 612,
+        "leaseRecords": 1,
+        "physicalCarrierBytes": 124572
+      },
+      "hydration": {
+        "attempts": 1,
+        "rowsInstalled": 100,
+        "payloadBytes": 14981,
+        "elapsedMs": 122.919
+      }
+    },
+    "frozenCeilings": {
+      "custody": {
+        "materializationRecords": 21,
+        "payloadBearingRecords": 21,
+        "volatileSnapshotRecords": 20,
+        "fragments": 21,
+        "storedResultRows": 120,
+        "authoritativeRetainedRows": 100,
+        "logicalBytes": 48016,
+        "durableRegistrations": 1,
+        "registrationBytes": 612,
+        "leaseRecords": 1
+      },
+      "hydration": {
+        "attempts": 1,
+        "rowsInstalled": 100,
+        "payloadBytes": 14981,
+        "elapsedMs": 1000
+      }
+    }
+  },
+  "summary": {
+    "pass": 8,
+    "blocked": 0,
+    "total": 8,
+    "capabilityClaimsChanged": false,
+    "fleetIncluded": false
+  },
+  "gates": [
+    {
+      "gate": "required screens consume generated composites rather than JavaScript collection joins",
+      "status": "PASS",
+      "evidence": {
+        "graphProfile": "snapshot-batch.v1",
+        "graphNodeTakes": [
+          50,
+          20
+        ],
+        "graphRetention": "none",
+        "retainedProfile": "relational-query.v1",
+        "retainedTake": 100,
+        "predecessorTransformsCopied": false,
+        "manifestDecision": "refreeze-fresh-successor-manifest"
+      }
+    },
+    {
+      "gate": "the client retains only desired bounded query results",
+      "status": "PASS",
+      "evidence": {
+        "materializationRecords": 21,
+        "payloadBearingRecords": 21,
+        "volatileSnapshotRecords": 20,
+        "fragments": 21,
+        "storedResultRowsExplained": 120,
+        "authoritativeRetainedRowsExplained": 100,
+        "durableRegistrations": 1,
+        "leaseRecords": 1,
+        "addressKey": "qmk1.QJCJLuo5yiQHBdqZboevcCB46vcDD6sntj7eRHxr7CM",
+        "currentTransition": {
+          "answerClass": "authoritative",
+          "freshness": "current"
+        },
+        "relaunchTransition": {
+          "answerClass": "authoritative",
+          "freshness": "retained",
+          "updateKind": null,
+          "updateCallbackObserved": false
+        }
+      }
+    },
+    {
+      "gate": "pagination neither duplicates nor skips an untouched root",
+      "status": "PASS",
+      "evidence": {
+        "pages": 2,
+        "rows": 100,
+        "uniqueIssueKeys": 100,
+        "ranks": [
+          0,
+          99
+        ],
+        "transitionRows": 20
+      }
+    },
+    {
+      "gate": "20 query changes leak no predecessor rows",
+      "status": "PASS",
+      "evidence": {
+        "changes": 20,
+        "rows": [
+          "SWITCH-0",
+          "SWITCH-1",
+          "SWITCH-2",
+          "SWITCH-3",
+          "SWITCH-4",
+          "SWITCH-5",
+          "SWITCH-6",
+          "SWITCH-7",
+          "SWITCH-8",
+          "SWITCH-9",
+          "SWITCH-10",
+          "SWITCH-11",
+          "SWITCH-12",
+          "SWITCH-13",
+          "SWITCH-14",
+          "SWITCH-15",
+          "SWITCH-16",
+          "SWITCH-17",
+          "SWITCH-18",
+          "SWITCH-19"
+        ],
+        "retainedVolatileSnapshotEnvelopes": 20,
+        "offlineRenderability": "unknown-render-nothing"
+      }
+    },
+    {
+      "gate": "the 250,000-event fixture converges to exactly 100 active matches from the 1,000-update burst",
+      "status": "PASS",
+      "evidence": {
+        "baselineEvents": 249000,
+        "updateBurst": 1000,
+        "totalEvents": 250000,
+        "activeMatches": 100
+      }
+    },
+    {
+      "gate": "an implicit incomplete prefix is impossible to consume as complete",
+      "status": "PASS",
+      "evidence": {
+        "refusal": "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
+      }
+    },
+    {
+      "gate": "Mallory receives no protected source or result rows",
+      "status": "PASS",
+      "evidence": {
+        "protectedGraphRows": 0,
+        "protectedRetainedRows": 0
+      }
+    },
+    {
+      "gate": "inspection explains every retained row and completeness transition",
+      "status": "PASS",
+      "evidence": {
+        "materializationRecords": 21,
+        "payloadBearingRecords": 21,
+        "volatileSnapshotRecords": 20,
+        "fragments": 21,
+        "storedResultRowsExplained": 120,
+        "authoritativeRetainedRowsExplained": 100,
+        "durableRegistrations": 1,
+        "leaseRecords": 1,
+        "addressKey": "qmk1.QJCJLuo5yiQHBdqZboevcCB46vcDD6sntj7eRHxr7CM",
+        "currentTransition": {
+          "answerClass": "authoritative",
+          "freshness": "current"
+        },
+        "relaunchTransition": {
+          "answerClass": "authoritative",
+          "freshness": "retained",
+          "updateKind": null,
+          "updateCallbackObserved": false
+        }
+      }
+    }
+  ]
+}

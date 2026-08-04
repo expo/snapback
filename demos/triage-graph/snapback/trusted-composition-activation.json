@@ -1,0 +1,29 @@
+{
+  "format": "snapback.trusted-composition-activation.v1",
+  "activation": {
+    "format": "snapback.composition-activation.v1",
+    "databaseId": "019fcba4-7698-7fe1-9da0-1da96ccf997d",
+    "deploymentId": "triage-graph-p3-controlled-run",
+    "targetProfileId": "local-dev-sqlite-ibex",
+    "authMode": "sessions",
+    "expectedGeneration": {
+      "schemaVersion": "snapback.v1",
+      "appId": "triage-graph",
+      "schemaHash": "snapback.v1:sessions:schema:sha256:5cd199fb8f4beeeb2799341131f7b8c5bf379991c2d697b21e1c15baa11d0ef9",
+      "bundleHash": "snapback.v1:sessions:function:sha256:e211717caf1826e8d360c4d908d53a5b5715e5c58922e50cb6eed5e4b4455737",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:fc843ce4e3684db06d3159b75bc5824f311eff6edcae319887ce4baadab6e470"
+    },
+    "proofKeyManifestDigest": "sha256:b0271fe9bb64a7e577a67d6063dfafd4b015d2c3e21cbb4f8f99af06d8d559fa"
+  },
+  "activationHash": "sha256:b8a2d109d816b0ef55000e56ee40cfe06a1556a0ec61263253f5573a25074dc1",
+  "proofKeys": {
+    "format": "snapback.completeness-proof-keys.v1",
+    "keys": [
+      {
+        "proofKeyId": "sbpk1.Yp5PTm5VyDnu5QDbIIVLZA",
+        "algorithm": "Ed25519",
+        "publicKeyBase64url": "97J0Ibukz1rBD21-Ijvp_Ocxtd-vlIx7lqQvW-k-oAw"
+      }
+    ]
+  }
+}
