@@ -105,9 +105,9 @@ Key structure:
 
 ## Resolution (2026-08-03)
 
-Implemented all seven work items in `591f0f411`, hardened the final
-security/audit edges in `ddc57d1c9`, and reconciled the rebased mainline's
-exhaustive diagnostic inventory in `84de0bfda`; `bc05a0a12` kept tailscaled
+Implemented all seven work items in `6c81e2372`, hardened the final
+security/audit edges in `4bc7cc463`, and reconciled the rebased mainline's
+exhaustive diagnostic inventory in `c7fa57e8d`; `9b9096bf3` kept tailscaled
 calls bounded while tolerating a heavily scheduled host and made early test
 process exits report their stable diagnostic:
 
@@ -139,7 +139,7 @@ Verification completed cleanly:
   the repository codegen command so it matched the committed wire schemas)
 - `bun run test` and `bun run build` in `admin-ui/`
 - `node scripts/check-guide.mjs`
-- `./ref-check --verbose` (167 LLP documents, 3,744 refs, zero errors or
+- `./ref-check --verbose` (167 LLP documents, 3,761 refs, zero errors or
   unchecked references)
 
 ## References

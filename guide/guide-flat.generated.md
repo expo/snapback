@@ -9881,7 +9881,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-08-03
-reviewed-commit: bc05a0a12
+reviewed-commit: 9b9096bf3
 ---
 
 # Admin console
