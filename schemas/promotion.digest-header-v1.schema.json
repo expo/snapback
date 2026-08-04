@@ -1,0 +1,57 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/promotion.digest-header-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "algorithmVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "approvedFactsDigest": {
+      "type": "string"
+    },
+    "baseVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "childStreamId": {
+      "type": "string"
+    },
+    "coverageManifestDigest": {
+      "type": "string"
+    },
+    "operationLogDigest": {
+      "type": "string"
+    },
+    "parentStreamId": {
+      "type": "string"
+    },
+    "promotionIdentity": {
+      "type": "string"
+    },
+    "reviewedHeadVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schemaHash": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "algorithmVersion",
+    "promotionIdentity",
+    "parentStreamId",
+    "childStreamId",
+    "baseVersion",
+    "reviewedHeadVersion",
+    "schemaHash",
+    "coverageManifestDigest",
+    "operationLogDigest",
+    "approvedFactsDigest"
+  ],
+  "title": "PromotionDigestHeaderV1",
+  "type": "object"
+}

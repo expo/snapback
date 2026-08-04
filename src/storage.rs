@@ -2490,6 +2490,119 @@ impl LocalDatabase {
         })
     }
 
+    /// Enable finite, independently-pruned record history for one declared
+    /// table. Capability publication remains gated by LLP 0162's corpus.
+    pub fn configure_history_policy(
+        &self,
+        policy: &crate::proof_checkpoint::HistoryRetentionPolicyV1,
+    ) -> SnapbackResult<()> {
+        crate::proof_checkpoint::configure_history_policy(&self.conn, &self.schema, policy)
+    }
+
+    /// Prune only the history clock. This deliberately does not read or write
+    /// the sync replay floor.
+    pub fn prune_record_history(&self, now_ms: u64) -> SnapbackResult<u64> {
+        crate::proof_checkpoint::prune_record_history(&self.conn, now_ms)
+    }
+
+    /// Read retained versions under current-record plus per-post-image
+    /// authorization. Pagination occurs after elision so its cursor exposes
+    /// only the count of versions this caller could see.
+    pub fn record_history(
+        &self,
+        table: &str,
+        row_id: &str,
+        visible_offset: u64,
+        limit: u32,
+        authorize_current: impl FnOnce(Option<&Value>) -> bool,
+        authorize_historical: impl FnMut(Option<&Value>) -> bool,
+    ) -> SnapbackResult<crate::proof_checkpoint::RecordHistoryPageV1> {
+        with_pinned_read_snapshot(&self.conn, |conn| {
+            let current = get_on(conn, &self.schema, table, row_id)?;
+            crate::proof_checkpoint::read_record_history(
+                conn,
+                table,
+                row_id,
+                visible_offset,
+                limit,
+                current.as_ref(),
+                authorize_current,
+                authorize_historical,
+            )
+        })
+    }
+
+    /// Create a receipt-only or materialized named checkpoint. Materialized
+    /// creation is admitted only for file-backed databases and always uses a
+    /// finite copy/WAL/lease request.
+    pub fn create_named_checkpoint(
+        &mut self,
+        destination: Option<&Path>,
+        request: &crate::proof_checkpoint::NamedCheckpointRequestV1,
+    ) -> SnapbackResult<crate::proof_checkpoint::NamedCheckpointReceiptV1> {
+        self.create_named_checkpoint_with_cut(destination, request, None)
+    }
+
+    fn create_named_checkpoint_with_cut(
+        &mut self,
+        destination: Option<&Path>,
+        request: &crate::proof_checkpoint::NamedCheckpointRequestV1,
+        cut_at: Option<crate::proof_checkpoint::CheckpointPublicationCut>,
+    ) -> SnapbackResult<crate::proof_checkpoint::NamedCheckpointReceiptV1> {
+        let source = self.path.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_CHECKPOINT_SOURCE_UNSUPPORTED",
+                "proofCheckpoint",
+                "named checkpoints require a file-backed database",
+            )
+        })?;
+        // Initialize the stream before pinning. It is part of the compared
+        // checkpoint header and cannot be minted after the source scan.
+        let _ = self.data_version_stream()?;
+        crate::proof_checkpoint::create_named_checkpoint(
+            &self.conn,
+            &source,
+            &self.schema,
+            destination,
+            request,
+            cut_at,
+        )
+    }
+
+    #[cfg(test)]
+    pub(crate) fn create_named_checkpoint_at_cut_for_test(
+        &mut self,
+        destination: Option<&Path>,
+        request: &crate::proof_checkpoint::NamedCheckpointRequestV1,
+        cut_at: crate::proof_checkpoint::CheckpointPublicationCut,
+    ) -> SnapbackResult<crate::proof_checkpoint::NamedCheckpointReceiptV1> {
+        self.create_named_checkpoint_with_cut(destination, request, Some(cut_at))
+    }
+
+    pub fn inspect_named_checkpoint(
+        &self,
+        checkpoint_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::proof_checkpoint::NamedCheckpointReceiptV1> {
+        crate::proof_checkpoint::inspect_checkpoint(&self.conn, checkpoint_id, now_ms)
+    }
+
+    pub fn erase_named_checkpoint(
+        &self,
+        checkpoint_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::proof_checkpoint::CheckpointRegistryRecordV1> {
+        crate::proof_checkpoint::erase_checkpoint(&self.conn, checkpoint_id, now_ms)
+    }
+
+    pub fn recover_named_checkpoint(
+        &self,
+        checkpoint_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<crate::proof_checkpoint::CheckpointRegistryRecordV1> {
+        crate::proof_checkpoint::recover_checkpoint(&self.conn, checkpoint_id, now_ms)
+    }
+
     pub fn change_journal_len(&self) -> SnapbackResult<u64> {
         let count: i64 =
             self.conn
@@ -6112,6 +6225,7 @@ impl LocalDatabase {
               ON _snapback_authorized_lease_reservations(authorized_until_server_ms);
             ",
         )?;
+        crate::proof_checkpoint::create_infra(&self.conn)?;
         crate::search::sqlite::create_infra(&self.conn)?;
         crate::vector::sqlite::create_infra(&self.conn)?;
         // @ref LLP 0070#job-identity-and-enqueue — the durable one-off job and
@@ -17591,22 +17705,36 @@ fn record_change(
     row: Option<&Value>,
     now_ms: u64,
 ) -> SnapbackResult<()> {
+    let operation = match op {
+        ChangeOp::Insert => "insert",
+        ChangeOp::Update => "update",
+        ChangeOp::Delete => "delete",
+    };
+    let row_json = row.map(Value::to_string);
+    let version_sql = version_to_sql_integer(version)?;
+    let changed_at_sql = timestamp_to_sql_millis(now_ms)?;
     let mut statement = tx.prepare_cached(
         "INSERT INTO _snapback_changes(version, table_name, row_id, op, row_json, changed_at_ms)
          VALUES(?1, ?2, ?3, ?4, ?5, ?6)",
     )?;
     statement.execute(params![
-        version_to_sql_integer(version)?,
+        version_sql,
         table,
         id,
-        match op {
-            ChangeOp::Insert => "insert",
-            ChangeOp::Update => "update",
-            ChangeOp::Delete => "delete",
-        },
-        row.map(Value::to_string),
-        timestamp_to_sql_millis(now_ms)?
+        operation,
+        row_json,
+        changed_at_sql
     ])?;
+    crate::proof_checkpoint::record_history_change(
+        tx,
+        version,
+        table,
+        id,
+        operation,
+        row_json.as_deref(),
+        now_ms,
+        None,
+    )?;
     Ok(())
 }
 

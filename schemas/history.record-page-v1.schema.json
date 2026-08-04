@@ -1,0 +1,83 @@
+{
+  "$defs": {
+    "RecordHistoryEntryV1": {
+      "additionalProperties": false,
+      "properties": {
+        "changedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "disposition": {
+          "type": "string"
+        },
+        "operationId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postImage": true,
+        "version": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "disposition",
+        "changedAtMs"
+      ],
+      "type": "object"
+    },
+    "RecordHistoryHorizonV1": {
+      "additionalProperties": false,
+      "properties": {
+        "earliestRetainedVersion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "predecessorAnchorComplete": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "predecessorAnchorComplete"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/history.record-page-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/RecordHistoryEntryV1"
+      },
+      "type": "array"
+    },
+    "horizon": {
+      "$ref": "#/$defs/RecordHistoryHorizonV1"
+    },
+    "nextVisibleOffset": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "entries",
+    "horizon"
+  ],
+  "title": "RecordHistoryPageV1",
+  "type": "object"
+}

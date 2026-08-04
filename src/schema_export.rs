@@ -70,6 +70,11 @@ use crate::migration::{
     MigrationAdmissionV1, MigrationApprovalV1, MigrationPlanArtifactV1,
     MigrationPreviewObservationV1, MigrationRehearsalPlanV1,
 };
+use crate::proof_checkpoint::{
+    BoundaryDigestV1, BoundaryProofV1, CheckpointDigestHeaderV1, CheckpointRegistryRecordV1,
+    HistoryRetentionPolicyV1, NamedCheckpointReceiptV1, NamedCheckpointRequestV1,
+    PromotionApprovedWriteV1, PromotionDigestHeaderV1, RecordHistoryPageV1,
+};
 use crate::seed_identity::{
     ActiveSeedIdentityV1, ExpectedDataVersionStreamV1, InstallSeedRequestV1, ResetSeedRequestV1,
     SeedArtifactV1, SeedAssetFixturesV1, SeedEnsureResultV1, SeedInstallReceiptV1,
@@ -133,6 +138,49 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "commit.envelope-v1.schema.json",
             schemars::schema_for!(CommitEnvelopeV1),
+        ),
+        // @ref LLP 0165#owned-artifacts — proof/checkpoint/history carriers
+        // are Rust-owned and committed before callers wire them in. Schema
+        // presence is not capability advertisement.
+        finish(
+            "promotion.digest-header-v1.schema.json",
+            schemars::schema_for!(PromotionDigestHeaderV1),
+        ),
+        finish(
+            "promotion.approved-write-v1.schema.json",
+            schemars::schema_for!(PromotionApprovedWriteV1),
+        ),
+        finish(
+            "checkpoint.digest-header-v1.schema.json",
+            schemars::schema_for!(CheckpointDigestHeaderV1),
+        ),
+        finish(
+            "boundary.digest-v1.schema.json",
+            schemars::schema_for!(BoundaryDigestV1),
+        ),
+        finish(
+            "boundary.proof-v1.schema.json",
+            schemars::schema_for!(BoundaryProofV1),
+        ),
+        finish(
+            "checkpoint.request-v1.schema.json",
+            schemars::schema_for!(NamedCheckpointRequestV1),
+        ),
+        finish(
+            "checkpoint.receipt-v1.schema.json",
+            schemars::schema_for!(NamedCheckpointReceiptV1),
+        ),
+        finish(
+            "checkpoint.registry-record-v1.schema.json",
+            schemars::schema_for!(CheckpointRegistryRecordV1),
+        ),
+        finish(
+            "history.retention-policy-v1.schema.json",
+            schemars::schema_for!(HistoryRetentionPolicyV1),
+        ),
+        finish(
+            "history.record-page-v1.schema.json",
+            schemars::schema_for!(RecordHistoryPageV1),
         ),
         // The one exported search request schema (LLP 0131 §The search
         // fixture / LLP 0115 CV-5): the Rust parser owns the AST grammar and
@@ -906,6 +954,10 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
         SchemaArtifact {
             file: "content-digest.v1.json",
             schema: sorted_keys(crate::rqs::content_digest_artifact()),
+        },
+        SchemaArtifact {
+            file: "boundary-digest.golden-v1.json",
+            schema: sorted_keys(crate::proof_checkpoint::boundary_digest_golden_artifact()),
         },
         // The LLP 0093 P-1 conformance fixture corpus (LLP 0095 §2-§3):
         // canonical frames + expected state-machine transitions, generated

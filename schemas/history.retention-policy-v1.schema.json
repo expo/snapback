@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/history.retention-policy-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "maxRows": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "retainMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "table": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "table",
+    "retainMs",
+    "maxRows"
+  ],
+  "title": "HistoryRetentionPolicyV1",
+  "type": "object"
+}

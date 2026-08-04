@@ -1,0 +1,44 @@
+{
+  "$defs": {
+    "BoundaryDomainV1": {
+      "enum": [
+        "promotion",
+        "checkpoint"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/boundary.digest-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "canonicalBytes": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "contentDigest": {
+      "type": "string"
+    },
+    "domain": {
+      "$ref": "#/$defs/BoundaryDomainV1"
+    },
+    "headerDigest": {
+      "type": "string"
+    },
+    "rows": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "domain",
+    "headerDigest",
+    "contentDigest",
+    "rows",
+    "canonicalBytes"
+  ],
+  "title": "BoundaryDigestV1",
+  "type": "object"
+}

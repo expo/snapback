@@ -1,0 +1,39 @@
+{
+  "$id": "https://schemas.snapback.dev/snapback.v0/checkpoint.digest-header-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "algorithmVersion": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "checkpointId": {
+      "type": "string"
+    },
+    "coverageManifestDigest": {
+      "type": "string"
+    },
+    "schemaHash": {
+      "type": "string"
+    },
+    "sourceStreamId": {
+      "type": "string"
+    },
+    "sourceVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "algorithmVersion",
+    "checkpointId",
+    "sourceStreamId",
+    "sourceVersion",
+    "schemaHash",
+    "coverageManifestDigest"
+  ],
+  "title": "CheckpointDigestHeaderV1",
+  "type": "object"
+}

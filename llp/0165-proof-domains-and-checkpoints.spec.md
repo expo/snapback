@@ -5,7 +5,14 @@
 **Systems:** Storage, Migrations, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (OQ13 executed — the reproducible SQLite spike proves
+**Revised:** 2026-08-03 (implementation checkpoint — Rust-owned promotion and
+checkpoint digest headers, normalized approved promotion writes, independent
+expected-state derivation, generated schemas and golden vectors, finite
+history policy/storage, budgeted materialized and receipt-only checkpoints,
+the imported publication crash matrix, and registry-authoritative erasure are
+implemented; integration with LLP 0163's operation provenance and LLP 0164's
+promotion caller plus the remaining Acceptance/performance corpus still gate
+any capability claim); 2026-08-03 (OQ13 executed — the reproducible SQLite spike proves
 one held source read transaction can feed both backup and independent scan
 while writers progress, but retained WAL grows with concurrent write volume;
 the contract is narrowed to budgeted pin or stable refusal); 2026-08-03
@@ -77,6 +84,73 @@ checkpoint receipts and custody-registry records, the publication state
 machine's checkpoint-specific instantiation, and their wire projections —
 generated per LLP 0037.
 
+### Concrete v1 digest preimages and derivations — 2026-08-03
+
+The Rust source of truth is
+[`src/proof_checkpoint.rs`](../src/proof_checkpoint.rs). Generated schemas are
+committed for `PromotionDigestHeaderV1`, `PromotionApprovedWriteV1`,
+`CheckpointDigestHeaderV1`, `BoundaryDigestV1`, and `BoundaryProofV1`; the
+executable, drift-gated vectors are
+[`schemas/boundary-digest.golden-v1.json`](../schemas/boundary-digest.golden-v1.json).
+Schema and vector presence is not a capability claim.
+
+The promotion header binds, in order, `algorithmVersion`, the stable aggregate
+`promotionIdentity`, parent and child stream identities, base and reviewed-head
+versions, schema hash, coverage-manifest digest, operation-log digest, and the
+full approved-facts digest. The expected side is derived by applying one
+canonical, unique `(qualifiedTable, rowId)`-ordered final write set to the
+immutable base. Inserts require absence, updates and deletes require presence,
+inserts and updates require post-images, and deletes forbid one. The staged
+re-execution scan is the actual side and does not call the expected-state
+deriver. A `BoundaryProofV1` cannot be constructed without a non-empty named
+independent derivation; equality of two inventory digests therefore cannot be
+relabelled as proof.
+
+The checkpoint header binds `algorithmVersion`, checkpoint identity, source
+stream and version, schema hash, and coverage-manifest digest. Both domains
+frame the distinct domain tag, RFC 8785 header, canonical logical application
+rows ordered by `(qualifiedTable, rowId)`, and a row-count trailer. The result
+is a `cdv1:` `ContentDigestV1`; the migration-shaped
+`ContentDigestHeaderV1` is not reused. The committed vectors prove domain
+separation, promotion expected/actual equality, and checkpoint source/copy
+equality over the same logical state.
+
+### Named-checkpoint and history substrate — 2026-08-03
+
+Named checkpoints use the durable `_snapback_checkpoint_registry_v1` authority.
+A materialized operation requires finite copy-byte, retained-WAL, and lease
+budgets. It records registry intent before creating bytes, fsyncs a staging
+sentinel, pins one source read transaction, independently scans that snapshot,
+runs SQLite backup from the same transaction while monitoring retained WAL,
+scans the copied image, and requires digest equality. It then fsyncs the
+receipt/database/directory, atomically renames, fsyncs the parent, finalizes
+the registry, removes the sentinel, and fsyncs the published directory.
+Ordinary refusal reconciles its intent immediately; the test-only crash cuts
+retain evidence for recovery. The eight intra-state cuts recover to either an
+`aborted` absent checkpoint or a complete registry-authorized published one.
+Receipt-only checkpoints retain no path and remain inventory in this
+implementation. Materialized equality is labelled only
+`verifiedCopyFidelity`.
+
+Erasure commits registry invalidity before attempting physical destruction.
+Successful deletion records `destroyed`; an inaccessible copy records
+`invalidUnreachable` plus an open obligation, and registry invalidity outvotes
+otherwise complete local evidence. A later successful erasure closes the
+obligation. The focused corpus also forces a canonical writer to commit while
+the checkpoint source transaction is pinned, then proves the copy stayed at
+the earlier stream-qualified version; the finite-WAL negative proves the
+stable `SNAPBACK_CHECKPOINT_WAL_BUDGET_EXCEEDED` refusal and automatic intent
+reconciliation.
+
+Bounded row history is written only from storage's existing `record_change`
+seam into `_snapback_record_history_v1` and pruned on a clock independent of
+the sync-resume floor. The read applies the current-record gate and then a
+per-post-image gate before visible pagination; cursor offsets and horizon facts
+are derived only from visible versions. Durable finite policy currently lands
+through `_snapback_history_policies_v1`; projecting that policy from a
+per-table schema declaration remains part of the row-11 integration gap and
+prevents a history capability claim at this checkpoint.
+
 ## Acceptance
 
 LLP 0162 Acceptance row 12, row 11's checkpoint half, row 4's
@@ -91,8 +165,9 @@ step 0 (the performance baseline). No parallel corpus here.
    contract to **budgeted pin or stable refusal**. It does not permit an
    unbudgeted database-sized copy and does not establish an intrinsic WAL
    bound.
-2. Concrete per-domain preimage field lists and golden vectors.
-3. Implementation details of the write-authority choke point — both
+2. *(Executed 2026-08-03.)* Concrete per-domain preimage field lists and
+   golden vectors are recorded above and generated from the Rust implementation.
+3. LLP 0163 composition details of the write-authority choke point — both
    controls (the generated transaction API with lane-writer token AND the
    SQLite authorizer) are decided by LLP 0162 §4; open here are only the
    generated-facade surface and the migration path for existing direct-SQL

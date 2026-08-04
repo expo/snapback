@@ -1,0 +1,68 @@
+{
+  "$defs": {
+    "CheckpointSubstrateV1": {
+      "enum": [
+        "materialized",
+        "receiptOnly"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/checkpoint.request-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "coverageManifestDigest": {
+      "type": "string"
+    },
+    "label": {
+      "type": "string"
+    },
+    "leaseExpiresAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "locationClass": {
+      "type": "string"
+    },
+    "maxCopyBytes": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "maxRetainedWalBytes": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "nowMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "substrate": {
+      "$ref": "#/$defs/CheckpointSubstrateV1"
+    }
+  },
+  "required": [
+    "label",
+    "operationId",
+    "owner",
+    "locationClass",
+    "substrate",
+    "coverageManifestDigest",
+    "nowMs",
+    "leaseExpiresAtMs",
+    "maxCopyBytes",
+    "maxRetainedWalBytes"
+  ],
+  "title": "NamedCheckpointRequestV1",
+  "type": "object"
+}

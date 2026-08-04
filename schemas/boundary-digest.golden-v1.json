@@ -1,0 +1,137 @@
+{
+  "authority": "llp/0165-proof-domains-and-checkpoints.spec.md#contract-summary-normative-details-per-llp-0162-4-6",
+  "frameRule": "every frame is u64-be(length) || bytes; trailer binds row count",
+  "ordering": "unique rows sorted by (qualifiedTable,rowId); RFC 8785 row and header values",
+  "vectors": [
+    {
+      "actualDigest": {
+        "canonicalBytes": 180,
+        "contentDigest": "cdv1:362966c9e3c743f43ea0615a054016559f0ce044d723a70921ae1b6ef3f49843",
+        "domain": "promotion",
+        "headerDigest": "sha256:6d82643510b0f694d4443e0e62f3bafed175a20fe9814ea2cf8a03de75f20f2b",
+        "rows": 2
+      },
+      "actualRows": [
+        {
+          "qualifiedTable": "app.todos",
+          "rowId": "a",
+          "value": {
+            "_id": "a",
+            "done": false,
+            "title": "alpha"
+          }
+        },
+        {
+          "qualifiedTable": "app.todos",
+          "rowId": "b",
+          "value": {
+            "_id": "b",
+            "done": true,
+            "title": "beta"
+          }
+        }
+      ],
+      "approvedWrites": [
+        {
+          "kind": "update",
+          "postImage": {
+            "_id": "a",
+            "done": false,
+            "title": "alpha"
+          },
+          "qualifiedTable": "app.todos",
+          "rowId": "a"
+        },
+        {
+          "kind": "insert",
+          "postImage": {
+            "_id": "b",
+            "done": true,
+            "title": "beta"
+          },
+          "qualifiedTable": "app.todos",
+          "rowId": "b"
+        }
+      ],
+      "baseRows": [
+        {
+          "qualifiedTable": "app.todos",
+          "rowId": "a",
+          "value": {
+            "_id": "a",
+            "done": true,
+            "title": "alpha"
+          }
+        }
+      ],
+      "domain": "snapback:promotion-boundary:v1",
+      "expectedDigest": {
+        "canonicalBytes": 180,
+        "contentDigest": "cdv1:362966c9e3c743f43ea0615a054016559f0ce044d723a70921ae1b6ef3f49843",
+        "domain": "promotion",
+        "headerDigest": "sha256:6d82643510b0f694d4443e0e62f3bafed175a20fe9814ea2cf8a03de75f20f2b",
+        "rows": 2
+      },
+      "header": {
+        "algorithmVersion": 1,
+        "approvedFactsDigest": "sha256:approved-facts",
+        "baseVersion": 40,
+        "childStreamId": "stream:child",
+        "coverageManifestDigest": "sha256:coverage",
+        "operationLogDigest": "sha256:operation-log",
+        "parentStreamId": "stream:parent",
+        "promotionIdentity": "operation-v1:promotion-fixture",
+        "reviewedHeadVersion": 43,
+        "schemaHash": "sha256:schema"
+      },
+      "name": "promotion-two-row"
+    },
+    {
+      "copiedDigest": {
+        "canonicalBytes": 180,
+        "contentDigest": "cdv1:2cfa64978de49fb680383ac9829085053a4b1458d35a7450906bccdc2ce53155",
+        "domain": "checkpoint",
+        "headerDigest": "sha256:92882841c6f7b8c46d8fca86fdf9afe00193f6a7305b52f5d4d122a399851c54",
+        "rows": 2
+      },
+      "domain": "snapback:checkpoint-boundary:v1",
+      "header": {
+        "algorithmVersion": 1,
+        "checkpointId": "checkpoint-v1:fixture",
+        "coverageManifestDigest": "sha256:coverage",
+        "schemaHash": "sha256:schema",
+        "sourceStreamId": "stream:parent",
+        "sourceVersion": 43
+      },
+      "name": "checkpoint-two-row",
+      "rows": [
+        {
+          "qualifiedTable": "app.todos",
+          "rowId": "a",
+          "value": {
+            "_id": "a",
+            "done": false,
+            "title": "alpha"
+          }
+        },
+        {
+          "qualifiedTable": "app.todos",
+          "rowId": "b",
+          "value": {
+            "_id": "b",
+            "done": true,
+            "title": "beta"
+          }
+        }
+      ],
+      "sourceDigest": {
+        "canonicalBytes": 180,
+        "contentDigest": "cdv1:2cfa64978de49fb680383ac9829085053a4b1458d35a7450906bccdc2ce53155",
+        "domain": "checkpoint",
+        "headerDigest": "sha256:92882841c6f7b8c46d8fca86fdf9afe00193f6a7305b52f5d4d122a399851c54",
+        "rows": 2
+      }
+    }
+  ],
+  "version": "boundary-digest-golden-v1"
+}

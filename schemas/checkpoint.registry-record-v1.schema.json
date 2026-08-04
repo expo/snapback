@@ -1,0 +1,223 @@
+{
+  "$defs": {
+    "BoundaryDigestV1": {
+      "additionalProperties": false,
+      "properties": {
+        "canonicalBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "contentDigest": {
+          "type": "string"
+        },
+        "domain": {
+          "$ref": "#/$defs/BoundaryDomainV1"
+        },
+        "headerDigest": {
+          "type": "string"
+        },
+        "rows": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "domain",
+        "headerDigest",
+        "contentDigest",
+        "rows",
+        "canonicalBytes"
+      ],
+      "type": "object"
+    },
+    "BoundaryDomainV1": {
+      "enum": [
+        "promotion",
+        "checkpoint"
+      ],
+      "type": "string"
+    },
+    "CheckpointCopyDispositionV1": {
+      "enum": [
+        "reachable",
+        "destroyed",
+        "invalidUnreachable"
+      ],
+      "type": "string"
+    },
+    "CheckpointRegistryStateV1": {
+      "enum": [
+        "intent",
+        "published",
+        "invalid",
+        "erased",
+        "aborted"
+      ],
+      "type": "string"
+    },
+    "CheckpointSubstrateV1": {
+      "enum": [
+        "materialized",
+        "receiptOnly"
+      ],
+      "type": "string"
+    },
+    "NamedCheckpointReceiptV1": {
+      "additionalProperties": false,
+      "properties": {
+        "checkpointId": {
+          "type": "string"
+        },
+        "copiedBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "copiedDigest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BoundaryDigestV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "copyDisposition": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckpointCopyDispositionV1"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverageManifestDigest": {
+          "type": "string"
+        },
+        "createdAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "formatVersion": {
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "label": {
+          "type": "string"
+        },
+        "leaseExpiresAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "locationClass": {
+          "type": "string"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "peakRetainedWalBytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "proofClass": {
+          "$ref": "#/$defs/ProofClassV1"
+        },
+        "schemaHash": {
+          "type": "string"
+        },
+        "sourceDigest": {
+          "$ref": "#/$defs/BoundaryDigestV1"
+        },
+        "sourceStreamId": {
+          "type": "string"
+        },
+        "sourceVersion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "substrate": {
+          "$ref": "#/$defs/CheckpointSubstrateV1"
+        }
+      },
+      "required": [
+        "formatVersion",
+        "checkpointId",
+        "label",
+        "operationId",
+        "owner",
+        "locationClass",
+        "substrate",
+        "sourceStreamId",
+        "sourceVersion",
+        "schemaHash",
+        "coverageManifestDigest",
+        "proofClass",
+        "sourceDigest",
+        "createdAtMs",
+        "leaseExpiresAtMs",
+        "copiedBytes",
+        "peakRetainedWalBytes"
+      ],
+      "type": "object"
+    },
+    "ProofClassV1": {
+      "enum": [
+        "inventory",
+        "verifiedCopyFidelity",
+        "independentBoundaryProof"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/checkpoint.registry-record-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "destination": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "openErasureObligation": {
+      "type": "boolean"
+    },
+    "receipt": {
+      "$ref": "#/$defs/NamedCheckpointReceiptV1"
+    },
+    "staging": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "state": {
+      "$ref": "#/$defs/CheckpointRegistryStateV1"
+    },
+    "updatedAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "state",
+    "receipt",
+    "updatedAtMs",
+    "openErasureObligation"
+  ],
+  "title": "CheckpointRegistryRecordV1",
+  "type": "object"
+}

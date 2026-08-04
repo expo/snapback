@@ -1,0 +1,35 @@
+{
+  "$defs": {
+    "PromotionWriteKindV1": {
+      "enum": [
+        "insert",
+        "update",
+        "delete"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/promotion.approved-write-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One normalized final write fact approved for promotion. Multiple writes to\none row are folded before this boundary; absence/presence preconditions are\nthen checked while deriving the expected state from the immutable base.",
+  "properties": {
+    "kind": {
+      "$ref": "#/$defs/PromotionWriteKindV1"
+    },
+    "postImage": true,
+    "qualifiedTable": {
+      "type": "string"
+    },
+    "rowId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "qualifiedTable",
+    "rowId",
+    "kind"
+  ],
+  "title": "PromotionApprovedWriteV1",
+  "type": "object"
+}

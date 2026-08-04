@@ -109,6 +109,8 @@ pub mod migration;
 #[doc(hidden)]
 pub mod migration_presentation;
 #[doc(hidden)]
+pub mod proof_checkpoint;
+#[doc(hidden)]
 pub mod push;
 #[doc(hidden)]
 pub mod result_contract;
