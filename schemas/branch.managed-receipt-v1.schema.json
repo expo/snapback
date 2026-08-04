@@ -96,6 +96,7 @@
         "maxOperations",
         "maxRetainedBytes",
         "maxDiffRows",
+        "maxDigestWorkBytes",
         "ttlMs"
       ],
       "type": "object"

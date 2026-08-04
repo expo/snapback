@@ -4,8 +4,10 @@
 **Opened:** 2026-08-03 (Track B integrated implementation pass)
 **Updated:** 2026-08-04 (strict-promotion contention/rebase negatives,
 schema-declared v2 per-record history with v1 compatibility, checkpoint
-no-upcast negatives, and honest migration verification metadata landed;
-residual rows remain open)
+no-upcast negatives, honest migration verification metadata, managed branch
+execution carrier, crash-safe
+outcome-unknown reservation, scoped-principal and real-handler DenyAll
+negatives, and independent clocks added; residual rows remain open)
 **Systems:** Storage, Sync, Auth, Effects, Migrations, Testing, Performance,
 Agent experience
 **Related:** LLP 0158, LLP 0162, LLP 0163, LLP 0164, LLP 0165;
@@ -27,12 +29,12 @@ not authorize capability publication.
 | 2 — retry settlement | Partial | Ship range issue/refresh plus atomic client range custody and finish restored-client, recreated-branch, delayed-delivery, host-retry, and exhaustion transport legs. |
 | 3 — provenance/explanation | Partial | Expose authorized public/admin explanation, wire real policy evaluators and protected secret custody, and complete aggregate/non-row authorization-change corpus. |
 | 4 — coverage honesty | Partial | Inventory every target writer and enforce the generated writer-token facade plus SQLite authorizer; finish specialized-lane and asymmetric-retention coverage fixtures. |
-| 5 — fork isolation | Partial | F0b and the derived post-fork-parent-write fixture cover the copied-instance leg; managed in-app custody adds an AdminWrite lifecycle carrier, crash reconciliation, current-head canonical/sibling/post-fork isolation, and scrubbed executable heads over immutable proof bases. Add the public branch-operation execution carrier and finish the per-class credential matrix. |
-| 6 — effect quarantine | Partial | The managed boot path routes all twelve inventoried local host-egress families, including the unclassified fallback, through durable payload-free `DenyAll` markers. Add actual branch-handler bypass negatives; implement and prove `CaptureOnly` separately with its intent/settlement ledger. |
-| 7 — identity/authority | Partial | Managed custody server-derives grants/paths, scrubs copied canonical credentials, and proves denied, divergent-fingerprint, and expired strict-promotion authority refuse before replay. Wire production branch-operation auth and finish the per-class revoked/stale plus later-effect-settlement corpus. |
-| 8 — resource containment | Partial | The in-app diff enforces a streaming digest-work byte limit, while managed reap enforces TTL/grant expiry exactly at the boundary with durable `tearing_down`, exact-file deletion, and crash/reopen reconciliation. Finish the replay-floor/envelope-window independent-clock corpus and remaining declared resource limits. |
+| 5 — fork isolation | Partial | F0b and the derived post-fork-parent-write fixture cover the copied-instance leg; managed custody and `branch.execute.v1` run real mutations/actions only on the server-derived current-head workspace. Finish the per-class credential matrix and the multi-operation/atomic-retention carrier. |
+| 6 — effect quarantine | Partial | The managed boot path routes all twelve inventoried local host-egress families through durable payload-free `DenyAll` markers; real branch handlers cover fetch, stream-open, push-send, and transactional job-enqueue initiation. Add the unreachable-after-initiation and remaining maintenance/bypass corpus; implement and prove `CaptureOnly` separately with its intent/settlement ledger. |
+| 7 — identity/authority | Partial | Branch execution revalidates a digest-bound finite grant and uses a dedicated branch-principal invocation source that cannot admit `AdminBypass`; an admin-row guard negative proves the projection. Finish the per-class revoked/stale plus later-effect-settlement corpus. |
+| 8 — resource containment | Partial | Digest-work and exact TTL/grant expiry bounds are active; executable corpus now proves compact-envelope pruning cannot reap a live branch and branch reaping cannot advance replay floor or prune an envelope. Finish the remaining declared resource-limit corpus. |
 | 9 — exact fork diff | Partial | The randomized multi-commit corpus compares journal-derived net state with an independent immutable-base/head oracle and verifies the attributed sequence separately. Add schema/system-field and full generated-writer/SQLite-authorizer journal-completeness coverage. |
-| 10 — strict promotion | Partial | Frozen v1 contention terms, quota/defer/release behavior, exhausted-budget refusal, and identical-write/divergent-read-or-result re-seal negatives are covered. Complete the real concurrent-writer fairness/crash matrix, prove the conditional-progress claim, and cover provisional/transitive effect chains. |
+| 10 — strict promotion | Partial | Frozen v1 contention terms, quota/defer/release behavior, exhausted-budget refusal, and identical-write/divergent-read-or-result re-seal negatives are covered. The non-atomic execution carrier durably reserves exact request facts and forecloses before the handler: terminal retries replay, outcome-unknown retries refuse, divergent reuse collides, and a second operation refuses. Move operation retention into the app commit, then complete the real concurrent-writer fairness/crash matrix, conditional-progress proof, and provisional/transitive effect chains. |
 | 11 — history/checkpoint | Partial | Schema publication now atomically projects finite v2 per-record policy, removal erases retained detail, and current/per-version auth plus visible-only pagination/horizon and per-record pruning are covered without changing legacy v1 `maxRows`. The registered-copy sweep invalidates the complete materialized inventory before deletion and preserves crash/unreachable obligations, but it is not yet atomic with canonical protected-record deletion; close that new-checkpoint race and the remaining lifecycle corpus. |
 | 12 — boundary proof | Partial | Promotion and full migration verification are independently derived; migration's separate evaluator has explicit-value/equivalence plus executor-drift and staged-corruption negatives. Checkpoint concurrent-writer/publication/receipt-only no-upcast negatives are covered. Finish the remaining row-wide boundary integrations/coverage before an aggregate claim. |
 | 13 — performance | Partial | The final-integrated absolute rerun is recorded, and the successor recorder now refuses unless it binds the accepted baseline digest, exact clean revision, fixed hardware, toolchain, and release executable. Run that dated successor plus a genuinely paired/interleaved active-covered-lane comparison; obtain dated RFC-author absolute-bound ratification; record p99 contention and every applicable crash/reopen gate. |
@@ -114,15 +116,28 @@ and strict-promotion stale/revoked negatives are executable Rust tests.
 
 Focused local results: all 21 `fork_promotion::tests`, all 17
 `proof_checkpoint::tests`, all 17 `instance_fork::tests`, and the 18-test
-managed-runtime filter pass. This
-evidence intentionally does not close rows 5-8. The product branch has no
-public operation-execution carrier yet, `CaptureOnly` has no intent/settlement
-ledger, later-effect settlement is unbuilt, digest-work/independent-clock
-coverage is incomplete, and the remaining per-class matrix has not passed. No
-capability state changes follow from this record.
-It also does not establish the global writer-token/SQLite-authorizer choke
-point, p99 contention, active-covered-lane paired performance, author bounds,
-or any capability claim; every related capability remains `Missing`.
+managed-runtime filter pass at the preceding checkpoint.
+The same dated slice now includes closed `branch.execute.v1`. A caller must
+retain a replay-valid `requestId`; the server derives its operation identity,
+revalidates the branch grant and artifact binding, and runs the served handler
+under a branch-scoped ordinary principal. Before any handler byte runs, one
+transaction records the exact draft and forecloses the branch. A crash with no
+terminal record therefore produces stable `SNAPBACK_BRANCH_OPERATION_OUTCOME_UNKNOWN`
+instead of duplicate execution; divergent reuse and any second operation also
+refuse. Mutation retention is still after the app commit, so this is a safe
+one-operation Partial carrier, not row-10 acceptance. Real handlers exercise
+fetch, stream-open, push-send, and transactional job-enqueue initiation through
+the durable DenyAll choke, and an admin-owned-row guard proves the branch
+principal is not an administrative bypass. Independent-clock corpus separately
+varies compact-envelope pruning, branch TTL reaping, and replay floor.
+
+This evidence intentionally does not close rows 5-8 or 10. `CaptureOnly` has no
+intent/settlement ledger, later-effect settlement is unbuilt, retention is not
+atomic with the app commit, only one operation is admitted per foreclosed
+branch, and the remaining actual-handler/per-class/resource matrix has not
+passed. It also does not establish the global writer-token/SQLite-authorizer
+choke point, p99 contention, active-covered-lane paired performance, author
+bounds, or any capability claim; every related capability remains `Missing`.
 
 ## Review and publication gates
 

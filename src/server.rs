@@ -15358,6 +15358,7 @@ pub fn operation_registry() -> Vec<OperationSpec> {
         //   lifecycle is a closed operator surface. Paths and grants are
         //   server-owned; the multiplexed carrier cannot weaken AdminWrite.
         branch_host("host_ops.branch.create.v1"),
+        branch_host("host_ops.branch.execute.v1"),
         branch_host("host_ops.branch.list.v1"),
         branch_host("host_ops.branch.reap.v1"),
         branch_host("host_ops.branch.inspect.v1"),
@@ -15705,6 +15706,7 @@ pub(crate) fn host_ops_operation_spec(
         "errors.issue" => "host_ops.errors.issue",
         "errors.transition" => "host_ops.errors.transition",
         "branch.create.v1" => "host_ops.branch.create.v1",
+        "branch.execute.v1" => "host_ops.branch.execute.v1",
         "branch.list.v1" => "host_ops.branch.list.v1",
         "branch.reap.v1" => "host_ops.branch.reap.v1",
         "branch.inspect.v1" => "host_ops.branch.inspect.v1",
@@ -34665,6 +34667,15 @@ globalThis.__snapbackHandlers = {
                     "schemaVersion": 1,
                     "allowedFunctions": ["safeAction"],
                     "ttlMs": 60_000
+                }),
+            ),
+            (
+                "branch.execute.v1",
+                json!({
+                    "schemaVersion": 1,
+                    "branchId": "branch-v1:test",
+                    "function": "safeAction",
+                    "args": {}
                 }),
             ),
             ("branch.list.v1", json!({"schemaVersion": 1})),

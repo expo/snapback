@@ -230,7 +230,7 @@ release-executable digest. It uses create-new publication so a
 dated record cannot be overwritten. No 2026-08-04 Air artifact, p99 contention
 record, or author-ratified bound is claimed by this checkpoint.
 
-### Managed runtime custody implementation record — 2026-08-04
+### Managed runtime custody and execution implementation record — 2026-08-04
 
 The local target now exposes closed `branch.create.v1`, `branch.list.v1`,
 `branch.inspect.v1`, `branch.drop.v1`, and `branch.reap.v1` operations through
@@ -267,15 +267,38 @@ authority refusing before re-execution. The superseded compile-disabled
 `branches::promote` path remains untouched; these authority fixtures exercise
 only `fork_promotion::promote_by_reexecution`.
 
+The closed production carrier now also includes `branch.execute.v1`. It accepts
+only a managed branch id, served mutation/action name, arguments, and a
+caller-retained replay-valid `requestId`; the operation identity, artifact
+binding, principal, and grant facts are server-derived. A dedicated
+`BranchOperation` invocation source admits only the server-constructed branch
+principal in either auth mode and cannot admit `AdminBypass`. Executable corpus
+proves that principal is handler-visible for ordinary authenticated writes and
+cannot satisfy a guard on an admin-owned row. Real handlers initiating fetch,
+stream-open, push-send, and transactional job enqueue reach the branch
+runtime's durable payload-free `DenyAll` marker.
+
+The carrier deliberately remains one-operation and Partial. Before the handler
+runs, one SQLite transaction stores the exact operation draft and forecloses
+the branch. An exact retry with a terminal record returns it; a crash-cut retry
+with only the reservation refuses `SNAPBACK_BRANCH_OPERATION_OUTCOME_UNKNOWN`,
+divergent facts refuse identity reuse, and a different operation after
+foreclosure refuses. This prevents duplicate execution but does not make
+retention atomic with the app commit. Independent-clock corpus also proves
+that pruning a compact envelope neither reaps a live branch nor changes replay
+floor, while exact-TTL branch reap neither prunes the envelope nor advances
+that floor.
+
 This remains an implementation progress record, not acceptance or
 publication:
 
 | LLP 0162 row | Added evidence | Residual after 2026-08-04 |
 | --- | --- | --- |
-| 5 — fork isolation | Reachable production-policy lifecycle carrier; server-owned on-disk custody; current-head canonical/sibling/post-fork isolation; scrubbed executable heads and immutable proof bases | **Partial** — no public branch-operation execution carrier yet, and the full per-class credential matrix remains open |
-| 6 — effect quarantine | Every currently inventoried local host-egress family plus the unclassified fallback reaches the branch runtime's durable `DenyAll` marker | **Partial** — actual branch-handler bypass negatives and the separately named `CaptureOnly` intent/settlement ledger remain open |
-| 7 — identity/authority | Server-derived branch grants and paths; copied canonical credential scrub; denied, divergent-fingerprint, and expired strict-promotion authority all refuse before replay | **Partial** — production branch-operation authentication, the complete per-class stale/revoked corpus, and later-effect settlement remain open |
-| 8 — resource containment | Bounded TTL is active production custody: exact-expiry transition, durable teardown state, exact-file deletion, and crash/reopen reconciliation | **Partial** — digest-work limits and the replay-floor/envelope-window independent-clock corpus remain open |
+| 5 — fork isolation | Production lifecycle plus one-operation execution carrier; server-owned on-disk custody; current-head canonical/sibling/post-fork isolation; scrubbed executable heads and immutable proof bases | **Partial** — atomic multi-operation retention and the full per-class credential matrix remain open |
+| 6 — effect quarantine | Inventoried local host-egress routing plus real handler initiation for fetch, stream-open, push-send, and job enqueue reaches durable `DenyAll` | **Partial** — unreachable-after-initiation and remaining maintenance/bypass corpus plus the separately named `CaptureOnly` intent/settlement ledger remain open |
+| 7 — identity/authority | Digest-revalidated branch grant; dedicated non-admin branch-principal projection; admin-row denial; stable request identity and collision refusal | **Partial** — the complete per-class stale/revoked corpus and later-effect settlement remain open |
+| 8 — resource containment | Digest-work and bounded TTL custody plus replay-floor/compact-envelope/branch-TTL independent-clock corpus | **Partial** — remaining declared resource-limit corpus remains open |
+| 10 — strict promotion | Pre-handler exact reservation; crash retry outcome-unknown refusal; divergent and second-operation refusal; fail-safe foreclosure | **Partial** — operation retention is not atomic with the app commit, and broader fairness/re-seal/effect-chain/contention corpus remains open |
 
 LLP 0164 therefore remains `Draft`, and every related capability remains
 `Missing` pending the full corpus, applicable performance evidence,

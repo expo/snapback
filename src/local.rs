@@ -6301,6 +6301,181 @@ impl LocalSnapback {
         self.db.drop_managed_in_app_branch(branch_id, now_ms)
     }
 
+    /// Execute one real served mutation/action against the managed writable
+    /// head selected by a closed AdminWrite host carrier. The branch grant is
+    /// checked before a separate LocalSnapback is opened, and the opened
+    /// database re-identifies itself as that exact branch at boot.
+    ///
+    /// Mutation success retains journal-derived operation facts. The present
+    /// carrier deliberately forecloses promotion before execution because its
+    /// branch-operation record is not yet atomic with the app commit; a crash
+    /// can therefore make the branch unusable, but never falsely promotable.
+    ///
+    /// @ref LLP 0162#3-safe-current-head-forks — public branch work is bound
+    ///   to the server-owned current-head workspace and branch-scoped grant.
+    /// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — incomplete
+    ///   operation retention fails safe by foreclosing promotion first.
+    pub(crate) fn execute_operator_in_app_branch(
+        &mut self,
+        branch_id: &crate::branches::BranchId,
+        function: &str,
+        args: Value,
+        request_id: &str,
+        now_ms: i64,
+        server_profile: ServerProfile,
+    ) -> SnapbackResult<crate::fork_promotion::BranchOperationV1> {
+        let receipt = self.db.inspect_managed_in_app_branch(branch_id, now_ms)?;
+        let definition = self.function_definition(function).cloned().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_UNKNOWN_FUNCTION",
+                "runtime",
+                "managed branch execution names no served function",
+            )
+        })?;
+        if matches!(definition.kind, FunctionKind::Query | FunctionKind::LiveQuery) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_OPERATION_KIND_UNSUPPORTED",
+                "storage",
+                "managed branch execution v1 accepts mutations and DenyAll-tested actions only",
+            ));
+        }
+        let path = self.db.managed_in_app_branch_path(branch_id, now_ms)?;
+        let artifact_identity = crate::operation_ledger::digest_fact_set(
+            b"managed-branch-artifact-v1",
+            &json!({
+                "schemaHash": self.loaded_schema_hash(),
+                "bundleHash": self.loaded_bundle_hash(),
+            }),
+        );
+        let upstream_identity = format!("branch.execute.v1:{request_id}");
+        let operation_id =
+            crate::commit_envelope::derive_host_operation_id(&upstream_identity, 0);
+        let input_fingerprint = crate::fork_promotion::derive_branch_input_fingerprint(
+            function,
+            &args,
+        )?;
+        let principal_fingerprint = crate::fork_promotion::derive_branch_principal_fingerprint(
+            &receipt.branch.grant.principal_id,
+        )?;
+        let draft = crate::fork_promotion::BranchOperationDraftV1 {
+            schema_version: 1,
+            identity: crate::commit_envelope::OperationIdentityV1 {
+                schema_version: 1,
+                key: crate::commit_envelope::OperationKeyV1 {
+                    stream_id: receipt.branch.branch.child_stream_id.0.clone(),
+                    originator_class:
+                        crate::commit_envelope::OperationOriginatorClassV1::Host,
+                    operation_id,
+                },
+                issuance: crate::commit_envelope::OperationIssuanceV1::HostIncarnation {
+                    epoch_id: receipt.branch.grant.grant_id.clone(),
+                    upstream_identity,
+                    commit_ordinal: 0,
+                    authority_authenticator_digest: receipt
+                        .branch
+                        .grant
+                        .authority_fingerprint
+                        .clone(),
+                },
+                bound_facts: crate::commit_envelope::OperationBoundFactsV1 {
+                    audience: receipt.branch.grant.audience.clone(),
+                    principal_fingerprint,
+                    authority_instance_id: receipt.branch.grant.authority_fingerprint.clone(),
+                    operation_kind: "managedBranchOperation".to_owned(),
+                    function_or_command: function.to_owned(),
+                    input_fingerprint,
+                },
+            },
+            artifact_identity,
+            function_or_command: function.to_owned(),
+            canonical_arguments: args.clone(),
+            principal_id: receipt.branch.grant.principal_id.clone(),
+            grant_id: receipt.branch.grant.grant_id.clone(),
+            read_baseline: Value::Null,
+            replay_inputs: Vec::new(),
+            causal_predecessors: Vec::new(),
+        };
+
+        let mut branch = LocalSnapback::open(path)?;
+        if let Some(retained) = branch.db.branch_operation_retry(branch_id, &draft)? {
+            return Ok(retained);
+        }
+        branch
+            .db
+            .foreclose_branch_operation_admission(branch_id, &draft, now_ms)?;
+        let diagnostics = branch.load_functions(self.functions.clone());
+        if let Some(diagnostic) = diagnostics
+            .into_iter()
+            .find(|diagnostic| diagnostic.severity == DiagnosticSeverity::Error)
+        {
+            return Err(SnapbackError::new(diagnostic));
+        }
+        let active_mode = branch.db.auth_mode_snapshot()?.state.active;
+        let resolved = ResolvedAppAuthority::DevImpersonation {
+            user_id: receipt.branch.grant.principal_id.clone(),
+            roles: Vec::new(),
+            // This is a server-constructed, branch-scoped principal, not the
+            // dev body-impersonation carrier. Its dedicated invocation source
+            // is the only source that admits this authority class.
+            local_dev_only: false,
+        };
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::BranchOperation,
+            active_mode,
+            server_profile,
+            branch.admission.admit_for_mode(active_mode)?,
+            &WireAuthorityFields::default(),
+            resolved,
+        )?;
+        let run = branch.run_function_with_authority(
+            function,
+            HandlerInput {
+                args,
+                ..HandlerInput::default()
+            },
+            authority,
+        );
+        if !run.ok {
+            let after = branch.db.inspect_local_in_app_branch(branch_id)?;
+            if after.deny_all_attempt_count > receipt.branch.deny_all_attempt_count {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_BRANCH_EGRESS_DENIED",
+                    "storage",
+                    "managed branch handler attempted egress under DenyAll",
+                ));
+            }
+            return Err(SnapbackError::new(run.diagnostic.unwrap_or_else(|| {
+                Diagnostic::error(
+                    "SNAPBACK_BRANCH_HANDLER_FAILED",
+                    "runtime",
+                    "managed branch handler failed without a diagnostic",
+                )
+            })));
+        }
+        if definition.kind == FunctionKind::Action {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_ACTION_SETTLEMENT_MISSING",
+                "storage",
+                "a successful branch action cannot be retained until CaptureOnly settlement exists",
+            ));
+        }
+        let version = run.version.ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BRANCH_HANDLER_RESULT_INVALID",
+                "runtime",
+                "managed branch mutation returned no committed version",
+            )
+        })?;
+        branch.db.retain_committed_branch_mutation(
+            branch_id,
+            &draft,
+            version,
+            run.result.unwrap_or(Value::Null),
+            Value::Null,
+            now_ms,
+        )
+    }
+
     pub fn durable_version(&self) -> SnapbackResult<u64> {
         self.db.current_version()
     }
@@ -52760,5 +52935,308 @@ globalThis.__snapbackHandlers = {
                 .expect("inspect exact generation status"),
             "quarantined"
         );
+    }
+
+    fn managed_branch_carrier_fixture() -> LocalSnapback {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("canonical.sqlite");
+        // Managed branch paths are siblings of the canonical file, so retain
+        // the temporary directory for the life of this test process.
+        let _retained = dir.keep();
+        let mut snapback = LocalSnapback::open(path).expect("file-backed canonical instance");
+        snapback
+            .apply_schema(SchemaManifest {
+                app_id: "branch-carrier-app".to_owned(),
+                schema_hash: Some("branch-carrier-schema".to_owned()),
+                tables: vec![TableManifest {
+                    name: "records".to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "ownerId".to_owned(),
+                            field_type: FieldType::Principal,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "value".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                    ],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    search_indexes: Vec::new(),
+                    vector_indexes: Vec::new(),
+                    search_live_limits: None,
+                    membership: None,
+                    asset_sharing: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("apply branch carrier schema");
+        snapback
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "records".to_owned(),
+                    vec![serde_json::Map::from_iter([
+                        ("_id".to_owned(), json!("admin-only")),
+                        ("ownerId".to_owned(), json!("admin")),
+                        ("value".to_owned(), json!("secret")),
+                    ])],
+                )]),
+            })
+            .expect("seed admin-owned canonical row");
+
+        let mut create_owned = FunctionDefinition::new(
+            "createOwned",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "records".to_owned(),
+                    values: BTreeMap::from([
+                        ("ownerId".to_owned(), ValueExpr::AuthUserId),
+                        ("value".to_owned(), ValueExpr::Arg("value".to_owned())),
+                    ]),
+                    bind_id_as: None,
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        );
+        create_owned.auth_requirement = Some(AuthRequirement::Authenticated);
+        let mut mutate_admin = FunctionDefinition::new(
+            "mutateAdminOnly",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![
+                    MutationStep::Get {
+                        table: "records".to_owned(),
+                        id: ValueExpr::Literal(json!("admin-only")),
+                        bind_as: "target".to_owned(),
+                        else_error: Some("ADMIN_ROW_MISSING".to_owned()),
+                    },
+                    MutationStep::Guard {
+                        cond: ValueExpr::Binary {
+                            op: crate::manifest::BinaryOp::Eq,
+                            left: Box::new(ValueExpr::Field {
+                                base: Box::new(ValueExpr::Binding("target".to_owned())),
+                                key: "ownerId".to_owned(),
+                            }),
+                            right: Box::new(ValueExpr::AuthUserId),
+                        },
+                        else_error: "ADMIN_ROW_DENIED".to_owned(),
+                    },
+                    MutationStep::Patch {
+                        table: "records".to_owned(),
+                        id: ValueExpr::Literal(json!("admin-only")),
+                        values: BTreeMap::from([(
+                            "value".to_owned(),
+                            ValueExpr::Literal(json!("leaked")),
+                        )]),
+                    },
+                ],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        );
+        mutate_admin.auth_requirement = Some(AuthRequirement::Authenticated);
+        let attempt_fetch = FunctionDefinition::new(
+            "attemptFetch",
+            FunctionKind::Action,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = { async attemptFetch(ctx) { return await ctx.fetch({ url: 'https://example.invalid/' }); } };".to_owned(),
+                export: "attemptFetch".to_owned(),
+            }),
+        );
+        let attempt_stream = FunctionDefinition::new(
+            "attemptStream",
+            FunctionKind::Action,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = { async attemptStream(ctx) { return await ctx.fetchStream({ url: 'https://example.invalid/' }); } };".to_owned(),
+                export: "attemptStream".to_owned(),
+            }),
+        );
+        let attempt_push = FunctionDefinition::new(
+            "attemptPush",
+            FunctionKind::Action,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = { async attemptPush(ctx) { return await ctx.push.send({}); } };".to_owned(),
+                export: "attemptPush".to_owned(),
+            }),
+        );
+        let enqueue_job = FunctionDefinition::new(
+            "enqueueJob",
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(IbexModule {
+                source: "globalThis.__snapbackHandlers = { async enqueueJob(ctx) { return await ctx.jobs.enqueue('inertNotify', {}); } };".to_owned(),
+                export: "enqueueJob".to_owned(),
+            }),
+        );
+        let inert_notify = FunctionDefinition::new(
+            "inertNotify",
+            FunctionKind::Action,
+            FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                steps: Vec::new(),
+                return_value: None,
+            })),
+        );
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            app_id: "branch-carrier-app".to_owned(),
+            bundle_hash: Some("branch-carrier-functions".to_owned()),
+            functions: vec![
+                create_owned,
+                mutate_admin,
+                attempt_fetch,
+                attempt_stream,
+                attempt_push,
+                enqueue_job,
+                inert_notify,
+            ],
+            acknowledged_experimental_capabilities: vec!["jobs_one_off_v1".to_owned()],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| {
+                    diagnostic.severity != crate::diagnostic::DiagnosticSeverity::Error
+                }),
+            "branch carrier functions load: {diagnostics:?}"
+        );
+        snapback
+    }
+
+    #[test]
+    fn managed_branch_carrier_projects_scoped_principal_and_is_replay_stable() {
+        let mut snapback = managed_branch_carrier_fixture();
+        let missing_id = crate::host_ops::execute_host_op(
+            &mut snapback,
+            crate::host_ops::HostOpsRequest {
+                operation: "branch.execute.v1".to_owned(),
+                input: Some(json!({
+                    "schemaVersion": 1,
+                    "branchId": "branch-v1:missing",
+                    "function": "createOwned",
+                    "args": {"value": "ignored"},
+                })),
+                ..crate::host_ops::HostOpsRequest::default()
+            },
+            None,
+        );
+        assert_eq!(
+            missing_id.diagnostics[0].code,
+            "SNAPBACK_BRANCH_REQUEST_ID_REQUIRED"
+        );
+
+        let receipt = snapback
+            .create_operator_in_app_branch(vec!["createOwned".to_owned()], 100_000, 1_000)
+            .expect("create managed branch");
+        let branch_id = receipt.branch.branch.branch_id.clone();
+        let principal_id = receipt.branch.grant.principal_id.clone();
+        let operation = snapback
+            .execute_operator_in_app_branch(
+                &branch_id,
+                "createOwned",
+                json!({"value": "branch-owned"}),
+                "branch-request-stable-1",
+                1_001,
+                ServerProfile::Test,
+            )
+            .expect("real branch mutation executes");
+        assert_eq!(operation.principal_id, principal_id);
+        assert_eq!(
+            snapback
+                .execute_operator_in_app_branch(
+                    &branch_id,
+                    "createOwned",
+                    json!({"value": "branch-owned"}),
+                    "branch-request-stable-1",
+                    1_002,
+                    ServerProfile::Test,
+                )
+                .expect("exact retry returns retained operation"),
+            operation
+        );
+        let collision = snapback
+            .execute_operator_in_app_branch(
+                &branch_id,
+                "createOwned",
+                json!({"value": "diverged"}),
+                "branch-request-stable-1",
+                1_003,
+                ServerProfile::Test,
+            )
+            .expect_err("same request id with changed args collides");
+        assert_eq!(
+            collision.diagnostic.code,
+            "SNAPBACK_BRANCH_OPERATION_ID_REUSED"
+        );
+
+        let branch_path = snapback
+            .db
+            .managed_in_app_branch_path(&branch_id, 1_004)
+            .expect("resolve server-custodied branch path");
+        let branch = LocalSnapback::open(branch_path).expect("open branch for assertions");
+        let rows = branch.db.scan_table("records", 10, 0).unwrap();
+        let owned = rows
+            .rows
+            .iter()
+            .find(|row| row["value"] == "branch-owned")
+            .expect("branch-owned row exists");
+        assert_eq!(owned["ownerId"], principal_id);
+        assert_eq!(snapback.db.scan_table("records", 10, 0).unwrap().total, 1);
+    }
+
+    #[test]
+    fn managed_branch_carrier_cannot_reach_admin_row_or_real_fetch_host() {
+        let mut snapback = managed_branch_carrier_fixture();
+        let row_branch = snapback
+            .create_operator_in_app_branch(vec!["mutateAdminOnly".to_owned()], 100_000, 1_000)
+            .expect("create row-policy branch");
+        let row_denial = snapback
+            .execute_operator_in_app_branch(
+                &row_branch.branch.branch.branch_id,
+                "mutateAdminOnly",
+                json!({}),
+                "branch-request-row-denial",
+                1_001,
+                ServerProfile::Test,
+            )
+            .expect_err("branch principal cannot satisfy admin-row guard");
+        assert_eq!(row_denial.diagnostic.code, "ADMIN_ROW_DENIED");
+
+        for (index, function) in [
+            "attemptFetch",
+            "attemptStream",
+            "attemptPush",
+            "enqueueJob",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let now_ms = 1_002 + i64::try_from(index).unwrap() * 2;
+            let egress_branch = snapback
+                .create_operator_in_app_branch(vec![function.to_owned()], 100_000, now_ms)
+                .expect("create real-handler egress-denial branch");
+            let branch_id = egress_branch.branch.branch.branch_id.clone();
+            let denial = snapback
+                .execute_operator_in_app_branch(
+                    &branch_id,
+                    function,
+                    json!({}),
+                    &format!("branch-request-{function}-denial"),
+                    now_ms + 1,
+                    ServerProfile::Test,
+                )
+                .expect_err("real branch handler cannot cross DenyAll");
+            assert_eq!(
+                denial.diagnostic.code, "SNAPBACK_BRANCH_EGRESS_DENIED",
+                "{function} must reach the branch runtime choke"
+            );
+            let inspected = snapback
+                .inspect_operator_in_app_branch(&branch_id, now_ms + 1)
+                .expect("inspect branch after denial");
+            assert_eq!(inspected.branch.deny_all_attempt_count, 1);
+            assert!(!inspected.branch.promotable);
+        }
     }
 }

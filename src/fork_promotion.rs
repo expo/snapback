@@ -271,6 +271,23 @@ pub fn derive_branch_authority_fingerprint(
     )
 }
 
+pub fn derive_branch_principal_fingerprint(principal_id: &str) -> SnapbackResult<String> {
+    digest_json(
+        b"managed-branch-principal-v1",
+        &json!({"principalId": principal_id}),
+    )
+}
+
+pub fn derive_branch_input_fingerprint(
+    function: &str,
+    arguments: &Value,
+) -> SnapbackResult<String> {
+    digest_json(
+        b"managed-branch-operation-input-v1",
+        &json!({"function": function, "args": arguments}),
+    )
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BranchLimitsV1 {
@@ -397,6 +414,13 @@ pub fn ensure_in_app_branch_tables(conn: &Connection) -> SnapbackResult<()> {
          );
          CREATE INDEX IF NOT EXISTS _snapback_branch_operations_by_branch_version
            ON _snapback_branch_operations(branch_id, child_version);
+         CREATE TABLE IF NOT EXISTS _snapback_branch_operation_reservations (
+            branch_id      TEXT NOT NULL,
+            operation_id   TEXT NOT NULL,
+            draft_json     BLOB NOT NULL,
+            reserved_at_ms INTEGER NOT NULL,
+            PRIMARY KEY(branch_id, operation_id)
+         );
          CREATE TABLE IF NOT EXISTS _snapback_branch_egress_attempts (
             marker_id      TEXT PRIMARY KEY,
             branch_id      TEXT NOT NULL,
@@ -732,6 +756,20 @@ fn managed_workspace_name(branch_id: &BranchId) -> String {
 
 fn managed_workspace_path(canonical_path: &Path, branch_id: &BranchId) -> SnapbackResult<PathBuf> {
     Ok(managed_branch_root(canonical_path)?.join(managed_workspace_name(branch_id)))
+}
+
+/// Return the server-derived writable-head path only after the canonical
+/// custody row, local profile, immutable base, state, and expiry have all
+/// re-bound successfully.
+pub(crate) fn managed_in_app_branch_path(
+    canonical: &Connection,
+    canonical_path: &Path,
+    branch_id: &BranchId,
+    now_ms: i64,
+) -> SnapbackResult<PathBuf> {
+    let workspace = open_managed_in_app_branch(canonical, canonical_path, branch_id, now_ms)?;
+    drop(workspace);
+    managed_workspace_path(canonical_path, branch_id)
 }
 
 fn managed_workspace_files(path: &Path) -> [PathBuf; 6] {
@@ -1432,6 +1470,44 @@ fn validate_operation_draft(
     Ok(())
 }
 
+fn validate_public_carrier_draft(
+    profile: &InAppBranchCreateV1,
+    draft: &BranchOperationDraftV1,
+) -> SnapbackResult<()> {
+    let expected_authority_fingerprint = derive_branch_authority_fingerprint(
+        &profile.grant.principal_id,
+        &profile.grant.grant_id,
+        &profile.grant.audience,
+    )?;
+    let expected_principal_fingerprint =
+        derive_branch_principal_fingerprint(&profile.grant.principal_id)?;
+    let expected_input_fingerprint =
+        derive_branch_input_fingerprint(&draft.function_or_command, &draft.canonical_arguments)?;
+    let issuance_matches_grant = matches!(
+        &draft.identity.issuance,
+        crate::commit_envelope::OperationIssuanceV1::HostIncarnation {
+            epoch_id,
+            authority_authenticator_digest,
+            ..
+        } if epoch_id == &profile.grant.grant_id
+            && authority_authenticator_digest == &profile.grant.authority_fingerprint
+    );
+    if profile.grant.authority_fingerprint != expected_authority_fingerprint
+        || draft.identity.bound_facts.principal_fingerprint != expected_principal_fingerprint
+        || draft.identity.bound_facts.authority_instance_id
+            != profile.grant.authority_fingerprint
+        || draft.identity.bound_facts.function_or_command != draft.function_or_command
+        || draft.identity.bound_facts.input_fingerprint != expected_input_fingerprint
+        || !issuance_matches_grant
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_AUTHORITY_DENIED",
+            "public branch carrier facts are not bound to the live branch grant and input",
+        ));
+    }
+    Ok(())
+}
+
 /// Execute a branch command and retain its replay inputs and observed facts in
 /// the same child-stream transaction as its physical branch writes.
 pub fn execute_branch_operation<F>(
@@ -1564,6 +1640,231 @@ pub fn branch_operation_log(
         operations.push(decode_json(&row?, "branch operation")?);
     }
     Ok(operations)
+}
+
+/// Resolve an exact public-carrier retry before any handler byte runs. A
+/// physical-key collision with different branch facts is a refusal, never a
+/// second execution under the reused host request identity.
+pub fn branch_operation_retry(
+    conn: &Connection,
+    branch_id: &BranchId,
+    draft: &BranchOperationDraftV1,
+) -> SnapbackResult<Option<BranchOperationV1>> {
+    ensure_in_app_branch_tables(conn)?;
+    let body: Option<Vec<u8>> = conn
+        .query_row(
+            "SELECT record_json FROM _snapback_branch_operations
+              WHERE branch_id=?1 AND operation_id=?2",
+            params![branch_id.0, draft.identity.key.operation_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let Some(body) = body else { return Ok(None) };
+    let retained: BranchOperationV1 = decode_json(&body, "branch operation")?;
+    if retained.identity != draft.identity
+        || retained.artifact_identity != draft.artifact_identity
+        || retained.function_or_command != draft.function_or_command
+        || retained.canonical_arguments != draft.canonical_arguments
+        || retained.principal_id != draft.principal_id
+        || retained.grant_id != draft.grant_id
+        || retained.read_baseline != draft.read_baseline
+        || retained.replay_inputs != draft.replay_inputs
+        || retained.causal_predecessors != draft.causal_predecessors
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_OPERATION_ID_REUSED",
+            "branch operation identity collides with divergent execution facts",
+        ));
+    }
+    Ok(Some(retained))
+}
+
+/// Fail-safe reservation for the current non-atomic public execution carrier.
+/// The exact draft and foreclosure are committed together before handler
+/// execution. A process death after the app commit but before fact retention
+/// therefore leaves a durable outcome-unknown refusal instead of permitting a
+/// duplicate retry. Row 10 remains Partial until recording moves into the app
+/// commit transaction.
+pub fn foreclose_branch_operation_admission(
+    conn: &mut Connection,
+    branch_id: &BranchId,
+    draft: &BranchOperationDraftV1,
+    now_ms: i64,
+) -> SnapbackResult<()> {
+    let (profile, receipt) = branch_profile(conn, branch_id)?;
+    validate_operation_draft(&profile, &receipt.branch, draft, now_ms)?;
+    validate_public_carrier_draft(&profile, draft)?;
+    if receipt.retained_operation_count >= profile.limits.max_operations {
+        return Err(error(
+            "SNAPBACK_BRANCH_OPERATION_LIMIT_EXCEEDED",
+            "branch operation limit reached",
+        ));
+    }
+    if let Some(foreclosed_by) = receipt.foreclosed_by_operation_id.as_deref() {
+        if foreclosed_by != draft.identity.key.operation_id {
+            return Err(error(
+                "SNAPBACK_BRANCH_FORECLOSED",
+                "the non-atomic v1 carrier admits no second operation after branch foreclosure",
+            ));
+        }
+        let reserved: Option<Vec<u8>> = conn
+            .query_row(
+                "SELECT draft_json FROM _snapback_branch_operation_reservations
+                  WHERE branch_id=?1 AND operation_id=?2",
+                params![branch_id.0, draft.identity.key.operation_id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let Some(reserved) = reserved else {
+            return Err(error(
+                "SNAPBACK_BRANCH_CUSTODY_INVALID",
+                "branch foreclosure is missing its durable operation reservation",
+            ));
+        };
+        let reserved: BranchOperationDraftV1 =
+            decode_json(&reserved, "branch operation reservation")?;
+        if reserved != *draft {
+            return Err(error(
+                "SNAPBACK_BRANCH_OPERATION_ID_REUSED",
+                "branch operation reservation collides with divergent execution facts",
+            ));
+        }
+        return Err(error(
+            "SNAPBACK_BRANCH_OPERATION_OUTCOME_UNKNOWN",
+            "the reserved operation has no terminal record and cannot be executed again",
+        ));
+    }
+
+    let draft_bytes = json_bytes(draft, "branch operation reservation")?;
+    let tx = conn.transaction()?;
+    tx.execute(
+        "INSERT INTO _snapback_branch_operation_reservations
+           (branch_id, operation_id, draft_json, reserved_at_ms)
+         VALUES (?1, ?2, ?3, ?4)",
+        params![
+            branch_id.0,
+            draft.identity.key.operation_id,
+            draft_bytes,
+            now_ms
+        ],
+    )?;
+    let changed = tx.execute(
+        "UPDATE _snapback_in_app_branch_profiles
+            SET promotable=0,
+                foreclosed_by_operation_id=?2
+          WHERE branch_id=?1 AND foreclosed_by_operation_id IS NULL",
+        params![branch_id.0, draft.identity.key.operation_id],
+    )?;
+    if changed != 1 {
+        return Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_INVALID",
+            "branch foreclosure raced another operation admission",
+        ));
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+/// Retain the observable facts of a mutation that ran through the real branch
+/// handler path. The ordinary app journal is the source of write facts. This
+/// is intentionally separate from the pre-execution foreclosure above: a
+/// crash in between is safe but makes the branch non-promotable and its exact
+/// diff fail closed, which is the honest current Partial posture.
+pub fn retain_committed_branch_mutation(
+    conn: &mut Connection,
+    branch_id: &BranchId,
+    draft: &BranchOperationDraftV1,
+    committed_version: u64,
+    result: Value,
+    ctx_answers: Value,
+    now_ms: i64,
+) -> SnapbackResult<BranchOperationV1> {
+    let (profile, _) = branch_profile(conn, branch_id)?;
+    validate_public_carrier_draft(&profile, draft)?;
+    let reserved: Option<Vec<u8>> = conn
+        .query_row(
+            "SELECT draft_json FROM _snapback_branch_operation_reservations
+              WHERE branch_id=?1 AND operation_id=?2",
+            params![branch_id.0, draft.identity.key.operation_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let reserved = reserved.ok_or_else(|| {
+        error(
+            "SNAPBACK_BRANCH_OPERATION_RESERVATION_MISSING",
+            "committed branch mutation has no durable pre-execution reservation",
+        )
+    })?;
+    if decode_json::<BranchOperationDraftV1>(&reserved, "branch operation reservation")? != *draft
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_OPERATION_ID_REUSED",
+            "committed mutation facts diverge from their operation reservation",
+        ));
+    }
+    let committed_version = i64::try_from(committed_version).map_err(|_| {
+        error(
+            "SNAPBACK_BRANCH_OPERATION_JOURNAL_INCOMPLETE",
+            "committed branch version exceeds the portable storage range",
+        )
+    })?;
+    let mut statement = conn.prepare(
+        "SELECT table_name,row_id,op,row_json FROM _snapback_changes
+          WHERE version=?1 ORDER BY id",
+    )?;
+    let rows = statement.query_map(params![committed_version], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, Option<String>>(3)?,
+        ))
+    })?;
+    let mut writes = Vec::new();
+    for row in rows {
+        let (table_name, row_id, op, body) = row?;
+        let after = if op == "delete" {
+            None
+        } else {
+            Some(
+                serde_json::from_str(
+                    body.as_deref().ok_or_else(|| {
+                        error(
+                            "SNAPBACK_BRANCH_OPERATION_JOURNAL_INCOMPLETE",
+                            "committed branch change is missing its post-image",
+                        )
+                    })?,
+                )
+                .map_err(|_| {
+                    error(
+                        "SNAPBACK_BRANCH_OPERATION_JOURNAL_INCOMPLETE",
+                        "committed branch change has malformed JSON",
+                    )
+                })?,
+            )
+        };
+        writes.push(LogicalWriteFactV1 {
+            table_name,
+            row_id,
+            after,
+        });
+    }
+    drop(statement);
+    execute_branch_operation(conn, branch_id, draft, now_ms, |_tx, _draft| {
+        Ok(ApprovedOperationFactsV1 {
+            read_facts: draft.read_baseline.clone(),
+            ctx_answers,
+            decision: json!({
+                "carrier": "managed-branch-host-op-v1",
+            "canonicalCommitVersion": committed_version,
+                "atomicWithAppCommit": false,
+            }),
+            result,
+            writes,
+            effects: Vec::new(),
+            coverage: profile.coverage.clone(),
+        })
+    })
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
@@ -4258,13 +4559,129 @@ mod tests {
         assert_eq!(survivor_state, "dropped");
     }
 
+    #[test]
+    fn managed_branch_ttl_replay_floor_and_compact_envelope_clocks_are_independent() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("app.sqlite3");
+        let mut canonical = file_source(&canonical_path, 7);
+        canonical
+            .execute(
+                "INSERT INTO _snapback_meta(key,value) VALUES('retention_floor','3')",
+                [],
+            )
+            .expect("pin replay floor fixture");
+        let identity = host_identity("canonical", "independent-clock", "app-1");
+        let insert_envelope = |conn: &Connection| {
+            conn.execute(
+                "INSERT INTO _snapback_commit_envelopes_v1(
+                   stream_id,originator_class,operation_id,audience,epoch_id,
+                   epoch_sequence,principal_fingerprint,principal_session_id,
+                   recorded_at_ms,envelope_json
+                 ) VALUES(?1,'host',?2,'app-1','host-epoch-1',1,?3,'',100,'{}')",
+                params![
+                    identity.key.stream_id,
+                    identity.key.operation_id,
+                    identity.bound_facts.principal_fingerprint,
+                ],
+            )
+            .expect("insert compact-envelope sentinel");
+        };
+        insert_envelope(&canonical);
+        let request = create_request("independent-clock", "independent-stream", 7, 100);
+        create_managed_in_app_branch(&mut canonical, &canonical_path, &request)
+            .expect("create managed branch");
+
+        let tx = canonical.transaction().expect("envelope prune tx");
+        assert!(
+            crate::operation_ledger::prune_compact_envelope_in(&tx, &identity)
+                .expect("prune only compact envelope")
+        );
+        tx.commit().expect("commit compact-envelope prune");
+        assert_eq!(
+            list_managed_in_app_branches(&canonical, &canonical_path, 101)
+                .expect("envelope pruning cannot reap branch")
+                .len(),
+            1
+        );
+        assert_eq!(
+            canonical
+                .query_row(
+                    "SELECT value FROM _snapback_meta WHERE key='retention_floor'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap(),
+            "3"
+        );
+
+        insert_envelope(&canonical);
+        let exact_expiry = request.created_at_ms + request.limits.ttl_ms;
+        assert_eq!(
+            reap_expired_managed_in_app_branches(
+                &mut canonical,
+                &canonical_path,
+                exact_expiry,
+            )
+            .expect("reap exact-expiry branch")
+            .len(),
+            1
+        );
+        assert_eq!(
+            canonical
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_commit_envelopes_v1
+                      WHERE stream_id=?1 AND operation_id=?2",
+                    params![identity.key.stream_id, identity.key.operation_id],
+                    |row| row.get::<_, u64>(0),
+                )
+                .unwrap(),
+            1,
+            "branch TTL never prunes the independent compact-envelope clock"
+        );
+        assert_eq!(
+            canonical
+                .query_row(
+                    "SELECT value FROM _snapback_meta WHERE key='retention_floor'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap(),
+            "3",
+            "branch TTL never advances the replay-floor clock"
+        );
+    }
+
     fn draft(stream: &str, id: &str) -> BranchOperationDraftV1 {
+        let canonical_arguments = json!({ "id": 1, "name": "ALPHA" });
+        let mut identity = host_identity(stream, id, "app-1");
+        identity.issuance = OperationIssuanceV1::HostIncarnation {
+            epoch_id: "grant-1".to_owned(),
+            upstream_identity: format!("upstream:{id}"),
+            commit_ordinal: 0,
+            authority_authenticator_digest: derive_branch_authority_fingerprint(
+                "agent-1",
+                "grant-1",
+                "app-1",
+            )
+            .expect("branch authority fingerprint"),
+        };
+        identity.bound_facts.principal_fingerprint =
+            derive_branch_principal_fingerprint("agent-1").expect("principal fingerprint");
+        identity.bound_facts.authority_instance_id = derive_branch_authority_fingerprint(
+            "agent-1",
+            "grant-1",
+            "app-1",
+        )
+        .expect("branch authority fingerprint");
+        identity.bound_facts.input_fingerprint =
+            derive_branch_input_fingerprint("widgets.rename", &canonical_arguments)
+                .expect("branch input fingerprint");
         BranchOperationDraftV1 {
             schema_version: 1,
-            identity: host_identity(stream, id, "app-1"),
+            identity,
             artifact_identity: sha('e'),
             function_or_command: "widgets.rename".to_owned(),
-            canonical_arguments: json!({ "id": 1, "name": "ALPHA" }),
+            canonical_arguments,
             principal_id: "agent-1".to_owned(),
             grant_id: "grant-1".to_owned(),
             read_baseline: json!({ "widgets/1": "alpha" }),
@@ -4275,6 +4692,64 @@ mod tests {
             }],
             causal_predecessors: Vec::new(),
         }
+    }
+
+    #[test]
+    fn public_carrier_reservation_crash_cut_refuses_duplicate_and_second_operation() {
+        let mut branch = source(5);
+        let mut request = create_request("reservation-crash", "reservation-stream", 5, 1_000);
+        request.grant.authority_fingerprint = derive_branch_authority_fingerprint(
+            &request.grant.principal_id,
+            &request.grant.grant_id,
+            &request.grant.audience,
+        )
+        .expect("production-shaped branch authority fingerprint");
+        create_in_app_branch(&mut branch, &request).expect("create branch");
+        let exact = draft("reservation-stream", "reserved-request");
+
+        foreclose_branch_operation_admission(&mut branch, &request.branch_id, &exact, 1_001)
+            .expect("durably reserve before handler execution");
+        assert!(
+            branch_operation_retry(&branch, &request.branch_id, &exact)
+                .expect("no terminal operation after simulated crash")
+                .is_none()
+        );
+        assert_eq!(
+            foreclose_branch_operation_admission(&mut branch, &request.branch_id, &exact, 1_002)
+                .expect_err("exact retry cannot rerun an outcome-unknown operation")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_OPERATION_OUTCOME_UNKNOWN"
+        );
+
+        let mut divergent = exact.clone();
+        divergent.canonical_arguments = json!({"id": 1, "name": "DIVERGED"});
+        divergent.identity.bound_facts.input_fingerprint = derive_branch_input_fingerprint(
+            &divergent.function_or_command,
+            &divergent.canonical_arguments,
+        )
+        .expect("divergent input fingerprint");
+        assert_eq!(
+            foreclose_branch_operation_admission(
+                &mut branch,
+                &request.branch_id,
+                &divergent,
+                1_003,
+            )
+            .expect_err("reserved identity cannot be rebound")
+            .diagnostic
+            .code,
+            "SNAPBACK_BRANCH_OPERATION_ID_REUSED"
+        );
+
+        let second = draft("reservation-stream", "second-request");
+        assert_eq!(
+            foreclose_branch_operation_admission(&mut branch, &request.branch_id, &second, 1_004)
+                .expect_err("the Partial carrier admits no second operation after foreclosure")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_FORECLOSED"
+        );
     }
 
     fn facts(name: &str) -> ApprovedOperationFactsV1 {

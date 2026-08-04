@@ -32,7 +32,7 @@ pub const HOST_READY_DESCRIPTOR_KIND: &str = "snapbackHostReady";
 pub const TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE: usize = 64 * 1024;
 
 /// Operations this endpoint serves in the first slice.
-pub const SERVED_HOST_OPS: [&str; 23] = [
+pub const SERVED_HOST_OPS: [&str; 24] = [
     "app.inspect",
     "app.reset",
     "app.seed.ensure.v1",
@@ -52,6 +52,7 @@ pub const SERVED_HOST_OPS: [&str; 23] = [
     "errors.issue",
     "errors.transition",
     "branch.create.v1",
+    "branch.execute.v1",
     "branch.list.v1",
     "branch.reap.v1",
     "branch.inspect.v1",
@@ -429,6 +430,17 @@ pub struct ManagedBranchIdHostInputV1 {
     #[schemars(range(min = 1, max = 1))]
     pub schema_version: u32,
     pub branch_id: crate::branches::BranchId,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ManagedBranchExecuteHostInputV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub branch_id: crate::branches::BranchId,
+    pub function: String,
+    #[serde(default)]
+    pub args: Value,
 }
 
 struct ClosedValue(Value);
@@ -1366,6 +1378,84 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
                     true,
                     authority_admin("host-ops admin write gate"),
                     json!({ "branch": receipt }),
+                    Vec::new(),
+                ),
+                Err(error) => envelope(
+                    snapback,
+                    false,
+                    authority_admin("host-ops admin write gate"),
+                    Value::Object(Default::default()),
+                    vec![error.diagnostic],
+                ),
+            }
+        }
+        "branch.execute.v1" => {
+            let outcome = if managed_branch_wrapper_has_forbidden_siblings(&request) {
+                Err(SnapbackError::error(
+                    "SNAPBACK_BRANCH_REQUEST_INVALID",
+                    "storage",
+                    "managed branch host operations accept their closed body only under input",
+                ))
+            } else if !request
+                .request_id
+                .as_deref()
+                .is_some_and(crate::manifest::replay_opaque_id_is_valid)
+            {
+                Err(SnapbackError::error(
+                    "SNAPBACK_BRANCH_REQUEST_ID_REQUIRED",
+                    "storage",
+                    "branch.execute.v1 requires a caller-retained replay-stable requestId",
+                ))
+            } else {
+                let stable_request_id = request
+                    .request_id
+                    .as_deref()
+                    .expect("validated stable branch request id");
+                request
+                    .input
+                    .clone()
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_HOST_OP_INPUT_MISSING",
+                            "host-ops",
+                            "branch.execute.v1 requires input",
+                        )
+                    })
+                    .and_then(|value| {
+                        serde_json::from_value::<ManagedBranchExecuteHostInputV1>(value).map_err(
+                            |_| {
+                                SnapbackError::error(
+                                    "SNAPBACK_BRANCH_REQUEST_INVALID",
+                                    "storage",
+                                    "branch.execute.v1 input is not the closed v1 carrier",
+                                )
+                            },
+                        )
+                    })
+                    .and_then(|input| {
+                        if input.schema_version != 1 {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_BRANCH_SCHEMA_VERSION_UNSUPPORTED",
+                                "storage",
+                                "branch.execute.v1 requires schemaVersion 1",
+                            ));
+                        }
+                        snapback.execute_operator_in_app_branch(
+                            &input.branch_id,
+                            &input.function,
+                            input.args,
+                            stable_request_id,
+                            host_now_ms(),
+                            profile,
+                        )
+                    })
+            };
+            match outcome {
+                Ok(operation) => envelope(
+                    snapback,
+                    true,
+                    authority_admin("host-ops admin write gate"),
+                    json!({ "branchOperation": operation }),
                     Vec::new(),
                 ),
                 Err(error) => envelope(

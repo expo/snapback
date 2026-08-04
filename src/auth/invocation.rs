@@ -732,6 +732,10 @@ pub enum InvocationSource {
     DirectAdminRunner,
     HostOperationFunctionRun,
     HostOperationMutationDryRun,
+    /// A real handler executing against a server-custodied in-app branch.
+    /// The only admitted authority is the server-constructed branch principal;
+    /// neither an admin bypass nor body-supplied authority is compatible.
+    BranchOperation,
     Cron,
     NestedMutation,
     LiveInitialQuery,
@@ -777,7 +781,7 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 32] = [
+    pub const ALL: [Self; 33] = [
         Self::BootstrapHandshake,
         Self::AuthRefresh,
         Self::AuthLogout,
@@ -792,6 +796,7 @@ impl InvocationSource {
         Self::DirectAdminRunner,
         Self::HostOperationFunctionRun,
         Self::HostOperationMutationDryRun,
+        Self::BranchOperation,
         Self::Cron,
         Self::NestedMutation,
         Self::LiveInitialQuery,
@@ -824,7 +829,7 @@ impl InvocationSource {
             Self::HttpAction | Self::LocalAction | Self::Cron => {
                 InvocationTarget::Function(FunctionKindConstraint::Action)
             }
-            Self::DirectAdminRunner | Self::HostOperationFunctionRun => {
+            Self::DirectAdminRunner | Self::HostOperationFunctionRun | Self::BranchOperation => {
                 InvocationTarget::Function(FunctionKindConstraint::Any)
             }
             Self::BootstrapHandshake
@@ -859,6 +864,7 @@ pub enum AuthorityAuditFact {
     DevBodyAuthority,
     DirectRunnerBodyUser,
     HostOperationImpersonation,
+    BranchPrincipal,
     AdminBypass,
     System,
 }
@@ -1437,6 +1443,10 @@ impl InvocationGate {
                 InvocationSource::HostOperationFunctionRun
                 | InvocationSource::HostOperationMutationDryRun,
             ) => AuthorityAuditFact::HostOperationImpersonation,
+            (
+                ResolvedAppAuthority::DevImpersonation { .. },
+                InvocationSource::BranchOperation,
+            ) => AuthorityAuditFact::BranchPrincipal,
             (ResolvedAppAuthority::DevImpersonation { .. }, _) => {
                 AuthorityAuditFact::DevBodyAuthority
             }
@@ -1691,6 +1701,13 @@ fn source_allows_authority(
         InvocationSource::DirectAdminRunner
         | InvocationSource::HostOperationFunctionRun
         | InvocationSource::HostOperationMutationDryRun => admin,
+        InvocationSource::BranchOperation => matches!(
+            resolved,
+            ResolvedAppAuthority::DevImpersonation {
+                local_dev_only: false,
+                ..
+            }
+        ),
         InvocationSource::Cron => matches!(resolved, ResolvedAppAuthority::System),
         InvocationSource::LiveRerun => {
             allow_inherited_live_rerun
@@ -2255,6 +2272,7 @@ mod tests {
             Session,
             Service,
             Dev,
+            Branch,
             Admin,
             System,
         }
@@ -2283,6 +2301,11 @@ mod tests {
                 user_id: "dev".to_owned(),
                 roles: Vec::new(),
                 local_dev_only: true,
+            },
+            Kind::Branch => ResolvedAppAuthority::DevImpersonation {
+                user_id: "branch-principal".to_owned(),
+                roles: Vec::new(),
+                local_dev_only: false,
             },
             Kind::Admin => ResolvedAppAuthority::AdminBypass {
                 reason: "operator".to_owned(),
@@ -2345,6 +2368,7 @@ mod tests {
                 InvocationSource::DirectAdminRunner
                 | InvocationSource::HostOperationFunctionRun
                 | InvocationSource::HostOperationMutationDryRun => admin,
+                InvocationSource::BranchOperation => matches!(kind, Kind::Branch),
                 InvocationSource::Cron => matches!(kind, Kind::System),
                 InvocationSource::NestedMutation | InvocationSource::LiveRerun => false,
             }
@@ -2357,6 +2381,7 @@ mod tests {
                     Kind::Session,
                     Kind::Service,
                     Kind::Dev,
+                    Kind::Branch,
                     Kind::Admin,
                     Kind::System,
                 ] {
