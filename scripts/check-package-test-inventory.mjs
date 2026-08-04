@@ -148,6 +148,7 @@ const inventories = [
     expectedFiles: [
       'assets.test.mjs',
       'authorization-denial.test.mjs',
+      'binding-development-sync.test.mjs',
       'cold-boot-binding.test.mjs',
       'lifecycle.test.mjs',
       'offline.test.mjs',
@@ -480,7 +481,10 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // multi-context demand broker and lifecycle/budget/policy-inspection suites.
 // 177 -> 179 (2026-08-03, LLP 0166 L3/L6): @expo/snapback-client gains the
 // registration/sync-set and completeness-honest 15-row answer-table suites.
-assert.equal(total, 179, 'reviewed package/admin test count changed');
+// 179 -> 180 (2026-08-03, LLP 0114 local-development synchronization):
+// @expo/snapback-react gains the bounded binding mismatch recovery and strict
+// hosted/sessions refusal suite.
+assert.equal(total, 180, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

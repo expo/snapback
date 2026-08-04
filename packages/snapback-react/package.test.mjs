@@ -352,6 +352,7 @@ assert.match(binding.capabilityDigest, /^sha256:[0-9a-f]{64}$/);
 await assert.rejects(
   prepareReactBindingForClient(createFakeClient(), {
     generatedManifest: { ...generatedManifest, bundleHash: 'sha256:wrong' },
+    developmentSync: false,
   }),
   (error) => error?.code === 'SNAPBACK_REACT_BINDING_MISMATCH',
 );

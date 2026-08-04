@@ -95,9 +95,9 @@ Regenerating that mutation contract while Metro and the phone were live also
 surfaced the raw `SNAPBACK_REACT_BINDING_MISMATCH` diagnostic between backend
 generations. Refusing a mismatched contract is correct, but presenting the
 internal code as application UI during an ordinary local restart is poor dev
-loop ergonomics. Issue
-`issues/20260803-react-dev-binding-mismatch-user-facing.md` proposes a bounded,
-retrying “Updating local backend…” state without weakening admission.
+loop ergonomics. The now-closed issue at
+`issues/closed/20260803-react-dev-binding-mismatch-user-facing.md` records the
+bounded, retrying “Updating local backend…” repair without weakened admission.
 
 The same live editing session exposed a second generation handoff: Metro HMR
 replaced the generated `api` module while retaining the mounted provider's old
@@ -131,3 +131,28 @@ emphasis in the optimistic-toggle guide recipe.
 - EAS Hosting client deployment:
   https://snapback-chirp--afemip3879.expo.app (static universal client; no
   hosted Snapback backend claim).
+
+## 2026-08-03 — local binding reload recovery
+
+The raw binding-mismatch issue is now closed in the shared React preparation
+path and exercised by Chirp's root layout. This felt like the right ownership
+split: the client can prove the exact local-dev/dev tuple, repeat complete
+admission, and preserve the structured diagnostic; the app only projects the
+small `waiting | ready | timed-out` state into native UI. Chirp now says
+“Updating local backend…” during the transient window, then either mounts a
+fully admitted provider or offers expandable developer details with the stable
+code and concrete recovery actions.
+
+The most important implementation surprise was the offline receipt. Reusing a
+previously admitted successor receipt while the live backend was restarting
+would have made the UI smooth by weakening the very generation check this fix
+exists to preserve. Retry attempts therefore disable receipt fallback and wait
+for a live inspection; the regression test warms a receipt before driving
+predecessor → unreachable → successor to keep that boundary honest.
+
+Compared with React plus Convex's integrated dev loop, Snapback still exposes
+more of the client/backend generation handoff, but it now converts the ordinary
+race into useful product state without hiding the refusal. The remaining HMR
+case tracked separately is harder: a mounted provider can retain an old binding
+after the generated module itself is replaced, so that needs an atomic provider
+handoff or controlled reload rather than another preparation retry.

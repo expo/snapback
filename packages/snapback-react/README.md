@@ -18,6 +18,14 @@ Prepare a deployment-bound client before rendering:
 ```ts
 const binding = await client.prepareReactBinding({
   generatedManifest: { schema, functions, capabilityManifest },
+  developmentSync: {
+    onStateChange(state) {
+      renderBootMessage(state.message);
+      if (state.status === 'timed-out') {
+        renderDeveloperDetails(state.diagnostic, state.actions);
+      }
+    },
+  },
 });
 const provider = createSnapbackReactProvider(binding);
 root.render(
@@ -26,6 +34,14 @@ root.render(
   </SnapbackProvider>,
 );
 ```
+
+On the exact local-dev target in `dev` auth mode, a generated/deployed
+mismatch automatically retries complete preparation for up to 10 seconds.
+The callback is optional; use its product-facing message for the root loading
+state and keep the diagnostic/actions behind developer details. Persistent
+drift rejects with the stable `SNAPBACK_REACT_BINDING_MISMATCH` code and
+concrete recovery actions. Hosted, sessions, unknown, and opted-out
+(`developmentSync: false`) mismatches remain immediate loud refusals.
 
 Generated references supply exact argument and result types. Same-key sibling
 queries share one authoritative external store and upstream attempt. Same-room

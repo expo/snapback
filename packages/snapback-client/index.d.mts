@@ -390,6 +390,47 @@ export interface StartedLiveQueryHandle<Rows> {
   settled(): Promise<void>;
 }
 
+export interface ReactBindingMismatchDiagnostic {
+  readonly schemaVersion: string;
+  readonly code: 'SNAPBACK_REACT_BINDING_MISMATCH';
+  readonly severity: 'error';
+  readonly message: string;
+  readonly details: Readonly<Record<string, unknown>>;
+}
+
+export type ReactBindingDevelopmentSyncState =
+  | Readonly<{
+      readonly status: 'waiting';
+      readonly message: 'Updating local backend…';
+      readonly attempt: number;
+      readonly elapsedMs: number;
+      readonly diagnostic: ReactBindingMismatchDiagnostic;
+    }>
+  | Readonly<{
+      readonly status: 'ready';
+      readonly message: 'Local backend updated.';
+      readonly attempt: number;
+      readonly elapsedMs: number;
+      readonly diagnostic: null;
+    }>
+  | Readonly<{
+      readonly status: 'timed-out';
+      readonly message: 'Client and local backend are still out of sync.';
+      readonly attempt: number;
+      readonly elapsedMs: number;
+      readonly diagnostic: ReactBindingMismatchDiagnostic;
+      readonly actions: readonly string[];
+    }>;
+
+export interface ReactBindingDevelopmentSyncOptions {
+  /** Bounded local-dev retry window. Defaults to 10,000 ms; maximum 60,000. */
+  readonly timeoutMs?: number;
+  /** Delay between complete admission attempts. Defaults to 250 ms; maximum 5,000. */
+  readonly pollIntervalMs?: number;
+  /** Observational UI projection. Exceptions from the callback are ignored. */
+  readonly onStateChange?: (state: ReactBindingDevelopmentSyncState) => void;
+}
+
 export interface PreparedReactBinding {
   readonly appId: string;
   readonly profile: string;
@@ -757,6 +798,9 @@ export class SnapbackClient {
           readonly capabilityManifest?: Readonly<Record<string, unknown>>;
           readonly routes?: Readonly<Record<string, unknown>>;
         };
+    /** Automatic only after the live target proves the exact local-dev/dev
+     * profile. `false` restores immediate mismatch refusal. */
+    readonly developmentSync?: false | ReactBindingDevelopmentSyncOptions;
   }): Promise<PreparedReactBinding>;
   ensureApp(options?: {
     readonly schema?: unknown;

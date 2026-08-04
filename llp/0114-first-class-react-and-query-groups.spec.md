@@ -5,7 +5,12 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-03 (Accepted 2026-08-03 by the author — decision
+**Revised:** 2026-08-03 (bounded local-development binding synchronization:
+only a live-inspected `local-dev-sqlite-ibex` target in `dev` auth mode turns
+a binding mismatch into a 10-second retry state; every attempt re-runs full
+admission without offline-receipt fallback, timeout retains the stable code
+as developer detail, and all other profiles remain immediate refusals);
+2026-08-03 (Accepted 2026-08-03 by the author — decision
 sitting #2, "accept all that verify",
 `issues/20260803-author-decision-sitting-2.md`; gate verified: the terminal
 review's material findings are absorbed by the normative §Round-1 author
@@ -1393,6 +1398,43 @@ user-switch custody wipe drops the receipt with the rest of the store.
 Regression witness: `packages/snapback-react/cold-boot-binding.test.mjs`
 (real client over a scripted wire; warmed store; cold offline process
 reaches a ready provider rendering `freshness: 'retained'` rows).
+
+### Local development binding synchronization (dated amendment 2026-08-03)
+
+Metro/HMR may load a newly generated function or result contract while the
+local backend still serves the immediately preceding generation. The binding
+mismatch remains an admission refusal, but `prepareReactBinding` now treats it
+as a bounded synchronization state only after one live inspection proves both
+the exact `local-dev-sqlite-ibex` target profile and `dev` auth mode. A hosted,
+sessions, unknown, receipt-only, or otherwise unproved context refuses
+immediately with `SNAPBACK_REACT_BINDING_MISMATCH` as before.
+
+The default window is 10 seconds with a 250 ms poll interval (callers may
+configure finite values up to 60 seconds and 5 seconds respectively, or set
+`developmentSync: false` for immediate refusal). Each retry repeats complete
+manifest/deployment admission. Once a live mismatch opens the loop, retries
+disable persisted binding-receipt fallback: a receipt for the generated
+successor cannot authorize provider construction while the live backend is
+unreachable or still serves its predecessor. A transient connectivity failure
+inside the already-proved local window remains waiting; any other refusal
+terminates immediately. No provider exists until one live retry admits every
+artifact.
+
+`developmentSync.onStateChange` is an observational UI projection with
+`waiting | ready | timed-out` states. Its primary messages are product copy
+(`Updating local backend…`, `Local backend updated.`, and `Client and local
+backend are still out of sync.`); callback exceptions cannot affect admission.
+On timeout the rejected Error uses human-facing recovery text, while
+`error.code`, `error.diagnostic.code`, expected/actual generation details, and
+three concrete recovery actions retain
+`SNAPBACK_REACT_BINDING_MISMATCH` for expandable developer details. The stable
+diagnostic is not hidden or weakened; it is no longer the primary application
+copy in the positively identified dev-loop case.
+
+Regression witness:
+`packages/snapback-react/binding-development-sync.test.mjs` (predecessor →
+backend-unreachable → successor recovery with a prior receipt present;
+bounded persistent mismatch; opt-out; and hosted/sessions loud refusal).
 
 ## LLP 0157 acceptance boundary — 2026-08-03
 

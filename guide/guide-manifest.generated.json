@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "4b2a0c9af6191f6e5d1b52a59b44b6a741cf1114"
+    "commit": "7aaf817b518becf1b38084aea00b83e802a13c98"
   },
   "nav": {
     ".": [
@@ -1688,9 +1688,11 @@
       ],
       "examples": [
         "packages/snapback-cli/templates/react",
+        "demos/chirp",
         "demos/signal-desk/src/backends/snapback.ts",
         "demos/signal-desk/tests/react.mjs",
         "demos/signal-desk/acceptance/results/react-presence.v1.json",
+        "packages/snapback-react/binding-development-sync.test.mjs",
         "packages/snapback-react/package.test.mjs",
         "packages/snapback-react/optimistic.test.mjs",
         "packages/snapback-react/presence.test.mjs",
@@ -1699,7 +1701,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "54b67ea3f24c3ae72444834d718d1153955c2919ad1d862fd32c5e21577b6194",
+      "sha256": "99a4e9e909696d707ea06b7918d0797bd76ecb5dc9a11e50adddefd4df1f715e",
       "snippets": [
         {
           "lang": "ts",
@@ -2836,5 +2838,5 @@
     "routes": 98,
     "hostOps": 35
   },
-  "contentHash": "2885072b38ccbe570f1d679e60bde9b3b88bdbf31923af6a79c227695097a6eb"
+  "contentHash": "e554e91e4d662ad7fa574f499460c9d45481819b29afbc4ba1c24af0eaef22a2"
 }

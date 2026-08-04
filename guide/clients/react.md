@@ -5,7 +5,7 @@ order: 2
 audience: agent-first
 capabilities: [clients.react]
 authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0112-generated-query-group-bundle-adoption.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, packages/snapback-client/canonical-client-value.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-contract/result-contract-validator.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts, packages/snapback-react/exact-result-types.fixture.ts]
-examples: [packages/snapback-cli/templates/react, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
+examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk/src/backends/snapback.ts, demos/signal-desk/tests/react.mjs, demos/signal-desk/acceptance/results/react-presence.v1.json, packages/snapback-react/binding-development-sync.test.mjs, packages/snapback-react/package.test.mjs, packages/snapback-react/optimistic.test.mjs, packages/snapback-react/presence.test.mjs, packages/snapback-react/offline.test.mjs, packages/snapback-react/exact-result-types.fixture.ts]
 status: current
 targets: [local]
 maturity: shipped
@@ -33,6 +33,11 @@ from that immutable binding:
 ```ts fragment reason="application composition varies by renderer and generated artifact imports"
 const binding = await client.prepareReactBinding({
   generatedManifest: { schema, functions, capabilityManifest },
+  developmentSync: {
+    onStateChange(state) {
+      setBootState(state);
+    },
+  },
 });
 const provider = createSnapbackReactProvider(binding);
 
@@ -59,6 +64,24 @@ generated manifest. The binding names its provenance as
 boot reaches a provider that renders retained rows (see
 [offline retention](../sync/offline-and-retention.md)). A drifted generated
 manifest never adopts the receipt.
+
+During an ordinary local edit/restart cycle, Metro or Vite may load generated
+artifacts one backend generation ahead. After a live inspection proves both
+the exact local-dev target and `dev` auth mode, preparation automatically
+retries complete admission for up to 10 seconds and reports
+`developmentSync` state as `waiting | ready | timed-out`. Render
+`state.message` as the root product copy (`Updating local backend…` while
+waiting). If it times out, keep `state.diagnostic` and `state.actions` behind
+developer details; the rejected Error's primary message is human-facing while
+its stable code remains `SNAPBACK_REACT_BINDING_MISMATCH`.
+
+Retries never construct a provider early and never use the offline receipt:
+only a later live inspection that admits the complete generated manifest can
+finish the loop. A brief connectivity gap during that already-proved local
+window remains recoverable. Hosted, sessions, unknown, and server-refusal
+contexts stay immediate and loud. Set `developmentSync: false` when a local
+tool or test deliberately needs the original immediate mismatch behavior;
+otherwise the bounded retry is automatic even when no callback is supplied.
 
 ## Bind a generated query
 

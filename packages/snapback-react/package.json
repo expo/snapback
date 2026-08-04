@@ -29,6 +29,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node ../../scripts/ensure-workspace-hoist.mjs && node package.test.mjs && node optimistic.test.mjs && node authorization-denial.test.mjs && node webcrypto-fallback.test.mjs && node cold-boot-binding.test.mjs && node presence.test.mjs && node lifecycle.test.mjs && node assets.test.mjs && node offline.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler exact-result-types.fixture.ts"
+    "test": "node ../../scripts/ensure-workspace-hoist.mjs && node binding-development-sync.test.mjs && node package.test.mjs && node optimistic.test.mjs && node authorization-denial.test.mjs && node webcrypto-fallback.test.mjs && node cold-boot-binding.test.mjs && node presence.test.mjs && node lifecycle.test.mjs && node assets.test.mjs && node offline.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler exact-result-types.fixture.ts"
   }
 }

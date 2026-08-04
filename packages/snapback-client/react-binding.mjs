@@ -15,9 +15,15 @@ import { isConnectivityFailureError } from './outbox-shared.mjs';
 
 const PREPARED_REACT_BINDING = Symbol('snapback.prepared-react-binding.v1');
 const PREPARED_REACT_QUERY_GROUP = Symbol('snapback.prepared-react-query-group.v1');
+const REACT_BINDING_MISMATCH_CONTEXT = Symbol('snapback.react-binding-mismatch-context.v1');
 const preparedReactQueryGroupOwners = new WeakMap();
 const REGISTERED_BUNDLE_CAPABILITY = 'registered_bundle_boot_v1';
 const MIXED_BUNDLE_CAPABILITY = 'mixed_bundle_boot_v2';
+const LOCAL_DEVELOPMENT_PROFILE = 'local-dev-sqlite-ibex';
+const DEFAULT_DEVELOPMENT_SYNC_TIMEOUT_MS = 10_000;
+const DEFAULT_DEVELOPMENT_SYNC_POLL_INTERVAL_MS = 250;
+const MAX_DEVELOPMENT_SYNC_TIMEOUT_MS = 60_000;
+const MAX_DEVELOPMENT_SYNC_POLL_INTERVAL_MS = 5_000;
 const utf8 = new TextEncoder();
 
 function diagnosticError(code, message, details = {}) {
@@ -300,7 +306,106 @@ function persistBindingReceipt(client, receipt) {
   void Promise.resolve(store.commitReactBindingReceipt(receipt)).catch(() => {});
 }
 
-export async function prepareReactBindingForClient(client, options = {}) {
+function boundedMilliseconds(value, fallback, field, maximum) {
+  if (value === undefined) return fallback;
+  if (!Number.isSafeInteger(value) || value < 0 || value > maximum) {
+    throw new RangeError(`${field} must be an integer from 0 through ${maximum}`);
+  }
+  return value;
+}
+
+function normalizedDevelopmentSyncOptions(value) {
+  if (value === false) return null;
+  if (value !== undefined && (
+    value === null
+    || typeof value !== 'object'
+    || Array.isArray(value)
+  )) {
+    throw new TypeError('developmentSync must be false or an options object');
+  }
+  const onStateChange = value?.onStateChange;
+  if (onStateChange !== undefined && typeof onStateChange !== 'function') {
+    throw new TypeError('developmentSync.onStateChange must be a function');
+  }
+  return Object.freeze({
+    timeoutMs: boundedMilliseconds(
+      value?.timeoutMs,
+      DEFAULT_DEVELOPMENT_SYNC_TIMEOUT_MS,
+      'developmentSync.timeoutMs',
+      MAX_DEVELOPMENT_SYNC_TIMEOUT_MS,
+    ),
+    pollIntervalMs: boundedMilliseconds(
+      value?.pollIntervalMs,
+      DEFAULT_DEVELOPMENT_SYNC_POLL_INTERVAL_MS,
+      'developmentSync.pollIntervalMs',
+      MAX_DEVELOPMENT_SYNC_POLL_INTERVAL_MS,
+    ),
+    onStateChange: onStateChange ?? null,
+  });
+}
+
+function publishDevelopmentSyncState(options, state) {
+  try {
+    options.onStateChange?.(Object.freeze(state));
+  } catch {
+    // Observational UI state cannot own admission or retry lifecycle.
+  }
+}
+
+function sleep(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+const DEVELOPMENT_SYNC_DEADLINE = Symbol('snapback.development-sync-deadline');
+
+async function beforeDevelopmentSyncDeadline(promise, milliseconds) {
+  let timer = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(DEVELOPMENT_SYNC_DEADLINE), milliseconds);
+      }),
+    ]);
+  } finally {
+    if (timer !== null) clearTimeout(timer);
+  }
+}
+
+function developmentSyncTimeoutError(lastError, { timeoutMs, attempts }) {
+  const actions = Object.freeze([
+    'Wait for Snapback code generation and the local backend reload to finish.',
+    'Restart the local Snapback backend if it does not load the generated artifacts.',
+    'Reload the app after the backend reports ready.',
+  ]);
+  const diagnostic = Object.freeze({
+    ...(lastError?.diagnostic ?? {}),
+    code: 'SNAPBACK_REACT_BINDING_MISMATCH',
+    message: lastError?.diagnostic?.message
+      ?? 'generated manifest does not match the connected deployment',
+    details: Object.freeze({
+      ...(lastError?.diagnostic?.details ?? {}),
+      developmentSynchronization: Object.freeze({
+        status: 'timed-out',
+        timeoutMs,
+        attempts,
+        actions,
+      }),
+    }),
+  });
+  const error = new Error(
+    'Client and local backend are still out of sync. Restart the local backend, then reload the app.',
+  );
+  error.code = diagnostic.code;
+  error.diagnostic = diagnostic;
+  return Object.freeze({ error, diagnostic, actions });
+}
+
+async function prepareReactBindingOnce(
+  client,
+  options = {},
+  { allowPersistedReceipt = true } = {},
+) {
   if (!client || typeof client.inspect !== 'function' || typeof client.liveQuery !== 'function') {
     throw new TypeError('prepareReactBinding requires a SnapbackClient');
   }
@@ -317,18 +422,36 @@ export async function prepareReactBindingForClient(client, options = {}) {
         : Promise.resolve(null),
     ]);
   } catch (error) {
+    if (!allowPersistedReceipt) throw error;
     const adopted = await adoptPersistedBindingReceipt(client, generated, error);
     if (!adopted) throw error;
     ({ inspection, session, receiptFacts } = adopted);
     source = 'persisted-receipt';
   }
   const deployed = inspection?.functions;
+  const bindingMismatch = (message, details = {}) => {
+    const targetProfileId = inspection?.targetProfileId ?? null;
+    const authMode = session?.activeMode ?? null;
+    const error = diagnosticError(
+      'SNAPBACK_REACT_BINDING_MISMATCH',
+      message,
+      { ...details, targetProfileId, authMode },
+    );
+    Object.defineProperty(error, REACT_BINDING_MISMATCH_CONTEXT, {
+      value: Object.freeze({
+        source,
+        localDevelopment: source === 'deployment'
+          && targetProfileId === LOCAL_DEVELOPMENT_PROFILE
+          && authMode === 'dev',
+      }),
+    });
+    return error;
+  };
   if (
     deployed?.appId !== generated.functions.appId
     || deployed?.bundleHash !== generated.functions.bundleHash
   ) {
-    throw diagnosticError(
-      'SNAPBACK_REACT_BINDING_MISMATCH',
+    throw bindingMismatch(
       'generated manifest does not match the connected deployment',
       {
         expectedAppId: generated.functions.appId,
@@ -379,8 +502,7 @@ export async function prepareReactBindingForClient(client, options = {}) {
       || (actual.authorityIndependent === true)
         !== (definition.authorityIndependent === true)
     ) {
-      throw diagnosticError(
-        'SNAPBACK_REACT_BINDING_MISMATCH',
+      throw bindingMismatch(
         `generated reference ${reference.name} does not match the connected deployment`,
         { functionId: reference.id },
       );
@@ -416,8 +538,7 @@ export async function prepareReactBindingForClient(client, options = {}) {
         !== canonicalizeClientValueV1(descriptor)
       || await resultContractHash(descriptor) !== reference.resultContractHash
     ) {
-      throw diagnosticError(
-        'SNAPBACK_REACT_BINDING_MISMATCH',
+      throw bindingMismatch(
         `generated result contract for ${reference.name} does not match its deployment and hash`,
         { functionId: reference.id },
       );
@@ -437,8 +558,7 @@ export async function prepareReactBindingForClient(client, options = {}) {
       || generated.schema.schemaHash !== inspection.schema?.schemaHash
       || !Array.isArray(generated.schema.ephemeralCollections)
     ) {
-      throw diagnosticError(
-        'SNAPBACK_REACT_BINDING_MISMATCH',
+      throw bindingMismatch(
         'generated schema manifest does not match the connected deployment',
         {
           expectedSchemaHash: generated.schema?.schemaHash ?? null,
@@ -459,8 +579,7 @@ export async function prepareReactBindingForClient(client, options = {}) {
         || canonicalizeClientValueV1(deployedDefinition)
           !== canonicalizeClientValueV1(definition)
       ) {
-        throw diagnosticError(
-          'SNAPBACK_REACT_BINDING_MISMATCH',
+        throw bindingMismatch(
           `generated ephemeral collection ${definition.name} does not match the connected deployment`,
           { collection: definition.name },
         );
@@ -529,8 +648,7 @@ export async function prepareReactBindingForClient(client, options = {}) {
     }
     routeManifestHash = await sha256Canonical(generated.routes);
     if (inspection.routeManifestHash !== routeManifestHash) {
-      throw diagnosticError(
-        'SNAPBACK_REACT_BINDING_MISMATCH',
+      throw bindingMismatch(
         'generated routes manifest does not match the served route identity',
         {
           expectedRouteManifestHash: routeManifestHash,
@@ -641,8 +759,7 @@ export async function prepareReactBindingForClient(client, options = {}) {
   if (generated.capabilityManifest) {
     const declaredProfile = generated.capabilityManifest.targetProfileId;
     if (declaredProfile && declaredProfile !== inspection.targetProfileId) {
-      throw diagnosticError(
-        'SNAPBACK_REACT_BINDING_MISMATCH',
+      throw bindingMismatch(
         'generated capability profile does not match the connected deployment',
         { expectedProfile: declaredProfile, actualProfile: inspection.targetProfileId ?? null },
       );
@@ -705,6 +822,90 @@ export async function prepareReactBindingForClient(client, options = {}) {
     queryGroupsById: { value: queryGroupsById },
   });
   return Object.freeze(binding);
+}
+
+// @ref LLP 0114#local-development-binding-synchronization-dated-amendment-2026-08-03
+// — only a live-inspected local-dev/dev mismatch enters this bounded loop;
+// every retry re-runs complete admission with receipt fallback disabled.
+export async function prepareReactBindingForClient(client, options = {}) {
+  const developmentSync = normalizedDevelopmentSyncOptions(options.developmentSync);
+  let attempts = 1;
+  let firstMismatchAt = null;
+  let lastMismatch = null;
+  for (;;) {
+    try {
+      const binding = firstMismatchAt === null
+        ? await prepareReactBindingOnce(client, options)
+        : await beforeDevelopmentSyncDeadline(
+            prepareReactBindingOnce(client, options, { allowPersistedReceipt: false }),
+            Math.max(0, developmentSync.timeoutMs - (Date.now() - firstMismatchAt)),
+          );
+      if (binding === DEVELOPMENT_SYNC_DEADLINE) {
+        const timeout = developmentSyncTimeoutError(lastMismatch, {
+          timeoutMs: developmentSync.timeoutMs,
+          attempts,
+        });
+        publishDevelopmentSyncState(developmentSync, {
+          status: 'timed-out',
+          message: 'Client and local backend are still out of sync.',
+          attempt: attempts,
+          elapsedMs: developmentSync.timeoutMs,
+          diagnostic: timeout.diagnostic,
+          actions: timeout.actions,
+        });
+        throw timeout.error;
+      }
+      if (firstMismatchAt !== null) {
+        publishDevelopmentSyncState(developmentSync, {
+          status: 'ready',
+          message: 'Local backend updated.',
+          attempt: attempts,
+          elapsedMs: Math.max(0, Date.now() - firstMismatchAt),
+          diagnostic: null,
+        });
+      }
+      return binding;
+    } catch (error) {
+      if (developmentSync === null) throw error;
+      const context = error?.[REACT_BINDING_MISMATCH_CONTEXT];
+      if (firstMismatchAt === null) {
+        if (context?.localDevelopment !== true) throw error;
+        firstMismatchAt = Date.now();
+      } else if (
+        context?.localDevelopment !== true
+        && !isConnectivityFailureError(error)
+      ) {
+        throw error;
+      }
+      if (context?.localDevelopment === true) lastMismatch = error;
+      const elapsedMs = Math.max(0, Date.now() - firstMismatchAt);
+      const remainingMs = developmentSync.timeoutMs - elapsedMs;
+      if (remainingMs <= 0) {
+        const timeout = developmentSyncTimeoutError(lastMismatch, {
+          timeoutMs: developmentSync.timeoutMs,
+          attempts,
+        });
+        publishDevelopmentSyncState(developmentSync, {
+          status: 'timed-out',
+          message: 'Client and local backend are still out of sync.',
+          attempt: attempts,
+          elapsedMs,
+          diagnostic: timeout.diagnostic,
+          actions: timeout.actions,
+        });
+        throw timeout.error;
+      }
+      publishDevelopmentSyncState(developmentSync, {
+        status: 'waiting',
+        message: 'Updating local backend…',
+        attempt: attempts,
+        elapsedMs,
+        diagnostic: lastMismatch.diagnostic,
+      });
+      await sleep(Math.min(developmentSync.pollIntervalMs, remainingMs));
+      attempts += 1;
+    }
+  }
 }
 
 export function assertPreparedReactBinding(binding) {
