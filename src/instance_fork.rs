@@ -7,8 +7,8 @@
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::collections::BTreeMap;
+use serde_json::{Value, json};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
 use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
@@ -16,7 +16,7 @@ use uuid::Uuid;
 
 pub const STAGING_SENTINEL: &str = ".snapback-fork-staging.v1";
 pub const MINT_RECEIPT_FILE: &str = "fork-mint-receipt.json";
-const REGISTRY_DIRECTORY: &str = ".snapback-fork-registry";
+pub const REGISTRY_DIRECTORY: &str = ".snapback-fork-registry";
 const LINEAGE_META_KEY: &str = "instance_fork_lineage_v1";
 const QUARANTINE_META_KEY: &str = "instance_fork_quarantine_v1";
 const EGRESS_TABLE: &str = "_snapback_fork_egress_attempts_v1";
@@ -447,6 +447,15 @@ pub struct DerivedForkLineageV1 {
     pub parent_instance_id: String,
     pub app_id: String,
     pub created_at_ms: u64,
+    /// The last parent commit included in the materialized snapshot. Parent
+    /// and child can mint equal later version numbers, so this is provenance,
+    /// not merely an optimization for the diff reader.
+    #[serde(default)]
+    pub fork_point_version: u64,
+    /// Every product-created v1 fork is finite. `None` exists only for the
+    /// lower-level F0a crash corpus, which predates lifecycle packaging.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires_at_ms: Option<u64>,
     pub promotable: bool,
 }
 
@@ -459,6 +468,53 @@ pub struct ForkMintReceiptV1 {
     pub authorization_stream_incarnation: String,
     pub data_version_stream: String,
     pub custody: BTreeMap<String, CustodyDisposition>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForkRegistryEntryV1 {
+    pub format_version: u32,
+    pub state: String,
+    pub destination: String,
+    pub lineage: DerivedForkLineageV1,
+    pub database_file: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ready_file: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_root: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForkDiffRowV1 {
+    pub version: u64,
+    pub table: String,
+    pub row_id: String,
+    pub operation: String,
+    pub post_image: Option<Value>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForkDiffReceiptV1 {
+    pub schema_version: String,
+    pub fork_id: String,
+    pub app_id: String,
+    pub parent_instance_id: String,
+    pub fork_point_version: u64,
+    pub observed_head_version: u64,
+    pub rows: Vec<ForkDiffRowV1>,
+    pub table_counts: BTreeMap<String, u64>,
+    pub coverage: Vec<String>,
+    pub omissions: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ForkReapReceiptV1 {
+    pub schema_version: String,
+    pub now_ms: u64,
+    pub reaped_fork_ids: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -556,7 +612,15 @@ pub fn scrub_and_mint(
     parent_instance_id: &str,
     now_ms: u64,
 ) -> SnapbackResult<ForkMintReceiptV1> {
-    scrub_and_mint_with_cut(database_path, app_id, parent_instance_id, now_ms, None)
+    scrub_and_mint_with_cut(
+        database_path,
+        app_id,
+        parent_instance_id,
+        now_ms,
+        None,
+        false,
+        None,
+    )
 }
 
 fn scrub_and_mint_with_cut(
@@ -565,9 +629,16 @@ fn scrub_and_mint_with_cut(
     parent_instance_id: &str,
     now_ms: u64,
     cut_at: Option<PublicationCut>,
+    with_secrets: bool,
+    expires_at_ms: Option<u64>,
 ) -> SnapbackResult<ForkMintReceiptV1> {
     let mut conn = Connection::open(database_path)?;
     let classified = audit_connection(&conn)?;
+    let fork_point_version = conn.query_row(
+        "SELECT version FROM _snapback_version WHERE id=1",
+        [],
+        |row| row.get::<_, u64>(0),
+    )?;
     if conn
         .query_row(
             "SELECT value FROM _snapback_meta WHERE key=?1",
@@ -590,6 +661,8 @@ fn scrub_and_mint_with_cut(
         parent_instance_id: parent_instance_id.to_owned(),
         app_id: app_id.to_owned(),
         created_at_ms: now_ms,
+        fork_point_version,
+        expires_at_ms,
         promotable: false,
     };
     let database_file = database_path
@@ -638,6 +711,9 @@ fn scrub_and_mint_with_cut(
             .iter()
             .map(|rule| (format!("sidecar:{}", rule.name), rule.disposition)),
     );
+    if with_secrets {
+        custody.insert("sidecar:*.config.json".to_owned(), CustodyDisposition::Copy);
+    }
     let tx = conn.transaction()?;
     let quarantine = serde_json::to_string(&lineage)
         .map_err(|error| fork_error("SNAPBACK_FORK_LINEAGE_INVALID", error.to_string()))?;
@@ -950,6 +1026,26 @@ fn registry_path(parent: &Path, fork_id: &str) -> PathBuf {
         .join(format!("{fork_id}.json"))
 }
 
+fn registry_entry(
+    state: &str,
+    destination: &Path,
+    receipt: &ForkMintReceiptV1,
+) -> ForkRegistryEntryV1 {
+    ForkRegistryEntryV1 {
+        format_version: 1,
+        state: state.to_owned(),
+        destination: destination
+            .file_name()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default()
+            .to_owned(),
+        lineage: receipt.lineage.clone(),
+        database_file: receipt.database_file.clone(),
+        ready_file: None,
+        app_root: None,
+    }
+}
+
 fn reconcile_registry(parent: &Path, destination: &Path, receipt: &ForkMintReceiptV1) {
     // Advisory bookkeeping must never become recovery authority. Reconcile
     // when reachable and deliberately discard every registry error.
@@ -959,11 +1055,7 @@ fn reconcile_registry(parent: &Path, destination: &Path, receipt: &ForkMintRecei
             .map_err(|error| io_error("create fork registry during recovery", error))?;
         write_json_sync(
             &registry_path(parent, &receipt.lineage.fork_id),
-            &json!({
-                "state": "published",
-                "destination": destination.file_name().and_then(|value| value.to_str()),
-                "lineage": receipt.lineage,
-            }),
+            &registry_entry("published", destination, receipt),
         )?;
         sync_directory(&directory)
     })();
@@ -981,6 +1073,308 @@ pub fn publish(
     parent_instance_id: &str,
     now_ms: u64,
     cut_at: Option<PublicationCut>,
+) -> SnapbackResult<ForkMintReceiptV1> {
+    publish_with_options(
+        source_database,
+        destination,
+        app_id,
+        parent_instance_id,
+        now_ms,
+        cut_at,
+        false,
+        None,
+    )
+}
+
+/// Product-level F0b publication. Unlike the lower-level crash-matrix entry
+/// point, this always stamps a finite expiry and records an explicit choice
+/// about the only inheritable secret carrier (the database config sibling).
+// @ref LLP 0158#implementation-path-local-v1-explored-2026-08-03 — F0b
+// packages F0a with a finite TTL and optional, explicit config inheritance.
+#[allow(clippy::too_many_arguments)]
+pub fn publish_managed(
+    source_database: &Path,
+    destination: &Path,
+    app_id: &str,
+    parent_instance_id: &str,
+    now_ms: u64,
+    expires_at_ms: u64,
+    with_secrets: bool,
+) -> SnapbackResult<ForkMintReceiptV1> {
+    if expires_at_ms <= now_ms || expires_at_ms > crate::manifest::PORTABLE_TIMESTAMP_MAX_MS {
+        return Err(fork_error(
+            "SNAPBACK_FORK_TTL_INVALID",
+            "fork expiry must be later than creation and within the portable timestamp range",
+        ));
+    }
+    publish_with_options(
+        source_database,
+        destination,
+        app_id,
+        parent_instance_id,
+        now_ms,
+        None,
+        with_secrets,
+        Some(expires_at_ms),
+    )
+}
+
+/// Attach the independently written runtime handshake to advisory lifecycle
+/// bookkeeping. The fork remains self-authenticating from its local evidence;
+/// this update exists for list/drop/reap ergonomics only.
+pub fn record_managed_runtime(
+    fork_root: &Path,
+    fork_id: &str,
+    ready_file: &Path,
+    app_root: Option<&Path>,
+) -> SnapbackResult<ForkRegistryEntryV1> {
+    validate_fork_id(fork_id)?;
+    let path = registry_path(fork_root, fork_id);
+    let mut entry: ForkRegistryEntryV1 = serde_json::from_slice(
+        &fs::read(&path).map_err(|error| io_error("read fork registry entry", error))?,
+    )
+    .map_err(|error| {
+        fork_error(
+            "SNAPBACK_FORK_REGISTRY_INVALID",
+            format!("fork registry entry is malformed: {error}"),
+        )
+    })?;
+    validate_registry_destination(&entry.destination)?;
+    let destination = fs::canonicalize(fork_root.join(&entry.destination))
+        .map_err(|error| io_error("resolve managed fork destination", error))?;
+    let ready_parent = ready_file.parent().ok_or_else(|| {
+        fork_error(
+            "SNAPBACK_FORK_READY_INVALID",
+            "managed ready file has no parent",
+        )
+    })?;
+    let ready_parent = fs::canonicalize(ready_parent)
+        .map_err(|error| io_error("resolve managed ready-file parent", error))?;
+    if ready_parent != destination {
+        return Err(fork_error(
+            "SNAPBACK_FORK_READY_INVALID",
+            "managed ready file must be a direct child of the fork directory",
+        ));
+    }
+    entry.state = "ready".to_owned();
+    entry.ready_file = Some(ready_file.display().to_string());
+    entry.app_root = app_root.map(|path| path.display().to_string());
+    write_json_sync(&path, &entry)?;
+    sync_directory(&fork_root.join(REGISTRY_DIRECTORY))?;
+    Ok(entry)
+}
+
+pub fn list_managed(fork_root: &Path) -> SnapbackResult<Vec<ForkRegistryEntryV1>> {
+    let registry = fork_root.join(REGISTRY_DIRECTORY);
+    if !registry.exists() {
+        return Ok(Vec::new());
+    }
+    let mut entries = Vec::new();
+    for child in fs::read_dir(&registry).map_err(|error| io_error("scan fork registry", error))? {
+        let child = child.map_err(|error| io_error("read fork registry entry", error))?;
+        if child.path().extension().and_then(|value| value.to_str()) != Some("json") {
+            continue;
+        }
+        let entry: ForkRegistryEntryV1 = serde_json::from_slice(
+            &fs::read(child.path()).map_err(|error| io_error("read fork registry entry", error))?,
+        )
+        .map_err(|error| {
+            fork_error(
+                "SNAPBACK_FORK_REGISTRY_INVALID",
+                format!("fork registry entry is malformed: {error}"),
+            )
+        })?;
+        validate_fork_id(&entry.lineage.fork_id)?;
+        let recorded_id = child
+            .path()
+            .file_stem()
+            .and_then(|value| value.to_str())
+            .ok_or_else(|| {
+                fork_error(
+                    "SNAPBACK_FORK_REGISTRY_INVALID",
+                    "registry entry needs a UTF-8 fork-id file name",
+                )
+            })?
+            .to_owned();
+        if recorded_id != entry.lineage.fork_id {
+            return Err(fork_error(
+                "SNAPBACK_FORK_REGISTRY_INVALID",
+                "registry file name does not match its fork lineage",
+            ));
+        }
+        validate_registry_destination(&entry.destination)?;
+        entries.push(entry);
+    }
+    entries.sort_by(|left, right| left.lineage.fork_id.cmp(&right.lineage.fork_id));
+    Ok(entries)
+}
+
+pub fn managed_entry(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkRegistryEntryV1> {
+    validate_fork_id(fork_id)?;
+    list_managed(fork_root)?
+        .into_iter()
+        .find(|entry| entry.lineage.fork_id == fork_id)
+        .ok_or_else(|| {
+            fork_error(
+                "SNAPBACK_FORK_NOT_FOUND",
+                "the requested fork is not in this lifecycle registry",
+            )
+        })
+}
+
+fn validate_fork_id(fork_id: &str) -> SnapbackResult<()> {
+    if Uuid::parse_str(fork_id).is_err() {
+        return Err(fork_error(
+            "SNAPBACK_FORK_ID_INVALID",
+            "fork id must be a UUID",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_registry_destination(destination: &str) -> SnapbackResult<()> {
+    let mut components = Path::new(destination).components();
+    if destination.is_empty()
+        || !matches!(components.next(), Some(std::path::Component::Normal(_)))
+        || components.next().is_some()
+    {
+        return Err(fork_error(
+            "SNAPBACK_FORK_REGISTRY_INVALID",
+            "registry destination is not one direct child of the fork root",
+        ));
+    }
+    Ok(())
+}
+
+/// Remove exactly one registry-bound fork directory. Callers stop a live
+/// child first; path validation prevents registry corruption from widening the
+/// deletion target.
+pub fn drop_managed(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkRegistryEntryV1> {
+    let entry = managed_entry(fork_root, fork_id)?;
+    validate_registry_destination(&entry.destination)?;
+    let destination = fork_root.join(&entry.destination);
+    if destination.exists() {
+        let metadata = fs::symlink_metadata(&destination)
+            .map_err(|error| io_error("inspect fork before drop", error))?;
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            return Err(fork_error(
+                "SNAPBACK_FORK_DROP_TARGET_INVALID",
+                "registered fork destination is not a real directory",
+            ));
+        }
+        fs::remove_dir_all(&destination).map_err(|error| io_error("drop fork directory", error))?;
+        sync_directory(fork_root)?;
+    }
+    let registry = registry_path(fork_root, fork_id);
+    match fs::remove_file(&registry) {
+        Ok(()) => sync_directory(&fork_root.join(REGISTRY_DIRECTORY))?,
+        Err(error) if error.kind() == ErrorKind::NotFound => {}
+        Err(error) => return Err(io_error("remove fork registry entry", error)),
+    }
+    Ok(entry)
+}
+
+pub fn expired_managed(fork_root: &Path, now_ms: u64) -> SnapbackResult<Vec<ForkRegistryEntryV1>> {
+    Ok(list_managed(fork_root)?
+        .into_iter()
+        .filter(|entry| {
+            entry
+                .lineage
+                .expires_at_ms
+                .is_some_and(|expires| expires <= now_ms)
+        })
+        .collect())
+}
+
+/// Render the app-row-only inspection artifact promised by LLP 0158. The
+/// explicit omissions are part of the contract, not documentation garnish.
+pub fn diff_receipt(database_path: &Path) -> SnapbackResult<ForkDiffReceiptV1> {
+    let runtime = inspect_boot(database_path)?.ok_or_else(|| {
+        fork_error(
+            "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
+            "diff requires a minted derived deployment",
+        )
+    })?;
+    let conn = Connection::open(database_path)?;
+    let observed_head_version = conn.query_row(
+        "SELECT version FROM _snapback_version WHERE id=1",
+        [],
+        |row| row.get::<_, u64>(0),
+    )?;
+    let mut statement = conn.prepare(
+        "SELECT version,table_name,row_id,op,row_json
+           FROM _snapback_changes
+          WHERE version > ?1
+            AND table_name NOT GLOB '_snapback_*'
+            AND table_name NOT GLOB '_auth_*'
+          ORDER BY version,id",
+    )?;
+    let rows = statement
+        .query_map([runtime.lineage.fork_point_version], |row| {
+            Ok((
+                row.get::<_, u64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, Option<String>>(4)?,
+            ))
+        })?
+        .map(|row| {
+            let (version, table, row_id, operation, post_image) = row?;
+            let post_image = post_image
+                .map(|value| serde_json::from_str(&value))
+                .transpose()
+                .map_err(|error| {
+                    fork_error(
+                        "SNAPBACK_FORK_DIFF_INVALID",
+                        format!("change journal post-image is malformed: {error}"),
+                    )
+                })?;
+            Ok(ForkDiffRowV1 {
+                version,
+                table,
+                row_id,
+                operation,
+                post_image,
+            })
+        })
+        .collect::<SnapbackResult<Vec<_>>>()?;
+    let mut table_counts = BTreeMap::new();
+    for row in &rows {
+        *table_counts.entry(row.table.clone()).or_insert(0) += 1;
+    }
+    Ok(ForkDiffReceiptV1 {
+        schema_version: "snapback.fork-diff.v1".to_owned(),
+        fork_id: runtime.lineage.fork_id,
+        app_id: runtime.lineage.app_id,
+        parent_instance_id: runtime.lineage.parent_instance_id,
+        fork_point_version: runtime.lineage.fork_point_version,
+        observed_head_version,
+        rows,
+        table_counts,
+        coverage: vec!["committed app-row journal entries after forkPointVersion".to_owned()],
+        omissions: BTreeSet::from([
+            "asset blob operations".to_owned(),
+            "auth and credential state".to_owned(),
+            "captured or refused egress payloads".to_owned(),
+            "privileged or raw-SQL writes outside the app journal".to_owned(),
+            "sidecar files and telemetry".to_owned(),
+        ])
+        .into_iter()
+        .collect(),
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn publish_with_options(
+    source_database: &Path,
+    destination: &Path,
+    app_id: &str,
+    parent_instance_id: &str,
+    now_ms: u64,
+    cut_at: Option<PublicationCut>,
+    with_secrets: bool,
+    expires_at_ms: Option<u64>,
 ) -> SnapbackResult<ForkMintReceiptV1> {
     if destination.exists() {
         return Err(fork_error(
@@ -1035,12 +1429,26 @@ pub fn publish(
     drop(target);
     maybe_cut(cut_at, PublicationCut::AfterClone)?;
 
+    if with_secrets {
+        let source_config = crate::config::ConfigStore::path_for_database(source_database);
+        if source_config.exists() {
+            let bytes = crate::secure_file::read_owner_only(&source_config)
+                .map_err(|error| io_error("read parent config for explicit fork copy", error))?;
+            let target_config = crate::config::ConfigStore::path_for_database(&staging_database);
+            crate::secure_file::write_new_owner_only(&target_config, &bytes)
+                .map_err(|error| io_error("copy config into fork staging", error))?;
+            sync_file(&target_config, "sync copied fork config")?;
+        }
+    }
+
     let receipt = scrub_and_mint_with_cut(
         &staging_database,
         app_id,
         parent_instance_id,
         now_ms,
         cut_at,
+        with_secrets,
+        expires_at_ms,
     )?;
     sync_directory(&staging)?;
     maybe_cut(cut_at, PublicationCut::AfterStagingDirectorySync)?;
@@ -1049,10 +1457,7 @@ pub fn publish(
     fs::create_dir_all(&registry_directory)
         .map_err(|error| io_error("create fork registry", error))?;
     let registry = registry_path(parent, &receipt.lineage.fork_id);
-    write_json_sync(
-        &registry,
-        &json!({ "state": "intent", "lineage": receipt.lineage }),
-    )?;
+    write_json_sync(&registry, &registry_entry("intent", destination, &receipt))?;
     sync_directory(&registry_directory)?;
     maybe_cut(cut_at, PublicationCut::AfterRegistryIntent)?;
 
@@ -1063,11 +1468,7 @@ pub fn publish(
     maybe_cut(cut_at, PublicationCut::AfterParentDirectorySync)?;
     let registry_result = write_json_sync(
         &registry,
-        &json!({
-            "state": "published",
-            "destination": destination.file_name().and_then(|value| value.to_str()),
-            "lineage": receipt.lineage,
-        }),
+        &registry_entry("published", destination, &receipt),
     );
     if registry_result.is_ok() {
         let _ = sync_directory(&registry_directory);
@@ -1580,6 +1981,8 @@ mod tests {
                     parent_instance_id: "parent-a".to_owned(),
                     app_id: "app-a".to_owned(),
                     created_at_ms: 1,
+                    fork_point_version: 0,
+                    expires_at_ms: None,
                     promotable: false,
                 })
                 .unwrap()
@@ -1613,6 +2016,127 @@ mod tests {
                 "{sidecar}"
             );
         }
+    }
+
+    #[test]
+    fn managed_lifecycle_copies_only_explicit_secrets_diffs_and_reaps_by_clock() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        crate::secure_file::write_owner_only(
+            &crate::config::ConfigStore::path_for_database(&source),
+            br#"{"formatVersion":1,"entries":{}}"#,
+        )
+        .unwrap();
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        assert_eq!(
+            publish_managed(
+                &source,
+                &root.join("fork-invalid"),
+                "app-a",
+                "parent-a",
+                90,
+                90,
+                false,
+            )
+            .unwrap_err()
+            .diagnostic
+            .code,
+            "SNAPBACK_FORK_TTL_INVALID"
+        );
+        let scrubbed_destination = root.join("fork-scrubbed");
+        let scrubbed = publish_managed(
+            &source,
+            &scrubbed_destination,
+            "app-a",
+            "parent-a",
+            90,
+            190,
+            false,
+        )
+        .unwrap();
+        assert_eq!(
+            scrubbed.custody["sidecar:*.config.json"],
+            CustodyDisposition::Scrub
+        );
+        assert!(
+            !crate::config::ConfigStore::path_for_database(
+                &scrubbed_destination.join("app.sqlite3")
+            )
+            .exists()
+        );
+        drop_managed(&root, &scrubbed.lineage.fork_id).unwrap();
+
+        let destination = root.join("fork-a");
+        let receipt =
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, true).unwrap();
+        assert_eq!(receipt.lineage.fork_point_version, 0);
+        assert_eq!(receipt.lineage.expires_at_ms, Some(200));
+        assert_eq!(
+            receipt.custody["sidecar:*.config.json"],
+            CustodyDisposition::Copy
+        );
+        let database = destination.join("app.sqlite3");
+        assert_eq!(
+            fs::read(crate::config::ConfigStore::path_for_database(&database)).unwrap(),
+            br#"{"formatVersion":1,"entries":{}}"#
+        );
+        let ready = destination.join("fork.ready.json");
+        let outside_ready = directory.path().join("outside.ready.json");
+        assert_eq!(
+            record_managed_runtime(
+                &root,
+                &receipt.lineage.fork_id,
+                &outside_ready,
+                Some(Path::new("/worktree")),
+            )
+            .unwrap_err()
+            .diagnostic
+            .code,
+            "SNAPBACK_FORK_READY_INVALID"
+        );
+        record_managed_runtime(
+            &root,
+            &receipt.lineage.fork_id,
+            &ready,
+            Some(Path::new("/worktree")),
+        )
+        .unwrap();
+        assert_eq!(list_managed(&root).unwrap().len(), 1);
+        assert!(expired_managed(&root, 199).unwrap().is_empty());
+        assert_eq!(expired_managed(&root, 200).unwrap().len(), 1);
+        assert_eq!(
+            managed_entry(&root, "../../escape")
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_ID_INVALID"
+        );
+
+        let conn = Connection::open(&database).unwrap();
+        conn.execute("UPDATE _snapback_version SET version=1 WHERE id=1", [])
+            .unwrap();
+        conn.execute(
+            "INSERT INTO _snapback_changes(version,table_name,row_id,op,row_json,changed_at_ms)
+             VALUES(1,'todos','todo-a','insert','{\"_id\":\"todo-a\"}',150)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO _snapback_changes(version,table_name,row_id,op,row_json,changed_at_ms)
+             VALUES(1,'_snapback_internal','hidden','insert','{}',150)",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+        let diff = diff_receipt(&database).unwrap();
+        assert_eq!(diff.rows.len(), 1);
+        assert_eq!(diff.table_counts["todos"], 1);
+        assert!(diff.omissions.iter().any(|item| item.contains("auth")));
+
+        drop_managed(&root, &receipt.lineage.fork_id).unwrap();
+        assert!(list_managed(&root).unwrap().is_empty());
+        assert!(!destination.exists());
     }
 
     #[test]

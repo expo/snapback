@@ -5,7 +5,19 @@
 **Systems:** Storage, Deployment, Runtime, Scheduling, Assets, Security, Agent experience, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v0.13 — F0a implementation record: the closed
+**Revised:** 2026-08-03 (v0.14 — F0b implementation and first-consumer
+record: the finite-TTL local `fork create/list/diff/drop/reap` surface now
+packages the green F0a substrate, boots a same-`appId` derived server with
+cron/jobs/assets inert and fail-closed egress, emits a ready descriptor and
+app-row-only diff receipt with explicit omissions, defaults secrets to scrub,
+and permits only explicit config-secret inheritance. Diary 0054 and its dated
+acceptance record prove two simultaneous function-divergent Todo worktrees
+against one live parent, isolated writes, exact drop, and injected-clock reap.
+Graduation criteria 1 and 2 are empirically complete and criterion 3 remains
+green; status stays Draft pending the author-controlled transition. F1 guide
+and harness ergonomics remain a separately tracked GAP, and no capability is
+advertised by this implementation landing.)
+2026-08-03 (v0.13 — F0a implementation record: the closed
 custody manifest and unknown-schema gate, transactional scrub-and-mint,
 fresh admin/auth/resume sidecars, rotated auth/data/signing authority,
 S0-S5 local-evidence publication and recovery with minted-sidecar boot
@@ -905,6 +917,18 @@ comes before the CLI verb, and no duration estimates until it exists):
   out (LLP 0024 envelope); `fork list`, `fork diff` (the receipt),
   `fork drop`, TTL reaping; asset custody per the F0 decision
   (refuse or fork-private tree).
+  **Implementation record — 2026-08-03:** implemented as the source CLI over
+  the F0a `instance_fork` module. Every managed fork has a finite expiry,
+  same-`appId` lineage and independent auth/data-stream identities; default
+  secret custody scrubs the config sibling and `--with-secrets` is the only
+  copy opt-in. The child runtime publishes an LLP 0024 `hostOpsResult` plus a
+  ready file, disables cron/jobs/assets, and inherits the F0a `DenyAll` gate.
+  Asset-bearing parents still refuse under OQ5 option (a). List/drop/reap use
+  UUID-bound advisory registry entries and exact one-child deletion; reaping
+  takes an injected clock. The app-row diff receipt is pinned to the fork
+  point and names its omissions. The automated managed-lifecycle test and the
+  dated fleet record at
+  `tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json` are green.
 - **F1 — agent ergonomics:** fork-per-worktree conventions, the diff
   receipt as a first-class review artifact, guide page + capability
   index row, acceptance-suite fork-instead-of-seed option.
@@ -1104,13 +1128,20 @@ hold:
    Verification remains empirical: the criterion completes when the
    fleet actually uses F0 in anger and a diary entry records the
    experience (LLP 0016's loop). Ticket:
-   `issues/20260803-0158-first-consumer-fleet-dogfood.md`.
+   `issues/closed/20260803-0158-first-consumer-fleet-dogfood.md`.
+   **Completed 2026-08-03:** Diary 0054 records two simultaneous Todo
+   worktrees forked from one live parent, with different function bundles,
+   isolated writes, app-row diff receipts, and exact disposal.
 2. **The migration-rehearsal gap is real** — a comparison of the
    fork-based flow against LLP 0081's implemented restore-derived
    rehearsal shows the fork adds workflow value (whole-app rehearsal,
    ergonomics, speed) rather than duplicating an existing paved path.
    *Per the author's 2026-08-03 direction, this is folded into
    criterion 1's first real use rather than run as a separate study.*
+   **Completed 2026-08-03:** the diary comparison found the fork additive:
+   it is a lightweight whole-app, function-divergent development loop, while
+   LLP 0081 rehearsal remains the stronger approved-plan/backup-bound proof
+   consumed by production migration admission.
 3. **The safety corpus passes (F0a)** — the F0a corpus in full
    (§Implementation path): the credential negatives, the parent-signed
    asset URL refusal, the crash-cut publication tests, and the egress
