@@ -6,6 +6,7 @@ import type {
   GeneratedQueryGroups as BackendBakeoffQueryGroups,
 } from '../../demos/signal-desk/snapback/generated/api.d.ts';
 import {
+  projectRecordFields,
   skip,
   useSnapbackMutation,
   useSnapbackQueries,
@@ -69,6 +70,25 @@ realGeneratedGroup.queries.incidentTasks;
 
 const create = useSnapbackMutation(createTodo);
 create({ title: 'ship it' }).then((id) => id.toUpperCase());
+
+declare const renameTodo: SnapbackFunctionReference<
+  'renameTodo',
+  'Mutation',
+  { id: string; title: string },
+  { title: string }
+>;
+// @ref LLP 0107#replay-safety-affordances — the declarative capture-and-set
+// pair spreads into the existing optimistic options against records rows.
+const rename = useSnapbackMutation(renameTodo, {
+  optimistic: {
+    query: todos,
+    args: { owner: 'ada' },
+    ...projectRecordFields('todo_1', { title: 'renamed' }),
+  },
+});
+rename({ id: 'todo_1', title: 'renamed' }).then((receipt) => receipt.title.toUpperCase());
+// @ts-expect-error intended field values must be primitive outcomes.
+projectRecordFields('todo_1', { title: { nested: true } });
 
 // @ts-expect-error exact query args are inferred from the reference.
 useSnapbackQuery(todos, { ownerId: 'ada' });

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "9643062db98f926030f122081779ba60000458cc"
+    "commit": "2c6a13f3d4147c00a222b9802231e6a545932075"
   },
   "nav": {
     ".": [
@@ -1711,9 +1711,9 @@
         "packages/snapback-react/offline.test.mjs",
         "packages/snapback-react/exact-result-types.fixture.ts"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "99a4e9e909696d707ea06b7918d0797bd76ecb5dc9a11e50adddefd4df1f715e",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "HEAD",
+      "sha256": "78dfe3eb04a4b218cba98e3425b555631cb0e8f81eb0772daba0e39ba6b241c3",
       "snippets": [
         {
           "lang": "ts",
@@ -2532,9 +2532,9 @@
       "examples": [
         "packages/snapback-react/optimistic.test.mjs"
       ],
-      "reviewed": "2026-08-03",
+      "reviewed": "2026-08-04",
       "reviewedCommit": "HEAD",
-      "sha256": "8e12e5761f477d2b1532dac8e71a7a983e85008b33966d96f1ef71e96b717eeb",
+      "sha256": "1ce34bfa91fbace61630b23d09c08fdd7ee634be799da37748580af9d1d7e5d0",
       "snippets": [
         {
           "lang": "js",
@@ -2544,6 +2544,11 @@
         {
           "lang": "tsx",
           "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/optimistic.test.mjs"
         },
         {
           "lang": "js",
@@ -2895,5 +2900,5 @@
     "routes": 105,
     "hostOps": 35
   },
-  "contentHash": "8ce8b6a1d7584d4ecc2b67fcb7676c37de03b4b982c30dfb112b2c16a8070a91"
+  "contentHash": "2d4d2e760391eee986d096dda81394c81bfd08608c56c87978f3306bbaf10182"
 }

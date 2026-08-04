@@ -145,6 +145,19 @@ function immutableClone(value) {
   return deepFreeze(structuredClone(value));
 }
 
+function projectionEquals(a, b) {
+  if (Object.is(a, b)) return true;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length
+      && a.every((value, index) => projectionEquals(value, b[index]));
+  }
+  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  return aKeys.length === bKeys.length
+    && aKeys.every((key) => Object.hasOwn(b, key) && projectionEquals(a[key], b[key]));
+}
+
 function validateResultContract(contract, value, {
   requireKnown = false,
   violationCode = 'SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED',
@@ -860,6 +873,41 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     }));
   };
 
+  // @ref LLP 0107#replay-safety-affordances — dev-only advisory: an
+  // optimistic update is a replayable projection, so a reducer that diverges
+  // over its own output is action-shaped (toggle/increment) and would re-run
+  // the user action during rebase. Observational only — warns once per
+  // (mutation, query) pair and never changes admission or layer state.
+  const replayAdvisoryKeys = new Set();
+  const warnIfReplayDivergent = (mutationReference, queryReference, layer, store, initialProjection) => {
+    if (typeof process !== 'undefined' && process?.env?.NODE_ENV === 'production') return;
+    const key = `${mutationReference.id} ${queryReference.id}`;
+    if (replayAdvisoryKeys.has(key)) return;
+    let detail = null;
+    try {
+      const replayed = validateResultContract(
+        store.resultContract,
+        layer.update(initialProjection, layer.mutationArgs),
+        { requireKnown: true },
+      );
+      if (!projectionEquals(replayed, initialProjection)) {
+        detail = 'returned a different projection when replayed over its own output';
+      }
+    } catch (error) {
+      detail = 'failed when replayed over its own output '
+        + `(${error?.code ?? error?.message ?? String(error)})`;
+    }
+    if (detail === null) return;
+    replayAdvisoryKeys.add(key);
+    console.warn(
+      `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT: the optimistic update for ${mutationReference.name} `
+      + `over ${queryReference.name} ${detail}. Optimistic updates are replayable projections over an `
+      + 'evolving authoritative base: capture the intended outcome and set it (or use '
+      + 'projectRecordFields) instead of toggling or incrementing the incoming rows. See '
+      + 'guide/recipes/optimistic-toggle.md.',
+    );
+  };
+
   const runMutation = async (mutationReference, mutationArgs, optimistic = null) => {
     if (terminal) throw diagnosticError('SNAPBACK_REACT_PROVIDER_CLOSED', 'React provider is closed');
     const admittedMutation = admittedReactReference(binding, mutationReference, 'Mutation');
@@ -950,6 +998,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       layer.update(immutableClone(store.snapshot.data), frozenArgs),
       { requireKnown: true },
     );
+    warnIfReplayDivergent(admittedMutation, queryReference, layer, store, initialProjection);
     store.optimisticLayers.push(layer);
     store.pendingMutations.set(id, layer);
     store.pins += 1;
@@ -2216,6 +2265,49 @@ export function useSnapbackQueries(entries) {
     return next;
   }, [provider, descriptors]);
   return useSyncExternalStore(subscribe, read, read);
+}
+
+// @ref LLP 0107#replay-safety-affordances — declarative capture-and-set
+// projection over the records result shape: one declaration derives an
+// idempotent update and a complete-receipt matcher, so the paved toggle
+// recipe cannot express the replay hazard or the partial-receipt dip.
+export function projectRecordFields(recordId, fields, { idField = '_id' } = {}) {
+  if (typeof recordId !== 'string' || recordId.length === 0) {
+    throw new TypeError('projectRecordFields requires a non-empty string record id');
+  }
+  if (fields === null || typeof fields !== 'object' || Array.isArray(fields)) {
+    throw new TypeError('projectRecordFields requires an object of intended field values');
+  }
+  const names = Object.keys(fields);
+  if (names.length === 0) {
+    throw new TypeError('projectRecordFields requires at least one intended field');
+  }
+  for (const name of names) {
+    const value = fields[name];
+    if (value !== null && !['boolean', 'number', 'string'].includes(typeof value)) {
+      throw new TypeError(
+        `projectRecordFields field "${name}" must be a primitive intended outcome`,
+      );
+    }
+  }
+  const intended = Object.freeze({ ...fields });
+  return Object.freeze({
+    update: (rows) => {
+      if (!Array.isArray(rows)) {
+        throw new TypeError('projectRecordFields projects over a records query result');
+      }
+      return rows.map((row) => (row?.[idField] === recordId ? { ...row, ...intended } : row));
+    },
+    isAuthoritative: (rows, receipt) => Array.isArray(rows) && rows.some((row) => {
+      if (row?.[idField] !== recordId) return false;
+      return names.every((name) => {
+        const expected = receipt !== null && typeof receipt === 'object' && name in receipt
+          ? receipt[name]
+          : intended[name];
+        return row[name] === expected;
+      });
+    }),
+  });
 }
 
 export function useSnapbackMutation(reference, options = {}) {

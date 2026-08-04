@@ -6856,8 +6856,8 @@ examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-04
+reviewed-commit: HEAD
 ---
 
 # The React client
@@ -7089,6 +7089,15 @@ complete-receipt matching across partial deliveries, response/query ordering,
 and the one-canonical-store rule when the same record renders on several
 query surfaces — use
 [the optimistic toggle recipe](../recipes/optimistic-toggle.md).
+
+For the common "set these fields on this row" shape, spread
+`projectRecordFields(recordId, fields)` into the optimistic options instead
+of hand-writing the pair: it derives an idempotent capture-and-set `update`
+and the complete-receipt `isAuthoritative` from one declaration. In
+development, hand-written reducers are checked at admission — a reducer
+whose result diverges when replayed over its own output logs one
+`SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` warning per (mutation, query)
+site; production builds skip the check.
 
 ## Publish and observe presence
 
@@ -11200,7 +11209,7 @@ examples: [packages/snapback-react/optimistic.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
+reviewed: 2026-08-04
 reviewed-commit: HEAD
 ---
 
@@ -11306,6 +11315,40 @@ assert.equal(view().timeline.data[0].liked, true, 'replay does not invert the he
 assert.equal(view().timeline.data[0].likeCount, 11, 'partial delivery keeps the layer installed');
 ```
 
+## Or declare it: `projectRecordFields`
+
+Both rules are mechanical, so `@expo/snapback-react` derives them from one
+declaration. `projectRecordFields(recordId, fields)` returns a frozen
+`{ update, isAuthoritative }` pair — the idempotent capture-and-set
+projection and the complete-receipt matcher — to spread into the same
+optimistic options:
+
+```js source=packages/snapback-react/optimistic.test.mjs
+// One declaration derives the idempotent capture-and-set update and the
+// complete-receipt matcher; spread it into the ordinary optimistic options.
+const optimisticHelperLike = {
+  query: timeline,
+  args: {},
+  ...projectRecordFields('p2', { liked: true, likeCount: 4 }, { idField: 'id' }),
+};
+```
+
+The fixture's rows key on `id`; generated application rows carry the default
+`_id`, so application code omits the `idField` option. Intended values must
+be primitives (`boolean | number | string | null`) — the helper deliberately
+expresses only the capture-and-set shape, so it cannot encode the replay
+hazard. Prefer it over a hand-written reducer whenever the projection is
+"set these fields on this row".
+
+Hand-written reducers get a development safety net: at admission the
+provider replays the just-validated projection through the reducer a second
+time, and a reducer that returns a different result over its own output — a
+toggle or an increment — logs one
+`SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` console warning per
+(mutation, query) site, pointing back at this recipe. The advisory is
+observational only: it never changes admission, and an explicit production
+`NODE_ENV` skips it.
+
 ## Response and query authority can arrive in either order
 
 The mutation's HTTP response and the live query's delivery of the resulting
@@ -11385,7 +11428,9 @@ not.
   survives rejection, and fights the live delivery. Model the fact in the
   query result and project it optimistically.
 - **Do not toggle or increment inside `update`.** The projection is replayed
-  during rebase; capture the intended outcome and set it.
+  during rebase; capture the intended outcome and set it (or let
+  `projectRecordFields` do both rules for you). In development the replay
+  advisory warns when a reducer diverges over its own output.
 - **Do not retire on a partial receipt.** Match every field the mutation
   returns in `isAuthoritative`, or a delivery carrying half the outcome
   retires the layer early and the UI dips.

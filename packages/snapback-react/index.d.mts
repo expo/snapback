@@ -228,6 +228,22 @@ export function useSnapbackQueries<
   group: Group,
 ): QueryGroupState<PreparedGroupEntryMap<Group>>;
 
+/** Declarative capture-and-set optimistic projection for a records-shaped
+ * query result (LLP 0107 replay-safety affordances): spread the returned
+ * pair into `optimistic` options. `update` sets the intended primitive
+ * field values on the identified row (idempotent, replay-safe by
+ * construction); `isAuthoritative` retires only on the complete receipt —
+ * per projected field, the mutation result's value when the result object
+ * carries that field, else the intended value. */
+export function projectRecordFields(
+  recordId: string,
+  fields: Readonly<Record<string, boolean | number | string | null>>,
+  options?: Readonly<{ idField?: string }>,
+): Readonly<{
+  update<Rows extends ReadonlyArray<Record<string, unknown>>>(current: Rows): Rows;
+  isAuthoritative(current: ReadonlyArray<Record<string, unknown>>, result: unknown): boolean;
+}>;
+
 export function useSnapbackMutation<
   Ref extends MutationReference,
   Q extends QueryReference = never,

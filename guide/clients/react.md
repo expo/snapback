@@ -9,8 +9,8 @@ examples: [packages/snapback-cli/templates/react, demos/chirp, demos/signal-desk
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-04
+reviewed-commit: HEAD
 ---
 
 # The React client
@@ -242,6 +242,15 @@ complete-receipt matching across partial deliveries, response/query ordering,
 and the one-canonical-store rule when the same record renders on several
 query surfaces — use
 [the optimistic toggle recipe](../recipes/optimistic-toggle.md).
+
+For the common "set these fields on this row" shape, spread
+`projectRecordFields(recordId, fields)` into the optimistic options instead
+of hand-writing the pair: it derives an idempotent capture-and-set `update`
+and the complete-receipt `isAuthoritative` from one declaration. In
+development, hand-written reducers are checked at admission — a reducer
+whose result diverges when replayed over its own output logs one
+`SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` warning per (mutation, query)
+site; production builds skip the check.
 
 ## Publish and observe presence
 

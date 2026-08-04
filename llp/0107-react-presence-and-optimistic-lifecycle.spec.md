@@ -5,7 +5,10 @@
 **Systems:** React, React/Expo, Ephemeral state, Client integration, Realtime, Auth, Mutation settlement, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-01 (0137 A2 f1/f2 fixes: room readiness is adopted from
+**Revised:** 2026-08-04 (replay-safety affordances: the development-only
+replay advisory and the declarative `projectRecordFields` projection helper;
+see "Replay-safety affordances" and the implementation journal).
+2026-08-01 (0137 A2 f1/f2 fixes: room readiness is adopted from
 the proven level of an already-open managed socket instead of waiting for a
 fresh `'open'` edge, and the prepared binding reconstructs every generated
 reference — ephemeral included — in the public reference grammar so
@@ -216,6 +219,40 @@ Pending layers cap at 256.
 The promise resolves only to the LLP 0101-validated result. No offline queue or
 new LLP 0043 settlement identity is claimed.
 
+### Replay-safety affordances
+
+The reducer contract above — `update` is a replayable projection over an
+evolving authoritative base, never a run-once action — is easy to violate by
+writing `!row.liked` or `row.count + 1`
+(issues/closed/20260803-guide-gap-optimistic-toggle-across-query-surfaces.md).
+Two affordances make the violation visible or inexpressible without changing
+admission, rebase, retirement, or refusal semantics:
+
+- **Development replay advisory.** Outside an explicit production build
+  (`process.env.NODE_ENV === 'production'`), admission additionally replays
+  the just-validated initial projection through the same reducer and compares
+  the results structurally. A reducer whose second application diverges from
+  — or throws over — its own output is action-shaped and would re-run the
+  user action during rebase. The provider emits one `console.warn` prefixed
+  `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` per (mutation, query) pair per
+  provider, pointing at the guide recipe. The advisory is observational only:
+  it never mutates store or layer state, never refuses admission, and runs
+  strictly after the side-effect-free admission validation.
+
+- **`projectRecordFields(recordId, fields, {idField = '_id'})`** returns a
+  frozen `{update, isAuthoritative}` pair for the records result shape,
+  spread into the existing `optimistic` options. `update` sets the captured
+  primitive field values on the identified row — idempotent by construction,
+  so it passes the replay advisory. `isAuthoritative` retires only when the
+  identified authoritative row carries, for every projected field, the
+  mutation receipt's value when the receipt is an object carrying that
+  field, else the captured intended value — the complete-receipt matcher the
+  recipe demands, derived from the same declaration. Intended values must be
+  `boolean | number | string | null`; a non-string/empty record id, an empty
+  or non-primitive field set, or a non-array projection base throw
+  `TypeError`. The helper claims no new authority and adds no option
+  surface.
+
 ## Bounds and diagnostics
 
 Per provider:
@@ -280,6 +317,15 @@ No durable/offline/SSR/history/cross-room/custom-key presence, caller authority
 facts, React-owned transport/cache/ledger, HTTP authority, or hosted inheritance.
 
 ## Implementation journal
+
+2026-08-04 (replay-safety affordances, from the chirp retrospective ticket
+issues/20260804-optimistic-projection-replay-lint-and-helpers.md): the
+development replay advisory and `projectRecordFields` landed in
+`packages/snapback-react/index.mjs` with types, `optimistic.test.mjs`
+fixtures (the pre-existing increment reducer warns exactly once; the recipe's
+capture-and-set projection and the helper stay silent; an explicit production
+`NODE_ENV` suppresses the advisory), and a helper section in
+`guide/recipes/optimistic-toggle.md`.
 
 Implemented on 2026-07-27 as one projection across:
 
