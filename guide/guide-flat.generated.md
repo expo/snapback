@@ -86,7 +86,7 @@ and `guide-gap`.
 | clients.poll-hosted | Socketless hosted demand ownership and poll delivery | hosted polling, poll hosted | cloudflare | partial | cloudflare/src/coordinator.js | llp/0093, llp/0095 | GAP (owner: Charlie, review: 2026-08-31) |
 | clients.external-store | Shared current-value/subscription store | external store | local | shipped | `createExternalQueryStoreRegistry` in packages/snapback-client/external-store.mjs | llp/0012, llp/0064 | clients/headless.md |
 | clients.framework-bindings | React/Contract bindings | bindings | local | partial | `SNAPBACK_EXTERNAL_STORE_PROTOCOL` in packages/snapback-client/external-store.mjs | llp/0012, llp/0034, llp/0064 | clients/framework-bindings.md |
-| clients.app-cli | Local app CLI and brokered code mode | app cli, code mode | local | partial | `snapback-app` in packages/snapback-app-cli/cli.mjs | llp/0062 | clients/app-cli.md |
+| clients.app-cli | Local artifact/served-envelope app CLI, brokered code mode, and stable two-section `agentDigest.v1` introspection with cursor/static deltas, coarse whole dynamic replay, byte/item budgets, and honest elisions. Public inspection does not yet supply row-count magnitudes or D1 verdicts; local projection identities are not served-envelope claims; hosted and the one-file Ibex executable remain GAPs | app cli, code mode, introspect, agent digest, changed since, digest cursor | local | partial | `buildAgentDigest` in packages/snapback-app-cli/digest.mjs | llp/0062, llp/0146 | clients/app-cli.md |
 | clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
 | clients.contract-provider-generation | Provider-neutral Contract manifest, bindings, metadata, types, fixtures, and docs from a provider declaration | provider declaration, contract sidecar generator, convex bindings | local | shipped | `generateFromDeclaration` in demos/partiful-matrix/scripts/generate-contract-provider.mjs | llp/0063 | clients/contract-adapter.md |
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
@@ -102,7 +102,8 @@ and `guide-gap`.
 | operating.admin-console | Browser inspection surface with master-derived fragment, device approval, and one-time operator claim-link handoffs | admin, console, dashboard, admin link, claim link, remote browser | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | operating/host-ops.md |
 | operating.diagnostics | Stable SNAPBACK_* codes; exact current-checkout link/launch diagnosis with one binary-selection recovery record; installed disposable vertical-slice doctor | diagnostics, errors, doctor, linker, missing symbols, stale binary, runtime recovery | all | shipped | `runRuntimeLinkProbe` in scripts/runtime-link-smoke.mjs | llp/0010, llp/0031, llp/0041, llp/0074 | operating/diagnostics.md |
-| operating.declaration-conformance | Per-invocation declared-vs-captured read/write conformance report (class-tagged deltas, per-class provenance) on the admin runner result and `function.run` envelope/recent-invocation ring (host-op invocations only), plus the per-app `strictDeclarations` opt-in that refuses undeclared application-table reads/writes at the local runtime seam with `SNAPBACK_HANDLER_UNDECLARED_READ`/`SNAPBACK_HANDLER_UNDECLARED_WRITE`. The `verify` coverage aggregation (D2), the agent digest (D3), app-data-plane ring wiring, and any Cloudflare-arm enforcement are not claimed | declaration drift, undeclared read, undeclared write, strict declarations, conformance, missingReads, read set, write set | local | partial | `conformance_report` in src/conformance.rs | llp/0146, llp/0127, llp/0010 | GAP (guide page for the conformance report and strict opt-in; owner: ccheever, review: 2026-08-31) |
+| operating.declaration-conformance | Per-invocation declared-vs-captured read/write report and local strict opt-in, plus `snapback verify` aggregation over explicitly registered acceptance paths: authoritative under-declarations and missing reports fail, universally extra declarations warn, and observed incomplete/unsupported provenance stays an explicit partial rather than a verdict. Automatic discovery of every repository acceptance path, app-data-plane ring wiring, complete mutation-envelope provenance, the escape-class vocabulary, and Cloudflare enforcement/capture remain GAPs | declaration drift, undeclared read, undeclared write, strict declarations, conformance, coverage, missingReads, read set, write set | local | partial | `aggregateConformance` in packages/snapback-cli/verify.mjs | llp/0146, llp/0127, llp/0010 | GAP (guide page for the conformance report and strict opt-in; owner: ccheever, review: 2026-08-31) |
+| operating.verify | Five-stage CLI done-oracle with source-regenerated artifact identity, digest-bound runtime readiness, local admission plus registered-path D1 aggregation, generated capability resolution, registered acceptance execution, identity/test-byte-bound receipt, ordered next actions, and mechanically unique recommendation. Live-target admission, automatic acceptance-path discovery, `acceptance.run`, product-completeness claims, and CV-14 semantic-review custody are explicit nonclaims | verify, done oracle, receipt, recommended next, test bytes, readiness | local | partial | `runVerify` in packages/snapback-cli/verify.mjs | llp/0146, llp/0010 | testing/verify.md |
 | operating.served-guide | Server embeds and serves this guide (pages + flat.md, hash-bound) | docs endpoint, llms.txt, served docs | all | shipped | route /_snapback/guide/flat.md | llp/0061 | index.md |
 | operating.guide-mcp | Read-only MCP resources for the build-bound guide corpus | mcp docs, guide resources | all | shipped | `run_stdio` in src/guide_mcp.rs | llp/0061 | index.md |
 | testing.acceptance | Headless-first acceptance harness and package-owned backend comparator profile | tests, acceptance, harness, comparator, backend bake-off, native push receipt | local | shipped | `runComparatorAcceptance` in packages/snapback-cli/comparator-profile.mjs | llp/0010, llp/0012, llp/0013, llp/0034 | testing/acceptance.md |
@@ -130,8 +131,8 @@ examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-04
+reviewed-commit: dab2410b6793ffa5685069a0a4054f0e2b21608a
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -275,6 +276,9 @@ you never build around a feature because you didn't know it existed.
 ### Testing
 - [Acceptance testing](./testing/acceptance.md) — headless-first harness,
   vacuous-pass protection, safe server lifecycle.
+- [Verify the declared app contract](./testing/verify.md) — compose artifact,
+  runtime, D1 coverage, capabilities, and registered acceptance into one
+  identity-bound partial done-oracle receipt.
 
 ### Operating
 - [Secrets and deployment config](./operating/secrets-and-config.md) —
@@ -6656,13 +6660,13 @@ id: clients.app-cli
 order: 2
 audience: agent-first
 capabilities: [clients.app-cli]
-authorities: [llp/0062-generated-app-cli-and-code-mode.rfc.md, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/cli.mjs, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/code-mode.mjs, packages/snapback-app-cli/result-core.mjs, packages/snapback-client/app-data.mjs]
-examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, packages/snapback-app-cli/code-mode.test.mjs, packages/snapback-app-cli/cli.test.mjs, demos/todo/snapback/generated]
+authorities: [llp/0062-generated-app-cli-and-code-mode.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/cli.mjs, packages/snapback-app-cli/digest.mjs, packages/snapback-app-cli/agent-digest.schema.json, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/code-mode.mjs, packages/snapback-app-cli/result-core.mjs, packages/snapback-client/app-data.mjs]
+examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, packages/snapback-app-cli/code-mode.test.mjs, packages/snapback-app-cli/cli.test.mjs, packages/snapback-app-cli/digest.test.mjs, demos/todo/snapback/generated]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-01
-reviewed-commit: 01fc75d2182b5d0a5ef8b122597984d37e04a2b8
+reviewed: 2026-08-04
+reviewed-commit: dab2410b6793ffa5685069a0a4054f0e2b21608a
 ---
 
 # The artifact-driven app CLI
@@ -6704,6 +6708,41 @@ name, kind, auth requirement, and schema. A mismatch refuses with
 `SNAPBACK_APP_CLI_ARTIFACT_IDENTITY_MISMATCH`; an unknown function reports the
 available manifest names. Discovery never imports `api.mjs`, a handler bundle,
 or server-provided JavaScript.
+
+## Pull a bounded agent digest
+
+`introspect` emits `snapback.agent-digest.v1`: a stable, value-free document
+with a static section keyed by `envelopeHash` and a dynamic section keyed by
+the returned `digestCursor`. Pass that cursor back on the next call:
+
+```sh
+snapback-app --server http://127.0.0.1:3000 --artifacts ./snapback/generated introspect --budget-bytes 32768 --budget-items 256
+snapback-app --server http://127.0.0.1:3000 --artifacts ./snapback/generated introspect --changed-since 'sbad1.…'
+```
+
+The static section contains artifact identities, table summaries, operation
+signatures and contracts, and capability gaps in key order. Its cursor carries
+the prior item hashes, so one changed schema item can produce one changed
+item without retained server state. A bare envelope hash remains accepted:
+when it matches, the static delta is empty and the dynamic section is still
+sent whole.
+
+The dynamic v0 is deliberately coarse. It always re-emits its complete
+available observation section and reports
+`coarse-resolution-v0-no-observation-retention`; cursors minted by v0 do not
+expire and Snapback retains no prior observation manifest. Unknown or
+structurally expired cursors return a named full-digest degradation, never an
+empty success. Budgets apply to canonical JSON bytes and item count. Every
+omission carries an elision marker naming the section, omitted count, and the
+flags to increase.
+
+This projection never includes row values, call arguments, result payloads,
+credential material, or raw diagnostic messages/details. The public app-data
+inspection surface does not currently expose per-table row counts or D1
+conformance observations, so those dynamic items carry explicit unavailable
+reasons. Local artifacts use a deterministic
+`local-generated-static-projection` identity when there is no served API
+envelope; that is not represented as a served-envelope claim.
 
 ## Choose authority explicitly
 
@@ -12364,3 +12403,65 @@ admin-gated operations with the server-issued `server.adminToken`.
   needs an admin-token reset or a second control port, the app's reset hook
   is not seed-true — fix the hook (see "Reset to the literal seed state")
   instead of wrapping it.
+
+---
+
+<!-- snapback-guide-source: guide/testing/verify.md -->
+---
+title: Verify the declared app contract
+id: testing.verify
+order: 2
+audience: agent-first
+capabilities: [operating.verify]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0146-agentic-authoring-affordances.rfc.md, packages/snapback-cli/verify.mjs, packages/snapback-cli/verify-receipt.schema.json]
+examples: [packages/snapback-cli/verify.test.mjs]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-08-04
+reviewed-commit: dab2410b6793ffa5685069a0a4054f0e2b21608a
+---
+
+# Verify the declared app contract
+
+> **Local target, partial surface.** This page describes generated-artifact
+> admission and explicitly registered acceptance paths. Live-target admission
+> and automatic discovery of every repository acceptance suite remain GAPs.
+
+`snapback verify --json` is the CLI-owned readiness composition from LLP 0146
+D2. It is not the unbuilt `acceptance.run` host operation. In fixed receipt
+order it checks fresh generated identity, the digest-bound LLP 0010 runtime
+readiness receipt, local schema/function admission plus registered D1
+coverage, generated target capabilities, and registered acceptance profiles:
+
+```sh
+snapback runtime-qualify --persist
+snapback verify ./snapback --config ./snapback.verify.config.mjs --receipt ./.snapback/verify-receipt.json --json
+```
+
+A config default-exports `defineVerifyConfig({ schemaVersion:
+'snapback.verify-config.v1', ... })`. Each profile names the actual test files,
+required capabilities, and every expected path with a closed kind (`success`,
+`failure`, `action`, `relational`, `search`, or `snapshot-bundle`) and target
+profile. Its runner returns `ok`, the target/data/authority/seed identity in
+force, and one six-field D1 conformance report per path. Missing registered
+path evidence and non-empty `missingReads`/`missingWrites` fail coverage.
+Those deltas are authoritative only for a class whose provenance is
+`complete`; an observed `incomplete` or `unsupported` class stays visible as
+partial coverage and is never labeled conformant.
+`extraReads`/`extraWrites` become a warning only when their intersection over
+every complete class observation for the function stays non-empty, which preserves a table
+used only on a conditional path.
+
+The package-owned `snapback.verify-receipt.v1` schema binds the profile-set
+identity, digest of the config and actual test bytes, artifact target, data,
+authority, seed, all five stage verdicts, and ordered `next[]` actions.
+`recommendedNext` appears only when exactly one stage failed. With no
+registered profiles, a fresh app can pass the platform checks, but the receipt
+says `no-registered-acceptance-paths` and does not claim D1 aggregate coverage.
+
+The current admission authority is the locally regenerated generated-artifact
+set. It does not claim that a live target admitted those bytes, does not
+implement `acceptance.run`, does not prove product completeness, and does not
+perform or custody CV-14 semantic review. Build acceptance profiles with the
+headless-first discipline in [Acceptance testing](acceptance.md).

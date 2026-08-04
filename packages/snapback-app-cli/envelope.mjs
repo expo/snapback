@@ -488,6 +488,11 @@ const surfaceFromEnvelope = (verified, discovery, { offline }) => {
       kind,
       authRequirement: fn.authRequirement ?? 'optional-user',
       argsSchema: envelope.operations[fn.id]?.argsSchema ?? null,
+      argsContract: fn.argsContract ?? null,
+      resultContract: fn.resultContract ?? null,
+      readSetSummary: fn.readSetSummary ?? null,
+      writeSetSummary: fn.writeSetSummary ?? null,
+      requiredCapabilities: Object.freeze([...(fn.requiredCapabilities ?? [])].sort()),
     });
   });
   const tupleIdentity = discovery === null ? null : {
@@ -524,6 +529,8 @@ const surfaceFromEnvelope = (verified, discovery, { offline }) => {
     envelopeSha256: verified.sha256,
     bundleHash: envelope.bundleHash ?? null,
     generation,
+    schemaManifest: null,
+    capabilityManifest: null,
     appCliDescriptor: discovery?.appCliDescriptor ?? null,
     appBindings: envelope.declarations.appBindings,
     apiDeclarations: null,

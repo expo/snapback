@@ -28,6 +28,9 @@
     "runtime-readiness.mjs",
     "runtime-recovery.d.mts",
     "runtime-recovery.mjs",
+    "verify.d.mts",
+    "verify.mjs",
+    "verify-receipt.schema.json",
     "templates"
   ],
   "bin": {
@@ -67,6 +70,11 @@
       "types": "./runtime-readiness.d.mts",
       "default": "./runtime-readiness.mjs"
     },
+    "./verify": {
+      "types": "./verify.d.mts",
+      "default": "./verify.mjs"
+    },
+    "./verify-receipt.schema.json": "./verify-receipt.schema.json",
     "./package.json": "./package.json"
   },
   "dependencies": {
@@ -85,6 +93,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node fake-expo-push.test.mjs && node hosted-control.test.mjs && node load-generated.test.mjs && node sessions-dev-loop.test.mjs && node comparator-profile.test.mjs && node hosted-admission-producer.test.mjs && node mcp-control.test.mjs && node dev-cli-diagnostics.test.mjs && node dev-loop.test.mjs && node adapters/fly-machines-vm-driver.test.mjs"
+    "test": "node package.test.mjs && node fake-expo-push.test.mjs && node hosted-control.test.mjs && node load-generated.test.mjs && node sessions-dev-loop.test.mjs && node comparator-profile.test.mjs && node verify.test.mjs && node hosted-admission-producer.test.mjs && node mcp-control.test.mjs && node dev-cli-diagnostics.test.mjs && node dev-loop.test.mjs && node adapters/fly-machines-vm-driver.test.mjs"
   }
 }

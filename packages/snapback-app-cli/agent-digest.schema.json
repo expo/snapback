@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/schemas/agent-digest.v1.json",
+  "title": "Snapback agent digest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifactKind",
+    "formatVersion",
+    "envelopeHash",
+    "envelopeIdentityKind",
+    "digestCursor",
+    "principalClass",
+    "principalSource",
+    "changeReason",
+    "budget",
+    "sections",
+    "elisions",
+    "nonclaims"
+  ],
+  "properties": {
+    "artifactKind": { "const": "agentDigest" },
+    "formatVersion": { "const": "snapback.agent-digest.v1" },
+    "envelopeHash": { "type": "string", "minLength": 1 },
+    "envelopeIdentityKind": { "enum": ["served-api-envelope", "local-generated-static-projection"] },
+    "digestCursor": { "type": "string", "pattern": "^sbad1\\.[A-Za-z0-9_-]+$" },
+    "principalClass": { "type": "string", "minLength": 1 },
+    "principalSource": { "type": "string", "minLength": 1 },
+    "changeReason": {
+      "enum": [
+        "no-cursor",
+        "bare-envelope-hash-match",
+        "bare-envelope-hash-changed",
+        "unknown-cursor",
+        "expired-cursor",
+        "envelope-unchanged",
+        "envelope-changed",
+        "cursor-static-index-incomplete"
+      ]
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bytes", "items", "emittedBytes", "emittedItems", "withinBudget"],
+      "properties": {
+        "bytes": { "type": "integer", "minimum": 256 },
+        "items": { "type": "integer", "minimum": 0 },
+        "emittedBytes": { "type": "integer", "minimum": 0 },
+        "emittedItems": { "type": "integer", "minimum": 0 },
+        "withinBudget": { "type": "boolean" }
+      }
+    },
+    "sections": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["static", "dynamic"],
+      "properties": {
+        "static": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["key", "mode", "items", "removedKeys"],
+          "properties": {
+            "key": { "type": "string", "minLength": 1 },
+            "mode": { "enum": ["full", "delta"] },
+            "items": { "type": "array", "items": { "$ref": "#/$defs/item" } },
+            "removedKeys": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+          }
+        },
+        "dynamic": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["key", "mode", "resolution", "reason", "items"],
+          "properties": {
+            "key": { "type": "string", "pattern": "^sbad1\\." },
+            "mode": { "const": "full" },
+            "resolution": { "const": "coarse" },
+            "reason": { "const": "coarse-resolution-v0-no-observation-retention" },
+            "items": { "type": "array", "items": { "$ref": "#/$defs/item" } }
+          }
+        }
+      }
+    },
+    "elisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["section", "omittedItems", "reason", "request"],
+        "properties": {
+          "section": { "enum": ["static", "dynamic", "document"] },
+          "omittedItems": { "type": "integer", "minimum": 1 },
+          "reason": { "enum": ["byte-or-item-budget", "budget-smaller-than-minimum-envelope"] },
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["flag", "atLeast", "companionFlag"],
+            "properties": {
+              "flag": { "const": "--budget-bytes" },
+              "atLeast": { "type": "integer", "minimum": 0 },
+              "companionFlag": { "const": "--budget-items" }
+            }
+          }
+        }
+      }
+    },
+    "nonclaims": { "type": "array", "minItems": 3, "items": { "type": "string", "minLength": 1 } }
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "kind", "value"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "value": true
+      }
+    }
+  }
+}

@@ -51,6 +51,7 @@ const inventories = [
       'mcp-control.test.mjs',
       'package.test.mjs',
       'sessions-dev-loop.test.mjs',
+      'verify.test.mjs',
     ],
   },
   {
@@ -174,6 +175,7 @@ const inventories = [
       'auth.test.mjs',
       'cli.test.mjs',
       'code-mode.test.mjs',
+      'digest.test.mjs',
       'envelope.test.mjs',
       'package.test.mjs',
       'result-core.test.mjs',
@@ -508,7 +510,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // @expo/snapback-react gains subscribe-retry.test.mjs (bounded per-store
 // failure window); that landing updated the package test script but not
 // this canonical inventory, which broke this check on main.
-assert.equal(total, 188, 'reviewed package/admin test count changed');
+// 188 -> 190 (2026-08-04, LLP 0146 D2/D3): @expo/snapback-cli gains the
+// done-oracle suite and @expo/snapback-app-cli gains the agent-digest suite.
+assert.equal(total, 190, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

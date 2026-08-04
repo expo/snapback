@@ -55,9 +55,17 @@ export async function loadAppArtifacts(directory) {
     throw diagnosticError('SNAPBACK_APP_CLI_ARTIFACTS_REQUIRED', '--artifacts must name a generated artifact directory');
   }
   const root = resolve(directory);
-  const [index, manifest, envelopeMembers, apiDeclarations] = await Promise.all([
+  const [index, manifest, schemaManifest, capabilityManifest, envelopeMembers, apiDeclarations] = await Promise.all([
     jsonFile(resolve(root, 'artifacts.json'), 'SNAPBACK_APP_CLI_ARTIFACT_INDEX_INVALID'),
     jsonFile(resolveGeneratedArtifact(root, 'functions.manifest.json'), 'SNAPBACK_APP_CLI_FUNCTION_MANIFEST_INVALID'),
+    optionalJsonFile(
+      resolveGeneratedArtifact(root, 'schema.manifest.json'),
+      'SNAPBACK_APP_CLI_FUNCTION_MANIFEST_INVALID',
+    ),
+    optionalJsonFile(
+      resolveGeneratedArtifact(root, 'capability.manifest.json'),
+      'SNAPBACK_APP_CLI_FUNCTION_MANIFEST_INVALID',
+    ),
     optionalJsonFile(
       resolveGeneratedArtifact(root, 'api-envelope.members.json'),
       'SNAPBACK_APP_CLI_FUNCTION_MANIFEST_INVALID',
@@ -100,6 +108,11 @@ export async function loadAppArtifacts(directory) {
       kind,
       authRequirement: fn.authRequirement ?? 'optional-user',
       argsSchema,
+      argsContract: fn.argsContract ?? null,
+      resultContract: fn.resultContract ?? null,
+      readSetSummary: fn.readSetSummary ?? null,
+      writeSetSummary: fn.writeSetSummary ?? null,
+      requiredCapabilities: Object.freeze([...(fn.requiredCapabilities ?? [])].sort()),
     });
   }));
   // @ref LLP 0062#1-engine-plus-data-never-program-source--served-or-generated —
@@ -119,6 +132,8 @@ export async function loadAppArtifacts(directory) {
     appId: index.appId,
     bundleHash: manifest.bundleHash ?? index.bundleHash ?? null,
     generation,
+    schemaManifest,
+    capabilityManifest,
     appBindings: envelopeMembers?.declarations?.appBindings ?? null,
     apiDeclarations,
     functions: Object.freeze(functions),
@@ -303,6 +318,16 @@ export {
   memberDigest,
   jcsCanonical,
 } from './envelope.mjs';
+
+export {
+  AGENT_DIGEST_CURSOR_PREFIX,
+  AGENT_DIGEST_FORMAT_VERSION,
+  DEFAULT_DIGEST_BUDGET_BYTES,
+  DEFAULT_DIGEST_BUDGET_ITEMS,
+  buildAgentDigest,
+  canonicalJson as canonicalDigestJson,
+  parseDigestCursor,
+} from './digest.mjs';
 
 // The shared result core and frozen exit taxonomy (LLP 0024 amendment;
 // LLP 0062 §2). Projections consume these and never re-derive semantics.

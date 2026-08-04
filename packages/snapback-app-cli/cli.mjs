@@ -15,6 +15,11 @@ import {
   startAppFunctionLive,
 } from './index.mjs';
 import {
+  DEFAULT_DIGEST_BUDGET_BYTES,
+  DEFAULT_DIGEST_BUDGET_ITEMS,
+  buildAgentDigest,
+} from './digest.mjs';
+import {
   assertPrincipalAdmitted,
   assertSupportedHost,
   onboardAgentProfile,
@@ -41,6 +46,7 @@ const VALUE_FLAGS = new Set([
   '--credential-env', '--admission-wait-ms', '--token-ttl-ms',
   '--out', '--timeout', '--timeout-ms', '--call-timeout-ms', '--max-calls',
   '--max-subscriptions', '--max-output-bytes', '--max-stderr-bytes', '--heap-mb', '--grace-ms',
+  '--changed-since', '--budget-bytes', '--budget-items',
 ]);
 const BOOLEAN_FLAGS = new Set(['--json', '--offline', '--watch', '--first-change', '--help']);
 
@@ -100,18 +106,24 @@ const jsonInput = async (flag, fallback) => {
   }
 };
 
-const localDescriptor = async (baseUrl) => {
+const publicInspection = async (baseUrl) => {
   if (baseUrl === null) return null;
   const anonymous = new SnapbackAppDataClient(baseUrl, { custody: 'anonymous-public' });
-  const inspection = await anonymous.inspect();
-  return inspection?.capabilityManifest?.appCliTarget ?? null;
+  return anonymous.inspect();
 };
 
-const loadSurface = async () => {
+const loadSurface = async ({ includeInspection = false } = {}) => {
   const artifactsDir = value('--artifacts');
   if (artifactsDir !== null) {
     const artifacts = await loadAppArtifacts(artifactsDir);
-    return Object.freeze({ ...artifacts, source: 'local', offline: false, appCliDescriptor: await localDescriptor(server) });
+    const inspection = await publicInspection(server);
+    return Object.freeze({
+      ...artifacts,
+      source: 'local',
+      offline: false,
+      inspection: includeInspection ? inspection : null,
+      appCliDescriptor: inspection?.capabilityManifest?.appCliTarget ?? null,
+    });
   }
   if (server === null) throw Object.assign(new Error('--server or --artifacts is required'), { code: 'SNAPBACK_APP_CLI_ARTIFACTS_REQUIRED' });
   const served = await loadServedApp(server, { offline: has('--offline'), appId: value('--app') });
@@ -121,7 +133,10 @@ const loadSurface = async () => {
       { code: 'SNAPBACK_APP_CLI_ARTIFACTS_REQUIRED' },
     );
   }
-  return served;
+  return Object.freeze({
+    ...served,
+    inspection: includeInspection && !served.offline ? await publicInspection(server) : null,
+  });
 };
 
 const selection = async () => selectPrincipal({
@@ -212,6 +227,7 @@ const help = () => {
   process.stdout.write(
     'snapback-app --server <url> [--artifacts <generated-dir>] [--principal anonymous|dev|session|agent|auto] <command>\n'
     + 'commands: introspect, whoami, call <function>, subscribe <live-query>, types, run <script.ts|->, pair\n'
+    + 'digest: introspect [--changed-since <digestCursor|envelopeHash>] [--budget-bytes 32768] [--budget-items 256]\n'
     + 'session custody: --session-bearer-file <0600-file> or SNAPBACK_APP_SESSION_BEARER\n'
     + 'agent custody: --agent-profile <0600-profile> or SNAPBACK_APP_AGENT_PROFILE\n',
   );
@@ -222,20 +238,20 @@ try {
     help();
   } else if (command === 'introspect') {
     assertSupportedHost();
-    const surface = await loadSurface();
+    const surface = await loadSurface({ includeInspection: true });
     const selected = await selection();
     assertPrincipalAdmitted(surface.appCliDescriptor, selected.principalClass);
-    print({
-      artifactKind: 'appCliIntrospection',
-      introspectionVersion: 1,
-      engineVersion: ENGINE.version,
-      appId: surface.appId,
-      ...(surface.envelopeSha256 ? { envelopeHash: surface.envelopeSha256 } : {}),
+    const budgetBytes = numberValue('--budget-bytes') ?? DEFAULT_DIGEST_BUDGET_BYTES;
+    const budgetItems = numberValue('--budget-items') ?? DEFAULT_DIGEST_BUDGET_ITEMS;
+    print(buildAgentDigest({
+      surface,
+      inspection: surface.inspection,
       principalSource: selected.source,
       principalClass: selected.principalClass,
-      targetCapabilities: surface.appCliDescriptor,
-      functions: surface.functions,
-    });
+      changedSince: value('--changed-since'),
+      budgetBytes,
+      budgetItems,
+    }));
   } else if (command === 'whoami') {
     assertSupportedHost();
     const selected = await selection();

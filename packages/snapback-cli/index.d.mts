@@ -75,6 +75,27 @@ export {
   validateComparatorReceipt,
   writeComparatorReceipt,
 } from './comparator-profile.mjs';
+export {
+  VERIFY_CONFIG_SCHEMA_VERSION,
+  VERIFY_RECEIPT_SCHEMA_VERSION,
+  VERIFY_STAGE_IDS,
+  aggregateConformance,
+  defaultVerifyConfig,
+  defineVerifyConfig,
+  loadVerifyConfig,
+  probeAdmission,
+  probeArtifactFreshness,
+  probeCapabilities,
+  runVerify,
+  validateVerifyReceipt,
+  writeVerifyReceipt,
+} from './verify.mjs';
+export type {
+  VerifyConfig,
+  VerifyConformanceReport,
+  VerifyIdentityContext,
+  VerifyPathKind,
+} from './verify.mjs';
 export type {
   ComparatorProfile,
   ComparatorProfileInput,

@@ -101,8 +101,11 @@ try {
   const introspect = await run([...base, 'introspect']);
   assert.equal(introspect.code, 0, introspect.stderr);
   const introspection = JSON.parse(introspect.stdout);
+  assert.equal(introspection.artifactKind, 'agentDigest');
+  assert.equal(introspection.formatVersion, 'snapback.agent-digest.v1');
   assert.equal(introspection.principalClass, 'anonymous');
-  assert.equal(introspection.targetCapabilities.perGrantTokenCap, 10);
+  assert.equal(introspection.sections.dynamic.reason, 'coarse-resolution-v0-no-observation-retention');
+  assert.match(introspection.digestCursor, /^sbad1\./);
 
   const called = await run([...base, '--args-json', '{"page":2}', 'call', 'list']);
   assert.equal(called.code, 0, called.stderr);

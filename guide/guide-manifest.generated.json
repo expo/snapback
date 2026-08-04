@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "8154744c87ed58816703093bd526bd7a40d95a56"
+    "commit": "0d2b7046c2d078a8249988e333e0af42e20e1045"
   },
   "nav": {
     ".": [
@@ -297,6 +297,11 @@
         "id": "testing.acceptance",
         "order": 1,
         "title": "Acceptance testing"
+      },
+      {
+        "id": "testing.verify",
+        "order": 2,
+        "title": "Verify the declared app contract"
       }
     ]
   },
@@ -1412,7 +1417,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "5273127f3a5bca291cad7b51b9ca78e3b6604ab348f16bb8ceb983bdf9042917",
+      "sha256": "aaae949238a72e1e1b1e5b9b235ed3fce3b655ac5d1425e09ce62bd6c7279b2f",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1429,8 +1434,11 @@
       ],
       "authorities": [
         "llp/0062-generated-app-cli-and-code-mode.rfc.md",
+        "llp/0146-agentic-authoring-affordances.rfc.md",
         "packages/snapback-app-cli/index.mjs",
         "packages/snapback-app-cli/cli.mjs",
+        "packages/snapback-app-cli/digest.mjs",
+        "packages/snapback-app-cli/agent-digest.schema.json",
         "packages/snapback-app-cli/auth.mjs",
         "packages/snapback-app-cli/code-mode.mjs",
         "packages/snapback-app-cli/result-core.mjs",
@@ -1441,11 +1449,12 @@
         "packages/snapback-app-cli/auth.test.mjs",
         "packages/snapback-app-cli/code-mode.test.mjs",
         "packages/snapback-app-cli/cli.test.mjs",
+        "packages/snapback-app-cli/digest.test.mjs",
         "demos/todo/snapback/generated"
       ],
-      "reviewed": "2026-08-01",
-      "reviewedCommit": "01fc75d2182b5d0a5ef8b122597984d37e04a2b8",
-      "sha256": "79ba47e82c25e55e6b57dcf5d146ba16ec002452ebf1ea3b4488e80b6850e491",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "dab2410b6793ffa5685069a0a4054f0e2b21608a",
+      "sha256": "b72179cffc809ed5273b1f2c85a58f9c3f466ed73dc9a0ef6775c7b8f23e2c27",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -2063,9 +2072,9 @@
         "demos/card-game",
         "demos/partiful-matrix"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "1a71f0fe73f964998426d5672d66775dd06919221a82ece8522d3cccc5e2cb9a",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "dab2410b6793ffa5685069a0a4054f0e2b21608a",
+      "sha256": "114765f99fefd339df74d2365be88d4219e7acc30892fc987c8aae09ec999285",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2815,6 +2824,32 @@
           "source": "demos/all-aboard/tests/acceptance/headless.mjs"
         }
       ]
+    },
+    "testing.verify": {
+      "path": "guide/testing/verify.md",
+      "title": "Verify the declared app contract",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "operating.verify"
+      ],
+      "authorities": [
+        "llp/0010-agent-dx-and-acceptance.spec.md",
+        "llp/0146-agentic-authoring-affordances.rfc.md",
+        "packages/snapback-cli/verify.mjs",
+        "packages/snapback-cli/verify-receipt.schema.json"
+      ],
+      "examples": [
+        "packages/snapback-cli/verify.test.mjs"
+      ],
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "dab2410b6793ffa5685069a0a4054f0e2b21608a",
+      "sha256": "597f438bf61fadb1cf7a1b47a983c56ed914e9537f19eb03de5ae8a5024f842b",
+      "snippets": []
     }
   },
   "capabilities": {
@@ -2874,6 +2909,7 @@
       "operating.secrets-config",
       "operating.served-guide",
       "operating.server-lifecycle",
+      "operating.verify",
       "realtime.durable-push",
       "realtime.ephemeral",
       "realtime.live-queries",
@@ -2900,5 +2936,5 @@
     "routes": 105,
     "hostOps": 35
   },
-  "contentHash": "fad3e93cef6ae50676ae76e9ec196f9ed965a9bfe636593b0fa28c93351498f8"
+  "contentHash": "dcbdebf2d083e07a1e9e57a5485f0ef15dbdfb195814cf72f88e986f8be5c42a"
 }

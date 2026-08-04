@@ -4,13 +4,13 @@ id: clients.app-cli
 order: 2
 audience: agent-first
 capabilities: [clients.app-cli]
-authorities: [llp/0062-generated-app-cli-and-code-mode.rfc.md, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/cli.mjs, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/code-mode.mjs, packages/snapback-app-cli/result-core.mjs, packages/snapback-client/app-data.mjs]
-examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, packages/snapback-app-cli/code-mode.test.mjs, packages/snapback-app-cli/cli.test.mjs, demos/todo/snapback/generated]
+authorities: [llp/0062-generated-app-cli-and-code-mode.rfc.md, llp/0146-agentic-authoring-affordances.rfc.md, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/cli.mjs, packages/snapback-app-cli/digest.mjs, packages/snapback-app-cli/agent-digest.schema.json, packages/snapback-app-cli/auth.mjs, packages/snapback-app-cli/code-mode.mjs, packages/snapback-app-cli/result-core.mjs, packages/snapback-client/app-data.mjs]
+examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli/auth.test.mjs, packages/snapback-app-cli/code-mode.test.mjs, packages/snapback-app-cli/cli.test.mjs, packages/snapback-app-cli/digest.test.mjs, demos/todo/snapback/generated]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-01
-reviewed-commit: 01fc75d2182b5d0a5ef8b122597984d37e04a2b8
+reviewed: 2026-08-04
+reviewed-commit: dab2410b6793ffa5685069a0a4054f0e2b21608a
 ---
 
 # The artifact-driven app CLI
@@ -52,6 +52,41 @@ name, kind, auth requirement, and schema. A mismatch refuses with
 `SNAPBACK_APP_CLI_ARTIFACT_IDENTITY_MISMATCH`; an unknown function reports the
 available manifest names. Discovery never imports `api.mjs`, a handler bundle,
 or server-provided JavaScript.
+
+## Pull a bounded agent digest
+
+`introspect` emits `snapback.agent-digest.v1`: a stable, value-free document
+with a static section keyed by `envelopeHash` and a dynamic section keyed by
+the returned `digestCursor`. Pass that cursor back on the next call:
+
+```sh
+snapback-app --server http://127.0.0.1:3000 --artifacts ./snapback/generated introspect --budget-bytes 32768 --budget-items 256
+snapback-app --server http://127.0.0.1:3000 --artifacts ./snapback/generated introspect --changed-since 'sbad1.…'
+```
+
+The static section contains artifact identities, table summaries, operation
+signatures and contracts, and capability gaps in key order. Its cursor carries
+the prior item hashes, so one changed schema item can produce one changed
+item without retained server state. A bare envelope hash remains accepted:
+when it matches, the static delta is empty and the dynamic section is still
+sent whole.
+
+The dynamic v0 is deliberately coarse. It always re-emits its complete
+available observation section and reports
+`coarse-resolution-v0-no-observation-retention`; cursors minted by v0 do not
+expire and Snapback retains no prior observation manifest. Unknown or
+structurally expired cursors return a named full-digest degradation, never an
+empty success. Budgets apply to canonical JSON bytes and item count. Every
+omission carries an elision marker naming the section, omitted count, and the
+flags to increase.
+
+This projection never includes row values, call arguments, result payloads,
+credential material, or raw diagnostic messages/details. The public app-data
+inspection surface does not currently expose per-table row counts or D1
+conformance observations, so those dynamic items carry explicit unavailable
+reasons. Local artifacts use a deterministic
+`local-generated-static-projection` identity when there is no served API
+envelope; that is not represented as a served-envelope claim.
 
 ## Choose authority explicitly
 
