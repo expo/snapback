@@ -1,8 +1,8 @@
 # Local-first continuation program — close the loop, then open the write lane
 
-**Status:** Open — program of tickets (wave-3 Track A follow-on; the
-0166 implementation program exited with the read-side store landed and
-two structural GAPs pointing exactly here)
+**Status:** Closed — all six lanes landed; the 2026-08-04 carrier exit records
+16 PASS, the single still-owner-blocked Fleet GAP, 0 skipped, and no partial
+result
 **Opened:** 2026-08-03, by the Track A session on Charlie's direction to
 continue the Zero-like local-first work
 **Related:** LLP 0166 (Accepted; the store this program feeds), LLP 0157
@@ -60,6 +60,24 @@ receipt, so the drift pass did not do so. This program owns the required
 carrier-exit successor run: update its current assertions to the landed P2/P3
 reality, preserve the standards-real lifecycle legs, and retain a newly dated
 receipt before claiming this exit closed.
+
+## Resolution — 2026-08-04
+
+All P0–P5 lane tickets are closed. The successor carrier ran from clean source
+`13f026cd31af3886e5e68512fd58912adf88eb29` on Darwin/arm64 with the coded
+Ibex bootstrap and exact Node 24.18.0. It retained
+`tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json`
+and its dated bundle attribution: 16 legs PASS, the predeclared Fleet
+Observatory successor remains one honest GAP on LLP 0135 OQ5, 0 legs were
+skipped, and the receipt is not partial. Triage now passes from the P3
+controlled-run receipt, OQ9 budget freeze, and current trusted successor
+activation instead of remaining a stale structural GAP.
+
+The closing LLP corpus audit found no code/document contradiction in the
+receipt-only diff. `./ref-check --verbose` reports 168 LLP documents, 3,816
+references across 10,667 files, 0 errors, and 0 unchecked references. The
+Fleet GAP changes no capability claim and remains outside this program exactly
+as commissioned.
 
 ## Coordination
 

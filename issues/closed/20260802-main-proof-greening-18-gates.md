@@ -232,3 +232,34 @@ now defaults to the current user's home directory (while retaining the explicit
 test-root override), so its real unsafe-ancestor checks remain armed. The
 focused custody test and the complete 11-file app-CLI package suite pass on
 Node 24.18.0.
+
+### Closing receipts and latest completed main input — 2026-08-04
+
+The final authoritative KEEP-GOING input is main run `30928018055` at
+`8ac09cdd1be536ecb29304a1134d9dc16530a606`. Its 12 failed gates are the
+same batch-owned drift classes already attributed above, plus the later
+rowless-resume metrology rollover and the app-CLI custody fixture reconciled in
+this pass: metrology, package exports, relation and sequence publication
+carriers, demo inventory, Linux telemetry, strict Clippy, local-store carrier,
+workout apps, file-drop browser relay, codegen, and the admin chain. No new
+push-seam or F0a correctness failure appeared.
+
+Both closing receipts were measured at the same exact clean source
+`13f026cd31af3886e5e68512fd58912adf88eb29` after the coded bootstrap qualified
+the linked runtime. On the approved Ubuntu fleet host, the full release Linux
+telemetry proof passed every frozen benchmark ceiling and the 120-second idle
+witness recorded zero telemetry mutations, zero process write bytes, 2/10 CPU
+ticks, and 0/8 RSS-growth pages. The retained receipt has source-input digest
+`098844355cb367708ab1fe80aed3ead75a50a137dc365ae654cc0e5d84435255` and
+SHA-256 `0f0a389b3de6263c526782b8f147a362149bfb3ba39cba783418b224add5f700`.
+The two deterministic first-production harness races it exposed—schema file
+visibility before table installation and a transient SQLite schema lock—were
+fixed by bounded settlement checks; no bootstrap or machine policy was
+bypassed.
+
+On Darwin/arm64, the local-store carrier then completed 16 PASS, one explicit
+Fleet successor GAP, 0 skipped, and no partial result. It flips the obsolete
+Triage GAP to a standards-real PASS and retains the current full browser
+closure attribution. The later carrier commit contains both source-bound
+receipts; their check modes, the remaining local gates, and the final
+KEEP-GOING run are the next proof boundary before landing.
