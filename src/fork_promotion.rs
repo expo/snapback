@@ -2469,13 +2469,21 @@ pub fn issue_promotion_ticket(
         params![canonical_stream_id],
         |row| row.get(0),
     )?;
-    let initial_queue_position: i64 = tx.query_row(
-        "SELECT COUNT(*) + 1 FROM _snapback_promotion_admission
-          WHERE canonical_stream_id = ?1 AND state = 'queued'",
-        params![canonical_stream_id],
-        |row| row.get(0),
-    )?;
-    let queue = initial_queue_position.max(1) as u64;
+    let live_queue_depth = {
+        let mut statement = tx.prepare(
+            "SELECT ticket_json FROM _snapback_promotion_admission
+              WHERE canonical_stream_id = ?1 AND state = 'queued'
+              ORDER BY fifo_sequence",
+        )?;
+        let queued = statement
+            .query_map(params![canonical_stream_id], |row| row.get::<_, Vec<u8>>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        queued.into_iter().try_fold(0_u64, |count, bytes| {
+            let queued: PromotionAdmissionTicketV1 = decode_json(&bytes, "promotion ticket")?;
+            Ok::<_, SnapbackError>(count + u64::from(queued.expires_at_ms > now_ms))
+        })?
+    };
+    let queue = live_queue_depth.saturating_add(1);
     let rebase_budget = observed_concurrent_forks
         .max(queue.saturating_add(contention_policy.reservation_after_losses));
     let minimum_lifetime = contention_policy
@@ -2743,16 +2751,28 @@ pub struct PromotionResultV1 {
     pub aggregate_envelope: CommitEnvelopeV1,
 }
 
-fn active_fifo_ticket(canonical: &Connection, stream: &str) -> SnapbackResult<Option<String>> {
-    Ok(canonical
-        .query_row(
-            "SELECT ticket_id FROM _snapback_promotion_admission
-              WHERE canonical_stream_id = ?1 AND state = 'queued'
-              ORDER BY fifo_sequence LIMIT 1",
-            params![stream],
-            |row| row.get(0),
-        )
-        .optional()?)
+fn active_fifo_ticket(
+    canonical: &Connection,
+    stream: &str,
+    now_ms: i64,
+) -> SnapbackResult<Option<String>> {
+    let mut statement = canonical.prepare(
+        "SELECT ticket_id,ticket_json FROM _snapback_promotion_admission
+          WHERE canonical_stream_id = ?1 AND state = 'queued'
+          ORDER BY fifo_sequence",
+    )?;
+    let rows = statement
+        .query_map(params![stream], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    for (ticket_id, bytes) in rows {
+        let ticket: PromotionAdmissionTicketV1 = decode_json(&bytes, "promotion ticket")?;
+        if ticket.expires_at_ms > now_ms {
+            return Ok(Some(ticket_id));
+        }
+    }
+    Ok(None)
 }
 
 fn note_ticket_loss(
@@ -3723,7 +3743,7 @@ where
             "sealed log, diff, manifest, or approved facts no longer match",
         ));
     }
-    let active = active_fifo_ticket(canonical, &request.base_stream)?;
+    let active = active_fifo_ticket(canonical, &request.base_stream, now_ms)?;
     if active.as_deref() != Some(&request.admission_ticket.ticket_identity.key.operation_id) {
         return Err(error(
             "SNAPBACK_PROMOTION_NOT_FIFO_HEAD",
@@ -3983,20 +4003,74 @@ pub fn canonical_mutation_admission(
     now_ms: i64,
 ) -> SnapbackResult<CanonicalAdmissionV1> {
     ensure_promotion_tables(conn)?;
-    let until: Option<i64> = conn
-        .query_row(
-            "SELECT MAX(reserved_until_ms) FROM _snapback_promotion_admission
-              WHERE canonical_stream_id = ?1 AND state = 'queued'
-                AND reserved_until_ms > ?2",
-            params![canonical_stream_id, now_ms],
-            |row| row.get(0),
-        )
-        .optional()?
-        .flatten();
+    canonical_mutation_admission_if_present(conn, canonical_stream_id, now_ms)
+}
+
+fn canonical_mutation_admission_if_present(
+    conn: &Connection,
+    canonical_stream_id: &str,
+    now_ms: i64,
+) -> SnapbackResult<CanonicalAdmissionV1> {
+    let admission_table: bool = conn.query_row(
+        "SELECT EXISTS(
+           SELECT 1 FROM sqlite_schema
+            WHERE type='table' AND name='_snapback_promotion_admission'
+         )",
+        [],
+        |row| row.get(0),
+    )?;
+    if !admission_table {
+        return Ok(CanonicalAdmissionV1::Admit);
+    }
+    let mut statement = conn.prepare(
+        "SELECT reserved_until_ms,ticket_json FROM _snapback_promotion_admission
+          WHERE canonical_stream_id = ?1 AND state = 'queued'
+            AND reserved_until_ms > ?2",
+    )?;
+    let reservations = statement
+        .query_map(params![canonical_stream_id, now_ms], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, Vec<u8>>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let mut until = None;
+    for (reserved_until_ms, ticket_json) in reservations {
+        let ticket: PromotionAdmissionTicketV1 =
+            decode_json(&ticket_json, "promotion ticket")?;
+        let effective_until = reserved_until_ms.min(ticket.expires_at_ms);
+        if effective_until > now_ms {
+            until = Some(until.map_or(effective_until, |prior: i64| prior.max(effective_until)));
+        }
+    }
     Ok(match until {
         Some(until_ms) => CanonicalAdmissionV1::DeferredByPromotionReservation { until_ms },
         None => CanonicalAdmissionV1::Admit,
     })
+}
+
+/// Enforce the promotion reservation from inside the ordinary writer's
+/// `BEGIN IMMEDIATE` transaction. The shared SQLite writer lock makes the
+/// admission observation and the eventual app commit indivisible with
+/// reservation acquisition; a preflight outside this transaction would leave
+/// a race in which a writer could cross a newly committed reservation.
+///
+/// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — after the declared
+/// loss threshold, the FIFO head receives one bounded interval in which
+/// ordinary canonical mutations are deferred.
+pub(crate) fn enforce_canonical_mutation_admission_in(
+    conn: &Connection,
+    canonical_stream_id: &str,
+    now_ms: i64,
+) -> SnapbackResult<()> {
+    match canonical_mutation_admission_if_present(conn, canonical_stream_id, now_ms)? {
+        CanonicalAdmissionV1::Admit => Ok(()),
+        CanonicalAdmissionV1::DeferredByPromotionReservation { until_ms } => Err(error(
+            "SNAPBACK_PROMOTION_HEAD_RESERVED",
+            format!(
+                "ordinary canonical mutation is deferred by the FIFO promotion head until {until_ms}"
+            ),
+        )
+        .with_details(json!({ "untilMs": until_ms }))),
+    }
 }
 
 pub fn request_head_reservation(
@@ -4005,32 +4079,57 @@ pub fn request_head_reservation(
     now_ms: i64,
 ) -> SnapbackResult<i64> {
     ensure_promotion_tables(conn)?;
-    require_exact_durable_ticket(conn, ticket)?;
-    let losses: i64 = conn.query_row(
-        "SELECT losses FROM _snapback_promotion_admission WHERE ticket_id = ?1",
+    let tx = Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Immediate)?;
+    require_exact_durable_ticket(&tx, ticket)?;
+    if now_ms >= ticket.expires_at_ms {
+        return Err(error(
+            "SNAPBACK_PROMOTION_TICKET_EXPIRED",
+            "expired promotion tickets cannot reserve the canonical head",
+        ));
+    }
+    if active_fifo_ticket(&tx, &ticket.canonical_stream_id, now_ms)?.as_deref()
+        != Some(ticket.ticket_identity.key.operation_id.as_str())
+    {
+        return Err(error(
+            "SNAPBACK_PROMOTION_NOT_FIFO_HEAD",
+            "only the live FIFO head may reserve ordinary canonical writers",
+        ));
+    }
+    let (losses, existing_reservation): (i64, Option<i64>) = tx.query_row(
+        "SELECT losses,reserved_until_ms FROM _snapback_promotion_admission WHERE ticket_id = ?1",
         params![ticket.ticket_identity.key.operation_id],
-        |row| row.get(0),
+        |row| Ok((row.get(0)?, row.get(1)?)),
     )?;
+    if let Some(until) = existing_reservation
+        .map(|until| until.min(ticket.expires_at_ms))
+        .filter(|until| *until > now_ms)
+    {
+        tx.execute(
+            "UPDATE _snapback_promotion_admission SET reserved_until_ms=?2 WHERE ticket_id=?1",
+            params![ticket.ticket_identity.key.operation_id, until],
+        )?;
+        tx.commit()?;
+        return Ok(until);
+    }
     if (losses.max(0) as u64) < ticket.contention_policy.reservation_after_losses {
         return Err(error(
             "SNAPBACK_PROMOTION_RESERVATION_NOT_ELIGIBLE",
             "ticket has not reached the declared consecutive-loss threshold",
         ));
     }
-    let active: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM _snapback_promotion_admission
-          WHERE canonical_stream_id = ?1 AND state = 'queued' AND reserved_until_ms > ?2",
-        params![ticket.canonical_stream_id, now_ms],
-        |row| row.get(0),
-    )?;
-    if active.max(0) as u64 >= ticket.contention_policy.reservation_quota {
+    if matches!(
+        canonical_mutation_admission_if_present(&tx, &ticket.canonical_stream_id, now_ms)?,
+        CanonicalAdmissionV1::DeferredByPromotionReservation { .. }
+    ) {
         return Err(error(
             "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED",
             "bounded head-reservation quota is exhausted",
         ));
     }
-    let until = now_ms.saturating_add(ticket.contention_policy.reservation_interval_ms as i64);
-    let changed = conn.execute(
+    let until = now_ms
+        .saturating_add(ticket.contention_policy.reservation_interval_ms as i64)
+        .min(ticket.expires_at_ms);
+    let changed = tx.execute(
         "UPDATE _snapback_promotion_admission SET reserved_until_ms = ?2
           WHERE ticket_id = ?1 AND state = 'queued'",
         params![ticket.ticket_identity.key.operation_id, until],
@@ -4041,6 +4140,7 @@ pub fn request_head_reservation(
             "only the exact queued durable ticket can reserve the canonical head",
         ));
     }
+    tx.commit()?;
     Ok(until)
 }
 
@@ -6125,16 +6225,188 @@ mod tests {
         );
         assert_eq!(
             request_head_reservation(&canonical, &second, 3_001)
-                .expect_err("frozen quota admits no second active reservation")
+                .expect_err("only the live FIFO head may reserve")
                 .diagnostic
                 .code,
-            "SNAPBACK_PROMOTION_CONTENTION_EXHAUSTED"
+            "SNAPBACK_PROMOTION_NOT_FIFO_HEAD"
+        );
+        assert_eq!(
+            request_head_reservation(&canonical, &first, 3_001)
+                .expect("the exact head retry observes its durable interval"),
+            4_000
         );
         assert_eq!(
             canonical_mutation_admission(&canonical, "canonical", 4_000)
                 .expect("expired reservation releases ordinary writer"),
             CanonicalAdmissionV1::Admit
         );
+    }
+
+    #[test]
+    fn concurrent_reservation_is_fifo_singleton_and_survives_writer_process_death() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("canonical.sqlite3");
+        let mut canonical = file_source(&canonical_path, 1);
+        let first = issue_promotion_ticket(
+            &mut canonical,
+            host_identity("canonical", "concurrent-reservation-first", "app-1"),
+            &BranchId("concurrent-reservation-first".to_owned()),
+            "canonical",
+            2,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("first ticket");
+        let second = issue_promotion_ticket(
+            &mut canonical,
+            host_identity("canonical", "concurrent-reservation-second", "app-1"),
+            &BranchId("concurrent-reservation-second".to_owned()),
+            "canonical",
+            2,
+            60_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("second ticket");
+        for _ in 0..PRODUCTION_PROMOTION_CONTENTION_POLICY_V1.reservation_after_losses {
+            note_ticket_loss(&canonical, &first).expect("record first loss");
+            note_ticket_loss(&canonical, &second).expect("record second loss");
+        }
+        drop(canonical);
+
+        let gate = std::sync::Arc::new(std::sync::Barrier::new(3));
+        let first_thread = {
+            let gate = gate.clone();
+            let path = canonical_path.clone();
+            let ticket = first.clone();
+            std::thread::spawn(move || {
+                let conn = Connection::open(path).expect("first connection");
+                conn.busy_timeout(std::time::Duration::from_secs(2))
+                    .expect("first busy timeout");
+                gate.wait();
+                request_head_reservation(&conn, &ticket, 3_000)
+            })
+        };
+        let second_thread = {
+            let gate = gate.clone();
+            let path = canonical_path.clone();
+            let ticket = second.clone();
+            std::thread::spawn(move || {
+                let conn = Connection::open(path).expect("second connection");
+                conn.busy_timeout(std::time::Duration::from_secs(2))
+                    .expect("second busy timeout");
+                gate.wait();
+                request_head_reservation(&conn, &ticket, 3_000)
+            })
+        };
+        gate.wait();
+        let first_result = first_thread.join().expect("first thread");
+        let second_result = second_thread.join().expect("second thread");
+        assert_eq!(first_result.expect("FIFO head reserves"), 4_000);
+        assert_eq!(
+            second_result
+                .expect_err("concurrent non-head never consumes the singleton quota")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROMOTION_NOT_FIFO_HEAD"
+        );
+
+        // Both reservation callers are gone here. Reopening a third connection
+        // models host-process death without weakening the durable writer gate.
+        let reopened = Connection::open(&canonical_path).expect("reopen after process death");
+        assert_eq!(
+            canonical_mutation_admission(&reopened, "canonical", 3_001)
+                .expect("durable admission after reopen"),
+            CanonicalAdmissionV1::DeferredByPromotionReservation { until_ms: 4_000 }
+        );
+        assert_eq!(
+            reopened
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_promotion_admission
+                      WHERE canonical_stream_id='canonical' AND reserved_until_ms > 3001",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .expect("singleton reservation count"),
+            1
+        );
+        assert_eq!(
+            canonical_mutation_admission(&reopened, "canonical", 4_000)
+                .expect("bounded interval expires after reopen"),
+            CanonicalAdmissionV1::Admit
+        );
+    }
+
+    #[test]
+    fn expired_tickets_do_not_block_fifo_service_or_inflate_new_queue_position() {
+        let mut canonical = source(1);
+        let first = issue_promotion_ticket(
+            &mut canonical,
+            host_identity("canonical", "expired-fifo-first", "app-1"),
+            &BranchId("expired-fifo-first".to_owned()),
+            "canonical",
+            2,
+            3_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("short-lived head");
+        let second = issue_promotion_ticket(
+            &mut canonical,
+            host_identity("canonical", "live-fifo-second", "app-1"),
+            &BranchId("live-fifo-second".to_owned()),
+            "canonical",
+            2,
+            20_000,
+            2_000,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("live second ticket");
+        for _ in 0..PRODUCTION_PROMOTION_CONTENTION_POLICY_V1.reservation_after_losses {
+            note_ticket_loss(&canonical, &first).expect("record first loss");
+            note_ticket_loss(&canonical, &second).expect("record second loss");
+        }
+        assert_eq!(
+            request_head_reservation(&canonical, &first, 2_750)
+                .expect("near-expiry head receives only its remaining lifetime"),
+            3_000
+        );
+        assert_eq!(
+            canonical_mutation_admission(&canonical, "canonical", 2_999)
+                .expect("reservation remains live before ticket expiry"),
+            CanonicalAdmissionV1::DeferredByPromotionReservation { until_ms: 3_000 }
+        );
+        assert_eq!(
+            canonical_mutation_admission(&canonical, "canonical", 3_000)
+                .expect("reservation authority ends exactly with the ticket"),
+            CanonicalAdmissionV1::Admit
+        );
+        assert_eq!(
+            request_head_reservation(&canonical, &first, 3_000)
+                .expect_err("expired ticket has no reservation authority")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROMOTION_TICKET_EXPIRED"
+        );
+        assert_eq!(
+            request_head_reservation(&canonical, &second, 3_000)
+                .expect("next live ticket becomes FIFO head"),
+            4_000
+        );
+
+        let third = issue_promotion_ticket(
+            &mut canonical,
+            host_identity("canonical", "live-fifo-third", "app-1"),
+            &BranchId("live-fifo-third".to_owned()),
+            "canonical",
+            2,
+            20_000,
+            3_001,
+            PromotionContentionPolicyV1::default(),
+        )
+        .expect("new ticket ignores expired queue entries");
+        assert_eq!(third.initial_queue_position, 2);
     }
 
     #[test]
@@ -6400,6 +6672,34 @@ mod tests {
         assert_eq!(
             scan_widgets(&workspace.conn).expect("rows")[0].row["name"],
             "one"
+        );
+
+        let mut byte_canonical = source(1);
+        let mut byte_limited = create_request("byte-bounded", "byte-bounded-child", 1, 100);
+        byte_limited.limits.max_retained_bytes = 1;
+        create_in_app_branch(&mut byte_canonical, &byte_limited).expect("byte-limited branch");
+        let mut byte_workspace =
+            MaterializedBase::materialize(&byte_canonical, None).expect("byte workspace");
+        let error = execute_branch_operation(
+            &mut byte_workspace.conn,
+            &byte_limited.branch_id,
+            &draft("byte-bounded-child", "byte-bounded-operation"),
+            101,
+            |tx, _| {
+                tx.execute("UPDATE widgets SET name='must-rollback' WHERE id=1", [])?;
+                Ok(facts("must-rollback"))
+            },
+        )
+        .expect_err("retained-byte limit refuses the operation and its writes");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_BRANCH_BYTE_LIMIT_EXCEEDED");
+        assert_eq!(
+            scan_widgets(&byte_workspace.conn).expect("rolled-back rows")[0].row["name"],
+            "alpha"
+        );
+        assert!(
+            branch_operation_log(&byte_workspace.conn, &byte_limited.branch_id)
+                .expect("no retained operation")
+                .is_empty()
         );
     }
 

@@ -2323,6 +2323,16 @@ impl LocalDatabase {
         )
     }
 
+    pub(crate) fn current_data_version_stream(&self) -> SnapbackResult<String> {
+        crate::seed_identity::strict_current_data_version_stream(&self.conn)?.ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_OPERATION_STREAM_UNAVAILABLE",
+                "storage",
+                "managed branch creation requires an initialized canonical data-version stream",
+            )
+        })
+    }
+
     #[cfg(test)]
     pub(crate) fn install_operation_coverage_for_test(
         &mut self,
@@ -4964,6 +4974,8 @@ impl LocalDatabase {
             .is_some_and(|(skew, policy)| skew <= policy.max_skew_ms);
         let settlement_time_sink_reached = Cell::new(false);
         let authorization_interlock = self.authorization_interlock.clone();
+        let enforce_canonical_promotion_reservation =
+            self.derived_fork.is_none() && self.in_app_branch.is_none();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -4972,6 +4984,17 @@ impl LocalDatabase {
         //   is re-read inside every commit transaction, so a crash between
         //   reopen and resume cannot readmit application writes.
         migration_executor::ensure_migration_fence_open(&tx)?;
+        if enforce_canonical_promotion_reservation {
+            if let Some(stream_id) =
+                crate::seed_identity::strict_current_data_version_stream(&tx)?
+            {
+                crate::fork_promotion::enforce_canonical_mutation_admission_in(
+                    &tx,
+                    &stream_id,
+                    now_ms as i64,
+                )?;
+            }
+        }
         let current_version = current_version_on(&tx)?;
         #[cfg(test)]
         notify_commit_version_sampled(&tx);
@@ -6238,10 +6261,23 @@ impl LocalDatabase {
             .unwrap_or_else(now_millis);
         validate_portable_timestamp_millis(now_ms)?;
         let authorization_interlock = self.authorization_interlock.clone();
+        let enforce_canonical_promotion_reservation =
+            self.derived_fork.is_none() && self.in_app_branch.is_none();
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         migration_executor::ensure_migration_fence_open(&tx)?;
+        if enforce_canonical_promotion_reservation {
+            if let Some(stream_id) =
+                crate::seed_identity::strict_current_data_version_stream(&tx)?
+            {
+                crate::fork_promotion::enforce_canonical_mutation_admission_in(
+                    &tx,
+                    &stream_id,
+                    now_ms as i64,
+                )?;
+            }
+        }
         let current_version = current_version_on(&tx)?;
         let next_version = next_storage_version(current_version)?;
 
@@ -24072,6 +24108,129 @@ mod guarded_commit_tests {
             steps: vec![insert("one"), insert("two")],
             return_value: Some(ReturnValue::ChangedCount),
         }
+    }
+
+    #[test]
+    fn promotion_head_reservation_defers_real_host_plan_and_buffered_writers_on_current_stream() {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema()).expect("apply schema");
+        let tx = db.conn.transaction().expect("stream transaction");
+        let stream = auth_invalidation::ensure_data_version_stream_in(&tx)
+            .expect("initialize nonliteral data-version stream");
+        tx.commit().expect("commit stream");
+        assert_ne!(stream, "canonical", "fixture literals are never stream authority");
+
+        crate::fork_promotion::ensure_promotion_tables(&db.conn)
+            .expect("promotion admission tables");
+        assert_eq!(
+            crate::fork_promotion::canonical_mutation_admission(&db.conn, &stream, 1)
+                .expect("no reservation admits"),
+            crate::fork_promotion::CanonicalAdmissionV1::Admit
+        );
+        let ticket_json = serde_json::to_vec(
+            &crate::fork_promotion::PromotionAdmissionTicketV1 {
+                schema_version: 1,
+                ticket_identity: crate::commit_envelope::OperationIdentityV1 {
+                    schema_version: 1,
+                    key: crate::commit_envelope::OperationKeyV1 {
+                        stream_id: stream.clone(),
+                        originator_class:
+                            crate::commit_envelope::OperationOriginatorClassV1::Host,
+                        operation_id: "host:reservation-gate-test".to_owned(),
+                    },
+                    issuance: crate::commit_envelope::OperationIssuanceV1::HostIncarnation {
+                        epoch_id: "host-epoch-reservation-gate-test".to_owned(),
+                        upstream_identity: "reservation-gate-test".to_owned(),
+                        commit_ordinal: 0,
+                        authority_authenticator_digest: format!(
+                            "sha256:{}",
+                            "a".repeat(64)
+                        ),
+                    },
+                    bound_facts: crate::commit_envelope::OperationBoundFactsV1 {
+                        audience: "app-reservation-gate-test".to_owned(),
+                        principal_fingerprint: format!("sha256:{}", "b".repeat(64)),
+                        authority_instance_id: "authority-reservation-gate-test".to_owned(),
+                        operation_kind: "promotion".to_owned(),
+                        function_or_command: "promotion.reserve".to_owned(),
+                        input_fingerprint: format!("sha256:{}", "c".repeat(64)),
+                    },
+                },
+                canonical_stream_id: stream.clone(),
+                branch_id: crate::branches::BranchId("branch-gate-test".to_owned()),
+                fifo_sequence: 1,
+                initial_queue_position: 1,
+                observed_concurrent_forks: 1,
+                rebase_budget: 3,
+                losses: 2,
+                expires_at_ms: i64::MAX,
+                contention_policy:
+                    crate::fork_promotion::PRODUCTION_PROMOTION_CONTENTION_POLICY_V1,
+            },
+        )
+        .expect("serialize production-shaped ticket");
+        db.conn
+            .execute(
+                "INSERT INTO _snapback_promotion_admission(
+                   canonical_stream_id,ticket_id,branch_id,fifo_sequence,
+                   ticket_json,state,losses,reserved_until_ms
+                 ) VALUES(?1,'host:reservation-gate-test','branch-gate-test',1,?2,'queued',2,?3)",
+                params![stream, ticket_json, i64::MAX],
+            )
+            .expect("install active production reservation");
+
+        let host_plan = db
+            .execute_mutation(&insert_plan(), &HandlerInput::default())
+            .expect_err("HostPlan must defer inside its SQLite writer transaction");
+        assert_eq!(host_plan.diagnostic.code, "SNAPBACK_PROMOTION_HEAD_RESERVED");
+        let buffered = db
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "buffered-reserved".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("reserved"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect_err("buffered writer must defer inside its SQLite writer transaction");
+        assert_eq!(buffered.diagnostic.code, "SNAPBACK_PROMOTION_HEAD_RESERVED");
+        assert_eq!(
+            db.scan_table("items", 10, 0).expect("no partial writes").total,
+            0
+        );
+
+        db.conn
+            .execute(
+                "UPDATE _snapback_promotion_admission SET reserved_until_ms=NULL
+                  WHERE ticket_id='host:reservation-gate-test'",
+                [],
+            )
+            .expect("release reservation");
+        assert_eq!(
+            db.execute_mutation(&insert_plan(), &HandlerInput::default())
+                .expect("HostPlan admitted after release")
+                .changes
+                .len(),
+            2
+        );
+        assert_eq!(
+            db.commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "buffered-admitted".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("admitted"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("buffered writer admitted after release")
+            .changes
+            .len(),
+            1
+        );
     }
 
     #[test]

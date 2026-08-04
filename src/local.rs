@@ -6281,7 +6281,7 @@ impl LocalSnapback {
                 "branch-stream-v1:{}",
                 uuid::Uuid::now_v7()
             )),
-            base_stream: "canonical".to_owned(),
+            base_stream: self.db.current_data_version_stream()?,
             base_version: self.db.current_version()?,
             grant: crate::fork_promotion::BranchGrantV1 {
                 principal_id,
