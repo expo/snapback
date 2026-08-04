@@ -5,6 +5,7 @@
         "complete",
         "detail-expired",
         "detail-truncated",
+        "protected-custody-unavailable",
         "journal-expired",
         "authorization-unprovable"
       ],
@@ -80,19 +81,32 @@
       "$ref": "#/$defs/ExplanationDispositionV1"
     },
     "functionOrCommand": {
-      "type": "string"
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "key": {
       "$ref": "#/$defs/OperationKeyV1"
     },
     "operationKind": {
-      "type": "string"
+      "description": "Stored-envelope metadata is omitted when current authorization cannot\nbe proved. The key is retained because it is the caller-supplied exact\nlookup identity, not a projected retained fact.",
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "principalFingerprint": {
-      "type": "string"
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "principalSessionOrInvocationId": {
-      "type": "string"
+      "type": [
+        "string",
+        "null"
+      ]
     },
     "readSetCount": {
       "format": "uint64",
@@ -116,7 +130,14 @@
       "type": "integer"
     },
     "snapshot": {
-      "$ref": "#/$defs/StreamQualifiedVersionV1"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StreamQualifiedVersionV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "writeSetCount": {
       "format": "uint64",
@@ -136,11 +157,6 @@
   "required": [
     "schemaVersion",
     "key",
-    "operationKind",
-    "functionOrCommand",
-    "principalFingerprint",
-    "principalSessionOrInvocationId",
-    "snapshot",
     "disposition"
   ],
   "title": "OperationExplanationV1",

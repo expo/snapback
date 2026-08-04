@@ -531,6 +531,7 @@ pub enum ExplanationDispositionV1 {
     Complete,
     DetailExpired,
     DetailTruncated,
+    ProtectedCustodyUnavailable,
     JournalExpired,
     AuthorizationUnprovable,
 }
@@ -541,11 +542,14 @@ pub struct OperationExplanationV1 {
     #[schemars(range(min = 1, max = 1))]
     pub schema_version: u32,
     pub key: OperationKeyV1,
-    pub operation_kind: String,
-    pub function_or_command: String,
-    pub principal_fingerprint: String,
-    pub principal_session_or_invocation_id: String,
-    pub snapshot: StreamQualifiedVersionV1,
+    /// Stored-envelope metadata is omitted when current authorization cannot
+    /// be proved. The key is retained because it is the caller-supplied exact
+    /// lookup identity, not a projected retained fact.
+    pub operation_kind: Option<String>,
+    pub function_or_command: Option<String>,
+    pub principal_fingerprint: Option<String>,
+    pub principal_session_or_invocation_id: Option<String>,
+    pub snapshot: Option<StreamQualifiedVersionV1>,
     pub disposition: ExplanationDispositionV1,
     /// Withheld for `authorization-unprovable`; an absent digest is never an
     /// empty-set claim.
@@ -554,6 +558,34 @@ pub struct OperationExplanationV1 {
     pub write_set_digest: Option<String>,
     pub write_set_count: Option<u64>,
     pub detail: Option<Value>,
+}
+
+pub(crate) fn operation_explanation_schema_version() -> u32 {
+    1
+}
+
+/// Exact-operation public/admin explanation request. Public transport resolves
+/// `auth` through the normal app-auth middleware; admin transport ignores the
+/// legacy body auth and requires the independent admin credential.
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperationExplanationRequestV1 {
+    #[serde(default = "operation_explanation_schema_version")]
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    #[serde(default)]
+    pub auth: crate::manifest::AuthInput,
+    pub identity: OperationIdentityV1,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authority_descriptor: Option<crate::manifest::AuthorityDescriptor>,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct OperationExplanationResponseV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub explanation: Option<OperationExplanationV1>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

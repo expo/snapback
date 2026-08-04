@@ -5,7 +5,11 @@
 **Systems:** Storage, Deployment, Runtime, Scheduling, Assets, Security, Agent experience, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (v0.15 — F1 implementation record: the local-only
+**Revised:** 2026-08-04 (v0.16 — LLP 0163 protected operation-detail custody
+is now a closed scrub/rotate class: derived forks discard inherited ciphertext,
+mint a distinct owner-only key sidecar, and refuse boot evidence when that
+sidecar is absent; no capability status changes.)
+2026-08-04 (v0.15 — F1 implementation record: the local-only
 partial guide now teaches fork-per-worktree creation, quarantine, bounded diff
 receipts, exact disposal, and explicit nonclaims; the shared headless harness
 has an opt-in fork-instead-of-seed path that preserves parent rows and loads
@@ -28,7 +32,7 @@ and harness ergonomics remain a separately tracked GAP, and no capability is
 advertised by this implementation landing.)
 2026-08-03 (v0.13 — F0a implementation record: the closed
 custody manifest and unknown-schema gate, transactional scrub-and-mint,
-fresh admin/auth/resume sidecars, rotated auth/data/signing authority,
+fresh admin/auth/resume/protected-operation-detail sidecars, rotated auth/data/signing authority,
 S0-S5 local-evidence publication and recovery with minted-sidecar boot
 validation and the 20-point intra-state crash-cut matrix, and fail-loud
 `DenyAll` marker wiring landed together.
@@ -433,7 +437,11 @@ pre-OQ9 language here is identity-neutral) with, at minimum:
   incarnation *and* the data-stream identity (so copied search/resume
   cursors cannot cross instances), give the fork a fresh resume keyring
   and admin token (the keyring and token sidecars are not cloned — that
-  non-inheritance is load-bearing, not incidental), and stamp the fork
+  non-inheritance is load-bearing, not incidental). LLP 0163's encrypted
+  `_snapback_operation_protected_detail_v1` ciphertext is scrubbed with its
+  parent-stream envelopes and the fork mints a fresh owner-only
+  `*.operation-detail-keyring.json`; neither parent ciphertext nor its key
+  crosses the publication boundary. The mint then stamps the fork
   id + fork point. User *records* (`_auth_identities`) stay, as data to
   test against. Beyond credentials, the custody manifest also sweeps
   **non-credential operational residue** the clone carries — search

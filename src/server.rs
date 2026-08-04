@@ -8320,6 +8320,10 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             app_auth_route("POST", "/client-mutations/identity-range"),
             post(issue_operation_identity_range),
         ),
+        RegisteredRoute::new(
+            app_auth_route("POST", "/operations/explain"),
+            post(explain_operation_public),
+        ),
         // The snapshot bundle endpoint (LLP 0090 D1.2 / LLP 0092 §0D):
         // optional credential — anonymous accepted only for read mode against
         // publicInline-class routes; register mode is credentialed-only. The
@@ -8685,6 +8689,16 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
                 ResponseSensitivity::OperatorMetadata,
             ),
             post(purge_client_mutation_settlements),
+        ),
+        RegisteredRoute::new(
+            system_api_route(
+                "POST",
+                "/_snapback/api/operations/explain",
+                RoutePolicy::AdminRead,
+                ResponseSensitivity::SensitiveApplicationData,
+            )
+            .with_session_overlay(SessionModeOverlay::secret_read()),
+            post(explain_operation_admin),
         ),
         // @ref LLP 0024#result-envelope — host ops resolve their per-operation
         // authority after the shared route-level AdminRead floor.
@@ -9552,6 +9566,7 @@ fn registered_invocation_source(spec: RouteSpec) -> Option<InvocationSource> {
         "/client-mutations/acknowledge" | "/client-mutations/identity-range" => {
             Some(InvocationSource::MutationSettlementAcknowledgement)
         }
+        "/operations/explain" => Some(InvocationSource::HttpQuery),
         "/live/authorization-invalidation/acknowledge"
         | "/live/authorization-invalidation/manual-retry" => {
             Some(InvocationSource::InvalidationAcknowledgement)
@@ -19761,6 +19776,70 @@ async fn issue_operation_identity_range(
         crate::commit_envelope::OperationIdentityRangeResponseV1 {
             schema_version: crate::commit_envelope::operation_identity_range_schema_version(),
             range,
+        },
+    ))
+}
+
+async fn explain_operation_public(
+    State(state): State<SharedSnapback>,
+    Extension(authority): Extension<PreparedAuthority>,
+    input: Result<
+        Json<crate::commit_envelope::OperationExplanationRequestV1>,
+        JsonRejection,
+    >,
+) -> Result<Json<crate::commit_envelope::OperationExplanationResponseV1>, ApiError> {
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    if request.schema_version != crate::commit_envelope::operation_explanation_schema_version() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_EXPLANATION_VERSION_UNSUPPORTED",
+            "protocol",
+            "operation explanation request schema version is unsupported",
+        )
+        .into());
+    }
+    let explanation = with_snapback(&state, move |snapback| {
+        snapback.explain_operation_with_authority(
+            &authority,
+            request.authority_descriptor.as_ref(),
+            &request.identity,
+        )
+    })
+    .await?;
+    Ok(Json(
+        crate::commit_envelope::OperationExplanationResponseV1 {
+            schema_version: crate::commit_envelope::operation_explanation_schema_version(),
+            explanation,
+        },
+    ))
+}
+
+async fn explain_operation_admin(
+    State(state): State<SharedSnapback>,
+    State(ctx): State<Arc<ServerContext>>,
+    headers: HeaderMap,
+    input: Result<
+        Json<crate::commit_envelope::OperationExplanationRequestV1>,
+        JsonRejection,
+    >,
+) -> Result<Json<crate::commit_envelope::OperationExplanationResponseV1>, ApiError> {
+    crate::admin::authorize(&ctx, &headers, false)?;
+    let Json(request) = input.map_err(ApiError::from_json_rejection)?;
+    if request.schema_version != crate::commit_envelope::operation_explanation_schema_version() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_EXPLANATION_VERSION_UNSUPPORTED",
+            "protocol",
+            "operation explanation request schema version is unsupported",
+        )
+        .into());
+    }
+    let explanation = with_snapback(&state, move |snapback| {
+        snapback.explain_operation_as_admin(&request.identity)
+    })
+    .await?;
+    Ok(Json(
+        crate::commit_envelope::OperationExplanationResponseV1 {
+            schema_version: crate::commit_envelope::operation_explanation_schema_version(),
+            explanation,
         },
     ))
 }

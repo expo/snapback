@@ -112,6 +112,7 @@ pub(crate) mod membership_rules;
 pub mod migration;
 #[doc(hidden)]
 pub mod migration_presentation;
+pub(crate) mod operation_detail;
 #[doc(hidden)]
 pub mod operation_ledger;
 #[doc(hidden)]
