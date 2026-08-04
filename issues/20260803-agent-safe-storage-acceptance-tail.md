@@ -27,7 +27,7 @@ not authorize capability publication.
 | --- | --- | --- |
 | 1 — atomic envelope | Partial | Carry authenticated issuance on the public ordinary-mutation path, activate a complete target manifest, and run its full crash-cut matrix. |
 | 2 — retry settlement | Partial | Ship range issue/refresh plus atomic client range custody and finish restored-client, recreated-branch, delayed-delivery, host-retry, and exhaustion transport legs. |
-| 3 — provenance/explanation | Partial | Public/admin transport and protected custody are wired. The public lane now revalidates the active artifact, current function/grant/profile policy, derived audience, current and retained historical owners, and every closed fact for exact generated owner create/update envelopes. Complete delete, aggregate/non-row, hand-written/opaque, predicate, membership, effect-bearing, and remaining authorization-change corpus. |
+| 3 — provenance/explanation | Partial | Public/admin transport and protected custody are wired. The public lane now revalidates the active artifact, current function/grant/profile policy, derived audience, current and retained historical owners, and every closed fact for exact generated owner-update envelopes. Generated creates remain unprovable because their private minted-id context is non-empty. Complete create/delete, aggregate/non-row, hand-written/opaque, predicate, membership, effect-bearing, and remaining authorization-change corpus. |
 | 4 — coverage honesty | Partial | Inventory every target writer and enforce the generated writer-token facade plus SQLite authorizer; finish specialized-lane and asymmetric-retention coverage fixtures. |
 | 5 — fork isolation | Partial | F0b and the derived post-fork-parent-write fixture cover the copied-instance leg; managed custody and `branch.execute.v1` run real mutations/actions only on the server-derived current-head workspace. Finish the per-class credential matrix and the multi-operation/atomic-retention carrier. |
 | 6 — effect quarantine | Partial | The managed boot path routes all twelve inventoried local host-egress families through durable payload-free `DenyAll` markers; real branch handlers cover fetch, stream-open, push-send, and transactional job-enqueue initiation. Add the unreachable-after-initiation and remaining maintenance/bypass corpus; implement and prove `CaptureOnly` separately with its intent/settlement ledger. |
@@ -47,7 +47,7 @@ the guide-gap ticket rather than being conflated with this implementation tail.
 ## Dated implementation evidence — 2026-08-04
 
 - Public explanation now has one deliberately narrow positive profile: exact
-  generated `owned-crud.v1` / `owner.v1` create and update HostPlans. A request
+  generated `owned-crud.v1` / `owner.v1` update HostPlans. A request
   must present the current `clientAudienceId`; the server derives the audience
   from it and the live authority incarnation, re-runs current function and
   grant policy, compares the exact active artifact digest, and checks current

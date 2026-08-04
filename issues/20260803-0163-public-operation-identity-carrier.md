@@ -65,7 +65,7 @@ Landed in the explanation/protected-custody slice:
 - current AdminRead policy evaluation and a public lane that resolves the live
   principal/incarnation, derives the current client audience, re-runs live
   function/grant/profile policy, and projects only exact generated
-  `owned-crud.v1` / `owner.v1` create and update envelopes whose active
+  `owned-crud.v1` / `owner.v1` update envelopes whose active
   artifact, current and retained historical owners, and closed
   read/write/context/effect/receipt facts all revalidate (Partial, never an
   authorization claim inferred from identity equality or protected custody);
@@ -117,7 +117,8 @@ Still required before this ticket closes:
 - the remainder of per-fact current-policy evaluation for public explanation:
   delete, aggregate/non-row, hand-written/opaque, predicate, membership,
   effect-bearing, and other unsupported shapes stay fail-closed; the generated
-  owner create/update profile is the only current positive slice;
+  owner-update profile is the only current positive slice; generated creates
+  remain unprovable because their private minted-id context is non-empty;
 - the complete target writer/bypass/asymmetric-retention acceptance corpus;
   and
 - the genuinely paired, baseline-digest-bound active-lane row-13 performance

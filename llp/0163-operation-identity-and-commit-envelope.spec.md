@@ -6,7 +6,7 @@
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
 **Revised:** 2026-08-04 (narrow public owner-policy slice — exact generated
-`owned-crud.v1`/`owner.v1` create and update envelopes can be explained only
+`owned-crud.v1`/`owner.v1` update envelopes can be explained only
 after current function policy, client audience, executable artifact, current
 row, retained historical row, and the complete closed fact set revalidate;
 every other policy/fact shape remains fail-closed, the Spec remains Draft, and
@@ -35,7 +35,7 @@ they can version independently of the profile umbrella)
 LLP 0148, LLP 0162
 
 **Implementation evidence:** 2026-08-04 (the public explanation lane now has a
-narrow exact generated owner create/update evaluator; any artifact drift,
+narrow exact generated owner-update evaluator; any artifact drift,
 principal/incarnation/audience change, current or historical owner divergence,
 permission/query/membership fact, context-answer widening, receipt divergence,
 effect, truncation, or custody failure withholds the whole projection as
@@ -378,7 +378,9 @@ compares the operation audience from the current incarnation plus the caller's
 currently loaded function/schema generation, and re-runs the live
 function/grant/profile policy. It recognizes only the exact generated
 `owned-crud.v1` / `owner.v1` HostPlan create and update shapes. Create requires
-the committed owner postimage to be the current subject. Update additionally
+the committed owner postimage to be the current subject, but generated creates
+also carry a private minted-id context answer and therefore remain unprovable
+under the closed empty-context v1 profile. Update additionally
 requires the captured historical row at the exact read version and the current
 row to have that same owner. The evaluator requires the exact protected
 read/write/context/receipt shapes and an empty effect set; receipt postimage,
@@ -407,7 +409,7 @@ minted sidecar.
 
 | LLP 0162 acceptance row | Status after this slice |
 | --- | --- |
-| 3 | **Partial** — exact public/admin transport and encrypted protected custody are wired. Admin current policy projects the complete retained fact set. Public current-policy projection is green only for the closed generated owner create/update profile; aggregate/non-row, delete, hand-written/opaque, predicate, membership, effect-bearing, and other unsupported shapes remain deliberately fail-closed. |
+| 3 | **Partial** — exact public/admin transport and encrypted protected custody are wired. Admin current policy projects the complete retained fact set. Public current-policy projection is green only for the closed generated owner-update profile; generated creates, aggregate/non-row, delete, hand-written/opaque, predicate, membership, effect-bearing, and other unsupported shapes remain deliberately fail-closed. |
 | 4 | **Partial** — protected-detail retention is independent and fork custody is closed, but complete-target activation/asymmetric-retention acceptance remains open. |
 | 14 | **Partial** — unchanged: promotion is wired, while first-party job/cron/migration/child identities are not yet production-reachable. |
 
