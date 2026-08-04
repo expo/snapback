@@ -200,6 +200,50 @@ fn p2_committed_cloudflare_manifest_matches_the_declared_target() {
 }
 
 #[test]
+fn agent_safe_scaffold_is_missing_for_every_generated_target_projection() {
+    for manifest in [
+        CapabilityManifest::local_v0_declared(),
+        CapabilityManifest::remote_service_sqlite_ibex_declared(),
+        CapabilityManifest::local_v0_outbound_actions_declared(),
+        CapabilityManifest::cloudflare_do_sqlite_v8_declared(),
+    ] {
+        let profile = manifest.target_profile_id.clone();
+        let value = serde_json::to_value(&manifest).expect("serialize target manifest");
+        assert_eq!(value["agentSafe"]["schemaVersion"], "agentSafe.v1");
+        assert_eq!(value["agentSafe"]["target"]["aggregate"]["core"], "Missing");
+        assert_eq!(
+            value["agentSafe"]["appEffective"]["aggregate"]["core"],
+            "Missing"
+        );
+        assert_eq!(
+            value["agentSafe"]["target"]["envelope"]["migration"],
+            "Missing"
+        );
+        assert!(
+            manifest
+                .capability_gaps
+                .iter()
+                .any(|gap| gap == "agent_safe_storage_v1"),
+            "{profile} omitted the aggregate GAP",
+        );
+        assert!(
+            manifest
+                .capability_gaps
+                .iter()
+                .any(|gap| gap == "agent_safe_derived_deployment_fork_v1"),
+            "{profile} omitted the derived-deployment GAP",
+        );
+        assert!(
+            manifest
+                .supported_capabilities
+                .iter()
+                .all(|capability| capability.as_str() != "agent_safe_storage_v1"),
+            "{profile} advertised support before publication",
+        );
+    }
+}
+
+#[test]
 fn p2_live_inspect_manifest_matches_committed_modulo_instance_fields() {
     let mut snapback = LocalSnapback::memory().expect("memory snapback");
     let inspect = snapback.inspect().expect("inspect");

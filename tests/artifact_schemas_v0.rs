@@ -3220,6 +3220,29 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     );
 }
 
+#[test]
+fn agent_safe_capability_schema_rejects_axis_and_extension_tampering() {
+    let mut manifest =
+        serde_json::to_value(CapabilityManifest::local_v0_declared()).expect("manifest JSON");
+    assert_validates("capability.manifest.schema.json", &manifest);
+
+    manifest["agentSafe"]["target"]["forks"]["inApp"]["egress"] = json!({
+        "DenyAll": true,
+        "CaptureOnly": true,
+    });
+    assert_rejects("capability.manifest.schema.json", &manifest);
+
+    let mut unknown =
+        serde_json::to_value(CapabilityManifest::local_v0_declared()).expect("manifest JSON");
+    unknown["agentSafe"]["target"]["aggregate"]["inventedTier"] = json!("Supported");
+    assert_rejects("capability.manifest.schema.json", &unknown);
+
+    let mut version =
+        serde_json::to_value(CapabilityManifest::local_v0_declared()).expect("manifest JSON");
+    version["agentSafe"]["schemaVersion"] = json!("agentSafe.v2");
+    assert_rejects("capability.manifest.schema.json", &version);
+}
+
 const GENERATED_BACKENDS: [&str; 7] = [
     "demos/todo/snapback/generated",
     "demos/todo-v2/snapback/generated",
