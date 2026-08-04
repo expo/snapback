@@ -15,6 +15,7 @@ import {
   outboxOps,
   pendingAcknowledgementsFor,
   pendingOutboxRecords,
+  unresolvedOutboxRecords,
 } from './outbox-shared.mjs';
 import {
   prepareReactBindingReceipt,
@@ -133,7 +134,7 @@ export function createMemoryRqsResumeStore({
     async outboxEmpty() {
       requireOpen();
       if (relaunchOutboxEmpty !== null && (await relaunchOutboxEmpty()) !== true) return false;
-      return pendingOutboxRecords(state.outbox).length === 0;
+      return unresolvedOutboxRecords(state.outbox).length === 0;
     },
 
     async loadReactBindingReceipt() {
@@ -394,6 +395,13 @@ export function createMemoryRqsResumeStore({
       return applied.result;
     },
 
+    async outboxMarkResultGone(id, resultGone) {
+      if (!requireWriter()) return false;
+      const applied = outboxOps.markResultGone(state.outbox, id, resultGone);
+      state.outbox = applied.state;
+      return structuredClone(applied.result);
+    },
+
     async outboxDiscard(id) {
       if (!requireWriter()) return false;
       const applied = outboxOps.discard(state.outbox, id);
@@ -439,6 +447,8 @@ export function createMemoryRqsResumeStore({
         outbox: Object.freeze({
           pending: pendingOutboxRecords(state.outbox).length,
           failed: allOutboxRecords(state.outbox).filter((r) => r.status === 'failed').length,
+          resultGone: allOutboxRecords(state.outbox)
+            .filter((r) => r.status === 'result-gone').length,
           pendingAcknowledgements: state.outbox.acks.length,
         }),
       });

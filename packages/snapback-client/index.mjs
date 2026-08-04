@@ -5968,7 +5968,8 @@ export class SnapbackClient {
       && typeof store.outboxPrepareSubmission === 'function'
       && typeof store.outboxRecords === 'function'
       && typeof store.outboxMarkAcknowledgementsReady === 'function'
-      && typeof store.outboxDurablyConsume === 'function';
+      && typeof store.outboxDurablyConsume === 'function'
+      && typeof store.outboxMarkResultGone === 'function';
     if (!capable) {
       return fail(
         'SNAPBACK_OFFLINE_QUEUE_STORE_INCAPABLE',
@@ -6010,10 +6011,17 @@ export class SnapbackClient {
     let store = null;
     try { store = this.#offlineQueueStore(); } catch { store = null; }
     if (!store) {
-      return Object.freeze({ supported: false, pending: 0, failed: 0, replaying: false });
+      return Object.freeze({
+        supported: false,
+        pending: 0,
+        failed: 0,
+        resultGone: 0,
+        replaying: false,
+      });
     }
     let pending = 0;
     let failed = 0;
+    let resultGone = 0;
     try {
       const records = typeof store.outboxRecords === 'function'
         ? await store.outboxRecords()
@@ -6021,12 +6029,14 @@ export class SnapbackClient {
       for (const record of records) {
         if (record?.status === 'failed') failed += 1;
         else if (record?.status === 'pending') pending += 1;
+        else if (record?.status === 'result-gone') resultGone += 1;
       }
     } catch { /* counts stay zero; the store remains the authority */ }
     return Object.freeze({
       supported: true,
       pending,
       failed,
+      resultGone,
       replaying: this.__outboxReplayTask !== null,
     });
   }
@@ -6419,6 +6429,31 @@ export class SnapbackClient {
           break;
         }
         if (isOperationResultExpiredError(error)) {
+          let retained;
+          try {
+            retained = await store.outboxMarkResultGone(record.id, {
+              outcome: operationOutcomeFromError(error),
+              receiptDigest: error?.diagnostic?.details?.receiptDigest,
+            });
+          } catch (custodyError) {
+            stopped = true;
+            this.#recordOutboxDiagnostic({
+              code: custodyError?.code ?? 'SNAPBACK_OUTBOX_RESULT_GONE_NOT_DURABLE',
+              mutation: record.function,
+              clientMutationId: record.id,
+              reason: custodyError?.message ?? String(custodyError),
+            });
+            break;
+          }
+          if (!retained) {
+            stopped = true;
+            this.#recordOutboxDiagnostic({
+              code: 'SNAPBACK_OUTBOX_RESULT_GONE_NOT_DURABLE',
+              mutation: record.function,
+              clientMutationId: record.id,
+            });
+            break;
+          }
           stopped = true;
           this.#recordOutboxDiagnostic({
             code: 'SNAPBACK_OFFLINE_MUTATION_RESULT_EXPIRED',
@@ -6469,7 +6504,10 @@ export class SnapbackClient {
     }
     let remaining = 0;
     try {
-      remaining = (await store.outboxPending()).length;
+      remaining = (await store.outboxRecords())
+        .filter((record) => (
+          record?.status === 'pending' || record?.status === 'result-gone'
+        )).length;
     } catch { /* inspection only */ }
     return { replayed, failed, remaining, stopped };
   }
@@ -6840,6 +6878,27 @@ export class SnapbackClient {
           if (isOperationResultExpiredError(error)) {
             error.operationOutcome = operationOutcomeFromError(error);
             error.operationResult = 'expired';
+            if (durableOnlineRecord) {
+              let retained;
+              try {
+                retained = await queueStore.outboxMarkResultGone(clientMutationId, {
+                  outcome: error.operationOutcome,
+                  receiptDigest: error?.diagnostic?.details?.receiptDigest,
+                });
+              } catch (custodyError) {
+                custodyError.outboxSettlementPersistenceFailure = true;
+                throw custodyError;
+              }
+              if (!retained) {
+                const custodyError = new Error(
+                  'SNAPBACK_OUTBOX_RESULT_GONE_NOT_DURABLE: result-expired state lost its outbox record',
+                );
+                custodyError.code = 'SNAPBACK_OUTBOX_RESULT_GONE_NOT_DURABLE';
+                custodyError.outboxSettlementPersistenceFailure = true;
+                throw custodyError;
+              }
+              this.#notifyOutboxListeners();
+            }
             this.#recordOutboxDiagnostic({
               code: 'SNAPBACK_OFFLINE_MUTATION_RESULT_EXPIRED',
               mutation: name,

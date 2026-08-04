@@ -5,7 +5,14 @@
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (writer-inventory activation tail — the local target
+**Revised:** 2026-08-04 (identity lifecycle/public carrier tail —
+outcome-known/payload-gone is now a distinct durable `result-gone` outbox
+state across all three stores, exact terminal-fact retry is idempotent while
+divergence refuses, a recreated file-backed client never redelivers it, and
+the real host-child writer covers retry, bounded capacity, client-purge
+isolation, authority rotation, and delayed first delivery; branch recreation,
+performance, review, and publication remain open, so the Spec stays Draft and
+capabilities stay Missing); 2026-08-04 (writer-inventory activation tail — the local target
 now has 23 individually named physical writer families, stable executable
 exclusion reasons instead of a grouped specialized row, fail-closed armed
 refusal for every non-envelope app writer, and one production storage cut that
@@ -60,7 +67,14 @@ they can version independently of the profile umbrella)
 **Related:** LLP 0012, LLP 0037, LLP 0043, LLP 0055, LLP 0095, LLP 0133,
 LLP 0148, LLP 0162
 
-**Implementation evidence:** 2026-08-04 (the local target inventory names 23
+**Implementation evidence:** 2026-08-04 (memory, IndexedDB, and file outboxes
+persist a fourth `result-gone` state before surfacing a result-expired error;
+equal outcome/digest replay is idempotent, divergent custody refuses, ordered
+successors remain fenced until explicit discard, and file close/recreate never
+redelivers; the production host-child adapter additionally proves exact retry
+under full custody, novel capacity refusal, survival across client operator
+purge and authority rotation, and retired-epoch delayed-first-delivery refusal);
+2026-08-04 (the local target inventory names 23
 physical writer families; only the four ordinary/host adapters lack an
 exclusion reason and each maps to the authenticated envelope seam, while
 schema, migration, reset/seed, membership, projection rebuild, and strict
@@ -453,17 +467,37 @@ also proves an unacknowledged first result refuses a second operation without
 evicting exact replay.
 
 The JavaScript outbox distinguishes `result-expired` from a failed operation
-and `identity-horizon-passed` from any terminal result. The former carries the
-known operation outcome and expired-result disposition; the latter carries
-outcome unknown. Both retain the durable head as pending and stop ordered
-replay, so no dependent crosses while a settlement payload is unavailable and
-neither case is mislabeled as a failed committed operation. HTTP maps
-result-expired to 410 and the identity horizon/stored-refusal classes to 409.
+and `identity-horizon-passed` from any terminal result. Before a
+result-expired error is surfaced, memory, IndexedDB, and file stores atomically
+move the pending record to the durable fourth state `result-gone`, retaining
+the known outcome and receipt digest. Equal terminal facts are idempotent;
+different outcome or digest refuses as divergent custody. `result-gone` never
+re-enters transport, keeps later ordered submissions fenced until explicit
+discard, and is projected separately by `outboxStatus` and the React outbox
+binding. A file-backed client closed and recreated over the same store restores
+that state without a network delivery. Identity-horizon-passed remains pending
+and outcome unknown. HTTP
+maps result-expired to 410 and the identity horizon/stored-refusal classes to
+409.
+
+The production host-child HostPlan adapter now exercises the same lifecycle
+with server-issued host-incarnation identities. Exact retry returns the
+retained result while one-entry settlement custody is full; a novel child
+refuses without writing. Client operator purge removes predecessor full-result
+custody but leaves the Host suppression record authoritative, so exact replay
+still returns without dispatch. After a durable host-incarnation rotation,
+that settled retry remains replayable while a delayed first delivery under the
+retired epoch refuses the no-longer-live server issuance before any write.
+
+| LLP 0162 acceptance row | Status after this tail |
+| --- | --- |
+| 1 | **Partial** — durable client result-gone custody and production host retry/capacity/purge/rotation cuts are green; complete named-target and migration/cross-lane acceptance remains open. |
+| 2 | **Partial** — file-backed client recreation does not redeliver result-gone work, and retired-authority delayed Host delivery refuses before dispatch; recreated-branch and complete cross-arm lifecycle corpus remain open. |
+| 14 | **Partial** — host child current-authority, retry, capacity, and purge isolation are exercised through the real writer; remaining first-party/cross-lane and publication gates stay open. |
 
 This closes additional LLP 0162 rows 1, 2, and 14 corpus cells but does not
-activate a production coverage manifest. A distinct durable outbox
-outcome-known/result-gone state, recreated-branch end-to-end corpus, migration
-host adapter, complete target writer inventory, active-lane paired performance,
+activate a production coverage manifest. Recreated-branch end-to-end corpus,
+migration/cross-lane retention closure, active-lane paired performance,
 independent review, and named-author acceptance remain open. This Spec remains
 Draft and every related capability remains `Missing`.
 

@@ -25894,6 +25894,190 @@ mod guarded_commit_tests {
     }
 
     #[test]
+    fn llp0163_host_retry_capacity_purge_and_rotation_use_the_real_writer() {
+        use crate::commit_envelope::{
+            IdentityEpochStateV1, IdentityEpochV1, OperationIssuanceV1,
+            OperationOriginatorClassV1,
+        };
+
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema()).expect("apply writer fixture schema");
+        db.install_operation_coverage_for_test(
+            vec![crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned()],
+            crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1
+                .iter()
+                .map(|writer| (*writer).to_owned())
+                .collect(),
+        )
+        .expect("activate the production host-child writer lane");
+
+        let authority = TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID;
+        let issued_at_ms = now_millis();
+        let first_upstream = "job:host-lifecycle-first";
+        let first_issuance = db
+            .host_operation_issuance(authority, first_upstream, 0, issued_at_ms)
+            .expect("server-issued host identity");
+        let input = HandlerInput::default();
+        let first = ClientMutationIdentity::for_authority(
+            crate::commit_envelope::derive_host_operation_id(first_upstream, 0),
+            "items.insert",
+            &input,
+            authority,
+        )
+        .with_operation_issuance(first_issuance.clone());
+        let second_upstream = "job:host-lifecycle-delayed";
+        let second = ClientMutationIdentity::for_authority(
+            crate::commit_envelope::derive_host_operation_id(second_upstream, 0),
+            "items.insert",
+            &input,
+            authority,
+        )
+        .with_operation_issuance(match &first_issuance {
+            OperationIssuanceV1::HostIncarnation {
+                epoch_id,
+                authority_authenticator_digest,
+                ..
+            } => OperationIssuanceV1::HostIncarnation {
+                epoch_id: epoch_id.clone(),
+                upstream_identity: second_upstream.to_owned(),
+                commit_ordinal: 0,
+                authority_authenticator_digest: authority_authenticator_digest.clone(),
+            },
+            OperationIssuanceV1::ClientRange { .. } => {
+                panic!("host issuance must be range-less")
+            }
+        });
+
+        let limits = TestRetentionLimits::install(1, u64::MAX);
+        let committed = db
+            .execute_host_mutation_guarded(
+                &insert_plan(),
+                &input,
+                Some(&first),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("first host child fills bounded settlement custody");
+        let exact_retry = db
+            .execute_host_mutation_guarded(
+                &insert_plan(),
+                &input,
+                Some(&first),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("exact host retry survives full custody");
+        assert!(exact_retry.changes.is_empty());
+        assert_eq!(exact_retry.output, committed.output);
+        let full = db
+            .execute_host_mutation_guarded(
+                &insert_plan(),
+                &input,
+                Some(&second),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect_err("full custody refuses a novel host operation");
+        assert_eq!(
+            full.diagnostic.code,
+            "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
+        );
+        assert_eq!(
+            db.scan_table("items", 10, 0).expect("only one host plan ran").total,
+            2
+        );
+        drop(limits);
+
+        assert_eq!(
+            db.purge_client_mutation_settlements(Some(&first.auth_fingerprint))
+                .expect("operator purge removes predecessor full-result custody"),
+            1
+        );
+        let replay_after_purge = db
+            .execute_host_mutation_guarded(
+                &insert_plan(),
+                &input,
+                Some(&first),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("host suppression is not selected by client operator purge");
+        assert!(replay_after_purge.changes.is_empty());
+        assert_eq!(replay_after_purge.output, committed.output);
+
+        let (audience, retired_epoch_id, retired_sequence): (String, String, u64) = db
+            .conn
+            .query_row(
+                "SELECT audience,epoch_id,epoch_sequence
+                   FROM _snapback_operation_epochs_v1
+                  WHERE originator_class='host' AND authority_instance_id=?1
+                    AND state='open'",
+                [authority],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        u64::try_from(row.get::<_, i64>(2)?).expect("nonnegative sequence"),
+                    ))
+                },
+            )
+            .expect("current host incarnation");
+        let rotated_at_ms = issued_at_ms.saturating_add(1);
+        let successor_authority =
+            crate::ids::mint_time_ordered(crate::ids::Kind::AuthorityInstance);
+        let tx = db.conn.transaction().expect("host incarnation rotation");
+        crate::operation_ledger::rotate_host_incarnation_in(
+            &tx,
+            &audience,
+            &retired_epoch_id,
+            &IdentityEpochV1 {
+                schema_version: 1,
+                originator_class: OperationOriginatorClassV1::Host,
+                audience: audience.clone(),
+                authority_instance_id: successor_authority,
+                epoch_id: "host-epoch-lifecycle-2".to_owned(),
+                epoch_sequence: retired_sequence + 1,
+                state: IdentityEpochStateV1::Open,
+                issued_at_ms: rotated_at_ms,
+                terminated_at_ms: None,
+                authority_authenticator_digest: format!("sha256:{}", "e".repeat(64)),
+            },
+            rotated_at_ms,
+        )
+        .expect("rotate to a distinct server authority");
+        tx.commit().expect("commit host incarnation rotation");
+
+        let replay_after_rotation = db
+            .execute_host_mutation_guarded(
+                &insert_plan(),
+                &input,
+                Some(&first),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("settled retry remains replayable after authority rotation");
+        assert!(replay_after_rotation.changes.is_empty());
+        assert_eq!(replay_after_rotation.output, committed.output);
+        let delayed = db
+            .execute_host_mutation_guarded(
+                &insert_plan(),
+                &input,
+                Some(&second),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect_err("delayed first delivery under the retired authority must refuse");
+        assert_eq!(
+            delayed.diagnostic.code,
+            "SNAPBACK_OPERATION_ISSUANCE_AUTH_INVALID"
+        );
+        assert_eq!(
+            db.scan_table("items", 10, 0).expect("no delayed host write").total,
+            2
+        );
+    }
+
+    #[test]
     fn llp0162_sqlite_writer_authority_denies_bypass_and_projects_effective_gaps() {
         fn authorization_denied(error: &rusqlite::Error) -> bool {
             matches!(

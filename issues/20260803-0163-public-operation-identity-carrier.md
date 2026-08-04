@@ -2,9 +2,10 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (LLP 0163 durable storage slice)
-**Updated:** 2026-08-04 (closed 23-family local writer inventory, executable
-armed exclusions, and exact four-adapter production activation cut; the cut
-remains uninvoked pending performance, review, and author acceptance)
+**Updated:** 2026-08-04 (durable result-gone client custody plus recreated-
+client and real host-writer retry/capacity/purge/rotation lifecycle corpus;
+coverage remains dormant pending the remaining branch, cross-lane,
+performance, review, and author-acceptance gates)
 **Systems:** Sync, Client integration, Storage, Jobs, Migrations, Testing
 **Related:** LLP 0043, LLP 0133, LLP 0162, LLP 0163
 
@@ -284,16 +285,25 @@ Still required before this ticket closes:
   active client stream/originator partition; same-text retired-stream client
   and current-stream host identities with divergent principals survive.
 - The JS outbox never mark-fails a committed result whose payload expired and
-  never terminalizes an outcome-unknown horizon response. It retains the head,
-  stops ordered replay, blocks successors, and projects the known/unknown
-  operation outcome on the thrown error. Focused full outbox corpus is green.
+  never terminalizes an outcome-unknown horizon response. Result-expired first
+  becomes a durable fourth `result-gone` state across memory, IndexedDB, and
+  file stores, retaining outcome and receipt digest; equal retry is idempotent
+  and divergent terminal custody refuses. It leaves the transport-pending
+  set, stops ordered replay, blocks successors until explicit discard, and is
+  projected separately by `outboxStatus` and the React outbox binding. A
+  recreated file-backed client restores it without redelivery. Focused full
+  outbox corpus is green.
+- A server-issued Host child passes through the production HostPlan writer:
+  exact retry survives full one-entry custody, a novel child refuses before
+  writing, client operator purge preserves the Host suppression result, and
+  exact settled retry survives authority rotation while delayed first delivery
+  under the retired epoch refuses before dispatch.
 
 This is additional Partial evidence only. Production coverage remains dormant;
-the complete migration writer/asymmetric-retention proof, recreated-branch end-to-end lifecycle corpus,
-complete target writer/bypass inventory, distinct durable result-gone outbox
-state, fixed-Air active/idle/retention performance artifact, independent
-review, and author acceptance remain required. LLP 0163 remains Draft and all
-related capabilities remain `Missing`.
+the complete migration/cross-lane asymmetric-retention proof, recreated-branch
+end-to-end lifecycle corpus, fixed-Air active/idle/retention performance
+artifact, independent review, and author acceptance remain required. LLP 0163
+remains Draft and all related capabilities remain `Missing`.
 
 ## Public current-policy tail evidence — 2026-08-04
 
