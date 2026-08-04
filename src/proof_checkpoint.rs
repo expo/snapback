@@ -27,6 +27,7 @@ const HISTORY_POLICY_TABLE: &str = "_snapback_history_policies_v1";
 const RECORD_HISTORY_TABLE: &str = "_snapback_record_history_v1";
 const CHECKPOINT_SENTINEL: &str = ".snapback-checkpoint-staging.v1";
 const CHECKPOINT_RECEIPT_FILE: &str = "checkpoint-receipt.v1.json";
+const CHECKPOINT_INTENT_FILE: &str = "checkpoint-intent.v1.json";
 pub const CHECKPOINT_MAX_COPY_BYTES: u64 = 64 * 1024 * 1024 * 1024;
 pub const CHECKPOINT_MAX_RETAINED_WAL_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 pub const CHECKPOINT_MAX_LEASE_MS: u64 = 30 * 24 * 60 * 60 * 1_000;
@@ -38,6 +39,9 @@ pub const HISTORY_PAGE_MAX: u32 = 1_000;
 thread_local! {
     static CHECKPOINT_AFTER_PIN_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
         const { std::cell::RefCell::new(None) };
+    static CHECKPOINT_SYNC_HOOK: std::cell::RefCell<
+        Option<Box<dyn FnOnce(&Path) -> SnapbackResult<()>>>
+    > = const { std::cell::RefCell::new(None) };
 }
 
 #[cfg(test)]
@@ -55,6 +59,25 @@ fn run_checkpoint_after_pin_hook() {
             hook();
         }
     });
+}
+
+#[cfg(test)]
+fn install_checkpoint_sync_hook(hook: impl FnOnce(&Path) -> SnapbackResult<()> + 'static) {
+    CHECKPOINT_SYNC_HOOK.with(|slot| {
+        assert!(slot.borrow().is_none(), "checkpoint sync hook is one-shot");
+        *slot.borrow_mut() = Some(Box::new(hook));
+    });
+}
+
+fn run_checkpoint_sync_hook(path: &Path) -> SnapbackResult<()> {
+    #[cfg(test)]
+    CHECKPOINT_SYNC_HOOK.with(|slot| -> SnapbackResult<()> {
+        if let Some(hook) = slot.borrow_mut().take() {
+            hook(path)?;
+        }
+        Ok(())
+    })?;
+    Ok(())
 }
 
 fn proof_error(code: &'static str, message: impl Into<String>) -> SnapbackError {
@@ -507,6 +530,28 @@ pub struct NamedCheckpointRequestV1 {
     pub max_retained_wal_bytes: u64,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct CheckpointRecoveryIntentV1 {
+    format_version: u32,
+    checkpoint_id: String,
+    label: String,
+    operation_id: String,
+    owner: String,
+    location_class: String,
+    substrate: CheckpointSubstrateV1,
+    source_stream_id: String,
+    source_version: u64,
+    schema_hash: String,
+    coverage_manifest_digest: String,
+    created_at_ms: u64,
+    lease_expires_at_ms: u64,
+    max_copy_bytes: u64,
+    max_retained_wal_bytes: u64,
+    destination: Option<String>,
+    database_file_name: String,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct NamedCheckpointReceiptV1 {
@@ -594,6 +639,7 @@ pub(crate) fn create_infra(conn: &Connection) -> SnapbackResult<()> {
            operation_id TEXT NOT NULL UNIQUE,
            state TEXT NOT NULL,
            record_json TEXT NOT NULL,
+           intent_json TEXT,
            updated_at_ms INTEGER NOT NULL
          );
          CREATE TABLE IF NOT EXISTS {HISTORY_POLICY_TABLE} (
@@ -616,6 +662,22 @@ pub(crate) fn create_infra(conn: &Connection) -> SnapbackResult<()> {
          CREATE INDEX IF NOT EXISTS _snapback_record_history_v1_by_age
            ON {RECORD_HISTORY_TABLE}(table_name,changed_at_ms,version,id);"
     ))?;
+    let has_intent: bool = conn.query_row(
+        &format!(
+            "SELECT EXISTS(
+               SELECT 1 FROM pragma_table_info('{CHECKPOINT_REGISTRY_TABLE}')
+               WHERE name='intent_json'
+             )"
+        ),
+        [],
+        |row| row.get(0),
+    )?;
+    if !has_intent {
+        conn.execute(
+            &format!("ALTER TABLE {CHECKPOINT_REGISTRY_TABLE} ADD COLUMN intent_json TEXT"),
+            [],
+        )?;
+    }
     Ok(())
 }
 
@@ -882,7 +944,7 @@ fn checkpoint_header(
     checkpoint_id: &str,
     source_stream_id: &str,
     source_version: u64,
-    schema: &SchemaManifest,
+    schema_hash: &str,
     coverage_manifest_digest: &str,
 ) -> CheckpointDigestHeaderV1 {
     CheckpointDigestHeaderV1 {
@@ -890,9 +952,22 @@ fn checkpoint_header(
         checkpoint_id: checkpoint_id.to_owned(),
         source_stream_id: source_stream_id.to_owned(),
         source_version,
-        schema_hash: schema.schema_hash.clone().unwrap_or_default(),
+        schema_hash: schema_hash.to_owned(),
         coverage_manifest_digest: coverage_manifest_digest.to_owned(),
     }
+}
+
+fn required_checkpoint_schema_hash(schema: &SchemaManifest) -> SnapbackResult<&str> {
+    schema
+        .schema_hash
+        .as_deref()
+        .filter(|hash| !hash.trim().is_empty())
+        .ok_or_else(|| {
+            proof_error(
+                "SNAPBACK_CHECKPOINT_SCHEMA_IDENTITY_MISSING",
+                "checkpoint creation requires a non-empty schema identity",
+            )
+        })
 }
 
 fn validate_checkpoint_request(request: &NamedCheckpointRequestV1) -> SnapbackResult<()> {
@@ -929,6 +1004,7 @@ fn io_error(context: &'static str, error: std::io::Error) -> SnapbackError {
 }
 
 fn sync_directory(path: &Path) -> SnapbackResult<()> {
+    run_checkpoint_sync_hook(path)?;
     File::open(path)
         .and_then(|file| file.sync_all())
         .map_err(|error| io_error("sync checkpoint directory", error))
@@ -1018,6 +1094,53 @@ fn registry_record_by_operation(
         .transpose()
 }
 
+fn registry_intent(
+    conn: &Connection,
+    checkpoint_id: &str,
+) -> SnapbackResult<Option<CheckpointRecoveryIntentV1>> {
+    let encoded = conn
+        .query_row(
+            &format!("SELECT intent_json FROM {CHECKPOINT_REGISTRY_TABLE} WHERE checkpoint_id=?1"),
+            [checkpoint_id],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .optional()?
+        .flatten();
+    encoded
+        .map(|encoded| {
+            serde_json::from_str(&encoded).map_err(|_| {
+                proof_error(
+                    "SNAPBACK_CHECKPOINT_REGISTRY_CORRUPT",
+                    "checkpoint registry intent is malformed",
+                )
+            })
+        })
+        .transpose()
+}
+
+fn save_registry_intent(
+    conn: &Connection,
+    intent: &CheckpointRecoveryIntentV1,
+) -> SnapbackResult<()> {
+    let encoded = serde_json::to_string(intent).map_err(|_| {
+        proof_error(
+            "SNAPBACK_CHECKPOINT_REGISTRY_CORRUPT",
+            "checkpoint registry intent could not be encoded",
+        )
+    })?;
+    let changed = conn.execute(
+        &format!("UPDATE {CHECKPOINT_REGISTRY_TABLE} SET intent_json=?1 WHERE checkpoint_id=?2"),
+        params![encoded, intent.checkpoint_id],
+    )?;
+    if changed != 1 {
+        return Err(proof_error(
+            "SNAPBACK_CHECKPOINT_REGISTRY_CORRUPT",
+            "checkpoint registry intent has no owning record",
+        ));
+    }
+    Ok(())
+}
+
 fn save_registry_record(
     conn: &Connection,
     record: &CheckpointRegistryRecordV1,
@@ -1079,7 +1202,7 @@ fn placeholder_receipt(
     request: &NamedCheckpointRequestV1,
     source_stream_id: &str,
     source_version: u64,
-    schema: &SchemaManifest,
+    schema_hash: &str,
 ) -> NamedCheckpointReceiptV1 {
     let empty = BoundaryDigestV1 {
         domain: BoundaryDomainV1::Checkpoint,
@@ -1098,7 +1221,7 @@ fn placeholder_receipt(
         substrate: request.substrate,
         source_stream_id: source_stream_id.to_owned(),
         source_version,
-        schema_hash: schema.schema_hash.clone().unwrap_or_default(),
+        schema_hash: schema_hash.to_owned(),
         coverage_manifest_digest: request.coverage_manifest_digest.clone(),
         proof_class: ProofClassV1::Inventory,
         source_digest: empty,
@@ -1108,6 +1231,40 @@ fn placeholder_receipt(
         lease_expires_at_ms: request.lease_expires_at_ms,
         copied_bytes: 0,
         peak_retained_wal_bytes: 0,
+    }
+}
+
+fn checkpoint_recovery_intent(
+    checkpoint_id: &str,
+    request: &NamedCheckpointRequestV1,
+    source_stream_id: &str,
+    source_version: u64,
+    schema_hash: &str,
+    destination: Option<&Path>,
+    source_database: &Path,
+) -> CheckpointRecoveryIntentV1 {
+    CheckpointRecoveryIntentV1 {
+        format_version: 1,
+        checkpoint_id: checkpoint_id.to_owned(),
+        label: request.label.clone(),
+        operation_id: request.operation_id.clone(),
+        owner: request.owner.clone(),
+        location_class: request.location_class.clone(),
+        substrate: request.substrate,
+        source_stream_id: source_stream_id.to_owned(),
+        source_version,
+        schema_hash: schema_hash.to_owned(),
+        coverage_manifest_digest: request.coverage_manifest_digest.clone(),
+        created_at_ms: request.now_ms,
+        lease_expires_at_ms: request.lease_expires_at_ms,
+        max_copy_bytes: request.max_copy_bytes,
+        max_retained_wal_bytes: request.max_retained_wal_bytes,
+        destination: destination.map(|path| path.to_string_lossy().into_owned()),
+        database_file_name: source_database
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default()
+            .to_owned(),
     }
 }
 
@@ -1127,13 +1284,14 @@ fn create_named_checkpoint_inner(
     cut_at: Option<CheckpointPublicationCut>,
 ) -> SnapbackResult<NamedCheckpointReceiptV1> {
     validate_checkpoint_request(request)?;
+    let schema_hash = required_checkpoint_schema_hash(schema)?;
     let (source_stream_id, source_version) = current_source_facts(conn)?;
     let checkpoint_id = format!("checkpoint-v1:{}", Uuid::now_v7());
     let header = checkpoint_header(
         &checkpoint_id,
         &source_stream_id,
         source_version,
-        schema,
+        schema_hash,
         &request.coverage_manifest_digest,
     );
 
@@ -1190,7 +1348,7 @@ fn create_named_checkpoint_inner(
                 request,
                 &source_stream_id,
                 source_version,
-                schema,
+                schema_hash,
             )
         };
         save_registry_record(
@@ -1203,6 +1361,18 @@ fn create_named_checkpoint_inner(
                 updated_at_ms: request.now_ms,
                 open_erasure_obligation: false,
             },
+        )?;
+        save_registry_intent(
+            conn,
+            &checkpoint_recovery_intent(
+                &checkpoint_id,
+                request,
+                &source_stream_id,
+                source_version,
+                schema_hash,
+                None,
+                source_database,
+            ),
         )?;
         return Ok(receipt);
     }
@@ -1246,7 +1416,7 @@ fn create_named_checkpoint_inner(
         request,
         &source_stream_id,
         source_version,
-        schema,
+        schema_hash,
     );
     save_registry_record(
         conn,
@@ -1259,6 +1429,16 @@ fn create_named_checkpoint_inner(
             open_erasure_obligation: false,
         },
     )?;
+    let recovery_intent = checkpoint_recovery_intent(
+        &checkpoint_id,
+        request,
+        &source_stream_id,
+        source_version,
+        schema_hash,
+        Some(destination),
+        source_database,
+    );
+    save_registry_intent(conn, &recovery_intent)?;
     maybe_cut(cut_at, CheckpointPublicationCut::AfterRegistryIntent)?;
     fs::create_dir(&staging).map_err(|error| io_error("create checkpoint staging", error))?;
     File::create(staging.join(CHECKPOINT_SENTINEL))
@@ -1368,9 +1548,10 @@ fn create_named_checkpoint_inner(
             request,
             &source_stream_id,
             source_version,
-            schema,
+            schema_hash,
         )
     };
+    write_json_sync(&staging.join(CHECKPOINT_INTENT_FILE), &recovery_intent)?;
     write_json_sync(&staging.join(CHECKPOINT_RECEIPT_FILE), &receipt)?;
     File::open(&staging_database)
         .and_then(|file| file.sync_all())
@@ -1453,8 +1634,10 @@ pub(crate) fn inspect_checkpoint(
     }
     if let Some(destination) = &record.destination {
         let destination = Path::new(destination);
-        if destination.join(CHECKPOINT_SENTINEL).exists()
-            || !destination.join(CHECKPOINT_RECEIPT_FILE).is_file()
+        if !is_directory_without_symlink(destination)
+            || destination.join(CHECKPOINT_SENTINEL).exists()
+            || !is_regular_file_without_symlink(&destination.join(CHECKPOINT_RECEIPT_FILE))
+            || !is_regular_file_without_symlink(&destination.join(CHECKPOINT_INTENT_FILE))
         {
             return Err(proof_error(
                 "SNAPBACK_CHECKPOINT_INCOMPLETE",
@@ -1520,6 +1703,130 @@ fn erase_checkpoint_with(
     Ok(record)
 }
 
+fn is_regular_file_without_symlink(path: &Path) -> bool {
+    fs::symlink_metadata(path).is_ok_and(|metadata| metadata.file_type().is_file())
+}
+
+fn is_directory_without_symlink(path: &Path) -> bool {
+    fs::symlink_metadata(path).is_ok_and(|metadata| metadata.file_type().is_dir())
+}
+
+fn recovery_evidence_matches_intent(
+    record: &CheckpointRegistryRecordV1,
+    intent: &CheckpointRecoveryIntentV1,
+    destination: &Path,
+    receipt: &NamedCheckpointReceiptV1,
+) -> bool {
+    let registered = &record.receipt;
+    let destination = destination.to_string_lossy();
+    let database_name = Path::new(&intent.database_file_name);
+    let database_path = destination.as_ref();
+    let database_path = Path::new(database_path).join(database_name);
+    intent.format_version == 1
+        && intent.checkpoint_id == registered.checkpoint_id
+        && intent.label == registered.label
+        && intent.operation_id == registered.operation_id
+        && intent.owner == registered.owner
+        && intent.location_class == registered.location_class
+        && intent.substrate == CheckpointSubstrateV1::Materialized
+        && intent.substrate == registered.substrate
+        && intent.source_stream_id == registered.source_stream_id
+        && intent.source_version == registered.source_version
+        && intent.schema_hash == registered.schema_hash
+        && intent.coverage_manifest_digest == registered.coverage_manifest_digest
+        && intent.created_at_ms == registered.created_at_ms
+        && intent.lease_expires_at_ms == registered.lease_expires_at_ms
+        && intent.max_copy_bytes > 0
+        && intent.max_copy_bytes <= CHECKPOINT_MAX_COPY_BYTES
+        && intent.max_retained_wal_bytes > 0
+        && intent.max_retained_wal_bytes <= CHECKPOINT_MAX_RETAINED_WAL_BYTES
+        && intent.destination.as_deref() == Some(destination.as_ref())
+        && record.destination.as_deref() == Some(destination.as_ref())
+        && !intent.database_file_name.is_empty()
+        && database_name.file_name() == Some(database_name.as_os_str())
+        && is_regular_file_without_symlink(&database_path)
+        && receipt.format_version == 1
+        && receipt.checkpoint_id == intent.checkpoint_id
+        && receipt.label == intent.label
+        && receipt.operation_id == intent.operation_id
+        && receipt.owner == intent.owner
+        && receipt.location_class == intent.location_class
+        && receipt.substrate == intent.substrate
+        && receipt.source_stream_id == intent.source_stream_id
+        && receipt.source_version == intent.source_version
+        && receipt.schema_hash == intent.schema_hash
+        && !receipt.schema_hash.trim().is_empty()
+        && receipt.coverage_manifest_digest == intent.coverage_manifest_digest
+        && receipt.created_at_ms == intent.created_at_ms
+        && receipt.lease_expires_at_ms == intent.lease_expires_at_ms
+        && receipt.copied_bytes <= intent.max_copy_bytes
+        && receipt.peak_retained_wal_bytes <= intent.max_retained_wal_bytes
+        && receipt.proof_class == ProofClassV1::VerifiedCopyFidelity
+        && receipt.copy_disposition == Some(CheckpointCopyDispositionV1::Reachable)
+        && receipt.source_digest.domain == BoundaryDomainV1::Checkpoint
+        && receipt.copied_digest.as_ref() == Some(&receipt.source_digest)
+}
+
+fn recovered_copy_matches_receipt(
+    destination: &Path,
+    intent: &CheckpointRecoveryIntentV1,
+    receipt: &NamedCheckpointReceiptV1,
+) -> bool {
+    let database_name = Path::new(&intent.database_file_name);
+    if database_name.file_name() != Some(database_name.as_os_str()) {
+        return false;
+    }
+    let database_path = destination.join(database_name);
+    let Ok(metadata) = fs::symlink_metadata(&database_path) else {
+        return false;
+    };
+    if !metadata.file_type().is_file() || metadata.len() != receipt.copied_bytes {
+        return false;
+    }
+    let Ok(copied) =
+        Connection::open_with_flags(&database_path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+    else {
+        return false;
+    };
+    let stored_schema: Option<String> = copied
+        .query_row(
+            "SELECT value FROM _snapback_meta WHERE key='schema_manifest'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()
+        .ok()
+        .flatten();
+    let Some(stored_schema) = stored_schema else {
+        return false;
+    };
+    let Ok(schema) = serde_json::from_str::<SchemaManifest>(&stored_schema) else {
+        return false;
+    };
+    if required_checkpoint_schema_hash(&schema).ok() != Some(intent.schema_hash.as_str()) {
+        return false;
+    }
+    let Ok((stream, version)) = current_source_facts(&copied) else {
+        return false;
+    };
+    if stream != intent.source_stream_id || version != intent.source_version {
+        return false;
+    }
+    let Ok(rows) = scan_rows(&copied, &schema) else {
+        return false;
+    };
+    let header = checkpoint_header(
+        &intent.checkpoint_id,
+        &intent.source_stream_id,
+        intent.source_version,
+        &intent.schema_hash,
+        &intent.coverage_manifest_digest,
+    );
+    checkpoint_boundary_digest(&header, &rows).is_ok_and(|actual| {
+        actual == receipt.source_digest && receipt.copied_digest.as_ref() == Some(&actual)
+    })
+}
+
 /// Recover one intent from registry plus local rename evidence. A destination
 /// with complete evidence is finalized; otherwise only the exact staging path
 /// named by the intent is reaped and the operation becomes `aborted`.
@@ -1550,9 +1857,22 @@ pub(crate) fn recover_checkpoint(
         return Ok(record);
     }
     let published = record.destination.as_deref().map(Path::new).filter(|path| {
-        path.join(CHECKPOINT_SENTINEL).is_file() && path.join(CHECKPOINT_RECEIPT_FILE).is_file()
+        is_directory_without_symlink(path)
+            && is_regular_file_without_symlink(&path.join(CHECKPOINT_SENTINEL))
+            && is_regular_file_without_symlink(&path.join(CHECKPOINT_RECEIPT_FILE))
+            && is_regular_file_without_symlink(&path.join(CHECKPOINT_INTENT_FILE))
     });
     if let Some(destination) = published {
+        let evidence_intent: CheckpointRecoveryIntentV1 = serde_json::from_slice(
+            &fs::read(destination.join(CHECKPOINT_INTENT_FILE))
+                .map_err(|error| io_error("read recovered checkpoint intent", error))?,
+        )
+        .map_err(|_| {
+            proof_error(
+                "SNAPBACK_CHECKPOINT_EVIDENCE_MISMATCH",
+                "checkpoint recovery intent is malformed",
+            )
+        })?;
         let receipt: NamedCheckpointReceiptV1 = serde_json::from_slice(
             &fs::read(destination.join(CHECKPOINT_RECEIPT_FILE))
                 .map_err(|error| io_error("read recovered checkpoint receipt", error))?,
@@ -1563,19 +1883,26 @@ pub(crate) fn recover_checkpoint(
                 "checkpoint receipt is malformed",
             )
         })?;
-        if receipt.checkpoint_id != checkpoint_id
-            || receipt.proof_class != ProofClassV1::VerifiedCopyFidelity
-            || receipt.source_digest
-                != receipt
-                    .copied_digest
-                    .clone()
-                    .unwrap_or_else(|| receipt.source_digest.clone())
+        let intent = registry_intent(conn, checkpoint_id)?.ok_or_else(|| {
+            proof_error(
+                "SNAPBACK_CHECKPOINT_EVIDENCE_MISMATCH",
+                "recovered checkpoint has no durable creation intent",
+            )
+        })?;
+        if evidence_intent != intent
+            || !recovery_evidence_matches_intent(&record, &intent, destination, &receipt)
+            || !recovered_copy_matches_receipt(destination, &intent, &receipt)
         {
             return Err(proof_error(
                 "SNAPBACK_CHECKPOINT_EVIDENCE_MISMATCH",
-                "recovered checkpoint evidence does not prove copy fidelity",
+                "recovered checkpoint evidence diverges from its durable creation intent",
             ));
         }
+        let parent = destination.parent().unwrap_or_else(|| Path::new("."));
+        // The crash may have happened after rename but before the normal
+        // parent-directory sync. Make the directory entry durable before the
+        // registry can publish it.
+        sync_directory(parent)?;
         record.receipt = receipt;
         record.state = CheckpointRegistryStateV1::Published;
         record.staging = None;
@@ -1898,6 +2225,42 @@ mod tests {
     }
 
     #[test]
+    fn checkpoint_creation_refuses_missing_schema_identity_before_intent() {
+        for missing_hash in [None, Some("   ".to_owned())] {
+            let temp = tempfile::tempdir().expect("tempdir");
+            let database_path = temp.path().join("source.sqlite");
+            let destination = temp.path().join("checkpoint");
+            let database = seeded_file_database(&database_path);
+            drop(database);
+            let conn = Connection::open(&database_path).expect("checkpoint connection");
+            let mut missing = schema();
+            missing.schema_hash = missing_hash;
+            let error = create_named_checkpoint(
+                &conn,
+                &database_path,
+                &missing,
+                Some(&destination),
+                &checkpoint_request(500),
+                None,
+            )
+            .expect_err("schema identity is proof input");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_CHECKPOINT_SCHEMA_IDENTITY_MISSING"
+            );
+            let intents: u64 = conn
+                .query_row(
+                    &format!("SELECT COUNT(*) FROM {CHECKPOINT_REGISTRY_TABLE}"),
+                    [],
+                    |row| row.get(0),
+                )
+                .expect("registry count");
+            assert_eq!(intents, 0);
+            assert!(!destination.exists());
+        }
+    }
+
+    #[test]
     fn materialized_checkpoint_is_dual_path_verified_registry_authoritative_and_erasable() {
         let temp = tempfile::tempdir().expect("tempdir");
         let database_path = temp.path().join("source.sqlite");
@@ -2023,6 +2386,254 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn recovery_requires_every_intent_bound_fact_to_match() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let database_path = temp.path().join("source.sqlite");
+        let destination = temp.path().join("checkpoint");
+        let mut database = seeded_file_database(&database_path);
+        let error = database
+            .create_named_checkpoint_at_cut_for_test(
+                Some(&destination),
+                &checkpoint_request(25_000),
+                CheckpointPublicationCut::AfterRename,
+            )
+            .expect_err("inject post-rename crash");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CHECKPOINT_TEST_CRASH_CUT");
+        let registry = Connection::open(&database_path).expect("registry connection");
+        let checkpoint_id: String = registry
+            .query_row(
+                &format!(
+                    "SELECT checkpoint_id FROM {CHECKPOINT_REGISTRY_TABLE} ORDER BY rowid DESC LIMIT 1"
+                ),
+                [],
+                |row| row.get(0),
+            )
+            .expect("checkpoint id");
+        let record = registry_record(&registry, &checkpoint_id)
+            .expect("registry record")
+            .expect("intent record");
+        let intent = registry_intent(&registry, &checkpoint_id)
+            .expect("registry intent")
+            .expect("durable intent");
+        let receipt: NamedCheckpointReceiptV1 = serde_json::from_slice(
+            &fs::read(destination.join(CHECKPOINT_RECEIPT_FILE)).expect("receipt bytes"),
+        )
+        .expect("receipt");
+        assert!(recovery_evidence_matches_intent(
+            &record,
+            &intent,
+            &destination,
+            &receipt
+        ));
+
+        for field in [
+            "operation",
+            "owner",
+            "sourceStream",
+            "sourceVersion",
+            "schema",
+            "coverage",
+            "lease",
+        ] {
+            let mut changed = receipt.clone();
+            match field {
+                "operation" => changed.operation_id.push_str("-forged"),
+                "owner" => changed.owner.push_str("-forged"),
+                "sourceStream" => changed.source_stream_id.push_str("-forged"),
+                "sourceVersion" => changed.source_version += 1,
+                "schema" => changed.schema_hash.push_str("-forged"),
+                "coverage" => changed.coverage_manifest_digest.push_str("-forged"),
+                "lease" => changed.lease_expires_at_ms += 1,
+                _ => unreachable!(),
+            }
+            assert!(
+                !recovery_evidence_matches_intent(&record, &intent, &destination, &changed,),
+                "{field} must be bound"
+            );
+        }
+
+        for field in ["destination", "copyBudget", "walBudget"] {
+            let mut changed = intent.clone();
+            match field {
+                "destination" => changed.destination = Some("/tmp/forged".to_owned()),
+                "copyBudget" => changed.max_copy_bytes += 1,
+                "walBudget" => changed.max_retained_wal_bytes += 1,
+                _ => unreachable!(),
+            }
+            assert_ne!(changed, intent, "{field} must change exact intent bytes");
+        }
+    }
+
+    #[test]
+    fn recovery_rejects_coherently_rewritten_registry_when_disk_intent_is_original() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let database_path = temp.path().join("source.sqlite");
+        let destination = temp.path().join("checkpoint");
+        let mut database = seeded_file_database(&database_path);
+        database
+            .create_named_checkpoint_at_cut_for_test(
+                Some(&destination),
+                &checkpoint_request(26_000),
+                CheckpointPublicationCut::AfterRename,
+            )
+            .expect_err("inject post-rename crash");
+        let registry = Connection::open(&database_path).expect("registry connection");
+        let checkpoint_id: String = registry
+            .query_row(
+                &format!(
+                    "SELECT checkpoint_id FROM {CHECKPOINT_REGISTRY_TABLE} ORDER BY rowid DESC LIMIT 1"
+                ),
+                [],
+                |row| row.get(0),
+            )
+            .expect("checkpoint id");
+        let mut record = registry_record(&registry, &checkpoint_id)
+            .expect("registry record")
+            .expect("intent record");
+        let mut intent = registry_intent(&registry, &checkpoint_id)
+            .expect("registry intent")
+            .expect("durable intent");
+        record.receipt.owner = "attacker".to_owned();
+        intent.owner = "attacker".to_owned();
+        registry
+            .execute(
+                &format!(
+                    "UPDATE {CHECKPOINT_REGISTRY_TABLE}
+                     SET record_json=?1,intent_json=?2 WHERE checkpoint_id=?3"
+                ),
+                params![
+                    serde_json::to_string(&record).expect("record JSON"),
+                    serde_json::to_string(&intent).expect("intent JSON"),
+                    checkpoint_id,
+                ],
+            )
+            .expect("rewrite registry evidence");
+        let error = database
+            .recover_named_checkpoint(&checkpoint_id, 27_000)
+            .expect_err("disk intent outvotes coherent registry rewrite");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_CHECKPOINT_EVIDENCE_MISMATCH"
+        );
+        assert_eq!(
+            registry_record(&registry, &checkpoint_id)
+                .expect("registry record")
+                .expect("record")
+                .state,
+            CheckpointRegistryStateV1::Intent
+        );
+    }
+
+    #[test]
+    fn recovery_rejects_missing_or_forged_copied_database() {
+        for attack in ["missing", "forged"] {
+            let temp = tempfile::tempdir().expect("tempdir");
+            let database_path = temp.path().join("source.sqlite");
+            let destination = temp.path().join("checkpoint");
+            let mut database = seeded_file_database(&database_path);
+            database
+                .create_named_checkpoint_at_cut_for_test(
+                    Some(&destination),
+                    &checkpoint_request(27_500),
+                    CheckpointPublicationCut::AfterRename,
+                )
+                .expect_err("inject post-rename crash");
+            let registry = Connection::open(&database_path).expect("registry connection");
+            let checkpoint_id: String = registry
+                .query_row(
+                    &format!(
+                        "SELECT checkpoint_id FROM {CHECKPOINT_REGISTRY_TABLE} ORDER BY rowid DESC LIMIT 1"
+                    ),
+                    [],
+                    |row| row.get(0),
+                )
+                .expect("checkpoint id");
+            let intent = registry_intent(&registry, &checkpoint_id)
+                .expect("registry intent")
+                .expect("durable intent");
+            let copied_database = destination.join(&intent.database_file_name);
+            match attack {
+                "missing" => fs::remove_file(&copied_database).expect("remove copied database"),
+                "forged" => {
+                    let copied = Connection::open(&copied_database).expect("open copied database");
+                    copied
+                        .execute(
+                            "UPDATE items SET visibility='forged' WHERE _id='item-a'",
+                            [],
+                        )
+                        .expect("forge copied row");
+                }
+                _ => unreachable!(),
+            }
+            let error = database
+                .recover_named_checkpoint(&checkpoint_id, 27_501)
+                .expect_err("copy bytes must be independently reverified");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_CHECKPOINT_EVIDENCE_MISMATCH",
+                "{attack}"
+            );
+            assert_eq!(
+                registry_record(&registry, &checkpoint_id)
+                    .expect("registry record")
+                    .expect("record")
+                    .state,
+                CheckpointRegistryStateV1::Intent
+            );
+        }
+    }
+
+    #[test]
+    fn recovery_syncs_parent_before_registry_publication() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let database_path = temp.path().join("source.sqlite");
+        let destination = temp.path().join("checkpoint");
+        let parent = destination.parent().expect("destination parent").to_owned();
+        let mut database = seeded_file_database(&database_path);
+        database
+            .create_named_checkpoint_at_cut_for_test(
+                Some(&destination),
+                &checkpoint_request(28_000),
+                CheckpointPublicationCut::AfterRename,
+            )
+            .expect_err("inject post-rename crash");
+        let registry = Connection::open(&database_path).expect("registry connection");
+        let checkpoint_id: String = registry
+            .query_row(
+                &format!(
+                    "SELECT checkpoint_id FROM {CHECKPOINT_REGISTRY_TABLE} ORDER BY rowid DESC LIMIT 1"
+                ),
+                [],
+                |row| row.get(0),
+            )
+            .expect("checkpoint id");
+        install_checkpoint_sync_hook(move |path| {
+            assert_eq!(path, parent);
+            Err(proof_error(
+                "SNAPBACK_CHECKPOINT_TEST_PARENT_SYNC_FAILED",
+                "injected parent sync failure",
+            ))
+        });
+        let error = database
+            .recover_named_checkpoint(&checkpoint_id, 29_000)
+            .expect_err("publication waits for parent durability");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_CHECKPOINT_TEST_PARENT_SYNC_FAILED"
+        );
+        assert_eq!(
+            registry_record(&registry, &checkpoint_id)
+                .expect("registry record")
+                .expect("record")
+                .state,
+            CheckpointRegistryStateV1::Intent
+        );
+        let recovered = database
+            .recover_named_checkpoint(&checkpoint_id, 29_001)
+            .expect("recovery succeeds after durable parent sync");
+        assert_eq!(recovered.state, CheckpointRegistryStateV1::Published);
     }
 
     #[test]

@@ -23,6 +23,7 @@ use crate::commit_envelope::{
     OperationIdentityTombstoneV1, OperationIdentityV1, OperationIssuanceV1,
     OperationLookupDispositionV1, OperationOriginatorClassV1, OperationSuppressionRecordV1,
     OperationTerminalOutcomeV1, RetainedEnvelopeDetailV1, SnapshotAssociationKindV1,
+    derive_host_operation_id,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 
@@ -99,6 +100,8 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
            issued_at_ms INTEGER NOT NULL CHECK(issued_at_ms >= 0),
            terminated_at_ms INTEGER,
            authenticator_digest TEXT NOT NULL,
+           successor_epoch_id TEXT,
+           rotated_at_ms INTEGER,
            PRIMARY KEY(originator_class, audience, epoch_id),
            UNIQUE(originator_class, audience, epoch_sequence)
          );
@@ -170,6 +173,34 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
            activated_at_ms INTEGER NOT NULL CHECK(activated_at_ms >= 0)
          );",
     )?;
+    let has_successor: bool = tx.query_row(
+        "SELECT EXISTS(
+           SELECT 1 FROM pragma_table_info('_snapback_operation_epochs_v1')
+           WHERE name='successor_epoch_id'
+         )",
+        [],
+        |row| row.get(0),
+    )?;
+    if !has_successor {
+        tx.execute(
+            "ALTER TABLE _snapback_operation_epochs_v1 ADD COLUMN successor_epoch_id TEXT",
+            [],
+        )?;
+    }
+    let has_rotation_time: bool = tx.query_row(
+        "SELECT EXISTS(
+           SELECT 1 FROM pragma_table_info('_snapback_operation_epochs_v1')
+           WHERE name='rotated_at_ms'
+         )",
+        [],
+        |row| row.get(0),
+    )?;
+    if !has_rotation_time {
+        tx.execute(
+            "ALTER TABLE _snapback_operation_epochs_v1 ADD COLUMN rotated_at_ms INTEGER",
+            [],
+        )?;
+    }
     Ok(())
 }
 
@@ -281,6 +312,74 @@ pub fn register_epoch_in(tx: &Transaction<'_>, epoch: &IdentityEpochV1) -> Snapb
     Ok(())
 }
 
+/// Rotate the server's host incarnation as one durable state transition. The
+/// successor epoch and the fact that retired the predecessor are committed
+/// together, so later reclamation never trusts a caller's assertion that a
+/// rotation happened.
+///
+/// @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 — a
+/// range-less host epoch closes only after its server incarnation has rotated.
+pub fn rotate_host_incarnation_in(
+    tx: &Transaction<'_>,
+    audience: &str,
+    retired_epoch_id: &str,
+    successor: &IdentityEpochV1,
+    rotated_at_ms: u64,
+) -> SnapbackResult<()> {
+    let retired: Option<(i64, String)> = tx
+        .query_row(
+            "SELECT epoch_sequence, authority_instance_id
+             FROM _snapback_operation_epochs_v1
+             WHERE originator_class='host' AND audience=?1 AND epoch_id=?2 AND state='open'",
+            params![audience, retired_epoch_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let Some((retired_sequence, retired_authority)) = retired else {
+        return Err(refused(
+            "SNAPBACK_HOST_INCARNATION_ROTATION_INVALID",
+            "host rotation requires an open server-recorded predecessor epoch",
+        ));
+    };
+    let expected_successor_sequence = retired_sequence
+        .checked_add(1)
+        .ok_or_else(|| invalid("host epoch sequence overflowed"))?;
+    if successor.originator_class != OperationOriginatorClassV1::Host
+        || successor.audience != audience
+        || successor.epoch_id == retired_epoch_id
+        || successor.authority_instance_id == retired_authority
+        || i64::try_from(successor.epoch_sequence).ok() != Some(expected_successor_sequence)
+        || successor.state != IdentityEpochStateV1::Open
+        || successor.issued_at_ms != rotated_at_ms
+        || successor.terminated_at_ms.is_some()
+    {
+        return Err(refused(
+            "SNAPBACK_HOST_INCARNATION_ROTATION_INVALID",
+            "host rotation requires the next open epoch under a distinct server incarnation",
+        ));
+    }
+    register_epoch_in(tx, successor)?;
+    let changed = tx.execute(
+        "UPDATE _snapback_operation_epochs_v1
+         SET state='terminated', terminated_at_ms=?1,
+             successor_epoch_id=?2, rotated_at_ms=?1
+         WHERE originator_class='host' AND audience=?3 AND epoch_id=?4 AND state='open'",
+        params![
+            to_i64(rotated_at_ms, "host rotation time")?,
+            successor.epoch_id,
+            audience,
+            retired_epoch_id,
+        ],
+    )?;
+    if changed != 1 {
+        return Err(refused(
+            "SNAPBACK_HOST_INCARNATION_ROTATION_INVALID",
+            "host predecessor changed during incarnation rotation",
+        ));
+    }
+    Ok(())
+}
+
 pub fn register_client_range_in(
     tx: &Transaction<'_>,
     range: &ClientIdentityRangeV1,
@@ -368,39 +467,7 @@ pub fn record_operation_in(
         .map_err(|error| invalid(format!("commit envelope is invalid: {error:?}")))?;
     let identity = &envelope.identity;
     let (epoch_id, counter, authenticator) = issuance_parts(identity);
-    let epoch: Option<(i64, String, String, String)> = tx
-        .query_row(
-            "SELECT epoch_sequence, authority_instance_id, authenticator_digest, state
-             FROM _snapback_operation_epochs_v1
-             WHERE originator_class=?1 AND audience=?2 AND epoch_id=?3",
-            params![
-                originator(identity.key.originator_class),
-                identity.bound_facts.audience,
-                epoch_id,
-            ],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-        )
-        .optional()?;
-    let Some((epoch_sequence, authority_instance, expected_authenticator, state)) = epoch else {
-        return Err(refused(
-            "SNAPBACK_OPERATION_EPOCH_UNAVAILABLE",
-            "operation identity names an unknown epoch",
-        ));
-    };
-    if state != "open" {
-        return Err(refused(
-            "SNAPBACK_OPERATION_EPOCH_CLOSED",
-            "operation identity names an epoch that cannot admit first attempts",
-        ));
-    }
-    if authority_instance != identity.bound_facts.authority_instance_id
-        || expected_authenticator != authenticator
-    {
-        return Err(refused(
-            "SNAPBACK_OPERATION_ISSUANCE_AUTH_INVALID",
-            "operation issuance does not match its server-recorded authority",
-        ));
-    }
+    let epoch_sequence = authenticate_operation_identity(tx, identity)?;
     if let OperationIssuanceV1::ClientRange {
         range_start,
         range_end_exclusive,
@@ -518,6 +585,92 @@ pub fn record_operation_in(
         ],
     )?;
     Ok(())
+}
+
+/// Authenticate a host identity against the durable epoch authority before it
+/// can enter a host-only admission seam such as promotion ticket issuance.
+/// Structural `HostIncarnation` shape is insufficient: the epoch must be open,
+/// its authority/authenticator must match, and its operation id must be the
+/// deterministic derivation of the recorded upstream identity.
+pub fn authenticate_host_identity(
+    conn: &Connection,
+    identity: &OperationIdentityV1,
+) -> SnapbackResult<()> {
+    if identity.key.originator_class != OperationOriginatorClassV1::Host
+        || !matches!(
+            identity.issuance,
+            OperationIssuanceV1::HostIncarnation { .. }
+        )
+    {
+        return Err(refused(
+            "SNAPBACK_HOST_OPERATION_IDENTITY_INVALID",
+            "host admission requires a host-incarnation identity",
+        ));
+    }
+    authenticate_operation_identity(conn, identity).map(|_| ())
+}
+
+fn authenticate_operation_identity(
+    conn: &Connection,
+    identity: &OperationIdentityV1,
+) -> SnapbackResult<i64> {
+    identity.validate().map_err(|_| {
+        refused(
+            "SNAPBACK_OPERATION_ISSUANCE_AUTH_INVALID",
+            "operation identity is structurally invalid",
+        )
+    })?;
+    let (epoch_id, _, authenticator) = issuance_parts(identity);
+    if let OperationIssuanceV1::HostIncarnation {
+        upstream_identity,
+        commit_ordinal,
+        ..
+    } = &identity.issuance
+    {
+        if upstream_identity.trim().is_empty()
+            || identity.key.operation_id
+                != derive_host_operation_id(upstream_identity, *commit_ordinal)
+        {
+            return Err(refused(
+                "SNAPBACK_HOST_OPERATION_IDENTITY_INVALID",
+                "host operation id does not match its authenticated upstream derivation",
+            ));
+        }
+    }
+    let epoch: Option<(i64, String, String, String)> = conn
+        .query_row(
+            "SELECT epoch_sequence, authority_instance_id, authenticator_digest, state
+             FROM _snapback_operation_epochs_v1
+             WHERE originator_class=?1 AND audience=?2 AND epoch_id=?3",
+            params![
+                originator(identity.key.originator_class),
+                identity.bound_facts.audience,
+                epoch_id,
+            ],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .optional()?;
+    let Some((epoch_sequence, authority_instance, expected_authenticator, state)) = epoch else {
+        return Err(refused(
+            "SNAPBACK_OPERATION_EPOCH_UNAVAILABLE",
+            "operation identity names an unknown server-recorded epoch",
+        ));
+    };
+    if state != "open" {
+        return Err(refused(
+            "SNAPBACK_OPERATION_EPOCH_CLOSED",
+            "operation identity names an epoch that cannot admit first attempts",
+        ));
+    }
+    if authority_instance != identity.bound_facts.authority_instance_id
+        || expected_authenticator != authenticator
+    {
+        return Err(refused(
+            "SNAPBACK_OPERATION_ISSUANCE_AUTH_INVALID",
+            "operation issuance does not match its server-recorded authority",
+        ));
+    }
+    Ok(epoch_sequence)
 }
 
 pub fn lookup_operation(
@@ -777,7 +930,6 @@ pub fn close_epoch_if_complete_in(
     audience: &str,
     epoch_id: &str,
     now_ms: u64,
-    host_incarnation_rotated: bool,
 ) -> SnapbackResult<bool> {
     let row: Option<(i64, String)> = tx
         .query_row(
@@ -818,7 +970,24 @@ pub fn close_epoch_if_complete_in(
             }
         }
         OperationOriginatorClassV1::Host => {
-            if !host_incarnation_rotated {
+            let rotation_recorded: bool = tx.query_row(
+                "SELECT EXISTS(
+                   SELECT 1
+                   FROM _snapback_operation_epochs_v1 AS retired
+                   JOIN _snapback_operation_epochs_v1 AS successor
+                     ON successor.originator_class='host'
+                    AND successor.audience=retired.audience
+                    AND successor.epoch_id=retired.successor_epoch_id
+                    AND successor.epoch_sequence=retired.epoch_sequence + 1
+                    AND successor.authority_instance_id <> retired.authority_instance_id
+                   WHERE retired.originator_class='host'
+                     AND retired.audience=?1 AND retired.epoch_id=?2
+                     AND retired.rotated_at_ms <= ?3
+                 )",
+                params![audience, epoch_id, to_i64(now_ms, "host closure time")?],
+                |row| row.get(0),
+            )?;
+            if !rotation_recorded {
                 false
             } else {
                 let young: bool = tx.query_row(
@@ -1629,7 +1798,6 @@ mod tests {
                 "audience-1",
                 "epoch-1",
                 200,
-                false,
             )
             .expect("unacknowledged second holds floor")
         );
@@ -1648,7 +1816,6 @@ mod tests {
                 "audience-1",
                 "epoch-1",
                 201,
-                false,
             )
             .expect("close complete epoch")
         );
@@ -1850,12 +2017,36 @@ mod tests {
         let mut host = client.clone();
         host.key.originator_class = OperationOriginatorClassV1::Host;
         host.bound_facts.authority_instance_id = "host-incarnation-1".to_owned();
+        host.key.operation_id = derive_host_operation_id("cron:occurrence-1", 0);
         host.issuance = OperationIssuanceV1::HostIncarnation {
             epoch_id: "host-epoch-1".to_owned(),
             upstream_identity: "cron:occurrence-1".to_owned(),
             commit_ordinal: 0,
             authority_authenticator_digest: sha('e'),
         };
+        let mut forged_authenticator = host.clone();
+        forged_authenticator.issuance = OperationIssuanceV1::HostIncarnation {
+            epoch_id: "host-epoch-1".to_owned(),
+            upstream_identity: "cron:occurrence-1".to_owned(),
+            commit_ordinal: 0,
+            authority_authenticator_digest: sha('f'),
+        };
+        assert_eq!(
+            record_operation_in(&tx, &envelope(forged_authenticator, 0, 0))
+                .expect_err("forged host authenticator")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_ISSUANCE_AUTH_INVALID"
+        );
+        let mut squatted_identity = host.clone();
+        squatted_identity.key.operation_id = "client-chosen-host-id".to_owned();
+        assert_eq!(
+            record_operation_in(&tx, &envelope(squatted_identity, 0, 0))
+                .expect_err("host namespace squatting")
+                .diagnostic
+                .code,
+            "SNAPBACK_HOST_OPERATION_IDENTITY_INVALID"
+        );
         record_operation_in(&tx, &envelope(host.clone(), 0, 0)).expect("host operation");
         tx.commit().expect("commit host");
         assert_eq!(
@@ -1868,12 +2059,56 @@ mod tests {
         ));
 
         let tx = conn.transaction().expect("host closure");
-        terminate_epoch_in(
+        assert!(
+            !close_epoch_if_complete_in(
+                &tx,
+                OperationOriginatorClassV1::Host,
+                "audience-1",
+                "host-epoch-1",
+                HOST_RECEIPT_WINDOW_MS_V1 + 11,
+            )
+            .expect("caller cannot assert an unrecorded rotation")
+        );
+        assert_eq!(
+            rotate_host_incarnation_in(
+                &tx,
+                "audience-1",
+                "host-epoch-1",
+                &IdentityEpochV1 {
+                    schema_version: 1,
+                    originator_class: OperationOriginatorClassV1::Host,
+                    audience: "audience-1".to_owned(),
+                    authority_instance_id: "host-incarnation-1".to_owned(),
+                    epoch_id: "host-epoch-forged".to_owned(),
+                    epoch_sequence: 2,
+                    state: IdentityEpochStateV1::Open,
+                    issued_at_ms: 20,
+                    terminated_at_ms: None,
+                    authority_authenticator_digest: sha('f'),
+                },
+                20,
+            )
+            .expect_err("same incarnation is not a rotation")
+            .diagnostic
+            .code,
+            "SNAPBACK_HOST_INCARNATION_ROTATION_INVALID"
+        );
+        rotate_host_incarnation_in(
             &tx,
-            OperationOriginatorClassV1::Host,
             "audience-1",
             "host-epoch-1",
-            false,
+            &IdentityEpochV1 {
+                schema_version: 1,
+                originator_class: OperationOriginatorClassV1::Host,
+                audience: "audience-1".to_owned(),
+                authority_instance_id: "host-incarnation-2".to_owned(),
+                epoch_id: "host-epoch-2".to_owned(),
+                epoch_sequence: 2,
+                state: IdentityEpochStateV1::Open,
+                issued_at_ms: 20,
+                terminated_at_ms: None,
+                authority_authenticator_digest: sha('f'),
+            },
             20,
         )
         .expect("rotate host incarnation");
@@ -1884,7 +2119,6 @@ mod tests {
                 "audience-1",
                 "host-epoch-1",
                 HOST_RECEIPT_WINDOW_MS_V1 - 1,
-                true,
             )
             .expect("host window remains")
         );
@@ -1895,7 +2129,6 @@ mod tests {
                 "audience-1",
                 "host-epoch-1",
                 HOST_RECEIPT_WINDOW_MS_V1 + 11,
-                true,
             )
             .expect("host window elapsed")
         );

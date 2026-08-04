@@ -1141,6 +1141,7 @@ pub fn issue_promotion_ticket(
         ));
     }
     ensure_promotion_tables(canonical)?;
+    crate::operation_ledger::authenticate_host_identity(canonical, &ticket_identity)?;
     if let Some(bytes) = canonical
         .query_row(
             "SELECT ticket_json FROM _snapback_promotion_admission WHERE ticket_id = ?1",
@@ -1149,7 +1150,17 @@ pub fn issue_promotion_ticket(
         )
         .optional()?
     {
-        return decode_json(&bytes, "promotion ticket");
+        let stored: PromotionAdmissionTicketV1 = decode_json(&bytes, "promotion ticket")?;
+        if stored.ticket_identity != ticket_identity
+            || stored.branch_id != *branch_id
+            || stored.canonical_stream_id != canonical_stream_id
+        {
+            return Err(error(
+                "SNAPBACK_PROMOTION_TICKET_IDENTITY_REUSED",
+                "promotion ticket identity collides with divergent durable admission facts",
+            ));
+        }
+        return Ok(stored);
     }
     let tx = canonical.transaction()?;
     let fifo_sequence: i64 = tx.query_row(
@@ -2037,14 +2048,17 @@ pub fn reap_expired_in_app_branches(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commit_envelope::{OperationBoundFactsV1, OperationIssuanceV1, OperationKeyV1};
+    use crate::commit_envelope::{
+        IdentityEpochStateV1, IdentityEpochV1, OperationBoundFactsV1, OperationIssuanceV1,
+        OperationKeyV1, derive_host_operation_id,
+    };
 
     fn sha(character: char) -> String {
         format!("sha256:{}", character.to_string().repeat(64))
     }
 
     fn source(head: u64) -> Connection {
-        let conn = Connection::open_in_memory().expect("source");
+        let mut conn = Connection::open_in_memory().expect("source");
         conn.execute_batch(
             "CREATE TABLE _snapback_version (id INTEGER PRIMARY KEY, version INTEGER NOT NULL);
              CREATE TABLE widgets (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
@@ -2056,20 +2070,40 @@ mod tests {
             params![head as i64],
         )
         .expect("head");
+        let tx = conn.transaction().expect("host authority tx");
+        crate::operation_ledger::create_infra(&tx).expect("operation infra");
+        crate::operation_ledger::register_epoch_in(
+            &tx,
+            &IdentityEpochV1 {
+                schema_version: 1,
+                originator_class: OperationOriginatorClassV1::Host,
+                audience: "app-1".to_owned(),
+                authority_instance_id: "authority-1".to_owned(),
+                epoch_id: "host-epoch-1".to_owned(),
+                epoch_sequence: 1,
+                state: IdentityEpochStateV1::Open,
+                issued_at_ms: 1,
+                terminated_at_ms: None,
+                authority_authenticator_digest: sha('a'),
+            },
+        )
+        .expect("host epoch");
+        tx.commit().expect("commit host authority");
         conn
     }
 
     fn host_identity(stream: &str, id: &str, audience: &str) -> OperationIdentityV1 {
+        let upstream_identity = format!("upstream:{id}");
         OperationIdentityV1 {
             schema_version: 1,
             key: OperationKeyV1 {
                 stream_id: stream.to_owned(),
                 originator_class: OperationOriginatorClassV1::Host,
-                operation_id: id.to_owned(),
+                operation_id: derive_host_operation_id(&upstream_identity, 0),
             },
             issuance: OperationIssuanceV1::HostIncarnation {
                 epoch_id: "host-epoch-1".to_owned(),
-                upstream_identity: format!("upstream:{id}"),
+                upstream_identity,
                 commit_ordinal: 0,
                 authority_authenticator_digest: sha('a'),
             },
@@ -2200,6 +2234,111 @@ mod tests {
         .expect("execute");
         let diff = exact_fork_diff(&workspace, &request.branch_id, scan_widgets).expect("diff");
         (canonical, workspace, diff)
+    }
+
+    #[test]
+    fn promotion_ticket_admission_requires_durable_host_authority() {
+        let mut canonical = source(1);
+        let branch_id = BranchId("ticket-auth-branch".to_owned());
+        let policy = PromotionContentionPolicyV1 {
+            reservation_after_losses: 2,
+            reservation_interval_ms: 1_000,
+            reservation_quota: 1,
+            maximum_commit_duration_ms: 500,
+        };
+        let valid = host_identity("canonical", "ticket-auth", "app-1");
+
+        let mut client_squat = valid.clone();
+        client_squat.key.originator_class = OperationOriginatorClassV1::Client;
+        assert_eq!(
+            issue_promotion_ticket(
+                &mut canonical,
+                client_squat,
+                &branch_id,
+                "canonical",
+                1,
+                60_000,
+                2_000,
+                policy.clone(),
+            )
+            .expect_err("client cannot enter the host namespace")
+            .diagnostic
+            .code,
+            "SNAPBACK_PROMOTION_TICKET_IDENTITY_INVALID"
+        );
+
+        let mut forged = valid.clone();
+        forged.issuance = OperationIssuanceV1::HostIncarnation {
+            epoch_id: "host-epoch-1".to_owned(),
+            upstream_identity: "upstream:ticket-auth".to_owned(),
+            commit_ordinal: 0,
+            authority_authenticator_digest: sha('f'),
+        };
+        assert_eq!(
+            issue_promotion_ticket(
+                &mut canonical,
+                forged,
+                &branch_id,
+                "canonical",
+                1,
+                60_000,
+                2_000,
+                policy.clone(),
+            )
+            .expect_err("forged authenticator")
+            .diagnostic
+            .code,
+            "SNAPBACK_OPERATION_ISSUANCE_AUTH_INVALID"
+        );
+
+        let mut forged_derivation = valid.clone();
+        forged_derivation.key.operation_id = derive_host_operation_id("upstream:other", 0);
+        assert_eq!(
+            issue_promotion_ticket(
+                &mut canonical,
+                forged_derivation,
+                &branch_id,
+                "canonical",
+                1,
+                60_000,
+                2_000,
+                policy.clone(),
+            )
+            .expect_err("forged host derivation")
+            .diagnostic
+            .code,
+            "SNAPBACK_HOST_OPERATION_IDENTITY_INVALID"
+        );
+
+        issue_promotion_ticket(
+            &mut canonical,
+            valid.clone(),
+            &branch_id,
+            "canonical",
+            1,
+            60_000,
+            2_000,
+            policy.clone(),
+        )
+        .expect("durably authenticated ticket");
+        let mut divergent_retry = valid;
+        divergent_retry.bound_facts.input_fingerprint = sha('d');
+        assert_eq!(
+            issue_promotion_ticket(
+                &mut canonical,
+                divergent_retry,
+                &branch_id,
+                "canonical",
+                1,
+                60_000,
+                2_000,
+                policy,
+            )
+            .expect_err("durable ticket key cannot be rebound")
+            .diagnostic
+            .code,
+            "SNAPBACK_PROMOTION_TICKET_IDENTITY_REUSED"
+        );
     }
 
     #[test]
