@@ -95,7 +95,7 @@ review artifacts under `llp/reviews/0017-*`. Summary:
 
 ## Resolution
 
-Implemented in `259c8b70f` (`feat(admin): add one-time operator claim links`).
+Implemented in `9a571a6e4` (`feat(admin): add one-time operator claim links`).
 The landed slice includes the process-ephemeral digest-only claim registry and
 its independent budgets, atomic exchange and redemption binding, provenance-
 capped renewal, master status/revocation, the attached/default CLI with origin
