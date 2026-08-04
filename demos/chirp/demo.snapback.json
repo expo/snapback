@@ -1,0 +1,18 @@
+{
+  "id": "chirp",
+  "title": "Chirp — universal social timeline",
+  "description": "An Expo SDK 57 Twitter-style demo backed by Snapback live queries and mutations on iOS, Android, and web.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["API", "Storage", "Runtime", "Realtime", "React/Expo", "Developer experience"],
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs",
+    "codegen": "node ../../packages/snapback-codegen/index.mjs snapback",
+    "generated": ["snapback/generated/artifacts.json"]
+  },
+  "surfaces": {
+    "expo": { "buildTargets": ["ios", "android", "web"], "entrypoint": "src/app/_layout.tsx" },
+    "headless": { "runner": "node tests/acceptance/headless.mjs" }
+  },
+  "notClaiming": ["hosted Snapback backend; the current EAS Hosting deployment contains the universal client only"]
+}
