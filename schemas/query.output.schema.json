@@ -34,6 +34,204 @@
       ],
       "type": "object"
     },
+    "AuthorizationVersion": {
+      "description": "The one durable authorization-stream witness. The incarnation closes reset\nand restore ABA; the JS-safe epoch advances for ordinary authorization\nevents within that stream.\n\n@ref LLP 0053#the-authorization-version — v1 has one global durable pair.",
+      "properties": {
+        "epoch": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "incarnation": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "incarnation",
+        "epoch"
+      ],
+      "type": "object"
+    },
+    "AuthorizationWitnessRecordV1": {
+      "additionalProperties": false,
+      "properties": {
+        "compositeWitness": {
+          "$ref": "#/$defs/CompositeWitness"
+        },
+        "format": {
+          "type": "string"
+        },
+        "queryInstanceId": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "format",
+        "queryInstanceId",
+        "compositeWitness"
+      ],
+      "type": "object"
+    },
+    "CompletenessProofV1": {
+      "additionalProperties": false,
+      "properties": {
+        "activationHash": {
+          "type": "string"
+        },
+        "authorizationWitnessDigest": {
+          "type": "string"
+        },
+        "batchIdentity": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        },
+        "materializationKey": {
+          "type": "string"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/ProofNodeIdentityV1"
+          },
+          "type": "array"
+        },
+        "page": {
+          "$ref": "#/$defs/PageIdentityV1"
+        },
+        "planHash": {
+          "type": "string"
+        },
+        "proofKeyId": {
+          "type": "string"
+        },
+        "queryInstanceId": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "resultDigest": {
+          "type": "string"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "version": {
+          "$ref": "#/$defs/ProofVersionV1"
+        }
+      },
+      "required": [
+        "format",
+        "materializationKey",
+        "queryInstanceId",
+        "activationHash",
+        "planHash",
+        "version",
+        "authorizationWitnessDigest",
+        "page",
+        "nodes",
+        "batchIdentity",
+        "resultDigest",
+        "proofKeyId",
+        "signature"
+      ],
+      "type": "object"
+    },
+    "CompositeWitness": {
+      "additionalProperties": false,
+      "properties": {
+        "authorization": {
+          "$ref": "#/$defs/AuthorizationVersion"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DataWitness"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "authorization"
+      ],
+      "type": "object"
+    },
+    "CursorEndV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "first",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "digest": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "cursor",
+              "type": "string"
+            },
+            "profileId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "profileId",
+            "digest"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "terminal",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "DataWitness": {
+      "additionalProperties": false,
+      "properties": {
+        "minCommitVersion": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "versionStream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "versionStream",
+        "minCommitVersion"
+      ],
+      "type": "object"
+    },
     "FunctionAttribution": {
       "description": "Server-derived, bearer-free attribution for one app-data function\nresponse. Wrappers may copy this value, but cannot synthesize attribution\nauthority when the invocation gate did not produce it.\n\n@ref LLP 0055#audit — every resolved service-principal function response\ncarries the same actor/effective/grant attribution and v1 has no agent\ndry-run surface.",
       "properties": {
@@ -72,6 +270,122 @@
         "activeGeneration"
       ],
       "type": "object"
+    },
+    "PageIdentityV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "input": {
+              "$ref": "#/$defs/CursorEndV1"
+            },
+            "kind": {
+              "const": "sealed-terminal",
+              "type": "string"
+            },
+            "output": {
+              "$ref": "#/$defs/CursorEndV1"
+            }
+          },
+          "required": [
+            "kind",
+            "input",
+            "output"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "boundaryVectorDigest": {
+              "type": "string"
+            },
+            "input": {
+              "$ref": "#/$defs/CursorEndV1"
+            },
+            "kind": {
+              "const": "visible",
+              "type": "string"
+            },
+            "output": {
+              "$ref": "#/$defs/CursorEndV1"
+            }
+          },
+          "required": [
+            "kind",
+            "input",
+            "boundaryVectorDigest",
+            "output"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "PageSetManifestV1": {
+      "additionalProperties": false,
+      "description": "Client-store manifest for one composed first-to-terminal page set.  The\nidentity is the digest of the closed LLP 0157 `PageSetIdentityRecordV1`;\nretaining the ordered proof digests beside it lets the client reproduce\nthat record from its already-verified fragments before committing the set.",
+      "properties": {
+        "identity": {
+          "type": "string"
+        },
+        "orderedProofDigests": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "identity",
+        "orderedProofDigests"
+      ],
+      "type": "object"
+    },
+    "ProofNodeIdentityV1": {
+      "additionalProperties": false,
+      "properties": {
+        "classId": {
+          "type": "string"
+        },
+        "classVersion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "nodePlanHash": {
+          "type": "string"
+        },
+        "position": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "position",
+        "classId",
+        "classVersion",
+        "nodePlanHash"
+      ],
+      "type": "object"
+    },
+    "ProofVersionV1": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "stream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "stream",
+        "commit"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/query.output.schema.json",
@@ -82,6 +396,26 @@
       "anyOf": [
         {
           "$ref": "#/$defs/FunctionAttribution"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "authorizationWitness": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AuthorizationWitnessRecordV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "completenessProof": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CompletenessProofV1"
         },
         {
           "type": "null"
@@ -99,6 +433,16 @@
       "anyOf": [
         {
           "$ref": "#/$defs/FunctionInvocationFacts"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "pageSetManifest": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PageSetManifestV1"
         },
         {
           "type": "null"

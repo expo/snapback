@@ -18,7 +18,10 @@ enforce it (Cloudflare arm today) — the flag must never ride through
 unenforced; the load/ensure-time refusal with a named `SNAPBACK_*` code
 plus test is added to the tranche's next steps. Ruling 2 partially
 resolves OQ14 in the refuse direction — what constitutes an
-authoritative capture on Cloudflare stays open.) 2026-08-04 (D2/D3 first-tranche implementation record
+authoritative capture on Cloudflare stays open. Implemented 2026-08-04 with
+`SNAPBACK_STRICT_DECLARATIONS_TARGET_UNSUPPORTED` at the Cloudflare arm's
+compiled-schema load and `/app/ensure` seams; the local enforcing target is
+unchanged.) 2026-08-04 (D2/D3 first-tranche implementation record
 (`issues/20260803-0146-d1-d3-tranche.md`): `snapback verify` is a
 package-owned CLI composition in `packages/snapback-cli/verify.mjs`, not an
 `acceptance.run` host operation. Its five ordered stages cover

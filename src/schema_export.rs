@@ -71,9 +71,9 @@ use crate::local::{
     LiveUnsubscribeOutput, PublicInspect,
 };
 use crate::manifest::{
-    CapabilityManifest, FunctionCallRequest, FunctionManifest, FunctionResponse,
-    MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationRequest, QueryOutput,
-    SNAPBACK_SCHEMA_VERSION, SchemaManifest,
+    CapabilityManifest, FiniteQueryOutput, FiniteQueryRequest, FunctionCallRequest,
+    FunctionManifest, FunctionResponse, MutationAcknowledgementRequest,
+    MutationAcknowledgementResponse, MutationRequest, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
 };
 use crate::migration::{
     MigrationAdmissionV1, MigrationApprovalV1, MigrationPlanArtifactV1,
@@ -847,7 +847,7 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         ),
         finish(
             "query.input.schema.json",
-            schemars::schema_for!(FunctionCallRequest),
+            schemars::schema_for!(FiniteQueryRequest),
         ),
         finish(
             "action.input.schema.json",
@@ -901,7 +901,7 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         // serde-typed but not independently schema-committed.
         finish(
             "query.output.schema.json",
-            schemars::schema_for!(FunctionResponse<QueryOutput>),
+            schemars::schema_for!(FunctionResponse<FiniteQueryOutput>),
         ),
         finish(
             "action.output.schema.json",

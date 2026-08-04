@@ -53,6 +53,28 @@
       ],
       "type": "object"
     },
+    "AuthorizationWitnessRecordV1": {
+      "additionalProperties": false,
+      "properties": {
+        "compositeWitness": {
+          "$ref": "#/$defs/CompositeWitness"
+        },
+        "format": {
+          "type": "string"
+        },
+        "queryInstanceId": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "format",
+        "queryInstanceId",
+        "compositeWitness"
+      ],
+      "type": "object"
+    },
     "AuthorizedLease": {
       "additionalProperties": false,
       "description": "Exact server-issued envelope.  `deny_unknown_fields` makes protocol v1\nclosed in both directions; additive fields require a new version.",
@@ -187,6 +209,163 @@
       ],
       "type": "object"
     },
+    "CompletenessProofV1": {
+      "additionalProperties": false,
+      "properties": {
+        "activationHash": {
+          "type": "string"
+        },
+        "authorizationWitnessDigest": {
+          "type": "string"
+        },
+        "batchIdentity": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        },
+        "materializationKey": {
+          "type": "string"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/ProofNodeIdentityV1"
+          },
+          "type": "array"
+        },
+        "page": {
+          "$ref": "#/$defs/PageIdentityV1"
+        },
+        "planHash": {
+          "type": "string"
+        },
+        "proofKeyId": {
+          "type": "string"
+        },
+        "queryInstanceId": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "resultDigest": {
+          "type": "string"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "version": {
+          "$ref": "#/$defs/ProofVersionV1"
+        }
+      },
+      "required": [
+        "format",
+        "materializationKey",
+        "queryInstanceId",
+        "activationHash",
+        "planHash",
+        "version",
+        "authorizationWitnessDigest",
+        "page",
+        "nodes",
+        "batchIdentity",
+        "resultDigest",
+        "proofKeyId",
+        "signature"
+      ],
+      "type": "object"
+    },
+    "CompositeWitness": {
+      "additionalProperties": false,
+      "properties": {
+        "authorization": {
+          "$ref": "#/$defs/AuthorizationVersion"
+        },
+        "data": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DataWitness"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "authorization"
+      ],
+      "type": "object"
+    },
+    "CursorEndV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "first",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "digest": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "cursor",
+              "type": "string"
+            },
+            "profileId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "profileId",
+            "digest"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "terminal",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "DataWitness": {
+      "additionalProperties": false,
+      "properties": {
+        "minCommitVersion": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "versionStream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "versionStream",
+        "minCommitVersion"
+      ],
+      "type": "object"
+    },
     "FunctionInvocationFacts": {
       "additionalProperties": false,
       "description": "Server-derived successful-invocation facts. Keeping the generation under\na named `facts` block leaves room for additive call facts without mixing\nthem into handler-owned result values.",
@@ -223,6 +402,102 @@
         "bootNonce"
       ],
       "type": "object"
+    },
+    "PageIdentityV1": {
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "input": {
+              "$ref": "#/$defs/CursorEndV1"
+            },
+            "kind": {
+              "const": "sealed-terminal",
+              "type": "string"
+            },
+            "output": {
+              "$ref": "#/$defs/CursorEndV1"
+            }
+          },
+          "required": [
+            "kind",
+            "input",
+            "output"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "boundaryVectorDigest": {
+              "type": "string"
+            },
+            "input": {
+              "$ref": "#/$defs/CursorEndV1"
+            },
+            "kind": {
+              "const": "visible",
+              "type": "string"
+            },
+            "output": {
+              "$ref": "#/$defs/CursorEndV1"
+            }
+          },
+          "required": [
+            "kind",
+            "input",
+            "boundaryVectorDigest",
+            "output"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ProofNodeIdentityV1": {
+      "additionalProperties": false,
+      "properties": {
+        "classId": {
+          "type": "string"
+        },
+        "classVersion": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "nodePlanHash": {
+          "type": "string"
+        },
+        "position": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "position",
+        "classId",
+        "classVersion",
+        "nodePlanHash"
+      ],
+      "type": "object"
+    },
+    "ProofVersionV1": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "stream": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "stream",
+        "commit"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/authorized-lease.query.output.schema.json",
@@ -230,8 +505,28 @@
   "additionalProperties": false,
   "description": "Query rows and their authorization proof are one response boundary. The\nclient must commit both together or delete the attempted retained result.",
   "properties": {
+    "authorizationWitness": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AuthorizationWitnessRecordV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "authorizedLease": {
       "$ref": "#/$defs/AuthorizedLease"
+    },
+    "completenessProof": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CompletenessProofV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "facts": {
       "anyOf": [
