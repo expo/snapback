@@ -44,6 +44,7 @@ export const acknowledgedExperimentalCapabilities = [];
 
 export const schema = {
   schemaHash: deploymentIdentity.schemaHash,
+  strictDeclarations: false,
   tables: [
     {
       name: 'notes',
