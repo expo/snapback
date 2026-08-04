@@ -1,7 +1,7 @@
 # Admin console access convenience: stop making the operator paste the token
 
 **Date:** 2026-08-03
-**Status:** Open
+**Status:** Closed
 **Area:** Admin console / operator auth (LLP 0017)
 
 ## Problem
@@ -95,3 +95,28 @@ panel.
 - `packages/snapback-admin-client/index.mjs` — credential storage,
   master-token-memory-only handling.
 - `admin-ui/auth-prompt.mjs` — the paste prompt this ticket mostly retires.
+
+## Resolution
+
+Resolved on 2026-08-03.
+
+- Item 1 landed in `aaedc6b0a`: `snapback admin` validates a live trusted
+  ready descriptor, discovers its owner-only token, exchanges it for a derived
+  credential, and opens a fragment-only console URL. `--no-open` prints that
+  URL, and missing ready/token custody fails with stable `SNAPBACK_*` codes.
+- Item 2 landed in `aaedc6b0a`: active dev/loopback credentials slide from a
+  ten-minute base TTL up to an eight-hour absolute cap. File-backed targets
+  atomically persist only strict-owner-only digest and expiry metadata beside
+  the database, so active credentials reattach across restarts without
+  persisting the master token.
+- Item 3 landed in `aaedc6b0a`: the console requests and polls a ten-minute
+  RFC-8628-shaped approval, displays its short code, and
+  `snapback admin approve <code>` completes it from a token-holding terminal.
+  Requests, attempts, polls, and pending state are bounded; approval and
+  credential delivery are single-use.
+- The required full-suite run exposed stale S3 capability projections left by
+  the earlier S3 qualification change. The mechanical manifest/consumer sync
+  is isolated in `621906e32`; generated-artifact and capability tests are
+  clean afterward.
+- Item 4 remains out of scope and owned by LLP 0105 §P0.5. No hosted Expo
+  authentication was added here.
