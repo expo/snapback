@@ -283,6 +283,17 @@ function lifecycleBounded(witness) {
 
 function lifecycleWitness(path) {
   if (!existsSync(path)) return null;
+  // The telemetry store is intentionally absent until its first write. Its
+  // secure create path publishes the owner-only file before SQLite installs
+  // the schema, so a sampler can observe that narrow, valid in-between state.
+  // Keep waiting for the bounded settle rather than treating file existence
+  // alone as schema readiness. A store that never initializes still fails the
+  // enclosing 15-second settle timeout.
+  const schemaTableCount = execFileSync('sqlite3', [
+    path,
+    "SELECT count(*) FROM sqlite_schema WHERE type='table' AND name IN ('telemetry_events','telemetry_meta');",
+  ], { encoding: 'utf8' }).trim();
+  if (schemaTableCount !== '2') return null;
   const output = execFileSync('sqlite3', [
     '-separator', '\t',
     path,
