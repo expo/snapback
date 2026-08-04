@@ -168,6 +168,88 @@ function attachAuthority(client, fixture) {
   client.unsubscribeLive = async () => ({ disposed: true });
 }
 
+test('offline volatile query and liveQuery establishment expose the D4 unknown answer', async (t) => {
+  const originalFetch = globalThis.fetch;
+  const transportFailure = new TypeError('fetch failed');
+  let fetchCalls = 0;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    throw transportFailure;
+  };
+  t.after(() => { globalThis.fetch = originalFetch; });
+
+  const reference = {
+    artifactKind: 'functionReference',
+    schemaVersion: 'snapback.v0',
+    appId: 'offline-query-test',
+    id: 'offline-query-test:triageGraph',
+    name: 'triageGraph',
+    kind: 'LiveQuery',
+    argumentSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: { boardId: { type: 'string' } },
+      required: ['boardId'],
+    },
+    composition: {
+      normalizedCompositePlan: {
+        classification: { retention: 'none' },
+      },
+    },
+  };
+  const client = new SnapbackClient('https://offline-query.test', {
+    rqsStore: false,
+    offlineQueue: false,
+  });
+
+  await assert.rejects(
+    () => client.liveQuery(reference, {
+      connectionId: 'offline-query-invalid',
+      args: { forged: true },
+    }),
+    (error) => {
+      assert.equal(error.code, 'SNAPBACK_ARGUMENT_VALIDATION_FAILED');
+      assert.equal(error.diagnostic.details.function, 'triageGraph');
+      return true;
+    },
+  );
+  assert.equal(fetchCalls, 0, 'argument validation must precede establishment transport');
+
+  const assertOfflineUnavailable = (error) => {
+    assert.equal(error.name, 'SnapbackQueryOfflineUnavailableError');
+    assert.equal(error.code, 'SNAPBACK_QUERY_OFFLINE_UNAVAILABLE');
+    assert.equal(error.diagnostic.schemaVersion, 'snapback.client-diagnostic.v1');
+    assert.equal(error.diagnostic.code, error.code);
+    assert.equal(error.diagnostic.severity, 'error');
+    assert.equal(error.diagnostic.subsystem, 'client');
+    assert.equal(error.diagnostic.details.function, 'triageGraph');
+    assert.equal(error.diagnostic.details.retentionClass, 'none');
+    assert.equal(error.diagnostic.details.retentionDisposition, 'volatile');
+    assert.deepEqual(error.diagnostic.details.localAnswer, {
+      answerClass: 'unknown',
+      freshness: null,
+      reason: 'query retention class "none" does not admit an authoritative retained local answer',
+    });
+    assert(error.cause instanceof TypeError);
+    assert.equal(error.cause.message, 'fetch failed');
+    assert.equal(error.cause.fetchDispatchFailed, true);
+    return true;
+  };
+
+  await assert.rejects(
+    () => client.query(reference, { args: { boardId: 'board-1' } }),
+    assertOfflineUnavailable,
+  );
+  await assert.rejects(
+    () => client.liveQuery(reference, {
+      connectionId: 'offline-query-valid',
+      args: { boardId: 'board-1' },
+    }),
+    assertOfflineUnavailable,
+  );
+  assert.equal(fetchCalls, 2, 'query and live establishment each reach transport once');
+});
+
 test('single_table_v1 maps to durable no-lease retention without consuming AuthorizedLease', async () => {
   const fixture = applicationFixture();
   fixture.ref.composition.normalizedCompositePlan.nodes[0].nodePlan.classId = 'single_table_v1';

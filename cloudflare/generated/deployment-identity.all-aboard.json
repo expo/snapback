@@ -1,9 +1,9 @@
 {
   "format": 2,
   "app": "all-aboard",
-  "schemaHash": "sha256:5c731f8935eaedc9423b62dc8d8513eeec956a2ccb53a2f307ab1b88b26dbecc",
-  "bundleHash": "sha256:a3476fe976627d2832b8ed445c83cf721912f9757ca52321f1b09d142093d22c",
-  "inputsHash": "sha256:d45dc22c6279f3e9391a4c5a121b399fa74a386a15799ef305bc4fe9d02994d6",
+  "schemaHash": "sha256:deb0bcafd5cadc8712cb0f1a190bbddb65367547be332580f59408c66266c7f0",
+  "bundleHash": "sha256:2fcc014f13e44a3f4c8f5f46cd9f17dcb318183791205fd2a8fae5ba408764a5",
+  "inputsHash": "sha256:982acef548e5d81065ae009f17be4a047e72e024d78075c51b63c906d01f7437",
   "inputs": [
     "cloudflare/app/all-aboard.app.js",
     "cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json",
@@ -16,6 +16,7 @@
     "cloudflare/src/platform-errors.js",
     "cloudflare/src/rqs-host.mjs",
     "cloudflare/src/subscription-selection.js",
+    "cloudflare/src/target-admission.js",
     "cloudflare/src/wire-diagnostic.js",
     "demos/all-aboard/snapback/generated/functions.manifest.json",
     "demos/all-aboard/snapback/generated/schema.manifest.json",
