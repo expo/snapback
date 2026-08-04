@@ -27,7 +27,7 @@ not authorize capability publication.
 | --- | --- | --- |
 | 1 — atomic envelope | Partial | Carry authenticated issuance on the public ordinary-mutation path, activate a complete target manifest, and run its full crash-cut matrix. |
 | 2 — retry settlement | Partial | Ship range issue/refresh plus atomic client range custody and finish restored-client, recreated-branch, delayed-delivery, host-retry, and exhaustion transport legs. |
-| 3 — provenance/explanation | Partial | Public/admin transport and protected custody are wired. The public lane now revalidates the active artifact, current function/grant/profile policy, derived audience, current and retained historical owners, and every closed fact for exact generated owner-update envelopes. Generated creates remain unprovable because their private minted-id context is non-empty. Complete create/delete, aggregate/non-row, hand-written/opaque, predicate, membership, effect-bearing, and remaining authorization-change corpus. |
+| 3 — provenance/explanation | Partial | Public/admin transport and protected custody are wired. The public lane now revalidates the active artifact, current function/grant/profile policy, derived audience, current and retained historical owners, and every closed fact for exact generated owner-create/update envelopes. Create's private mint observation is exact-site-bound and stripped before projection; generated delete is recognized but remains a current-row-absent refusal. Complete positive evaluators, if justified, for aggregate/non-row, hand-written/opaque, predicate, membership, effect-bearing, and remaining policy classes. |
 | 4 — coverage honesty | Partial | The four ordinary/host physical adapters now use a private generated writer token and an armed SQLite authorizer; raw/cached/trigger/system-field/DDL bypass and target-vs-app-effective fixtures are green. Enumerate and envelope-map or explicitly exclude migration, seed/reset, admin, projection, and every specialized physical writer (the current specialized row is deliberately grouped/non-enumerated), then finish asymmetric-retention coverage. |
 | 5 — fork isolation | Partial | F0b and the derived post-fork-parent-write fixture cover the copied-instance leg; managed custody and `branch.execute.v1` run real mutations/actions only on the server-derived current-head workspace. Finish the per-class credential matrix and the multi-operation/atomic-retention carrier. |
 | 6 — effect quarantine | Partial | The managed boot path routes all twelve inventoried local host-egress families through durable payload-free `DenyAll` markers; real branch handlers cover fetch, stream-open, push-send, and transactional job-enqueue initiation. Add the unreachable-after-initiation and remaining maintenance/bypass corpus; implement and prove `CaptureOnly` separately with its intent/settlement ledger. |
@@ -46,18 +46,23 @@ the guide-gap ticket rather than being conflated with this implementation tail.
 
 ## Dated implementation evidence — 2026-08-04
 
-- Public explanation now has one deliberately narrow positive profile: exact
-  generated `owned-crud.v1` / `owner.v1` update HostPlans. A request
+- Public explanation now has two deliberately narrow positive profiles: exact
+  generated `owned-crud.v1` / `owner.v1` create/update HostPlans. A request
   must present the current `clientAudienceId`; the server derives the audience
   from it and the live authority incarnation, re-runs current function and
   grant policy, compares the exact active artifact digest, and checks current
-  plus captured historical ownership where applicable. The protected
+  plus captured historical ownership where applicable. Generated create also
+  binds its one private mint observation to the active plan's exact site,
+  occurrence, and inserted id, then strips that private ledger before public
+  projection; it never supplies authority. Generated delete is recognized but
+  refuses because no current row can satisfy owner policy. The protected
   read/write/context/receipt set must have the exact expected cardinality and
   shape, effects must be empty, and the receipt must agree with the postimage,
   snapshot, result, changed row, and context ledger. Focused negatives cover
   artifact drift, current and historical owner change, unsupported
-  missing/predicate/membership permission facts, non-empty context/effects,
-  divergent receipts, and truncation. Any constituent failure returns one
+  missing/predicate/aggregate-result/membership permission facts, widened
+  context/effects, divergent receipts, wrong/extra/reordered private mint
+  observations, truncation, and expiry. Any constituent failure returns one
   metadata-free `authorization-unprovable`; unsupported classes remain open
   and every related capability remains `Missing`.
 - `fork_promotion::tests::exact_diff_model_corpus_covers_add_update_delete_and_folding`

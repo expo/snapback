@@ -18,12 +18,12 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 use crate::commit_envelope::{
-    ClientIdentityRangeV1, CommitEnvelopeV1, ExplanationDispositionV1, IdentityEpochStateV1,
-    IdentityEpochV1, OperationCoverageManifestV1, OperationIdentityComparison,
-    OperationIdentityTombstoneV1, OperationIdentityV1, OperationIssuanceV1,
-    OperationLookupDispositionV1, OperationOriginatorClassV1, OperationSuppressionRecordV1,
-    OperationTerminalOutcomeV1, RetainedEnvelopeDetailV1, SnapshotAssociationKindV1,
-    derive_host_operation_id,
+    ClientIdentityRangeV1, CommitEnvelopeV1, ExplanationDispositionV1, FactProvenanceV1,
+    IdentityEpochStateV1, IdentityEpochV1, OperationCoverageManifestV1,
+    OperationIdentityComparison, OperationIdentityTombstoneV1, OperationIdentityV1,
+    OperationIssuanceV1, OperationLookupDispositionV1, OperationOriginatorClassV1,
+    OperationSuppressionRecordV1, OperationTerminalOutcomeV1, RetainedEnvelopeDetailV1,
+    SnapshotAssociationKindV1, derive_host_operation_id,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 
@@ -90,6 +90,7 @@ pub struct CurrentExplanationAuthorityV1 {
 pub enum OwnerMutationExplanationKindV1 {
     Create,
     Update,
+    Delete,
 }
 
 /// Closed current-policy proofs admitted by the public explanation projector.
@@ -104,6 +105,9 @@ pub enum ExplanationFactPolicyV1 {
         table: String,
         owner_field: String,
         kind: OwnerMutationExplanationKindV1,
+        /// Exact private HostPlan mint site recovered from the active
+        /// generated create artifact. Absent for update/delete.
+        create_mint_site: Option<String>,
     },
 }
 
@@ -2109,19 +2113,24 @@ fn project_explanation(
         } else {
             0
         };
-    let (mut disposition, detail) = detail_projection(conn, &envelope);
+    let (mut disposition, mut detail) = detail_projection(conn, &envelope);
     if !authority.administrative {
         // Public authorization is per retained fact. Truncation, expiry, or
         // unavailable custody means at least one constituent can no longer be
         // evaluated, so even aggregate counts/digests are withheld.
-        let fact_authorized = disposition == ExplanationDispositionV1::Complete
-            && detail.as_ref().is_some_and(|detail| {
-                public_fact_policy_allows(conn, &envelope, detail, &authority.fact_policy)
-                    .unwrap_or(false)
-            });
-        if !fact_authorized {
+        let public_detail = (disposition == ExplanationDispositionV1::Complete)
+            .then(|| {
+                detail.as_ref().and_then(|detail| {
+                    public_fact_policy_projection(conn, &envelope, detail, &authority.fact_policy)
+                        .ok()
+                        .flatten()
+                })
+            })
+            .flatten();
+        let Some(public_detail) = public_detail else {
             return Ok(authorization_unprovable(envelope));
-        }
+        };
+        detail = Some(public_detail);
     }
     if envelope.snapshot.association == SnapshotAssociationKindV1::ProducedCommit
         && journal_count < envelope.write_set.count
@@ -2158,103 +2167,136 @@ fn authorization_unprovable(envelope: CommitEnvelopeV1) -> StoredOperationExplan
 /// @ref LLP 0162#acceptance — row facts require current plus retained-value
 ///   policy; missing/predicate/membership/context/effect facts are decided per
 ///   class, and one unprovable constituent redacts the whole aggregate.
-fn public_fact_policy_allows(
+fn public_fact_policy_projection(
     conn: &Connection,
     envelope: &CommitEnvelopeV1,
     detail: &Value,
     policy: &ExplanationFactPolicyV1,
-) -> SnapbackResult<bool> {
+) -> SnapbackResult<Option<Value>> {
     let ExplanationFactPolicyV1::OwnerMutationV1 {
         subject,
         table,
         owner_field,
         kind,
+        create_mint_site,
     } = policy
     else {
-        return Ok(false);
+        return Ok(None);
     };
     // Public row/ctx/receipt detail is admitted only through authenticated
     // protected custody. Empty effect facts are the one payload-free class.
-    if !matches!(
-        envelope.read_set.detail,
-        RetainedEnvelopeDetailV1::ProtectedLane { .. }
-    ) || !matches!(
-        envelope.write_set.detail,
-        RetainedEnvelopeDetailV1::ProtectedLane { .. }
-    ) || !matches!(
-        envelope.ctx_answers.detail,
-        RetainedEnvelopeDetailV1::ProtectedLane { .. }
-    ) || !matches!(
-        envelope.receipt.payload,
-        RetainedEnvelopeDetailV1::ProtectedLane { .. }
-    ) || envelope.effects.facts.count != 0
+    if envelope.read_set.provenance != FactProvenanceV1::ServerCaptured
+        || envelope.write_set.provenance != FactProvenanceV1::ServerCaptured
+        || envelope.ctx_answers.provenance != FactProvenanceV1::ServerCaptured
+        || envelope.effects.facts.provenance != FactProvenanceV1::ServerCaptured
+        || !matches!(
+            envelope.read_set.detail,
+            RetainedEnvelopeDetailV1::ProtectedLane { .. }
+        )
+        || !matches!(
+            envelope.write_set.detail,
+            RetainedEnvelopeDetailV1::ProtectedLane { .. }
+        )
+        || !matches!(
+            envelope.ctx_answers.detail,
+            RetainedEnvelopeDetailV1::ProtectedLane { .. }
+        )
+        || !matches!(
+            envelope.receipt.payload,
+            RetainedEnvelopeDetailV1::ProtectedLane { .. }
+        )
+        || envelope.effects.facts.count != 0
         || !envelope.effects.egress_families.is_empty()
         || !envelope.effects.settlement_capabilities.is_empty()
+        || !matches!(
+            &envelope.effects.facts.detail,
+            RetainedEnvelopeDetailV1::InlineRedacted { detail }
+                if detail == &json!([])
+        )
+        || envelope.effects.facts.digest
+            != digest_fact_set(b"snapback:operation-effects:v1\n", &json!([]))
     {
-        return Ok(false);
+        return Ok(None);
     }
     let Some(object) = detail.as_object() else {
-        return Ok(false);
+        return Ok(None);
     };
+    if object.len() != 5
+        || !["readSet", "writeSet", "effects", "ctxAnswers", "receipt"]
+            .iter()
+            .all(|name| object.contains_key(*name))
+    {
+        return Ok(None);
+    }
     let Some(read_value) = object.get("readSet") else {
-        return Ok(false);
+        return Ok(None);
     };
     let Some(write_value) = object.get("writeSet") else {
-        return Ok(false);
+        return Ok(None);
     };
     let Some(effect_value) = object.get("effects") else {
-        return Ok(false);
+        return Ok(None);
     };
     let Some(ctx_value) = object.get("ctxAnswers") else {
-        return Ok(false);
+        return Ok(None);
     };
     let Some(receipt_value) = object.get("receipt") else {
-        return Ok(false);
+        return Ok(None);
     };
     if effect_value
         .as_array()
         .is_none_or(|effects| !effects.is_empty())
     {
-        return Ok(false);
+        return Ok(None);
     }
     let reads: Vec<crate::storage::CapturedReadDependency> =
         match serde_json::from_value(read_value.clone()) {
             Ok(reads) => reads,
-            Err(_) => return Ok(false),
+            Err(_) => return Ok(None),
         };
     let writes: Vec<crate::storage::ChangedRow> = match serde_json::from_value(write_value.clone())
     {
         Ok(writes) => writes,
-        Err(_) => return Ok(false),
+        Err(_) => return Ok(None),
     };
     if reads.len() as u64 != envelope.read_set.count
         || writes.len() as u64 != envelope.write_set.count
+        || serde_json::to_value(&reads).ok().as_ref() != Some(read_value)
+        || serde_json::to_value(&writes).ok().as_ref() != Some(write_value)
     {
-        return Ok(false);
+        return Ok(None);
     }
     let ctx: crate::manifest::CtxAnswerLedger = match serde_json::from_value(ctx_value.clone()) {
         Ok(ctx) => ctx,
-        Err(_) => return Ok(false),
+        Err(_) => return Ok(None),
     };
-    if envelope.ctx_answers.count != 1 || !ctx.ids.is_empty() || ctx.auth_fingerprint.is_some() {
-        return Ok(false);
+    if envelope.ctx_answers.count != 1
+        || ctx.version != crate::manifest::ctx_ledger_version()
+        || ctx.auth_fingerprint.is_some()
+        || serde_json::to_value(&ctx).ok().as_ref() != Some(ctx_value)
+    {
+        return Ok(None);
     }
     let receipt: crate::manifest::MutationOutput =
         match serde_json::from_value(receipt_value.clone()) {
             Ok(receipt) => receipt,
-            Err(_) => return Ok(false),
+            Err(_) => return Ok(None),
         };
+    if serde_json::to_value(&receipt).ok().as_ref() != Some(receipt_value) {
+        return Ok(None);
+    }
     let row_writes = writes
         .iter()
         .filter(|write| write.table == *table)
         .collect::<Vec<_>>();
     if row_writes.len() != 1 || writes.len() != 1 {
-        return Ok(false);
+        return Ok(None);
     }
     let write = row_writes[0];
     let expected_op = match kind {
         OwnerMutationExplanationKindV1::Create => crate::storage::ChangeOp::Insert,
         OwnerMutationExplanationKindV1::Update => crate::storage::ChangeOp::Update,
+        OwnerMutationExplanationKindV1::Delete => crate::storage::ChangeOp::Delete,
     };
     if write.op != expected_op
         || write
@@ -2264,57 +2306,108 @@ fn public_fact_policy_allows(
             .and_then(|row| row.get(owner_field))
             .and_then(Value::as_str)
             != Some(subject)
+    {
+        return Ok(None);
+    }
+    // @ref LLP 0088#6-authorization--pursue-precondition-of-capability-1-fail-closed-per-version —
+    //   owner.v1 must hold for the current row and every retained postimage.
+    //   A generated delete has a trustworthy preimage but no current row, so
+    //   it remains a normative refusal rather than reusing historical owner
+    //   identity as current authority.
+    if *kind == OwnerMutationExplanationKindV1::Delete
         || current_owner(conn, table, owner_field, &write.id)?.as_deref() != Some(subject)
     {
-        return Ok(false);
+        return Ok(None);
     }
-    if envelope.receipt.state != crate::commit_envelope::OperationReceiptStateV1::Committed
+    let expected_result = match kind {
+        OwnerMutationExplanationKindV1::Create | OwnerMutationExplanationKindV1::Update => {
+            write.row.clone().unwrap_or(Value::Null)
+        }
+        OwnerMutationExplanationKindV1::Delete => json!(1),
+    };
+    let mint_context_valid = match kind {
+        OwnerMutationExplanationKindV1::Create => {
+            ctx.ids.len() == 1
+                && ctx.ids[0] == write.id
+                && receipt.settlement_mint_observations.len() == 1
+                && receipt.settlement_mint_observations[0].id == write.id
+                && receipt.settlement_mint_observations[0].occurrence == 0
+                && create_mint_site.as_deref()
+                    == Some(receipt.settlement_mint_observations[0].site.as_str())
+        }
+        OwnerMutationExplanationKindV1::Update | OwnerMutationExplanationKindV1::Delete => {
+            create_mint_site.is_none()
+                && ctx.ids.is_empty()
+                && receipt.settlement_mint_observations.is_empty()
+        }
+    };
+    if !mint_context_valid
+        || envelope.receipt.state != crate::commit_envelope::OperationReceiptStateV1::Committed
         || receipt.version != envelope.snapshot.version
         || receipt.changed_count != 1
-        || receipt.result != write.row.clone().unwrap_or(Value::Null)
+        || receipt.result != expected_result
         || receipt.ctx_ledger.as_ref() != Some(&ctx)
-        || !receipt.settlement_mint_observations.is_empty()
         || receipt.settlement_time_observation.is_some()
         || !receipt.settlement_sequence_allocations.is_empty()
     {
-        return Ok(false);
+        return Ok(None);
     }
     for read in &reads {
         match read.kind {
             crate::storage::CapturedReadKind::Auth => {
                 if read.table.is_some()
                     || read.id.is_some()
+                    || read.version.is_some()
                     || read.predicate.is_some()
                     || !read.rows.is_empty()
                     || read.field.as_deref() != Some("userId")
                     || read.value.as_ref().and_then(Value::as_str) != Some(subject)
+                    || read.order.is_some()
+                    || read.limit.is_some()
+                    || read.result_count.is_some()
+                    || read.boundary.is_some()
                 {
-                    return Ok(false);
+                    return Ok(None);
                 }
             }
             crate::storage::CapturedReadKind::Permission => {
                 let expected_scope = format!("user:{subject}");
                 if read.table.is_some()
                     || read.id.is_some()
+                    || read.version.is_none()
                     || read.predicate.is_some()
                     || !read.rows.is_empty()
                     || read.field.as_deref() != Some("scope")
                     || read.value.as_ref().and_then(Value::as_str) != Some(expected_scope.as_str())
+                    || read.order.is_some()
+                    || read.limit.is_some()
+                    || read.result_count.is_some()
+                    || read.boundary.is_some()
                 {
                     // Membership and other permission facts have a different
                     // shape and need their own live evaluator.
-                    return Ok(false);
+                    return Ok(None);
                 }
             }
             crate::storage::CapturedReadKind::Row => {
-                if *kind != OwnerMutationExplanationKindV1::Update
-                    || read.table.as_deref() != Some(table)
+                if !matches!(
+                    kind,
+                    OwnerMutationExplanationKindV1::Update | OwnerMutationExplanationKindV1::Delete
+                ) || read.table.as_deref() != Some(table)
                     || read.id.as_deref() != Some(write.id.as_str())
+                    || read.predicate.is_some()
+                    || !read.rows.is_empty()
+                    || read.field.is_some()
+                    || read.value.is_some()
+                    || read.order.is_some()
+                    || read.limit.is_some()
+                    || read.result_count.is_some()
+                    || read.boundary.is_some()
                     || historical_owner(conn, table, owner_field, &write.id, read.version)?
                         .as_deref()
                         != Some(subject)
                 {
-                    return Ok(false);
+                    return Ok(None);
                 }
             }
             crate::storage::CapturedReadKind::MissingRow
@@ -2322,7 +2415,7 @@ fn public_fact_policy_allows(
                 // A missing-row or predicate/result-membership fact has no
                 // retained owner post-image in v1. Do not infer its policy
                 // from the caller or enclosing operation.
-                return Ok(false);
+                return Ok(None);
             }
         }
     }
@@ -2330,10 +2423,41 @@ fn public_fact_policy_allows(
         .iter()
         .filter(|read| read.kind == crate::storage::CapturedReadKind::Row)
         .count();
-    Ok(match kind {
-        OwnerMutationExplanationKindV1::Create => row_read_count == 0,
+    let fact_shape_valid = match kind {
+        OwnerMutationExplanationKindV1::Create => {
+            row_read_count == 0
+                && historical_owner(
+                    conn,
+                    table,
+                    owner_field,
+                    &write.id,
+                    Some(envelope.snapshot.version),
+                )?
+                .as_deref()
+                    == Some(subject)
+        }
         OwnerMutationExplanationKindV1::Update => row_read_count == 1,
-    })
+        OwnerMutationExplanationKindV1::Delete => false,
+    };
+    if !fact_shape_valid {
+        return Ok(None);
+    }
+
+    // LLP 0133's mint observation is validated as captured context, never as
+    // authority, and is removed before this protected receipt crosses the
+    // public projection. The authorized row id remains available in the
+    // row/result and ctx answer; the private site/occurrence ledger does not.
+    let mut public_receipt = receipt;
+    public_receipt.settlement_mint_observations.clear();
+    public_receipt.settlement_time_observation = None;
+    public_receipt.settlement_sequence_allocations.clear();
+    let mut projected = object.clone();
+    projected.insert(
+        "receipt".to_owned(),
+        serde_json::to_value(public_receipt)
+            .map_err(|_| invalid("public operation receipt could not be encoded"))?,
+    );
+    Ok(Some(Value::Object(projected)))
 }
 
 fn historical_owner(
@@ -3535,6 +3659,8 @@ mod tests {
         };
         let mut retained = envelope(identity.clone(), 2, 1);
         retained.executable_artifact_digest = LaneFactV1::Defined(artifact_digest.clone());
+        retained.effects.facts.digest =
+            digest_fact_set(b"snapback:operation-effects:v1\n", &json!([]));
         retained.read_set = protected(&tx, "owner:reads", b"owner:reads\n", read_value, 1);
         retained.write_set = protected(&tx, "owner:writes", b"owner:writes\n", write_value, 1);
         retained.ctx_answers = protected(&tx, "owner:ctx", b"owner:ctx\n", ctx_value, 1);
@@ -3556,6 +3682,7 @@ mod tests {
             table: "todos".to_owned(),
             owner_field: "ownerId".to_owned(),
             kind: OwnerMutationExplanationKindV1::Update,
+            create_mint_site: None,
         };
         let authority = CurrentExplanationAuthorityV1 {
             audience: "audience-1".to_owned(),
@@ -3670,6 +3797,54 @@ mod tests {
         let (_, Some(detail)) = detail_projection(&conn, &retained) else {
             panic!("protected owner detail opens");
         };
+        let mut auth_and_permission_detail = detail.clone();
+        auth_and_permission_detail["readSet"]
+            .as_array_mut()
+            .expect("read set array")
+            .extend([
+                json!({
+                    "kind": "auth",
+                    "field": "userId",
+                    "value": "alice",
+                }),
+                json!({
+                    "kind": "permission",
+                    "version": 0,
+                    "field": "scope",
+                    "value": "user:alice",
+                }),
+            ]);
+        let mut auth_and_permission_envelope = retained.clone();
+        auth_and_permission_envelope.read_set.count = 3;
+        assert!(
+            public_fact_policy_projection(
+                &conn,
+                &auth_and_permission_envelope,
+                &auth_and_permission_detail,
+                &policy,
+            )
+            .expect("auth and permission facts")
+            .is_some(),
+            "exact current-subject auth and permission facts remain provable"
+        );
+        for (class, path, changed_value) in [
+            ("changed-auth-subject", 1, json!("bob")),
+            ("changed-permission-scope", 2, json!("user:bob")),
+        ] {
+            let mut changed = auth_and_permission_detail.clone();
+            changed["readSet"][path]["value"] = changed_value;
+            assert!(
+                public_fact_policy_projection(
+                    &conn,
+                    &auth_and_permission_envelope,
+                    &changed,
+                    &policy,
+                )
+                .expect("changed auth fact decision")
+                .is_none(),
+                "{class} must remain fail-closed"
+            );
+        }
         for (class, changed) in [
             ("missing-row", {
                 let mut value = detail.clone();
@@ -3680,6 +3855,20 @@ mod tests {
                 let mut value = detail.clone();
                 value["readSet"][0]["kind"] = json!("query");
                 value["readSet"][0]["predicate"] = json!({"ownerId":"alice"});
+                value
+            }),
+            ("aggregate-result-membership", {
+                let mut value = detail.clone();
+                value["readSet"][0]["kind"] = json!("query");
+                value["readSet"][0]["predicate"] = json!({"ownerId":"alice"});
+                value["readSet"][0]["rows"] = json!(["todo-1"]);
+                value["readSet"][0]["result_count"] = json!(1);
+                value
+            }),
+            ("row-with-result-membership", {
+                let mut value = detail.clone();
+                value["readSet"][0]["rows"] = json!(["todo-1"]);
+                value["readSet"][0]["result_count"] = json!(1);
                 value
             }),
             ("membership-permission", {
@@ -3705,8 +3894,9 @@ mod tests {
             }),
         ] {
             assert!(
-                !public_fact_policy_allows(&conn, &retained, &changed, &policy)
-                    .expect("fact policy decision"),
+                public_fact_policy_projection(&conn, &retained, &changed, &policy)
+                    .expect("fact policy decision")
+                    .is_none(),
                 "{class} must remain fail-closed"
             );
         }
@@ -3718,6 +3908,173 @@ mod tests {
                 .expect("truncated projection")
                 .disposition,
             ExplanationDispositionV1::AuthorizationUnprovable
+        );
+        let mut expired = retained.clone();
+        expired.read_set.detail = RetainedEnvelopeDetailV1::Expired;
+        assert_eq!(
+            project_explanation(&conn, expired, &authority)
+                .expect("expired projection")
+                .disposition,
+            ExplanationDispositionV1::AuthorizationUnprovable
+        );
+
+        // The active generated create artifact can justify the row id it
+        // minted only by binding the private observation to its exact plan
+        // site. The observation is then stripped from the public receipt; it
+        // is captured consistency evidence, never owner authority.
+        conn.execute(
+            "INSERT INTO todos(_id,ownerId,title) VALUES('todo-create','alice','created')",
+            [],
+        )
+        .expect("current created row");
+        conn.execute(
+            "INSERT INTO _snapback_record_history_v1(
+               version,table_name,row_id,op,row_json,changed_at_ms,operation_id
+             ) VALUES(
+               3,'todos','todo-create','insert',
+               '{\"_id\":\"todo-create\",\"_version\":3,\"ownerId\":\"alice\",\"title\":\"created\"}',
+               3,NULL
+             )",
+            [],
+        )
+        .expect("created row history");
+        let create_row = crate::storage::ChangedRow {
+            table: "todos".to_owned(),
+            id: "todo-create".to_owned(),
+            op: crate::storage::ChangeOp::Insert,
+            row: Some(json!({
+                "_id": "todo-create",
+                "_version": 3,
+                "ownerId": "alice",
+                "title": "created",
+            })),
+            changed_fields: vec!["ownerId".to_owned(), "title".to_owned()],
+        };
+        let create_ctx = crate::manifest::CtxAnswerLedger {
+            version: crate::manifest::ctx_ledger_version(),
+            ids: vec!["todo-create".to_owned()],
+            now: 11,
+            auth_fingerprint: None,
+        };
+        let create_receipt = crate::manifest::MutationOutput {
+            version: 3,
+            changed_count: 1,
+            result: create_row.row.clone().expect("create result"),
+            ctx_ledger: Some(create_ctx.clone()),
+            settlement_mint_observations: vec![crate::manifest::SettlementMintObservation {
+                id: "todo-create".to_owned(),
+                site: "plan/steps/0/insert/row-id".to_owned(),
+                occurrence: 0,
+            }],
+            settlement_time_observation: None,
+            settlement_sequence_allocations: Vec::new(),
+        };
+        let create_detail = json!({
+            "readSet": [],
+            "writeSet": [create_row],
+            "ctxAnswers": create_ctx,
+            "effects": [],
+            "receipt": create_receipt,
+        });
+        let mut create_envelope = retained.clone();
+        create_envelope.snapshot.version = 3;
+        create_envelope.read_set.count = 0;
+        create_envelope.write_set.count = 1;
+        let create_policy = ExplanationFactPolicyV1::OwnerMutationV1 {
+            subject: "alice".to_owned(),
+            table: "todos".to_owned(),
+            owner_field: "ownerId".to_owned(),
+            kind: OwnerMutationExplanationKindV1::Create,
+            create_mint_site: Some("plan/steps/0/insert/row-id".to_owned()),
+        };
+        let projected =
+            public_fact_policy_projection(&conn, &create_envelope, &create_detail, &create_policy)
+                .expect("generated create policy")
+                .expect("generated create facts are current-policy provable");
+        assert_eq!(projected["receipt"]["result"]["_id"], "todo-create");
+        assert!(
+            projected["receipt"]
+                .get("_settlementMintObservations")
+                .is_none(),
+            "the private mint-site ledger never crosses public explanation"
+        );
+
+        for (class, changed) in [
+            ("wrong-site", {
+                let mut value = create_detail.clone();
+                value["receipt"]["_settlementMintObservations"][0]["site"] =
+                    json!("plan/steps/1/insert/row-id");
+                value
+            }),
+            ("extra-observation", {
+                let mut value = create_detail.clone();
+                value["receipt"]["_settlementMintObservations"]
+                    .as_array_mut()
+                    .expect("mint observation array")
+                    .push(json!({
+                        "id": "todo-create",
+                        "site": "plan/steps/0/insert/row-id",
+                        "occurrence": 1,
+                    }));
+                value
+            }),
+            ("reordered-observations", {
+                let mut value = create_detail.clone();
+                value["receipt"]["_settlementMintObservations"] = json!([
+                    {
+                        "id": "todo-create",
+                        "site": "plan/steps/0/insert/row-id",
+                        "occurrence": 1,
+                    },
+                    {
+                        "id": "todo-create",
+                        "site": "plan/steps/0/insert/row-id",
+                        "occurrence": 0,
+                    },
+                ]);
+                value
+            }),
+        ] {
+            assert!(
+                public_fact_policy_projection(&conn, &create_envelope, &changed, &create_policy)
+                    .expect("mint-context decision")
+                    .is_none(),
+                "{class} must not be accepted as the generated create mint"
+            );
+        }
+
+        let mut effect_bearing = create_envelope.clone();
+        effect_bearing
+            .effects
+            .egress_families
+            .push(crate::commit_envelope::EffectEgressFamilyV1::Fetch);
+        assert!(
+            public_fact_policy_projection(&conn, &effect_bearing, &create_detail, &create_policy,)
+                .expect("effect-bearing decision")
+                .is_none()
+        );
+
+        // Generated owner delete is an exact recognizable policy shape, but
+        // current owner policy cannot be evaluated after the row is absent.
+        // Historical ownership and operation identity therefore cannot
+        // authorize its public explanation.
+        let delete_policy = ExplanationFactPolicyV1::OwnerMutationV1 {
+            subject: "alice".to_owned(),
+            table: "todos".to_owned(),
+            owner_field: "ownerId".to_owned(),
+            kind: OwnerMutationExplanationKindV1::Delete,
+            create_mint_site: None,
+        };
+        let mut delete_detail = detail.clone();
+        delete_detail["writeSet"][0]["op"] = json!("Delete");
+        delete_detail["receipt"]["result"] = json!(1);
+        conn.execute("DELETE FROM todos WHERE _id='todo-1'", [])
+            .expect("delete current row");
+        assert!(
+            public_fact_policy_projection(&conn, &retained, &delete_detail, &delete_policy)
+                .expect("generated delete decision")
+                .is_none(),
+            "retained owner identity cannot replace absent current authority"
         );
     }
 

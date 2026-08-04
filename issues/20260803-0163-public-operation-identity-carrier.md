@@ -8,10 +8,11 @@
 The public client range carrier, ordinary-mutation choke points, protected
 explanation custody, job/cron action children, and migration transaction
 carriers are implemented. Production targets still do not activate a coverage
-manifest, the public explanation lane still refuses until it can re-evaluate
-current policy per fact, and the migration carrier remains explicitly
-uncovered: publication and terminal settlement are distinct transactions that
-the current terminal-only operation ledger cannot represent honestly.
+manifest, the public explanation lane has closed positive evaluators only for
+exact generated owner create/update facts, and the migration carrier remains
+explicitly uncovered: publication and terminal settlement are distinct
+transactions that the current terminal-only operation ledger cannot represent
+honestly.
 
 The remaining closure gates are:
 
@@ -20,8 +21,10 @@ The remaining closure gates are:
   asymmetric-retention corpus pass, and keep undeclared lanes explicit;
 - accept and implement the pending→terminal migration amendment and crash
   corpus mapped below before adding that specialized lane to coverage;
-- complete real current-policy evaluation for the public explanation lane;
-  the public/admin transport and protected custody are already wired; and
+- complete the remaining real current-policy evaluators for the public
+  explanation lane; exact generated owner create/update are closed, generated
+  delete is a normative current-row-absent refusal, and the public/admin
+  transport and protected custody are already wired; and
 - rerun LLP 0162 Acceptance row 13's comparable candidate protocol with the
   public issuance-bearing covered lane active under a genuinely paired,
   baseline-digest-bound protocol; the clean 2026-08-03 binary observations
@@ -59,7 +62,7 @@ Landed in the explanation/protected-custody slice:
 - current AdminRead policy evaluation and a public lane that resolves the live
   principal/incarnation, derives the current client audience, re-runs live
   function/grant/profile policy, and projects only exact generated
-  `owned-crud.v1` / `owner.v1` update envelopes whose active
+  `owned-crud.v1` / `owner.v1` create/update envelopes whose active
   artifact, current and retained historical owners, and closed
   read/write/context/effect/receipt facts all revalidate (Partial, never an
   authorization claim inferred from identity equality or protected custody);
@@ -225,10 +228,10 @@ Still required before this ticket closes:
 - a separately reviewed pending→terminal migration lifecycle amendment and
   its full atomic crash/replay corpus before any migration coverage claim;
 - the remainder of per-fact current-policy evaluation for public explanation:
-  delete, aggregate/non-row, hand-written/opaque, predicate, membership,
-  effect-bearing, and other unsupported shapes stay fail-closed; the generated
-  owner-update profile is the only current positive slice; generated creates
-  remain unprovable because their private minted-id context is non-empty;
+  aggregate/non-row, hand-written/opaque, predicate, membership,
+  effect-bearing, and other unsupported shapes stay fail-closed; exact
+  generated owner create/update are the only current positive profiles, while
+  generated delete remains a normative current-row-absent refusal;
 - enumerate and envelope-map or explicitly exclude every migration,
   seed/reset, admin, projection, and specialized physical writer; then finish
   the complete target writer/asymmetric-retention corpus (the four
@@ -264,3 +267,27 @@ complete target writer/bypass inventory, distinct durable result-gone outbox
 state, fixed-Air active/idle/retention performance artifact, independent
 review, and author acceptance remain required. LLP 0163 remains Draft and all
 related capabilities remain `Missing`.
+
+## Public current-policy tail evidence — 2026-08-04
+
+- Exact generated owner create now requires current and retained-insert owner
+  agreement, one inserted write/result, one matching ctx id, and one private
+  mint observation bound to the active artifact's exact
+  `plan/steps/0/insert/row-id` site and occurrence zero. The private
+  site/occurrence ledger is validated but stripped from public explanation and
+  never treated as authority.
+- Exact generated owner delete is recognized but returns the same metadata-free
+  `authorization-unprovable` refusal: after deletion there is no current row
+  against which LLP 0088's current owner policy can be evaluated, and retained
+  ownership/identity/custody cannot replace it.
+- Focused negatives cover changed current/historical owners, missing-row,
+  predicate/query, aggregate result-membership, membership permission, widened
+  ctx, effects and effect-class flags, opaque/unsupported policy, divergent
+  receipt, wrong/extra/reordered mint observations, truncation, expiry, and
+  changed audience/principal/incarnation/artifact. Every constituent failure
+  withholds stored metadata, counts, digests, and detail.
+
+This is additional row-3 Partial evidence. General aggregate/non-row,
+predicate, membership, effect-bearing, hand-written/opaque, and other
+generated policy profiles still have no positive evaluator; LLP 0163 stays
+Draft and all related capabilities stay `Missing`.

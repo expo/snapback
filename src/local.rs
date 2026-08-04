@@ -23336,8 +23336,9 @@ fn operation_client_audience(
 
 /// Recover only the generated owner-mutation policies whose complete shape is
 /// independently recognizable from the active artifact. A standardPattern
-/// string alone is not authority: hand-written, opaque, delete, and widened
-/// plans remain unprovable.
+/// string alone is not authority: hand-written, opaque, and widened plans
+/// remain unprovable. Generated owner deletes are classified so the fact
+/// evaluator can apply the explicit current-row-absent refusal.
 fn owner_mutation_explanation_policy(
     function: &FunctionDefinition,
     schema: &SchemaManifest,
@@ -23355,7 +23356,7 @@ fn owner_mutation_explanation_policy(
     let FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) = &function.runtime else {
         return None;
     };
-    let (table, owner_field, kind) = match plan.steps.as_slice() {
+    let (table, owner_field, kind, create_mint_site) = match plan.steps.as_slice() {
         [
             MutationStep::Insert {
                 table,
@@ -23383,6 +23384,7 @@ fn owner_mutation_explanation_policy(
                 table.clone(),
                 owner_fields[0].clone(),
                 crate::operation_ledger::OwnerMutationExplanationKindV1::Create,
+                Some("plan/steps/0/insert/row-id".to_owned()),
             )
         }
         [
@@ -23435,6 +23437,51 @@ fn owner_mutation_explanation_policy(
                 table.clone(),
                 key.clone(),
                 crate::operation_ledger::OwnerMutationExplanationKindV1::Update,
+                None,
+            )
+        }
+        [
+            MutationStep::Get {
+                table,
+                id,
+                bind_as,
+                else_error: Some(missing),
+            },
+            MutationStep::Guard {
+                cond,
+                else_error: denied,
+            },
+            MutationStep::Delete {
+                table: delete_table,
+                id: delete_id,
+            },
+        ] if table == delete_table
+            && id == delete_id
+            && missing == "SNAPBACK_ROW_NOT_FOUND"
+            && denied == "SNAPBACK_ROW_NOT_FOUND"
+            && plan.return_value.is_none() =>
+        {
+            let ValueExpr::Binary {
+                op: crate::manifest::BinaryOp::Eq,
+                left,
+                right,
+            } = cond
+            else {
+                return None;
+            };
+            let (ValueExpr::Field { base, key }, ValueExpr::AuthUserId) =
+                (left.as_ref(), right.as_ref())
+            else {
+                return None;
+            };
+            if base.as_ref() != &ValueExpr::Binding(bind_as.clone()) {
+                return None;
+            }
+            (
+                table.clone(),
+                key.clone(),
+                crate::operation_ledger::OwnerMutationExplanationKindV1::Delete,
+                None,
             )
         }
         _ => return None,
@@ -23455,6 +23502,7 @@ fn owner_mutation_explanation_policy(
             table,
             owner_field,
             kind,
+            create_mint_site,
         },
     )
 }
