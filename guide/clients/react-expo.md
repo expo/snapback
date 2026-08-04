@@ -28,7 +28,10 @@ handlers locally and therefore does not claim local-first behavior or Parity.
 
 Everything on the React page applies here — this page covers only what is
 different on the RN carrier: the boot path, the crypto prerequisites, the
-store consequence, the offline queue, and reconnect honesty.
+store consequence, the offline queue, and reconnect honesty. In particular,
+optimistic mutations work unchanged: for a like/favorite button backed by a
+live feed, use [the optimistic toggle recipe](../recipes/optimistic-toggle.md)
+rather than component state plus a local counter delta.
 
 ## Boot: external bearer, prepared binding, provider
 

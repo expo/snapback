@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "b877b44102a177405fed96bb66c0b64b0915536d"
+    "commit": "4b2a0c9af6191f6e5d1b52a59b44b6a741cf1114"
   },
   "nav": {
     ".": [
@@ -273,6 +273,11 @@
         "id": "recipes.hidden-hands",
         "order": 2,
         "title": "Recipe: hidden hands"
+      },
+      {
+        "id": "recipes.optimistic-toggle",
+        "order": 3,
+        "title": "Recipe: optimistic toggle"
       }
     ],
     "sync": [
@@ -1627,7 +1632,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "75704cb9b1f74cd345b0f6005a4f4d34d1370c63e856df14023cd98589d1d38c",
+      "sha256": "bdbcb429f20e7a6a5ddf5d88f5a5382ab973501cd88c3bc9b5129c8f7926320c",
       "snippets": [
         {
           "lang": "ts",
@@ -1694,7 +1699,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "4b6275eb776b8d81f759de2b68374581f2fe89dbe47d32cb4d78ec270e8bd024",
+      "sha256": "54b67ea3f24c3ae72444834d718d1153955c2919ad1d862fd32c5e21577b6194",
       "snippets": [
         {
           "lang": "ts",
@@ -2046,7 +2051,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "aaec8c79a2a0a8b5a9eb6b999a8cd766fc38c2cd392909093e2f6c5ad1c0879a",
+      "sha256": "c280b107251636c63ddfbef1d5d8b073367262e37ad1867818bb9dc046a67801",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2359,7 +2364,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "04759bf8be7005b6bf843f66b36bd05efd5a38f8b658e6bb13877bde0388c8b1",
+      "sha256": "687db916140b464ba0e34bdc1f5270937c094a7132b0b58f12f19a07cd67203e",
       "snippets": [
         {
           "lang": "js",
@@ -2486,6 +2491,60 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/card-game/tests/acceptance/authority-scope.mjs"
+        }
+      ]
+    },
+    "recipes.optimistic-toggle": {
+      "path": "guide/recipes/optimistic-toggle.md",
+      "title": "Recipe: optimistic toggle",
+      "order": 3,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "clients.react"
+      ],
+      "authorities": [
+        "llp/0107-react-presence-and-optimistic-lifecycle.spec.md",
+        "llp/0114-first-class-react-and-query-groups.spec.md",
+        "packages/snapback-react/index.mjs"
+      ],
+      "examples": [
+        "packages/snapback-react/optimistic.test.mjs"
+      ],
+      "reviewed": "2026-08-03",
+      "reviewedCommit": "HEAD",
+      "sha256": "8e12e5761f477d2b1532dac8e71a7a983e85008b33966d96f1ef71e96b717eeb",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/optimistic.test.mjs"
+        },
+        {
+          "lang": "tsx",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/optimistic.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/optimistic.test.mjs"
+        },
+        {
+          "lang": "tsx",
+          "class": "fragment"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-react/optimistic.test.mjs"
         }
       ]
     },
@@ -2777,5 +2836,5 @@
     "routes": 98,
     "hostOps": 35
   },
-  "contentHash": "cd0044cf396454043a0e364d3298dbba4c328e21d33c87c59a269ff4b773e942"
+  "contentHash": "2885072b38ccbe570f1d679e60bde9b3b88bdbf31923af6a79c227695097a6eb"
 }
