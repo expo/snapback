@@ -205,6 +205,32 @@ per-record caps across two records, schema removal, and sync-floor independence.
 Atomic canonical protected-record deletion plus the checkpoint-copy sweep
 remains open and prevents a history capability claim.
 
+#### Protected-deletion authority audit — 2026-08-04
+
+The integrated local target has no canonical operation that means “erase this
+protected record and every retained representation.” `BufferedWrite::Delete`
+and the generated mutation delete steps are ordinary application-row writes;
+they carry neither a protected-erasure classification nor authority to fence
+checkpoint publication. Specialized asset and authorization deletion paths
+own only their respective products and cannot be generalized into that
+authority. Consequently the low-level checkpoint-copy sweep must not be
+silently attached to generic deletion, and row 11 cannot soundly be closed by
+this implementation pass.
+
+Closure requires a real product operation, not a benchmark or test-only hook:
+one authenticated protected-erasure command whose durable identity and exact
+target are retry-bound. Its first fenced transaction must install an erasure
+fence, delete the canonical row and retained history detail, and invalidate the
+complete registry inventory. Checkpoint admission and publication must refuse
+that target while the fence is open. Physical copy destruction may then resume
+outside the transaction under durable destroyed/unreachable obligations; an
+exact retry resumes those obligations, while a divergent target or authority
+under the same operation identity refuses. The eventual implementation corpus
+must cover crash/reopen at every state, reachable and unreachable copies,
+concurrent checkpoint creation/publication, and pin/lease/expiry transitions.
+Until that authority exists, the current separate sweep remains useful
+low-level evidence but not atomic protected-record erasure.
+
 ### Migration verification boundary — 2026-08-04
 
 Full migration verification receipts record the migration boundary domain,
@@ -266,7 +292,10 @@ step 0 (the performance baseline). No parallel corpus here.
 4. *(Migration half executed 2026-08-04.)* The full receipt now binds a
    separately implemented expected-value oracle and adversarial drift corpus.
    Still open: compose canonical protected-record deletion atomically with the
-   registered-copy sweep so checkpoint creation cannot race between them.
+   registered-copy sweep so checkpoint creation cannot race between them. The
+   2026-08-04 authority audit found no existing product-level protected-delete
+   operation to compose with; define that real authority first rather than
+   assigning erasure semantics to generic row deletion.
 
 ## Dated OQ13 spike record — 2026-08-03
 
