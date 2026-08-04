@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "snapback.agent-safe-publication-receipt.v1",
+  "capabilityId": "agent_safe_derived_deployment_fork_v1",
+  "qualifiedSourceCommit": "0000000000000000000000000000000000000000",
+  "implementationTreeSha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "candidateFactsSha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "qualifiedTargetProfileId": "local-dev-sqlite-ibex",
+  "negativeTargetProfileIds": ["cloudflare-do-sqlite-v8", "remote-service-sqlite-ibex"],
+  "negativeBuildDistributions": ["public-package"],
+  "qualifiedComponents": [],
+  "evidence": [
+    { "kind": "acceptanceCorpus", "path": "tests/acceptance/fixtures/agent-safe-storage/acceptance-corpus.2026-08-04.v1.json", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+    { "kind": "pairedPerformance", "path": "tests/acceptance/fixtures/agent-safe-storage/agent-safe-active-covered-paired.2026-08-04.v1.json", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+    { "kind": "absolutePerformance", "path": "tests/acceptance/fixtures/agent-safe-storage/fork-promotion-performance.2026-08-04.v1.json", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+    { "kind": "independentReviewFable", "path": "llp/reviews/0162-agent-safe-storage-profile.implementation-2026-08-04.fable.md", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+    { "kind": "independentReviewCodex", "path": "llp/reviews/0162-agent-safe-storage-profile.implementation-2026-08-04.codex.md", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+    { "kind": "authorAcceptance", "path": "tests/acceptance/fixtures/agent-safe-storage/author-acceptance.2026-08-04.v1.json", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" }
+  ]
+}

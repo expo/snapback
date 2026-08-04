@@ -9433,14 +9433,18 @@ impl TargetCapabilityId {
                         .as_ref()
                         .is_some_and(|assets| assets.reference_gc.is_some())
             }
-            // Registration reserves the extension/component-fact vocabulary,
-            // not the LLP 0162 core aggregate. No target has a positive
-            // publication predicate while the acceptance corpus remains open.
-            Self::AgentSafeStorageV1 => false,
-            // Derived-deployment support is independently reviewed and
-            // qualified; neither the registered storage extension nor the
-            // shipped source-only fork tooling can imply this additive claim.
-            Self::AgentSafeDerivedDeploymentForkV1 => false,
+            // @ref LLP 0162#8-capability-honesty — these two component facts
+            // have independent source-owned carriers. Neither implies the
+            // other or any aggregate, and only the exact local profile may
+            // consume them.
+            Self::AgentSafeStorageV1 => {
+                facts.local_agent_safe_storage_publication_v1_verified
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+            }
+            Self::AgentSafeDerivedDeploymentForkV1 => {
+                facts.local_agent_safe_derived_fork_publication_v1_verified
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+            }
         }
     }
 }
@@ -9740,6 +9744,8 @@ pub struct TargetCapabilityFacts {
     write_activity_v1_registered: bool,
     local_relation_activity_publication_v1_verified: bool,
     local_sequence_allocation_publication_v1_verified: bool,
+    local_agent_safe_storage_publication_v1_verified: bool,
+    local_agent_safe_derived_fork_publication_v1_verified: bool,
     asset_lifecycle_local_fs_registered: bool,
     asset_image_finalization_registered: bool,
     asset_reference_gc_registered: bool,
@@ -9765,6 +9771,14 @@ impl TargetCapabilityFacts {
                 LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES,
                 LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256,
                 LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES,
+            );
+        let local_agent_safe_storage_publication_v1_verified =
+            crate::agent_safe_publication::storage_publication_verified_for_distribution(
+                build_distribution,
+            );
+        let local_agent_safe_derived_fork_publication_v1_verified =
+            crate::agent_safe_publication::derived_fork_publication_verified_for_distribution(
+                build_distribution,
             );
         // @ref LLP 0109#166-the-manifest-is-an-executable-advertisement-gate — both local capability ids
         // are advertised only after the closed executable suite passes every
@@ -9828,6 +9842,8 @@ impl TargetCapabilityFacts {
             write_activity_v1_registered: true,
             local_relation_activity_publication_v1_verified,
             local_sequence_allocation_publication_v1_verified,
+            local_agent_safe_storage_publication_v1_verified,
+            local_agent_safe_derived_fork_publication_v1_verified,
         }
     }
 
@@ -9846,6 +9862,8 @@ impl TargetCapabilityFacts {
             write_activity_v1_registered: false,
             local_relation_activity_publication_v1_verified: false,
             local_sequence_allocation_publication_v1_verified: false,
+            local_agent_safe_storage_publication_v1_verified: false,
+            local_agent_safe_derived_fork_publication_v1_verified: false,
             ..Self::local_auth_aware()
         }
     }
@@ -10267,7 +10285,7 @@ impl AgentSafeCapabilityExtensionV1 {
 }
 
 impl AgentSafeCapabilityFactsV1 {
-    fn missing() -> Self {
+    pub(crate) fn missing() -> Self {
         let fork = || AgentSafeForkAxesV1 {
             egress: AgentSafeForkEgressV1::Missing,
             promotion: AgentSafeForkPromotionV1::Missing,
@@ -11259,6 +11277,20 @@ impl CapabilityManifest {
             vm_lifecycle: vm_lifecycle_fresh(),
             runtime_facts: None,
         };
+        // @ref LLP 0162#8-capability-honesty — target component facts are
+        // reconstructed by exact Rust builders only after their independent
+        // source-owned chains verify. App-effective remains Missing until the
+        // exact loaded app and active writer manifest are intersected in Local.
+        if capability_facts.local_agent_safe_storage_publication_v1_verified {
+            manifest.agent_safe.target =
+                crate::agent_safe_publication::storage_target_candidate();
+        }
+        if capability_facts.local_agent_safe_derived_fork_publication_v1_verified {
+            manifest.agent_safe.target.forks.derived_deployment =
+                crate::agent_safe_publication::derived_fork_target_candidate()
+                    .forks
+                    .derived_deployment;
+        }
         manifest.refresh_supported_capabilities(capability_facts);
         manifest
     }
@@ -11626,6 +11658,16 @@ impl CapabilityManifest {
             {
                 self.capability_gaps
                     .push(crate::vector::VECTOR_CAPABILITY.to_owned());
+            }
+        }
+        for id in [
+            TargetCapabilityId::AgentSafeStorageV1,
+            TargetCapabilityId::AgentSafeDerivedDeploymentForkV1,
+        ] {
+            if self.supported_capabilities.contains(&id) {
+                self.capability_gaps.retain(|gap| gap != id.as_str());
+            } else if !self.capability_gaps.iter().any(|gap| gap == id.as_str()) {
+                self.capability_gaps.push(id.as_str().to_owned());
             }
         }
         // @ref LLP 0058#capability-maturity — the maturity map annotates

@@ -1498,6 +1498,45 @@ positive predicate remains false, every public projection remains `Missing`,
 and the guide retains the GAP until the applicable corpus, review, acceptance,
 and publication gates pass.
 
+## Source-owned publication carrier amendment — 2026-08-04
+
+Two independent local publication chains now exist:
+`agent_safe_storage_v1` and
+`agent_safe_derived_deployment_fork_v1`. Each is a tracked
+anchor → carrier → dated receipt chain. At frozen C both anchors are valid
+`withheld` records, so this amendment and its implementation advertise
+nothing.
+
+A future `published` anchor is accepted only by a known, clean
+`contributor-source` build whose canonical implementation-tree digest matches
+the carrier. That tree includes Cargo/build inputs, Rust implementation,
+codegen and contract packages, the acceptance corpus, the publication checker,
+the recorders, and the `vendor/ibex` gitlink identity. The two anchors,
+carriers, receipts, and the closed dated evidence output paths are the only
+cycle exclusions. The history-aware checker proves the qualification commit C
+is an ancestor of publication commit P and that the implementation tree is
+identical at C and P; the carrier binds the receipt, which in turn binds the
+acceptance record, paired and absolute performance records, two independent
+reviews, and author acceptance by path and SHA-256.
+
+The storage candidate is reconstructed in Rust and is exactly six facts: the
+ordinary-mutation and host-child-mutation lanes across HostPlan and
+IbexBuffered adapters, plus public-current-policy bounded explanation for the
+generated `owned-crud.v1` / `owner.v1` create and update HostPlan profiles.
+Performance is evidence gating those facts, not a seventh fact. Specialized
+lanes, aggregate facts, wider explanation/diff/history/proof/replay/resource
+classes, non-local targets, and public packages remain `Missing`. Its
+app-effective projection additionally intersects the exact active two-lane,
+four-adapter coverage record with the current function artifact's adapter and
+host-child call reachability; marker-only owner metadata is insufficient.
+
+The derived-deployment candidate is independently and exactly
+`DenyAll` / `NotPromotable` / `currentHead` / `HostMediated`. It never mints
+derived app-effective support. The carrier receipt records Cloudflare,
+remote-service, and `public-package` negatives explicitly. LLPs 0158 and
+0163–0165 keep their current statuses; their review and author-acceptance gates
+are evidence inputs, not consequences of this machinery.
+
 ## Status
 
 **Accepted** (2026-08-03, Charlie), after the seven-round dual-family

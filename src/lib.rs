@@ -28,6 +28,7 @@ pub mod admin_link;
 pub mod admin_impersonation;
 #[doc(hidden)]
 pub mod admin_secret_read;
+pub(crate) mod agent_safe_publication;
 #[doc(hidden)]
 pub mod api_envelope;
 #[doc(hidden)]

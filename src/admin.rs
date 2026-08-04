@@ -5163,9 +5163,7 @@ async fn admin_operation_coverage_activate(
             .try_fenced_publication(now_ms, Instant::now(), || {
                 let _mode_publication =
                     authority.effect_guard("operation coverage activation publication")?;
-                snapback
-                    .auth_database_mut()
-                    .activate_local_target_operation_coverage(now_ms)
+                snapback.activate_agent_safe_operation_coverage(now_ms)
             })?
             .ok_or_else(|| {
                 ApiError::from(SnapbackError::error(

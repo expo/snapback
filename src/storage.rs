@@ -2458,11 +2458,97 @@ impl LocalDatabase {
         self.writer_authority.set_manifest(manifest)
     }
 
-    #[allow(dead_code)] // Production publication consumes this after acceptance.
     fn local_writer_coverage_inventory(
         &self,
     ) -> SnapbackResult<write_authority::LocalWriterCoverageInventoryV1> {
         self.writer_authority.inventory(self)
+    }
+
+    /// The app-effective capability projection consumes only the exact
+    /// production activation cut: two logical lanes and all four physical
+    /// adapters. A subset, superset, test manifest, or stale in-memory writer
+    /// authority stays false.
+    ///
+    /// @ref LLP 0162#acceptance — row 4 requires the closed writer inventory;
+    /// app-effective coverage is an intersection with this exact active cut,
+    /// never an inference from target support.
+    pub(crate) fn agent_safe_exact_operation_coverage_active(&self) -> SnapbackResult<bool> {
+        let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(&self.conn)?
+        else {
+            return Ok(false);
+        };
+        let Some(manifest) =
+            crate::operation_ledger::active_coverage_manifest(&self.conn, &stream_id)?
+        else {
+            return Ok(false);
+        };
+        let expected_lanes = [
+            crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+            crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+        ]
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>();
+        let declared_lanes = manifest
+            .covered_lanes
+            .iter()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>();
+        let expected_writers = crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+            .into_iter()
+            .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
+            .collect::<std::collections::BTreeSet<_>>();
+        let declared_writers = manifest
+            .writer_choke_points
+            .iter()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>();
+        if manifest.covered_lanes.len() != expected_lanes.len()
+            || declared_lanes != expected_lanes
+            || manifest.writer_choke_points.len() != expected_writers.len()
+            || declared_writers != expected_writers
+        {
+            return Ok(false);
+        }
+
+        let inventory = self.local_writer_coverage_inventory()?;
+        if inventory.manifest_version.is_none()
+            || !inventory.all_physical_writers_enumerated
+            || !inventory.all_app_effective_writers_accounted
+        {
+            return Ok(false);
+        }
+        let active = inventory
+            .entries
+            .iter()
+            .filter(|entry| entry.declared_covered)
+            .map(|entry| (entry.lane, entry.choke_point))
+            .collect::<std::collections::BTreeSet<_>>();
+        let expected = [
+            (
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+                crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1[0],
+            ),
+            (
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+                crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1[1],
+            ),
+            (
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+                crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1[0],
+            ),
+            (
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+                crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1[1],
+            ),
+        ]
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>();
+        Ok(active == expected
+            && inventory
+                .entries
+                .iter()
+                .filter(|entry| entry.declared_covered)
+                .all(|entry| entry.envelope_mapped && entry.write_authority_enforced))
     }
 
     #[cfg(test)]
@@ -26380,6 +26466,11 @@ mod guarded_commit_tests {
         db.apply_schema(schema()).expect("apply writer fixture schema");
         db.activate_local_target_operation_coverage(1)
             .expect("activate closed local target manifest");
+        assert!(
+            db.agent_safe_exact_operation_coverage_active()
+                .expect("read exact active coverage"),
+            "only the production two-lane/four-adapter cut projects app-effective coverage"
+        );
 
         let inventory = db
             .local_writer_coverage_inventory_for_test()
@@ -26447,6 +26538,56 @@ mod guarded_commit_tests {
             rusqlite::Error::SqliteFailure(failure, _)
                 if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
         ));
+    }
+
+    #[test]
+    fn agent_safe_app_effective_coverage_rejects_subset_superset_and_removed_manifests() {
+        let exact_lanes = vec![
+            crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned(),
+            crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned(),
+        ];
+        let exact_writers = crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+            .into_iter()
+            .chain(crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1)
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+
+        let mut subset = LocalDatabase::memory().expect("subset database");
+        subset.apply_schema(schema()).expect("subset schema");
+        subset
+            .install_operation_coverage_for_test(
+                vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()],
+                crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            )
+            .expect("install subset");
+        assert!(!subset.agent_safe_exact_operation_coverage_active().unwrap());
+
+        let mut superset = LocalDatabase::memory().expect("superset database");
+        superset.apply_schema(schema()).expect("superset schema");
+        let mut extra_writers = exact_writers.clone();
+        extra_writers.push("forged::unregistered-writer".to_owned());
+        superset
+            .install_operation_coverage_for_test(exact_lanes.clone(), extra_writers)
+            .expect("install superset");
+        assert!(!superset.agent_safe_exact_operation_coverage_active().unwrap());
+
+        let mut removed = LocalDatabase::memory().expect("removed database");
+        removed.apply_schema(schema()).expect("removed schema");
+        removed
+            .install_operation_coverage_for_test(exact_lanes, exact_writers)
+            .expect("install exact manifest");
+        assert!(removed.agent_safe_exact_operation_coverage_active().unwrap());
+        removed
+            .conn
+            .execute("DELETE FROM _snapback_operation_coverage_v1", [])
+            .expect("remove durable activation");
+        removed
+            .refresh_writer_authority_manifest()
+            .expect("refresh removed activation");
+        assert!(!removed.agent_safe_exact_operation_coverage_active().unwrap());
     }
 
     #[test]

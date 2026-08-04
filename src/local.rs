@@ -4021,6 +4021,26 @@ impl LocalSnapback {
         &mut self.db
     }
 
+    /// Publish the exact local operation-coverage cut and invalidate the RQS
+    /// generation cache in the same owner turn. The served capability
+    /// manifest is a generation input, so retaining a digest minted while
+    /// app-effective coverage was Missing would let old resume tokens cross a
+    /// capability transition.
+    ///
+    /// @ref LLP 0162#8-capability-honesty — app-effective coverage is an
+    /// instance-live fact and must rotate every identity that embeds the
+    /// served capability manifest.
+    pub(crate) fn activate_agent_safe_operation_coverage(
+        &mut self,
+        activated_at_ms: u64,
+    ) -> SnapbackResult<crate::commit_envelope::OperationCoverageManifestV1> {
+        let manifest = self
+            .db
+            .activate_local_target_operation_coverage(activated_at_ms)?;
+        self.rqs_generation = None;
+        Ok(manifest)
+    }
+
     /// Product ingress for the authority-bound protected-record erasure
     /// command. The storage transaction owns the canonical tombstone and
     /// checkpoint obligations; an empty post-commit frame deliberately forces
@@ -6940,7 +6960,98 @@ impl LocalSnapback {
             capability_manifest.vm_lifecycle =
                 crate::manifest::VM_LIFECYCLE_WARM_POOLED_RESET.to_owned();
         }
+        self.project_agent_safe_app_effective(&mut capability_manifest);
         capability_manifest
+    }
+
+    fn project_agent_safe_app_effective(&self, manifest: &mut CapabilityManifest) {
+        use crate::manifest::{AgentSafeCapabilityFactsV1, TargetCapabilityId};
+
+        if !manifest
+            .supported_capabilities
+            .contains(&TargetCapabilityId::AgentSafeStorageV1)
+            || !self
+                .db
+                .agent_safe_exact_operation_coverage_active()
+                .unwrap_or(false)
+        {
+            return;
+        }
+
+        let target = &manifest.agent_safe.target;
+        let mut effective = AgentSafeCapabilityFactsV1::missing();
+        let mut ordinary_host_plan = false;
+        let mut ordinary_ibex = false;
+        let mut host_child_host_plan = false;
+        let mut host_child_ibex = false;
+        for function in &self.functions.functions {
+            match (&function.kind, &function.runtime) {
+                (
+                    FunctionKind::Mutation,
+                    FunctionRuntime::HostPlan(
+                        HandlerPlan::Mutation(_) | HandlerPlan::WriteWithActivity(_),
+                    ),
+                ) => ordinary_host_plan = true,
+                (FunctionKind::Mutation, FunctionRuntime::IbexModule(_)) => ordinary_ibex = true,
+                (FunctionKind::Action, FunctionRuntime::HostPlan(HandlerPlan::Action(plan))) => {
+                    for step in &plan.steps {
+                        let ActionStep::RunMutation { name, .. } = step;
+                        let Some(target_function) = self.functions.function(name) else {
+                            continue;
+                        };
+                        match &target_function.runtime {
+                            FunctionRuntime::HostPlan(
+                                HandlerPlan::Mutation(_) | HandlerPlan::WriteWithActivity(_),
+                            ) => host_child_host_plan = true,
+                            FunctionRuntime::IbexModule(_)
+                                if target_function.kind == FunctionKind::Mutation =>
+                            {
+                                host_child_ibex = true;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        if ordinary_host_plan {
+            effective.envelope.ordinary_mutation.host_plan =
+                target.envelope.ordinary_mutation.host_plan;
+        }
+        if ordinary_ibex {
+            effective.envelope.ordinary_mutation.ibex_buffered =
+                target.envelope.ordinary_mutation.ibex_buffered;
+        }
+        if host_child_host_plan {
+            effective.envelope.host_child_mutation.host_plan =
+                target.envelope.host_child_mutation.host_plan;
+        }
+        if host_child_ibex {
+            effective.envelope.host_child_mutation.ibex_buffered =
+                target.envelope.host_child_mutation.ibex_buffered;
+        }
+        let mut profiles = self
+            .functions
+            .functions
+            .iter()
+            .filter_map(|function| agent_safe_generated_owner_profile(function, self.db.schema()))
+            .collect::<Vec<_>>();
+        profiles.sort();
+        profiles.dedup();
+        effective.explanation.scoped_facts = profiles
+            .into_iter()
+            .filter(|_| ordinary_host_plan)
+            .filter_map(|profile| {
+                target
+                    .explanation
+                    .scoped_facts
+                    .iter()
+                    .find(|fact| fact.scope.profile == profile)
+                    .cloned()
+            })
+            .collect();
+        manifest.agent_safe.app_effective = effective;
     }
 
     fn capability_gaps(&self) -> Vec<String> {
@@ -23829,11 +23940,17 @@ fn operation_client_audience(
 /// string alone is not authority: hand-written, opaque, and widened plans
 /// remain unprovable. Generated owner deletes are classified so the fact
 /// evaluator can apply the explicit current-row-absent refusal.
-fn owner_mutation_explanation_policy(
+struct OwnerMutationExplanationShapeV1 {
+    table: String,
+    owner_field: String,
+    kind: crate::operation_ledger::OwnerMutationExplanationKindV1,
+    create_mint_site: Option<String>,
+}
+
+fn owner_mutation_explanation_shape(
     function: &FunctionDefinition,
     schema: &SchemaManifest,
-    authority: &PreparedAuthority,
-) -> Option<crate::operation_ledger::ExplanationFactPolicyV1> {
+) -> Option<OwnerMutationExplanationShapeV1> {
     let pattern = function.standard_pattern.as_ref()?;
     if pattern.helper != "owned-crud.v1"
         || pattern.profile != "owner.v1"
@@ -23842,7 +23959,6 @@ fn owner_mutation_explanation_policy(
     {
         return None;
     }
-    let subject = authority.canonical_auth_input().user_id?;
     let FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) = &function.runtime else {
         return None;
     };
@@ -23986,13 +24102,44 @@ fn owner_mutation_explanation_policy(
     {
         return None;
     }
+    Some(OwnerMutationExplanationShapeV1 {
+        table,
+        owner_field,
+        kind,
+        create_mint_site,
+    })
+}
+
+fn agent_safe_generated_owner_profile(
+    function: &FunctionDefinition,
+    schema: &SchemaManifest,
+) -> Option<crate::manifest::AgentSafeExplanationProfileV1> {
+    use crate::manifest::AgentSafeExplanationProfileV1;
+    match owner_mutation_explanation_shape(function, schema)?.kind {
+        crate::operation_ledger::OwnerMutationExplanationKindV1::Create => {
+            Some(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerCreateV1)
+        }
+        crate::operation_ledger::OwnerMutationExplanationKindV1::Update => {
+            Some(AgentSafeExplanationProfileV1::GeneratedOwnedCrudOwnerUpdateV1)
+        }
+        crate::operation_ledger::OwnerMutationExplanationKindV1::Delete => None,
+    }
+}
+
+fn owner_mutation_explanation_policy(
+    function: &FunctionDefinition,
+    schema: &SchemaManifest,
+    authority: &PreparedAuthority,
+) -> Option<crate::operation_ledger::ExplanationFactPolicyV1> {
+    let subject = authority.canonical_auth_input().user_id?;
+    let shape = owner_mutation_explanation_shape(function, schema)?;
     Some(
         crate::operation_ledger::ExplanationFactPolicyV1::OwnerMutationV1 {
             subject,
-            table,
-            owner_field,
-            kind,
-            create_mint_site,
+            table: shape.table,
+            owner_field: shape.owner_field,
+            kind: shape.kind,
+            create_mint_site: shape.create_mint_site,
         },
     )
 }
@@ -29321,12 +29468,14 @@ mod tests {
     };
     use crate::live_wire::{Receipt, SettlementIdMapDisposition};
     use crate::manifest::{
-        ActionPlan, ArtifactGeneration, AuthInput, AuthManifest, AuthMode, AuthRequirement,
+        ActionPlan, ActionStep, ArtifactGeneration, AuthInput, AuthManifest, AuthMode,
+        AuthRequirement,
         AuthorityDescriptor, BoundedSkewDeclaration, ConfigEntryDefinition, CronActivationPolicy,
         CronJitterPolicy, CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy,
         CronSchedule, CtxAnswerLedger, FieldManifest, FieldType, FilterExpr, FilterOp,
         FunctionArgsContract, FunctionDefinition, FunctionKind, FunctionManifest,
-        FunctionResultContract, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
+        CapabilityManifest, FunctionResultContract, FunctionRuntime, HandlerInput, HandlerPlan,
+        IbexModule,
         IndexManifest, MembershipManifest, MembershipPredicate, MembershipResourceRef,
         MembershipScope, MutationOutput, MutationPlan, MutationSettlement, MutationStep,
         PermissionScopeExpr, QueryPlan, ResultObjectFieldContract, ResultValueContract,
@@ -30315,6 +30464,124 @@ mod tests {
             &resume_config,
         );
         assert_eq!(digest, expected);
+    }
+
+    #[test]
+    fn agent_safe_app_effective_envelopes_intersect_exact_function_reachability() {
+        let mut snapback = LocalSnapback::memory().expect("memory publication projection");
+        snapback
+            .activate_agent_safe_operation_coverage(1)
+            .expect("activate exact coverage");
+        let candidate_manifest = || {
+            let mut manifest = CapabilityManifest::local_v0_declared();
+            manifest
+                .supported_capabilities
+                .push(crate::manifest::TargetCapabilityId::AgentSafeStorageV1);
+            manifest.agent_safe.target =
+                crate::agent_safe_publication::storage_target_candidate();
+            manifest
+        };
+
+        let mut empty = candidate_manifest();
+        snapback.project_agent_safe_app_effective(&mut empty);
+        assert_eq!(
+            empty.agent_safe.app_effective,
+            crate::manifest::AgentSafeCapabilityFactsV1::missing(),
+            "active coverage without a current mutation artifact stays Missing"
+        );
+
+        let host = FunctionDefinition::new(
+            "hostMutation",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: Vec::new(),
+                return_value: None,
+            })),
+        );
+        let ibex = FunctionDefinition::new(
+            "ibexMutation",
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(crate::manifest::IbexModule {
+                source: "export function ibexMutation() {}".to_owned(),
+                export: "ibexMutation".to_owned(),
+            }),
+        );
+        let host_action = FunctionDefinition::new(
+            "action",
+            FunctionKind::Action,
+            FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                steps: vec![
+                    ActionStep::RunMutation {
+                        name: "hostMutation".to_owned(),
+                        args: BTreeMap::new(),
+                        bind_result_as: None,
+                    },
+                    ActionStep::RunMutation {
+                        name: "ibexMutation".to_owned(),
+                        args: BTreeMap::new(),
+                        bind_result_as: None,
+                    },
+                ],
+                return_value: None,
+            })),
+        );
+        snapback.functions.functions = vec![host, ibex, host_action];
+        let mut reached = candidate_manifest();
+        snapback.project_agent_safe_app_effective(&mut reached);
+        let envelope = reached.agent_safe.app_effective.envelope;
+        assert_eq!(
+            envelope.ordinary_mutation.host_plan,
+            crate::manifest::AgentSafeEnvelopeCoverageV1::Covered
+        );
+        assert_eq!(
+            envelope.ordinary_mutation.ibex_buffered,
+            crate::manifest::AgentSafeEnvelopeCoverageV1::Covered
+        );
+        assert_eq!(
+            envelope.host_child_mutation.host_plan,
+            crate::manifest::AgentSafeEnvelopeCoverageV1::Covered
+        );
+        assert_eq!(
+            envelope.host_child_mutation.ibex_buffered,
+            crate::manifest::AgentSafeEnvelopeCoverageV1::Covered
+        );
+        assert_eq!(
+            reached.agent_safe.app_effective.forks.derived_deployment.egress,
+            crate::manifest::AgentSafeForkEgressV1::Missing,
+            "derived appEffective is canonical Missing"
+        );
+    }
+
+    #[test]
+    fn agent_safe_projection_rejects_marker_only_owner_artifact_and_activation_clears_rqs_cache() {
+        let mut snapback = LocalSnapback::memory().expect("memory publication projection");
+        snapback.rqs_generation = Some("stale-generation".to_owned());
+        snapback
+            .activate_agent_safe_operation_coverage(2)
+            .expect("activate exact coverage");
+        assert_eq!(snapback.rqs_generation, None);
+
+        let mut forged = FunctionDefinition::new(
+            "markerOnly",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: Vec::new(),
+                return_value: None,
+            })),
+        );
+        forged.standard_pattern = Some(crate::manifest::StandardPatternIdentity {
+            helper: "owned-crud.v1".to_owned(),
+            profile: "owner.v1".to_owned(),
+            membership: None,
+        });
+        snapback.functions.functions = vec![forged];
+        let mut manifest = CapabilityManifest::local_v0_declared();
+        manifest
+            .supported_capabilities
+            .push(crate::manifest::TargetCapabilityId::AgentSafeStorageV1);
+        manifest.agent_safe.target = crate::agent_safe_publication::storage_target_candidate();
+        snapback.project_agent_safe_app_effective(&mut manifest);
+        assert!(manifest.agent_safe.app_effective.explanation.scoped_facts.is_empty());
     }
 
     #[test]
