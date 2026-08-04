@@ -21,6 +21,29 @@ const LINEAGE_META_KEY: &str = "instance_fork_lineage_v1";
 const QUARANTINE_META_KEY: &str = "instance_fork_quarantine_v1";
 const EGRESS_TABLE: &str = "_snapback_fork_egress_attempts_v1";
 
+#[cfg(test)]
+thread_local! {
+    static DIFF_AFTER_HEADER_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+fn install_diff_after_header_hook(hook: impl FnOnce() + 'static) {
+    DIFF_AFTER_HEADER_HOOK.with(|slot| {
+        assert!(slot.borrow().is_none(), "diff snapshot hook is one-shot");
+        *slot.borrow_mut() = Some(Box::new(hook));
+    });
+}
+
+fn run_diff_after_header_hook() {
+    #[cfg(test)]
+    DIFF_AFTER_HEADER_HOOK.with(|slot| {
+        if let Some(hook) = slot.borrow_mut().take() {
+            hook();
+        }
+    });
+}
+
 fn fork_error(code: &'static str, message: impl Into<String>) -> SnapbackError {
     SnapbackError::error(code, "instanceFork", message)
 }
@@ -546,6 +569,17 @@ pub struct ForkRegistryEntryV1 {
     pub app_root: Option<String>,
 }
 
+/// A registry row only after it has been re-bound to authoritative evidence
+/// inside one real direct-child fork directory. Callers must use these paths
+/// instead of joining advisory registry strings themselves.
+#[derive(Clone, Debug)]
+pub struct ManagedForkTargetV1 {
+    pub entry: ForkRegistryEntryV1,
+    pub destination: PathBuf,
+    pub database: PathBuf,
+    pub ready_file: Option<PathBuf>,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ForkDiffRowV1 {
@@ -787,6 +821,16 @@ fn scrub_and_mint_with_cut(
         if rule.disposition == CustodyDisposition::Scrub && table_exists(&tx, rule.name)? {
             delete_table(&tx, rule.name)?;
         }
+    }
+    // History post-images remain useful copied application evidence, but an
+    // inherited operation id would falsely name parent-stream provenance after
+    // its operation ledger, envelope, and suppression records were scrubbed.
+    // NULL is the existing honest "no owning operation identity" projection.
+    if table_exists(&tx, "_snapback_record_history_v1")? {
+        tx.execute(
+            "UPDATE _snapback_record_history_v1 SET operation_id=NULL WHERE operation_id IS NOT NULL",
+            [],
+        )?;
     }
     let authorization = crate::storage::auth_stream::rotate_authorization_version_in(&tx)?;
     crate::storage::auth_invalidation::clear_retry_episodes_in(&tx)?;
@@ -1190,20 +1234,10 @@ pub fn record_managed_runtime(
     ready_file: &Path,
     app_root: Option<&Path>,
 ) -> SnapbackResult<ForkRegistryEntryV1> {
-    validate_fork_id(fork_id)?;
+    let target = managed_target(fork_root, fork_id)?;
     let path = registry_path(fork_root, fork_id);
-    let mut entry: ForkRegistryEntryV1 = serde_json::from_slice(
-        &fs::read(&path).map_err(|error| io_error("read fork registry entry", error))?,
-    )
-    .map_err(|error| {
-        fork_error(
-            "SNAPBACK_FORK_REGISTRY_INVALID",
-            format!("fork registry entry is malformed: {error}"),
-        )
-    })?;
-    validate_registry_destination(&entry.destination)?;
-    let destination = fs::canonicalize(fork_root.join(&entry.destination))
-        .map_err(|error| io_error("resolve managed fork destination", error))?;
+    let mut entry = target.entry;
+    let destination = target.destination;
     let ready_parent = ready_file.parent().ok_or_else(|| {
         fork_error(
             "SNAPBACK_FORK_READY_INVALID",
@@ -1219,7 +1253,13 @@ pub fn record_managed_runtime(
         ));
     }
     entry.state = "ready".to_owned();
-    entry.ready_file = Some(ready_file.display().to_string());
+    let ready_name = ready_file.file_name().ok_or_else(|| {
+        fork_error(
+            "SNAPBACK_FORK_READY_INVALID",
+            "managed ready file has no file name",
+        )
+    })?;
+    entry.ready_file = Some(destination.join(ready_name).display().to_string());
     entry.app_root = app_root.map(|path| path.display().to_string());
     write_json_sync(&path, &entry)?;
     sync_directory(&fork_root.join(REGISTRY_DIRECTORY))?;
@@ -1231,22 +1271,20 @@ pub fn list_managed(fork_root: &Path) -> SnapbackResult<Vec<ForkRegistryEntryV1>
     if !registry.exists() {
         return Ok(Vec::new());
     }
+    let registry_metadata = fs::symlink_metadata(&registry)
+        .map_err(|error| io_error("inspect fork registry", error))?;
+    if registry_metadata.file_type().is_symlink() || !registry_metadata.is_dir() {
+        return Err(fork_error(
+            "SNAPBACK_FORK_REGISTRY_INVALID",
+            "fork registry is not a real directory",
+        ));
+    }
     let mut entries = Vec::new();
     for child in fs::read_dir(&registry).map_err(|error| io_error("scan fork registry", error))? {
         let child = child.map_err(|error| io_error("read fork registry entry", error))?;
         if child.path().extension().and_then(|value| value.to_str()) != Some("json") {
             continue;
         }
-        let entry: ForkRegistryEntryV1 = serde_json::from_slice(
-            &fs::read(child.path()).map_err(|error| io_error("read fork registry entry", error))?,
-        )
-        .map_err(|error| {
-            fork_error(
-                "SNAPBACK_FORK_REGISTRY_INVALID",
-                format!("fork registry entry is malformed: {error}"),
-            )
-        })?;
-        validate_fork_id(&entry.lineage.fork_id)?;
         let recorded_id = child
             .path()
             .file_stem()
@@ -1258,30 +1296,15 @@ pub fn list_managed(fork_root: &Path) -> SnapbackResult<Vec<ForkRegistryEntryV1>
                 )
             })?
             .to_owned();
-        if recorded_id != entry.lineage.fork_id {
-            return Err(fork_error(
-                "SNAPBACK_FORK_REGISTRY_INVALID",
-                "registry file name does not match its fork lineage",
-            ));
-        }
-        validate_registry_destination(&entry.destination)?;
-        entries.push(entry);
+        validate_fork_id(&recorded_id)?;
+        entries.push(managed_target(fork_root, &recorded_id)?.entry);
     }
     entries.sort_by(|left, right| left.lineage.fork_id.cmp(&right.lineage.fork_id));
     Ok(entries)
 }
 
 pub fn managed_entry(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkRegistryEntryV1> {
-    validate_fork_id(fork_id)?;
-    list_managed(fork_root)?
-        .into_iter()
-        .find(|entry| entry.lineage.fork_id == fork_id)
-        .ok_or_else(|| {
-            fork_error(
-                "SNAPBACK_FORK_NOT_FOUND",
-                "the requested fork is not in this lifecycle registry",
-            )
-        })
+    Ok(managed_target(fork_root, fork_id)?.entry)
 }
 
 fn validate_fork_id(fork_id: &str) -> SnapbackResult<()> {
@@ -1308,25 +1331,220 @@ fn validate_registry_destination(destination: &str) -> SnapbackResult<()> {
     Ok(())
 }
 
+fn validate_direct_child_name(value: &str, what: &'static str) -> SnapbackResult<()> {
+    let mut components = Path::new(value).components();
+    if value.is_empty()
+        || !matches!(components.next(), Some(std::path::Component::Normal(_)))
+        || components.next().is_some()
+    {
+        return Err(fork_error(
+            "SNAPBACK_FORK_REGISTRY_INVALID",
+            format!("registry {what} is not one direct-child file name"),
+        ));
+    }
+    Ok(())
+}
+
+fn load_registry_entry(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkRegistryEntryV1> {
+    validate_fork_id(fork_id)?;
+    let registry_directory = fork_root.join(REGISTRY_DIRECTORY);
+    let registry_metadata = fs::symlink_metadata(&registry_directory).map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            fork_error(
+                "SNAPBACK_FORK_NOT_FOUND",
+                "the requested fork is not in this lifecycle registry",
+            )
+        } else {
+            io_error("inspect fork registry directory", error)
+        }
+    })?;
+    if registry_metadata.file_type().is_symlink() || !registry_metadata.is_dir() {
+        return Err(fork_error(
+            "SNAPBACK_FORK_REGISTRY_INVALID",
+            "fork registry is not a real directory",
+        ));
+    }
+    let path = registry_path(fork_root, fork_id);
+    let metadata = fs::symlink_metadata(&path).map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            fork_error(
+                "SNAPBACK_FORK_NOT_FOUND",
+                "the requested fork is not in this lifecycle registry",
+            )
+        } else {
+            io_error("inspect fork registry entry", error)
+        }
+    })?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(fork_error(
+            "SNAPBACK_FORK_REGISTRY_INVALID",
+            "fork registry entry is not a real file",
+        ));
+    }
+    let entry: ForkRegistryEntryV1 = serde_json::from_slice(
+        &fs::read(&path).map_err(|error| io_error("read fork registry entry", error))?,
+    )
+    .map_err(|error| {
+        fork_error(
+            "SNAPBACK_FORK_REGISTRY_INVALID",
+            format!("fork registry entry is malformed: {error}"),
+        )
+    })?;
+    if entry.format_version != 1
+        || entry.lineage.format_version != 1
+        || entry.lineage.promotable
+        || entry.lineage.fork_id != fork_id
+        || !matches!(entry.state.as_str(), "intent" | "published" | "ready")
+    {
+        return Err(fork_error(
+            "SNAPBACK_FORK_REGISTRY_INVALID",
+            "fork registry identity, format, class, or state is invalid",
+        ));
+    }
+    validate_registry_destination(&entry.destination)?;
+    validate_direct_child_name(&entry.database_file, "databaseFile")?;
+    Ok(entry)
+}
+
+/// Re-bind advisory lifecycle state to the fork's local mint receipt and DB
+/// lineage before any read, signal, deletion, or expiry decision.
+// @ref LLP 0158#design-sketch — registry state is advisory bookkeeping; local
+// S0-S5 evidence is the authority for a derived deployment.
+pub fn managed_target(fork_root: &Path, fork_id: &str) -> SnapbackResult<ManagedForkTargetV1> {
+    let root = fs::canonicalize(fork_root)
+        .map_err(|error| io_error("resolve managed fork root", error))?;
+    let entry = load_registry_entry(&root, fork_id)?;
+    let destination_path = root.join(&entry.destination);
+    let destination_metadata = fs::symlink_metadata(&destination_path)
+        .map_err(|error| io_error("inspect managed fork destination", error))?;
+    if destination_metadata.file_type().is_symlink() || !destination_metadata.is_dir() {
+        return Err(fork_error(
+            "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+            "registered fork destination is not a real directory",
+        ));
+    }
+    let destination = fs::canonicalize(&destination_path)
+        .map_err(|error| io_error("resolve managed fork destination", error))?;
+    if destination.parent() != Some(root.as_path())
+        || destination.file_name() != Path::new(&entry.destination).file_name()
+    {
+        return Err(fork_error(
+            "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+            "registered fork destination is not the named direct child of the fork root",
+        ));
+    }
+
+    let database_path = destination.join(&entry.database_file);
+    let database_metadata = fs::symlink_metadata(&database_path)
+        .map_err(|error| io_error("inspect managed fork database", error))?;
+    if database_metadata.file_type().is_symlink() || !database_metadata.is_file() {
+        return Err(fork_error(
+            "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+            "registered fork database is not a real direct-child file",
+        ));
+    }
+    let database = fs::canonicalize(&database_path)
+        .map_err(|error| io_error("resolve managed fork database", error))?;
+    if database.parent() != Some(destination.as_path()) {
+        return Err(fork_error(
+            "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+            "registered fork database resolves outside its fork directory",
+        ));
+    }
+
+    let receipt_path = destination.join(MINT_RECEIPT_FILE);
+    let receipt_metadata = fs::symlink_metadata(&receipt_path).map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            fork_error(
+                "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+                "registered destination has no local fork mint receipt",
+            )
+        } else {
+            io_error("inspect managed fork mint receipt", error)
+        }
+    })?;
+    if receipt_metadata.file_type().is_symlink() || !receipt_metadata.is_file() {
+        return Err(fork_error(
+            "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+            "fork mint receipt is not a real direct-child file",
+        ));
+    }
+    let receipt: ForkMintReceiptV1 = serde_json::from_slice(
+        &fs::read(&receipt_path).map_err(|error| io_error("read fork mint receipt", error))?,
+    )
+    .map_err(|_| {
+        fork_error(
+            "SNAPBACK_FORK_RECEIPT_INVALID",
+            "fork mint receipt is malformed",
+        )
+    })?;
+    let runtime = inspect_boot(&database)?.ok_or_else(|| {
+        fork_error(
+            "SNAPBACK_FORK_EVIDENCE_INCOMPLETE",
+            "registered fork has no authoritative local lineage",
+        )
+    })?;
+    if receipt.format_version != 1
+        || receipt.database_file != entry.database_file
+        || receipt.lineage != entry.lineage
+        || runtime.lineage != entry.lineage
+    {
+        return Err(fork_error(
+            "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+            "registry, mint receipt, and database lineage do not identify the same fork",
+        ));
+    }
+
+    let ready_file = entry
+        .ready_file
+        .as_deref()
+        .map(PathBuf::from)
+        .map(|path| {
+            let file_name = path.file_name().ok_or_else(|| {
+                fork_error(
+                    "SNAPBACK_FORK_READY_INVALID",
+                    "managed ready file has no direct-child file name",
+                )
+            })?;
+            let expected = destination.join(file_name);
+            if path != expected {
+                return Err(fork_error(
+                    "SNAPBACK_FORK_READY_INVALID",
+                    "managed ready file is not the exact direct child recorded for this fork",
+                ));
+            }
+            match fs::symlink_metadata(&path) {
+                Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+                    return Err(fork_error(
+                        "SNAPBACK_FORK_READY_INVALID",
+                        "managed ready file is not a real file",
+                    ));
+                }
+                Ok(_) => {}
+                Err(error) if error.kind() == ErrorKind::NotFound => {}
+                Err(error) => return Err(io_error("inspect managed ready file", error)),
+            }
+            Ok(path)
+        })
+        .transpose()?;
+
+    Ok(ManagedForkTargetV1 {
+        entry,
+        destination,
+        database,
+        ready_file,
+    })
+}
+
 /// Remove exactly one registry-bound fork directory. Callers stop a live
 /// child first; path validation prevents registry corruption from widening the
 /// deletion target.
 pub fn drop_managed(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkRegistryEntryV1> {
-    let entry = managed_entry(fork_root, fork_id)?;
-    validate_registry_destination(&entry.destination)?;
-    let destination = fork_root.join(&entry.destination);
-    if destination.exists() {
-        let metadata = fs::symlink_metadata(&destination)
-            .map_err(|error| io_error("inspect fork before drop", error))?;
-        if metadata.file_type().is_symlink() || !metadata.is_dir() {
-            return Err(fork_error(
-                "SNAPBACK_FORK_DROP_TARGET_INVALID",
-                "registered fork destination is not a real directory",
-            ));
-        }
-        fs::remove_dir_all(&destination).map_err(|error| io_error("drop fork directory", error))?;
-        sync_directory(fork_root)?;
-    }
+    let target = managed_target(fork_root, fork_id)?;
+    let entry = target.entry;
+    fs::remove_dir_all(&target.destination)
+        .map_err(|error| io_error("drop fork directory", error))?;
+    sync_directory(fork_root)?;
     let registry = registry_path(fork_root, fork_id);
     match fs::remove_file(&registry) {
         Ok(()) => sync_directory(&fork_root.join(REGISTRY_DIRECTORY))?,
@@ -1337,6 +1555,12 @@ pub fn drop_managed(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkRegis
 }
 
 pub fn expired_managed(fork_root: &Path, now_ms: u64) -> SnapbackResult<Vec<ForkRegistryEntryV1>> {
+    if now_ms > crate::manifest::PORTABLE_TIMESTAMP_MAX_MS {
+        return Err(fork_error(
+            "SNAPBACK_FORK_REAP_CLOCK_INVALID",
+            "reap clock exceeds the portable timestamp range",
+        ));
+    }
     Ok(list_managed(fork_root)?
         .into_iter()
         .filter(|entry| {
@@ -1357,13 +1581,28 @@ pub fn diff_receipt(database_path: &Path) -> SnapbackResult<ForkDiffReceiptV1> {
             "diff requires a minted derived deployment",
         )
     })?;
-    let conn = Connection::open(database_path)?;
-    let observed_head_version = conn.query_row(
+    let mut conn = Connection::open(database_path)?;
+    // One read transaction pins the floor, head, and rows to the same SQLite
+    // snapshot. A later writer can advance or prune without creating a
+    // receipt whose header and body describe different moments.
+    let tx = conn.transaction()?;
+    let observed_head_version = tx.query_row(
         "SELECT version FROM _snapback_version WHERE id=1",
         [],
         |row| row.get::<_, u64>(0),
     )?;
-    let mut statement = conn.prepare(
+    let retention_floor = crate::storage::change_journal_floor_on(&tx)?;
+    if retention_floor > runtime.lineage.fork_point_version {
+        return Err(fork_error(
+            "SNAPBACK_FORK_DIFF_RETENTION_GAP",
+            format!(
+                "journal retention floor {retention_floor} is newer than fork point {}; an exact attributed diff is no longer available",
+                runtime.lineage.fork_point_version
+            ),
+        ));
+    }
+    run_diff_after_header_hook();
+    let mut statement = tx.prepare(
         "SELECT version,table_name,row_id,op,row_json
            FROM _snapback_changes
           WHERE version > ?1
@@ -2144,6 +2383,7 @@ mod tests {
             br#"{"formatVersion":1,"entries":{}}"#
         );
         let ready = destination.join("fork.ready.json");
+        fs::write(&ready, b"{}").unwrap();
         let outside_ready = directory.path().join("outside.ready.json");
         assert_eq!(
             record_managed_runtime(
@@ -2199,6 +2439,180 @@ mod tests {
         drop_managed(&root, &receipt.lineage.fork_id).unwrap();
         assert!(list_managed(&root).unwrap().is_empty());
         assert!(!destination.exists());
+    }
+
+    #[test]
+    fn managed_registry_cannot_redirect_reads_or_deletion_without_local_evidence() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        let destination = root.join("fork-a");
+        let receipt =
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false)
+                .unwrap();
+        let registry = registry_path(&root, &receipt.lineage.fork_id);
+        let original: ForkRegistryEntryV1 =
+            serde_json::from_slice(&fs::read(&registry).unwrap()).unwrap();
+
+        let mut traversal = original.clone();
+        traversal.database_file = "../outside.sqlite3".to_owned();
+        write_json_sync(&registry, &traversal).unwrap();
+        assert_eq!(
+            managed_target(&root, &receipt.lineage.fork_id)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_REGISTRY_INVALID"
+        );
+
+        let victim = root.join("victim");
+        fs::create_dir(&victim).unwrap();
+        fs::write(victim.join("keep"), b"do not delete").unwrap();
+        let mut redirected = original.clone();
+        redirected.destination = "victim".to_owned();
+        redirected.database_file = "keep".to_owned();
+        write_json_sync(&registry, &redirected).unwrap();
+        assert_eq!(
+            drop_managed(&root, &receipt.lineage.fork_id)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_EVIDENCE_MISMATCH"
+        );
+        assert!(victim.join("keep").is_file());
+        assert!(destination.is_dir());
+
+        let mut wrong_lineage = original;
+        wrong_lineage.lineage.fork_id = Uuid::now_v7().to_string();
+        write_json_sync(&registry, &wrong_lineage).unwrap();
+        assert_eq!(
+            managed_target(&root, &receipt.lineage.fork_id)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_REGISTRY_INVALID"
+        );
+    }
+
+    #[test]
+    fn managed_registry_ready_file_must_remain_an_exact_direct_child() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        let destination = root.join("fork-a");
+        let receipt =
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200, false)
+                .unwrap();
+        let registry = registry_path(&root, &receipt.lineage.fork_id);
+        let mut entry: ForkRegistryEntryV1 =
+            serde_json::from_slice(&fs::read(&registry).unwrap()).unwrap();
+        entry.ready_file = Some(directory.path().join("outside.ready.json").display().to_string());
+        write_json_sync(&registry, &entry).unwrap();
+        assert_eq!(
+            managed_target(&root, &receipt.lineage.fork_id)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_READY_INVALID"
+        );
+    }
+
+    #[test]
+    fn copied_history_drops_parent_operation_identity_when_ledgers_are_scrubbed() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let conn = Connection::open(&source).unwrap();
+        conn.execute(
+            "INSERT INTO _snapback_history_policies_v1(table_name,retain_ms,max_rows)
+             VALUES('todos',1000,10)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO _snapback_record_history_v1(
+               version,table_name,row_id,op,row_json,changed_at_ms,operation_id
+             ) VALUES(0,'todos','todo-a','insert','{}',1,'parent-operation')",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+
+        let destination = directory.path().join("fork");
+        publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
+        let child = Connection::open(destination.join("app.sqlite3")).unwrap();
+        let operation_id: Option<String> = child
+            .query_row(
+                "SELECT operation_id FROM _snapback_record_history_v1 WHERE row_id='todo-a'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(operation_id, None);
+        assert_eq!(
+            child
+                .query_row("SELECT COUNT(*) FROM _snapback_commit_envelopes_v1", [], |row| {
+                    row.get::<_, u64>(0)
+                })
+                .unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn diff_is_one_snapshot_and_refuses_a_retention_gap() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let destination = directory.path().join("fork");
+        publish(&source, &destination, "app-a", "parent-a", 42, None).unwrap();
+        let database = destination.join("app.sqlite3");
+
+        let concurrent_database = database.clone();
+        install_diff_after_header_hook(move || {
+            let writer = Connection::open(concurrent_database).unwrap();
+            writer
+                .execute("UPDATE _snapback_version SET version=1 WHERE id=1", [])
+                .unwrap();
+            writer
+                .execute(
+                    "INSERT INTO _snapback_changes(
+                       version,table_name,row_id,op,row_json,changed_at_ms
+                     ) VALUES(1,'todos','todo-a','insert','{}',43)",
+                    [],
+                )
+                .unwrap();
+        });
+        let pinned = diff_receipt(&database).unwrap();
+        assert_eq!(pinned.observed_head_version, 0);
+        assert!(pinned.rows.is_empty());
+
+        let conn = Connection::open(&database).unwrap();
+        conn.execute(
+            "INSERT INTO _snapback_meta(key,value) VALUES('retention_floor','1')
+             ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+        assert_eq!(
+            diff_receipt(&database).unwrap_err().diagnostic.code,
+            "SNAPBACK_FORK_DIFF_RETENTION_GAP"
+        );
+    }
+
+    #[test]
+    fn reap_clock_refuses_values_outside_the_portable_range() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        assert_eq!(
+            expired_managed(&root, crate::manifest::PORTABLE_TIMESTAMP_MAX_MS + 1)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_REAP_CLOCK_INVALID"
+        );
     }
 
     #[test]

@@ -2047,25 +2047,87 @@ fn fork_envelope(
     }
 }
 
-fn quiet_stop_fork(ready_file: &Path) -> anyhow::Result<Option<u32>> {
+fn fork_secret_disposition(with_secrets: bool, database: &Path) -> &'static str {
+    if crate::config::ConfigStore::path_for_database(database).is_file() {
+        "copied-explicitly"
+    } else if with_secrets {
+        "copy-requested-source-absent"
+    } else {
+        "scrubbed"
+    }
+}
+
+#[cfg(unix)]
+fn process_is_proven_gone(pid: u32) -> anyhow::Result<bool> {
+    if unsafe { libc::kill(pid as i32, 0) } == 0 {
+        return Ok(false);
+    }
+    match std::io::Error::last_os_error().raw_os_error() {
+        Some(libc::ESRCH) => Ok(true),
+        Some(libc::EPERM) => Ok(false),
+        other => anyhow::bail!(
+            "SNAPBACK_FORK_STOP_UNVERIFIED: cannot determine whether pid {pid} exists (errno {other:?})"
+        ),
+    }
+}
+
+#[cfg(not(unix))]
+fn process_is_proven_gone(_pid: u32) -> anyhow::Result<bool> {
+    Ok(false)
+}
+
+fn verify_fork_ready_database(
+    descriptor: &HostReadyDescriptor,
+    expected_database: &Path,
+) -> anyhow::Result<()> {
+    let declared = descriptor
+        .database
+        .path
+        .as_deref()
+        .map(Path::new)
+        .context("SNAPBACK_FORK_READY_INVALID: fork descriptor has no database path")?;
+    let declared = std::fs::canonicalize(declared).context(
+        "SNAPBACK_FORK_READY_INVALID: fork descriptor database path cannot be resolved",
+    )?;
+    anyhow::ensure!(
+        declared == expected_database,
+        "SNAPBACK_FORK_READY_INVALID: fork descriptor names a different database"
+    );
+    Ok(())
+}
+
+fn remove_ready_after_process_gone(ready_file: &Path) -> anyhow::Result<()> {
+    match std::fs::remove_file(ready_file) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error)
+            .context("SNAPBACK_FORK_READY_INVALID: failed to remove proven-stale ready file"),
+    }
+}
+
+fn quiet_stop_fork(ready_file: &Path, expected_database: &Path) -> anyhow::Result<Option<u32>> {
     if !ready_file.exists() {
-        return Ok(None);
+        anyhow::bail!(
+            "SNAPBACK_FORK_STOP_UNVERIFIED: readiness descriptor is missing, so process absence cannot be proved"
+        );
     }
     let value = read_trusted_json_file(ready_file)?;
     let descriptor = HostReadyDescriptor::validate(&value).map_err(|problems| {
         anyhow::anyhow!("SNAPBACK_FORK_READY_INVALID: {}", problems.join("; "))
     })?;
+    verify_fork_ready_database(&descriptor, expected_database)?;
     if let Err(diagnostic) = verify_stop_target(&descriptor, &fetch_health(&descriptor.server_url))
     {
-        if diagnostic.code == "SNAPBACK_HOST_STOP_STALE_DESCRIPTOR" {
-            let _ = std::fs::remove_file(ready_file);
+        if process_is_proven_gone(descriptor.pid)? {
+            remove_ready_after_process_gone(ready_file)?;
             return Ok(None);
         }
-        return Err(anyhow::anyhow!(
-            "{}: {}",
+        anyhow::bail!(
+            "SNAPBACK_FORK_STOP_UNVERIFIED: pid {} may still exist; {}: {}",
+            descriptor.pid,
             diagnostic.code,
             diagnostic.message
-        ));
+        );
     }
     anyhow::ensure!(
         std::process::Command::new("kill")
@@ -2081,22 +2143,17 @@ fn quiet_stop_fork(ready_file: &Path) -> anyhow::Result<Option<u32>> {
         }
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
-    #[cfg(unix)]
     for _ in 0..200 {
-        let alive = unsafe { libc::kill(descriptor.pid as i32, 0) } == 0
-            || std::io::Error::last_os_error().raw_os_error() != Some(libc::ESRCH);
-        if !alive {
+        if process_is_proven_gone(descriptor.pid)? {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(25));
     }
-    #[cfg(unix)]
     anyhow::ensure!(
-        unsafe { libc::kill(descriptor.pid as i32, 0) } != 0
-            && std::io::Error::last_os_error().raw_os_error() == Some(libc::ESRCH),
+        process_is_proven_gone(descriptor.pid)?,
         "SNAPBACK_FORK_STOP_TIMEOUT: fork server process did not exit"
     );
-    let _ = std::fs::remove_file(ready_file);
+    remove_ready_after_process_gone(ready_file)?;
     Ok(Some(descriptor.pid))
 }
 
@@ -2229,6 +2286,19 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
             let descriptor = HostReadyDescriptor::validate(&ready_value).map_err(|problems| {
                 anyhow::anyhow!("SNAPBACK_FORK_READY_INVALID: {}", problems.join("; "))
             })?;
+            anyhow::ensure!(
+                descriptor.pid == child.id(),
+                "SNAPBACK_FORK_READY_INVALID: ready descriptor was not written by the spawned fork process"
+            );
+            verify_fork_ready_database(&descriptor, &database)?;
+            verify_live_descriptor_identity(
+                &descriptor,
+                &fetch_health(&descriptor.server_url),
+                "fork.create",
+            )
+            .map_err(|diagnostic| {
+                anyhow::anyhow!("{}: {}", diagnostic.code, diagnostic.message)
+            })?;
             let declared_admin = descriptor
                 .admin_token_file
                 .as_deref()
@@ -2266,7 +2336,7 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
                     request[key] = read_json_file(&path)?;
                     let response = post_host_op(&target, request)?;
                     if !response.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-                        let _ = quiet_stop_fork(&ready_file);
+                        let _ = quiet_stop_fork(&ready_file, &database);
                         anyhow::bail!("SNAPBACK_FORK_LOAD_FAILED: {response}");
                     }
                 }
@@ -2295,7 +2365,7 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
                     },
                     "egressPolicy": "deny-all-v1",
                     "assetCustody": "refuse-asset-bearing-source",
-                    "secrets": if with_secrets { "copied-explicitly" } else { "scrubbed" },
+                    "secrets": fork_secret_disposition(with_secrets, &database),
                 }),
             );
             print_envelope(&serde_json::to_value(envelope)?);
@@ -2330,15 +2400,14 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
         } => {
             let app_root = std::fs::canonicalize(app_root)?;
             let root = fork_root(&app_root, requested_root)?;
-            let entry = crate::instance_fork::managed_entry(&root, &fork_id)?;
-            let database = root.join(&entry.destination).join(&entry.database_file);
-            let receipt = startup_blocking(|| crate::instance_fork::diff_receipt(&database))?;
+            let target = crate::instance_fork::managed_target(&root, &fork_id)?;
+            let receipt = startup_blocking(|| crate::instance_fork::diff_receipt(&target.database))?;
             if let Some(path) = out.as_ref() {
                 std::fs::write(path, serde_json::to_vec_pretty(&receipt)?)?;
             }
             let envelope = fork_envelope(
                 "fork.diff",
-                entry.lineage.app_id,
+                target.entry.lineage.app_id,
                 Some(&app_root),
                 None,
                 json!({ "receipt": receipt, "writtenTo": out }),
@@ -2353,18 +2422,17 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
         } => {
             let app_root = std::fs::canonicalize(app_root)?;
             let root = fork_root(&app_root, requested_root)?;
-            let entry = crate::instance_fork::managed_entry(&root, &fork_id)?;
-            let stopped_pid = entry
+            let target = crate::instance_fork::managed_target(&root, &fork_id)?;
+            let stopped_pid = target
                 .ready_file
                 .as_deref()
-                .map(Path::new)
-                .map(quiet_stop_fork)
+                .map(|ready| quiet_stop_fork(ready, &target.database))
                 .transpose()?
                 .flatten();
             crate::instance_fork::drop_managed(&root, &fork_id)?;
             let envelope = fork_envelope(
                 "fork.drop",
-                entry.lineage.app_id,
+                target.entry.lineage.app_id,
                 Some(&app_root),
                 None,
                 json!({ "forkId": fork_id, "stoppedPid": stopped_pid, "dropped": true }),
@@ -2379,11 +2447,19 @@ async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
         } => {
             let app_root = std::fs::canonicalize(app_root)?;
             let root = fork_root(&app_root, requested_root)?;
+            anyhow::ensure!(
+                now_ms <= crate::manifest::PORTABLE_TIMESTAMP_MAX_MS,
+                "SNAPBACK_FORK_REAP_CLOCK_INVALID: reap clock exceeds the portable timestamp range"
+            );
             let expired = crate::instance_fork::expired_managed(&root, now_ms)?;
             let mut reaped = Vec::new();
             for entry in expired {
-                if let Some(ready) = entry.ready_file.as_deref() {
-                    let _ = quiet_stop_fork(Path::new(ready))?;
+                let target = crate::instance_fork::managed_target(
+                    &root,
+                    &entry.lineage.fork_id,
+                )?;
+                if let Some(ready) = target.ready_file.as_deref() {
+                    let _ = quiet_stop_fork(ready, &target.database)?;
                 }
                 crate::instance_fork::drop_managed(&root, &entry.lineage.fork_id)?;
                 reaped.push(entry.lineage.fork_id);
@@ -6040,10 +6116,11 @@ mod tests {
         BEFORE_STARTUP_TARGET_RESERVATION, Cli, ErrorsCommand, ForkCommand, HostCommand,
         ManagedPath, ReadyFileTarget, ResolvedHttpTarget, TargetArgs, TelemetryCommand,
         bind_first_available, bind_listener, console_fragment_url, managed_startup_paths,
-        mint_secret_read_via_http, parse_fork_ttl, parse_run_args, path_with_filename_suffix,
-        prepare_database_path, prepare_database_path_for_startup, reject_misdirected_serve_flags,
-        resolve_http_target, runtime_auth_program_readiness, validate_path_disjointness,
-        validated_secret_read_root_path, write_ready_file_atomic,
+        fork_secret_disposition, mint_secret_read_via_http, parse_fork_ttl, parse_run_args,
+        path_with_filename_suffix, prepare_database_path, prepare_database_path_for_startup,
+        quiet_stop_fork, reject_misdirected_serve_flags, resolve_http_target,
+        runtime_auth_program_readiness, validate_path_disjointness, validated_secret_read_root_path,
+        write_ready_file_atomic,
         write_ready_file_atomic_protected,
     };
     use crate::instance_lock::TargetInstanceReservation;
@@ -6089,6 +6166,51 @@ mod tests {
             }
             _ => panic!("expected fork create"),
         }
+    }
+
+    #[test]
+    fn fork_secret_disposition_reports_an_absent_opted_in_source_honestly() {
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("fork.sqlite3");
+        std::fs::write(&database, []).unwrap();
+        assert_eq!(
+            fork_secret_disposition(true, &database),
+            "copy-requested-source-absent"
+        );
+        assert_eq!(fork_secret_disposition(false, &database), "scrubbed");
+        crate::secure_file::write_owner_only(
+            &crate::config::ConfigStore::path_for_database(&database),
+            br#"{"formatVersion":1,"entries":{}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            fork_secret_disposition(true, &database),
+            "copied-explicitly"
+        );
+    }
+
+    #[test]
+    fn fork_stop_keeps_unverifiable_ready_file_while_pid_may_exist() {
+        let directory = tempfile::tempdir().unwrap();
+        let database = directory.path().join("fork.sqlite3");
+        std::fs::write(&database, []).unwrap();
+        let database = std::fs::canonicalize(database).unwrap();
+        let ready = directory.path().join("fork.ready.json");
+        let mut descriptor = stop_descriptor(Some("nonce-a"));
+        descriptor.pid = std::process::id();
+        descriptor.server_url = "http://127.0.0.1:1".to_owned();
+        descriptor.database = crate::host_ops::HostReadyDatabase {
+            mode: "file".to_owned(),
+            path: Some(database.display().to_string()),
+        };
+        crate::secure_file::write_owner_only(
+            &ready,
+            &serde_json::to_vec(&descriptor).unwrap(),
+        )
+        .unwrap();
+        let error = quiet_stop_fork(&ready, &database).unwrap_err();
+        assert!(error.to_string().contains("SNAPBACK_FORK_STOP_UNVERIFIED"));
+        assert!(ready.is_file());
     }
 
     fn telemetry_target_descriptor(environment_id: &str) -> crate::deploy::TargetDescriptor {
