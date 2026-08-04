@@ -657,6 +657,7 @@ const SESSIONS_SCHEMA_VERSION = 'snapback.v1';
 const AUTH_MODES = new Set(['dev', 'sessions']);
 const AUTH_REQUIREMENTS = new Set(['public', 'optional-user', 'authenticated']);
 const TARGET_CAPABILITY_IDS = new Set([
+  'agent_safe_derived_deployment_fork_v1',
   'agent_safe_storage_v1',
   'auth.sessions.v1',
   'bounded_response_stream_v1',
@@ -699,6 +700,7 @@ const TARGET_CAPABILITY_IDS = new Set([
 // (bounded_response_stream_v1 left this set when LLP 0076 was Accepted,
 // 2026-07-25).
 const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
+  'agent_safe_derived_deployment_fork_v1',
   'agent_safe_storage_v1',
   'args_contract_v1',
   'asset_image_finalization_v1',

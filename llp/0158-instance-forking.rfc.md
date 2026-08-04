@@ -1132,6 +1132,16 @@ structural argument that the capability is priced correctly.
   whether each agent's fork sits under its worktree (reaped with the
   worktree) or under the parent's `.snapback/` (centralized listing).
 
+## Capability registry record
+
+On 2026-08-04, `agent_safe_derived_deployment_fork_v1` entered the closed
+target-capability registry at `Experimental` maturity. Registration reserves
+the additive derived-deployment fork tuple independently from LLP 0162's
+storage extension and from in-app branches; it does not publish support. Its
+positive predicate remains false on every target, the public tuple remains
+wholly `Missing`, and the guide keeps the GAP while this RFC remains Draft and
+until independent review, author acceptance, qualification, and publication.
+
 ## Status
 
 Draft, **experimental**. Authored 2026-08-03 from a brainstorming session;

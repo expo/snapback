@@ -1715,6 +1715,10 @@ concretely as:
   `AgentSafeV1` core aggregate. Its positive target predicate is false and the
   guide row remains a GAP; this board entry records vocabulary reservation,
   not publication.
+- `agent_safe_derived_deployment_fork_v1` is separately registered at
+  `Experimental` maturity for LLP 0158's additive derived-deployment tuple.
+  Its positive target predicate is false and the complete public tuple stays
+  `Missing`; registration neither inherits storage nor in-app branch support.
 
 ## Open questions
 

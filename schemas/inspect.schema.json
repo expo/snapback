@@ -7581,6 +7581,11 @@
           "const": "agent_safe_storage_v1",
           "description": "Registry identity for the LLP 0162 `agentSafe.v1` extension/component\nfact vocabulary. It does not name the `AgentSafeV1` core aggregate and\nregistration does not imply that any target has passed the corpus.",
           "type": "string"
+        },
+        {
+          "const": "agent_safe_derived_deployment_fork_v1",
+          "description": "Additive LLP 0158 derived-deployment fork tuple. This identity remains\nindependent from both the storage extension and in-app branch facts.",
+          "type": "string"
         }
       ]
     },

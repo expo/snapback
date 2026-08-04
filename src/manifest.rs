@@ -8998,10 +8998,14 @@ pub enum TargetCapabilityId {
     /// registration does not imply that any target has passed the corpus.
     #[serde(rename = "agent_safe_storage_v1")]
     AgentSafeStorageV1,
+    /// Additive LLP 0158 derived-deployment fork tuple. This identity remains
+    /// independent from both the storage extension and in-app branch facts.
+    #[serde(rename = "agent_safe_derived_deployment_fork_v1")]
+    AgentSafeDerivedDeploymentForkV1,
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 34] = [
+    pub const ALL: [Self; 35] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -9036,6 +9040,7 @@ impl TargetCapabilityId {
         Self::AssetReferenceGcV1,
         Self::AssetVideoFinalizationV1,
         Self::AgentSafeStorageV1,
+        Self::AgentSafeDerivedDeploymentForkV1,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -9074,6 +9079,9 @@ impl TargetCapabilityId {
             Self::AssetImagePipelineV1 => "asset_image_pipeline_v1",
             Self::AssetReferenceGcV1 => "asset_reference_gc_v1",
             Self::AgentSafeStorageV1 => "agent_safe_storage_v1",
+            Self::AgentSafeDerivedDeploymentForkV1 => {
+                "agent_safe_derived_deployment_fork_v1"
+            }
         }
     }
 
@@ -9124,7 +9132,8 @@ impl TargetCapabilityId {
             | Self::AssetVideoFinalizationV1
             | Self::AssetImagePipelineV1
             | Self::AssetReferenceGcV1
-            | Self::AgentSafeStorageV1 => CapabilityMaturity::Experimental,
+            | Self::AgentSafeStorageV1
+            | Self::AgentSafeDerivedDeploymentForkV1 => CapabilityMaturity::Experimental,
             Self::AuthSessionsV1
             | Self::BoundedResponseStreamV1
             | Self::Cron
@@ -9428,6 +9437,10 @@ impl TargetCapabilityId {
             // not the LLP 0162 core aggregate. No target has a positive
             // publication predicate while the acceptance corpus remains open.
             Self::AgentSafeStorageV1 => false,
+            // Derived-deployment support is independently reviewed and
+            // qualified; neither the registered storage extension nor the
+            // shipped source-only fork tooling can imply this additive claim.
+            Self::AgentSafeDerivedDeploymentForkV1 => false,
         }
     }
 }
@@ -11733,19 +11746,30 @@ mod agent_safe_capability_tests {
     }
 
     #[test]
-    fn agent_safe_storage_registry_id_is_experimental_but_unsupported() {
-        let id = "agent_safe_storage_v1"
-            .parse::<TargetCapabilityId>()
-            .expect("registered storage extension id");
-        assert_eq!(id, TargetCapabilityId::AgentSafeStorageV1);
-        assert_eq!(id.maturity(), CapabilityMaturity::Experimental);
-        for manifest in [
-            CapabilityManifest::local_v0_declared(),
-            CapabilityManifest::remote_service_sqlite_ibex_declared(),
-            CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+    fn agent_safe_registry_ids_are_experimental_but_independently_unsupported() {
+        for (wire, id) in [
+            (
+                "agent_safe_storage_v1",
+                TargetCapabilityId::AgentSafeStorageV1,
+            ),
+            (
+                "agent_safe_derived_deployment_fork_v1",
+                TargetCapabilityId::AgentSafeDerivedDeploymentForkV1,
+            ),
         ] {
-            assert!(!id.is_supported_by(&manifest, TargetCapabilityFacts::local_auth_aware()));
-            assert!(!manifest.supported_capabilities.contains(&id));
+            assert_eq!(wire.parse::<TargetCapabilityId>(), Ok(id));
+            assert_eq!(id.maturity(), CapabilityMaturity::Experimental);
+            for manifest in [
+                CapabilityManifest::local_v0_declared(),
+                CapabilityManifest::remote_service_sqlite_ibex_declared(),
+                CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+            ] {
+                assert!(!id.is_supported_by(
+                    &manifest,
+                    TargetCapabilityFacts::local_auth_aware()
+                ));
+                assert!(!manifest.supported_capabilities.contains(&id));
+            }
         }
     }
 
