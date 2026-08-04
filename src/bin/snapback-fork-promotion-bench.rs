@@ -404,14 +404,18 @@ fn scan_widgets(conn: &Connection) -> SnapbackResult<Vec<SnapshotRowV1>> {
 }
 
 fn scan_widget_boundary(conn: &Connection) -> SnapbackResult<Vec<BoundaryRowV1>> {
-    Ok(scan_widgets(conn)?
+    let mut rows = scan_widgets(conn)?
         .into_iter()
         .map(|row| BoundaryRowV1 {
             qualified_table: row.table_name,
             row_id: row.row_id,
             value: row.row,
         })
-        .collect())
+        .collect::<Vec<_>>();
+    rows.sort_by(|left, right| {
+        (&left.qualified_table, &left.row_id).cmp(&(&right.qualified_table, &right.row_id))
+    });
+    Ok(rows)
 }
 
 fn summarize(runs: &[Run]) -> BTreeMap<&'static str, Statistics> {
