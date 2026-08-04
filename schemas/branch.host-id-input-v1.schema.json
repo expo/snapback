@@ -1,0 +1,28 @@
+{
+  "$defs": {
+    "BranchId": {
+      "description": "Stable identity of an ephemeral branch within one logical app.",
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/branch.host-id-input-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "branchId": {
+      "$ref": "#/$defs/BranchId"
+    },
+    "schemaVersion": {
+      "format": "uint32",
+      "maximum": 1,
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "branchId"
+  ],
+  "title": "ManagedBranchIdHostInputV1",
+  "type": "object"
+}

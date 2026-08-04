@@ -54,11 +54,14 @@ use crate::ephemeral::{
 };
 use crate::fork_promotion::{
     BranchOperationV1, BranchReapReceiptV1, DenyAllAttemptMarkerV1, ForkDiffReceiptV1,
-    InAppBranchReceiptV1, PromotionAdmissionTicketV1, PromotionReceiptV1, PromotionRequestV1,
-    RebaseReplayReceiptV1,
+    InAppBranchReceiptV1, ManagedInAppBranchReceiptV1, PromotionAdmissionTicketV1,
+    PromotionReceiptV1, PromotionRequestV1, RebaseReplayReceiptV1,
 };
 use crate::handler_wire::{HandlerHostCallRequest, HandlerInvokeRequest, HandlerInvokeResponse};
-use crate::host_ops::{DryRunReport, HostOpsResult, HostReadyDescriptor};
+use crate::host_ops::{
+    DryRunReport, HostOpsResult, HostReadyDescriptor, ManagedBranchCreateHostInputV1,
+    ManagedBranchIdHostInputV1, ManagedBranchListHostInputV1,
+};
 use crate::live_wire::{
     KitSocketReplyFrame, KitSocketRequestFrame, LiveEnvelope, LiveSocketClientMessage,
     LiveSocketServerFrame, OutboxDrainOutput, Receipt, ResumeWire,
@@ -245,6 +248,22 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "branch.receipt-v1.schema.json",
             schemars::schema_for!(InAppBranchReceiptV1),
+        ),
+        finish(
+            "branch.managed-receipt-v1.schema.json",
+            schemars::schema_for!(ManagedInAppBranchReceiptV1),
+        ),
+        finish(
+            "branch.host-create-input-v1.schema.json",
+            schemars::schema_for!(ManagedBranchCreateHostInputV1),
+        ),
+        finish(
+            "branch.host-list-input-v1.schema.json",
+            schemars::schema_for!(ManagedBranchListHostInputV1),
+        ),
+        finish(
+            "branch.host-id-input-v1.schema.json",
+            schemars::schema_for!(ManagedBranchIdHostInputV1),
         ),
         finish(
             "branch.attempt-marker-v1.schema.json",

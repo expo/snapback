@@ -32,7 +32,7 @@ pub const HOST_READY_DESCRIPTOR_KIND: &str = "snapbackHostReady";
 pub const TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE: usize = 64 * 1024;
 
 /// Operations this endpoint serves in the first slice.
-pub const SERVED_HOST_OPS: [&str; 18] = [
+pub const SERVED_HOST_OPS: [&str; 23] = [
     "app.inspect",
     "app.reset",
     "app.seed.ensure.v1",
@@ -51,6 +51,11 @@ pub const SERVED_HOST_OPS: [&str; 18] = [
     "errors.issues",
     "errors.issue",
     "errors.transition",
+    "branch.create.v1",
+    "branch.list.v1",
+    "branch.reap.v1",
+    "branch.inspect.v1",
+    "branch.drop.v1",
 ];
 
 /// Pinned by LLP 0024 but process-lifecycle verbs: the CLI owns them (a
@@ -402,6 +407,30 @@ pub struct HostOpsRequest {
     pub kind: Option<String>,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ManagedBranchCreateHostInputV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub allowed_functions: Vec<String>,
+    pub ttl_ms: i64,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ManagedBranchListHostInputV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ManagedBranchIdHostInputV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub branch_id: crate::branches::BranchId,
+}
+
 struct ClosedValue(Value);
 
 impl<'de> Deserialize<'de> for ClosedValue {
@@ -562,6 +591,23 @@ pub(crate) fn versioned_seed_wrapper_has_forbidden_siblings(request: &HostOpsReq
         || request.args.is_some()
         || request.user_id.is_some()
         || request.kind.is_some()
+}
+
+fn managed_branch_wrapper_has_forbidden_siblings(request: &HostOpsRequest) -> bool {
+    request.schema.is_some()
+        || request.functions.is_some()
+        || request.seed.is_some()
+        || request.function.is_some()
+        || request.args.is_some()
+        || request.user_id.is_some()
+        || request.kind.is_some()
+}
+
+fn host_now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis().min(i64::MAX as u128) as i64)
+        .unwrap_or(0)
 }
 
 pub fn new_request_id() -> String {
@@ -1270,6 +1316,240 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
                 "versioned seed reset must execute through the authorization-stream coordinator",
             )],
         ),
+        "branch.create.v1" => {
+            let outcome = if managed_branch_wrapper_has_forbidden_siblings(&request) {
+                Err(SnapbackError::error(
+                    "SNAPBACK_BRANCH_REQUEST_INVALID",
+                    "storage",
+                    "managed branch host operations accept their closed body only under input",
+                ))
+            } else {
+                request
+                    .input
+                    .clone()
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_HOST_OP_INPUT_MISSING",
+                            "host-ops",
+                            "branch.create.v1 requires input",
+                        )
+                    })
+                    .and_then(|value| {
+                        serde_json::from_value::<ManagedBranchCreateHostInputV1>(value).map_err(
+                            |_| {
+                                SnapbackError::error(
+                                    "SNAPBACK_BRANCH_REQUEST_INVALID",
+                                    "storage",
+                                    "branch.create.v1 input is not the closed v1 carrier",
+                                )
+                            },
+                        )
+                    })
+                    .and_then(|input| {
+                        if input.schema_version != 1 {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_BRANCH_SCHEMA_VERSION_UNSUPPORTED",
+                                "storage",
+                                "branch.create.v1 requires schemaVersion 1",
+                            ));
+                        }
+                        snapback.create_operator_in_app_branch(
+                            input.allowed_functions,
+                            input.ttl_ms,
+                            host_now_ms(),
+                        )
+                    })
+            };
+            match outcome {
+                Ok(receipt) => envelope(
+                    snapback,
+                    true,
+                    authority_admin("host-ops admin write gate"),
+                    json!({ "branch": receipt }),
+                    Vec::new(),
+                ),
+                Err(error) => envelope(
+                    snapback,
+                    false,
+                    authority_admin("host-ops admin write gate"),
+                    Value::Object(Default::default()),
+                    vec![error.diagnostic],
+                ),
+            }
+        }
+        "branch.list.v1" => {
+            let outcome = if managed_branch_wrapper_has_forbidden_siblings(&request) {
+                Err(SnapbackError::error(
+                    "SNAPBACK_BRANCH_REQUEST_INVALID",
+                    "storage",
+                    "managed branch host operations accept their closed body only under input",
+                ))
+            } else {
+                request
+                    .input
+                    .clone()
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_HOST_OP_INPUT_MISSING",
+                            "host-ops",
+                            "branch.list.v1 requires input",
+                        )
+                    })
+                    .and_then(|value| {
+                        serde_json::from_value::<ManagedBranchListHostInputV1>(value).map_err(
+                            |_| {
+                                SnapbackError::error(
+                                    "SNAPBACK_BRANCH_REQUEST_INVALID",
+                                    "storage",
+                                    "branch.list.v1 input is not the closed v1 carrier",
+                                )
+                            },
+                        )
+                    })
+                    .and_then(|input| {
+                        if input.schema_version != 1 {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_BRANCH_SCHEMA_VERSION_UNSUPPORTED",
+                                "storage",
+                                "branch.list.v1 requires schemaVersion 1",
+                            ));
+                        }
+                        snapback.list_operator_in_app_branches(host_now_ms())
+                    })
+            };
+            match outcome {
+                Ok(branches) => envelope(
+                    snapback,
+                    true,
+                    authority_admin("host-ops admin write gate"),
+                    json!({ "branches": branches }),
+                    Vec::new(),
+                ),
+                Err(error) => envelope(
+                    snapback,
+                    false,
+                    authority_admin("host-ops admin write gate"),
+                    Value::Object(Default::default()),
+                    vec![error.diagnostic],
+                ),
+            }
+        }
+        "branch.inspect.v1" | "branch.drop.v1" => {
+            let outcome = if managed_branch_wrapper_has_forbidden_siblings(&request) {
+                Err(SnapbackError::error(
+                    "SNAPBACK_BRANCH_REQUEST_INVALID",
+                    "storage",
+                    "managed branch host operations accept their closed body only under input",
+                ))
+            } else {
+                request
+                    .input
+                    .clone()
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_HOST_OP_INPUT_MISSING",
+                            "host-ops",
+                            "managed branch operation requires input",
+                        )
+                    })
+                    .and_then(|value| {
+                        serde_json::from_value::<ManagedBranchIdHostInputV1>(value).map_err(|_| {
+                            SnapbackError::error(
+                                "SNAPBACK_BRANCH_REQUEST_INVALID",
+                                "storage",
+                                "managed branch input is not the closed v1 carrier",
+                            )
+                        })
+                    })
+                    .and_then(|input| {
+                        if input.schema_version != 1 {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_BRANCH_SCHEMA_VERSION_UNSUPPORTED",
+                                "storage",
+                                "managed branch operation requires schemaVersion 1",
+                            ));
+                        }
+                        if operation == "branch.inspect.v1" {
+                            snapback.inspect_operator_in_app_branch(&input.branch_id, host_now_ms())
+                        } else {
+                            snapback.drop_operator_in_app_branch(&input.branch_id, host_now_ms())
+                        }
+                    })
+            };
+            match outcome {
+                Ok(receipt) => envelope(
+                    snapback,
+                    true,
+                    authority_admin("host-ops admin write gate"),
+                    json!({ "branch": receipt }),
+                    Vec::new(),
+                ),
+                Err(error) => envelope(
+                    snapback,
+                    false,
+                    authority_admin("host-ops admin write gate"),
+                    Value::Object(Default::default()),
+                    vec![error.diagnostic],
+                ),
+            }
+        }
+        "branch.reap.v1" => {
+            let outcome = if managed_branch_wrapper_has_forbidden_siblings(&request) {
+                Err(SnapbackError::error(
+                    "SNAPBACK_BRANCH_REQUEST_INVALID",
+                    "storage",
+                    "managed branch host operations accept their closed body only under input",
+                ))
+            } else {
+                request
+                    .input
+                    .clone()
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_HOST_OP_INPUT_MISSING",
+                            "host-ops",
+                            "branch.reap.v1 requires input",
+                        )
+                    })
+                    .and_then(|value| {
+                        serde_json::from_value::<ManagedBranchListHostInputV1>(value).map_err(
+                            |_| {
+                                SnapbackError::error(
+                                    "SNAPBACK_BRANCH_REQUEST_INVALID",
+                                    "storage",
+                                    "branch.reap.v1 input is not the closed v1 carrier",
+                                )
+                            },
+                        )
+                    })
+                    .and_then(|input| {
+                        if input.schema_version != 1 {
+                            return Err(SnapbackError::error(
+                                "SNAPBACK_BRANCH_SCHEMA_VERSION_UNSUPPORTED",
+                                "storage",
+                                "branch.reap.v1 requires schemaVersion 1",
+                            ));
+                        }
+                        snapback.reap_expired_operator_in_app_branches(host_now_ms())
+                    })
+            };
+            match outcome {
+                Ok(branches) => envelope(
+                    snapback,
+                    true,
+                    authority_admin("host-ops admin write gate"),
+                    json!({ "branches": branches }),
+                    Vec::new(),
+                ),
+                Err(error) => envelope(
+                    snapback,
+                    false,
+                    authority_admin("host-ops admin write gate"),
+                    Value::Object(Default::default()),
+                    vec![error.diagnostic],
+                ),
+            }
+        }
         "schema.load" => {
             let Some(schema) = request.schema.clone() else {
                 return envelope(
@@ -2382,5 +2662,135 @@ mod tests {
             let serialized = serde_json::to_string(&result.diagnostics).unwrap();
             assert!(!serialized.contains(SENTINEL), "{serialized}");
         }
+    }
+
+    #[test]
+    fn managed_branch_host_ops_are_closed_and_reachable_end_to_end() {
+        let directory = tempfile::tempdir().expect("branch host-op tempdir");
+        let path = directory.path().join("app.sqlite3");
+        let mut snapback = LocalSnapback::open(&path).expect("file-backed branch host-op");
+        let mut schema = SchemaManifest::default();
+        schema.app_id = "branch-host-app".to_owned();
+        schema.schema_hash = Some(format!("sha256:{}", "a".repeat(64)));
+        assert!(
+            snapback
+                .apply_schema(schema)
+                .expect("load schema")
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error)
+        );
+        let action = crate::manifest::FunctionDefinition::new(
+            "safeAction",
+            FunctionKind::Action,
+            crate::manifest::FunctionRuntime::HostPlan(crate::manifest::HandlerPlan::Action(
+                crate::manifest::ActionPlan {
+                    steps: Vec::new(),
+                    return_value: None,
+                },
+            )),
+        );
+        let mut functions = FunctionManifest::default();
+        functions.app_id = "branch-host-app".to_owned();
+        functions.bundle_hash = Some(format!("sha256:{}", "b".repeat(64)));
+        functions.functions = vec![action];
+        assert!(
+            snapback
+                .load_functions(functions)
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error)
+        );
+
+        let create = execute_host_op(
+            &mut snapback,
+            serde_json::from_value(json!({
+                "operation": "branch.create.v1",
+                "input": {
+                    "schemaVersion": 1,
+                    "allowedFunctions": ["safeAction"],
+                    "ttlMs": 60_000
+                }
+            }))
+            .expect("closed create request"),
+            None,
+        );
+        assert!(create.ok, "{:?}", create.diagnostics);
+        let branch_id = create.data["branch"]["branch"]["branch"]["branch_id"]
+            .as_str()
+            .expect("server-minted branch id")
+            .to_owned();
+        assert!(branch_id.starts_with("branch-v1:"));
+        assert_eq!(
+            create.data["branch"]["branch"]["grant"]["allowedFunctions"],
+            json!(["safeAction"])
+        );
+
+        let list = execute_host_op(
+            &mut snapback,
+            serde_json::from_value(json!({
+                "operation": "branch.list.v1",
+                "input": { "schemaVersion": 1 }
+            }))
+            .unwrap(),
+            None,
+        );
+        assert!(list.ok, "{:?}", list.diagnostics);
+        assert_eq!(list.data["branches"].as_array().unwrap().len(), 1);
+
+        let reap = execute_host_op(
+            &mut snapback,
+            serde_json::from_value(json!({
+                "operation": "branch.reap.v1",
+                "input": { "schemaVersion": 1 }
+            }))
+            .unwrap(),
+            None,
+        );
+        assert!(reap.ok, "{:?}", reap.diagnostics);
+        assert!(reap.data["branches"].as_array().unwrap().is_empty());
+
+        let inspect = execute_host_op(
+            &mut snapback,
+            serde_json::from_value(json!({
+                "operation": "branch.inspect.v1",
+                "input": { "schemaVersion": 1, "branchId": branch_id }
+            }))
+            .unwrap(),
+            None,
+        );
+        assert!(inspect.ok, "{:?}", inspect.diagnostics);
+
+        let drop_result = execute_host_op(
+            &mut snapback,
+            serde_json::from_value(json!({
+                "operation": "branch.drop.v1",
+                "input": { "schemaVersion": 1, "branchId": branch_id }
+            }))
+            .unwrap(),
+            None,
+        );
+        assert!(drop_result.ok, "{:?}", drop_result.diagnostics);
+        assert_eq!(drop_result.data["branch"]["custodyState"], json!("dropped"));
+
+        let unknown = execute_host_op(
+            &mut snapback,
+            serde_json::from_value(json!({
+                "operation": "branch.create.v1",
+                "input": {
+                    "schemaVersion": 1,
+                    "allowedFunctions": ["safeAction"],
+                    "ttlMs": 60_000,
+                    "workspacePath": "/tmp/caller-chosen"
+                }
+            }))
+            .unwrap(),
+            None,
+        );
+        assert!(!unknown.ok);
+        assert_eq!(
+            unknown.diagnostics[0].code,
+            "SNAPBACK_BRANCH_REQUEST_INVALID"
+        );
     }
 }

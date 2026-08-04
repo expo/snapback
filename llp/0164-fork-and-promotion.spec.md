@@ -5,7 +5,10 @@
 **Systems:** Storage, Runtime, Effects, Auth, Agent experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (acceptance-tail checkpoint — in-app net diff is now
+**Revised:** 2026-08-04 (managed runtime and acceptance-tail checkpoint — the local
+target now has server-owned, crash-reconciled branch custody behind the
+production `AdminWrite` gate, executable-head credential scrubbing,
+deterministic TTL reap, and exhaustive current `DenyAll` mediation; in-app net diff is
 journal-derived and independently checked against immutable-base/head scans,
 with a streaming digest-work byte bound and a separate attributed-sequence
 oracle; the derived deployment has an explicit post-fork parent-write
@@ -218,6 +221,57 @@ toolchain matches the baseline, and the record includes the toolchain and
 release-executable digest. It uses create-new publication so a
 dated record cannot be overwritten. No 2026-08-04 Air artifact, p99 contention
 record, or author-ratified bound is claimed by this checkpoint.
+
+### Managed runtime custody implementation record — 2026-08-04
+
+The local target now exposes closed `branch.create.v1`, `branch.list.v1`,
+`branch.inspect.v1`, `branch.drop.v1`, and `branch.reap.v1` operations through
+the production host carrier. Focused registry and HTTP negatives prove all five
+resolve to `SystemApi` plus `AdminWrite`/admin-credential/operator authority and
+that an unauthenticated request is refused before dispatch. Creation accepts
+only a finite subset of the currently served function names and a bounded TTL;
+the server derives the branch, child stream, grant, authority fingerprint, and
+workspace identity. Caller-selected paths, grants, and sibling fields are
+refused.
+
+Canonical custody is bound to SQLite's actual `main` file, rejects a symlink
+database leaf, and records `creating` before materialization. Publication to
+`active` happens only after the isolated profile and credential scrub are
+durable. A crash after that profile commit remains enumerated as `creating`;
+read-only enumeration refuses with a stable recovery-required diagnostic and
+the next mutable create removes only the server-derived workspace files before
+marking the interrupted row `dropped`. TTL or grant expiry is enforced exactly
+at the boundary: reads require mutable reaping, while the reaper durably moves
+`active` to `tearing_down` before deleting the exact files and marking
+`dropped`. A crash at that transition is enumerated and reconciled on the next
+mutable reap.
+
+The executable branch head scrubs copied auth sessions and every other table
+classified `Scrub` by LLP 0158's closed custody inventory, while its immutable
+base remains query-only proof material. Booting a branch head recognizes its
+closed `DenyAll` profile. The same runtime choke used by the local product host
+now denies all twelve enumerated egress families, including the unclassified
+host-operation fallback, and records one bounded payload-free marker per
+attempt that survives close and reopen. Tests additionally prove canonical and
+sibling isolation, post-fork parent-write invisibility, path/connection
+substitution refusal, and revoked, fingerprint-divergent, and expired promotion
+authority refusing before re-execution. The superseded compile-disabled
+`branches::promote` path remains untouched; these authority fixtures exercise
+only `fork_promotion::promote_by_reexecution`.
+
+This remains an implementation progress record, not acceptance or
+publication:
+
+| LLP 0162 row | Added evidence | Residual after 2026-08-04 |
+| --- | --- | --- |
+| 5 — fork isolation | Reachable production-policy lifecycle carrier; server-owned on-disk custody; current-head canonical/sibling/post-fork isolation; scrubbed executable heads and immutable proof bases | **Partial** — no public branch-operation execution carrier yet, and the full per-class credential matrix remains open |
+| 6 — effect quarantine | Every currently inventoried local host-egress family plus the unclassified fallback reaches the branch runtime's durable `DenyAll` marker | **Partial** — actual branch-handler bypass negatives and the separately named `CaptureOnly` intent/settlement ledger remain open |
+| 7 — identity/authority | Server-derived branch grants and paths; copied canonical credential scrub; denied, divergent-fingerprint, and expired strict-promotion authority all refuse before replay | **Partial** — production branch-operation authentication, the complete per-class stale/revoked corpus, and later-effect settlement remain open |
+| 8 — resource containment | Bounded TTL is active production custody: exact-expiry transition, durable teardown state, exact-file deletion, and crash/reopen reconciliation | **Partial** — digest-work limits and the replay-floor/envelope-window independent-clock corpus remain open |
+
+LLP 0164 therefore remains `Draft`, and every related capability remains
+`Missing` pending the full corpus, applicable performance evidence,
+independent review, and author acceptance.
 
 ## Open items
 

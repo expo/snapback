@@ -4072,10 +4072,13 @@ impl LocalSnapback {
         family: crate::instance_fork::EgressFamily,
         now_ms: u64,
     ) -> SnapbackResult<()> {
-        match self.db.derived_fork() {
-            Some(runtime) => Err(runtime.deny(family, now_ms)),
-            None => Ok(()),
+        if let Some(runtime) = self.db.derived_fork() {
+            return Err(runtime.deny(family, now_ms));
         }
+        if let Some(runtime) = self.db.in_app_branch() {
+            return Err(runtime.deny(family, now_ms));
+        }
+        Ok(())
     }
 
     pub(crate) fn push_maintenance_access_token(&self) -> Option<String> {
@@ -6161,6 +6164,141 @@ impl LocalSnapback {
 
     pub fn loaded_bundle_hash(&self) -> Option<String> {
         self.functions.bundle_hash.clone()
+    }
+
+    /// Create a managed in-app branch from the exact currently served app and
+    /// function bundle. IDs, custody paths, and the branch grant are all
+    /// server-derived after the AdminWrite host gate; callers choose only a
+    /// finite subset of currently loaded functions and a bounded TTL.
+    ///
+    /// @ref LLP 0162#safe-current-head-forks — product creation is current
+    ///   head, same app/bundle, server named, and no broader than its creator.
+    pub(crate) fn create_operator_in_app_branch(
+        &mut self,
+        mut allowed_functions: Vec<String>,
+        ttl_ms: i64,
+        now_ms: i64,
+    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
+        const MIN_TTL_MS: i64 = 1_000;
+        const MAX_TTL_MS: i64 = 15 * 60_000;
+        if !(MIN_TTL_MS..=MAX_TTL_MS).contains(&ttl_ms) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_LIMIT_INVALID",
+                "storage",
+                "managed branch ttlMs must be between 1000 and 900000",
+            ));
+        }
+        allowed_functions.sort();
+        allowed_functions.dedup();
+        if allowed_functions.is_empty()
+            || allowed_functions
+                .iter()
+                .any(|name| self.function_kind(name).is_none())
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_AUTHORITY_DENIED",
+                "auth",
+                "managed branch allowedFunctions must be a non-empty subset of the served manifest",
+            ));
+        }
+        let audience = self.loaded_app_id();
+        if audience.is_empty()
+            || self.loaded_schema_hash().is_none()
+            || self.loaded_bundle_hash().is_none()
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_BRANCH_ARTIFACT_IDENTITY_MISSING",
+                "storage",
+                "managed branch creation requires a loaded app, schema hash, and function bundle hash",
+            ));
+        }
+        let principal_id = format!("host-operator:{audience}");
+        let grant_id = format!("branch-grant-v1:{}", uuid::Uuid::now_v7());
+        let authority_fingerprint =
+            crate::fork_promotion::derive_branch_authority_fingerprint(
+                &principal_id,
+                &grant_id,
+                &audience,
+            )?;
+        let expires_at_ms = now_ms.checked_add(ttl_ms).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_BRANCH_LIMIT_INVALID",
+                "storage",
+                "managed branch expiry overflowed",
+            )
+        })?;
+        let request = crate::fork_promotion::InAppBranchCreateV1 {
+            schema_version: 1,
+            branch_id: crate::branches::BranchId(format!(
+                "branch-v1:{}",
+                uuid::Uuid::now_v7()
+            )),
+            child_stream_id: crate::branches::ChildStreamId(format!(
+                "branch-stream-v1:{}",
+                uuid::Uuid::now_v7()
+            )),
+            base_stream: "canonical".to_owned(),
+            base_version: self.db.current_version()?,
+            grant: crate::fork_promotion::BranchGrantV1 {
+                principal_id,
+                grant_id,
+                audience,
+                authority_fingerprint,
+                allowed_functions,
+                allowed_lanes: vec!["ordinaryMutation".to_owned()],
+                expires_at_ms,
+            },
+            limits: crate::fork_promotion::BranchLimitsV1 {
+                max_live_branches_per_principal: 8,
+                max_live_branches_per_app: 32,
+                max_operations: 256,
+                max_retained_bytes: 8 * 1024 * 1024,
+                max_diff_rows: 10_000,
+                max_digest_work_bytes: 64 * 1024 * 1024,
+                ttl_ms,
+            },
+            coverage: crate::fork_promotion::ForkCoverageV1 {
+                covered_lanes: vec!["ordinaryMutation".to_owned()],
+                uncovered_lanes: vec!["productionWriterCoverage".to_owned()],
+                schema_covered: false,
+                system_fields_covered: false,
+                assets_covered: false,
+                effects_covered: false,
+            },
+            egress_policy: crate::fork_promotion::ForkEgressPolicyV1::DenyAll,
+            created_at_ms: now_ms,
+        };
+        self.db.create_managed_in_app_branch(&request)
+    }
+
+    pub(crate) fn list_operator_in_app_branches(
+        &self,
+        now_ms: i64,
+    ) -> SnapbackResult<Vec<crate::fork_promotion::ManagedInAppBranchReceiptV1>> {
+        self.db.list_managed_in_app_branches(now_ms)
+    }
+
+    pub(crate) fn inspect_operator_in_app_branch(
+        &self,
+        branch_id: &crate::branches::BranchId,
+        now_ms: i64,
+    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
+        self.db.inspect_managed_in_app_branch(branch_id, now_ms)
+    }
+
+    pub(crate) fn reap_expired_operator_in_app_branches(
+        &mut self,
+        now_ms: i64,
+    ) -> SnapbackResult<Vec<crate::fork_promotion::ManagedInAppBranchReceiptV1>> {
+        self.db.reap_expired_managed_in_app_branches(now_ms)
+    }
+
+    pub(crate) fn drop_operator_in_app_branch(
+        &mut self,
+        branch_id: &crate::branches::BranchId,
+        now_ms: i64,
+    ) -> SnapbackResult<crate::fork_promotion::ManagedInAppBranchReceiptV1> {
+        self.db.drop_managed_in_app_branch(branch_id, now_ms)
     }
 
     pub fn durable_version(&self) -> SnapbackResult<u64> {

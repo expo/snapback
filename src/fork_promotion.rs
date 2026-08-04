@@ -15,11 +15,13 @@
 //!   contracts implemented here.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::fs;
 use std::io::{self, Write};
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use rusqlite::types::{Value as SqlValue, ValueRef};
-use rusqlite::{Connection, OptionalExtension, Transaction, params, params_from_iter};
+use rusqlite::{Connection, OpenFlags, OptionalExtension, Transaction, params, params_from_iter};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -44,6 +46,48 @@ use crate::proof_checkpoint::{
 const SHA256_PATTERN: &str = "^sha256:[0-9a-f]{64}$";
 const PROMOTION_WRITER_LANE_V1: &str = "ordinaryMutation";
 const PROMOTION_COVERAGE_GAP_V1: &str = "promotionCoverageManifest";
+
+#[cfg(test)]
+thread_local! {
+    static MANAGED_CREATE_AFTER_PROFILE_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+        const { std::cell::RefCell::new(None) };
+    static MANAGED_REAP_AFTER_TRANSITION_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+fn install_managed_create_after_profile_hook(hook: impl FnOnce() + 'static) {
+    MANAGED_CREATE_AFTER_PROFILE_HOOK.with(|slot| {
+        assert!(slot.borrow().is_none(), "managed create hook is one-shot");
+        *slot.borrow_mut() = Some(Box::new(hook));
+    });
+}
+
+#[cfg(test)]
+fn install_managed_reap_after_transition_hook(hook: impl FnOnce() + 'static) {
+    MANAGED_REAP_AFTER_TRANSITION_HOOK.with(|slot| {
+        assert!(slot.borrow().is_none(), "managed reap hook is one-shot");
+        *slot.borrow_mut() = Some(Box::new(hook));
+    });
+}
+
+fn run_managed_create_after_profile_hook() {
+    #[cfg(test)]
+    MANAGED_CREATE_AFTER_PROFILE_HOOK.with(|slot| {
+        if let Some(hook) = slot.borrow_mut().take() {
+            hook();
+        }
+    });
+}
+
+fn run_managed_reap_after_transition_hook() {
+    #[cfg(test)]
+    MANAGED_REAP_AFTER_TRANSITION_HOOK.with(|slot| {
+        if let Some(hook) = slot.borrow_mut().take() {
+            hook();
+        }
+    });
+}
 
 fn error(code: &'static str, message: impl Into<String>) -> SnapbackError {
     SnapbackError::new(Diagnostic::error(code, "storage", message))
@@ -203,6 +247,20 @@ pub struct BranchGrantV1 {
     pub allowed_functions: Vec<String>,
     pub allowed_lanes: Vec<String>,
     pub expires_at_ms: i64,
+}
+
+/// Derive the compared authority fact stored in a branch-scoped grant. The
+/// caller supplies only server-resolved identities; no bearer or token bytes
+/// enter the digest preimage or branch database.
+pub fn derive_branch_authority_fingerprint(
+    principal_id: &str,
+    grant_id: &str,
+    audience: &str,
+) -> SnapbackResult<String> {
+    digest_json(
+        b"branch-scoped-authority",
+        &(principal_id, grant_id, audience),
+    )
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
@@ -499,6 +557,742 @@ pub fn inspect_in_app_branch(
     branch_id: &BranchId,
 ) -> SnapbackResult<InAppBranchReceiptV1> {
     branch_profile(conn, branch_id).map(|(_, receipt)| receipt)
+}
+
+/// Canonical custody state for an on-disk in-app branch workspace. This is
+/// deliberately separate from the branch-local state machine: canonical owns
+/// enumeration and teardown, while the isolated head owns branch operations,
+/// egress markers, and the child stream.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ManagedBranchStateV1 {
+    Creating,
+    Active,
+    TearingDown,
+    Dropped,
+}
+
+impl ManagedBranchStateV1 {
+    fn parse(value: &str) -> SnapbackResult<Self> {
+        match value {
+            "creating" => Ok(Self::Creating),
+            "active" => Ok(Self::Active),
+            "tearing_down" => Ok(Self::TearingDown),
+            "dropped" => Ok(Self::Dropped),
+            _ => Err(error(
+                "SNAPBACK_BRANCH_CUSTODY_INVALID",
+                "managed branch custody contains an unknown state",
+            )),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ManagedInAppBranchReceiptV1 {
+    #[schemars(range(min = 1, max = 1))]
+    pub schema_version: u32,
+    pub branch: InAppBranchReceiptV1,
+    pub custody_state: ManagedBranchStateV1,
+}
+
+fn ensure_managed_branch_custody(conn: &Connection) -> SnapbackResult<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS _snapback_in_app_branch_custody_v1 (
+           branch_id          TEXT PRIMARY KEY,
+           owner_principal_id TEXT NOT NULL,
+           audience           TEXT NOT NULL,
+           workspace_name     TEXT NOT NULL UNIQUE,
+           profile_json       BLOB NOT NULL,
+           state              TEXT NOT NULL,
+           created_at_ms      INTEGER NOT NULL,
+           dropped_at_ms      INTEGER
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_in_app_branch_custody_owner
+           ON _snapback_in_app_branch_custody_v1(owner_principal_id, state);
+         CREATE INDEX IF NOT EXISTS _snapback_in_app_branch_custody_audience
+           ON _snapback_in_app_branch_custody_v1(audience, state);",
+    )?;
+    Ok(())
+}
+
+fn require_canonical_path_binding(
+    canonical: &Connection,
+    supplied_path: &Path,
+) -> SnapbackResult<PathBuf> {
+    if fs::symlink_metadata(supplied_path)
+        .map(|metadata| metadata.file_type().is_symlink())
+        .unwrap_or(false)
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_PATH_MISMATCH",
+            "canonical database custody refuses a symlink path",
+        ));
+    }
+    let sqlite_path: String = canonical.query_row(
+        "SELECT file FROM pragma_database_list WHERE name = 'main'",
+        [],
+        |row| row.get(0),
+    )?;
+    if sqlite_path.is_empty() {
+        return Err(error(
+            "SNAPBACK_BRANCH_FILE_CUSTODY_REQUIRED",
+            "managed in-app branches require a file-backed canonical database",
+        ));
+    }
+    let supplied = supplied_path.canonicalize().map_err(|cause| {
+        error(
+            "SNAPBACK_BRANCH_CUSTODY_PATH_MISMATCH",
+            format!("canonicalize supplied database path: {cause}"),
+        )
+    })?;
+    let sqlite = Path::new(&sqlite_path).canonicalize().map_err(|cause| {
+        error(
+            "SNAPBACK_BRANCH_CUSTODY_PATH_MISMATCH",
+            format!("canonicalize SQLite main database path: {cause}"),
+        )
+    })?;
+    if supplied != sqlite {
+        return Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_PATH_MISMATCH",
+            "supplied custody path is not SQLite's open main database",
+        ));
+    }
+    Ok(sqlite)
+}
+
+fn managed_branch_root(canonical_path: &Path) -> SnapbackResult<PathBuf> {
+    let file_name = canonical_path.file_name().ok_or_else(|| {
+        error(
+            "SNAPBACK_BRANCH_CUSTODY_INVALID",
+            "canonical database path has no file name",
+        )
+    })?;
+    let parent = canonical_path.parent().ok_or_else(|| {
+        error(
+            "SNAPBACK_BRANCH_CUSTODY_INVALID",
+            "canonical database path has no parent directory",
+        )
+    })?;
+    let root = parent.join(format!(
+        ".{}.in-app-branches-v1",
+        file_name.to_string_lossy()
+    ));
+    match fs::symlink_metadata(&root) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+            return Err(error(
+                "SNAPBACK_BRANCH_CUSTODY_INVALID",
+                "managed branch root must be a real directory, not a symlink or non-directory",
+            ));
+        }
+        Ok(_) => {}
+        Err(cause) if cause.kind() == std::io::ErrorKind::NotFound => {
+            fs::create_dir(&root).map_err(|cause| {
+                error(
+                    "SNAPBACK_BRANCH_CUSTODY_FAILED",
+                    format!("create managed branch root: {cause}"),
+                )
+            })?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                fs::set_permissions(&root, fs::Permissions::from_mode(0o700)).map_err(|cause| {
+                    error(
+                        "SNAPBACK_BRANCH_CUSTODY_FAILED",
+                        format!("protect managed branch root: {cause}"),
+                    )
+                })?;
+            }
+        }
+        Err(cause) => {
+            return Err(error(
+                "SNAPBACK_BRANCH_CUSTODY_FAILED",
+                format!("inspect managed branch root: {cause}"),
+            ));
+        }
+    }
+    Ok(root)
+}
+
+fn managed_workspace_name(branch_id: &BranchId) -> String {
+    let digest = digest_bytes(b"managed-branch-workspace-name", branch_id.0.as_bytes());
+    format!("branch-{}.sqlite", digest.trim_start_matches("sha256:"))
+}
+
+fn managed_workspace_path(canonical_path: &Path, branch_id: &BranchId) -> SnapbackResult<PathBuf> {
+    Ok(managed_branch_root(canonical_path)?.join(managed_workspace_name(branch_id)))
+}
+
+fn managed_workspace_files(path: &Path) -> [PathBuf; 6] {
+    let append = |suffix: &str| {
+        let mut value = path.as_os_str().to_os_string();
+        value.push(suffix);
+        PathBuf::from(value)
+    };
+    [
+        path.to_path_buf(),
+        append("-wal"),
+        append("-shm"),
+        append(".immutable-base"),
+        append(".immutable-base-wal"),
+        append(".immutable-base-shm"),
+    ]
+}
+
+fn remove_managed_workspace_files(path: &Path) -> SnapbackResult<()> {
+    for file in managed_workspace_files(path) {
+        match fs::remove_file(&file) {
+            Ok(()) => {}
+            Err(cause) if cause.kind() == std::io::ErrorKind::NotFound => {}
+            Err(cause) => {
+                return Err(error(
+                    "SNAPBACK_BRANCH_CUSTODY_FAILED",
+                    format!("remove managed workspace file {file:?}: {cause}"),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn reconcile_incomplete_managed_branches(
+    canonical: &mut Connection,
+    canonical_path: &Path,
+) -> SnapbackResult<()> {
+    ensure_managed_branch_custody(canonical)?;
+    let mut statement = canonical.prepare(
+        "SELECT branch_id, state FROM _snapback_in_app_branch_custody_v1
+          WHERE state IN ('creating', 'tearing_down') ORDER BY branch_id",
+    )?;
+    let ids = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    drop(statement);
+    for (id, state) in ids {
+        let branch_id = BranchId(id);
+        let path = managed_workspace_path(canonical_path, &branch_id)?;
+        // A creating row was never published, and a tearing-down row already
+        // stopped admitting work. Exact-file teardown is safe whether the
+        // crash occurred before materialization, after profile commit, or
+        // after the durable expiry transition but before file deletion.
+        remove_managed_workspace_files(&path)?;
+        canonical.execute(
+            "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'dropped'
+              WHERE branch_id = ?1 AND state = ?2",
+            params![branch_id.0, state],
+        )?;
+    }
+    Ok(())
+}
+
+fn managed_branch_expiry(profile: &InAppBranchCreateV1) -> SnapbackResult<i64> {
+    let ttl_expiry = profile
+        .created_at_ms
+        .checked_add(profile.limits.ttl_ms)
+        .ok_or_else(|| error("SNAPBACK_BRANCH_LIMIT_INVALID", "branch TTL overflow"))?;
+    Ok(ttl_expiry.min(profile.grant.expires_at_ms))
+}
+
+fn dropped_managed_receipt(profile: InAppBranchCreateV1) -> ManagedInAppBranchReceiptV1 {
+    ManagedInAppBranchReceiptV1 {
+        schema_version: 1,
+        branch: InAppBranchReceiptV1 {
+            schema_version: 1,
+            branch: BranchRecord {
+                branch_id: profile.branch_id,
+                child_stream_id: profile.child_stream_id,
+                base_version: profile.base_version,
+                base_stream: profile.base_stream,
+                state: BranchState::TearingDown,
+                created_at_ms: profile.created_at_ms,
+                ttl_ms: Some(profile.limits.ttl_ms),
+            },
+            grant: profile.grant,
+            limits: profile.limits,
+            coverage: profile.coverage.normalized(),
+            egress_policy: profile.egress_policy,
+            promotable: false,
+            foreclosed_by_operation_id: None,
+            retained_operation_count: 0,
+            retained_operation_bytes: 0,
+            deny_all_attempt_count: 0,
+        },
+        custody_state: ManagedBranchStateV1::Dropped,
+    }
+}
+
+fn reap_expired_managed_branches_bound(
+    canonical: &mut Connection,
+    canonical_path: &Path,
+    now_ms: i64,
+) -> SnapbackResult<Vec<ManagedInAppBranchReceiptV1>> {
+    reconcile_incomplete_managed_branches(canonical, canonical_path)?;
+    let mut statement = canonical.prepare(
+        "SELECT branch_id, profile_json FROM _snapback_in_app_branch_custody_v1
+          WHERE state = 'active' ORDER BY created_at_ms, branch_id",
+    )?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    drop(statement);
+
+    let mut reaped = Vec::new();
+    for (id, bytes) in rows {
+        let profile: InAppBranchCreateV1 = decode_json(&bytes, "managed branch custody profile")?;
+        if profile.branch_id.0 != id || now_ms < managed_branch_expiry(&profile)? {
+            continue;
+        }
+        let path = managed_workspace_path(canonical_path, &profile.branch_id)?;
+        let workspace = MaterializedBase::reopen(&path)?;
+        let branch = inspect_in_app_branch(&workspace.conn, &profile.branch_id)?;
+        drop(workspace);
+        let changed = canonical.execute(
+            "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'tearing_down'
+              WHERE branch_id = ?1 AND state = 'active'",
+            params![id],
+        )?;
+        if changed != 1 {
+            return Err(error(
+                "SNAPBACK_BRANCH_CUSTODY_INVALID",
+                "expired managed branch lost its active custody transition",
+            ));
+        }
+        run_managed_reap_after_transition_hook();
+        remove_managed_workspace_files(&path)?;
+        canonical.execute(
+            "UPDATE _snapback_in_app_branch_custody_v1
+                SET state = 'dropped', dropped_at_ms = ?2
+              WHERE branch_id = ?1 AND state = 'tearing_down'",
+            params![id, now_ms],
+        )?;
+        reaped.push(ManagedInAppBranchReceiptV1 {
+            schema_version: 1,
+            branch: InAppBranchReceiptV1 {
+                branch: BranchRecord {
+                    state: BranchState::TearingDown,
+                    ..branch.branch
+                },
+                promotable: false,
+                ..branch
+            },
+            custody_state: ManagedBranchStateV1::Dropped,
+        });
+    }
+    Ok(reaped)
+}
+
+/// Reconcile interrupted custody, then deterministically reap every branch
+/// whose TTL or branch-scoped grant expires at or before `now_ms`.
+pub fn reap_expired_managed_in_app_branches(
+    canonical: &mut Connection,
+    canonical_path: &Path,
+    now_ms: i64,
+) -> SnapbackResult<Vec<ManagedInAppBranchReceiptV1>> {
+    let canonical_path = require_canonical_path_binding(canonical, canonical_path)?;
+    ensure_managed_branch_custody(canonical)?;
+    reap_expired_managed_branches_bound(canonical, &canonical_path, now_ms)
+}
+
+fn managed_custody_profile(
+    canonical: &Connection,
+    branch_id: &BranchId,
+) -> SnapbackResult<(InAppBranchCreateV1, ManagedBranchStateV1, String)> {
+    ensure_managed_branch_custody(canonical)?;
+    let row: Option<(Vec<u8>, String, String)> = canonical
+        .query_row(
+            "SELECT profile_json, state, workspace_name
+               FROM _snapback_in_app_branch_custody_v1 WHERE branch_id = ?1",
+            params![branch_id.0],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    let (profile, state, workspace_name) = row.ok_or_else(|| {
+        error(
+            "SNAPBACK_BRANCH_NOT_FOUND",
+            "managed in-app branch has no canonical custody record",
+        )
+    })?;
+    Ok((
+        decode_json(&profile, "managed branch custody profile")?,
+        ManagedBranchStateV1::parse(&state)?,
+        workspace_name,
+    ))
+}
+
+/// Materialize and register one server-named on-disk branch. The canonical
+/// custody row enters `creating` before either file is materialized, then
+/// becomes `active` only after the branch-local profile is durable. A crash at
+/// any intermediate cut therefore leaves an enumerable cleanup obligation,
+/// never an unowned workspace or a false active receipt.
+///
+/// @ref LLP 0162#3-safe-current-head-forks — production custody preserves the
+///   exact current-head snapshot and never accepts a caller-chosen path.
+pub fn create_managed_in_app_branch(
+    canonical: &mut Connection,
+    canonical_path: &Path,
+    request: &InAppBranchCreateV1,
+) -> SnapbackResult<ManagedInAppBranchReceiptV1> {
+    request.limits.validate()?;
+    let canonical_path = require_canonical_path_binding(canonical, canonical_path)?;
+    ensure_managed_branch_custody(canonical)?;
+    reap_expired_managed_branches_bound(canonical, &canonical_path, request.created_at_ms)?;
+    let principal_count: i64 = canonical.query_row(
+        "SELECT COUNT(*) FROM _snapback_in_app_branch_custody_v1
+          WHERE owner_principal_id = ?1 AND state = 'active'",
+        params![request.grant.principal_id],
+        |row| row.get(0),
+    )?;
+    let app_count: i64 = canonical.query_row(
+        "SELECT COUNT(*) FROM _snapback_in_app_branch_custody_v1
+          WHERE audience = ?1 AND state = 'active'",
+        params![request.grant.audience],
+        |row| row.get(0),
+    )?;
+    if principal_count.max(0) as u64 >= request.limits.max_live_branches_per_principal
+        || app_count.max(0) as u64 >= request.limits.max_live_branches_per_app
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_LIVE_LIMIT_EXCEEDED",
+            "canonical custody reached the per-principal or per-app live branch limit",
+        ));
+    }
+    let current = crate::storage::current_version_on(canonical)?;
+    if request.base_version != current {
+        return Err(error(
+            "SNAPBACK_BRANCH_BASE_NOT_CURRENT",
+            "managed branch creation requires the exact current canonical head",
+        ));
+    }
+    let path = managed_workspace_path(&canonical_path, &request.branch_id)?;
+    if path.exists() {
+        return Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_COLLISION",
+            "server-derived managed branch workspace already exists",
+        ));
+    }
+    let profile_json = json_bytes(request, "managed branch custody profile")?;
+    canonical.execute(
+        "INSERT INTO _snapback_in_app_branch_custody_v1
+           (branch_id, owner_principal_id, audience, workspace_name,
+            profile_json, state, created_at_ms)
+         VALUES (?1, ?2, ?3, ?4, ?5, 'creating', ?6)",
+        params![
+            request.branch_id.0,
+            request.grant.principal_id,
+            request.grant.audience,
+            managed_workspace_name(&request.branch_id),
+            profile_json,
+            request.created_at_ms,
+        ],
+    )?;
+    let mut workspace = match MaterializedBase::materialize(canonical, Some(&path)) {
+        Ok(workspace) => workspace,
+        Err(cause) => {
+            let _ = remove_managed_workspace_files(&path);
+            let _ = canonical.execute(
+                "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'dropped'
+                  WHERE branch_id = ?1 AND state = 'creating'",
+                params![request.branch_id.0],
+            );
+            return Err(cause);
+        }
+    };
+    if let Err(cause) =
+        crate::instance_fork::scrub_copied_authority_for_in_app_branch(&mut workspace.conn)
+    {
+        let _ = workspace.teardown();
+        let _ = canonical.execute(
+            "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'dropped'
+              WHERE branch_id = ?1 AND state = 'creating'",
+            params![request.branch_id.0],
+        );
+        return Err(cause);
+    }
+    let branch = match create_in_app_branch(&mut workspace.conn, request) {
+        Ok(receipt) => receipt,
+        Err(cause) => {
+            let _ = workspace.teardown();
+            let _ = canonical.execute(
+                "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'dropped'
+                  WHERE branch_id = ?1 AND state = 'creating'",
+                params![request.branch_id.0],
+            );
+            return Err(cause);
+        }
+    };
+    run_managed_create_after_profile_hook();
+    let activated = canonical.execute(
+        "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'active'
+          WHERE branch_id = ?1 AND state = 'creating'",
+        params![request.branch_id.0],
+    )?;
+    if activated != 1 {
+        let _ = workspace.teardown();
+        return Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_INVALID",
+            "managed branch lost its creating custody row before activation",
+        ));
+    }
+    drop(workspace);
+    Ok(ManagedInAppBranchReceiptV1 {
+        schema_version: 1,
+        branch,
+        custody_state: ManagedBranchStateV1::Active,
+    })
+}
+
+/// Open a canonically enumerated branch and cross-check both its server-derived
+/// path and branch-local profile before returning either SQLite handle.
+pub fn open_managed_in_app_branch(
+    canonical: &Connection,
+    canonical_path: &Path,
+    branch_id: &BranchId,
+    now_ms: i64,
+) -> SnapbackResult<MaterializedBase> {
+    let canonical_path = require_canonical_path_binding(canonical, canonical_path)?;
+    let (profile, state, workspace_name) = managed_custody_profile(canonical, branch_id)?;
+    if state != ManagedBranchStateV1::Active {
+        return Err(error(
+            "SNAPBACK_BRANCH_NOT_ACTIVE",
+            "managed branch custody is not active",
+        ));
+    }
+    if now_ms >= managed_branch_expiry(&profile)? {
+        return Err(error(
+            "SNAPBACK_BRANCH_EXPIRED",
+            "managed branch expired and requires canonical reaping",
+        ));
+    }
+    let expected_name = managed_workspace_name(branch_id);
+    if workspace_name != expected_name || profile.branch_id != *branch_id {
+        return Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_INVALID",
+            "managed branch custody does not match its server-derived identity",
+        ));
+    }
+    let path = managed_workspace_path(&canonical_path, branch_id)?;
+    let workspace = MaterializedBase::reopen(&path)?;
+    let (stored, receipt) = branch_profile(&workspace.conn, branch_id)?;
+    if stored != profile
+        || receipt.branch.base_version != workspace.base_version
+        || receipt.branch.child_stream_id != profile.child_stream_id
+    {
+        return Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_INVALID",
+            "branch-local profile or immutable base diverges from canonical custody",
+        ));
+    }
+    Ok(workspace)
+}
+
+pub fn inspect_managed_in_app_branch(
+    canonical: &Connection,
+    canonical_path: &Path,
+    branch_id: &BranchId,
+    now_ms: i64,
+) -> SnapbackResult<ManagedInAppBranchReceiptV1> {
+    let workspace = open_managed_in_app_branch(canonical, canonical_path, branch_id, now_ms)?;
+    let branch = inspect_in_app_branch(&workspace.conn, branch_id)?;
+    Ok(ManagedInAppBranchReceiptV1 {
+        schema_version: 1,
+        branch,
+        custody_state: ManagedBranchStateV1::Active,
+    })
+}
+
+pub fn list_managed_in_app_branches(
+    canonical: &Connection,
+    canonical_path: &Path,
+    now_ms: i64,
+) -> SnapbackResult<Vec<ManagedInAppBranchReceiptV1>> {
+    let canonical_path = require_canonical_path_binding(canonical, canonical_path)?;
+    ensure_managed_branch_custody(canonical)?;
+    let incomplete: i64 = canonical.query_row(
+        "SELECT COUNT(*) FROM _snapback_in_app_branch_custody_v1
+          WHERE state IN ('creating', 'tearing_down')",
+        [],
+        |row| row.get(0),
+    )?;
+    if incomplete != 0 {
+        return Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_RECOVERY_REQUIRED",
+            "managed branch creation was interrupted; a mutable owner must reconcile custody",
+        ));
+    }
+    let mut expiry_statement = canonical.prepare(
+        "SELECT profile_json FROM _snapback_in_app_branch_custody_v1
+          WHERE state = 'active' ORDER BY created_at_ms, branch_id",
+    )?;
+    let profiles = expiry_statement
+        .query_map([], |row| row.get::<_, Vec<u8>>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    drop(expiry_statement);
+    for bytes in profiles {
+        let profile: InAppBranchCreateV1 = decode_json(&bytes, "managed branch custody profile")?;
+        if now_ms >= managed_branch_expiry(&profile)? {
+            return Err(error(
+                "SNAPBACK_BRANCH_EXPIRY_REAP_REQUIRED",
+                "one or more managed branches expired; a mutable owner must reap custody",
+            ));
+        }
+    }
+    let mut statement = canonical.prepare(
+        "SELECT branch_id FROM _snapback_in_app_branch_custody_v1
+          WHERE state = 'active' ORDER BY created_at_ms, branch_id",
+    )?;
+    let ids = statement
+        .query_map([], |row| row.get::<_, String>(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    drop(statement);
+    ids.into_iter()
+        .map(|id| inspect_managed_in_app_branch(canonical, &canonical_path, &BranchId(id), now_ms))
+        .collect()
+}
+
+/// Tear down exactly the server-derived workspace named by canonical custody.
+/// The intermediate state is durable so a crash can never make a partially
+/// deleted branch look active again.
+pub fn drop_managed_in_app_branch(
+    canonical: &mut Connection,
+    canonical_path: &Path,
+    branch_id: &BranchId,
+    now_ms: i64,
+) -> SnapbackResult<ManagedInAppBranchReceiptV1> {
+    let canonical_path = require_canonical_path_binding(canonical, canonical_path)?;
+    let (_, state, _) = managed_custody_profile(canonical, branch_id)?;
+    if state == ManagedBranchStateV1::Dropped {
+        return Err(error(
+            "SNAPBACK_BRANCH_NOT_ACTIVE",
+            "managed branch was already dropped",
+        ));
+    }
+    let receipt = if state == ManagedBranchStateV1::Active {
+        let workspace = open_managed_in_app_branch(canonical, &canonical_path, branch_id, now_ms)?;
+        let branch = inspect_in_app_branch(&workspace.conn, branch_id)?;
+        canonical.execute(
+            "UPDATE _snapback_in_app_branch_custody_v1 SET state = 'tearing_down'
+              WHERE branch_id = ?1 AND state = 'active'",
+            params![branch_id.0],
+        )?;
+        workspace.teardown()?;
+        branch
+    } else {
+        let path = managed_workspace_path(&canonical_path, branch_id)?;
+        remove_managed_workspace_files(&path)?;
+        let (profile, _, _) = managed_custody_profile(canonical, branch_id)?;
+        dropped_managed_receipt(profile).branch
+    };
+    canonical.execute(
+        "UPDATE _snapback_in_app_branch_custody_v1
+            SET state = 'dropped', dropped_at_ms = ?2 WHERE branch_id = ?1",
+        params![branch_id.0, now_ms],
+    )?;
+    Ok(ManagedInAppBranchReceiptV1 {
+        schema_version: 1,
+        branch: InAppBranchReceiptV1 {
+            branch: BranchRecord {
+                state: BranchState::TearingDown,
+                ..receipt.branch
+            },
+            promotable: false,
+            ..receipt
+        },
+        custody_state: ManagedBranchStateV1::Dropped,
+    })
+}
+
+/// Boot-time identity for a writable in-app branch head. It is inferred only
+/// from the exact branch/profile tables inside that database; zero profiles is
+/// canonical, while multiple active profiles is corruption and refuses boot.
+#[derive(Clone, Debug)]
+pub(crate) struct InAppBranchRuntime {
+    database_path: PathBuf,
+    branch_id: BranchId,
+}
+
+pub(crate) fn inspect_in_app_branch_boot(
+    database_path: &Path,
+) -> SnapbackResult<Option<InAppBranchRuntime>> {
+    if !database_path.exists() {
+        return Ok(None);
+    }
+    let conn = Connection::open_with_flags(database_path, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    let has_profiles: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_schema
+          WHERE type = 'table' AND name = '_snapback_in_app_branch_profiles'",
+        [],
+        |row| row.get(0),
+    )?;
+    if has_profiles == 0 {
+        return Ok(None);
+    }
+    let mut statement = conn.prepare(
+        "SELECT p.branch_id, p.profile_json
+           FROM _snapback_in_app_branch_profiles p
+           JOIN _snapback_branches b ON b.branch_id = p.branch_id
+          WHERE b.state = 'active' ORDER BY p.branch_id",
+    )?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?))
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    match rows.as_slice() {
+        [] => Ok(None),
+        [(branch_id, bytes)] => {
+            let profile: InAppBranchCreateV1 = decode_json(bytes, "branch boot profile")?;
+            if profile.branch_id.0 != *branch_id
+                || profile.egress_policy != ForkEgressPolicyV1::DenyAll
+            {
+                return Err(error(
+                    "SNAPBACK_BRANCH_CUSTODY_INVALID",
+                    "branch boot profile does not identify one DenyAll head",
+                ));
+            }
+            Ok(Some(InAppBranchRuntime {
+                database_path: database_path.to_path_buf(),
+                branch_id: profile.branch_id,
+            }))
+        }
+        _ => Err(error(
+            "SNAPBACK_BRANCH_CUSTODY_INVALID",
+            "one database contains multiple active in-app branch profiles",
+        )),
+    }
+}
+
+impl InAppBranchRuntime {
+    /// Route the existing exhaustive product egress inventory through the
+    /// branch-local durable DenyAll marker. No target, body, or credential is
+    /// accepted by this boundary.
+    pub(crate) fn deny(
+        &self,
+        family: crate::instance_fork::EgressFamily,
+        now_ms: u64,
+    ) -> SnapbackError {
+        let result = (|| -> SnapbackResult<()> {
+            let mut conn = Connection::open(&self.database_path)?;
+            deny_egress_attempt(
+                &mut conn,
+                &self.branch_id,
+                None,
+                family.as_str(),
+                now_ms.min(i64::MAX as u64) as i64,
+            )
+        })();
+        match result {
+            Err(error) if error.diagnostic.code == "SNAPBACK_BRANCH_EGRESS_DENIED" => error,
+            _ => error(
+                "SNAPBACK_BRANCH_EGRESS_MARKER_FAILED",
+                "in-app branch egress was refused but its durable marker could not be recorded",
+            )
+            .with_details(json!({ "family": family.as_str() })),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
@@ -3066,6 +3860,12 @@ mod tests {
                changed_at_ms INTEGER NOT NULL,
                operation_id TEXT
              );
+             CREATE TABLE _snapback_meta (
+               key TEXT PRIMARY KEY,
+               value TEXT NOT NULL
+             );
+             CREATE TABLE _snapback_auth_retry_episodes (id TEXT PRIMARY KEY);
+             CREATE TABLE _snapback_auth_retry_counters (id TEXT PRIMARY KEY);
              CREATE TABLE widgets (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
              INSERT INTO widgets VALUES (1, 'alpha'), (2, 'beta');",
         )
@@ -3095,6 +3895,24 @@ mod tests {
         .expect("host epoch");
         tx.commit().expect("commit host authority");
         conn
+    }
+
+    fn file_source(path: &Path, head: u64) -> Connection {
+        let source = source(head);
+        source
+            .execute_batch(
+                "CREATE TABLE _auth_sessions(id TEXT PRIMARY KEY, token_hash TEXT NOT NULL);
+                 INSERT INTO _auth_sessions VALUES('parent-session', 'parent-token-hash');",
+            )
+            .expect("parent credential fixture");
+        let mut destination = Connection::open(path).expect("file source");
+        {
+            let backup = rusqlite::backup::Backup::new(&source, &mut destination).expect("backup");
+            backup
+                .run_to_completion(128, std::time::Duration::from_millis(1), None)
+                .expect("copy source");
+        }
+        destination
     }
 
     #[test]
@@ -3173,6 +3991,220 @@ mod tests {
             egress_policy: ForkEgressPolicyV1::DenyAll,
             created_at_ms: now,
         }
+    }
+
+    #[test]
+    fn managed_runtime_proves_isolation_scrubbed_authority_and_exhaustive_egress() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("app.sqlite3");
+        let mut canonical = file_source(&canonical_path, 7);
+        let left_request = create_request("left", "left-stream", 7, 100);
+        let right_request = create_request("right", "right-stream", 7, 101);
+        create_managed_in_app_branch(&mut canonical, &canonical_path, &left_request)
+            .expect("left branch");
+        create_managed_in_app_branch(&mut canonical, &canonical_path, &right_request)
+            .expect("right branch");
+
+        let left =
+            open_managed_in_app_branch(&canonical, &canonical_path, &left_request.branch_id, 200)
+                .expect("open left");
+        let right =
+            open_managed_in_app_branch(&canonical, &canonical_path, &right_request.branch_id, 200)
+                .expect("open right");
+        left.conn
+            .execute("UPDATE widgets SET name='left-only' WHERE id=1", [])
+            .expect("left write");
+        canonical
+            .execute("UPDATE widgets SET name='parent-after-fork' WHERE id=2", [])
+            .expect("parent post-fork write");
+        assert_eq!(
+            canonical
+                .query_row("SELECT name FROM widgets WHERE id=1", [], |row| row
+                    .get::<_, String>(0))
+                .unwrap(),
+            "alpha"
+        );
+        assert_eq!(
+            right
+                .conn
+                .query_row("SELECT name FROM widgets WHERE id=1", [], |row| row
+                    .get::<_, String>(0))
+                .unwrap(),
+            "alpha"
+        );
+        for workspace in [&left, &right] {
+            assert_eq!(
+                workspace
+                    .conn
+                    .query_row("SELECT name FROM widgets WHERE id=2", [], |row| {
+                        row.get::<_, String>(0)
+                    })
+                    .unwrap(),
+                "beta",
+                "parent writes after the fork are invisible"
+            );
+            assert_eq!(
+                workspace
+                    .conn
+                    .query_row("SELECT COUNT(*) FROM _auth_sessions", [], |row| {
+                        row.get::<_, u64>(0)
+                    })
+                    .unwrap(),
+                0,
+                "the executable head contains no copied canonical bearer"
+            );
+            assert_eq!(
+                workspace
+                    .immutable_base()
+                    .query_row("SELECT COUNT(*) FROM _auth_sessions", [], |row| {
+                        row.get::<_, u64>(0)
+                    })
+                    .unwrap(),
+                1,
+                "the proof base remains the byte-exact fork snapshot"
+            );
+        }
+        drop(left);
+        drop(right);
+
+        let left_path = managed_workspace_path(&canonical_path, &left_request.branch_id).unwrap();
+        for family in crate::instance_fork::EgressFamily::ALL {
+            let runtime = inspect_in_app_branch_boot(&left_path)
+                .expect("boot inspection")
+                .expect("branch runtime");
+            assert_eq!(
+                runtime.deny(family, 200).diagnostic.code,
+                "SNAPBACK_BRANCH_EGRESS_DENIED"
+            );
+        }
+        let reopened =
+            open_managed_in_app_branch(&canonical, &canonical_path, &left_request.branch_id, 200)
+                .expect("reopen after deny markers");
+        assert_eq!(
+            deny_all_attempt_markers(&reopened.conn, &left_request.branch_id)
+                .unwrap()
+                .len(),
+            crate::instance_fork::EgressFamily::ALL.len()
+        );
+        assert_eq!(
+            inspect_in_app_branch(&reopened.conn, &left_request.branch_id)
+                .unwrap()
+                .deny_all_attempt_count,
+            crate::instance_fork::EgressFamily::ALL.len() as u64
+        );
+        assert_eq!(
+            crate::instance_fork::EgressFamily::for_derived_host_op("future.networkDial"),
+            Some(crate::instance_fork::EgressFamily::UnclassifiedHostOperation)
+        );
+        drop(reopened);
+
+        drop_managed_in_app_branch(
+            &mut canonical,
+            &canonical_path,
+            &left_request.branch_id,
+            300,
+        )
+        .expect("drop left");
+        drop_managed_in_app_branch(
+            &mut canonical,
+            &canonical_path,
+            &right_request.branch_id,
+            300,
+        )
+        .expect("drop right");
+    }
+
+    #[test]
+    fn managed_custody_binds_sqlite_path_and_reconciles_profile_commit_crash() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let canonical_path = directory.path().join("app.sqlite3");
+        let other_path = directory.path().join("other.sqlite3");
+        let mut canonical = file_source(&canonical_path, 7);
+        let _other = file_source(&other_path, 7);
+        let mismatch = create_managed_in_app_branch(
+            &mut canonical,
+            &other_path,
+            &create_request("mismatch", "mismatch-stream", 7, 100),
+        )
+        .expect_err("connection/path substitution");
+        assert_eq!(
+            mismatch.diagnostic.code,
+            "SNAPBACK_BRANCH_CUSTODY_PATH_MISMATCH"
+        );
+
+        let interrupted = create_request("interrupted", "interrupted-stream", 7, 101);
+        install_managed_create_after_profile_hook(|| panic!("simulated process crash"));
+        let crashed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ = create_managed_in_app_branch(&mut canonical, &canonical_path, &interrupted);
+        }));
+        assert!(crashed.is_err());
+        let interrupted_path =
+            managed_workspace_path(&canonical_path, &interrupted.branch_id).unwrap();
+        assert!(interrupted_path.exists());
+        let list_error = list_managed_in_app_branches(&canonical, &canonical_path, 200)
+            .expect_err("read-only list refuses interrupted custody");
+        assert_eq!(
+            list_error.diagnostic.code,
+            "SNAPBACK_BRANCH_CUSTODY_RECOVERY_REQUIRED"
+        );
+
+        let survivor = create_request("survivor", "survivor-stream", 7, 102);
+        create_managed_in_app_branch(&mut canonical, &canonical_path, &survivor)
+            .expect("next mutable create reconciles interrupted custody");
+        assert!(!interrupted_path.exists());
+        let state: String = canonical
+            .query_row(
+                "SELECT state FROM _snapback_in_app_branch_custody_v1 WHERE branch_id=?1",
+                params![interrupted.branch_id.0],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(state, "dropped");
+
+        let survivor_path = managed_workspace_path(&canonical_path, &survivor.branch_id).unwrap();
+        let exact_expiry = survivor.created_at_ms + survivor.limits.ttl_ms;
+        assert_eq!(
+            list_managed_in_app_branches(&canonical, &canonical_path, exact_expiry)
+                .expect_err("expired active branch requires mutable reaping")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_EXPIRY_REAP_REQUIRED"
+        );
+        install_managed_reap_after_transition_hook(|| {
+            panic!("simulated crash after durable tearing_down transition")
+        });
+        let reap_crash = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _ =
+                reap_expired_managed_in_app_branches(&mut canonical, &canonical_path, exact_expiry);
+        }));
+        assert!(reap_crash.is_err());
+        assert!(survivor_path.exists());
+        assert_eq!(
+            list_managed_in_app_branches(&canonical, &canonical_path, exact_expiry)
+                .expect_err("tearing-down crash stays enumerated")
+                .diagnostic
+                .code,
+            "SNAPBACK_BRANCH_CUSTODY_RECOVERY_REQUIRED"
+        );
+        assert!(
+            reap_expired_managed_in_app_branches(&mut canonical, &canonical_path, exact_expiry,)
+                .expect("reopen reconciles exact-expiry crash")
+                .is_empty(),
+            "the interrupted tearing-down row is reconciled, not re-reaped"
+        );
+        assert!(
+            managed_workspace_files(&survivor_path)
+                .into_iter()
+                .all(|path| !path.exists())
+        );
+        let survivor_state: String = canonical
+            .query_row(
+                "SELECT state FROM _snapback_in_app_branch_custody_v1 WHERE branch_id=?1",
+                params![survivor.branch_id.0],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(survivor_state, "dropped");
     }
 
     fn draft(stream: &str, id: &str) -> BranchOperationDraftV1 {
@@ -3708,6 +4740,40 @@ mod tests {
         )
         .expect("seal");
         let mut replay_count = 0;
+        for (authority, now_ms) in [
+            (PromotionAuthorityDecisionV1::Denied, 2_002),
+            (
+                PromotionAuthorityDecisionV1::Revalidated {
+                    grant_id: "grant-1".to_owned(),
+                    authority_fingerprint: sha('0'),
+                },
+                2_002,
+            ),
+            (
+                PromotionAuthorityDecisionV1::Revalidated {
+                    grant_id: "grant-1".to_owned(),
+                    authority_fingerprint: sha('d'),
+                },
+                50_000,
+            ),
+        ] {
+            let denied = promote_by_reexecution(
+                &mut canonical,
+                &workspace,
+                &diff,
+                &request,
+                &key,
+                &authority,
+                now_ms,
+                &sha('f'),
+                |_, _| panic!("revoked, divergent, or stale authority must not reexecute"),
+            )
+            .expect_err("current branch authority required");
+            assert_eq!(
+                denied.diagnostic.code,
+                "SNAPBACK_PROMOTION_AUTHORITY_DENIED"
+            );
+        }
         let mut forged_ticket_request = request.clone();
         forged_ticket_request.admission_ticket.rebase_budget += 1;
         forged_ticket_request.seal =

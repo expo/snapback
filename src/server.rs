@@ -14890,6 +14890,21 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             session_overlay,
         )
     };
+    let branch_host = |name| {
+        operation(
+            name,
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        )
+    };
     let operations = vec![
         operation(
             "app.ensure.legacy",
@@ -15324,6 +15339,14 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             EffectPolicy::None,
             SessionModeOverlay::NONE,
         ),
+        // @ref LLP 0162#3-safe-current-head-forks — the reachable in-app branch
+        //   lifecycle is a closed operator surface. Paths and grants are
+        //   server-owned; the multiplexed carrier cannot weaken AdminWrite.
+        branch_host("host_ops.branch.create.v1"),
+        branch_host("host_ops.branch.list.v1"),
+        branch_host("host_ops.branch.reap.v1"),
+        branch_host("host_ops.branch.inspect.v1"),
+        branch_host("host_ops.branch.drop.v1"),
         // The pinned-unbuilt reload/acceptance verbs and the CLI-owned
         // `host.*` lifecycle verbs are registered so an authenticated request
         // reaches the dispatcher's honest `SNAPBACK_HOST_OP_UNIMPLEMENTED` /
@@ -15666,6 +15689,11 @@ pub(crate) fn host_ops_operation_spec(
         "errors.issues" => "host_ops.errors.issues",
         "errors.issue" => "host_ops.errors.issue",
         "errors.transition" => "host_ops.errors.transition",
+        "branch.create.v1" => "host_ops.branch.create.v1",
+        "branch.list.v1" => "host_ops.branch.list.v1",
+        "branch.reap.v1" => "host_ops.branch.reap.v1",
+        "branch.inspect.v1" => "host_ops.branch.inspect.v1",
+        "branch.drop.v1" => "host_ops.branch.drop.v1",
         // @ref LLP 0024#http-projection — pinned-unbuilt and CLI-only
         // operations resolve to registered AdminWrite policies so an
         // authenticated request reaches the structured UNIMPLEMENTED /
@@ -34537,6 +34565,77 @@ globalThis.__snapbackHandlers = {
             "unrecognized"
         );
         assert!(!serialized.contains(SENTINEL), "{serialized}");
+    }
+
+    /// @ref LLP 0162#3-safe-current-head-forks — lifecycle dispatch is reachable
+    ///   only after the production host carrier resolves AdminWrite authority;
+    ///   an unauthenticated request never reaches the branch dispatcher.
+    #[tokio::test]
+    async fn managed_branch_host_operations_are_admin_write_before_dispatch() {
+        let (router, _) = auth_http_fixture(PolicyAuthMode::Sessions);
+        let cases = [
+            (
+                "branch.create.v1",
+                json!({
+                    "schemaVersion": 1,
+                    "allowedFunctions": ["safeAction"],
+                    "ttlMs": 60_000
+                }),
+            ),
+            ("branch.list.v1", json!({"schemaVersion": 1})),
+            ("branch.reap.v1", json!({"schemaVersion": 1})),
+            (
+                "branch.inspect.v1",
+                json!({"schemaVersion": 1, "branchId": "branch-v1:test"}),
+            ),
+            (
+                "branch.drop.v1",
+                json!({"schemaVersion": 1, "branchId": "branch-v1:test"}),
+            ),
+        ];
+        for (operation, input) in cases {
+            let spec = super::host_ops_operation_spec(operation, None, false)
+                .unwrap_or_else(|| panic!("registered branch operation {operation}"));
+            assert_eq!(spec.class, RouteClass::SystemApi, "{operation}");
+            assert_eq!(spec.path_policy, RoutePolicy::AdminWrite, "{operation}");
+            assert_eq!(
+                spec.credential_resolution,
+                super::CredentialResolution::AdminCredential,
+                "{operation}"
+            );
+            assert_eq!(
+                spec.invocation_authority,
+                super::InvocationAuthority::Operator,
+                "{operation}"
+            );
+            assert_eq!(
+                spec.transport,
+                super::OperationTransport::HostOps,
+                "{operation}"
+            );
+
+            let response = router
+                .clone()
+                .oneshot(auth_http_request(
+                    "POST",
+                    "/_snapback/api/host-ops",
+                    serde_json::to_vec(&json!({
+                        "operation": operation,
+                        "input": input,
+                    }))
+                    .unwrap(),
+                    true,
+                    None,
+                    None,
+                ))
+                .await
+                .unwrap();
+            assert_eq!(
+                response.status(),
+                StatusCode::UNAUTHORIZED,
+                "{operation} must refuse before dispatch"
+            );
+        }
     }
 
     /// @ref LLP 0024#http-projection — the pinned-but-unbuilt operations and
