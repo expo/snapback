@@ -10,7 +10,12 @@ migration-journal transaction now carries an authenticated approval-derived
 Host identity with a durable pre-transaction ordinal, including lease-
 superseding crash/retry and cleanup-reopen paths; migration remains explicitly
 uncovered because publication and terminal receipt are separate transactions,
-so every capability stays Missing); 2026-08-04 (narrow public owner-policy slice — exact generated
+so every capability stays Missing); 2026-08-04 (write-authority enforcement slice — an armed local
+coverage manifest now installs a connection-local SQLite authorizer and a
+module-private generated writer token for the four ordinary/host physical
+adapters; raw, cached, trigger-mediated, system-field, and DDL bypasses refuse,
+while grouped specialized writers remain explicitly non-enumerated and every
+capability remains Missing); 2026-08-04 (narrow public owner-policy slice — exact generated
 `owned-crud.v1`/`owner.v1` update envelopes can be explained only
 after current function policy, client audience, executable artifact, current
 row, retained historical row, and the complete closed fact set revalidate;
@@ -45,7 +50,12 @@ approval operation and durable pre-transaction journal-row count; production
 apply/release, rollback, cleanup-reopen, multi-entry transaction, and lease-
 superseding retry fixtures are green, while the migration lane remains absent
 from coverage manifests pending a separately accepted pending→terminal
-lifecycle); 2026-08-04 (the public explanation lane now has a
+lifecycle); 2026-08-04 (the local writer connection arms its
+SQLite authorizer from durable coverage state, disables prepared-statement
+cache reuse across token lifetime, and admits covered application-table DML
+only inside the closed ordinary/host adapter facade; the complete migration,
+seed/reset, admin, projection, and specialized inventory remains open);
+2026-08-04 (the public explanation lane now has a
 narrow exact generated owner-update evaluator; any artifact drift,
 principal/incarnation/audience change, current or historical owner divergence,
 permission/query/membership fact, context-answer widening, receipt divergence,
@@ -369,6 +379,40 @@ outcome-known/result-gone state, recreated-branch end-to-end corpus, migration
 host adapter, complete target writer inventory, active-lane paired performance,
 independent review, and named-author acceptance remain open. This Spec remains
 Draft and every related capability remains `Missing`.
+
+## Implementation record — 2026-08-04, SQLite write-authority slice
+
+[`src/storage/write_authority.rs`](../src/storage/write_authority.rs) installs
+one connection-local SQLite authorizer after boot and reconstructs its armed
+state from the durable stream coverage manifest. Its
+`GeneratedWriterTokenV1` constructor and fields are private to the closed
+writer facade. The ordinary HostPlan, ordinary Ibex-buffered, host-child
+HostPlan, and host-child Ibex-buffered adapters select distinct physical
+writer classes before their transaction prepares application DML. Once any
+manifest is armed, raw application-table insert/update/delete and application
+DDL prepared outside the facade are denied by SQLite itself.
+
+Because SQLite authorization occurs at prepare time, the armed writer
+connection has a zero-capacity prepared-statement cache; the facade does not
+return raw statements. Corpus prepares a covered write under a live token,
+drops it, and proves a same-SQL cached prepare is re-authorized and denied.
+Trigger- or view-mediated application DML is also denied even inside a token:
+the generated `ChangedRow` set has no trigger adapter and therefore cannot
+journal that hidden effect. Raw trigger source and target changes roll back
+together. The positive issuance-bearing HostPlan and buffered corpus still
+commits, retains one envelope per operation, and compares the exact stored
+postimage — including `_id`, `_version`, `_createdAt`, and `_updatedAt` — with
+the journal postimage.
+
+The target/app-effective projection is deliberately not a completeness claim.
+It enumerates migration, seed/reset, membership-admin, projection-rebuild, and
+specialized-system lanes beside the four envelope-mapped writers. The
+specialized-system row is explicitly `physicallyEnumerated: false`; grouped
+assets/auth/jobs/push/search/vector sites can never make
+`allAppEffectiveWritersCovered` true. Migration, seed/reset, and the remaining
+specialized/direct-SQL sites are not envelope-mapped by this slice. No
+production target activates coverage, row 4 and row 9 remain Partial, the Spec
+remains Draft, and every related capability remains `Missing`.
 
 ## Implementation record — 2026-08-04, host action-child carrier slice
 

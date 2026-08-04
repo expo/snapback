@@ -56,16 +56,29 @@ impl LocalDatabase {
         &mut self,
         activated_at_ms: u64,
     ) -> SnapbackResult<()> {
-        let stream = self.data_version_stream()?;
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        crate::operation_ledger::activate_ordinary_mutation_coverage_in(
+        let stream = ensure_data_version_stream_in(&tx)?;
+        let manifest = crate::operation_ledger::activate_ordinary_mutation_coverage_in(
             &tx,
             &stream,
             activated_at_ms,
         )?;
+        let persisted = crate::operation_ledger::active_coverage_manifest(&tx, &stream)?
+            .ok_or_else(|| {
+                corrupt("ordinary-mutation activation did not retain a coverage manifest")
+            })?;
+        if persisted != manifest {
+            return Err(corrupt(
+                "ordinary-mutation activation did not retain the closed coverage manifest",
+            ));
+        }
         tx.commit()?;
+        // The same-process SQLite authorizer observes this exact committed
+        // manifest before activation reports success. Reopen reconstructs the
+        // same state from the durable row.
+        self.writer_authority.arm_manifest(&self.conn, manifest)?;
         Ok(())
     }
 

@@ -38,6 +38,11 @@ pub(crate) const SEQUENCE_MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 pub(crate) mod auth;
 pub mod migration_executor;
 
+// Inventory-only rows remain dormant until their named lanes gain envelope
+// adapters; keeping them in the closed enum is the honesty mechanism.
+#[allow(dead_code)]
+mod write_authority;
+
 // @ref LLP 0055#principal-kinds — agent-principal ownership and durable
 //   deactivation live in their own module beneath the auth catalog. Grant/token
 //   lifecycle (G3/G4) is not wired yet, so the storage methods are dead until
@@ -999,6 +1004,9 @@ impl BufferedWrite {
 
 pub struct LocalDatabase {
     conn: Connection,
+    /// The connection-local generated writer facade and SQLite authorizer.
+    /// It remains dormant until a durable coverage manifest is present.
+    writer_authority: write_authority::WriterAuthorityV1,
     path: Option<PathBuf>,
     /// LLP 0158's non-promotable derived-deployment carrier. LLP 0097 branch
     /// state never sets or consults this field.
@@ -1825,6 +1833,7 @@ impl LocalDatabase {
         let mode_inspection = auth_mode::inspect_for_open(&conn)?;
         let mut db = Self {
             conn,
+            writer_authority: write_authority::WriterAuthorityV1::default(),
             path: None,
             derived_fork: None,
             in_app_branch: None,
@@ -1842,6 +1851,9 @@ impl LocalDatabase {
         db.configure(false)?;
         db.create_infra()?;
         auth_mode::adopt_after_infra(&mut db, mode_inspection)?;
+        db.writer_authority.set_schema(&db.schema)?;
+        db.refresh_writer_authority_manifest()?;
+        db.writer_authority.install(&db.conn);
         Ok(db)
     }
 
@@ -1877,6 +1889,7 @@ impl LocalDatabase {
         }
         let mut db = Self {
             conn,
+            writer_authority: write_authority::WriterAuthorityV1::default(),
             path: Some(path.clone()),
             derived_fork,
             in_app_branch,
@@ -1921,6 +1934,9 @@ impl LocalDatabase {
             }
         }
         auth_mode::adopt_after_infra(&mut db, mode_inspection)?;
+        db.writer_authority.set_schema(&db.schema)?;
+        db.refresh_writer_authority_manifest()?;
+        db.writer_authority.install(&db.conn);
         // The pool is created after configure/create_infra so readers open an
         // existing WAL database with the infra tables committed.
         db.reader_pool = Some(Arc::new(ReaderPool::new(path)));
@@ -1958,6 +1974,7 @@ impl LocalDatabase {
         }
         let restored = Self {
             conn,
+            writer_authority: write_authority::WriterAuthorityV1::default(),
             path: None,
             derived_fork: self.derived_fork.clone(),
             in_app_branch: self.in_app_branch.clone(),
@@ -1976,6 +1993,9 @@ impl LocalDatabase {
             &restored.schema,
             restored.sequence_declarations.as_ref(),
         )?;
+        restored.writer_authority.set_schema(&restored.schema)?;
+        restored.refresh_writer_authority_manifest()?;
+        restored.writer_authority.install(&restored.conn);
         Ok(restored)
     }
 
@@ -2367,6 +2387,23 @@ impl LocalDatabase {
         )
     }
 
+    fn refresh_writer_authority_manifest(&self) -> SnapbackResult<()> {
+        let manifest = match crate::seed_identity::strict_current_data_version_stream(&self.conn)? {
+            Some(stream_id) => {
+                crate::operation_ledger::active_coverage_manifest(&self.conn, &stream_id)?
+            }
+            None => None,
+        };
+        self.writer_authority.set_manifest(manifest)
+    }
+
+    #[cfg(test)]
+    fn local_writer_coverage_inventory_for_test(
+        &self,
+    ) -> SnapbackResult<write_authority::LocalWriterCoverageInventoryV1> {
+        self.writer_authority.inventory(self)
+    }
+
     #[cfg(test)]
     pub(crate) fn install_operation_coverage_for_test(
         &mut self,
@@ -2392,24 +2429,26 @@ impl LocalDatabase {
                 "test coverage manifest version overflowed",
             )
         })?;
+        let manifest = crate::commit_envelope::OperationCoverageManifestV1 {
+            schema_version: 1,
+            manifest_version,
+            stream_id: stream_id.clone(),
+            covered_lanes: lanes.clone(),
+            writer_choke_points: writers.clone(),
+            coverage_digest: crate::operation_ledger::coverage_digest(
+                &stream_id,
+                manifest_version,
+                &lanes,
+                &writers,
+            ),
+        };
         crate::operation_ledger::register_coverage_in(
             &tx,
-            &crate::commit_envelope::OperationCoverageManifestV1 {
-                schema_version: 1,
-                manifest_version,
-                stream_id: stream_id.clone(),
-                covered_lanes: lanes.clone(),
-                writer_choke_points: writers.clone(),
-                coverage_digest: crate::operation_ledger::coverage_digest(
-                    &stream_id,
-                    manifest_version,
-                    &lanes,
-                    &writers,
-                ),
-            },
+            &manifest,
             now_millis(),
         )?;
         tx.commit()?;
+        self.writer_authority.arm_manifest(&self.conn, manifest)?;
         Ok(())
     }
 
@@ -3200,6 +3239,7 @@ impl LocalDatabase {
 
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
         self.apply_schema_mode_aware(manifest)?;
+        self.writer_authority.set_schema(&self.schema)?;
         Ok(Vec::new())
     }
 
@@ -4697,6 +4737,7 @@ impl LocalDatabase {
         )?;
         Ok(self
             .execute_mutation_plan_with_lifecycle_and_settlement_time(
+                write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
                 plan,
                 input,
                 true,
@@ -4767,6 +4808,7 @@ impl LocalDatabase {
         }
         Ok(self
             .execute_mutation_plan_with_lifecycle_and_settlement_time(
+                write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
                 plan,
                 input,
                 true,
@@ -4844,6 +4886,7 @@ impl LocalDatabase {
         }
         Ok(self
             .execute_mutation_plan_with_lifecycle_and_settlement_time(
+                write_authority::LocalWriterLaneV1::HostChildHostPlan,
                 plan,
                 input,
                 true,
@@ -4901,6 +4944,7 @@ impl LocalDatabase {
         )?;
         Ok(self
             .execute_mutation_plan_with_lifecycle_and_settlement_time(
+                write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
                 plan,
                 input,
                 true,
@@ -4943,6 +4987,7 @@ impl LocalDatabase {
         }
         Ok(self
             .execute_mutation_plan_with_lifecycle_and_settlement_time(
+                write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
                 plan,
                 input,
                 true,
@@ -4970,6 +5015,11 @@ impl LocalDatabase {
             )?;
         }
         self.execute_mutation_plan_with_lifecycle_and_settlement_time(
+            if apply {
+                write_authority::LocalWriterLaneV1::OrdinaryHostPlan
+            } else {
+                write_authority::LocalWriterLaneV1::DryRun
+            },
             plan,
             input,
             apply,
@@ -4995,6 +5045,11 @@ impl LocalDatabase {
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
         self.execute_mutation_plan_with_lifecycle_and_settlement_time(
+            if apply {
+                write_authority::LocalWriterLaneV1::OrdinaryHostPlan
+            } else {
+                write_authority::LocalWriterLaneV1::DryRun
+            },
             plan,
             input,
             apply,
@@ -5010,6 +5065,7 @@ impl LocalDatabase {
     #[allow(clippy::too_many_arguments)]
     fn execute_mutation_plan_with_lifecycle_and_settlement_time<G, Check, BeforeCommit>(
         &mut self,
+        writer_lane: write_authority::LocalWriterLaneV1,
         plan: &MutationPlan,
         input: &HandlerInput,
         apply: bool,
@@ -5024,6 +5080,7 @@ impl LocalDatabase {
     {
         crate::exec_guard::debug_assert_off_async_worker("a SQLite mutation");
         check_live()?;
+        let _writer_token = self.writer_authority.enter(writer_lane)?;
         // @ref LLP 0003#execution-and-write-semantics — one mutation commits all buffered writes at one version.
         let schema = self.schema.clone();
         let projections = self.projections.clone();
@@ -6092,6 +6149,14 @@ impl LocalDatabase {
             asset_admissions,
         } = payload;
         self.apply_buffered_writes_with_lifecycle(
+            match lane {
+                CoveredMutationLaneV1::Ordinary => {
+                    write_authority::LocalWriterLaneV1::OrdinaryIbexBuffered
+                }
+                CoveredMutationLaneV1::HostChild => {
+                    write_authority::LocalWriterLaneV1::HostChildIbexBuffered
+                }
+            },
             input,
             BufferedEffects {
                 writes,
@@ -6166,6 +6231,7 @@ impl LocalDatabase {
         asset_admissions: Vec<crate::assets::AssetAttachmentAdmission>,
     ) -> SnapbackResult<MutationCommit> {
         self.apply_buffered_writes_with_lifecycle_gated(
+            write_authority::LocalWriterLaneV1::DryRun,
             input,
             BufferedEffects {
                 writes,
@@ -6197,6 +6263,7 @@ impl LocalDatabase {
         options: BufferedCommitOptions<'_>,
     ) -> SnapbackResult<MutationCommit> {
         self.apply_buffered_writes_with_lifecycle_gated(
+            write_authority::LocalWriterLaneV1::OrdinaryIbexBuffered,
             input,
             BufferedEffects {
                 writes,
@@ -6217,6 +6284,7 @@ impl LocalDatabase {
 
     fn apply_buffered_writes_with_lifecycle<G, Check, BeforeCommit>(
         &mut self,
+        writer_lane: write_authority::LocalWriterLaneV1,
         input: &HandlerInput,
         effects: BufferedEffects,
         options: BufferedCommitOptions<'_>,
@@ -6228,6 +6296,7 @@ impl LocalDatabase {
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
         self.apply_buffered_writes_with_lifecycle_gated(
+            writer_lane,
             input,
             effects,
             options,
@@ -6239,6 +6308,7 @@ impl LocalDatabase {
 
     fn apply_buffered_writes_with_lifecycle_gated<G, Check, BeforeCommit>(
         &mut self,
+        writer_lane: write_authority::LocalWriterLaneV1,
         input: &HandlerInput,
         effects: BufferedEffects,
         options: BufferedCommitOptions<'_>,
@@ -6252,6 +6322,7 @@ impl LocalDatabase {
     {
         crate::exec_guard::debug_assert_off_async_worker("a SQLite commit");
         check_live()?;
+        let _writer_token = self.writer_authority.enter(writer_lane)?;
         let BufferedEffects {
             writes,
             sequence_allocations,
@@ -15313,6 +15384,7 @@ impl LocalDatabase {
     ) -> SnapbackResult<MutationCommit> {
         let input = writer.handler_input();
         self.apply_buffered_writes_with_lifecycle_gated(
+            write_authority::LocalWriterLaneV1::MembershipAdmin,
             &input,
             BufferedEffects {
                 writes: plan.writes,
@@ -24302,7 +24374,7 @@ mod guarded_commit_tests {
     fn llp0163_issuance_bearing_host_plan_and_buffered_mutations_share_envelope_choke_point() {
         use crate::commit_envelope::{
             ClientIdentityRangeV1, IdentityEpochStateV1, IdentityEpochV1,
-            OperationCoverageManifestV1, OperationIssuanceV1, OperationOriginatorClassV1,
+            OperationIssuanceV1, OperationOriginatorClassV1,
         };
 
         let mut history_schema = schema();
@@ -24356,27 +24428,15 @@ mod guarded_commit_tests {
             },
         )
         .expect("range");
-        let lanes = vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()];
-        let writers = vec![
-            "storage::execute_mutation_plan".to_owned(),
-            "storage::commit_buffered_writes".to_owned(),
-        ];
-        crate::operation_ledger::register_coverage_in(
-            &tx,
-            &OperationCoverageManifestV1 {
-                schema_version: 1,
-                manifest_version: 1,
-                stream_id: stream.clone(),
-                covered_lanes: lanes.clone(),
-                writer_choke_points: writers.clone(),
-                coverage_digest: crate::operation_ledger::coverage_digest(
-                    &stream, 1, &lanes, &writers,
-                ),
-            },
-            1,
+        tx.commit().expect("operation authority commit");
+        db.install_operation_coverage_for_test(
+            vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()],
+            crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+                .iter()
+                .map(|writer| (*writer).to_owned())
+                .collect(),
         )
         .expect("coverage");
-        tx.commit().expect("operation authority commit");
 
         let issuance = |counter| OperationIssuanceV1::ClientRange {
             epoch_id: "epoch-1".to_owned(),
@@ -24418,6 +24478,31 @@ mod guarded_commit_tests {
             )
             .expect("covered buffered commit");
         assert_eq!(buffered.changes.len(), 1);
+        let buffered_row = db
+            .get("items", "buffered")
+            .expect("read buffered postimage")
+            .expect("buffered row exists");
+        let journal_row: String = db
+            .conn
+            .query_row(
+                "SELECT row_json FROM _snapback_changes
+                 WHERE table_name='items' AND row_id='buffered'
+                 ORDER BY id DESC LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("buffered journal postimage");
+        assert_eq!(
+            serde_json::from_str::<Value>(&journal_row).expect("journal postimage JSON"),
+            buffered_row,
+            "the authorized physical write journals the exact app and system-field postimage"
+        );
+        for field in ["_id", "_version", "_createdAt", "_updatedAt"] {
+            assert!(
+                buffered_row.get(field).is_some(),
+                "journal-complete postimage is missing system field {field}"
+            );
+        }
 
         let operations = [&host_plan_identity, &buffered_identity]
             .into_iter()
@@ -24909,14 +24994,11 @@ mod guarded_commit_tests {
 
     #[test]
     fn llp0163_writer_lane_coverage_is_explicit_and_asymmetric() {
-        use crate::commit_envelope::{OperationIssuanceV1, OperationCoverageManifestV1};
+        use crate::commit_envelope::OperationIssuanceV1;
 
         fn database_with_lanes(lanes: &[&str]) -> LocalDatabase {
             let mut db = LocalDatabase::memory().expect("memory database");
             db.apply_schema(schema()).expect("apply writer fixture schema");
-            let tx = db.conn.transaction().expect("coverage transaction");
-            let stream = auth_invalidation::ensure_data_version_stream_in(&tx)
-                .expect("initialize operation stream");
             let mut covered_lanes = lanes
                 .iter()
                 .map(|lane| (*lane).to_owned())
@@ -24944,25 +25026,8 @@ mod guarded_commit_tests {
                 );
             }
             writers.sort();
-            crate::operation_ledger::register_coverage_in(
-                &tx,
-                &OperationCoverageManifestV1 {
-                    schema_version: 1,
-                    manifest_version: 1,
-                    stream_id: stream.clone(),
-                    covered_lanes: covered_lanes.clone(),
-                    writer_choke_points: writers.clone(),
-                    coverage_digest: crate::operation_ledger::coverage_digest(
-                        &stream,
-                        1,
-                        &covered_lanes,
-                        &writers,
-                    ),
-                },
-                1,
-            )
+            db.install_operation_coverage_for_test(covered_lanes, writers)
             .expect("register explicit coverage");
-            tx.commit().expect("coverage commit");
             db
         }
 
@@ -25194,6 +25259,232 @@ mod guarded_commit_tests {
         assert_eq!(
             envelopes[0].identity.key.originator_class,
             crate::commit_envelope::OperationOriginatorClassV1::Host
+        );
+    }
+
+    #[test]
+    fn llp0162_sqlite_writer_authority_denies_bypass_and_projects_effective_gaps() {
+        fn authorization_denied(error: &rusqlite::Error) -> bool {
+            matches!(
+                error,
+                rusqlite::Error::SqliteFailure(failure, _)
+                    if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+            )
+        }
+
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(schema()).expect("apply writer fixture schema");
+        db.conn
+            .execute_batch(
+                "CREATE TRIGGER raw_system_to_app_bypass
+                 AFTER INSERT ON _snapback_meta
+                 BEGIN
+                   UPDATE items SET _version = _version + 1;
+                 END;",
+            )
+            .expect("install pre-coverage trigger fixture");
+        db.install_operation_coverage_for_test(
+            vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()],
+            crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+                .iter()
+                .map(|writer| (*writer).to_owned())
+                .collect(),
+        )
+        .expect("activate ordinary writer fixture");
+
+        let direct_insert = db
+            .conn
+            .execute(
+                "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+                 VALUES('raw',1,1,1,'raw')",
+                [],
+            )
+            .expect_err("raw insert must be denied by SQLite");
+        assert!(authorization_denied(&direct_insert));
+
+        let cached_sql =
+            "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title) \
+             VALUES('cached',1,1,1,'cached')";
+        {
+            let _token = db
+                .writer_authority
+                .enter(write_authority::LocalWriterLaneV1::OrdinaryHostPlan)
+                .expect("generated writer token");
+            let statement = db
+                .conn
+                .prepare_cached(cached_sql)
+                .expect("prepare covered write while token is live");
+            drop(statement);
+        }
+        let cached_escape = match db.conn.prepare_cached(cached_sql) {
+            Ok(_) => panic!("a statement prepared under a dropped token escaped reauthorization"),
+            Err(error) => error,
+        };
+        assert!(authorization_denied(&cached_escape));
+
+        let system_field = db
+            .conn
+            .execute("UPDATE items SET _version = 9 WHERE _id='raw'", [])
+            .expect_err("raw system-field patch must be denied by SQLite");
+        assert!(authorization_denied(&system_field));
+        let trigger_bypass = db
+            .conn
+            .execute(
+                "INSERT INTO _snapback_meta(key,value) VALUES('writer-trigger','1')",
+                [],
+            )
+            .expect_err("trigger-mediated app write must be denied by SQLite");
+        assert!(authorization_denied(&trigger_bypass));
+        let trigger_inside_token = {
+            let _token = db
+                .writer_authority
+                .enter(write_authority::LocalWriterLaneV1::OrdinaryHostPlan)
+                .expect("generated writer token");
+            db.conn
+                .execute(
+                    "INSERT INTO _snapback_meta(key,value) VALUES('writer-trigger-token','1')",
+                    [],
+                )
+                .expect_err("a token cannot bless an unjournaled trigger app-write")
+        };
+        assert!(authorization_denied(&trigger_inside_token));
+        let schema_bypass = db
+            .conn
+            .execute("ALTER TABLE items ADD COLUMN rawBypass TEXT", [])
+            .expect_err("raw covered schema change must be denied by SQLite");
+        assert!(authorization_denied(&schema_bypass));
+        assert_eq!(
+            db.conn
+                .query_row("SELECT COUNT(*) FROM items", [], |row| row.get::<_, u64>(0))
+                .expect("bypass rollback count"),
+            0
+        );
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_meta
+                     WHERE key IN ('writer-trigger','writer-trigger-token')",
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .expect("trigger source rollback count"),
+            0,
+            "the source system write rolls back with its denied trigger target"
+        );
+
+        let inventory = db
+            .local_writer_coverage_inventory_for_test()
+            .expect("closed local writer inventory");
+        assert_eq!(inventory.schema_version, 1);
+        assert_eq!(
+            inventory.entries.len(),
+            write_authority::LocalWriterLaneV1::ALL.len(),
+            "every closed writer enum member has exactly one inventory row"
+        );
+        for writer in [
+            write_authority::LocalWriterLaneV1::OrdinaryHostPlan,
+            write_authority::LocalWriterLaneV1::OrdinaryIbexBuffered,
+        ] {
+            let entry = inventory
+                .entries
+                .iter()
+                .find(|entry| entry.choke_point == writer.choke_point())
+                .expect("ordinary writer inventory row");
+            assert!(entry.target_supported && entry.app_effective);
+            assert!(entry.declared_covered && entry.envelope_mapped);
+            assert!(entry.write_authority_enforced);
+        }
+        for writer in [
+            write_authority::LocalWriterLaneV1::HostChildHostPlan,
+            write_authority::LocalWriterLaneV1::HostChildIbexBuffered,
+            write_authority::LocalWriterLaneV1::Migration,
+            write_authority::LocalWriterLaneV1::SeedAndReset,
+        ] {
+            let entry = inventory
+                .entries
+                .iter()
+                .find(|entry| entry.choke_point == writer.choke_point())
+                .expect("effective uncovered writer inventory row");
+            assert!(entry.target_supported && entry.app_effective);
+            assert!(!entry.declared_covered);
+        }
+        assert!(
+            !inventory.all_app_effective_writers_covered,
+            "ordinary-only target support must not upcast app-effective coverage"
+        );
+        let grouped_specialized = inventory
+            .entries
+            .iter()
+            .find(|entry| {
+                entry.choke_point
+                    == write_authority::LocalWriterLaneV1::SpecializedSystem.choke_point()
+            })
+            .expect("grouped specialized inventory marker");
+        assert!(
+            !grouped_specialized.physically_enumerated,
+            "a grouped specialized row is a Missing marker, never completeness evidence"
+        );
+    }
+
+    #[test]
+    fn llp0162_writer_authority_rearms_from_durable_manifest_on_reopen() {
+        let dir = tempfile::tempdir().expect("writer authority tempdir");
+        let path = dir.path().join("writer-authority.sqlite");
+        let mut db = LocalDatabase::open(&path).expect("create file database");
+        db.apply_schema(schema()).expect("apply writer fixture schema");
+        assert_eq!(
+            db.conn
+                .execute(
+                    "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+                     VALUES('before-activation',1,1,1,'admitted')",
+                    [],
+                )
+                .expect("raw DML remains admitted before explicit activation"),
+            1
+        );
+        assert_eq!(
+            db.conn
+                .execute("DELETE FROM items WHERE _id='before-activation'", [])
+                .expect("pre-activation fixture cleanup uses the same admitted raw DML"),
+            1
+        );
+        db.activate_ordinary_mutation_coverage_for_evidence(1)
+            .expect("activate durable writer manifest and live authorizer");
+        let immediate = db
+            .conn
+            .execute(
+                "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+                 VALUES('after-activation',1,1,1,'denied')",
+                [],
+            )
+            .expect_err("same-process authorizer must arm before activation returns");
+        assert!(matches!(
+            immediate,
+            rusqlite::Error::SqliteFailure(failure, _)
+                if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+        ));
+        drop(db);
+
+        let reopened = LocalDatabase::open(&path).expect("reopen covered database");
+        let error = reopened
+            .conn
+            .execute(
+                "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title)
+                 VALUES('reopen-bypass',1,1,1,'raw')",
+                [],
+            )
+            .expect_err("reopened authorizer must deny raw app write");
+        assert!(matches!(
+            error,
+            rusqlite::Error::SqliteFailure(failure, _)
+                if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+        ));
+        assert_eq!(
+            reopened
+                .local_writer_coverage_inventory_for_test()
+                .expect("reopened writer inventory")
+                .manifest_version,
+            Some(1)
         );
     }
 
