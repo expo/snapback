@@ -105,9 +105,9 @@ Key structure:
 
 ## Resolution (2026-08-03)
 
-Implemented all seven work items in `1a21e9f13`, hardened the final
-security/audit edges in `7b467cf16`, and reconciled the rebased mainline's
-exhaustive diagnostic inventory in `e95284500`:
+Implemented all seven work items in `ebf41f116`, hardened the final
+security/audit edges in `26cd05a9b`, and reconciled the rebased mainline's
+exhaustive diagnostic inventory in `27f374e90`:
 
 - added exact master-gated origin sessions and three-second claim-to-credential
   leases bound to the server startup identity, including opaque fail-closed
