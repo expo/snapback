@@ -5,7 +5,10 @@
 // and the nav model. Dark mode is real here (no @exact/facet-contract
 // dependency): the resolved palette is threaded through the view as the `c`
 // value and passed to child components as a prop, so host appearance changes
-// re-render everything.
+// re-render everything. The one thing the palette cannot theme by itself is a
+// themed image, so this file also publishes the resolved scheme to the document
+// root (`applyDocumentColorScheme`, called from the boot entry) for the
+// renderer to read.
 //
 // @ref LLP 0017#console-surfaces — the console is a system app over the headless
 //   admin contract; this file owns only presentation tokens, never admin facts.
@@ -121,10 +124,22 @@ type ExactAccessibilityLike = {
   readonly colorScheme?: AdminThemeMode;
   addEventListener?: (event: string, listener: () => void) => unknown;
 };
+// Structural DOM shapes so the scheme publisher stays loadable on the hosts
+// that have no document (the native shell, the Contract analyzers).
+type SchemeElementLike = {
+  getAttribute: (name: string) => string | null;
+  setAttribute: (name: string, value: string) => void;
+  style?: { colorScheme: string };
+};
+type SchemeDocumentLike = {
+  readonly documentElement?: SchemeElementLike;
+  querySelectorAll?: (selector: string) => ArrayLike<SchemeElementLike>;
+};
 type ExactGlobal = {
   readonly Exact?: {
     readonly accessibility?: ExactAccessibilityLike;
   };
+  readonly document?: SchemeDocumentLike;
   readonly __exactAppearanceState?: {
     readonly colorScheme?: AdminThemeMode;
   };
@@ -200,6 +215,54 @@ export function watchSystemTheme(listener: ThemeListener): () => void {
       }
     }
   };
+}
+
+// Publish the console's resolved scheme onto the document root.
+//
+// Palette values reach the DOM as inline styles, so text and surfaces theme
+// themselves. Themed *images* do not: the renderer picks between an `image`'s
+// `lightSrc` and `darkSrc` from the document's scheme attribute rather than
+// from the media query (`getRuntimeImageColorScheme`, @exact/renderer), and
+// with no attribute it bakes the light source. That is what left the sidebar
+// brand mark near-black on the dark sidebar while the wordmark beside it
+// flipped correctly. This console resolves its own scheme (Exact host
+// appearance first, media query second), so it must publish that resolution
+// the way the framework's static boot script does for zero-JS pages — and swap
+// the themed images already in the DOM, so the mark is correct whether this
+// runs before or after the palette re-render.
+//
+// `data-scheme` is the twin of `EXACT_SCHEME_ATTRIBUTE` in
+// `@exact/facet-core/static-scheme`; the console deliberately carries no facet
+// dependency (see the file header), so the literal is duplicated here — keep
+// the two in sync.
+export function applyDocumentColorScheme(mode: AdminThemeMode): void {
+  const root = schemeDocument()?.documentElement;
+  if (!root || typeof root.setAttribute !== 'function') return;
+  root.setAttribute('data-scheme', mode);
+  if (root.style) root.style.colorScheme = mode;
+  syncThemedImages(mode);
+}
+
+function schemeDocument(): SchemeDocumentLike | null {
+  const doc = (globalThis as ExactGlobal).document;
+  return doc && typeof doc === 'object' ? doc : null;
+}
+
+function syncThemedImages(mode: AdminThemeMode): void {
+  const images = schemeDocument()?.querySelectorAll?.('img[data-light-src], img[data-dark-src]');
+  if (!images) return;
+  for (let index = 0; index < images.length; index += 1) {
+    const image = images[index];
+    const light = image.getAttribute('data-light-src');
+    const dark = image.getAttribute('data-dark-src');
+    // Truthiness (not nullish) fallthrough, matching the framework's themed
+    // image swap: a missing source for this scheme degrades to the other one
+    // rather than to a broken `src=""`.
+    const next = mode === 'dark' ? dark || light : light || dark;
+    if (next && image.getAttribute('src') !== next) {
+      image.setAttribute('src', next);
+    }
+  }
 }
 
 export interface AdminFonts {

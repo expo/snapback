@@ -24,8 +24,10 @@ import {
   configureAdminContractLinks,
   resetAdminContractLinks,
 } from './generated/contract/runtime-links';
+import { applyDocumentColorScheme, systemTheme, watchSystemTheme } from './theme.ts';
 
 let currentSurface: { dispose: () => void } | null = null;
+let stopDocumentThemeSync: (() => void) | null = null;
 let credentialRecoveryGeneration = 0;
 
 function adminBaseUrl(): string {
@@ -65,6 +67,13 @@ async function boot(client: AdminClient): Promise<void> {
 
 async function start(): Promise<void> {
   installContractWebHost();
+  // The console resolves its own color scheme; the document has to carry that
+  // resolution too, because the renderer reads it (not the media query) when
+  // it picks a themed image's source. Publish before the first mount so the
+  // sidebar brand mark paints with the palette instead of one render behind
+  // it, and keep it published as the host appearance changes.
+  applyDocumentColorScheme(systemTheme());
+  stopDocumentThemeSync = watchSystemTheme(applyDocumentColorScheme);
   const client = new AdminClient(adminBaseUrl());
   try {
     await consumeConsoleCredentialFragment(client);
@@ -202,6 +211,8 @@ if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     currentSurface?.dispose();
     currentSurface = null;
+    stopDocumentThemeSync?.();
+    stopDocumentThemeSync = null;
     resetAdminContractLinks();
     reset();
   });
