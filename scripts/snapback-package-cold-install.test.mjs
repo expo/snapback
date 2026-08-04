@@ -42,6 +42,7 @@ import {
   resolveInstalledBrowserExecutable,
   runAsync,
   validateFinalLatestReceipts,
+  validateColdInstallAgentDigest,
   validateLatestRootResolution,
   validateLatestRootPropagationWitness,
   validatePublicPublicationLedger,
@@ -64,6 +65,64 @@ import { sha256TarEntry } from './snapback-tar-entry.mjs';
 
 const script = fileURLToPath(new URL('./snapback-package-cold-install.mjs', import.meta.url));
 const DEFAULT_BROWSER_SOURCE_REVISION = '0'.repeat(40);
+
+const packagedAgentDigest = ({ appId = 'partitime-external', functions = ['createEvent'] } = {}) => ({
+  artifactKind: 'agentDigest',
+  formatVersion: 'snapback.agent-digest.v1',
+  sections: {
+    static: {
+      items: [
+        {
+          key: 'artifact/identity',
+          kind: 'artifact-identity',
+          value: { appId },
+        },
+        ...functions.map((name) => ({
+          key: `operation/${appId}:${name}`,
+          kind: 'operation-signature',
+          value: { id: `${appId}:${name}`, name },
+        })),
+      ],
+    },
+  },
+});
+
+test('cold-install app identity follows the agent-digest static contract', () => {
+  assert.deepEqual(
+    validateColdInstallAgentDigest(packagedAgentDigest(), {
+      expectedAppId: 'partitime-external',
+      requiredFunctionName: 'createEvent',
+    }),
+    {
+      appId: 'partitime-external',
+      functionId: 'partitime-external:createEvent',
+    },
+  );
+  assert.throws(
+    () => validateColdInstallAgentDigest({
+      appId: 'partitime-external',
+      functions: [{ name: 'createEvent' }],
+    }, {
+      expectedAppId: 'partitime-external',
+      requiredFunctionName: 'createEvent',
+    }),
+    /unsupported introspection digest/u,
+  );
+  assert.throws(
+    () => validateColdInstallAgentDigest(packagedAgentDigest({ appId: 'other' }), {
+      expectedAppId: 'partitime-external',
+      requiredFunctionName: 'createEvent',
+    }),
+    /unexpected CLI app id other/u,
+  );
+  assert.throws(
+    () => validateColdInstallAgentDigest(packagedAgentDigest({ functions: [] }), {
+      expectedAppId: 'partitime-external',
+      requiredFunctionName: 'createEvent',
+    }),
+    /did not discover createEvent/u,
+  );
+});
 
 test('structured Vite readiness survives JSON-encoded ANSI presentation', () => {
   const viteLine = [

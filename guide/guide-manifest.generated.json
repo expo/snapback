@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "40e8745342c87f083f897a56e9ca612717ac7460"
+    "commit": "e9311728db613f76ac1ddf1b51e72bb055a91198"
   },
   "nav": {
     ".": [
@@ -1444,8 +1444,8 @@
       ],
       "examples": [],
       "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "0f3ca4e6eb3d1f313f029f60420f61f22744a988d1d4438a1afcedb320e39f6c",
+      "reviewedCommit": "37ed952672d43abdfede88a9d51a76e04a11da5b",
+      "sha256": "297635e4d5a0e427db917fdae4aeaeadfdd6232d7223eebae283c3a7e9a47fd9",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1469,20 +1469,27 @@
         "packages/snapback-app-cli/agent-digest.schema.json",
         "packages/snapback-app-cli/auth.mjs",
         "packages/snapback-app-cli/code-mode.mjs",
+        "packages/snapback-app-cli/code-mode-ibex.mjs",
+        "packages/snapback-app-cli/schema-interpreter.mjs",
+        "packages/snapback-app-cli/ibex-bundle.mjs",
         "packages/snapback-app-cli/result-core.mjs",
-        "packages/snapback-client/app-data.mjs"
+        "packages/snapback-client/app-data.mjs",
+        "scripts/build-app-bound-executable"
       ],
       "examples": [
         "packages/snapback-app-cli/package.test.mjs",
         "packages/snapback-app-cli/auth.test.mjs",
         "packages/snapback-app-cli/code-mode.test.mjs",
+        "packages/snapback-app-cli/code-mode-ibex.test.mjs",
+        "packages/snapback-app-cli/schema-interpreter.test.mjs",
+        "packages/snapback-app-cli/ibex-bundle.test.mjs",
         "packages/snapback-app-cli/cli.test.mjs",
         "packages/snapback-app-cli/digest.test.mjs",
         "demos/todo/snapback/generated"
       ],
       "reviewed": "2026-08-04",
-      "reviewedCommit": "dab2410b6793ffa5685069a0a4054f0e2b21608a",
-      "sha256": "b72179cffc809ed5273b1f2c85a58f9c3f466ed73dc9a0ef6775c7b8f23e2c27",
+      "reviewedCommit": "37ed952672d43abdfede88a9d51a76e04a11da5b",
+      "sha256": "39e4c2d3186ed30c52b2f30192f7b6752bec361fb5579b159e2d54bd3f29e339",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -1677,11 +1684,12 @@
         "packages/snapback-client/webcrypto-fallback.test.mjs",
         "packages/snapback-react/webcrypto-fallback.test.mjs",
         "packages/snapback-client/rqs-store-expo.test.mjs",
+        "packages/snapback-client/rqs-resume-expo.test.mjs",
         "demos/rn-durable-store-witness/probe-App.tsx"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "bcf2b41877ad116a24b5e03cf91c909890163bad05bf08314dcb2850b110b3ea",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "41c2db8804ba08071c39641cc46251c9084c7a31",
+      "sha256": "60e5d6006cce3123653743b314c6ffef912d5265cf0b5373cf92e7af14be12fd",
       "snippets": [
         {
           "lang": "ts",
@@ -3008,5 +3016,5 @@
     "routes": 116,
     "hostOps": 35
   },
-  "contentHash": "79fa8655ed87fbd1920ac88ed45d3cb11069e6afc31d38fca4b2d83c597f5a3b"
+  "contentHash": "4c09c72da823ccf34dfa6990958e884ba8cbb299a199b22219257c1760d56487"
 }

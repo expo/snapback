@@ -51,6 +51,7 @@ import {
   runAsync,
   usage,
   validateColdInstallBrowserEvidence,
+  validateColdInstallAgentDigest,
   validateLatestRootPropagationWitness,
   validatePublicPublicationLedger,
   validateRetainedComparatorReceipt,
@@ -2582,9 +2583,13 @@ await build({
   const introspection = JSON.parse(run(cli, [
     '--artifacts', join(backendRoot, 'generated'), 'introspect',
   ], { cwd: appRoot }));
-  if (introspection.appId !== 'partitime-external') fail(`unexpected CLI app id ${introspection.appId}`);
-  if (!introspection.functions.some((entry) => entry.name === 'createEvent')) {
-    fail('packaged CLI did not discover Partitime createEvent');
+  try {
+    validateColdInstallAgentDigest(introspection, {
+      expectedAppId: 'partitime-external',
+      requiredFunctionName: 'createEvent',
+    });
+  } catch (error) {
+    fail(error.message);
   }
   const developerCli = join(appRoot, 'node_modules', '.bin', 'snapback');
   chmodSync(developerCli, 0o755);

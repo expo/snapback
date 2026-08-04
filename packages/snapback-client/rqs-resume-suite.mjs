@@ -55,7 +55,7 @@ export function createFakeServer() {
       if (subscribe) {
         const call = { name: decodeURIComponent(subscribe[1]), body };
         server.subscribeCalls.push(call);
-        const answer = server.answer(body, call);
+        const answer = await server.answer(body, call);
         if (
           body.supersedes !== undefined
           && answer.superseded === undefined
@@ -196,9 +196,15 @@ export function defineChannelBResumeSuite({ arm, createContext }) {
     assert.deepEqual(updates[0].rows, ROWS_V5);
     assert.equal(handle.freshness, 'retained', 'retained until the authoritative answer');
     assert.deepEqual(handle.rows, ROWS_V5);
+    assert.equal(
+      handle.retention?.retainable,
+      true,
+      'a token-seeded rowless acknowledgement remains RQS-eligible while completion is pending',
+    );
 
     await handle.poll(); // drain the CurrentAsOf
     assert.equal(handle.freshness, 'current');
+    assert.equal(handle.retention?.retainable, true, 'CurrentAsOf preserves the RQS retainability fact');
     assert.equal(handle.version, 6);
     assert.deepEqual(handle.rows, ROWS_V5, 'CurrentAsOf never touches rows (T3)');
     assert.equal(server.subscribeCalls.length, 1, 'no refetch, no resubscribe');
@@ -208,6 +214,136 @@ export function defineChannelBResumeSuite({ arm, createContext }) {
     assert.equal(persisted.meta.version, 6, 'the advanced token was persisted');
     assert.equal(persisted.token, freshResume.token);
     assert.ok(persisted.resumedAt > 0, 'successful authoritative resume bumped recency');
+    handle.dispose();
+    await store2.close();
+  });
+
+  suiteTest('stream CurrentAsOf may overtake the rowless subscribe acknowledgement', async (ctx) => {
+    const store1 = await ctx.makeStore();
+    const resume = await populateStore(store1);
+    await store1.close();
+
+    const store2 = await ctx.makeStore();
+    const server = createFakeServer();
+    let resolveSubscribe;
+    const subscribeResponse = new Promise((resolve) => { resolveSubscribe = resolve; });
+    server.answer = async (body) => {
+      assert.equal(body.resumeFromToken?.resume?.token, resume.token);
+      return subscribeResponse;
+    };
+
+    const freshResume = makeResume(ROWS_V5, 6);
+    const client = makeClient(store2);
+    const streamStateListeners = new Set();
+    client.liveStreamManager = () => ({
+      onState(listener) {
+        streamStateListeners.add(listener);
+        return () => streamStateListeners.delete(listener);
+      },
+      isOpen: () => true,
+    });
+
+    const opening = openQuery(client, { transport: 'stream' });
+    for (let i = 0; i < 50 && server.subscribeCalls.length === 0; i += 1) await tick();
+    assert.equal(server.subscribeCalls.length, 1, 'the token-seeded subscribe is in flight');
+
+    const consumers = client.__laneConsumers.get('c1')?.durable;
+    assert.equal(consumers?.size, 1, 'the durable consumer is attached before subscribe completes');
+    for (const consumer of consumers) {
+      consumer({
+        kind: 'current_as_of',
+        subscription_id: 'sub-stream-early',
+        function: QUERY,
+        version: 6,
+        resume: freshResume,
+      });
+    }
+    resolveSubscribe({ subscription_id: 'sub-stream-early' });
+
+    const { handle, updates } = await opening;
+    assert.equal(handle.subscriptionId, 'sub-stream-early');
+    assert.equal(handle.freshness, 'current', 'the overtaking completion settles retained rows');
+    assert.equal(handle.version, 6);
+    assert.deepEqual(handle.rows, ROWS_V5);
+    assert.equal(handle.rqsResume?.token, freshResume.token);
+    assert.equal(handle.retention?.retainable, true);
+    assert.equal(updates.at(-1)?.detail.kind, 'current_as_of');
+
+    handle.dispose();
+    await store2.close();
+  });
+
+  suiteTest('pre-subscribe durable-buffer overflow fails closed to one fresh snapshot', async (ctx) => {
+    const store1 = await ctx.makeStore();
+    const resume = await populateStore(store1);
+    await store1.close();
+
+    const store2 = await ctx.makeStore();
+    const server = createFakeServer();
+    let resolveFirstSubscribe;
+    const firstSubscribeResponse = new Promise((resolve) => { resolveFirstSubscribe = resolve; });
+    const freshRows = [...ROWS_V5, { _id: 'fresh-after-overflow', title: 'fresh' }];
+    server.answer = async (body) => {
+      if (server.subscribeCalls.length === 1) {
+        assert.equal(body.resumeFromToken?.resume?.token, resume.token);
+        return firstSubscribeResponse;
+      }
+      assert.equal(body.resumeFromToken, undefined, 'overflow recovery takes rung 3 without a token');
+      return {
+        subscription_id: 'sub-overflow-fresh',
+        snapshot: { rows: freshRows, version: 7 },
+        resume: makeResume(freshRows, 7),
+      };
+    };
+
+    const client = makeClient(store2);
+    client.liveStreamManager = () => ({
+      onState: () => () => {},
+      isOpen: () => true,
+    });
+    const opening = openQuery(client, { transport: 'stream' });
+    for (let i = 0; i < 50 && server.subscribeCalls.length === 0; i += 1) await tick();
+    const consumers = client.__laneConsumers.get('c1')?.durable;
+    assert.equal(consumers?.size, 1);
+
+    const bufferedResume = makeResume(ROWS_V5, 6);
+    for (let i = 0; i < 1_024; i += 1) {
+      for (const consumer of consumers) {
+        consumer({
+          kind: 'current_as_of',
+          subscription_id: `sub-other-${i}`,
+          function: QUERY,
+          version: 6,
+          resume: bufferedResume,
+        });
+      }
+    }
+    // This matching completion is the first frame beyond the bound. Losing it
+    // must force a fresh snapshot, never a false current transition.
+    for (const consumer of consumers) {
+      consumer({
+        kind: 'current_as_of',
+        subscription_id: 'sub-overflow',
+        function: QUERY,
+        version: 6,
+        resume: bufferedResume,
+      });
+    }
+    resolveFirstSubscribe({ subscription_id: 'sub-overflow' });
+
+    const { handle, updates } = await opening;
+    assert.equal(server.subscribeCalls.length, 2, 'overflow recovery performs one serialized resubscribe');
+    assert.equal(
+      updates.some((update) => update.detail.kind === 'current_as_of'),
+      false,
+      'an overflowed prefix never publishes a transient current answer',
+    );
+    assert.equal(handle.subscriptionId, 'sub-overflow-fresh');
+    assert.equal(handle.freshness, 'current');
+    assert.equal(handle.version, 7);
+    assert.deepEqual(handle.rows, freshRows);
+    assert.equal(handle.retention?.retainable, true);
+
     handle.dispose();
     await store2.close();
   });
@@ -303,8 +439,10 @@ export function defineChannelBResumeSuite({ arm, createContext }) {
     const { handle, updates } = await openQuery(client);
     assert.equal(updates[0].detail.kind, 'persisted');
     assert.equal(handle.freshness, 'retained');
+    assert.equal(handle.retention?.retainable, true, 'rung-2 rowless acknowledgement stays retainable');
     await handle.poll(); // drain the replay delta
     assert.equal(handle.freshness, 'current', 'post-replay digest verified (T8) before authority');
+    assert.equal(handle.retention?.retainable, true, 'rung-2 completion repairs/preserves retainability');
     assert.equal(handle.version, 7);
     assert.deepEqual(handle.rows, rowsV7, 'the offline predicate exit is exactly removed');
     assert.equal(server.subscribeCalls.length, 1, 'no refetch, no resubscribe');
