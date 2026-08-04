@@ -151,9 +151,70 @@ has_target_artifacts() {
     esac
 }
 
+# @ref LLP 0010#native-runtime-bootstrap -- a structurally complete sibling
+# artifact set is reusable only when its authority-bound source-cache key
+# matches the vendored Ibex revision. Ibex build.rs remains the authoritative
+# full-digest validator; this prefilter prevents a known-incompatible peer from
+# displacing the vendored download/build fallback.
+reviewed_source_profile_cache_keys() (
+    [ -f "$VENDOR_IBEX/scripts/hermes-version.sh" ] || return 1
+
+    # build.rs reconstructs the checked-in defaults, not caller overrides.
+    unset IBEX_HERMES_VERSION IBEX_HERMES_SOURCE_REF \
+        IBEX_HERMES_SOURCE_COMMIT IBEX_HERMES_BUILD_REF
+    # shellcheck source=/dev/null
+    source "$VENDOR_IBEX/scripts/hermes-version.sh"
+
+    local version_key="${IBEX_HERMES_SOURCE_COMMIT:0:12}"
+    case "$TARGET_OS" in
+        darwin)
+            ibex_hermes_apple_source_cache_key "$version_key" "-debug"
+            ibex_hermes_apple_source_cache_key "$version_key" ""
+            ;;
+        linux)
+            ibex_hermes_linux_source_cache_key "$version_key"
+            ;;
+    esac
+)
+
+has_matching_profile_receipt() {
+    local base="$1"
+    local receipt=""
+    case "$TARGET_OS" in
+        darwin) receipt="$base/ios/Frameworks/hermes-profile-provenance.json" ;;
+        linux) receipt="$base/linux/lib/hermes-profile-provenance.json" ;;
+    esac
+
+    [ -f "$receipt" ] || {
+        log "Hermes profile provenance receipt missing at $receipt"
+        return 1
+    }
+
+    local expected_keys observed_key expected_key
+    if ! expected_keys="$(reviewed_source_profile_cache_keys)"; then
+        log "could not reconstruct the vendored Ibex reviewed Hermes profile keys"
+        return 1
+    fi
+    observed_key="$(sed -n 's/^[[:space:]]*"cacheKey": "\([^"]*\)",[[:space:]]*$/\1/p' "$receipt")"
+    while IFS= read -r expected_key; do
+        if [ -n "$expected_key" ] && [ "$observed_key" = "$expected_key" ]; then
+            return 0
+        fi
+    done <<<"$expected_keys"
+
+    log "Hermes profile provenance under $base does not match the vendored Ibex profile authorities"
+    log "observed profile cache key: ${observed_key:-<missing>}"
+    return 1
+}
+
+has_usable_target_artifacts() {
+    local base="$1"
+    has_target_artifacts "$base" && has_matching_profile_receipt "$base"
+}
+
 copy_peer_artifacts() {
     [ -d "$PEER_IBEX" ] || return 1
-    has_target_artifacts "$PEER_IBEX" || return 1
+    has_usable_target_artifacts "$PEER_IBEX" || return 1
 
     log "copying prebuilt Ibex/Hermes artifacts from $PEER_IBEX"
     case "$TARGET_OS" in
@@ -250,24 +311,24 @@ ensure_vendor_ibex_checkout
 
 # @ref LLP 0010#native-runtime-bootstrap -- Snapback agents should consume
 # prepared Ibex/Hermes artifacts before attempting a native Hermes build.
-if has_target_artifacts "$VENDOR_IBEX"; then
+if has_usable_target_artifacts "$VENDOR_IBEX"; then
     log "vendored Ibex/Hermes artifacts are already usable"
 else
     if copy_peer_artifacts; then
         log "installed prebuilt artifacts from sibling Ibex checkout"
     else
-        log "no complete sibling Ibex artifact set found at $PEER_IBEX"
+        log "no complete compatible sibling Ibex artifact set found at $PEER_IBEX"
         log "running vendored Ibex Hermes bootstrap; this may download or build native artifacts"
         # @ref LLP 0010#native-runtime-bootstrap -- coded failure so agents and
         # scripts/ibex-doctor can match on a stable code, not on prose.
-        "$VENDOR_IBEX/scripts/download-hermes.sh" || fail "SNAPBACK_IBEX_HERMES_DOWNLOAD_FAILED: vendor/ibex/scripts/download-hermes.sh failed and no sibling Ibex artifacts were available; fix the download error above (network/toolchain) or set SNAPBACK_IBEX_CHECKOUT=/path/to/ibex to reuse a prepared checkout"
+        "$VENDOR_IBEX/scripts/download-hermes.sh" || fail "SNAPBACK_IBEX_HERMES_DOWNLOAD_FAILED: vendor/ibex/scripts/download-hermes.sh failed and no compatible sibling Ibex artifacts were available; fix the download error above (network/toolchain) or set SNAPBACK_IBEX_CHECKOUT=/path/to/ibex to reuse a compatible prepared checkout"
     fi
 fi
 
 # @ref LLP 0010#native-runtime-bootstrap -- reuse the shared Hermes-artifacts
 # code (also emitted by scripts/ibex-doctor and demos/_kit/server-process.mjs)
 # so bootstrap, doctor, and the demo runner all report one code for this state.
-has_target_artifacts "$VENDOR_IBEX" || fail "SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING: prepared Ibex/Hermes artifacts are still incomplete under $VENDOR_IBEX after copy/download; run scripts/ibex-doctor for a read-only diagnosis, or set SNAPBACK_IBEX_CHECKOUT=/path/to/ibex to reuse a complete prepared checkout"
+has_usable_target_artifacts "$VENDOR_IBEX" || fail "SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING: prepared Ibex/Hermes artifacts are incomplete or profile-incompatible under $VENDOR_IBEX after copy/download; run scripts/ibex-doctor for a read-only diagnosis, or set SNAPBACK_IBEX_CHECKOUT=/path/to/ibex to reuse a complete compatible prepared checkout"
 
 # The CLI is an independent optional capability. Link it even when the Hermes
 # artifacts were already prepared, since that fast path does not call

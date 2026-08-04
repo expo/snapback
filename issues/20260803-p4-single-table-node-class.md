@@ -14,3 +14,15 @@ lands in LLP 0053/0080 first. Deliverable: the dated amendment proposal
 to the owners (their decision, not this program's), with the 0166 §D6
 staged-adoption path referenced. Unlocks: legacy-family qmk1
 convergence and strengthens the OQ2 proof-backed resume credential case.
+
+---
+
+**Progress (2026-08-03):** the owner proposal is authored and landed:
+`issues/20260803-single-table-v1-node-class-proposal.md` (86 file:line
+citations, ref-check clean). Recommends Arm A — a narrow
+`rqs-authority-independent-snapshot-v1` retention authority traveling
+with the family, no anonymous-lease commissioning — and corrects the
+registry baseline (today's landings make this class 4 of 6, not 3).
+Awaiting the five explicit owner decisions in the proposal's §10; the
+lane completes when the owners rule (acceptance is semantic; the
+adoption implementation is a follow-on ticket).

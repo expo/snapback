@@ -1,9 +1,15 @@
-# Migration presentation contract
+# Migration presentation contract v1
 
 This is the deterministic presentation contract for the `snapback migrate`
 verbs. It governs human text only. `MigrationPlanArtifactV1`,
 `MigrationPreviewObservationV1`, `MigrationApprovalV1`, journal records, and
 receipts retain their LLP 0081 authority and schemas unchanged.
+
+The stable presentation identifier is `migration-presentation-v1`, emitted on
+every human face and exported as
+`MIGRATION_PRESENTATION_CONTRACT_VERSION`. A breaking human-grammar change
+mints a new identifier and golden fixture set; it never silently reinterprets
+an LLP 0081 artifact version.
 
 <!-- @ref LLP 0160#2-the-ideal-experience-moment-by-moment — stream discipline,
 face-specific redaction, plan/approval/receipt rendering, and render-first
@@ -17,6 +23,7 @@ pre-plan carve-out, and omit unavailable facts. -->
 - Human rendering is default-on to stderr. `migrate --json` silences all human
   rendering, including the human diagnostic summary; the structured envelope
   remains unchanged.
+- Every human rendering names `migration-presentation-v1` before its face.
 - Preview and approve use the secure review face only when stderr is a terminal.
   It reveals literal plan constants. A piped/CI face is narration and redacts
   constants.
@@ -33,6 +40,7 @@ pre-plan carve-out, and omit unavailable facts. -->
 
 | Rendered phrase | Admitted source | Missing-source behavior |
 |---|---|---|
+| Presentation contract identity | Fixed `MIGRATION_PRESENTATION_CONTRACT_VERSION` | Required on every human face |
 | Plan identity | `/planId`, `/planDigest` | Required artifact fields; invalid artifacts refuse before presentation |
 | Target profile | `/body/targetProfileId` | Required plan field |
 | Ordered step and target | `/body/steps/*/step`, using the typed step's stable `step_type()` and `qualified_target()` projections | Required step fields |

@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "snapback.phase1-ir-evaluator-sizing-spike.v1",
+  "date": "2026-08-03",
+  "status": "throwaway-unregistered-evidence",
+  "method": {
+    "runtime": "v25.9.0",
+    "zlib": "1.2.12",
+    "brotli": "1.2.0",
+    "bundler": "esbuild@0.28.1",
+    "bundle": true,
+    "platform": "browser",
+    "format": "esm",
+    "target": "es2022",
+    "minify": true,
+    "treeShaking": true,
+    "legalComments": "none",
+    "conditions": ["browser", "import", "default"],
+    "gzipLevel": 9,
+    "brotliQuality": 11,
+    "attribution": "esbuild metafile output.inputs bytesInOutput (module-own minified bytes)"
+  },
+  "profiles": [
+    {
+      "id": "shipped-derived-overlay-all-exports",
+      "entrySha256": "sha256:cb48870507bf0a1557f9e2f9ba14348f7f3955024ca2565bd950aa2ce784631f",
+      "minifiedBytes": 12223,
+      "gzipBytes": 4633,
+      "brotliBytes": 4154,
+      "outputSha256": "sha256:334b5a6327f4a824e5453feb442210641b94efcc68b0f7ef43dff353547dbdf6",
+      "modules": [
+        { "module": "packages/snapback-contract/derived-overlay.mjs", "minifiedModuleOwnBytes": 12113 },
+        { "module": "tests/acceptance/fixtures/write-lane/spike/phase1-ir-evaluator.2026-08-03/shipped-derived-overlay-all-exports.fixture.mjs", "minifiedModuleOwnBytes": 0 }
+      ]
+    },
+    {
+      "id": "shipped-canonical-client-value-all-exports",
+      "entrySha256": "sha256:5ab3aa79bcdf36a454b8140b1c6600d78afd2dfe0aa1932cc94653a769859343",
+      "minifiedBytes": 4484,
+      "gzipBytes": 1951,
+      "brotliBytes": 1758,
+      "outputSha256": "sha256:4e08dd3b039d4471e7f33dc9d99774682fa7b292b28a1bdd656736e0319b3ba7",
+      "modules": [
+        { "module": "packages/snapback-client/canonical-client-value.mjs", "minifiedModuleOwnBytes": 4374 },
+        { "module": "tests/acceptance/fixtures/write-lane/spike/phase1-ir-evaluator.2026-08-03/shipped-canonical-client-value-all-exports.fixture.mjs", "minifiedModuleOwnBytes": 0 }
+      ]
+    },
+    {
+      "id": "shipped-answer-classes-all-exports",
+      "entrySha256": "sha256:68c3a0f65aaef8049663cf1d150aa36420faa1f7d6fe73c3aa2cee902e22da28",
+      "minifiedBytes": 2569,
+      "gzipBytes": 1082,
+      "brotliBytes": 944,
+      "outputSha256": "sha256:8d8cdcddc45ab79865f04b0ad5504434693add81e73702033ba7db62d0f8e8a0",
+      "modules": [
+        { "module": "packages/snapback-client/answer-classes.mjs", "minifiedModuleOwnBytes": 2459 },
+        { "module": "tests/acceptance/fixtures/write-lane/spike/phase1-ir-evaluator.2026-08-03/shipped-answer-classes-all-exports.fixture.mjs", "minifiedModuleOwnBytes": 0 }
+      ]
+    },
+    {
+      "id": "landed-materialization-store-all-exports",
+      "entrySha256": "sha256:27fe05fc070b35008ac93c229225776be8d32d7f5d84ebab4c9ba56270905d0a",
+      "minifiedBytes": 65413,
+      "gzipBytes": 18574,
+      "brotliBytes": 16518,
+      "outputSha256": "sha256:ca406c468ddcc7c9e037e455274fde055017c5c78d12813a307251f7a94a3d8d",
+      "modules": [
+        { "module": "packages/snapback-client/materialization-store.mjs", "minifiedModuleOwnBytes": 46554 },
+        { "module": "packages/snapback-contract/result-contract-validator.mjs", "minifiedModuleOwnBytes": 9372 },
+        { "module": "packages/snapback-client/rqs.mjs", "minifiedModuleOwnBytes": 3766 },
+        { "module": "packages/snapback-client/canonical-client-value.mjs", "minifiedModuleOwnBytes": 3657 },
+        { "module": "packages/snapback-client/rqs-store-meta.mjs", "minifiedModuleOwnBytes": 1462 },
+        { "module": "packages/snapback-client/evaluation-floor.mjs", "minifiedModuleOwnBytes": 488 },
+        { "module": "tests/acceptance/fixtures/write-lane/spike/phase1-ir-evaluator.2026-08-03/landed-materialization-store-all-exports.fixture.mjs", "minifiedModuleOwnBytes": 0 }
+      ]
+    },
+    {
+      "id": "landed-materialization-store-plus-spike-used-entry",
+      "entrySha256": "sha256:d0c416df482ae5a916f02f7fb3049e5d2fc1a975acbc1208e02ea0e377203d1c",
+      "minifiedBytes": 85326,
+      "gzipBytes": 25420,
+      "brotliBytes": 22374,
+      "outputSha256": "sha256:dbf53ce9cb3cd5e58424c9a28d193f0c5d4b0b5497a067e62b974a3d76752495",
+      "modules": [
+        { "module": "packages/snapback-client/materialization-store.mjs", "minifiedModuleOwnBytes": 46603 },
+        { "module": "packages/snapback-contract/derived-overlay.mjs", "minifiedModuleOwnBytes": 11486 },
+        { "module": "packages/snapback-contract/result-contract-validator.mjs", "minifiedModuleOwnBytes": 9396 },
+        { "module": "tests/acceptance/fixtures/write-lane/spike/phase1-ir-evaluator.2026-08-03/browser-evaluator.mjs", "minifiedModuleOwnBytes": 7222 },
+        { "module": "packages/snapback-client/rqs.mjs", "minifiedModuleOwnBytes": 3770 },
+        { "module": "packages/snapback-client/canonical-client-value.mjs", "minifiedModuleOwnBytes": 3657 },
+        { "module": "packages/snapback-client/rqs-store-meta.mjs", "minifiedModuleOwnBytes": 1462 },
+        { "module": "packages/snapback-client/answer-classes.mjs", "minifiedModuleOwnBytes": 1070 },
+        { "module": "packages/snapback-client/evaluation-floor.mjs", "minifiedModuleOwnBytes": 488 },
+        { "module": "tests/acceptance/fixtures/write-lane/spike/phase1-ir-evaluator.2026-08-03/landed-materialization-store-plus-spike-used-entry.fixture.mjs", "minifiedModuleOwnBytes": 0 }
+      ]
+    },
+    {
+      "id": "spike-kanban-evaluator-all-exports",
+      "entrySha256": "sha256:3f7e090512829daaaeea56c6ae51e7f64af1b73566167b360c8750cd6bd86ee1",
+      "minifiedBytes": 23670,
+      "gzipBytes": 8686,
+      "brotliBytes": 7757,
+      "outputSha256": "sha256:3b016b86f7ba574d979a6530a762d134aa604c21225e37bdce38267e9261f4d9",
+      "modules": [
+        { "module": "packages/snapback-contract/derived-overlay.mjs", "minifiedModuleOwnBytes": 11394 },
+        { "module": "tests/acceptance/fixtures/write-lane/spike/phase1-ir-evaluator.2026-08-03/browser-evaluator.mjs", "minifiedModuleOwnBytes": 7460 },
+        { "module": "packages/snapback-client/canonical-client-value.mjs", "minifiedModuleOwnBytes": 3647 },
+        { "module": "packages/snapback-client/answer-classes.mjs", "minifiedModuleOwnBytes": 1055 },
+        { "module": "tests/acceptance/fixtures/write-lane/spike/phase1-ir-evaluator.2026-08-03/spike-kanban-evaluator-all-exports.fixture.mjs", "minifiedModuleOwnBytes": 0 }
+      ]
+    },
+    {
+      "id": "spike-kanban-evaluator-used-entry",
+      "entrySha256": "sha256:8005f1b2dc9d49e22a979cc863a0f015f4e1a0ff748edf9498943c0162131139",
+      "minifiedBytes": 23368,
+      "gzipBytes": 8547,
+      "brotliBytes": 7625,
+      "outputSha256": "sha256:7672dc8b2772f988c378f729e3fa0161cea7fe4388b5d7c7154f1d156949106a",
+      "modules": [
+        { "module": "packages/snapback-contract/derived-overlay.mjs", "minifiedModuleOwnBytes": 11394 },
+        { "module": "tests/acceptance/fixtures/write-lane/spike/phase1-ir-evaluator.2026-08-03/browser-evaluator.mjs", "minifiedModuleOwnBytes": 7205 },
+        { "module": "packages/snapback-client/canonical-client-value.mjs", "minifiedModuleOwnBytes": 3647 },
+        { "module": "packages/snapback-client/answer-classes.mjs", "minifiedModuleOwnBytes": 1055 },
+        { "module": "tests/acceptance/fixtures/write-lane/spike/phase1-ir-evaluator.2026-08-03/spike-kanban-evaluator-used-entry.fixture.mjs", "minifiedModuleOwnBytes": 0 }
+      ]
+    }
+  ]
+}

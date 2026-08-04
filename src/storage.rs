@@ -18836,7 +18836,7 @@ mod guarded_commit_tests {
     // already-oversized target is visible without an unbounded preview scan.
     #[test]
     fn migration_preview_populates_bounded_precondition_rows() {
-        let db = migration_scan_database();
+        let mut db = migration_scan_database();
         let mut successor = db.schema().clone();
         successor.tables[0].fields.push(FieldManifest {
             name: "required_later".to_owned(),
@@ -18864,7 +18864,7 @@ mod guarded_commit_tests {
             "ceiling plus one is the bounded oversize signal"
         );
 
-        let (_, complete) = db
+        let (complete_head, complete) = db
             .migration_preview_observation_facts(&steps, 10)
             .expect("complete observation below its ceiling");
         assert_eq!(complete.len(), 2);
@@ -18875,6 +18875,44 @@ mod guarded_commit_tests {
                 .filter(|step| step.reads.is_empty())
                 .all(|step| !complete.contains_key(&step.id)),
             "steps without a declared read table have no inferred estimate"
+        );
+
+        let before = crate::migration::MigrationPreviewObservationV1 {
+            schema_version: crate::migration::MIGRATION_OBSERVATION_SCHEMA_VERSION.to_owned(),
+            plan_digest: "same-plan-digest".to_owned(),
+            target_head_version: complete_head,
+            observed_at_ms: 1,
+            precondition_rows: complete,
+            capability_health: BTreeMap::new(),
+        };
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![BufferedWrite::Insert {
+                table: "scanned".to_owned(),
+                id: "r8".to_owned(),
+                values: Map::from_iter([
+                    ("k".to_owned(), json!("epsilon")),
+                    ("v".to_owned(), json!("8")),
+                ]),
+            }],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("insert one row into the preview's own target data source");
+        let (changed_head, changed_rows) = db
+            .migration_preview_observation_facts(&steps, 10)
+            .expect("observe the changed target data");
+        assert!(changed_head > complete_head);
+        assert!(changed_rows.values().all(|rows| *rows == 8));
+        let after = crate::migration::MigrationPreviewObservationV1 {
+            target_head_version: changed_head,
+            precondition_rows: changed_rows,
+            ..before.clone()
+        };
+        assert_ne!(
+            crate::migration::observation_digest(&before).unwrap(),
+            crate::migration::observation_digest(&after).unwrap(),
+            "target-data changes alter only the separately digested observation carrier"
         );
     }
 

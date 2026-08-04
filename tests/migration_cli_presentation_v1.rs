@@ -192,6 +192,7 @@ fn migrate_streams_redaction_json_silence_and_render_first_approval() {
     assert_eq!(stdout["ok"], true);
     let stderr = String::from_utf8(preview.stderr).expect("utf8 stderr");
     assert!(stderr.contains("Migration plan"));
+    assert!(stderr.contains("Presentation contract: migration-presentation-v1"));
     assert!(stderr.contains("Narration face — constants redacted"));
 
     let preview_file: Value =
@@ -279,4 +280,10 @@ fn migrate_streams_redaction_json_silence_and_render_first_approval() {
         true
     );
     assert!(json_approved_path.is_file());
+
+    let usage = snapback()
+        .args(["migrate", "preview"])
+        .output()
+        .expect("run clap usage refusal");
+    assert_eq!(usage.status.code(), Some(2), "Clap usage failures exit 2");
 }

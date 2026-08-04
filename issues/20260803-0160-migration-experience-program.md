@@ -38,6 +38,38 @@ longer blocked on the fork safety substrate; it remains blocked on F0b's
 consumer verb and the separately required dated LLP 0081 §7 amendment. No
 rehearsal receipt is qualified by F0a alone.
 
+## Tranche 1 row status notes
+
+- **2026-08-03 — G2 verified complete.** The ledger row asked every named
+  non-additive field-retype and required-field/backfill refusal, including the
+  physical-schema backstops, to route the operator to the reviewed migration
+  workflow. The shipped messages name
+  `snapback migrate preview --help`; tranche verification strengthened the
+  regression contract from substring checks to full literal-message equality
+  and added the dormant-table `NOT NULL` physical-backstop witness. Evidence:
+  `cargo test --test local_v0` — 98 passed, 0 failed.
+- **2026-08-03 — G1 verified complete.** The ledger row asked for default-on
+  human plan/receipt presentation, review/narration redaction faces,
+  render-before-approval authorization, deterministic width/color/exit
+  behavior, traceability, and committed goldens. The shipped renderer retains
+  those behaviors and now emits the explicit stable grammar identifier
+  `migration-presentation-v1` on every human face; the contract and all six
+  goldens pin it. Evidence: `cargo test --lib migration_presentation::tests`
+  — 2 passed, 0 failed; `cargo test --test migration_cli_presentation_v1` —
+  2 passed, 0 failed; `scripts/check-generated-artifacts` — passed.
+- **2026-08-03 — G11 verified complete.** The ledger row asked preview to
+  populate the separately digested `preconditionRows` carrier from the
+  example's own target data source. Preview reads the target head and
+  ceiling-bounded per-step row summaries in one pinned snapshot; the witness
+  now also proves a target-row change advances the head, changes the summaries,
+  and changes the observation digest without moving plan identity. Evidence:
+  `cargo test --lib
+  guarded_commit_tests::migration_preview_populates_bounded_precondition_rows`
+  — 1 passed, 0 failed; the CLI witness is included in the 2/2 suite above.
+
+These notes record row status only. LLP 0160 ledger reconciliation remains the
+landing orchestrator's responsibility.
+
 ## House rules
 
 As the 0133/0154 programs: verify-against-main first; the R/D/A
