@@ -2453,8 +2453,8 @@ export async function invokeSnapbackMutation(providerValue, reference, args, opt
 // ---------------------------------------------------------------------------
 // Outbox (LLP 0043 M2 queue on the JS arm — LLP 0129 Phase 0). The React
 // projection of the headless client's OWN facts: `outboxStatus()` counts and
-// the `subscribeOutbox` seam. The hook surfaces queued/failed/replaying
-// state; it never derives an overlay, reorders replay, or claims settlement
+// the `subscribeOutbox` seam. The hook surfaces queued/failed/result-gone/
+// replaying state; it never derives an overlay, reorders replay, or claims settlement
 // — LLP 0090 D3's full-resync-before-replay ordering stays entirely the
 // headless client's.
 
@@ -2463,6 +2463,7 @@ const OUTBOX_LOADING = Object.freeze({
   supported: false,
   pending: 0,
   failed: 0,
+  resultGone: 0,
   replaying: false,
 });
 

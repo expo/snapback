@@ -62,6 +62,7 @@ import {
   outboxOps,
   pendingAcknowledgementsFor,
   pendingOutboxRecords,
+  unresolvedOutboxRecords,
   validateOutboxState,
 } from './outbox-shared.mjs';
 import {
@@ -548,7 +549,7 @@ export function createFileRqsResumeStore({
         } catch {
           return false;
         }
-        return pendingOutboxRecords(state.outbox).length === 0;
+        return unresolvedOutboxRecords(state.outbox).length === 0;
       });
     },
 
@@ -645,6 +646,13 @@ export function createFileRqsResumeStore({
       requireOpen();
       return serialized(async () => (await outboxWrite(
         (outbox) => outboxOps.markFailed(outbox, id, failure),
+      )).result);
+    },
+
+    async outboxMarkResultGone(id, resultGone) {
+      requireOpen();
+      return serialized(async () => (await outboxWrite(
+        (outbox) => outboxOps.markResultGone(outbox, id, resultGone),
       )).result);
     },
 
@@ -1014,6 +1022,8 @@ export function createFileRqsResumeStore({
           outbox: Object.freeze({
             pending: pendingOutboxRecords(state.outbox).length,
             failed: allOutboxRecords(state.outbox).filter((r) => r.status === 'failed').length,
+            resultGone: allOutboxRecords(state.outbox)
+              .filter((r) => r.status === 'result-gone').length,
             pendingAcknowledgements: state.outbox.acks.length,
           }),
         });

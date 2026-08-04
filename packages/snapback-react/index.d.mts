@@ -276,8 +276,8 @@ export function useSnapbackConnection(): SnapbackConnectionState;
 /** Projection of the headless client's queued-intent facts (LLP 0043 M2 /
  * LLP 0129 Phase 0): 'loading' until the first durable-store read lands. */
 export type SnapbackOutboxState =
-  | Readonly<{ status: 'loading'; supported: false; pending: 0; failed: 0; replaying: false }>
-  | Readonly<{ status: 'ready'; supported: boolean; pending: number; failed: number; replaying: boolean }>;
+  | Readonly<{ status: 'loading'; supported: false; pending: 0; failed: 0; resultGone: 0; replaying: false }>
+  | Readonly<{ status: 'ready'; supported: boolean; pending: number; failed: number; resultGone: number; replaying: boolean }>;
 
 export type SnapbackOutboxHandle = SnapbackOutboxState & Readonly<{
   /** Drain the durable outbox in sequence order (the client's single-flight

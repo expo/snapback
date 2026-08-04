@@ -581,6 +581,64 @@ export const outboxOps = {
     );
     return { state: cascaded.state, result: true };
   },
+  /// Persist the server's outcome-known/payload-gone disposition without
+  /// pretending that an unavailable result is a normal settlement. This is
+  /// terminal for transport (the operation must never execute again) but
+  /// remains a submission fence until the application explicitly discards
+  /// the record because a later ordered operation may depend on the missing
+  /// result.
+  ///
+  /// @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 —
+  ///   result-expired is outcome-known and distinct from both settled and
+  ///   identity-horizon-passed state.
+  markResultGone(state, id, resultGone) {
+    const existing = state.records[id];
+    if (!existing) return { state, result: false };
+    const outcome = resultGone?.outcome;
+    const receiptDigest = resultGone?.receiptDigest;
+    if (
+      (outcome !== 'committed' && outcome !== 'refused')
+      || typeof receiptDigest !== 'string'
+      || !SHA256_DIGEST.test(receiptDigest)
+    ) {
+      throw outboxError(
+        'SNAPBACK_OUTBOX_RESULT_GONE_INVALID',
+        'result-gone custody requires a known terminal outcome and receipt digest',
+      );
+    }
+    if (existing.status === 'result-gone') {
+      if (
+        existing.resultGone?.disposition !== 'result-expired'
+        || existing.resultGone?.outcome !== outcome
+        || existing.resultGone?.receiptDigest !== receiptDigest
+      ) {
+        throw outboxError(
+          'SNAPBACK_OUTBOX_RESULT_GONE_MISMATCH',
+          'result-gone custody is already bound to different terminal facts',
+          { id },
+        );
+      }
+      return { state, result: existing };
+    }
+    if (existing.status !== 'pending') return { state, result: false };
+    const stored = {
+      ...existing,
+      status: 'result-gone',
+      resultGone: {
+        disposition: 'result-expired',
+        outcome,
+        receiptDigest,
+      },
+      failure: null,
+    };
+    if (outboxRecordBytes(stored) > OUTBOX_MAX_RECORD_BYTES) {
+      throw outboxOversizeError(outboxRecordBytes(stored));
+    }
+    return {
+      state: { ...state, records: { ...state.records, [id]: stored } },
+      result: stored,
+    };
+  },
   discard(state, id) {
     return outboxOps.settle(state, id);
   },
@@ -657,6 +715,9 @@ export const outboxOps = {
     }
     for (const predecessor of Object.values(working.records).sort(outboxOrder)) {
       if (predecessor.sequence >= target.sequence) break;
+      if (predecessor.status === 'result-gone') {
+        return { state: working, result: { status: 'blocked', record: null } };
+      }
       const minted = new Set(settlementMintIds(predecessor));
       if (minted.size === 0 || !hasStringLeaf(target.args, minted)) continue;
       if (predecessor.status === 'pending') {
@@ -733,6 +794,14 @@ export const outboxOps = {
 
 export const pendingOutboxRecords = (state) => Object.values(state.records)
   .filter((record) => record.status === 'pending')
+  .sort(outboxOrder);
+
+/// Records that keep the client on the full-resync/submission-fence path.
+/// Result-gone entries are not replayable pending work, but they still block
+/// ordered successors until the application explicitly resolves the missing
+/// result dependency.
+export const unresolvedOutboxRecords = (state) => Object.values(state.records)
+  .filter((record) => record.status === 'pending' || record.status === 'result-gone')
   .sort(outboxOrder);
 
 export const allOutboxRecords = (state) => Object.values(state.records).sort(outboxOrder);

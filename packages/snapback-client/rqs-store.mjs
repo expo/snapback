@@ -24,6 +24,7 @@ import {
   outboxOps,
   pendingAcknowledgementsFor,
   pendingOutboxRecords,
+  unresolvedOutboxRecords,
   validateOutboxState,
 } from './outbox-shared.mjs';
 import {
@@ -454,7 +455,7 @@ export function createIndexedDbRqsResumeStore({
     async outboxEmpty() {
       if (relaunchOutboxEmpty !== null && (await relaunchOutboxEmpty()) !== true) return false;
       try {
-        return await outboxRead((state) => pendingOutboxRecords(state).length === 0);
+        return await outboxRead((state) => unresolvedOutboxRecords(state).length === 0);
       } catch {
         return false;
       }
@@ -530,6 +531,10 @@ export function createIndexedDbRqsResumeStore({
 
     async outboxMarkFailed(id, failure) {
       return outboxWrite((state) => outboxOps.markFailed(state, id, failure));
+    },
+
+    async outboxMarkResultGone(id, resultGone) {
+      return outboxWrite((state) => outboxOps.markResultGone(state, id, resultGone));
     },
 
     async outboxDiscard(id) {
@@ -809,6 +814,8 @@ export function createIndexedDbRqsResumeStore({
         outbox: Object.freeze({
           pending: pendingOutboxRecords(outboxState).length,
           failed: allOutboxRecords(outboxState).filter((r) => r.status === 'failed').length,
+          resultGone: allOutboxRecords(outboxState)
+            .filter((r) => r.status === 'result-gone').length,
           pendingAcknowledgements: outboxState.acks.length,
         }),
       });

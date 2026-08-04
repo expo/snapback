@@ -180,6 +180,57 @@ async function exerciseOutboxContract(store, { label }) {
     false,
     `${label}: confirmation retires the retained settlement`,
   );
+  // Outcome-known/payload-gone is a durable fourth state, not pending,
+  // failed, or settled. It never re-enters transport and remains an ordered
+  // submission fence until explicitly discarded.
+  await store.outboxEnqueue({ id: 'cm-result-gone', function: 'createThing' });
+  const resultGone = await store.outboxMarkResultGone('cm-result-gone', {
+    outcome: 'committed',
+    receiptDigest: `sha256:${'e'.repeat(64)}`,
+  });
+  assert.equal(resultGone.status, 'result-gone');
+  assert.deepEqual(resultGone.resultGone, {
+    disposition: 'result-expired',
+    outcome: 'committed',
+    receiptDigest: `sha256:${'e'.repeat(64)}`,
+  });
+  assert.deepEqual(
+    await store.outboxMarkResultGone('cm-result-gone', {
+      outcome: 'committed',
+      receiptDigest: `sha256:${'e'.repeat(64)}`,
+    }),
+    resultGone,
+    `${label}: exact result-gone retry is idempotent`,
+  );
+  for (const divergent of [
+    { outcome: 'refused', receiptDigest: `sha256:${'e'.repeat(64)}` },
+    { outcome: 'committed', receiptDigest: `sha256:${'f'.repeat(64)}` },
+  ]) {
+    await assert.rejects(
+      () => store.outboxMarkResultGone('cm-result-gone', divergent),
+      (error) => error.code === 'SNAPBACK_OUTBOX_RESULT_GONE_MISMATCH',
+      `${label}: divergent result-gone custody refuses`,
+    );
+  }
+  await store.outboxEnqueue({ id: 'cm-after-result-gone', function: 'updateThing' });
+  assert.deepEqual(
+    (await store.outboxPending()).map((record) => record.id),
+    ['cm-after-result-gone'],
+    `${label}: result-gone is not replayable pending work`,
+  );
+  assert.equal(await store.outboxEmpty(), false, `${label}: result-gone keeps resume fenced`);
+  assert.deepEqual(
+    await store.outboxPrepareSubmission('cm-after-result-gone'),
+    { status: 'blocked', record: null },
+    `${label}: missing result blocks ordered successors`,
+  );
+  await store.outboxDiscard('cm-result-gone');
+  assert.equal(
+    (await store.outboxPrepareSubmission('cm-after-result-gone')).status,
+    'ready',
+    `${label}: explicit discard releases the ordered successor`,
+  );
+  await store.outboxDiscard('cm-after-result-gone');
   // Explicit discard of the failed record; wipe clears everything.
   assert.equal(await store.outboxDiscard('cm-1'), true);
   await store.outboxEnqueue({ id: 'cm-3', function: 'createThing' });
@@ -1450,7 +1501,7 @@ test('identity horizon outcome-unknown remains pending online and during replay'
   assert.equal(record.status, 'pending', 'replay horizon refusal remains operator-visible pending');
 });
 
-test('committed result-expired stays pending and blocks ordered successors', async (t) => {
+test('committed result-expired becomes durable result-gone and blocks ordered successors', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const client = new SnapbackClient('http://127.0.0.1:9', { rqsStore: store });
@@ -1495,16 +1546,92 @@ test('committed result-expired stays pending and blocks ordered successors', asy
       stopped: replay.stopped,
       calls,
     },
-    { replayed: 0, failed: 0, remaining: 2, stopped: true, calls: 1 },
-    'payload loss keeps the known-committed head and its successors behind the submission fence',
+    { replayed: 0, failed: 0, remaining: 2, stopped: true, calls: 0 },
+    'durable payload loss is never retried and keeps successors behind the submission fence',
   );
   assert.deepEqual(
     (await store.outboxRecords()).map((record) => [record.id, record.status]),
     [
-      ['cm-result-expired', 'pending'],
+      ['cm-result-expired', 'result-gone'],
       ['cm-after-result-expired', 'pending'],
     ],
   );
+  assert.deepEqual(
+    { ...(await client.outboxStatus()) },
+    { supported: true, pending: 1, failed: 0, resultGone: 1, replaying: false },
+  );
+});
+
+test('recreated file-backed client preserves result-gone without redelivery', async (t) => {
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const directory = mkdtempSync(join(tmpdir(), 'snapback-result-gone-relaunch-'));
+  const firstStore = createFileRqsResumeStore({
+    directory,
+    identity: 'origin:result-gone-relaunch',
+  });
+  await firstStore.whenLockSettled();
+  const firstClient = new SnapbackClient('https://result-gone.example', {
+    rqsStore: firstStore,
+  });
+  globalThis.fetch = async () => Response.json({
+    diagnostic: {
+      code: 'SNAPBACK_OPERATION_RESULT_EXPIRED',
+      message: 'the committed operation result payload was reclaimed',
+      details: {
+        disposition: 'result-expired',
+        outcome: 'committed',
+        receiptDigest: `sha256:${'f'.repeat(64)}`,
+      },
+    },
+  }, { status: 410 });
+  await assert.rejects(
+    () => firstClient.mutate('createThing', {
+      args: { title: 'restored-operation' },
+      clientMutationId: 'cm-result-gone-relaunch',
+    }),
+    (error) => error.operationOutcome === 'committed' && error.operationResult === 'expired',
+  );
+  await firstStore.close();
+
+  const reopenedStore = createFileRqsResumeStore({
+    directory,
+    identity: 'origin:result-gone-relaunch',
+  });
+  await reopenedStore.whenLockSettled();
+  await reopenedStore.outboxEnqueue({
+    id: 'cm-after-result-gone-relaunch',
+    function: 'updateThing',
+    args: { title: 'must remain fenced' },
+  });
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    throw new Error('result-gone relaunch must not dispatch');
+  };
+  const recreatedClient = new SnapbackClient('https://result-gone.example', {
+    rqsStore: reopenedStore,
+  });
+  assert.deepEqual(
+    { ...(await recreatedClient.outboxStatus()) },
+    { supported: true, pending: 1, failed: 0, resultGone: 1, replaying: false },
+  );
+  const replay = await recreatedClient.replayQueuedMutations();
+  assert.deepEqual(
+    {
+      replayed: replay.replayed,
+      failed: replay.failed,
+      remaining: replay.remaining,
+      stopped: replay.stopped,
+      calls,
+    },
+    { replayed: 0, failed: 0, remaining: 2, stopped: true, calls: 0 },
+  );
+  const restored = (await reopenedStore.outboxRecords())
+    .find((record) => record.id === 'cm-result-gone-relaunch');
+  assert.equal(restored.status, 'result-gone');
+  assert.equal(restored.resultGone.outcome, 'committed');
+  assert.equal(restored.settlement, undefined, 'payload-gone never fabricates a settlement');
+  await reopenedStore.close();
 });
 
 test('replay drop-and-mark-failed on server refusal, pending kept on connectivity', async (t) => {
@@ -1634,14 +1761,14 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
   const disabled = new SnapbackClient('http://127.0.0.1:9', { rqsStore: null });
   assert.deepEqual(
     { ...(await disabled.outboxStatus()) },
-    { supported: false, pending: 0, failed: 0, replaying: false },
+    { supported: false, pending: 0, failed: 0, resultGone: 0, replaying: false },
   );
 
   const events = [];
   const unsubscribe = client.subscribeOutbox(() => events.push('event'));
   assert.deepEqual(
     { ...(await client.outboxStatus()) },
-    { supported: true, pending: 0, failed: 0, replaying: false },
+    { supported: true, pending: 0, failed: 0, resultGone: 0, replaying: false },
   );
 
   // Queue two intents offline: each transition notifies subscribers.
@@ -1651,7 +1778,7 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
   assert(events.length >= 2, 'queue transitions notified subscribers');
   assert.deepEqual(
     { ...(await client.outboxStatus()) },
-    { supported: true, pending: 2, failed: 0, replaying: false },
+    { supported: true, pending: 2, failed: 0, resultGone: 0, replaying: false },
   );
 
   // Replay: first record refused (drop-and-mark-failed), second settles.
@@ -1680,7 +1807,7 @@ test('outboxStatus and subscribeOutbox project the queue facts (LLP 0114 React-a
   assert(events.length > drained, 'replay transitions notified subscribers');
   assert.deepEqual(
     { ...(await client.outboxStatus()) },
-    { supported: true, pending: 0, failed: 1, replaying: false },
+    { supported: true, pending: 0, failed: 1, resultGone: 0, replaying: false },
     'failed records stay visible; settled records leave the counts',
   );
 
