@@ -11,8 +11,9 @@ the comparable read/write/idle observations are within threshold on the step-0
 machine, but the historical runs were ordinal-zipped rather than experimentally
 paired. A post-run audit records the committed baseline digest but cannot make
 the observations measurement-time-bound experimental pairs; the public covered
-lane was not activated and the historical fork/promotion run predates final
-hardening and still lacks author-ratified bounds and p99 evidence, so
+lane was not activated. A separate integrated-revision fork/promotion absolute
+record now covers the final hardening, but author-ratified bounds, p99 evidence,
+and the applicable correctness gates remain open, so
 Acceptance 13 and every capability remain
 unpassed/`Missing`)
 **Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0012, LLP 0017, LLP 0018, LLP 0024, LLP 0035, LLP 0036, LLP 0037, LLP 0042, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0066, LLP 0070, LLP 0072, LLP 0081, LLP 0088, LLP 0090, LLP 0094, LLP 0095, LLP 0097, LLP 0129, LLP 0130, LLP 0133, LLP 0134, LLP 0146, LLP 0155, LLP 0158, LLP 0159, LLP 0160, LLP 0161
@@ -1136,14 +1137,25 @@ p99 contention is also unmeasured. Revisions between the comparable candidate
 and absolute record only repair benchmark fixture-clock expiry and canonical
 row ordering. Later revisions materially harden promotion tickets, proof/write
 authority, schema/request retry binding, and host-ticket lifecycle, so the
-historical record must be preserved and rerun rather than treated as final-code
-performance evidence.
+historical record is preserved rather than treated as final-code performance
+evidence.
+
+The integrated successor is
+[`agent-safe-fork-promotion-absolute-integrated-2026-08-03`](../tests/acceptance/fixtures/agent-safe-storage/fork-promotion-performance.integrated.2026-08-03.v1.json),
+from clean revision `882a337fe5a71ad0b65497d98c44338ec4d44870` on that same
+Mac17,3 / Apple M5 / 32 GiB machine. Its 11 fresh fixtures record median/MAD
+latencies of 219.333/3.001 µs for fork creation, 707.959/6.501 µs for exact
+diff, 2,227.292/23.875 µs for promotion, and 29.458/0.583 µs for TTL reap.
+The run discovered and then followed a canonical textual-row-order repair; its
+source revision includes the regression test and the artifact identifies that
+immutable revision. It still records `boundRatification` as `Missing`, makes no
+p99 contention measurement, and keeps the fork/promotion claim boundary
+`Missing`.
 
 These records make Acceptance 13 **Partial**, not passed: the comparable
 binary observations are within threshold, while a valid paired/interleaved and
 baseline-digest-bound protocol, active covered-lane measurement,
-an integrated-revision absolute rerun, author-ratified fork/promotion bounds,
-p99 contention evidence, and the
+author-ratified fork/promotion bounds, p99 contention evidence, and the
 applicable crash-cut corpora remain open. No exception is requested and every
 capability remains `Missing`.
 

@@ -10,9 +10,10 @@ Agent experience
 
 Track B now has the step-0 baseline and OQ13 gate artifacts, the first
 integrated implementation slices for LLP 0163-0165, F0b fleet dogfood, a clean
-comparable candidate run, and a dated fork/promotion absolute run. This ticket
-is the honest remainder against LLP 0162's single acceptance corpus. It does
-not reopen implemented work and does not authorize capability publication.
+comparable candidate run, and historical plus final-integrated dated
+fork/promotion absolute runs. This ticket is the honest remainder against LLP
+0162's single acceptance corpus. It does not reopen implemented work and does
+not authorize capability publication.
 
 ## Remaining acceptance work
 
@@ -30,7 +31,7 @@ not reopen implemented work and does not authorize capability publication.
 | 10 — strict promotion | Partial | Complete concurrent-writer fairness/crash cuts, exhausted-budget and identical-write/divergent-read-or-result re-seal negatives, conditional-progress terms, provisional/transitive effect chains, and production contention constants. |
 | 11 — history/checkpoint | Partial | Project finite history policy from schema declarations; complete per-version auth/pagination/horizon corpus and protected-copy erasure obligations. |
 | 12 — boundary proof | Partial | Promotion and checkpoint proof paths are integrated; add migration boundary integration and the remaining concurrent-writer/publication/receipt-only negative corpus. |
-| 13 — performance | Partial | Rerun absolute fork/diff/promotion/reap latency against the final integrated hardening; run a genuinely paired/interleaved, baseline-digest-bound comparison with the public covered lane active; obtain dated RFC-author absolute-bound ratification; record p99 contention and every applicable crash/reopen gate. |
+| 13 — performance | Partial | The final-integrated absolute rerun is recorded. Run a genuinely paired/interleaved, baseline-digest-bound comparison with the public covered lane active; obtain dated RFC-author absolute-bound ratification; record p99 contention and every applicable crash/reopen gate. |
 | 14 — identity lifecycle | Partial | Wire first-party host job/cron/migration callers and transport-level client exclusion, then finish capacity/purge/current-authority negative fixtures beyond the landed promotion-ticket lease. |
 
 The detailed LLP 0163 public-carrier work remains in its existing focused

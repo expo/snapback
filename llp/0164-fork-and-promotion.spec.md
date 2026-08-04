@@ -27,9 +27,9 @@ LLP 0165 boundary proof and aggregate LLP 0163 provenance through an
 enumerated, journal-verified ordinary-mutation writer; exact durable ticket,
 sealed schema/request retry, and host-ticket lifecycle negatives are green.
 The aggregate envelope explicitly retains a coverage-manifest GAP, F0b is only
-the first derived-deployment consumer, and final integrated latency/bounds,
-p99 contention, and the residual corpus remain missing, so the Spec stays
-Draft and every capability stays `Missing`)
+the first derived-deployment consumer, and integrated latency is now recorded;
+author-ratified bounds, p99 contention, and the residual corpus remain missing,
+so the Spec stays Draft and every capability stays `Missing`)
 
 ## Purpose
 
@@ -141,7 +141,7 @@ This is intentionally a progress record, not a capability advertisement:
 | 8 — resources | principal/app counts, operation/byte/diff/TTL bounds and reap-without-canonical-change fixture | Partial — the digest-work limit and replay-floor/envelope-clock joint corpus remain |
 | 9 — exact diff | independent immutable-base/head comparison, emitted attributed sequence, and deterministic 32-seed add/update/delete/revert folding corpus | Partial — the randomized corpus mutates the fixture directly rather than comparing a journal-derived net diff; a separate attributed-sequence oracle, schema/system-field coverage, and the complete journal-completeness corpus owned with LLP 0165 remain |
 | 10 — strict promotion | sealed head/log/diff/manifest/facts/schema request; unchanged-base read-only re-execution; exact durable ticket and retry binding; changed-head refusal; rebase/re-seal divergence; FIFO/reservation mechanics; forged-post-image and unjournaled-trigger refusal; aggregate envelope/source joins; independently derived expected-versus-staged-actual boundary comparison with mismatch rollback | Partial — the enumerated ordinary-mutation promotion seam is creditable, but its envelope honestly marks the active canonical coverage manifest as uncovered; global generated-writer/SQLite-authorizer coverage, the full concurrent-writer fairness/crash matrix, exhausted-budget fixture, identical-write/divergent-read-or-result re-seal negatives, provisional effect chains, and frozen production contention terms remain |
-| 13 — applicable performance | the historical dated release-mode absolute record follows the step-0 11-run median/MAD protocol for fork/diff/promotion/reap | Partial — the record predates the final promotion hardening and must be rerun against the integrated revision; author-ratified absolute bounds and p99 contention evidence are also incomplete |
+| 13 — applicable performance | historical and final-integrated dated release-mode records follow the step-0 11-run median/MAD protocol for fork/diff/promotion/reap | Partial — the integrated record closes the final-revision rerun only; author-ratified absolute bounds, p99 contention evidence, and applicable correctness gates remain incomplete |
 
 The runner refuses measurement while another Cargo/Rust compiler is active,
 retains every raw run, and writes the missing bound-ratification fact into its
@@ -154,8 +154,17 @@ recorded on the step-0 Mac17,3 machine and identifying source revision
 artifact explicitly preserves the missing author-bound and claim-boundary
 facts; it does not measure p99 contention and predates the final ticket,
 coverage, schema-binding, and canonical-writer hardening. It remains preserved
-as historical instrumentation evidence; an integrated-revision rerun is a
-separate row-13 gate.
+as historical instrumentation evidence.
+
+The final-integrated dated record is
+[`agent-safe-fork-promotion-absolute-integrated-2026-08-03`](../tests/acceptance/fixtures/agent-safe-storage/fork-promotion-performance.integrated.2026-08-03.v1.json),
+recorded on the same machine at source revision
+`882a337fe5a71ad0b65497d98c44338ec4d44870`. Median/MAD latencies are
+219.333/3.001 µs for fork creation, 707.959/6.501 µs for exact diff,
+2,227.292/23.875 µs for promotion, and 29.458/0.583 µs for TTL reap. The
+artifact records the still-missing author bounds, makes no p99 contention
+claim, and explicitly keeps capabilities `Missing`; it closes only the
+integrated-revision rerun sub-gate in row 13.
 `CaptureOnly`, exhaustive product egress mediation, and capability manifest
 publication are explicitly outside this slice.
 

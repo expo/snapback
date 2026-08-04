@@ -75,9 +75,11 @@ release needed.
    runs instead of producing experimental pairs. A post-run audit adds the
    committed baseline digest, but cannot retroactively make those observations
    measurement-time-bound experimental pairs. The fork/diff/promotion/reap
-   absolute run records median/MAD but predates the final promotion hardening,
-   so an integrated-revision rerun joins the still-missing author-ratified
-   bounds and p99 contention evidence. The public covered
+   historical absolute run records median/MAD but predates the final promotion
+   hardening. A separate clean integrated-revision absolute run now records the
+   hardened fork/diff/promotion/reap path; author-ratified bounds, p99
+   contention evidence, the valid paired active-lane comparison, and applicable
+   correctness gates remain missing. The public covered
    lane was not activated, so Acceptance 13 is Partial, not passed.
 5. **Honest tail.** The remaining row-by-row corpus, production/public wiring,
    author decisions, and extracted-Spec review/acceptance gates are recorded in
