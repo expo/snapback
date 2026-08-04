@@ -25,6 +25,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'config-set',
   'cron-utils',
   'route-outage-witness-tests',
+  'target-admission',
   'deploy-script',
   'deployment-identity',
   'index-scaling',
@@ -33,7 +34,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'wire-schema-gate',
 ]);
 
-export const EXPECTED_LOCAL_SUITE_CHECKS = 27;
+export const EXPECTED_LOCAL_SUITE_CHECKS = 28;
 
 export const LOCAL_SUITES = Object.freeze([
   { id: 'compatibility', file: 'scripts/cf-check-compat', runtime: 'direct' },
@@ -153,6 +154,11 @@ export const LOCAL_SUITES = Object.freeze([
     evidence: ['cloudflare route-outage-witness tests: proven-outage skip, our-bug fail, ambiguous fail'],
   },
   {
+    id: 'target-admission',
+    file: 'cloudflare/test/target-admission.mjs',
+    evidence: ['cloudflare target-admission tests: 3/3 strict-refusal/default/local-admission scenarios passed'],
+  },
+  {
     id: 'deploy-script',
     file: 'cloudflare/test/deploy-script.mjs',
     evidence: ['cloudflare deploy-script acceptance: mixed bootstrap, rollback, and admin-secret states passed'],
@@ -219,6 +225,7 @@ export const TEST_FILE_CLASSIFICATIONS = Object.freeze([
   ['proof-runtime.mjs', 'helper'],
   ['route-outage-witness.mjs', 'helper'],
   ['route-outage-witness-tests.mjs', 'gate'],
+  ['target-admission.mjs', 'gate'],
   ['proof-runtime-preflight.mjs', 'gate'],
   ['twin-engine.mjs', 'protocol-child-of-cargo-twin'],
   ['validate-idle-measurement.mjs', 'gate'],
