@@ -88,6 +88,10 @@ pub const TABLE_CUSTODY: &[CustodyRule] = &[
         disposition: CustodyDisposition::Copy,
     },
     CustodyRule {
+        name: "_snapback_history_policies_v2",
+        disposition: CustodyDisposition::Copy,
+    },
+    CustodyRule {
         name: "_snapback_record_history_v1",
         disposition: CustodyDisposition::Copy,
     },

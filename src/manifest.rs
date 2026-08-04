@@ -515,6 +515,20 @@ impl From<SchemaManifest> for PublicSchemaManifest {
     }
 }
 
+/// Finite product-history retention declared beside the table it governs.
+/// This is authoring authority; storage projects it into the durable policy
+/// table in the same transaction that publishes the schema manifest.
+// @ref LLP 0162#6-bounded-history-and-named-checkpoints — history is opt-in,
+// per-table, finite on both age and versions-per-record axes, and manifest-visible.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HistoryRetentionManifestV1 {
+    #[schemars(range(min = 1_u64, max = 2_592_000_000_u64))]
+    pub retain_ms: u64,
+    #[schemars(range(min = 1_u64, max = 1_000_u64))]
+    pub max_versions_per_record: u64,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TableManifest {
@@ -612,6 +626,10 @@ pub struct TableManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub asset_sharing: Option<AssetSharingManifest>,
+    /// Optional bounded record-history policy. Absence disables product
+    /// history for this table; v1 deliberately has no unbounded spelling.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub history: Option<HistoryRetentionManifestV1>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -10452,6 +10470,7 @@ mod membership_manifest_grammar_tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
         let index = VectorIndexManifestV1 {
             format_version: 1,

@@ -2694,8 +2694,9 @@ impl LocalDatabase {
         })
     }
 
-    /// Enable finite, independently-pruned record history for one declared
-    /// table. Capability publication remains gated by LLP 0162's corpus.
+    /// Configure the legacy v1 finite table-wide `maxRows` history policy.
+    /// New schema-declared history uses the distinct v2 per-record projection;
+    /// capability publication remains gated by LLP 0162's corpus.
     pub fn configure_history_policy(
         &self,
         policy: &crate::proof_checkpoint::HistoryRetentionPolicyV1,
@@ -10818,6 +10819,23 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                 "schema",
                 format!("duplicate table {}", table.name),
             ));
+        }
+        if let Some(history) = &table.history
+            && (history.retain_ms == 0
+                || history.retain_ms > crate::proof_checkpoint::HISTORY_MAX_RETENTION_MS
+                || history.max_versions_per_record == 0
+                || history.max_versions_per_record
+                    > crate::proof_checkpoint::HISTORY_MAX_VERSIONS_PER_RECORD)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_HISTORY_POLICY_INVALID",
+                "schema",
+                format!(
+                    "table {} history exceeds the finite v1 age or versions-per-record bound",
+                    table.name
+                ),
+            )
+            .with_detail("table", table.name.clone()));
         }
 
         let mut fields = BTreeSet::new();
@@ -19173,6 +19191,7 @@ mod vector_storage_carrier_tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         })
@@ -19253,6 +19272,7 @@ mod guarded_commit_tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         })
@@ -19563,6 +19583,7 @@ mod guarded_commit_tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         }
@@ -20032,6 +20053,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "children".to_owned(),
@@ -20079,6 +20101,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "activity".to_owned(),
@@ -20135,6 +20158,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -20578,6 +20602,7 @@ mod guarded_commit_tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         });
         let tx = simultaneous.conn.transaction().unwrap();
         let error = preflight_sequence_enrollments(
@@ -22094,6 +22119,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "authors".to_owned(),
@@ -22118,6 +22144,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -23537,13 +23564,14 @@ mod guarded_commit_tests {
             OperationCoverageManifestV1, OperationIssuanceV1, OperationOriginatorClassV1,
         };
 
-        let mut db = database();
-        db.configure_history_policy(&crate::proof_checkpoint::HistoryRetentionPolicyV1 {
-            table: "items".to_owned(),
+        let mut history_schema = schema();
+        history_schema.tables[0].history = Some(crate::manifest::HistoryRetentionManifestV1 {
             retain_ms: 60_000,
-            max_rows: 32,
-        })
-        .expect("finite history policy");
+            max_versions_per_record: 32,
+        });
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(history_schema)
+            .expect("schema-declared finite history policy");
         let tx = db.conn.transaction().expect("stream authority tx");
         let stream = auth_invalidation::ensure_data_version_stream_in(&tx)
             .expect("initialize operation stream");
@@ -24748,6 +24776,7 @@ mod guarded_commit_tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         };
         let projection = crate::ephemeral::RoomPermissionProjection {
             table: "memberships".to_owned(),
@@ -24823,6 +24852,7 @@ mod guarded_commit_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })
@@ -26268,6 +26298,7 @@ mod membership_write_tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 },
                 TableManifest {
                     name: "event_members".to_owned(),
@@ -26385,6 +26416,7 @@ mod membership_write_tests {
                         principal_addressed_writes: None,
                     }),
                     asset_sharing: None,
+                    history: None,
                 },
             ],
             ..SchemaManifest::default()
@@ -26455,6 +26487,7 @@ mod membership_write_tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             });
             let mut db = ready_db_with_schema(schema);
             let (event_id, host_id) = create_event(&mut db, "alice");
@@ -28176,6 +28209,7 @@ mod membership_write_tests {
                     principal_addressed_writes: None,
                 }),
                 asset_sharing: None,
+                history: None,
             }],
             ..SchemaManifest::default()
         }

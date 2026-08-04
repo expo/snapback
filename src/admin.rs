@@ -4990,6 +4990,7 @@ mod tests {
                     search_live_limits: None,
                     membership: None,
                     asset_sharing: None,
+                    history: None,
                 }],
                 ..SchemaManifest::default()
             })

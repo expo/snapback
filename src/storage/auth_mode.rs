@@ -1831,6 +1831,9 @@ fn save_active_manifest_in(
     state: &AuthModeStateRecord,
     raw: &str,
 ) -> SnapbackResult<()> {
+    let manifest: SchemaManifest = serde_json::from_str(raw)
+        .map_err(|_| mode_corrupt("published schema manifest does not parse"))?;
+    crate::proof_checkpoint::activate_history_policies_in_tx(tx, &manifest)?;
     save_raw_meta(tx, META_CAPABILITY_AWARE_SCHEMA_MANIFEST, raw)?;
     if state.sessions_ever_activated {
         require_legacy_poison(tx)?;
@@ -1955,6 +1958,7 @@ mod tests {
             search_live_limits: None,
             membership: None,
             asset_sharing: None,
+            history: None,
         }
     }
 
@@ -2026,6 +2030,7 @@ mod tests {
                 search_live_limits: None,
                 membership: None,
                 asset_sharing: None,
+                history: None,
             },
             TableManifest {
                 name: "event_members".to_owned(),
@@ -2075,6 +2080,7 @@ mod tests {
                     principal_addressed_writes: None,
                 }),
                 asset_sharing: None,
+                history: None,
             },
         ];
         (identity, manifest)

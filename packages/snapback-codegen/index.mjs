@@ -1624,6 +1624,7 @@ export async function generateInProcess(backendDir, options = {}) {
       ...(Array.isArray(table.permissionFields) ? { permissionFields: table.permissionFields } : {}),
       ...(membership ? { membership } : {}),
       ...(assetSharing ? { assetSharing } : {}),
+      ...(table.historyDeclaration ? { history: { ...table.historyDeclaration } } : {}),
     };
   }
 

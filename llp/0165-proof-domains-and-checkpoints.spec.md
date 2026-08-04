@@ -5,7 +5,15 @@
 **Systems:** Storage, Migrations, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (implementation checkpoint — Rust-owned promotion and
+**Revised:** 2026-08-04 (history/checkpoint/migration acceptance-tail increment
+— schema publication atomically projects finite per-record history into a
+distinct durable v2 policy without reinterpreting legacy v1 table-wide
+`maxRows`; removal erases retained detail, and auth/pagination/horizon/pruning
+plus compatibility corpus is green. Receipt-only inventory now refuses
+privileged upcast on inspection. Migration receipts expose separate
+expected/actual digests and their migration domain but disclose that both paths
+share `eval_expr`, so migration independent proof remains open. Status stays
+Draft and capabilities stay `Missing`); 2026-08-03 (implementation checkpoint — Rust-owned promotion and
 checkpoint digest headers, normalized approved promotion writes, independent
 expected-state derivation, generated schemas and golden vectors, finite
 history policy/storage, budgeted materialized and receipt-only checkpoints,
@@ -24,7 +32,11 @@ component)
 **Related:** LLP 0035, LLP 0037, LLP 0053, LLP 0081, LLP 0088, LLP 0158,
 LLP 0162, LLP 0163, LLP 0164
 
-**Implementation evidence:** 2026-08-03 (LLP 0164 promotion now consumes the
+**Implementation evidence:** 2026-08-04 (schema-declared history projection,
+v1 compatibility, visible-only auth pagination/horizon, receipt-only no-upcast,
+and migration full-table-verification disclosure are integrated. Protected-copy
+erasure and a genuinely independent migration oracle remain open, so the Spec
+stays Draft and every capability stays `Missing`); 2026-08-03 (LLP 0164 promotion now consumes the
 domain-separated expected/actual proof and rolls back on mismatch, while
 issuance-bearing ordinary history rows join LLP 0163 operation identity in the
 same transaction; schema-declared history, the full write-authority choke
@@ -159,10 +171,32 @@ Bounded row history is written only from storage's existing `record_change`
 seam into `_snapback_record_history_v1` and pruned on a clock independent of
 the sync-resume floor. The read applies the current-record gate and then a
 per-post-image gate before visible pagination; cursor offsets and horizon facts
-are derived only from visible versions. Durable finite policy currently lands
-through `_snapback_history_policies_v1`; projecting that policy from a
-per-table schema declaration remains part of the row-11 integration gap and
-prevents a history capability claim at this checkpoint.
+are derived only from visible versions. A table's optional manifest
+`history { retainMs, maxVersionsPerRecord }` declaration is projected into
+`_snapback_history_policies_v2` in the same transaction as every active-schema
+publication path; removing it disables history and erases retained detail in
+that commit. Pruning applies the count independently per `(table,rowId)`.
+Legacy `HistoryRetentionPolicyV1.maxRows` remains decodable, encodable, and
+table-wide through `_snapback_history_policies_v1`; an explicit v2 declaration
+atomically upgrades that table, and the v1 configuration surface refuses to
+replace an active v2 declaration. The corpus covers reopen, current-record and
+per-version authorization, hidden-version pagination/horizon stability,
+per-record caps across two records, schema removal, and sync-floor independence.
+Protected-record erasure across every checkpoint copy remains open and prevents
+a history capability claim.
+
+### Migration verification boundary — 2026-08-04
+
+Full migration verification receipts now record the migration boundary domain,
+separate expected/actual logical and system digests, equality, and the named
+predecessor-plus-plan derivation. They deliberately use the narrower
+`fullTableVerification` class and disclose
+`expectedEvaluatorIndependence: sharedImplementation`: execution and expected
+evaluation both call `eval_expr`. Sampled audits remain inventory and say so on
+their face. The staged corpus independently asserts concrete transformed rows
+and system stamps and corruption still blocks publication, but the receipt is
+not an independent boundary proof until a separately implemented expected-value
+oracle is integrated.
 
 ### Promotion and operation-provenance integration — 2026-08-03
 
@@ -209,6 +243,10 @@ step 0 (the performance baseline). No parallel corpus here.
    history-operation joins are integrated; open here are the generated-facade
    surface, authorizer enforcement, and migration path for existing direct-SQL
    write sites.
+4. Integrate a migration expected-value oracle that does not share `eval_expr`
+   with execution, bind it to the full receipt, and only then upgrade the
+   migration proof class. Complete protected-record erasure across every
+   materialized checkpoint copy.
 
 ## Dated OQ13 spike record — 2026-08-03
 
