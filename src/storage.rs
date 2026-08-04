@@ -2262,6 +2262,121 @@ impl LocalDatabase {
         Ok(range)
     }
 
+    pub(crate) fn host_operation_issuance(
+        &mut self,
+        authority_instance_id: &str,
+        upstream_identity: &str,
+        commit_ordinal: u64,
+        issued_at_ms: u64,
+    ) -> SnapbackResult<crate::commit_envelope::OperationIssuanceV1> {
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let stream_id = crate::seed_identity::strict_current_data_version_stream(&tx)?
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_OPERATION_STREAM_UNAVAILABLE",
+                    "storage",
+                    "host operation identity requires an initialized data-version stream",
+                )
+            })?;
+        let incarnation = crate::operation_ledger::ensure_host_incarnation_in(
+            &tx,
+            &stream_id,
+            authority_instance_id,
+            issued_at_ms,
+        )?;
+        tx.commit()?;
+        Ok(crate::commit_envelope::OperationIssuanceV1::HostIncarnation {
+            epoch_id: incarnation.epoch_id,
+            upstream_identity: upstream_identity.to_owned(),
+            commit_ordinal,
+            authority_authenticator_digest: incarnation.authority_authenticator_digest,
+        })
+    }
+
+    pub(crate) fn operation_lane_covered(&self, lane: &str) -> SnapbackResult<bool> {
+        let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(&self.conn)?
+        else {
+            return Ok(false);
+        };
+        Ok(
+            crate::operation_ledger::active_coverage_manifest(&self.conn, &stream_id)?
+                .is_some_and(|manifest| manifest.covered_lanes.iter().any(|value| value == lane)),
+        )
+    }
+
+    #[cfg(test)]
+    pub(crate) fn install_operation_coverage_for_test(
+        &mut self,
+        mut lanes: Vec<String>,
+        mut writers: Vec<String>,
+    ) -> SnapbackResult<()> {
+        lanes.sort();
+        lanes.dedup();
+        writers.sort();
+        writers.dedup();
+        let tx = self.conn.transaction()?;
+        let stream_id = auth_invalidation::ensure_data_version_stream_in(&tx)?;
+        let manifest_version: i64 = tx.query_row(
+            "SELECT COALESCE(MAX(manifest_version), 0) + 1
+             FROM _snapback_operation_coverage_v1",
+            [],
+            |row| row.get(0),
+        )?;
+        let manifest_version = u64::try_from(manifest_version).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_OPERATION_COVERAGE_INVALID",
+                "storage",
+                "test coverage manifest version overflowed",
+            )
+        })?;
+        crate::operation_ledger::register_coverage_in(
+            &tx,
+            &crate::commit_envelope::OperationCoverageManifestV1 {
+                schema_version: 1,
+                manifest_version,
+                stream_id: stream_id.clone(),
+                covered_lanes: lanes.clone(),
+                writer_choke_points: writers.clone(),
+                coverage_digest: crate::operation_ledger::coverage_digest(
+                    &stream_id,
+                    manifest_version,
+                    &lanes,
+                    &writers,
+                ),
+            },
+            now_millis(),
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn operation_envelopes_for_test(
+        &self,
+    ) -> SnapbackResult<Vec<crate::commit_envelope::CommitEnvelopeV1>> {
+        let mut statement = self.conn.prepare(
+            "SELECT envelope_json FROM _snapback_commit_envelopes_v1
+             ORDER BY recorded_at_ms, operation_id",
+        )?;
+        let encoded = statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        encoded
+            .into_iter()
+            .map(|value| {
+                serde_json::from_str(&value).map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_OPERATION_LEDGER_INVALID",
+                        "storage",
+                        "retained test envelope could not be decoded",
+                    )
+                })
+            })
+            .collect()
+    }
+
     pub(crate) fn explain_operation(
         &self,
         identity: &crate::commit_envelope::OperationIdentityV1,
@@ -4473,6 +4588,11 @@ impl LocalDatabase {
         Check: Fn() -> SnapbackResult<()>,
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        require_covered_mutation_identity_for_lane(
+            &self.conn,
+            CoveredMutationLaneV1::Ordinary,
+            None,
+        )?;
         Ok(self
             .execute_mutation_plan_with_lifecycle_and_settlement_time(
                 plan,
@@ -4492,6 +4612,11 @@ impl LocalDatabase {
         input: &HandlerInput,
         identity: &ClientMutationIdentity,
     ) -> SnapbackResult<MutationCommit> {
+        require_covered_mutation_identity_for_lane(
+            &self.conn,
+            CoveredMutationLaneV1::Ordinary,
+            Some(identity),
+        )?;
         if let Some(output) = self.client_mutation_result(identity)? {
             let sequence_allocations = output.settlement_sequence_allocations.clone();
             return Ok(MutationCommit {
@@ -4520,6 +4645,11 @@ impl LocalDatabase {
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        require_covered_mutation_identity_for_lane(
+            &self.conn,
+            CoveredMutationLaneV1::Ordinary,
+            Some(identity),
+        )?;
         if let Some(output) = self.client_mutation_result(identity)? {
             let sequence_allocations = output.settlement_sequence_allocations.clone();
             return Ok(MutationCommit {
@@ -4541,6 +4671,83 @@ impl LocalDatabase {
                 Some(identity),
                 None,
                 &|| Ok(()),
+                before_commit,
+            )?
+            .commit)
+    }
+
+    pub(crate) fn execute_host_mutation_guarded<
+        G,
+        Check,
+        BeforeCommit,
+    >(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        identity: Option<&ClientMutationIdentity>,
+        check_live: Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.execute_host_mutation_guarded_with_settlement_time(
+            plan,
+            input,
+            identity,
+            None,
+            check_live,
+            before_commit,
+        )
+    }
+
+    pub(crate) fn execute_host_mutation_guarded_with_settlement_time<
+        G,
+        Check,
+        BeforeCommit,
+    >(
+        &mut self,
+        plan: &MutationPlan,
+        input: &HandlerInput,
+        identity: Option<&ClientMutationIdentity>,
+        policy: Option<&SettlementTimePolicy>,
+        check_live: Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        require_covered_mutation_identity_for_lane(
+            &self.conn,
+            CoveredMutationLaneV1::HostChild,
+            identity,
+        )?;
+        check_live()?;
+        if let Some(identity) = identity
+            && let Some(output) = self.client_mutation_result(identity)?
+        {
+            let sequence_allocations = output.settlement_sequence_allocations.clone();
+            return Ok(MutationCommit {
+                output,
+                changes: Vec::new(),
+                read_dependencies: Vec::new(),
+                write_dependencies: Vec::new(),
+                job_enqueues: Vec::new(),
+                job_changes: Vec::new(),
+                sequence_allocations,
+                authorization: None,
+            });
+        }
+        Ok(self
+            .execute_mutation_plan_with_lifecycle_and_settlement_time(
+                plan,
+                input,
+                true,
+                identity,
+                policy,
+                &check_live,
                 before_commit,
             )?
             .commit)
@@ -4585,6 +4792,11 @@ impl LocalDatabase {
         Check: Fn() -> SnapbackResult<()>,
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        require_covered_mutation_identity_for_lane(
+            &self.conn,
+            CoveredMutationLaneV1::Ordinary,
+            None,
+        )?;
         Ok(self
             .execute_mutation_plan_with_lifecycle_and_settlement_time(
                 plan,
@@ -4609,6 +4821,11 @@ impl LocalDatabase {
     where
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
+        require_covered_mutation_identity_for_lane(
+            &self.conn,
+            CoveredMutationLaneV1::Ordinary,
+            Some(identity),
+        )?;
         if let Some(output) = self.client_mutation_result(identity)? {
             let sequence_allocations = output.settlement_sequence_allocations.clone();
             return Ok(MutationCommit {
@@ -4622,7 +4839,6 @@ impl LocalDatabase {
                 authorization: None,
             });
         }
-        require_covered_ordinary_mutation_identity(&self.conn, Some(identity))?;
         Ok(self
             .execute_mutation_plan_with_lifecycle_and_settlement_time(
                 plan,
@@ -4644,6 +4860,13 @@ impl LocalDatabase {
         identity: Option<&ClientMutationIdentity>,
         settlement_time: Option<&SettlementTimePolicy>,
     ) -> SnapbackResult<MutationPlanExecution> {
+        if apply {
+            require_covered_mutation_identity_for_lane(
+                &self.conn,
+                CoveredMutationLaneV1::Ordinary,
+                identity,
+            )?;
+        }
         self.execute_mutation_plan_with_lifecycle_and_settlement_time(
             plan,
             input,
@@ -5693,7 +5916,67 @@ impl LocalDatabase {
         Check: Fn() -> SnapbackResult<()>,
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
-        require_covered_ordinary_mutation_identity(&self.conn, identity)?;
+        self.commit_buffered_writes_for_lane(
+            input,
+            payload,
+            identity,
+            CoveredMutationLaneV1::Ordinary,
+            check_live,
+            before_commit,
+        )
+    }
+
+    pub(crate) fn commit_buffered_host_writes_guarded<G, Check, BeforeCommit>(
+        &mut self,
+        input: &HandlerInput,
+        payload: BufferedCommitPayload,
+        identity: Option<&ClientMutationIdentity>,
+        check_live: Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        self.commit_buffered_writes_for_lane(
+            input,
+            payload,
+            identity,
+            CoveredMutationLaneV1::HostChild,
+            check_live,
+            before_commit,
+        )
+    }
+
+    fn commit_buffered_writes_for_lane<G, Check, BeforeCommit>(
+        &mut self,
+        input: &HandlerInput,
+        payload: BufferedCommitPayload,
+        identity: Option<&ClientMutationIdentity>,
+        lane: CoveredMutationLaneV1,
+        check_live: Check,
+        before_commit: BeforeCommit,
+    ) -> SnapbackResult<MutationCommit>
+    where
+        Check: Fn() -> SnapbackResult<()>,
+        BeforeCommit: FnOnce() -> SnapbackResult<G>,
+    {
+        require_covered_mutation_identity_for_lane(&self.conn, lane, identity)?;
+        if let Some(identity) = identity
+            && let Some(output) = self.client_mutation_result(identity)?
+        {
+            let sequence_allocations = output.settlement_sequence_allocations.clone();
+            return Ok(MutationCommit {
+                output,
+                changes: Vec::new(),
+                read_dependencies: Vec::new(),
+                write_dependencies: Vec::new(),
+                job_enqueues: Vec::new(),
+                job_changes: Vec::new(),
+                sequence_allocations,
+                authorization: None,
+            });
+        }
         let BufferedCommitPayload {
             writes,
             sequence_allocations,
@@ -18979,7 +19262,7 @@ fn record_client_mutation_result(
         auth_admitted_bytes.expect("checked by per-auth retention admission"),
     )?;
     if identity.operation_issuance.is_some() {
-        record_covered_client_mutation_envelope_in(
+        record_covered_mutation_envelope_in(
             tx,
             identity,
             input,
@@ -18991,31 +19274,66 @@ fn record_client_mutation_result(
     Ok(())
 }
 
-fn require_covered_ordinary_mutation_identity(
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CoveredMutationLaneV1 {
+    Ordinary,
+    HostChild,
+}
+
+impl CoveredMutationLaneV1 {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Ordinary => crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+            Self::HostChild => crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+        }
+    }
+}
+
+fn identity_lane(identity: &ClientMutationIdentity) -> Option<CoveredMutationLaneV1> {
+    match identity.operation_issuance.as_ref() {
+        Some(crate::commit_envelope::OperationIssuanceV1::ClientRange { .. }) => {
+            Some(CoveredMutationLaneV1::Ordinary)
+        }
+        Some(crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. }) => {
+            Some(CoveredMutationLaneV1::HostChild)
+        }
+        None => None,
+    }
+}
+
+fn require_covered_mutation_identity_for_lane(
     conn: &Connection,
+    lane: CoveredMutationLaneV1,
     identity: Option<&ClientMutationIdentity>,
 ) -> SnapbackResult<()> {
+    // @ref LLP 0163#contract-summary-normative-details-per-llp-0162-0-2 —
+    //   each writer class is covered independently and must carry issuance
+    //   from the matching structurally-disjoint namespace.
     let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(conn)? else {
         return Ok(());
     };
     let covered = crate::operation_ledger::active_coverage_manifest(conn, &stream_id)?
-        .is_some_and(|manifest| {
-            manifest
-                .covered_lanes
-                .iter()
-                .any(|lane| lane == crate::operation_ledger::ORDINARY_MUTATION_LANE_V1)
-        });
-    if !covered
-        || identity
-            .and_then(|identity| identity.operation_issuance.as_ref())
-            .is_some()
-    {
+        .is_some_and(|manifest| manifest.covered_lanes.iter().any(|value| value == lane.name()));
+    if !covered {
+        return Ok(());
+    }
+    let Some(identity) = identity else {
+        return Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_IDENTITY_REQUIRED",
+            "sync",
+            format!(
+                "{} coverage is active; this writer must carry a server-issued operation identity",
+                lane.name()
+            ),
+        ));
+    };
+    if identity_lane(identity) == Some(lane) {
         return Ok(());
     }
     Err(SnapbackError::error(
-        "SNAPBACK_OPERATION_IDENTITY_REQUIRED",
+        "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH",
         "sync",
-        "ordinary mutation coverage is active; this mutation must carry a server-issued operation identity",
+        "operation issuance origin does not match the covered writer lane",
     ))
 }
 
@@ -19026,7 +19344,7 @@ fn require_covered_ordinary_mutation_identity(
 ///
 /// @ref LLP 0162#1-the-universal-commit-envelope — application data,
 ///   journal, envelope, suppression, and receipt share one physical commit.
-fn record_covered_client_mutation_envelope_in(
+fn record_covered_mutation_envelope_in(
     tx: &Transaction<'_>,
     identity: &ClientMutationIdentity,
     input: &HandlerInput,
@@ -19053,18 +19371,46 @@ fn record_covered_client_mutation_envelope_in(
                 "covered ordinary mutation requires an initialized data-version stream",
             )
         })?;
-    let audience = crate::operation_ledger::resolve_client_range_audience_in(
-        tx,
-        &issuance,
-        &identity.authority_instance_id,
-    )?;
-    let operation_identity = OperationIdentityV1::from_client_mutation(
-        stream_id.clone(),
-        audience.clone(),
-        issuance,
-        identity,
-        crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
-    );
+    let (audience, operation_identity, operation_lane) = match &issuance {
+        crate::commit_envelope::OperationIssuanceV1::ClientRange { .. } => {
+            let audience = crate::operation_ledger::resolve_client_range_audience_in(
+                tx,
+                &issuance,
+                &identity.authority_instance_id,
+            )?;
+            let operation = OperationIdentityV1::from_client_mutation(
+                stream_id.clone(),
+                audience.clone(),
+                issuance,
+                identity,
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+            );
+            (
+                audience,
+                operation,
+                crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+            )
+        }
+        crate::commit_envelope::OperationIssuanceV1::HostIncarnation { .. } => {
+            let audience = crate::operation_ledger::resolve_host_incarnation_audience_in(
+                tx,
+                &issuance,
+                &identity.authority_instance_id,
+            )?;
+            let operation = OperationIdentityV1::from_host_mutation(
+                stream_id.clone(),
+                audience.clone(),
+                issuance,
+                identity,
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+            );
+            (
+                audience,
+                operation,
+                crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+            )
+        }
+    };
     let history_operation_id = operation_identity.key.operation_id.clone();
     let manifest =
         crate::operation_ledger::active_coverage_manifest(tx, &stream_id)?.ok_or_else(|| {
@@ -19074,6 +19420,17 @@ fn record_covered_client_mutation_envelope_in(
                 "covered ordinary mutation has no active stream coverage manifest",
             )
         })?;
+    if !manifest
+        .covered_lanes
+        .iter()
+        .any(|lane| lane == operation_lane)
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH",
+            "storage",
+            "operation issuance origin is not covered by the active writer manifest",
+        ));
+    }
     let read_detail = serde_json::to_value(read_dependencies).map_err(|_| {
         SnapbackError::error(
             "SNAPBACK_OPERATION_LEDGER_INVALID",
@@ -19215,7 +19572,7 @@ fn record_covered_client_mutation_envelope_in(
             },
         },
         coverage: EnvelopeCoverageV1 {
-            covered_lanes: vec![crate::operation_ledger::ORDINARY_MUTATION_LANE_V1.to_owned()],
+            covered_lanes: vec![operation_lane.to_owned()],
             uncovered_lanes: Vec::new(),
             coverage_digest: manifest.coverage_digest,
         },
@@ -23929,6 +24286,296 @@ mod guarded_commit_tests {
                 Some("operation-1".to_owned()),
             ],
             "history rows join to the covered operation in the same commit"
+        );
+    }
+
+    #[test]
+    fn llp0163_writer_lane_coverage_is_explicit_and_asymmetric() {
+        use crate::commit_envelope::{OperationIssuanceV1, OperationCoverageManifestV1};
+
+        fn database_with_lanes(lanes: &[&str]) -> LocalDatabase {
+            let mut db = LocalDatabase::memory().expect("memory database");
+            db.apply_schema(schema()).expect("apply writer fixture schema");
+            let tx = db.conn.transaction().expect("coverage transaction");
+            let stream = auth_invalidation::ensure_data_version_stream_in(&tx)
+                .expect("initialize operation stream");
+            let mut covered_lanes = lanes
+                .iter()
+                .map(|lane| (*lane).to_owned())
+                .collect::<Vec<_>>();
+            covered_lanes.sort();
+            let mut writers = Vec::new();
+            if covered_lanes
+                .iter()
+                .any(|lane| lane == crate::operation_ledger::ORDINARY_MUTATION_LANE_V1)
+            {
+                writers.extend(
+                    crate::operation_ledger::ORDINARY_MUTATION_WRITERS_V1
+                        .iter()
+                        .map(|writer| (*writer).to_owned()),
+                );
+            }
+            if covered_lanes
+                .iter()
+                .any(|lane| lane == crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1)
+            {
+                writers.extend(
+                    crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1
+                        .iter()
+                        .map(|writer| (*writer).to_owned()),
+                );
+            }
+            writers.sort();
+            crate::operation_ledger::register_coverage_in(
+                &tx,
+                &OperationCoverageManifestV1 {
+                    schema_version: 1,
+                    manifest_version: 1,
+                    stream_id: stream.clone(),
+                    covered_lanes: covered_lanes.clone(),
+                    writer_choke_points: writers.clone(),
+                    coverage_digest: crate::operation_ledger::coverage_digest(
+                        &stream,
+                        1,
+                        &covered_lanes,
+                        &writers,
+                    ),
+                },
+                1,
+            )
+            .expect("register explicit coverage");
+            tx.commit().expect("coverage commit");
+            db
+        }
+
+        fn identity(issuance: OperationIssuanceV1) -> ClientMutationIdentity {
+            ClientMutationIdentity::new(
+                "operation-1",
+                "items.insert",
+                &HandlerInput::default(),
+            )
+            .with_operation_issuance(issuance)
+        }
+
+        fn client_identity() -> ClientMutationIdentity {
+            identity(OperationIssuanceV1::ClientRange {
+                epoch_id: "client-epoch".to_owned(),
+                counter: 0,
+                range_start: 0,
+                range_end_exclusive: 1,
+                authority_authenticator_digest: format!("sha256:{}", "c".repeat(64)),
+            })
+        }
+
+        fn host_identity() -> ClientMutationIdentity {
+            identity(OperationIssuanceV1::HostIncarnation {
+                epoch_id: "host-epoch".to_owned(),
+                upstream_identity: "job:fixture".to_owned(),
+                commit_ordinal: 0,
+                authority_authenticator_digest: format!("sha256:{}", "h".repeat(64)),
+            })
+        }
+
+        fn refusal_code(
+            db: &LocalDatabase,
+            lane: CoveredMutationLaneV1,
+            identity: Option<&ClientMutationIdentity>,
+        ) -> &'static str {
+            match require_covered_mutation_identity_for_lane(&db.conn, lane, identity)
+                .expect_err("covered lane must refuse this carrier")
+                .diagnostic
+                .code
+                .as_str()
+            {
+                "SNAPBACK_OPERATION_IDENTITY_REQUIRED" => {
+                    "SNAPBACK_OPERATION_IDENTITY_REQUIRED"
+                }
+                "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH" => {
+                    "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH"
+                }
+                other => panic!("unexpected writer-lane refusal {other}"),
+            }
+        }
+
+        let client = client_identity();
+        let host = host_identity();
+
+        let mut ordinary_only =
+            database_with_lanes(&[crate::operation_ledger::ORDINARY_MUTATION_LANE_V1]);
+        assert_eq!(
+            refusal_code(&ordinary_only, CoveredMutationLaneV1::Ordinary, None),
+            "SNAPBACK_OPERATION_IDENTITY_REQUIRED"
+        );
+        require_covered_mutation_identity_for_lane(
+            &ordinary_only.conn,
+            CoveredMutationLaneV1::HostChild,
+            None,
+        )
+        .expect("identityless uncovered host lane remains available");
+        require_covered_mutation_identity_for_lane(
+            &ordinary_only.conn,
+            CoveredMutationLaneV1::Ordinary,
+            Some(&client),
+        )
+        .expect("ordinary issuance matches ordinary-only coverage");
+        assert_eq!(
+            refusal_code(
+                &ordinary_only,
+                CoveredMutationLaneV1::Ordinary,
+                Some(&host),
+            ),
+            "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH"
+        );
+        let host_authority = TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID;
+        let host_issuance = ordinary_only
+            .host_operation_issuance(host_authority, "job:fixture", 0, now_millis())
+            .expect("server-recorded host incarnation");
+        let host_input = HandlerInput::default();
+        let host_for_hook = ClientMutationIdentity::for_authority(
+            crate::commit_envelope::derive_host_operation_id("job:fixture", 0),
+            "items.insert",
+            &host_input,
+            host_authority,
+        )
+        .with_operation_issuance(host_issuance);
+        assert_eq!(
+            ordinary_only
+                .execute_host_mutation_guarded(
+                    &insert_plan(),
+                    &host_input,
+                    Some(&host_for_hook),
+                    || Ok(()),
+                    || Ok(()),
+                )
+                .expect_err("ordinary-only manifest must reject a host envelope")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH"
+        );
+        assert_eq!(
+            ordinary_only
+                .conn
+                .query_row(
+                    "SELECT COUNT(*) FROM _snapback_commit_envelopes_v1",
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .expect("envelope count after manifest-lane refusal"),
+            0,
+            "manifest-lane refusal rolls back data and envelope together"
+        );
+
+        let host_only =
+            database_with_lanes(&[crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1]);
+        assert_eq!(
+            refusal_code(&host_only, CoveredMutationLaneV1::HostChild, None),
+            "SNAPBACK_OPERATION_IDENTITY_REQUIRED"
+        );
+        require_covered_mutation_identity_for_lane(
+            &host_only.conn,
+            CoveredMutationLaneV1::Ordinary,
+            None,
+        )
+        .expect("identityless uncovered ordinary lane remains available");
+        require_covered_mutation_identity_for_lane(
+            &host_only.conn,
+            CoveredMutationLaneV1::HostChild,
+            Some(&host),
+        )
+        .expect("host issuance matches host-only coverage");
+        assert_eq!(
+            refusal_code(
+                &host_only,
+                CoveredMutationLaneV1::HostChild,
+                Some(&client),
+            ),
+            "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH"
+        );
+
+        let mut both = database_with_lanes(&[
+            crate::operation_ledger::ORDINARY_MUTATION_LANE_V1,
+            crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1,
+        ]);
+        assert_eq!(
+            refusal_code(&both, CoveredMutationLaneV1::Ordinary, None),
+            "SNAPBACK_OPERATION_IDENTITY_REQUIRED"
+        );
+        assert_eq!(
+            refusal_code(&both, CoveredMutationLaneV1::HostChild, None),
+            "SNAPBACK_OPERATION_IDENTITY_REQUIRED"
+        );
+        require_covered_mutation_identity_for_lane(
+            &both.conn,
+            CoveredMutationLaneV1::Ordinary,
+            Some(&client),
+        )
+        .expect("ordinary issuance matches combined coverage");
+        require_covered_mutation_identity_for_lane(
+            &both.conn,
+            CoveredMutationLaneV1::HostChild,
+            Some(&host),
+        )
+        .expect("host issuance matches combined coverage");
+
+        let buffered_upstream = "job:buffered-fixture";
+        let buffered_issuance = both
+            .host_operation_issuance(
+                TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID,
+                buffered_upstream,
+                0,
+                now_millis(),
+            )
+            .expect("server-recorded buffered host incarnation");
+        let buffered_input = HandlerInput::default();
+        let buffered_identity = ClientMutationIdentity::for_authority(
+            crate::commit_envelope::derive_host_operation_id(buffered_upstream, 0),
+            "items.bufferedInsert",
+            &buffered_input,
+            TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID,
+        )
+        .with_operation_issuance(buffered_issuance);
+        let buffered_payload = BufferedCommitPayload {
+            writes: vec![BufferedWrite::Insert {
+                table: "items".to_owned(),
+                id: "host-buffered".to_owned(),
+                values: Map::from_iter([("title".to_owned(), json!("host buffered"))]),
+            }],
+            sequence_allocations: Vec::new(),
+            membership_plans: Vec::new(),
+            read_dependencies: Vec::new(),
+            result: json!("host buffered"),
+            ctx_ledger: CtxAnswerLedger::default(),
+            job_enqueues: Vec::new(),
+            job_producer: None,
+            asset_admissions: Vec::new(),
+        };
+        let first_buffered = both
+            .commit_buffered_host_writes_guarded(
+                &buffered_input,
+                buffered_payload.clone(),
+                Some(&buffered_identity),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("covered buffered host child commit");
+        assert_eq!(first_buffered.changes.len(), 1);
+        let replayed_buffered = both
+            .commit_buffered_host_writes_guarded(
+                &buffered_input,
+                buffered_payload,
+                Some(&buffered_identity),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect("buffered host child exact replay");
+        assert!(replayed_buffered.changes.is_empty());
+        let envelopes = both
+            .operation_envelopes_for_test()
+            .expect("retained buffered host envelope");
+        assert_eq!(envelopes.len(), 1);
+        assert_eq!(
+            envelopes[0].identity.key.originator_class,
+            crate::commit_envelope::OperationOriginatorClassV1::Host
         );
     }
 

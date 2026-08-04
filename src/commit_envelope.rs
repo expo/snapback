@@ -143,6 +143,35 @@ impl OperationIdentityV1 {
         }
     }
 
+    /// Widen an internally-authenticated mutation identity into the host
+    /// namespace. Callers must derive `identity.id` from the issuance's
+    /// upstream identity and ordinal before entering this constructor.
+    pub fn from_host_mutation(
+        stream_id: impl Into<String>,
+        audience: impl Into<String>,
+        issuance: OperationIssuanceV1,
+        identity: &ClientMutationIdentity,
+        operation_kind: impl Into<String>,
+    ) -> Self {
+        Self {
+            schema_version: Self::SCHEMA_VERSION,
+            key: OperationKeyV1 {
+                stream_id: stream_id.into(),
+                originator_class: OperationOriginatorClassV1::Host,
+                operation_id: identity.id.clone(),
+            },
+            issuance,
+            bound_facts: OperationBoundFactsV1 {
+                audience: audience.into(),
+                principal_fingerprint: identity.auth_fingerprint.clone(),
+                authority_instance_id: identity.authority_instance_id.clone(),
+                operation_kind: operation_kind.into(),
+                function_or_command: identity.function.clone(),
+                input_fingerprint: identity.input_fingerprint.clone(),
+            },
+        }
+    }
+
     pub fn compare(&self, proposed: &Self) -> OperationIdentityComparison {
         if self.key != proposed.key {
             OperationIdentityComparison::Novel

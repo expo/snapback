@@ -32,13 +32,26 @@ pub const CLIENT_IDENTITY_RANGE_WINDOW_MS_V1: u64 = 30 * 24 * 60 * 60 * 1_000;
 pub const HOST_RECEIPT_WINDOW_MS_V1: u64 = 24 * 60 * 60 * 1_000;
 pub const OPERATION_EXPLANATION_MAX_RESULTS_V1: usize = 100;
 pub const ORDINARY_MUTATION_LANE_V1: &str = "ordinaryMutation";
+pub const HOST_CHILD_MUTATION_LANE_V1: &str = "hostChildMutation";
 pub const ORDINARY_MUTATION_WRITERS_V1: [&str; 2] = [
     "LocalDatabase::execute_mutation_idempotent_guarded_with_settlement_time",
     "LocalDatabase::commit_buffered_writes_idempotent_guarded",
 ];
+pub const HOST_CHILD_MUTATION_WRITERS_V1: [&str; 2] = [
+    "LocalDatabase::execute_host_mutation_guarded_with_settlement_time",
+    "LocalDatabase::commit_buffered_host_writes_guarded",
+];
 
 const ORIGINATOR_CLIENT: &str = "client";
 const ORIGINATOR_HOST: &str = "host";
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct HostIncarnationAuthorityV1 {
+    pub audience: String,
+    pub authority_instance_id: String,
+    pub epoch_id: String,
+    pub authority_authenticator_digest: String,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum OperationLookupV1 {
@@ -356,6 +369,125 @@ pub fn register_epoch_in(tx: &Transaction<'_>, epoch: &IdentityEpochV1) -> Snapb
         ],
     )?;
     Ok(())
+}
+
+/// Ensure one durable range-less host epoch for the current storage/authority
+/// incarnation. Reopening the same instance reuses it; explicit incarnation
+/// rotation remains the only operation that retires it.
+///
+/// @ref LLP 0162#1-the-universal-commit-envelope — host identities are
+///   server-authenticated and derive from durable upstream identities.
+pub(crate) fn ensure_host_incarnation_in(
+    tx: &Transaction<'_>,
+    stream_id: &str,
+    authority_instance_id: &str,
+    issued_at_ms: u64,
+) -> SnapbackResult<HostIncarnationAuthorityV1> {
+    if stream_id.is_empty() || authority_instance_id.is_empty() {
+        return Err(invalid(
+            "host incarnation requires storage-stream and authority identities",
+        ));
+    }
+    let audience = digest_json(
+        b"snapback:host-operation-audience:v1\n",
+        &json!({
+            "authorityInstanceId": authority_instance_id,
+            "streamId": stream_id,
+        }),
+    );
+    let current: Option<(String, String)> = tx
+        .query_row(
+            "SELECT epoch_id,authenticator_digest
+               FROM _snapback_operation_epochs_v1
+              WHERE originator_class='host' AND audience=?1
+                AND authority_instance_id=?2 AND state='open'
+              ORDER BY epoch_sequence DESC LIMIT 1",
+            params![audience, authority_instance_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let (epoch_id, authority_authenticator_digest) = match current {
+        Some(current) => current,
+        None => {
+            let sequence: i64 = tx.query_row(
+                "SELECT COALESCE(MAX(epoch_sequence), -1) + 1
+                   FROM _snapback_operation_epochs_v1
+                  WHERE originator_class='host' AND audience=?1",
+                [&audience],
+                |row| row.get(0),
+            )?;
+            let sequence =
+                u64::try_from(sequence).map_err(|_| invalid("host epoch sequence overflowed"))?;
+            let epoch_id = crate::ids::mint_time_ordered(crate::ids::Kind::Opaque);
+            let authenticator = digest_json(
+                b"snapback:host-operation-authority:v1\n",
+                &json!({
+                    "audience": audience,
+                    "authorityInstanceId": authority_instance_id,
+                    "epochId": epoch_id,
+                    "epochSequence": sequence,
+                    "issuedAtMs": issued_at_ms,
+                    "streamId": stream_id,
+                }),
+            );
+            register_epoch_in(
+                tx,
+                &IdentityEpochV1 {
+                    schema_version: 1,
+                    originator_class: OperationOriginatorClassV1::Host,
+                    audience: audience.clone(),
+                    authority_instance_id: authority_instance_id.to_owned(),
+                    epoch_id: epoch_id.clone(),
+                    epoch_sequence: sequence,
+                    state: IdentityEpochStateV1::Open,
+                    issued_at_ms,
+                    terminated_at_ms: None,
+                    authority_authenticator_digest: authenticator.clone(),
+                },
+            )?;
+            (epoch_id, authenticator)
+        }
+    };
+    Ok(HostIncarnationAuthorityV1 {
+        audience,
+        authority_instance_id: authority_instance_id.to_owned(),
+        epoch_id,
+        authority_authenticator_digest,
+    })
+}
+
+pub(crate) fn resolve_host_incarnation_audience_in(
+    tx: &Transaction<'_>,
+    issuance: &OperationIssuanceV1,
+    authority_instance_id: &str,
+) -> SnapbackResult<String> {
+    let OperationIssuanceV1::HostIncarnation {
+        epoch_id,
+        authority_authenticator_digest,
+        ..
+    } = issuance
+    else {
+        return Err(invalid("host mutation requires host-incarnation issuance"));
+    };
+    tx.query_row(
+        "SELECT audience FROM _snapback_operation_epochs_v1
+          WHERE originator_class='host' AND epoch_id=?1
+            AND authority_instance_id=?2 AND authenticator_digest=?3
+            AND state='open'",
+        params![
+            epoch_id,
+            authority_instance_id,
+            authority_authenticator_digest
+        ],
+        |row| row.get(0),
+    )
+    .optional()?
+    .ok_or_else(|| {
+        refused(
+            "SNAPBACK_OPERATION_ISSUANCE_AUTH_INVALID",
+            "host operation issuance does not resolve to a live server-recorded incarnation",
+        )
+    })
 }
 
 /// Rotate the server's host incarnation as one durable state transition. The
