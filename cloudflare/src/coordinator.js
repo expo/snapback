@@ -11,9 +11,11 @@
 // A committed mutation allocates the next version and writes all affected rows
 // plus the journal append in ONE `storage.transactionSync`, so LLP 0007's
 // gap-free visibility holds by construction (LLP 0040 §Version contract). The
-// live path pushes from that commit, never from a timer — the object uses no
-// setTimeout/setInterval, so it can hibernate while holding live sockets
-// (LLP 0040 §Idle economics).
+// live path pushes from that commit, never from polling. The normal network
+// profile adds no timer, so the object can hibernate while holding live
+// sockets (LLP 0040 §Idle economics). LLP 0167 non-normal profiles are the
+// explicit exception: a waitUntil-anchored deadline timer keeps the object
+// active for at most 30 seconds, then hibernation eligibility returns.
 //
 // Durable Objects interleave requests at await points, and the handler seam is
 // an await — so every invocation-bearing entry point (query, mutation,
@@ -36,6 +38,14 @@ import { nextNominalAfter } from './cron-utils.js';
 import { SUBSCRIPTION_LIMITS, SUBSCRIPTION_TEST_CEILINGS } from './limits.js';
 import { compileSubscriptionSelections, SUBSCRIPTION_FUNCTION_INDEX } from './subscription-selection.js';
 import { wireDiagnostic } from './wire-diagnostic.js';
+import {
+  NetworkProfileState,
+  markProfiledResponse,
+  networkProfileClockNowMs,
+  networkProfileStartupDiagnostic,
+  networkProfileStatus,
+  parseNetworkProfile,
+} from './network-profile.js';
 import {
   DEFAULT_MAX_PENDING_INVOCATIONS,
   classifyHandlerPlatformFailure,
@@ -313,7 +323,19 @@ export class Coordinator {
     this.rqsFactsCache = new Map();
     this.rqsBundleRateWindow = [];
     this.testSocketLimitOverrides = null;
+    // Runtime selections are deliberately in-memory. A DO reconstruction —
+    // including eviction or WebSocket hibernation wake — is this arm's
+    // definition of restart: the env profile is re-applied and an API-set
+    // override disappears. GET/health plus response markers make that
+    // reversion observable instead of silently pretending the override is
+    // durable (LLP 0167, Fable round-3 finding 5).
+    this.networkProfiles = new NetworkProfileState(env);
+    this.liveDeliveryTails = new Map();
+    this.liveReleaseDeadlineByConnection = new Map();
     this.initializeSchema();
+    if (!this.startupError && this.networkProfiles.startupError) {
+      this.startupError = networkProfileStartupDiagnostic(this.networkProfiles.startupError);
+    }
     // Hibernated sockets survive Worker deployments. Reconcile pre-cap state
     // at construction as well as on HTTP requests so a socket-originated wake
     // cannot keep an old over-limit registry alive indefinitely.
@@ -359,6 +381,109 @@ export class Coordinator {
     return run.finally(() => {
       this.pendingInvocations -= 1;
       if (this.invocationTail === settled) this.invocationTail = null;
+    });
+  }
+
+  preparedResponse(response, egress = null, fanOut = []) {
+    return { preparedNetworkEgress: true, response, egress, fanOut };
+  }
+
+  prepareResultResponse(response, lane, readyAtMs = networkProfileClockNowMs()) {
+    return this.preparedResponse(response, this.networkProfiles.admitResult(lane, readyAtMs));
+  }
+
+  async waitForRelease(deadlineMs) {
+    const remainingMs = deadlineMs - networkProfileClockNowMs();
+    if (remainingMs <= 0) return;
+    // The wait is attached to DurableObjectState.waitUntil by the outer
+    // release layer. A pending <=30 s timer intentionally keeps the object
+    // active and therefore temporarily ineligible for hibernation; once the
+    // deadline releases, no timer remains and normal hibernation resumes.
+    // This is the explicit delivery contract missing from floating work in
+    // ENG-23576 (LLP 0167, Fable round-3 finding 1).
+    await new Promise((resolve) => setTimeout(resolve, remainingMs));
+  }
+
+  reserveLiveDelivery(member, encoded, egress) {
+    const connectionId = member.connectionId;
+    let clampedEgress = egress;
+    if (egress) {
+      const predecessor = this.liveReleaseDeadlineByConnection.get(connectionId);
+      const releaseAtMs = Math.max(egress.releaseAtMs, predecessor ?? 0);
+      this.liveReleaseDeadlineByConnection.set(connectionId, releaseAtMs);
+      clampedEgress = Object.freeze({ snapshot: egress.snapshot, releaseAtMs });
+    }
+
+    // Reserve FIFO position while still under the serialized preparation
+    // phase, but do not start wall-clock waiting. The activation promise is
+    // resolved only by the outer release layer after runExclusive settles.
+    const predecessor = this.liveDeliveryTails.get(connectionId) || Promise.resolve();
+    let activate;
+    const activation = new Promise((resolve) => { activate = resolve; });
+    const delivery = predecessor
+      .then(() => activation)
+      .then(async () => {
+        if (clampedEgress) await this.waitForRelease(clampedEgress.releaseAtMs);
+        // Per-member isolation: one dead hibernation socket must not suppress
+        // delivery to the remainder of the fan-out group.
+        if (!this.currentFanOutMembers([member]).length) return;
+        try {
+          if (this.testFanOutSendFailuresRemaining > 0) {
+            this.testFanOutSendFailuresRemaining -= 1;
+            throw codedError('SNAPBACK_TEST_FANOUT_SEND_FAILED', 'injected fan-out send failure');
+          }
+          member.ws.send(encoded);
+        } catch (_) {
+          this.recordFanOutFailure('SNAPBACK_LIVE_FANOUT_SEND_FAILED');
+          closeSocketWithDiagnostic(member.ws, 1011, 'SNAPBACK_LIVE_FANOUT_SEND_FAILED');
+        }
+      });
+    this.liveDeliveryTails.set(connectionId, delivery);
+    const cleanup = () => {
+      if (this.liveDeliveryTails.get(connectionId) === delivery) {
+        this.liveDeliveryTails.delete(connectionId);
+        this.liveReleaseDeadlineByConnection.delete(connectionId);
+      }
+    };
+    delivery.then(cleanup, cleanup);
+    return { activate, delivery, profiled: clampedEgress !== null };
+  }
+
+  activatePreparedFanOut(reservations) {
+    if (!Array.isArray(reservations) || reservations.length === 0) return Promise.resolve();
+    for (const reservation of reservations) reservation.activate();
+    const delivery = Promise.all(reservations.map((reservation) => reservation.delivery)).then(() => undefined);
+    // Anchoring is mandatory even when the HTTP response returns first. This
+    // is the real-Workers delivery contract; the wait itself begins only
+    // after the serialized phase handed the carrier to this outer layer.
+    this.ctx.waitUntil(delivery);
+    return delivery;
+  }
+
+  async releasePrepared(value) {
+    if (!value || value.preparedNetworkEgress !== true) return value;
+    const delivery = this.activatePreparedFanOut(value.fanOut);
+    if (value.egress) {
+      // Ack and fan-out are released independently against absolute
+      // commit-relative deadlines. Never await fan-out before starting the
+      // ack wait, or the ack delay would stack behind the live lane.
+      await this.waitForRelease(value.egress.releaseAtMs);
+      return markProfiledResponse(value.response, value.egress);
+    }
+    // Preserve the pre-profile normal contract that fan-out settles before
+    // its mutation response, while still keeping physical sends outside the
+    // coordinator mutex.
+    await delivery;
+    return value.response;
+  }
+
+  networkProfileErrorResponse(error) {
+    return json(networkProfileStatus(error), {
+      diagnostic: wireDiagnostic(
+        error.snapbackCode || 'SNAPBACK_NETWORK_PROFILE_INVALID',
+        String(error.message || error),
+        error.snapbackDetails ?? null,
+      ),
     });
   }
 
@@ -1440,7 +1565,8 @@ export class Coordinator {
       path !== '/_snapback/test/schema-hardening' &&
       path !== '/_snapback/test/connection-state' &&
       path !== '/_snapback/test/socket-limit-upgrade' &&
-      path !== '/_snapback/api/config/status'
+      path !== '/_snapback/api/config/status' &&
+      path !== '/_snapback/api/debug/network-profile'
     ) {
       // Kit routes carry the closed ErrorResponse; the proof/system lanes
       // keep the pinned {ok:false, code, message, details} refusal shape.
@@ -1451,6 +1577,18 @@ export class Coordinator {
     }
     if (path === '/_snapback/api/config/status') {
       return this.adminReadGated(request, () => this.configStatus());
+    }
+    if (path === '/_snapback/api/debug/network-profile') {
+      if (request.method === 'GET') {
+        return this.adminReadGated(request, () => json(200, this.networkProfiles.active()));
+      }
+      return this.adminGated(request, () => this.withJsonValue(request, (selection) => {
+        try {
+          return json(200, this.networkProfiles.activate(parseNetworkProfile(selection), 'api'));
+        } catch (error) {
+          return this.networkProfileErrorResponse(error);
+        }
+      }), 'PUT');
     }
     if (path === '/_snapback/api/cron/status') {
       return this.cronStatus(request);
@@ -1485,6 +1623,7 @@ export class Coordinator {
             actionHandler: Boolean(this.env.ACTION_HANDLER),
           },
           workerVersion: workerVersionMetadata(this.env),
+          networkProfile: this.networkProfiles.active(),
         });
       }
       return json(200, {
@@ -1502,6 +1641,7 @@ export class Coordinator {
           actionHandler: Boolean(this.env.ACTION_HANDLER),
         },
         workerVersion: workerVersionMetadata(this.env),
+        networkProfile: this.networkProfiles.active(),
       });
     }
     if (path === '/_snapback/api/app/reset') {
@@ -1817,10 +1957,18 @@ export class Coordinator {
       return this.withJsonObject(request, (payload) => this.runExclusive(() => this.appBundle(payload)), KIT_PARSE);
     }
     if (path === '/query') {
-      return this.withJsonObject(request, (payload) => this.runExclusive(() => this.handleQuery(payload)));
+      return this.withProfiledJsonObject(
+        request,
+        'queryResponse',
+        (payload) => this.runExclusive(() => this.handleQuery(payload)),
+      );
     }
     if (path === '/mutation') {
-      return this.withJsonObject(request, (payload) => this.runExclusive(() => this.handleMutation(payload)));
+      return this.withProfiledJsonObject(
+        request,
+        'mutationAck',
+        (payload) => this.runExclusive(() => this.handleMutation(payload)),
+      );
     }
     if (path === '/live/stream') {
       return this.acceptLiveSocket(request);
@@ -1835,11 +1983,21 @@ export class Coordinator {
     {
       const kitQuery = path.match(/^\/query\/([A-Za-z0-9_-]+)$/);
       if (kitQuery) {
-        return this.withJsonObject(request, (payload) => this.runExclusive(() => this.kitQuery(kitQuery[1], payload)), KIT_PARSE);
+        return this.withProfiledJsonObject(
+          request,
+          'queryResponse',
+          (payload) => this.runExclusive(() => this.kitQuery(kitQuery[1], payload)),
+          KIT_PARSE,
+        );
       }
       const kitMutation = path.match(/^\/mutation\/([A-Za-z0-9_-]+)$/);
       if (kitMutation) {
-        return this.withJsonObject(request, (payload) => this.runExclusive(() => this.kitMutation(kitMutation[1], payload)), KIT_PARSE);
+        return this.withProfiledJsonObject(
+          request,
+          'mutationAck',
+          (payload) => this.runExclusive(() => this.kitMutation(kitMutation[1], payload)),
+          KIT_PARSE,
+        );
       }
       // The generated client.action transport (LLP 0049 Phase 2). NOT wrapped
       // in runExclusive: executeAction stages under the mutex, runs the
@@ -1867,10 +2025,10 @@ export class Coordinator {
       }
       const kitSubscribe = path.match(/^\/live\/([A-Za-z0-9_-]+)\/subscribe$/);
       if (kitSubscribe) {
-        return this.withJsonObject(request, (payload) => {
+        return this.withJsonObject(request, async (payload) => {
           const denied = this.verifyConnection(payload.connection_id, request.headers.get('x-snapback-connection-token'));
           if (denied) return denied;
-          return this.runExclusive(() => this.kitSubscribe(kitSubscribe[1], payload));
+          return this.releasePrepared(await this.runExclusive(() => this.kitSubscribe(kitSubscribe[1], payload)));
         }, KIT_PARSE);
       }
       const kitUnsubscribe = path.match(/^\/live\/([A-Za-z0-9_-]+)\/unsubscribe$/);
@@ -1906,6 +2064,10 @@ export class Coordinator {
       return this.adminGated(request, () =>
         this.runExclusive(() => {
           this.activeInvocations.clear();
+          // Match a real DO reconstruction for LLP 0167 runtime selection:
+          // eviction/hibernation wake reapplies the deployment env and clears
+          // an API override. Durable app/subscription state remains intact.
+          this.networkProfiles = new NetworkProfileState(this.env);
           return json(200, { evicted: true });
         })
       );
@@ -1916,9 +2078,9 @@ export class Coordinator {
   // The shared-secret gate for the destructive admin endpoints, the same
   // pattern /_snapback/host-call uses for its per-invocation token (ENG-23587). Fails
   // closed: no configured token means no admin surface at all.
-  adminGated(request, run) {
-    if (request.method !== 'POST') {
-      return json(405, { ok: false, code: 'SNAPBACK_ADMIN_METHOD_NOT_ALLOWED', message: 'admin endpoints are POST-only' });
+  adminGated(request, run, expectedMethod = 'POST') {
+    if (request.method !== expectedMethod) {
+      return json(405, { ok: false, code: 'SNAPBACK_ADMIN_METHOD_NOT_ALLOWED', message: `admin endpoint requires ${expectedMethod}` });
     }
     const expected = this.env.SNAPBACK_ADMIN_TOKEN;
     if (typeof expected !== 'string' || expected.length === 0) {
@@ -1972,6 +2134,24 @@ export class Coordinator {
 
   async withJsonObject(request, run, options = {}) {
     const parsed = await parseJsonObjectRequest(request, options);
+    if (!parsed.ok) return parsed.response;
+    return run(parsed.value);
+  }
+
+  async withProfiledJsonObject(request, lane, run, options = {}) {
+    const parsed = await parseJsonObjectRequest(request, options);
+    if (!parsed.ok) {
+      return this.releasePrepared(this.prepareResultResponse(parsed.response, lane));
+    }
+    const result = await run(parsed.value);
+    const prepared = result?.preparedNetworkEgress === true
+      ? result
+      : this.prepareResultResponse(result, lane);
+    return this.releasePrepared(prepared);
+  }
+
+  async withJsonValue(request, run) {
+    const parsed = await parseJsonObjectRequest(request, { allowAny: true });
     if (!parsed.ok) return parsed.response;
     return run(parsed.value);
   }
@@ -2346,14 +2526,17 @@ export class Coordinator {
     }
     const result = await this.invokeHandler(name, 'mutation', args);
     if (!result.ok) return { ok: false, code: result.code, message: result.message };
-    // Deterministic test seam for the watchdog/commit race: hold a completed
-    // nested mutation immediately before its synchronous commit boundary.
+    // OQ4 proposed ruling, kept leg: this is a deterministic, internal
+    // test-only micro-seam for the watchdog/commit race, not an LLP 0167
+    // egress profile. It holds a completed nested mutation immediately before
+    // its synchronous commit boundary. Preserve its clamp-style seam
+    // convention, now under the same 30,000 ms safety ceiling as profiles.
     // Production has no delay; the abandonment recheck below is the rule.
     const testDelayMs = this.env.SNAPBACK_TESTING === '1'
       ? Number(this.env.SNAPBACK_TEST_NESTED_COMMIT_DELAY_MS)
       : 0;
     if (Number.isFinite(testDelayMs) && testDelayMs > 0) {
-      await new Promise((resolve) => setTimeout(resolve, testDelayMs));
+      await new Promise((resolve) => setTimeout(resolve, Math.min(Math.floor(testDelayMs), 30_000)));
     }
     // This check and commit execute in the same runExclusive critical
     // section with no await between them. If the parent watchdog won while
@@ -2376,8 +2559,16 @@ export class Coordinator {
           );
         }
       : null);
-    await this.fanOut(commit);
-    return { ok: true, value: result.value };
+    const commitEgress = commit.committedAtMs == null
+      ? null
+      : this.networkProfiles.admitCommit(commit.committedAtMs);
+    const preparedFanOut = await this.prepareFanOut(commit, commitEgress);
+    return {
+      ok: true,
+      value: result.value,
+      preparedFanOut,
+      profiledFanOut: commitEgress !== null,
+    };
   }
 
   // @ref LLP 0076#target-contract — the Cloudflare adapter owns response
@@ -3664,8 +3855,8 @@ export class Coordinator {
       // never stalls queries, mutations, or live pushes on this object.
       runMutation:
         mode === 'action'
-          ? (name, mutationArgs) =>
-              this.runExclusive(() => {
+          ? async (name, mutationArgs) => {
+              const outcome = await this.runExclusive(() => {
                 if (
                   options.trigger === 'scheduled' &&
                   this.env.SNAPBACK_TESTING === '1' &&
@@ -3686,7 +3877,15 @@ export class Coordinator {
                   actionIdempotencyKey,
                   sequence,
                 });
-              })
+              });
+              const delivery = this.activatePreparedFanOut(outcome.preparedFanOut || []);
+              // Normal keeps the old awaited-fanout contract. Under an active
+              // profile, live release is waitUntil-anchored and the internal
+              // host-call result does not queue behind observation latency.
+              if (!outcome.profiledFanOut) await delivery;
+              const { preparedFanOut: _prepared, profiledFanOut: _profiled, ...publicOutcome } = outcome;
+              return publicOutcome;
+            }
           : null,
       hostFetch: mode === 'action' ? (request) => this.hostActionFetch(request, grants.capabilities, control) : null,
       hostStreams,
@@ -3830,22 +4029,37 @@ export class Coordinator {
 
   async handleQuery(payload) {
     const result = await this.invokeHandler(payload.name, 'query', payload.args);
-    if (!result.ok) return json(result.code === 'SNAPBACK_FUNCTION_KIND_MISMATCH' ? 400 : 200, failure(result));
-    return json(200, { ok: true, version: result.observedVersion ?? this.currentVersion(), rows: result.value });
+    const response = !result.ok
+      ? json(result.code === 'SNAPBACK_FUNCTION_KIND_MISMATCH' ? 400 : 200, failure(result))
+      : json(200, { ok: true, version: result.observedVersion ?? this.currentVersion(), rows: result.value });
+    return this.prepareResultResponse(response, 'queryResponse');
   }
 
   // --- mutation + commit -------------------------------------------------
 
   async handleMutation(payload) {
     const result = await this.invokeHandler(payload.name, 'mutation', payload.args);
-    if (!result.ok) return json(result.code === 'SNAPBACK_FUNCTION_KIND_MISMATCH' ? 400 : 200, failure(result));
+    if (!result.ok) {
+      return this.prepareResultResponse(
+        json(result.code === 'SNAPBACK_FUNCTION_KIND_MISMATCH' ? 400 : 200, failure(result)),
+        'mutationAck',
+      );
+    }
     const commit = this.commit(result.host);
-    // Push from the commit path — no timer, no polling (LLP 0040 §Version
-    // contract). Rehydrates subscriptions from storage first, so a woken or
-    // freshly-evicted object still delivers. Awaited: floating work after the
-    // response is not a delivery contract on real Workers (ENG-23576).
-    await this.fanOut(commit);
-    return json(200, { ok: true, version: commit.version, changedCount: commit.changes.length, result: result.value });
+    const commitEgress = commit.committedAtMs == null
+      ? null
+      : this.networkProfiles.admitCommit(commit.committedAtMs);
+    const fanOut = await this.prepareFanOut(commit, commitEgress);
+    const response = json(200, {
+      ok: true,
+      version: commit.version,
+      changedCount: commit.changes.length,
+      result: result.value,
+    });
+    const ackEgress = commit.committedAtMs == null
+      ? this.networkProfiles.admitResult('mutationAck')
+      : commitEgress?.forLane('mutationAck') ?? null;
+    return this.preparedResponse(response, ackEgress, fanOut);
   }
 
   // Version allocation + row writes + journal append as ONE local
@@ -3856,7 +4070,7 @@ export class Coordinator {
   // src/storage.rs (ENG-23583).
   commit(host, transactionTail = null) {
     if (host.writes.length === 0 && typeof transactionTail !== 'function') {
-      return { version: this.currentVersion(), changes: [] };
+      return { version: this.currentVersion(), changes: [], committedAtMs: null };
     }
     const nowMs = Date.now();
     const currentVersion = this.currentVersion();
@@ -3908,7 +4122,13 @@ export class Coordinator {
         transactionTail({ version: changes.length > 0 ? nextVersion : currentVersion, changes });
       }
     });
-    return { version: changes.length > 0 ? nextVersion : currentVersion, changes };
+    return {
+      version: changes.length > 0 ? nextVersion : currentVersion,
+      changes,
+      // A changeset-free success is commitless and therefore uses result
+      // readiness as its mutation-ack basis (LLP 0167 observation semantics).
+      committedAtMs: changes.length > 0 ? networkProfileClockNowMs() : null,
+    };
   }
 
   serializeRow(table, row) {
@@ -4140,14 +4360,6 @@ export class Coordinator {
         overLimitConnections: overConnection.map(([connectionId, count]) => ({ connectionId, count })),
       }
     );
-  }
-
-  async testSubscriptionStageDelay() {
-    if (this.env.SNAPBACK_TESTING !== '1') return;
-    const delayMs = Number(this.env.SNAPBACK_TEST_SUBSCRIPTION_STAGE_DELAY_MS);
-    if (Number.isFinite(delayMs) && delayMs > 0) {
-      await new Promise((resolve) => setTimeout(resolve, Math.min(delayMs, 1000)));
-    }
   }
 
   subscriptionAdmission({ connectionId, functionName, argsJson, supersedes = null, socketSessionId = null }) {
@@ -4609,8 +4821,10 @@ export class Coordinator {
   // POST /query/:name — the kit's QueryOutput shape { version, rows }.
   async kitQuery(name, payload) {
     const result = await this.invokeHandler(name, 'query', (payload && payload.args) || {});
-    if (!result.ok) return kitFailure(result);
-    return json(200, { version: result.observedVersion ?? this.currentVersion(), rows: result.value });
+    const response = !result.ok
+      ? kitFailure(result)
+      : json(200, { version: result.observedVersion ?? this.currentVersion(), rows: result.value });
+    return this.prepareResultResponse(response, 'queryResponse');
   }
 
   // POST /mutation/:name — the committed MutationResponse envelope
@@ -4629,9 +4843,12 @@ export class Coordinator {
     // an already-committed mutation into an ambiguous missing response.
     const authorityDescriptor = this.authorityDescriptor();
     const result = await this.invokeHandler(name, 'mutation', (payload && payload.args) || {});
-    if (!result.ok) return kitFailure(result);
+    if (!result.ok) return this.prepareResultResponse(kitFailure(result), 'mutationAck');
     const commit = this.commit(result.host);
-    await this.fanOut(commit);
+    const commitEgress = commit.committedAtMs == null
+      ? null
+      : this.networkProfiles.admitCommit(commit.committedAtMs);
+    const fanOut = await this.prepareFanOut(commit, commitEgress);
     const fn = this.functionByName(name);
     const declaredTables =
       fn && Array.isArray(fn.tables) && fn.tables.length > 0 ? [...fn.tables] : null;
@@ -4647,13 +4864,17 @@ export class Coordinator {
       correlation: payload && payload.correlation !== undefined ? payload.correlation : null,
       receivedAtMs,
     };
-    return json(200, {
+    const response = json(200, {
       version: commit.version,
       changed_count: commit.changes.length,
       result: result.value,
       authorityDescriptor,
       receipt,
     });
+    const ackEgress = commit.committedAtMs == null
+      ? this.networkProfiles.admitResult('mutationAck')
+      : commitEgress?.forLane('mutationAck') ?? null;
+    return this.preparedResponse(response, ackEgress, fanOut);
   }
 
   // POST /live/:name/subscribe — snapshot-with-subscribe under the invocation
@@ -4690,7 +4911,6 @@ export class Coordinator {
     if (!admission.ok) {
       return kitError(admission.status, admission.code, admission.message, admission.details);
     }
-    await this.testSubscriptionStageDelay();
     const result = await this.invokeHandler(name, 'query', args);
     if (!result.ok) return kitFailure(result);
     if (this.currentSocketSession(connectionId) !== socketSessionId) {
@@ -4738,16 +4958,16 @@ export class Coordinator {
           }
         } catch (_) {}
       }
-      return json(200, {
+      return this.preparedResponse(json(200, {
         subscription_id: persisted.subscriptionId,
         snapshot: null,
         current_as_of: { version, resume: decision.resume },
         permission_epochs: {},
         ...(persisted.superseded ? { superseded: persisted.superseded } : {}),
         ...(persisted.supersessionRefusal ? { supersessionRefusal: persisted.supersessionRefusal } : {}),
-      });
+      }), this.networkProfiles.admitTestSubscriptionStage());
     }
-    return json(200, {
+    return this.preparedResponse(json(200, {
       subscription_id: persisted.subscriptionId,
       snapshot: { version, rows: result.value },
       permission_epochs: {},
@@ -4755,7 +4975,7 @@ export class Coordinator {
       ...(decision.refusalCode ? { resumeRefusal: decision.refusalCode } : {}),
       ...(persisted.superseded ? { superseded: persisted.superseded } : {}),
       ...(persisted.supersessionRefusal ? { supersessionRefusal: persisted.supersessionRefusal } : {}),
-    });
+    }), this.networkProfiles.admitTestSubscriptionStage());
   }
 
   async kitUnsubscribe(payload) {
@@ -5214,14 +5434,14 @@ export class Coordinator {
     );
   }
 
-  // Fan out a commit to affected subscriptions. Rehydrates from storage
-  // (never an in-memory registry), re-runs each subscription's query, and
-  // pushes a live_replace tagged with the new version — a re-query fallback
-  // that is correct across eviction because the registry is durable. Awaited
-  // by the mutation path: every push settles (or records its failure) before
-  // the mutation response returns (ENG-23576).
-  async fanOut(commit) {
-    if (commit.changes.length === 0) return;
+  // Prepare fan-out under the coordinator serialization authority: rehydrate
+  // durable subscriptions, re-run each query, serialize immutable frames,
+  // stamp the commit-relative live deadline, and reserve per-connection FIFO
+  // position. Physical waits and sends happen only after runExclusive returns.
+  // @ref LLP 0167#observation-semantics--what-a-delay-means — two-phase
+  //   release keeps observation latency out of commit admission.
+  async prepareFanOut(commit, commitEgress) {
+    if (commit.changes.length === 0) return [];
     // @ref LLP 0008#realtime-delivery — post-commit positive-data loss tears
     // down the affected socket and recovers through a fresh reconnect snapshot.
     try {
@@ -5251,7 +5471,7 @@ export class Coordinator {
       }
       const subs = [];
       const affectedNames = [...affectedFunctions];
-      if (affectedNames.length === 0) return;
+      if (affectedNames.length === 0) return [];
       for (const selection of compileSubscriptionSelections(affectedNames)) {
         for (const record of this.sql.exec(selection.sql, ...selection.params)) {
           subs.push(record);
@@ -5285,9 +5505,9 @@ export class Coordinator {
         // A woken object may have no live HostContext; re-run the query through
         // a fresh query invocation and share the result across identical
         // subscription shapes.
-        pushes.push(this.pushReplaceGroup(group));
+        pushes.push(this.prepareReplaceGroup(group, commitEgress?.forLane('liveDelta') ?? null));
       }
-      await Promise.all(pushes);
+      return (await Promise.all(pushes)).flat();
     } catch (_) {
       try { this.recordFanOutFailure('SNAPBACK_LIVE_FANOUT_INTERNAL_FAILED'); } catch (_) {}
       try {
@@ -5295,10 +5515,11 @@ export class Coordinator {
           closeSocketWithDiagnostic(ws, 1011, 'SNAPBACK_LIVE_FANOUT_INTERNAL_FAILED');
         }
       } catch (_) {}
+      return [];
     }
   }
 
-  async pushReplaceGroup(group) {
+  async prepareReplaceGroup(group, liveEgress) {
     let result;
     try {
       if (this.testFanOutQueryFailuresRemaining > 0) {
@@ -5308,11 +5529,11 @@ export class Coordinator {
       result = await this.invokeHandler(group.functionName, 'query', JSON.parse(group.argsJson));
     } catch (_) {
       this.recoverFanOutGroup(group, 'SNAPBACK_LIVE_FANOUT_QUERY_FAILED');
-      return;
+      return [];
     }
     if (!result.ok) {
       this.recoverFanOutGroup(group, 'SNAPBACK_LIVE_FANOUT_QUERY_FAILED');
-      return;
+      return [];
     }
 
     const version = result.observedVersion ?? this.currentVersion();
@@ -5363,24 +5584,10 @@ export class Coordinator {
       });
     } catch (_) {
       this.recoverFanOutGroup(group, 'SNAPBACK_LIVE_FANOUT_SERIALIZATION_FAILED');
-      return;
+      return [];
     }
-
-    for (const { member, encoded } of encodedMembers) {
-      // Per-member isolation: one dead socket (a hibernation socket can race
-      // its close event) must not suppress delivery to the rest of the group.
-      if (!this.currentFanOutMembers([member]).length) continue;
-      try {
-        if (this.testFanOutSendFailuresRemaining > 0) {
-          this.testFanOutSendFailuresRemaining -= 1;
-          throw codedError('SNAPBACK_TEST_FANOUT_SEND_FAILED', 'injected fan-out send failure');
-        }
-        member.ws.send(encoded);
-      } catch (_) {
-        this.recordFanOutFailure('SNAPBACK_LIVE_FANOUT_SEND_FAILED');
-        closeSocketWithDiagnostic(member.ws, 1011, 'SNAPBACK_LIVE_FANOUT_SEND_FAILED');
-      }
-    }
+    return encodedMembers.map(({ member, encoded }) =>
+      this.reserveLiveDelivery(member, encoded, liveEgress));
   }
 
   currentFanOutMembers(members) {
@@ -5955,7 +6162,7 @@ function requestDiagnostic(status, code, message, details = null) {
   return json(status, { ok: false, code, message, diagnostic });
 }
 
-async function parseJsonObjectRequest(request, { allowEmpty = false, errorDialect = 'proof' } = {}) {
+async function parseJsonObjectRequest(request, { allowEmpty = false, allowAny = false, errorDialect = 'proof' } = {}) {
   // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 7: kit-route parse refusals emit the closed
   //   ErrorResponse; the LLP 0040 proof/system lanes keep their pinned
   //   {ok, code, message, diagnostic} shape.
@@ -6038,7 +6245,7 @@ async function parseJsonObjectRequest(request, { allowEmpty = false, errorDialec
       response: refuse(400, 'SNAPBACK_JSON_INVALID', 'request body is not valid JSON'),
     };
   }
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+  if (!allowAny && (!value || typeof value !== 'object' || Array.isArray(value))) {
     return {
       ok: false,
       response: refuse(400, 'SNAPBACK_JSON_OBJECT_REQUIRED', 'request body must be a JSON object'),
