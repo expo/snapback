@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "03008ecff826e7bbc3949ec5d446900c2e7e87d4"
+    "commit": "3177e371f108ea243599bde01415cb54af322fc6"
   },
   "nav": {
     ".": [
@@ -1135,6 +1135,7 @@
         "llp/0135-sequence-allocation-and-snapshot-batch.spec.md",
         "llp/0157-composition-algebra-and-completeness.spec.md",
         "llp/0110-bounded-children-and-activity-patterns.spec.md",
+        "llp/0166-local-persistent-store.spec.md",
         "src/manifest.rs",
         "src/local.rs",
         "src/snapshot_batch_cursor.rs",
@@ -1143,9 +1144,9 @@
       "examples": [
         "packages/snapback-codegen/relation-activity-authoring.test.mjs"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "f6da84e4457d81f26168255d1983721bf0fee1e65cd375267240e4028cded141",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "HEAD",
+      "sha256": "f2ce9ea37472289241cb5f0fb751f258ed809287d1dee050577b541ec92cae49",
       "snippets": [
         {
           "lang": "js",
@@ -1176,6 +1177,8 @@
         "llp/0100-membership-addressed-operations-and-pages.rfc.md",
         "llp/0110-bounded-children-and-activity-patterns.spec.md",
         "llp/0113-qualification-and-publication-authority.spec.md",
+        "llp/0157-composition-algebra-and-completeness.spec.md",
+        "llp/0166-local-persistent-store.spec.md",
         "packages/snapback-codegen/standard-patterns.mjs",
         "packages/snapback-codegen/define.mjs"
       ],
@@ -1183,9 +1186,9 @@
         "packages/snapback-codegen/standard-patterns.test.mjs",
         "packages/snapback-codegen/relation-activity-authoring.test.mjs"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "566ba65d8ae1a27271faf687a162d8a026143bf7427e0511f72edf18fa2447ef",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "HEAD",
+      "sha256": "1c5d66ddbb23daea2b36731d9b2b3a5b767d5c794115dc28b41fc4ae5ca39136",
       "snippets": [
         {
           "lang": "js",
@@ -1438,9 +1441,9 @@
         "packages/snapback-react/index.mjs"
       ],
       "examples": [],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "37ed952672d43abdfede88a9d51a76e04a11da5b",
-      "sha256": "3f7e118d6be7ac310c352bebcc68af4323ead8ed6993d402e750652f26b17a2f",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "HEAD",
+      "sha256": "4fd954c251487556d707fd39633ec7af011d690a05a41818ee61e9a810e1b7c5",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2471,6 +2474,7 @@
         "llp/0090-resumable-query-snapshots.rfc.md",
         "llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md",
         "llp/0157-composition-algebra-and-completeness.spec.md",
+        "llp/0166-local-persistent-store.spec.md",
         "packages/snapback-client/index.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-codegen/index.mjs",
@@ -2480,9 +2484,9 @@
       "examples": [
         "demos/public-dashboard"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "dbd8e4f0b3d7723aa34a09c95595a2aa8440a8be8dcd833fe0b9be264dc82cd2",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "HEAD",
+      "sha256": "110621f80326afdae3c86dbaff05125fb2e85705a80a43f720bcbc27a2730c97",
       "snippets": [
         {
           "lang": "js",
@@ -2709,6 +2713,7 @@
       ],
       "maturity": "partial",
       "capabilities": [
+        "backend.single-table-v1",
         "sync.offline",
         "sync.offline-js-arm",
         "sync.local-persistent-store"
@@ -2718,10 +2723,13 @@
         "llp/0052-contract-update-economy-and-host-state.rfc.md",
         "llp/0055-agent-principals-and-scoped-grants.rfc.md",
         "llp/0090-resumable-query-snapshots.rfc.md",
+        "llp/0110-bounded-children-and-activity-patterns.spec.md",
         "llp/0129-local-first-program.plan.md",
         "llp/0133-local-settlement.spec.md",
         "llp/0157-composition-algebra-and-completeness.spec.md",
         "llp/0166-local-persistent-store.spec.md",
+        "src/local-persistent-store-publication.v1.json",
+        "packages/snapback-client/local-read-admission.mjs",
         "packages/snapback-client/materialization-bridge.mjs",
         "tests/acceptance/local-store-carrier-exit-v1.mjs",
         "packages/snapback-contract/index.mjs",
@@ -2741,8 +2749,8 @@
         "packages/snapback-react/offline.test.mjs"
       ],
       "reviewed": "2026-08-04",
-      "reviewedCommit": "d3e80b7d4981c4fa14535e2a852e8cc2bc82e95d",
-      "sha256": "000d8b237d734d20d0cf62bd6d308a9a7c8e7d4690cfbb49e11abc9aa86d728e",
+      "reviewedCommit": "HEAD",
+      "sha256": "d65b8248111cc4e216e53ff4e6d03b7e2fc616e1218e71b95c39a08463a182e4",
       "snippets": [
         {
           "lang": "js",
@@ -2913,6 +2921,7 @@
       "backend.runtime-values",
       "backend.schema",
       "backend.seed",
+      "backend.single-table-v1",
       "backend.snapshot-batch-v1",
       "backend.standard-patterns",
       "backend.streamed-actions",
@@ -2972,5 +2981,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "4e4fcc89d4c874dbb120a538550b2d54b8900ce4ea6e3131213eef7b73b6e0c6"
+  "contentHash": "5405de1a33682bc3cc5018afefb839151e89230f3d1199edac90ac0e6df1f380"
 }

@@ -8,7 +8,7 @@ the bundle ratchet.
 Run the gate with:
 
 ```sh
-node scripts/client-bundle-metrology.mjs --check
+volta run node scripts/client-bundle-metrology.mjs --check
 ```
 
 The runner uses esbuild's browser/ES2022 ESM pipeline with minification and
@@ -37,7 +37,7 @@ ledger, declare its profile file and exact ids in the runner, commit the
 implementation and instrument first, then run:
 
 ```sh
-node scripts/client-bundle-metrology.mjs --write-supplemental-baseline
+volta run node scripts/client-bundle-metrology.mjs --write-supplemental-baseline
 ```
 
 The command refuses unless exactly one declared ledger is missing and every
@@ -52,7 +52,7 @@ never rewritten. Commit the implementation, instrument declaration, profile
 inventory, and governing LLP amendment first, then run:
 
 ```sh
-node scripts/client-bundle-metrology.mjs --write-rollover-baseline
+volta run node scripts/client-bundle-metrology.mjs --write-rollover-baseline
 ```
 
 The command refuses unless exactly one rollover is missing, every unaffected
@@ -61,6 +61,22 @@ ceilings are exactly the rollover's declared set. The LLP 0166 local persistent
 store is the first such workload version; its declarative inventory lives in
 `local-persistent-store-profiles.v1.json` and its frozen receipt lives in
 `baseline.local-persistent-store.v1.json`.
+
+Rollovers may chain: a successor can name an earlier rollover receipt as its
+predecessor, and the runner filters only the exact superseded ids from that
+receipt while leaving its file and unaffected profiles intact. The
+`move3-single-table-lifecycle.v1` workload is the first chained rollover. Its
+receipt records the immutable predecessor hashes plus an exact before/after
+metric row for each of the 25 superseded profiles. Its two additional Move-3
+public subpaths are first-run profiles with no invented predecessor. The
+companion size-review ticket is an obligation to inspect growth, not an
+acceptance of it.
+
+The IR-evaluator extension is `baseline.ir-evaluator.v1.json`, backed by
+`ir-evaluator-profiles.v1.json`. It freezes the dedicated
+`@expo/snapback-client/ir-evaluator` public subpath and runs the shipping D5
+behavior suite. Both this ledger and the chained rollover pin Node 24.18.0;
+metrology write and check invocations therefore use `volta run node`.
 
 The OQ2 extension is `baseline.push-installation-expo.v1.json`, backed by
 `push-installation-expo-profiles.v1.json`. It freezes the optional Expo

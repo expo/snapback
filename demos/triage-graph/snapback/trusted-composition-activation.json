@@ -2,27 +2,27 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v1",
-    "databaseId": "019fcba4-7698-7fe1-9da0-1da96ccf997d",
+    "databaseId": "019fcd28-7de2-7a21-aa55-e3139f14dd14",
     "deploymentId": "triage-graph-p3-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
     "expectedGeneration": {
       "schemaVersion": "snapback.v1",
       "appId": "triage-graph",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:56b597c0f90936c859ae1042aa18f49c5e519beec8785c0a2f096d949715139e",
-      "bundleHash": "snapback.v1:sessions:function:sha256:2c59a3e7b029319ce9e8d96aaefd18c3e6f03f8c4c33e18e06efd5af5a668e78",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:e65e7562419d911dbecdcc3362e0242d6dcd9efc06541136bfb2fd78cc216099"
+      "schemaHash": "snapback.v1:sessions:schema:sha256:90ede1caedc062ee4681ef3b7b385ce86eda76720b526209007e1046c8fd7898",
+      "bundleHash": "snapback.v1:sessions:function:sha256:035a4b27a1080d3bc4317fcc6ee2954099b33160c1320cace3bb4b09feebc6fe",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:1364c23765775fa4af6342f9cd7c74d9d1454b659e24bdd4d49a959d276e327d"
     },
-    "proofKeyManifestDigest": "sha256:b0271fe9bb64a7e577a67d6063dfafd4b015d2c3e21cbb4f8f99af06d8d559fa"
+    "proofKeyManifestDigest": "sha256:fc041836dfee483ae70118641fae4e267e6fb4912470bbc2dc429e0349397a87"
   },
-  "activationHash": "sha256:18b056e71dd67962a1ff4018a3d8ab474335fc381bf9d44dfffbf483832adc0d",
+  "activationHash": "sha256:9f732218bcefa01eb6c69b118dcc52dc3c99569c4d101f28c30e50da2c7fdba6",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.Yp5PTm5VyDnu5QDbIIVLZA",
+        "proofKeyId": "sbpk1.v4wv1ys44IL5oAn-aon5Pg",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "97J0Ibukz1rBD21-Ijvp_Ocxtd-vlIx7lqQvW-k-oAw"
+        "publicKeyBase64url": "vuDYIAFatooh387mmsvNPmNAMVUErEw_PK3Tb3-0qKE"
       }
     ]
   }

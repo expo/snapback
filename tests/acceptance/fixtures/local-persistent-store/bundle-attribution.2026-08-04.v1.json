@@ -1,0 +1,292 @@
+{
+  "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
+  "date": "2026-08-04",
+  "source": {
+    "revision": "fd0c8a34f0d7cdd0d50cb50b4aa52252c633a18b",
+    "dirty": true,
+    "dirtyPaths": [
+      "loudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.json",
+      "demos/access-desk/snapback/generated/artifacts.json",
+      "demos/all-aboard/snapback/generated/artifacts.json",
+      "demos/all-aboard/tests/egress-probe/generated/artifacts.json",
+      "demos/campfire/snapback/generated/artifacts.json",
+      "demos/card-game/snapback/generated/artifacts.json",
+      "demos/catalog-lens/snapback/generated/artifacts.json",
+      "demos/competitive-checkpoint/snapback/generated/api.mjs",
+      "demos/competitive-checkpoint/snapback/generated/artifacts.json",
+      "demos/cursors-web/snapback/generated/artifacts.json",
+      "demos/dispatch-board/snapback/generated/artifacts.json",
+      "demos/file-drop/snapback/generated/artifacts.json",
+      "demos/graffiti/snapback/generated/artifacts.json",
+      "demos/latency-kanban/snapback/generated/artifacts.json",
+      "demos/latency-kanban/snapback/trusted-composition-activation.json",
+      "demos/partiful-matrix/snapback/generated/api.mjs",
+      "demos/partiful-matrix/snapback/generated/artifacts.json",
+      "demos/party-wall/snapback/generated/artifacts.json",
+      "demos/public-dashboard/snapback/generated/artifacts.json",
+      "demos/pulse-monitor/snapback/generated/artifacts.json",
+      "demos/rbac/snapback/generated/artifacts.json",
+      "demos/shindig/snapback/generated/artifacts.json",
+      "demos/signal-desk/snapback/generated/artifacts.json",
+      "demos/team-chat/snapback/generated/api.mjs",
+      "demos/team-chat/snapback/generated/artifacts.json",
+      "demos/team-chat/snapback/generated/capability.manifest.json",
+      "demos/team-chat/snapback/generated/contract-data.manifest.json",
+      "demos/team-chat/snapback/generated/functions.manifest.json",
+      "demos/team-chat/snapback/generated/provider-bindings.json",
+      "demos/team-chat/snapback/generated/provider-introspection.json",
+      "demos/team-chat/snapback/generated/schema.manifest.json",
+      "demos/todo-v2/snapback/generated-remote-service/artifacts.json",
+      "demos/todo-v2/snapback/generated/artifacts.json",
+      "demos/todo/snapback/generated/artifacts.json",
+      "demos/triage-graph/snapback/generated/artifacts.json",
+      "demos/triage-graph/snapback/trusted-composition-activation.json",
+      "guide/backend/snapshot-batches.md",
+      "guide/backend/standard-patterns.md",
+      "guide/capabilities.md",
+      "guide/guide-flat.generated.md",
+      "guide/guide-manifest.generated.json",
+      "guide/realtime/snapshot-bundles.md",
+      "guide/sync/offline-and-retention.md",
+      "issues/20260803-local-first-continuation-program.md",
+      "issues/20260803-p1-server-proof-issuance.md",
+      "issues/20260803-single-table-v1-node-class-proposal.md",
+      "llp/0093-client-protocol-and-native-clients.rfc.md",
+      "llp/0094-wire-envelope-contract.spec.md",
+      "llp/0110-bounded-children-and-activity-patterns.spec.md",
+      "llp/0129-local-first-program.plan.md",
+      "llp/0157-composition-algebra-and-completeness.spec.md",
+      "llp/0166-local-persistent-store.spec.md",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/api.mjs",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/artifacts.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/capability.manifest.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/contract-data.manifest.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/functions.manifest.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/provider-bindings.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/provider-introspection.json",
+      "packages/snapback-cli/fixtures/comparator/app/snapback/generated/schema.manifest.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/api.mjs",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/artifacts.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/capability.manifest.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/contract-data.manifest.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/functions.manifest.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/provider-bindings.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/provider-introspection.json",
+      "packages/snapback-cli/fixtures/push-seam/app/snapback/generated/schema.manifest.json",
+      "packages/snapback-codegen/index.mjs",
+      "packages/snapback-codegen/retainability-profile.test.mjs",
+      "schemas/capability.manifest.local-dev-sqlite-ibex.json",
+      "schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json",
+      "schemas/capability.manifest.remote-service-sqlite-ibex.json",
+      "scripts/check-generated-artifacts",
+      "scripts/refresh-publication-carrier.mjs",
+      "scripts/verify-local-proof",
+      "src/local-relation-activity-publication.v1.json",
+      "src/local-sequence-allocation-publication.v1.json",
+      "src/manifest.rs",
+      "tests/acceptance/capability-maturity.experimental.json",
+      "tests/acceptance/capability-registry.ids.json",
+      "tests/acceptance/latency-kanban-move3-v1-evidence.md",
+      "tests/acceptance/latency-kanban-move3-v1.mjs",
+      "tests/acceptance/local-store-carrier-exit-v1-evidence.md",
+      "tests/acceptance/local-store-carrier-exit-v1.mjs",
+      "tests/acceptance/triage-graph-move1-v1-evidence.md",
+      "tests/acceptance/triage-graph-move1-v1.mjs",
+      "tests/conformance/relation-activity-publication-v1.mjs",
+      "tests/conformance/sequence-allocation-publication-v1.mjs",
+      "issues/closed/20260803-single-table-v1-node-class-proposal.md",
+      "src/local-persistent-store-publication.v1.json",
+      "tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json",
+      "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json",
+      "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json",
+      "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
+      "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
+      "tests/acceptance/maturity/single-table-v1-2026-08-04.introduction.json",
+      "tests/conformance/local-persistent-store-publication-v1.mjs"
+    ],
+    "files": [
+      {
+        "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
+        "sha256": "4f74f0f43c5b310d7f0358390022377d7fcb675c6db56aaea81aa889a8f6ef20"
+      },
+      {
+        "path": "packages/snapback-client/materialization-store.mjs",
+        "sha256": "dea7124b342782de1b97fa7216dcd77f1349d03dfae87ab9257fbd7a1313eff0"
+      },
+      {
+        "path": "packages/snapback-client/materialization-bridge.mjs",
+        "sha256": "3c5a4038feb347718e78385767c5cc867ab871e7410f1c335378c10d6d5af259"
+      },
+      {
+        "path": "packages/snapback-client/registration-ledger.mjs",
+        "sha256": "9b872e8852855beb6122f58cecb28e236ca196e68b4051a9bf0f93e1cb6e8074"
+      },
+      {
+        "path": "packages/snapback-client/demand-broker.mjs",
+        "sha256": "cdfb914e2c03ea6ea50b00ea63b48ec3105bdb08dcb757007c9af5dd121e483c"
+      },
+      {
+        "path": "packages/snapback-client/store-policy.mjs",
+        "sha256": "03345c9e942c6247eb95ec58f657fec360d7baa7d77233ee96e6c4529ff23a4f"
+      },
+      {
+        "path": "packages/snapback-client/answer-classes.mjs",
+        "sha256": "e994d0287c66b5319a7c62a10e7a66ccc4157b081ea0a61dff2d8c2b92fd214c"
+      },
+      {
+        "path": "packages/snapback-client/evaluation-floor.mjs",
+        "sha256": "3c03c3be6f2e58e8cc6c54dcad8a636e7f5a153ba127e3d6e0ad8dc95df3c016"
+      },
+      {
+        "path": "packages/snapback-client/lease-convergence.mjs",
+        "sha256": "38125180a494fa272051002cdf62a839840212a4c9b3a4a5c8d705047dfde9d1"
+      },
+      {
+        "path": "packages/snapback-client/rqs-store-meta.mjs",
+        "sha256": "ccba1d6faaae5a7ece09e0871835eea99bd28a1959d252373163fc4562c54e22"
+      },
+      {
+        "path": "packages/snapback-client/index.mjs",
+        "sha256": "971e88cbf661c76c93f33fd35db0997243c456be4d233232ceb9c0c6c37252a4"
+      },
+      {
+        "path": "packages/snapback-client/rqs-store.mjs",
+        "sha256": "9c27319ed28037c2549c2741763f06a9f82abd77e896a2ec93c77e1c3eaf740f"
+      },
+      {
+        "path": "packages/snapback-client/rqs-store-file.mjs",
+        "sha256": "486b8c743ca807b051ec45042b6715cc141e1a0d3d2ca5a83cee75d53c8c3e3e"
+      },
+      {
+        "path": "packages/snapback-contract/auth-coordinator.mjs",
+        "sha256": "34dbfb48bb70f9bfeed02d9cc6b7dcfb4b9c56c0e4f5ed3ca64a473b11c0e4c3"
+      },
+      {
+        "path": "packages/snapback-contract/client-store.mjs",
+        "sha256": "f8324a2039e35d92a0d6bdadf48faeed056c62e3c86226ea894752ad03f75585"
+      },
+      {
+        "path": "demos/_kit/chrome-process.mjs",
+        "sha256": "88b945747108253fb3c3020560bce59e540aeac0ffb3b945dc7a26e23f9dbb64"
+      },
+      {
+        "path": "demos/triage-graph/demo.snapback.json",
+        "sha256": "4cefa0af8fab9471ef867dc6ec0ecd67f1289e94d72f451aa580754e721ff8af"
+      },
+      {
+        "path": "demos/triage-graph/snapback/functions.mjs",
+        "sha256": "74622a7b1949c2216dc2936604dbd52ea836ff7c6b57a702cde775a6d8db5241"
+      },
+      {
+        "path": "demos/triage-graph/snapback/schema.mjs",
+        "sha256": "db72b875a82245c8e2106dde0d63aa7085c29f97dfd8857442b363b87e23f360"
+      },
+      {
+        "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
+        "sha256": "1dbf954ae06038cc69c520a493de988be27ea5c2c31c3d3fd73bb9704422375d"
+      },
+      {
+        "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
+        "sha256": "5a66141c2dfd5a2e4fb8794fdb0f5fc64b24dfed35c128abc684cbdf5ac71dcf"
+      }
+    ]
+  },
+  "authority": "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle",
+  "method": {
+    "bundler": "esbuild@0.28.1",
+    "bundle": true,
+    "platform": "browser",
+    "format": "esm",
+    "target": "es2022",
+    "minify": true,
+    "treeShaking": true,
+    "legalComments": "none",
+    "conditions": [
+      "browser",
+      "import",
+      "default"
+    ],
+    "attribution": "esbuild metafile output.inputs bytesInOutput (module-own minified bytes)",
+    "closure": "full @expo/snapback-client root plus all nine LLP 0166 store modules retained by namespace observation",
+    "external": []
+  },
+  "output": {
+    "minifiedBytes": 587863,
+    "gzipBytes": 162178,
+    "brotliBytes": 132259,
+    "sha256": "7235bcbbeaf858b8c0ce27641e82db9c53760258293e066030ce2a45e2393e7d"
+  },
+  "modules": [
+    {
+      "module": "materialization-store",
+      "path": "packages/snapback-client/materialization-store.mjs",
+      "sourceBytes": 85477,
+      "minifiedModuleOwnBytes": 48773,
+      "sourceSha256": "dea7124b342782de1b97fa7216dcd77f1349d03dfae87ab9257fbd7a1313eff0"
+    },
+    {
+      "module": "materialization-bridge",
+      "path": "packages/snapback-client/materialization-bridge.mjs",
+      "sourceBytes": 17341,
+      "minifiedModuleOwnBytes": 10286,
+      "sourceSha256": "3c5a4038feb347718e78385767c5cc867ab871e7410f1c335378c10d6d5af259"
+    },
+    {
+      "module": "registration-ledger",
+      "path": "packages/snapback-client/registration-ledger.mjs",
+      "sourceBytes": 29141,
+      "minifiedModuleOwnBytes": 15039,
+      "sourceSha256": "9b872e8852855beb6122f58cecb28e236ca196e68b4051a9bf0f93e1cb6e8074"
+    },
+    {
+      "module": "demand-broker",
+      "path": "packages/snapback-client/demand-broker.mjs",
+      "sourceBytes": 28871,
+      "minifiedModuleOwnBytes": 15139,
+      "sourceSha256": "cdfb914e2c03ea6ea50b00ea63b48ec3105bdb08dcb757007c9af5dd121e483c"
+    },
+    {
+      "module": "store-policy",
+      "path": "packages/snapback-client/store-policy.mjs",
+      "sourceBytes": 22688,
+      "minifiedModuleOwnBytes": 12920,
+      "sourceSha256": "03345c9e942c6247eb95ec58f657fec360d7baa7d77233ee96e6c4529ff23a4f"
+    },
+    {
+      "module": "answer-classes",
+      "path": "packages/snapback-client/answer-classes.mjs",
+      "sourceBytes": 4849,
+      "minifiedModuleOwnBytes": 2503,
+      "sourceSha256": "e994d0287c66b5319a7c62a10e7a66ccc4157b081ea0a61dff2d8c2b92fd214c"
+    },
+    {
+      "module": "evaluation-floor",
+      "path": "packages/snapback-client/evaluation-floor.mjs",
+      "sourceBytes": 1710,
+      "minifiedModuleOwnBytes": 663,
+      "sourceSha256": "3c03c3be6f2e58e8cc6c54dcad8a636e7f5a153ba127e3d6e0ad8dc95df3c016"
+    },
+    {
+      "module": "lease-convergence",
+      "path": "packages/snapback-client/lease-convergence.mjs",
+      "sourceBytes": 3346,
+      "minifiedModuleOwnBytes": 1407,
+      "sourceSha256": "38125180a494fa272051002cdf62a839840212a4c9b3a4a5c8d705047dfde9d1"
+    },
+    {
+      "module": "rqs-store-meta",
+      "path": "packages/snapback-client/rqs-store-meta.mjs",
+      "sourceBytes": 5673,
+      "minifiedModuleOwnBytes": 3150,
+      "sourceSha256": "ccba1d6faaae5a7ece09e0871835eea99bd28a1959d252373163fc4562c54e22"
+    }
+  ],
+  "totalMeasuredModuleOwnBytes": 109880,
+  "browserClosureQualification": {
+    "status": "PASS",
+    "materializationStoreResolved": true,
+    "resolved": true,
+    "outputBytes": 67449,
+    "externalImports": []
+  }
+}

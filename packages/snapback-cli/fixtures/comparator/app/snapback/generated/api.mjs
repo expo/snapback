@@ -46,7 +46,7 @@ const references = {
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "sha256:ce98684782b89899",
-      "inputsHash": "3a9f003b11350ecdb881ca9d8546cce4f1ff45ff5562244954502676c6ed6337",
+      "inputsHash": "15581e8e32c90298d49f4eb4c013cf31492554a1f0c21784e5e6557880f8a474",
       "schemaHash": "sha256:9f30608dda99c504",
       "schemaVersion": "snapback.v0"
     },
@@ -94,7 +94,7 @@ const references = {
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "sha256:ce98684782b89899",
-      "inputsHash": "3a9f003b11350ecdb881ca9d8546cce4f1ff45ff5562244954502676c6ed6337",
+      "inputsHash": "15581e8e32c90298d49f4eb4c013cf31492554a1f0c21784e5e6557880f8a474",
       "schemaHash": "sha256:9f30608dda99c504",
       "schemaVersion": "snapback.v0"
     },
@@ -117,7 +117,7 @@ const references = {
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "sha256:ce98684782b89899",
-      "inputsHash": "3a9f003b11350ecdb881ca9d8546cce4f1ff45ff5562244954502676c6ed6337",
+      "inputsHash": "15581e8e32c90298d49f4eb4c013cf31492554a1f0c21784e5e6557880f8a474",
       "schemaHash": "sha256:9f30608dda99c504",
       "schemaVersion": "snapback.v0"
     },
@@ -147,7 +147,7 @@ const references = {
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "sha256:ce98684782b89899",
-      "inputsHash": "3a9f003b11350ecdb881ca9d8546cce4f1ff45ff5562244954502676c6ed6337",
+      "inputsHash": "15581e8e32c90298d49f4eb4c013cf31492554a1f0c21784e5e6557880f8a474",
       "schemaHash": "sha256:9f30608dda99c504",
       "schemaVersion": "snapback.v0"
     },
@@ -177,7 +177,7 @@ const references = {
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "sha256:ce98684782b89899",
-      "inputsHash": "3a9f003b11350ecdb881ca9d8546cce4f1ff45ff5562244954502676c6ed6337",
+      "inputsHash": "15581e8e32c90298d49f4eb4c013cf31492554a1f0c21784e5e6557880f8a474",
       "schemaHash": "sha256:9f30608dda99c504",
       "schemaVersion": "snapback.v0"
     },
@@ -200,7 +200,7 @@ const references = {
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "sha256:ce98684782b89899",
-      "inputsHash": "3a9f003b11350ecdb881ca9d8546cce4f1ff45ff5562244954502676c6ed6337",
+      "inputsHash": "15581e8e32c90298d49f4eb4c013cf31492554a1f0c21784e5e6557880f8a474",
       "schemaHash": "sha256:9f30608dda99c504",
       "schemaVersion": "snapback.v0"
     },
@@ -234,7 +234,7 @@ const references = {
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "sha256:ce98684782b89899",
-      "inputsHash": "3a9f003b11350ecdb881ca9d8546cce4f1ff45ff5562244954502676c6ed6337",
+      "inputsHash": "15581e8e32c90298d49f4eb4c013cf31492554a1f0c21784e5e6557880f8a474",
       "schemaHash": "sha256:9f30608dda99c504",
       "schemaVersion": "snapback.v0"
     },

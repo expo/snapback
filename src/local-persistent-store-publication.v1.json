@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "snapback.local-capability-publication.v1",
+  "targetProfileId": "local-dev-sqlite-ibex",
+  "capabilityIds": ["single_table_v1"],
+  "maturity": "experimental",
+  "qualificationReceiptSha256": "sha256:1b14ddf004a3c67f1551d2d8477e220c74993a69637bc3e5c27278f733dd6e94",
+  "supportingReceiptSha256": {
+    "triageBudgetFreeze": "sha256:1dbf954ae06038cc69c520a493de988be27ea5c2c31c3d3fd73bb9704422375d",
+    "triageMove1Exit": "sha256:5a66141c2dfd5a2e4fb8794fdb0f5fc64b24dfed35c128abc684cbdf5ac71dcf"
+  },
+  "executorSourceSha256": {
+    "src/local.rs": "sha256:0e805dc28080ee8b3930ed998bc2931e1933d61ae6a50b420e4b92bf8ed7f241",
+    "src/storage.rs": "sha256:e92f4f19a95a29988583bfd3c9f39942167b2c84020cd7a76d997790b9e63f76"
+  },
+  "schemaSourceSha256": {
+    "packages/snapback-codegen/index.mjs": "sha256:8af7420a8d1f642fa292f278c50bbc53a8e575f34e31e73cfe401a773166be39"
+  },
+  "clientSourceSha256": {
+    "packages/snapback-client/local-read-admission.mjs": "sha256:7ffaf2ad7e59d98c3e4dd2a8195da7705882f11c187b1239725e33d84a04bc54",
+    "packages/snapback-client/materialization-bridge.mjs": "sha256:3c5a4038feb347718e78385767c5cc867ab871e7410f1c335378c10d6d5af259",
+    "packages/snapback-client/materialization-store.mjs": "sha256:bd7e4935d031af165c4cdfe57d25a89e871f0eff72932b02240b846163471063"
+  },
+  "packageClosureSha256": null,
+  "buildProvenanceRequirement": "source-commit-and-embedded-carrier-sha256"
+}
