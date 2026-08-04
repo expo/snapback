@@ -650,7 +650,13 @@ fn command(arguments: &[&str]) -> String {
 }
 
 fn git_dirty_paths() -> Vec<String> {
-    command(&["git", "status", "--porcelain=v1", "--untracked-files=all"])
+    Command::new("git")
+        .args(["status", "--porcelain=v1", "--untracked-files=all"])
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .and_then(|output| String::from_utf8(output.stdout).ok())
+        .unwrap_or_default()
         .lines()
         .filter_map(|line| line.split_whitespace().last())
         .map(ToOwned::to_owned)
