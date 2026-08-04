@@ -117,6 +117,26 @@ Landed in the host action-child carrier slice:
 The host lane remains dormant outside explicit corpus activation. This slice
 does not publish or advertise a capability.
 
+Landed in the local SQLite write-authority slice:
+
+- a module-private generated writer token classifies the two ordinary and two
+  host-child physical adapters, and an armed connection-local SQLite
+  authorizer denies application-table DML and schema changes outside it;
+- prepared-statement caching is disabled on that writer connection, with a
+  token-drop reauthorization negative; trigger-mediated application DML is
+  denied even inside the token until a generated trigger journal adapter
+  exists;
+- positive issuance-bearing HostPlan and Ibex-buffered commits retain their
+  exact envelopes/journals, including exact system-field postimages; and
+- the target/app-effective inventory keeps migration, seed/reset,
+  membership-admin, projection-rebuild, and specialized-system lanes visible.
+  The specialized row is deliberately grouped and non-enumerated, so it can
+  never upcast the local target to complete coverage.
+
+This is enforcement substrate, not production activation. The incomplete
+specialized inventory and every non-envelope-mapped app-effective lane remain
+publication blockers; capabilities stay `Missing`.
+
 Still required before this ticket closes:
 
 - first-party host identity adapters for migration transactions (job/cron
@@ -126,8 +146,10 @@ Still required before this ticket closes:
   effect-bearing, and other unsupported shapes stay fail-closed; the generated
   owner-update profile is the only current positive slice; generated creates
   remain unprovable because their private minted-id context is non-empty;
-- the complete target writer/bypass/asymmetric-retention acceptance corpus;
-  and
+- enumerate and envelope-map or explicitly exclude every migration,
+  seed/reset, admin, projection, and specialized physical writer; then finish
+  the complete target writer/asymmetric-retention corpus (the four
+  ordinary/host adapters' SQLite bypass corpus is now green); and
 - the dated fixed-Air execution of the paired active-lane recorder and p99
   recorder, plus the required independent review/author acceptance and every
   applicable row-13 correctness gate.

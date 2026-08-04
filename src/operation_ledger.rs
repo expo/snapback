@@ -313,21 +313,7 @@ pub fn register_coverage_in(
     manifest: &OperationCoverageManifestV1,
     activated_at_ms: u64,
 ) -> SnapbackResult<()> {
-    if manifest.schema_version != 1
-        || manifest.manifest_version == 0
-        || manifest.stream_id.is_empty()
-        || manifest.covered_lanes.is_empty()
-        || manifest.writer_choke_points.is_empty()
-        || manifest.coverage_digest
-            != coverage_digest(
-                &manifest.stream_id,
-                manifest.manifest_version,
-                &manifest.covered_lanes,
-                &manifest.writer_choke_points,
-            )
-    {
-        return Err(invalid("coverage manifest is invalid"));
-    }
+    validate_coverage_manifest(manifest, &manifest.stream_id)?;
     let body = serde_json::to_string(manifest)
         .map_err(|_| invalid("coverage manifest could not be encoded"))?;
     tx.execute(
@@ -357,8 +343,36 @@ pub fn active_coverage_manifest(
             |row| row.get(0),
         )
         .optional()?;
-    body.map(|body| decode(&body, "active coverage manifest"))
-        .transpose()
+    let manifest = body
+        .map(|body| decode(&body, "active coverage manifest"))
+        .transpose()?;
+    if let Some(manifest) = manifest.as_ref() {
+        validate_coverage_manifest(manifest, stream_id)?;
+    }
+    Ok(manifest)
+}
+
+fn validate_coverage_manifest(
+    manifest: &OperationCoverageManifestV1,
+    expected_stream_id: &str,
+) -> SnapbackResult<()> {
+    if manifest.schema_version != 1
+        || manifest.manifest_version == 0
+        || manifest.stream_id != expected_stream_id
+        || manifest.stream_id.is_empty()
+        || manifest.covered_lanes.is_empty()
+        || manifest.writer_choke_points.is_empty()
+        || manifest.coverage_digest
+            != coverage_digest(
+                &manifest.stream_id,
+                manifest.manifest_version,
+                &manifest.covered_lanes,
+                &manifest.writer_choke_points,
+            )
+    {
+        return Err(invalid("coverage manifest is invalid"));
+    }
+    Ok(())
 }
 
 pub fn register_epoch_in(tx: &Transaction<'_>, epoch: &IdentityEpochV1) -> SnapbackResult<()> {
@@ -971,9 +985,9 @@ pub(crate) fn activate_ordinary_mutation_coverage_in(
     tx: &Transaction<'_>,
     stream_id: &str,
     activated_at_ms: u64,
-) -> SnapbackResult<()> {
+) -> SnapbackResult<OperationCoverageManifestV1> {
     let current = active_coverage_manifest(tx, stream_id)?;
-    if current.as_ref().is_some_and(|manifest| {
+    if let Some(manifest) = current.as_ref().filter(|manifest| {
         manifest
             .covered_lanes
             .iter()
@@ -985,7 +999,7 @@ pub(crate) fn activate_ordinary_mutation_coverage_in(
                     .any(|declared| declared == writer)
             })
     }) {
-        return Ok(());
+        return Ok(manifest.clone());
     }
     let manifest_version: i64 = tx.query_row(
         "SELECT COALESCE(MAX(manifest_version), 0) + 1
@@ -1025,7 +1039,8 @@ pub(crate) fn activate_ordinary_mutation_coverage_in(
             &writer_choke_points,
         ),
     };
-    register_coverage_in(tx, &manifest, activated_at_ms)
+    register_coverage_in(tx, &manifest, activated_at_ms)?;
+    Ok(manifest)
 }
 
 /// Insert one envelope and its suppression/receipt state in the caller's data
