@@ -41,3 +41,10 @@ stays 0129's.
   20,833 min / 7,383 gzip (inside the spike envelope; increment over
   the store 20,795 / 6,917). M2 (read admission against the store) is
   next.
+- **M2 LANDED 2026-08-04.** `local-read-admission` in the client:
+  fail-closed admission from declared IR reads through the ledger's
+  demanded materializations; structural missing-vs-absent (rows null vs
+  authoritative-empty []); only authoritative answers admit; degraded
+  outcomes are inspectable objects. Admission oracle 4/4 with the
+  20-cell matrix; S4 74/74 unchanged. M3 (rebase + settlement
+  composition) is next.

@@ -52,6 +52,14 @@ export interface MaterializationObservationV1 {
   readonly present: boolean;
   readonly generation: MaterializationFenceV1 | null;
   readonly status: 'unknown' | 'complete' | 'refused' | null;
+  readonly materialization: Readonly<{
+    readonly materializationKey: QueryMaterializationKeyV1;
+    readonly queryInstanceId: number;
+    readonly planHash: DigestV1;
+    readonly activationHash: DigestV1;
+    readonly resultContractHash: string | null;
+    readonly authorityPartitionDigest: DigestV1;
+  }> | null;
 }
 
 export interface MaterializationStoreV1 {

@@ -13,7 +13,12 @@
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 
-for (const entry of ['index.mjs', 'ir-evaluator.mjs', 'materialization-store.mjs']) {
+for (const entry of [
+  'index.mjs',
+  'ir-evaluator.mjs',
+  'local-read-admission.mjs',
+  'materialization-store.mjs',
+]) {
   const result = await build({
     entryPoints: [new URL(`./${entry}`, import.meta.url).pathname],
     bundle: true,

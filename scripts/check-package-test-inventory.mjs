@@ -85,6 +85,7 @@ const inventories = [
       'ir-evaluator.test.mjs',
       'lifecycle-disposal.test.mjs',
       'lease-convergence.test.mjs',
+      'local-read-admission.test.mjs',
       'logout-v3-bridge.test.mjs',
       'materialization-bridge.test.mjs',
       'materialization-store.test.mjs',
@@ -512,7 +513,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // this canonical inventory, which broke this check on main.
 // 188 -> 190 (2026-08-04, LLP 0146 D2/D3): @expo/snapback-cli gains the
 // done-oracle suite and @expo/snapback-app-cli gains the agent-digest suite.
-assert.equal(total, 190, 'reviewed package/admin test count changed');
+// 190 -> 191 (2026-08-04, Move-3 Phase-1 lane M2): @expo/snapback-client
+// gains the local-read admission matrix over demanded QMK answers.
+assert.equal(total, 191, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

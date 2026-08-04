@@ -62,6 +62,10 @@ import {
   deriveLegacyResumeAnswerV1,
   deriveQmk1AnswerV1,
 } from './answer-classes.mjs';
+import {
+  admitLocalMutationReadsV1,
+  evaluateLocalMutationWithReadAdmissionV1,
+} from './local-read-admission.mjs';
 export { parseSearchQueryV1, search } from './search.mjs';
 export {
   CANONICAL_CLIENT_VALUE_V1_LIMITS,
@@ -4607,6 +4611,11 @@ export class SnapbackClient {
     if (preparedBridge) {
       functionReference.materializationAddress = [...preparedBridge.bridge.address];
       functionReference.authorityPartitionDigest = preparedBridge.bridge.authorityPartitionDigest;
+      if (preparedBridge.bridge.localReadCoverage != null) {
+        functionReference.localReadCoverage = structuredClone(
+          preparedBridge.bridge.localReadCoverage,
+        );
+      }
     }
     const registration = {
       format: 'snapback.query-registration.v1',
@@ -4676,7 +4685,7 @@ export class SnapbackClient {
     return ledger === null ? { released: true } : ledger.releaseDurable({ registrationId });
   }
 
-  async __readQmk1LocalAnswer({ address, expectedFence, connected, ...ownerFacts }) {
+  async __readQmk1LocalAnswer({ address, expectedFence = null, connected, ...ownerFacts }) {
     const materializationStore = await this.__ensureMaterializationStore();
     if (!materializationStore) {
       const error = new Error(
@@ -4691,7 +4700,10 @@ export class SnapbackClient {
       (next) => { observation = next; },
     );
     releaseObservation();
-    const value = await materializationStore.readRenderable(address, expectedFence);
+    const admittedFence = expectedFence ?? observation?.generation ?? null;
+    const value = admittedFence === null
+      ? null
+      : await materializationStore.readRenderable(address, admittedFence);
     const classification = deriveQmk1AnswerV1({
       connected,
       ...ownerFacts,
@@ -4702,6 +4714,31 @@ export class SnapbackClient {
     return Object.freeze({
       ...classification,
       value: classification.answerClass === 'authoritative' ? value : null,
+      materialization: observation?.materialization ?? null,
+    });
+  }
+
+  async __admitLocalMutationReads({ operation, connected = false } = {}) {
+    const ledger = await this.__registrationLedgerPromise;
+    return admitLocalMutationReadsV1({
+      operation,
+      registrationLedger: ledger,
+      readMaterializationAnswer: ({ address }) => this.__readQmk1LocalAnswer({
+        address,
+        connected,
+      }),
+    });
+  }
+
+  async __evaluateLocalMutationWithReadAdmission({ operation, connected = false } = {}) {
+    const ledger = await this.__registrationLedgerPromise;
+    return evaluateLocalMutationWithReadAdmissionV1({
+      operation,
+      registrationLedger: ledger,
+      readMaterializationAnswer: ({ address }) => this.__readQmk1LocalAnswer({
+        address,
+        connected,
+      }),
     });
   }
 

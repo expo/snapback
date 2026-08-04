@@ -549,6 +549,29 @@ export async function createRegistrationLedger({
         .map((entry) => clone({ registration: entry.registration, resolution: entry.resolution }));
     },
 
+    // Move-3 read admission consumes this demand projection instead of
+    // scanning carrier records. A grace-held record has no live registration
+    // and therefore never becomes mutation input merely because bytes remain.
+    // @ref LLP 0166#d2--the-sync-specification-registered-queries — the sync
+    //   set is exactly the registration-derived demand set.
+    demandedMaterializations() {
+      return [...addresses.keys()].sort().map((addressKey) => {
+        const entries = rowsAt(addressKey);
+        const first = entries[0];
+        return clone({
+          family: first.resolution.family,
+          address: first.resolution.address,
+          addressKey,
+          demandState: policyOf(addressKey).demandState,
+          effectiveScope: scopes.get(addressKey)?.effectiveScope ?? null,
+          registrations: entries.map((entry) => ({
+            registration: entry.registration,
+            resolution: entry.resolution,
+          })),
+        });
+      });
+    },
+
     awaitHydrationIdle() {
       if (running === 0 && ![...hydration.values()].some((entry) => entry.state === 'queued')) return Promise.resolve();
       if (!drainPromise) drainPromise = new Promise((resolvePromise) => { resolveDrain = resolvePromise; });
@@ -577,3 +600,4 @@ export const registerDurable = (input) => installed().registerDurable(input);
 export const releaseDurable = (input) => installed().releaseDurable(input);
 export const effectivePolicy = (addressKey) => installed().effectivePolicy(addressKey);
 export const demandState = (addressKey) => installed().demandState(addressKey);
+export const demandedMaterializations = () => installed().demandedMaterializations();

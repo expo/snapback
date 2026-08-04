@@ -780,15 +780,29 @@ function snapshotFor(record, previousFence = null) {
       present: false,
       generation: previousFence === null ? null : { ...previousFence },
       status: null,
+      materialization: null,
     });
   }
   const fence = fenceOf(record);
+  const resultContractHashes = [...new Set(
+    record.fragments.map((fragment) => fragment.resultContractHash),
+  )];
   return deepFreeze({
     format: 'snapback.materialization-observation.v1',
     present: true,
     address: [...record.address],
     queryInstanceId: record.queryInstanceId,
     generation: fence,
+    materialization: {
+      materializationKey: record.address[2],
+      queryInstanceId: record.queryInstanceId,
+      planHash: record.planHash,
+      activationHash: record.activationHash,
+      resultContractHash: resultContractHashes.length === 1
+        ? resultContractHashes[0]
+        : null,
+      authorityPartitionDigest: record.authorityPartitionDigest,
+    },
     lifecycle: record.productState.lifecycle,
     effectiveDisposition: record.productState.effectiveDisposition,
     freshness: record.productState.freshness,
