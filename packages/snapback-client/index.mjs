@@ -66,6 +66,7 @@ import {
   admitLocalMutationReadsV1,
   evaluateLocalMutationWithReadAdmissionV1,
 } from './local-read-admission.mjs';
+import { createOptimisticRebaseEngineV1 } from './optimistic-rebase.mjs';
 export { parseSearchQueryV1, search } from './search.mjs';
 export {
   CANONICAL_CLIENT_VALUE_V1_LIMITS,
@@ -4742,6 +4743,25 @@ export class SnapbackClient {
     });
   }
 
+  // Internal Move-3 Phase-1 composition seam. M4 owns the generated public
+  // authoring surface; this lane exposes the real outbox/registration/store
+  // composition without widening Online-class capability claims yet.
+  async __createOptimisticRebaseEngine({
+    initialAuthoritativeRows = {},
+    connected = false,
+  } = {}) {
+    const ledger = await this.__registrationLedgerPromise;
+    return createOptimisticRebaseEngineV1({
+      outboxStore: this.rqsStore,
+      registrationLedger: ledger,
+      readMaterializationAnswer: ({ address }) => this.__readQmk1LocalAnswer({
+        address,
+        connected,
+      }),
+      initialAuthoritativeRows,
+    });
+  }
+
   async authRequestCode(email) {
     if (this.authCoordinator) await this.authSession();
     const capture = this.authCoordinator?.capture() ?? null;
@@ -6089,6 +6109,7 @@ export class SnapbackClient {
           settlementIdentity: record.settlementIdentity ?? null,
           settlementClaims: record.settlementClaims ?? null,
           boundedSkew: record.boundedSkew ?? null,
+          optimisticOperation: record.optimisticOperation ?? null,
           queue: false,
           },
         );
@@ -6174,6 +6195,7 @@ export class SnapbackClient {
     settlementIdentity = null,
     settlementClaims = null,
     boundedSkew = null,
+    optimisticOperation = null,
     authorityDescriptor = null,
     authorityCapture = null,
     // LLP 0129 Phase 0 (LLP 0043 M2): 'auto' queues this intent durably
@@ -6193,6 +6215,12 @@ export class SnapbackClient {
       && settlementLane !== 're-derive'
     ) {
       throw new TypeError("mutate settlementLane must be 'replay-accept' or 're-derive'");
+    }
+    if (optimisticOperation !== null && settlementLane !== 're-derive') {
+      throw new TypeError("mutate optimisticOperation requires settlementLane 're-derive'");
+    }
+    if (optimisticOperation !== null && clientMutationId === null) {
+      clientMutationId = createClientMutationId();
     }
     const queueStore = queue === false ? null : this.#offlineQueueStore(queue === true);
     const body = { args, auth: SnapbackClient.auth(userId), read_set: readSet };
@@ -6265,6 +6293,7 @@ export class SnapbackClient {
       settlementIdentity,
       settlementClaims,
       boundedSkew,
+      optimisticOperation,
       capturedNow: Date.now(),
     } : null;
     let durableOnlineRecord = false;
@@ -6390,6 +6419,7 @@ export class SnapbackClient {
                 settlementIdentity,
                 settlementClaims,
                 boundedSkew,
+                optimisticOperation,
                 capturedNow: Date.now(),
               },
             );

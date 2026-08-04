@@ -18,6 +18,7 @@ for (const entry of [
   'ir-evaluator.mjs',
   'local-read-admission.mjs',
   'materialization-store.mjs',
+  'optimistic-rebase.mjs',
 ]) {
   const result = await build({
     entryPoints: [new URL(`./${entry}`, import.meta.url).pathname],

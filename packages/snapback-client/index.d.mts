@@ -961,6 +961,7 @@ export class SnapbackClient {
       readonly settlementIdentity?: SettlementIdentityClaims | null;
       readonly settlementClaims?: SettlementClaimSet | null;
       readonly boundedSkew?: BoundedSkewDeclaration | null;
+      readonly optimisticOperation?: Readonly<Record<string, unknown>> | null;
       readonly queue?: 'auto' | boolean;
     },
   ): Promise<MutationOutput<FunctionResult<Ref>>>;
@@ -975,6 +976,7 @@ export class SnapbackClient {
       readonly settlementIdentity?: SettlementIdentityClaims | null;
       readonly settlementClaims?: SettlementClaimSet | null;
       readonly boundedSkew?: BoundedSkewDeclaration | null;
+      readonly optimisticOperation?: Readonly<Record<string, unknown>> | null;
       readonly queue?: 'auto' | boolean;
     },
   ): Promise<MutationOutput<Result>>;

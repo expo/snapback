@@ -48,3 +48,11 @@ stays 0129's.
   outcomes are inspectable objects. Admission oracle 4/4 with the
   20-cell matrix; S4 74/74 unchanged. M3 (rebase + settlement
   composition) is next.
+- **M3 LANDED 2026-08-04.** `optimistic-rebase` in the client: layer
+  identity = durable clientMutationId; layers reconstruct from outbox
+  IR on reload (never persisted); replay = M2 admission then the M1
+  evaluator; bridging layers retire on exact settlement identity;
+  refused/server-only replays persist queued-only and inspectable;
+  base + stack + rebase record publish atomically. Gates 3/3
+  (20-rapid-moves, locked-card, reload-during-settlement); S4 74/74.
+  M4 (the Kanban exit application) is the last lane.

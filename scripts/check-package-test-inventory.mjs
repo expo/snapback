@@ -92,6 +92,8 @@ const inventories = [
       'mixed-route-v2.test.mjs',
       'micro-operational.test.mjs',
       'micro.test.mjs',
+      'optimistic-rebase-acceptance.test.mjs',
+      'optimistic-rebase.test.mjs',
       'outbox-store.test.mjs',
       'package.test.mjs',
       'push-registry.test.mjs',
@@ -515,7 +517,10 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // done-oracle suite and @expo/snapback-app-cli gains the agent-digest suite.
 // 190 -> 191 (2026-08-04, Move-3 Phase-1 lane M2): @expo/snapback-client
 // gains the local-read admission matrix over demanded QMK answers.
-assert.equal(total, 191, 'reviewed package/admin test count changed');
+// 191 -> 193 (2026-08-04, Move-3 Phase-1 lane M3): @expo/snapback-client
+// gains the optimistic layer/rebase unit suite and the three-leg in-process
+// acceptance (20 rapid moves, locked card, reload during settlement).
+assert.equal(total, 193, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
