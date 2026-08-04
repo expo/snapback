@@ -324,3 +324,35 @@ SHA-256 `e341a0386ebf24c262a593ae0207016e2a55e5afcf2f1ff6dd979e5e67bce2a9`.
 Its uncommitted candidate correctly refused `--check` because the carrier
 bytes did not yet equal `HEAD`; validation therefore belongs to the carrier
 commit, before the terminal local proof.
+
+### Terminal local proof — 2026-08-04
+
+Carrier commit `7509e0c3e8b9346bcc24b3bc71961477f8879578` passed the complete
+`scripts/verify-local-proof --keep-going` proof with exit status 0 and no
+`[snapback-verify] FAIL` markers. The retained transcript contains 7,707 lines
+and has SHA-256
+`4759a0896a779842534d8eeca8fed24785ae4b3f4504bd606b9e0fe993a3309b`;
+the checkout remained clean after the run.
+
+This was the terminal replay of the real gates, not a focused substitute. The
+coded bootstrap linked and launched the exact carrier commit and qualified its
+restricted handler VM. Strict Clippy, deployment identity, both publication
+carriers, the 198-file test inventory, generated artifacts and declarations,
+the retained Linux telemetry receipt, and the local-store carrier (16 PASS,
+one declared Fleet successor GAP, zero skipped) all passed. The complete Rust
+result was 2,008 passed, zero failed, and two explicit ignores. The previously
+attributed downstream suites also passed: workout 6/6, public dashboard 9/9,
+card authority, RBAC, live-delta 3/3, file-drop browser 7/7, app CLI, codegen,
+Contract, Swift 50/50, Cloudflare 29/29, and the admin production
+build/unit/real-Chrome-CSP/audit chain with zero production vulnerabilities.
+
+Run `30946514487` at `2c2683affd4298b50ac10c9a69f4eb0f8900620b`
+is the newest completed main workflow chronologically, but it was cancelled by
+its replacement while the proof step was still running and never emitted a
+KEEP-GOING summary. It therefore cannot supersede run `30928018055` as the
+latest completed summary-bearing input recorded above. Replacement run
+`30946638544` at pre-fix main `126d69d62ebd46a8499074cb000e1ebd6da7fecc`
+was still running when this carrier proof closed; because it predates every
+post-receipt fixture fix, it is an attribution input rather than evidence for
+the repaired tree. The remaining Job 1 boundary is to land this green carrier
+and obtain a zero-failure `local-proof` run on the resulting main commit.
