@@ -4883,14 +4883,14 @@ pub fn single_node_identity_v1(
             FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => (
                 "relational_query_v1",
                 serde_json::to_value(plan).map_err(|_| {
-                SnapbackError::error(
-                    "SNAPBACK_COMPOSITION_PLAN_INVALID",
-                    "query",
-                    "relational plan does not serialize",
-                )
-            })?,
-            if function.retainable {
-                "opaque-authorized-snapshot-v1"
+                    SnapbackError::error(
+                        "SNAPBACK_COMPOSITION_PLAN_INVALID",
+                        "query",
+                        "relational plan does not serialize",
+                    )
+                })?,
+                if function.retainable {
+                    "opaque-authorized-snapshot-v1"
                 } else {
                     "none"
                 },
@@ -4900,11 +4900,11 @@ pub fn single_node_identity_v1(
             ),
             FunctionRuntime::HostPlan(HandlerPlan::BoundedChildrenQuery(plan)) => (
                 "bounded_children_v1",
-            serde_json::to_value(plan).map_err(|_| {
-                SnapbackError::error(
-                    "SNAPBACK_COMPOSITION_PLAN_INVALID",
-                    "query",
-                    "bounded-children plan does not serialize",
+                serde_json::to_value(plan).map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_COMPOSITION_PLAN_INVALID",
+                        "query",
+                        "bounded-children plan does not serialize",
                     )
                 })?,
                 "none",
@@ -7567,9 +7567,9 @@ impl<'de> Deserialize<'de> for SingleTablePlanV1 {
             && raw.query.membership_filters.is_empty()
             && raw.query.limit.is_none_or(|limit| limit <= QUERY_MAX_LIMIT)
             && raw.query.order.iter().all(|order| {
-                order.max_encoded_bytes.is_none_or(|bound| {
-                    (1..=9_007_199_254_740_991).contains(&bound)
-                })
+                order
+                    .max_encoded_bytes
+                    .is_none_or(|bound| (1..=9_007_199_254_740_991).contains(&bound))
             })
             && raw
                 .query
@@ -9079,9 +9079,7 @@ impl TargetCapabilityId {
             Self::AssetImagePipelineV1 => "asset_image_pipeline_v1",
             Self::AssetReferenceGcV1 => "asset_reference_gc_v1",
             Self::AgentSafeStorageV1 => "agent_safe_storage_v1",
-            Self::AgentSafeDerivedDeploymentForkV1 => {
-                "agent_safe_derived_deployment_fork_v1"
-            }
+            Self::AgentSafeDerivedDeploymentForkV1 => "agent_safe_derived_deployment_fork_v1",
         }
     }
 
@@ -10048,16 +10046,7 @@ pub struct AgentSafeExplanationClassV1 {
 }
 
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Deserialize,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    Serialize,
-    schemars::JsonSchema,
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
 )]
 #[serde(rename_all = "camelCase")]
 pub enum AgentSafeExplanationLogicalLaneV1 {
@@ -10066,16 +10055,7 @@ pub enum AgentSafeExplanationLogicalLaneV1 {
 }
 
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Deserialize,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    Serialize,
-    schemars::JsonSchema,
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
 )]
 #[serde(rename_all = "camelCase")]
 pub enum AgentSafeExplanationAdapterV1 {
@@ -10084,16 +10064,7 @@ pub enum AgentSafeExplanationAdapterV1 {
 }
 
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Deserialize,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    Serialize,
-    schemars::JsonSchema,
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
 )]
 #[serde(rename_all = "camelCase")]
 pub enum AgentSafeExplanationAccessV1 {
@@ -10102,16 +10073,7 @@ pub enum AgentSafeExplanationAccessV1 {
 }
 
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Deserialize,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    Serialize,
-    schemars::JsonSchema,
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
 )]
 #[serde(rename_all = "camelCase")]
 pub enum AgentSafeExplanationProfileV1 {
@@ -10120,16 +10082,7 @@ pub enum AgentSafeExplanationProfileV1 {
 }
 
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    Deserialize,
-    Eq,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    Serialize,
-    schemars::JsonSchema,
+    Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
 )]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AgentSafeExplanationScopeV1 {
@@ -10419,18 +10372,14 @@ impl AgentSafeCapabilityFactsV1 {
             )
             && envelope(self.envelope.push, target.envelope.push)
             && envelope(self.envelope.auth, target.envelope.auth)
-            && self
-                .explanation
-                .scoped_facts
-                .iter()
-                .all(|fact| {
-                    target
-                        .explanation
-                        .scoped_facts
-                        .binary_search_by_key(&fact.scope, |candidate| candidate.scope)
-                        .ok()
-                        .is_some_and(|index| &target.explanation.scoped_facts[index] == fact)
-                })
+            && self.explanation.scoped_facts.iter().all(|fact| {
+                target
+                    .explanation
+                    .scoped_facts
+                    .binary_search_by_key(&fact.scope, |candidate| candidate.scope)
+                    .ok()
+                    .is_some_and(|index| &target.explanation.scoped_facts[index] == fact)
+            })
             && fork(&self.forks.in_app, &target.forks.in_app)
             && fork(
                 &self.forks.derived_deployment,
@@ -11282,8 +11231,7 @@ impl CapabilityManifest {
         // source-owned chains verify. App-effective remains Missing until the
         // exact loaded app and active writer manifest are intersected in Local.
         if capability_facts.local_agent_safe_storage_publication_v1_verified {
-            manifest.agent_safe.target =
-                crate::agent_safe_publication::storage_target_candidate();
+            manifest.agent_safe.target = crate::agent_safe_publication::storage_target_candidate();
         }
         if capability_facts.local_agent_safe_derived_fork_publication_v1_verified {
             manifest.agent_safe.target.forks.derived_deployment =
@@ -11770,9 +11718,7 @@ mod agent_safe_capability_tests {
     use super::*;
     use serde_json::json;
 
-    fn owner_fact(
-        profile: AgentSafeExplanationProfileV1,
-    ) -> AgentSafeScopedExplanationFactV1 {
+    fn owner_fact(profile: AgentSafeExplanationProfileV1) -> AgentSafeScopedExplanationFactV1 {
         AgentSafeScopedExplanationFactV1 {
             scope: AgentSafeExplanationScopeV1 {
                 logical_lane: AgentSafeExplanationLogicalLaneV1::OrdinaryMutation,
@@ -11788,7 +11734,7 @@ mod agent_safe_capability_tests {
     }
 
     #[test]
-    fn agent_safe_registry_ids_are_experimental_but_independently_unsupported() {
+    fn agent_safe_registry_ids_are_experimental_and_independently_published() {
         for (wire, id) in [
             (
                 "agent_safe_storage_v1",
@@ -11801,40 +11747,61 @@ mod agent_safe_capability_tests {
         ] {
             assert_eq!(wire.parse::<TargetCapabilityId>(), Ok(id));
             assert_eq!(id.maturity(), CapabilityMaturity::Experimental);
+            let local = CapabilityManifest::local_v0_declared();
+            let expected_local = match id {
+                TargetCapabilityId::AgentSafeStorageV1 => {
+                    crate::agent_safe_publication::storage_publication_verified()
+                }
+                TargetCapabilityId::AgentSafeDerivedDeploymentForkV1 => {
+                    crate::agent_safe_publication::derived_fork_publication_verified()
+                }
+                _ => unreachable!(),
+            };
+            assert_eq!(
+                id.is_supported_by(&local, TargetCapabilityFacts::local_auth_aware()),
+                expected_local,
+            );
+            assert_eq!(local.supported_capabilities.contains(&id), expected_local);
+
             for manifest in [
-                CapabilityManifest::local_v0_declared(),
                 CapabilityManifest::remote_service_sqlite_ibex_declared(),
                 CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
             ] {
-                assert!(!id.is_supported_by(
-                    &manifest,
-                    TargetCapabilityFacts::local_auth_aware()
-                ));
+                assert!(!id.is_supported_by(&manifest, TargetCapabilityFacts::local_auth_aware()));
                 assert!(!manifest.supported_capabilities.contains(&id));
             }
         }
     }
 
     #[test]
-    fn agent_safe_public_projections_are_present_closed_and_missing() {
+    fn agent_safe_public_projections_are_present_closed_and_target_scoped() {
         for manifest in [
             CapabilityManifest::local_v0_declared(),
             CapabilityManifest::remote_service_sqlite_ibex_declared(),
             CapabilityManifest::conformance_workerd_v8(json!({})),
             CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
         ] {
+            let is_local = manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX;
+            let storage_published =
+                is_local && crate::agent_safe_publication::storage_publication_verified();
+            let expected_target = if storage_published {
+                crate::agent_safe_publication::storage_target_candidate()
+            } else {
+                AgentSafeCapabilityFactsV1::missing()
+            };
+            assert_eq!(manifest.agent_safe.target, expected_target);
             assert_eq!(
-                manifest.agent_safe,
-                AgentSafeCapabilityExtensionV1::missing(),
-                "{} must default to the complete Missing projection",
-                manifest.target_profile_id,
+                manifest.agent_safe.app_effective,
+                AgentSafeCapabilityFactsV1::missing(),
+                "the static target declaration never invents app-effective coverage",
             );
-            assert!(
+            assert_eq!(
                 manifest
                     .capability_gaps
                     .iter()
                     .any(|gap| gap == "agent_safe_storage_v1"),
-                "{} must expose the aggregate GAP",
+                !storage_published,
+                "{} storage GAP disagrees with its exact publication chain",
                 manifest.target_profile_id,
             );
             assert!(
@@ -11845,12 +11812,17 @@ mod agent_safe_capability_tests {
                 "{} must expose the additive fork GAP",
                 manifest.target_profile_id,
             );
-            assert!(
+            assert_eq!(
                 manifest
                     .supported_capabilities
-                    .iter()
-                    .all(|id| id.as_str() != "agent_safe_storage_v1"),
-                "the scaffold must not publish a target capability id",
+                    .contains(&TargetCapabilityId::AgentSafeStorageV1),
+                storage_published,
+                "only the exact local storage chain may publish",
+            );
+            assert!(
+                !manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::AgentSafeDerivedDeploymentForkV1)
             );
         }
     }
@@ -11858,11 +11830,7 @@ mod agent_safe_capability_tests {
     #[test]
     fn agent_safe_target_and_app_effective_are_independent_fail_closed_facts() {
         let mut candidate = AgentSafeCapabilityExtensionV1::missing();
-        candidate
-            .app_effective
-            .envelope
-            .ordinary_mutation
-            .host_plan =
+        candidate.app_effective.envelope.ordinary_mutation.host_plan =
             AgentSafeEnvelopeCoverageV1::Covered;
         assert_eq!(
             candidate.validate(),
@@ -11976,8 +11944,7 @@ mod agent_safe_capability_tests {
         );
 
         let mut unknown_adapter = encoded.clone();
-        unknown_adapter["target"]["envelope"]["ordinaryMutation"]["rawSql"] =
-            json!("Covered");
+        unknown_adapter["target"]["envelope"]["ordinaryMutation"]["rawSql"] = json!("Covered");
         assert!(
             serde_json::from_value::<AgentSafeCapabilityExtensionV1>(unknown_adapter).is_err(),
             "unknown physical adapters fail closed",

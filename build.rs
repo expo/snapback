@@ -334,6 +334,32 @@ fn emit_build_identity() {
 }
 
 fn agent_safe_implementation_tree_sha256(manifest_dir: &Path) -> Option<String> {
+    // This authority is stricter than the general diagnostic build identity:
+    // callers may override SNAPBACK_BUILD_GIT_DIRTY for deterministic build
+    // stamping, but they may not override the bytes that authorize a public
+    // capability. Untracked source can participate in Rust module resolution,
+    // so require the complete contributor worktree to be clean.
+    if !git_output(
+        manifest_dir,
+        &["status", "--porcelain", "--untracked-files=all"],
+    )?
+    .is_empty()
+    {
+        return None;
+    }
+    let ibex_dir = manifest_dir.join("vendor/ibex");
+    let parent_ibex_gitlink = git(manifest_dir, &["rev-parse", "HEAD:vendor/ibex"])?;
+    let checked_out_ibex_head = git_output(&ibex_dir, &["rev-parse", "HEAD"])?;
+    if checked_out_ibex_head != parent_ibex_gitlink
+        || !git_output(
+            &ibex_dir,
+            &["status", "--porcelain", "--untracked-files=all"],
+        )?
+        .is_empty()
+    {
+        return None;
+    }
+
     let listed = git_output(
         manifest_dir,
         &[
@@ -370,11 +396,10 @@ fn agent_safe_implementation_tree_sha256(manifest_dir: &Path) -> Option<String> 
         digest.update((bytes.len() as u64).to_be_bytes());
         digest.update(bytes);
     }
-    let ibex_gitlink = git(manifest_dir, &["rev-parse", "HEAD:vendor/ibex"])?;
     digest.update(b"vendor/ibex");
     digest.update([0]);
-    digest.update((ibex_gitlink.len() as u64).to_be_bytes());
-    digest.update(ibex_gitlink.as_bytes());
+    digest.update((parent_ibex_gitlink.len() as u64).to_be_bytes());
+    digest.update(parent_ibex_gitlink.as_bytes());
     Some(format!("sha256:{:x}", digest.finalize()))
 }
 
@@ -391,6 +416,8 @@ fn agent_safe_publication_cycle_path(path: &str) -> bool {
             | "tests/acceptance/fixtures/agent-safe-storage/agent-safe-active-covered-paired.2026-08-04.v1.json"
             | "tests/acceptance/fixtures/agent-safe-storage/fork-promotion-performance.2026-08-04.v1.json"
             | "tests/acceptance/fixtures/agent-safe-storage/author-acceptance.2026-08-04.v1.json"
+            | "tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.v1.json"
+            | "tests/acceptance/latency-kanban-move3-v1-evidence.md"
     )
 }
 

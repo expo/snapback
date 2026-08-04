@@ -10,6 +10,7 @@ import {
   allowedPublicationPath,
   implementationDigestAt,
   runChecker,
+  validatePublishedEvidenceSemantics,
   validatePublicationRecord,
 } from '../scripts/check-agent-safe-publication.mjs';
 
@@ -27,6 +28,13 @@ const storage = {
     'generatedOwnedCrudOwnerCreateHostPlanExplanation',
     'generatedOwnedCrudOwnerUpdateHostPlanExplanation',
   ],
+};
+const derived = {
+  id: 'agent_safe_derived_deployment_fork_v1',
+  anchor: 'src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
+  carrier: 'src/local-agent-safe-derived-deployment-fork-publication.carrier.json',
+  receipt: 'tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json',
+  components: ['derivedDeploymentForkSafetyV1'],
 };
 
 function fixture() {
@@ -66,6 +74,14 @@ test('target, evidence locator, and receipt shape tampering fail before publicat
   }
 });
 
+test('derived publication has no storage-evidence substitution path', () => {
+  const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+  assert.throws(
+    () => validatePublishedEvidenceSemantics(root, derived, head),
+    /no dedicated end-to-end F0b performance evidence contract/u,
+  );
+});
+
 test('history digest is deterministic for an immutable qualification commit', () => {
   const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
   const first = implementationDigestAt(root, head);
@@ -83,6 +99,16 @@ test('P-vs-C publication path allowlist rejects executable drift', () => {
   );
   assert.equal(
     allowedPublicationPath('tests/acceptance/fixtures/agent-safe-storage/author-acceptance.2026-08-04.v1.json'),
+    true,
+  );
+  assert.equal(allowedPublicationPath('issues/20260803-wave3-program.md'), true);
+  assert.equal(allowedPublicationPath('guide/operating/instance-forks.md'), true);
+  assert.equal(
+    allowedPublicationPath('demos/latency-kanban/snapback/trusted-composition-activation.json'),
+    true,
+  );
+  assert.equal(
+    allowedPublicationPath('tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.v1.json'),
     true,
   );
   assert.equal(allowedPublicationPath('guide/arbitrary-executable.mjs'), false);

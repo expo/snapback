@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 const STORAGE_ID: &str = "agent_safe_storage_v1";
+#[cfg(test)]
 const DERIVED_FORK_ID: &str = "agent_safe_derived_deployment_fork_v1";
 const STORAGE_COMPONENTS: [&str; 6] = [
     "ordinaryMutationHostPlanEnvelope",
@@ -27,6 +28,7 @@ const STORAGE_COMPONENTS: [&str; 6] = [
     "generatedOwnedCrudOwnerCreateHostPlanExplanation",
     "generatedOwnedCrudOwnerUpdateHostPlanExplanation",
 ];
+#[cfg(test)]
 const DERIVED_FORK_COMPONENTS: [&str; 1] = ["derivedDeploymentForkSafetyV1"];
 const EVIDENCE_LOCATORS: [(&str, &str); 6] = [
     (
@@ -62,13 +64,9 @@ const STORAGE_CARRIER_BYTES: &[u8] =
 const STORAGE_RECEIPT_BYTES: &[u8] = include_bytes!(
     "../tests/acceptance/receipts/agent-safe-storage-publication.2026-08-04.v1.json"
 );
+#[cfg(test)]
 const DERIVED_FORK_ANCHOR_BYTES: &[u8] =
     include_bytes!("local-agent-safe-derived-deployment-fork-publication.anchor.json");
-const DERIVED_FORK_CARRIER_BYTES: &[u8] =
-    include_bytes!("local-agent-safe-derived-deployment-fork-publication.carrier.json");
-const DERIVED_FORK_RECEIPT_BYTES: &[u8] = include_bytes!(
-    "../tests/acceptance/receipts/agent-safe-derived-deployment-fork-publication.2026-08-04.v1.json"
-);
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -189,15 +187,14 @@ pub(crate) fn derived_fork_publication_verified() -> bool {
 }
 
 pub(crate) fn derived_fork_publication_verified_for_distribution(build_distribution: &str) -> bool {
-    embedded_publication_verified(
-        DERIVED_FORK_ID,
-        DERIVED_FORK_COMPONENTS.as_slice(),
-        &derived_fork_target_candidate(),
-        DERIVED_FORK_ANCHOR_BYTES,
-        DERIVED_FORK_CARRIER_BYTES,
-        DERIVED_FORK_RECEIPT_BYTES,
-        build_distribution,
-    )
+    // The current evidence vocabulary is deliberately storage-specific: its
+    // absolute recorder measures in-app MaterializedBase operations, not the
+    // end-to-end F0b derived-deployment lifecycle. A JSON-only anchor change
+    // must therefore be incapable of advertising the derived capability.
+    // Publishing it requires a later code change with its own evidence
+    // locators and semantic validator.
+    let _ = build_distribution;
+    false
 }
 
 fn embedded_publication_verified(
@@ -407,49 +404,52 @@ mod tests {
     }
 
     #[test]
-    fn embedded_frozen_c_anchors_are_valid_and_withheld_independently() {
-        assert!(!storage_publication_verified());
-        assert!(!derived_fork_publication_verified());
-        for (bytes, capability) in [
-            (STORAGE_ANCHOR_BYTES, STORAGE_ID),
-            (DERIVED_FORK_ANCHOR_BYTES, DERIVED_FORK_ID),
-        ] {
-            let anchor: LocalAgentSafePublicationAnchorV1 = serde_json::from_slice(bytes).unwrap();
-            assert_eq!(anchor.capability_id, capability);
-            assert_eq!(anchor.state, PublicationStateV1::Withheld);
-            assert_eq!(anchor.carrier_sha256, None);
+    fn embedded_anchors_are_valid_and_storage_may_publish_independently() {
+        let storage_anchor: LocalAgentSafePublicationAnchorV1 =
+            serde_json::from_slice(STORAGE_ANCHOR_BYTES).unwrap();
+        assert_eq!(storage_anchor.capability_id, STORAGE_ID);
+        match storage_anchor.state {
+            PublicationStateV1::Withheld => {
+                assert_eq!(storage_anchor.carrier_sha256, None);
+                assert!(!storage_publication_verified());
+            }
+            PublicationStateV1::Published => {
+                assert!(storage_anchor.carrier_sha256.is_some());
+                assert!(storage_publication_verified());
+            }
         }
+
+        // The derived chain has an independent performance contract that this
+        // publication does not satisfy. It must stay withheld even when the
+        // narrow storage chain advances.
+        assert!(!derived_fork_publication_verified());
+        let derived_anchor: LocalAgentSafePublicationAnchorV1 =
+            serde_json::from_slice(DERIVED_FORK_ANCHOR_BYTES).unwrap();
+        assert_eq!(derived_anchor.capability_id, DERIVED_FORK_ID);
+        assert_eq!(derived_anchor.state, PublicationStateV1::Withheld);
+        assert_eq!(derived_anchor.carrier_sha256, None);
     }
 
     #[test]
-    fn exact_storage_and_derived_chains_qualify_independently() {
-        for (id, components, candidate) in [
-            (
-                STORAGE_ID,
-                STORAGE_COMPONENTS.as_slice(),
-                storage_target_candidate(),
-            ),
-            (
-                DERIVED_FORK_ID,
-                DERIVED_FORK_COMPONENTS.as_slice(),
-                derived_fork_target_candidate(),
-            ),
-        ] {
-            let (anchor, carrier, receipt, tree) =
-                published_fixture(id, components, candidate.clone());
-            assert!(publication_verified_for(
-                id,
-                components,
-                &candidate,
-                &anchor,
-                &carrier,
-                &receipt,
-                crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
-                &"c".repeat(40),
-                false,
-                &tree,
-            ));
-        }
+    fn exact_storage_chain_qualifies_without_minting_derived_authority() {
+        let candidate = storage_target_candidate();
+        let (anchor, carrier, receipt, tree) =
+            published_fixture(STORAGE_ID, STORAGE_COMPONENTS.as_slice(), candidate.clone());
+        assert!(publication_verified_for(
+            STORAGE_ID,
+            STORAGE_COMPONENTS.as_slice(),
+            &candidate,
+            &anchor,
+            &carrier,
+            &receipt,
+            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+            &"c".repeat(40),
+            false,
+            &tree,
+        ));
+        assert!(!derived_fork_publication_verified_for_distribution(
+            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+        ));
     }
 
     #[test]

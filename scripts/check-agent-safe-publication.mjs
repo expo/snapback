@@ -29,6 +29,8 @@ const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'tests/acceptance/fixtures/agent-safe-storage/agent-safe-active-covered-paired.2026-08-04.v1.json',
   'tests/acceptance/fixtures/agent-safe-storage/fork-promotion-performance.2026-08-04.v1.json',
   'tests/acceptance/fixtures/agent-safe-storage/author-acceptance.2026-08-04.v1.json',
+  'tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.v1.json',
+  'tests/acceptance/latency-kanban-move3-v1-evidence.md',
 ]);
 
 const EVIDENCE = [
@@ -70,6 +72,7 @@ const RECORDS = [
 const PUBLICATION_ONLY_PATHS = new Set([
   ...PUBLICATION_CYCLE_ALLOWLIST,
   'llp/0158-instance-forking.rfc.md',
+  'llp/0000-snapback.explainer.md',
   'llp/0162-agent-safe-storage-profile.rfc.md',
   'llp/0163-operation-identity-and-commit-envelope.spec.md',
   'llp/0164-fork-and-promotion.spec.md',
@@ -82,10 +85,12 @@ const PUBLICATION_ONLY_PATHS = new Set([
   'issues/closed/20260803-agent-safe-storage-acceptance-tail.md',
   'issues/closed/20260803-0163-public-operation-identity-carrier.md',
   'issues/closed/20260803-guide-gap-instance-forks.md',
+  'issues/20260803-wave3-program.md',
   'guide/capabilities.md',
   'guide/guide-flat.generated.md',
   'guide/guide-manifest.generated.json',
   'guide/index.md',
+  'guide/operating/instance-forks.md',
   'schemas/capability.manifest.local-dev-sqlite-ibex.json',
   'schemas/capability.manifest.local-dev-sqlite-ibex.outbound-actions.json',
   'schemas/capability.manifest.schema.json',
@@ -93,6 +98,8 @@ const PUBLICATION_ONLY_PATHS = new Set([
   'schemas/inspect.public.schema.json',
   'schemas/inspect.schema.json',
   'demos/rbac/snapback/generated/artifacts.json',
+  'demos/latency-kanban/snapback/generated/artifacts.json',
+  'demos/latency-kanban/snapback/trusted-composition-activation.json',
   'demos/todo-v2/snapback/generated-remote-service/artifacts.json',
   'demos/todo-v2/snapback/generated/artifacts.json',
   'demos/todo/snapback/generated/artifacts.json',
@@ -251,6 +258,208 @@ function validateReceiptShape(receipt, record, published) {
   });
 }
 
+function requireEvidence(condition, message) {
+  if (!condition) fail(`published evidence: ${message}`);
+}
+
+function readEvidenceJson(root, path, label) {
+  try {
+    return JSON.parse(readFileSync(join(root, path), 'utf8'));
+  } catch (error) {
+    fail(`${label} is not valid JSON: ${error.message}`);
+  }
+}
+
+function validatePairedPerformance(root, commit) {
+  const path = EVIDENCE[1][1];
+  const value = readEvidenceJson(root, path, 'paired performance');
+  requireEvidence(value.schemaVersion === 'snapback.agent-safe-active-paired.v2', 'paired schema drifted');
+  requireEvidence(value.artifactName === 'agent-safe-active-covered-paired-2026-08-04', 'paired artifact identity drifted');
+  requireEvidence(value.date === '2026-08-04', 'paired date drifted');
+  requireEvidence(value.candidate?.sourceRevision === commit, 'paired candidate is not exact C');
+  requireEvidence(value.candidate?.sourceTreeClean === true, 'paired candidate was dirty');
+  requireEvidence(value.candidate?.buildProfile === 'release', 'paired candidate was not release');
+  requireEvidence(
+    value.candidate?.activeProfile
+      === 'serverIssuedClientRange+ordinaryMutationCoverageV1+productionEnvelopeChokePoint',
+    'paired candidate did not exercise the active covered carrier',
+  );
+  requireEvidence(
+    value.baseline?.artifactSha256
+      === 'sha256:d28d8514f48db3f8a0e4d0c33a1381f12e4ad13eaf6a69187aef9b7fe822ab91',
+    'paired baseline digest drifted',
+  );
+  requireEvidence(value.hardwareClass?.model === 'Mac17,3'
+    && value.hardwareClass?.cpu === 'Apple M5'
+    && value.hardwareClass?.logicalCpus === 10
+    && value.hardwareClass?.memoryBytes === 34_359_738_368,
+  'paired hardware class drifted');
+  requireEvidence(value.protocol?.recordedPairs === 11
+    && value.protocol?.warmupsPerExecutable === 1
+    && value.protocol?.bootstrapSamples === 20_000,
+  'paired protocol population drifted');
+  requireEvidence(Array.isArray(value.rawPairs) && value.rawPairs.length === 11,
+    'paired raw observation population drifted');
+  requireEvidence(Array.isArray(value.comparisons) && value.comparisons.length === 9
+    && value.comparisons.every(({ passed }) => passed === true),
+  'paired registered thresholds did not all pass');
+  requireEvidence(value.idleGates?.passed === true
+    && value.measuredComparativeThresholdsPassed === true,
+  'paired CPU/RSS/disk or aggregate threshold failed');
+  requireEvidence(value.fullRow13ProtocolQualified === false,
+    'paired artifact must defer full row 13 to composed evidence');
+}
+
+function validateAbsolutePerformance(root, commit) {
+  const path = EVIDENCE[2][1];
+  const value = readEvidenceJson(root, path, 'absolute performance');
+  requireEvidence(value.schemaVersion === 'snapback.fork-promotion-performance.v3', 'absolute schema drifted');
+  requireEvidence(value.artifactName === 'agent-safe-fork-promotion-absolute-2026-08-04', 'absolute artifact identity drifted');
+  requireEvidence(value.date === '2026-08-04', 'absolute date drifted');
+  requireEvidence(value.sourceRevision === commit && value.sourceTreeClean === true,
+    'absolute candidate is not exact clean C');
+  requireEvidence(
+    value.baselineArtifact?.sha256
+      === 'sha256:d28d8514f48db3f8a0e4d0c33a1381f12e4ad13eaf6a69187aef9b7fe822ab91',
+    'absolute baseline digest drifted',
+  );
+  requireEvidence(value.hardwareClass?.model === 'Mac17,3'
+    && value.hardwareClass?.cpu === 'Apple M5'
+    && value.hardwareClass?.logicalCpus === 10
+    && value.hardwareClass?.memoryBytes === 34_359_738_368,
+  'absolute hardware class drifted');
+  requireEvidence(value.fixture?.logicalRows === 512
+    && value.fixture?.wholeRunWarmups === 1
+    && value.fixture?.perMetricWarmups === 4
+    && value.fixture?.recordedRuns === 11
+    && value.fixture?.contentionSamples === 128
+    && value.fixture?.contentionWorkers === 8,
+  'absolute fixture/protocol population drifted');
+  requireEvidence(Array.isArray(value.rawRuns) && value.rawRuns.length === 11,
+    'absolute raw-run population drifted');
+  requireEvidence(value.absoluteBoundsPassed === true,
+    'absolute operation bound failed');
+  requireEvidence(value.absoluteBounds?.forkCreationMedianUs === 1_000
+    && value.absoluteBounds?.exactDiffMedianUs === 2_500
+    && value.absoluteBounds?.promotionMedianUs === 7_500
+    && value.absoluteBounds?.ttlReapMedianUs === 250
+    && value.absoluteBounds?.ordinaryWriterContentionP99Us === 1_250_000,
+  'absolute author-ratified bounds drifted');
+  requireEvidence(Array.isArray(value.contention?.rawRequestToCommitUs)
+    && value.contention.rawRequestToCommitUs.length === 128
+    && value.contention.initialDeferredWorkerCount === 8
+    && value.contention.deferredSampleCount > 0
+    && value.contention.p99Us <= 1_250_000,
+  'active-carrier contention population or p99 failed');
+  requireEvidence(value.promotionEgressScope
+    === 'DenyAll/no-effects only; CaptureOnly intent publication and settlement are not measured',
+  'absolute artifact widened its egress scope');
+}
+
+function validateAcceptanceCorpus(root, commit, implementationTree) {
+  const path = EVIDENCE[0][1];
+  const value = readEvidenceJson(root, path, 'acceptance corpus');
+  requireEvidence(value.schemaVersion === 'snapback.agent-safe-storage-acceptance-corpus.v1',
+    'acceptance corpus schema drifted');
+  requireEvidence(value.date === '2026-08-04'
+    && value.qualifiedSourceCommit === commit
+    && value.implementationTreeSha256 === implementationTree
+    && value.qualifiedTargetProfileId === 'local-dev-sqlite-ibex',
+  'acceptance corpus source/target identity drifted');
+  requireEvidence(JSON.stringify(value.qualifiedComponents) === JSON.stringify(STORAGE_COMPONENTS),
+    'acceptance corpus component scope drifted');
+  requireEvidence(Array.isArray(value.acceptanceRows)
+    && JSON.stringify(value.acceptanceRows.map(({ row }) => row)) === JSON.stringify([1, 2, 3, 4, 13, 14])
+    && value.acceptanceRows.every(({ status }) => status === 'PASS'),
+  'acceptance rows 1-4, 13, and 14 did not all pass');
+  requireEvidence(value.correctness?.ownCorrectness === 'PASS'
+    && value.correctness?.applicableCrashReopen === 'PASS'
+    && value.correctness?.routePolicy === 'PASS'
+    && value.correctness?.referenceIntegrity === 'PASS'
+    && value.correctness?.guide === 'PASS',
+  'acceptance own-correctness gates did not all pass');
+  requireEvidence(value.performance?.pairedThresholdsPassed === true
+    && value.performance?.absoluteBoundsPassed === true
+    && value.performance?.activeContentionP99Passed === true
+    && value.performance?.composedRow13Passed === true,
+  'acceptance performance composition failed');
+  for (const key of [
+    'aggregates', 'specializedWriters', 'migrationEnvelope', 'inAppFork',
+    'derivedDeploymentFork', 'effectSettlement', 'nonLocalTargets', 'publicPackage',
+  ]) {
+    requireEvidence(value.scope?.[key] === 'Missing', `${key} was not explicitly Missing`);
+  }
+  requireEvidence(value.overallStatus === 'PASS', 'acceptance corpus overall status is not PASS');
+}
+
+function markdownField(text, label) {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  const match = text.match(new RegExp(`^\\*\\*${escaped}:\\*\\*\\s+(.+)$`, 'mu'));
+  return match?.[1].replaceAll('`', '').trim();
+}
+
+function validateReview(root, path, family, commit, implementationTree) {
+  const text = readFileSync(join(root, path), 'utf8');
+  requireEvidence(markdownField(text, 'Reviewer family') === family,
+    `${family} review family drifted`);
+  requireEvidence(markdownField(text, 'Verdict') === 'READY', `${family} review is not READY`);
+  requireEvidence(markdownField(text, 'Reviewed commit') === commit,
+    `${family} review did not inspect exact C`);
+  requireEvidence(markdownField(text, 'Implementation tree SHA-256') === implementationTree,
+    `${family} review implementation digest drifted`);
+  requireEvidence(markdownField(text, 'Qualified capability') === 'agent_safe_storage_v1',
+    `${family} review qualified the wrong capability`);
+  requireEvidence(markdownField(text, 'Qualified components') === STORAGE_COMPONENTS.join(', '),
+    `${family} review component scope drifted`);
+  requireEvidence(markdownField(text, 'Derived capability') === 'WITHHELD (Missing)',
+    `${family} review widened the derived capability`);
+  requireEvidence(markdownField(text, 'Broader capability facts') === 'Missing',
+    `${family} review widened broader facts`);
+}
+
+function validateAuthorAcceptance(root, commit, implementationTree) {
+  const path = EVIDENCE[5][1];
+  const value = readEvidenceJson(root, path, 'author acceptance');
+  requireEvidence(value.schemaVersion === 'snapback.agent-safe-storage-author-acceptance.v1'
+    && value.date === '2026-08-04'
+    && value.author === 'Charlie Cheever'
+    && value.accepted === true
+    && value.authorizationSource === 'explicit-user-instruction-2026-08-04',
+  'named-author acceptance identity or decision drifted');
+  requireEvidence(value.qualifiedSourceCommit === commit
+    && value.implementationTreeSha256 === implementationTree
+    && value.qualifiedCapability === 'agent_safe_storage_v1'
+    && JSON.stringify(value.qualifiedComponents) === JSON.stringify(STORAGE_COMPONENTS),
+  'author acceptance source or component scope drifted');
+  requireEvidence(JSON.stringify(value.acceptedLlps) === JSON.stringify(['0158', '0163', '0164', '0165']),
+    'author acceptance LLP scope drifted');
+  requireEvidence(value.derivedCapabilityState === 'Missing'
+    && value.broaderCapabilityFactsState === 'Missing',
+  'author acceptance widened withheld facts');
+  const reviewDigests = value.reviewSha256 ?? {};
+  requireEvidence(reviewDigests.fable === sha256(readFileSync(join(root, EVIDENCE[3][1])))
+    && reviewDigests.codex === sha256(readFileSync(join(root, EVIDENCE[4][1]))),
+  'author acceptance did not bind both review bytes');
+  const evidenceDigests = value.evidenceSha256 ?? {};
+  requireEvidence(evidenceDigests.acceptanceCorpus === sha256(readFileSync(join(root, EVIDENCE[0][1])))
+    && evidenceDigests.pairedPerformance === sha256(readFileSync(join(root, EVIDENCE[1][1])))
+    && evidenceDigests.absolutePerformance === sha256(readFileSync(join(root, EVIDENCE[2][1]))),
+  'author acceptance did not bind the corpus and both performance records');
+}
+
+export function validatePublishedEvidenceSemantics(root, record, commit) {
+  if (record.id !== 'agent_safe_storage_v1') {
+    fail(`${record.id} has no dedicated end-to-end F0b performance evidence contract`);
+  }
+  const implementationTree = implementationDigestAt(root, commit);
+  validatePairedPerformance(root, commit);
+  validateAbsolutePerformance(root, commit);
+  validateAcceptanceCorpus(root, commit, implementationTree);
+  validateReview(root, EVIDENCE[3][1], 'Fable', commit, implementationTree);
+  validateReview(root, EVIDENCE[4][1], 'Codex', commit, implementationTree);
+  validateAuthorAcceptance(root, commit, implementationTree);
+}
+
 export function validatePublicationRecord(root, record) {
   const anchorBytes = readFileSync(join(root, record.anchor));
   const carrierBytes = readFileSync(join(root, record.carrier));
@@ -302,6 +511,7 @@ export function validatePublicationRecord(root, record) {
       fail(`${record.id} evidence bytes drifted at ${binding.path}`);
     }
   }
+  validatePublishedEvidenceSemantics(root, record, carrier.qualifiedSourceCommit);
   return { id: record.id, state: 'published', commit: carrier.qualifiedSourceCommit };
 }
 

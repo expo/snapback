@@ -200,7 +200,7 @@ fn p2_committed_cloudflare_manifest_matches_the_declared_target() {
 }
 
 #[test]
-fn agent_safe_scaffold_is_missing_for_every_generated_target_projection() {
+fn agent_safe_publication_is_exact_for_every_generated_target_projection() {
     for manifest in [
         CapabilityManifest::local_v0_declared(),
         CapabilityManifest::remote_service_sqlite_ibex_declared(),
@@ -219,12 +219,46 @@ fn agent_safe_scaffold_is_missing_for_every_generated_target_projection() {
             value["agentSafe"]["target"]["envelope"]["migration"],
             "Missing"
         );
-        assert!(
-            manifest
-                .capability_gaps
-                .iter()
-                .any(|gap| gap == "agent_safe_storage_v1"),
-            "{profile} omitted the aggregate GAP",
+        let storage_supported = manifest
+            .supported_capabilities
+            .contains(&TargetCapabilityId::AgentSafeStorageV1);
+        let storage_gap = manifest
+            .capability_gaps
+            .iter()
+            .any(|gap| gap == "agent_safe_storage_v1");
+        assert_ne!(
+            storage_supported, storage_gap,
+            "{profile} storage support/GAP drifted"
+        );
+        if profile != "local-dev-sqlite-ibex" {
+            assert!(
+                !storage_supported,
+                "{profile} inherited local-only storage support"
+            );
+        }
+        for path in [
+            ["ordinaryMutation", "hostPlan"],
+            ["ordinaryMutation", "ibexBuffered"],
+            ["hostChildMutation", "hostPlan"],
+            ["hostChildMutation", "ibexBuffered"],
+        ] {
+            assert_eq!(
+                value["agentSafe"]["target"]["envelope"][path[0]][path[1]],
+                if storage_supported {
+                    "Covered"
+                } else {
+                    "Missing"
+                },
+                "{profile} widened or omitted an envelope component",
+            );
+        }
+        assert_eq!(
+            value["agentSafe"]["target"]["explanation"]["scopedFacts"]
+                .as_array()
+                .expect("scoped explanation facts")
+                .len(),
+            if storage_supported { 2 } else { 0 },
+            "{profile} explanation publication drifted",
         );
         assert!(
             manifest
@@ -234,11 +268,9 @@ fn agent_safe_scaffold_is_missing_for_every_generated_target_projection() {
             "{profile} omitted the derived-deployment GAP",
         );
         assert!(
-            manifest
+            !manifest
                 .supported_capabilities
-                .iter()
-                .all(|capability| capability.as_str() != "agent_safe_storage_v1"),
-            "{profile} advertised support before publication",
+                .contains(&TargetCapabilityId::AgentSafeDerivedDeploymentForkV1)
         );
     }
 }
