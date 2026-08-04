@@ -5,16 +5,19 @@
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (host action-child carrier slice — job/cron action
+**Revised:** 2026-08-04 (narrow public owner-policy slice — exact generated
+`owned-crud.v1`/`owner.v1` create and update envelopes can be explained only
+after current function policy, client audience, executable artifact, current
+row, retained historical row, and the complete closed fact set revalidate;
+every other policy/fact shape remains fail-closed, the Spec remains Draft, and
+all capabilities remain Missing); 2026-08-04 (host action-child carrier slice — job/cron action
 parents now derive attempt-invariant child identities, managed HostPlan and
 detached HostPlan/Ibex commits select explicit host writer adapters, and the
 asymmetric/retry corpus is green; migrations, target activation, performance,
 review, and publication remain open, so every capability stays Missing);
 2026-08-04 (explanation/protected-custody slice — public and
 AdminRead exact-operation transport, encrypted protected fact custody, and
-fork-safe key rotation landed; public per-fact policy evaluation remains
-fail-closed/Partial, host callers and publication gates remain open, and all
-capabilities remain Missing); 2026-08-04 (public client carrier slice — server-owned issue/refresh transport,
+fork-safe key rotation landed); 2026-08-04 (public client carrier slice — server-owned issue/refresh transport,
 atomic file/IndexedDB outbox range custody, artifact-bound mutation carrier,
 ordinary-writer activation/refusal seam, and response-loss/exhaustion corpus
 landed; host caller and explanation transport residues keep the Spec Draft and
@@ -31,13 +34,17 @@ they can version independently of the profile umbrella)
 **Related:** LLP 0012, LLP 0037, LLP 0043, LLP 0055, LLP 0095, LLP 0133,
 LLP 0148, LLP 0162
 
-**Implementation evidence:** 2026-08-04 (job/cron action children carry
+**Implementation evidence:** 2026-08-04 (the public explanation lane now has a
+narrow exact generated owner create/update evaluator; any artifact drift,
+principal/incarnation/audience change, current or historical owner divergence,
+permission/query/membership fact, context-answer widening, receipt divergence,
+effect, truncation, or custody failure withholds the whole projection as
+`authorization-unprovable`; admin explanation and encrypted protected-detail
+custody remain wired, and derived forks scrub ciphertext and rotate its
+owner-only sidecar); 2026-08-04 (job/cron action children carry
 server-recorded host-incarnation issuance through the production HostPlan and
 Ibex adapters; retry reconstruction and explicit asymmetric writer coverage
-are green, while migrations and publication gates remain open); 2026-08-04 (admin explanation and encrypted
-protected-detail custody are wired; public explanation resolves current
-authority but withholds all facts until a real per-fact evaluator exists;
-derived forks scrub ciphertext and rotate its owner-only sidecar); 2026-08-04 (public range transport, atomic client
+are green, while migrations and publication gates remain open); 2026-08-04 (public range transport, atomic client
 custody, covered mutation carrier, and a dormant ordinary-writer activation
 seam are wired; no production target activates it;
 host callers, explanation transport/custody, complete acceptance corpus, and
@@ -365,13 +372,26 @@ The Rust-owned exact-operation request/response pair is served at the app-auth
 `POST /_snapback/api/operations/explain` route (strengthened to the existing
 secret-read lease gate in sessions mode). The admin route evaluates the
 current operator policy and can project all retained fact classes. The public
-route re-attests the current principal and authority incarnation, but exact
-identity equality is not treated as row/non-row authorization: until a real
-per-fact evaluator is wired it returns `authorization-unprovable` with all
-stored-envelope metadata, digests, counts, and detail withheld. Only the exact
-operation key supplied in the lookup and the refusal disposition are echoed;
-the operation kind, function, principal/session, and snapshot are not treated
-as public facts when current authorization is unprovable.
+route re-attests the current principal and authority incarnation, derives and
+compares the operation audience from the current incarnation plus the caller's
+`clientAudienceId`, compares the retained executable-artifact digest with the
+currently loaded function/schema generation, and re-runs the live
+function/grant/profile policy. It recognizes only the exact generated
+`owned-crud.v1` / `owner.v1` HostPlan create and update shapes. Create requires
+the committed owner postimage to be the current subject. Update additionally
+requires the captured historical row at the exact read version and the current
+row to have that same owner. The evaluator requires the exact protected
+read/write/context/receipt shapes and an empty effect set; receipt postimage,
+snapshot, changed-row count, result, and context ledger must agree exactly.
+
+Artifact drift, principal/incarnation/audience change, current or historical
+owner divergence, missing/query/predicate/membership-shaped permissions,
+non-empty context/effects, divergent receipts, expiry/truncation, unsupported
+plans, and unavailable protected custody all produce one closed
+`authorization-unprovable` result with stored metadata, digests, counts, and
+detail withheld. Only the exact operation key supplied in the lookup and the
+refusal disposition are echoed. Identity equality and ciphertext custody are
+never themselves treated as authorization.
 
 Read, write, context-answer, and receipt detail is encrypted under
 XChaCha20-Poly1305 in `_snapback_operation_protected_detail_v1`; its root key
@@ -387,7 +407,7 @@ minted sidecar.
 
 | LLP 0162 acceptance row | Status after this slice |
 | --- | --- |
-| 3 | **Partial** — exact public/admin transport and encrypted protected custody are wired. Admin current policy projects the complete retained fact set; public per-fact row/non-row policy evaluation remains deliberately fail-closed. |
+| 3 | **Partial** — exact public/admin transport and encrypted protected custody are wired. Admin current policy projects the complete retained fact set. Public current-policy projection is green only for the closed generated owner create/update profile; aggregate/non-row, delete, hand-written/opaque, predicate, membership, effect-bearing, and other unsupported shapes remain deliberately fail-closed. |
 | 4 | **Partial** — protected-detail retention is independent and fork custody is closed, but complete-target activation/asymmetric-retention acceptance remains open. |
 | 14 | **Partial** — unchanged: promotion is wired, while first-party job/cron/migration/child identities are not yet production-reachable. |
 

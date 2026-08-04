@@ -1532,57 +1532,8 @@ impl InvocationGate {
                 ),
             ));
         }
-        let requirement = function.effective_auth_requirement();
-        if requirement == AuthRequirement::Authenticated && !authority.resolved.carries_user() {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_REQUIRED",
-                "auth",
-                "this function requires an authenticated user",
-            ));
-        }
-        let mut authority_creating_consent = false;
-        let mut matched_grant_scope = None;
-        if let ResolvedAppAuthority::ServicePrincipal { scopes, .. } = &authority.resolved {
-            let scope = scopes
-                .iter()
-                .find(|scope| scope.function_id == function.id && scope.kind == function.kind)
-                .ok_or_else(missing_grant_scope)?;
-            authority_creating_consent = scope.authority_creating;
-            matched_grant_scope = Some(scope.clone());
-            if function.authority_creating && !authority_creating_consent {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED",
-                    "auth",
-                    "the function requires explicit authority-creating consent",
-                )
-                .with_details(serde_json::json!({ "reason": "scope_not_authority_creating" })));
-            }
-        }
-        // @ref LLP 0065#2-the-v1-visibility-floor — profile-class admission
-        //   runs last, after the target, grant-scope, and authentication
-        //   gates: a generated standard pattern requires a principal that
-        //   projects the canonical user subject. A delegated agent resolves
-        //   to the delegating user and is admitted; a bare servicePrincipal
-        //   or non-delegated autonomous agent reaches this point
-        //   authenticated but subject-less and is refused. A future profile
-        //   may admit such principals explicitly.
-        if function.standard_pattern.is_some() {
-            let projects_user_subject = match &authority.resolved {
-                ResolvedAppAuthority::ServicePrincipal {
-                    effective_user_id, ..
-                } => effective_user_id.is_some(),
-                _ => true,
-            };
-            if !projects_user_subject {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED",
-                    "auth",
-                    "generated standard patterns require a principal that projects a user \
-                     subject; a bare service principal or non-delegated agent is not \
-                     admitted in v1",
-                ));
-            }
-        }
+        let (requirement, authority_creating_consent, matched_grant_scope) =
+            evaluate_function_policy(&authority, function)?;
         Ok(PreparedInvocation {
             authority,
             function_id: function.id.clone(),
@@ -1605,6 +1556,77 @@ impl InvocationGate {
             }),
         })
     }
+
+    /// Re-evaluate the current function/grant/profile policy without treating
+    /// the explanation request's HTTP-query carrier as authority to execute
+    /// the historical mutation. This is the same policy core consumed by
+    /// [`Self::prepare_function`], minus only target-kind dispatch.
+    ///
+    /// @ref LLP 0162#acceptance — an envelope's recorded authority identifiers
+    ///   are lookup keys only; public explanation must re-run current policy.
+    pub(crate) fn validate_current_function_policy(
+        authority: &PreparedAuthority,
+        function: &FunctionDefinition,
+    ) -> SnapbackResult<()> {
+        evaluate_function_policy(authority, function).map(|_| ())
+    }
+}
+
+fn evaluate_function_policy(
+    authority: &PreparedAuthority,
+    function: &FunctionDefinition,
+) -> SnapbackResult<(AuthRequirement, bool, Option<ResolvedGrantScope>)> {
+    authority.validate_admission("current function policy evaluation")?;
+    let requirement = function.effective_auth_requirement();
+    if requirement == AuthRequirement::Authenticated && !authority.resolved.carries_user() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_REQUIRED",
+            "auth",
+            "this function requires an authenticated user",
+        ));
+    }
+    let mut authority_creating_consent = false;
+    let mut matched_grant_scope = None;
+    if let ResolvedAppAuthority::ServicePrincipal { scopes, .. } = &authority.resolved {
+        let scope = scopes
+            .iter()
+            .find(|scope| scope.function_id == function.id && scope.kind == function.kind)
+            .ok_or_else(missing_grant_scope)?;
+        authority_creating_consent = scope.authority_creating;
+        matched_grant_scope = Some(scope.clone());
+        if function.authority_creating && !authority_creating_consent {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED",
+                "auth",
+                "the function requires explicit authority-creating consent",
+            )
+            .with_details(serde_json::json!({ "reason": "scope_not_authority_creating" })));
+        }
+    }
+    // @ref LLP 0065#2-the-v1-visibility-floor — profile-class admission runs
+    //   last, after the target, grant-scope, and authentication gates: a
+    //   generated standard pattern requires a principal that projects the
+    //   canonical user subject. A delegated agent resolves to the delegating
+    //   user and is admitted; a bare servicePrincipal or non-delegated
+    //   autonomous agent reaches this point authenticated but subject-less
+    //   and is refused. A future profile may admit such principals explicitly.
+    if function.standard_pattern.is_some() {
+        let projects_user_subject = match &authority.resolved {
+            ResolvedAppAuthority::ServicePrincipal {
+                effective_user_id, ..
+            } => effective_user_id.is_some(),
+            _ => true,
+        };
+        if !projects_user_subject {
+            return Err(SnapbackError::error(
+                "SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED",
+                "auth",
+                "generated standard patterns require a principal that projects a user subject; a \
+                 bare service principal or non-delegated agent is not admitted in v1",
+            ));
+        }
+    }
+    Ok((requirement, authority_creating_consent, matched_grant_scope))
 }
 
 fn missing_grant_scope() -> SnapbackError {

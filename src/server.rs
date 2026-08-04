@@ -19810,10 +19810,18 @@ async fn explain_operation_public(
         )
         .into());
     }
+    let client_audience_id = request.client_audience_id.ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_OPERATION_EXPLANATION_AUDIENCE_REQUIRED",
+            "protocol",
+            "public operation explanation requires clientAudienceId",
+        )
+    })?;
     let explanation = with_snapback(&state, move |snapback| {
         snapback.explain_operation_with_authority(
             &authority,
             request.authority_descriptor.as_ref(),
+            &client_audience_id,
             &request.identity,
         )
     })
