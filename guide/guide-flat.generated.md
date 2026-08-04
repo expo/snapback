@@ -92,7 +92,7 @@ and `guide-gap`.
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
 | clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
-| clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, result inference, typed mutation, optimistic rollback, presence, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackOutbox` in packages/snapback-react/index.d.mts + mixed group acceptance in packages/snapback-react/package.test.mjs | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
+| clients.react | Prepared React provider over one headless store/transport seam: exact generated single/grouped live queries, capability-gated all-live and mixed-route references with one-commit register-mode adoption, explicit per-child registered-live/read-only boot provenance, honest weakest aggregate connection state, explicit live fallback, attach-deadline recovery, sessions authorization adoption, result-validated optimistic mutation rebase/rollback, local managed connection-keyed presence, per-query `freshness`/`retention` offline facts with the `useSnapbackOutbox` queued-intent projection, Strict Mode/HMR sharing, complete cleanup, and retained Signal Desk receipts | react, hooks, useSyncExternalStore, result inference, typed mutation, optimistic rollback, replay advisory, projectRecordFields, optimistic toggle helper, presence, query groups, mixed route, read-only snapshot, bundle prime, registered bundle, hmr, offline freshness, outbox badge | local | shipped | `useSnapbackOutbox` in packages/snapback-react/index.d.mts + mixed group acceptance in packages/snapback-react/package.test.mjs | llp/0012, llp/0064, llp/0074, llp/0090, llp/0101, llp/0114, llp/0106, llp/0107, llp/0129, llp/0157 | clients/react.md |
 | clients.react-expo | React Expo Online surface; independent Android and iOS implementation evidence | react native, expo, android, ios, mobile | local | shipped | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance; crash detection | run server, ports, bindPortExactly, lifecycle, watchdog, crash, prebuilt binary, seed reset | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010, llp/0030 | testing/acceptance.md |
 | operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI; implementation and fleet evidence are not a capability claim while LLP 0158 stays Draft | fork, derived instance, diff, reap | none | partial | `ForkCommand` in src/cli.rs + tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json (substrate only) | llp/0158 | GAP (operating page and fork-aware acceptance harness; owner: Charlie, review: 2026-08-31; issue: issues/20260803-guide-gap-instance-forks.md) |
@@ -11347,7 +11347,9 @@ toggle or an increment — logs one
 `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` console warning per
 (mutation, query) site, pointing back at this recipe. The advisory is
 observational only: it never changes admission, and an explicit production
-`NODE_ENV` skips it.
+`NODE_ENV` skips it. (The heuristic is deliberately broad: a reducer that
+intentionally appends a row — an optimistic create, which has no paved path
+yet — also trips it.)
 
 ## Response and query authority can arrive in either order
 
@@ -11439,6 +11441,13 @@ not.
 - **Do not fan one optimistic config out to every store showing the record.**
   v1 targets one canonical query/args pair; sibling surfaces settle through
   their own subscriptions.
+- **Do not write a matcher that may never become true.** A layer with an
+  `isAuthoritative` never uses the fallback next-delivery retirement: if the
+  matched row can be filtered out of the query result, or a matched field
+  can settle to a value differing from both receipt and intent, the
+  confirmed layer stays installed (and keeps its subscription pin) until the
+  store tears down. Match rows the query is guaranteed to keep returning,
+  and match fields the mutation actually settles.
 
 ---
 

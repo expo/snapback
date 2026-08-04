@@ -147,7 +147,9 @@ toggle or an increment — logs one
 `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` console warning per
 (mutation, query) site, pointing back at this recipe. The advisory is
 observational only: it never changes admission, and an explicit production
-`NODE_ENV` skips it.
+`NODE_ENV` skips it. (The heuristic is deliberately broad: a reducer that
+intentionally appends a row — an optimistic create, which has no paved path
+yet — also trips it.)
 
 ## Response and query authority can arrive in either order
 
@@ -239,3 +241,10 @@ not.
 - **Do not fan one optimistic config out to every store showing the record.**
   v1 targets one canonical query/args pair; sibling surfaces settle through
   their own subscriptions.
+- **Do not write a matcher that may never become true.** A layer with an
+  `isAuthoritative` never uses the fallback next-delivery retirement: if the
+  matched row can be filtered out of the query result, or a matched field
+  can settle to a value differing from both receipt and intent, the
+  confirmed layer stays installed (and keeps its subscription pin) until the
+  store tears down. Match rows the query is guaranteed to keep returning,
+  and match fields the mutation actually settles.

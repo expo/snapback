@@ -61,6 +61,16 @@ the normal query store, which made the missing Snapback path especially clear.
 
 ## Running log
 
+- **2026-08-04 — interaction with the new replay advisory (LLP 0107
+  replay-safety affordances).** The development replay-divergence advisory
+  landed by issues/closed/20260804-optimistic-projection-replay-lint-and-helpers.md
+  checks reducer idempotence over its own output. An append-shaped
+  optimistic-create reducer (`rows => [...rows, capturedRow]`) is replay-safe
+  under rebase-over-authority but not idempotent over its own output, so it
+  will trip the advisory (dev-only, once per site). When this ticket paves
+  the optimistic-create path, either teach the advisory to tolerate the
+  paved append shape or have the paved helper mark its layers exempt — do
+  not just tell authors to ignore the warning.
 - **2026-08-03 — triaged in the guide re-verification pass; remains open.**
   This ticket's acceptance needs a new CI-verified demo example (intent-ID
   optimistic create + structured application-error survival through

@@ -501,6 +501,46 @@ helperClient.inspection().attempts[2].resolve({ liked: true, likeCount: 7 });
 await noisy;
 helperClient.emit('timeline', [{ id: 'p2', liked: true, likeCount: 7 }]);
 
+// A reducer that throws when replayed over its own output takes the
+// advisory's failure branch: the warning fires (fresh site — the profile
+// query) and admission is untouched, so the projection still displays.
+const profileObserver = observeSnapbackQueries(
+  helperProvider,
+  { profile: { ref: profilePosts, args: {} } },
+  () => {},
+);
+await flush();
+const throwsOnReplay = invokeSnapbackMutation(
+  helperProvider,
+  toggleLike,
+  { postId: 'p2' },
+  {
+    optimistic: {
+      query: profilePosts,
+      args: {},
+      update: (posts) => {
+        if (posts[0].likeCount === 0) throw new Error('replayed over own output');
+        return posts.map((post) => ({ ...post, likeCount: 0 }));
+      },
+    },
+  },
+);
+assert.equal(replayWarnings.length, 3, 'a throw over the reducer\'s own output warns');
+assert.match(replayWarnings[2], /failed when replayed over its own output/);
+assert.equal(
+  profileObserver.snapshot().queries.profile.data[0].likeCount,
+  0,
+  'the advisory is observational: the projection was still admitted',
+);
+helperClient.inspection().attempts[3].resolve({ liked: true, likeCount: 0 });
+await throwsOnReplay;
+helperClient.emit('profilePosts', [{ id: 'p2', liked: true, likeCount: 0 }]);
+profileObserver.dispose();
+
+// Declaration-time refusals for the id-field seam.
+assert.throws(() => projectRecordFields('p2', { liked: true }, { idField: '' }), TypeError);
+assert.throws(() => projectRecordFields('p2', { id: 'p3', liked: true }, { idField: 'id' }), TypeError);
+
 helperObserver.dispose();
 await flush();
 await helperProvider.dispose();

@@ -880,7 +880,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   // (mutation, query) pair and never changes admission or layer state.
   const replayAdvisoryKeys = new Set();
   const warnIfReplayDivergent = (mutationReference, queryReference, layer, store, initialProjection) => {
-    if (typeof process !== 'undefined' && process?.env?.NODE_ENV === 'production') return;
+    // The exact `process.env.NODE_ENV` member expression stays inlinable by
+    // bundler defines; the catch covers hosts with no process global.
+    let nodeEnv;
+    try {
+      nodeEnv = process.env.NODE_ENV;
+    } catch {
+      nodeEnv = undefined;
+    }
+    if (nodeEnv === 'production') return;
     const key = `${mutationReference.id} ${queryReference.id}`;
     if (replayAdvisoryKeys.has(key)) return;
     let detail = null;
@@ -2275,12 +2283,20 @@ export function projectRecordFields(recordId, fields, { idField = '_id' } = {}) 
   if (typeof recordId !== 'string' || recordId.length === 0) {
     throw new TypeError('projectRecordFields requires a non-empty string record id');
   }
+  if (typeof idField !== 'string' || idField.length === 0) {
+    throw new TypeError('projectRecordFields requires a non-empty string idField');
+  }
   if (fields === null || typeof fields !== 'object' || Array.isArray(fields)) {
     throw new TypeError('projectRecordFields requires an object of intended field values');
   }
   const names = Object.keys(fields);
   if (names.length === 0) {
     throw new TypeError('projectRecordFields requires at least one intended field');
+  }
+  if (names.includes(idField)) {
+    throw new TypeError(
+      'projectRecordFields must not project the id field it matches rows by',
+    );
   }
   for (const name of names) {
     const value = fields[name];
@@ -2301,7 +2317,7 @@ export function projectRecordFields(recordId, fields, { idField = '_id' } = {}) 
     isAuthoritative: (rows, receipt) => Array.isArray(rows) && rows.some((row) => {
       if (row?.[idField] !== recordId) return false;
       return names.every((name) => {
-        const expected = receipt !== null && typeof receipt === 'object' && name in receipt
+        const expected = receipt !== null && typeof receipt === 'object' && Object.hasOwn(receipt, name)
           ? receipt[name]
           : intended[name];
         return row[name] === expected;

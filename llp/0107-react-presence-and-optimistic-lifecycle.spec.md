@@ -231,9 +231,18 @@ admission, rebase, retirement, or refusal semantics:
 - **Development replay advisory.** Outside an explicit production build
   (`process.env.NODE_ENV === 'production'`), admission additionally replays
   the just-validated initial projection through the same reducer and compares
-  the results structurally. A reducer whose second application diverges from
-  — or throws over — its own output is action-shaped and would re-run the
-  user action during rebase. The provider emits one `console.warn` prefixed
+  the results structurally. Divergence — or a throw — over the reducer's own
+  output is the signature of the action-shaped toggle/increment reducers this
+  advisory exists to catch: rebase recomputes each layer over every newer
+  authoritative base, and once a base reflects the settled outcome an
+  action-shaped reducer re-runs the user action over it. The heuristic is
+  deliberately broader than the hazard: a reducer that intentionally grows
+  the result over any base (an append-shaped optimistic create) is
+  replay-safe under rebase-over-authority yet not idempotent over its own
+  output, and will trip the advisory; revisit the heuristic when the
+  optimistic-create path is paved
+  (issues/20260801-optimistic-create-and-app-error-guide-gap.md). The
+  provider emits one `console.warn` prefixed
   `SNAPBACK_REACT_OPTIMISTIC_REPLAY_DIVERGENT` per (mutation, query) pair per
   provider, pointing at the guide recipe. The advisory is observational only:
   it never mutates store or layer state, never refuses admission, and runs
@@ -248,10 +257,17 @@ admission, rebase, retirement, or refusal semantics:
   mutation receipt's value when the receipt is an object carrying that
   field, else the captured intended value — the complete-receipt matcher the
   recipe demands, derived from the same declaration. Intended values must be
-  `boolean | number | string | null`; a non-string/empty record id, an empty
-  or non-primitive field set, or a non-array projection base throw
-  `TypeError`. The helper claims no new authority and adds no option
-  surface.
+  `boolean | number | string | null`; a non-string/empty record id or
+  `idField`, an empty or non-primitive field set, a field set containing the
+  id field itself, or a non-array projection base throw `TypeError`. Receipt
+  field presence is own-property presence (`Object.hasOwn`). Because the
+  helper always supplies a matcher, the revision-based fallback retirement
+  never applies to its layers: a matcher that can never become true — the
+  identified row absent from that query's result, or a projected field
+  settled to a third value — strands the confirmed layer with its pin until
+  store teardown, the shared hazard of every hand-written matcher
+  (issues/20260804-optimistic-matcher-strand-backstop.md tracks a backstop).
+  The helper claims no new authority and adds no option surface.
 
 ## Bounds and diagnostics
 
