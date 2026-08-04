@@ -134,6 +134,79 @@ export function contractCapabilitiesForMutations(
   offlineReplay: boolean;
 }>;
 
+export type AgentSafeEnvelopeCoverageV1 = 'Missing' | 'Covered';
+export type AgentSafeExplanationDetailV1 = 'Missing' | 'DigestOnly' | 'BoundedFacts';
+export type AgentSafeExplanationRetentionV1 = 'Missing' | 'EnvelopeBounded' | 'PolicyBounded';
+export type AgentSafeForkEgressV1 = 'Missing' | 'DenyAll' | 'CaptureOnly';
+export type AgentSafeForkPromotionV1 = 'Missing' | 'NotPromotable' | 'Promotable';
+export type AgentSafeForkBaseV1 = 'Missing' | 'currentHead' | 'namedCheckpoint';
+export type AgentSafeForkIsolationV1 = 'Missing' | 'hostMediated' | 'endToEnd';
+export type AgentSafeDiffCoverageV1 = 'Missing' | 'Exact';
+export type AgentSafeHistoryClassV1 = 'Missing' | 'BoundedChanges' | 'NamedCheckpoints';
+export type AgentSafeProofClassV1 =
+  | 'Missing'
+  | 'RecordedInventory'
+  | 'verifiedCopyFidelity'
+  | 'IndependentBoundaryProof';
+export type AgentSafeAggregateStateV1 = 'Missing' | 'Supported';
+
+export interface AgentSafeExplanationClassV1 {
+  readonly detail: AgentSafeExplanationDetailV1;
+  readonly retention: AgentSafeExplanationRetentionV1;
+}
+
+export interface AgentSafeForkAxesV1 {
+  readonly egress: AgentSafeForkEgressV1;
+  readonly promotion: AgentSafeForkPromotionV1;
+  readonly base: AgentSafeForkBaseV1;
+  readonly isolation: AgentSafeForkIsolationV1;
+}
+
+export interface AgentSafeCapabilityFactsV1 {
+  readonly envelope: Readonly<{
+    ordinaryIbexMutation: AgentSafeEnvelopeCoverageV1;
+    hostPlanSettlement: AgentSafeEnvelopeCoverageV1;
+    migration: AgentSafeEnvelopeCoverageV1;
+    durableBackgroundWork: AgentSafeEnvelopeCoverageV1;
+    push: AgentSafeEnvelopeCoverageV1;
+    auth: AgentSafeEnvelopeCoverageV1;
+  }>;
+  readonly explanation: Readonly<{
+    ordinaryIbexMutation: AgentSafeExplanationClassV1;
+    hostPlanSettlement: AgentSafeExplanationClassV1;
+    migration: AgentSafeExplanationClassV1;
+    durableBackgroundWork: AgentSafeExplanationClassV1;
+    push: AgentSafeExplanationClassV1;
+    auth: AgentSafeExplanationClassV1;
+  }>;
+  readonly forks: Readonly<{
+    inApp: AgentSafeForkAxesV1;
+    derivedDeployment: AgentSafeForkAxesV1;
+  }>;
+  readonly diff: Readonly<{
+    data: AgentSafeDiffCoverageV1;
+    effects: AgentSafeDiffCoverageV1;
+  }>;
+  readonly history: AgentSafeHistoryClassV1;
+  readonly proof: AgentSafeProofClassV1;
+  readonly replay: Readonly<{
+    handlers: 'Missing' | 'Deterministic';
+    actions: 'Missing' | 'Nondeterministic';
+  }>;
+  readonly schemaEvolution: 'Missing' | 'ProofsWithoutLens';
+  readonly resourceBounds: 'Missing' | 'AdmissionAndResourceBounds';
+  readonly aggregate: Readonly<{
+    core: AgentSafeAggregateStateV1;
+    history: AgentSafeAggregateStateV1;
+  }>;
+}
+
+export interface AgentSafeCapabilityExtensionV1 {
+  readonly schemaVersion: 'agentSafe.v1';
+  readonly target: AgentSafeCapabilityFactsV1;
+  readonly appEffective: AgentSafeCapabilityFactsV1;
+}
+
 export interface TargetCapabilityManifest {
   readonly targetProfileId?: string;
   readonly supportedArtifactVersions?: readonly string[];
@@ -143,6 +216,7 @@ export interface TargetCapabilityManifest {
     authMode?: string;
   }>>;
   readonly supportedCapabilities?: readonly string[];
+  readonly agentSafe?: AgentSafeCapabilityExtensionV1;
   readonly [fact: string]: unknown;
 }
 

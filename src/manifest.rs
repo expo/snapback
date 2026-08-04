@@ -9861,6 +9861,463 @@ impl AuthProtocols {
     };
 }
 
+/// Version discriminator for the orthogonal agent-safe storage fact block.
+/// This is intentionally independent of [`TargetCapabilityId`]: class facts
+/// are multi-valued observations, not boolean support-registry membership.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeCapabilitySchemaVersion {
+    #[serde(rename = "agentSafe.v1")]
+    V1,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeEnvelopeCoverageV1 {
+    Missing,
+    Covered,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeExplanationDetailV1 {
+    Missing,
+    DigestOnly,
+    BoundedFacts,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeExplanationRetentionV1 {
+    Missing,
+    EnvelopeBounded,
+    PolicyBounded,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeForkEgressV1 {
+    Missing,
+    DenyAll,
+    CaptureOnly,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeForkPromotionV1 {
+    Missing,
+    NotPromotable,
+    Promotable,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeForkBaseV1 {
+    Missing,
+    #[serde(rename = "currentHead")]
+    CurrentHead,
+    #[serde(rename = "namedCheckpoint")]
+    NamedCheckpoint,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeForkIsolationV1 {
+    Missing,
+    #[serde(rename = "hostMediated")]
+    HostMediated,
+    #[serde(rename = "endToEnd")]
+    EndToEnd,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeDiffCoverageV1 {
+    Missing,
+    Exact,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeHistoryClassV1 {
+    Missing,
+    BoundedChanges,
+    NamedCheckpoints,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeProofClassV1 {
+    Missing,
+    RecordedInventory,
+    #[serde(rename = "verifiedCopyFidelity")]
+    VerifiedCopyFidelity,
+    IndependentBoundaryProof,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeHandlerReplayClassV1 {
+    Missing,
+    Deterministic,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeActionReplayClassV1 {
+    Missing,
+    Nondeterministic,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeSchemaEvolutionClassV1 {
+    Missing,
+    ProofsWithoutLens,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeResourceBoundClassV1 {
+    Missing,
+    AdmissionAndResourceBounds,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+pub enum AgentSafeAggregateStateV1 {
+    Missing,
+    Supported,
+}
+
+/// Fixed durable-lane inventory. Specialized lanes remain first-class facts
+/// even though their absence does not block the v1 core aggregate.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeEnvelopeCoverageByLaneV1 {
+    pub ordinary_ibex_mutation: AgentSafeEnvelopeCoverageV1,
+    pub host_plan_settlement: AgentSafeEnvelopeCoverageV1,
+    pub migration: AgentSafeEnvelopeCoverageV1,
+    pub durable_background_work: AgentSafeEnvelopeCoverageV1,
+    pub push: AgentSafeEnvelopeCoverageV1,
+    pub auth: AgentSafeEnvelopeCoverageV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeExplanationClassV1 {
+    pub detail: AgentSafeExplanationDetailV1,
+    pub retention: AgentSafeExplanationRetentionV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeExplanationByLaneV1 {
+    pub ordinary_ibex_mutation: AgentSafeExplanationClassV1,
+    pub host_plan_settlement: AgentSafeExplanationClassV1,
+    pub migration: AgentSafeExplanationClassV1,
+    pub durable_background_work: AgentSafeExplanationClassV1,
+    pub push: AgentSafeExplanationClassV1,
+    pub auth: AgentSafeExplanationClassV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeForkAxesV1 {
+    pub egress: AgentSafeForkEgressV1,
+    pub promotion: AgentSafeForkPromotionV1,
+    pub base: AgentSafeForkBaseV1,
+    pub isolation: AgentSafeForkIsolationV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeForkFactsV1 {
+    pub in_app: AgentSafeForkAxesV1,
+    pub derived_deployment: AgentSafeForkAxesV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeDiffFactsV1 {
+    pub data: AgentSafeDiffCoverageV1,
+    pub effects: AgentSafeDiffCoverageV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeReplayFactsV1 {
+    pub handlers: AgentSafeHandlerReplayClassV1,
+    pub actions: AgentSafeActionReplayClassV1,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeAggregateFactsV1 {
+    pub core: AgentSafeAggregateStateV1,
+    pub history: AgentSafeAggregateStateV1,
+}
+
+/// One projection of the component and aggregate facts. The target projection
+/// reports installed and qualified machinery; `appEffective` separately
+/// reports what the current app actually exercises.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeCapabilityFactsV1 {
+    pub envelope: AgentSafeEnvelopeCoverageByLaneV1,
+    pub explanation: AgentSafeExplanationByLaneV1,
+    pub forks: AgentSafeForkFactsV1,
+    pub diff: AgentSafeDiffFactsV1,
+    pub history: AgentSafeHistoryClassV1,
+    pub proof: AgentSafeProofClassV1,
+    pub replay: AgentSafeReplayFactsV1,
+    pub schema_evolution: AgentSafeSchemaEvolutionClassV1,
+    pub resource_bounds: AgentSafeResourceBoundClassV1,
+    pub aggregate: AgentSafeAggregateFactsV1,
+}
+
+/// Rust-owned LLP 0162 §8 capability extension. Its public constructors are
+/// deliberately Missing-only until a later digest-bound publication carrier
+/// supplies a validated candidate for one named target.
+///
+/// @ref LLP 0162#8-capability-honesty — target support and app-effective
+/// coverage are separate, every class is closed, and specialized lane gaps
+/// remain visible without silently widening the core aggregate.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AgentSafeCapabilityExtensionV1 {
+    pub schema_version: AgentSafeCapabilitySchemaVersion,
+    pub target: AgentSafeCapabilityFactsV1,
+    pub app_effective: AgentSafeCapabilityFactsV1,
+}
+
+impl Default for AgentSafeCapabilityExtensionV1 {
+    fn default() -> Self {
+        Self::missing()
+    }
+}
+
+impl AgentSafeCapabilityExtensionV1 {
+    pub fn missing() -> Self {
+        Self {
+            schema_version: AgentSafeCapabilitySchemaVersion::V1,
+            target: AgentSafeCapabilityFactsV1::missing(),
+            app_effective: AgentSafeCapabilityFactsV1::missing(),
+        }
+    }
+
+    fn validate(&self) -> Result<(), &'static str> {
+        self.target.validate_projection()?;
+        self.app_effective.validate_projection()?;
+        if !self.app_effective.is_subset_of(&self.target) {
+            return Err("appEffective facts exceed target support");
+        }
+        if self.app_effective.aggregate.core == AgentSafeAggregateStateV1::Supported
+            && self.target.aggregate.core != AgentSafeAggregateStateV1::Supported
+        {
+            return Err("appEffective core aggregate exceeds target support");
+        }
+        if self.app_effective.aggregate.history == AgentSafeAggregateStateV1::Supported
+            && self.target.aggregate.history != AgentSafeAggregateStateV1::Supported
+        {
+            return Err("appEffective history aggregate exceeds target support");
+        }
+        Ok(())
+    }
+}
+
+impl AgentSafeCapabilityFactsV1 {
+    fn missing() -> Self {
+        let explanation = || AgentSafeExplanationClassV1 {
+            detail: AgentSafeExplanationDetailV1::Missing,
+            retention: AgentSafeExplanationRetentionV1::Missing,
+        };
+        let fork = || AgentSafeForkAxesV1 {
+            egress: AgentSafeForkEgressV1::Missing,
+            promotion: AgentSafeForkPromotionV1::Missing,
+            base: AgentSafeForkBaseV1::Missing,
+            isolation: AgentSafeForkIsolationV1::Missing,
+        };
+        Self {
+            envelope: AgentSafeEnvelopeCoverageByLaneV1 {
+                ordinary_ibex_mutation: AgentSafeEnvelopeCoverageV1::Missing,
+                host_plan_settlement: AgentSafeEnvelopeCoverageV1::Missing,
+                migration: AgentSafeEnvelopeCoverageV1::Missing,
+                durable_background_work: AgentSafeEnvelopeCoverageV1::Missing,
+                push: AgentSafeEnvelopeCoverageV1::Missing,
+                auth: AgentSafeEnvelopeCoverageV1::Missing,
+            },
+            explanation: AgentSafeExplanationByLaneV1 {
+                ordinary_ibex_mutation: explanation(),
+                host_plan_settlement: explanation(),
+                migration: explanation(),
+                durable_background_work: explanation(),
+                push: explanation(),
+                auth: explanation(),
+            },
+            forks: AgentSafeForkFactsV1 {
+                in_app: fork(),
+                derived_deployment: fork(),
+            },
+            diff: AgentSafeDiffFactsV1 {
+                data: AgentSafeDiffCoverageV1::Missing,
+                effects: AgentSafeDiffCoverageV1::Missing,
+            },
+            history: AgentSafeHistoryClassV1::Missing,
+            proof: AgentSafeProofClassV1::Missing,
+            replay: AgentSafeReplayFactsV1 {
+                handlers: AgentSafeHandlerReplayClassV1::Missing,
+                actions: AgentSafeActionReplayClassV1::Missing,
+            },
+            schema_evolution: AgentSafeSchemaEvolutionClassV1::Missing,
+            resource_bounds: AgentSafeResourceBoundClassV1::Missing,
+            aggregate: AgentSafeAggregateFactsV1 {
+                core: AgentSafeAggregateStateV1::Missing,
+                history: AgentSafeAggregateStateV1::Missing,
+            },
+        }
+    }
+
+    fn validate_projection(&self) -> Result<(), &'static str> {
+        for fork in [&self.forks.in_app, &self.forks.derived_deployment] {
+            if fork.promotion == AgentSafeForkPromotionV1::Promotable
+                && fork.base != AgentSafeForkBaseV1::CurrentHead
+            {
+                return Err("Promotable forks require currentHead base");
+            }
+            if fork.promotion == AgentSafeForkPromotionV1::Promotable
+                && fork.egress == AgentSafeForkEgressV1::Missing
+            {
+                return Err("Promotable forks require a declared egress policy");
+            }
+        }
+        if self.aggregate.core == AgentSafeAggregateStateV1::Supported && !self.satisfies_core() {
+            return Err("AgentSafeV1-core aggregate has a Missing required component");
+        }
+        if self.aggregate.history == AgentSafeAggregateStateV1::Supported
+            && (self.aggregate.core != AgentSafeAggregateStateV1::Supported
+                || self.history == AgentSafeHistoryClassV1::Missing)
+        {
+            return Err("AgentSafeV1-history requires supported core and retained history");
+        }
+        Ok(())
+    }
+
+    fn satisfies_core(&self) -> bool {
+        self.envelope.ordinary_ibex_mutation == AgentSafeEnvelopeCoverageV1::Covered
+            && self.envelope.host_plan_settlement == AgentSafeEnvelopeCoverageV1::Covered
+            && self.explanation.ordinary_ibex_mutation.detail
+                != AgentSafeExplanationDetailV1::Missing
+            && self.explanation.ordinary_ibex_mutation.retention
+                != AgentSafeExplanationRetentionV1::Missing
+            && self.explanation.host_plan_settlement.detail != AgentSafeExplanationDetailV1::Missing
+            && self.explanation.host_plan_settlement.retention
+                != AgentSafeExplanationRetentionV1::Missing
+            && matches!(
+                self.forks.in_app.egress,
+                AgentSafeForkEgressV1::DenyAll | AgentSafeForkEgressV1::CaptureOnly
+            )
+            && self.forks.in_app.promotion == AgentSafeForkPromotionV1::Promotable
+            && self.forks.in_app.base == AgentSafeForkBaseV1::CurrentHead
+            && self.forks.in_app.isolation != AgentSafeForkIsolationV1::Missing
+            && self.diff.data == AgentSafeDiffCoverageV1::Exact
+            && self.diff.effects == AgentSafeDiffCoverageV1::Exact
+            && self.proof == AgentSafeProofClassV1::IndependentBoundaryProof
+    }
+
+    fn is_subset_of(&self, target: &Self) -> bool {
+        fn class<T: Copy + PartialEq>(effective: T, target: T, missing: T) -> bool {
+            effective == missing || effective == target
+        }
+        let explanation = |effective: &AgentSafeExplanationClassV1,
+                           target: &AgentSafeExplanationClassV1| {
+            class(
+                effective.detail,
+                target.detail,
+                AgentSafeExplanationDetailV1::Missing,
+            ) && class(
+                effective.retention,
+                target.retention,
+                AgentSafeExplanationRetentionV1::Missing,
+            )
+        };
+        let fork = |effective: &AgentSafeForkAxesV1, target: &AgentSafeForkAxesV1| {
+            class(
+                effective.egress,
+                target.egress,
+                AgentSafeForkEgressV1::Missing,
+            ) && class(
+                effective.promotion,
+                target.promotion,
+                AgentSafeForkPromotionV1::Missing,
+            ) && class(effective.base, target.base, AgentSafeForkBaseV1::Missing)
+                && class(
+                    effective.isolation,
+                    target.isolation,
+                    AgentSafeForkIsolationV1::Missing,
+                )
+        };
+        let envelope = |effective: AgentSafeEnvelopeCoverageV1,
+                        target: AgentSafeEnvelopeCoverageV1| {
+            class(effective, target, AgentSafeEnvelopeCoverageV1::Missing)
+        };
+
+        envelope(
+            self.envelope.ordinary_ibex_mutation,
+            target.envelope.ordinary_ibex_mutation,
+        ) && envelope(
+            self.envelope.host_plan_settlement,
+            target.envelope.host_plan_settlement,
+        ) && envelope(self.envelope.migration, target.envelope.migration)
+            && envelope(
+                self.envelope.durable_background_work,
+                target.envelope.durable_background_work,
+            )
+            && envelope(self.envelope.push, target.envelope.push)
+            && envelope(self.envelope.auth, target.envelope.auth)
+            && explanation(
+                &self.explanation.ordinary_ibex_mutation,
+                &target.explanation.ordinary_ibex_mutation,
+            )
+            && explanation(
+                &self.explanation.host_plan_settlement,
+                &target.explanation.host_plan_settlement,
+            )
+            && explanation(&self.explanation.migration, &target.explanation.migration)
+            && explanation(
+                &self.explanation.durable_background_work,
+                &target.explanation.durable_background_work,
+            )
+            && explanation(&self.explanation.push, &target.explanation.push)
+            && explanation(&self.explanation.auth, &target.explanation.auth)
+            && fork(&self.forks.in_app, &target.forks.in_app)
+            && fork(
+                &self.forks.derived_deployment,
+                &target.forks.derived_deployment,
+            )
+            && class(
+                self.diff.data,
+                target.diff.data,
+                AgentSafeDiffCoverageV1::Missing,
+            )
+            && class(
+                self.diff.effects,
+                target.diff.effects,
+                AgentSafeDiffCoverageV1::Missing,
+            )
+            && class(
+                self.history,
+                target.history,
+                AgentSafeHistoryClassV1::Missing,
+            )
+            && class(self.proof, target.proof, AgentSafeProofClassV1::Missing)
+            && class(
+                self.replay.handlers,
+                target.replay.handlers,
+                AgentSafeHandlerReplayClassV1::Missing,
+            )
+            && class(
+                self.replay.actions,
+                target.replay.actions,
+                AgentSafeActionReplayClassV1::Missing,
+            )
+            && class(
+                self.schema_evolution,
+                target.schema_evolution,
+                AgentSafeSchemaEvolutionClassV1::Missing,
+            )
+            && class(
+                self.resource_bounds,
+                target.resource_bounds,
+                AgentSafeResourceBoundClassV1::Missing,
+            )
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct CapabilityManifest {
     #[serde(
@@ -9911,6 +10368,11 @@ pub struct CapabilityManifest {
         skip_serializing_if = "BTreeMap::is_empty"
     )]
     pub capability_maturity: BTreeMap<TargetCapabilityId, CapabilityMaturity>,
+    /// Versioned LLP 0162 fact projection. This remains present and wholly
+    /// `Missing` until a named target passes its component corpus and a later
+    /// publication carrier validates and installs the candidate facts.
+    #[serde(default, rename = "agentSafe", alias = "agent_safe")]
+    pub agent_safe: AgentSafeCapabilityExtensionV1,
     #[serde(
         default,
         rename = "authProtocols",
@@ -10436,6 +10898,8 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "ephemeral_multi_instance_sticky_routing".to_owned(),
         "write_activity_v1".to_owned(),
         "sequence_allocation_v1".to_owned(),
+        "agent_safe_storage_v1".to_owned(),
+        "agent_safe_derived_deployment_fork_v1".to_owned(),
     ]
 }
 
@@ -10464,6 +10928,17 @@ fn ensure_mixed_bundle_capability_gap(gaps: &mut Vec<String>) {
     }
 }
 
+fn ensure_agent_safe_capability_gaps(gaps: &mut Vec<String>) {
+    for gap in [
+        "agent_safe_storage_v1",
+        "agent_safe_derived_deployment_fork_v1",
+    ] {
+        if !gaps.iter().any(|existing| existing == gap) {
+            gaps.push(gap.to_owned());
+        }
+    }
+}
+
 impl CapabilityManifest {
     /// The declared capability manifest of the local v0 target: what an agent
     /// may assume from the committed artifact alone. Instance-live facts
@@ -10480,6 +10955,7 @@ impl CapabilityManifest {
         mut capability_gaps: Vec<String>,
         capability_facts: TargetCapabilityFacts,
     ) -> Self {
+        ensure_agent_safe_capability_gaps(&mut capability_gaps);
         if capability_facts.local_relation_activity_publication_v1_verified {
             capability_gaps
                 .retain(|gap| gap != "bounded_children_v1" && gap != "write_activity_v1");
@@ -10504,6 +10980,7 @@ impl CapabilityManifest {
             ],
             supported_capabilities: Vec::new(),
             capability_maturity: BTreeMap::new(),
+            agent_safe: AgentSafeCapabilityExtensionV1::missing(),
             auth_protocols: Some(AuthProtocols::V1),
             hosted_auth: crate::auth::deployment::HostedAuthCapabilities::local_target(),
             storage_engine: "sqlite".to_owned(),
@@ -10686,6 +11163,9 @@ impl CapabilityManifest {
     pub fn remote_service_sqlite_ibex_declared() -> Self {
         let mut manifest = Self::local_v0_declared();
         manifest.target_profile_id = TARGET_PROFILE_REMOTE_SERVICE_SQLITE_IBEX.to_owned();
+        // Target support never inherits across projections. A future local
+        // publication must not silently widen this independently managed arm.
+        manifest.agent_safe = AgentSafeCapabilityExtensionV1::missing();
         manifest.local_server_lifecycle = false;
         manifest.full_text_search = None;
         manifest.vector_search = None;
@@ -10726,6 +11206,7 @@ impl CapabilityManifest {
     pub fn conformance_workerd_v8(runtime_facts: Value) -> Self {
         let mut manifest = Self::local_v0(local_v0_default_capability_gaps());
         manifest.target_profile_id = TARGET_PROFILE_LOCAL_CONFORMANCE_SQLITE_WORKERD_V8.to_owned();
+        manifest.agent_safe = AgentSafeCapabilityExtensionV1::missing();
         manifest.runtime_engine = "workerd-v8".to_owned();
         manifest.full_text_search = None;
         manifest.vector_search = None;
@@ -10805,6 +11286,7 @@ impl CapabilityManifest {
     pub fn cloudflare_do_sqlite_v8(runtime_facts: Value) -> Self {
         let mut manifest = Self::local_v0(local_v0_default_capability_gaps());
         manifest.target_profile_id = TARGET_PROFILE_CLOUDFLARE_DO_SQLITE_V8.to_owned();
+        manifest.agent_safe = AgentSafeCapabilityExtensionV1::missing();
         manifest.full_text_search = None;
         manifest.vector_search = None;
         // No asset subsystem on the DO target: bytes, staging, and strict
@@ -10898,6 +11380,8 @@ impl CapabilityManifest {
             "retained_version_resume".to_owned(),
             "write_activity_v1".to_owned(),
             "sequence_allocation_v1".to_owned(),
+            "agent_safe_storage_v1".to_owned(),
+            "agent_safe_derived_deployment_fork_v1".to_owned(),
         ];
         manifest.resource_limits = vec![
             // V8 wall-clock is enforced by the platform (the object/request is
@@ -11016,6 +11500,25 @@ impl CapabilityManifest {
             .collect();
     }
 
+    /// Crate-private seam for the later SHA/digest-bound publication carrier.
+    /// No current target calls it, and validation alone never removes a GAP or
+    /// inserts a [`TargetCapabilityId`].
+    #[allow(dead_code)]
+    pub(crate) fn with_agent_safe_publication_candidate(
+        mut self,
+        candidate: AgentSafeCapabilityExtensionV1,
+    ) -> SnapbackResult<Self> {
+        candidate.validate().map_err(|reason| {
+            SnapbackError::error(
+                "SNAPBACK_AGENT_SAFE_CAPABILITY_INVALID",
+                "capability",
+                reason,
+            )
+        })?;
+        self.agent_safe = candidate;
+        Ok(self)
+    }
+
     /// Validate one app-artifact requirement against the closed registry and
     /// this target's positive support set. Candidate claims and missing gaps
     /// are deliberately irrelevant. Callers with no acknowledgment channel
@@ -11097,6 +11600,162 @@ impl CapabilityManifest {
             .into_iter()
             .filter_map(|capability| capability.parse::<TargetCapabilityId>().ok())
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod agent_safe_capability_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn core_candidate() -> AgentSafeCapabilityExtensionV1 {
+        let mut candidate = AgentSafeCapabilityExtensionV1::missing();
+        let facts = &mut candidate.target;
+        facts.envelope.ordinary_ibex_mutation = AgentSafeEnvelopeCoverageV1::Covered;
+        facts.envelope.host_plan_settlement = AgentSafeEnvelopeCoverageV1::Covered;
+        facts.explanation.ordinary_ibex_mutation = AgentSafeExplanationClassV1 {
+            detail: AgentSafeExplanationDetailV1::BoundedFacts,
+            retention: AgentSafeExplanationRetentionV1::PolicyBounded,
+        };
+        facts.explanation.host_plan_settlement = AgentSafeExplanationClassV1 {
+            detail: AgentSafeExplanationDetailV1::BoundedFacts,
+            retention: AgentSafeExplanationRetentionV1::PolicyBounded,
+        };
+        facts.forks.in_app = AgentSafeForkAxesV1 {
+            egress: AgentSafeForkEgressV1::DenyAll,
+            promotion: AgentSafeForkPromotionV1::Promotable,
+            base: AgentSafeForkBaseV1::CurrentHead,
+            isolation: AgentSafeForkIsolationV1::HostMediated,
+        };
+        facts.diff = AgentSafeDiffFactsV1 {
+            data: AgentSafeDiffCoverageV1::Exact,
+            effects: AgentSafeDiffCoverageV1::Exact,
+        };
+        facts.proof = AgentSafeProofClassV1::IndependentBoundaryProof;
+        facts.aggregate.core = AgentSafeAggregateStateV1::Supported;
+        candidate.app_effective = candidate.target.clone();
+        candidate
+    }
+
+    #[test]
+    fn agent_safe_public_projections_are_present_closed_and_missing() {
+        for manifest in [
+            CapabilityManifest::local_v0_declared(),
+            CapabilityManifest::remote_service_sqlite_ibex_declared(),
+            CapabilityManifest::conformance_workerd_v8(json!({})),
+            CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+        ] {
+            assert_eq!(
+                manifest.agent_safe,
+                AgentSafeCapabilityExtensionV1::missing(),
+                "{} must default to the complete Missing projection",
+                manifest.target_profile_id,
+            );
+            assert!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "agent_safe_storage_v1"),
+                "{} must expose the aggregate GAP",
+                manifest.target_profile_id,
+            );
+            assert!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "agent_safe_derived_deployment_fork_v1"),
+                "{} must expose the additive fork GAP",
+                manifest.target_profile_id,
+            );
+            assert!(
+                manifest
+                    .supported_capabilities
+                    .iter()
+                    .all(|id| id.as_str() != "agent_safe_storage_v1"),
+                "the scaffold must not publish a target capability id",
+            );
+        }
+    }
+
+    #[test]
+    fn agent_safe_target_and_app_effective_are_independent_fail_closed_facts() {
+        let mut candidate = AgentSafeCapabilityExtensionV1::missing();
+        candidate.app_effective.envelope.ordinary_ibex_mutation =
+            AgentSafeEnvelopeCoverageV1::Covered;
+        let error = CapabilityManifest::local_v0_declared()
+            .with_agent_safe_publication_candidate(candidate)
+            .expect_err("app-effective coverage cannot mint target support");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AGENT_SAFE_CAPABILITY_INVALID"
+        );
+        assert_eq!(
+            error.diagnostic.message,
+            "appEffective facts exceed target support"
+        );
+    }
+
+    #[test]
+    fn agent_safe_fork_axes_and_aggregate_requirements_are_exact() {
+        let mut bad_fork = AgentSafeCapabilityExtensionV1::missing();
+        bad_fork.target.forks.in_app = AgentSafeForkAxesV1 {
+            egress: AgentSafeForkEgressV1::DenyAll,
+            promotion: AgentSafeForkPromotionV1::Promotable,
+            base: AgentSafeForkBaseV1::NamedCheckpoint,
+            isolation: AgentSafeForkIsolationV1::HostMediated,
+        };
+        assert_eq!(
+            bad_fork.validate(),
+            Err("Promotable forks require currentHead base")
+        );
+
+        let mut missing_component = AgentSafeCapabilityExtensionV1::missing();
+        missing_component.target.aggregate.core = AgentSafeAggregateStateV1::Supported;
+        assert_eq!(
+            missing_component.validate(),
+            Err("AgentSafeV1-core aggregate has a Missing required component")
+        );
+
+        let candidate = core_candidate();
+        let original_supported = CapabilityManifest::local_v0_declared().supported_capabilities;
+        let promoted = CapabilityManifest::local_v0_declared()
+            .with_agent_safe_publication_candidate(candidate)
+            .expect("a complete private candidate passes the future seam");
+        assert_eq!(promoted.supported_capabilities, original_supported);
+        assert!(
+            promoted
+                .capability_gaps
+                .iter()
+                .any(|gap| gap == "agent_safe_storage_v1"),
+            "validation alone cannot publish or remove the GAP",
+        );
+    }
+
+    #[test]
+    fn agent_safe_wire_tampering_is_rejected() {
+        let encoded = serde_json::to_value(AgentSafeCapabilityExtensionV1::missing())
+            .expect("serialize Missing extension");
+
+        let mut wrong_version = encoded.clone();
+        wrong_version["schemaVersion"] = json!("agentSafe.v2");
+        assert!(serde_json::from_value::<AgentSafeCapabilityExtensionV1>(wrong_version).is_err());
+
+        let mut conflicting_axis = encoded.clone();
+        conflicting_axis["target"]["forks"]["inApp"]["egress"] = json!({
+            "DenyAll": true,
+            "CaptureOnly": true
+        });
+        assert!(
+            serde_json::from_value::<AgentSafeCapabilityExtensionV1>(conflicting_axis).is_err(),
+            "one scalar closed enum makes fork-axis alternatives mutually exclusive",
+        );
+
+        let mut injected = encoded;
+        injected["target"]["aggregate"]["agentSafeV2"] = json!("Supported");
+        assert!(
+            serde_json::from_value::<AgentSafeCapabilityExtensionV1>(injected).is_err(),
+            "unknown extension members fail closed",
+        );
     }
 }
 

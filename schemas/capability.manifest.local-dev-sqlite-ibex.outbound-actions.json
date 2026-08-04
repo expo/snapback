@@ -1,4 +1,139 @@
 {
+  "agentSafe": {
+    "appEffective": {
+      "aggregate": {
+        "core": "Missing",
+        "history": "Missing"
+      },
+      "diff": {
+        "data": "Missing",
+        "effects": "Missing"
+      },
+      "envelope": {
+        "auth": "Missing",
+        "durableBackgroundWork": "Missing",
+        "hostPlanSettlement": "Missing",
+        "migration": "Missing",
+        "ordinaryIbexMutation": "Missing",
+        "push": "Missing"
+      },
+      "explanation": {
+        "auth": {
+          "detail": "Missing",
+          "retention": "Missing"
+        },
+        "durableBackgroundWork": {
+          "detail": "Missing",
+          "retention": "Missing"
+        },
+        "hostPlanSettlement": {
+          "detail": "Missing",
+          "retention": "Missing"
+        },
+        "migration": {
+          "detail": "Missing",
+          "retention": "Missing"
+        },
+        "ordinaryIbexMutation": {
+          "detail": "Missing",
+          "retention": "Missing"
+        },
+        "push": {
+          "detail": "Missing",
+          "retention": "Missing"
+        }
+      },
+      "forks": {
+        "derivedDeployment": {
+          "base": "Missing",
+          "egress": "Missing",
+          "isolation": "Missing",
+          "promotion": "Missing"
+        },
+        "inApp": {
+          "base": "Missing",
+          "egress": "Missing",
+          "isolation": "Missing",
+          "promotion": "Missing"
+        }
+      },
+      "history": "Missing",
+      "proof": "Missing",
+      "replay": {
+        "actions": "Missing",
+        "handlers": "Missing"
+      },
+      "resourceBounds": "Missing",
+      "schemaEvolution": "Missing"
+    },
+    "schemaVersion": "agentSafe.v1",
+    "target": {
+      "aggregate": {
+        "core": "Missing",
+        "history": "Missing"
+      },
+      "diff": {
+        "data": "Missing",
+        "effects": "Missing"
+      },
+      "envelope": {
+        "auth": "Missing",
+        "durableBackgroundWork": "Missing",
+        "hostPlanSettlement": "Missing",
+        "migration": "Missing",
+        "ordinaryIbexMutation": "Missing",
+        "push": "Missing"
+      },
+      "explanation": {
+        "auth": {
+          "detail": "Missing",
+          "retention": "Missing"
+        },
+        "durableBackgroundWork": {
+          "detail": "Missing",
+          "retention": "Missing"
+        },
+        "hostPlanSettlement": {
+          "detail": "Missing",
+          "retention": "Missing"
+        },
+        "migration": {
+          "detail": "Missing",
+          "retention": "Missing"
+        },
+        "ordinaryIbexMutation": {
+          "detail": "Missing",
+          "retention": "Missing"
+        },
+        "push": {
+          "detail": "Missing",
+          "retention": "Missing"
+        }
+      },
+      "forks": {
+        "derivedDeployment": {
+          "base": "Missing",
+          "egress": "Missing",
+          "isolation": "Missing",
+          "promotion": "Missing"
+        },
+        "inApp": {
+          "base": "Missing",
+          "egress": "Missing",
+          "isolation": "Missing",
+          "promotion": "Missing"
+        }
+      },
+      "history": "Missing",
+      "proof": "Missing",
+      "replay": {
+        "actions": "Missing",
+        "handlers": "Missing"
+      },
+      "resourceBounds": "Missing",
+      "schemaEvolution": "Missing"
+    }
+  },
   "appCliTarget": {
     "acceptsGenerationAssertions": true,
     "capabilityId": "app-cli.target",
@@ -136,6 +271,8 @@
     "notifications",
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing",
+    "agent_safe_storage_v1",
+    "agent_safe_derived_deployment_fork_v1",
     "live_full_text_search_v1"
   ],
   "capabilityMaturity": {
