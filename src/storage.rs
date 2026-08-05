@@ -9900,6 +9900,7 @@ pub(crate) fn get_on(
         let mut rows = statement.query(params![id])?;
         if let Some(row) = rows.next()? {
             let document = row_to_document(row, table, &columns)?;
+            validate_point_read_identity(&document, id, &table.name)?;
             validate_document_version_at_most(&document, snapshot_version, &table.name)?;
             Ok(Some(document))
         } else {
@@ -14791,6 +14792,34 @@ fn decode_json_committed_version(value: Option<&Value>, context: &str) -> Snapba
         ));
     }
     Ok(version)
+}
+
+/// A point lookup is an identity boundary, not merely a SQL-selection hint.
+/// Return only the exact opaque string id the caller requested even if a
+/// future decoder, collation, or storage adapter regresses independently of
+/// the `WHERE _id = ?` predicate.
+///
+/// @ref LLP 0007#ids — portable ids have string representation and equality
+/// semantics only; a storage target may not reinterpret either property.
+fn validate_point_read_identity(
+    document: &Value,
+    requested_id: &str,
+    table: &str,
+) -> SnapbackResult<()> {
+    if document.get("_id").and_then(Value::as_str) != Some(requested_id) {
+        return Err(point_read_identity_corrupt(table));
+    }
+    Ok(())
+}
+
+#[cold]
+fn point_read_identity_corrupt(table: &str) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_STORAGE_ROW_ID_CORRUPT",
+        "storage",
+        "point read returned a row whose decoded identity differs from the requested id",
+    )
+    .with_detail("table", table.to_owned())
 }
 
 fn validate_document_version_at_most(
@@ -27338,6 +27367,24 @@ mod guarded_commit_tests {
         assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
         tx.rollback().unwrap();
         assert_eq!(db.current_version().unwrap(), 0);
+    }
+
+    #[test]
+    fn point_read_identity_requires_the_exact_requested_opaque_string() {
+        let matching = json!({ "_id": "opaque-id" });
+        validate_point_read_identity(&matching, "opaque-id", "items")
+            .expect("an exact opaque-string identity matches");
+
+        for malformed in [
+            json!({ "_id": "different-id" }),
+            json!({ "_id": 7 }),
+            json!({}),
+        ] {
+            let error = validate_point_read_identity(&malformed, "opaque-id", "items")
+                .expect_err("a mismatched or non-string decoded identity must fail closed");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_ROW_ID_CORRUPT");
+            assert_eq!(error.diagnostic.details["table"], "items");
+        }
     }
 
     #[test]
