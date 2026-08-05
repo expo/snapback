@@ -154,6 +154,33 @@ async function ensureVite() {
   throw new Error('Vite did not become ready');
 }
 
+async function launchIsolatedPage(userDataPrefix) {
+  const chrome = await launchChromeCdp({
+    chromeBin,
+    userDataPrefix,
+    env: unprivilegedChildEnv(),
+  });
+  let connection = null;
+  let isolatedPage = null;
+  try {
+    connection = await connectCdp(chrome.ws);
+    isolatedPage = await connection.newPage();
+    await isolatedPage.activate();
+  } catch (error) {
+    connection?.close();
+    await chrome.stop();
+    throw error;
+  }
+  return {
+    page: isolatedPage,
+    close: async () => {
+      await isolatedPage.close().catch(() => { /* target may already be gone */ });
+      connection.close();
+      await chrome.stop();
+    },
+  };
+}
+
 async function main() {
   if (!existsSync(surfaceExactPackage)) {
     // ENG-22480: the cold-clone lane exists to prove the surface is buildable
@@ -187,6 +214,7 @@ async function main() {
     cdp = await connectCdp(chrome.ws);
     cleanups.push(() => cdp.close());
     page = await cdp.newPage();
+    await page.activate();
     // Pin the scheme: the app follows the OS appearance, and this host may
     // be in dark mode when the suite runs. The color assertions are written
     // against the light palette; the dark-mode check flips explicitly via
@@ -438,40 +466,66 @@ async function main() {
     });
 
     await suite.check('second window boot does not clear the first (D4 inspect-first)', async () => {
-      const page2 = await cdp.newPage();
-      await page2.navigate(`${viteUrl}/?appearance=light`);
-      const second = await page2.eval(`(async () => {
-        const d = Date.now() + 20000;
-        while (!window.allAboard) { if (Date.now() > d) throw new Error('second window never booted'); await new Promise(r=>setTimeout(r,50)); }
-        await window.allAboard.ready;
-        const s = Date.now() + 8000;
-        for (;;) {
-          const conns = window.allAboard.connections ? window.allAboard.connections() : null;
-          if (conns && conns.liveTrainStatus === 'live') return { provisioned: window.allAboard.provisioned, connections: conns };
-          if (Date.now() > s) throw new Error('second window connections never settled: ' + JSON.stringify(conns));
-          await new Promise(r => setTimeout(r, 100));
+      // Chrome 151 on GitHub's Linux image exhausts per-process loader
+      // resources when two raw Exact dev-module graphs are resident at once.
+      // Keep the product invariant honest — two simultaneous app windows on
+      // the same backend, with the first still live — by giving the second
+      // real window its own browser process and resource pool.
+      const isolated = await launchIsolatedPage('aa-browser-second-');
+      const page2 = isolated.page;
+      try {
+        // Contract commits are frame-driven. Chrome throttles background tabs,
+        // so make the window under test foreground before asking it to boot.
+        await page2.activate();
+        await page2.navigate(`${viteUrl}/?appearance=light`);
+        let second;
+        try {
+          second = await page2.eval(`(async () => {
+            const d = Date.now() + 20000;
+            while (!window.allAboard) {
+              if (Date.now() > d) throw new Error('second window never booted');
+              await new Promise(r=>setTimeout(r,50));
+            }
+            await window.allAboard.ready;
+            const s = Date.now() + 8000;
+            for (;;) {
+              const conns = window.allAboard.connections ? window.allAboard.connections() : null;
+              if (conns && conns.liveTrainStatus === 'live') return { provisioned: window.allAboard.provisioned, connections: conns };
+              if (Date.now() > s) throw new Error('second window connections never settled: ' + JSON.stringify(conns));
+              await new Promise(r => setTimeout(r, 100));
+            }
+          })()`);
+        } catch (error) {
+          const diagnostics = await page2.diagnostics().catch((diagnosticsError) => ({
+            diagnosticsError: diagnosticsError.message,
+          }));
+          throw new Error(`${error.message}; diagnostics=${JSON.stringify(diagnostics)}`, { cause: error });
         }
-      })()`);
-      // Inspect-first: the backend is already provisioned and seeded, so the
-      // second window's boot performs NO provisioning writes (the LLP 0275 C4
-      // footgun — a second window calling loadSchema/reset — is gone).
-      if (second.provisioned.length !== 0) {
-        throw new Error(`second window re-provisioned: ${JSON.stringify(second.provisioned)}`);
+        // Inspect-first: the backend is already provisioned and seeded, so the
+        // second window's boot performs NO provisioning writes (the LLP 0275 C4
+        // footgun — a second window calling loadSchema/reset — is gone).
+        if (second.provisioned.length !== 0) {
+          throw new Error(`second window re-provisioned: ${JSON.stringify(second.provisioned)}`);
+        }
+        // The first window's session survived: still rendered, still live, and
+        // still receiving server-authored deltas after the second boot.
+        await page.activate();
+        const stationName = await page.text('station-name');
+        if (!stationName) throw new Error('first window lost its board after the second boot');
+        const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, {
+          method: 'POST',
+          headers: { 'x-snapback-admin-token': apiAdminToken },
+        });
+        if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
+        const fresh = await page.pollText('freshness', 'Updated a few seconds ago', 6000);
+        if (fresh !== 'Updated a few seconds ago') throw new Error(`first window stopped receiving push after second boot: ${fresh}`);
+        const conns = await page.eval('window.allAboard.connections()');
+        if (conns.liveTrainStatus !== 'live') throw new Error(`first window degraded: ${JSON.stringify(conns)}`);
+        return { second, firstStillLive: conns };
+      } finally {
+        await isolated.close();
+        await page.activate();
       }
-      // The first window's session survived: still rendered, still live, and
-      // still receiving server-authored deltas after the second boot.
-      const stationName = await page.text('station-name');
-      if (!stationName) throw new Error('first window lost its board after the second boot');
-      const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, {
-        method: 'POST',
-        headers: { 'x-snapback-admin-token': apiAdminToken },
-      });
-      if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
-      const fresh = await page.pollText('freshness', 'Updated a few seconds ago', 6000);
-      if (fresh !== 'Updated a few seconds ago') throw new Error(`first window stopped receiving push after second boot: ${fresh}`);
-      const conns = await page.eval('window.allAboard.connections()');
-      if (conns.liveTrainStatus !== 'live') throw new Error(`first window degraded: ${JSON.stringify(conns)}`);
-      return { second, firstStillLive: conns };
     });
 
     // Exact LLP 0336 P1: the shared Contract recognizer owns both contiguous
@@ -937,28 +991,39 @@ async function main() {
     // health/ensure/subscribe again, this page would render nothing but
     // loading chrome.
     await suite.check('backend unreachable: the open still shows a schedule board, honestly labeled', async () => {
-      const page3 = await cdp.newPage();
+      // Use a foreground-only isolated browser for this independent cold open.
+      // It avoids both hidden-tab scheduling and stale diagnostics/resources
+      // accumulated by the long interactive primary session.
+      const isolated = await launchIsolatedPage('aa-browser-offline-');
+      const offlinePage = isolated.page;
       try {
-        await page3.blockUrls(`${apiUrl}/*`);
-        await page3.navigate(`${viteUrl}/?appearance=light`);
-        await page3.waitForTestId('station-name');
-        const stationName = await page3.text('station-name');
-        const heroMinutes = await page3.text('hero-minutes');
-        const badge = await page3.text('data-source');
-        const note = await page3.pollText('delays-loading', 'Connecting for live updates|Offline — showing scheduled departures', 8000);
+        await offlinePage.blockUrls(`${apiUrl}/*`);
+        await offlinePage.navigate(`${viteUrl}/?appearance=light`);
+        try {
+          await offlinePage.waitForTestId('station-name');
+        } catch (error) {
+          const diagnostics = await offlinePage.diagnostics().catch((diagnosticsError) => ({
+            diagnosticsError: diagnosticsError.message,
+          }));
+          throw new Error(`${error.message}; diagnostics=${JSON.stringify(diagnostics)}`, { cause: error });
+        }
+        const stationName = await offlinePage.text('station-name');
+        const heroMinutes = await offlinePage.text('hero-minutes');
+        const badge = await offlinePage.text('data-source');
+        const note = await offlinePage.pollText('delays-loading', 'Connecting for live updates|Offline — showing scheduled departures', 8000);
         if (!stationName) throw new Error('no station rendered with the backend unreachable');
         if (!/^\d+$/.test(heroMinutes ?? '')) throw new Error(`no schedule departure rendered: ${heroMinutes}`);
         if (!/SCHEDULE/.test(badge ?? '')) throw new Error(`schedule data not honestly labeled: ${badge}`);
         if (!/Connecting for live updates|Offline/.test(note ?? '')) throw new Error(`honest status note missing: ${note}`);
-        const timing = await page3.eval('window.allAboard?.startupTiming ?? null');
+        const timing = await offlinePage.eval('window.allAboard?.startupTiming ?? null');
         if (timing?.backendConnectedMs !== null) throw new Error(`backend unexpectedly attached: ${JSON.stringify(timing)}`);
-        const bootChromeVisible = await page3.eval(
+        const bootChromeVisible = await offlinePage.eval(
           `(() => { const el = document.getElementById('boot-status'); return el ? getComputedStyle(el).display !== 'none' : false; })()`,
         );
         if (bootChromeVisible) throw new Error('blocking boot chrome shown instead of the board');
         return { stationName, heroMinutes, badge, note };
       } finally {
-        await page3.close().catch(() => {});
+        await isolated.close();
       }
     });
   }, { cleanups });
@@ -967,6 +1032,7 @@ async function main() {
 async function connectCdp(url) {
   const socket = new WebSocket(url);
   const pending = new Map();
+  const sessionEvents = new Map();
   let nextId = 1;
   // A dropped DevTools WebSocket used to hang the suite forever: a command sent
   // on a dead socket gets no response, and there was no timeout, close/error
@@ -981,6 +1047,9 @@ async function connectCdp(url) {
     const text = typeof e.data === 'string' ? e.data : await e.data.text();
     const msg = JSON.parse(text);
     if (msg.id && pending.has(msg.id)) { const p = settle(msg.id); msg.error ? p.reject(new Error(msg.error.message)) : p.resolve(msg.result || {}); }
+    if (msg.sessionId && sessionEvents.has(msg.sessionId)) {
+      sessionEvents.get(msg.sessionId)(msg.method, msg.params ?? {});
+    }
     // Fetch interception (ENG-23727 backend-unreachable check): a session that
     // enabled Fetch with a URL pattern gets every matching request refused —
     // the paused event only arrives for sessions that opted in.
@@ -1003,19 +1072,147 @@ async function connectCdp(url) {
   return {
     close: () => socket.close(),
     newPage: async () => {
-      const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
+      const { targetId } = await send('Target.createTarget', {
+        url: 'about:blank',
+        background: false,
+      });
       const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
+      const requestUrls = new Map();
+      const captured = {
+        runtimeExceptions: [],
+        consoleErrors: [],
+        logEntries: [],
+        networkFailures: [],
+        moduleResponses: [],
+      };
+      sessionEvents.set(sessionId, (method, params) => {
+        if (method === 'Runtime.exceptionThrown') {
+          captured.runtimeExceptions.push({
+            text: params.exceptionDetails?.text,
+            description: params.exceptionDetails?.exception?.description,
+            url: params.exceptionDetails?.url,
+            lineNumber: params.exceptionDetails?.lineNumber,
+            columnNumber: params.exceptionDetails?.columnNumber,
+          });
+        } else if (method === 'Runtime.consoleAPICalled' && ['error', 'assert'].includes(params.type)) {
+          captured.consoleErrors.push({
+            type: params.type,
+            values: (params.args ?? []).map((arg) => arg.value ?? arg.description ?? arg.type),
+          });
+        } else if (method === 'Log.entryAdded') {
+          captured.logEntries.push(params.entry ?? {});
+        } else if (method === 'Network.requestWillBeSent') {
+          requestUrls.set(params.requestId, params.request?.url);
+        } else if (method === 'Network.responseReceived') {
+          const response = params.response ?? {};
+          if (params.type === 'Script' || response.url?.includes('/main.ts') || response.url?.includes('/@vite/client')) {
+            captured.moduleResponses.push({
+              url: response.url,
+              status: response.status,
+              statusText: response.statusText,
+              mimeType: response.mimeType,
+              protocol: response.protocol,
+              fromDiskCache: response.fromDiskCache,
+              fromServiceWorker: response.fromServiceWorker,
+            });
+          }
+        } else if (method === 'Network.loadingFailed') {
+          captured.networkFailures.push({
+            url: requestUrls.get(params.requestId),
+            errorText: params.errorText,
+            canceled: params.canceled,
+            blockedReason: params.blockedReason,
+            type: params.type,
+          });
+          requestUrls.delete(params.requestId);
+        } else if (method === 'Network.loadingFinished') {
+          requestUrls.delete(params.requestId);
+        }
+        for (const values of Object.values(captured)) {
+          if (values.length > 20) values.splice(0, values.length - 20);
+        }
+      });
       await send('Page.enable', {}, sessionId);
       await send('Runtime.enable', {}, sessionId);
+      await send('Log.enable', {}, sessionId);
+      await send('Network.enable', {}, sessionId);
       const evalRaw = async (expression) => {
         const r = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true }, sessionId);
         if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
         return r.result?.value;
       };
       const sel = (id) => `[data-testid="${id}"]`;
+      const activate = async () => {
+        await send('Target.activateTarget', { targetId });
+        await send('Page.bringToFront', {}, sessionId);
+      };
+      const navigate = async (url) => {
+        await activate();
+        const result = await send('Page.navigate', { url }, sessionId);
+        if (result.errorText) throw new Error(`navigation failed: ${result.errorText}`);
+
+        // Page.navigate acknowledges the request before the new document has
+        // committed. An immediate long-running Runtime.evaluate can otherwise
+        // bind to the old about:blank context and wait there forever on slower
+        // Linux hosts. Poll with short evaluations until the target URL owns
+        // the execution context; the surface-specific boot checks run after
+        // this commit boundary.
+        const expectedHref = new URL(url).href;
+        const deadline = Date.now() + 15_000;
+        let observed = null;
+        let lastError = null;
+        while (Date.now() < deadline) {
+          try {
+            observed = await evalRaw('({ href: location.href, readyState: document.readyState })');
+            if (observed?.href === expectedHref && observed.readyState !== 'loading') return observed;
+          } catch (error) {
+            // A context-destroyed response is expected while the navigation
+            // swaps documents. The next short evaluation targets the new one.
+            lastError = error;
+          }
+          await sleep(50);
+        }
+        throw new Error(
+          `navigation did not commit ${expectedHref}; observed=${JSON.stringify(observed)}` +
+          (lastError ? `; lastError=${lastError.message}` : ''),
+        );
+      };
+      const diagnostics = async () => ({
+        // CI retains only the first 500 characters of each failing acceptance
+        // line. Put the decisive first browser failure ahead of page/resource
+        // context so the bounded log remains an attribution receipt.
+        failureSummary: {
+          runtimeException: captured.runtimeExceptions.at(0) ?? null,
+          consoleError: captured.consoleErrors.at(0) ?? null,
+          logEntry: captured.logEntries.find((entry) => entry.level === 'error')
+            ?? captured.logEntries.at(0)
+            ?? null,
+          networkFailure: captured.networkFailures.at(-1) ?? null,
+          moduleResponses: captured.moduleResponses.filter((response) =>
+            response.url?.includes('/main.ts') || response.url?.includes('/@vite/client')),
+        },
+        page: await evalRaw(`({
+          href: location.href,
+          readyState: document.readyState,
+          visibilityState: document.visibilityState,
+          hasFocus: document.hasFocus(),
+          exactRootChildren: document.getElementById('exact-root')?.childElementCount ?? null,
+          bootStatus: document.getElementById('boot-status')?.textContent ?? null,
+          scripts: [...document.scripts].map((script) => script.src || script.textContent?.slice(0, 80) || ''),
+          moduleResources: performance.getEntriesByType('resource')
+            .filter((entry) => entry.name.includes('/main.ts') || entry.name.includes('/@vite/client'))
+            .map((entry) => ({ name: entry.name, duration: entry.duration, transferSize: entry.transferSize })),
+        })`),
+        captured,
+      });
       return {
-        navigate: (url) => send('Page.navigate', { url }, sessionId),
-        close: () => send('Target.closeTarget', { targetId }),
+        navigate,
+        activate,
+        diagnostics,
+        close: async () => {
+          sessionEvents.delete(sessionId);
+          return send('Target.closeTarget', { targetId });
+        },
         // Refuse every request matching the pattern (ENG-23727): navigation
         // and module loads on other origins proceed normally, so the surface
         // loads while its API origin is unreachable.

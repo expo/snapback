@@ -356,3 +356,131 @@ was still running when this carrier proof closed; because it predates every
 post-receipt fixture fix, it is an attribution input rather than evidence for
 the repaired tree. The remaining Job 1 boundary is to land this green carrier
 and obtain a zero-failure `local-proof` run on the resulting main commit.
+
+### Post-merge All Aboard cold-clone reconciliation — 2026-08-04
+
+The separate `all-aboard-cold-clone` workflow on merged main
+`081efbc0db9f956e1ba3ac1c099426575cb1cf8e` passed the registry install and
+production build, then reported 32/34 browser checks. Both failures were
+acceptance-fixture lifecycle defects, not Snapback or Exact correctness
+failures:
+
+- `second window boot does not clear the first` was introduced with the D4
+  multi-window check in `8db252a0e4`. The new CDP target was never activated or
+  closed, and its fire-and-forget navigation did not wait for the new document
+  to own the execution context.
+- `backend unreachable: the open still shows a schedule board` was introduced
+  in `42570df079` with the same activation and navigation-commit omissions on
+  its isolated target. The first completed run after the Exact `0.1.10` refresh
+  in `cc71c8ce7`, run `30767525955`, shows this same pair. The source
+  attribution remains the two fixture landings above; the history does not
+  prove that the runtime refresh itself created an application boot regression.
+
+The Contract and React fixtures now activate each target before navigation,
+reactivate the first window before proving that its live session survived, and
+close the temporary second window with cleanup failures left visible. The
+coded bootstrap linked, launched, and handler-VM-qualified the patched local
+checkout. The exact cold-clone lane then passed the registry-pinned Exact
+`0.1.10` production build and all 34/34 Contract checks in 107 seconds; its
+acceptance transcript has SHA-256
+`65b65ea9d785046badd676ed928a49543a8784bc9385ec943229159999c43a26`.
+The mirrored React control arm passed 18/18, including D4. A normal-sandbox
+Linux GitHub run remains the merge boundary; the fleet reproduction was not
+weakened with `--no-sandbox` or an administrator-owned SUID change.
+
+The first normal-sandbox Linux verification of that patch, PR run
+`30961216863` at `a144b2d896d722021dcb17094c24b87e1caa5fcc`, reproduced the
+same 32/34 pair after the registry install and production build passed. That
+result disproved activation alone as a complete repair. The shared fixture
+helper was then made commit-aware: navigation brought the page to the front and
+waited, using only short evaluations, until the requested URL owned a
+non-loading execution context before any surface boot assertion started.
+
+The next normal-sandbox Linux run, `30962027409` at
+`7dcbd2bc3f0d09262eeca03b46070ab27095e57f`, again passed the registry install
+and production build and reproduced the same 32/34 pair. It did not report the
+new navigation-commit diagnostic, proving that the requested document had
+committed; the new Chrome 151 target still failed to execute the
+frame-dependent Contract bootstrap as a tab. The D4 assertion says "second
+window" but the fixture had created a second tab. It now requests a real CDP
+window (`newWindow: true`) while retaining one browser/backend, which matches
+the declared multi-window claim and avoids hidden-tab scheduling. The final
+backend-unreachable assertion no longer creates an otherwise-unused tab: as
+the last check it reloads the active primary page with API interception in
+place. If D4 still misses, its failure now retains URL, document readiness,
+visibility, focus, root, boot-status, and script diagnostics instead of only
+"never booted."
+
+The third normal-sandbox Linux run, `30963181647` at
+`592f7b3fa1697564133268a3fb8f354e527a5859`, also passed the registry install
+and production build and reproduced 32/34 after both lifecycle changes. Its
+new D4 receipt is decisive: Chrome 151 reported the requested Vite document at
+`readyState: "complete"`, `visibilityState: "visible"`, and `hasFocus: true`,
+with both `@vite/client` and `main.ts` script elements present, but an empty
+Exact root and no `window.allAboard`. The backend-unreachable check likewise
+failed after reloading the already-active primary target. A hidden tab,
+uncommitted navigation, and a second-target lifecycle error are therefore no
+longer honest explanations for this pair. The fixture now retains Runtime,
+console, browser-log, and module-network evidence on either boot timeout so the
+next normal-sandbox run can distinguish a served-module failure from an Exact
+evaluation failure before ownership is assigned.
+
+### Main KEEP-GOING cascade after the carrier merge — 2026-08-04
+
+Main run `30957509065` at
+`081efbc0db9f956e1ba3ac1c099426575cb1cf8e` completed with a 24-gate
+KEEP-GOING summary. The failures were one suite-fixture cascade, not 24
+independent correctness regressions. `python3 tests/ref_check_v0.py`, added to
+the proof in `eea03e381`, imports the extensionless `ref-check` module and on
+Linux left an untracked root `__pycache__/`. Because the repository did not
+ignore Python bytecode caches, every later source-identity observation
+honestly reported `gitDirty: true`. The proof consequently rebuilt and stamped
+a dirty server; the acceptance ladder correctly refused automatic reuse and
+eventually exhausted its 90-second link probes across workout, demo, and
+regression gates.
+
+An exact detached Linux reproduction at the failing commit proved that the
+required-surface build and complete generated-artifact batch leave the checkout
+clean, then identified `tests/ref_check_v0.py` as the first gate to change
+`git status`, with only `?? __pycache__/`. The fixture fix ignores
+`__pycache__/` repository-wide. No readiness check, bootstrap rung, identity
+comparison, or timeout was bypassed or weakened.
+
+Cold-clone run `30964273134` at
+`3fb0d22c2fa4fb381d6e0be352a307dbdc52f8f2` again passed the coded bootstrap,
+registry install, production build, and 32/34 checks. Both failed documents
+reported successful `main.ts` and `@vite/client` resource loads, complete,
+focused, visible documents, and empty roots. The new Runtime/console/network
+capture was present after that page context, but the canonical CI failure tail
+retains only the first 500 characters of a line and clipped it. The receipt now
+places a compact first browser-failure summary before page metadata so the next
+normal-sandbox run can complete attribution without widening or bypassing the
+bounded logger.
+
+Cold-clone run `30964826098` at
+`c2089d024b439d5d4d44017f644ef3d3e9f289f3` completed that attribution. The
+first D4 browser error was Chrome 151's
+`net::ERR_INSUFFICIENT_RESOURCES` while loading the second resident Exact
+development graph (`@exact/contract/src/runtime/contracts.ts`, followed by a
+failed request for `tokens.ts`). The document itself was complete, visible,
+and focused; this was a per-browser-process loader exhaustion, not an
+application exception, provisioning write, push-seam failure, or F0a fork
+failure. The final offline check's captured `element.matches` exception was
+from an earlier synthetic interaction because that primary page's diagnostics
+were cumulative; it was not honest evidence for the reload failure.
+
+The fixture now gives each independent additional cold open its own ordinary
+headless Chrome process while keeping the primary app and backend alive. D4
+still proves two simultaneous app windows on the same backend, zero
+provisioning writes from the second boot, and continued push delivery to the
+first; the backend-unreachable leg uses a foreground-only isolated cold open,
+so neither check depends on hidden-tab scheduling or stale per-process loader
+state. The exact local dev-browser lane passed 34/34 with zero cleanup errors.
+A normal-sandbox Linux run remains the merge boundary.
+
+An attempted production-bundle alternative was rejected after it reproduced
+the Exact `0.1.10` AOT `ident` closure correctness failure. That finding is
+recorded by reopening
+`issues/20260802-exact-production-runtime-breaks-contract-routes.md`; this pass
+did not edit the external Exact implementation or misrepresent a dev-browser
+pass as a production-runtime pass.
