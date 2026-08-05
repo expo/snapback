@@ -424,3 +424,24 @@ longer honest explanations for this pair. The fixture now retains Runtime,
 console, browser-log, and module-network evidence on either boot timeout so the
 next normal-sandbox run can distinguish a served-module failure from an Exact
 evaluation failure before ownership is assigned.
+
+### Main KEEP-GOING cascade after the carrier merge — 2026-08-04
+
+Main run `30957509065` at
+`081efbc0db9f956e1ba3ac1c099426575cb1cf8e` completed with a 24-gate
+KEEP-GOING summary. The failures were one suite-fixture cascade, not 24
+independent correctness regressions. `python3 tests/ref_check_v0.py`, added to
+the proof in `eea03e381`, imports the extensionless `ref-check` module and on
+Linux left an untracked root `__pycache__/`. Because the repository did not
+ignore Python bytecode caches, every later source-identity observation
+honestly reported `gitDirty: true`. The proof consequently rebuilt and stamped
+a dirty server; the acceptance ladder correctly refused automatic reuse and
+eventually exhausted its 90-second link probes across workout, demo, and
+regression gates.
+
+An exact detached Linux reproduction at the failing commit proved that the
+required-surface build and complete generated-artifact batch leave the checkout
+clean, then identified `tests/ref_check_v0.py` as the first gate to change
+`git status`, with only `?? __pycache__/`. The fixture fix ignores
+`__pycache__/` repository-wide. No readiness check, bootstrap rung, identity
+comparison, or timeout was bypassed or weakened.
