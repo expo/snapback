@@ -87,6 +87,7 @@ export async function runIbexCodeMode({
   maxBrokerBytes,
   heapMb,
   graceMs,
+  requireLiveStream = false,
   onStderr = () => {},
 } = {}) {
   const bridge = globalThis.__ibexAppBoundWorkerV1;
@@ -451,6 +452,10 @@ export async function runIbexCodeMode({
             args: body.args,
             connectionId: `ibex-${runId}-${body.subscriptionId}`,
             transport: 'stream',
+            // Qualification can close the ordinary HTTP escape hatch and
+            // prove the shipped static WebSocket backend directly. This is a
+            // trusted-parent control; it is never exposed to the worker ABI.
+            fallbackToPoll: !requireLiveStream,
             onUpdate: (value) => snapshots.push(value),
           });
           live.set(body.subscriptionId, { started, snapshots });

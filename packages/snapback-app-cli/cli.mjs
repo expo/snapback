@@ -441,6 +441,9 @@ try {
         maxStderrBytes: numberValue('--max-stderr-bytes'),
         heapMb: numberValue('--heap-mb'),
         graceMs: numberValue('--grace-ms'),
+        requireLiveStream:
+          appBoundBridge !== null
+          && process.env.SNAPBACK_APP_CLI_QUALIFICATION_REQUIRE_LIVE_STREAM === '1',
         onStderr: (frame) => process.stderr.write(`${JSON.stringify(frame)}\n`),
       });
       if (result.hasValue) print(result.value);

@@ -15,8 +15,11 @@ const writeCase = async (name, source) => {
   return path;
 };
 
-const run = async (args, { input, signalAfterMs, timeoutMs = 30_000 } = {}) => {
-  const child = spawn(executable, args, { stdio: ['pipe', 'pipe', 'pipe'], env: process.env });
+const run = async (args, { input, signalAfterMs, timeoutMs = 30_000, env = {} } = {}) => {
+  const child = spawn(executable, args, {
+    stdio: ['pipe', 'pipe', 'pipe'],
+    env: { ...process.env, ...env },
+  });
   const stdout = [];
   const stderr = [];
   child.stdout.on('data', (chunk) => stdout.push(chunk));
@@ -63,8 +66,8 @@ const mutation = await run([
 expectExit('mutation', mutation, 0);
 
 // The final executable's network backend is statically linked. Require a
-// post-establishment update before the client's 1.5-second HTTP fallback can
-// run, so a broken WebSocket path cannot pass on the initial HTTP snapshot.
+// post-establishment update with the HTTP fallback disabled, so a broken
+// WebSocket path cannot pass on the initial HTTP snapshot.
 const liveTransport = await writeCase('live-transport.ts', `
 const iterator = api.watchNotes({ title: 'llp0062-linux' })[Symbol.asyncIterator]();
 const first = await iterator.next();
@@ -73,14 +76,7 @@ await api.createNote({
   title: 'llp0062-linux',
   body: 'llp0062-linux-websocket-only',
 });
-let deadlineTimer;
-const second = await Promise.race([
-  iterator.next(),
-  new Promise((_, reject) => {
-    deadlineTimer = setTimeout(() => reject(new Error('WebSocket update deadline exceeded')), 1400);
-  }),
-]);
-clearTimeout(deadlineTimer);
+const second = await iterator.next();
 await iterator.return?.();
 if (second.done) throw new Error('live query ended before its update');
 export default { counts: [first.value.length, second.value.length] };
@@ -91,7 +87,12 @@ const liveQuery = await run([
   liveTransport,
   '--timeout-ms',
   '10000',
-]);
+], {
+  // This reaches only the trusted parent. It disables the managed client's
+  // HTTP escape hatch so success requires the literal executable's statically
+  // linked WebSocket transport; no cadence heuristic can false-pass.
+  env: { SNAPBACK_APP_CLI_QUALIFICATION_REQUIRE_LIVE_STREAM: '1' },
+});
 expectExit('live-query-websocket', liveQuery, 0);
 const liveValue = JSON.parse(liveQuery.stdout);
 assert.equal(liveValue.counts.length, 2);

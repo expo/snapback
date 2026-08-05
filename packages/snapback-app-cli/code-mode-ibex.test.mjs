@@ -165,9 +165,11 @@ const liveSurface = Object.freeze({
   functions: Object.freeze([{ id: 'app:watch', name: 'watch', kind: 'liveQuery', argsSchema: null }]),
 });
 let liveDisposed = false;
+let liveFallbackToPoll = null;
 const liveResult = await runIbexCodeMode({
   client: {
-    startLiveQuery(_ref, { onUpdate }) {
+    startLiveQuery(_ref, { onUpdate, fallbackToPoll }) {
+      liveFallbackToPoll = fallbackToPoll;
       const established = new Promise((resolve) => {
         setImmediate(() => {
           onUpdate([{ id: 'async-live-value' }]);
@@ -186,9 +188,11 @@ const liveResult = await runIbexCodeMode({
   scriptSource: 'live-idle-wake.ts',
   timeoutMs: 500,
   graceMs: 20,
+  requireLiveStream: true,
 });
 assert.deepEqual(liveResult.value, [{ id: 'async-live-value' }]);
 assert.equal(liveDisposed, true);
+assert.equal(liveFallbackToPoll, false);
 delete globalThis.__ibexAppBoundWorkerV1;
 
 const planted = 'planted-sensitive-message-details-and-500-row-value';
