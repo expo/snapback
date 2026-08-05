@@ -7599,10 +7599,7 @@ mod tests {
     #[test]
     fn detached_start_refusal_has_stable_code_and_repair() {
         let error = super::ready_descriptor_required_error();
-        assert_eq!(
-            error.diagnostic.code,
-            "SNAPBACK_READY_DESCRIPTOR_REQUIRED"
-        );
+        assert_eq!(error.diagnostic.code, "SNAPBACK_READY_DESCRIPTOR_REQUIRED");
         assert_eq!(
             error.diagnostic.details["next"][0]["command"],
             "snapback start --ready-file <owner-only-path> ..."
