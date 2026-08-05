@@ -753,3 +753,36 @@ regression fixture leaves a TERM-resistant descendant holding the leader's
 pipes; teardown kills and attests the whole group and the test process exits.
 This is package-proof harness debt, not a PUSH-01/F0a correctness failure, and
 no browser sandbox, custody boundary, or administrator setting is weakened.
+
+### Final exact-candidate telemetry carrier — 2026-08-05
+
+Pull-request local-proof run `31024847949` at exact candidate
+`807116dd6afd8d6ae51e16f8b6c7878afd4a97f0` completed KEEP-GOING with one
+root failure, zero blocked gates, and the two expected not-selected gates. The
+sole root was `telemetry-receipt-check`: the package-proof process-tree repair
+above changed `scripts/lib/process-tree.mjs`, exactly one of the retained
+receipt's 438 bound files. All other selected gates passed. This freshness
+failure is therefore attributed to the `b1006fa2d` package-starter landing and
+this pass's teardown fix, not to telemetry product behavior or the actively
+owned PUSH-01/F0a correctness paths.
+
+The replacement EPYC producer measured a fresh clean clone at exact source
+revision `807116dd6afd8d6ae51e16f8b6c7878afd4a97f0`. It used the existing
+user-owned Node 24.18.0 and Bun 1.3.12 toolchain, installed the frozen lockfile,
+and invoked unchanged `scripts/verify-telemetry-phase1-proof --full`. The coded
+bootstrap initialized Ibex pin
+`4c34c831aa087d6783b0d68f281cdb374ed7fc89` and copied compatible prepared
+Hermes artifacts through supported `SNAPBACK_IBEX_CHECKOUT`; no administrator
+change or loader bypass was used. The Rust smoke, locked release build,
+runtime qualification, full benchmark, and 120-second idle witness all passed.
+
+The retained receipt has SHA-256
+`d91d7d056fbc48abb2abe3a595b6bb3a25ff5ac05261cbec7fb878cfd1d138e7`
+and source-closure digest
+`23264a1da95d13ac32c6a0d157c82ddea18b230c26859038caef2bc2aa898834`.
+The 1,209-line transcript at
+`/var/cache/expose-build/snapback-telemetry-807.ylRDcd/telemetry-full.log`
+has SHA-256
+`8ccf08292c8e130f8e03920c38681e049a12f345ee291ddd26d4b97c18421481`.
+The idle interval observed zero storage mutations, zero read bytes, zero write
+bytes, 3/10 allowed CPU ticks (30/100 ms), and zero RSS-page growth.

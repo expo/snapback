@@ -288,3 +288,36 @@ transcript tail, structured ceilings, and hashes were inspected directly, and
 the expensive producer was not rerun. The receipt lands in the following
 carrier commit, preserving the producer's documented no-self-reference
 contract.
+
+## 2026-08-05 final package-teardown carrier re-mint
+
+The last exact-candidate proof, run `31024847949`, correctly reopened freshness
+after the package-proof teardown repair changed
+`scripts/lib/process-tree.mjs`. That was the only bound path changed since the
+retained `18df33ae5` measurement; the run reported exactly one root failure,
+zero blocked gates, and all other selected gates passing.
+
+The replacement EPYC producer used a fresh clean clone at exact source
+revision `807116dd6afd8d6ae51e16f8b6c7878afd4a97f0`, the existing user-owned
+Node 24.18.0 / Bun 1.3.12 toolchain, and `bun install --frozen-lockfile`.
+Unchanged `scripts/verify-telemetry-phase1-proof --full` ran the coded
+bootstrap, which initialized recorded Ibex pin
+`4c34c831aa087d6783b0d68f281cdb374ed7fc89` and used compatible prepared
+Hermes artifacts through supported `SNAPBACK_IBEX_CHECKOUT`. No administrator
+change, loader bypass, stale binary, shortened interval, or competing fleet
+workload was accepted.
+
+The dedicated Rust smoke, locked release build, runtime-readiness
+qualification, complete benchmark, and full 120-second idle witness passed.
+The receipt covers 438 tracked proof-source files, has SHA-256
+`d91d7d056fbc48abb2abe3a595b6bb3a25ff5ac05261cbec7fb878cfd1d138e7`,
+and records source-closure digest
+`23264a1da95d13ac32c6a0d157c82ddea18b230c26859038caef2bc2aa898834`.
+The 1,209-line producer transcript at
+`/var/cache/expose-build/snapback-telemetry-807.ylRDcd/telemetry-full.log`
+has SHA-256
+`8ccf08292c8e130f8e03920c38681e049a12f345ee291ddd26d4b97c18421481`.
+The idle interval observed zero storage mutations, zero read bytes, zero write
+bytes, 3/10 allowed CPU ticks (30/100 ms), and zero RSS-page growth. The
+receipt lands in the following carrier commit, preserving the no-self-reference
+contract.
