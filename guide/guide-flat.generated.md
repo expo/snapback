@@ -2329,8 +2329,8 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-05
+reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
 ---
 
 # Mutations
@@ -2407,6 +2407,13 @@ packages, and multi-file graphs are not admitted by that compatibility lane.
 `defineMutation` is the declarative twin: compose `insert`, `patch`,
 `delete`, conditions, and a declared return binding without running a JS
 handler.
+
+Set-oriented deletion is `deleteWhere(table, filter)`. The filter argument is
+required; omitting it refuses generation with
+`SNAPBACK_DELETE_WHERE_FILTER_REQUIRED`. An explicitly authored empty array,
+`deleteWhere(table, [])`, retains the clear-table IR and therefore means
+"delete every row" deliberately. Never derive or substitute that empty array
+for an absent filter.
 
 Two transactional effects beyond `ctx.db` writes commit or roll back with the
 same mutation and have their own pages: a declared `sequences` counter
@@ -4904,8 +4911,8 @@ examples: [demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-05
+reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
 ---
 
 # Portable indexed text search
@@ -4973,7 +4980,9 @@ Text weights are integers from 1 through 64. Every participating field needs
 an explicit classification: text fields carry it beside their weight, while
 `fieldClassifications` must classify exactly the participating equality,
 stored, or owner fields that are not text fields. `public-read` admits only
-public fields. Owner search instead declares
+public fields. Visibility is required: omission refuses generation with
+`SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED`, so public release is always an
+affirmative declaration. Owner search instead declares
 `visibility: { kind: 'owner', field: 'ownerId' }`; the field must be a required
 string or principal and every query is pushed into the server-resolved
 effective user's partition.
@@ -5175,8 +5184,8 @@ examples: [packages/snapback-codegen/vector-authoring.test.mjs, packages/snapbac
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-05
+reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
 ---
 
 # Portable exact vector search
@@ -5227,7 +5236,9 @@ fields, tie direction, and corpus ceiling into one semantic version.
 Use `visibility: { kind: 'owner', field: 'ownerId' }` for owner-private
 retrieval. Snapback derives the effective principal on the server, pushes it
 into the posting partition, and rechecks the authoritative source row before
-release. `public-read` permits only public participating fields. Owner indexes
+release. Visibility is required: omission refuses generation with
+`SNAPBACK_VECTOR_INDEX_VISIBILITY_REQUIRED`, so `public-read` is always an
+affirmative declaration. `public-read` permits only public participating fields. Owner indexes
 may use private fields, but every participating role rejects `sensitive` and
 `forbidden`; membership-derived visibility is not a v1 shape.
 

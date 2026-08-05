@@ -9,8 +9,8 @@ examples: [demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-05
+reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
 ---
 
 # Portable indexed text search
@@ -78,7 +78,9 @@ Text weights are integers from 1 through 64. Every participating field needs
 an explicit classification: text fields carry it beside their weight, while
 `fieldClassifications` must classify exactly the participating equality,
 stored, or owner fields that are not text fields. `public-read` admits only
-public fields. Owner search instead declares
+public fields. Visibility is required: omission refuses generation with
+`SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED`, so public release is always an
+affirmative declaration. Owner search instead declares
 `visibility: { kind: 'owner', field: 'ownerId' }`; the field must be a required
 string or principal and every query is pushed into the server-resolved
 effective user's partition.

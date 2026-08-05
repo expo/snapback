@@ -220,6 +220,7 @@ const inventories = [
       'membership-search-authoring.test.mjs',
       'micro-profile.test.mjs',
       'mixed-route-v2.test.mjs',
+      'omission-defaults.test.mjs',
       'operation-schemas.test.mjs',
       'provider-introspection.test.mjs',
       'protected-query-profile.test.mjs',
@@ -542,7 +543,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // 200 -> 201 (2026-08-04, LLP 0166 finish-out Lane F): @expo/snapback-react
 // gains the inline subscribe-failure fallback regression for an optional
 // react-runtime chunk rejection.
-assert.equal(total, 201, 'reviewed package/admin test count changed');
+// 201 -> 202 (2026-08-05, authoring omission audit): @expo/snapback-codegen
+// gains explicit visibility/delete-filter omission refusal coverage.
+assert.equal(total, 202, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

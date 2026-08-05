@@ -167,6 +167,7 @@ try {
     vectorField: 'embedding',
     metric: 'dot',
     fieldClassifications: { embedding: 'public' },
+    visibility: { kind: 'public-read' },
     maxIndexedVectorsPerPartition: 1,
   });
   defineSchema({ unfiltered });
@@ -189,6 +190,7 @@ try {
         vectorField: 'embedding',
         metric: 'dot',
         fieldClassifications: { embedding: 'public' },
+        visibility: { kind: 'public-read' },
         maxIndexedVectorsPerPartition: 1,
         ...forbidden,
       }),
@@ -203,6 +205,7 @@ try {
       metric: 'dot',
       fieldClassifications: { embedding: 'public' },
       storedFields: ['embedding'],
+      visibility: { kind: 'public-read' },
       maxIndexedVectorsPerPartition: 1,
     }),
     /must not expose vector field/u,
@@ -224,6 +227,7 @@ try {
       first: 'public',
     },
     equalityFilters: ['second', 'first'],
+    visibility: { kind: 'public-read' },
     maxIndexedVectorsPerPartition: 2,
   });
   assert.deepEqual(
@@ -238,6 +242,7 @@ try {
       metric: 'l2sq',
       fieldClassifications: { embedding: 'public', approximate: 'public' },
       equalityFilters: ['approximate'],
+      visibility: { kind: 'public-read' },
       maxIndexedVectorsPerPartition: 2,
     }),
     /LLP 0080 portable exact scalar equality/u,
@@ -251,6 +256,7 @@ export const documents = defineTable({
   semanticVersion: 'documents.embedding.v1', vectorField: 'embedding', metric: 'l2sq',
   fieldClassifications: { embedding: 'public', category: 'public', title: 'public' },
   equalityFilters: ['category'], storedFields: ['title'],
+  visibility: { kind: 'public-read' },
   maxIndexedVectorsPerPartition: 128,
 });
 export default defineSchema({ documents });
