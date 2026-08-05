@@ -9,8 +9,8 @@ examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-04
-reviewed-commit: e8e9ada94aa7354a5f8845ee0199d4bbe0bc5746
+reviewed: 2026-08-05
+reviewed-commit: c1017fb28806ab202112819eccd165018fda4c1c
 ---
 
 # The artifact-driven app CLI
@@ -26,14 +26,15 @@ descriptor, and exposes the generic `snapback-app` command. Calls carry the
 five-part generated identity so a deploy between discovery and dispatch
 refuses rather than running against different code.
 
-The local phase-1 engine is shipped. Phase 2 now has an app-bound Ibex builder,
-embedded coordinator, and literal executable proof on the qualified macOS
-arm64 tuple. Its host-portable lifecycle and acceptance matrix is complete on
-that tuple, including signal-first grace, exact frame admission, strict
-settlement, resource classification, deterministic cleanup, and value-free
-audits. The capability remains partial: hosted targets do not advertise it,
-and ticket 0062-08 keeps the qualified Linux GLIBC 2.35 tuple open. The
-ordinary supported download remains the Node package until that tuple lands.
+The local phase-1 engine is shipped. Phase 2 has an app-bound Ibex builder,
+embedded coordinator, and literal executable proof on qualified macOS arm64
+and Linux x86_64 GLIBC 2.35 tuples. Its host-portable lifecycle and acceptance
+matrix is complete on both, including signal-first grace, exact frame
+admission, strict settlement, resource classification, deterministic cleanup,
+value-free audits, static Linux Fetch/WebSocket networking, and a
+producer-free clean-consumer proof. The capability remains partial because
+hosted targets do not advertise it and public inspection still lacks the
+dynamic observations described below.
 
 ## Discover the app surface
 
@@ -223,10 +224,11 @@ executable admits only its embedded app identity. The current API envelope is
 dynamic data fetched from that origin, so ordinary function and schema deploys
 do not alter the fixed binding. Rebuilds are intended only for that binding,
 the trusted engine/runtime, policy/protocol, platform, or release provenance;
-ticket 0062-08 still owns the qualified Linux x86_64 tuple. The comprehensive
-§7 disclosure, ceiling, lifecycle, and race matrix is green on qualified macOS
-arm64. Unsupported producer tuples refuse instead of emitting a wrapper or
-sidecar approximation.
+the comprehensive §7 disclosure, ceiling, lifecycle, race, dependency, and
+relocation matrix is green on qualified macOS arm64 and Linux x86_64 GLIBC
+2.35. Unsupported producer tuples refuse instead of emitting a wrapper or
+sidecar approximation. Qualification establishes the producer and executable
+contract; it does not by itself create or promise a public download channel.
 
 ## Run the packaged agent journey
 
@@ -259,7 +261,8 @@ semantics and durable daemon custody, read
   profile.
 - Do not infer agent safety from a hostname; the phase-1 lane requires a
   literal loopback origin and peer.
-- Do not present the app-bound build checkpoint as a generally released
-  download until ticket 0062-08's qualified Linux tuple is complete.
+- Do not infer a public release channel from producer qualification; publish
+  an app-bound executable only through a release process that preserves its
+  binding and provenance.
 - Do not describe the Node package as the app-bound one-file executable; they
   remain distinct products with different trust and distribution postures.

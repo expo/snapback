@@ -1,0 +1,265 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Hosted runner setup/cache actions may leave a default tar compression
+# selection in the process environment. Release packaging chooses gzip
+# explicitly, so ambient tar options must not select a second compressor.
+unset TAR_OPTIONS
+
+# @ref LLP 0062#7-acceptance — one Ubuntu 22.04 lane qualifies the exact
+# GLIBC-floor release kit and the literal app-bound consumer as one product.
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+IBEX="$ROOT/vendor/ibex"
+RUN_ROOT="${RUNNER_TEMP:-/tmp}/snapback-app-bound-linux"
+KIT="$RUN_ROOT/ibex-release-kit"
+RECEIPTS="$RUN_ROOT/receipts"
+READY_FILE="$RUN_ROOT/live-target.json"
+TARGET_PORT="${SNAPBACK_APP_BOUND_PORT:-43991}"
+TLS_PORT="${SNAPBACK_APP_BOUND_TLS_PORT:-43992}"
+APP="$RUN_ROOT/snapback-app-linux"
+APP_REPEAT="$RUN_ROOT/snapback-app-linux-repeat"
+LIVE_SERVER_ROOT="$RUN_ROOT/live-server-runtime"
+CONSUMER_ROOT="$RUN_ROOT/clean-consumer-root"
+TARGET_PID=""
+TLS_PROXY_PID=""
+
+cleanup() {
+  if [[ -n "$TLS_PROXY_PID" ]] && kill -0 "$TLS_PROXY_PID" 2>/dev/null; then kill -TERM "$TLS_PROXY_PID" 2>/dev/null || true; fi
+  if [[ -n "$TARGET_PID" ]] && kill -0 "$TARGET_PID" 2>/dev/null; then kill -TERM "$TARGET_PID" 2>/dev/null || true; fi
+}
+trap cleanup EXIT
+
+[[ "$(uname -s)-$(uname -m)" == "Linux-x86_64" ]] || { echo "qualification requires Linux x86_64" >&2; exit 2; }
+command -v socat >/dev/null || { echo "qualification requires socat" >&2; exit 2; }
+[[ -x /usr/bin/unshare ]] || { echo "qualification requires /usr/bin/unshare" >&2; exit 2; }
+[[ -f "$IBEX/scripts/build-sfe-release.sh" ]] || { echo "vendor/ibex is not initialized" >&2; exit 2; }
+mkdir -p "$RUN_ROOT" "$RECEIPTS"
+
+# Fail before the expensive native builds if this runner cannot provide and
+# bind a private procfs into the consumer root. The real consumer commands
+# repeat this exact isolation around the chroot.
+NAMESPACE_PREFLIGHT_ROOT="$RUN_ROOT/namespace-preflight"
+mkdir -p "$NAMESPACE_PREFLIGHT_ROOT/proc"
+sudo /usr/bin/unshare --mount --pid --fork --mount-proc=/proc /bin/sh -c '
+  /usr/bin/mount --bind /proc "$1/proc"
+  test -r "$1/proc/self/exe" && test -r "$1/proc/self/maps"
+' snapback-consumer-preflight "$NAMESPACE_PREFLIGHT_ROOT"
+printf '%s\n' private-pid-mount-proc-ok >"$RECEIPTS/consumer-namespace-preflight.txt"
+
+glibc_host="$(ldd --version | sed -n '1s/.* //p')"
+[[ "$glibc_host" == "2.35" ]] || { echo "expected GLIBC 2.35 host, got $glibc_host" >&2; exit 1; }
+
+hermes_gh_token="${GH_TOKEN:-}"
+(cd "$IBEX" && GH_TOKEN="$hermes_gh_token" scripts/download-hermes.sh)
+unset GH_TOKEN GITHUB_TOKEN hermes_gh_token
+IBEX_ALLOW_CURL_CLI_FALLBACK=1 SNAPBACK_BOOTSTRAP_CHECK=0 \
+  SNAPBACK_IBEX_CHECKOUT="$IBEX" scripts/bootstrap-ibex-runtime
+# Keep the compiler/linker transcript visible in CI. The bootstrap smoke emits
+# only a stable coded recovery record on failure, which is right for callers
+# but insufficient evidence for repairing a new target tuple.
+# Ubuntu 22.04's host libcurl predates WebSocket support. This debug Snapback
+# process is only the live application target used by the consumer proof, so
+# it uses Ibex's explicit fetch-only host fallback. The literal executable is
+# built below by build-sfe-release.sh with sfe-static-network and is separately
+# audited to contain the pinned static libcurl Fetch/WebSocket backend.
+# Never link against a restored partial root target tree. It is regenerable,
+# consumes most of the standard runner's disk/mmap budget, and a failed link
+# can leave it larger than the clean build it was meant to accelerate. Keep
+# the separately cached vendor/ibex release closure; this server is temporary.
+rm -rf "$ROOT/target"
+CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 \
+  IBEX_ALLOW_CURL_CLI_FALLBACK=1 cargo build --locked --bin snapback
+mkdir -p "$ROOT/target/lib"
+cp "$IBEX/linux/lib/libhermesvm.so" "$ROOT/target/lib/libhermesvm.so"
+node packages/snapback-cli/runtime-readiness.mjs issue \
+  --root "$ROOT" \
+  --binary "$ROOT/target/debug/snapback" \
+  --issuer app-bound-linux-qualification \
+  --json
+
+# The standard Jammy runner cannot retain two independent Cargo closure trees
+# while ar assembles Ibex's large release archive. Preserve the exact qualified
+# debug server and its Linux loader/receipt, then release only that regenerable
+# build tree before starting the independent app-bound release build.
+rm -rf "$LIVE_SERVER_ROOT"
+mkdir -p "$LIVE_SERVER_ROOT/debug" "$LIVE_SERVER_ROOT/lib"
+cp "$ROOT/target/debug/snapback" "$LIVE_SERVER_ROOT/debug/snapback"
+cp "$ROOT/target/debug/snapback.runtime-readiness.json" \
+  "$LIVE_SERVER_ROOT/debug/snapback.runtime-readiness.json"
+cp "$ROOT/target/lib/libhermesvm.so" "$LIVE_SERVER_ROOT/lib/libhermesvm.so"
+rm -rf "$ROOT/target"
+
+icu_lib_dir="$(pkg-config --variable=libdir icu-i18n)"
+rm -rf "$KIT"
+IBEX_ALLOW_CURL_CLI_FALLBACK=1 HERMES_LINK_STATIC=1 HERMES_STATIC_LIB_NAME=hermesvm_a \
+  "$IBEX/scripts/build-sfe-release.sh" \
+    --target x86_64-unknown-linux-gnu \
+    --minimum-platform linux-glibc-2.35-x86-64-v1 \
+    --engine-profile hermes-release-static-v1 \
+    --hermesc "$IBEX/tools/hermes/hermesc-linux-x64" \
+    --hermes "$IBEX/tools/hermes/hermes-linux-x64" \
+    --policy-runner "$(command -v bun)" \
+    --static-archive hermesvm "$IBEX/linux/lib/libhermesvm_a.a" \
+    --static-archive jsi "$IBEX/linux/lib/libjsi.a" \
+    --static-archive boost-context "$IBEX/linux/lib/libboost_context.a" \
+    --static-archive icu-i18n "$icu_lib_dir/libicui18n.a" \
+    --static-archive icu-uc "$icu_lib_dir/libicuuc.a" \
+    --static-archive icu-data "$icu_lib_dir/libicudata.a" \
+    --output "$KIT" \
+    --release "snapback-linux-${GITHUB_SHA:-$(git rev-parse HEAD)}" \
+    --sequence 1 \
+    --app-bound
+
+catalog_asset=("$KIT"/ibex-sfe-catalog-*.tar.gz)
+[[ ${#catalog_asset[@]} -eq 1 && -f "${catalog_asset[0]}" ]]
+catalog_unpack="$RUN_ROOT/catalog-unpack"
+rm -rf "$catalog_unpack"
+mkdir -p "$catalog_unpack"
+tar -xzf "${catalog_asset[0]}" -C "$catalog_unpack"
+catalog_source=("$catalog_unpack"/*)
+[[ ${#catalog_source[@]} -eq 1 && -d "${catalog_source[0]}" ]]
+"$KIT/ibex-sfe-catalog" install --source "${catalog_source[0]}"
+
+SNAPBACK_APP_BOUND_READY_FILE="$READY_FILE" SNAPBACK_APP_BOUND_PORT="$TARGET_PORT" \
+  SNAPBACK_APP_BOUND_SERVER_BINARY="$LIVE_SERVER_ROOT/debug/snapback" \
+  node tests/acceptance/app-bound-live-target.mjs >"$RUN_ROOT/live-target.log" 2>&1 &
+TARGET_PID=$!
+for _ in $(seq 1 120); do [[ -s "$READY_FILE" ]] && break; kill -0 "$TARGET_PID" 2>/dev/null || break; sleep 1; done
+[[ -s "$READY_FILE" ]] || { cat "$RUN_ROOT/live-target.log" >&2; exit 1; }
+
+# Use a runner-local, system-trusted TLS terminator. A public CDN is not a
+# faithful qualification transport for this route: some CDNs rewrite the
+# server's explicit `Content-Encoding: identity` to gzip, which the app-bound
+# client must (and does) refuse. The local TLS hop still proves the shipped
+# static libcurl TLS and WebSocket path while preserving the exact server
+# response contract.
+tls_key="$RUN_ROOT/localhost.key"
+tls_cert="$RUN_ROOT/localhost.crt"
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+  -keyout "$tls_key" -out "$tls_cert" -subj /CN=localhost \
+  -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' >/dev/null 2>&1
+sudo install -m 0644 "$tls_cert" /usr/local/share/ca-certificates/snapback-app-bound-qualification.crt
+sudo update-ca-certificates >/dev/null
+socat "OPENSSL-LISTEN:$TLS_PORT,reuseaddr,fork,cert=$tls_cert,key=$tls_key,verify=0" \
+  "TCP:127.0.0.1:$TARGET_PORT" >"$RUN_ROOT/tls-proxy.log" 2>&1 &
+TLS_PROXY_PID=$!
+origin="https://localhost:$TLS_PORT"
+for _ in $(seq 1 120); do
+  curl -fsS "$origin" >/dev/null && break
+  kill -0 "$TLS_PROXY_PID" 2>/dev/null || break
+  sleep 1
+done
+curl -fsS "$origin" >/dev/null || { cat "$RUN_ROOT/tls-proxy.log" >&2; exit 1; }
+
+engine_compatibility="$(node -e "const v=JSON.parse(require('fs').readFileSync(process.argv[1]));process.stdout.write(v.engineCompatibilityDigest)" "$KIT/restricted-worker-target-advertisement.canonical.json")"
+source_commit="$(git rev-parse HEAD)"
+recipe_digest="sha256-$(printf '%s' "$source_commit" | openssl dgst -sha256 -binary | base64 | tr '+/' '-_' | tr -d '=\n')"
+builder=(scripts/build-app-bound-executable --ibex "$KIT/ibex" --origin "$origin" --app-id app \
+  --engine-compatibility "$engine_compatibility" --publisher-key-id llp0062-linux-proof \
+  --recipe-digest "$recipe_digest")
+"${builder[@]}" --output "$APP"
+"${builder[@]}" --output "$APP_REPEAT"
+cmp "$APP" "$APP_REPEAT"
+
+bearer_file="$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(process.argv[1])).bearerFile)" "$READY_FILE")"
+SNAPBACK_APP_BOUND_EXECUTABLE="$APP" \
+SNAPBACK_APP_BOUND_SESSION_BEARER_FILE="$bearer_file" \
+SNAPBACK_APP_BOUND_RECEIPT_DIR="$RECEIPTS" \
+  node tests/acceptance/app-bound-final-artifact.mjs
+
+max_glibc="$(objdump -T "$APP" | grep -oE 'GLIBC_[0-9]+(\.[0-9]+)*' | sed 's/^GLIBC_//' | sort -V | tail -1)"
+[[ -n "$max_glibc" ]]
+highest="$(printf '%s\n' "$max_glibc" 2.35 | sort -V | tail -1)"
+[[ "$highest" == "2.35" ]] || { echo "final artifact exceeds GLIBC 2.35: $max_glibc" >&2; exit 1; }
+ldd "$APP" >"$RECEIPTS/ldd.txt"
+if grep -q 'not found' "$RECEIPTS/ldd.txt"; then echo "final artifact has a missing shared dependency" >&2; exit 1; fi
+if grep -qF "$ROOT" "$RECEIPTS/ldd.txt"; then echo "final artifact links into the source tree" >&2; exit 1; fi
+if grep -qF "$RUN_ROOT" "$RECEIPTS/ldd.txt"; then echo "final artifact links into the release staging tree" >&2; exit 1; fi
+elf_interpreter="$(readelf -l "$APP" | sed -n 's/.*Requesting program interpreter: \(.*\)]/\1/p')"
+[[ "$elf_interpreter" == /* && -e "$elf_interpreter" ]] || {
+  echo "final artifact has an unavailable ELF interpreter: $elf_interpreter" >&2
+  exit 1
+}
+printf '%s\n' "$elf_interpreter" >"$RECEIPTS/elf-interpreter.txt"
+
+# Prove the literal file without producer fallbacks. The chroot contains only
+# the executable, its audited system-library closure, trust/localhost data,
+# and explicit test inputs. Node, Bun, the checkout, and the installed catalog
+# are outside its namespace, while an empty PATH prevents tool discovery.
+rm -rf "$CONSUMER_ROOT"
+mkdir -p "$CONSUMER_ROOT/app-bin" "$CONSUMER_ROOT/dev" "$CONSUMER_ROOT/etc/ssl/certs" \
+  "$CONSUMER_ROOT/proc" "$CONSUMER_ROOT/root" "$CONSUMER_ROOT/run" "$CONSUMER_ROOT/tmp"
+chmod 1777 "$CONSUMER_ROOT/tmp"
+install -m 0755 "$APP" "$CONSUMER_ROOT/app-bin/snapback-app"
+install -m 0600 "$bearer_file" "$CONSUMER_ROOT/run/session-bearer"
+install -m 0644 /etc/hosts "$CONSUMER_ROOT/etc/hosts"
+install -m 0644 /etc/nsswitch.conf "$CONSUMER_ROOT/etc/nsswitch.conf"
+install -m 0644 /etc/ssl/certs/ca-certificates.crt \
+  "$CONSUMER_ROOT/etc/ssl/certs/ca-certificates.crt"
+while IFS= read -r library; do
+  [[ -n "$library" && -f "$library" ]] || continue
+  cp -L --parents "$library" "$CONSUMER_ROOT"
+done < <(awk '/=> \// { print $(NF - 1) } /^[[:space:]]*\// { print $1 }' "$RECEIPTS/ldd.txt" | sort -u)
+# `ldd` reports the interpreter's conventional path, which is commonly a
+# symlink whose absolute target is not a separate dependency row. Preserve the
+# requested path but materialize its bytes so the consumer root is complete.
+mkdir -p "$CONSUMER_ROOT$(dirname "$elf_interpreter")"
+install -m 0755 "$(readlink -f "$elf_interpreter")" "$CONSUMER_ROOT$elf_interpreter"
+[[ -x "$CONSUMER_ROOT$elf_interpreter" ]]
+for library in /lib/x86_64-linux-gnu/libnss_files.so.2 /lib/x86_64-linux-gnu/libnss_dns.so.2; do
+  [[ -f "$library" ]] && cp --parents "$library" "$CONSUMER_ROOT"
+done
+sudo mknod -m 0666 "$CONSUMER_ROOT/dev/null" c 1 3
+sudo mknod -m 0666 "$CONSUMER_ROOT/dev/urandom" c 1 9
+install -m 0644 /dev/stdin "$CONSUMER_ROOT/run/probe.ts" <<'PROBE'
+export default { consumerRoot: true, fetchType: typeof fetch, processType: typeof process };
+PROBE
+# Ibex pins the file mapped as this process through /proc/self/exe and checks
+# its device/inode against /proc/self/maps. Give each consumer invocation a
+# fresh PID+mount namespace and a private procfs: the check remains real while
+# producer processes (and their /proc/<pid>/cwd/root handles) stay invisible.
+# $1/$@ belong to the inner namespace shell.
+# shellcheck disable=SC2016
+consumer=(sudo /usr/bin/unshare --mount --pid --fork --mount-proc=/proc \
+  /bin/sh -c '/usr/bin/mount --bind /proc "$1/proc"; shift; exec "$@"' \
+  snapback-consumer "$CONSUMER_ROOT" /usr/bin/env -i \
+  HOME=/root PATH=/no-producer-tools SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+  /usr/sbin/chroot --userspec="$(id -u):$(id -g)" \
+  "$CONSUMER_ROOT" /app-bin/snapback-app)
+"${consumer[@]}" introspect >"$RECEIPTS/consumer-root-introspect.json"
+"${consumer[@]}" --principal session --session-bearer-file /run/session-bearer \
+  --args-json '{"title":"clean-consumer-root","body":"no-producer-fallbacks"}' \
+  call createNote >"$RECEIPTS/consumer-root-call.json"
+"${consumer[@]}" run /run/probe.ts >"$RECEIPTS/consumer-root-run.json"
+node - "$RECEIPTS/consumer-root-run.json" <<'NODE'
+const value = JSON.parse(require('fs').readFileSync(process.argv[2], 'utf8'));
+if (value.consumerRoot !== true || value.fetchType !== 'undefined' || value.processType !== 'undefined') {
+  throw new Error('clean-consumer script result did not prove the restricted worker globals');
+}
+NODE
+"${consumer[@]}" --offline introspect >"$RECEIPTS/consumer-root-offline.json"
+
+catalog_digest="$(node -e "const v=JSON.parse(require('fs').readFileSync(process.argv[1]));process.stdout.write(v.catalogDigest)" "$KIT/catalog-report.json")"
+executable_sha256="$(sha256sum "$APP" | awk '{print $1}')"
+ibex_commit="$(git -C "$IBEX" rev-parse HEAD)"
+node - "$RECEIPTS/qualification.json" "$source_commit" "$ibex_commit" "$glibc_host" "$max_glibc" "$catalog_digest" "$executable_sha256" "$engine_compatibility" <<'NODE'
+const [path, snapbackCommit, ibexCommit, hostGlibc, maximumRequiredGlibc, catalogDigest, executableSha256, engineCompatibility] = process.argv.slice(2);
+const receipt = {
+  schema: 'snapback/app-bound-linux-qualification/1',
+  result: 'pass',
+  target: { triple: 'x86_64-unknown-linux-gnu', minimumPlatform: 'linux-glibc-2.35-x86-64-v1' },
+  snapbackCommit,
+  ibexCommit,
+  hostGlibc,
+  maximumRequiredGlibc,
+  catalogDigest,
+  executableSha256,
+  engineCompatibility,
+  deterministicDuplicateBuild: true,
+};
+require('fs').writeFileSync(path, `${JSON.stringify(receipt, null, 2)}\n`);
+NODE
+sha256sum "$APP" "$APP_REPEAT" "${catalog_asset[0]}" >"$RECEIPTS/artifacts.sha256"
+cat "$RECEIPTS/qualification.json"

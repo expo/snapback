@@ -3,11 +3,14 @@ export type ProviderBindingMetadataVersion = 'provider-binding-metadata.v1';
 
 export type ListNotesArgs = Record<string, never>;
 export type ListNotesResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "authorId": string; "body": string; "title": string }>;
+export type WatchNotesArgs = { "title": string };
+export type WatchNotesResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "authorId": string; "body": string; "title": string }>;
 export type CreateNoteArgs = { "body": string; "title": string };
 export type CreateNoteResult = unknown;
 
 export interface ProviderQueryBindings {
   "listNotes": { args: ListNotesArgs; result: ListNotesResult };
+  "watchNotes": { args: WatchNotesArgs; result: WatchNotesResult };
 }
 export interface ProviderMutationBindings {
   "createNote": { args: CreateNoteArgs; result: CreateNoteResult };
