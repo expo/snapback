@@ -1,6 +1,6 @@
 # Telemetry phase-1 evidence receipt needs a Linux re-mint
 
-**Status:** Open
+**Status:** Closed
 **Found:** 2026-08-04, by the capability-publication landing's proof run
 
 `scripts/verify-telemetry-phase1-proof --check` fails on
@@ -43,3 +43,31 @@ now passes at 6 CPU ticks (60 ms) over 120 seconds, with zero storage
 mutations, zero write bytes, and zero RSS growth. The regression ticket moved
 to `issues/closed/20260804-idle-cpu-regression.md`. This ticket remains open
 for the source-revision-bound receipt re-mint after the fix is committed.
+
+## 2026-08-05 exact Linux re-mint — resolved
+
+The final EPYC producer used a fresh detached checkout on the user-owned
+secondary volume and measured source commit
+`ddad5edbdc2cdcb6d7b53e966095b7fff51546a5`. Before the measurement,
+`scripts/verify-telemetry-phase1-proof --full` ran the coded Ibex bootstrap;
+the exact-link recovery record reported `gitDirty: false`, exact commit
+`ddad5edbd`, successful launch, and a successful restricted no-eval handler-VM
+qualification. No administrator change, loader bypass, stale binary, shortened
+window, or competing fleet workload was accepted.
+
+The producer passed its dedicated Rust smoke, release build, complete
+benchmark, and 120-second idle witness, then exited zero. The retained receipt
+has SHA-256
+`d1e2b57dce2bb1e74509e5cb9b32a3d597cb8033bf19d93944cbd997f255d5b0`
+and source-closure digest
+`3916d34f2b3b4fd0b395949e130614b129f1e8edb57a74d264eca5ea4e353aa9`.
+The 1,206-line final transcript has SHA-256
+`5ab13946eb6abf94fc2a43d12727eb18a8b9fad04b55d9562de4e7958dcb0361`.
+
+The idle interval observed zero storage mutations, zero read bytes, zero write
+bytes, 3/10 allowed CPU ticks (30/100 ms), and 0/8 allowed RSS-page growth.
+The receipt lands in this later carrier commit, as required by the producer's
+documented no-self-reference contract; validation at the retained commit must
+therefore see `ddad5edbd` as an ancestor with an unchanged source closure and
+byte-identical tracked receipt. This closes the fifth and final root failure
+from main KEEP-GOING run `30987191822`.
