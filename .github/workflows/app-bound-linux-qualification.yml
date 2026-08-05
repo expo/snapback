@@ -66,7 +66,7 @@ jobs:
           rustup show active-toolchain
 
       - name: Cache Hermes and Rust build products
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cache/exact/hermes-linux
@@ -95,6 +95,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SNAPBACK_CLOUDFLARED: ${{ runner.temp }}/cloudflared
         run: scripts/qualify-app-bound-linux
+
+      - name: Save Hermes and Rust build products
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/exact/hermes-linux
+            vendor/ibex/linux
+            vendor/ibex/tools/hermes
+            target
+            vendor/ibex/target
+          key: app-bound-linux-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.lock', 'Cargo.lock') }}
 
       - name: Upload value-free qualification receipts
         if: always()

@@ -109,6 +109,7 @@ for _ in $(seq 1 120); do [[ -s "$READY_FILE" ]] && break; kill -0 "$TARGET_PID"
 "$CLOUDFLARED" tunnel --no-autoupdate --url "http://127.0.0.1:$TARGET_PORT" \
   --logfile "$RUN_ROOT/cloudflared.log" >"$RUN_ROOT/cloudflared.stdout" 2>&1 &
 TUNNEL_PID=$!
+touch "$RUN_ROOT/cloudflared.log"
 origin=""
 for _ in $(seq 1 120); do
   origin="$(sed -nE 's#.*(https://[a-z0-9-]+\.trycloudflare\.com).*#\1#p' "$RUN_ROOT/cloudflared.log" | head -1)"
