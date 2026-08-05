@@ -1024,9 +1024,44 @@ async function connectCdp(url) {
         return r.result?.value;
       };
       const sel = (id) => `[data-testid="${id}"]`;
+      const activate = async () => {
+        await send('Target.activateTarget', { targetId });
+        await send('Page.bringToFront', {}, sessionId);
+      };
+      const navigate = async (url) => {
+        await activate();
+        const result = await send('Page.navigate', { url }, sessionId);
+        if (result.errorText) throw new Error(`navigation failed: ${result.errorText}`);
+
+        // Page.navigate acknowledges the request before the new document has
+        // committed. An immediate long-running Runtime.evaluate can otherwise
+        // bind to the old about:blank context and wait there forever on slower
+        // Linux hosts. Poll with short evaluations until the target URL owns
+        // the execution context; the surface-specific boot checks run after
+        // this commit boundary.
+        const expectedHref = new URL(url).href;
+        const deadline = Date.now() + 15_000;
+        let observed = null;
+        let lastError = null;
+        while (Date.now() < deadline) {
+          try {
+            observed = await evalRaw('({ href: location.href, readyState: document.readyState })');
+            if (observed?.href === expectedHref && observed.readyState !== 'loading') return observed;
+          } catch (error) {
+            // A context-destroyed response is expected while the navigation
+            // swaps documents. The next short evaluation targets the new one.
+            lastError = error;
+          }
+          await sleep(50);
+        }
+        throw new Error(
+          `navigation did not commit ${expectedHref}; observed=${JSON.stringify(observed)}` +
+          (lastError ? `; lastError=${lastError.message}` : ''),
+        );
+      };
       return {
-        navigate: (url) => send('Page.navigate', { url }, sessionId),
-        activate: () => send('Target.activateTarget', { targetId }),
+        navigate,
+        activate,
         close: () => send('Target.closeTarget', { targetId }),
         // Refuse every request matching the pattern (ENG-23727): navigation
         // and module loads on other origins proceed normally, so the surface

@@ -509,9 +509,39 @@ async function connectCdp(url) {
         return r.result?.value;
       };
       const sel = (id) => `[data-testid="${id}"]`;
+      const activate = async () => {
+        await send('Target.activateTarget', { targetId });
+        await send('Page.bringToFront', {}, sessionId);
+      };
+      const navigate = async (url) => {
+        await activate();
+        const result = await send('Page.navigate', { url }, sessionId);
+        if (result.errorText) throw new Error(`navigation failed: ${result.errorText}`);
+
+        // Page.navigate resolves before the new document commits. Keep every
+        // probe short so a slow Linux navigation cannot strand the later boot
+        // poll in the old about:blank execution context.
+        const expectedHref = new URL(url).href;
+        const deadline = Date.now() + 15_000;
+        let observed = null;
+        let lastError = null;
+        while (Date.now() < deadline) {
+          try {
+            observed = await evalRaw('({ href: location.href, readyState: document.readyState })');
+            if (observed?.href === expectedHref && observed.readyState !== 'loading') return observed;
+          } catch (error) {
+            lastError = error;
+          }
+          await sleep(50);
+        }
+        throw new Error(
+          `navigation did not commit ${expectedHref}; observed=${JSON.stringify(observed)}` +
+          (lastError ? `; lastError=${lastError.message}` : ''),
+        );
+      };
       return {
-        navigate: (url) => send('Page.navigate', { url }, sessionId),
-        activate: () => send('Target.activateTarget', { targetId }),
+        navigate,
+        activate,
         close: () => send('Target.closeTarget', { targetId }),
         // ENG-22795: pin the emulated position BEFORE granting, so the
         // surface's permission-change listener never reads the host's real

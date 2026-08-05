@@ -367,14 +367,14 @@ failures:
 
 - `second window boot does not clear the first` was introduced with the D4
   multi-window check in `8db252a0e4`. The new CDP target was never activated or
-  closed, even though frame-driven browser work is throttled in background
-  tabs.
+  closed, and its fire-and-forget navigation did not wait for the new document
+  to own the execution context.
 - `backend unreachable: the open still shows a schedule board` was introduced
-  in `42570df079` with the same missing activation on its isolated target. The
-  first completed run after the Exact `0.1.10` refresh in `cc71c8ce7`, run
-  `30767525955`, shows this same pair. The source attribution remains the two
-  fixture landings above; the history does not prove that the runtime refresh
-  itself created an application boot regression.
+  in `42570df079` with the same activation and navigation-commit omissions on
+  its isolated target. The first completed run after the Exact `0.1.10` refresh
+  in `cc71c8ce7`, run `30767525955`, shows this same pair. The source
+  attribution remains the two fixture landings above; the history does not
+  prove that the runtime refresh itself created an application boot regression.
 
 The Contract and React fixtures now activate each target before navigation,
 reactivate the first window before proving that its live session survived, and
@@ -387,3 +387,15 @@ acceptance transcript has SHA-256
 The mirrored React control arm passed 18/18, including D4. A normal-sandbox
 Linux GitHub run remains the merge boundary; the fleet reproduction was not
 weakened with `--no-sandbox` or an administrator-owned SUID change.
+
+The first normal-sandbox Linux verification of that patch, PR run
+`30961216863` at `a144b2d896d722021dcb17094c24b87e1caa5fcc`, reproduced the
+same 32/34 pair after the registry install and production build passed. That
+result disproved activation alone as a complete repair. The shared fixture
+helper had treated the `Page.navigate` acknowledgement as a document-commit
+acknowledgement, then immediately started a long `Runtime.evaluate` poll. On
+the slower Linux transition that poll remained bound to the old `about:blank`
+execution context, explaining both `window.allAboard` and `station-name`
+timeouts. Navigation now brings the page to the front and waits, using only
+short evaluations, until the requested URL owns a non-loading execution
+context before any surface boot assertion starts.
