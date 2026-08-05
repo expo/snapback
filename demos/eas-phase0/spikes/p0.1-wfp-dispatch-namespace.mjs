@@ -309,7 +309,7 @@ export class Gate {
 const allowed = new Set([
   "query", "mutation", "mutation-retry", "runtime-facts", "activation-probe", "ambient-fetch", "ambient-global-fetch", "ambient-captured-fetch", "allowlisted-fetch",
   "denied-action-fetch", "slow-action", "queue-hold", "oversized-response",
-  "subrequest-bomb", "cpu-spin", "stale-capability", "tamper-app-capability",
+  "subrequest-bomb", "retained-action-fetch", "cpu-spin", "stale-capability", "tamper-app-capability",
   "tamper-release-capability",
 ]);
 
@@ -359,7 +359,7 @@ export default {
       return json(400, { ok: false, code: "SNAPBACK_ROLE_OPERATION_MISMATCH" });
     }
     if (role === "action" &&
-        !["activation-probe", "ambient-global-fetch", "ambient-captured-fetch", "allowlisted-fetch", "denied-action-fetch", "slow-action", "subrequest-bomb"].includes(operation)) {
+        !["activation-probe", "ambient-global-fetch", "ambient-captured-fetch", "allowlisted-fetch", "denied-action-fetch", "slow-action", "subrequest-bomb", "retained-action-fetch"].includes(operation)) {
       return json(400, { ok: false, code: "SNAPBACK_ROLE_OPERATION_MISMATCH" });
     }
     const bodyBytes = await request.arrayBuffer();
@@ -568,11 +568,13 @@ export default {
 
     const identity = Object.freeze({ appId: APP_ID, environmentId: ENVIRONMENT_ID, release: RELEASE, role: ROLE });
     let ctx;
+    let active = true;
     if (ROLE === "action") {
       let subrequests = 0;
       ctx = Object.freeze({
         identity,
         fetch: async (...fetchArgs) => {
+          if (!active) throw new Error("SNAPBACK_STALE_ACTION_FETCH");
           subrequests += 1;
           if (subrequests > ${SUBREQUESTS}) throw new Error("SNAPBACK_SUBREQUEST_LIMIT");
           return nativeFetch(...fetchArgs);
@@ -591,7 +593,11 @@ export default {
       });
     }
     const application = await applicationModule();
-    return application.run({ operation, args, argKeys, ctx });
+    try {
+      return await application.run({ operation, args, argKeys, ctx });
+    } finally {
+      active = false;
+    }
   },
 };
 `;
@@ -600,6 +606,8 @@ export default {
 function userApplicationSource() {
   return `
 const capturedAmbientFetch = globalThis.fetch;
+const moduleInstance = crypto.randomUUID();
+let retainedActionFetch = null;
 
 function json(status, body) {
   return new Response(JSON.stringify(body), {
@@ -669,6 +677,27 @@ export async function run({ operation, args, argKeys, ctx }) {
       throw error;
     }
     return json(200, { ok: true, unexpected: "subrequest limit did not fire" });
+  }
+  if (operation === "retained-action-fetch") {
+    const priorFetch = retainedActionFetch;
+    retainedActionFetch = ctx.fetch;
+    if (!priorFetch) {
+      return json(409, { ok: false, code: "SNAPBACK_NO_RETAINED_ACTION_FETCH", moduleInstance });
+    }
+    try {
+      const response = await priorFetch("https://example.com/?snapback-retained-action-fetch=1");
+      return json(200, {
+        ok: true,
+        unexpected: "retained action fetch remained live",
+        outboundStatus: response.status,
+        moduleInstance,
+      });
+    } catch (error) {
+      if (error?.message === "SNAPBACK_STALE_ACTION_FETCH") {
+        return json(409, { ok: false, code: "SNAPBACK_STALE_ACTION_FETCH", moduleInstance });
+      }
+      throw error;
+    }
   }
   if (operation === "query" || operation === "stale-capability") {
     return ctx.query({ applicationArgKeys: argKeys, value: args.value ?? null });
@@ -764,7 +793,7 @@ async function main() {
       },
       generatedHarness: {
         subRequests: SUBREQUESTS,
-        note: 'invocation-scoped ctx.fetch fails closed before outbound handoff; application.mjs cannot access the trusted main module native-fetch closure, and the separate minimal-control receipt proves native enforcement without outbound',
+        note: 'ctx.fetch fails closed before outbound handoff and is revoked after application settlement; application.mjs cannot access the trusted main module native-fetch closure, and the separate minimal-control receipt proves native enforcement without outbound',
       },
       dispatcherEnforced: {
         responseBytes: RESPONSE_BYTES,
@@ -780,7 +809,7 @@ async function main() {
     nonClaims: [
       'This disposable proof does not qualify the eas-cloudflare-wfp-v1 capability profile or graduate hosted_untrusted_code.',
       'Cloudflare native CPU enforcement has documented isolate flexibility, so the busy-loop witness repeats until termination and records every attempt rather than asserting a strict elapsed-time cutoff.',
-      'The trusted user-Worker main module fails closed at the subrequest ceiling before outbound handoff. It freezes ambient fetch before dynamically evaluating separate application.mjs and passes only invocation-scoped ctx.fetch. Native WfP subrequest enforcement is independently proved by the binding-free minimal-control receipt because outbound interception changes the observed accounting boundary.',
+      'The trusted user-Worker main module fails closed at the subrequest ceiling before outbound handoff. It freezes ambient fetch before dynamically evaluating separate application.mjs, passes only invocation-scoped ctx.fetch, and revokes that function after application settlement. Native WfP subrequest enforcement is independently proved by the binding-free minimal-control receipt because outbound interception changes the observed accounting boundary.',
       'Response, concurrency, queue, and wall-clock limits remain disposable dispatcher/Gate code.',
       'The action-role mechanism is a separate namespaced script and admission gate; Gate 0 must still select the production kill-domain mechanism.',
       'The disposable Workers.dev route must cross a three-round concurrent readiness barrier before P0.1 starts; this does not qualify any Expo ingress or production route shape, which remains P0.2 work.',
@@ -1361,16 +1390,32 @@ async function main() {
     });
 
     const subrequests = await invoke('app-a', 'r1', 'action', 'subrequest-bomb');
+    const retainedFetchAttempts = [];
+    let staleRetainedFetch = null;
+    for (let attempt = 1; attempt <= 20; attempt += 1) {
+      const result = await invoke('app-a', 'r1', 'action', 'retained-action-fetch');
+      retainedFetchAttempts.push({ attempt, ...result });
+      if (result.status === 409 && result.body?.code === 'SNAPBACK_STALE_ACTION_FETCH') {
+        staleRetainedFetch = result;
+        break;
+      }
+    }
     check('generated-harness-subrequest-limit', subrequests.status === 429 &&
       subrequests.body?.code === 'SNAPBACK_SUBREQUEST_LIMIT' &&
-      subrequests.body?.limit === SUBREQUESTS, {
+      subrequests.body?.limit === SUBREQUESTS && Boolean(staleRetainedFetch), {
       status: subrequests.status,
       code: subrequests.body?.code,
       category: subrequests.body?.category || null,
       responseBody: subrequests.body,
       elapsedMs: subrequests.elapsedMs,
       limit: SUBREQUESTS,
-      layer: 'generated user-Worker harness before outbound Worker handoff',
+      retainedFetchAttempts,
+      staleRetainedFetch: staleRetainedFetch ? {
+        status: staleRetainedFetch.status,
+        code: staleRetainedFetch.body?.code,
+        moduleInstance: staleRetainedFetch.body?.moduleInstance,
+      } : null,
+      layer: 'trusted main owns an invocation-scoped, post-settlement-revoked ctx.fetch before outbound handoff',
       nativeControlReceipt: 'demos/eas-phase0/receipts/p0.1-wfp-minimal-control.json',
     });
 
