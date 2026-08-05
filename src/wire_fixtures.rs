@@ -80,6 +80,7 @@ fn wire<T: serde::Serialize>(value: &T) -> Value {
 
 fn replace_envelope() -> LiveEnvelope {
     LiveEnvelope::LiveReplace {
+        network_profile: None,
         subscription_id: "sub_fixture_1".to_owned(),
         function: "listTodos".to_owned(),
         version: 41,
@@ -90,6 +91,7 @@ fn replace_envelope() -> LiveEnvelope {
 
 fn delta_envelope() -> LiveEnvelope {
     LiveEnvelope::LiveDelta {
+        network_profile: None,
         subscription_id: "sub_fixture_1".to_owned(),
         function: "listTodos".to_owned(),
         version: 42,
@@ -116,6 +118,7 @@ fn delta_envelope() -> LiveEnvelope {
 
 fn resync_subscription_envelope() -> LiveEnvelope {
     LiveEnvelope::ResyncRequired {
+        network_profile: None,
         reason: "live_refresh_failed".to_owned(),
         subscription_id: Some("sub_fixture_1".to_owned()),
         scope: None,
@@ -126,6 +129,7 @@ fn resync_subscription_envelope() -> LiveEnvelope {
 
 fn resync_connection_wide_envelope() -> LiveEnvelope {
     LiveEnvelope::ResyncRequired {
+        network_profile: None,
         reason: "outbox_overflow".to_owned(),
         subscription_id: None,
         scope: None,
@@ -136,6 +140,7 @@ fn resync_connection_wide_envelope() -> LiveEnvelope {
 
 fn current_as_of_envelope() -> LiveEnvelope {
     LiveEnvelope::CurrentAsOf {
+        network_profile: None,
         subscription_id: "sub_fixture_1".to_owned(),
         function: "listTodos".to_owned(),
         version: 43,
@@ -292,6 +297,8 @@ fn invalidation_envelope_custom(
 /// - `expect`: the transitions/actions the state machine requires.
 pub fn wire_fixture_corpus() -> Value {
     let replace = wire(&replace_envelope());
+    let profiled_replace =
+        wire(&replace_envelope().with_network_profile("fixture-slow".to_owned()));
 
     let delta = wire(&delta_envelope());
 
@@ -356,6 +363,7 @@ pub fn wire_fixture_corpus() -> Value {
     let authorization_expectation_epoch_1 = fixture_authorization_expectation(1);
     let authorization_expectation_epoch_2 = fixture_authorization_expectation(2);
     let post_terminal_replace = wire(&LiveEnvelope::LiveReplace {
+        network_profile: None,
         subscription_id: "sub_fixture_1".to_owned(),
         function: "listTodos".to_owned(),
         version: 44,
@@ -463,6 +471,21 @@ pub fn wire_fixture_corpus() -> Value {
                 "actions": ["replace_rows"]
             },
             "notes": "Whole-result refresh; the wire default. Version guard admits 41 > 40."
+        },
+        {
+            "name": "socket.durable.live_replace.network_profile_marker",
+            "family": "live.envelope.schema.json",
+            "lane": "live",
+            "tuples": ["live/local", "live/hosted"],
+            "direction": "server_to_client",
+            "schemaValid": true,
+            "frame": profiled_replace,
+            "given": { "subscription": { "id": "sub_fixture_1", "state": "live", "version": 40 } },
+            "expect": {
+                "transitions": [{ "subscription": "sub_fixture_1", "to": "live", "version": 41 }],
+                "actions": ["replace_rows"]
+            },
+            "notes": "Compatible v1 optional-field addition: the socket frame surfaces the non-normal admission snapshot name without changing ordinary live_replace application. The marker is absent under normal."
         },
         {
             "name": "durable.live_delta.apply_by_id",
@@ -2231,7 +2254,7 @@ pub fn wire_fixture_corpus() -> Value {
         "formatVersion": WIRE_FIXTURES_FORMAT_VERSION,
         "wireVersion": "snapback.v1",
         "judgedAgainst": "LLP 0095 §1 (abstract client state machine)",
-        "coverage": "format-v3 — all five committed LiveEnvelope kinds with wrapped/unwrapped parity, replace-to-delta `_id` continuity, auth/live apply-before-ack, exact scope/expectation binding, equal-data-version authorization replacement, pending high-water, terminal delete and no-resurrection, resolution floor/shape rejection, quarantine, exact duplicate re-ACK, durable_bytes and its poll-lane analogue, connection-wide resync, tolerance negatives, negotiation/offer refusals (client_to_server), drain-cancel duplicate tolerance, arm-mismatch and grant-loss recovery, virtual-time heartbeat/freshness/backoff, and the LLP 0096 auth-profile classes (auth/rr, auth/live incl. terminal dispositions, auth/replay incl. the post-split descriptor fence, auth/lease; auth/sender deliberately deferred per LLP 0096 §5)",
+        "coverage": "format-v3 — all five committed LiveEnvelope kinds with wrapped/unwrapped parity, the optional socket network-profile marker, replace-to-delta `_id` continuity, auth/live apply-before-ack, exact scope/expectation binding, equal-data-version authorization replacement, pending high-water, terminal delete and no-resurrection, resolution floor/shape rejection, quarantine, exact duplicate re-ACK, durable_bytes and its poll-lane analogue, connection-wide resync, tolerance negatives, negotiation/offer refusals (client_to_server), drain-cancel duplicate tolerance, arm-mismatch and grant-loss recovery, virtual-time heartbeat/freshness/backoff, and the LLP 0096 auth-profile classes (auth/rr, auth/live incl. terminal dispositions, auth/replay incl. the post-split descriptor fence, auth/lease; auth/sender deliberately deferred per LLP 0096 §5)",
         "fixtures": fixtures,
     })
 }

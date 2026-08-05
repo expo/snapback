@@ -26,6 +26,7 @@ run env SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs dem
 # LLP 0075's frozen checkpoint also exercises the process-live outbound seam.
 run env SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/competitive-checkpoint/snapback
 run node packages/snapback-codegen/index.mjs demos/campfire/snapback
+run node packages/snapback-codegen/index.mjs demos/chirp/snapback
 run node packages/snapback-codegen/index.mjs demos/cursors-web/snapback
 run node packages/snapback-codegen/index.mjs demos/graffiti/snapback
 run node packages/snapback-codegen/index.mjs demos/card-game/snapback
@@ -40,6 +41,7 @@ run node packages/snapback-codegen/index.mjs demos/public-dashboard/snapback
 run node packages/snapback-codegen/index.mjs demos/access-desk/snapback
 run node packages/snapback-codegen/index.mjs demos/team-chat/snapback
 run node packages/snapback-codegen/index.mjs demos/party-wall/snapback
+run node packages/snapback-codegen/index.mjs demos/triage-graph/snapback
 run node packages/snapback-codegen/index.mjs demos/file-drop/snapback
 # The packaged comparator green fixture ships its generated output inside the
 # @expo/snapback-cli tarball, and the comparator's executing-package identity
@@ -62,6 +64,7 @@ REVIEW_ROOTS=(
     demos/all-aboard/tests/egress-probe/generated
     demos/competitive-checkpoint/snapback/generated
     demos/campfire/snapback/generated
+    demos/chirp/snapback/generated
     demos/cursors-web/snapback/generated
     demos/graffiti/snapback/generated
     demos/card-game/snapback/generated
@@ -75,6 +78,7 @@ REVIEW_ROOTS=(
     demos/public-dashboard/snapback/generated
     demos/access-desk/snapback/generated
     demos/file-drop/snapback/generated
+    demos/triage-graph/snapback/generated
 )
 
 REVIEW_PATHS=()

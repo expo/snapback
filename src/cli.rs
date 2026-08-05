@@ -759,6 +759,13 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: ErrorsCommand,
     },
+    /// debug.networkProfile* — inspect or change the process-local network
+    /// condition profile through the shared host-ops envelope.
+    #[command(name = "network-profile")]
+    NetworkProfile {
+        #[command(subcommand)]
+        command: NetworkProfileCommand,
+    },
     /// Mint one short-lived, scoped administrative data-read lease. This is a
     /// ready-file-only operation because the proof root is local operator
     /// authority and can never be discovered from a URL.
@@ -1061,6 +1068,23 @@ pub enum ErrorsCommand {
         target: TargetArgs,
         #[arg(long)]
         open_before: String,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum NetworkProfileCommand {
+    /// debug.networkProfileGet — return the active profile and provenance.
+    Get {
+        #[command(flatten)]
+        target: TargetArgs,
+    },
+    /// debug.networkProfileSet — activate a built-in name or inline JSON
+    /// profile through the server's one activation gate.
+    Set {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// Built-in name (normal, optimistic, demo-slow) or an inline JSON object.
+        profile: String,
     },
 }
 
@@ -1683,6 +1707,19 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         }
         Some(HostCommand::Telemetry { command }) => telemetry_command(command),
         Some(HostCommand::Errors { command }) => errors_command(command),
+        Some(HostCommand::NetworkProfile { command }) => match command {
+            NetworkProfileCommand::Get { target } => host_op_via_http(
+                &target,
+                json!({ "operation": "debug.networkProfileGet" }),
+            ),
+            NetworkProfileCommand::Set { target, profile } => host_op_via_http(
+                &target,
+                json!({
+                    "operation": "debug.networkProfileSet",
+                    "input": parse_network_profile_selection(&profile)?,
+                }),
+            ),
+        },
         Some(HostCommand::Auth { command }) => match command {
             AuthCommand::Backup { db, output } => auth_backup(&db, &output).await,
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
@@ -2557,6 +2594,16 @@ fn parse_run_args(args: Option<String>) -> anyhow::Result<Value> {
     Ok(parsed)
 }
 
+fn parse_network_profile_selection(raw: &str) -> anyhow::Result<Value> {
+    let trimmed = raw.trim();
+    anyhow::ensure!(!trimmed.is_empty(), "network profile selection must not be empty");
+    if trimmed.starts_with('{') || trimmed.starts_with('"') {
+        serde_json::from_str(trimmed).context("network profile selection is not valid JSON")
+    } else {
+        Ok(Value::String(trimmed.to_owned()))
+    }
+}
+
 fn read_json_file(path: &Path) -> anyhow::Result<Value> {
     let raw = std::fs::read_to_string(path)
         .with_context(|| format!("failed to read {}", path.display()))?;
@@ -3305,32 +3352,46 @@ async fn admin_command(args: AdminArgs) -> anyhow::Result<()> {
             status,
             revoke,
         }) => {
-            admin_claim_link(
-                &target,
+            admin_claim_link(AdminClaimLinkRequest {
+                target,
                 no_wait,
-                url_base.as_deref(),
+                url_base,
                 qr,
                 tailscale,
-                lan.as_deref(),
+                lan,
                 status,
                 revoke,
-            )
+            })
             .await
         }
         None => launch_admin_console(&args.target, args.no_open),
     }
 }
 
-async fn admin_claim_link(
-    target: &TargetArgs,
+struct AdminClaimLinkRequest {
+    target: TargetArgs,
     no_wait: bool,
-    url_base: Option<&str>,
+    url_base: Option<String>,
     qr: bool,
     tailscale: bool,
-    lan: Option<&str>,
+    lan: Option<String>,
     status: Option<String>,
     revoke: Option<String>,
-) -> anyhow::Result<()> {
+}
+
+async fn admin_claim_link(request: AdminClaimLinkRequest) -> anyhow::Result<()> {
+    let AdminClaimLinkRequest {
+        target,
+        no_wait,
+        url_base,
+        qr,
+        tailscale,
+        lan,
+        status,
+        revoke,
+    } = request;
+    let url_base = url_base.as_deref();
+    let lan = lan.as_deref();
     let selector_count = usize::from(url_base.is_some())
         + usize::from(tailscale)
         + usize::from(lan.is_some());
@@ -3347,7 +3408,7 @@ async fn admin_claim_link(
             && (url_base.is_some() || qr || tailscale || lan.is_some() || no_wait)),
         "SNAPBACK_ADMIN_LINK_CONTROL_CONFLICT: --status/--revoke cannot create or present a new reachability link"
     );
-    let resolved = resolve_admin_console_target(target)?;
+    let resolved = resolve_admin_console_target(&target)?;
     if let Some(claim_code) = status {
         let status = console_claim_control_request(
             &resolved,
@@ -6895,12 +6956,13 @@ mod tests {
         AdminArgs, AdminCommand, Args, AssetsCommand, AuthCommand, AuthConstructionFailure,
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
         BEFORE_STARTUP_TARGET_RESERVATION, Cli, ErrorsCommand, ForkCommand, HostCommand,
-        ManagedPath, ReadyFileTarget, ResolvedHttpTarget, TargetArgs, TelemetryCommand,
+        ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, TargetArgs,
+        TelemetryCommand,
         bind_first_available, bind_listener, console_claim_fragment_url, console_fragment_url,
         fork_secret_disposition, managed_startup_paths, mint_secret_read_via_http,
-        parse_fork_ttl, parse_run_args, path_with_filename_suffix, prepare_database_path,
-        prepare_database_path_for_startup, quiet_stop_fork, reject_misdirected_serve_flags,
-        resolve_http_target,
+        parse_fork_ttl, parse_network_profile_selection, parse_run_args,
+        path_with_filename_suffix, prepare_database_path, prepare_database_path_for_startup,
+        quiet_stop_fork, reject_misdirected_serve_flags, resolve_http_target,
         runtime_auth_program_readiness, validate_path_disjointness,
         validated_console_origin, validated_secret_read_root_path, write_ready_file_atomic,
         write_ready_file_atomic_protected,
@@ -8371,6 +8433,49 @@ mod tests {
 
         let error = parse_run_args(Some(r#"["hello"]"#.to_owned())).unwrap_err();
         assert!(error.to_string().contains("--args must be a JSON object"));
+    }
+
+    #[test]
+    fn network_profile_cli_maps_get_and_set_without_reinterpreting_profiles() {
+        let get = Cli::parse_from([
+            "snapback",
+            "network-profile",
+            "get",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            get.command,
+            Some(HostCommand::NetworkProfile {
+                command: NetworkProfileCommand::Get { .. }
+            })
+        ));
+
+        let set = Cli::parse_from([
+            "snapback",
+            "network-profile",
+            "set",
+            "optimistic",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            set.command,
+            Some(HostCommand::NetworkProfile {
+                command: NetworkProfileCommand::Set { profile, .. }
+            }) if profile == "optimistic"
+        ));
+        assert_eq!(
+            parse_network_profile_selection("optimistic").unwrap(),
+            json!("optimistic")
+        );
+        assert_eq!(
+            parse_network_profile_selection(
+                r#"{"name":"tiny","mutationAckDelayMs":1,"liveDeltaDelayMs":2,"queryResponseDelayMs":3}"#
+            )
+            .unwrap()["name"],
+            "tiny"
+        );
     }
 
     #[test]

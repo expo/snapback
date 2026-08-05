@@ -2,5 +2,5 @@
 import { defineContractModule, mutation } from '@exact/contract/exports';
 
 export default defineContractModule('./refreshTelemetry.mutation.ts', {
-  refreshTelemetry: mutation({ effects: ["telemetry.poll"], invalidates: ["inspect"] }),
+  refreshTelemetry: mutation({ effects: ["telemetry.poll"], invalidates: ["inspect","networkProfile"] }),
 });

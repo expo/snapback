@@ -5,7 +5,10 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-08-01 (shared app-data result core amendment: the
+**Revised:** 2026-08-04 (LLP 0167 OQ2 ruling author-ratified: the `debug.*`
+runtime-perturbation family is decided, with built
+`debug.networkProfileGet` / `debug.networkProfileSet` host operations, CLI
+verbs, and control-plane MCP projections); 2026-08-01 (shared app-data result core amendment: the
 Rust-owned `AppDataResultCoreV1` + committed schema, the
 `appCliCallResult` wrapper-to-core mapping, the frozen per-kind mapping
 table, the forward-skew fallback rules by wire locus with residues #8/#10
@@ -44,6 +47,11 @@ result core); 2026-07-23 (dated pointer note: the provisioning/project-lifecycle
 >   `SNAPBACK_EXPLAIN_KIND_UNIMPLEMENTED`), and the **control-plane MCP
 >   projection shipped** as `snapback mcp-control` (LLP 0042's 2026-07-23
 >   implementation checkpoint; LLP 0079 SC-1b).
+> - **Built under the proposed LLP 0167 OQ2 ruling (2026-08-04; the author may
+>   veto the namespace):** `debug.networkProfileGet` (`AdminRead`) and
+>   `debug.networkProfileSet` (`AdminWrite`) return the shared envelope and
+>   terminate at the same network-profile activation gate as the dedicated
+>   admin routes.
 > - **Pinned, not built:** `host.restart`, `schema.reload`,
 >   `functions.reload`, `acceptance.run` — requested over HTTP they return
 >   the structured `SNAPBACK_HOST_OP_UNIMPLEMENTED` envelope (`host.*` over
@@ -132,6 +140,11 @@ It does not own:
 The v0 host-ops core uses these operation ids. The ids are the stable names used
 inside result envelopes, logs, HTTP requests, and MCP metadata.
 
+**OQ2 ruling (proposed 2026-08-04, author-ratified 2026-08-04):** runtime
+perturbation operations form a new `debug.*` family. The first two members are
+the rows below; future D6/fault-injection operations may join the family only
+through their own reviewed table amendments.
+
 | Operation id | Purpose | Required v0 result data |
 | --- | --- | --- |
 | `host.start` | Start or attach to the canonical local Snapback server. | `runtimeState`, `capabilityManifest`, bound URL, process id, readiness. |
@@ -148,6 +161,8 @@ inside result envelopes, logs, HTTP requests, and MCP metadata.
 | `acceptance.run` | Run the local acceptance suite or a named profile. | profile id, passed/failed/skipped counts, diagnostics, artifact paths. |
 | `auth.mintSession` | Provision the canonical email identity/user if needed and issue a session credential for an operator-selected address. | the closed credential payload: `tokenType`, `token`, `refreshAfter`, public `session`, and required top-level `authorityDescriptor`; the nested session exposes no identity subject, digest, generation, or authority-instance id. |
 | `auth.rescueCollidingTable` | Transactionally move one legacy auth-reserved table to an ordinary app-table name. | ordinary service: exactly `source`, `target`, `copiedRowCount`, `copiedExplicitIndexCount`, `manifestUpdated`, and `catalogCollisionCleared`; startup-recovery service adds exactly `restartRequired: true`; never rows. |
+| `debug.networkProfileGet` | Read the active process-local network condition profile. | The active profile plus activation provenance, exactly the `GET /_snapback/api/debug/network-profile` response shape. |
+| `debug.networkProfileSet` | Activate a built-in name or inline process-local network condition profile. | The newly active profile plus activation provenance, or the activation gate's refusal diagnostic. |
 
 This document owns the host-operation `data` DTOs. LLP 0057 owns the provider
 semantics that populate them; it does not remove or reinterpret fields here.
@@ -288,8 +303,13 @@ a non-production profile. A host-ops result reports the active profile in its
 target metadata rather than hard-coding local development (ENG-24561).
 
 The admin half is likewise operation-level policy. `function.explain` and
-query/live-query `function.run` require `AdminRead`; full `app.inspect`, reset,
+query/live-query `function.run`, and `debug.networkProfileGet` require
+`AdminRead`; full `app.inspect`, reset,
 manifest loads, and mutation/action `function.run` require `AdminWrite`.
+`debug.networkProfileSet` also requires `AdminWrite`, while its environment
+profile requirement is deliberately `Any`: every request must reach LLP 0167's
+finer activation gate so `SNAPBACK_NETWORK_PROFILE_FORBIDDEN` and the other
+network-profile refusal codes remain identical across transports.
 Anonymous identity inspection uses the typed root `/inspect` projection.
 Unknown operations fail closed at `AdminWrite`. The multiplexed endpoint and
 dedicated aliases resolve this table against the same installed function kind,
@@ -359,6 +379,8 @@ The CLI verbs map to operation ids as follows:
 | `snapback run <function-id> --args-json <json>` | `function.run` |
 | `snapback explain <function-id> --args-json <json> --kind <kind>` | `function.explain` |
 | `snapback acceptance run [profile]` | `acceptance.run` |
+| `snapback network-profile get` | `debug.networkProfileGet` (OQ2 ruling, ratified 2026-08-04) |
+| `snapback network-profile set <name-or-inline-json>` | `debug.networkProfileSet` (OQ2 ruling, ratified 2026-08-04) |
 
 `snapback run` must require a generated function id or generated reference. A
 human-friendly exported name may be accepted only when it resolves uniquely
@@ -423,6 +445,8 @@ operation and returns the same result envelope as JSON.
 | `snapback_run_function` | `function.run` |
 | `snapback_explain` | `function.explain` |
 | `snapback_acceptance_run` | `acceptance.run` |
+| `snapback_network_profile_get` | `debug.networkProfileGet` (OQ2 ruling, ratified 2026-08-04) |
+| `snapback_network_profile_set` | `debug.networkProfileSet` (OQ2 ruling, ratified 2026-08-04) |
 
 The MCP tool schemas should mirror the core `args` and `authority` structures.
 MCP display text may summarize diagnostics, but the structured content must

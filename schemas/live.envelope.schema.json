@@ -411,7 +411,7 @@
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/live.envelope.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "A durable-lane fan-out envelope: what a live-query subscriber receives,\nunwrapped, on the WebSocket (and wrapped in [`RealtimeEnvelope::Durable`]\nbytes on the HTTP polling drain).\n\n`live_replace` is the wire default (whole-result refresh); every row's\nsystem `_id` member is its durable identity and occupies the same string\nspace as [`LiveDeltaWireOp::id`]. `live_delta` is the DK-3 op-log fast path\nfor the analyzable unordered subset;\n`resync_required` tells the client its subscription (or, connection-wide,\nits whole outbox) can no longer be trusted and it must re-snapshot.",
+  "description": "A durable-lane fan-out envelope: what a live-query subscriber receives,\nunwrapped, on the WebSocket (and wrapped in [`RealtimeEnvelope::Durable`]\nbytes on the HTTP polling drain).\n\n`live_replace` is the wire default (whole-result refresh); every row's\nsystem `_id` member is its durable identity and occupies the same string\nspace as [`LiveDeltaWireOp::id`]. `live_delta` is the DK-3 op-log fast path\nfor the analyzable unordered subset;\n`resync_required` tells the client its subscription (or, connection-wide,\nits whole outbox) can no longer be trusted and it must re-snapshot.\n\n@ref LLP 0093#d1--the-protocol-document-and-wire-v1 — optional fields on\n  existing server-to-client envelopes are compatible within wire v1.",
   "oneOf": [
     {
       "description": "Whole-result refresh for one subscription.",
@@ -422,6 +422,14 @@
         "kind": {
           "const": "live_replace",
           "type": "string"
+        },
+        "network_profile": {
+          "description": "Name of the immutable non-`normal` network profile snapshot that\ndelayed this frame. Absent for the identity profile.",
+          "pattern": "^[A-Za-z0-9._-]+$",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "resume": {
           "anyOf": [
@@ -466,6 +474,14 @@
         "kind": {
           "const": "live_delta",
           "type": "string"
+        },
+        "network_profile": {
+          "description": "Name of the immutable non-`normal` network profile snapshot that\ndelayed this frame. Absent for the identity profile.",
+          "pattern": "^[A-Za-z0-9._-]+$",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "ops": {
           "items": {
@@ -513,6 +529,14 @@
           "const": "current_as_of",
           "type": "string"
         },
+        "network_profile": {
+          "description": "Name of the immutable non-`normal` network profile snapshot that\ndelayed this frame. Absent for the identity profile.",
+          "pattern": "^[A-Za-z0-9._-]+$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "resume": {
           "$ref": "#/$defs/ResumeWire",
           "description": "Fresh token minted at `version` — the variant exists to advance it."
@@ -542,6 +566,14 @@
         "kind": {
           "const": "authorization_invalidation",
           "type": "string"
+        },
+        "network_profile": {
+          "description": "Name of the immutable non-`normal` network profile snapshot that\ndelayed this frame. Absent for the identity profile.",
+          "pattern": "^[A-Za-z0-9._-]+$",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "obligation": {
           "$ref": "#/$defs/ResyncObligation"
@@ -591,6 +623,14 @@
         "kind": {
           "const": "resync_required",
           "type": "string"
+        },
+        "network_profile": {
+          "description": "Name of the immutable non-`normal` network profile snapshot that\ndelayed this frame. Absent for the identity profile.",
+          "pattern": "^[A-Za-z0-9._-]+$",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "reason": {
           "type": "string"

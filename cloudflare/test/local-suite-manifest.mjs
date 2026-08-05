@@ -13,6 +13,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'acceptance-cron-recovery',
   'acceptance-egress',
   'acceptance-live-and-diagnostics-hardening',
+  'acceptance-network-profile',
   'acceptance-protocol-hardening',
   'acceptance-reset-atomic',
   'acceptance-rqs',
@@ -34,7 +35,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'wire-schema-gate',
 ]);
 
-export const EXPECTED_LOCAL_SUITE_CHECKS = 28;
+export const EXPECTED_LOCAL_SUITE_CHECKS = 29;
 
 export const LOCAL_SUITES = Object.freeze([
   { id: 'compatibility', file: 'scripts/cf-check-compat', runtime: 'direct' },
@@ -82,6 +83,13 @@ export const LOCAL_SUITES = Object.freeze([
     file: 'cloudflare/test/acceptance.live-and-diagnostics-hardening.mjs',
     evidence: [
       'cloudflare live/diagnostics hardening acceptance: bounded frames, recoverable fan-out, and private cron diagnostics passed',
+    ],
+  },
+  {
+    id: 'acceptance-network-profile',
+    file: 'cloudflare/test/acceptance.network-profile.mjs',
+    evidence: [
+      'cloudflare network-profile acceptance: classification, ceilings, runtime lifecycle, two-phase deadlines, and admission passed',
     ],
   },
   {
@@ -201,6 +209,7 @@ export const TEST_FILE_CLASSIFICATIONS = Object.freeze([
   ['acceptance.cron.mjs', 'gate'],
   ['acceptance.egress.mjs', 'gate'],
   ['acceptance.live-and-diagnostics-hardening.mjs', 'gate'],
+  ['acceptance.network-profile.mjs', 'gate'],
   ['acceptance.mjs', 'gate'],
   ['acceptance.protocol-hardening.mjs', 'gate'],
   ['acceptance.remote.all-aboard.mjs', 'remote-credentialed'],

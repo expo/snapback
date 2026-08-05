@@ -16,6 +16,21 @@ export { formatCodegenSummary } from './codegen-summary.mjs';
 /** Canonical sorted projection of Rust's registry-owned experimental ids. */
 export function experimentalTargetCapabilityIdsCanonicalJson(): string;
 
+/**
+ * Validates the closed, server-prepared trust root before codegen publishes it.
+ * The returned value is the same candidate, preserving its caller-known shape.
+ */
+export function validateTrustedCompositionActivationV1<
+  const Activation extends Readonly<Record<string, unknown>>,
+>(
+  candidate: Activation,
+  options: Readonly<{
+    expectedGeneration: unknown;
+    targetProfileId: string;
+    authMode: string;
+  }>,
+): Activation;
+
 export interface CodegenDiagnostic {
   readonly code: string;
   readonly severity: 'error' | 'warning' | 'info';
@@ -337,3 +352,18 @@ export function computeArtifactIdentityStrings(options: Readonly<{
 
 /** CLI entry (`[--json] [--target-profile <profile>] [backendDir]`). */
 export function runCodegenCli(argv?: readonly string[]): Promise<void>;
+
+/**
+ * Validates a `snapback.trusted-composition-activation.v1` artifact against
+ * the expected generation/target/auth identities and returns the frozen
+ * activation record. Throws `TypeError` on any closed-record or identity
+ * mismatch.
+ */
+export function validateTrustedCompositionActivationV1(
+  candidate: unknown,
+  context: Readonly<{
+    expectedGeneration: Readonly<Record<string, unknown>>;
+    targetProfileId: string;
+    authMode: string;
+  }>,
+): Readonly<Record<string, unknown>>;

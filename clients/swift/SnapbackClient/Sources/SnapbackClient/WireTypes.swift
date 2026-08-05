@@ -429,17 +429,31 @@ private func validQueryNamespace(_ value: JSONValue?) -> Bool {
 
 /// The durable-lane fan-out envelope (`live.envelope.schema.json`).
 public enum LiveEnvelope: Equatable, Sendable {
-    case liveReplace(subscriptionId: String, function: String, version: UInt64, rows: [JSONValue], resume: JSONValue?)
-    case liveDelta(subscriptionId: String, function: String, version: UInt64, ops: [LiveDeltaOp], resume: JSONValue?)
-    case currentAsOf(subscriptionId: String, function: String, version: UInt64, resume: JSONValue)
+    case liveReplace(subscriptionId: String, function: String, version: UInt64, rows: [JSONValue], resume: JSONValue?, networkProfile: String?)
+    case liveDelta(subscriptionId: String, function: String, version: UInt64, ops: [LiveDeltaOp], resume: JSONValue?, networkProfile: String?)
+    case currentAsOf(subscriptionId: String, function: String, version: UInt64, resume: JSONValue, networkProfile: String?)
     /// `reason` is deliberately an open string (LLP 0095 T-RESYNC): recovery
     /// is identical for every reason, known or not.
-    case resyncRequired(subscriptionId: String?, reason: String, clearRetained: Bool, scope: String?, epoch: UInt64?)
+    case resyncRequired(subscriptionId: String?, reason: String, clearRetained: Bool, scope: String?, epoch: UInt64?, networkProfile: String?)
     case authorizationInvalidation(
         obligation: AuthorizationInvalidationObligation,
         snapshot: AuthorizationInvalidationSnapshot?,
-        resolution: AuthorizationInvalidationResolution?
+        resolution: AuthorizationInvalidationResolution?,
+        networkProfile: String?
     )
+
+    /// The server-side egress profile captured when this frame was admitted.
+    /// `nil` is the byte-compatible `normal` profile.
+    public var networkProfile: String? {
+        switch self {
+        case .liveReplace(_, _, _, _, _, let marker),
+             .liveDelta(_, _, _, _, _, let marker),
+             .currentAsOf(_, _, _, _, let marker),
+             .resyncRequired(_, _, _, _, _, let marker),
+             .authorizationInvalidation(_, _, _, let marker):
+            marker
+        }
+    }
 
     public static let knownKinds: Set<String> = [
         "live_replace", "live_delta", "current_as_of", "resync_required",
@@ -447,11 +461,11 @@ public enum LiveEnvelope: Equatable, Sendable {
     ]
 
     static let knownFields: [String: Set<String>] = [
-        "live_replace": ["kind", "subscription_id", "function", "version", "rows", "resume"],
-        "live_delta": ["kind", "subscription_id", "function", "version", "ops", "resume"],
-        "current_as_of": ["kind", "subscription_id", "function", "version", "resume"],
-        "resync_required": ["kind", "subscription_id", "reason", "clear_retained", "scope", "epoch"],
-        "authorization_invalidation": ["kind", "obligation", "snapshot", "resolution"],
+        "live_replace": ["kind", "network_profile", "subscription_id", "function", "version", "rows", "resume"],
+        "live_delta": ["kind", "network_profile", "subscription_id", "function", "version", "ops", "resume"],
+        "current_as_of": ["kind", "network_profile", "subscription_id", "function", "version", "resume"],
+        "resync_required": ["kind", "network_profile", "subscription_id", "reason", "clear_retained", "scope", "epoch"],
+        "authorization_invalidation": ["kind", "network_profile", "obligation", "snapshot", "resolution"],
     ]
 
     /// Tolerant decode: returns nil only when the object is not a decodable
@@ -464,6 +478,7 @@ public enum LiveEnvelope: Equatable, Sendable {
             guard let value = members[key], value != .null else { return nil }
             return value
         }
+        let networkProfile = nonNull("network_profile")?.stringValue
         switch kind {
         case "live_replace":
             guard let sub = members["subscription_id"]?.stringValue,
@@ -471,7 +486,7 @@ public enum LiveEnvelope: Equatable, Sendable {
                   let version = members["version"]?.uint64Value,
                   let rows = members["rows"]?.arrayValue
             else { return nil }
-            return Decoded(value: .liveReplace(subscriptionId: sub, function: function, version: version, rows: rows, resume: nonNull("resume")), hadUnknownFields: extraFields)
+            return Decoded(value: .liveReplace(subscriptionId: sub, function: function, version: version, rows: rows, resume: nonNull("resume"), networkProfile: networkProfile), hadUnknownFields: extraFields)
         case "live_delta":
             guard let sub = members["subscription_id"]?.stringValue,
                   let function = members["function"]?.stringValue,
@@ -483,14 +498,14 @@ public enum LiveEnvelope: Equatable, Sendable {
                 guard let op = LiveDeltaOp.from(rawOp) else { return nil }
                 ops.append(op)
             }
-            return Decoded(value: .liveDelta(subscriptionId: sub, function: function, version: version, ops: ops, resume: nonNull("resume")), hadUnknownFields: extraFields)
+            return Decoded(value: .liveDelta(subscriptionId: sub, function: function, version: version, ops: ops, resume: nonNull("resume"), networkProfile: networkProfile), hadUnknownFields: extraFields)
         case "current_as_of":
             guard let sub = members["subscription_id"]?.stringValue,
                   let function = members["function"]?.stringValue,
                   let version = members["version"]?.uint64Value,
                   let resume = nonNull("resume")
             else { return nil }
-            return Decoded(value: .currentAsOf(subscriptionId: sub, function: function, version: version, resume: resume), hadUnknownFields: extraFields)
+            return Decoded(value: .currentAsOf(subscriptionId: sub, function: function, version: version, resume: resume, networkProfile: networkProfile), hadUnknownFields: extraFields)
         case "resync_required":
             guard let reason = members["reason"]?.stringValue,
                   let clearRetained = members["clear_retained"]?.boolValue
@@ -501,7 +516,8 @@ public enum LiveEnvelope: Equatable, Sendable {
                     reason: reason,
                     clearRetained: clearRetained,
                     scope: nonNull("scope")?.stringValue,
-                    epoch: nonNull("epoch")?.uint64Value
+                    epoch: nonNull("epoch")?.uint64Value,
+                    networkProfile: networkProfile
                 ),
                 hadUnknownFields: extraFields
             )
@@ -521,7 +537,8 @@ public enum LiveEnvelope: Equatable, Sendable {
                 value: .authorizationInvalidation(
                     obligation: obligation,
                     snapshot: snapshot,
-                    resolution: resolution
+                    resolution: resolution,
+                    networkProfile: networkProfile
                 ),
                 hadUnknownFields: extraFields
             )

@@ -1526,7 +1526,9 @@ rule for credential-carrying requests (§4), per-class decoded-byte ingress
 bounds enforced before text/JSON materialization on HTTP responses and live
 frames (§1), and the bare credential-free non-redirecting artifact fetch
 path with identity-encoding enforcement (§5's `fetchPublicArtifact`; the
-`/app-api/*` server routes themselves remain future work).
+`/app-api/*` server routes themselves remained future work at that
+checkpoint; they have since landed with the LLP 0031 dated route-class
+registration of 2026-08-04).
 
 This is the rescoped phase-1 checkpoint recorded by
 `issues/20260717-app-cli-phase1-program.md`. It does **not** advance this RFC to

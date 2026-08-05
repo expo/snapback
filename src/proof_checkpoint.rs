@@ -36,12 +36,14 @@ pub const HISTORY_MAX_ROWS_PER_TABLE: u64 = 100_000;
 pub const HISTORY_PAGE_MAX: u32 = 1_000;
 
 #[cfg(test)]
+type CheckpointSyncHook = Box<dyn FnOnce(&Path) -> SnapbackResult<()>>;
+
+#[cfg(test)]
 thread_local! {
     static CHECKPOINT_AFTER_PIN_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
         const { std::cell::RefCell::new(None) };
-    static CHECKPOINT_SYNC_HOOK: std::cell::RefCell<
-        Option<Box<dyn FnOnce(&Path) -> SnapbackResult<()>>>
-    > = const { std::cell::RefCell::new(None) };
+    static CHECKPOINT_SYNC_HOOK: std::cell::RefCell<Option<CheckpointSyncHook>> =
+        const { std::cell::RefCell::new(None) };
 }
 
 #[cfg(test)]
@@ -689,6 +691,7 @@ pub(crate) fn create_infra(conn: &Connection) -> SnapbackResult<()> {
 ///
 /// @ref LLP 0162#6-bounded-history-and-named-checkpoints — history retention
 /// never pins or derives from the sync-resume floor.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn record_history_change(
     tx: &Transaction<'_>,
     version: u64,
@@ -802,6 +805,7 @@ pub(crate) fn prune_record_history(conn: &Connection, now_ms: u64) -> SnapbackRe
 /// Read history with the two-part fail-closed rule. Pagination is applied
 /// after per-version authorization; `next_visible_offset` counts only visible
 /// entries and therefore cannot disclose how many versions were elided.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn read_record_history(
     conn: &Connection,
     table: &str,

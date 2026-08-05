@@ -136,6 +136,17 @@ impl NetworkConditionProfile {
                 "ceilingMs": NETWORK_PROFILE_DELAY_CEILING_MS,
             })));
         }
+        // A built-in name is a contract: an inline profile may reuse it only
+        // when field-identical, so a marker naming "normal"/"optimistic"
+        // cannot lie about the delays actually applied.
+        if let Ok(reserved) = Self::named(&self.name)
+            && reserved != self
+        {
+            return Err(invalid_profile_error(
+                "inline network profile reuses a built-in name with different fields",
+            )
+            .with_details(json!({ "name": self.name })));
+        }
         Ok(self)
     }
 
@@ -185,6 +196,8 @@ fn invalid_profile_error(message: impl Into<String>) -> SnapbackError {
 pub enum NetworkProfileSource {
     Env,
     Api,
+    #[serde(rename = "host-ops")]
+    HostOps,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
@@ -310,6 +323,12 @@ impl NetworkProfileState {
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
+    }
+
+    /// Fast identity check for response wrappers that should disappear
+    /// entirely while `normal` is active.
+    pub fn is_normal(&self) -> bool {
+        !self.inner.non_normal.load(Ordering::Acquire)
     }
 
     /// The sole state-changing activation gate for env and runtime surfaces.
@@ -454,6 +473,10 @@ impl PreparedNetworkEgress {
         &self.snapshot
     }
 
+    pub fn profile_name(&self) -> &str {
+        &self.snapshot.profile.name
+    }
+
     pub fn release_at(&self) -> Instant {
         self.release_at
     }
@@ -589,8 +612,27 @@ mod tests {
     }
 
     #[test]
-    fn activation_matrix_is_identical_for_env_and_api() {
-        for source in [NetworkProfileSource::Env, NetworkProfileSource::Api] {
+    fn inline_profiles_cannot_spoof_built_in_names() {
+        let spoof = NetworkConditionProfile {
+            name: "normal".to_owned(),
+            mutation_ack_delay_ms: 5_000,
+            live_delta_delay_ms: 0,
+            query_response_delay_ms: 0,
+            jitter_ms: 0,
+        };
+        let error = spoof.validate().unwrap_err();
+        assert_eq!(error.diagnostic.code, NETWORK_PROFILE_INVALID_CODE);
+        // Field-identical restatements of a built-in remain valid.
+        NetworkConditionProfile::optimistic().validate().unwrap();
+    }
+
+    #[test]
+    fn activation_matrix_is_identical_for_every_selector() {
+        for source in [
+            NetworkProfileSource::Env,
+            NetworkProfileSource::Api,
+            NetworkProfileSource::HostOps,
+        ] {
             for profile in [ServerProfile::Dev, ServerProfile::Demo, ServerProfile::Test] {
                 NetworkProfileState::new()
                     .activate(

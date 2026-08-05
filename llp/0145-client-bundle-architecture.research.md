@@ -128,6 +128,10 @@ existing Full/RQS workload and closures that consume its root surface. Each
 rollover SHA-binds and leaves every predecessor receipt byte-identical,
 supersedes only an exact profile-id set, and keeps every unaffected historical
 ceiling active.)
+**Revised:** 2026-08-04 (the final wave rollover records LLP 0091's rowless
+token-resume ordering correction across the 15 affected Full/root closures,
+binding the finite-carrier receipt as its immutable predecessor and executing
+the shared memory, file, Expo, and native Channel B suites before freezing.)
 **Related:** LLP 0000, LLP 0005, LLP 0008, LLP 0012, LLP 0041, LLP 0043, LLP 0053,
 LLP 0059, LLP 0060, LLP 0063, LLP 0064, LLP 0077, LLP 0090, LLP 0091,
 LLP 0092, LLP 0093, LLP 0094, LLP 0095, LLP 0096, LLP 0098, LLP 0107, LLP 0108,
@@ -1510,6 +1514,19 @@ accepted one-store-domain design intentionally evolves the shipped Full/RQS
 closure and root-consuming supplemental fixtures while adding three public
 store subpaths. Its measured receipt and attribution are recorded under LLP
 0166 D9 after the implementation and this instrument amendment are committed.
+
+#### 2026-08-04 rowless token-resume ordering rollover
+
+LLP 0091's valid rowless rung-1/rung-2 resume can deliver its durable
+`CurrentAsOf`, replay, or replacement frame before the HTTP subscribe
+acknowledgement installs the new subscription id. The bounded attempt buffer,
+overflow-to-fresh-snapshot rule, and repaired retainability classification
+intentionally evolve the 15 Full/root closures already frozen by the
+finite-carrier rollover. `baseline.rowless-rqs-resume.v1.json` supersedes
+exactly those profiles, SHA-256-binds the finite-carrier predecessor, and runs
+all four shared Channel B resume arms in addition to the package/browser/React
+behavior checks. The predecessor and the unaffected materialization-store
+ceiling remain immutable.
 
 ### Phase B — take the low-risk savings
 

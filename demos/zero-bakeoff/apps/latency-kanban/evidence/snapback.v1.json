@@ -1,6 +1,6 @@
 {
   "schemaVersion": "snapback.zero-bakeoff.arm-receipt.v1",
-  "observedAt": "2026-08-01T08:53:01.886Z",
+  "observedAt": "2026-08-04T16:05:16.203Z",
   "app": "latency-kanban",
   "provider": "snapback",
   "expectedChecks": 8,
@@ -20,27 +20,29 @@
     {
       "id": "lk.one-frame-local-paint",
       "outcome": "pass",
-      "durationMs": 1032.2835000000005,
+      "durationMs": 1064.648083,
       "details": {},
       "value": {
-        "inputToPaintMs": 0.00891700000011042,
-        "acknowledgementMs": 1014.50875
+        "inputToPaintMs": 0.016499999999723514,
+        "acknowledgementMs": 1030.2471669999995,
+        "concurrent": false
       }
     },
     {
       "id": "lk.rapid-move-integrity",
       "outcome": "pass",
-      "durationMs": 1985.642582999999,
+      "durationMs": 12887.287416999998,
       "details": {},
       "value": {
         "cards": 500,
-        "unique": 500
+        "unique": 500,
+        "openLoop": true
       }
     },
     {
       "id": "lk.locked-card-correction",
       "outcome": "pass",
-      "durationMs": 1046.4015,
+      "durationMs": 1090.9847499999996,
       "details": {},
       "value": {
         "diagnostic": "SNAPBACK_HANDLER_FAILED",
@@ -50,7 +52,7 @@
     {
       "id": "lk.pending-reload",
       "outcome": "pass",
-      "durationMs": 1046.8521249999994,
+      "durationMs": 1109.4290419999998,
       "details": {},
       "value": {
         "behavior": "pending HTTP request is not reconstructed; reload reads old authority, then settled authority without loss"
@@ -59,147 +61,368 @@
     {
       "id": "lk.concurrent-move-convergence",
       "outcome": "pass",
-      "durationMs": 1118.8348339999993,
+      "durationMs": 2222.264542000001,
       "details": {},
       "value": {
-        "winner": "c1",
+        "winner": "c2",
         "revision": 1
       }
     },
     {
       "id": "lk.independent-observer",
       "outcome": "pass",
-      "durationMs": 1066.8962499999998,
+      "durationMs": 1113.9556249999987,
       "details": {},
       "value": {
-        "observerConvergenceMs": 1029.777,
-        "transport": "live_replace"
+        "observerConvergenceMs": 1042.9632089999977,
+        "transport": "live_replace",
+        "networkProfile": "optimistic"
       }
     },
     {
       "id": "lk.latency-axes",
       "outcome": "pass",
-      "durationMs": 0.02974999999969441,
+      "durationMs": 4003.0623749999977,
       "details": {},
       "value": {
         "samples": [
           {
-            "inputToPaintMs": 0.00891700000011042,
-            "acknowledgementMs": 1014.50875
+            "inputToPaintMs": 0.016499999999723514,
+            "acknowledgementMs": 1030.2471669999995,
+            "concurrent": false
           },
           {
-            "inputToPaintMs": 0.0033750000002328306,
-            "acknowledgementMs": 1193.7505839999994
+            "inputToPaintMs": 0.004999999999199645,
+            "acknowledgementMs": 2248.6252079999995,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.00008300000081362668,
-            "acknowledgementMs": 1269.8362500000003
+            "inputToPaintMs": 0.00016699999832781032,
+            "acknowledgementMs": 3808.20025,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.00004199999966658652,
-            "acknowledgementMs": 1399.203583999999
+            "inputToPaintMs": 0.0002920000006270129,
+            "acknowledgementMs": 4174.397334000001,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.00008399999933317304,
-            "acknowledgementMs": 1418.8059169999997
+            "inputToPaintMs": 0.0005830000009154901,
+            "acknowledgementMs": 5363.333958000001,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.00004199999966658652,
-            "acknowledgementMs": 1443.653624999999
+            "inputToPaintMs": 0.0002500000009604264,
+            "acknowledgementMs": 5577.938791000002,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.00008300000081362668,
-            "acknowledgementMs": 1491.1508329999997
+            "inputToPaintMs": 0.00020899999981338624,
+            "acknowledgementMs": 6543.605334,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.00008399999933317304,
-            "acknowledgementMs": 1577.3988339999996
+            "inputToPaintMs": 0.00041600000076869037,
+            "acknowledgementMs": 6707.876458000001,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.0001249999986612238,
-            "acknowledgementMs": 1598.2734999999993
+            "inputToPaintMs": 0.0002500000009604264,
+            "acknowledgementMs": 6914.637708,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.00008300000081362668,
-            "acknowledgementMs": 1619.1008330000004
+            "inputToPaintMs": 0.00016700000014679972,
+            "acknowledgementMs": 7801.790874999999,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.00004199999966658652,
-            "acknowledgementMs": 1629.961292
-          },
-          {
-            "inputToPaintMs": 0.00008300000081362668,
-            "acknowledgementMs": 1659.5935829999999
-          },
-          {
-            "inputToPaintMs": 0.00008399999933317304,
-            "acknowledgementMs": 1720.0237089999991
-          },
-          {
-            "inputToPaintMs": 0.00004199999966658652,
-            "acknowledgementMs": 1739.3073339999992
-          },
-          {
-            "inputToPaintMs": 0.00008299999899463728,
-            "acknowledgementMs": 1748.7299999999996
-          },
-          {
-            "inputToPaintMs": 0.00020799999947485048,
-            "acknowledgementMs": 1802.7245000000003
+            "inputToPaintMs": 0.0002920000006270129,
+            "acknowledgementMs": 8087.326042000002,
+            "concurrent": true
           },
           {
             "inputToPaintMs": 0.0001250000004802132,
-            "acknowledgementMs": 1823.017084000001
+            "acknowledgementMs": 8200.994292000001,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.00004199999966658652,
-            "acknowledgementMs": 1870.6285000000007
+            "inputToPaintMs": 0.000249999999141437,
+            "acknowledgementMs": 9280.072208000001,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.00008399999933317304,
-            "acknowledgementMs": 1896.9362920000003
+            "inputToPaintMs": 0.0005000000001018634,
+            "acknowledgementMs": 9416.322959000001,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.00008299999899463728,
-            "acknowledgementMs": 1914.3208749999994
+            "inputToPaintMs": 0.00016700000014679972,
+            "acknowledgementMs": 10420.865167,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.00008399999933317304,
-            "acknowledgementMs": 1950.3845419999998
+            "inputToPaintMs": 0.0002500000009604264,
+            "acknowledgementMs": 10491.036541000001,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.0007920000007288763,
-            "acknowledgementMs": 1012.2510419999999,
-            "rejected": true
+            "inputToPaintMs": 0.00016700000014679972,
+            "acknowledgementMs": 10584.773249999998,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.0003329999999550637,
-            "acknowledgementMs": 1012.6439159999991
+            "inputToPaintMs": 0.000249999999141437,
+            "acknowledgementMs": 11656.217541999999,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.0003749999996216502,
-            "acknowledgementMs": 1022.8834999999999
+            "inputToPaintMs": 0.0001249999986612238,
+            "acknowledgementMs": 11705.360292,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.00004199999966658652,
-            "acknowledgementMs": 1085.0290420000001,
-            "rejected": true
+            "inputToPaintMs": 0.00020899999981338624,
+            "acknowledgementMs": 12774.688375,
+            "concurrent": true
           },
           {
-            "inputToPaintMs": 0.0003749999996216502,
-            "acknowledgementMs": 1029.759915999999
+            "inputToPaintMs": 0.00016599999980826396,
+            "acknowledgementMs": 12808.615833,
+            "concurrent": true
           },
           {
-            "observerConvergenceMs": 1029.777,
-            "transport": "live_replace"
+            "inputToPaintMs": 0.01166699999885168,
+            "acknowledgementMs": 1029.2321249999986,
+            "rejected": true,
+            "concurrent": false
+          },
+          {
+            "inputToPaintMs": 0.0008340000022144523,
+            "acknowledgementMs": 1046.5290840000016,
+            "concurrent": false
+          },
+          {
+            "inputToPaintMs": 0.010624999998981366,
+            "acknowledgementMs": 1052.1310000000012,
+            "concurrent": true
+          },
+          {
+            "inputToPaintMs": 0.006124999999883585,
+            "acknowledgementMs": 2158.3157920000012,
+            "rejected": true,
+            "concurrent": true
+          },
+          {
+            "inputToPaintMs": 0.0007499999992433004,
+            "acknowledgementMs": 1027.8861670000006,
+            "concurrent": false
+          },
+          {
+            "observerConvergenceMs": 1042.9632089999977,
+            "transport": "live_replace",
+            "networkProfile": "optimistic"
           }
-        ]
+        ],
+        "profile": "optimistic",
+        "injectionPoint": "post-commit",
+        "markedMutationResponses": 112,
+        "measuredMoves": 26,
+        "retryAmplification": 4.31,
+        "openLoopCommitFacts": {
+          "settlementVersions": [
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22
+          ],
+          "perMoveChangedCounts": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "cards": [
+            {
+              "key": "card-004",
+              "columnKey": "c1",
+              "rank": 10000,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-008",
+              "columnKey": "c2",
+              "rank": 10001,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-012",
+              "columnKey": "c3",
+              "rank": 10002,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-016",
+              "columnKey": "c0",
+              "rank": 10003,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-020",
+              "columnKey": "c1",
+              "rank": 10004,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-024",
+              "columnKey": "c2",
+              "rank": 10005,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-028",
+              "columnKey": "c3",
+              "rank": 10006,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-032",
+              "columnKey": "c0",
+              "rank": 10007,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-036",
+              "columnKey": "c1",
+              "rank": 10008,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-040",
+              "columnKey": "c2",
+              "rank": 10009,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-044",
+              "columnKey": "c3",
+              "rank": 10010,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-048",
+              "columnKey": "c0",
+              "rank": 10011,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-052",
+              "columnKey": "c1",
+              "rank": 10012,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-056",
+              "columnKey": "c2",
+              "rank": 10013,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-060",
+              "columnKey": "c3",
+              "rank": 10014,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-064",
+              "columnKey": "c0",
+              "rank": 10015,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-068",
+              "columnKey": "c1",
+              "rank": 10016,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-072",
+              "columnKey": "c2",
+              "rank": 10017,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-076",
+              "columnKey": "c3",
+              "rank": 10018,
+              "revision": 1,
+              "locked": false
+            },
+            {
+              "key": "card-080",
+              "columnKey": "c0",
+              "rank": 10019,
+              "revision": 1,
+              "locked": false
+            }
+          ]
+        }
       }
     },
     {
       "id": "lk.cleanup",
       "outcome": "pass",
-      "durationMs": 0.16666699999950652,
+      "durationMs": 0.41583299999911105,
       "details": {},
       "value": {
         "owned": [
@@ -220,12 +443,14 @@
       "verdict": "unpinned-binary",
       "mismatches": [],
       "binary": {
-        "gitCommit": "15a4e35001611a4a73161efc63e527d71b5519f7",
+        "gitCommit": "96631e45ed387f19ad0bb11f43e6812572115ebe",
         "gitDirty": true,
-        "crateVersion": "0.1.0"
+        "crateVersion": "0.1.0",
+        "buildProfile": "debug",
+        "startupNonce": "019fcd85-44eb-7bb1-b853-e19095c4474a"
       },
       "expected": {
-        "gitCommit": "15a4e35001611a4a73161efc63e527d71b5519f7",
+        "gitCommit": "96631e45ed387f19ad0bb11f43e6812572115ebe",
         "gitDirty": true,
         "crateVersion": "0.1.0"
       }
@@ -233,8 +458,28 @@
   },
   "fixture": {
     "columns": 4,
-    "cards": 500,
-    "authoritativeLatencyMs": 1000
+    "cards": 500
+  },
+  "networkCondition": {
+    "schemaVersion": "snapback.zero-bakeoff.environment.v2",
+    "profile": {
+      "name": "optimistic",
+      "mutationAckDelayMs": 1000,
+      "liveDeltaDelayMs": 1000,
+      "queryResponseDelayMs": 0,
+      "jitterMs": 0
+    },
+    "windows": {
+      "actorAck": {
+        "floorMs": 1000,
+        "toleranceMs": 1000
+      },
+      "observerDelta": {
+        "floorMs": 1000,
+        "toleranceMs": 1000
+      }
+    },
+    "injectionPoint": "post-commit"
   },
   "nonclaims": [
     "browser paint was measured in the provider-native projection kernel, not a compositor trace"

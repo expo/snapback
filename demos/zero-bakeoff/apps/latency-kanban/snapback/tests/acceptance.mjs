@@ -10,7 +10,8 @@ import {
   assertEqual,
   createArmSuite,
   eventually,
-  loadAcceptance,
+  loadAcceptanceVersion,
+  loadNetworkCondition,
 } from '../../../../shared/harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -19,38 +20,142 @@ const repoRoot = resolve(appDir, '..', '..', '..', '..');
 const generatedDir = join(appDir, 'snapback', 'generated');
 const json = (name) => JSON.parse(readFileSync(join(generatedDir, name), 'utf8'));
 const { default: api } = await import(pathToFileURL(join(generatedDir, 'api.mjs')).href);
-const manifest = await loadAcceptance('latency-kanban');
+const manifest = await loadAcceptanceVersion('latency-kanban', 'v2');
+const networkCondition = await loadNetworkCondition(manifest, 'snapback');
 const suite = createArmSuite({
   app: 'latency-kanban',
   provider: 'snapback',
   manifest,
   evidencePath: join(appDir, 'evidence', 'snapback.v1.json'),
 });
-const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
-const latencyMs = manifest.fixture.authoritativeLatencyMs;
+const serverBinary = resolve(process.env.SNAPBACK_RUNTIME_BINARY || join(repoRoot, 'target', 'debug', 'snapback'));
+const nativeFetch = globalThis.fetch;
+const observedMutationResponses = [];
+globalThis.fetch = async (input, init) => {
+  const started = performance.now();
+  const response = await nativeFetch(input, init);
+  const rawUrl = typeof input === 'string' || input instanceof URL ? String(input) : input?.url;
+  if (rawUrl) {
+    const url = new URL(rawUrl);
+    if (url.pathname.startsWith('/mutation/')) {
+      observedMutationResponses.push({
+        origin: url.origin,
+        path: url.pathname,
+        status: response.status,
+        elapsedMs: performance.now() - started,
+        networkProfile: response.headers.get('snapback-network-profile'),
+      });
+    }
+  }
+  return response;
+};
+suite.cleanup(() => { globalThis.fetch = nativeFetch; });
+
+const { profile, profileName, windows } = networkCondition;
 let server;
 let actor;
 let observer;
 let stream;
 const axes = [];
+let firstMove;
+let openLoopMoves;
+let optimisticOpenLoopFacts;
 
 function errorCode(error) {
   return error?.diagnostic?.code ?? error?.code ?? null;
 }
 
-async function delayedMove(client, args, onPaint = () => {}) {
+async function moveUnderProfile(client, args, onPaint = () => {}, { concurrent = false } = {}) {
   const inputAt = performance.now();
   onPaint();
   const paintedAt = performance.now();
-  await sleep(latencyMs);
   try {
     const value = await client.mutate(api.moveCard, { args });
     const acknowledgedAt = performance.now();
-    axes.push({ inputToPaintMs: paintedAt - inputAt, acknowledgementMs: acknowledgedAt - inputAt });
+    axes.push({ inputToPaintMs: paintedAt - inputAt, acknowledgementMs: acknowledgedAt - inputAt, concurrent });
     return value;
   } catch (error) {
-    axes.push({ inputToPaintMs: paintedAt - inputAt, acknowledgementMs: performance.now() - inputAt, rejected: true });
+    axes.push({ inputToPaintMs: paintedAt - inputAt, acknowledgementMs: performance.now() - inputAt, rejected: true, concurrent });
     throw error;
+  }
+}
+
+function assertLatencyWindow(value, window, label) {
+  assert(value >= window.floorMs,
+    `${label} ${value.toFixed(3)}ms was below ${window.floorMs}ms profile floor`);
+  assert(value <= window.floorMs + window.toleranceMs,
+    `${label} ${value.toFixed(3)}ms exceeded ${window.floorMs + window.toleranceMs}ms window ceiling`);
+}
+
+function timestampFreeCommitFacts(moves, settlements, rows) {
+  const byKey = new Map(rows.map((row) => [row.key, row]));
+  const settlementOrder = settlements.map((settlement, index) => ({
+    move: index,
+    version: settlement.version,
+    changedCount: settlement.changed_count,
+  }));
+  assert(settlementOrder.every((entry) => Number.isInteger(entry.version)),
+    'open-loop settlements expose integer commit versions');
+  // Canonical projection: which version lands on which of 20 CONCURRENT
+  // moves is kernel arrival racing — nondeterministic between any two runs,
+  // normal or profiled. State-unchanged means every move commits exactly
+  // once with the same effect size, the same version multiset is consumed,
+  // and the final rows are identical; it does not mean concurrent arrival
+  // interleaving reproduces (LLP 0167 observation-vs-state boundary).
+  return {
+    settlementVersions: settlementOrder.map((entry) => entry.version).sort((a, b) => a - b),
+    perMoveChangedCounts: settlementOrder.map((entry) => entry.changedCount),
+    cards: moves.map(({ key }) => {
+      const row = byKey.get(key);
+      assert(row, `open-loop card ${key} remains present`);
+      return {
+        key,
+        columnKey: row.columnKey,
+        rank: row.rank,
+        revision: row.revision,
+        locked: row.locked,
+      };
+    }),
+  };
+}
+
+async function normalOpenLoopFacts() {
+  let normalServer;
+  try {
+    normalServer = await startServer({
+      port: 0,
+      db: ':memory:',
+      cwd: repoRoot,
+      serverBinary,
+      env: { SNAPBACK_NETWORK_PROFILE: 'normal' },
+      provenance: {
+        appId: 'latency-kanban',
+        artifactsPath: join(generatedDir, 'artifacts.json'),
+      },
+    });
+    const client = new SnapbackClient(normalServer.baseUrl, { ...normalServer.clientOptions, rqsStore: null });
+    await client.ensureApp({
+      schema: json('schema.manifest.json'),
+      functions: json('functions.manifest.json'),
+      seed: JSON.parse(readFileSync(join(appDir, 'snapback', 'seed.json'), 'utf8')),
+    });
+    await client.mutate(api.setupFixture, {});
+    const initialRows = (await client.query(api.boardCards)).rows;
+    const normalIds = new Map(initialRows.map((row) => [row.key, row._id]));
+    assert(normalIds.has(firstMove.key), `normal fixture contains ${firstMove.key}`);
+    assert(openLoopMoves.every((move) => normalIds.has(move.key)),
+      'normal fixture contains every open-loop card');
+    await client.mutate(api.moveCard, {
+      args: { ...firstMove.args, id: normalIds.get(firstMove.key) },
+    });
+    const settlements = await Promise.all(openLoopMoves.map((move) =>
+      client.mutate(api.moveCard, {
+        args: { ...move.args, id: normalIds.get(move.key) },
+      })));
+    const rows = (await client.query(api.boardCards)).rows;
+    return timestampFreeCommitFacts(openLoopMoves, settlements, rows);
+  } finally {
+    await normalServer?.stop();
   }
 }
 
@@ -59,6 +164,8 @@ try {
     port: 0,
     db: ':memory:',
     cwd: repoRoot,
+    serverBinary,
+    env: { SNAPBACK_NETWORK_PROFILE: profileName },
     provenance: {
       appId: 'latency-kanban',
       artifactsPath: join(generatedDir, 'artifacts.json'),
@@ -77,28 +184,43 @@ try {
   await suite.pass('lk.one-frame-local-paint', async () => {
     const card = (await actor.query(api.boardCards)).rows.find((row) => !row.locked);
     let projection = { ...card };
-    const pending = delayedMove(actor, {
-      id: card._id, columnKey: 'c3', rank: 5, expectedRevision: card.revision,
-    }, () => { projection = { ...projection, columnKey: 'c3', rank: 5, revision: projection.revision + 1 }; });
+    firstMove = {
+      key: card.key,
+      args: { id: card._id, columnKey: 'c3', rank: 5, expectedRevision: card.revision },
+    };
+    const pending = moveUnderProfile(actor, firstMove.args,
+      () => { projection = { ...projection, columnKey: 'c3', rank: 5, revision: projection.revision + 1 }; });
     assertEqual(projection.columnKey, 'c3', 'speculative board changed before network');
     await pending;
     assert(axes.at(-1).inputToPaintMs < 16.7, `paint missed one frame: ${axes.at(-1).inputToPaintMs}`);
-    assert(axes.at(-1).acknowledgementMs >= latencyMs, 'ack did not include injected latency');
+    assertLatencyWindow(axes.at(-1).acknowledgementMs, windows.actorAck, 'actor acknowledgement');
     return axes.at(-1);
   });
 
   await suite.pass('lk.rapid-move-integrity', async () => {
-    const rows = (await actor.query(api.boardCards)).rows.filter((row) => !row.locked).slice(1, 21);
-    await Promise.all(rows.map((card, index) => delayedMove(actor, {
-      id: card._id,
-      columnKey: `c${(index + 1) % 4}`,
-      rank: 10_000 + index,
-      expectedRevision: card.revision,
-    })));
+    const rows = (await actor.query(api.boardCards)).rows
+      .filter((row) => !row.locked && row.revision === 0)
+      .slice(0, 20);
+    openLoopMoves = rows.map((card, index) => ({
+      key: card.key,
+      args: {
+        id: card._id,
+        columnKey: `c${(index + 1) % 4}`,
+        rank: 10_000 + index,
+        expectedRevision: card.revision,
+      },
+    }));
+    // Concurrent open-loop samples: commit-queue wait is state-side and
+    // profile-independent, so these assert the floor only (see the v2
+    // manifest's measurementDiscipline); the window ceiling binds paced
+    // samples.
+    const settlements = await Promise.all(openLoopMoves.map((move) =>
+      moveUnderProfile(actor, move.args, () => {}, { concurrent: true })));
     const board = (await actor.query(api.boardCards)).rows;
     assertEqual(board.length, 500, 'rapid moves preserve fixture cardinality');
     assertEqual(new Set(board.map((card) => card.key)).size, 500, 'rapid moves preserve unique cards');
-    return { cards: board.length, unique: 500 };
+    optimisticOpenLoopFacts = timestampFreeCommitFacts(openLoopMoves, settlements, board);
+    return { cards: board.length, unique: 500, openLoop: true };
   });
 
   await suite.pass('lk.locked-card-correction', async () => {
@@ -107,7 +229,7 @@ try {
     let projected = { ...locked, columnKey: 'c3', revision: locked.revision + 1 };
     let rejection;
     try {
-      await delayedMove(actor, {
+      await moveUnderProfile(actor, {
         id: locked._id, columnKey: 'c3', rank: 1, expectedRevision: locked.revision,
       });
     } catch (error) {
@@ -124,7 +246,7 @@ try {
 
   await suite.pass('lk.pending-reload', async () => {
     const card = (await actor.query(api.boardCards)).rows.find((row) => !row.locked && row.revision === 0);
-    const inFlight = delayedMove(actor, {
+    const inFlight = moveUnderProfile(actor, {
       id: card._id, columnKey: 'c2', rank: 20_000, expectedRevision: card.revision,
     });
     const before = (await observer.query(api.boardCards)).rows.find((row) => row._id === card._id);
@@ -137,9 +259,12 @@ try {
 
   await suite.pass('lk.concurrent-move-convergence', async () => {
     const card = (await actor.query(api.boardCards)).rows.find((row) => !row.locked && row.revision === 0);
+    // Two contenders racing one card: the corrected contender pays a second
+    // settlement round under the ack delay, so these are concurrent samples
+    // (floor-only) like the open-loop burst.
     const outcomes = await Promise.allSettled([
-      delayedMove(actor, { id: card._id, columnKey: 'c1', rank: 30_001, expectedRevision: 0 }),
-      delayedMove(observer, { id: card._id, columnKey: 'c2', rank: 30_002, expectedRevision: 0 }),
+      moveUnderProfile(actor, { id: card._id, columnKey: 'c1', rank: 30_001, expectedRevision: 0 }, () => {}, { concurrent: true }),
+      moveUnderProfile(observer, { id: card._id, columnKey: 'c2', rank: 30_002, expectedRevision: 0 }, () => {}, { concurrent: true }),
     ]);
     assertEqual(outcomes.filter((entry) => entry.status === 'fulfilled').length, 1, 'one stale-revision contender wins');
     assertEqual(outcomes.filter((entry) => entry.status === 'rejected').length, 1, 'one contender is corrected');
@@ -156,7 +281,7 @@ try {
     await observer.subscribeLive(api.boardCards, { connectionId: 'lk-observer' });
     const card = (await observer.query(api.boardCards)).rows.find((row) => !row.locked && row.revision === 0);
     const started = performance.now();
-    await delayedMove(actor, { id: card._id, columnKey: 'c3', rank: 40_000, expectedRevision: 0 });
+    await moveUnderProfile(actor, { id: card._id, columnKey: 'c3', rank: 40_000, expectedRevision: 0 });
     let update;
     for (;;) {
       update = await ownedStream.nextUpdate();
@@ -165,16 +290,54 @@ try {
     const convergedAt = performance.now();
     const observed = update.rows.find((row) => row._id === card._id);
     assertEqual(observed.revision, 1, 'independent websocket observer saw canonical revision');
-    axes.push({ observerConvergenceMs: convergedAt - started, transport: update.kind });
+    assertEqual(update.network_profile, profileName, 'delayed socket frame carries the profile marker');
+    axes.push({
+      observerConvergenceMs: convergedAt - started,
+      transport: update.kind,
+      networkProfile: update.network_profile,
+    });
+    assertLatencyWindow(axes.at(-1).observerConvergenceMs, windows.observerDelta,
+      'observer delta');
     return axes.at(-1);
   });
 
   await suite.pass('lk.latency-axes', async () => {
     const paints = axes.filter((sample) => sample.inputToPaintMs !== undefined);
     assert(paints.length >= 24, 'latency corpus includes rapid and rejection attempts');
-    assert(paints.every((sample) => sample.acknowledgementMs >= latencyMs), 'every ack includes authoritative delay');
+    const paced = paints.filter((sample) => !sample.concurrent);
+    assert(paced.length >= 3, 'latency corpus includes paced samples that exercise the window ceiling');
+    for (const sample of paints) {
+      assert(sample.acknowledgementMs >= windows.actorAck.floorMs,
+        `actor acknowledgement ${sample.acknowledgementMs.toFixed(3)}ms was below ${windows.actorAck.floorMs}ms profile floor`);
+    }
+    for (const sample of paced) {
+      assertLatencyWindow(sample.acknowledgementMs, windows.actorAck, 'actor acknowledgement (paced)');
+    }
     assert(axes.some((sample) => sample.observerConvergenceMs !== undefined), 'observer convergence measured separately');
-    return { samples: axes };
+    const profiledMoveResponses = observedMutationResponses.filter((response) =>
+      response.origin === server.baseUrl && response.path.endsWith('/moveCard'));
+    // The client's mutation lane replays while an ack is outstanding, so a
+    // delayed ack legitimately yields multiple HTTP attempts per logical
+    // move; settlement identity dedupes them (commit facts above are exact).
+    // Assert coverage and marker honesty, and surface the amplification as a
+    // comparative observation rather than pretending 1:1.
+    assert(profiledMoveResponses.length >= paints.length,
+      'every measured move has at least one observed HTTP response');
+    assert(profiledMoveResponses.every((response) => response.networkProfile === profileName),
+      'every delayed mutation response carries the network-profile marker');
+    const retryAmplification = Number((profiledMoveResponses.length / paints.length).toFixed(2));
+    const normalFacts = await normalOpenLoopFacts();
+    assertEqual(JSON.stringify(normalFacts), JSON.stringify(optimisticOpenLoopFacts),
+      'normal and optimistic runs preserve timestamp-free open-loop commit facts');
+    return {
+      samples: axes,
+      profile: profileName,
+      injectionPoint: networkCondition.injectionPoint,
+      markedMutationResponses: profiledMoveResponses.length,
+      measuredMoves: paints.length,
+      retryAmplification,
+      openLoopCommitFacts: optimisticOpenLoopFacts,
+    };
   });
 
   await suite.pass('lk.cleanup', async () => {
@@ -195,6 +358,12 @@ const receipt = await suite.finish({
   providerIdentity: { product: 'Snapback', target: 'local Ibex/SQLite', source: 'repository' },
   server: { identity: server?.identity ?? null },
   fixture: manifest.fixture,
+  networkCondition: {
+    schemaVersion: networkCondition.environment.schemaVersion,
+    profile,
+    windows,
+    injectionPoint: networkCondition.injectionPoint,
+  },
   nonclaims: ['browser paint was measured in the provider-native projection kernel, not a compositor trace'],
 });
 console.log(JSON.stringify(receipt));

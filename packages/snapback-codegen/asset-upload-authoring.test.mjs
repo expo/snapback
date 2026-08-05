@@ -11,7 +11,13 @@ import { generate } from './index.mjs';
 const defineUrl = pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), 'define.mjs')).href;
 
 async function runCase({ schema, functions, targetProfile }) {
-  const dir = mkdtempSync(join(tmpdir(), 'snapback-codegen-assets-'));
+  const root = mkdtempSync(join(tmpdir(), 'snapback-codegen-assets-'));
+  const appDir = join(root, 'asset-authoring-fixture');
+  const dir = join(appDir, 'snapback');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(appDir, 'demo.snapback.json'), JSON.stringify({
+    id: 'asset-authoring-fixture',
+  }));
   writeFileSync(join(dir, 'schema.mjs'), schema);
   writeFileSync(join(dir, 'functions.mjs'), functions);
   mkdirSync(join(dir, 'generated'), { recursive: true });
@@ -249,11 +255,12 @@ export const photoUpload = defineAssetUpload({
   const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
   const intent = manifest.assetUploadIntents.find((entry) => entry.name === 'photoUpload');
   // The video sibling is presence-only in the policy preimage. Pin the exact
-  // pre-ruling image hash so admitting it can never move existing image
-  // policy identity silently (LLP 0044, 2026-08-03 amendment).
+  // pre-ruling image hash under this fixture's explicit portable app identity
+  // so admitting it can never move existing image policy identity silently
+  // (LLP 0044, 2026-08-03 amendment).
   assert.equal(
     intent.intentPolicyHash,
-    'sha256:99480cc91c3d07bd07581ef7faabfc4037ee68801796c7946a75599a7e1ca12a',
+    'sha256:73595d19bd41bf5a3a72b53c4cedd302285064b644b0c2bfaab65a97cfb7db61',
   );
   assert.equal(Object.hasOwn(intent, 'video'), false);
   const api = readFileSync(join(dir, 'generated', 'api.mjs'), 'utf8');

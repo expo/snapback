@@ -5,11 +5,13 @@
 **Systems:** Developer experience, Tooling, API, Runtime, Auth, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-23 (agent-verb scope amendment, LLP 0079 SC-1a: diagnostics reading lands as an `app.inspect`/`snapback_inspect` extension with a non-deferrable bounded recent-invocations minimum; `snapback_acceptance_run` joins the slice exposed-but-unimplemented-honest with its runner deferred; client-surface driving/screenshots recorded as an Exact-side seam; the packaging and catalog-delivery open questions are decided for the first implementation — see the dated amendment); 2026-07-16 (ENG-24920 companion amendment); 2026-07-07 (cross-family review revisions, ratified by Charlie — see
+**Revised:** 2026-08-04 (proposed LLP 0167 OQ2 projection, subject to author
+veto: the control-plane server gains thin network-profile get/set tools while
+the resource-only Rust `snapback mcp` command remains unchanged); 2026-07-23 (agent-verb scope amendment, LLP 0079 SC-1a: diagnostics reading lands as an `app.inspect`/`snapback_inspect` extension with a non-deferrable bounded recent-invocations minimum; `snapback_acceptance_run` joins the slice exposed-but-unimplemented-honest with its runner deferred; client-surface driving/screenshots recorded as an Exact-side seam; the packaging and catalog-delivery open questions are decided for the first implementation — see the dated amendment); 2026-07-16 (ENG-24920 companion amendment); 2026-07-07 (cross-family review revisions, ratified by Charlie — see
 `reviews/0042-agent-mcp-surface.claude.md`: 0024's pinned tool names and five
 authority modes adopted, lifecycle asymmetry stated, catalog bound to 0024's
 entry shape, destructive-tool posture added; initial same day)
-**Related:** LLP 0000, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0024, LLP 0031, LLP 0037, LLP 0038, LLP 0039, LLP 0041
+**Related:** LLP 0000, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0024, LLP 0031, LLP 0037, LLP 0038, LLP 0039, LLP 0041, LLP 0167
 
 ## Summary
 
@@ -58,6 +60,10 @@ control-plane tools:
 - `snapback_acceptance_run` — added 2026-07-23 (LLP 0079 SC-1a); exposed
   with the honest unimplemented posture below until `acceptance.run` is
   built server-side.
+- `snapback_network_profile_get` → `debug.networkProfileGet` — proposed LLP
+  0167 OQ2 ruling (proposed 2026-08-04, author-ratified 2026-08-04).
+- `snapback_network_profile_set` → `debug.networkProfileSet` — same proposed
+  ruling; the tool never reimplements activation validation or authority.
 
 The served operations (`app.inspect`, `app.reset`, `schema.load`,
 `functions.load`, `function.run`) project 1:1 over the host-ops HTTP surface.
@@ -238,6 +244,22 @@ consumed surfaces already gate.
   served-by-the-running-app delivery stays open in LLP 0024; this slice's
   derivation is a pure function of codegen output, so either future answer
   can absorb it.
+
+## Dated amendment: network-profile control tools (2026-08-04, proposed)
+
+This amendment records LLP 0167 OQ2's **proposed** ruling; Charlie may veto the
+`debug.*` namespace. The shipped JS control-plane server (`snapback
+mcp-control`) projects `snapback_network_profile_get` and
+`snapback_network_profile_set` one-to-one over the two host operations. Tool
+results carry the server-produced `hostOpsResult` envelope verbatim, including
+request ids and activation refusals. Set accepts the same built-in-name or
+inline-profile value as the operation body and terminates at the same activation
+gate as admin PUT; MCP adds no validation or authority path.
+
+The Rust `snapback mcp` command remains the read-only, resource-first Guide MCP
+server and exposes no tools. These control tools belong to `mcp-control`, the
+control-plane surface this RFC selected and shipped; this amendment does not
+force tools into the resource-only server.
 
 ## Open Questions
 

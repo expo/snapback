@@ -4,6 +4,8 @@
 export interface AdminContractLinks {
   inspect(args: Record<string, never>): unknown;
   refresh(args: Record<string, never>): unknown;
+  networkProfile(args: Record<string, never>): unknown;
+  activateNetworkProfile(args: { mode: string; name: string; mutationAckDelayMs: string; liveDeltaDelayMs: string; queryResponseDelayMs: string; jitterMs: string }): unknown;
   telemetryLogs(args: Record<string, never>): unknown;
   errorIssues(args: Record<string, never>): unknown;
   errorDetail(args: Record<string, never>): unknown;

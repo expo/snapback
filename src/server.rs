@@ -12112,12 +12112,25 @@ async fn enforce_registered_route_policy(
     {
         response = ApiError::from(error).into_response();
     }
-    finish_registered_response(
+    let mut response = finish_registered_response(
         response_policy,
         response,
         route_admission.as_ref(),
         prepared_authority.as_ref(),
-    )
+    );
+    if network_profile_refusal_lane(spec).is_some()
+        && !runtime.network_profiles.is_normal()
+        && response
+            .extensions()
+            .get::<NetworkProfileObservation>()
+            .is_none()
+        && (spec.path != "/action/{name}" || response.status().is_success())
+    {
+        response
+            .extensions_mut()
+            .insert(NetworkProfileHandlerResponse);
+    }
+    response
 }
 
 const AUTH_REQUEST_BODY_LIMIT: usize = 4 * 1024;
@@ -14509,6 +14522,28 @@ struct TelemetryDiagnosticCode(String);
 #[derive(Clone, Debug)]
 struct NetworkProfileObservation(Arc<crate::network_profile::ActiveNetworkProfile>);
 
+/// Private response marker proving the registered handler ran. The outer
+/// network-profile wrapper uses this only under a non-normal profile to tell a
+/// middleware-origin refusal from an action response (actions have no profiled
+/// success lane).
+#[derive(Clone, Copy, Debug)]
+struct NetworkProfileHandlerResponse;
+
+fn network_profile_refusal_lane(
+    spec: RouteSpec,
+) -> Option<crate::network_profile::NetworkEgressLane> {
+    match spec.path {
+        "/query/{name}" => Some(crate::network_profile::NetworkEgressLane::QueryResponse),
+        "/mutation/{name}" => Some(crate::network_profile::NetworkEgressLane::MutationAck),
+        // LLP 0167 defines no action-response lane. A refusal before an action
+        // handler runs is an ordinary commitless HTTP result, so the shared
+        // route tower assigns it the query-response lane; successful action
+        // responses are marked as handler-origin and remain unchanged.
+        "/action/{name}" => Some(crate::network_profile::NetworkEgressLane::QueryResponse),
+        _ => None,
+    }
+}
+
 fn telemetry_observes_http_route(_spec: RouteSpec, method: &Method) -> bool {
     // CORS preflight is the router's inert method fallback, not an admitted
     // application operation. Health/static/control/internal requests remain
@@ -14551,6 +14586,9 @@ pub(crate) fn router_from_registrations(
         let method_router = registration.method_router.route_layer(middleware::from_fn(
             move |mut request: Request<Body>, next: Next| {
                 let runtime = runtime.clone();
+                let refusal_lane = (request.method() != Method::OPTIONS)
+                    .then(|| network_profile_refusal_lane(spec))
+                    .flatten();
                 let sender_nonce = SenderNonceResponse::default();
                 request.extensions_mut().insert(sender_nonce.clone());
                 async move {
@@ -14567,7 +14605,26 @@ pub(crate) fn router_from_registrations(
                         )
                     });
                     let mut response =
-                        enforce_registered_route_policy(spec, runtime, request, next).await;
+                        enforce_registered_route_policy(spec, runtime.clone(), request, next).await;
+                    // Handler-origin query/mutation responses already crossed
+                    // their release site and carry NetworkProfileObservation.
+                    // A successful action carries the private marker above.
+                    // Only a response produced by the policy/body middleware
+                    // reaches this result-readiness admission seam unmarked.
+                    if let Some(lane) = refusal_lane
+                        && !runtime.network_profiles.is_normal()
+                        && response
+                            .extensions()
+                            .get::<NetworkProfileObservation>()
+                            .is_none()
+                        && response
+                            .extensions()
+                            .get::<NetworkProfileHandlerResponse>()
+                            .is_none()
+                    {
+                        let prepared = runtime.network_profiles.admit_result(lane, Instant::now());
+                        response = release_network_profiled_response(response, prepared).await;
+                    }
                     if let Some(span) = span {
                         let code = response
                             .extensions()
@@ -15078,6 +15135,39 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             RoutePolicy::AdminWrite,
             EffectPolicy::None,
             SessionModeOverlay::secret_read(),
+        ),
+        // Proposed LLP 0167 OQ2 ruling (2026-08-04; author may veto): runtime
+        // perturbations form a debug.* family. The carrier authenticates the
+        // declared AdminRead/AdminWrite class; set still terminates at the one
+        // network-profile activation gate below.
+        //
+        // @ref LLP 0167#authority-one-activation-chokepoint — transport choice
+        //   cannot bypass activation authority or change its refusal codes.
+        operation(
+            "host_ops.debug.networkProfileGet",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminRead,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
+        ),
+        operation(
+            "host_ops.debug.networkProfileSet",
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            InvocationAuthority::Operator,
+            LegacyBodyPolicy::NotApplicable,
+            EffectPolicy::None,
+            ResponseSensitivity::OperatorMetadata,
+            SessionModeOverlay::NONE,
         ),
         // @ref LLP 0154#d5--the-query-contract-typed-operations-projected-everywhere —
         //   typed telemetry operations are one-to-one host-op projections;
@@ -15698,6 +15788,8 @@ pub(crate) fn host_ops_operation_spec(
 ) -> Option<OperationSpec> {
     let name = match operation {
         "app.inspect" => "host_ops.app.inspect",
+        "debug.networkProfileGet" => "host_ops.debug.networkProfileGet",
+        "debug.networkProfileSet" => "host_ops.debug.networkProfileSet",
         "app.reset" => "host_ops.app.reset",
         "app.seed.ensure.v1" => "host_ops.app.seed.ensure.v1",
         "app.seed.preview.v1" => "host_ops.app.seed.preview.v1",
@@ -17795,6 +17887,69 @@ async fn host_ops_handler_inner(
         return Ok(Json(result));
     }
 
+    if matches!(
+        request.operation.as_str(),
+        "debug.networkProfileGet" | "debug.networkProfileSet"
+    ) {
+        crate::admin::authorize_host_operation(
+            &ctx,
+            &headers,
+            &request.operation,
+            None,
+            false,
+            policy_mode,
+            &secret_reads,
+            None,
+        )?;
+        // This explicit policy lookup is intentionally `Any`: the set call
+        // must reach `activate_network_profile`, whose hosted/Prod
+        // classification is finer and whose SNAPBACK_NETWORK_PROFILE_*
+        // refusals are the contract shared with the dedicated admin route.
+        crate::admin::require_operation_profile(&ctx, &request.operation, false)?;
+
+        let outcome = if request.operation == "debug.networkProfileGet" {
+            Ok(serde_json::to_value(&*runtime.network_profiles.active())
+                .expect("ActiveNetworkProfile is a serializable closed DTO"))
+        } else {
+            request
+                .input
+                .clone()
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_HOST_OP_INPUT_MISSING",
+                        "host-ops",
+                        "debug.networkProfileSet requires a profile name or inline profile under input",
+                    )
+                })
+                .and_then(crate::network_profile::NetworkConditionProfile::parse_value)
+                // @ref LLP 0167#authority-one-activation-chokepoint — this is
+                //   the same state-changing method used by admin PUT; there is
+                //   no host-ops-specific validation or authority path.
+                .and_then(|profile| {
+                    runtime.activate_network_profile(
+                        profile,
+                        crate::network_profile::NetworkProfileSource::HostOps,
+                        None,
+                    )
+                })
+                .map(|active| {
+                    serde_json::to_value(&*active)
+                        .expect("ActiveNetworkProfile is a serializable closed DTO")
+                })
+        };
+        let result = with_snapback(&state, move |snapback| {
+            crate::host_ops::network_profile_result(
+                snapback,
+                &request,
+                server_url,
+                profile,
+                outcome,
+            )
+        })
+        .await;
+        return Ok(Json(result));
+    }
+
     if request.operation == "app.seed.ensure.v1" {
         crate::admin::authorize_host_operation(
             &ctx,
@@ -19094,6 +19249,11 @@ fn parse_optional_json<T: serde::de::DeserializeOwned>(
 /// Release one fully prepared HTTP response at its absolute deadline. The
 /// caller has already dropped invocation/instance authorities; this function
 /// owns only response bytes and the immutable profile snapshot.
+///
+/// HTTP profile deadlines are per request, not per TCP connection. Snapback's
+/// supported HTTP/1.1 clients issue one in-flight request per connection; HTTP
+/// pipelining is not a supported observation surface, so no cross-request
+/// monotone clamp is applied here.
 ///
 /// @ref LLP 0167#observation-semantics--what-a-delay-means — physical waiting
 ///   is an egress concern and never extends commit or invocation authority.
@@ -23564,6 +23724,7 @@ async fn drain_outbox_inner(
         None => vec![RealtimeEnvelope::Durable(
             crate::ephemeral::DurableMessage::new(
                 serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+                    network_profile: None,
                     reason: "unknown_or_reaped".to_owned(),
                     subscription_id: None,
                     scope: None,

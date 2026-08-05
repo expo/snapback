@@ -1,12 +1,18 @@
 # LLP 0167: Network condition profiles
 
 **Type:** RFC
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Server, Runtime, Cloudflare arm, Admin console, Agent experience,
 Developer experience, Acceptance testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-04
-**Revised:** 2026-08-04 (v1.0 — Accepted by the author at super-refine
+**Revised:** 2026-08-04 (v1.1 — Implemented. Author rulings: OQ2 ratified
+(`debug.*` family), OQ4 ratified (subscription-stage seam folded,
+nested-commit seam kept as a capped documented micro-seam), OQ3 ruled by
+adopted recommendation (fork-only hosted exception + dedicated Cloudflare
+classification binding; implementation ticketed). Both arms, all four
+control surfaces, and the Latency Kanban acceptance anchor are built;
+residue is tracked in the capability GAP.); 2026-08-04 (v1.0 — Accepted by the author at super-refine
 close. Content identical to v0.4; the final dual-family round verdicts
 bind to v0.3 and the v0.4 in-delta fixes are author-reviewed only, as
 disclosed in Revision history.)
@@ -150,6 +156,14 @@ mutation *commits* changes multi-client settlement interleavings, which is
 state perturbation — the province of LLP 0146 D6's ordering seams and
 LLP 0054's unratified transport scheduler, not of this RFC.
 
+**Implementation clarification (2026-08-04) — HTTP lanes are per-request.**
+The Rust arm applies query-response and mutation-ack deadlines independently
+to each HTTP request, not as a monotone sequence attached to the underlying
+TCP connection. Supported HTTP/1.1 clients have one in-flight request per
+connection; HTTP pipelining is not a supported client observation surface, so
+the per-connection clamp required for durable live-frame queues does not apply
+to these HTTP lanes.
+
 Consequences, stated so nobody discovers them in a demo:
 
 - **Per-connection FIFO is preserved, always — as pipeline latency.**
@@ -231,9 +245,10 @@ Surface-specific rules:
    runtime-set profile (API, host-ops, MCP, console) is **not
    persisted**: restart returns the server to `normal` or the env value —
    so a *runtime-set* slow profile cannot outlive its session.
-3. **Host-ops + MCP** — two operations in the LLP 0024 table (proposed:
-   `host.networkProfileGet`, AdminRead-class, and
-   `host.networkProfileSet`, AdminWrite-class; namespace is OQ2), each
+3. **Host-ops + MCP** — two operations in the LLP 0024 table (proposed OQ2
+   ruling dated 2026-08-04, subject to author veto:
+   `debug.networkProfileGet`, AdminRead-class, and
+   `debug.networkProfileSet`, AdminWrite-class), each
    registered with its profile requirement under the per-operation policy
    model, plus thin MCP projections per LLP 0042. Precedent to be honest
    about: the connection-disconnect control is an existing *admin-gated
@@ -343,7 +358,13 @@ ban points at — but the reconciliation must be explicit:
   timestamp-free projection; row timestamps necessarily differ across
   runs) are identical to a `normal` run of the same open-loop fixture
   (scripted arrivals — a request schedule that does not react to response
-  timing) — observation moved, state did not.
+  timing) — observation moved, state did not. *Clarification
+  (2026-08-04, implementation):* for the CONCURRENT portion of an
+  open-loop corpus, which commit version lands on which racing request
+  is kernel arrival scheduling — nondeterministic even between two
+  `normal` runs — so the canonical projection compares per-request
+  effects, the consumed version multiset, and final rows; sequential
+  (paced) operations still settle in issue order and compare exactly.
 - Under identical open-loop arrivals, commit admission order under a
   non-`normal` profile matches `normal`, commit throughput matches within
   a manifest-declared tolerance over a declared measurement interval, and
@@ -389,26 +410,28 @@ ban points at — but the reconciliation must be explicit:
   useful for multi-client convergence demos but complicates the console
   surface. (Request-side delay is not an open question — it is out of
   scope by the observation-not-state rule.)
-- **OQ2 — Operation namespace.** `host.networkProfile{Get,Set}` in the
-  existing `host.*` family, or the first members of a new `debug.*` family
-  that future perturbation ops (D6 seams, fault injection) would join?
-  This RFC is the first to hoist a runtime perturbation into host-ops, so
-  the 0024 table amendment should decide the family once.
-- **OQ3 — Fork exception.** The interim rule is decided (non-`normal`
-  refused on hosted-serving instances, all surfaces). The open half:
-  should LLP 0158 forks/derived instances — which carry explicit derived
-  identity — be exempted so perturbed servers can run against
-  production-shaped data with contained blast radius? The same ruling
-  should decide whether the Cloudflare arm gets a dedicated
-  deployment-classification binding: `SNAPBACK_TESTING` also unlocks
-  test-only functions, so a hosted demo deployment wanting `demo-slow`
-  currently has to accept test-surface exposure.
-- **OQ4 — Coordinator test seams.** Fold the two
-  `SNAPBACK_TEST_*_DELAY_MS` seams into the profile mechanism, or leave
-  them as documented internal micro-seams? The nested-commit seam delays
-  an *internal* stage rather than an egress boundary (and is uncapped
-  today), so it may not fit the model — which is itself an argument for
-  folding what fits and documenting what doesn't.
+- **OQ2 — Operation namespace. RESOLVED (author-ratified 2026-08-04):**
+  runtime perturbation operations form the new `debug.*` family, beginning
+  with `debug.networkProfileGet` and `debug.networkProfileSet`; future
+  perturbation ops (D6 seams, fault injection) join through their own
+  reviewed LLP 0024 table amendments.
+- **OQ3 — Fork exception. RESOLVED (2026-08-04; author adopted the
+  recommended ruling without strong preference — revisitable):** hosted
+  targets allow a non-`normal` profile only on LLP 0158 forks/derived
+  instances, which carry explicit derived identity and contained blast
+  radius; primary hosted instances refuse unconditionally. The Cloudflare
+  arm gets a dedicated deployment-classification binding tied to derived
+  identity rather than piggybacking `SNAPBACK_TESTING` (which also
+  unlocks test-only functions). Implementation is ticketed in the residue
+  ticket; until it lands, the fail-closed interim rule stands unchanged.
+- **OQ4 — Coordinator test seams. RESOLVED (author-ratified 2026-08-04,
+  as implemented):** `SNAPBACK_TEST_SUBSCRIPTION_STAGE_DELAY_MS` is folded
+  into the profile mechanism's live-delta lane (still `SNAPBACK_TESTING`-
+  gated, historical 1,000 ms clamp retained, marker emitted);
+  `SNAPBACK_TEST_NESTED_COMMIT_DELAY_MS` stays a documented test-only
+  micro-seam outside the egress model — it delays an internal stage, which
+  the observation-not-state rule excludes — now under the 30,000 ms cap
+  discipline.
 - **OQ5 — Guide surface.** Ship with a `guide/` page and a capability row,
   or land the row as a GAP until the acceptance corpus above passes? The
   LLP 0162 precedent (capabilities stay Missing until acceptance passes)
@@ -425,8 +448,14 @@ ban points at — but the reconciliation must be explicit:
   row `operating.network-profiles` is `partial`. Deferred with tickets:
   socket frame marker via LLP 0093 wire types
   (`issues/20260804-0167-live-wire-network-profile-marker.md`) and the
-  remaining corpus/stages — Cloudflare arm, bakeoff swap, host-ops/MCP,
-  console panel (`issues/20260804-0167-remaining-acceptance-corpus.md`).
+  remaining corpus/stages — Cloudflare arm, bakeoff swap, and console panel
+  (`issues/20260804-0167-remaining-acceptance-corpus.md`).
+- 2026-08-04 — host-ops/CLI/control-plane MCP toggle surface landed under the
+  vetoable OQ2 proposal: registered `debug.networkProfileGet` (`AdminRead`)
+  and `debug.networkProfileSet` (`AdminWrite`), both returning
+  `hostOpsResult`; set calls the same `AppState::activate_network_profile`
+  gate as admin PUT. Rust `snapback mcp` remains resource-only; the tools live
+  on LLP 0042's shipped `snapback mcp-control` surface.
 
 ## Revision history
 

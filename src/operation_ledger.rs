@@ -39,7 +39,7 @@ const ORIGINATOR_HOST: &str = "host";
 #[derive(Clone, Debug, PartialEq)]
 pub enum OperationLookupV1 {
     Novel,
-    ExactReplay(OperationSuppressionRecordV1),
+    ExactReplay(Box<OperationSuppressionRecordV1>),
     ResultExpired {
         outcome: OperationTerminalOutcomeV1,
         receipt_digest: String,
@@ -710,16 +710,14 @@ fn authenticate_operation_identity(
         commit_ordinal,
         ..
     } = &identity.issuance
-    {
-        if upstream_identity.trim().is_empty()
+        && (upstream_identity.trim().is_empty()
             || identity.key.operation_id
-                != derive_host_operation_id(upstream_identity, *commit_ordinal)
-        {
+                != derive_host_operation_id(upstream_identity, *commit_ordinal))
+    {
             return Err(refused(
                 "SNAPBACK_HOST_OPERATION_IDENTITY_INVALID",
                 "host operation id does not match its authenticated upstream derivation",
             ));
-        }
     }
     let epoch: Option<(i64, String, String, String)> = conn
         .query_row(
@@ -783,7 +781,7 @@ pub fn lookup_operation(
         reject_divergence(&identity, proposed)?;
         let record: OperationSuppressionRecordV1 =
             decode(&record_json, "stored suppression record")?;
-        return Ok(OperationLookupV1::ExactReplay(record));
+        return Ok(OperationLookupV1::ExactReplay(Box::new(record)));
     }
 
     let tombstone: Option<String> = conn

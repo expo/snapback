@@ -6,7 +6,13 @@
 Live queries, Relational queries, Optimistic updates, Auth, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v1.1 semantic amendment: Charlie accepted
+**Revised:** 2026-08-04 (D4 implementation/metrology note: a connectivity
+failure with no authoritative retained answer now surfaces the typed
+`SNAPBACK_QUERY_OFFLINE_UNAVAILABLE` refusal carrying D4's `unknown` answer
+class and retention disposition. This deliberately evolves the shipped
+Full/root bundle workload through an LLP 0063 prospective rollover of only
+the affected profiles; prior receipts and unaffected ceilings remain
+immutable.) 2026-08-03 (v1.1 semantic amendment: Charlie accepted
 `single_table_v1@1` and Arm A,
 `rqs-authority-independent-snapshot-v1`; the QMK predicate, no-lease answer,
 durable+`pinned` Channel-B mapping, connected prove-or-fresh atomic adoption,
@@ -1089,6 +1095,21 @@ this table.
   before retained labels clear.
 - A `volatile-online-v1` store restarts `unknown` with a structured
   durable-profile GAP (LLP 0157 §D7); it never emulates durability.
+
+### 2026-08-04 typed offline refusal and bundle workload
+
+When connectivity fails and no authoritative retained answer passes this
+section's checks, the Full client surfaces
+`SNAPBACK_QUERY_OFFLINE_UNAVAILABLE` with the query's retention disposition
+and D4's `unknown` local answer instead of leaking a raw transport error. This
+is a client-side refusal, not a new answer class or an authority upgrade.
+
+Adding that public diagnostic intentionally changes the Full/root bundle
+workload. Under LLP 0063 and LLP 0145, its first attributed run is a
+prospective workload-version rollover for exactly the profiles whose closure
+contains the public client entry. The generated-mutation-IR receipt remains
+the immutable predecessor, and every unaffected profile keeps its prior
+ceiling.
 
 ## D5 — Query lifecycle, TTL, and eviction
 

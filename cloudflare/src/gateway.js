@@ -144,6 +144,15 @@ async function gatewayFetch(request, env) {
         body: request.method === 'GET' ? undefined : request.body,
       });
     }
+    // LLP 0167 runtime selector: read/write authority remains coordinator-
+    // owned. Forward the caller's method, token, and PUT body unchanged.
+    if (path === '/_snapback/api/debug/network-profile') {
+      return stub.fetch(`http://coordinator${path}`, {
+        method: request.method,
+        headers: request.headers,
+        body: request.method === 'GET' || request.method === 'HEAD' ? undefined : request.body,
+      });
+    }
     if (FORWARDED_JSON_PATHS.has(path) || path.startsWith('/_snapback/test/')) {
       if (request.method !== 'POST') {
         // @ref LLP 0094#0c6-response-shape-divergences-audited-at-137dee8c-defects-not-contract — item 8: gateway refusals carry the full

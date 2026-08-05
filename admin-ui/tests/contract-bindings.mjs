@@ -64,6 +64,9 @@ assert.equal(initialLogs.loaded, false, 'inactive Logs does not spend a raw-read
 assert.equal(client.telemetryEventCalls, 0, 'inactive console tabs issue no telemetry.events call');
 assert.equal(surface.queryRows('tableScan')[0].loaded, false, 'tableScan starts empty');
 assert.equal(surface.queryRows('runResult')[0].ran, false, 'runResult starts empty');
+const initialNetworkProfile = surface.queryRows('networkProfile')[0];
+assert.equal(initialNetworkProfile.name, 'normal', 'network profile hydrates from its AdminRead route');
+assert.equal(initialNetworkProfile.showBanner, false, 'normal identity profile does not raise the banner');
 const guideHome = surface.queryRows('guidePage')[0];
 assert.equal(guideHome.currentPath, 'index.md', 'Docs starts from the manifest-declared guide index');
 assert.equal(guideHome.identityLabel, 'aaaaaaaaaaaa · bbbbbbbbbbbb', 'Docs surfaces the served build/hash identity');
@@ -77,6 +80,43 @@ assert.equal(surface.queryRows('guidePage')[0].hasError, true, 'Docs rejects pat
 const hostileGuide = parseGuideMarkdown('# Title\n\n<script>alert(1)</script>');
 assert.equal(hostileGuide[1].text, '<script>alert(1)</script>', 'guide HTML remains inert scalar text');
 assert.equal(hostileGuide.some((block) => block.kind === 'html'), false, 'guide parser has no HTML block type');
+
+await surface.links.activateNetworkProfile({
+  mode: 'builtin', name: 'optimistic', mutationAckDelayMs: '',
+  liveDeltaDelayMs: '', queryResponseDelayMs: '', jitterMs: '',
+});
+assert.equal(client.lastNetworkProfileInput, 'optimistic', 'built-in activation sends the name string');
+assert.equal(surface.queryRows('networkProfile')[0].showBanner, true, 'non-normal activation raises shared banner state');
+assert.equal(surface.queryRows('networkProfile')[0].source, 'api', 'activation provenance is surfaced');
+
+await surface.links.activateNetworkProfile({
+  mode: 'custom', name: 'office-wifi', mutationAckDelayMs: '120',
+  liveDeltaDelayMs: '80', queryResponseDelayMs: '40', jitterMs: '10',
+});
+assert.deepEqual(
+  client.lastNetworkProfileInput,
+  {
+    name: 'office-wifi', mutationAckDelayMs: 120, liveDeltaDelayMs: 80,
+    queryResponseDelayMs: 40, jitterMs: 10,
+  },
+  'custom profile form values project to the inline numeric API object',
+);
+assert.equal(surface.queryRows('networkProfile')[0].mutationAckDelayMs, '120 ms', 'custom lane values are surfaced');
+
+client.networkProfileForbidden = true;
+await surface.links.activateNetworkProfile({
+  mode: 'builtin', name: 'demo-slow', mutationAckDelayMs: '',
+  liveDeltaDelayMs: '', queryResponseDelayMs: '', jitterMs: '',
+});
+const forbiddenProfile = surface.queryRows('networkProfile')[0];
+assert.equal(forbiddenProfile.readOnly, true, 'hosted/Prod refusal changes the panel to read-only');
+assert.equal(forbiddenProfile.errorCode, 'SNAPBACK_NETWORK_PROFILE_FORBIDDEN', 'refusal diagnostic code is verbatim');
+assert.equal(
+  forbiddenProfile.errorMessage,
+  'non-normal network profiles require a classified local non-production server without hosted serving',
+  'refusal diagnostic message is verbatim',
+);
+client.networkProfileForbidden = false;
 
 // The Secrets surface: the LLP 0036 status primitive shaped for rendering —
 // names and states only; the view model must never carry a value field.
@@ -230,6 +270,15 @@ function createFakeRuntime() {
 function createFakeAdminClient() {
   const client = {
     failInspect: false,
+    networkProfileForbidden: false,
+    lastNetworkProfileInput: null,
+    activeNetworkProfile: {
+      profile: {
+        name: 'normal', mutationAckDelayMs: 0, liveDeltaDelayMs: 0,
+        queryResponseDelayMs: 0, jitterMs: 0,
+      },
+      provenance: { source: 'env', activatedAtMs: 1_700_000_000_000 },
+    },
     scanOffsets: [],
     guidePaths: [],
     configAppProvisioned: true,
@@ -347,6 +396,31 @@ function createFakeAdminClient() {
           rateLimitedPublishes: 0,
         },
       };
+    },
+    async networkProfile() {
+      return structuredClone(client.activeNetworkProfile);
+    },
+    async setNetworkProfile(profile) {
+      client.lastNetworkProfileInput = profile;
+      if (client.networkProfileForbidden && profile !== 'normal') {
+        const error = new Error('SNAPBACK_NETWORK_PROFILE_FORBIDDEN');
+        error.status = 403;
+        error.diagnostic = {
+          code: 'SNAPBACK_NETWORK_PROFILE_FORBIDDEN',
+          message: 'non-normal network profiles require a classified local non-production server without hosted serving',
+        };
+        throw error;
+      }
+      const builtins = {
+        normal: { name: 'normal', mutationAckDelayMs: 0, liveDeltaDelayMs: 0, queryResponseDelayMs: 0, jitterMs: 0 },
+        optimistic: { name: 'optimistic', mutationAckDelayMs: 1000, liveDeltaDelayMs: 1000, queryResponseDelayMs: 0, jitterMs: 0 },
+        'demo-slow': { name: 'demo-slow', mutationAckDelayMs: 2000, liveDeltaDelayMs: 2000, queryResponseDelayMs: 2000, jitterMs: 250 },
+      };
+      client.activeNetworkProfile = {
+        profile: typeof profile === 'string' ? builtins[profile] : profile,
+        provenance: { source: 'api', principal: 'console-test', activatedAtMs: 1_700_000_000_100 },
+      };
+      return structuredClone(client.activeNetworkProfile);
     },
     async telemetryStats() {
       return {

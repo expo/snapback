@@ -296,6 +296,7 @@ export function navSections(): NavSection[] {
     { key: 'Secrets', label: 'Secrets' },
     { key: 'Capabilities', label: 'Capabilities' },
     { key: 'Realtime', label: 'Realtime' },
+    { key: 'Developer', label: 'Developer' },
     { key: 'Diagnostics', label: 'Diagnostics' },
     { key: 'Docs', label: 'Docs' },
   ];
