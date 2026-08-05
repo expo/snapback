@@ -79,3 +79,62 @@ the P1 finite-carrier landing (f466c0501), which added ~2.3 KB min /
 555,453 → 557,749 min). The table above reflects the pre-rebase
 measurements; the landed ledger (baseline.move3-single-table-lifecycle.v1.json)
 holds the final values. Both deltas are part of the same review ask.
+
+## Delegated review (2026-08-04)
+
+Charlie delegated the size review to Codex. I compared the attributed
+`full-public-surface` closure in the `ffee324ec`-era local-persistent-store
+receipt with `current.v1.json` at its recorded `f2b79cc6` package trees, read
+the intervening `packages/snapback-client` history, and ran the metrology
+check successfully with `volta run node`. The final root delta is
+**+151,529 min / +41,681 gzip / +32,294 Brotli**. Package attribution assigns
++133,064 minified bytes to `@expo/snapback-client` and +18,465 to
+`@expo/snapback-contract`.
+
+Categories below mean: **(a)** legitimate landed, spec-governed feature mass;
+**(b)** plausibly avoidable closure weight; **(c)** unclear. Module deltas are
+module-own `bytesInOutput`, not exclusive dependency cost, so they should not
+be added to hypothetical savings independently.
+
+| Contributor | Root module-own minified delta | Class | Attribution |
+|---|---:|:---:|---|
+| `materialization-store.mjs` | +48,401 | (a) | The module already existed as a narrow store subpath; P2, `single_table_v1`, and P1 made it part of the Full client. Its own public-subpath closure grew only +4,380 minified, so most of this row is deliberate Full integration, not 48 kB of newly written store code. LLP 0157 D7 and LLP 0166 D9 govern the store and its Full-only arm. |
+| `index.mjs` own code | +17,280 | (a) | The history attributes the additions to the v3 logout/store-domain bridge, generated materialization preparation, active-registration answers, M2 admission, M3 rebase, M4 mutation preparation, typed offline refusal, finite-carrier wiring, and rowless-resume ordering. These are reachable Full-client lifecycle paths, not unreferenced helpers. |
+| `local-read-admission.mjs` | +14,425 | (a) | M2's closed ready/partial/server-only/refused admission and M4 integration, governed by LLP 0155's local-read admission contract. |
+| `rqs-preload.mjs` | +13,014 | (a) | Commit `817493e83` added the accepted `mixed-route.v2` registered-boot validator and lifecycle. Its public namespace profile grows +27,056 minified including dependencies, but this is selected API mass: an ad-hoc named-import probe of `readRqsPreloadRegistry` tree-shakes to 4,258 min / 2,176 gzip, while the registered helper is 31,252 / 10,262 and the namespace is 32,426 / 10,650. Ordinary inline-preload users therefore do not silently pay the mixed-route closure. |
+| `ir-evaluator.mjs` | +11,369 | (a) | M1's browser-safe, D5-proven evaluator; this is the central LLP 0155 Move-3 execution mechanism. |
+| `materialization-bridge.mjs` | +9,999 | (a) | P2 hydration/retained-render bridge plus `single_table_v1` identities and M2 admission wiring, governed by LLP 0157/0166. |
+| `optimistic-rebase.mjs` + `@expo/snapback-contract/derived-overlay.mjs` | +15,835 | (a) | M3's ordered optimistic layer/rebase machinery and its contract-owned overlay validation. Both are directly required by LLP 0155's rebase contract. |
+| `@expo/snapback-contract/authorized-lease.mjs` | +7,907 | (a) | Reachable through the materialization bridge for protected retained custody; removing it from that Full path would weaken LLP 0166's authority/lease rules. |
+| `react-binding.mjs` | +3,855 | (a) | Mixed-route/lifecycle admission and local binding recovery on the existing public preparation seam. The separate React application profile grew only +3,251 min / +1,098 gzip in total. |
+| `generated-mutation-ir.mjs` | +3,293 | (a) | M4's generated-operation validation/preparation, governed by LLP 0155's generated-mutation-IR exit. |
+| `@expo/snapback-contract/client-store.mjs` + `registration-ledger.mjs` | +3,263 | (a) | Store-domain contract additions and registration-backed live/local-read ownership under LLP 0166 D1/D2. |
+| `index.mjs` as the owner imported by compatibility entries | +138,160 in `public-subpath-app-data`; approximately the same family across `online`, sessions, hosted-browser, vector, push, and operation profiles | (b) | `app-data.mjs` imports and constructs `SnapbackClient`; `online.mjs` re-exports the same class. Once local sync became reachable from that class, those entries inherited essentially the complete new graph even when their measured operation does not select materialization, local evaluation, or optimistic mutation. This is the package/capability mismatch LLP 0145 F2 predicts. The feature implementations are legitimate; their mandatory placement in every compatibility closure is plausibly avoidable. |
+
+No major contributor is class (c). I also found no duplicated module instance
+in the esbuild graph. The dormant 514-line `result-transform.mjs` implementation
+is absent from the measured browser closure, as are unselected demand-broker
+and lease-convergence modules; that is positive evidence against a general
+tree-shaking failure or a broad accidental `export *` leak.
+
+**Verdict: mixed.** Bless the attributed growth as feature mass for the
+declared **Full/root** workload: the dominant modules map directly to accepted
+or explicitly commissioned M1–M4, `single_table_v1`, lifecycle, and P1
+functionality. Do **not** treat that as a blessing of the compatibility-surface
+shape. Commission one remediation lane for LLP 0145 Option 2's static
+capability boundary.
+
+Concrete remediation candidate: extract the request/operation/live/session
+kernel and the local-sync lifecycle from `index.mjs` into statically composed
+capability modules. Make `app-data.mjs` and a genuinely narrow Online/generated
+entry depend on only their selected kernel/capabilities instead of constructing
+or re-exporting the all-owning `SnapbackClient`; retain the root class as the
+Full compatibility composition. Add named-operation/session/app-data
+metrology profiles that assert `materialization-store.mjs`,
+`local-read-admission.mjs`, `ir-evaluator.mjs`,
+`materialization-bridge.mjs`, and `optimistic-rebase.mjs` are absent unless
+local sync is selected. This is a spec-coordinated architecture lane, not a
+request to delete validation or authority checks from a profile that needs
+them.
+
+Status remains Open for Charlie's final disposition.
