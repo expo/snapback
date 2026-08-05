@@ -25,7 +25,7 @@ const references = {
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "snapback.v1:sessions:function:sha256:0dac2fc34efa6adf369f2651619029b7f0ceff73fbcb76db16be35f624fa4fdc",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:7f8a5d8a2c76b248a9ead7d1672e7fa32f6a79a78da991b73bb413021a24b5fa",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:730bd3343b1bc80bfc453bd6083e25f30d8fe8617d2d2fea6415f9518246bbe2",
       "schemaHash": "snapback.v1:sessions:schema:sha256:f2fad49842803b4d323966d8392698432d6273853858a55503f9852210cea8c7",
       "schemaVersion": "snapback.v1"
     },
@@ -48,7 +48,7 @@ const references = {
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "snapback.v1:sessions:function:sha256:0dac2fc34efa6adf369f2651619029b7f0ceff73fbcb76db16be35f624fa4fdc",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:7f8a5d8a2c76b248a9ead7d1672e7fa32f6a79a78da991b73bb413021a24b5fa",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:730bd3343b1bc80bfc453bd6083e25f30d8fe8617d2d2fea6415f9518246bbe2",
       "schemaHash": "snapback.v1:sessions:schema:sha256:f2fad49842803b4d323966d8392698432d6273853858a55503f9852210cea8c7",
       "schemaVersion": "snapback.v1"
     },
@@ -78,7 +78,7 @@ const references = {
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "snapback.v1:sessions:function:sha256:0dac2fc34efa6adf369f2651619029b7f0ceff73fbcb76db16be35f624fa4fdc",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:7f8a5d8a2c76b248a9ead7d1672e7fa32f6a79a78da991b73bb413021a24b5fa",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:730bd3343b1bc80bfc453bd6083e25f30d8fe8617d2d2fea6415f9518246bbe2",
       "schemaHash": "snapback.v1:sessions:schema:sha256:f2fad49842803b4d323966d8392698432d6273853858a55503f9852210cea8c7",
       "schemaVersion": "snapback.v1"
     },
@@ -126,7 +126,7 @@ const references = {
     "expectedGeneration": {
       "appId": "app",
       "bundleHash": "snapback.v1:sessions:function:sha256:0dac2fc34efa6adf369f2651619029b7f0ceff73fbcb76db16be35f624fa4fdc",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:7f8a5d8a2c76b248a9ead7d1672e7fa32f6a79a78da991b73bb413021a24b5fa",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:730bd3343b1bc80bfc453bd6083e25f30d8fe8617d2d2fea6415f9518246bbe2",
       "schemaHash": "snapback.v1:sessions:schema:sha256:f2fad49842803b4d323966d8392698432d6273853858a55503f9852210cea8c7",
       "schemaVersion": "snapback.v1"
     },
