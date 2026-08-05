@@ -66,7 +66,6 @@ cp "$ROOT/target/debug/snapback.runtime-readiness.json" \
   "$LIVE_SERVER_ROOT/debug/snapback.runtime-readiness.json"
 cp "$ROOT/target/lib/libhermesvm.so" "$LIVE_SERVER_ROOT/lib/libhermesvm.so"
 rm -rf "$ROOT/target"
-(cd "$IBEX" && bun install --frozen-lockfile)
 
 icu_lib_dir="$(pkg-config --variable=libdir icu-i18n)"
 rm -rf "$KIT"
