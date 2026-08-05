@@ -334,6 +334,15 @@ and has SHA-256
 `4759a0896a779842534d8eeca8fed24785ae4b3f4504bd606b9e0fe993a3309b`;
 the checkout remained clean after the run.
 
+The 2026-08-05 batched drift replay found that the Linux idle-evidence harness
+also depended on an unpinned system `sqlite3` CLI. That was proof-machinery
+debt rather than telemetry correctness: the full release benchmark completed,
+then the lifecycle sampler failed before the idle window on a qualified host
+whose package set could not be changed without administrator access. The
+sampler now uses the pinned Node 24 `node:sqlite` reader for the same read-only
+queries and lock retry; no curl fallback, stale binary, or reduced witness was
+accepted.
+
 This was the terminal replay of the real gates, not a focused substitute. The
 coded bootstrap linked and launched the exact carrier commit and qualified its
 restricted handler VM. Strict Clippy, deployment identity, both publication

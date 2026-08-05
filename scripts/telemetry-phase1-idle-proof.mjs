@@ -22,6 +22,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 
 import { startServer } from '../demos/_kit/server-process.mjs';
@@ -339,12 +340,28 @@ function lifecycleWitness(path) {
 }
 
 function sqliteReadDuringSettle(path, sql, options = []) {
+  const separator = options.length === 0
+    ? '|'
+    : options.length === 2 && options[0] === '-separator'
+      ? options[1]
+      : null;
+  if (separator === null) {
+    throw new Error(`unsupported SQLite read options: ${JSON.stringify(options)}`);
+  }
+  let database;
   try {
-    return execFileSync('sqlite3', [...options, path, sql], { encoding: 'utf8' }).trim();
+    database = new DatabaseSync(path, { readOnly: true });
+    const statement = database.prepare(sql);
+    statement.setReturnArrays(true);
+    return statement.all()
+      .map((row) => row.map((value) => value ?? '').join(separator))
+      .join('\n')
+      .trim();
   } catch (error) {
-    const stderr = String(error.stderr ?? '');
-    if (error.status === 5 && stderr.includes('database is locked')) return null;
+    if (String(error.message ?? '').includes('database is locked')) return null;
     throw error;
+  } finally {
+    database?.close();
   }
 }
 
