@@ -173,3 +173,42 @@ revision containing the jobs-worker activity hint (`702f82f5b`): 8 of 8
 within the ceiling, high mode absent. 8/8 by chance on the pre-fix
 distribution is ≈0.4%. The gate is genuinely green, and no ceiling or
 statistical re-specification is needed.
+
+## 2026-08-05 post-`ba4864e34` merged-candidate re-mint
+
+Merging main's final asset-ratchet repair changed the telemetry source closure,
+so the retained evidence correctly reopened once more. The replacement EPYC
+producer measured the clean, tag-bearing checkout at exact source revision
+`fdf87c25cb7bd55c8d7f2935eb13b8eea7a3b957`. Its first producer invocation
+refused before measurement because the fresh clone had no JavaScript
+dependencies (`ERR_MODULE_NOT_FOUND: acorn`). That refusal is retained at
+`/var/cache/expose-build/snapback-telemetry-fdf.gSq9WD/telemetry-dependency-refusal.log`;
+no result from it was accepted. The successful invocation used checksum-verified
+temporary Node 24.18.0, registry-integrity-verified temporary Bun 1.3.12, and
+`bun install --frozen-lockfile`, matching the canonical workflow without a
+system or administrator change.
+
+Before either invocation, `scripts/bootstrap-ibex-runtime` initialized the
+recorded `f8c893b0b` Ibex submodule and copied its compatible prepared Hermes
+artifacts through the coded `SNAPBACK_IBEX_CHECKOUT` input. The exact-link
+recovery record reported `gitDirty: false`, exact commit `fdf87c25c`, successful
+launch, and successful restricted no-eval handler-VM qualification. The
+successful `scripts/verify-telemetry-phase1-proof --full` run then passed its
+dedicated Rust smoke, release build, full benchmark, and complete 120-second
+idle witness.
+
+The retained receipt has SHA-256
+`cb66ba89eb9251aecfaa99b622478180d16f6fc99433d7218de2bbc1ffd313dc`
+and source-closure digest
+`a4172bdb49be33f4622982b343cc48cfb5636be2f635d7ec248583b713b9370f`.
+The 1,201-line successful transcript at
+`/var/cache/expose-build/snapback-telemetry-fdf.gSq9WD/telemetry-full.log`
+has SHA-256
+`e7039060783474d0783f28c985f26ab3825614ff81d6478849108d818cb3f581`;
+the coded-bootstrap transcript has SHA-256
+`4a82c3f5dddbcfe2ff6ff72c7a4b92b73a7db87f0106de0e41ef355641165c9b`.
+
+The idle interval observed zero storage mutations, zero read bytes, zero write
+bytes, 3/10 allowed CPU ticks (30/100 ms), and 0/8 allowed RSS-page growth. The
+receipt lands in the following carrier commit, preserving the producer's
+no-self-reference contract.
