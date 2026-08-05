@@ -82,3 +82,39 @@ byte-identical tracked receipt. It closed the fifth root failure from main
 KEEP-GOING run `30987191822` at that branch tip; main's later Move-2 advance
 requires the final merged candidate to reopen freshness rather than retaining
 either predecessor receipt by assertion.
+
+## 2026-08-05 final merged-candidate re-mint
+
+After the wave branch merged Move 2 and the unattended CLI/audit landings, the
+retained evidence correctly reopened. The final EPYC producer measured exact
+source commit `31b315ba555a2a000d7ecf9aa74cbd05add40c6d` in a detached worktree.
+An initial launch attempt stopped at
+`SNAPBACK_TELEMETRY_PHASE1_CLEAN_CHECKOUT_REQUIRED` before bootstrap because a
+shared build-cache symlink appeared as an untracked file; no measurement from
+that attempt was accepted. The successful launch used an ignored hard-linked
+build cache and Node 24.18.0, passed the clean-checkout gate, and then used
+`scripts/verify-telemetry-phase1-proof --full` unchanged.
+
+The coded bootstrap initialized the exact `vendor/ibex` submodule, copied a
+profile-compatible prepared artifact set through its supported
+`SNAPBACK_IBEX_CHECKOUT` input, and produced an exact-link recovery record with
+`gitDirty: false`, commit `31b315ba5`, a successful launch, and a successful
+restricted no-eval handler-VM qualification. No administrator access, loader
+bypass, stale binary, shortened idle window, or competing fleet workload was
+accepted.
+
+The dedicated Rust smoke, release build, complete benchmark, and 120-second
+idle witness all passed. The retained receipt has SHA-256
+`d86bb8ab2d31cc068680084bb7f651773e0564d608a4c661f1a494a9ad485084`
+and source-closure digest
+`710201c2264314af36edd0288747b5173ab39bc26f2ab8026593c99d5d11a065`.
+The 680-line successful transcript at
+`/var/cache/expose-build/snapback-wave-final-31b.UfM9Ae/telemetry-full.log`
+has SHA-256
+`fa927e7b2270a19b7875f9b0215d45ffd45078c41674ea3393d10fac954f3f89`.
+
+The idle interval observed zero storage mutations, zero read bytes, zero write
+bytes, 3/10 allowed CPU ticks (30/100 ms), and 0/8 allowed RSS-page growth.
+The receipt lands in the following carrier commit so validation can establish
+the measured revision as an ancestor while keeping the measured source closure
+unchanged.
