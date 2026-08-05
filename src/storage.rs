@@ -19182,9 +19182,26 @@ pub(crate) fn row_to_document(
     table: &TableManifest,
     columns: &[String],
 ) -> SnapbackResult<Value> {
+    row_to_document_with_staged_nullable_field(row, table, columns, None)
+}
+
+/// Decode one executor-owned migration page while a newly added required
+/// field is deliberately nullable between its DDL and backfill steps. This is
+/// not an application read relaxation: the migration barrier is closed, the
+/// exception is one exact destination field, and every other representation
+/// remains strict.
+///
+/// @ref LLP 0081#4-execution-journaling-and-crash-recovery — staged required
+///   columns are added nullable and become authoritative only after backfill,
+///   verification, and the publication transaction.
+fn row_to_document_with_staged_nullable_field(
+    row: &rusqlite::Row<'_>,
+    table: &TableManifest,
+    columns: &[String],
+    staged_nullable_field: Option<&str>,
+) -> SnapbackResult<Value> {
     let mut document = Map::new();
     for (index, column) in columns.iter().enumerate() {
-        let field_type = field_type(table, column);
         let raw = row.get_ref(index)?;
         let value = if column == "_version" {
             // @ref LLP 0007#commit-version-graduation-dk-2-decided-2026-07-02 —
@@ -19202,63 +19219,195 @@ pub(crate) fn row_to_document(
                 "row storage version",
             )?))
         } else {
-            sqlite_to_json(raw, field_type)?
+            sqlite_to_json_with_staged_null(
+                raw,
+                table.field(column),
+                &table.name,
+                column,
+                staged_nullable_field == Some(column.as_str()),
+            )?
         };
         document.insert(column.clone(), value);
     }
     Ok(Value::Object(document))
 }
 
-fn sqlite_to_json(value: ValueRef<'_>, field_type: Option<&FieldType>) -> SnapbackResult<Value> {
-    match value {
-        ValueRef::Null => Ok(Value::Null),
-        ValueRef::Integer(value) => {
-            if matches!(field_type, Some(FieldType::Boolean)) {
-                Ok(Value::Bool(value != 0))
-            } else {
-                Ok(Value::Number(Number::from(value)))
+/// Decode only the physical representation the declared portable type writes.
+/// SQLite affinity is deliberately permissive, so a direct or damaged writer
+/// can otherwise turn `Boolean(2)` into `true`, return a TEXT Integer as a
+/// string, or replace invalid UTF-8 before a caller sees the corruption.
+///
+/// @ref LLP 0007#data-model — the writer and reader must assert one
+///   single-sourced physical representation for every portable type.
+#[cfg(test)]
+fn sqlite_to_json(
+    value: ValueRef<'_>,
+    field: Option<&FieldManifest>,
+    table: &str,
+    column: &str,
+) -> SnapbackResult<Value> {
+    sqlite_to_json_with_staged_null(value, field, table, column, false)
+}
+
+fn sqlite_to_json_with_staged_null(
+    value: ValueRef<'_>,
+    field: Option<&FieldManifest>,
+    table: &str,
+    column: &str,
+    staged_null_allowed: bool,
+) -> SnapbackResult<Value> {
+    if field.is_none() {
+        match column {
+            "_id" => {
+                let ValueRef::Text(bytes) = value else {
+                    return Err(storage_field_corrupt(table, column, "TEXT", value));
+                };
+                return decode_storage_text(bytes, table, column).map(Value::String);
             }
+            "_createdAt" | "_updatedAt" => {
+                let ValueRef::Integer(timestamp) = value else {
+                    return Err(storage_field_corrupt(
+                        table,
+                        column,
+                        "portable non-negative INTEGER",
+                        value,
+                    ));
+                };
+                if !(0..=crate::manifest::PORTABLE_TIMESTAMP_MAX_MS as i64).contains(&timestamp) {
+                    return Err(storage_field_corrupt(
+                        table,
+                        column,
+                        "portable non-negative INTEGER",
+                        value,
+                    ));
+                }
+                return Ok(Value::Number(Number::from(timestamp)));
+            }
+            _ => {}
         }
-        ValueRef::Real(value) => Number::from_f64(value).map(Value::Number).ok_or_else(|| {
-            SnapbackError::error("SNAPBACK_INVALID_FLOAT", "storage", "SQLite returned NaN")
-        }),
-        ValueRef::Text(value) => {
-            let text = String::from_utf8_lossy(value).into_owned();
-            if matches!(field_type, Some(FieldType::Json)) {
-                serde_json::from_str(&text).map_err(|error| {
-                    SnapbackError::error(
-                        "SNAPBACK_JSON_PARSE_FAILED",
-                        "storage",
-                        "stored JSON field could not be parsed",
-                    )
-                    .with_detail("error", error.to_string())
-                })
-            } else {
-                Ok(Value::String(text))
-            }
-        }
-        ValueRef::Blob(bytes) => match field_type {
-            Some(FieldType::Vector { dimensions }) => {
-                let components =
-                    crate::vector::storage::decode_vector_binary64_le(bytes, *dimensions)?;
-                Ok(Value::Array(
-                    components
-                        .into_iter()
-                        .map(|component| {
-                            Number::from_f64(component)
-                                .map(Value::Number)
-                                .ok_or_else(crate::vector::diagnostics::index_corrupt)
-                        })
-                        .collect::<SnapbackResult<Vec<_>>>()?,
-                ))
-            }
-            _ => Err(SnapbackError::error(
-                "SNAPBACK_UNSUPPORTED_BLOB",
-                "storage",
-                "blob value has no declared portable storage profile",
-            )),
-        },
     }
+
+    let Some(field) = field else {
+        // Additive schema evolution retains removed physical columns. They no
+        // longer have a current declaration to assert, so preserve the legacy
+        // scalar decoder while still refusing lossy TEXT and undeclared BLOB.
+        return match value {
+            ValueRef::Null => Ok(Value::Null),
+            ValueRef::Integer(value) => Ok(Value::Number(Number::from(value))),
+            ValueRef::Real(value) => Number::from_f64(value).map(Value::Number).ok_or_else(|| {
+                storage_field_corrupt(table, column, "finite REAL", ValueRef::Real(value))
+            }),
+            ValueRef::Text(bytes) => decode_storage_text(bytes, table, column).map(Value::String),
+            ValueRef::Blob(_) => Err(storage_field_corrupt(
+                table,
+                column,
+                "portable scalar",
+                value,
+            )),
+        };
+    };
+
+    if matches!(value, ValueRef::Null) {
+        return if field.optional || staged_null_allowed {
+            Ok(Value::Null)
+        } else {
+            Err(storage_field_corrupt(
+                table,
+                column,
+                sqlite_type(&field.field_type),
+                value,
+            ))
+        };
+    }
+
+    match (&field.field_type, value) {
+        (
+            FieldType::String
+            | FieldType::Principal
+            | FieldType::Id { .. }
+            | FieldType::RelationIncarnation { .. }
+            | FieldType::AssetRef { .. },
+            ValueRef::Text(bytes),
+        ) => decode_storage_text(bytes, table, column).map(Value::String),
+        (FieldType::Boolean, ValueRef::Integer(0)) => Ok(Value::Bool(false)),
+        (FieldType::Boolean, ValueRef::Integer(1)) => Ok(Value::Bool(true)),
+        (FieldType::Integer, ValueRef::Integer(value))
+            if (PORTABLE_INTEGER_MIN..=PORTABLE_INTEGER_MAX).contains(&value) =>
+        {
+            Ok(Value::Number(Number::from(value)))
+        }
+        (FieldType::Real, ValueRef::Real(value)) => {
+            Number::from_f64(value).map(Value::Number).ok_or_else(|| {
+                storage_field_corrupt(table, column, "finite REAL", ValueRef::Real(value))
+            })
+        }
+        (FieldType::Json, ValueRef::Text(bytes)) => {
+            let text = decode_storage_text(bytes, table, column)?;
+            serde_json::from_str(&text).map_err(|error| {
+                storage_field_corrupt(table, column, "UTF-8 JSON TEXT", ValueRef::Text(bytes))
+                    .with_detail("error", error.to_string())
+            })
+        }
+        (FieldType::Vector { dimensions }, ValueRef::Blob(bytes)) => {
+            let components = crate::vector::storage::decode_vector_binary64_le(bytes, *dimensions)?;
+            Ok(Value::Array(
+                components
+                    .into_iter()
+                    .map(|component| {
+                        Number::from_f64(component)
+                            .map(Value::Number)
+                            .ok_or_else(crate::vector::diagnostics::index_corrupt)
+                    })
+                    .collect::<SnapbackResult<Vec<_>>>()?,
+            ))
+        }
+        (field_type, value) => Err(storage_field_corrupt(
+            table,
+            column,
+            sqlite_type(field_type),
+            value,
+        )),
+    }
+}
+
+fn decode_storage_text(bytes: &[u8], table: &str, column: &str) -> SnapbackResult<String> {
+    std::str::from_utf8(bytes)
+        .map(ToOwned::to_owned)
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_STORAGE_FIELD_CORRUPT",
+                "storage",
+                "stored TEXT field is not valid UTF-8",
+            )
+            .with_detail("table", table.to_owned())
+            .with_detail("field", column.to_owned())
+            .with_detail("expectedStorageClass", "UTF-8 TEXT")
+            .with_detail("actualStorageClass", "non-UTF-8 TEXT")
+        })
+}
+
+fn storage_field_corrupt(
+    table: &str,
+    column: &str,
+    expected: &str,
+    actual: ValueRef<'_>,
+) -> SnapbackError {
+    let actual = match actual {
+        ValueRef::Null => "NULL",
+        ValueRef::Integer(_) => "INTEGER",
+        ValueRef::Real(_) => "REAL",
+        ValueRef::Text(_) => "TEXT",
+        ValueRef::Blob(_) => "BLOB",
+    };
+    SnapbackError::error(
+        "SNAPBACK_STORAGE_FIELD_CORRUPT",
+        "storage",
+        "stored field does not match its declared portable representation",
+    )
+    .with_detail("table", table.to_owned())
+    .with_detail("field", column.to_owned())
+    .with_detail("expectedStorageClass", expected.to_owned())
+    .with_detail("actualStorageClass", actual)
 }
 
 // Plain JSON/JavaScript is the v0 portable wire, so declared Integer fields
@@ -20843,6 +20992,101 @@ mod guarded_commit_tests {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.apply_schema(schema()).expect("apply test schema");
         db
+    }
+
+    fn apply_typed_decode_fixture(db: &mut LocalDatabase) {
+        db.apply_schema(SchemaManifest {
+            tables: vec![TableManifest {
+                name: "typed_items".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "label".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "flag".to_owned(),
+                        field_type: FieldType::Boolean,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "count".to_owned(),
+                        field_type: FieldType::Integer,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "score".to_owned(),
+                        field_type: FieldType::Real,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "payload".to_owned(),
+                        field_type: FieldType::Json,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "note".to_owned(),
+                        field_type: FieldType::String,
+                        optional: true,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                search_indexes: Vec::new(),
+                vector_indexes: Vec::new(),
+                search_live_limits: None,
+                membership: None,
+                asset_sharing: None,
+                history: None,
+            }],
+            ..SchemaManifest::default()
+        })
+        .expect("apply typed decode schema");
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "typed_items".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("typed-row")),
+                    ("label".to_owned(), json!("ok")),
+                    ("flag".to_owned(), json!(true)),
+                    ("count".to_owned(), json!(1)),
+                    ("score".to_owned(), json!(1.5)),
+                    ("payload".to_owned(), json!({ "ok": true })),
+                    ("note".to_owned(), Value::Null),
+                ])],
+            )]),
+        })
+        .expect("seed typed decode row");
+    }
+
+    fn typed_decode_database() -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        apply_typed_decode_fixture(&mut db);
+        db
+    }
+
+    fn declared_storage_field(field_type: FieldType, optional: bool) -> FieldManifest {
+        FieldManifest {
+            name: "value".to_owned(),
+            field_type,
+            optional,
+        }
+    }
+
+    fn assert_storage_field_corrupt<T: std::fmt::Debug>(
+        result: SnapbackResult<T>,
+        field: &str,
+        lane: &str,
+    ) {
+        let error = result.expect_err("corrupt portable storage must fail closed");
+        assert_eq!(
+            error.diagnostic.code, "SNAPBACK_STORAGE_FIELD_CORRUPT",
+            "{field} {lane}"
+        );
+        assert_eq!(error.diagnostic.details["table"], "typed_items");
+        assert_eq!(error.diagnostic.details["field"], field);
     }
 
     fn sequence_fact(db: &LocalDatabase, value: u64) -> SequenceAllocationFact {
@@ -27434,6 +27678,298 @@ mod guarded_commit_tests {
             assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_ROW_ID_CORRUPT");
             assert_eq!(error.diagnostic.details["table"], "items");
         }
+    }
+
+    #[test]
+    fn strict_portable_decoder_accepts_only_writer_representations() {
+        let string_families = [
+            FieldType::String,
+            FieldType::Principal,
+            FieldType::Id {
+                table: "parents".to_owned(),
+            },
+            FieldType::RelationIncarnation {
+                foreign_key_field: "parentId".to_owned(),
+                parent_table: "parents".to_owned(),
+            },
+            FieldType::AssetRef { upload: None },
+        ];
+        for field_type in string_families {
+            let field = declared_storage_field(field_type, false);
+            assert_eq!(
+                sqlite_to_json(
+                    ValueRef::Text(b"exact"),
+                    Some(&field),
+                    "typed_items",
+                    "value"
+                )
+                .expect("valid TEXT"),
+                json!("exact")
+            );
+            assert_storage_field_corrupt(
+                sqlite_to_json(ValueRef::Integer(1), Some(&field), "typed_items", "value"),
+                "value",
+                "wrong text storage class",
+            );
+            assert_storage_field_corrupt(
+                sqlite_to_json(
+                    ValueRef::Text(&[0x80]),
+                    Some(&field),
+                    "typed_items",
+                    "value",
+                ),
+                "value",
+                "invalid UTF-8",
+            );
+        }
+
+        let boolean = declared_storage_field(FieldType::Boolean, false);
+        assert_eq!(
+            sqlite_to_json(ValueRef::Integer(0), Some(&boolean), "typed_items", "value")
+                .expect("false"),
+            Value::Bool(false)
+        );
+        assert_eq!(
+            sqlite_to_json(ValueRef::Integer(1), Some(&boolean), "typed_items", "value")
+                .expect("true"),
+            Value::Bool(true)
+        );
+        for invalid in [
+            ValueRef::Integer(-1),
+            ValueRef::Integer(2),
+            ValueRef::Text(b"1"),
+        ] {
+            assert_storage_field_corrupt(
+                sqlite_to_json(invalid, Some(&boolean), "typed_items", "value"),
+                "value",
+                "invalid Boolean",
+            );
+        }
+
+        let integer = declared_storage_field(FieldType::Integer, false);
+        for value in [PORTABLE_INTEGER_MIN, 0, PORTABLE_INTEGER_MAX] {
+            assert_eq!(
+                sqlite_to_json(
+                    ValueRef::Integer(value),
+                    Some(&integer),
+                    "typed_items",
+                    "value"
+                )
+                .expect("portable Integer"),
+                json!(value)
+            );
+        }
+        for invalid in [
+            ValueRef::Integer(PORTABLE_INTEGER_MIN - 1),
+            ValueRef::Integer(PORTABLE_INTEGER_MAX + 1),
+            ValueRef::Real(1.0),
+        ] {
+            assert_storage_field_corrupt(
+                sqlite_to_json(invalid, Some(&integer), "typed_items", "value"),
+                "value",
+                "invalid Integer",
+            );
+        }
+
+        let real = declared_storage_field(FieldType::Real, false);
+        assert_eq!(
+            sqlite_to_json(ValueRef::Real(1.5), Some(&real), "typed_items", "value")
+                .expect("finite REAL"),
+            json!(1.5)
+        );
+        for invalid in [ValueRef::Integer(1), ValueRef::Real(f64::NAN)] {
+            assert_storage_field_corrupt(
+                sqlite_to_json(invalid, Some(&real), "typed_items", "value"),
+                "value",
+                "invalid Real",
+            );
+        }
+
+        let json_field = declared_storage_field(FieldType::Json, false);
+        assert_eq!(
+            sqlite_to_json(
+                ValueRef::Text(br#"{"ok":true}"#),
+                Some(&json_field),
+                "typed_items",
+                "value",
+            )
+            .expect("JSON TEXT"),
+            json!({ "ok": true })
+        );
+        assert_storage_field_corrupt(
+            sqlite_to_json(
+                ValueRef::Text(b"{"),
+                Some(&json_field),
+                "typed_items",
+                "value",
+            ),
+            "value",
+            "invalid JSON",
+        );
+
+        let vector = declared_storage_field(FieldType::Vector { dimensions: 2 }, false);
+        let mut vector_bytes = Vec::new();
+        vector_bytes.extend_from_slice(&1.0f64.to_le_bytes());
+        vector_bytes.extend_from_slice(&2.0f64.to_le_bytes());
+        assert_eq!(
+            sqlite_to_json(
+                ValueRef::Blob(&vector_bytes),
+                Some(&vector),
+                "typed_items",
+                "value",
+            )
+            .expect("binary64 vector"),
+            json!([1.0, 2.0])
+        );
+        assert_storage_field_corrupt(
+            sqlite_to_json(ValueRef::Text(b"[]"), Some(&vector), "typed_items", "value"),
+            "value",
+            "invalid Vector storage class",
+        );
+
+        assert_storage_field_corrupt(
+            sqlite_to_json(ValueRef::Null, Some(&boolean), "typed_items", "value"),
+            "value",
+            "required NULL",
+        );
+        assert_eq!(
+            sqlite_to_json_with_staged_null(
+                ValueRef::Null,
+                Some(&boolean),
+                "typed_items",
+                "value",
+                true,
+            )
+            .expect("the exact migration-staged destination may still be NULL"),
+            Value::Null
+        );
+        let optional = declared_storage_field(FieldType::Boolean, true);
+        assert_eq!(
+            sqlite_to_json(ValueRef::Null, Some(&optional), "typed_items", "value")
+                .expect("optional NULL"),
+            Value::Null
+        );
+
+        assert_eq!(
+            sqlite_to_json(ValueRef::Text(b"row"), None, "typed_items", "_id").expect("system id"),
+            json!("row")
+        );
+        assert_storage_field_corrupt(
+            sqlite_to_json(ValueRef::Integer(1), None, "typed_items", "_id"),
+            "_id",
+            "invalid system id",
+        );
+        for timestamp in [0, crate::manifest::PORTABLE_TIMESTAMP_MAX_MS as i64] {
+            assert_eq!(
+                sqlite_to_json(
+                    ValueRef::Integer(timestamp),
+                    None,
+                    "typed_items",
+                    "_createdAt",
+                )
+                .expect("portable timestamp"),
+                json!(timestamp)
+            );
+        }
+        for invalid in [
+            ValueRef::Integer(-1),
+            ValueRef::Integer(crate::manifest::PORTABLE_TIMESTAMP_MAX_MS as i64 + 1),
+            ValueRef::Text(b"0"),
+        ] {
+            assert_storage_field_corrupt(
+                sqlite_to_json(invalid, None, "typed_items", "_updatedAt"),
+                "_updatedAt",
+                "invalid system timestamp",
+            );
+        }
+    }
+
+    #[test]
+    fn corrupt_portable_field_representations_fail_every_current_read_lane() {
+        let healthy = typed_decode_database()
+            .get("typed_items", "typed-row")
+            .expect("healthy point read")
+            .expect("healthy row");
+        assert_eq!(healthy["label"], "ok");
+        assert_eq!(healthy["flag"], true);
+        assert_eq!(healthy["count"], 1);
+        assert_eq!(healthy["score"], 1.5);
+        assert_eq!(healthy["payload"], json!({ "ok": true }));
+        assert_eq!(healthy["note"], Value::Null);
+
+        let corruptions = [
+            (
+                "label",
+                "UPDATE typed_items SET label = CAST(x'80' AS TEXT) WHERE _id = 'typed-row'"
+                    .to_owned(),
+            ),
+            (
+                "flag",
+                "UPDATE typed_items SET flag = 2 WHERE _id = 'typed-row'".to_owned(),
+            ),
+            (
+                "count",
+                format!(
+                    "UPDATE typed_items SET count = {} WHERE _id = 'typed-row'",
+                    PORTABLE_INTEGER_MAX + 1
+                ),
+            ),
+            (
+                "score",
+                "UPDATE typed_items SET score = 'not-real' WHERE _id = 'typed-row'".to_owned(),
+            ),
+            (
+                "payload",
+                "UPDATE typed_items SET payload = '{' WHERE _id = 'typed-row'".to_owned(),
+            ),
+            (
+                "_createdAt",
+                "UPDATE typed_items SET _createdAt = -1 WHERE _id = 'typed-row'".to_owned(),
+            ),
+        ];
+        let plan = QueryPlan {
+            table: "typed_items".to_owned(),
+            filters: Vec::new(),
+            order: Vec::new(),
+            limit: Some(10),
+            membership_filters: Vec::new(),
+            indexed_by: None,
+        };
+
+        for (field, sql) in corruptions {
+            let db = typed_decode_database();
+            db.conn
+                .execute(&sql, [])
+                .unwrap_or_else(|error| panic!("inject {field} corruption: {error}"));
+
+            assert_storage_field_corrupt(db.get("typed_items", "typed-row"), field, "point");
+            assert_storage_field_corrupt(db.scan_table("typed_items", 10, 0), field, "scan");
+            assert_storage_field_corrupt(db.query(&plan, &HandlerInput::default()), field, "query");
+        }
+    }
+
+    #[test]
+    fn file_backed_portable_corruption_reopens_then_refuses_on_read() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("typed-corruption.sqlite3");
+        {
+            let mut db = LocalDatabase::open(&path).expect("create file database");
+            apply_typed_decode_fixture(&mut db);
+            db.conn
+                .execute(
+                    "UPDATE typed_items SET flag = 2 WHERE _id = 'typed-row'",
+                    [],
+                )
+                .expect("inject stored Boolean corruption");
+        }
+
+        let reopened = LocalDatabase::open(&path)
+            .expect("bounded open policy does not scan every declared field");
+        assert_storage_field_corrupt(
+            reopened.get("typed_items", "typed-row"),
+            "flag",
+            "reopened point read",
+        );
     }
 
     #[test]

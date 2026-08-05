@@ -3312,7 +3312,12 @@ impl LocalDatabase {
                 let mut rows = statement.query(super::params_from_iter(values.iter()))?;
                 let mut out = Vec::new();
                 while let Some(row) = rows.next()? {
-                    out.push(super::row_to_document(row, table, &columns)?);
+                    out.push(super::row_to_document_with_staged_nullable_field(
+                        row,
+                        table,
+                        &columns,
+                        Some(field),
+                    )?);
                 }
                 out
             };
