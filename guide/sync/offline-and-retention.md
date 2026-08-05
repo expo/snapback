@@ -163,10 +163,11 @@ it is not a hosted claim.
   membership is derived from the public, ambient-free single-table plan and
   cannot be asserted by the author.
 - **Snapshot-batch composites** (`snapshot-batch.v1`) — deliberately
-  volatile: retention is `none`. Stored grace payloads exist only to smooth
-  release; they are **never** authoritative offline answers. Do not read a
-  grace payload's presence as renderability — the answer classes below are
-  the only authority.
+  volatile: retention is `none`. Final release pins that class, so the next
+  writer maintenance pass removes payload immediately; the compacted
+  instance-bookkeeping stub may remain. A `none` registration never acquires
+  payload-retaining release grace. Do not read a stored record's presence as
+  renderability — the answer classes below are the only authority.
 
 ### The controlled local recipe
 
@@ -216,21 +217,73 @@ decisions key off `answerClass` + `freshness`, never off "bytes exist":
 | `unknown` | Store cannot classify (no proof, no custody) | No — treat as no data |
 | `refused` | Policy or authorization refused the read | No — surface the refusal |
 
-Inspect stored volatile grace payloads separately from authorized rows with
-`StorePolicyInspectionV1` (`store-policy.test.mjs` exercises it): grace
-payloads report their release pinning, not an answer class, which is how
-the two populations stay visibly distinct.
+The `single_table_v1@1` authority-independent arm is the qmk1 authoritative
+row with `authorizedLeaseHash: null`: a valid proof, witness, current instance
+fence, class binding, and trusted activation are still required, but no lease
+is required or implied. Every failure follows the corresponding qmk1 row.
 
-### The registration boundary (no public durable-authoring API yet)
+Inspect custody separately from answer authority with
+`StorePolicyInspectionV1`. Every address has exactly one retaining reason:
+`registrations`, `release-grace`, `safety-blocker`, or
+`instance-bookkeeping` (plus the explicit grandfathered legacy class). Active
+registrations are volatile and are reaped at restart; programmatic durable
+registrations survive. In the Triage churn proof, the one programmatic Inbox
+registration retains the only payload while all 20 disposed `none` queries are
+compacted bookkeeping stubs after an explicitly driven maintenance pass.
 
-Active live queries register demand automatically — subscribing IS the
-registration, and the sync set equals the registration set. A **durable
-programmatic registration** surface (registering demand with no live
-handle) intentionally has **no public API yet** (LLP 0166 OQ8): the
-methods you may notice underscored on the client are internal seams, not
-product API, and this page deliberately does not teach them. Until the
-surface is ruled public, keep a live handle (or `persistResume` + relaunch)
-as the supported way to keep a query in the sync set.
+### Keep a generated query registered without a live handle
+
+Active live queries still register demand automatically — subscribing is the
+`active` registration, and disposing the handle releases it. For demand that
+must survive a process restart without a mounted handle, use the public
+programmatic API. The application owns a stable, store-scoped
+`registrationId`; Snapback derives the qmk1 address and authority partition
+from the generated reference and current owner snapshot:
+
+```ts source=demos/triage-graph/src/retained-registration.ts
+  const result = await (client as RegistrationClient).registerQuery(reference, {
+    registrationId: 'triage-graph-retained-inbox-v1',
+    args: {},
+    label: 'triage-graph-retained-inbox',
+    requestedScope: { kind: 'page', input: { kind: 'first' } },
+    retentionRequest: 'durable',
+    idleTtlClass: 'default',
+  });
+  if (result.outcome.kind === 'refused') throw new Error(result.outcome.code);
+  return result;
+```
+
+`registerQuery` returns the exact `RegisterOutcomeV1` envelope and works from
+both writer and qualified non-writer contexts. Registration is durable, but
+retention is still owner-admitted: a non-retainable generated query refuses
+rather than silently dropping the durability request. Release with
+`client.releaseQueryRegistration(registrationId)`; repeated releases are
+idempotent and return a `released` outcome. Never author a materialization
+address or authority-partition digest yourself.
+
+### Evaluate an owner-reclassified retained result
+
+The public `@expo/snapback-client/result-transform` subpath exposes the closed
+`result-transform.v1` evaluator and its pinned ship-gate identity. The client
+entry point is `client.evaluateLocalResultTransform(generatedReference,
+options)`. It reads only the reference's proof-verified retained result bytes;
+it never runs the query's source-row plan locally.
+
+This is deliberately owner-gated. The generated reference must carry the
+server-issued `result-transform-snapshot-v1` retention class, which rotates the
+plan hash and qmk1 address. Unreclassified plans, memory storage, and the
+current non-durable Expo carrier refuse with
+`SNAPBACK_LOCAL_EVALUATION_UNADMITTED` before inspecting the transform. The
+claiming carrier contexts are browser IndexedDB and Node/file.
+
+Carrier claims are executable rather than inferred. The dedicated S8 suite
+(`packages/snapback-client/carrier-capability-honesty.test.mjs`) checks that
+IndexedDB and Node/file report durable and admit `durable-fragments-v1`, while
+memory and the current Expo adapter report volatile and refuse the same request
+with `SNAPBACK_MATERIALIZATION_STORAGE_PROFILE_GAP` naming
+`durable_fragments_v1`. An older IndexedDB opener receives `VersionError`
+against v3; a future file blob is preserved in place and refused with
+`SNAPBACK_RQS_STORE_CORRUPT`.
 
 ## Opt a live query into cold retention (`rqsEligible`)
 

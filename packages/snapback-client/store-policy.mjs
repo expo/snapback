@@ -140,7 +140,12 @@ function ownerAllowsCustodyPolicy(record) {
 
 function storedRegistrations(meta, resolveRegistration) {
   const result = [];
-  for (const registration of Object.values(meta.durableRegistrations)) {
+  const durable = Object.values(meta.durableRegistrations).flatMap((slot) => (
+    slot?.format === 'snapback.query-registration.v1'
+      ? [slot]
+      : plain(slot) ? Object.values(slot) : []
+  ));
+  for (const registration of durable) {
     let resolved = null;
     try { resolved = resolveRegistration?.(clone(registration)) ?? null; } catch { /* invalid owner data is omitted */ }
     const addressKey = resolved?.addressKey ?? registration._resolvedAddressKey;
@@ -234,6 +239,7 @@ export function createStorePolicyController({
     const records = [...view.materializations.values()]
       .map((stored) => decodeMaterializationRecordV1(stored))
       .filter((record) => record !== null);
+    const recordKeys = new Set(records.map(materializationKey));
     for (const record of records) {
       const addressKey = materializationKey(record);
       const fact = policyFact(root, addressKey, record.authorityPartitionDigest);
@@ -275,6 +281,14 @@ export function createStorePolicyController({
           : fact.releaseAt + (fact.pinnedIdleTtlClass === 'default' ? limits.graceDefaultMs : 0);
       }
     }
+    for (const [addressKey, fact] of Object.entries(root.addresses)) {
+      if (
+        !recordKeys.has(addressKey)
+        && !grouped.has(addressKey)
+        && fact.graceActive !== true
+        && fact.pendingSuppressionRelease !== true
+      ) delete root.addresses[addressKey];
+    }
   });
 
   const blockersFor = async (record) => {
@@ -295,13 +309,15 @@ export function createStorePolicyController({
   };
 
   const compact = async (record, reason) => {
-    if (record.fragments.length === 0 && record.pageSets.length === 0 && record.memberships.length === 0) {
-      return false;
+    const hasPayload = record.fragments.length > 0
+      || record.pageSets.length > 0
+      || record.memberships.length > 0;
+    if (hasPayload) {
+      if (typeof materializationStore?.compactPayload !== 'function') {
+        throw new TypeError('policy compaction requires L2 materializationStore.compactPayload');
+      }
+      await materializationStore.compactPayload(record.address, fence(record));
     }
-    if (typeof materializationStore?.compactPayload !== 'function') {
-      throw new TypeError('policy compaction requires L2 materializationStore.compactPayload');
-    }
-    await materializationStore.compactPayload(record.address, fence(record));
     await storeHandle.materializationTransaction('readwrite', (view) => {
       const root = factRoot(view.storeMeta);
       const fact = policyFact(root, materializationKey(record), record.authorityPartitionDigest);
@@ -309,10 +325,12 @@ export function createStorePolicyController({
       fact.reclaimPending = false;
       fact.graceActive = false;
       fact.blockers = [];
-      root.compactionCount += 1;
-      root.lastCompactionAt = now();
+      if (hasPayload) {
+        root.compactionCount += 1;
+        root.lastCompactionAt = now();
+      }
     });
-    return true;
+    return hasPayload;
   };
 
   const snapshot = async () => storeHandle.materializationTransaction('readonly', (view) => {
@@ -343,8 +361,14 @@ export function createStorePolicyController({
         && fact.pinnedIdleTtlClass !== 'pinned'
         && fact.graceDeadline !== null
         && now() >= fact.graceDeadline;
-      const durableDowngrade = fact.currentPolicy.demandState !== 'undemanded'
-        && fact.currentPolicy.retentionRequest === 'none';
+      const durableDowngrade = (
+        fact.currentPolicy.demandState !== 'undemanded'
+        && fact.currentPolicy.retentionRequest === 'none'
+      ) || (
+        fact.currentPolicy.demandState === 'undemanded'
+        && fact.graceActive
+        && fact.pinnedRetentionRequest === 'none'
+      );
       const reclaim = graceExpired || durableDowngrade || fact.reclaimPending;
       await storeHandle.materializationTransaction('readwrite', (view) => {
         const current = policyFact(factRoot(view.storeMeta), materializationKey(record), record.authorityPartitionDigest);
@@ -405,7 +429,10 @@ export function createStorePolicyController({
   };
 
   const inspection = async ({ authorityPartitionDigest }) => {
-    await synchronizeFacts();
+    // The projection is read-only and is available to every context. Only the
+    // writer may refresh durable derived facts before taking the snapshot;
+    // readers consume the last writer-published policy state.
+    if (storeHandle.isWriter?.() === true) await synchronizeFacts();
     const state = await snapshot();
     const legacyEntries = await listLegacyEntries();
     const legacy = legacyEntries.filter((entry) => entry.authorityPartitionDigest === authorityPartitionDigest);

@@ -51,6 +51,7 @@ export const booksWithAuthors = defineRelationalQuery({
   take: 50,
   rootIndex: 'by_owner_title',
   joinedIndex: 'by_slug',
+  retention: 'opaque-authorized-snapshot-v1',
 });
 ```
 
@@ -87,7 +88,7 @@ commit touching either source re-runs the query. No incremental delta or
 skip proof is claimed, matching LLP 0080's deliberately conservative v1.
 A relational plan is never `authorityIndependent` — public plans stay
 authority-partition-scoped — and retention is default-deny with a closed
-two-value vocabulary. `retention: 'none'` is the default. An owner-visible
+vocabulary. `retention: 'none'` is the default. An owner-visible
 plan may declare `retention: 'opaque-authorized-snapshot-v1'`: the
 projected result is retained as an opaque authorized snapshot under the
 authenticated lease path (the client decodes it; it never re-executes the
@@ -97,10 +98,11 @@ have no admissible v1 retention, refused at generation and again at load
 (`SNAPBACK_AUTH_UNDECLARABLE_RETENTION`). The capability manifest records
 the admitted classes under `relationalQueries.retention`. (Design
 reference: LLP 0080's 2026-08-03 dated amendment, landed with Accepted
-LLP 0166, specifies a third owner-issued class —
-`result-transform-snapshot-v1`, for the local persistent store — but it is
-not yet implemented; authoring and the capability manifest still admit
-exactly the two classes above.)
+LLP 0166, specifies the third owner-issued class
+`result-transform-snapshot-v1`. Selecting it is an owner reclassification:
+it rotates the plan identity and admits the shipped closed result-transform
+evaluator only after the D7 carrier gate; existing opaque records are never
+relabelled in place.)
 
 ## Pagination
 

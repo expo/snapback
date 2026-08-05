@@ -31,9 +31,7 @@
 // bundles (the first real Vite build of a demo surface caught this — diary
 // 0041 finding 8) fall back to a small incremental FIPS 180-4 SHA-256 whose
 // output is cross-checked against node:crypto by the package test.
-const nodeCrypto = globalThis.process?.getBuiltinModule?.('node:crypto') ?? null;
-
-const SHA256_K = new Uint32Array([
+const SHA256_K = [
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
   0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
   0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
@@ -42,7 +40,7 @@ const SHA256_K = new Uint32Array([
   0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
   0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
   0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
-]);
+];
 
 class IncrementalSha256 {
   constructor() {
@@ -136,9 +134,9 @@ class IncrementalSha256 {
   }
 }
 
-function createHash(algorithm) {
-  if (algorithm !== 'sha256') throw new TypeError(`unsupported digest ${algorithm}`);
-  return nodeCrypto ? nodeCrypto.createHash('sha256') : new IncrementalSha256();
+function createHash() {
+  const crypto = globalThis.process?.getBuiltinModule?.('node:crypto');
+  return crypto ? crypto.createHash('sha256') : new IncrementalSha256();
 }
 
 /** The reserved system live query projecting one asset record. */
@@ -163,10 +161,10 @@ export const MY_MEMBERSHIPS_LIVE_FUNCTION = '_snapback.myMemberships';
 const TUS_VERSION = '1.0.0';
 const DEFAULT_CHUNK_BYTES = 4 * 1024 * 1024;
 
-const TERMINAL = new Set(['ready', 'rejected', 'cancelled', 'failed']);
+const TERMINAL = ['ready', 'rejected', 'cancelled', 'failed'];
 
 /** The exact member set a persisted resume fact may carry. */
-export const PERSISTED_RESUME_FACT_MEMBERS = Object.freeze([
+export const PERSISTED_RESUME_FACT_MEMBERS = /* @__PURE__ */ Object.freeze([
   'assetId',
   'attemptId',
   'attemptExpiresAtMs',
@@ -190,7 +188,7 @@ function intentIdentity(upload) {
     // the generated reference carries the required policy and implementation
     // identities.
     throw new TypeError(
-      `start requires the generated upload reference (api.${upload}), not the intent name string — the reference carries the policy and implementation identity the server admits against`,
+      `start requires the generated upload reference (api.${upload}), not its name string; it carries policy/implementation identity`,
     );
   }
   if (
@@ -215,11 +213,11 @@ async function chunkBytesOf(blob) {
 }
 
 function sha256Hex(bytes) {
-  return createHash('sha256').update(bytes).digest('hex');
+  return createHash().update(bytes).digest('hex');
 }
 
 function sha256Base64(bytes) {
-  return createHash('sha256').update(bytes).digest('base64');
+  return createHash().update(bytes).digest('base64');
 }
 
 /** In-memory default store for persisted resume facts. */
@@ -278,7 +276,7 @@ class AssetUploadTask {
   #update(patch) {
     this.#snapshot = Object.freeze({ ...this.#snapshot, ...patch });
     for (const listener of this.#listeners) listener(this.#snapshot);
-    if (TERMINAL.has(this.#snapshot.status)) this.#resolveDone(this.#snapshot);
+    if (TERMINAL.includes(this.#snapshot.status)) this.#resolveDone(this.#snapshot);
   }
 
   /** internal: the driving loop owns state transitions. */
@@ -299,7 +297,7 @@ class AssetUploadTask {
   }
 
   pause() {
-    if (TERMINAL.has(this.#snapshot.status) || this.#paused) return;
+    if (TERMINAL.includes(this.#snapshot.status) || this.#paused) return;
     this.#paused = true;
     this.#abort?.abort();
     this.#update({ status: 'paused' });
@@ -313,7 +311,7 @@ class AssetUploadTask {
   }
 
   async cancel({ discardAsset = false } = {}) {
-    if (TERMINAL.has(this.#snapshot.status)) return this.#snapshot;
+    if (TERMINAL.includes(this.#snapshot.status)) return this.#snapshot;
     this.#cancelled = true;
     this.#abort?.abort();
     await this.#assets._cancel(this, { discardAsset });

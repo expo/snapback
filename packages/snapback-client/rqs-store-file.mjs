@@ -470,46 +470,12 @@ export function createFileRqsResumeStore({
 
   // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — legacy
   // entries, outbox, and QMK sections share the adoption commit domain.
-  const materializationTransaction = async (mode, operation) => {
-    requireOpen();
-    if (mode !== 'readonly' && mode !== 'readwrite') {
-      throw new TypeError('materialization transaction mode must be readonly or readwrite');
-    }
-    if (typeof operation !== 'function') {
-      throw new TypeError('materialization transaction operation must be a function');
-    }
-    await acquireLock();
-    if (mode === 'readwrite' && !writer) {
-      throw storeError('SNAPBACK_RQS_STORE_NOT_WRITER', 'materialization writes require store ownership');
-    }
-    const state = await readState();
-    const view = {
-      materializations: new Map(Object.entries(structuredClone(state.materializations))),
-      pageSets: new Map(Object.entries(structuredClone(state.pageSets))),
-      memberships: new Map(Object.entries(structuredClone(state.memberships))),
-      entries: new Map(Object.entries(structuredClone(state.entries))),
-      outbox: structuredClone(state.outbox),
-      storeMeta: structuredClone(state.storeMeta),
-    };
-    const result = operation(view);
-    if (result && typeof result.then === 'function') {
-      throw new TypeError('materialization transaction callbacks must be synchronous');
-    }
-    if (mode === 'readwrite') {
-      const preparedMeta = prepareStoreMeta(view.storeMeta);
-      if (preparedMeta === null) throw corruptError(blobPath);
-      await writeState({
-        ...state,
-        materializations: Object.fromEntries(view.materializations),
-        pageSets: Object.fromEntries(view.pageSets),
-        memberships: Object.fromEntries(view.memberships),
-        entries: Object.fromEntries(view.entries),
-        outbox: view.outbox,
-        storeMeta: preparedMeta,
-      });
-    }
-    return result;
-  };
+  const materializationTransaction = (mode, operation) => import(
+    './materialization-store-runtime.mjs'
+  ).then(({ fileMaterializationTransaction }) => fileMaterializationTransaction([
+    mode, operation, requireOpen, acquireLock, () => writer, readState,
+    writeState, corruptError, blobPath,
+  ]));
 
   return {
     isWriter() {

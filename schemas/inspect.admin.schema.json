@@ -3866,6 +3866,13 @@
           "description": "Results may be durably retained only when the item-8 admission profile\nvalidates this declaration and the complete read summary.\n\n@ref LLP 0053#retained-and-offline-authorization — retainability is an\n  explicit capability, never inferred from live/callable status.",
           "type": "boolean"
         },
+        "retentionClass": {
+          "description": "Optional owner-issued refinement of the retained-result class. Its\nabsence preserves the legacy `retainable: true` encoding and means\n`opaque-authorized-snapshot-v1`; the only admitted explicit value is\nthe post-gate `result-transform-snapshot-v1` class.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "runtime": {
           "$ref": "#/$defs/FunctionRuntime"
         },
@@ -6013,7 +6020,7 @@
           "type": "string"
         },
         "retention": {
-          "description": "Closed, default-deny retention classes the target admits for\nrelational plans: `none` (the default) and\n`opaque-authorized-snapshot-v1` (the authenticated lease class —\nowner-visible plans only; anonymous results have no admissible\nretention).",
+          "description": "Closed, default-deny retention classes the target admits for\nrelational plans: `none` (the default) and\n`opaque-authorized-snapshot-v1` (the authenticated lease class) and\n`result-transform-snapshot-v1` (the owner-reclassified post-gate\nclass). Both retained classes require owner-visible plans; anonymous\nresults have no admissible retention.",
           "items": {
             "type": "string"
           },

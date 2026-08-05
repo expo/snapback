@@ -132,7 +132,31 @@ function staticCompositionEvidence() {
   };
 }
 
-async function signIn(server, appId, label) {
+function controlledStoreRuntime(label) {
+  let sequence = 0;
+  const scheduled = new Map();
+  const intervals = new Map();
+  return {
+    contextId: `triage-graph-${label}-context`,
+    now: () => Date.UTC(2026, 7, 4, 12, 0, 0),
+    schedule(callback, delayMs) {
+      const id = ++sequence;
+      scheduled.set(id, { callback, delayMs });
+      return id;
+    },
+    cancel(id) { scheduled.delete(id); },
+    setIntervalFn(callback, intervalMs) {
+      const id = { value: ++sequence, unref() {} };
+      intervals.set(id, { callback, intervalMs });
+      return id;
+    },
+    clearIntervalFn(id) { intervals.delete(id); },
+    broadcastChannelFactory: null,
+    lockManager: null,
+  };
+}
+
+async function signIn(server, appId, label, { storeRuntimeOptions = null } = {}) {
   const coordinator = new AuthCoordinator({
     appId,
     storage: createMemoryAuthCustodyStorage({ state: { custody: {} } }),
@@ -156,6 +180,7 @@ async function signIn(server, appId, label) {
     authorizedLeaseProtocol: 1,
     rqsStore: store,
     offlineQueue: false,
+    ...(storeRuntimeOptions === null ? {} : { __storeRuntimeOptions: storeRuntimeOptions }),
   });
   const requested = await client.authRequestCode(`${label}@triage-graph.test`);
   const response = await fetch(
@@ -247,27 +272,32 @@ async function installDurableRegistration(client, api) {
     true,
   );
   assert.ok(prepared, 'generated activation must prepare a qmk1 bridge');
-  const registration = {
-    format: 'snapback.query-registration.v1',
+  const result = await client.registerQuery(api.retainedInbox, {
     registrationId: 'triage-graph-retained-inbox-v1',
-    source: 'programmatic',
-    ownerContext: { kind: 'api', label: 'triage-graph-retained-inbox' },
-    functionReference: {
-      name: api.retainedInbox.name,
-      materializationAddress: [...prepared.bridge.address],
-      authorityPartitionDigest: prepared.bridge.authorityPartitionDigest,
-    },
-    canonicalArgs: {},
+    args: {},
+    label: 'triage-graph-retained-inbox',
     requestedScope: { kind: 'page', input: { kind: 'first' } },
     retentionRequest: 'durable',
     idleTtlClass: 'default',
-  };
-  const result = await client.__registerDurableQuery(registration);
-  assert.deepEqual(result, { committed: true });
+  });
+  assert.equal(result.format, 'snapback.register-outcome.v1');
+  assert.deepEqual(result.outcome, { kind: 'committed' });
+  const registration = await client.rqsStore.materializationTransaction('readonly', (view) => (
+    Object.values(view.storeMeta.durableRegistrations)
+      .map((byId) => byId['triage-graph-retained-inbox-v1'])
+      .find(Boolean)
+  ));
+  assert.ok(registration, 'the public API must commit the durable registration');
   return { prepared, registration };
 }
 
-async function inspectCustody(store, registration, bridge) {
+async function inspectCustody({
+  store,
+  registration,
+  retainedBridge,
+  releasedAddressKeys,
+  policyInspection,
+}) {
   const state = await store.materializationTransaction('readonly', (view) => {
     const decoded = [...view.materializations.values()]
       .map(decodeMaterializationRecordV1)
@@ -285,17 +315,81 @@ async function inspectCustody(store, registration, bridge) {
     };
   });
   const payloadRecords = state.records.filter((record) => record.fragments.length > 0);
-  const retainedRecord = state.records.find((record) => record.address[2] === bridge.address[2]);
+  const retainedAddressKey = retainedBridge.address[2];
+  const expectedAddressKeys = [retainedAddressKey, ...releasedAddressKeys].sort();
+  const retainedRecord = state.records.find((record) => record.address[2] === retainedAddressKey);
   const retainedRawRecord = state.rawRecords.find((record) => (
-    decodeMaterializationRecordV1(record)?.address[2] === bridge.address[2]
+    decodeMaterializationRecordV1(record)?.address[2] === retainedAddressKey
   ));
-  assert.equal(state.records.length, 21);
-  assert.equal(payloadRecords.length, 21);
+  assert.deepEqual(
+    state.records.map((record) => record.address[2]).sort(),
+    expectedAddressKeys,
+    'S1 custody is exactly registrations + release grace + blockers + bookkeeping stubs',
+  );
+  assert.deepEqual(
+    policyInspection.addresses.map((entry) => entry.addressKey),
+    expectedAddressKeys,
+    'StorePolicyInspectionV1 explains every stored qmk1 address',
+  );
+  assert.deepEqual(
+    payloadRecords.map((record) => record.address[2]),
+    [retainedAddressKey],
+    'only the durable programmatic registration retains payload after maintenance',
+  );
   assert.ok(retainedRecord);
   assert.ok(retainedRawRecord);
   assert.equal(state.registrations.length, 1);
   assert.deepEqual(state.registrations[0], registration);
   assert.equal(retainedRecord.fragments.length, 1);
+  const inspectionByAddress = new Map(
+    policyInspection.addresses.map((entry) => [entry.addressKey, entry]),
+  );
+  const custodyProjection = ({ lastEstablishmentAt: _measured, ...entry }) => entry;
+  assert.deepEqual(custodyProjection(inspectionByAddress.get(retainedAddressKey)), {
+    addressKey: retainedAddressKey,
+    demandState: 'demanded-idle',
+    effectiveRetentionRequest: 'durable',
+    retainingReason: {
+      kind: 'registrations',
+      entries: [{
+        registrationId: 'triage-graph-retained-inbox-v1',
+        source: 'programmatic',
+        ownerContextKind: 'api',
+      }],
+    },
+    effectiveTtlClass: 'default',
+    compacted: false,
+  });
+  for (const addressKey of releasedAddressKeys) {
+    assert.deepEqual(custodyProjection(inspectionByAddress.get(addressKey)), {
+      addressKey,
+      demandState: 'undemanded',
+      effectiveRetentionRequest: 'none',
+      retainingReason: { kind: 'instance-bookkeeping' },
+      effectiveTtlClass: 'default',
+      compacted: true,
+    });
+  }
+  const retainingSets = {
+    registrations: policyInspection.addresses
+      .filter((entry) => entry.retainingReason.kind === 'registrations')
+      .map((entry) => entry.addressKey),
+    releaseGrace: policyInspection.addresses
+      .filter((entry) => entry.retainingReason.kind === 'release-grace')
+      .map((entry) => entry.addressKey),
+    safetyBlockers: policyInspection.addresses
+      .filter((entry) => entry.retainingReason.kind === 'safety-blocker')
+      .map((entry) => entry.addressKey),
+    instanceBookkeepingStubs: policyInspection.addresses
+      .filter((entry) => entry.retainingReason.kind === 'instance-bookkeeping')
+      .map((entry) => entry.addressKey),
+  };
+  assert.deepEqual(retainingSets, {
+    registrations: [retainedAddressKey],
+    releaseGrace: [],
+    safetyBlockers: [],
+    instanceBookkeepingStubs: [...releasedAddressKeys].sort(),
+  });
   const fragment = retainedRecord.fragments[0];
   const rows = JSON.parse(decoder.decode(fragment.bytes));
   assert.equal(rows.length, 100);
@@ -311,7 +405,7 @@ async function inspectCustody(store, registration, bridge) {
     fragmentCount: projections.reduce((sum, item) => sum + item.fragmentCount, 0),
   };
   const storedResultRows = fragmentRows.reduce((sum, item) => sum + item.rows.length, 0);
-  assert.equal(storedResultRows, 120);
+  assert.equal(storedResultRows, 100);
   return {
     state,
     retainedRecord,
@@ -323,6 +417,8 @@ async function inspectCustody(store, registration, bridge) {
     resultBytes: fragmentRows.reduce((sum, item) => sum + item.bytes, 0),
     proofBytes: fragmentRows.reduce((sum, item) => sum + item.proofBytes, 0),
     retainedResultBytes: fragment.bytes.length,
+    expectedAddressKeys,
+    retainingSets,
   };
 }
 
@@ -399,7 +495,9 @@ async function runRealExit() {
       scratch,
       ownerStoreDirectory: configuredStoreDirectory,
     };
-    owner = await signIn(fixtureServer, schema.appId, 'owner');
+    owner = await signIn(fixtureServer, schema.appId, 'owner', {
+      storeRuntimeOptions: controlledStoreRuntime('owner'),
+    });
     mallory = await signIn(fixtureServer, schema.appId, 'mallory');
 
     const boardId = await createBoard(owner.client, generated.api, 'P3 controlled graph');
@@ -425,7 +523,16 @@ async function runRealExit() {
       switchBoards.push({ switchBoardId, ordinal });
     }
     const queryChangeRows = [];
+    const releasedAddressKeys = [];
     for (const { switchBoardId, ordinal } of switchBoards) {
+      const preparedSwitch = await owner.client.__prepareGeneratedMaterializationBridge(
+        generated.api.triageGraph,
+        { boardId: switchBoardId },
+        null,
+        false,
+      );
+      assert.ok(preparedSwitch, 'each query-change leg must prepare a qmk1 bridge');
+      releasedAddressKeys.push(preparedSwitch.bridge.address[2]);
       const live = await owner.client.liveQuery(generated.api.triageGraph, {
         args: { boardId: switchBoardId },
         connectionId: 'triage-graph-query-change',
@@ -468,11 +575,21 @@ async function runRealExit() {
     );
     await liveInbox.dispose();
 
-    const custody = await inspectCustody(
-      owner.store,
+    // The production runtime queues this pass. The acceptance harness owns the
+    // clock and scheduler so the custody point is deterministic and never
+    // depends on wall time or an idle callback winning a race.
+    await owner.client.__runStoreMaintenance();
+    const policyInspection = await owner.client.storePolicyInspection({
+      authorityPartitionDigest: prepared.bridge.authorityPartitionDigest,
+    });
+
+    const custody = await inspectCustody({
+      store: owner.store,
       registration,
-      prepared.bridge,
-    );
+      retainedBridge: prepared.bridge,
+      releasedAddressKeys,
+      policyInspection,
+    });
     const physicalBytes = await physicalStoreBytes(configuredStoreDirectory);
     const registrationBytes = encoder.encode(JSON.stringify(registration)).length;
     assert.equal(custody.state.pageSets, 0);
@@ -518,13 +635,17 @@ async function runRealExit() {
       date: DATE,
       authority: 'LLP 0155 OQ9',
       feedsMeasuredRevision: 'LLP 0166 OQ4',
+      custodySemantics: 'store-policy-reasons-v1',
       optimizationPerformedBeforeFreeze: false,
       controlledWorkload: fixture,
       measured: {
         custody: {
           materializationRecords: custody.state.records.length,
           payloadBearingRecords: custody.payloadRecords.length,
-          volatileSnapshotRecords: custody.state.records.length - 1,
+          releasedVolatilePayloadRecords: 0,
+          instanceBookkeepingStubs: custody.retainingSets.instanceBookkeepingStubs.length,
+          releaseGraceRecords: custody.retainingSets.releaseGrace.length,
+          safetyBlockerRecords: custody.retainingSets.safetyBlockers.length,
           fragments: custody.projection.fragmentCount,
           storedResultRows: custody.storedResultRows,
           authoritativeRetainedRows: custody.rows.length,
@@ -545,11 +666,14 @@ async function runRealExit() {
       },
       frozenCeilings: {
         custody: {
-          materializationRecords: 21,
-          payloadBearingRecords: 21,
-          volatileSnapshotRecords: 20,
-          fragments: 21,
-          storedResultRows: 120,
+          materializationRecords: custody.expectedAddressKeys.length,
+          payloadBearingRecords: custody.retainingSets.registrations.length,
+          releasedVolatilePayloadRecords: 0,
+          instanceBookkeepingStubs: custody.retainingSets.instanceBookkeepingStubs.length,
+          releaseGraceRecords: custody.retainingSets.releaseGrace.length,
+          safetyBlockerRecords: custody.retainingSets.safetyBlockers.length,
+          fragments: custody.projection.fragmentCount,
+          storedResultRows: custody.storedResultRows,
           authoritativeRetainedRows: 100,
           logicalBytes: custody.projection.logicalBytes,
           durableRegistrations: 1,
@@ -584,7 +708,8 @@ async function runRealExit() {
         queryChanges: {
           changes: queryChangeRows.length,
           rows: queryChangeRows,
-          retainedVolatileSnapshotEnvelopes: 20,
+          retainedVolatilePayloadEnvelopes: 0,
+          compactedInstanceBookkeepingStubs: releasedAddressKeys.length,
           offlineRenderability: 'unknown-render-nothing',
         },
         convergence: { ...fixture, activeMatches: graph.issues.length },
@@ -596,7 +721,8 @@ async function runRealExit() {
         custody: {
           materializationRecords: custody.state.records.length,
           payloadBearingRecords: custody.payloadRecords.length,
-          volatileSnapshotRecords: custody.state.records.length - 1,
+          releasedVolatilePayloadRecords: 0,
+          retainingSets: custody.retainingSets,
           fragments: custody.projection.fragmentCount,
           storedResultRowsExplained: custody.storedResultRows,
           authoritativeRetainedRowsExplained: custody.rows.length,
@@ -641,6 +767,12 @@ function sourceProvenance() {
     'demos/triage-graph/demo.snapback.json',
     'demos/triage-graph/src/App.tsx',
     'demos/triage-graph/src/retained-registration.ts',
+    'packages/snapback-client/index.mjs',
+    'packages/snapback-client/materialization-store.mjs',
+    'packages/snapback-client/materialization-store-runtime.mjs',
+    'packages/snapback-client/rqs-preload-core.mjs',
+    'packages/snapback-client/store-policy.mjs',
+    'packages/snapback-client/store-runtime.mjs',
     `demos/triage-graph/workload-manifest.${WORKLOAD_DATE}.v1.json`,
   ];
   return {
@@ -658,9 +790,7 @@ function evidenceMarkdown(receipt) {
   return `# Triage Graph Move-1 exit evidence
 
 **Run date:** ${DATE}
-
 **Source revision:** \`${receipt.source.revision}\` (dirty lane worktree)
-
 **Controlled run:** ${receipt.controlledRun.status}
 
 This is the Triage-only successor-app receipt. Fleet is excluded and remains
@@ -683,8 +813,8 @@ ${budget.hydration.payloadBytes} payload bytes, and ${budget.hydration.elapsedMs
 
 The budget fixture is
 \`tests/acceptance/fixtures/triage-graph/budget-freeze.${DATE}.v1.json\` and is
-an input to LLP 0166 OQ4's future measured revision; this lane does not revise
-LLP 0166 or publish a capability.
+the reason-based input to LLP 0166 OQ4's measured revision. This evidence alone
+never publishes a capability.
 `;
 }
 
@@ -722,6 +852,14 @@ async function verifyRetainedArtifacts() {
     );
     assert.equal(receipt.summary.pass, 8);
     assert.equal(receipt.summary.blocked, 0);
+  }
+  if (process.argv.includes('--require-qualified')) {
+    assert.equal(receipt.controlledRun.status, 'PASS', 'publication requires a controlled PASS');
+    // The summary may carry additional advisory booleans (capability-claim
+    // and fleet-inclusion markers); qualification pins the counts exactly.
+    assert.equal(receipt.summary.pass, 8);
+    assert.equal(receipt.summary.blocked, 0);
+    assert.equal(receipt.summary.total, 8);
   }
   assert.equal(existsSync(EVIDENCE_PATH), true);
   console.log(

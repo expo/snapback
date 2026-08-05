@@ -11,6 +11,19 @@ Run the gate with:
 volta run node scripts/client-bundle-metrology.mjs --check
 ```
 
+When the environment cannot run listener-bound behavior commands, the
+comparison-only diagnostic still measures every profile, validates the active
+baseline chain, checks the committed current report, and skips only the
+behavior train:
+
+```sh
+node scripts/client-bundle-metrology.mjs --check-comparison-only
+```
+
+Comparison-only success is not a substitute for `--check`; it exists so a
+restricted sandbox can prove the byte ratchet before the socket-capable
+orchestrator runs the complete gate.
+
 The runner uses esbuild's browser/ES2022 ESM pipeline with minification and
 tree-shaking, gzip level 9, and Brotli quality 11. It executes each emitted
 bundle's fixture assertion, runs the maintained client/React package smoke
@@ -100,11 +113,45 @@ preserving the supplemental receipt. Both that ledger and the final chained
 rollover pin Node 24.18.0; metrology write and check invocations therefore use
 `volta run node`.
 
+The dated 2026-08-04 integrated-review follow-up is a chained, one-profile
+rollover in `baseline.local-persistent-store-review-fixes.v1.json`. It keeps
+the complete LLP 0166 v1 receipt immutable and supersedes only
+`public-subpath-rqs-preload`: findings 6 and 9 add the legacy no-op guard and
+typed optional-runtime load failure, moving the profile from 5,505 / 2,555 /
+2,147 to 5,549 / 2,593 / 2,177 minified / gzip / Brotli bytes. Finding 3
+changes `public-subpath-rqs-registered` while its supplemental ledger is still
+part of the same uncommitted finish-out diff, so
+`baseline.result-transform.v1.json` records the dated in-place amendment from
+31,913 / 10,621 / 9,341 to 32,045 / 10,647 / 9,380. Every other active ceiling
+continues to come from its prior receipt unchanged.
+
 The OQ2 extension is `baseline.push-installation-expo.v1.json`, backed by
 `push-installation-expo-profiles.v1.json`. It freezes the optional Expo
 installation-storage subpath independently, including a closure assertion that
 the adapter does not pull the push-registry runtime or a native module into the
 bundle.
+
+The LLP 0166 finish-out extension is `baseline.result-transform.v1.json`,
+backed by `result-transform-profiles.v1.json`. It freezes the newly public pure
+evaluator subpath and Lane E's opt-in `./rqs-registered` mixed-route validator
+entry independently, recording both complete closures plus module-own
+attribution on their first shipping run. The historical `./rqs-preload`
+ceiling remains unchanged: registration-record derivation belongs to the
+ledger/store family, and mixed-route validation is paid only by callers that
+select the new entry. The same first-run ledger absorbs the previously
+uncovered `./ir-evaluator`, `./local-read-admission`, and
+`./optimistic-rebase` namespace profiles; those are prospective first-run
+ceilings, not edits to a historical receipt. Its behavior train runs each
+corresponding focused suite before the ledger can freeze.
+
+The LLP 0163 operation-identity carrier rollover is
+`baseline.operation-identity-carrier.v1.json`, declared by
+`operation-identity-carrier-profiles.v1.json`. It advances exactly the shared
+outbox, four RQS-store closures, and the opt-in registered-RQS closure for
+authenticated finite-range custody and durable `result-gone` settlement. The
+Move-3 and result-transform predecessors remain immutable. The unrelated asset
+closure stays governed by its original primary ceiling and is tightened back
+under that ceiling rather than rolled into LLP 0163.
 
 The Phase-B Micro extension is `baseline.micro-phase-b.v1.json`, backed by
 `micro-phase-b-profiles.v1.json`. It freezes separate generated core and live

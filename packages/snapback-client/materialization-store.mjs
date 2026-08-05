@@ -7,7 +7,6 @@ import { compileResultContractValidator } from '@expo/snapback-contract/result-c
 
 import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
 import { refuseLocalEvaluation } from './evaluation-floor.mjs';
-import { pendingOutboxRecords } from './outbox-shared.mjs';
 import { allocateQueryInstanceIdInMeta } from './rqs-store-meta.mjs';
 import { base64UrlNoPad, hex, jcs, jcsBytes, sha256 } from './rqs.mjs';
 
@@ -695,80 +694,23 @@ function validateProof(record, fragment, suppliedProof, context, signatureReceip
  *   — finite answers reuse the establishment verifier unchanged.
  */
 export async function verifyFiniteCompletenessCarrierV1(carrierInput, context) {
-  if (!plain(carrierInput)) {
-    refuse('SNAPBACK_COMPLETENESS_PROOF_INVALID', 'finite completeness carrier must be an object');
-  }
-  const hasProof = own(carrierInput, 'completenessProof') && carrierInput.completenessProof != null;
-  const hasWitness = own(carrierInput, 'authorizationWitness') && carrierInput.authorizationWitness != null;
-  const hasManifest = own(carrierInput, 'pageSetManifest') && carrierInput.pageSetManifest != null;
-  if (!hasProof && !hasWitness && !hasManifest) return null;
-  if (!hasProof || !hasWitness) {
-    refuse('SNAPBACK_COMPLETENESS_PROOF_INVALID', 'finite proof and authorization witness must be carried together');
-  }
-  if (!plain(context)) {
-    refuse('SNAPBACK_COMPLETENESS_TRUST_MISSING', 'finite verification context is unavailable');
-  }
-  const proof = requireProof(carrierInput.completenessProof);
-  const witness = prepareWitness(carrierInput.authorizationWitness);
-  const trusted = prepareTrustedActivation(context.trustedActivation);
-  if (!(context.resultBytes instanceof Uint8Array)) {
-    refuse('SNAPBACK_COMPLETENESS_RESULT_INVALID', 'finite result bytes must be Uint8Array');
-  }
-  if (!plain(context.authorization)) {
-    refuse('SNAPBACK_COMPLETENESS_WITNESS_INVALID', 'current authorization expectation is unavailable');
-  }
-  const pageIdentityDigest = pageIdentityDigestV1(proof.page);
-  if (context.pageIdentityDigest !== undefined && context.pageIdentityDigest !== pageIdentityDigest) {
-    refuse('SNAPBACK_COMPLETENESS_BINDING_INVALID', 'finite page identity does not match the requested page');
-  }
-  const record = {
-    address: ['snapback:client-materialization-address:v1', 'finite-carrier', context.materializationKey],
-    queryInstanceId: context.queryInstanceId,
-    activationHash: trusted.activationHash,
-    planHash: context.planHash,
-    productState: { freshness: 'current' },
-    authorityState: {
-      expected_authorization: {
-        incarnation: context.authorization.incarnation,
-        epoch: context.authorization.epoch,
-        version_stream: context.authorization.versionStream,
-      },
-    },
-  };
-  const fragment = {
-    pageIdentityDigest,
-    resultContractHash: context.resultContractHash,
-    bytes: context.resultBytes,
-    authorizedLeaseHash: null,
-  };
-  const validationContext = {
-    ...context,
-    authorizationWitness: witness,
-  };
-  const receipt = await verifySignatureCandidate(proof, trusted);
-  const receipts = new Set(receipt === null ? [] : [receipt]);
-  validateProof(record, fragment, proof, validationContext, receipts);
-  if (context.expectedVersion !== undefined && !same(proof.version, context.expectedVersion)) {
-    refuse('SNAPBACK_COMPLETENESS_VERSION_INVALID', 'finite proof version does not match the requested version');
-  }
-
-  let pageSetManifest = null;
-  if (hasManifest) {
-    pageSetManifest = preparePageSetManifestV1(carrierInput.pageSetManifest);
-    if (pageSetManifest === null) {
-      refuse('SNAPBACK_PAGE_SET_INVALID', 'finite page-set manifest is invalid');
-    }
-    const priorProofs = Array.isArray(context.priorProofs)
-      ? context.priorProofs.map(requireProof)
-      : [];
-    for (const prior of priorProofs) {
-      if (await verifySignatureCandidate(prior, trusted) === null) {
-        refuse('SNAPBACK_COMPLETENESS_SIGNATURE_INVALID', 'prior page proof signature is invalid');
-      }
-    }
-    validatePageSetProofChain([...priorProofs, proof], pageSetManifest);
-  }
-  return Object.freeze({ proof, authorizationWitness: witness, pageSetManifest });
+  const { verifyFiniteCompletenessCarrierV1: verify } = await import(
+    './finite-completeness-carrier.mjs'
+  );
+  return verify(carrierInput, context, [
+    own,
+    pageIdentityDigestV1,
+    plain,
+    preparePageSetManifestV1,
+    prepareTrustedActivation,
+    prepareWitness,
+    refuse,
+    requireProof,
+    same,
+    validatePageSetProofChain,
+    validateProof,
+    verifySignatureCandidate,
+  ]);
 }
 
 function proofMatchesRequest(proof, productState) {
@@ -1261,6 +1203,7 @@ export async function createMaterializationStore(storeHandle, {
   if (typeof storeHandle?.materializationTransaction !== 'function') {
     throw new TypeError('materialization store requires a v3 RQS store handle');
   }
+  const materializationRuntime = await import('./materialization-store-runtime.mjs');
   const listeners = new Map();
   const cache = new Map();
   const materializationLimits = Object.freeze({
@@ -1276,62 +1219,21 @@ export async function createMaterializationStore(storeHandle, {
     return record;
   };
 
-  const bootCandidates = await storeHandle.materializationTransaction('readonly', (view) => {
-    const candidates = [];
-    for (const [key] of view.materializations) {
-      const record = loadFrom(view, key);
-      if (record.productState.freshness !== 'retained') continue;
-      let context = null;
-      try {
-        context = resolveValidationContext?.({
-          address: clone(record.address),
-          record: clone(record),
-          phase: 'retained-boot',
-        }) ?? null;
-      } catch {
-        context = null;
-      }
-      if (!plain(context) || context.trustedActivation === null || context.retentionEligible === false) {
-        continue;
-      }
-      try { prepareTrustedActivation(context.trustedActivation); } catch { continue; }
-      for (const fragment of record.fragments) {
-        candidates.push({ proof: fragment.proof, trustedActivation: context.trustedActivation });
-      }
-    }
-    return candidates;
-  });
-  const bootSignatureReceipts = await verifySignatureCandidates(bootCandidates);
-  await storeHandle.materializationTransaction('readwrite', (view) => {
-    for (const [key, stored] of view.materializations) {
-      const record = decodeRecord(stored);
-      if (record === null) refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', `stored materialization ${key} is invalid`);
-      // volatile-online-v1 may share a durable carrier transaction domain,
-      // but its payload never survives a store reopen. The identity/fence
-      // remains so registration can establish the same current instance.
-      // @ref LLP 0157#d7--the-move-2-store-interface — volatile-online restarts unknown and never emulates durable fragments.
-      if (
-        record.fragments.length > 0
-        && (
-          record.storageProfile === 'volatile-online-v1'
-          || record.productState.freshness === 'current'
-        )
-      ) {
-        removePayload(view, key, record);
-      }
-      const validated = record.productState.freshness === 'retained'
-        ? revalidateRetainedRecord(
-          view,
-          key,
-          record,
-          resolveValidationContext,
-          'retained-boot',
-          bootSignatureReceipts,
-        ).record
-        : record;
-      cache.set(key, snapshotFor(validated));
-    }
-  });
+  const bootSignatureReceipts = await materializationRuntime.bootMaterializationStore([
+    storeHandle,
+    loadFrom,
+    resolveValidationContext,
+    clone,
+    plain,
+    prepareTrustedActivation,
+    verifySignatureCandidates,
+    decodeRecord,
+    refuse,
+    removePayload,
+    revalidateRetainedRecord,
+    cache,
+    snapshotFor,
+  ]);
 
   const publish = (key, snapshot) => {
     cache.set(key, snapshot);
@@ -1502,6 +1404,37 @@ export async function createMaterializationStore(storeHandle, {
     expectedFence,
     signatureReceipts,
   ) => {
+    return materializationRuntime.commitPageInView([
+      view,
+      key,
+      admittedAddress,
+      fragmentInput,
+      proofInput,
+      resolutionBundle,
+      expectedFence,
+      signatureReceipts,
+      loadFrom,
+      refuse,
+      assertActive,
+      assertFence,
+      exact,
+      prepareFragment,
+      requireContext,
+      resolveValidationContext,
+      retainedAuthorityValid,
+      validateProof,
+      prepareMembership,
+      applyOwnerInput,
+      clone,
+      snapshotFor,
+      membershipKey,
+      pageIdentityDigestV1,
+      projectAuthority,
+      encodeRecord,
+      enforceMaterializationEnvelope,
+      materializationLimits,
+      now,
+    ]);
     const record = loadFrom(view, key);
     if (record === null) refuse('SNAPBACK_MATERIALIZATION_NOT_INITIALIZED', 'page commit cannot allocate an instance');
     assertActive(record);
@@ -1619,6 +1552,22 @@ export async function createMaterializationStore(storeHandle, {
     resolutionBundle,
     expectedFence,
   ) => {
+    return materializationRuntime.commitLegacyAdoption([
+      address,
+      legacyKey,
+      expectedLegacyRecord,
+      fragmentInput,
+      proofInput,
+      resolutionBundle,
+      expectedFence,
+      preverifyAddressProofs,
+      assertActive,
+      assertFence,
+      write,
+      refuse,
+      same,
+      commitPageInView,
+    ]);
     if (typeof legacyKey !== 'string' || legacyKey.length === 0) {
       refuse('SNAPBACK_SINGLE_TABLE_ADOPTION_LEGACY_MISMATCH', 'legacy adoption key is invalid');
     }

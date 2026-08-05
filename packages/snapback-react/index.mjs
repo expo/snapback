@@ -20,8 +20,6 @@ import {
   isPreparedReactQueryGroup,
   consumePreparedReactQueryGroup,
   abandonConsumedReactQueryGroup,
-  LIVE_RECONNECT_BASE_DELAY_MS,
-  LIVE_RECONNECT_MAX_DELAY_MS,
 } from '@expo/snapback-client';
 export { bindSnapbackAppLifecycle } from '@expo/snapback-client';
 import { createAssetClient } from '@expo/snapback-client/assets';
@@ -50,6 +48,7 @@ const PRESENCE_SUBSCRIPTION_CAP = 64;
 const PRESENCE_CONSUMER_CAP = 256;
 const PRESENCE_PUBLISHER_CAP = 64;
 const OPTIMISTIC_LAYER_CAP = 256;
+const REACT_RUNTIME_FALLBACK_RETRY_MS = 250;
 const providerContext = createContext(null);
 let providerSequence = 0;
 // Local-uniqueness labels (provider instances, optimistic-layer ids): NOT
@@ -143,19 +142,6 @@ function deepFreeze(value, seen = new Set()) {
 
 function immutableClone(value) {
   return deepFreeze(structuredClone(value));
-}
-
-function projectionEquals(a, b) {
-  if (Object.is(a, b)) return true;
-  if (Array.isArray(a) || Array.isArray(b)) {
-    return Array.isArray(a) && Array.isArray(b) && a.length === b.length
-      && a.every((value, index) => projectionEquals(value, b[index]));
-  }
-  if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return false;
-  const aKeys = Object.keys(a);
-  const bKeys = Object.keys(b);
-  return aKeys.length === bKeys.length
-    && aKeys.every((key) => Object.hasOwn(b, key) && projectionEquals(a[key], b[key]));
 }
 
 function validateResultContract(contract, value, {
@@ -273,6 +259,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   const diagnostics = [];
   const connectionListeners = new Set();
   const allHandles = new Set();
+  const loadReactRuntime = typeof options.__loadReactRuntime === 'function'
+    ? options.__loadReactRuntime
+    : () => import('./react-runtime.mjs');
   let preparedGroup = options.preparedGroup ?? null;
   if (preparedGroup !== null && !isPreparedReactQueryGroup(preparedGroup)) {
     throw diagnosticError(
@@ -540,6 +529,11 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     return rows;
   };
 
+  const freezeBootDelivery = (source, snapshot) => Object.freeze({
+    ...snapshot,
+    ...(source.bootDelivery === null ? {} : { bootDelivery: source.bootDelivery }),
+  });
+
   // Channel B retained delivery (LLP 0090 D3 / LLP 0114 freshness axis): a
   // persisted/preloaded frame renders marked 'retained' — status stays
   // 'refreshing', never 'ready' — WITHOUT advancing the authoritative
@@ -551,14 +545,13 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     store.authoritativeData = validateResultContract(store.resultContract, rows);
     store.freshness = 'retained';
     captureRetention(store);
-    publish(store, Object.freeze({
+    publish(store, freezeBootDelivery(store, {
       status: 'refreshing',
       data: store.authoritativeData,
       error: null,
       connection: normalizeConnection(store.handle?.current?.connection ?? 'connecting'),
       freshness: 'retained',
       retention: store.retention,
-      ...(store.bootDelivery === null ? {} : { bootDelivery: store.bootDelivery }),
     }), generation);
   };
 
@@ -592,15 +585,20 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       }
     }
     store.optimisticLayers = store.optimisticLayers.filter((layer) => !layer.retired);
-    publish(store, Object.freeze({
+    publish(store, freezeBootDelivery(store, {
       status: 'ready',
       data: materializeStore(store),
       error: null,
       connection: normalizeConnection(store.handle?.current?.connection ?? 'live'),
       freshness: 'current',
       retention: store.retention,
-      ...(store.bootDelivery === null ? {} : { bootDelivery: store.bootDelivery }),
     }), generation);
+  };
+
+  const clearUnadoptedSubscription = (store) => {
+    if (store.unadoptedSubscriptionId === null) return;
+    unadoptedPreparedSubscriptions.delete(store.unadoptedSubscriptionId);
+    store.unadoptedSubscriptionId = null;
   };
 
   // @ref LLP 0114#bounded-subscribe-failure-window--2026-08-04 — a store whose
@@ -612,28 +610,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   // registration-ledger.md). Success, supersession, or any stopStore
   // lifecycle event (idle release, custody movement, dispose) clears it.
   const clearSubscribeFailureWindow = (store) => {
-    if (store.subscribeFailureRetryTimer !== null) {
-      clearTimeout(store.subscribeFailureRetryTimer);
-      store.subscribeFailureRetryTimer = null;
-    }
-    store.subscribeFailureAttempts = 0;
-  };
-
-  const scheduleSubscribeRetry = (store) => {
-    if (terminal || custodyPaused || store.subscribeFailureRetryTimer !== null) return;
-    if (store.consumers === 0 && store.pins === 0) return;
-    const delay = Math.min(
-      LIVE_RECONNECT_BASE_DELAY_MS * 2 ** Math.min(store.subscribeFailureAttempts, 30),
-      LIVE_RECONNECT_MAX_DELAY_MS,
-    );
-    store.subscribeFailureAttempts += 1;
-    store.subscribeFailureRetryTimer = setTimeout(() => {
-      store.subscribeFailureRetryTimer = null;
-      if (terminal || custodyPaused || store.handle) return;
-      if (store.consumers === 0 && store.pins === 0) return;
-      startStore(store);
-    }, delay);
-    store.subscribeFailureRetryTimer.unref?.();
+    store.retry?.();
+    store.retry = null;
   };
 
   const stopStore = (store, { blank = false } = {}) => {
@@ -666,7 +644,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     // the server now; it is an explicit invalidation, so it resets any held
     // failure window rather than waiting behind it.
     if (supersedes !== null) clearSubscribeFailureWindow(store);
-    else if (store.subscribeFailureRetryTimer !== null) return;
+    else if (store.retry !== null) return;
     if (
       store.registeredSubscription !== null
       && !registeredConnectionAttached
@@ -699,10 +677,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         : { registeredSubscription: store.registeredSubscription }),
       onUpdate(rows, detail) {
         if (store.blockedPreparedPublication) return;
-        if (store.unadoptedSubscriptionId !== null) {
-          unadoptedPreparedSubscriptions.delete(store.unadoptedSubscriptionId);
-          store.unadoptedSubscriptionId = null;
-        }
+        clearUnadoptedSubscription(store);
         if (detail?.kind === 'authorization_denied') {
           // A server-answered authorization denial (0137 A1-Expo f4: e.g. a
           // bearer custody transition to a lesser-privileged successor) is a
@@ -742,12 +717,9 @@ function createRegistry(binding, providerInstanceId, options = {}) {
     allHandles.add(handle);
     void handle.started().then(() => {
       if (store.generation !== generation || store.handle !== handle) return;
-      store.subscribeFailureAttempts = 0;
+      clearSubscribeFailureWindow(store);
       if (store.blockedPreparedPublication) return;
-      if (store.unadoptedSubscriptionId !== null) {
-        unadoptedPreparedSubscriptions.delete(store.unadoptedSubscriptionId);
-        store.unadoptedSubscriptionId = null;
-      }
+      clearUnadoptedSubscription(store);
       if (store.snapshot.status === 'pending' && Array.isArray(handle.current?.rows)) {
         // A handle that established holding only retained rows (offline boot
         // survival — LLP 0129 Phase 0) must not have them republished as
@@ -773,25 +745,51 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       }
     }, (error) => {
       if (store.generation !== generation || store.handle !== handle) return;
-      if (store.unadoptedSubscriptionId !== null) {
-        unadoptedPreparedSubscriptions.delete(store.unadoptedSubscriptionId);
-        store.unadoptedSubscriptionId = null;
-      }
-      store.handle = null;
-      allHandles.delete(handle);
-      if (error?.code === 'SNAPBACK_REACT_GROUP_ATTACH_EXPIRED') {
-        void recoverExpiredRegisteredConnection();
-        return;
-      }
-      publish(store, Object.freeze({
-        status: 'error',
-        data: undefined,
-        error: serializeError(error),
-        connection: 'error',
-        freshness: 'unknown',
-        retention: store.retention,
-      }), generation);
-      scheduleSubscribeRetry(store);
+      store.retry = () => {};
+      void loadReactRuntime().then(({ handleSubscribeFailure }) => (
+        handleSubscribeFailure([
+          store, error, generation, handle, clearUnadoptedSubscription,
+          allHandles, recoverExpiredRegisteredConnection, publish, serializeError,
+          () => !terminal && !custodyPaused,
+          () => startStore(store),
+        ])
+      )).catch((loadError) => {
+        recordDiagnostic(loadError);
+        if (
+          store.retry === null
+          || store.generation !== generation
+          || store.handle !== handle
+        ) return;
+        // The optional failure helper is an optimization, never the owner of
+        // correctness. If its chunk cannot load, synchronously cut the dead
+        // handle and publish the subscribe failure, then use a deliberately
+        // simple fixed-delay retry so the query remains recoverable.
+        clearUnadoptedSubscription(store);
+        store.handle = null;
+        allHandles.delete(handle);
+        publish(store, Object.freeze({
+          status: 'error',
+          data: undefined,
+          error: serializeError(error),
+          connection: 'error',
+          freshness: 'unknown',
+          retention: store.retention,
+        }), generation);
+        let retryHandle = setTimeout(() => {
+          retryHandle = null;
+          if (store.retry !== cancelRetry) return;
+          store.retry = null;
+          if (!terminal && !custodyPaused && (store.consumers > 0 || store.pins > 0)) {
+            startStore(store);
+          }
+        }, REACT_RUNTIME_FALLBACK_RETRY_MS);
+        retryHandle?.unref?.();
+        const cancelRetry = () => {
+          if (retryHandle !== null) clearTimeout(retryHandle);
+          retryHandle = null;
+        };
+        store.retry = cancelRetry;
+      });
     });
     void handle.settled().finally(() => allHandles.delete(handle));
     notifyConnection();
@@ -818,16 +816,13 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       args: descriptor.args,
       snapshot: readOnlySnapshot === null
         ? pending()
-        : Object.freeze({
+        : freezeBootDelivery(descriptor, {
             status: 'ready',
             data: readOnlySnapshot.rows,
             error: null,
             connection: 'idle',
             freshness: 'snapshot',
             retention: null,
-            ...(descriptor.bootDelivery === null
-              ? {}
-              : { bootDelivery: descriptor.bootDelivery }),
           }),
       consumers: 0,
       listeners: new Map(),
@@ -835,8 +830,7 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       generation: 0,
       idleEpoch: 0,
       handoffPending: 0,
-      subscribeFailureAttempts: 0,
-      subscribeFailureRetryTimer: null,
+      retry: null,
       resultContract: descriptor.resultContract,
       authoritativeData: readOnlySnapshot?.rows ?? Object.freeze([]),
       authoritativeRevision: readOnlySnapshot === null ? 0 : 1,
@@ -862,14 +856,13 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   };
 
   const publishMaterialized = (store) => {
-    publish(store, Object.freeze({
+    publish(store, freezeBootDelivery(store, {
       status: 'ready',
       data: materializeStore(store),
       error: null,
       connection: normalizeConnection(store.handle?.current?.connection ?? 'live'),
       freshness: store.freshness,
       retention: store.retention,
-      ...(store.bootDelivery === null ? {} : { bootDelivery: store.bootDelivery }),
     }));
   };
 
@@ -879,16 +872,23 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   // the user action during rebase. Observational only — warns once per
   // (mutation, query) pair and never changes admission or layer state.
   const replayAdvisoryKeys = new Set();
-  const warnIfReplayDivergent = (mutationReference, queryReference, layer, store, initialProjection) => {
-    // The exact `process.env.NODE_ENV` member expression stays inlinable by
-    // bundler defines; the catch covers hosts with no process global.
-    let nodeEnv;
-    try {
-      nodeEnv = process.env.NODE_ENV;
-    } catch {
-      nodeEnv = undefined;
-    }
-    if (nodeEnv === 'production') return;
+  const warnIfReplayDivergent = (
+    mutationReference,
+    queryReference,
+    layer,
+    store,
+    initialProjection,
+  ) => {
+    void import('./react-runtime.mjs').then((module) => module.warnIfReplayDivergent({
+        replayAdvisoryKeys,
+        mutationReference,
+        queryReference,
+        layer,
+        store,
+        initialProjection,
+        validateResultContract,
+      })).catch(recordDiagnostic);
+    return;
     const key = `${mutationReference.id} ${queryReference.id}`;
     if (replayAdvisoryKeys.has(key)) return;
     let detail = null;
@@ -1006,7 +1006,15 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       layer.update(immutableClone(store.snapshot.data), frozenArgs),
       { requireKnown: true },
     );
-    warnIfReplayDivergent(admittedMutation, queryReference, layer, store, initialProjection);
+    if (process.env.NODE_ENV !== 'production') {
+      warnIfReplayDivergent(
+        admittedMutation,
+        queryReference,
+        layer,
+        store,
+        initialProjection,
+      );
+    }
     store.optimisticLayers.push(layer);
     store.pendingMutations.set(id, layer);
     store.pins += 1;
@@ -2280,42 +2288,40 @@ export function useSnapbackQueries(entries) {
 // idempotent update and a complete-receipt matcher, so the paved toggle
 // recipe cannot express the replay hazard or the partial-receipt dip.
 export function projectRecordFields(recordId, fields, { idField = '_id' } = {}) {
+  const refuse = (message) => { throw new TypeError(`projectRecordFields ${message}`); };
   if (typeof recordId !== 'string' || recordId.length === 0) {
-    throw new TypeError('projectRecordFields requires a non-empty string record id');
+    refuse('requires a non-empty string record id');
   }
   if (typeof idField !== 'string' || idField.length === 0) {
-    throw new TypeError('projectRecordFields requires a non-empty string idField');
+    refuse('requires a non-empty string idField');
   }
   if (fields === null || typeof fields !== 'object' || Array.isArray(fields)) {
-    throw new TypeError('projectRecordFields requires an object of intended field values');
+    refuse('requires an object of intended field values');
   }
   const names = Object.keys(fields);
   if (names.length === 0) {
-    throw new TypeError('projectRecordFields requires at least one intended field');
+    refuse('requires at least one intended field');
   }
   if (names.includes(idField)) {
-    throw new TypeError(
-      'projectRecordFields must not project the id field it matches rows by',
-    );
+    refuse('must not project the id field it matches rows by');
   }
   for (const name of names) {
     const value = fields[name];
     if (value !== null && !['boolean', 'number', 'string'].includes(typeof value)) {
-      throw new TypeError(
-        `projectRecordFields field "${name}" must be a primitive intended outcome`,
-      );
+      refuse(`field "${name}" must be a primitive intended outcome`);
     }
   }
   const intended = Object.freeze({ ...fields });
+  const matches = (row) => row?.[idField] === recordId;
   return Object.freeze({
     update: (rows) => {
       if (!Array.isArray(rows)) {
-        throw new TypeError('projectRecordFields projects over a records query result');
+        refuse('projects over a records query result');
       }
-      return rows.map((row) => (row?.[idField] === recordId ? { ...row, ...intended } : row));
+      return rows.map((row) => (matches(row) ? { ...row, ...intended } : row));
     },
     isAuthoritative: (rows, receipt) => Array.isArray(rows) && rows.some((row) => {
-      if (row?.[idField] !== recordId) return false;
+      if (!matches(row)) return false;
       return names.every((name) => {
         const expected = receipt !== null && typeof receipt === 'object' && Object.hasOwn(receipt, name)
           ? receipt[name]
@@ -2593,9 +2599,10 @@ const BLANKED_UPLOAD = Object.freeze({
 });
 const IDLE_UPLOAD = Object.freeze({ ...BLANKED_UPLOAD, status: 'idle' });
 
-const assetRegistries = new WeakMap();
+let assetRegistries;
 
 function assetRegistryFor(provider) {
+  assetRegistries ??= new WeakMap();
   let registry = assetRegistries.get(provider);
   if (registry) return registry;
   const client = preparedReactBindingClient(provider.binding);

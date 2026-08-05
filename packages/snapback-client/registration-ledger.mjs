@@ -1,5 +1,6 @@
 import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
 import { rqsEntryKey } from './rqs-store.mjs';
+import { base64UrlNoPad, sha256 as sha256PureJs } from './rqs.mjs';
 
 export const QUERY_REGISTRATION_FORMAT_V1 = 'snapback.query-registration.v1';
 export const DURABLE_REGISTRATION_RECORD_CEILING = 512;
@@ -22,6 +23,99 @@ const own = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 const plain = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const clone = (value) => structuredClone(value);
 const same = (a, b) => canonicalizeClientValueV1(a) === canonicalizeClientValueV1(b);
+
+function preloadManifestRefusal(message) {
+  const error = new TypeError(`SNAPBACK_PRELOAD_MANIFEST_INVALID: ${message}`);
+  error.code = 'SNAPBACK_PRELOAD_MANIFEST_INVALID';
+  return error;
+}
+
+/**
+ * Project one server-resolved routes-manifest boot into the closed LLP 0166
+ * preload registration record. Registration identity belongs with the ledger,
+ * not the public Channel-A/C payload reader.
+ *
+ * @ref LLP 0166#registration-sources-mapped-to-shipped-machinery — Channel
+ * A/C boots are the concrete route instances from which preload demand is
+ * re-derived on every client boot.
+ */
+export function derivePreloadQueryRegistrationsV1(payload, {
+  authorityPartitionDigest,
+  bootId,
+  functionReferences = null,
+  entryFunctionReferences = null,
+  persist = true,
+} = {}) {
+  if (
+    typeof payload?.route !== 'string'
+    || payload.route.length === 0
+    || typeof payload?.generation !== 'string'
+    || payload.generation.length === 0
+    || !Array.isArray(payload?.entries)
+    || typeof authorityPartitionDigest !== 'string'
+    || !DIGEST.test(authorityPartitionDigest)
+    || typeof bootId !== 'string'
+    || bootId.length === 0
+  ) throw preloadManifestRefusal('route, generation, entries, owner partition, and boot identity are required');
+  const references = functionReferences && typeof functionReferences === 'object'
+    ? functionReferences
+    : {};
+  const registrations = payload.entries.map((entry, position) => {
+    if (!entry || typeof entry.function !== 'string' || entry.function.length === 0) {
+      throw preloadManifestRefusal(`entry ${position} lacks a concrete function`);
+    }
+    let canonicalArgs;
+    try {
+      canonicalArgs = JSON.parse(canonicalizeClientValueV1(entry.args ?? {}));
+    } catch {
+      throw preloadManifestRefusal(`entry ${position} args are not CanonicalClientValueV1`);
+    }
+    const suppliedReference = Array.isArray(entryFunctionReferences)
+      ? entryFunctionReferences[position]
+      : references[entry.function];
+    const functionReference = suppliedReference && typeof suppliedReference === 'object'
+      ? structuredClone(suppliedReference)
+      : { name: entry.function };
+    functionReference.authorityPartitionDigest = authorityPartitionDigest;
+    const identity = canonicalizeClientValueV1({
+      bootId,
+      generation: payload.generation,
+      route: payload.route,
+      position,
+      function: entry.function,
+      args: canonicalArgs,
+    });
+    const registrationId = `qpre1_${base64UrlNoPad(sha256PureJs(
+      utf8.encode(`snapback:preload-registration:v1:${identity}`),
+    ))}`;
+    return Object.freeze({
+      format: QUERY_REGISTRATION_FORMAT_V1,
+      registrationId,
+      source: 'preload',
+      ownerContext: { kind: 'route', routeId: payload.route },
+      functionReference,
+      canonicalArgs,
+      requestedScope: { kind: 'page-set', from: 'first', through: 'terminal' },
+      retentionRequest: persist === false ? 'none' : 'durable',
+      idleTtlClass: 'default',
+    });
+  });
+  const revisionIdentity = canonicalizeClientValueV1({
+    generation: payload.generation,
+    route: payload.route,
+    entries: registrations.map((registration) => ({
+      functionReference: registration.functionReference,
+      canonicalArgs: registration.canonicalArgs,
+    })),
+    persist: persist !== false,
+  });
+  return Object.freeze({
+    manifestRevision: `qpm1_${base64UrlNoPad(sha256PureJs(
+      utf8.encode(`snapback:preload-manifest-revision:v1:${revisionIdentity}`),
+    ))}`,
+    registrations: Object.freeze(registrations),
+  });
+}
 
 function refused(code, message) {
   const error = new Error(`${code}: ${message}`);
@@ -105,6 +199,13 @@ export function prepareQueryRegistrationV1(value) {
 
 function defaultAddressResolver(registration, clientStoreId) {
   const reference = registration.functionReference;
+  const authorityPartitionDigest = reference.authorityPartitionDigest;
+  if (!DIGEST.test(authorityPartitionDigest ?? '')) {
+    throw refused(
+      'SNAPBACK_QUERY_REGISTRATION_PARTITION_REQUIRED',
+      'registration requires its owner-issued authority partition digest',
+    );
+  }
   const explicit = reference.clientMaterializationAddress ?? reference.materializationAddress ?? null;
   if (Array.isArray(explicit)) {
     if (
@@ -113,11 +214,21 @@ function defaultAddressResolver(registration, clientStoreId) {
       || explicit[1] !== clientStoreId
       || !QMK.test(explicit[2] ?? '')
     ) throw refused('SNAPBACK_QUERY_REGISTRATION_ADDRESS_INVALID', 'admitted qmk1 address is invalid');
-    return { family: 'qmk1', address: clone(explicit), addressKey: explicit[2] };
+    return {
+      family: 'qmk1',
+      address: clone(explicit),
+      addressKey: explicit[2],
+      authorityPartitionDigest,
+    };
   }
   if (QMK.test(reference.materializationKey ?? '')) {
     const address = ['snapback:client-materialization-address:v1', clientStoreId, reference.materializationKey];
-    return { family: 'qmk1', address, addressKey: reference.materializationKey };
+    return {
+      family: 'qmk1',
+      address,
+      addressKey: reference.materializationKey,
+      authorityPartitionDigest,
+    };
   }
   const name = typeof reference.name === 'string' && reference.name.length > 0
     ? reference.name
@@ -127,7 +238,12 @@ function defaultAddressResolver(registration, clientStoreId) {
   if (name === null) {
     throw refused('SNAPBACK_QUERY_REGISTRATION_ADDRESS_INVALID', 'legacy reference has no alias-producing name');
   }
-  return { family: 'legacy-resume', address: null, addressKey: rqsEntryKey(name, registration.canonicalArgs) };
+  return {
+    family: 'legacy-resume',
+    address: null,
+    addressKey: rqsEntryKey(name, registration.canonicalArgs),
+    authorityPartitionDigest,
+  };
 }
 
 const priority = (source) => source === 'active' ? 0 : source === 'preload' ? 1 : 2;
@@ -178,6 +294,9 @@ export async function createRegistrationLedger({
   const addresses = new Map();
   const contexts = new Map();
   const revisions = new Map();
+  let preloadManifestRevision = null;
+  let preloadManifestSnapshot = null;
+  let preloadRegistrationIds = new Set();
   // Current rows belong to the volatile active registration that received
   // them. They are deliberately outside storeMeta/materialization payload:
   // a live delivery proves current presentation for this registration, not
@@ -193,13 +312,31 @@ export async function createRegistrationLedger({
   let resolveDrain = null;
 
   const resolve = (registration) => {
-    const result = resolver(registration);
+    const resolved = resolver(registration);
+    const authorityPartitionDigest = resolved?.authorityPartitionDigest
+      ?? registration.functionReference.authorityPartitionDigest;
+    const result = resolved && DIGEST.test(authorityPartitionDigest ?? '')
+      ? { ...resolved, authorityPartitionDigest }
+      : resolved;
     if (!plain(result) || !['qmk1', 'legacy-resume'].includes(result.family)) {
       throw refused('SNAPBACK_QUERY_REGISTRATION_ADDRESS_INVALID', 'address resolver returned an invalid family');
     }
+    if (!DIGEST.test(result.authorityPartitionDigest ?? '')) {
+      throw refused(
+        'SNAPBACK_QUERY_REGISTRATION_PARTITION_REQUIRED',
+        'address resolver omitted the owner-issued authority partition digest',
+      );
+    }
     nonempty(result.addressKey, 'resolved addressKey');
     if (result.family === 'qmk1') {
-      const expected = defaultAddressResolver({ ...registration, functionReference: { materializationAddress: result.address } }, clientStoreId);
+      const expected = defaultAddressResolver({
+        ...registration,
+        functionReference: {
+          materializationAddress: result.address,
+          authorityPartitionDigest: result.authorityPartitionDigest
+            ?? registration.functionReference.authorityPartitionDigest,
+        },
+      }, clientStoreId);
       if (expected.addressKey !== result.addressKey) {
         throw refused('SNAPBACK_QUERY_REGISTRATION_ADDRESS_INVALID', 'qmk1 address key does not match its address');
       }
@@ -339,9 +476,15 @@ export async function createRegistrationLedger({
     schedule();
   };
 
-  const add = (registrationInput, { durable = false } = {}) => {
+  const add = (registrationInput, { durable = false, preparedResolution = null } = {}) => {
     const registration = prepareQueryRegistrationV1(registrationInput);
-    const resolution = resolve(registration);
+    // Manifest replacement resolves and validates the complete candidate set
+    // before mutation. Reuse that snapshot during commit so a custom owner
+    // resolver cannot be observed twice and turn an admitted all-or-nothing
+    // revision into a partial update.
+    const resolution = preparedResolution === null
+      ? resolve(registration)
+      : clone(preparedResolution);
     const existing = records.get(registration.registrationId);
     if (existing) {
       if (same(existing.registration, registration) && same(existing.resolution, resolution)) return existing;
@@ -414,7 +557,13 @@ export async function createRegistrationLedger({
       if (revision <= (revisions.get(pair) ?? -1)) return { applied: false };
       const prepared = demands.map((registration) => {
         const admitted = prepareQueryRegistrationV1(registration);
-        if (admitted.source === 'active' && admitted.ownerContext.contextId !== contextId) {
+        if (admitted.source !== 'active') {
+          throw refused(
+            'SNAPBACK_QUERY_REGISTRATION_DURABILITY_MISMATCH',
+            'context demand sets contain active registrations only',
+          );
+        }
+        if (admitted.ownerContext.contextId !== contextId) {
           throw refused('SNAPBACK_QUERY_REGISTRATION_CONTEXT_MISMATCH', 'active registration belongs to another context');
         }
         const resolution = resolve(admitted);
@@ -449,6 +598,86 @@ export async function createRegistrationLedger({
       contexts.set(pair, nextIds);
       revisions.set(pair, revision);
       return { applied: true };
+    },
+
+    // @ref LLP 0166#the-registration-record — preload registrations are one
+    // boot-scoped, manifest-derived set. Replacement is all-or-nothing: the
+    // same record/byte ceilings used by durable authoring refuse an oversized
+    // manifest before ordinary add/remove commits any entry.
+    replacePreloadManifest({ manifestRevision, registrations }) {
+      try {
+        nonempty(manifestRevision, 'manifestRevision');
+        if (!Array.isArray(registrations)) {
+          throw refused('SNAPBACK_PRELOAD_MANIFEST_INVALID', 'preload registrations must be an array');
+        }
+        if (registrations.length > DURABLE_REGISTRATION_RECORD_CEILING) {
+          return { refused: { code: 'SNAPBACK_QUERY_REGISTRATION_LIMIT' } };
+        }
+        const prepared = registrations.map((registrationInput) => {
+          const registration = prepareQueryRegistrationV1(registrationInput);
+          if (registration.source !== 'preload') {
+            throw refused(
+              'SNAPBACK_QUERY_REGISTRATION_DURABILITY_MISMATCH',
+              'preload manifests contain preload registrations only',
+            );
+          }
+          if (recordBytes(registration) > DURABLE_REGISTRATION_BYTE_CEILING) {
+            throw refused(
+              'SNAPBACK_QUERY_REGISTRATION_BYTES_LIMIT',
+              'preload registration exceeds the per-record byte ceiling',
+            );
+          }
+          return { registration, resolution: resolve(registration) };
+        });
+        const ids = new Set();
+        for (const entry of prepared) {
+          const id = entry.registration.registrationId;
+          if (ids.has(id)) {
+            throw refused('SNAPBACK_QUERY_REGISTRATION_ID_CONFLICT', 'preload manifest repeats a registrationId');
+          }
+          ids.add(id);
+          const existing = records.get(id);
+          if (existing && !preloadRegistrationIds.has(id)) {
+            throw refused('SNAPBACK_QUERY_REGISTRATION_ID_CONFLICT', 'preload registrationId belongs to another source');
+          }
+        }
+        const snapshot = canonicalizeClientValueV1(registrations);
+        if (preloadManifestRevision === manifestRevision) {
+          if (preloadManifestSnapshot !== snapshot) {
+            throw refused(
+              'SNAPBACK_PRELOAD_MANIFEST_REVISION_CONFLICT',
+              'one manifest revision cannot name different preload registrations',
+            );
+          }
+          return { committed: true, added: 0, retired: 0, duplicate: true };
+        }
+        let retired = 0;
+        for (const id of preloadRegistrationIds) {
+          if (ids.has(id)) continue;
+          if (remove(id)) retired += 1;
+        }
+        let added = 0;
+        for (const { registration, resolution } of prepared) {
+          const existing = records.get(registration.registrationId);
+          if (
+            existing
+            && (!same(existing.registration, registration)
+              || !same(existing.resolution, resolution))
+          ) {
+            remove(registration.registrationId);
+          }
+          if (!records.has(registration.registrationId)) {
+            add(registration, { preparedResolution: resolution });
+            added += 1;
+          }
+        }
+        preloadRegistrationIds = ids;
+        preloadManifestRevision = manifestRevision;
+        preloadManifestSnapshot = snapshot;
+        return { committed: true, added, retired, duplicate: false };
+      } catch (error) {
+        return { refused: { code: error?.code ?? 'SNAPBACK_PRELOAD_MANIFEST_INVALID' } };
+      }
     },
 
     releaseContextDemands({ contextId }) {
@@ -553,6 +782,14 @@ export async function createRegistrationLedger({
       return [...records.values()]
         .filter((entry) => addressKey === null || entry.resolution.addressKey === addressKey)
         .map((entry) => clone({ registration: entry.registration, resolution: entry.resolution }));
+    },
+
+    // Construction seam for the broker/policy runtime. Keeping resolution in
+    // the ledger prevents shipped callers from forking the default-vs-owner-
+    // supplied address rules used by every registration mutation above.
+    resolveRegistration(registrationInput) {
+      const registration = prepareQueryRegistrationV1(registrationInput);
+      return resolve(registration);
     },
 
     // The liveQuery delivery path publishes only after its handle is both

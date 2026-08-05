@@ -239,7 +239,6 @@
     "notifications",
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing",
-    "sequence_allocation_v1",
     "agent_safe_storage_v1",
     "agent_safe_derived_deployment_fork_v1",
     "live_full_text_search_v1"
@@ -257,6 +256,7 @@
     "mixed_bundle_boot_v2": "experimental",
     "registered_bundle_boot_v1": "experimental",
     "result_contract_v1": "experimental",
+    "sequence_allocation_v1": "experimental",
     "single_table_v1": "experimental",
     "snapshot_batch_v1": "experimental",
     "vector_search_v1": "experimental",
@@ -385,7 +385,8 @@
     "liveDelivery": "live_replace",
     "retention": [
       "none",
-      "opaque-authorized-snapshot-v1"
+      "opaque-authorized-snapshot-v1",
+      "result-transform-snapshot-v1"
     ]
   },
   "replaceOnlyQueries": true,
@@ -492,6 +493,7 @@
     "permission_epoch_resync",
     "registered_bundle_boot_v1",
     "relational_query_v1",
+    "sequence_allocation_v1",
     "snapshot_batch_v1",
     "single_table_v1",
     "migration_keyset_scan_v1",

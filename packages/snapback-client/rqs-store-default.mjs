@@ -33,22 +33,23 @@ const REQUIRED_NATIVE_FILES_METHODS = [
 let nativeRqsFiles = null;
 
 export function registerNativeRqsFiles(provider) {
-  if (typeof provider?.directory !== 'string' || provider.directory.length === 0) {
+  const { files, directory, implementation = null, randomBytes } = provider ?? {};
+  if (typeof directory !== 'string' || directory.length === 0) {
     throw new TypeError('native RQS files registration requires a non-empty directory');
   }
   for (const method of REQUIRED_NATIVE_FILES_METHODS) {
-    if (typeof provider?.files?.[method] !== 'function') {
+    if (typeof files?.[method] !== 'function') {
       throw new TypeError(`native RQS files registration requires files.${method}()`);
     }
   }
-  if (provider.randomBytes !== undefined && typeof provider.randomBytes !== 'function') {
-    throw new TypeError('native RQS files registration randomBytes must be a function');
+  if (randomBytes !== undefined && typeof randomBytes !== 'function') {
+    throw new TypeError('randomBytes must be a function');
   }
   nativeRqsFiles = Object.freeze({
-    files: provider.files,
-    directory: provider.directory,
-    implementation: provider.implementation ?? null,
-    randomBytes: provider.randomBytes,
+    files,
+    directory,
+    implementation,
+    randomBytes,
   });
   return nativeRqsFiles;
 }
@@ -62,39 +63,27 @@ const env = (name) => {
   return typeof value === 'string' && value.length > 0 ? value : null;
 };
 
-const unavailableFallback = (reason) => ({
-  store: null,
+const resolvedStore = (store, implementation, durable, reason) => ({
+  store,
   info: Object.freeze({
     source: 'default',
-    implementation: null,
-    durable: false,
+    implementation,
+    durable,
     reason,
   }),
 });
+const unavailableFallback = (reason) => resolvedStore(null, null, false, reason);
 
 // @ref LLP 0008#decision-dk-9--client-local-store-mandate-2026-07-02 — an
 // unavailable optional store degrades without taking the Online client down.
 // LLP 0157's store-local handle key still stays CSPRNG-only: when even the
 // memory carrier cannot mint it, report the unavailable rung instead of
 // weakening the key or surfacing an internal constructor diagnostic.
-const memoryFallback = (reason) => {
-  try {
-    return {
-      store: createMemoryRqsResumeStore(),
-      info: Object.freeze({
-        source: 'default',
-        implementation: 'memory',
-        durable: false,
-        reason,
-      }),
-    };
-  } catch (error) {
-    if (error?.code === 'SNAPBACK_RQS_STORE_RANDOM_UNAVAILABLE') {
-      return unavailableFallback('secure-random-unavailable');
-    }
-    throw error;
-  }
-};
+const memoryFallback = (reason) => (
+  typeof globalThis.crypto?.getRandomValues === 'function'
+    ? resolvedStore(createMemoryRqsResumeStore(), 'memory', false, reason)
+    : unavailableFallback('secure-random-unavailable')
+);
 
 /// Stable per-origin identity for the default file store: two clients of the
 /// same server share (single-writer) one blob; different servers never do.
@@ -124,15 +113,7 @@ export function resolveDefaultRqsStore({ baseUrl } = {}) {
   const hasWebLocks = typeof globalThis.navigator?.locks?.request === 'function';
   if (hasIndexedDb && hasWebLocks) {
     try {
-      return {
-        store: createIndexedDbRqsResumeStore(),
-        info: Object.freeze({
-          source: 'default',
-          implementation: 'indexeddb',
-          durable: true,
-          reason: null,
-        }),
-      };
+      return resolvedStore(createIndexedDbRqsResumeStore(), 'indexeddb', true, null);
     } catch (error) {
       return memoryFallback(error?.code ?? 'indexeddb-unavailable');
     }
@@ -154,14 +135,8 @@ export function resolveDefaultRqsStore({ baseUrl } = {}) {
       });
       const durable = store.durability().durable === true;
       return {
-        store,
+        ...resolvedStore(store, 'file', durable, durable ? null : 'native-files-no-power-loss-cut'),
         randomBytes: nativeRqsFiles.randomBytes,
-        info: Object.freeze({
-          source: 'default',
-          implementation: 'file',
-          durable,
-          reason: durable ? null : 'native-files-no-power-loss-cut',
-        }),
       };
     } catch (error) {
       return memoryFallback(error?.code ?? 'native-files-unavailable');
@@ -197,15 +172,7 @@ export function resolveDefaultRqsStore({ baseUrl } = {}) {
               : RQS_STORE_GC_DEFAULT_MAX_AGE_MS,
           }).catch(() => {});
         }
-        return {
-          store,
-          info: Object.freeze({
-            source: 'default',
-            implementation: 'file',
-            durable: true,
-            reason: null,
-          }),
-        };
+        return resolvedStore(store, 'file', true, null);
       } catch (error) {
         return memoryFallback(error?.code ?? 'file-store-unavailable');
       }

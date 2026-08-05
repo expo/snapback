@@ -1,16 +1,40 @@
-// Dormant, pure result-transform.v1 reference evaluator. Nothing in the
-// client store imports this module until LLP 0166's ship gate fires.
+// Shipped result-transform.v1 evaluator. The pure functions below remain the
+// cross-runtime reference; `evaluateAdmittedResultTransformV1` is the closed
+// carrier/owner gate used by the client invocation seam.
 //
 // @ref LLP 0166#the-evaluation-model-result-transformv1 — the transform is a
 //   closed record over one established result with the fixed
 //   base -> client overlay -> filter -> order -> limit pipeline.
 
 import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
+import { refuseLocalEvaluation } from './evaluation-floor.mjs';
 
 export const RESULT_TRANSFORM_V1_FORMAT = 'snapback.result-transform.v1';
 export const RESULT_TRANSFORM_V1_HASH_DOMAIN = 'snapback:result-transform:v1:';
 export const RESULT_TRANSFORM_V1_JAVASCRIPT_EVALUATOR_ID =
   'snapback.result-transform.javascript.v1';
+export const RESULT_TRANSFORM_V1_RUST_EVALUATOR_ID =
+  'snapback.result-transform.rust.v1';
+export const RESULT_TRANSFORM_V1_RETENTION_CLASS =
+  'result-transform-snapshot-v1';
+
+// @ref LLP 0166#ship-gate — this immutable receipt is code-owned admission,
+//   not a caller-supplied feature flag. Browser IndexedDB and Node/file are
+//   the D9 carriers that claim the evaluator; memory and the currently
+//   non-durable Expo adapter remain on the refusal floor.
+export const RESULT_TRANSFORM_V1_SHIP_GATE = Object.freeze({
+  firedOn: '2026-08-04',
+  corpus: 'snapback-data-tier.result-transform-v1',
+  corpusCases: 56,
+  corpusFormatVersion: 1,
+  profileVersion: 1,
+  transformHash: 'TransformHashV1',
+  evaluatorIdentities: Object.freeze({
+    javascript: RESULT_TRANSFORM_V1_JAVASCRIPT_EVALUATOR_ID,
+    rust: RESULT_TRANSFORM_V1_RUST_EVALUATOR_ID,
+  }),
+  claimingCarrierContexts: Object.freeze(['browser-indexeddb', 'file-node']),
+});
 
 export const RESULT_TRANSFORM_V1_REFUSAL_CODES = Object.freeze({
   PLAN_INVALID: 'SNAPBACK_RESULT_TRANSFORM_PLAN_INVALID',
@@ -26,6 +50,13 @@ export const RESULT_TRANSFORM_V1_REFUSAL_CODES = Object.freeze({
   MIXED_VERSION: 'SNAPBACK_RESULT_TRANSFORM_MIXED_VERSION',
   OVERLAY_INPUT_REQUIRED: 'SNAPBACK_RESULT_TRANSFORM_OVERLAY_INPUT_REQUIRED',
 });
+
+export function resultTransformCarrierContextV1(carrier) {
+  if (carrier?.durable !== true) return null;
+  if (carrier.implementation === 'indexeddb') return 'browser-indexeddb';
+  if (carrier.implementation === 'file') return 'file-node';
+  return null;
+}
 
 const PLAN_FIELDS = Object.freeze([
   'format',
@@ -491,6 +522,27 @@ export function evaluateResultTransformWithClientLayersV1({
   const baseRows = assembleResultTransformBaseV1(request.base);
   const clientOverlayRows = materializeClientOverlayRowsV1(baseRows, overlayLayers);
   return evaluateResultTransformReferenceV1({ ...request, clientOverlayRows });
+}
+
+/**
+ * The post-gate invocation boundary. `admission` is assembled from the
+ * generated owner artifact and the resolved carrier before this function is
+ * called; an unadmitted class/carrier reaches the old floor without the
+ * transform request being inspected.
+ */
+export function evaluateAdmittedResultTransformV1(admission, request) {
+  const carrierContext = resultTransformCarrierContextV1(admission?.carrier);
+  if (
+    admission?.retentionClass !== RESULT_TRANSFORM_V1_RETENTION_CLASS
+    || carrierContext === null
+    || !RESULT_TRANSFORM_V1_SHIP_GATE.claimingCarrierContexts.includes(carrierContext)
+  ) {
+    return refuseLocalEvaluation(request);
+  }
+  if (Object.prototype.hasOwnProperty.call(request ?? {}, 'overlayLayers')) {
+    return evaluateResultTransformWithClientLayersV1(request);
+  }
+  return evaluateResultTransformReferenceV1(request);
 }
 
 async function sha256Hex(bytes) {

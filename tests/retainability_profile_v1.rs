@@ -1,10 +1,12 @@
 //! LLP 0053 retained/offline authorization admission profile.
 
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use snapback::manifest::{
     AuthRequirement, AuthorizationInputDimension, DependencySummary, FilterExpr, FilterOp,
-    FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, HandlerPlan, IbexModule,
-    MutationPlan, QueryPlan, ValueExpr,
+    FunctionArgsContract, FunctionDefinition, FunctionKind, FunctionManifest,
+    FunctionResultContract, FunctionRuntime, HandlerPlan, IbexModule, MutationPlan, QueryPlan,
+    RelationalQueryPlan, ResultValueContract, ValueExpr, single_node_identity_v1,
 };
 
 fn query_plan(filters: Vec<FilterExpr>) -> QueryPlan {
@@ -44,12 +46,75 @@ fn user_scoped_query() -> FunctionDefinition {
 }
 
 fn validate(function: FunctionDefinition) -> Result<(), Box<snapback::diagnostic::SnapbackError>> {
+    let acknowledged_experimental_capabilities = if matches!(
+        &function.runtime,
+        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(_))
+    ) {
+        vec!["relational_query_v1".to_owned()]
+    } else {
+        Vec::new()
+    };
     FunctionManifest {
         functions: vec![function],
+        acknowledged_experimental_capabilities,
         ..FunctionManifest::default()
     }
     .validate_artifact()
     .map_err(Box::new)
+}
+
+fn owner_visible_relational_query() -> FunctionDefinition {
+    let corpus: serde_json::Value =
+        serde_json::from_str(include_str!("conformance/relational/corpus.v1.json"))
+            .expect("relational corpus JSON");
+    let plan: RelationalQueryPlan = serde_json::from_value(corpus["cases"][0]["plan"].clone())
+        .expect("owner-visible relational plan");
+    let mut function = FunctionDefinition::new(
+        "booksWithAuthors",
+        FunctionKind::LiveQuery,
+        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)),
+    );
+    function.retainable = true;
+    function.required_capabilities = vec![
+        "args_contract_v1".to_owned(),
+        "live_subscriptions".to_owned(),
+        "relational_query_v1".to_owned(),
+        "result_contract_v1".to_owned(),
+    ];
+    let args_contract = FunctionArgsContract::default();
+    function.args_contract_hash = Some(contract_hash(
+        b"snapback:function-args:v2\n",
+        &args_contract,
+    ));
+    function.args_contract = Some(args_contract);
+    function.result_contract = FunctionResultContract::Records {
+        record: ResultValueContract::Object {
+            fields: Vec::new(),
+            allow_extra: false,
+        },
+        rows: None,
+    };
+    function.result_contract_hash = Some(contract_hash(
+        b"snapback:function-result:v1\n",
+        &function.result_contract,
+    ));
+    function.authorization_dependence = vec![AuthorizationInputDimension::UserId];
+    function.read_set_summary = DependencySummary {
+        mode: Some("relational".to_owned()),
+        primary_table: Some("books".to_owned()),
+        tables: vec!["books".to_owned(), "authors".to_owned()],
+        auth_scope_field: None,
+    };
+    function
+}
+
+fn contract_hash(prefix: &[u8], contract: &impl serde::Serialize) -> String {
+    let value = serde_json::to_value(contract).expect("contract serializes");
+    let canonical = snapback::rqs::jcs(&value).expect("contract has canonical JSON");
+    let mut hash = Sha256::new();
+    hash.update(prefix);
+    hash.update(canonical.as_bytes());
+    format!("sha256:{:x}", hash.finalize())
 }
 
 #[test]
@@ -95,6 +160,40 @@ fn immutable_user_identity_and_authority_independent_are_the_retainable_profiles
     public.retainable = true;
     public.read_set_summary = exact_summary(None);
     validate(public).expect("authority-independent public result is retainable");
+}
+
+#[test]
+fn relational_owner_reclassification_rotates_identity_without_mutating_the_old_class() {
+    let opaque = owner_visible_relational_query();
+    validate(opaque.clone()).expect("legacy opaque relational class remains admitted");
+    let opaque_identity = single_node_identity_v1(&opaque, None)
+        .expect("opaque identity")
+        .expect("relational identity");
+    assert_eq!(
+        opaque_identity.normalized_composite_plan["classification"]["retention"],
+        "opaque-authorized-snapshot-v1"
+    );
+
+    let mut reclassified = opaque.clone();
+    reclassified.retention_class = Some("result-transform-snapshot-v1".to_owned());
+    validate(reclassified.clone()).expect("owner-reclassified result-transform class is admitted");
+    let reclassified_identity = single_node_identity_v1(&reclassified, None)
+        .expect("reclassified identity")
+        .expect("relational identity");
+    assert_eq!(
+        reclassified_identity.normalized_composite_plan["classification"]["retention"],
+        "result-transform-snapshot-v1"
+    );
+    assert_ne!(opaque_identity.plan_hash, reclassified_identity.plan_hash);
+
+    let mut forged = opaque;
+    forged.retention_class = Some("future-class".to_owned());
+    let error = validate(forged).unwrap_err();
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_AUTH_UNDECLARABLE_RETENTION"
+    );
+    assert_eq!(error.diagnostic.details["reason"], "unknownRetentionClass");
 }
 
 #[test]

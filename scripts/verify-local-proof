@@ -113,6 +113,7 @@ run local-store-publication -- node tests/conformance/local-persistent-store-pub
 run snapshot-batch-parity -- node tests/conformance/snapshot-batch-sbsb1-parity-v1.mjs
 run runtime-package-authority-fixtures -- node --test scripts/runtime-package-authority.test.mjs
 run package-cold-install-fixtures -- node --test scripts/snapback-package-cold-install.test.mjs
+run result-transform-ship-gate -- node tests/conformance/result-transform-ship-gate-v1.mjs --check
 # @ref LLP 0041#unreviewed-post-round-correction-publication-lease-and-rollback
 # — candidate publication and default-tag promotion are separate operations;
 # the latter is full-vector guarded and reverse-rolls back without clobbering

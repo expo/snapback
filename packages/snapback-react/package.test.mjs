@@ -101,6 +101,7 @@ function createFakeClient({
   let releases = 0;
   let managerCloses = 0;
   let registeredRetirements = 0;
+  const preloadReplacements = [];
   const serverRegistrations = new Set();
   const barriers = [];
   let barrierUnregistered = 0;
@@ -129,6 +130,10 @@ function createFakeClient({
       };
     },
     async authSession() { return { activeMode: authMode }; },
+    async __replacePreloadManifestInForce(routesManifest, currentPayload, options) {
+      preloadReplacements.push({ routesManifest, currentPayload, options });
+      return { committed: true, added: 0, retired: 0, duplicate: false };
+    },
     allocateLiveQueryNamespace(ref, args) {
       namespaceSequence += 1;
       return Object.freeze({
@@ -336,6 +341,7 @@ function createFakeClient({
         durableConsumers: durableConsumers.size,
         startOptions,
         mutationOptions,
+        preloadReplacements,
       };
     },
   };
@@ -564,6 +570,9 @@ const routes = Object.freeze({
 const primedBinding = await prepareReactBindingForClient(primedFake, {
   generatedManifest: { functions: generatedManifest, routes },
 });
+assert.equal(primedFake.inspection().preloadReplacements.length, 1);
+assert.equal(primedFake.inspection().preloadReplacements[0].routesManifest, routes);
+assert.equal(primedFake.inspection().preloadReplacements[0].options.functionReferences.feed.name, 'feed');
 const generatedGroup = primedBinding.groups['/workspace/:id'];
 assert.equal(generatedGroup.artifactKind, 'queryGroupReference');
 assert.match(generatedGroup.definitionHash, /^sha256:[0-9a-f]{64}$/);

@@ -131,6 +131,7 @@ async function demandedLedger({ complete }) {
         'store-1',
         QMK,
       ],
+      authorityPartitionDigest: digest('3'),
       localReadCoverage: coverage,
     },
     canonicalArgs: {},

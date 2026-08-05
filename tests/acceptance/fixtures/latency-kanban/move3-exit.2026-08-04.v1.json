@@ -7,7 +7,7 @@
     "LLP 0051 D5"
   ],
   "source": {
-    "revision": "c169e90a749883dbd0f6e789e45e63e8a50e157e",
+    "revision": "126d69d62ebd46a8499074cb000e1ebd6da7fecc",
     "dirty": true,
     "files": [
       {
@@ -28,11 +28,11 @@
       },
       {
         "path": "demos/latency-kanban/snapback/trusted-composition-activation.json",
-        "sha256": "c7dbc1f75f8230674d1a5572507ff706b931135fe830d603e6fc77caf55c432f"
+        "sha256": "ace552c405990c9ccf890fa8924320881ee1aafc24a7c6a724581fcf31de7c0b"
       },
       {
         "path": "demos/latency-kanban/snapback/generated/artifacts.json",
-        "sha256": "4b56189d0d73cf70eb8843f787b7dc1f5010b2eed2e954e990143035ff89e894"
+        "sha256": "68d38c74c826d5bf50196ad3a60c003ec63bc05fc13720197aa5e2df1fe720c5"
       },
       {
         "path": "demos/latency-kanban/src/App.tsx",
@@ -44,7 +44,7 @@
       },
       {
         "path": "packages/snapback-codegen/index.mjs",
-        "sha256": "e2ee3a77d1a4f300e3fb13519951662997451586856bcbe961ee671a9476f39c"
+        "sha256": "0dcdd28e09e081b0ea3382cfa71daa05e117874131d17cf9ac8a5537d25949fa"
       }
     ]
   },
@@ -52,12 +52,12 @@
     "status": "PASS",
     "activation": {
       "format": "snapback.composition-activation-preparation.v1",
-      "activationHash": "sha256:596b3f364f053d005257488eddbe126f55d2d5e4261bfb80a77224d49c5e4b36",
+      "activationHash": "sha256:afadac277fc98bcdf83cb762e5e9a32addae064511d8cf44bbf9a645da3658a2",
       "deploymentId": "latency-kanban-move3-exit"
     },
     "runtime": {
       "serverBinary": "target/debug/snapback",
-      "serverBinarySha256": "bada0aabf14710042a2bf3889cfc96e759b4ff71f3462d2aaa5c6dcc0bbbff3f",
+      "serverBinarySha256": "ac396a4b4419da00ad28f3383f3f24eb9561898d25bf28a5f56fd407f396885f",
       "launchRung": "configured"
     }
   },
@@ -69,12 +69,12 @@
           "createCard": {
             "functionId": "latency-kanban:createCard",
             "implementationHash": "sha256:f03e995e3d12c5ad56ae6f9e25748385b6ad457295dd3489b8ab1cedf3deb237",
-            "operationHash": "sha256:e4a0c360e5e22ce6dada57eb0ce52d58655f588d34b75e66f728d420b4010d6b",
+            "operationHash": "sha256:1fadcffcb00c492b9d62ea23c53e0939aa88be595fd15146cfe615aedd3cef71",
             "activation": {
               "appId": "latency-kanban",
-              "bundleHash": "sha256:3b4abfa9f89e1470",
-              "inputsHash": "14ede5a838c48e7532f233a0f7fca42fe9a519d7714d0a5939104e7accf60d6d",
-              "schemaHash": "sha256:e8d38ecdeec500fa",
+              "bundleHash": "sha256:675b0384d7322b7b",
+              "inputsHash": "25208983e8c83b0f5aff66aaedd2f4d2796f268ef0c76c963d779142e92c188d",
+              "schemaHash": "sha256:c673c2e64be9df78",
               "schemaVersion": "snapback.v0"
             },
             "steps": [
@@ -87,12 +87,12 @@
           "editCard": {
             "functionId": "latency-kanban:editCard",
             "implementationHash": "sha256:1e074ed6da2974b0ff55b4f3d1bcf3968539c1c629250fbac891b8be45be262e",
-            "operationHash": "sha256:a412e2b1725f5a5335202082ace0c85df5b1e40f34d3be0ac7deef0b86c21286",
+            "operationHash": "sha256:15d0404eb473964efab47186832838b40b47040e4e04ce8beef7981fc8558ecb",
             "activation": {
               "appId": "latency-kanban",
-              "bundleHash": "sha256:3b4abfa9f89e1470",
-              "inputsHash": "14ede5a838c48e7532f233a0f7fca42fe9a519d7714d0a5939104e7accf60d6d",
-              "schemaHash": "sha256:e8d38ecdeec500fa",
+              "bundleHash": "sha256:675b0384d7322b7b",
+              "inputsHash": "25208983e8c83b0f5aff66aaedd2f4d2796f268ef0c76c963d779142e92c188d",
+              "schemaHash": "sha256:c673c2e64be9df78",
               "schemaVersion": "snapback.v0"
             },
             "steps": [
@@ -109,12 +109,12 @@
           "assignCard": {
             "functionId": "latency-kanban:assignCard",
             "implementationHash": "sha256:f270b8b7c3513a55460013685e03cfafea8c0551bfa3286033d667359fac3015",
-            "operationHash": "sha256:ab014362296b1aaa24a364add582e606a00403f821e6fd0dc476a114851c8408",
+            "operationHash": "sha256:4095cf7e6b12484bdd5fd3b327e2b9609014c89e769698d8ff08812d418c5351",
             "activation": {
               "appId": "latency-kanban",
-              "bundleHash": "sha256:3b4abfa9f89e1470",
-              "inputsHash": "14ede5a838c48e7532f233a0f7fca42fe9a519d7714d0a5939104e7accf60d6d",
-              "schemaHash": "sha256:e8d38ecdeec500fa",
+              "bundleHash": "sha256:675b0384d7322b7b",
+              "inputsHash": "25208983e8c83b0f5aff66aaedd2f4d2796f268ef0c76c963d779142e92c188d",
+              "schemaHash": "sha256:c673c2e64be9df78",
               "schemaVersion": "snapback.v0"
             },
             "steps": [
@@ -131,12 +131,12 @@
           "archiveCard": {
             "functionId": "latency-kanban:archiveCard",
             "implementationHash": "sha256:3a59d0ca596a41e7d6e1a97034bc5e27f7d293820c20c1fe270afaaa37b9ca8c",
-            "operationHash": "sha256:f495bae7e50c97ed1b8bf970ec2cdde8c80c0f88a9c7b523ed4a379052a448ba",
+            "operationHash": "sha256:a1bc1fff8fe157883c6c9fb89cde69f822fb637ff45dc31524bdb70a1636f0c4",
             "activation": {
               "appId": "latency-kanban",
-              "bundleHash": "sha256:3b4abfa9f89e1470",
-              "inputsHash": "14ede5a838c48e7532f233a0f7fca42fe9a519d7714d0a5939104e7accf60d6d",
-              "schemaHash": "sha256:e8d38ecdeec500fa",
+              "bundleHash": "sha256:675b0384d7322b7b",
+              "inputsHash": "25208983e8c83b0f5aff66aaedd2f4d2796f268ef0c76c963d779142e92c188d",
+              "schemaHash": "sha256:c673c2e64be9df78",
               "schemaVersion": "snapback.v0"
             },
             "steps": [
@@ -153,12 +153,12 @@
           "reorderCard": {
             "functionId": "latency-kanban:reorderCard",
             "implementationHash": "sha256:432cb52a691537944d1b9c0765bce61701268709f71c0221ce340218ad974ee1",
-            "operationHash": "sha256:fdee090aaccac299bb358fe9b41ff3c26a0feb1eb8128635f6f228f0c6f28bf3",
+            "operationHash": "sha256:6a64668e8b799214088519238ae3706aba4fd4945c2d929cbe0f4cafdaace063",
             "activation": {
               "appId": "latency-kanban",
-              "bundleHash": "sha256:3b4abfa9f89e1470",
-              "inputsHash": "14ede5a838c48e7532f233a0f7fca42fe9a519d7714d0a5939104e7accf60d6d",
-              "schemaHash": "sha256:e8d38ecdeec500fa",
+              "bundleHash": "sha256:675b0384d7322b7b",
+              "inputsHash": "25208983e8c83b0f5aff66aaedd2f4d2796f268ef0c76c963d779142e92c188d",
+              "schemaHash": "sha256:c673c2e64be9df78",
               "schemaVersion": "snapback.v0"
             },
             "steps": [
@@ -181,16 +181,16 @@
       "evidence": {
         "allFivePaintedFromIr": true,
         "latencyMs": {
-          "create": 21.903,
-          "edit": 20.861,
-          "assign": 24.431,
-          "archive": 24.486,
-          "reorder": 148.321
+          "create": 21.157,
+          "edit": 20.605,
+          "assign": 21.185,
+          "archive": 23.009,
+          "reorder": 20.924
         },
-        "lockedRefusalLocalMs": 49.84,
+        "lockedRefusalLocalMs": 29.966,
         "rapidMoves": {
           "count": 20,
-          "stackPaintMs": 747.548,
+          "stackPaintMs": 294.575,
           "peakLayers": 20,
           "visibleRowsBefore": 2,
           "visibleRowsAfter": 2
@@ -203,66 +203,66 @@
         "settlements": [
           {
             "verb": "create",
-            "clientMutationId": "mut_01kz742ndme5fvx775fjtkr618",
-            "operationHash": "sha256:e4a0c360e5e22ce6dada57eb0ce52d58655f588d34b75e66f728d420b4010d6b",
+            "clientMutationId": "mut_01kz88q2epfcx9rq47sgkdq0py",
+            "operationHash": "sha256:1fadcffcb00c492b9d62ea23c53e0939aa88be595fd15146cfe615aedd3cef71",
             "retiredLayer": true
           },
           {
             "verb": "edit",
-            "clientMutationId": "mut_01kz742neyevd9arrepvskbawy",
-            "operationHash": "sha256:a412e2b1725f5a5335202082ace0c85df5b1e40f34d3be0ac7deef0b86c21286",
+            "clientMutationId": "mut_01kz88q2g8f44bynpdqmt5zm1n",
+            "operationHash": "sha256:15d0404eb473964efab47186832838b40b47040e4e04ce8beef7981fc8558ecb",
             "retiredLayer": true
           },
           {
             "verb": "assign",
-            "clientMutationId": "mut_01kz742ngqf1nb8fz7qsr63wdt",
-            "operationHash": "sha256:ab014362296b1aaa24a364add582e606a00403f821e6fd0dc476a114851c8408",
+            "clientMutationId": "mut_01kz88q2hkexa9p9x73hqkn9pm",
+            "operationHash": "sha256:4095cf7e6b12484bdd5fd3b327e2b9609014c89e769698d8ff08812d418c5351",
             "retiredLayer": true
           },
           {
             "verb": "reorder",
-            "clientMutationId": "mut_01kz742nn3f3vsk83wm9rz1ej2",
-            "operationHash": "sha256:fdee090aaccac299bb358fe9b41ff3c26a0feb1eb8128635f6f228f0c6f28bf3",
+            "clientMutationId": "mut_01kz88q2jxfxpt2e6jps04z4yk",
+            "operationHash": "sha256:6a64668e8b799214088519238ae3706aba4fd4945c2d929cbe0f4cafdaace063",
             "retiredLayer": true
           },
           {
             "verb": "archive",
-            "clientMutationId": "mut_01kz742nwbfm6vz86j94gfk8tm",
-            "operationHash": "sha256:f495bae7e50c97ed1b8bf970ec2cdde8c80c0f88a9c7b523ed4a379052a448ba",
+            "clientMutationId": "mut_01kz88q2m6fyfr2djjkvdxhg3g",
+            "operationHash": "sha256:a1bc1fff8fe157883c6c9fb89cde69f822fb637ff45dc31524bdb70a1636f0c4",
             "retiredLayer": true
           },
           {
             "verb": "create-locked",
-            "clientMutationId": "mut_01kz742nywf089jkvtwjxraa0h",
-            "operationHash": "sha256:e4a0c360e5e22ce6dada57eb0ce52d58655f588d34b75e66f728d420b4010d6b",
+            "clientMutationId": "mut_01kz88q2nhe8j8409z8n0j85jk",
+            "operationHash": "sha256:1fadcffcb00c492b9d62ea23c53e0939aa88be595fd15146cfe615aedd3cef71",
             "retiredLayer": true
           }
         ],
         "rapidSettlementIdentities": [
-          "mut_01kz742p0nevcstd9yjxt47hyt",
-          "mut_01kz742p0pedcrn2gj8bjbv4hy",
-          "mut_01kz742p0pfmha64g2wah2j6yc",
-          "mut_01kz742p0pf9gbat4vjp67ha1v",
-          "mut_01kz742p0pfyabv8wa6y8xf39j",
-          "mut_01kz742p0qe7f95mpqq4sse8kf",
-          "mut_01kz742p0qfpcbkg23yqkb3853",
-          "mut_01kz742p0qes5sntdprmrrw5ch",
-          "mut_01kz742p0qf2jbgcwq2jy5qp09",
-          "mut_01kz742p0qerfavmyv5f6csr2e",
-          "mut_01kz742p0rfvm9zpz02r6vt5zw",
-          "mut_01kz742p0ree1btg0x36zbbwca",
-          "mut_01kz742p0res4s2qrvger4f41e",
-          "mut_01kz742p0re4js6rhypz0za50p",
-          "mut_01kz742p0re1r9tagvwwxhy8x2",
-          "mut_01kz742p0seaw93yh6rsnq2bd9",
-          "mut_01kz742p0sfh7s42jq1pt4yn1q",
-          "mut_01kz742p0sf9xtv893t969kefz",
-          "mut_01kz742p0tez8a0naep7tsegkg",
-          "mut_01kz742p0ve4rtw598xbzd5ymj"
+          "mut_01kz88q2pwfszs258p3qmgem3b",
+          "mut_01kz88q2pxewna0zcrq053d51e",
+          "mut_01kz88q2pxf56t96ft82v67n29",
+          "mut_01kz88q2pxe7zszyck0m7mvxc9",
+          "mut_01kz88q2pyf42t1qkvwcpv67vf",
+          "mut_01kz88q2pye2ksz7a221ycg9zv",
+          "mut_01kz88q2pyftfs5tye0zn1n0hr",
+          "mut_01kz88q2pye21sxbd6a8pbjcp9",
+          "mut_01kz88q2pyf5e9gmnrvs2rzmtg",
+          "mut_01kz88q2pzfdprcrsv33q8kkjg",
+          "mut_01kz88q2pzeqe9nr59qr5w7yph",
+          "mut_01kz88q2q0f11sgrnvcy5qx51m",
+          "mut_01kz88q2q0faf8cv8vb4cj8w6x",
+          "mut_01kz88q2q0e2cs94nz2k3ytk0t",
+          "mut_01kz88q2q1f73vs5mhdkkw4s9g",
+          "mut_01kz88q2q1f9qagk5m5wgj61hh",
+          "mut_01kz88q2q1ejhv2y1neejjhcp4",
+          "mut_01kz88q2q2fmy8btvd7pvcw0kd",
+          "mut_01kz88q2q2fatvm5w23fft7spr",
+          "mut_01kz88q2q2fnfv45pcbw5g09fn"
         ],
         "concurrentSettlementIdentities": [
-          "mut_01kz742s5ffkrsb00k93a4pm6x",
-          "mut_01kz742s5fe5jr8x8dvjstk3nk"
+          "mut_01kz88q536f9wsbqbb654kreqw",
+          "mut_01kz88q537f3ztgxmjcx19296p"
         ],
         "refusal": {
           "code": "KANBAN_CARD_LOCKED",
@@ -279,11 +279,11 @@
         "concurrentMoves": {
           "count": 2,
           "finalCard": {
-            "_id": "cards_01kz742ne5f81bhtgyd1vdr7xa",
+            "_id": "cards_01kz88q2faf9ra7y7hsbmmjjfm",
             "_version": 29,
-            "_createdAt": 1785871816133,
-            "_updatedAt": 1785871819996,
-            "boardId": "boards_01kz742mz9em9s6n6fhffpbsqh",
+            "_createdAt": 1785910233578,
+            "_updatedAt": 1785910236291,
+            "boardId": "boards_01kz88q1w0enhaqha8xn9kpd26",
             "title": "Edited in IR",
             "column": "ready",
             "rank": 800,
@@ -299,7 +299,7 @@
       "status": "PASS",
       "evidence": {
         "processKilledWith": "SIGKILL",
-        "queuedIdentity": "mut_01kz742snpevs83b2e244073kd",
+        "queuedIdentity": "mut_01kz88q5c9eq3an2v675wsq6kz",
         "preKillLayers": 1,
         "relaunchLayers": 1,
         "postIntentRowsBeforeNetwork": 1,

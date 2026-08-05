@@ -2,27 +2,27 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v1",
-    "databaseId": "019fd078-3b3a-7212-b29e-7f4292f486c0",
+    "databaseId": "019fd17f-3a47-7b23-9d2b-35a0b7af6227",
     "deploymentId": "triage-graph-p3-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
     "expectedGeneration": {
       "schemaVersion": "snapback.v1",
       "appId": "triage-graph",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:acad704e94c28b4c408e3d7f02a7955bcfc3a2119006695698b5d2e4e5e15840",
-      "bundleHash": "snapback.v1:sessions:function:sha256:cc8ef10b83fdedb74ddf735097e0da892aedc5bba3a126a757c5cb237a00769b",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:5706e6f06fef1d24c9567fb9f495c92bf06c7eb478435ad806790c638df204b2"
+      "schemaHash": "snapback.v1:sessions:schema:sha256:194f42051baa6ba604cf2a00d2e78d14c1f7096d749de322abce2dcd5c2b8b41",
+      "bundleHash": "snapback.v1:sessions:function:sha256:d5f07f0d4d2618e2d0bec827c35582e77b2a9ce2d3b3252bf6b4a5988d77c4f0",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:0bd7485be0193e50d5a0609737a409a7b37f08be4099c909d87bb53e00d594e5"
     },
-    "proofKeyManifestDigest": "sha256:692e006d53a3194c6b66d951b38ae0d172687fd32c24aa7e65687a9a8e91025a"
+    "proofKeyManifestDigest": "sha256:a789ee8555ceb77d606527368507810e95a328ff701eaa4bd6686f648456b38f"
   },
-  "activationHash": "sha256:1d97cf75c8938172ee0e68a6b16ef596813bc1b6e22be765c99e27e75f2f1b7e",
+  "activationHash": "sha256:d42f039803e14dcdd61d2b2101afdf53dc7d8965271755e07d7d9241fd76c14a",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.ROIbSaIWeRalNgp33vstHg",
+        "proofKeyId": "sbpk1.oXJmLTEYkQVAN2WycEvq3g",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "J_a67motnVdEQr1lPeTfTZsOZaax5k6SLg1hB6Q3HVo"
+        "publicKeyBase64url": "shS31BM838EPwk-_SCjR8t4q0fgtox8OSXo9kprPsa8"
       }
     ]
   }

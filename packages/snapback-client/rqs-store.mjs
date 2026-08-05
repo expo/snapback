@@ -365,68 +365,12 @@ export function createIndexedDbRqsResumeStore({
 
   // @ref LLP 0166#d6--resume-delta-and-the-shipped-rqs-machinery — legacy
   // entries, outbox, and QMK sections share the adoption commit domain.
-  const materializationTransaction = async (mode, operation) => {
-    if (mode !== 'readonly' && mode !== 'readwrite') {
-      throw new TypeError('materialization transaction mode must be readonly or readwrite');
-    }
-    if (typeof operation !== 'function') {
-      throw new TypeError('materialization transaction operation must be a function');
-    }
-    if (mode === 'readwrite' && (!writer || closed)) {
-      throw storeError('SNAPBACK_RQS_STORE_NOT_WRITER', 'materialization writes require store ownership');
-    }
-    const db = await database();
-    const tx = db.transaction(
-      [MATERIALIZATIONS, PAGE_SETS, MEMBERSHIPS, ENTRIES, OUTBOX, STORE_META],
-      mode,
-    );
-    const readSection = async (name) => {
-      const section = tx.objectStore(name);
-      const [keys, values] = await Promise.all([
-        requestResult(section.getAllKeys()),
-        requestResult(section.getAll()),
-      ]);
-      return new Map(keys.map((key, index) => [String(key), values[index]]));
-    };
-    try {
-      const [materializations, pageSets, memberships, entries, outbox, storeMeta] = await Promise.all([
-        readSection(MATERIALIZATIONS),
-        readSection(PAGE_SETS),
-        readSection(MEMBERSHIPS),
-        readSection(ENTRIES),
-        readOutboxState(tx.objectStore(OUTBOX)),
-        readMetaFromStore(tx.objectStore(STORE_META)),
-      ]);
-      const view = { materializations, pageSets, memberships, entries, outbox, storeMeta };
-      const result = operation(view);
-      if (result && typeof result.then === 'function') {
-        throw new TypeError('materialization transaction callbacks must be synchronous');
-      }
-      if (mode === 'readwrite') {
-        const preparedMeta = prepareStoreMeta(view.storeMeta);
-        if (preparedMeta === null) {
-          throw storeError('SNAPBACK_RQS_STORE_CORRUPT', 'materialization transaction produced invalid metadata');
-        }
-        for (const [name, values] of [
-          [MATERIALIZATIONS, materializations],
-          [PAGE_SETS, pageSets],
-          [MEMBERSHIPS, memberships],
-          [ENTRIES, entries],
-        ]) {
-          const section = tx.objectStore(name);
-          section.clear();
-          for (const [key, value] of values) section.put(value, key);
-        }
-        tx.objectStore(OUTBOX).put(view.outbox, OUTBOX_STATE_KEY);
-        tx.objectStore(STORE_META).put(preparedMeta, RQS_STORE_META_KEY);
-      }
-      await transactionDone(tx);
-      return result;
-    } catch (error) {
-      try { tx.abort(); } catch { /* transaction already completed/aborted */ }
-      throw error;
-    }
-  };
+  const materializationTransaction = (mode, operation) => import(
+    './materialization-store-runtime.mjs'
+  ).then(({ indexedDbMaterializationTransaction }) => indexedDbMaterializationTransaction([
+    mode, operation, writer, closed, database, requestResult, readOutboxState,
+    readMetaFromStore, storeError, transactionDone,
+  ]));
 
   return {
     isWriter() {

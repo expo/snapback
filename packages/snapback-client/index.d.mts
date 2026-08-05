@@ -19,6 +19,10 @@ export {
   canonicalizeClientValueV1,
   canonicalReactStoreKeyV1,
 } from './canonical-client-value.mjs';
+import type {
+  ResultTransformRowV1,
+  TransformPlanV1,
+} from './result-transform.mjs';
 
 export type SnapbackFunctionKind = 'Query' | 'LiveQuery' | 'Mutation' | 'Action';
 export interface GeneratedMutationIrV1 {
@@ -260,6 +264,7 @@ export interface ActionOutput<Result> {
 }
 
 export const SNAPBACK_QUERY_OFFLINE_UNAVAILABLE: 'SNAPBACK_QUERY_OFFLINE_UNAVAILABLE';
+export const SNAPBACK_STORE_RUNTIME_LOAD_FAILED: 'SNAPBACK_STORE_RUNTIME_LOAD_FAILED';
 
 export interface SnapbackQueryOfflineUnavailableDiagnostic {
   readonly schemaVersion: 'snapback.client-diagnostic.v1';
@@ -503,11 +508,6 @@ export interface RqsMixedRegisteredRegistry {
 }
 
 export function createRqsRegisteredRegistry(bundle: unknown): RqsRegisteredRegistry;
-export function createRqsRegisteredRegistry(
-  bundle: unknown,
-  reference: Readonly<Record<string, unknown>>,
-  params?: Readonly<Record<string, string>>,
-): RqsMixedRegisteredRegistry;
 
 export type LiveQueryRegistrationOptions =
   | Readonly<{
@@ -914,6 +914,62 @@ export interface SnapbackLocalResourceInspection {
   readonly listeners: number;
 }
 
+export interface StorePolicyInspectionV1 extends Readonly<Record<string, unknown>> {
+  readonly format: 'snapback.store-policy-inspection.v1';
+  readonly clientStoreId: string;
+  readonly authorityPartitionDigest: `sha256:${string}`;
+  readonly budgets: readonly Readonly<Record<string, unknown>>[];
+  readonly registrations: Readonly<Record<string, number>>;
+  readonly broker: Readonly<{
+    writerGeneration: number;
+    liveContextCount: number;
+    livePairCount: number;
+    suppressionActive: boolean;
+    [key: string]: unknown;
+  }>;
+  readonly constants: Readonly<Record<string, number>>;
+  readonly addresses: readonly Readonly<Record<string, unknown>>[];
+}
+
+export type QueryRegistrationScopeV1 =
+  | Readonly<{
+      readonly kind: 'page';
+      readonly input:
+        | Readonly<{ readonly kind: 'first' }>
+        | Readonly<{
+            readonly kind: 'cursor';
+            readonly profileId: string;
+            readonly digest: `sha256:${string}`;
+          }>;
+    }>
+  | Readonly<{
+      readonly kind: 'page-set';
+      readonly from: 'first';
+      readonly through: 'terminal';
+    }>;
+
+export type RegisterOutcomeV1 = Readonly<{
+  readonly format: 'snapback.register-outcome.v1';
+  readonly contextId: string;
+  readonly requestId: string;
+  readonly outcome:
+    | Readonly<{ readonly kind: 'committed' }>
+    | Readonly<{ readonly kind: 'released' }>
+    | Readonly<{ readonly kind: 'refused'; readonly code: string }>;
+}>;
+
+export interface ProgrammaticQueryRegistrationOptions<Args = Record<string, unknown>> {
+  /** Stable, store-scoped identity owned by the application. Never reuse an
+   * identity for a different query or arguments. */
+  readonly registrationId: string;
+  readonly args?: Args;
+  readonly userId?: string;
+  readonly label?: string | null;
+  readonly requestedScope?: QueryRegistrationScopeV1;
+  readonly retentionRequest?: 'none' | 'durable';
+  readonly idleTtlClass?: 'none' | 'default' | 'pinned';
+}
+
 export class SnapbackClient {
   constructor(baseUrl: string, options?: SnapbackClientOptions);
   /** Final auth/client cleanup. Also releases a client-owned default RQS
@@ -928,6 +984,35 @@ export class SnapbackClient {
   ): unknown;
   isAuthorityCaptureCurrent(capture: unknown): boolean;
   localResourceInspection(connectionIds?: Iterable<string> | null): SnapbackLocalResourceInspection;
+  storePolicyInspection(input: Readonly<{
+    authorityPartitionDigest: `sha256:${string}`;
+  }>): Promise<StorePolicyInspectionV1>;
+  /** Durably register a generated query in the registration-derived sync set.
+   * Works from writer and qualified non-writer client contexts. */
+  registerQuery<Ref extends SnapbackFunctionReference<string, 'LiveQuery', unknown, unknown>>(
+    ref: Ref,
+    options: ProgrammaticQueryRegistrationOptions<FunctionArgs<Ref>>,
+  ): Promise<RegisterOutcomeV1>;
+  /** Evaluate a reclassified generated query's proof-verified local result.
+   * Unreclassified plans and non-claiming carriers retain the closed floor. */
+  evaluateLocalResultTransform<
+    Ref extends SnapbackFunctionReference<string, 'LiveQuery', unknown, unknown>,
+  >(
+    ref: Ref,
+    options: Readonly<{
+      readonly args?: FunctionArgs<Ref>;
+      readonly userId?: string | null;
+      readonly transformPlan: TransformPlanV1;
+      readonly overlayLayers?: readonly ((
+        rows: readonly ResultTransformRowV1[],
+      ) => readonly ResultTransformRowV1[])[];
+    }>,
+  ): Promise<readonly ResultTransformRowV1[]>;
+  /** Idempotently release a programmatic registration. */
+  releaseQueryRegistration(
+    registrationId: string,
+    options?: Readonly<{ readonly userId?: string }>,
+  ): Promise<RegisterOutcomeV1>;
   prepareReactBinding(options: {
     readonly generatedManifest:
       | Readonly<Record<string, unknown>>
@@ -1333,13 +1418,13 @@ export {
   createRqsPreloadRegistry,
   readInlineBootPayload,
   readRqsPreloadRegistry,
-} from './rqs-preload.mjs';
+} from './rqs-preload-core.mjs';
 export type {
   RqsBootDocument,
   RqsBootPayload,
   RqsPreloadEntry,
   RqsPreloadRegistry,
-} from './rqs-preload.mjs';
+} from './rqs-preload-core.mjs';
 
 export const DEFAULT_INGRESS_LIMIT_BYTES: Readonly<{
   appCall: number;

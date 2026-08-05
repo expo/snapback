@@ -2,9 +2,43 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-03",
   "source": {
-    "revision": "ae3fbae247697e793a19dac558b85f3741668df5",
-    "dirty": false,
-    "dirtyPaths": [],
+    "revision": "126d69d62ebd46a8499074cb000e1ebd6da7fecc",
+    "dirty": true,
+    "dirtyPaths": [
+      "emos/triage-graph/src/retained-registration.ts",
+      "demos/triage-graph/tests/demo.test.mjs",
+      "diaries/0054-triage-graph-successor.diary.md",
+      "guide/capabilities.md",
+      "guide/guide-flat.generated.md",
+      "guide/guide-manifest.generated.json",
+      "guide/sync/offline-and-retention.md",
+      "llp/0166-local-persistent-store.spec.md",
+      "packages/snapback-client/README.md",
+      "packages/snapback-client/demand-broker.mjs",
+      "packages/snapback-client/demand-broker.test.mjs",
+      "packages/snapback-client/index.d.mts",
+      "packages/snapback-client/index.mjs",
+      "packages/snapback-client/local-read-admission.test.mjs",
+      "packages/snapback-client/materialization-bridge.mjs",
+      "packages/snapback-client/materialization-store.mjs",
+      "packages/snapback-client/materialization-store.test.mjs",
+      "packages/snapback-client/package.json",
+      "packages/snapback-client/react-binding.mjs",
+      "packages/snapback-client/registration-ledger.d.mts",
+      "packages/snapback-client/registration-ledger.mjs",
+      "packages/snapback-client/registration-ledger.test.mjs",
+      "packages/snapback-client/rqs-preload.d.mts",
+      "packages/snapback-client/rqs-preload.mjs",
+      "packages/snapback-client/store-policy.mjs",
+      "packages/snapback-client/store-policy.test.mjs",
+      "packages/snapback-react/package.test.mjs",
+      "scripts/check-package-test-inventory.mjs",
+      "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-03.v1.json",
+      "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-03.v1.json",
+      "tests/acceptance/local-store-carrier-exit-v1-evidence.md",
+      "tests/acceptance/triage-graph-move1-v1.mjs",
+      "packages/snapback-client/store-runtime-wiring.test.mjs"
+    ],
     "files": [
       {
         "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
@@ -12,23 +46,23 @@
       },
       {
         "path": "packages/snapback-client/materialization-store.mjs",
-        "sha256": "c6bfcf376263b4d78d2533f661e3f7fcf8dedb72b674f743c612583dbfab7a3a"
+        "sha256": "83bfcd58d503b5baca12152ed705d22418babfbd638212a8b3128f8c07fbf5c0"
       },
       {
         "path": "packages/snapback-client/materialization-bridge.mjs",
-        "sha256": "660c79730696eed7663245834c69676c2a819125b64a0b9d68e4994ffdf76d70"
+        "sha256": "5e8681971300b089e29b43b1ecd1bf4b3f7ad0ce7966e2dfc5a6f69d4cda27a1"
       },
       {
         "path": "packages/snapback-client/registration-ledger.mjs",
-        "sha256": "6f3200d7fcaa68f8610ccf1dff2bb80b4f51414c7d02113e79aa3691e1fa485a"
+        "sha256": "e95ce1425b246144fbeb7a7528f64c74bb32cefba70f295e95e647151d7d4bdf"
       },
       {
         "path": "packages/snapback-client/demand-broker.mjs",
-        "sha256": "cdfb914e2c03ea6ea50b00ea63b48ec3105bdb08dcb757007c9af5dd121e483c"
+        "sha256": "dc76b40f60fdaa349ccaec1fdb337a9e49cc9710c2df5550de0dd3ccc66c351a"
       },
       {
         "path": "packages/snapback-client/store-policy.mjs",
-        "sha256": "03345c9e942c6247eb95ec58f657fec360d7baa7d77233ee96e6c4529ff23a4f"
+        "sha256": "bce0210dc955d1c2f7684d941df4795776054e97239bce0bfb4f8d6857b4192a"
       },
       {
         "path": "packages/snapback-client/answer-classes.mjs",
@@ -48,15 +82,15 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "e1409ddce2e4de508957da805f6f2aa4085ab24c5f6fa6784038a99d56c6ad36"
+        "sha256": "e8c7a1589ba699b14f96da358022176b13ecdf707ec6b3e15c58eebe14d2561d"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
-        "sha256": "2d083c54d4d03b1b577960ce48ea71db784df55bede9c9235e0757f4825c3782"
+        "sha256": "9c27319ed28037c2549c2741763f06a9f82abd77e896a2ec93c77e1c3eaf740f"
       },
       {
         "path": "packages/snapback-client/rqs-store-file.mjs",
-        "sha256": "6e51df397c62310d449bc2b96bce25a6b85919bed441755458dfba8496d38291"
+        "sha256": "486b8c743ca807b051ec45042b6715cc141e1a0d3d2ca5a83cee75d53c8c3e3e"
       },
       {
         "path": "packages/snapback-contract/auth-coordinator.mjs",
@@ -92,46 +126,46 @@
     "external": []
   },
   "output": {
-    "minifiedBytes": 531367,
-    "gzipBytes": 145758,
-    "brotliBytes": 119077,
-    "sha256": "1b55bf2a9c7c363fc68ef23f546a211e4dee887f628d46a3c25d67908cda1349"
+    "minifiedBytes": 617743,
+    "gzipBytes": 169742,
+    "brotliBytes": 137909,
+    "sha256": "aaf9859e5c9ae3cf3d63e5b5d1044f01174039646c155b0613ad6f4c374fbe1a"
   },
   "modules": [
     {
       "module": "materialization-store",
       "path": "packages/snapback-client/materialization-store.mjs",
-      "sourceBytes": 81949,
-      "minifiedModuleOwnBytes": 47509,
-      "sourceSha256": "c6bfcf376263b4d78d2533f661e3f7fcf8dedb72b674f743c612583dbfab7a3a"
+      "sourceBytes": 90007,
+      "minifiedModuleOwnBytes": 51005,
+      "sourceSha256": "83bfcd58d503b5baca12152ed705d22418babfbd638212a8b3128f8c07fbf5c0"
     },
     {
       "module": "materialization-bridge",
       "path": "packages/snapback-client/materialization-bridge.mjs",
-      "sourceBytes": 17103,
-      "minifiedModuleOwnBytes": 10254,
-      "sourceSha256": "660c79730696eed7663245834c69676c2a819125b64a0b9d68e4994ffdf76d70"
+      "sourceBytes": 17969,
+      "minifiedModuleOwnBytes": 10534,
+      "sourceSha256": "5e8681971300b089e29b43b1ecd1bf4b3f7ad0ce7966e2dfc5a6f69d4cda27a1"
     },
     {
       "module": "registration-ledger",
       "path": "packages/snapback-client/registration-ledger.mjs",
-      "sourceBytes": 25592,
-      "minifiedModuleOwnBytes": 13786,
-      "sourceSha256": "6f3200d7fcaa68f8610ccf1dff2bb80b4f51414c7d02113e79aa3691e1fa485a"
+      "sourceBytes": 34908,
+      "minifiedModuleOwnBytes": 17453,
+      "sourceSha256": "e95ce1425b246144fbeb7a7528f64c74bb32cefba70f295e95e647151d7d4bdf"
     },
     {
       "module": "demand-broker",
       "path": "packages/snapback-client/demand-broker.mjs",
-      "sourceBytes": 28871,
-      "minifiedModuleOwnBytes": 15139,
-      "sourceSha256": "cdfb914e2c03ea6ea50b00ea63b48ec3105bdb08dcb757007c9af5dd121e483c"
+      "sourceBytes": 30435,
+      "minifiedModuleOwnBytes": 15748,
+      "sourceSha256": "dc76b40f60fdaa349ccaec1fdb337a9e49cc9710c2df5550de0dd3ccc66c351a"
     },
     {
       "module": "store-policy",
       "path": "packages/snapback-client/store-policy.mjs",
-      "sourceBytes": 22688,
-      "minifiedModuleOwnBytes": 12920,
-      "sourceSha256": "03345c9e942c6247eb95ec58f657fec360d7baa7d77233ee96e6c4529ff23a4f"
+      "sourceBytes": 23113,
+      "minifiedModuleOwnBytes": 13032,
+      "sourceSha256": "bce0210dc955d1c2f7684d941df4795776054e97239bce0bfb4f8d6857b4192a"
     },
     {
       "module": "answer-classes",
@@ -162,12 +196,12 @@
       "sourceSha256": "ccba1d6faaae5a7ece09e0871835eea99bd28a1959d252373163fc4562c54e22"
     }
   ],
-  "totalMeasuredModuleOwnBytes": 107331,
+  "totalMeasuredModuleOwnBytes": 115495,
   "browserClosureQualification": {
     "status": "PASS",
     "materializationStoreResolved": true,
     "resolved": true,
-    "outputBytes": 66076,
+    "outputBytes": 69688,
     "externalImports": []
   }
 }

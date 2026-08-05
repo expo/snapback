@@ -3348,6 +3348,12 @@
         "retainable": {
           "type": "boolean"
         },
+        "retentionClass": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "rqsEligible": {
           "description": "LLP 0092 §0C.2 derived predicate — never authored; clients key the\nalias-key promotion check and token expectations on it.",
           "type": "boolean"
@@ -3981,7 +3987,7 @@
           "type": "string"
         },
         "retention": {
-          "description": "Closed, default-deny retention classes the target admits for\nrelational plans: `none` (the default) and\n`opaque-authorized-snapshot-v1` (the authenticated lease class —\nowner-visible plans only; anonymous results have no admissible\nretention).",
+          "description": "Closed, default-deny retention classes the target admits for\nrelational plans: `none` (the default) and\n`opaque-authorized-snapshot-v1` (the authenticated lease class) and\n`result-transform-snapshot-v1` (the owner-reclassified post-gate\nclass). Both retained classes require owner-visible plans; anonymous\nresults have no admissible retention.",
           "items": {
             "type": "string"
           },

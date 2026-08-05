@@ -852,7 +852,31 @@ async function prepareReactBindingOnce(
     authorityIndependentById: { value: authorityIndependentById },
     ephemeralDefinitionsById: { value: ephemeralDefinitionsById },
     queryGroupsById: { value: queryGroupsById },
+    routesManifest: { value: generated.routes },
   });
+  // Channel A has concrete, schema-decoded route arguments while the raw
+  // routes manifest contains `$param` templates. Once generated references
+  // are admitted, re-project that boot through the same preload producer so
+  // qmk1 routes carry generated identity instead of the legacy alias fallback.
+  // @ref LLP 0166#registration-sources-mapped-to-shipped-machinery
+  if (
+    generated.routes !== null
+    && typeof client.__replacePreloadManifestInForce === 'function'
+  ) {
+    const result = await client.__replacePreloadManifestInForce(
+      generated.routes,
+      client.__inlinePreloadBootPayload,
+      { functionReferences: references },
+    );
+    client.__preloadRegistrationPromise = Promise.resolve(result);
+    if (result?.refused) {
+      throw diagnosticError(
+        result.refused.code,
+        'routes-manifest preload registration refused',
+        { route: client.__inlinePreloadBootPayload?.route ?? null },
+      );
+    }
+  }
   return Object.freeze(binding);
 }
 
@@ -1248,6 +1272,11 @@ export async function prepareReactQueryGroupForBinding(
     authorityCapture,
     authorizationNamespaces,
     authInvalidationProtocol: prepared.authMode === 'sessions' ? 1 : null,
+    __preloadFunctionReferences: Object.fromEntries(
+      entries.map((entry) => [entry.ref.name, entry.ref]),
+    ),
+    __preloadPersist: admitted.persist !== false,
+    __preloadRoutesManifest: prepared.routesManifest,
     ...(mixed ? {
       formatVersion: 2,
       profile: 'mixed-route.v2',
