@@ -615,6 +615,7 @@ pub(crate) const FAILURE_DETAIL_KEYS: &[&str] = &[
     "messageTemplate",
     "message",
     "stack",
+    "rejectionCarriers",
     "detailFlags",
 ];
 
@@ -675,6 +676,10 @@ pub struct FailureDetailsInputV1 {
     pub message_template: Option<String>,
     pub message: Option<String>,
     pub stack: Option<String>,
+    /// The complete ordered carrier for a terminal with multiple unhandled
+    /// rejections. The singular fields above remain the first-rejection
+    /// fingerprint/exemplar authority.
+    pub rejection_carriers: Option<Vec<FailureCarrierV1>>,
     #[serde(default)]
     pub message_extraction_truncated: bool,
     #[serde(default)]
@@ -879,6 +884,31 @@ pub(crate) fn materialize_failure_stamp_v1(
         {
             return None;
         }
+        let rejection_carriers = match object.get("rejectionCarriers") {
+            None => None,
+            Some(value) => {
+                let carriers =
+                    serde_json::from_value::<Vec<FailureCarrierV1>>(value.clone()).ok()?;
+                if carriers.len() < 2
+                    || carriers.iter().any(|carrier| {
+                        (carrier.error_class != UNCLASSIFIED_ERROR_CLASS
+                            && validated_error_class(Some(&carrier.error_class))
+                                != carrier.error_class)
+                            || carrier
+                                .message
+                                .as_ref()
+                                .is_some_and(|message| message.len() > FAILURE_EXTRACTION_MAX_BYTES)
+                            || carrier
+                                .stack
+                                .as_ref()
+                                .is_some_and(|stack| stack.len() > FAILURE_EXTRACTION_MAX_BYTES)
+                    })
+                {
+                    return None;
+                }
+                Some(carriers)
+            }
+        };
         let branch_is_valid = match fingerprint_branch {
             FingerprintBranchV1::TypedRefusal => {
                 platform_code.is_some()
@@ -887,6 +917,7 @@ pub(crate) fn materialize_failure_stamp_v1(
                     && app_code.is_none()
                     && error_class.is_none()
                     && subsystem.is_none()
+                    && rejection_carriers.is_none()
             }
             FingerprintBranchV1::AppRefusal => {
                 platform_code.as_deref() == Some("SNAPBACK_APP_REFUSAL")
@@ -895,6 +926,7 @@ pub(crate) fn materialize_failure_stamp_v1(
                     && app_code.is_some()
                     && error_class.is_none()
                     && subsystem.is_none()
+                    && rejection_carriers.is_none()
             }
             FingerprintBranchV1::Exception => {
                 platform_code.is_some()
@@ -903,6 +935,10 @@ pub(crate) fn materialize_failure_stamp_v1(
                     && app_code.is_none()
                     && error_class.is_some()
                     && subsystem.is_none()
+                    && rejection_carriers.as_ref().is_none_or(|carriers| {
+                        carriers.first().map(|carrier| carrier.error_class.as_str())
+                            == error_class.as_deref()
+                    })
             }
             FingerprintBranchV1::Transport => {
                 platform_code.is_none()
@@ -911,6 +947,7 @@ pub(crate) fn materialize_failure_stamp_v1(
                     && app_code.is_none()
                     && error_class.is_none()
                     && subsystem.is_none()
+                    && rejection_carriers.is_none()
             }
             FingerprintBranchV1::Diagnostic => {
                 platform_code.is_some()
@@ -919,6 +956,7 @@ pub(crate) fn materialize_failure_stamp_v1(
                     && app_code.is_none()
                     && error_class.is_none()
                     && subsystem.is_some()
+                    && rejection_carriers.is_none()
             }
         };
         if !branch_is_valid {
@@ -969,6 +1007,141 @@ fn serialized_len(details: &BTreeMap<String, Value>) -> usize {
 
 fn refresh_flags(details: &mut BTreeMap<String, Value>, flags: &BTreeMap<String, bool>) {
     details.insert("detailFlags".to_owned(), flags_value(flags));
+}
+
+#[derive(Clone, Copy)]
+enum RejectionCarrierTextField {
+    Message,
+    Stack,
+}
+
+fn set_rejection_carrier_text(
+    carrier: &mut FailureCarrierV1,
+    field: RejectionCarrierTextField,
+    value: Option<String>,
+    truncated: bool,
+) {
+    match field {
+        RejectionCarrierTextField::Message => {
+            carrier.message = value;
+            carrier.message_extraction_truncated = truncated;
+        }
+        RejectionCarrierTextField::Stack => {
+            carrier.stack = value;
+            carrier.stack_extraction_truncated = truncated;
+        }
+    }
+}
+
+fn refresh_rejection_carriers(
+    details: &mut BTreeMap<String, Value>,
+    carriers: &[FailureCarrierV1],
+) {
+    details.insert("rejectionCarriers".to_owned(), json!(carriers));
+}
+
+/// Reserve every carrier entry and its queue order inside the fixed details
+/// budget before allocating optional raw text. An empty string plus a true
+/// truncation witness preserves that a field existed even when no bytes remain
+/// for it; `None` continues to mean the field was absent at extraction.
+fn reserve_ordered_rejection_carriers(
+    details: &mut BTreeMap<String, Value>,
+    source: &[FailureCarrierV1],
+) -> Result<Vec<FailureCarrierV1>, DetailsAllocationErrorV1> {
+    let carriers = source
+        .iter()
+        .map(|carrier| FailureCarrierV1 {
+            error_class: carrier.error_class.clone(),
+            message: carrier.message.as_ref().map(|_| String::new()),
+            stack: carrier.stack.as_ref().map(|_| String::new()),
+            message_extraction_truncated: carrier.message_extraction_truncated
+                || carrier
+                    .message
+                    .as_ref()
+                    .is_some_and(|value| !value.is_empty()),
+            stack_extraction_truncated: carrier.stack_extraction_truncated
+                || carrier
+                    .stack
+                    .as_ref()
+                    .is_some_and(|value| !value.is_empty()),
+        })
+        .collect::<Vec<_>>();
+    refresh_rejection_carriers(details, &carriers);
+    if serialized_len(details) > FAILURE_DETAILS_MAX_BYTES {
+        details.remove("rejectionCarriers");
+        return Err(DetailsAllocationErrorV1::RequiredFieldsExceedBudget);
+    }
+    Ok(carriers)
+}
+
+/// Fill reserved carrier message/stack slots in first-carrier-first order
+/// after the pre-existing LLP 0154 detail priorities have been allocated.
+/// Every cut is UTF-8-safe and witnessed on the affected carrier entry.
+fn fill_ordered_rejection_carrier_text(
+    details: &mut BTreeMap<String, Value>,
+    source: &[FailureCarrierV1],
+    carriers: &mut Vec<FailureCarrierV1>,
+) {
+    for index in 0..source.len() {
+        for field in [
+            RejectionCarrierTextField::Message,
+            RejectionCarrierTextField::Stack,
+        ] {
+            let (Some(value), extraction_truncated) = (match field {
+                RejectionCarrierTextField::Message => (
+                    source[index].message.as_deref(),
+                    source[index].message_extraction_truncated,
+                ),
+                RejectionCarrierTextField::Stack => (
+                    source[index].stack.as_deref(),
+                    source[index].stack_extraction_truncated,
+                ),
+            }) else {
+                continue;
+            };
+
+            let mut full = carriers.to_vec();
+            set_rejection_carrier_text(
+                &mut full[index],
+                field,
+                Some(value.to_owned()),
+                extraction_truncated,
+            );
+            refresh_rejection_carriers(details, &full);
+            if serialized_len(details) <= FAILURE_DETAILS_MAX_BYTES {
+                *carriers = full;
+                continue;
+            }
+
+            let boundaries = value
+                .char_indices()
+                .map(|(position, _)| position)
+                .chain(std::iter::once(value.len()))
+                .collect::<Vec<_>>();
+            let mut low = 0usize;
+            let mut high = boundaries.len();
+            let mut best = carriers.to_vec();
+            while low < high {
+                let middle = (low + high) / 2;
+                let mut candidate = carriers.to_vec();
+                set_rejection_carrier_text(
+                    &mut candidate[index],
+                    field,
+                    Some(value[..boundaries[middle]].to_owned()),
+                    true,
+                );
+                refresh_rejection_carriers(details, &candidate);
+                if serialized_len(details) <= FAILURE_DETAILS_MAX_BYTES {
+                    best = candidate;
+                    low = middle + 1;
+                } else {
+                    high = middle;
+                }
+            }
+            *carriers = best;
+            refresh_rejection_carriers(details, carriers);
+        }
+    }
 }
 
 fn try_insert_whole(details: &mut BTreeMap<String, Value>, key: &str, value: Value) -> bool {
@@ -1097,6 +1270,12 @@ pub fn allocate_failure_details(
         }
     }
 
+    let mut allocated_rejection_carriers = input
+        .rejection_carriers
+        .as_deref()
+        .map(|carriers| reserve_ordered_rejection_carriers(&mut details, carriers))
+        .transpose()?;
+
     for (key, value) in [
         ("function", input.function.as_deref()),
         ("name", input.name.as_deref()),
@@ -1131,6 +1310,13 @@ pub fn allocate_failure_details(
         if let Some(value) = value {
             insert_bounded_string(&mut details, &mut flags, key, value);
         }
+    }
+
+    if let (Some(source), Some(carriers)) = (
+        input.rejection_carriers.as_deref(),
+        allocated_rejection_carriers.as_mut(),
+    ) {
+        fill_ordered_rejection_carrier_text(&mut details, source, carriers);
     }
 
     refresh_flags(&mut details, &flags);
@@ -1468,10 +1654,69 @@ pub fn carrier_fixture_artifact() -> Value {
         message_template: Some("failed for <email>".to_owned()),
         message: Some("failed for alice@example.com".to_owned()),
         stack: Some("frame\n".repeat(2_000)),
+        rejection_carriers: None,
         message_extraction_truncated: false,
         stack_extraction_truncated: false,
     })
     .expect("fixture allocation fits required fields");
+    let rejection_carriers = vec![
+        FailureCarrierV1 {
+            error_class: "TypeError".to_owned(),
+            message: Some("first rejection 123".to_owned()),
+            stack: Some("at first (handler.js:1:1)".to_owned()),
+            message_extraction_truncated: false,
+            stack_extraction_truncated: false,
+        },
+        FailureCarrierV1 {
+            error_class: "RangeError".to_owned(),
+            message: Some("second rejection 456".to_owned()),
+            stack: Some("at second (handler.js:2:1)".to_owned()),
+            message_extraction_truncated: false,
+            stack_extraction_truncated: false,
+        },
+    ];
+    let first_fingerprint_input = FingerprintInputV1::Exception {
+        scheme_version: FINGERPRINT_VERSION,
+        kind: Some("function_run".to_owned()),
+        name: Some("actions.multiReject".to_owned()),
+        error_class: Some(rejection_carriers[0].error_class.clone()),
+        message_template: rejection_carriers[0]
+            .message
+            .as_deref()
+            .map(normalize_message_v1),
+    };
+    let first_fingerprint = fingerprint_v1(&first_fingerprint_input);
+    let multi_rejection = allocate_failure_details(&FailureDetailsInputV1 {
+        platform_code: Some("SNAPBACK_HANDLER_UNHANDLED_REJECTION".to_owned()),
+        classification: FailureClassificationV1 {
+            failure_disposition: FailureDispositionV1::Fault,
+            issue_eligible: true,
+            classifier_version: CLASSIFIER_VERSION,
+        },
+        fingerprint_branch: FingerprintBranchV1::Exception,
+        fingerprint_version: Some(FINGERPRINT_VERSION),
+        fingerprint_hash: Some(lower_hex(&first_fingerprint.truncated)),
+        predecessor_fingerprint_version: None,
+        predecessor_fingerprint_hash: None,
+        status_class: None,
+        app_code: None,
+        error_class: Some(rejection_carriers[0].error_class.clone()),
+        subsystem: None,
+        function: Some("actions.multiReject".to_owned()),
+        name: None,
+        existing_allowlist: BTreeMap::new(),
+        app_details: None,
+        message_template: rejection_carriers[0]
+            .message
+            .as_deref()
+            .map(normalize_message_v1),
+        message: rejection_carriers[0].message.clone(),
+        stack: rejection_carriers[0].stack.clone(),
+        rejection_carriers: Some(rejection_carriers),
+        message_extraction_truncated: false,
+        stack_extraction_truncated: false,
+    })
+    .expect("multi-rejection fixture retains its ordered carrier");
     json!({
         "artifactVersion": 1,
         "limits": {
@@ -1495,6 +1740,17 @@ pub fn carrier_fixture_artifact() -> Value {
         "allocation": {
             "details": allocation.details,
             "serializedBytes": allocation.serialized_bytes,
+        },
+        "multiRejection": {
+            "fingerprintInput": first_fingerprint_input,
+            "details": multi_rejection.details,
+            "serializedBytes": multi_rejection.serialized_bytes,
+            "expectedSemantics": {
+                "observationCount": 1,
+                "groupMembershipCount": 1,
+                "occurrenceIncrement": 1,
+                "exemplarCount": 1,
+            },
         },
     })
 }
@@ -1535,11 +1791,58 @@ mod tests {
             message_template: Some("failed for <email>".to_owned()),
             message: None,
             stack: Some("at messages.send".to_owned()),
+            rejection_carriers: None,
             message_extraction_truncated: false,
             stack_extraction_truncated: false,
         })
         .expect("eligible fixture fits the closed carrier")
         .details
+    }
+
+    fn multi_rejection_details_input(
+        rejection_carriers: Vec<FailureCarrierV1>,
+    ) -> FailureDetailsInputV1 {
+        let first = rejection_carriers
+            .first()
+            .expect("multi-rejection fixture has a first carrier");
+        let error_class = first.error_class.clone();
+        let message = first.message.clone();
+        let stack = first.stack.clone();
+        let message_template = message.as_deref().map(normalize_message_v1);
+        let fingerprint = fingerprint_v1(&FingerprintInputV1::Exception {
+            scheme_version: FINGERPRINT_VERSION,
+            kind: Some("function_run".to_owned()),
+            name: Some("actions.multiReject".to_owned()),
+            error_class: Some(error_class.clone()),
+            message_template: message_template.clone(),
+        });
+        FailureDetailsInputV1 {
+            platform_code: Some("SNAPBACK_HANDLER_UNHANDLED_REJECTION".to_owned()),
+            classification: FailureClassificationV1 {
+                failure_disposition: FailureDispositionV1::Fault,
+                issue_eligible: true,
+                classifier_version: CLASSIFIER_VERSION,
+            },
+            fingerprint_branch: FingerprintBranchV1::Exception,
+            fingerprint_version: Some(FINGERPRINT_VERSION),
+            fingerprint_hash: Some(lower_hex(&fingerprint.truncated)),
+            predecessor_fingerprint_version: None,
+            predecessor_fingerprint_hash: None,
+            status_class: None,
+            app_code: None,
+            error_class: Some(error_class),
+            subsystem: None,
+            function: Some("actions.multiReject".to_owned()),
+            name: None,
+            existing_allowlist: BTreeMap::new(),
+            app_details: None,
+            message_template,
+            message,
+            stack,
+            rejection_carriers: Some(rejection_carriers),
+            message_extraction_truncated: false,
+            stack_extraction_truncated: false,
+        }
     }
 
     #[test]
@@ -1724,6 +2027,7 @@ mod tests {
             message_template: Some("template".to_owned()),
             message: Some("é".repeat(5_000)),
             stack: Some("stack\n".repeat(2_000)),
+            rejection_carriers: None,
             message_extraction_truncated: false,
             stack_extraction_truncated: false,
         };
@@ -1747,6 +2051,102 @@ mod tests {
                 assert!(std::str::from_utf8(text.as_bytes()).is_ok());
             }
         }
+    }
+
+    #[test]
+    fn multi_rejection_allocation_retains_order_and_first_authority() {
+        let carriers = vec![
+            FailureCarrierV1 {
+                error_class: "TypeError".to_owned(),
+                message: Some("first rejection 123".to_owned()),
+                stack: Some("at first (handler.js:1:1)".to_owned()),
+                message_extraction_truncated: false,
+                stack_extraction_truncated: false,
+            },
+            FailureCarrierV1 {
+                error_class: "RangeError".to_owned(),
+                message: Some("second rejection 456".to_owned()),
+                stack: Some("at second (handler.js:2:1)".to_owned()),
+                message_extraction_truncated: false,
+                stack_extraction_truncated: false,
+            },
+        ];
+        let allocated = allocate_failure_details(&multi_rejection_details_input(carriers.clone()))
+            .expect("well-formed multi-rejection details fit");
+        assert_eq!(allocated.details["errorClass"], "TypeError");
+        assert_eq!(
+            allocated.details["messageTemplate"],
+            "first rejection <digits>"
+        );
+        assert_eq!(allocated.details["rejectionCarriers"], json!(carriers));
+        assert!(matches!(
+            materialize_failure_stamp_v1(Some(&allocated.details)),
+            FailureStampMaterializationV1::Eligible(_)
+        ));
+    }
+
+    #[test]
+    fn multi_rejection_allocation_reserves_every_entry_before_raw_text() {
+        let long = "☃".repeat(6_000);
+        let carriers = ["TypeError", "RangeError", "ReferenceError"]
+            .into_iter()
+            .map(|error_class| FailureCarrierV1 {
+                error_class: error_class.to_owned(),
+                message: Some(long.clone()),
+                stack: Some(long.clone()),
+                message_extraction_truncated: true,
+                stack_extraction_truncated: true,
+            })
+            .collect::<Vec<_>>();
+        let allocated = allocate_failure_details(&multi_rejection_details_input(carriers))
+            .expect("ordered carrier metadata is required and bounded");
+        assert!(allocated.serialized_bytes <= FAILURE_DETAILS_MAX_BYTES);
+        assert!(allocated.details.get("messageTemplate").is_some());
+        let retained = allocated.details["rejectionCarriers"].as_array().unwrap();
+        assert_eq!(retained.len(), 3);
+        assert_eq!(retained[0]["errorClass"], "TypeError");
+        assert_eq!(retained[1]["errorClass"], "RangeError");
+        assert_eq!(retained[2]["errorClass"], "ReferenceError");
+        for carrier in retained {
+            assert_eq!(carrier["messageExtractionTruncated"], true);
+            assert_eq!(carrier["stackExtractionTruncated"], true);
+        }
+    }
+
+    #[test]
+    fn malformed_multi_rejection_carriers_still_fail_closed() {
+        let carriers = vec![
+            extract_failure_carrier(Some("TypeError"), Some("first rejection"), Some("at first")),
+            extract_failure_carrier(
+                Some("RangeError"),
+                Some("second rejection"),
+                Some("at second"),
+            ),
+        ];
+        let details = allocate_failure_details(&multi_rejection_details_input(carriers))
+            .unwrap()
+            .details;
+
+        let mut singleton = details.clone();
+        singleton["rejectionCarriers"].as_array_mut().unwrap().pop();
+        assert_eq!(
+            materialize_failure_stamp_v1(Some(&singleton)),
+            FailureStampMaterializationV1::MalformedEligible
+        );
+
+        let mut wrong_authority = details.clone();
+        wrong_authority["rejectionCarriers"][0]["errorClass"] = json!("RangeError");
+        assert_eq!(
+            materialize_failure_stamp_v1(Some(&wrong_authority)),
+            FailureStampMaterializationV1::MalformedEligible
+        );
+
+        let mut invalid_class = details;
+        invalid_class["rejectionCarriers"][1]["errorClass"] = json!("bad-class");
+        assert_eq!(
+            materialize_failure_stamp_v1(Some(&invalid_class)),
+            FailureStampMaterializationV1::MalformedEligible
+        );
     }
 
     #[test]

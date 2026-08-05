@@ -33,5 +33,13 @@ variance; write-IO 0 and RSS growth 0 both times. This is a real idle
 CPU regression introduced after the retained receipt's measured
 revision (de86d22a), not measurement noise, and the receipt cannot
 honestly land until it is fixed. See
-`issues/20260804-idle-cpu-regression.md`. This ticket stays open,
+`issues/closed/20260804-idle-cpu-regression.md`. This ticket stays open,
 retargeted: re-run the re-mint here once the regression lands its fix.
+
+## 2026-08-04 idle blocker cleared
+
+The jobs-worker idle fix is implemented and the clean Linux full idle harness
+now passes at 6 CPU ticks (60 ms) over 120 seconds, with zero storage
+mutations, zero write bytes, and zero RSS growth. The regression ticket moved
+to `issues/closed/20260804-idle-cpu-regression.md`. This ticket remains open
+for the source-revision-bound receipt re-mint after the fix is committed.

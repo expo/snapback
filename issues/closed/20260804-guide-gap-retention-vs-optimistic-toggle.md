@@ -1,6 +1,6 @@
 # Guide gap: retention opt-in and the optimistic-toggle recipe read as contradictory
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 3
@@ -132,3 +132,13 @@ offline story is what breaks.
 - `demos/warble/snapback/functions.mjs` — the working split
 - `demos/warble/tests/acceptance/offline-local-first.mjs` — retained render of
   both queries with the backend down
+
+## Resolution
+
+Resolved 2026-08-05. The offline-retention guide now distinguishes explicit
+argument identity from ambient caller authority, teaches the public
+argument-keyed split-query pattern, and names the private AuthorizedLease
+boundary. The optimistic-toggle recipe now covers both the joined-row and
+split-query layouts, including the generated result-contract refusal and the
+honest count-only optimistic projection while optimistic create remains
+unpaved.

@@ -4,12 +4,12 @@ id: sync.offline-and-retention
 order: 1
 audience: agent-first
 capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.local-persistent-store]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs]
-examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
+examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-04
+reviewed: 2026-08-05
 reviewed-commit: HEAD
 ---
 
@@ -248,9 +248,10 @@ The opt-in is two declaration facts on a **declarative** live query
 
 - `auth: 'public'` — the query is invocable without a resolved user;
 - `authorityIndependent: true` — the trusted declaration that the complete
-  result is identical for every caller. Codegen accepts it only on a public,
-  ambient-free plan; it is refused on queries with `authScopeField`,
-  `membership`, `authUserId()` filters, or time/randomness reads.
+  result, for the same database state and explicit arguments, is identical for
+  every caller. Codegen accepts it only on a public, ambient-free plan; it is
+  refused on queries with `authScopeField`, `membership`, `authUserId()`
+  filters, or time/randomness reads.
 
 From those facts plus the closed-inputs proof (single-table plan whose read
 summary equals the plan's table), the server derives the `rqsEligible`
@@ -279,6 +280,49 @@ export const dashboardMetrics = defineLiveQuery({
 permission for HTML boot — see
 [snapshot bundles](../realtime/snapshot-bundles.md) — and is **not**
 required for retention.)
+
+### Retain public viewer facts by argument, not authority
+
+`authorityIndependent` does **not** require one result for every possible
+argument value. Explicit `arg(...)` values are part of the query identity, not
+ambient authority, so a caller-selected viewer key can still qualify when the
+rest of the plan satisfies the proof:
+
+- `eq('userHandle', arg('handle'))` can be `rqsEligible` and cold-retained;
+- `eq('userHandle', authUserId())` depends on server authority, is not
+  `rqsEligible`, and is classified
+  `SNAPBACK_RETENTION_NOT_RETAINABLE` on this JS-arm path.
+
+For a public social feed, split the data into two retainable live queries:
+keep posts and their public `likeCount` in the timeline, keep public like rows
+in a viewer-keyed query, and derive `liked` from that second query on the
+client. Warble uses this declaration:
+
+```js source=demos/warble/snapback/functions.mjs
+export const myLikes = defineLiveQuery({
+  table: 'likes',
+  args: { handle: v.string() },
+  filter: [eq('userHandle', arg('handle'))],
+  index: 'by_user',
+  auth: 'public',
+  authorityIndependent: true,
+});
+```
+
+Its acceptance suite proves that both the timeline and `myLikes` render from
+retained storage with the backend stopped. The client computes the viewer fact
+from canonical query data, for example
+`new Set(likes.data?.map((like) => like.postId)).has(post._id)`; it does not
+copy the boolean into component state.
+
+This pattern is a data-layout technique, **not an authorization boundary**.
+The caller controls `handle`, so any caller can request any handle's rows. Use
+it only for facts that are genuinely public, such as likes and public
+reactions. Private viewer data must stay server-scoped (for example with
+`authUserId()`) and use the Contract arm's `retainable: true`,
+`AuthorizedLease`-backed path described in
+[hidden hands](../recipes/hidden-hands.md); do not make private rows public to
+gain JS-arm cold retention.
 
 Existing legacy RQS entries are not rewritten merely because the class is now
 active. LLP 0090 grandfathers those bytes. While connected, adoption either

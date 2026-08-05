@@ -1,7 +1,6 @@
 # Asset-intent implementation identity omits the reachable helper closure
 
-**Status:** Open — RULED 2026-08-03, now implementable (was
-author-gated on the disposition)
+**Status:** Resolved 2026-08-04
 **Filed:** 2026-08-01
 **Area:** Codegen, assets, identity
 **Found by:** LLP 0140 super-refine loop, round 16 (Codex family), verified independently
@@ -87,3 +86,28 @@ constraint and must not freeze a Stage-0 baseline that bakes the collision in.
 The Plan records this ticket as a prerequisite disposition. The defect is
 pre-existing and independent of that migration — it should be fixed on its own
 merits.
+
+## Resolution (2026-08-04)
+
+Disposition 1 is implemented end to end:
+
+- inline asset-authorizer identity includes the deterministically ordered
+  reachable `helpers: [{ name, contentHash }]` closure while helper-free v1
+  preimages remain unchanged;
+- the generated reference/client request, admission record, per-intent
+  generation key, and finalization selector all carry `implementationHash`
+  beside `intentPolicyHash`;
+- finalization admits current code only when both hashes match and otherwise
+  validates and executes the generation-retained intent artifact, including its
+  frozen finalization policy;
+- direct-body, helper-only, and `reads` metamorphics cover generation bump,
+  stale-reference refusal, frozen-code finalization, rollback, and unrelated
+  intent stability.
+
+Upgrade posture is refuse-stale, not silent adoption. The generation table adds
+a nullable implementation-hash column so existing databases migrate
+additively. A legacy policy-only row bumps on the first carrier-aware admission,
+even if its policy hash is unchanged. An in-flight legacy attempt has no frozen
+executable identity and finalization refuses it with
+`SNAPBACK_ASSET_ADMISSION_STALE`; the client must retry to obtain a fresh
+admission under the carrier-aware generation.

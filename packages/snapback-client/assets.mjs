@@ -187,9 +187,10 @@ function assertFileLike(file) {
 function intentIdentity(upload) {
   if (typeof upload === 'string') {
     // A bare intent name can never satisfy the server's admission DTO —
-    // the generated reference carries the required intentPolicyHash.
+    // the generated reference carries the required policy and implementation
+    // identities.
     throw new TypeError(
-      `start requires the generated upload reference (api.${upload}), not the intent name string — the reference carries the policy identity the server admits against`,
+      `start requires the generated upload reference (api.${upload}), not the intent name string — the reference carries the policy and implementation identity the server admits against`,
     );
   }
   if (
@@ -197,7 +198,11 @@ function intentIdentity(upload) {
     && upload.artifactKind === 'assetUploadReference'
     && typeof upload.name === 'string'
   ) {
-    return { intentId: upload.name, intentPolicyHash: upload.intentPolicyHash ?? null };
+    return {
+      intentId: upload.name,
+      intentPolicyHash: upload.intentPolicyHash ?? null,
+      implementationHash: upload.implementationHash ?? null,
+    };
   }
   throw new TypeError(
     'start requires a generated asset upload reference',
@@ -435,6 +440,7 @@ export class SnapbackAssetClient {
         {
           intentId: state.identity.intentId,
           intentPolicyHash: state.identity.intentPolicyHash,
+          implementationHash: state.identity.implementationHash,
           args: state.args,
           declaredFilename: state.declaredFilename,
           declaredLength: state.file.size,
@@ -488,7 +494,7 @@ export class SnapbackAssetClient {
     }
     const task = new AssetUploadTask(this, { totalBytes: file.size, previewUrl: null });
     this.#tasks.set(task, {
-      identity: { intentId: null, intentPolicyHash: null },
+      identity: { intentId: null, intentPolicyHash: null, implementationHash: null },
       args: {},
       file,
       userId,

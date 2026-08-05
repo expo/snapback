@@ -541,8 +541,12 @@ fn failure_details_at_emission(
 
     let private_failure = private_failure.unwrap_or_default();
     let tracking = private_failure.app_refusal_tracking;
-    let multiple_carriers = private_failure.carriers.len() > 1;
-    let carrier = (private_failure.carriers.len() == 1).then(|| &private_failure.carriers[0]);
+    // @ref LLP 0156#amendment-2026-08-03-multi-rejection-fingerprint-authority —
+    //   queue order makes the first rejection the singular fingerprint and
+    //   exemplar authority while the complete vector remains raw-tier facts.
+    let carrier = private_failure.carriers.first();
+    let rejection_carriers =
+        (private_failure.carriers.len() > 1).then(|| private_failure.carriers.clone());
     let transport = admission.operation_class.starts_with("transport.") && code.is_none();
     let carrier_category = if tracking.is_some() {
         CarrierCategoryV1::AppRefusal
@@ -587,11 +591,7 @@ fn failure_details_at_emission(
         .then(|| diagnostic.map(|diagnostic| diagnostic.subsystem.clone()))
         .flatten();
 
-    // A vector carrier is required by the Hermes ABI, but LLP 0156 has not
-    // authorized a winner when more than one rejection is unhandled. Keep the
-    // classifier stamp, omit identity, and let E1 fail safe as malformed rather
-    // than grouping under an invented first/last rejection.
-    let fingerprint_input = if classification.issue_eligible && !multiple_carriers {
+    let fingerprint_input = if classification.issue_eligible {
         match branch {
             FingerprintBranchV1::TypedRefusal => {
                 code.map(|code| FingerprintInputV1::TypedRefusal {
@@ -676,6 +676,7 @@ fn failure_details_at_emission(
         message_template,
         message: raw_message,
         stack: carrier.and_then(|carrier| carrier.stack.clone()),
+        rejection_carriers,
         message_extraction_truncated: carrier
             .is_some_and(|carrier| carrier.message_extraction_truncated),
         stack_extraction_truncated: carrier
@@ -5307,6 +5308,7 @@ mod tests {
             message_template,
             message: None,
             stack: Some("at messages.send".to_owned()),
+            rejection_carriers: None,
             message_extraction_truncated: false,
             stack_extraction_truncated: false,
         })
@@ -8825,7 +8827,7 @@ mod tests {
     }
 
     #[test]
-    fn producer_stamps_single_carriers_and_multi_carrier_fails_safe_without_grouping() {
+    fn producer_stamps_single_and_multi_carriers_with_first_rejection_authority() {
         let telemetry =
             Telemetry::in_memory("01900000-0000-7000-8000-000000000001", config()).unwrap();
         let carrier = |error_class: &str, message: &str| crate::error_tracking::FailureCarrierV1 {
@@ -8884,6 +8886,40 @@ mod tests {
             span.finish_error(Some(500), &mut refusal, None);
         }
 
+        let ordered_rejections = vec![
+            carrier("TypeError", "first rejection"),
+            carrier("RangeError", "second rejection"),
+        ];
+        let expected_multi_hash = lower_hex(
+            &fingerprint_v1(&FingerprintInputV1::Exception {
+                scheme_version: FINGERPRINT_VERSION,
+                kind: Some("function_run".to_owned()),
+                name: Some("actions.multiReject".to_owned()),
+                error_class: Some(ordered_rejections[0].error_class.clone()),
+                message_template: Some(normalize_message_v1(
+                    ordered_rejections[0].message.as_deref().unwrap(),
+                )),
+            })
+            .truncated,
+        );
+        let span = telemetry.start_classified_span(
+            OperationClassIdV1::FUNCTION_ACTION,
+            "actions.multiReject",
+            None,
+            None,
+        );
+        let mut matching_single = SnapbackError::error(
+            "SNAPBACK_HANDLER_UNHANDLED_REJECTION",
+            "runtime",
+            "handler completed with an unhandled promise rejection",
+        )
+        .with_details(json!({ "function": "actions.multiReject" }))
+        .with_private_failure_context(PrivateFailureContextV1 {
+            carriers: vec![ordered_rejections[0].clone()],
+            app_refusal_tracking: None,
+        });
+        span.finish_error(Some(500), &mut matching_single, None);
+
         let span = telemetry.start_classified_span(
             OperationClassIdV1::FUNCTION_ACTION,
             "actions.multiReject",
@@ -8897,10 +8933,7 @@ mod tests {
         )
         .with_details(json!({ "function": "actions.multiReject" }))
         .with_private_failure_context(PrivateFailureContextV1 {
-            carriers: vec![
-                carrier("TypeError", "first rejection"),
-                carrier("RangeError", "second rejection"),
-            ],
+            carriers: ordered_rejections.clone(),
             app_refusal_tracking: None,
         });
         span.finish_error(Some(500), &mut multiple, None);
@@ -8951,8 +8984,12 @@ mod tests {
         let multiple = details_for("actions.multiReject");
         assert_eq!(multiple["failure_disposition"], "fault");
         assert_eq!(multiple["issue_eligible"], true);
-        assert!(multiple.get("fp_hash").is_none());
-        assert!(multiple.get("errorClass").is_none());
+        assert_eq!(multiple["fp_branch"], "exception");
+        assert_eq!(multiple["fp_version"], FINGERPRINT_VERSION);
+        assert_eq!(multiple["fp_hash"], expected_multi_hash);
+        assert_eq!(multiple["errorClass"], "TypeError");
+        assert_eq!(multiple["messageTemplate"], "first rejection");
+        assert_eq!(multiple["rejectionCarriers"], json!(ordered_rejections));
 
         let groups = conn
             .prepare("SELECT kind,name,failure_disposition FROM error_groups_visible ORDER BY name")
@@ -8982,6 +9019,11 @@ mod tests {
                 ),
                 (
                     "function_run".to_owned(),
+                    "actions.multiReject".to_owned(),
+                    "fault".to_owned(),
+                ),
+                (
+                    "function_run".to_owned(),
                     "messages.send".to_owned(),
                     "fault".to_owned(),
                 ),
@@ -8992,6 +9034,59 @@ mod tests {
                 ),
             ]
         );
+        let multi_group: (i64, String) = conn
+            .query_row(
+                "SELECT count,lower(hex(fp_hash)) FROM error_groups_visible WHERE name='actions.multiReject'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            multi_group,
+            (2, expected_multi_hash),
+            "the matching single terminal and one multi terminal each contribute one occurrence to the first-rejection group"
+        );
+        let multi_group_count: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM error_groups_visible WHERE name='actions.multiReject'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            multi_group_count, 1,
+            "the multi terminal joins the corresponding single-rejection group"
+        );
+        let multi_raw_count: i64 = conn
+            .query_row(
+                "SELECT count(*) FROM telemetry_events_visible WHERE name='actions.multiReject'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            multi_raw_count, 2,
+            "two handler terminals remain two observations; the multi terminal is not split"
+        );
+        let multi_exemplars: Vec<(String, String)> = conn
+            .prepare(
+                "SELECT title_template,stack_head FROM error_exemplars_visible WHERE issue=(SELECT issue FROM error_groups_visible WHERE name='actions.multiReject')",
+            )
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(
+            multi_exemplars.len(),
+            2,
+            "the single and multi terminal each retain one first-rejection exemplar"
+        );
+        assert!(multi_exemplars.iter().all(|exemplar| exemplar
+            == &(
+                "first rejection".to_owned(),
+                "at handler (app.js:1:1)".to_owned(),
+            )));
         let malformed: i64 = conn
             .query_row(
                 "SELECT malformed_error_stamp_count FROM telemetry_meta WHERE singleton=1",
@@ -9000,8 +9095,8 @@ mod tests {
             )
             .unwrap();
         assert_eq!(
-            malformed, 1,
-            "the author-blocked multi-carrier terminal stays raw and non-grouped"
+            malformed, 0,
+            "a well-formed ordered vector is not malformed"
         );
     }
 

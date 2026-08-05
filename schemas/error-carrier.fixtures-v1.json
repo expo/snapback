@@ -62,6 +62,70 @@
     "detailsBytes": 8192,
     "extractionBytes": 16384
   },
+  "multiRejection": {
+    "details": {
+      "classifier_version": 1,
+      "detailFlags": {
+        "appDetailsDropped": false,
+        "attemptDropped": false,
+        "causeDropped": false,
+        "functionTruncated": false,
+        "levelDropped": false,
+        "messageTemplateTruncated": false,
+        "messageTruncated": false,
+        "methodDropped": false,
+        "nameTruncated": false,
+        "rawPathDropped": false,
+        "refererDropped": false,
+        "severityDropped": false,
+        "stackTruncated": false,
+        "triggerDropped": false,
+        "userAgentDropped": false
+      },
+      "errorClass": "TypeError",
+      "failure_disposition": "fault",
+      "fp_branch": "exception",
+      "fp_hash": "2135cafee7438f38345bc3a3a749a7f1",
+      "fp_version": 1,
+      "function": "actions.multiReject",
+      "issue_eligible": true,
+      "message": "first rejection 123",
+      "messageTemplate": "first rejection <digits>",
+      "platformCode": "SNAPBACK_HANDLER_UNHANDLED_REJECTION",
+      "rejectionCarriers": [
+        {
+          "errorClass": "TypeError",
+          "message": "first rejection 123",
+          "messageExtractionTruncated": false,
+          "stack": "at first (handler.js:1:1)",
+          "stackExtractionTruncated": false
+        },
+        {
+          "errorClass": "RangeError",
+          "message": "second rejection 456",
+          "messageExtractionTruncated": false,
+          "stack": "at second (handler.js:2:1)",
+          "stackExtractionTruncated": false
+        }
+      ],
+      "stack": "at first (handler.js:1:1)"
+    },
+    "expectedSemantics": {
+      "exemplarCount": 1,
+      "groupMembershipCount": 1,
+      "observationCount": 1,
+      "occurrenceIncrement": 1
+    },
+    "fingerprintInput": {
+      "branch": "exception",
+      "errorClass": "TypeError",
+      "kind": "function_run",
+      "messageTemplate": "first rejection <digits>",
+      "name": "actions.multiReject",
+      "schemeVersion": 1
+    },
+    "serializedBytes": 1112
+  },
   "normalizerCases": [
     {
       "expected": "user <email> id <digits> and <hex> said <quoted> token <base32>",

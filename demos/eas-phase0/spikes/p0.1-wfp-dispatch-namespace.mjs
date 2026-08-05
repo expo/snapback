@@ -15,6 +15,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
+import { resolve4, resolve6 } from 'node:dns/promises';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -30,6 +31,11 @@ const HANDLER_CONCURRENCY = 2;
 const ACTION_CONCURRENCY = 1;
 const QUEUE_DEPTH = 2;
 const INVOCATION_DEADLINE_MS = 10_000;
+const EDGE_PROBE_CONCURRENCY = 8;
+const EDGE_STABLE_ROUNDS = 3;
+const EDGE_MAX_ATTEMPTS_PER_PROBE = 90;
+const NAMESPACE_STABLE_ROUNDS = 3;
+const NAMESPACE_MAX_ROUNDS = 90;
 const here = path.dirname(fileURLToPath(import.meta.url));
 const defaultReceipt = path.resolve(here, '../receipts/p0.1-wfp-dispatch-namespace.json');
 
@@ -301,9 +307,9 @@ export class Gate {
 }
 
 const allowed = new Set([
-  "query", "mutation", "mutation-retry", "runtime-facts", "ambient-fetch", "allowlisted-fetch",
+  "query", "mutation", "mutation-retry", "runtime-facts", "activation-probe", "ambient-fetch", "ambient-global-fetch", "ambient-captured-fetch", "allowlisted-fetch",
   "denied-action-fetch", "slow-action", "queue-hold", "oversized-response",
-  "subrequest-bomb", "cpu-spin", "stale-capability", "tamper-app-capability",
+  "subrequest-bomb", "retained-action-fetch", "trusted-entry-reentry", "cpu-spin", "stale-capability", "tamper-app-capability",
   "tamper-release-capability",
 ]);
 
@@ -353,7 +359,7 @@ export default {
       return json(400, { ok: false, code: "SNAPBACK_ROLE_OPERATION_MISMATCH" });
     }
     if (role === "action" &&
-        !["allowlisted-fetch", "denied-action-fetch", "slow-action", "subrequest-bomb"].includes(operation)) {
+        !["activation-probe", "ambient-global-fetch", "ambient-captured-fetch", "allowlisted-fetch", "denied-action-fetch", "slow-action", "subrequest-bomb", "retained-action-fetch", "trusted-entry-reentry"].includes(operation)) {
       return json(400, { ok: false, code: "SNAPBACK_ROLE_OPERATION_MISMATCH" });
     }
     const bodyBytes = await request.arrayBuffer();
@@ -412,12 +418,16 @@ export default {
         : setTimeout(() => controller.abort("SNAPBACK_INVOCATION_DEADLINE"), limits.deadlineMs);
       let response;
       try {
-        const worker = env.DISPATCHER.get(scriptName, {}, {
+        const dispatchOptions = {
           limits: { cpuMs: limits.cpuMs, subRequests: limits.subRequests },
-          outbound: {
+        };
+        if (role === "action") {
+          dispatchOptions.outbound = {
             DISPATCH_CONTEXT: { appId, release, role, requestId: cap.requestId },
-          },
-        });
+          };
+        }
+        const dispatcher = role === "action" ? env.ACTION_DISPATCHER : env.HANDLER_DISPATCHER;
+        const worker = dispatcher.get(scriptName, {}, dispatchOptions);
         response = await worker.fetch(new Request("https://user-worker.internal/invoke", {
           method: "POST",
           headers: {
@@ -469,7 +479,7 @@ export default {
 `;
 }
 
-function userWorkerSource({ appId, release, role }) {
+function userWorkerHarnessSource({ appId, release, role }) {
   return `
 const APP_ID = ${JSON.stringify(appId)};
 const ENVIRONMENT_ID = ${JSON.stringify(`${appId}-environment`)};
@@ -477,6 +487,9 @@ const RELEASE = ${JSON.stringify(release)};
 const ROLE = ${JSON.stringify(role)};
 const OBJECT_ID = "root";
 const forbiddenScopeKeys = new Set(["appId", "environmentId", "objectId", "release", "requestId", "deadline"]);
+const nativeFetch = globalThis.fetch.bind(globalThis);
+let applicationModulePromise = null;
+let trustedHostBinding = null;
 
 function json(status, body) {
   return new Response(JSON.stringify(body), {
@@ -484,6 +497,18 @@ function json(status, body) {
     headers: { "content-type": "application/json; charset=utf-8" },
   });
 }
+
+Object.defineProperty(globalThis, "fetch", {
+  value: async () => json(403, {
+    ok: false,
+    code: ROLE === "handler"
+      ? "SNAPBACK_HANDLER_AMBIENT_NETWORK_DENIED"
+      : "SNAPBACK_ACTION_AMBIENT_NETWORK_DENIED_USE_CTX_FETCH",
+    role: ROLE,
+  }),
+  writable: false,
+  configurable: false,
+});
 
 function toB64url(text) {
   return btoa(text).split("+").join("-").split("/").join("_").replace(/=+$/g, "");
@@ -516,8 +541,17 @@ async function hostCall(request, env, op, payload, capabilityOverride = null) {
   }));
 }
 
+async function applicationModule() {
+  applicationModulePromise ||= import("./application.mjs");
+  return applicationModulePromise;
+}
+
 export default {
   async fetch(request, env) {
+    if (trustedHostBinding === null) trustedHostBinding = env?.HOST || null;
+    if (trustedHostBinding === null || env?.HOST !== trustedHostBinding) {
+      return json(403, { ok: false, code: "SNAPBACK_TRUSTED_ENTRY_REQUIRED" });
+    }
     const { args = {} } = await request.json();
     const operation = request.headers.get("x-snapback-operation");
     const argKeys = Object.keys(args).sort();
@@ -528,50 +562,6 @@ export default {
         rejectedKeys: argKeys.filter((key) => forbiddenScopeKeys.has(key)),
       });
     }
-    if (operation === "cpu-spin") {
-      let checksum = 0;
-      for (let index = 0; index < 20_000_000; index += 1) {
-        checksum = Math.imul(checksum ^ index, 16_777_619);
-      }
-      return json(200, { ok: true, unexpected: "CPU limit did not fire", checksum });
-    }
-    if (operation === "runtime-facts") {
-      return json(200, {
-        ok: true,
-        requestCfType: typeof request.cf,
-        cacheDefaultType: typeof caches === "undefined" ? "undefined" : typeof caches.default,
-      });
-    }
-    if (operation === "oversized-response") {
-      return json(200, { ok: true, payload: "x".repeat(128 * 1024) });
-    }
-    if (operation === "ambient-fetch") {
-      const response = await fetch("https://example.com/");
-      return json(200, { ok: true, outboundStatus: response.status, role: ROLE });
-    }
-    if (operation === "allowlisted-fetch") {
-      const response = await fetch("https://example.com/");
-      return json(200, { ok: true, outboundStatus: response.status, role: ROLE });
-    }
-    if (operation === "denied-action-fetch") {
-      const response = await fetch("https://not-allowlisted.invalid/");
-      return json(200, { ok: true, outboundStatus: response.status, role: ROLE });
-    }
-    if (operation === "slow-action") {
-      await new Promise((resolve) => setTimeout(resolve, Number(args.delayMs || 1_200)));
-      const response = await fetch("https://example.com/");
-      return json(200, { ok: true, outboundStatus: response.status, role: ROLE });
-    }
-    if (operation === "queue-hold") {
-      return hostCall(request, env, "delay", { delayMs: Number(args.delayMs || 700), applicationArgKeys: argKeys });
-    }
-    if (operation === "subrequest-bomb") {
-      for (let index = 0; index < 12; index += 1) {
-        const response = await fetch("https://example.com/?snapback-subrequest=" + index);
-        await response.arrayBuffer();
-      }
-      return json(200, { ok: true, unexpected: "subrequest limit did not fire" });
-    }
     if (operation === "tamper-app-capability") {
       const changed = tamper(request.headers.get("x-snapback-capability"), { appId: "app-b" });
       return hostCall(request, env, "query", { applicationArgKeys: argKeys }, changed);
@@ -580,15 +570,171 @@ export default {
       const changed = tamper(request.headers.get("x-snapback-capability"), { release: RELEASE === "r1" ? "r2" : "r1" });
       return hostCall(request, env, "query", { applicationArgKeys: argKeys }, changed);
     }
-    if (operation === "query" || operation === "stale-capability") {
-      return hostCall(request, env, "query", { applicationArgKeys: argKeys, value: args.value ?? null });
+
+    const identity = Object.freeze({ appId: APP_ID, environmentId: ENVIRONMENT_ID, release: RELEASE, role: ROLE });
+    let ctx;
+    let active = true;
+    if (ROLE === "action") {
+      let subrequests = 0;
+      ctx = Object.freeze({
+        identity,
+        fetch: async (...fetchArgs) => {
+          if (!active) throw new Error("SNAPBACK_STALE_ACTION_FETCH");
+          subrequests += 1;
+          if (subrequests > ${SUBREQUESTS}) throw new Error("SNAPBACK_SUBREQUEST_LIMIT");
+          return nativeFetch(...fetchArgs);
+        },
+      });
+    } else {
+      ctx = Object.freeze({
+        identity,
+        runtimeFacts: Object.freeze({
+          requestCfType: typeof request.cf,
+          cacheDefaultType: typeof caches === "undefined" ? "undefined" : typeof caches.default,
+        }),
+        query: (payload) => hostCall(request, env, "query", payload),
+        mutation: (payload) => hostCall(request, env, "mutation", payload),
+        delay: (payload) => hostCall(request, env, "delay", payload),
+      });
     }
-    if (operation === "mutation" || operation === "mutation-retry") {
-      return hostCall(request, env, "mutation", { applicationArgKeys: argKeys, delta: Number(args.delta || 1) });
+    const application = await applicationModule();
+    try {
+      return await application.run({ operation, args, argKeys, ctx });
+    } finally {
+      active = false;
     }
-    return json(400, { ok: false, code: "SNAPBACK_USER_OPERATION_UNKNOWN" });
   },
 };
+`;
+}
+
+function userApplicationSource() {
+  return `
+const capturedAmbientFetch = globalThis.fetch;
+let retainedActionFetch = null;
+let moduleInvocationSequence = 0;
+
+function json(status, body) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
+export async function run({ operation, args, argKeys, ctx }) {
+  moduleInvocationSequence += 1;
+  const role = ctx.identity.role;
+  if (operation === "activation-probe") {
+    return json(200, { ok: true, appId: ctx.identity.appId, release: ctx.identity.release, role });
+  }
+  if (operation === "cpu-spin") {
+    let checksum = 2_166_136_261;
+    const witness = new Uint32Array(256);
+    for (let index = 0; index < 200_000_000; index += 1) {
+      checksum = Math.imul(checksum ^ (index + witness[index & 255]), 16_777_619) >>> 0;
+      if ((index & 1_048_575) === 0) witness[(index >>> 20) & 255] = checksum;
+    }
+    return json(200, { ok: true, unexpected: "CPU limit did not fire", checksum });
+  }
+  if (operation === "runtime-facts") {
+    return json(200, { ok: true, ...ctx.runtimeFacts });
+  }
+  if (operation === "oversized-response") {
+    return json(200, { ok: true, payload: "x".repeat(128 * 1024) });
+  }
+  if (operation === "ambient-fetch") {
+    const response = await fetch("https://example.com/");
+    return json(200, { ok: true, outboundStatus: response.status, role });
+  }
+  if (operation === "ambient-global-fetch") {
+    const response = await globalThis.fetch("https://example.com/");
+    return json(200, { ok: true, outboundStatus: response.status, role });
+  }
+  if (operation === "ambient-captured-fetch") {
+    const response = await capturedAmbientFetch("https://example.com/");
+    return json(200, { ok: true, outboundStatus: response.status, role });
+  }
+  if (operation === "allowlisted-fetch") {
+    const response = await ctx.fetch("https://example.com/");
+    return json(200, { ok: true, outboundStatus: response.status, role });
+  }
+  if (operation === "denied-action-fetch") {
+    const response = await ctx.fetch("https://not-allowlisted.invalid/");
+    return json(200, { ok: true, outboundStatus: response.status, role });
+  }
+  if (operation === "slow-action") {
+    await new Promise((resolve) => setTimeout(resolve, Number(args.delayMs || 1_200)));
+    const response = await ctx.fetch("https://example.com/");
+    return json(200, { ok: true, outboundStatus: response.status, role });
+  }
+  if (operation === "queue-hold") {
+    return ctx.delay({ delayMs: Number(args.delayMs || 700), applicationArgKeys: argKeys });
+  }
+  if (operation === "subrequest-bomb") {
+    try {
+      for (let index = 0; index < 12; index += 1) {
+        const response = await ctx.fetch("https://example.com/?snapback-subrequest=" + index);
+        await response.arrayBuffer();
+      }
+    } catch (error) {
+      if (error?.message === "SNAPBACK_SUBREQUEST_LIMIT") {
+        return json(429, { ok: false, code: "SNAPBACK_SUBREQUEST_LIMIT", limit: ${SUBREQUESTS} });
+      }
+      throw error;
+    }
+    return json(200, { ok: true, unexpected: "subrequest limit did not fire" });
+  }
+  if (operation === "retained-action-fetch") {
+    const priorFetch = retainedActionFetch;
+    retainedActionFetch = ctx.fetch;
+    if (!priorFetch) {
+      return json(409, {
+        ok: false,
+        code: "SNAPBACK_NO_RETAINED_ACTION_FETCH",
+        moduleInvocationSequence,
+      });
+    }
+    try {
+      const response = await priorFetch("https://example.com/?snapback-retained-action-fetch=1");
+      return json(200, {
+        ok: true,
+        unexpected: "retained action fetch remained live",
+        outboundStatus: response.status,
+        moduleInvocationSequence,
+      });
+    } catch (error) {
+      if (error?.message === "SNAPBACK_STALE_ACTION_FETCH") {
+        return json(409, {
+          ok: false,
+          code: "SNAPBACK_STALE_ACTION_FETCH",
+          moduleInvocationSequence,
+        });
+      }
+      throw error;
+    }
+  }
+  if (operation === "trusted-entry-reentry") {
+    const trustedMain = await import("./worker.mjs");
+    const response = await trustedMain.default.fetch(new Request("https://user-worker.internal/invoke", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-snapback-operation": "allowlisted-fetch",
+      },
+      body: JSON.stringify({ args: {} }),
+    }), {});
+    let body = null;
+    try { body = await response.json(); } catch {}
+    return json(response.status, body || { ok: false, code: "SNAPBACK_REENTRY_RESPONSE_INVALID" });
+  }
+  if (operation === "query" || operation === "stale-capability") {
+    return ctx.query({ applicationArgKeys: argKeys, value: args.value ?? null });
+  }
+  if (operation === "mutation" || operation === "mutation-retry") {
+    return ctx.mutation({ applicationArgKeys: argKeys, delta: Number(args.delta || 1) });
+  }
+  return json(400, { ok: false, code: "SNAPBACK_USER_OPERATION_UNKNOWN" });
+}
 `;
 }
 
@@ -656,10 +802,27 @@ async function main() {
       roles: ['handler', 'action'],
       userWorkerCount: 8,
       userWorkerBindingEnvelope: [{ type: 'service', name: 'HOST', service: names.host }],
+      userWorkerModuleBoundary: {
+        trustedMain: 'worker.mjs binds entry to the first real env.HOST object and owns capability transport, native fetch capture, and ambient freeze',
+        application: 'application.mjs is dynamically evaluated after ambient freeze and receives only an invocation-scoped ctx',
+      },
+      dispatchPaths: {
+        handler: { binding: 'HANDLER_DISPATCHER', outboundWorker: false },
+        action: { binding: 'ACTION_DISPATCHER', outboundWorker: names.outbound },
+      },
       capabilityFields: ['appId', 'environmentId', 'objectId', 'release', 'operation', 'requestId', 'deadline'],
     },
     limits: {
-      nativeWfpPerInvocation: { cpuMs: CPU_MS, subRequests: SUBREQUESTS },
+      nativeWfpPerInvocation: {
+        cpuMs: CPU_MS,
+        subRequests: SUBREQUESTS,
+        fullTopologyCpuScope: 'handler binding without outbound Worker',
+        nativeSubrequestControlReceipt: 'demos/eas-phase0/receipts/p0.1-wfp-minimal-control.json',
+      },
+      generatedHarness: {
+        subRequests: SUBREQUESTS,
+        note: 'ctx.fetch fails closed before outbound handoff and is revoked after application settlement; trusted entry requires the captured real env.HOST identity, application.mjs cannot access the native-fetch closure, and the separate control proves native enforcement without outbound',
+      },
       dispatcherEnforced: {
         responseBytes: RESPONSE_BYTES,
         handlerConcurrency: HANDLER_CONCURRENCY,
@@ -673,9 +836,11 @@ async function main() {
     cleanup,
     nonClaims: [
       'This disposable proof does not qualify the eas-cloudflare-wfp-v1 capability profile or graduate hosted_untrusted_code.',
-      'The documented native WfP CPU/subrequest options are exercised, but this run makes no enforcement claim unless both corresponding checks pass; response, concurrency, queue, and wall-clock limits remain disposable dispatcher/Gate code.',
+      'Cloudflare native CPU enforcement has documented isolate flexibility, so the busy-loop witness repeats until termination and records every attempt rather than asserting a strict elapsed-time cutoff.',
+      'The trusted user-Worker main module fails closed at the subrequest ceiling before outbound handoff. It freezes ambient fetch before dynamically evaluating separate application.mjs, passes only invocation-scoped ctx.fetch, and revokes that function after application settlement. Native WfP subrequest enforcement is independently proved by the binding-free minimal-control receipt because outbound interception changes the observed accounting boundary.',
+      'Response, concurrency, queue, and wall-clock limits remain disposable dispatcher/Gate code.',
       'The action-role mechanism is a separate namespaced script and admission gate; Gate 0 must still select the production kill-domain mechanism.',
-      'Rapid disposable Workers.dev activation was not stable under concurrent probes; that ingress concern belongs to P0.2 and is recorded without qualifying a route.',
+      'The disposable Workers.dev route must cross three body-verified readiness rounds, each with eight independently bounded retry lanes, before P0.1 starts; this does not qualify any Expo ingress or production route shape, which remains P0.2 work.',
       'No production Expo-org credential custody, stable identity, billing, hosted auth, or route-shape claim is made.',
     ],
   };
@@ -703,10 +868,15 @@ async function main() {
     return { result: payload?.result ?? payload, headers: response.headers, status: response.status };
   }
 
-  async function uploadScript(pathname, metadata, source) {
+  async function uploadScript(pathname, metadata, modules) {
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('worker.mjs', new Blob([source], { type: 'application/javascript+module' }), 'worker.mjs');
+    const moduleEntries = typeof modules === 'string'
+      ? [['worker.mjs', modules]]
+      : Object.entries(modules);
+    for (const [moduleName, source] of moduleEntries) {
+      form.append(moduleName, new Blob([source], { type: 'application/javascript+module' }), moduleName);
+    }
     return api(pathname, { method: 'PUT', body: form });
   }
 
@@ -715,16 +885,23 @@ async function main() {
     created.workers.push(name);
   }
 
-  async function uploadNamespaced(name, metadata, source) {
+  async function uploadNamespaced(name, metadata, harnessSource, applicationSource) {
     const base = `/accounts/${accountId}/workers/dispatch/namespaces/${encodeURIComponent(options.namespace)}/scripts/${encodeURIComponent(name)}`;
-    const uploaded = await uploadScript(base, metadata, source);
+    const uploaded = await uploadScript(base, metadata, {
+      'worker.mjs': harnessSource,
+      'application.mjs': applicationSource,
+    });
     created.namespaceScripts.push(name);
     const readBack = await api(`${base}/bindings`);
     const returnedBindings = Array.isArray(uploaded.result?.bindings) ? uploaded.result.bindings : [];
     const readBackBindings = Array.isArray(readBack.result) ? readBack.result : [];
     bindingReceipts.push({
       script: name,
-      sourceSha256: sha256(source),
+      sourceSha256: sha256(`${harnessSource}\n${applicationSource}`),
+      moduleSha256: {
+        'worker.mjs': sha256(harnessSource),
+        'application.mjs': sha256(applicationSource),
+      },
       multipartMetadata: metadata.bindings,
       uploadResponseBindings: returnedBindings,
       bindingsEndpoint: readBackBindings,
@@ -752,21 +929,31 @@ async function main() {
   }
 
   let baseUrl = null;
-  async function invoke(appId, release, role, operation, args = {}, { retryEdge = true } = {}) {
+  async function invoke(appId, release, role, operation, args = {}, {
+    retryEdge = true,
+    retryWorker = true,
+    maxAttempts = 60,
+  } = {}) {
     const started = performance.now();
-    for (let activationAttempt = 1; activationAttempt <= 60; activationAttempt += 1) {
-      const response = await fetch(`${baseUrl}/invoke/${appId}/${release}/${role}/${operation}`, {
+    for (let activationAttempt = 1; activationAttempt <= maxAttempts; activationAttempt += 1) {
+      const nonce = randomBytes(8).toString('hex');
+      const response = await fetch(`${baseUrl}/invoke/${appId}/${release}/${role}/${operation}?probe=${nonce}`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'cache-control': 'no-cache, no-store',
+          'content-type': 'application/json',
+          pragma: 'no-cache',
+        },
         body: JSON.stringify({ args }),
       });
       const text = await response.text();
       let body;
       try { body = JSON.parse(text); } catch { body = { text: text.slice(0, 500) }; }
-      const workerNotFound = response.status === 500 && body?.category === 'Worker not found.';
-      const edgeNotReady = retryEdge && response.status >= 404 && typeof body?.text === 'string' &&
-        /(?:Page|Script) not found/iu.test(body.text);
-      if ((!workerNotFound && !edgeNotReady) || activationAttempt === 60) {
+      const workerNotFound = retryWorker && response.status === 502 &&
+        body?.code === 'SNAPBACK_USER_WORKER_FAILED' && body?.category === 'Worker not found.';
+      const edgeNotReady = retryEdge && response.status === 404 &&
+        (typeof body?.code !== 'string' || !body.code.startsWith('SNAPBACK_'));
+      if ((!workerNotFound && !edgeNotReady) || activationAttempt === maxAttempts) {
         return {
           status: response.status,
           body,
@@ -782,12 +969,21 @@ async function main() {
   async function dispatcherRequest(pathname, init = {}) {
     const started = performance.now();
     for (let activationAttempt = 1; activationAttempt <= 60; activationAttempt += 1) {
-      const response = await fetch(`${baseUrl}${pathname}`, init);
+      const nonce = randomBytes(8).toString('hex');
+      const separator = pathname.includes('?') ? '&' : '?';
+      const response = await fetch(`${baseUrl}${pathname}${separator}probe=${nonce}`, {
+        ...init,
+        headers: {
+          'cache-control': 'no-cache, no-store',
+          pragma: 'no-cache',
+          ...(init.headers || {}),
+        },
+      });
       const text = await response.text();
       let body;
       try { body = JSON.parse(text); } catch { body = { text: text.slice(0, 500) }; }
-      const edgeNotReady = response.status >= 404 && typeof body?.text === 'string' &&
-        /(?:Page|Script) not found/iu.test(body.text);
+      const edgeNotReady = response.status === 404 &&
+        (typeof body?.code !== 'string' || !body.code.startsWith('SNAPBACK_'));
       if (!edgeNotReady || activationAttempt === 60) {
         return {
           status: response.status,
@@ -846,7 +1042,12 @@ async function main() {
         for (const role of ['handler', 'action']) {
           const script = `${appId}-${release}-${role}`;
           const metadata = metadataForUserWorker(names.host);
-          await uploadNamespaced(script, metadata, userWorkerSource({ appId, release, role }));
+          await uploadNamespaced(
+            script,
+            metadata,
+            userWorkerHarnessSource({ appId, release, role }),
+            userApplicationSource(),
+          );
         }
       }
     }
@@ -873,7 +1074,12 @@ async function main() {
         { type: 'durable_object_namespace', name: 'GATES', class_name: 'Gate' },
         {
           type: 'dispatch_namespace',
-          name: 'DISPATCHER',
+          name: 'HANDLER_DISPATCHER',
+          namespace: options.namespace,
+        },
+        {
+          type: 'dispatch_namespace',
+          name: 'ACTION_DISPATCHER',
           namespace: options.namespace,
           outbound: {
             worker: { service: names.outbound },
@@ -895,50 +1101,169 @@ async function main() {
       ...(binding.outbound ? { outbound: binding.outbound } : {}),
     }));
 
-    await api(`/accounts/${accountId}/workers/scripts/${encodeURIComponent(names.dispatcher)}/subdomain`, {
+    const subdomainEnabled = await api(
+      `/accounts/${accountId}/workers/scripts/${encodeURIComponent(names.dispatcher)}/subdomain`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ enabled: true, previews_enabled: false }),
-    });
+      },
+    );
+    const subdomainReadBack = await api(
+      `/accounts/${accountId}/workers/scripts/${encodeURIComponent(names.dispatcher)}/subdomain`,
+    );
     const accountSubdomain = await api(`/accounts/${accountId}/workers/subdomain`);
-    baseUrl = `https://${names.dispatcher}.${accountSubdomain.result?.subdomain}.workers.dev`;
+    const dispatcherHostname = `${names.dispatcher}.${accountSubdomain.result?.subdomain}.workers.dev`;
+    baseUrl = `https://${dispatcherHostname}`;
     receipt.cloudflare.dispatcherUrl = baseUrl;
 
-    let health = null;
-    for (let attempt = 1; attempt <= 20; attempt += 1) {
-      try {
-        const response = await fetch(`${baseUrl}/health`, { headers: { 'cache-control': 'no-store' } });
-        if (response.ok) {
-          health = await response.json();
-          break;
-        }
-      } catch {}
-      await new Promise((resolve) => setTimeout(resolve, 1_500));
-    }
-    check('dispatcher-activated', health?.ok === true && health?.namespace === options.namespace,
-      { namespace: health?.namespace || null, limits: health?.limits || null });
+    const dns = { ipv4: [], ipv6: [], errors: [] };
+    await Promise.all([
+      resolve4(dispatcherHostname).then((values) => { dns.ipv4 = values; }).catch((error) => {
+        dns.errors.push({ family: 4, message: safeMessage(error, accountId) });
+      }),
+      resolve6(dispatcherHostname).then((values) => { dns.ipv6 = values; }).catch((error) => {
+        dns.errors.push({ family: 6, message: safeMessage(error, accountId) });
+      }),
+    ]);
 
-    let edgeStabilityStatuses = [];
-    let edgeStabilityRound = 0;
-    for (edgeStabilityRound = 1; edgeStabilityRound <= 20; edgeStabilityRound += 1) {
-      edgeStabilityStatuses = await Promise.all(Array.from({ length: 8 }, async () => {
-        try {
-          const response = await fetch(`${baseUrl}/health`, { headers: { 'cache-control': 'no-store' } });
-          await response.arrayBuffer();
-          return response.status;
-        } catch {
-          return 0;
+    const edgeRounds = [];
+    let consecutiveStableRounds = 0;
+    let health = null;
+    for (let round = 1; round <= EDGE_STABLE_ROUNDS; round += 1) {
+      const results = await Promise.all(Array.from({ length: EDGE_PROBE_CONCURRENCY }, async (_, lane) => {
+        const attempts = [];
+        for (let attempt = 1; attempt <= EDGE_MAX_ATTEMPTS_PER_PROBE; attempt += 1) {
+          let observation;
+          try {
+            const nonce = randomBytes(8).toString('hex');
+            const response = await fetch(`${baseUrl}/health?probe=${nonce}`, {
+              headers: { 'cache-control': 'no-cache, no-store', pragma: 'no-cache' },
+            });
+            const text = await response.text();
+            let body;
+            try { body = JSON.parse(text); } catch { body = { text: text.slice(0, 240) }; }
+            const ok = body?.ok === true && body?.namespace === options.namespace;
+            if (ok) health = body;
+            observation = {
+              attempt,
+              status: response.status,
+              ok,
+              generatedNotFound: response.status >= 404 && typeof body?.text === 'string' &&
+                /(?:Page|Script) not found/iu.test(body.text),
+              cfRay: response.headers.get('cf-ray'),
+              cfCacheStatus: response.headers.get('cf-cache-status'),
+              age: response.headers.get('age'),
+              server: response.headers.get('server'),
+            };
+          } catch (error) {
+            observation = {
+              attempt,
+              status: 0,
+              ok: false,
+              networkError: safeMessage(error, accountId),
+            };
+          }
+          attempts.push(observation);
+          if (observation.status === 200 && observation.ok) {
+            return { lane, ...observation, activationAttempts: attempt, attempts };
+          }
+          if (attempt < EDGE_MAX_ATTEMPTS_PER_PROBE) {
+            await new Promise((resolve) => setTimeout(resolve, 1_000));
+          }
         }
+        const final = attempts.at(-1);
+        return {
+          lane,
+          ...final,
+          activationAttempts: EDGE_MAX_ATTEMPTS_PER_PROBE,
+          attempts,
+        };
       }));
-      if (edgeStabilityStatuses.every((status) => status === 200)) break;
-      await new Promise((resolve) => setTimeout(resolve, 1_000));
+      const stable = results.every((entry) => entry.status === 200 && entry.ok);
+      consecutiveStableRounds = stable ? consecutiveStableRounds + 1 : 0;
+      edgeRounds.push({ round, stable, results });
+      if (!stable) break;
     }
     receipt.cloudflare.dispatcherEdgeActivationObservation = {
-      stable: edgeStabilityStatuses.every((status) => status === 200),
-      round: Math.min(edgeStabilityRound, 20),
-      concurrentProbeStatuses: edgeStabilityStatuses,
-      scope: 'P0.2 ingress follow-up; P0.1 calls retry only Cloudflare activation pages',
+      stable: consecutiveStableRounds >= EDGE_STABLE_ROUNDS,
+      controlPlanePost: subdomainEnabled.result,
+      controlPlaneReadBack: subdomainReadBack.result,
+      dns,
+      concurrency: EDGE_PROBE_CONCURRENCY,
+      requiredConsecutiveStableRounds: EDGE_STABLE_ROUNDS,
+      consecutiveStableRounds,
+      maxAttemptsPerProbe: EDGE_MAX_ATTEMPTS_PER_PROBE,
+      rounds: edgeRounds,
+      generatedNotFoundCount: edgeRounds.flatMap((entry) => entry.results)
+        .flatMap((entry) => entry.attempts)
+        .filter((entry) => entry.generatedNotFound).length,
+      http404Count: edgeRounds.flatMap((entry) => entry.results)
+        .flatMap((entry) => entry.attempts)
+        .filter((entry) => entry.status === 404).length,
+      scope: 'P0.2 ingress follow-up; three body-verified rounds, each with eight bounded retry lanes, must pass before P0.1 starts',
     };
+
+    const namespaceActivationRounds = [];
+    let namespaceConsecutiveStableRounds = 0;
+    const namespaceTargets = ['app-a', 'app-b'].flatMap((appId) =>
+      ['r1', 'r2'].flatMap((release) =>
+        ['handler', 'action'].map((role) => ({ appId, release, role }))));
+    for (let round = 1; round <= NAMESPACE_MAX_ROUNDS &&
+        namespaceConsecutiveStableRounds < NAMESPACE_STABLE_ROUNDS; round += 1) {
+      const results = await Promise.all(namespaceTargets.map(async ({ appId, release, role }) => {
+        const result = await invoke(appId, release, role, 'activation-probe', {}, {
+          retryEdge: false,
+          retryWorker: false,
+          maxAttempts: 1,
+        });
+        return {
+          script: `${appId}-${release}-${role}`,
+          status: result.status,
+          ok: result.body?.ok === true && result.body?.appId === appId &&
+            result.body?.release === release && result.body?.role === role,
+          code: result.body?.code || null,
+          category: result.body?.category || null,
+        };
+      }));
+      const stable = results.every((entry) => entry.status === 200 && entry.ok);
+      namespaceConsecutiveStableRounds = stable ? namespaceConsecutiveStableRounds + 1 : 0;
+      namespaceActivationRounds.push({ round, stable, results });
+      if (namespaceConsecutiveStableRounds < NAMESPACE_STABLE_ROUNDS) {
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+      }
+    }
+    receipt.cloudflare.namespaceDispatchActivationObservation = {
+      stable: namespaceConsecutiveStableRounds >= NAMESPACE_STABLE_ROUNDS,
+      concurrency: namespaceTargets.length,
+      requiredConsecutiveStableRounds: NAMESPACE_STABLE_ROUNDS,
+      consecutiveStableRounds: namespaceConsecutiveStableRounds,
+      maxRounds: NAMESPACE_MAX_ROUNDS,
+      rounds: namespaceActivationRounds,
+      workerNotFoundCount: namespaceActivationRounds.flatMap((entry) => entry.results)
+        .filter((entry) => entry.category === 'Worker not found.').length,
+      scope: 'all two-app/two-release/two-role namespaced scripts before P0.1 assertions',
+    };
+    check('dispatcher-activated', consecutiveStableRounds >= EDGE_STABLE_ROUNDS &&
+      namespaceConsecutiveStableRounds >= NAMESPACE_STABLE_ROUNDS &&
+      health?.ok === true && health?.namespace === options.namespace, {
+      namespace: health?.namespace || null,
+      limits: health?.limits || null,
+      workersDev: {
+        requiredConsecutiveStableRounds: EDGE_STABLE_ROUNDS,
+        consecutiveStableRounds,
+        rounds: edgeRounds.length,
+      },
+      namespaceDispatch: {
+        scripts: namespaceTargets.map(({ appId, release, role }) => `${appId}-${release}-${role}`),
+        requiredConsecutiveStableRounds: NAMESPACE_STABLE_ROUNDS,
+        consecutiveStableRounds: namespaceConsecutiveStableRounds,
+        rounds: namespaceActivationRounds.length,
+      },
+    });
+    if (consecutiveStableRounds < EDGE_STABLE_ROUNDS ||
+        namespaceConsecutiveStableRounds < NAMESPACE_STABLE_ROUNDS) {
+      throw new Error('SNAPBACK_ACTIVATION_READINESS_TIMEOUT');
+    }
 
     const runtimeFacts = await invoke('app-a', 'r1', 'handler', 'runtime-facts');
     check('namespaced-worker-untrusted-runtime', runtimeFacts.status === 200 &&
@@ -1029,18 +1354,52 @@ async function main() {
     });
 
     const deniedHandler = await invoke('app-a', 'r1', 'handler', 'ambient-fetch');
+    const deniedGlobalHandler = await invoke('app-a', 'r1', 'handler', 'ambient-global-fetch');
+    const deniedCapturedHandler = await invoke('app-a', 'r1', 'handler', 'ambient-captured-fetch');
     check('handler-ambient-network-denied', deniedHandler.status === 200 &&
-      deniedHandler.body?.outboundStatus === 403 && deniedHandler.body?.role === 'handler', {
-      status: deniedHandler.status,
-      outboundStatus: deniedHandler.body?.outboundStatus,
+      deniedHandler.body?.outboundStatus === 403 && deniedGlobalHandler.status === 200 &&
+      deniedGlobalHandler.body?.outboundStatus === 403 && deniedCapturedHandler.status === 200 &&
+      deniedCapturedHandler.body?.outboundStatus === 403, {
+      lexicalFetch: {
+        status: deniedHandler.status,
+        outboundStatus: deniedHandler.body?.outboundStatus,
+        role: deniedHandler.body?.role || null,
+      },
+      globalFetch: {
+        status: deniedGlobalHandler.status,
+        outboundStatus: deniedGlobalHandler.body?.outboundStatus,
+        role: deniedGlobalHandler.body?.role || null,
+      },
+      applicationCapturedFetch: {
+        status: deniedCapturedHandler.status,
+        outboundStatus: deniedCapturedHandler.body?.outboundStatus,
+        role: deniedCapturedHandler.body?.role || null,
+      },
+      layer: 'trusted main module freezes globalThis.fetch before dynamically evaluating the separate application module',
     });
 
     const allowedAction = await invoke('app-a', 'r1', 'action', 'allowlisted-fetch');
+    const deniedGlobalAction = await invoke('app-a', 'r1', 'action', 'ambient-global-fetch');
+    const deniedCapturedAction = await invoke('app-a', 'r1', 'action', 'ambient-captured-fetch');
     const deniedAction = await invoke('app-a', 'r1', 'action', 'denied-action-fetch');
     check('action-allowlisted-fetch', allowedAction.status === 200 &&
-      allowedAction.body?.outboundStatus === 200 && allowedAction.body?.role === 'action', {
+      allowedAction.body?.outboundStatus === 200 && allowedAction.body?.role === 'action' &&
+      deniedGlobalAction.status === 200 && deniedGlobalAction.body?.outboundStatus === 403 &&
+      deniedGlobalAction.body?.role === 'action' && deniedCapturedAction.status === 200 &&
+      deniedCapturedAction.body?.outboundStatus === 403 && deniedCapturedAction.body?.role === 'action', {
       status: allowedAction.status,
       outboundStatus: allowedAction.body?.outboundStatus,
+      ambientGlobalFetch: {
+        status: deniedGlobalAction.status,
+        outboundStatus: deniedGlobalAction.body?.outboundStatus,
+        role: deniedGlobalAction.body?.role || null,
+      },
+      applicationCapturedFetch: {
+        status: deniedCapturedAction.status,
+        outboundStatus: deniedCapturedAction.body?.outboundStatus,
+        role: deniedCapturedAction.body?.role || null,
+      },
+      layer: 'application module loads after ambient freeze; outbound access requires invocation-scoped ctx.fetch',
     });
     check('action-nonallowlisted-fetch-denied', deniedAction.status === 200 &&
       deniedAction.body?.outboundStatus === 403 && deniedAction.body?.role === 'action', {
@@ -1090,27 +1449,56 @@ async function main() {
     });
 
     const subrequests = await invoke('app-a', 'r1', 'action', 'subrequest-bomb');
-    check('native-wfp-subrequest-limit', subrequests.status >= 500 &&
-      (['SNAPBACK_USER_WORKER_FAILED', 'SNAPBACK_USER_WORKER_RESPONSE_FAILED'].includes(subrequests.body?.code) ||
-        subrequests.status === 503), {
+    const retainedFetchAttempts = [];
+    let staleRetainedFetch = null;
+    for (let attempt = 1; attempt <= 20; attempt += 1) {
+      const result = await invoke('app-a', 'r1', 'action', 'retained-action-fetch');
+      retainedFetchAttempts.push({ attempt, ...result });
+      if (result.status === 409 && result.body?.code === 'SNAPBACK_STALE_ACTION_FETCH') {
+        staleRetainedFetch = result;
+        break;
+      }
+    }
+    const trustedEntryReentry = await invoke('app-a', 'r1', 'action', 'trusted-entry-reentry');
+    check('generated-harness-subrequest-limit', subrequests.status === 429 &&
+      subrequests.body?.code === 'SNAPBACK_SUBREQUEST_LIMIT' &&
+      subrequests.body?.limit === SUBREQUESTS && Boolean(staleRetainedFetch) &&
+      trustedEntryReentry.status === 403 &&
+      trustedEntryReentry.body?.code === 'SNAPBACK_TRUSTED_ENTRY_REQUIRED', {
       status: subrequests.status,
       code: subrequests.body?.code,
       category: subrequests.body?.category || null,
       responseBody: subrequests.body,
       elapsedMs: subrequests.elapsedMs,
+      limit: SUBREQUESTS,
+      retainedFetchAttempts,
+      staleRetainedFetch: staleRetainedFetch ? {
+        status: staleRetainedFetch.status,
+        code: staleRetainedFetch.body?.code,
+        moduleInvocationSequence: staleRetainedFetch.body?.moduleInvocationSequence,
+      } : null,
+      trustedEntryReentry: {
+        status: trustedEntryReentry.status,
+        code: trustedEntryReentry.body?.code,
+      },
+      layer: 'trusted main owns an invocation-scoped, post-settlement-revoked ctx.fetch before outbound handoff',
+      nativeControlReceipt: 'demos/eas-phase0/receipts/p0.1-wfp-minimal-control.json',
     });
 
-    const cpu = await invoke('app-a', 'r1', 'handler', 'cpu-spin');
-    check('native-wfp-cpu-termination', cpu.status >= 500 &&
-      (['SNAPBACK_USER_WORKER_FAILED', 'SNAPBACK_USER_WORKER_RESPONSE_FAILED'].includes(cpu.body?.code) ||
-        cpu.status === 503) && cpu.elapsedMs < 5_000, {
-      status: cpu.status,
-      code: cpu.body?.code,
-      category: cpu.body?.category || null,
-      responseBody: cpu.body,
-      elapsedMs: cpu.elapsedMs,
+    const cpuAttempts = [];
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      const result = await invoke('app-a', 'r1', 'handler', 'cpu-spin');
+      cpuAttempts.push({ attempt, ...result });
+      if (result.status >= 500) break;
+    }
+    const cpuTermination = cpuAttempts.find((entry) => entry.status >= 500 &&
+      ['SNAPBACK_USER_WORKER_FAILED', 'SNAPBACK_USER_WORKER_RESPONSE_FAILED'].includes(entry.body?.code) &&
+      /cpu|limit|resource|exceed/iu.test(String(entry.body?.category || '')));
+    check('native-wfp-cpu-termination', Boolean(cpuTermination), {
+      attempts: cpuAttempts,
       cpuMs: CPU_MS,
-      finiteBurnIterations: 20_000_000,
+      finiteBurnIterationsPerAttempt: 200_000_000,
+      semantics: 'Cloudflare documents isolate flexibility for occasional CPU overages; repeat a calibrated finite burn and require an observed native termination',
     });
   } catch (error) {
     fatal = safeMessage(error, accountId);
@@ -1132,6 +1520,27 @@ async function main() {
     }
   }
 
+  receipt.postCleanupAbsence = [];
+  for (const [resource, pathname] of [
+    [`Worker ${names.dispatcher}`, `/accounts/${accountId}/workers/scripts/${encodeURIComponent(names.dispatcher)}`],
+    [`dispatch namespace ${options.namespace}`, `/accounts/${accountId}/workers/dispatch/namespaces/${encodeURIComponent(options.namespace)}`],
+    [`Worker ${names.host}`, `/accounts/${accountId}/workers/scripts/${encodeURIComponent(names.host)}`],
+    [`Worker ${names.outbound}`, `/accounts/${accountId}/workers/scripts/${encodeURIComponent(names.outbound)}`],
+  ]) {
+    try {
+      const response = await fetch(`${API}${pathname}`, { headers: authHeaders() });
+      await response.arrayBuffer();
+      receipt.postCleanupAbsence.push({ resource, status: response.status, absent: response.status === 404 });
+    } catch (error) {
+      receipt.postCleanupAbsence.push({
+        resource,
+        status: null,
+        absent: false,
+        error: safeMessage(error, accountId),
+      });
+    }
+  }
+
   receipt.finishedAt = new Date().toISOString();
   receipt.durationMs = Date.parse(receipt.finishedAt) - Date.parse(startedAt);
   receipt.namespaceLifecycle = {
@@ -1140,8 +1549,9 @@ async function main() {
     deleted: cleanup.some((entry) => entry.resource === `dispatch namespace ${options.namespace}` && entry.deleted),
   };
   receipt.verdict = !fatal && checks.length >= 21 && checks.every((entry) => entry.pass) &&
-    cleanup.every((entry) => entry.deleted)
-    ? 'PASS: real WfP namespace, exact HOST-only user-Worker bindings, two-app/two-release isolation, action egress, retry, stale/tamper refusal, and resource limits witnessed; disposable resources deleted'
+    cleanup.every((entry) => entry.deleted) &&
+    receipt.postCleanupAbsence.every((entry) => entry.absent && entry.status === 404)
+    ? 'PASS: real WfP namespace, exact HOST-only user-Worker bindings, two-app/two-release isolation, action egress, retry, stale/tamper refusal, native CPU termination, and fail-closed resource limits witnessed; disposable resources deleted'
     : 'FAIL';
   if (fatal) receipt.failure = fatal;
   mkdirSync(path.dirname(options.receipt), { recursive: true });
