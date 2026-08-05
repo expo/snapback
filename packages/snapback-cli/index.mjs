@@ -2651,6 +2651,13 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
     exits: '0 clean EOF; non-zero startup/protocol host failure', recovery: 'Reconnect with a valid private ready-file/database target and resend complete JSON-RPC lines.',
   },
   {
+    name: 'agent', usage: 'snapback agent setup <--print <client>|--install <client>|--uninstall <client>> [--server mcp|mcp-control] [--receipt <file>] [--json]',
+    description: 'Print, install, or uninstall project-scoped MCP client configuration.', lifecycle: 'one-shot',
+    output: 'client config snippet or snapback.agent-setup-receipt.v1; structured envelope with --json',
+    exits: '0 printed/installed/uninstalled; 1 invalid arguments, config conflict, or receipt mismatch',
+    recovery: 'Choose a supported client/server, preserve existing entries, and resolve the named config or receipt conflict before retrying.',
+  },
+  {
     name: 'target', usage: 'snapback target <add|show|doctor|inspect> ... [--control-root <dir>] [--json]', description: 'Register or inspect immutable target descriptors.', lifecycle: 'one-shot',
     output: 'structured target/control result JSON', exits: '0 success; 1 refusal/unhealthy target', recovery: 'Repair the descriptor or target diagnostic before retrying.',
   },
@@ -2715,6 +2722,16 @@ const HOSTED_LIFECYCLE_HELP_DETAILS = Object.freeze([
 // spellings are derived from the exhaustive authority registry.
 export const PACKAGED_CLI_SUBCOMMANDS = Object.freeze([
   nestedCliHelp(['accept', 'comparator'], 'snapback accept comparator <--config <profile.mjs>|--verify-receipt <receipt.json>> [--receipt <receipt.json>] [--timeout-ms <ms>] [--max-age-ms <ms>] [--json]', 'Run a comparator profile or verify its retained receipt.'),
+  nestedCliHelp(
+    ['agent', 'setup'],
+    'snapback agent setup <--print <client>|--install <client>|--uninstall <client>> [--server mcp|mcp-control] [--receipt <file>] [--json]',
+    'Configure project-scoped MCP for Codex, Claude, Cursor, or a generic client.',
+    [
+      '--print defaults to both servers; --install and --uninstall require an explicit --server.',
+      'generic emits adaptable JSON with --print and has no install target.',
+      '--receipt writes an install receipt or verifies it during uninstall.',
+    ],
+  ),
   nestedCliHelp(['target', 'add'], 'snapback target add --descriptor <target.json> [--control-root <dir>] [--json]', 'Register an immutable target descriptor.'),
   ...['show', 'doctor', 'inspect'].map((verb) => nestedCliHelp(['target', verb], `snapback target ${verb} <target-id> [--control-root <dir>] [--json]`, `${verb[0].toUpperCase()}${verb.slice(1)} a registered target.`)),
   nestedCliHelp(['hosted', 'plan'], 'snapback hosted plan [--target <id>] [--control-root <dir>] [--json]', 'Render the closed hosted command and asset plan.'),
@@ -3612,6 +3629,84 @@ export async function runCli(argv, options = {}) {
       });
     }
     return result.ok ? 0 : 1;
+  }
+  if (command === 'agent') {
+    const subcommand = args.shift();
+    const printClient = takeFlag(args, '--print');
+    const installClient = takeFlag(args, '--install');
+    const uninstallClient = takeFlag(args, '--uninstall');
+    const server = takeFlag(args, '--server');
+    const receiptPath = takeFlag(args, '--receipt');
+    const actions = [
+      ['print', printClient],
+      ['install', installClient],
+      ['uninstall', uninstallClient],
+    ].filter(([, client]) => client !== null);
+    if (subcommand !== 'setup' || actions.length !== 1 || args.length > 0) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        'usage: snapback agent setup <--print <client>|--install <client>|--uninstall <client>> [--server mcp|mcp-control] [--receipt <file>] [--json]',
+      );
+    }
+    const [action, client] = actions[0];
+    if (action !== 'print' && server === null) {
+      throw diagnosticError(
+        'SNAPBACK_CLI_ARGUMENT_INVALID',
+        `--${action} requires an explicit --server mcp|mcp-control`,
+      );
+    }
+    if (action === 'print' && receiptPath !== null) {
+      throw diagnosticError('SNAPBACK_CLI_ARGUMENT_INVALID', '--receipt is valid only with --install or --uninstall');
+    }
+    const {
+      installAgentSetup,
+      printAgentSetup,
+      uninstallAgentSetup,
+    } = await import('./agent-setup.mjs');
+    const projectRoot = resolve(options.projectRoot ?? process.cwd());
+    const launchers = {
+      runtimeBinary: () => resolveRuntimeBinary(options).binary,
+      packageCli: join(packageRoot, 'cli.mjs'),
+    };
+    if (action === 'print') {
+      const result = printAgentSetup({
+        client,
+        server,
+        projectRoot,
+        launchers,
+        diagnosticError,
+      });
+      if (json) console.log(JSON.stringify(result, null, 2));
+      else process.stdout.write(result.snippet);
+      return 0;
+    }
+    if (action === 'install') {
+      const preview = json ? console.error : console.log;
+      const result = installAgentSetup({
+        client,
+        server,
+        projectRoot,
+        receiptPath,
+        launchers,
+        diagnosticError,
+        beforeWrite(disclosure) {
+          preview(`Target file: ${disclosure.targetFile}`);
+          preview(`Server: ${disclosure.server}`);
+          preview(disclosure.authoritySentence);
+        },
+      });
+      console.log(JSON.stringify(result, null, json ? 2 : 0));
+      return 0;
+    }
+    const result = uninstallAgentSetup({
+      client,
+      server,
+      projectRoot,
+      receiptPath,
+      diagnosticError,
+    });
+    console.log(JSON.stringify(result, null, json ? 2 : 0));
+    return 0;
   }
   if (command === 'mcp-control') {
     // @ref LLP 0042#implementation-decisions-recorded-for-sc-1b-2026-07-23 —

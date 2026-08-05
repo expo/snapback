@@ -5,6 +5,7 @@
   "description": "Installable Snapback developer loop and native server launcher.",
   "files": [
     "adapters/fly-machines-vm-driver.mjs",
+    "agent-setup.mjs",
     "cli.mjs",
     "comparator-profile.d.mts",
     "comparator-profile.mjs",
@@ -94,6 +95,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node cli-help.test.mjs && node fake-expo-push.test.mjs && node hosted-control.test.mjs && node load-generated.test.mjs && node sessions-dev-loop.test.mjs && node comparator-profile.test.mjs && node verify.test.mjs && node hosted-admission-producer.test.mjs && node mcp-control.test.mjs && node dev-cli-diagnostics.test.mjs && node dev-loop.test.mjs && node adapters/fly-machines-vm-driver.test.mjs"
+    "test": "node package.test.mjs && node cli-help.test.mjs && node fake-expo-push.test.mjs && node hosted-control.test.mjs && node load-generated.test.mjs && node sessions-dev-loop.test.mjs && node comparator-profile.test.mjs && node verify.test.mjs && node hosted-admission-producer.test.mjs && node mcp-control.test.mjs && node agent-setup.test.mjs && node dev-cli-diagnostics.test.mjs && node dev-loop.test.mjs && node adapters/fly-machines-vm-driver.test.mjs"
   }
 }
