@@ -1,9 +1,10 @@
 //! Encrypted custody for secret-bearing operation-envelope detail.
 //!
 //! The data database retains only XChaCha20-Poly1305 ciphertext. Its root key
-//! lives in a separate owner-only sidecar and is installed into a TEMP table
-//! on the owning SQLite connection so transaction-local envelope code can seal
-//! detail without widening the public storage API.
+//! lives in a separate owner-only sidecar and is installed into a direct-only
+//! function on the owning SQLite connection so transaction-local envelope code
+//! can seal detail without widening the public storage API or retaining a TEMP
+//! database pager solely for key custody.
 
 use std::path::{Path, PathBuf};
 
@@ -15,6 +16,7 @@ use chacha20poly1305::{
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use zeroize::Zeroizing;
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 
@@ -22,6 +24,7 @@ const FORMAT_VERSION: u32 = 1;
 const KEY_BYTES: usize = 32;
 const PURPOSE: &[u8] = b"snapback:operation-protected-detail:xchacha20:v1";
 const MAX_KEY_FILE_BYTES: usize = 4 * 1024;
+const KEY_PROJECTION_FUNCTION: &str = "__snapback_operation_detail_key_v1";
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -208,31 +211,61 @@ pub(crate) fn install(conn: &Connection, database_path: Option<&Path>) -> Snapba
         }
         authenticate_retained_ciphertext(conn, &key_id, &secret)?;
     }
-    conn.execute_batch(
-        "CREATE TEMP TABLE IF NOT EXISTS _snapback_operation_detail_key_v1(
-           singleton INTEGER PRIMARY KEY CHECK(singleton=1),
-           key_id TEXT NOT NULL,
-           secret BLOB NOT NULL CHECK(length(secret)=32)
-         );",
-    )?;
-    conn.execute(
-        "INSERT INTO _snapback_operation_detail_key_v1(singleton,key_id,secret)
-         VALUES(1,?1,?2)
-         ON CONFLICT(singleton) DO UPDATE SET key_id=excluded.key_id,secret=excluded.secret",
-        params![key_id, secret.as_slice()],
+    let key_id_bytes = key_id.as_bytes();
+    let key_id_len = u32::try_from(key_id_bytes.len())
+        .map_err(|_| invalid("protected operation detail key id is too large"))?;
+    let mut projection = Zeroizing::new(Vec::with_capacity(
+        std::mem::size_of::<u32>() + key_id_bytes.len() + KEY_BYTES,
+    ));
+    projection.extend_from_slice(&key_id_len.to_be_bytes());
+    projection.extend_from_slice(key_id_bytes);
+    projection.extend_from_slice(&secret);
+    // @ref LLP 0163#implementation-record--2026-08-04-explanation-and-protected-custody — the root key stays connection-local without retaining a second SQLite pager.
+    conn.create_scalar_function(
+        KEY_PROJECTION_FUNCTION,
+        0,
+        rusqlite::functions::FunctionFlags::SQLITE_UTF8
+            | rusqlite::functions::FunctionFlags::SQLITE_DIRECTONLY,
+        move |_| Ok(projection.as_slice().to_vec()),
     )?;
     Ok(())
 }
 
 fn key(conn: &Connection) -> SnapbackResult<(String, [u8; KEY_BYTES])> {
-    let (key_id, bytes): (String, Vec<u8>) = conn
-        .query_row(
-            "SELECT key_id,secret FROM _snapback_operation_detail_key_v1 WHERE singleton=1",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
+    let projection: Vec<u8> = conn
+        .query_row(&format!("SELECT {KEY_PROJECTION_FUNCTION}()"), [], |row| {
+            row.get(0)
+        })
         .map_err(|_| invalid("protected operation detail key is not installed"))?;
-    let secret = bytes
+    let projection = Zeroizing::new(projection);
+    let key_id_len = projection
+        .get(..std::mem::size_of::<u32>())
+        .and_then(|bytes| bytes.try_into().ok())
+        .map(u32::from_be_bytes)
+        .and_then(|length| usize::try_from(length).ok())
+        .ok_or_else(|| invalid("protected operation detail key projection is invalid"))?;
+    let secret_offset = std::mem::size_of::<u32>()
+        .checked_add(key_id_len)
+        .ok_or_else(|| invalid("protected operation detail key projection is invalid"))?;
+    if secret_offset
+        .checked_add(KEY_BYTES)
+        .filter(|length| *length == projection.len())
+        .is_none()
+    {
+        return Err(invalid(
+            "protected operation detail key projection has an invalid length",
+        ));
+    }
+    let key_id = std::str::from_utf8(
+        projection
+            .get(std::mem::size_of::<u32>()..secret_offset)
+            .ok_or_else(|| invalid("protected operation detail key projection is invalid"))?,
+    )
+    .ok()
+    .filter(|key_id| !key_id.is_empty())
+    .map(str::to_owned)
+    .ok_or_else(|| invalid("protected operation detail key id is invalid"))?;
+    let secret = projection[secret_offset..]
         .try_into()
         .map_err(|_| invalid("protected operation detail key has an invalid length"))?;
     Ok((key_id, secret))
@@ -333,6 +366,33 @@ pub(crate) fn open(
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn installed_key_uses_no_temp_schema_and_protected_detail_round_trips() {
+        let mut conn = Connection::open_in_memory().expect("database");
+        install(&conn, None).expect("install protected custody");
+        let temp_objects: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_temp_schema WHERE name NOT GLOB 'sqlite_*'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("inspect temp schema");
+        assert_eq!(temp_objects, 0, "key custody must not retain a TEMP pager");
+
+        let tx = conn.transaction().expect("protected detail transaction");
+        crate::operation_ledger::create_infra(&tx).expect("operation infra");
+        let digest = format!("sha256:{}", "a".repeat(64));
+        let expected = json!({ "secret": "round-trip" });
+        seal_in(&tx, "operation-detail:test:round-trip", &digest, &expected)
+            .expect("seal protected detail");
+        tx.commit().expect("commit protected detail");
+        assert_eq!(
+            open(&conn, "operation-detail:test:round-trip", &digest)
+                .expect("open protected detail"),
+            Some(expected)
+        );
+    }
 
     #[test]
     fn swapped_well_formed_secret_with_retained_key_id_refuses_at_boot() {

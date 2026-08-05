@@ -26,6 +26,24 @@ performance artifact: the immediately preceding fetch found newer
 reconciles that mainline before freezing the next candidate, so no post-C source
 merge can evade the publication history guard.
 
+**Fifth fixed-Air failed candidate and product repair — 2026-08-04:** Clean
+candidate `3ea2fdc6c4e8a29b6424e7821a9391b8668fbeb0` produced a preserved failed
+paired record with SHA-256
+`50b31b07abf9ef9f2e176df65970e7795341af5428e0e8abafc81082aaa5b79c`.
+All mutation comparisons plus idle CPU and disk passed, but the five newly
+cached read statements made point reads about 52% faster and pushed range/query
+intervals outside the unchanged two-sided 5% equivalence band; idle RSS
+independently failed at median 5.3280% with interval 4.8413–5.8566%. No
+exception is ratified and the absolute gate was not run. The shared version
+read, point read, and range count return to their pre-profile preparation
+behavior while only the bounded range-page and generated-query shapes retain
+caching. The operation-detail key leaves its one-row SQLite TEMP database for
+an equally connection-local direct-only function projection whose captured
+bytes zeroize on connection drop, removing a live pager without changing
+sidecar validation, ciphertext, transactionality, the active manifest, or
+custody access. No threshold, protocol, estimator, or capability claim changed;
+a new exact clean candidate must rerun every original gate.
+
 **Implementation evidence:** 2026-08-03 (dated candidate evidence recorded:
 the comparable read/write/idle observations are within threshold on the step-0
 machine, but the historical runs were ordinal-zipped rather than experimentally

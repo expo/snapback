@@ -4855,9 +4855,10 @@ impl LocalDatabase {
             let snapshot_version = current_version_on(conn)?;
             let quoted = quote_ident(table)?;
 
-            let total: i64 = conn
-                .prepare_cached(&format!("SELECT COUNT(*) FROM {quoted}"))?
-                .query_row([], |row| row.get(0))?;
+            let total: i64 =
+                conn.query_row(&format!("SELECT COUNT(*) FROM {quoted}"), [], |row| {
+                    row.get(0)
+                })?;
 
             let sql = format!(
                 "SELECT * FROM {quoted} ORDER BY \"_createdAt\" ASC, \"_id\" ASC LIMIT ?1 OFFSET ?2"
@@ -9890,7 +9891,7 @@ pub(crate) fn get_on(
             ));
         }
         let sql = format!("SELECT * FROM {} WHERE _id = ?1", quote_ident(&table.name)?);
-        let mut statement = conn.prepare_cached(&sql)?;
+        let mut statement = conn.prepare(&sql)?;
         let columns = statement
             .column_names()
             .into_iter()
@@ -9910,8 +9911,11 @@ pub(crate) fn get_on(
 pub(crate) fn current_version_on(conn: &Connection) -> SnapbackResult<u64> {
     crate::exec_guard::debug_assert_off_async_worker("a SQLite version read");
     let version: Option<SqlValue> = conn
-        .prepare_cached("SELECT version FROM _snapback_version WHERE id = 1")?
-        .query_row([], |row| row.get(0))
+        .query_row(
+            "SELECT version FROM _snapback_version WHERE id = 1",
+            [],
+            |row| row.get(0),
+        )
         .optional()?;
     let Some(version) = version else {
         return Err(SnapbackError::error(
