@@ -15,6 +15,7 @@ TARGET_PORT="${SNAPBACK_APP_BOUND_PORT:-43991}"
 CLOUDFLARED="${SNAPBACK_CLOUDFLARED:-$RUN_ROOT/cloudflared}"
 APP="$RUN_ROOT/snapback-app-linux"
 APP_REPEAT="$RUN_ROOT/snapback-app-linux-repeat"
+LIVE_SERVER_ROOT="$RUN_ROOT/live-server-runtime"
 TARGET_PID=""
 TUNNEL_PID=""
 
@@ -49,6 +50,18 @@ IBEX_ALLOW_CURL_CLI_FALLBACK=1 cargo build --locked --bin snapback
 IBEX_ALLOW_CURL_CLI_FALLBACK=1 SNAPBACK_IBEX_CHECKOUT="$IBEX" \
   scripts/bootstrap-ibex-runtime
 
+# The standard Jammy runner cannot retain two independent Cargo closure trees
+# while ar assembles Ibex's large release archive. Preserve the exact qualified
+# debug server and its Linux loader/receipt, then release only that regenerable
+# build tree before starting the independent app-bound release build.
+rm -rf "$LIVE_SERVER_ROOT"
+mkdir -p "$LIVE_SERVER_ROOT/debug" "$LIVE_SERVER_ROOT/lib"
+cp "$ROOT/target/debug/snapback" "$LIVE_SERVER_ROOT/debug/snapback"
+cp "$ROOT/target/debug/snapback.runtime-readiness.json" \
+  "$LIVE_SERVER_ROOT/debug/snapback.runtime-readiness.json"
+cp "$ROOT/target/lib/libhermesvm.so" "$LIVE_SERVER_ROOT/lib/libhermesvm.so"
+rm -rf "$ROOT/target"
+
 icu_lib_dir="$(pkg-config --variable=libdir icu-i18n)"
 rm -rf "$KIT"
 HERMES_LINK_STATIC=1 HERMES_STATIC_LIB_NAME=hermesvm_a \
@@ -81,6 +94,7 @@ catalog_source=("$catalog_unpack"/*)
 "$KIT/ibex-sfe-catalog" install --source "${catalog_source[0]}"
 
 SNAPBACK_APP_BOUND_READY_FILE="$READY_FILE" SNAPBACK_APP_BOUND_PORT="$TARGET_PORT" \
+  SNAPBACK_APP_BOUND_SERVER_BINARY="$LIVE_SERVER_ROOT/debug/snapback" \
   node tests/acceptance/app-bound-live-target.mjs >"$RUN_ROOT/live-target.log" 2>&1 &
 TARGET_PID=$!
 for _ in $(seq 1 120); do [[ -s "$READY_FILE" ]] && break; kill -0 "$TARGET_PID" 2>/dev/null || break; sleep 1; done

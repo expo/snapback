@@ -4,8 +4,9 @@ import { join, resolve } from 'node:path';
 const root = resolve(import.meta.dirname, '../..');
 const readyFile = process.env.SNAPBACK_APP_BOUND_READY_FILE;
 const port = Number(process.env.SNAPBACK_APP_BOUND_PORT ?? '43991');
-if (!readyFile || !Number.isSafeInteger(port) || port < 1 || port > 65535) {
-  throw new Error('SNAPBACK_APP_BOUND_READY_FILE and a valid SNAPBACK_APP_BOUND_PORT are required');
+const serverBinary = process.env.SNAPBACK_APP_BOUND_SERVER_BINARY;
+if (!readyFile || !serverBinary || !Number.isSafeInteger(port) || port < 1 || port > 65535) {
+  throw new Error('ready file, server binary, and a valid app-bound port are required');
 }
 
 const { generate } = await import(`${root}/packages/snapback-codegen/index.mjs`);
@@ -44,7 +45,7 @@ try {
     bindPortExactly: true,
     db: ':memory:',
     cwd: root,
-    serverBinary: join(root, 'target', 'debug', 'snapback'),
+    serverBinary,
     startupArtifacts: carrier,
     captureImpersonationCapability: true,
   });
