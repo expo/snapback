@@ -1,0 +1,148 @@
+{
+  "schemaVersion": "snapback.client-bundle-metrology-rollover-baseline.v1",
+  "source": {
+    "revision": "088755b46395da966e627ca4eb6db2a1b1b93b50",
+    "packageTrees": {
+      "packages/snapback-client": "00a694454ed1b40f392391d3bacc47d5b897b747",
+      "packages/snapback-contract": "f48258f4ab6dce13090d1374cc770d42f283d104",
+      "packages/snapback-react": "fa9df62ad1d7c680e94565e14f9a6f798f4b024d"
+    }
+  },
+  "authorities": [
+    "LLP 0063#workstream-8--performance-and-packaging-budgets",
+    "LLP 0145#phase-a--establish-a-size-ratchet",
+    "LLP 0044#asset-intent-implementation-identity-the-helper-closure-joins-the-carrier-dated-decision-2026-08-03"
+  ],
+  "frozenRule": "declared prospective workload-version rollover; predecessor receipts remain immutable; valid ceilings never loosen",
+  "workloadVersion": "llp-0044-asset-implementation-identity.v1",
+  "predecessors": [
+    {
+      "filename": "baseline.v1.json",
+      "sha256": "4d8f359ecb1dfd6cbaa5500abf49e79154752912a0fb9a436d08b51647fccd01",
+      "profileIds": [
+        "public-subpath-assets"
+      ]
+    }
+  ],
+  "method": {
+    "runtime": {
+      "node": "v24.18.0",
+      "zlib": "1.3.1-e00f703",
+      "brotli": "1.2.0"
+    },
+    "bundler": "esbuild@0.28.1",
+    "bundle": true,
+    "platform": "browser",
+    "format": "esm",
+    "target": "es2022",
+    "minify": true,
+    "treeShaking": true,
+    "legalComments": "none",
+    "conditions": [
+      "browser",
+      "import",
+      "default"
+    ],
+    "gzipLevel": 9,
+    "brotliQuality": 11,
+    "reactExternal": true,
+    "attribution": "esbuild module-own bytesInOutput grouped by stable package boundary"
+  },
+  "inputs": {
+    "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
+    "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+  },
+  "behaviorCommands": [
+    "node packages/snapback-client/assets.test.mjs"
+  ],
+  "beforeAfter": [
+    {
+      "id": "public-subpath-assets",
+      "predecessor": {
+        "filename": "baseline.v1.json",
+        "minifiedBytes": 13860,
+        "gzipBytes": 5564,
+        "brotliBytes": 4814,
+        "outputSha256": "3e485252cb67e2530a3bef224c298e053d67432d6d6971f9511be3f8a4cf13a4"
+      },
+      "successor": {
+        "minifiedBytes": 13998,
+        "gzipBytes": 5593,
+        "brotliBytes": 4833,
+        "outputSha256": "5bfeb4ab1407753d7c21c5a2ca4bfa11d47f163145ac825db2f5049cfbe3e955"
+      },
+      "delta": {
+        "minifiedBytes": 138,
+        "gzipBytes": 29,
+        "brotliBytes": 19
+      }
+    }
+  ],
+  "profiles": [
+    {
+      "id": "public-subpath-assets",
+      "package": "@expo/snapback-client/assets",
+      "fixtureSha256": "6255358997d1d08c9e01b7f21944c791d8d5ff0dc46d7a980cec785641f21ca7",
+      "externals": [],
+      "minifiedBytes": 13998,
+      "gzipBytes": 5593,
+      "brotliBytes": 4833,
+      "outputSha256": "5bfeb4ab1407753d7c21c5a2ca4bfa11d47f163145ac825db2f5049cfbe3e955",
+      "attribution": {
+        "packages": [
+          {
+            "name": "@expo/snapback-client",
+            "bytes": 13737
+          },
+          {
+            "name": "<fixture>",
+            "bytes": 129
+          }
+        ],
+        "modules": [
+          {
+            "module": "packages/snapback-client/assets.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 13737
+          },
+          {
+            "module": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-assets.fixture.mjs",
+            "package": "<fixture>",
+            "bytes": 129
+          }
+        ]
+      },
+      "metafile": {
+        "inputs": {
+          "packages/snapback-client/assets.mjs": {
+            "bytes": 34018,
+            "imports": []
+          },
+          "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-assets.fixture.mjs": {
+            "bytes": 256,
+            "imports": [
+              {
+                "path": "packages/snapback-client/assets.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          }
+        },
+        "output": {
+          "bytes": 13998,
+          "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-assets.fixture.mjs",
+          "imports": [],
+          "inputs": {
+            "packages/snapback-client/assets.mjs": {
+              "bytesInOutput": 13737
+            },
+            "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-assets.fixture.mjs": {
+              "bytesInOutput": 129
+            }
+          }
+        }
+      }
+    }
+  ]
+}

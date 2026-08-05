@@ -213,6 +213,17 @@
         "node packages/snapback-client/logout-v3-bridge.test.mjs",
         "node packages/snapback-client/demand-broker.test.mjs"
       ]
+    },
+    {
+      "filename": "baseline.asset-implementation-identity.v1.json",
+      "workloadVersion": "llp-0044-asset-implementation-identity.v1",
+      "inputs": {
+        "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
+        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+      },
+      "behaviorCommands": [
+        "node packages/snapback-client/assets.test.mjs"
+      ]
     }
   ],
   "profiles": [
@@ -1565,7 +1576,7 @@
             "imports": []
           },
           "packages/snapback-client/assets.mjs": {
-            "bytes": 33803,
+            "bytes": 34018,
             "imports": []
           },
           "packages/snapback-client/canonical-client-value.mjs": {
@@ -10816,15 +10827,15 @@
       "package": "@expo/snapback-client/assets",
       "fixtureSha256": "6255358997d1d08c9e01b7f21944c791d8d5ff0dc46d7a980cec785641f21ca7",
       "externals": [],
-      "minifiedBytes": 13860,
-      "gzipBytes": 5564,
-      "brotliBytes": 4814,
-      "outputSha256": "3e485252cb67e2530a3bef224c298e053d67432d6d6971f9511be3f8a4cf13a4",
+      "minifiedBytes": 13998,
+      "gzipBytes": 5593,
+      "brotliBytes": 4833,
+      "outputSha256": "5bfeb4ab1407753d7c21c5a2ca4bfa11d47f163145ac825db2f5049cfbe3e955",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 13599
+            "bytes": 13737
           },
           {
             "name": "<fixture>",
@@ -10835,7 +10846,7 @@
           {
             "module": "packages/snapback-client/assets.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 13599
+            "bytes": 13737
           },
           {
             "module": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-assets.fixture.mjs",
@@ -10847,7 +10858,7 @@
       "metafile": {
         "inputs": {
           "packages/snapback-client/assets.mjs": {
-            "bytes": 33803,
+            "bytes": 34018,
             "imports": []
           },
           "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-assets.fixture.mjs": {
@@ -10862,12 +10873,12 @@
           }
         },
         "output": {
-          "bytes": 13860,
+          "bytes": 13998,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-assets.fixture.mjs",
           "imports": [],
           "inputs": {
             "packages/snapback-client/assets.mjs": {
-              "bytesInOutput": 13599
+              "bytesInOutput": 13737
             },
             "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-assets.fixture.mjs": {
               "bytesInOutput": 129
@@ -22216,7 +22227,7 @@
             "imports": []
           },
           "packages/snapback-client/assets.mjs": {
-            "bytes": 33803,
+            "bytes": 34018,
             "imports": []
           },
           "packages/snapback-client/canonical-client-value.mjs": {
@@ -23124,6 +23135,7 @@
     "baseline.offline-unavailable.v1.json",
     "baseline.finite-carrier-completeness.v1.json",
     "baseline.rowless-rqs-resume.v1.json",
-    "baseline.move3-single-table-lifecycle.v1.json"
+    "baseline.move3-single-table-lifecycle.v1.json",
+    "baseline.asset-implementation-identity.v1.json"
   ]
 }
