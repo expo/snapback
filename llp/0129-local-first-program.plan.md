@@ -20,8 +20,14 @@ the runner's listener bind, so no PASS receipt was manufactured and the
 evidence gate remains unpromoted here until the orchestrator reruns the exact
 command recorded in the dated note. The in-process ABI spike, LLP 0081
 tombstone-and-re-entry quarantine, and LLP 0123 package sealing remain named
-follow-ons, not sidecar claims.) 2026-08-04 (write-rung-2 EXIT accepted — Calendar gate 8/8
-on the unwidened ceiling; rung 2 closes, no write-lane phase open; see
+follow-ons, not sidecar claims.) 2026-08-05 (Phase 2a dated WASM assessment landed: the frozen
+LLP 0051 durable-mutation corpus is 12/13 IR-expressible, the measured pure-Rust
+evaluator WASM anchor is 306,890 raw / 117,353 gzip / 95,830 Brotli bytes, and
+full Hermes/JSI remains an explicitly estimated multi-MiB, policy-inadmissible
+browser path; recommendation: pin browser execution to the shipped IR evaluator
+and defer narrow engine-free WASM until a falsifiable demand trigger. The
+assessment meets Phase 2a's named evidence gate but does not build a runtime or
+resolve author-owned OQ9's exit/disposition choice.) 2026-08-04 (write-rung-2 EXIT accepted — Calendar gate 8/8on the unwidened ceiling; rung 2 closes, no write-lane phase open; see
 the dated EXIT block under OQ5.)
 2026-08-04 (rung-2 evidence-gate half (a) accepted — the
 no-widening reading; W2/W3 collapse as evidence-vacuous, W4 proceeds on
@@ -695,6 +701,24 @@ LLP 0051 §Rejected refuses shipping a JS engine to clients for
 Parity). Store side rides the proven wa-sqlite/IndexedDB lane
 (LLP 0008 DK-9). *Evidence gate:* the WASM assessment, dated, before
 the browser story is pinned.
+
+> **Dated WASM assessment — 2026-08-05.** The retained evidence artifact is
+> [`tests/acceptance/fixtures/browser-lane/wasm-assessment.2026-08-05.v1.md`](../tests/acceptance/fixtures/browser-lane/wasm-assessment.2026-08-05.v1.md),
+> with its reproducible pure-Rust evaluator size witness beside it. The frozen
+> LLP 0051 durable-mutation corpus is 12/13 (92.3%) semantically expressible by
+> the shipped complete browser IR evaluator; only all-aboard
+> `applyLiveFeedSnapshot` requires general data-dependent control flow. The
+> current local-admission wrapper is narrower, so this is not a 12/13 shipping
+> claim. Measured payload anchors are 21,295 minified / 7,615 gzip / 6,739
+> Brotli bytes for the shipped JS evaluator and 306,890 raw / 117,353 gzip /
+> 95,830 Brotli for the bounded Rust evaluator WASM PoC. No full-runtime WASM
+> exists; its 5–15 MiB raw / 2–6 MiB gzip range is a labeled planning estimate,
+> and no latency number is fabricated. Full Hermes-in-WASM remains contrary to
+> LLP 0051 §Rejected. Recommendation: pin the browser to IR-only, defer WASM,
+> and reopen only for a named, product-critical IR-negative handler after a
+> bounded extension review. This dated finding satisfies the named assessment
+> gate; it neither builds a runtime nor settles OQ9's author-owned
+> assessment-versus-implementation exit choice.
 
 **Phase 2b — Desktop ladder (independent of 2a).** First the sidecar:
 the packaged native runtime spawned next to the app, carrying
@@ -1879,6 +1903,12 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    exit, or reclassify it as an assessment whose disposition is an
    author call like the Option F rider's — and say which in the
    completion boundary.
+   **Evidence update (2026-08-05):** the dated artifact now exists and presents
+   three falsifiable replacement options: an assessment-disposition check, a
+   ≥90%-plus-100%-common-path real-browser IR coverage gate, and a narrow
+   engine-free WASM conformance/size/latency gate. This closes the missing-
+   artifact half of the concern, not the author-owned choice of which exit
+   semantics govern Phase 2a.
 10. **What is Candidate B, exactly, and who owns it? — OPEN (v0.7,
     raised by round 5).** Outcome 3 requires that a fact be
     inexpressible after B, but B is currently an open-ended list of

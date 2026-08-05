@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "snapback.phase2a-rust-evaluator-wasm-size-witness.v1",
+  "date": "2026-08-05",
+  "revision": "97e8ae9e9e6564877057a00e97a18f735fe79381",
+  "status": "bounded-poc-not-runtime",
+  "scope": {
+    "included": [
+      "src/value_expr.rs exact source via path import",
+      "src/result_transform.rs exact source via path import",
+      "minimal manifest-type and diagnostic-method shims",
+      "serde JSON input/output closure",
+      "SHA-256 result-transform hashing"
+    ],
+    "excluded": [
+      "Hermes and JSI",
+      "Ibex runtime",
+      "FunctionRuntime::WasmModule",
+      "ctx host-call bridge",
+      "SQLite or IndexedDB",
+      "browser loader and production ABI"
+    ]
+  },
+  "command": "cargo +stable build --offline --manifest-path tests/acceptance/fixtures/browser-lane/spike/rust-evaluator-wasm.2026-08-05/Cargo.toml --target wasm32-unknown-unknown --release",
+  "toolchain": {
+    "cargo": "cargo 1.94.0 (85eff7c80 2026-01-15)",
+    "rustc": "rustc 1.94.0 (4a4ef493e 2026-03-02)",
+    "llvm": "21.1.8",
+    "target": "wasm32-unknown-unknown",
+    "profile": {
+      "optLevel": "z",
+      "lto": true,
+      "codegenUnits": 1,
+      "panic": "abort",
+      "strip": true
+    },
+    "gzip": "Apple gzip 479; level 9",
+    "brotli": "brotli 1.2.0; quality 11",
+    "wasmOpt": {
+      "available": false,
+      "measuredBytes": null,
+      "reason": "wasm-opt was not installed; no substitute result is labeled wasm-opt"
+    }
+  },
+  "sources": {
+    "src/value_expr.rs": "sha256:f0384703217b562ff5902fe9984a03f3c57dd351a9532f0893a32fdabf9bc0af",
+    "src/result_transform.rs": "sha256:0506db6b43d88835255cf852c3e07c988da385443a62b82db12e716e695d931b",
+    "Cargo.toml": "sha256:6a4f55409fd75b35cecc2bb9a9bac88dee1953705c3bcce6c2749f219d847020",
+    "Cargo.lock": "sha256:66e2f7f6d80a472dae969cf3e8a99e1dc87698f8e495dc7da5d618dace60b5fc",
+    "src/lib.rs": "sha256:859c5bec07a9e398bc579855d448a2b503a867e614c4fef1c479aa8e815b07c4"
+  },
+  "artifact": {
+    "path": "target/wasm32-unknown-unknown/release/snapback_rust_evaluator_wasm_poc.wasm",
+    "sha256": "510ec4e67fb3d9d3aba161b5052f5447276850ce27ffcc2b16ab232c58969c9a",
+    "cargoOptimizedBytes": 306890,
+    "wasmOptBytes": null,
+    "gzipBytes": 117353,
+    "brotliBytes": 95830
+  }
+}
