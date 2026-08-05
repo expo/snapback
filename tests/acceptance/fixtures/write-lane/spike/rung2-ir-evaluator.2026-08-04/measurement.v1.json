@@ -1,0 +1,980 @@
+{
+  "schemaVersion": "snapback.rung2-ir-evaluator-sizing-spike.v1",
+  "date": "2026-08-04",
+  "status": "throwaway-unregistered-evidence",
+  "method": {
+    "runtime": "v24.18.0",
+    "zlib": "1.3.1-e00f703",
+    "brotli": "1.2.0",
+    "bundler": "esbuild@0.28.1",
+    "bundle": true,
+    "platform": "browser",
+    "format": "esm",
+    "target": "es2022",
+    "minify": true,
+    "treeShaking": true,
+    "legalComments": "none",
+    "conditions": [
+      "browser",
+      "import",
+      "default"
+    ],
+    "gzipLevel": 9,
+    "brotliQuality": 11,
+    "attribution": "esbuild metafile output.inputs bytesInOutput (module-own minified bytes)",
+    "sourceMethod": "in-memory exact-anchor transforms over the shipping evaluator; no shipping file written"
+  },
+  "inputs": [
+    {
+      "path": "tests/acceptance/fixtures/write-lane/spike/rung2-ir-evaluator.2026-08-04/calendar-fixture.mjs",
+      "sha256": "sha256:2f32371fe9d73c36645727dd116c9e420ec4f4b55770a9147673f9e07aca437b"
+    },
+    {
+      "path": "packages/snapback-client/ir-evaluator.mjs",
+      "sha256": "sha256:99f554215a27c23686ca4bb3ed5b17b5f2b98ed46d738057992af3fa3898ea36"
+    },
+    {
+      "path": "packages/snapback-client/materialization-store.mjs",
+      "sha256": "sha256:bd7e4935d031af165c4cdfe57d25a89e871f0eff72932b02240b846163471063"
+    },
+    {
+      "path": "demos/zero-bakeoff/protocol/acceptance/contention-calendar.v1.json",
+      "sha256": "sha256:b76b45dbdf63c31ef19256522a3e03595e98e667a45a75c94e51764c64a9e29c"
+    },
+    {
+      "path": "demos/zero-bakeoff/apps/contention-calendar/snapback/functions.mjs",
+      "sha256": "sha256:37b8559e044ed2485ac3f04d9e01b885004a9054f598a748586ea61c2c377d38"
+    },
+    {
+      "path": "demos/zero-bakeoff/apps/contention-calendar/snapback/src/App.tsx",
+      "sha256": "sha256:ca4b5e35877328f021e2d760909601ef9308c21bda5f3f19f7d88a58dadd3179"
+    },
+    {
+      "path": "demos/zero-bakeoff/apps/contention-calendar/snapback/tests/acceptance.mjs",
+      "sha256": "sha256:8c1547f3135d1e33437bc14cb49d4e1e5534ea9610b14d0fd4c18d690e05db33"
+    },
+    {
+      "path": "llp/0129-local-first-program.plan.md",
+      "sha256": "sha256:ed24ee83cc99771ff9301b3d01478e590946cf1eea4d6bd9b330badb29b51a20"
+    },
+    {
+      "path": "llp/0133-local-settlement.spec.md",
+      "sha256": "sha256:a17af5529e0b804047099c6f18dde33c5c8fdf62838b8940bf35a56185c0789a"
+    }
+  ],
+  "workloadInventory": {
+    "witness": "contention-calendar common-path reserve",
+    "stepKinds": [
+      "Insert"
+    ],
+    "counts": {
+      "Insert": 1,
+      "AllocateSequence": 0,
+      "Delete": 0,
+      "Let": 0
+    }
+  },
+  "variantBoundary": {
+    "AllocateSequence": "bounded typed sequence-claim skeleton for sizing only; not an admitted input contract",
+    "Delete": "activate the shipping D5 Delete branch in the local effect classifier",
+    "Let": "activate the shipping D5 Let branch in the local effect classifier"
+  },
+  "verifiedVariants": [
+    {
+      "id": "rung1-current",
+      "verbs": [],
+      "assertions": 0
+    },
+    {
+      "id": "candidate-allocate-sequence",
+      "verbs": [
+        "AllocateSequence"
+      ],
+      "assertions": 1
+    },
+    {
+      "id": "candidate-delete",
+      "verbs": [
+        "Delete"
+      ],
+      "assertions": 1
+    },
+    {
+      "id": "candidate-let",
+      "verbs": [
+        "Let"
+      ],
+      "assertions": 1
+    },
+    {
+      "id": "cumulative-allocate-sequence-delete",
+      "verbs": [
+        "AllocateSequence",
+        "Delete"
+      ],
+      "assertions": 2
+    },
+    {
+      "id": "cumulative-allocate-sequence-delete-let",
+      "verbs": [
+        "AllocateSequence",
+        "Delete",
+        "Let"
+      ],
+      "assertions": 3
+    }
+  ],
+  "profiles": [
+    {
+      "id": "landed-materialization-store-all-exports",
+      "variant": null,
+      "verbs": [],
+      "entrySha256": "sha256:27fe05fc070b35008ac93c229225776be8d32d7f5d84ebab4c9ba56270905d0a",
+      "variantSourceSha256": null,
+      "minifiedBytes": 69793,
+      "gzipBytes": 19872,
+      "brotliBytes": 17515,
+      "outputSha256": "sha256:d3ab64990bcc19b2ac674e0a649c5d0677cad88f74ea3a1e335fe757bd432d34",
+      "modules": [
+        {
+          "module": "packages/snapback-client/materialization-store.mjs",
+          "minifiedModuleOwnBytes": 50685
+        },
+        {
+          "module": "packages/snapback-contract/result-contract-validator.mjs",
+          "minifiedModuleOwnBytes": 9380
+        },
+        {
+          "module": "packages/snapback-client/rqs.mjs",
+          "minifiedModuleOwnBytes": 3766
+        },
+        {
+          "module": "packages/snapback-client/canonical-client-value.mjs",
+          "minifiedModuleOwnBytes": 3657
+        },
+        {
+          "module": "packages/snapback-client/rqs-store-meta.mjs",
+          "minifiedModuleOwnBytes": 1591
+        },
+        {
+          "module": "packages/snapback-client/evaluation-floor.mjs",
+          "minifiedModuleOwnBytes": 488
+        },
+        {
+          "module": "packages/snapback-client/outbox-shared.mjs",
+          "minifiedModuleOwnBytes": 112
+        },
+        {
+          "module": "tests/acceptance/fixtures/write-lane/spike/rung2-ir-evaluator.2026-08-04/landed-materialization-store-all-exports.fixture.mjs",
+          "minifiedModuleOwnBytes": 0
+        }
+      ]
+    },
+    {
+      "id": "rung1-current-used-entry",
+      "variant": "rung1-current",
+      "verbs": [],
+      "entrySha256": "sha256:91d68fc1a6de489563afb387deb1a85b7ed3944d3b378e2e177237a158114eac",
+      "variantSourceSha256": "sha256:d7f87b074f9b3c8122515530f31cf6b1824f80d0a20f8e95ffed2debabef6b9e",
+      "minifiedBytes": 20868,
+      "gzipBytes": 7414,
+      "brotliBytes": 6575,
+      "outputSha256": "sha256:27cd295ea43f9b8cadce0ddd91f9103b68fd2204232c791e8886a8aefc5212db",
+      "modules": [
+        {
+          "module": "rung2-variant:rung1-current",
+          "minifiedModuleOwnBytes": 11251
+        },
+        {
+          "module": "packages/snapback-contract/derived-overlay.mjs",
+          "minifiedModuleOwnBytes": 7767
+        },
+        {
+          "module": "packages/snapback-contract/client-store.mjs",
+          "minifiedModuleOwnBytes": 719
+        },
+        {
+          "module": "packages/snapback-contract/capabilities.mjs",
+          "minifiedModuleOwnBytes": 407
+        },
+        {
+          "module": "packages/snapback-contract/result-contract-validator.mjs",
+          "minifiedModuleOwnBytes": 232
+        },
+        {
+          "module": "packages/snapback-contract/index.mjs",
+          "minifiedModuleOwnBytes": 163
+        },
+        {
+          "module": "packages/snapback-contract/auth-coordinator.mjs",
+          "minifiedModuleOwnBytes": 104
+        },
+        {
+          "module": "packages/snapback-contract/auth-invalidation.mjs",
+          "minifiedModuleOwnBytes": 86
+        },
+        {
+          "module": "packages/snapback-contract/auth-custody-indexeddb.mjs",
+          "minifiedModuleOwnBytes": 31
+        },
+        {
+          "module": "tests/acceptance/fixtures/write-lane/spike/rung2-ir-evaluator.2026-08-04/rung1-current-used-entry.fixture.mjs",
+          "minifiedModuleOwnBytes": 0
+        }
+      ]
+    },
+    {
+      "id": "landed-store-plus-rung1-current-used-entry",
+      "variant": "rung1-current",
+      "verbs": [],
+      "entrySha256": "sha256:4629f031d1583968bdb4cffb62dd024d132383a8effc4a523286479872a0b2c0",
+      "variantSourceSha256": "sha256:d7f87b074f9b3c8122515530f31cf6b1824f80d0a20f8e95ffed2debabef6b9e",
+      "minifiedBytes": 90659,
+      "gzipBytes": 26848,
+      "brotliBytes": 23340,
+      "outputSha256": "sha256:449714c5fed448094f71bea41f269f2ec3e28bb797f92cc55a5e4a39c27a66d5",
+      "modules": [
+        {
+          "module": "packages/snapback-client/materialization-store.mjs",
+          "minifiedModuleOwnBytes": 50765
+        },
+        {
+          "module": "rung2-variant:rung1-current",
+          "minifiedModuleOwnBytes": 11358
+        },
+        {
+          "module": "packages/snapback-contract/result-contract-validator.mjs",
+          "minifiedModuleOwnBytes": 9380
+        },
+        {
+          "module": "packages/snapback-contract/derived-overlay.mjs",
+          "minifiedModuleOwnBytes": 7801
+        },
+        {
+          "module": "packages/snapback-client/rqs.mjs",
+          "minifiedModuleOwnBytes": 3779
+        },
+        {
+          "module": "packages/snapback-client/canonical-client-value.mjs",
+          "minifiedModuleOwnBytes": 3657
+        },
+        {
+          "module": "packages/snapback-client/rqs-store-meta.mjs",
+          "minifiedModuleOwnBytes": 1591
+        },
+        {
+          "module": "packages/snapback-contract/client-store.mjs",
+          "minifiedModuleOwnBytes": 719
+        },
+        {
+          "module": "packages/snapback-client/evaluation-floor.mjs",
+          "minifiedModuleOwnBytes": 488
+        },
+        {
+          "module": "packages/snapback-contract/capabilities.mjs",
+          "minifiedModuleOwnBytes": 411
+        },
+        {
+          "module": "packages/snapback-contract/index.mjs",
+          "minifiedModuleOwnBytes": 163
+        },
+        {
+          "module": "packages/snapback-client/outbox-shared.mjs",
+          "minifiedModuleOwnBytes": 112
+        },
+        {
+          "module": "packages/snapback-contract/auth-coordinator.mjs",
+          "minifiedModuleOwnBytes": 104
+        },
+        {
+          "module": "packages/snapback-contract/auth-invalidation.mjs",
+          "minifiedModuleOwnBytes": 86
+        },
+        {
+          "module": "packages/snapback-contract/auth-custody-indexeddb.mjs",
+          "minifiedModuleOwnBytes": 31
+        },
+        {
+          "module": "tests/acceptance/fixtures/write-lane/spike/rung2-ir-evaluator.2026-08-04/landed-store-plus-rung1-current-used-entry.fixture.mjs",
+          "minifiedModuleOwnBytes": 0
+        }
+      ]
+    },
+    {
+      "id": "candidate-allocate-sequence-used-entry",
+      "variant": "candidate-allocate-sequence",
+      "verbs": [
+        "AllocateSequence"
+      ],
+      "entrySha256": "sha256:a018c6ad974f9f45e9be73dc586c710c70082754bb227e9cdae12971bcdd2de6",
+      "variantSourceSha256": "sha256:9e13c98ec2e128b6469d652bd1d1906fb6024138a72b7e2e6af5deafbc721aa1",
+      "minifiedBytes": 21960,
+      "gzipBytes": 7728,
+      "brotliBytes": 6835,
+      "outputSha256": "sha256:d63b521f666e5280c0e6f8772425e31c3751f4ff5e951c94abd68936528bfaae",
+      "modules": [
+        {
+          "module": "rung2-variant:candidate-allocate-sequence",
+          "minifiedModuleOwnBytes": 12343
+        },
+        {
+          "module": "packages/snapback-contract/derived-overlay.mjs",
+          "minifiedModuleOwnBytes": 7767
+        },
+        {
+          "module": "packages/snapback-contract/client-store.mjs",
+          "minifiedModuleOwnBytes": 719
+        },
+        {
+          "module": "packages/snapback-contract/capabilities.mjs",
+          "minifiedModuleOwnBytes": 407
+        },
+        {
+          "module": "packages/snapback-contract/result-contract-validator.mjs",
+          "minifiedModuleOwnBytes": 232
+        },
+        {
+          "module": "packages/snapback-contract/index.mjs",
+          "minifiedModuleOwnBytes": 163
+        },
+        {
+          "module": "packages/snapback-contract/auth-coordinator.mjs",
+          "minifiedModuleOwnBytes": 104
+        },
+        {
+          "module": "packages/snapback-contract/auth-invalidation.mjs",
+          "minifiedModuleOwnBytes": 86
+        },
+        {
+          "module": "packages/snapback-contract/auth-custody-indexeddb.mjs",
+          "minifiedModuleOwnBytes": 31
+        },
+        {
+          "module": "tests/acceptance/fixtures/write-lane/spike/rung2-ir-evaluator.2026-08-04/candidate-allocate-sequence-used-entry.fixture.mjs",
+          "minifiedModuleOwnBytes": 0
+        }
+      ]
+    },
+    {
+      "id": "landed-store-plus-candidate-allocate-sequence-used-entry",
+      "variant": "candidate-allocate-sequence",
+      "verbs": [
+        "AllocateSequence"
+      ],
+      "entrySha256": "sha256:1ca8351caadf01886679f0c4232184aeae445f812ec13cf377e7e86aed531b38",
+      "variantSourceSha256": "sha256:9e13c98ec2e128b6469d652bd1d1906fb6024138a72b7e2e6af5deafbc721aa1",
+      "minifiedBytes": 91717,
+      "gzipBytes": 27119,
+      "brotliBytes": 23561,
+      "outputSha256": "sha256:1bcad5225052b7835753c9bc783770e388fb49b448613072f30663abf2dfb488",
+      "modules": [
+        {
+          "module": "packages/snapback-client/materialization-store.mjs",
+          "minifiedModuleOwnBytes": 50730
+        },
+        {
+          "module": "rung2-variant:candidate-allocate-sequence",
+          "minifiedModuleOwnBytes": 12455
+        },
+        {
+          "module": "packages/snapback-contract/result-contract-validator.mjs",
+          "minifiedModuleOwnBytes": 9380
+        },
+        {
+          "module": "packages/snapback-contract/derived-overlay.mjs",
+          "minifiedModuleOwnBytes": 7801
+        },
+        {
+          "module": "packages/snapback-client/rqs.mjs",
+          "minifiedModuleOwnBytes": 3775
+        },
+        {
+          "module": "packages/snapback-client/canonical-client-value.mjs",
+          "minifiedModuleOwnBytes": 3657
+        },
+        {
+          "module": "packages/snapback-client/rqs-store-meta.mjs",
+          "minifiedModuleOwnBytes": 1591
+        },
+        {
+          "module": "packages/snapback-contract/client-store.mjs",
+          "minifiedModuleOwnBytes": 719
+        },
+        {
+          "module": "packages/snapback-client/evaluation-floor.mjs",
+          "minifiedModuleOwnBytes": 488
+        },
+        {
+          "module": "packages/snapback-contract/capabilities.mjs",
+          "minifiedModuleOwnBytes": 411
+        },
+        {
+          "module": "packages/snapback-contract/index.mjs",
+          "minifiedModuleOwnBytes": 163
+        },
+        {
+          "module": "packages/snapback-client/outbox-shared.mjs",
+          "minifiedModuleOwnBytes": 112
+        },
+        {
+          "module": "packages/snapback-contract/auth-coordinator.mjs",
+          "minifiedModuleOwnBytes": 104
+        },
+        {
+          "module": "packages/snapback-contract/auth-invalidation.mjs",
+          "minifiedModuleOwnBytes": 86
+        },
+        {
+          "module": "packages/snapback-contract/auth-custody-indexeddb.mjs",
+          "minifiedModuleOwnBytes": 31
+        },
+        {
+          "module": "tests/acceptance/fixtures/write-lane/spike/rung2-ir-evaluator.2026-08-04/landed-store-plus-candidate-allocate-sequence-used-entry.fixture.mjs",
+          "minifiedModuleOwnBytes": 0
+        }
+      ]
+    },
+    {
+      "id": "candidate-delete-used-entry",
+      "variant": "candidate-delete",
+      "verbs": [
+        "Delete"
+      ],
+      "entrySha256": "sha256:55fa4c471f3d2947c90b6f658e23db96e7fcba0580630a6fbcc1b004dfe85a90",
+      "variantSourceSha256": "sha256:8afe1f686c7f8603643c12ee93b5ee07ce9338530d92e567ec2f16c81b69c322",
+      "minifiedBytes": 20884,
+      "gzipBytes": 7422,
+      "brotliBytes": 6565,
+      "outputSha256": "sha256:a4abc332a87161a62c4e0faabb687b4574e17861a53f1b0630dcbc392dc7164b",
+      "modules": [
+        {
+          "module": "rung2-variant:candidate-delete",
+          "minifiedModuleOwnBytes": 11267
+        },
+        {
+          "module": "packages/snapback-contract/derived-overlay.mjs",
+          "minifiedModuleOwnBytes": 7767
+        },
+        {
+          "module": "packages/snapback-contract/client-store.mjs",
+          "minifiedModuleOwnBytes": 719
+        },
+        {
+          "module": "packages/snapback-contract/capabilities.mjs",
+          "minifiedModuleOwnBytes": 407
+        },
+        {
+          "module": "packages/snapback-contract/result-contract-validator.mjs",
+          "minifiedModuleOwnBytes": 232
+        },
+        {
+          "module": "packages/snapback-contract/index.mjs",
+          "minifiedModuleOwnBytes": 163
+        },
+        {
+          "module": "packages/snapback-contract/auth-coordinator.mjs",
+          "minifiedModuleOwnBytes": 104
+        },
+        {
+          "module": "packages/snapback-contract/auth-invalidation.mjs",
+          "minifiedModuleOwnBytes": 86
+        },
+        {
+          "module": "packages/snapback-contract/auth-custody-indexeddb.mjs",
+          "minifiedModuleOwnBytes": 31
+        },
+        {
+          "module": "tests/acceptance/fixtures/write-lane/spike/rung2-ir-evaluator.2026-08-04/candidate-delete-used-entry.fixture.mjs",
+          "minifiedModuleOwnBytes": 0
+        }
+      ]
+    },
+    {
+      "id": "landed-store-plus-candidate-delete-used-entry",
+      "variant": "candidate-delete",
+      "verbs": [
+        "Delete"
+      ],
+      "entrySha256": "sha256:3a41ade1179fea246a9e67cc7bd2a186359656753868e9daa2a66cc5099a5774",
+      "variantSourceSha256": "sha256:8afe1f686c7f8603643c12ee93b5ee07ce9338530d92e567ec2f16c81b69c322",
+      "minifiedBytes": 90675,
+      "gzipBytes": 26855,
+      "brotliBytes": 23334,
+      "outputSha256": "sha256:0951cf3767419fc9f80a7c772f6a4b8e569f362590b085855ed30e1360903839",
+      "modules": [
+        {
+          "module": "packages/snapback-client/materialization-store.mjs",
+          "minifiedModuleOwnBytes": 50765
+        },
+        {
+          "module": "rung2-variant:candidate-delete",
+          "minifiedModuleOwnBytes": 11374
+        },
+        {
+          "module": "packages/snapback-contract/result-contract-validator.mjs",
+          "minifiedModuleOwnBytes": 9380
+        },
+        {
+          "module": "packages/snapback-contract/derived-overlay.mjs",
+          "minifiedModuleOwnBytes": 7801
+        },
+        {
+          "module": "packages/snapback-client/rqs.mjs",
+          "minifiedModuleOwnBytes": 3779
+        },
+        {
+          "module": "packages/snapback-client/canonical-client-value.mjs",
+          "minifiedModuleOwnBytes": 3657
+        },
+        {
+          "module": "packages/snapback-client/rqs-store-meta.mjs",
+          "minifiedModuleOwnBytes": 1591
+        },
+        {
+          "module": "packages/snapback-contract/client-store.mjs",
+          "minifiedModuleOwnBytes": 719
+        },
+        {
+          "module": "packages/snapback-client/evaluation-floor.mjs",
+          "minifiedModuleOwnBytes": 488
+        },
+        {
+          "module": "packages/snapback-contract/capabilities.mjs",
+          "minifiedModuleOwnBytes": 411
+        },
+        {
+          "module": "packages/snapback-contract/index.mjs",
+          "minifiedModuleOwnBytes": 163
+        },
+        {
+          "module": "packages/snapback-client/outbox-shared.mjs",
+          "minifiedModuleOwnBytes": 112
+        },
+        {
+          "module": "packages/snapback-contract/auth-coordinator.mjs",
+          "minifiedModuleOwnBytes": 104
+        },
+        {
+          "module": "packages/snapback-contract/auth-invalidation.mjs",
+          "minifiedModuleOwnBytes": 86
+        },
+        {
+          "module": "packages/snapback-contract/auth-custody-indexeddb.mjs",
+          "minifiedModuleOwnBytes": 31
+        },
+        {
+          "module": "tests/acceptance/fixtures/write-lane/spike/rung2-ir-evaluator.2026-08-04/landed-store-plus-candidate-delete-used-entry.fixture.mjs",
+          "minifiedModuleOwnBytes": 0
+        }
+      ]
+    },
+    {
+      "id": "candidate-let-used-entry",
+      "variant": "candidate-let",
+      "verbs": [
+        "Let"
+      ],
+      "entrySha256": "sha256:ab88996a8793aa8b6576c0b487536be1a1ef416bc8e2a98b71956e3657055085",
+      "variantSourceSha256": "sha256:419eee4a62d97064a0b585546e3f6c41055417bd70559d7addce83b21c0425c8",
+      "minifiedBytes": 20878,
+      "gzipBytes": 7422,
+      "brotliBytes": 6576,
+      "outputSha256": "sha256:d74a1cbe154467ff467ed0be421ac05daed4a15274ae80e7f9156cabbb3ae131",
+      "modules": [
+        {
+          "module": "rung2-variant:candidate-let",
+          "minifiedModuleOwnBytes": 11261
+        },
+        {
+          "module": "packages/snapback-contract/derived-overlay.mjs",
+          "minifiedModuleOwnBytes": 7767
+        },
+        {
+          "module": "packages/snapback-contract/client-store.mjs",
+          "minifiedModuleOwnBytes": 719
+        },
+        {
+          "module": "packages/snapback-contract/capabilities.mjs",
+          "minifiedModuleOwnBytes": 407
+        },
+        {
+          "module": "packages/snapback-contract/result-contract-validator.mjs",
+          "minifiedModuleOwnBytes": 232
+        },
+        {
+          "module": "packages/snapback-contract/index.mjs",
+          "minifiedModuleOwnBytes": 163
+        },
+        {
+          "module": "packages/snapback-contract/auth-coordinator.mjs",
+          "minifiedModuleOwnBytes": 104
+        },
+        {
+          "module": "packages/snapback-contract/auth-invalidation.mjs",
+          "minifiedModuleOwnBytes": 86
+        },
+        {
+          "module": "packages/snapback-contract/auth-custody-indexeddb.mjs",
+          "minifiedModuleOwnBytes": 31
+        },
+        {
+          "module": "tests/acceptance/fixtures/write-lane/spike/rung2-ir-evaluator.2026-08-04/candidate-let-used-entry.fixture.mjs",
+          "minifiedModuleOwnBytes": 0
+        }
+      ]
+    },
+    {
+      "id": "landed-store-plus-candidate-let-used-entry",
+      "variant": "candidate-let",
+      "verbs": [
+        "Let"
+      ],
+      "entrySha256": "sha256:bf96b227e1b00453b4979ecb63662e88d73c89db84127b881bf91070361d1a99",
+      "variantSourceSha256": "sha256:419eee4a62d97064a0b585546e3f6c41055417bd70559d7addce83b21c0425c8",
+      "minifiedBytes": 90669,
+      "gzipBytes": 26852,
+      "brotliBytes": 23333,
+      "outputSha256": "sha256:40ab288dc9beb6e0917ea9ad91bc0e85b53243f4805d6983851719edc616c806",
+      "modules": [
+        {
+          "module": "packages/snapback-client/materialization-store.mjs",
+          "minifiedModuleOwnBytes": 50765
+        },
+        {
+          "module": "rung2-variant:candidate-let",
+          "minifiedModuleOwnBytes": 11368
+        },
+        {
+          "module": "packages/snapback-contract/result-contract-validator.mjs",
+          "minifiedModuleOwnBytes": 9380
+        },
+        {
+          "module": "packages/snapback-contract/derived-overlay.mjs",
+          "minifiedModuleOwnBytes": 7801
+        },
+        {
+          "module": "packages/snapback-client/rqs.mjs",
+          "minifiedModuleOwnBytes": 3779
+        },
+        {
+          "module": "packages/snapback-client/canonical-client-value.mjs",
+          "minifiedModuleOwnBytes": 3657
+        },
+        {
+          "module": "packages/snapback-client/rqs-store-meta.mjs",
+          "minifiedModuleOwnBytes": 1591
+        },
+        {
+          "module": "packages/snapback-contract/client-store.mjs",
+          "minifiedModuleOwnBytes": 719
+        },
+        {
+          "module": "packages/snapback-client/evaluation-floor.mjs",
+          "minifiedModuleOwnBytes": 488
+        },
+        {
+          "module": "packages/snapback-contract/capabilities.mjs",
+          "minifiedModuleOwnBytes": 411
+        },
+        {
+          "module": "packages/snapback-contract/index.mjs",
+          "minifiedModuleOwnBytes": 163
+        },
+        {
+          "module": "packages/snapback-client/outbox-shared.mjs",
+          "minifiedModuleOwnBytes": 112
+        },
+        {
+          "module": "packages/snapback-contract/auth-coordinator.mjs",
+          "minifiedModuleOwnBytes": 104
+        },
+        {
+          "module": "packages/snapback-contract/auth-invalidation.mjs",
+          "minifiedModuleOwnBytes": 86
+        },
+        {
+          "module": "packages/snapback-contract/auth-custody-indexeddb.mjs",
+          "minifiedModuleOwnBytes": 31
+        },
+        {
+          "module": "tests/acceptance/fixtures/write-lane/spike/rung2-ir-evaluator.2026-08-04/landed-store-plus-candidate-let-used-entry.fixture.mjs",
+          "minifiedModuleOwnBytes": 0
+        }
+      ]
+    },
+    {
+      "id": "cumulative-allocate-sequence-delete-used-entry",
+      "variant": "cumulative-allocate-sequence-delete",
+      "verbs": [
+        "AllocateSequence",
+        "Delete"
+      ],
+      "entrySha256": "sha256:23c0fd8242adff9ece58d75e2a5d624ae2b8ad44298ad62c4b30e70d30a6f70b",
+      "variantSourceSha256": "sha256:d0a9977806db1b6be3f8613756d20921572ec54b4fa8775af69d02a3f4ca3500",
+      "minifiedBytes": 21976,
+      "gzipBytes": 7733,
+      "brotliBytes": 6842,
+      "outputSha256": "sha256:1449d86b756b102e25438aa493be735cc30c0937e2c31c1e9f71cca774d46469",
+      "modules": [
+        {
+          "module": "rung2-variant:cumulative-allocate-sequence-delete",
+          "minifiedModuleOwnBytes": 12359
+        },
+        {
+          "module": "packages/snapback-contract/derived-overlay.mjs",
+          "minifiedModuleOwnBytes": 7767
+        },
+        {
+          "module": "packages/snapback-contract/client-store.mjs",
+          "minifiedModuleOwnBytes": 719
+        },
+        {
+          "module": "packages/snapback-contract/capabilities.mjs",
+          "minifiedModuleOwnBytes": 407
+        },
+        {
+          "module": "packages/snapback-contract/result-contract-validator.mjs",
+          "minifiedModuleOwnBytes": 232
+        },
+        {
+          "module": "packages/snapback-contract/index.mjs",
+          "minifiedModuleOwnBytes": 163
+        },
+        {
+          "module": "packages/snapback-contract/auth-coordinator.mjs",
+          "minifiedModuleOwnBytes": 104
+        },
+        {
+          "module": "packages/snapback-contract/auth-invalidation.mjs",
+          "minifiedModuleOwnBytes": 86
+        },
+        {
+          "module": "packages/snapback-contract/auth-custody-indexeddb.mjs",
+          "minifiedModuleOwnBytes": 31
+        },
+        {
+          "module": "tests/acceptance/fixtures/write-lane/spike/rung2-ir-evaluator.2026-08-04/cumulative-allocate-sequence-delete-used-entry.fixture.mjs",
+          "minifiedModuleOwnBytes": 0
+        }
+      ]
+    },
+    {
+      "id": "landed-store-plus-cumulative-allocate-sequence-delete-used-entry",
+      "variant": "cumulative-allocate-sequence-delete",
+      "verbs": [
+        "AllocateSequence",
+        "Delete"
+      ],
+      "entrySha256": "sha256:d8f522803170124fa66b0a645c0a67b5f92df8a878fcde9fff676c35fd52b446",
+      "variantSourceSha256": "sha256:d0a9977806db1b6be3f8613756d20921572ec54b4fa8775af69d02a3f4ca3500",
+      "minifiedBytes": 91733,
+      "gzipBytes": 27127,
+      "brotliBytes": 23612,
+      "outputSha256": "sha256:03e135f735994b20aee9d5ece25364f8665ffc761b724177263c6c63ca97c843",
+      "modules": [
+        {
+          "module": "packages/snapback-client/materialization-store.mjs",
+          "minifiedModuleOwnBytes": 50730
+        },
+        {
+          "module": "rung2-variant:cumulative-allocate-sequence-delete",
+          "minifiedModuleOwnBytes": 12471
+        },
+        {
+          "module": "packages/snapback-contract/result-contract-validator.mjs",
+          "minifiedModuleOwnBytes": 9380
+        },
+        {
+          "module": "packages/snapback-contract/derived-overlay.mjs",
+          "minifiedModuleOwnBytes": 7801
+        },
+        {
+          "module": "packages/snapback-client/rqs.mjs",
+          "minifiedModuleOwnBytes": 3775
+        },
+        {
+          "module": "packages/snapback-client/canonical-client-value.mjs",
+          "minifiedModuleOwnBytes": 3657
+        },
+        {
+          "module": "packages/snapback-client/rqs-store-meta.mjs",
+          "minifiedModuleOwnBytes": 1591
+        },
+        {
+          "module": "packages/snapback-contract/client-store.mjs",
+          "minifiedModuleOwnBytes": 719
+        },
+        {
+          "module": "packages/snapback-client/evaluation-floor.mjs",
+          "minifiedModuleOwnBytes": 488
+        },
+        {
+          "module": "packages/snapback-contract/capabilities.mjs",
+          "minifiedModuleOwnBytes": 411
+        },
+        {
+          "module": "packages/snapback-contract/index.mjs",
+          "minifiedModuleOwnBytes": 163
+        },
+        {
+          "module": "packages/snapback-client/outbox-shared.mjs",
+          "minifiedModuleOwnBytes": 112
+        },
+        {
+          "module": "packages/snapback-contract/auth-coordinator.mjs",
+          "minifiedModuleOwnBytes": 104
+        },
+        {
+          "module": "packages/snapback-contract/auth-invalidation.mjs",
+          "minifiedModuleOwnBytes": 86
+        },
+        {
+          "module": "packages/snapback-contract/auth-custody-indexeddb.mjs",
+          "minifiedModuleOwnBytes": 31
+        },
+        {
+          "module": "tests/acceptance/fixtures/write-lane/spike/rung2-ir-evaluator.2026-08-04/landed-store-plus-cumulative-allocate-sequence-delete-used-entry.fixture.mjs",
+          "minifiedModuleOwnBytes": 0
+        }
+      ]
+    },
+    {
+      "id": "cumulative-allocate-sequence-delete-let-used-entry",
+      "variant": "cumulative-allocate-sequence-delete-let",
+      "verbs": [
+        "AllocateSequence",
+        "Delete",
+        "Let"
+      ],
+      "entrySha256": "sha256:f3ca23228ba26027ee45b69e57bb334284ad8880c03d9ffbe4d213e89c2f0cf6",
+      "variantSourceSha256": "sha256:e8f0576bc7ecfef78d081605b4e9da02f48a42c4573a289e91940b25d5e6a6f2",
+      "minifiedBytes": 21986,
+      "gzipBytes": 7742,
+      "brotliBytes": 6848,
+      "outputSha256": "sha256:bcc38d88551161ff49a4dcc763cc2acf613defaf0a87a1711f11ce6786f61a59",
+      "modules": [
+        {
+          "module": "rung2-variant:cumulative-allocate-sequence-delete-let",
+          "minifiedModuleOwnBytes": 12369
+        },
+        {
+          "module": "packages/snapback-contract/derived-overlay.mjs",
+          "minifiedModuleOwnBytes": 7767
+        },
+        {
+          "module": "packages/snapback-contract/client-store.mjs",
+          "minifiedModuleOwnBytes": 719
+        },
+        {
+          "module": "packages/snapback-contract/capabilities.mjs",
+          "minifiedModuleOwnBytes": 407
+        },
+        {
+          "module": "packages/snapback-contract/result-contract-validator.mjs",
+          "minifiedModuleOwnBytes": 232
+        },
+        {
+          "module": "packages/snapback-contract/index.mjs",
+          "minifiedModuleOwnBytes": 163
+        },
+        {
+          "module": "packages/snapback-contract/auth-coordinator.mjs",
+          "minifiedModuleOwnBytes": 104
+        },
+        {
+          "module": "packages/snapback-contract/auth-invalidation.mjs",
+          "minifiedModuleOwnBytes": 86
+        },
+        {
+          "module": "packages/snapback-contract/auth-custody-indexeddb.mjs",
+          "minifiedModuleOwnBytes": 31
+        },
+        {
+          "module": "tests/acceptance/fixtures/write-lane/spike/rung2-ir-evaluator.2026-08-04/cumulative-allocate-sequence-delete-let-used-entry.fixture.mjs",
+          "minifiedModuleOwnBytes": 0
+        }
+      ]
+    },
+    {
+      "id": "landed-store-plus-cumulative-allocate-sequence-delete-let-used-entry",
+      "variant": "cumulative-allocate-sequence-delete-let",
+      "verbs": [
+        "AllocateSequence",
+        "Delete",
+        "Let"
+      ],
+      "entrySha256": "sha256:bf07fca759f764deda120a2fbbec216550d151a88b7f4f6c464a352e14e02b94",
+      "variantSourceSha256": "sha256:e8f0576bc7ecfef78d081605b4e9da02f48a42c4573a289e91940b25d5e6a6f2",
+      "minifiedBytes": 91743,
+      "gzipBytes": 27131,
+      "brotliBytes": 23611,
+      "outputSha256": "sha256:417b3c2c0823ee7f885e8c51ca98013d4241c87b6619149b80b9c6ea792a34b2",
+      "modules": [
+        {
+          "module": "packages/snapback-client/materialization-store.mjs",
+          "minifiedModuleOwnBytes": 50730
+        },
+        {
+          "module": "rung2-variant:cumulative-allocate-sequence-delete-let",
+          "minifiedModuleOwnBytes": 12481
+        },
+        {
+          "module": "packages/snapback-contract/result-contract-validator.mjs",
+          "minifiedModuleOwnBytes": 9380
+        },
+        {
+          "module": "packages/snapback-contract/derived-overlay.mjs",
+          "minifiedModuleOwnBytes": 7801
+        },
+        {
+          "module": "packages/snapback-client/rqs.mjs",
+          "minifiedModuleOwnBytes": 3775
+        },
+        {
+          "module": "packages/snapback-client/canonical-client-value.mjs",
+          "minifiedModuleOwnBytes": 3657
+        },
+        {
+          "module": "packages/snapback-client/rqs-store-meta.mjs",
+          "minifiedModuleOwnBytes": 1591
+        },
+        {
+          "module": "packages/snapback-contract/client-store.mjs",
+          "minifiedModuleOwnBytes": 719
+        },
+        {
+          "module": "packages/snapback-client/evaluation-floor.mjs",
+          "minifiedModuleOwnBytes": 488
+        },
+        {
+          "module": "packages/snapback-contract/capabilities.mjs",
+          "minifiedModuleOwnBytes": 411
+        },
+        {
+          "module": "packages/snapback-contract/index.mjs",
+          "minifiedModuleOwnBytes": 163
+        },
+        {
+          "module": "packages/snapback-client/outbox-shared.mjs",
+          "minifiedModuleOwnBytes": 112
+        },
+        {
+          "module": "packages/snapback-contract/auth-coordinator.mjs",
+          "minifiedModuleOwnBytes": 104
+        },
+        {
+          "module": "packages/snapback-contract/auth-invalidation.mjs",
+          "minifiedModuleOwnBytes": 86
+        },
+        {
+          "module": "packages/snapback-contract/auth-custody-indexeddb.mjs",
+          "minifiedModuleOwnBytes": 31
+        },
+        {
+          "module": "tests/acceptance/fixtures/write-lane/spike/rung2-ir-evaluator.2026-08-04/landed-store-plus-cumulative-allocate-sequence-delete-let-used-entry.fixture.mjs",
+          "minifiedModuleOwnBytes": 0
+        }
+      ]
+    }
+  ]
+}
