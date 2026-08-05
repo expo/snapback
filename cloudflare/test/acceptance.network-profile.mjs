@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { ADMIN_TOKEN, startProof } from './harness.mjs';
 
 const PROFILE_PATH = '/_snapback/api/debug/network-profile';
+const DERIVED_INSTANCE_ID = '01900000-0000-7000-8000-000000000167';
 
 async function jsonRequest(proof, path, { method = 'POST', value, admin = false } = {}) {
   const headers = new Headers();
@@ -27,13 +28,70 @@ async function startupRefusal(bindings, expectedCode) {
   }
 }
 
-// Deployment classification is exact and fail-closed for env selection.
+async function startupAdmission(bindings, expectedProfile) {
+  const proof = await startProof({ bindings });
+  try {
+    const health = await proof.raw('/health');
+    const body = await health.json();
+    assert.equal(health.status, 200, JSON.stringify(body));
+    assert.equal(body.networkProfile?.profile?.name, expectedProfile, JSON.stringify(body));
+  } finally {
+    await proof.dispose();
+  }
+}
+
+async function actionBodyShapeRefusal(proof) {
+  const startedAt = Date.now();
+  const response = await proof.raw('/action/listNotes', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{',
+  });
+  const elapsedMs = Date.now() - startedAt;
+  return { response, body: await response.json(), elapsedMs };
+}
+
+// Deployment classification is exact and fail-closed for env selection:
+// missing facts and primary hosted both refuse; the dedicated derived identity
+// is the only hosted allowance; test+derived and malformed identity contradict.
 await startupRefusal(
-  { SNAPBACK_TESTING: null, SNAPBACK_NETWORK_PROFILE: 'optimistic' },
+  {
+    SNAPBACK_TESTING: null,
+    SNAPBACK_DERIVED_INSTANCE_ID: null,
+    SNAPBACK_NETWORK_PROFILE: 'optimistic',
+  },
   'SNAPBACK_NETWORK_PROFILE_FORBIDDEN',
 );
 await startupRefusal(
-  { SNAPBACK_TESTING: '0', SNAPBACK_NETWORK_PROFILE: 'optimistic' },
+  {
+    SNAPBACK_TESTING: '0',
+    SNAPBACK_DERIVED_INSTANCE_ID: null,
+    SNAPBACK_NETWORK_PROFILE: 'optimistic',
+  },
+  'SNAPBACK_NETWORK_PROFILE_FORBIDDEN',
+);
+await startupAdmission(
+  {
+    SNAPBACK_TESTING: null,
+    SNAPBACK_DERIVED_INSTANCE_ID: DERIVED_INSTANCE_ID,
+    SNAPBACK_NETWORK_PROFILE: 'demo-slow',
+  },
+  'demo-slow',
+);
+await startupRefusal(
+  {
+    SNAPBACK_TESTING: '1',
+    SNAPBACK_DERIVED_INSTANCE_ID: DERIVED_INSTANCE_ID,
+    SNAPBACK_NETWORK_PROFILE: 'optimistic',
+  },
+  'SNAPBACK_NETWORK_PROFILE_FORBIDDEN',
+);
+await startupRefusal(
+  {
+    SNAPBACK_TESTING: '0',
+    SNAPBACK_DERIVED_INSTANCE_ID: 'not-a-derived-identity',
+    SNAPBACK_NETWORK_PROFILE: 'optimistic',
+  },
   'SNAPBACK_NETWORK_PROFILE_FORBIDDEN',
 );
 
@@ -79,13 +137,16 @@ try {
   assert.equal(invalid.response.status, 400, JSON.stringify(invalid.body));
   assert.equal(invalid.body.diagnostic?.code, 'SNAPBACK_NETWORK_PROFILE_INVALID');
 
+  // Action pre-handler refusals use the query-response lane. Built-in
+  // optimistic pins that lane to zero, so a bounded custom profile supplies
+  // the positive timing witness without lying about optimistic's contract.
   const queryProfile = await jsonRequest(runtime, PROFILE_PATH, {
     method: 'PUT',
     value: {
       name: 'query-floor',
       mutationAckDelayMs: 0,
       liveDeltaDelayMs: 0,
-      queryResponseDelayMs: 75,
+      queryResponseDelayMs: 120,
       jitterMs: 0,
     },
     admin: true,
@@ -95,8 +156,15 @@ try {
   const delayedQuery = await jsonRequest(runtime, '/query', {
     value: { name: 'listNotes', args: { boardId: 'runtime-profile' } },
   });
-  assert.ok(Date.now() - queryStartedAt >= 60, 'query response missed its configured floor');
+  assert.ok(Date.now() - queryStartedAt >= 100, 'query response missed its configured floor');
   assert.equal(delayedQuery.response.headers.get('snapback-network-profile'), 'query-floor');
+
+  const delayedActionRefusal = await actionBodyShapeRefusal(runtime);
+  assert.equal(delayedActionRefusal.response.status, 400, JSON.stringify(delayedActionRefusal.body));
+  assert.equal(delayedActionRefusal.body.diagnostic?.code, 'SNAPBACK_JSON_INVALID');
+  assert.ok(delayedActionRefusal.elapsedMs >= 100,
+    `action refusal missed its configured floor: ${delayedActionRefusal.elapsedMs}ms`);
+  assert.equal(delayedActionRefusal.response.headers.get('snapback-network-profile'), 'query-floor');
 
   const selected = await jsonRequest(runtime, PROFILE_PATH, {
     method: 'PUT',
@@ -113,6 +181,12 @@ try {
   const restarted = await jsonRequest(runtime, PROFILE_PATH, { method: 'GET', admin: true });
   assert.equal(restarted.body.profile.name, 'normal');
   assert.equal(restarted.body.provenance.source, 'env');
+  const normalActionRefusal = await actionBodyShapeRefusal(runtime);
+  assert.equal(normalActionRefusal.response.status, 400, JSON.stringify(normalActionRefusal.body));
+  assert.equal(normalActionRefusal.body.diagnostic?.code, 'SNAPBACK_JSON_INVALID');
+  assert.equal(normalActionRefusal.response.headers.get('snapback-network-profile'), null);
+  assert.ok(normalActionRefusal.elapsedMs < 100,
+    `normal action refusal should be fast: ${normalActionRefusal.elapsedMs}ms`);
 } finally {
   await runtime.dispose();
 }
@@ -131,6 +205,56 @@ try {
   await hostedClass.dispose();
 }
 
+const hostedDerivedClass = await startProof({
+  bindings: {
+    SNAPBACK_TESTING: null,
+    SNAPBACK_DERIVED_INSTANCE_ID: DERIVED_INSTANCE_ID,
+  },
+});
+try {
+  const testOnly = await hostedDerivedClass.raw('/_snapback/test/action', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ name: 'testingOnlySentinel', args: {} }),
+  });
+  assert.equal(
+    testOnly.status,
+    404,
+    'derived profile authority must not unlock SNAPBACK_TESTING-only functions/routes',
+  );
+  const selected = await jsonRequest(hostedDerivedClass, PROFILE_PATH, {
+    method: 'PUT',
+    value: 'optimistic',
+    admin: true,
+  });
+  assert.equal(selected.response.status, 200, JSON.stringify(selected.body));
+  assert.equal(selected.body.profile.name, 'optimistic');
+} finally {
+  await hostedDerivedClass.dispose();
+}
+
+for (const [label, bindings] of [
+  ['missing', { SNAPBACK_TESTING: null, SNAPBACK_DERIVED_INSTANCE_ID: null }],
+  ['contradictory', { SNAPBACK_TESTING: '1', SNAPBACK_DERIVED_INSTANCE_ID: DERIVED_INSTANCE_ID }],
+]) {
+  const proof = await startProof({ bindings });
+  try {
+    const forbidden = await jsonRequest(proof, PROFILE_PATH, {
+      method: 'PUT',
+      value: 'optimistic',
+      admin: true,
+    });
+    assert.equal(forbidden.response.status, 403, `${label}: ${JSON.stringify(forbidden.body)}`);
+    assert.equal(
+      forbidden.body.diagnostic?.code,
+      'SNAPBACK_NETWORK_PROFILE_FORBIDDEN',
+      label,
+    );
+  } finally {
+    await proof.dispose();
+  }
+}
+
 // The built-in optimistic profile: query has a zero lane delay but still
 // carries the honest marker; mutation ack and live frame share one
 // commit-relative 1 s deadline. Admission remains open while the ack waits.
@@ -145,6 +269,10 @@ try {
   });
   assert.equal(query.response.headers.get('snapback-network-profile'), 'optimistic');
   assert.match(query.response.headers.get('access-control-expose-headers') || '', /snapback-network-profile/i);
+  const optimisticActionRefusal = await actionBodyShapeRefusal(optimistic);
+  assert.equal(optimisticActionRefusal.response.status, 400, JSON.stringify(optimisticActionRefusal.body));
+  assert.equal(optimisticActionRefusal.body.diagnostic?.code, 'SNAPBACK_JSON_INVALID');
+  assert.equal(optimisticActionRefusal.response.headers.get('snapback-network-profile'), 'optimistic');
 
   const socket = await optimistic.openLiveSocket();
   try {
@@ -211,4 +339,4 @@ try {
   await optimistic.dispose();
 }
 
-console.log('cloudflare network-profile acceptance: classification, ceilings, runtime lifecycle, two-phase deadlines, and admission passed');
+console.log('cloudflare network-profile acceptance: classification, ceilings, action refusals, runtime lifecycle, two-phase deadlines, admission, and the test/primary/derived/missing/contradictory matrix passed');

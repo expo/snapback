@@ -1,4 +1,4 @@
-export const LOCAL_ANSWER_CLASSES_V1 = Object.freeze([
+export const LOCAL_ANSWER_CLASSES_V1 = /* @__PURE__ */ Object.freeze([
   'authoritative',
   'lease-authorized-retained',
   'labeled-retained',

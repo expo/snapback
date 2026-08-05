@@ -43,11 +43,65 @@ function probeTempDirectories() {
   return new Set(readdirSync(tmpdir()).filter((name) => name.startsWith('snapback-runtime-link-')));
 }
 
-test('default exact-link deadline admits a serialized clean CI build', () => {
+// These are deadlock watchdogs, not performance assertions. The tests below
+// wait for a real subprocess readiness marker or a complete doctor record;
+// under the full local proof, concurrent Cargo builds can leave either child
+// runnable but unscheduled for tens of seconds. Keep the behavioral deadline
+// in runtime-link-smoke itself (15 minutes); give the test harness enough room
+// to observe its readiness/record signals without turning host load into a
+// false failure.
+const LOAD_TOLERANT_PROCESS_WATCHDOG_MS = 2 * 60_000;
+
+// This file intentionally inspects the process-global temporary-directory
+// namespace to prove cleanup. Newer Node runners may start top-level tests
+// concurrently, which makes one fixture observe another fixture's directory.
+// Serialize only this owning corpus; external build/process load remains real.
+let fixtureQueue = Promise.resolve();
+function fixtureTest(name, optionsOrRun, maybeRun) {
+  const options = typeof optionsOrRun === 'function' ? {} : optionsOrRun;
+  const run = typeof optionsOrRun === 'function' ? optionsOrRun : maybeRun;
+  test(name, options, async (context) => {
+    const predecessor = fixtureQueue;
+    let release;
+    fixtureQueue = new Promise((resolveRelease) => { release = resolveRelease; });
+    await predecessor;
+    try {
+      return await run(context);
+    } finally {
+      release();
+    }
+  });
+}
+
+function waitForPathOrChildExit(path, child) {
+  if (existsSync(path)) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const readinessPoll = setInterval(() => {
+      if (!existsSync(path)) return;
+      cleanup();
+      resolve();
+    }, 20);
+    const onClose = (status, signal) => {
+      cleanup();
+      reject(new Error(`child exited before readiness marker (status=${status}, signal=${signal})`));
+    };
+    const cleanup = () => {
+      clearInterval(readinessPoll);
+      child.off('close', onClose);
+    };
+    child.once('close', onClose);
+    if (existsSync(path)) {
+      cleanup();
+      resolve();
+    }
+  });
+}
+
+fixtureTest('default exact-link deadline admits a serialized clean CI build', () => {
   assert.equal(DEFAULT_RUNTIME_LINK_TIMEOUT_MS, 15 * 60_000);
 });
 
-test('Linux exact-link probe stages the public bin/../lib loader closure', () => {
+fixtureTest('Linux exact-link probe stages the public bin/../lib loader closure', () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-linux-closure-'));
   try {
     const source = join(scratch, 'vendor', 'ibex', 'linux', 'lib', 'libhermesvm.so');
@@ -61,7 +115,7 @@ test('Linux exact-link probe stages the public bin/../lib loader closure', () =>
   }
 });
 
-test('missing compatibility symbols produce one exact-link recovery record', async () => {
+fixtureTest('missing compatibility symbols produce one exact-link recovery record', async () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-test-'));
   try {
     writeFileSync(join(scratch, 'Cargo.toml'), '[package]\nname = "snapback"\nversion = "9.8.7"\n');
@@ -92,7 +146,7 @@ console.log(JSON.stringify({binary:{
     const result = await runRuntimeLinkProbe({
       root: scratch,
       cargoCommand: cargo,
-      timeoutMs: 5_000,
+      timeoutMs: LOAD_TOLERANT_PROCESS_WATCHDOG_MS,
     });
     assert.equal(result.ok, false);
     assert.equal(result.diagnostic.code, 'SNAPBACK_IBEX_RUNTIME_LINK_FAILED');
@@ -118,7 +172,7 @@ console.log(JSON.stringify({binary:{
   }
 });
 
-test('green state links and launches the newly built binary, then cleans it', async () => {
+fixtureTest('green state links and launches the newly built binary, then cleans it', async () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-green-'));
   try {
     writeFileSync(join(scratch, 'Cargo.toml'), '[package]\nname = "snapback"\nversion = "1.2.3"\n');
@@ -166,7 +220,7 @@ chmodSync(binary, 0o755);
     const result = await runRuntimeLinkProbe({
       root: scratch,
       cargoCommand: cargo,
-      timeoutMs: 5_000,
+      timeoutMs: LOAD_TOLERANT_PROCESS_WATCHDOG_MS,
     });
     assert.equal(result.ok, true, JSON.stringify(result.diagnostic));
     assert.equal(result.diagnostic.code, 'SNAPBACK_IBEX_RUNTIME_LINK_OK');
@@ -181,7 +235,7 @@ chmodSync(binary, 0o755);
   }
 });
 
-test('a launchable binary that cannot create the armed handler VM is never LINK_OK', async () => {
+fixtureTest('a launchable binary that cannot create the armed handler VM is never LINK_OK', async () => {
   // issues/20260730-bootstrap-smoke-does-not-create-armed-handler-vm: the
   // exact reproduced state — link succeeds, the binary launches with loader
   // overrides scrubbed, but every JS handler would refuse at
@@ -233,7 +287,7 @@ chmodSync(binary, 0o755);
     const result = await runRuntimeLinkProbe({
       root: scratch,
       cargoCommand: cargo,
-      timeoutMs: 5_000,
+      timeoutMs: LOAD_TOLERANT_PROCESS_WATCHDOG_MS,
     });
     assert.equal(result.ok, false, 'a launchable but VM-refusing binary must not pass');
     assert.equal(result.diagnostic.code, 'SNAPBACK_IBEX_RUNTIME_VM_CREATE_FAILED');
@@ -251,7 +305,7 @@ chmodSync(binary, 0o755);
   }
 });
 
-test('a kept target persists a readiness receipt; a framework swap after issuance is refused', async () => {
+fixtureTest('a kept target persists a readiness receipt; a framework swap after issuance is refused', async () => {
   // LLP 0115 CV-3: the probe's OK on a kept (served) binary must leave the
   // digest-bound receipt every consumer re-verifies, and a Hermes artifact
   // refreshed after issuance must invalidate it rather than be served.
@@ -296,7 +350,7 @@ chmodSync(binary, 0o755);
     const result = await runRuntimeLinkProbe({
       root: scratch,
       cargoCommand: cargo,
-      timeoutMs: 5_000,
+      timeoutMs: LOAD_TOLERANT_PROCESS_WATCHDOG_MS,
       targetDirectory: target,
       keepTarget: true,
     });
@@ -323,7 +377,7 @@ chmodSync(binary, 0o755);
   }
 });
 
-test('a VM-refusing kept binary gets no receipt', async () => {
+fixtureTest('a VM-refusing kept binary gets no receipt', async () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-no-receipt-'));
   try {
     writeFileSync(join(scratch, 'Cargo.toml'), '[package]\nname = "snapback"\nversion = "1.2.3"\n');
@@ -363,7 +417,7 @@ chmodSync(binary, 0o755);
     const result = await runRuntimeLinkProbe({
       root: scratch,
       cargoCommand: cargo,
-      timeoutMs: 5_000,
+      timeoutMs: LOAD_TOLERANT_PROCESS_WATCHDOG_MS,
       targetDirectory: target,
       keepTarget: true,
     });
@@ -379,7 +433,7 @@ chmodSync(binary, 0o755);
   }
 });
 
-test('a caller-owned target directory is never recursively deleted', async () => {
+fixtureTest('a caller-owned target directory is never recursively deleted', async () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-owned-target-'));
   const target = join(scratch, 'caller-target');
   const sentinel = join(target, 'do-not-delete.txt');
@@ -412,7 +466,7 @@ test('a caller-owned target directory is never recursively deleted', async () =>
   }
 });
 
-test('timeout is coded and still cleans the temporary Cargo target', async () => {
+fixtureTest('timeout is coded and still cleans the temporary Cargo target', async () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-timeout-'));
   try {
     writeFileSync(join(scratch, 'Cargo.toml'), '[package]\nname = "snapback"\nversion = "1.2.3"\n');
@@ -440,7 +494,9 @@ setInterval(() => {}, 1_000);
   }
 });
 
-test('SIGTERM interrupts the Cargo process group and cleans the temporary target', async () => {
+fixtureTest('SIGTERM interrupts the Cargo process group and cleans the temporary target', {
+  timeout: LOAD_TOLERANT_PROCESS_WATCHDOG_MS,
+}, async () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-runtime-link-signal-'));
   try {
     const bin = join(scratch, 'bin');
@@ -454,6 +510,9 @@ if (process.argv[2] === '--version') {
   console.log('cargo 1.99.0-fixture');
   process.exit(0);
 }
+// Deterministically cross the former five-second readiness window. The
+// parent must wait for the marker, not infer failure from scheduler time.
+await new Promise((resolveReady) => setTimeout(resolveReady, 5_250));
 writeFileSync(process.env.PROBE_MARKER, 'started');
 setInterval(() => {}, 1_000);
 `);
@@ -471,10 +530,7 @@ setInterval(() => {}, 1_000);
     });
     child.stdout.on('data', (chunk) => { stdout += chunk; });
     child.stderr.on('data', (chunk) => { stderr += chunk; });
-    const deadline = Date.now() + 5_000;
-    while (!existsSync(marker) && Date.now() < deadline) {
-      await new Promise((resolveWait) => setTimeout(resolveWait, 20));
-    }
+    await waitForPathOrChildExit(marker, child);
     assert(existsSync(marker), `fake Cargo did not start: ${stderr}`);
     child.kill('SIGTERM');
     const exit = await new Promise((resolveExit) => {
@@ -493,7 +549,7 @@ setInterval(() => {}, 1_000);
   }
 });
 
-test('symbol extraction handles Darwin and GNU linker spellings', () => {
+fixtureTest('symbol extraction handles Darwin and GNU linker spellings', () => {
   assert.deepEqual(
     extractMissingSymbols(`
       "_ex_one", referenced from:
@@ -509,7 +565,7 @@ test('symbol extraction handles Darwin and GNU linker spellings', () => {
   );
 });
 
-test('repository doctor surfaces the exact-link failure and recovery record', () => {
+fixtureTest('repository doctor surfaces the exact-link failure and recovery record', () => {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-ibex-doctor-link-'));
   try {
     const scripts = join(scratch, 'scripts');
@@ -571,7 +627,7 @@ process.exit(1);
       cwd: scratch,
       encoding: 'utf8',
       env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
-      timeout: 20_000,
+      timeout: LOAD_TOLERANT_PROCESS_WATCHDOG_MS,
     });
     assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
     const report = JSON.parse(result.stdout);
@@ -613,7 +669,7 @@ process.exit(1);
         cwd: scratch,
         encoding: 'utf8',
         env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
-        timeout: 20_000,
+        timeout: LOAD_TOLERANT_PROCESS_WATCHDOG_MS,
       },
     );
     assert.equal(reuseResult.status, 1, `${reuseResult.stdout}\n${reuseResult.stderr}`);

@@ -138,3 +138,10 @@ request to delete validation or authority checks from a profile that needs
 them.
 
 Status remains Open for Charlie's final disposition.
+
+## Ruling (2026-08-05, Charlie)
+
+Verdict (a) **BLESSED**: the Full/root growth is spec-governed feature
+mass; the rollover stands. Verdict (b) **COMMISSIONED now**: the
+static-capability-composition remediation lane opens as
+`issues/20260805-static-capability-composition.md`. This ticket closes.

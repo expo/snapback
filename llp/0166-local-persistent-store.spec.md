@@ -1,12 +1,42 @@
 # LLP 0166: The local persistent store
 
 **Type:** Spec
-**Status:** Accepted
+**Status:** Implemented
 **Systems:** Client SDK, Client integration, Local sync, Offline sync, Storage,
 Live queries, Relational queries, Optimistic updates, Auth, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (D4 implementation/metrology note: a connectivity
+**Revised:** 2026-08-05 (D1/DK-9 diagnostic-spelling reconciliation: the
+successor RQS store's authoritative emitted code remains
+`SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE`; LLP 0008's generic CLIENT spelling is
+the owner-level semantic alias and remains emitted only by the predecessor
+localStorage adapter; no runtime rename or dual-emission.) 2026-08-04 (Move 2 Lane F publication reconciliation: the local
+contributor-source target now advertises `single_table_v1@1`, bound by
+`src/local-persistent-store-publication.v1.json` to the dated 2026-08-04
+carrier-exit receipt at 16 PASS / 1 Fleet GAP / 0 skipped and the dated
+Triage Move-1 receipt at 8/8. The publication source carrier now pins the
+three runtime modules that own the split behavior. The superseding 2026-08-04
+bundle-attribution and frozen result-transform supplemental baseline are also
+recorded below. Remote-service and Cloudflare targets continue to expose the
+class only as a capability gap.) 2026-08-04 (Move 2 Lane D reconciliation: the implementation
+program landed on 2026-08-03 and the §D7 gate fired on 2026-08-04; D1 now
+records the shipped IndexedDB/file v3 formats, D9 names the current
+bundle-attribution and result-transform metrology, OQ1 is implemented and
+activation-gated on fresh retained evidence, and OQ7 is resolved by LLP 0051's
+D5 extension. Its then-pending evidence state is superseded by the Lane F
+publication note above; DK-9's diagnostic spelling reconciliation remains
+owed.) 2026-08-04 (Move 2 Lane C implementation record: the §D7 gate
+is fired for `snapback-result-transform` corpus format 1 at the pinned Rust
+and JavaScript evaluator identities on browser IndexedDB and Node/file, with
+memory and Expo refusing at the floor and the client-overlay legs green;
+owner-issued `result-transform-snapshot-v1` authoring and invocation now
+rotate plan identity and consume proof-verified result bytes. The
+`single_table_v1@1` shipped adoption path was implemented while the first
+controlled rerun was blocked by the execution sandbox's loopback-bind denial.
+That historical boundary is superseded by the dated Lane F receipts above.) 2026-08-04 (Move 2 Lane B implementation record: OQ8's
+programmatic-registration half is resolved by the public `registerQuery` /
+`releaseQueryRegistration` client API and exact `RegisterOutcomeV1`; the
+transform-authoring half remains open.) 2026-08-03 (v1.1 semantic amendment: Charlie accepted 2026-08-04 (D4 implementation/metrology note: a connectivity
 failure with no authoritative retained answer now surfaces the typed
 `SNAPBACK_QUERY_OFFLINE_UNAVAILABLE` refusal carrying D4's `unknown` answer
 class and retention disposition. This deliberately evolves the shipped
@@ -391,18 +421,18 @@ IndexedDB schema, a new shared store version, or SQLite/WASM. The answer is
 the middle option, executed as an in-place evolution of the shipped store
 family:
 
-- **Browser:** the existing IndexedDB database `snapback-rqs-store.v1`
-  advances its schema version (shipped `DATABASE_VERSION = 2`; the successor
-  version adds object stores) rather than creating a parallel database. New
+- **Browser:** the existing IndexedDB database `snapback-rqs-store.v1` now
+  ships `DATABASE_VERSION = 3`, migrated in place from the v2 predecessor
+  rather than creating a parallel database. The v3
   object stores: `materializations`, `pageSets`, `memberships`, and
   `storeMeta`, beside the existing `entries` (legacy resume) and `outbox`
   stores. IndexedDB transactions span object stores within one database, so
   the fenced atomic operations LLP 0157 §D7 requires — and their
   composition with outbox writes — commit in one transaction.
 - **File (Node, and Expo/native via the registered files adapter):** the
-  shipped blob format (`snapback-rqs-store-file.v2`) advances to a v3 that
-  adds the same sections; the whole-blob atomic replace already provides the
-  single transaction domain.
+  shipped blob format is `snapback-rqs-store-file.v3`, migrated from its v2
+  predecessor with the same added sections; the whole-blob atomic replace
+  already provides the single transaction domain.
 - **Memory:** the volatile carrier mirrors the same sections with
   `durable: false`, unchanged honesty rules.
 - **SQLite** remains permitted behind LLP 0008 DK-9's store-agnostic seam
@@ -446,13 +476,14 @@ and LLP 0155 OQ16.
   Locks exclusive lock (non-holders read and adopt, never write); the file
   carrier's exclusively created lock file with liveness-verdict staleness.
   Independently constructed same-origin clients serialize per LLP 0008
-  DK-9's rule, failing closed with the lock-unavailable diagnostic (the
-  shipped spelling is `SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE`; DK-9 names
-  `SNAPBACK_CLIENT_STORE_LOCK_UNAVAILABLE` — the successor store keeps the
-  shipped code and the reconciliation of the two spellings is a DK-9-owned
-  diagnostics note, not a new code minted here). Non-writer *demand* is
-  brokered through the writer (§D2); non-writer contexts never write store
-  bytes.
+  DK-9's rule, failing closed with the lock-unavailable diagnostic.
+  **Reconciled 2026-08-05:** the successor store's authoritative emitted code
+  remains `SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE`; DK-9's generic
+  `SNAPBACK_CLIENT_STORE_LOCK_UNAVAILABLE` envelope text is the owner-level
+  semantic alias and remains emitted only by the predecessor localStorage
+  adapter. This is documentation reconciliation, not a runtime rename or
+  dual-emission. Non-writer *demand* is brokered through the writer (§D2);
+  non-writer contexts never write store bytes.
 - **Format versioning:** every store format change is a numbered, one-way,
   crash-safe migration. A migration preserves pending intent, unresolved
   acknowledgements, durable registrations, and in-grace release clocks or
@@ -957,9 +988,11 @@ travels as `rqs-authority-independent-snapshot-v1`, with no anonymous-lease
 commissioning. Current served owner artifacts can therefore derive plan
 identity, proofs, and QMK addresses for the exact population during §D6's
 connected adoption path, without claiming that legacy bytes already contain
-those facts. This resolves OQ1 at the semantic registration layer. It does not
-relabel legacy bytes or claim the adoption implementation; that remains the
-separately commissioned follow-on.
+those facts. This resolved OQ1 at the semantic registration layer; the
+2026-08-03/04 implementation program subsequently shipped the adoption path.
+It still never relabels legacy bytes. The separate retained-evidence
+publication act is complete for the local contributor-source target as
+recorded in §D6/§Status.
 
 ### Identity rotation and predecessors
 
@@ -1407,9 +1440,16 @@ staged and fail-closed:
      Re-entry is fresh LLP 0157 establishment until OQ2's separately owned
      proof-backed resume amendment lands.
 
-  This is semantic acceptance of the adoption contract only. Its
-  implementation remains a separately commissioned follow-on and no target
-  capability advances here.
+  **Dated implementation and publication note (2026-08-04):** the shipped client now executes
+  this exact adoption sequence for the derived `single_table_v1@1` class,
+  including both ladder arms, mismatch-to-fresh, examined-entry refusal,
+  pending-intent blocking, atomic legacy/QMK visibility cuts, and the rule
+  that a legacy token is never a QMK credential. The separate evidence act is
+  now complete: `carrier-exit.2026-08-04.v1.json` records 16 PASS / 1 Fleet
+  GAP / 0 skipped, `move1-exit.2026-08-04.v1.json` records Triage 8/8, and
+  `src/local-persistent-store-publication.v1.json` binds those receipts and
+  their source pins into the local manifest projection. Remote-service and
+  Cloudflare targets remain nonclaims.
 - **Legacy lease records: close-predecessor-first convergence only.** The
   lease store and this domain are separate artifacts on the shipped
   carriers, and no transaction spans them, so no cross-artifact atomic
@@ -1457,16 +1497,15 @@ staged and fail-closed:
 
 ### Current law, restated
 
-Until the amendments below land, LLP 0008 DK-9's text and LLP 0080's
-opaque-snapshot-only retention govern unchanged: a retained fragment is
-decoded and served as its owner's opaque snapshot only; no admitted plan is
-locally re-evaluated over retained rows; no dependency closure is locally
-re-authorized; no unprojected joined rows are retained for local
-recomputation. LLP 0157 §D7 independently gates shipping on the amendments
-landing. Any evaluation attempt in the meantime refuses with a stable
-closed reason (placeholder `SNAPBACK_LOCAL_EVALUATION_UNADMITTED` until
-registered in the LLP 0048 corpus with the implementing slice — every code
-this Spec names is a placeholder under the same rule).
+Before the 2026-08-04 ship-gate firing, LLP 0008 DK-9's text and LLP 0080's
+opaque-snapshot-only retention governed unchanged. That pre-gate status is now
+historical for owner-reclassified `result-transform-snapshot-v1` plans on the
+qualified browser IndexedDB and Node/file carriers: the closed transform below
+is a shipped public surface there. The same floor remains current law for every
+unreclassified plan and for nonclaiming memory and Expo carriers. No dependency
+closure is locally re-authorized and no unprojected joined rows are retained for
+local recomputation; a disallowed attempt refuses with
+`SNAPBACK_LOCAL_EVALUATION_UNADMITTED`.
 
 ### The evaluation model: `result-transform.v1`
 
@@ -1712,6 +1751,20 @@ client-only overlay-composition oracles green; and the §Acceptance
 evaluation oracles (S6) green. Document acceptance alone ships nothing; a
 plan ships nothing until its owner reclassifies it.
 
+**Dated ship-gate firing (2026-08-04):** all four amendments were already
+landed at acceptance. The retained
+`tests/conformance/result-transform-ship-gate-v1.receipt.json` records the
+56-case corpus at format/profile v1, pinned evaluator identities
+`snapback.result-transform.rust.v1` and
+`snapback.result-transform.javascript.v1`, exact Rust/JavaScript outcome-byte
+agreement 56/56, and the same 56/56 outcomes through both claiming carrier
+contexts (`browser-indexeddb` and `file-node`). The nonclaiming memory and
+current Expo contexts each refuse 56/56 with
+`SNAPBACK_LOCAL_EVALUATION_UNADMITTED`; both client-overlay composition legs
+are green. Shipping remains per-plan: only the server retention owner can emit
+`result-transform-snapshot-v1`, which rotates `PlanHashV1` and the QMK; every
+unreclassified plan still refuses at the floor before transform inspection.
+
 ## D8 — The agent-safe seam (LLP 0161 OQ5)
 
 LLP 0161 OQ5 asks which agent-ideal properties the LLP 0155 local-sync
@@ -1783,36 +1836,72 @@ stores 16.5 kB, RQS file store 7.8 kB, shared canonical-value/outbox code
 rollout stays additive under LLP 0145's rule (new capability surface,
 never a narrowing of a published entry point).
 
-### 2026-08-03 measured implementation receipt
+The Full store family is nevertheless **not** part of the client root's
+initial static closure. `index.mjs` retains the client methods, but crosses a
+literal dynamic-import boundary at the first qmk1 materialization,
+programmatic registration, preload registration, or broker construction.
+The joined promise initializes the ledger before constructing the policy and
+broker, so the asynchronous module boundary does not reorder registration,
+writer, or maintenance-scheduler semantics. Materialization establishment and
+finite-completeness verification use the same construction-seam rule; the
+React failure/retry and development-replay helpers are likewise optional to
+the ordinary React entry closure.
 
-`tests/fixtures/client-bundle-metrology/baseline.local-persistent-store.v1.json`
-is the first-run `llp-0166-local-persistent-store.v1` workload receipt. It
-binds committed source `dec93422c`, all three package-tree objects, the Node
-24.18.0/esbuild 0.28.1 method, profile and lock digests, and the L1/L2/L3/L6/L7/L8
-behavior commands. The receipt freezes 25 affected profiles: 17 profiles from
-the primary receipt, five root-consuming supplemental profiles, and the three
-new public subpaths. It SHA-256-binds all four predecessor ledgers and leaves
-them byte-identical; every profile outside the exact supersession lists keeps
-its historical ceiling.
+The historical `./rqs-preload` entry remains the lightweight Channel A/D4
+registry surface. Registration-record derivation is ledger-owned and loads
+with the Full store runtime; mixed-route v2 artifact validation is an explicit
+`./rqs-registered` opt-in entry. The bundle instrument externalizes only these
+literal dynamic imports while measuring an initial static entry, asserts that
+none of the optional runtime modules appears in any frozen static profile,
+and leaves the ordinary browser-closure proof responsible for resolving and
+bundling the optional chunks. The new `./rqs-registered` public profile joins
+prospectively in the LLP 0166 finish-out supplemental ledger; no historical
+ceiling is raised.
 
-Selected total closures (minified / gzip / Brotli bytes) are:
+### 2026-08-04 measured implementation reconciliation
 
-| Profile | Prior receipt | LLP 0166 v1 receipt | Delta |
-| --- | ---: | ---: | ---: |
-| Full public surface | 370,484 / 102,473 / 85,614 | 406,220 / 112,707 / 93,368 | +35,736 / +10,234 / +7,754 |
-| public root subpath | 370,484 / 102,476 / 85,593 | 406,220 / 112,711 / 93,420 | +35,736 / +10,235 / +7,827 |
-| public RQS-store subpath | 25,468 / 9,567 / 8,406 | 31,897 / 11,327 / 9,997 | +6,429 / +1,760 / +1,591 |
-| public default-store subpath | 36,888 / 12,270 / 10,787 | 51,213 / 15,466 / 13,614 | +14,325 / +3,196 / +2,827 |
-| React, React external | 45,331 / 14,282 / 12,508 | 46,692 / 14,688 / 12,889 | +1,361 / +406 / +381 |
+The earlier `baseline.local-persistent-store.v1.json` figures remain an
+immutable historical receipt, but they no longer describe the implemented
+program. The current carrier-exit attribution is the superseding
+`tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json`:
+622,876 / 172,347 / 140,392 minified / gzip / Brotli bytes for the measured
+full-client closure, 112,005 module-own minified bytes across the nine store
+modules, and a passing 73,221-byte browser closure. The 2026-08-03 fixture is
+an immutable predecessor, not the current attribution.
 
-The three newly frozen subpaths are materialization store 65,581 / 18,798 /
-16,611, evaluation floor 918 / 538 / 459, and lease convergence 1,660 / 838 /
-701. In the public-root metafile, the named RQS-store, preload, registration,
-and answer-class modules contribute 56,729 module-own minified bytes. In the
-materialization subpath, client modules contribute 55,927 module-own bytes
-(46,554 from `materialization-store.mjs`) and the Contract result validator
-contributes 9,372. These are measured closure facts, not a new Micro claim or
-a permission to loosen the new ceilings.
+The additive LLP 0166 finish-out metrology is owned by
+`SUPPLEMENTAL_LEDGER_SPECS` in `scripts/client-bundle-metrology.mjs`;
+`tests/fixtures/client-bundle-metrology/result-transform-profiles.v1.json`
+deliberately carries an empty `profiles` array rather than the profile IDs.
+Against the current tree, `public-subpath-result-transform` measures 14,803 /
+5,243 / 4,674 minified / gzip / Brotli bytes; its module-own minified
+attribution is 10,939 for `result-transform.mjs`, 3,105 for canonical client
+values, and 483 for the evaluation floor. The new opt-in
+`public-subpath-rqs-registered` profile measures 32,045 / 10,647 / 9,380. The
+same first-run ledger also closes the previously uncovered namespace rows for
+the IR evaluator, local-read admission, and optimistic rebase; it does not
+rewrite any historical ceiling. The listener-capable run created the immutable
+`tests/fixtures/client-bundle-metrology/baseline.result-transform.v1.json`,
+which freezes those five additive profiles and their behavior-train evidence.
+
+**Dated integrated-review metrology amendment (2026-08-04):** review finding
+3 added context-bound pending-outcome replay to the opt-in registered entry
+after its supplemental ledger was first frozen in this same uncommitted diff,
+so that ledger is corrected in place from 31,913 / 10,621 / 9,341 to 32,045 /
+10,647 / 9,380 minified / gzip / Brotli bytes with an explicit amendment
+record. Review findings 6 and 9 add the legacy no-op guard and typed optional-
+runtime load failure to the already-frozen `public-subpath-rqs-preload`
+workload. Its 5,505 / 2,555 / 2,147 predecessor remains byte-identical;
+`baseline.local-persistent-store-review-fixes.v1.json` SHA-binds that complete
+predecessor and freezes only the successor profile at 5,549 / 2,593 / 2,177.
+No other ceiling changes owner or value.
+
+The dated 2026-08-04 carrier exit is 16 PASS / 1 Fleet GAP / 0 skipped, and
+the dated Triage Move-1 exit is 8/8. Those retained receipts satisfy the local
+publication predicate and are bound by
+`src/local-persistent-store-publication.v1.json`. Fleet's LLP 0135 OQ5 remains
+the sole carrier-exit GAP; it does not retract the explicitly qualified local
+publication.
 
 ## Guardrails
 
@@ -2031,9 +2120,9 @@ store-policy oracles:
   grandfathered under LLP 0090's exact lifecycle and budget envelope.
 - `single_table_v1@1` registration changes no legacy key or record. Its §D6
   connected prove-or-fresh adoption is an explicit per-entry operation that
-  switches only after a valid proof-backed QMK record is ready; until the
-  separately commissioned implementation runs, legacy entries remain under
-  their byte-exact owner lifecycle and budget.
+  switches only after a valid proof-backed QMK record is ready. The shipped
+  implementation performs that switch; every legacy entry not yet adopted
+  remains under its byte-exact owner lifecycle and budget.
 - The LLP 0043 lease store remains a separate artifact; convergence is
   §D6's close-predecessor-first protocol only, until a future dated
   LLP 0043 step moves it into the shared domain; nothing here amends its
@@ -2063,16 +2152,19 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
 
 ## Open questions
 
-1. **RESOLVED by registration (2026-08-03): `single_table_v1@1`.** Charlie
+1. **RESOLVED, implemented, and published on the local contributor-source
+   target (2026-08-04): `single_table_v1@1`.** Charlie
    accepted the LLP 0004/0007 closed normalization and class-only examined-
    entry guard, LLP 0157 registered class 4 of 6 through `single-node.v1`,
    and Arm A carries Channel-B authority as
    `rqs-authority-independent-snapshot-v1` with no anonymous-lease
    commissioning. §D3 records the QMK population/persistence predicate and
    §D6 the connected prove-or-fresh same-domain adoption contract. The
-   adoption implementation remains the separately commissioned follow-on;
-   resolution of this design question is not an implementation or capability
-   claim.
+   implementation program landed on 2026-08-03; the shipped client now
+   implements and activates the adoption sequence. The 2026-08-04 retained
+   carrier receipt satisfies 16 PASS / 1 Fleet GAP / 0 skipped, the Triage
+   receipt satisfies 8/8, and the publication carrier binds both into the
+   local capability projection. Other targets remain fail-closed.
 2. **A proof-backed resume credential** for `qmk1` materializations —
    binding resume-token identity to the materialization key and held proof
    so fresh establishment can use ladder rungs 1–2; dated
@@ -2087,9 +2179,13 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
    establishments; 64 live contexts / 128 live pairs / 256
    reaped-context memory / 1,024 consumed-request outcomes / 1,024
    released-registration tombstones / 64-byte identifiers / 256 KiB
-   broker messages) await LLP 0155 OQ9's frozen Triage/Fleet custody and
-   hydration budgets for their first measured revision; they surface in
-   the policy record so revision is observable. (The handoff-suppression
+   broker messages) await the corrected, reason-based Triage custody freeze and
+   Fleet's LLP 0135 OQ5-unblocked footprint before their first measured
+   revision. The immutable 2026-08-03 Triage predecessor captured pre-
+   maintenance payloads and is superseded for this purpose; the fresh dated
+   fixture must retain one registered payload and compact the 20 released
+   `none` records to inspected stubs. The constants surface in the policy
+   record so revision is observable. (The handoff-suppression
    bound is deliberately not an independent constant: it is the
    heartbeat expiry, applied per roster pair during reconciliation —
    §D2.)
@@ -2100,14 +2196,27 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
    would make direct adoption exercisable at all.
 6. **Encryption at rest** (LLP 0090 Q4) — unchanged baseline (OS-level
    protection); any change is that owner's.
-7. **Conformance-corpus ownership** (LLP 0157 OQ9) — proposed as an
-   LLP 0051 D5 extension; that owner decides; §D7's gate binds to
-   whichever home results.
-8. **The registration and transform authoring surfaces** — the concrete
-   generated API for `programmatic` registration, per-registration TTL
-   classes, and `TransformPlanV1` invocation (successor of
-   `persistResume`/`persist: false`), landed with the codegen owners
-   under LLP 0004/0131 conventions.
+7. **RESOLVED (2026-08-03): conformance-corpus ownership.** LLP 0051's owner
+   accepted the result-transform corpus as a D5 extension in `aeba33a8c`; §D7
+   binds its 56-case Rust/JavaScript and per-carrier gate to that corpus home.
+8. **IMPLEMENTATION-RECORDED resolution (2026-08-04): programmatic
+   registration and result-transform authoring.** The public client API is
+   `registerQuery(generatedReference, { registrationId, args?, userId?,
+   label?, requestedScope?, retentionRequest?, idleTtlClass? })` and
+   `releaseQueryRegistration(registrationId, { userId? })`; both return the
+   exact `RegisterOutcomeV1` envelope. The caller owns the stable,
+   store-scoped `registrationId`; the client derives the generated qmk1
+   address and owner-issued authority-partition digest, commits
+   `source: "programmatic"`, and forwards through the qualified demand broker
+   from non-writer contexts. Release is idempotent. This is the durable
+   successor to `persistResume`, which remains the mounted `active`-source
+   retention stand-in. Relational query owners may now explicitly author
+   `retention: "result-transform-snapshot-v1"`; codegen carries the class into
+   the server manifest and the composition identity, rotating `PlanHashV1`
+   rather than relabeling an existing record. The public
+   `evaluateLocalResultTransform` invocation and `./result-transform` subpath
+   consume only proof-verified bytes at that fresh address; all other plans
+   retain the floor refusal.
 9. **Mixed-route register groups** — the LLP 0090 mixed-route successor's
    versioned profile; when it lands, its per-child liveness facts flow into
    §D2's obligations without new inference here.
@@ -2127,7 +2236,8 @@ Micro-profile packaging; no change to outbox/settlement custody semantics
 
 ## Status
 
-**Accepted, v1.0** — Charlie Cheever accepted the Spec on 2026-08-03
+**Implemented as of 2026-08-04; accepted v1.0, amended v1.1.** Charlie Cheever
+accepted the Spec on 2026-08-03
 ("flip to accept") after the LLP 0005 dual-family super-refine loop
 converged **dual-READY at round 8** (Codex 0.97 with one editorial NIT;
 Fable 0.90, its second consecutive READY, with one editorial NIT; both
@@ -2139,24 +2249,29 @@ dated provenance-correction note — are preserved verbatim in
 `llp/reviews/0166-local-persistent-store.{fable,codex}.md`; no prior
 verdict is rewritten or counted as READY.
 
-The acceptance landing carries the §D7 amendment set, dated, in the
+The acceptance landing carried the §D7 amendment set, dated, in the
 owning documents — LLP 0008 DK-9, LLP 0080
 (`result-transform-snapshot-v1`), LLP 0157 (both retention unions plus
 the payload-compaction event), LLP 0155 §Move 2 — and the dated
 boundary notes in LLP 0043 (v1 convergence order and preconditions),
 LLP 0053 (store-policy composition, wipe/reset scoping), and LLP 0090
-(successor declaration; legacy grandfathering). Acceptance is semantic
-only: no implementation or capability fact is promoted, evaluation
-still gates on §D7's conformance corpus and oracles, and the
-implementation program is a separate wave-3 commissioning (Track A's
-exit rule).
+(successor declaration; legacy grandfathering). At that landing, acceptance
+was semantic only. The implementation program then landed on 2026-08-03, and
+the §D7 gate fired on 2026-08-04 at 56/56 exact outcomes for both evaluator
+families and both claiming carriers; memory and Expo remain honest refusal
+arms. `single_table_v1@1` implementation and activation are present, and the
+dated 2026-08-04 carrier/Triage receipts subsequently satisfied the separate
+local publication predicate.
 
-The v1.1 dated amendment records Charlie's semantic acceptance of
+The v1.1 dated amendment recorded Charlie's semantic acceptance of
 `single_table_v1@1`, Arm A, and the connected prove-or-fresh adoption
-contract. No target is claimed to implement or advertise the class, retention
-authority, no-lease proof path, generated mapping, or atomic switch. The
-adoption implementation remains a separately commissioned follow-on, and OQ2
-remains a separate future resume-credential lane.
+contract. That amendment's no-implementation statement is superseded by the
+2026-08-03/04 program record above: the local target implements the class,
+retention authority, no-lease proof path, generated mapping, and atomic switch,
+but advertises it only after the receipt-bound publication predicate passes.
+OQ2 remains a separate future resume-credential lane. DK-9's lock-diagnostic
+spelling mismatch remains an owner-doc reconciliation item; this program does
+not silently rename either shipped diagnostic.
 
 ## Local publication carrier amendment — 2026-08-04
 

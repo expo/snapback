@@ -21,6 +21,7 @@
     "evaluation-floor.mjs",
     "external-store.d.mts",
     "external-store.mjs",
+    "finite-completeness-carrier.mjs",
     "generated-mutation-ir.mjs",
     "hosted-browser.d.mts",
     "hosted-browser.mjs",
@@ -34,6 +35,7 @@
     "local-read-admission.mjs",
     "materialization-store.d.mts",
     "materialization-store.mjs",
+    "materialization-store-runtime.mjs",
     "materialization-bridge.mjs",
     "micro-core.d.mts",
     "micro-core.mjs",
@@ -54,8 +56,12 @@
     "react-binding.mjs",
     "registration-ledger.d.mts",
     "registration-ledger.mjs",
+    "result-transform.d.mts",
+    "result-transform.mjs",
     "rqs-preload.d.mts",
     "rqs-preload.mjs",
+    "rqs-preload-core.d.mts",
+    "rqs-preload-core.mjs",
     "rqs-store-default.d.mts",
     "rqs-store-default.mjs",
     "rqs-store-expo.d.mts",
@@ -73,6 +79,7 @@
     "search.mjs",
     "sender-proof.mjs",
     "store-policy.mjs",
+    "store-runtime.mjs",
     "vector-search.d.mts",
     "vector-search.mjs"
   ],
@@ -121,6 +128,10 @@
       "types": "./evaluation-floor.d.mts",
       "import": "./evaluation-floor.mjs"
     },
+    "./result-transform": {
+      "types": "./result-transform.d.mts",
+      "import": "./result-transform.mjs"
+    },
     "./external-store": {
       "types": "./external-store.d.mts",
       "import": "./external-store.mjs"
@@ -146,6 +157,10 @@
       "import": "./rqs.mjs"
     },
     "./rqs-preload": {
+      "types": "./rqs-preload-core.d.mts",
+      "import": "./rqs-preload-core.mjs"
+    },
+    "./rqs-registered": {
       "types": "./rqs-preload.d.mts",
       "import": "./rqs-preload.mjs"
     },
@@ -199,6 +214,6 @@
   },
   "scripts": {
     "pretest": "node generated-mutation-ir.test.mjs",
-    "test": "node package.test.mjs && node ir-evaluator.test.mjs && node local-read-admission.test.mjs && node optimistic-rebase.test.mjs && node optimistic-rebase-acceptance.test.mjs && node result-transform.test.mjs && node micro.test.mjs && node micro-operational.test.mjs && node push-registry.test.mjs && node attribution.test.mjs && node app-data.test.mjs && node assets.test.mjs && node assets-watch-authorization.test.mjs && node lifecycle-disposal.test.mjs && node bearer-rotation.test.mjs && node webcrypto-fallback.test.mjs && node argument-validation.test.mjs && node reservation-retry.test.mjs && node search.test.mjs && node external-store.test.mjs && node evaluation-floor.test.mjs && node sender-proof.test.mjs && node sender-transport.test.mjs && node hosted-browser.test.mjs && node hosted-ephemeral.test.mjs && node ephemeral-room.test.mjs && node rqs-digest-parity.test.mjs && node mixed-route-v2.test.mjs && node rqs-store.test.mjs && node rqs-store-file.test.mjs && node rqs-store-v3.test.mjs && node logout-v3-bridge.test.mjs && node materialization-store.test.mjs && node materialization-bridge.test.mjs && node registration-ledger.test.mjs && node answer-classes.test.mjs && node demand-broker.test.mjs && node store-policy.test.mjs && node lease-convergence.test.mjs && node outbox-store.test.mjs && node rqs-resume.test.mjs && node rqs-resume-native.test.mjs && node rqs-resume-memory.test.mjs && node rqs-store-expo.test.mjs && node rqs-resume-expo.test.mjs && node bundle.test.mjs && node browser-closure.test.mjs && node wire-version.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler exact-reference-types.fixture.ts push-registry-types.fixture.ts"
+    "test": "node package.test.mjs && node ir-evaluator.test.mjs && node local-read-admission.test.mjs && node optimistic-rebase.test.mjs && node optimistic-rebase-acceptance.test.mjs && node result-transform.test.mjs && node micro.test.mjs && node micro-operational.test.mjs && node push-registry.test.mjs && node attribution.test.mjs && node app-data.test.mjs && node assets.test.mjs && node assets-watch-authorization.test.mjs && node lifecycle-disposal.test.mjs && node bearer-rotation.test.mjs && node webcrypto-fallback.test.mjs && node argument-validation.test.mjs && node reservation-retry.test.mjs && node search.test.mjs && node external-store.test.mjs && node evaluation-floor.test.mjs && node sender-proof.test.mjs && node sender-transport.test.mjs && node hosted-browser.test.mjs && node hosted-ephemeral.test.mjs && node ephemeral-room.test.mjs && node rqs-digest-parity.test.mjs && node mixed-route-v2.test.mjs && node rqs-store.test.mjs && node rqs-store-file.test.mjs && node rqs-store-v3.test.mjs && node logout-v3-bridge.test.mjs && node materialization-store.test.mjs && node materialization-bridge.test.mjs && node registration-ledger.test.mjs && node answer-classes.test.mjs && node carrier-capability-honesty.test.mjs && node demand-broker.test.mjs && node store-policy.test.mjs && node store-runtime-wiring.test.mjs && node lease-convergence.test.mjs && node outbox-store.test.mjs && node rqs-resume.test.mjs && node rqs-resume-native.test.mjs && node rqs-resume-memory.test.mjs && node rqs-store-expo.test.mjs && node rqs-resume-expo.test.mjs && node bundle.test.mjs && node browser-closure.test.mjs && node wire-version.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler exact-reference-types.fixture.ts push-registry-types.fixture.ts"
   }
 }

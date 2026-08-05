@@ -495,6 +495,7 @@ const noisy = invokeSnapbackMutation(
   { postId: 'p2' },
   { optimistic: actionShaped },
 );
+await flush();
 assert.equal(replayWarnings.length, 2, 'development warns on the action-shaped reducer');
 assert.match(replayWarnings[1], /toggleLike over timeline/);
 helperClient.inspection().attempts[2].resolve({ liked: true, likeCount: 7 });
@@ -525,6 +526,7 @@ const throwsOnReplay = invokeSnapbackMutation(
     },
   },
 );
+await flush();
 assert.equal(replayWarnings.length, 3, 'a throw over the reducer\'s own output warns');
 assert.match(replayWarnings[2], /failed when replayed over its own output/);
 assert.equal(

@@ -9,8 +9,8 @@ examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-05
+reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
 ---
 
 # The authoring loop
@@ -135,6 +135,22 @@ started by this command is stopped. If later generation succeeds but live load
 fails, the event state is `generated-but-not-loaded`; generation errors are
 the distinct `generation-failed` state.
 
+Use `snapback --help` to enumerate the complete packaged and delegated native
+surface. `snapback <command> [<subcommand>...] --help` is non-executing and
+selects the longest registered wrapper path, so commands such as
+`snapback backup create plan --help` show their actual required flags rather
+than only the top-level backup summary. Package help also declares whether the
+selected command is one-shot or long-running, its machine output, exit
+taxonomy, and recovery channel. `snapback hosted lifecycle --help` lists its
+closed verbs, transport flags, and current availability gate.
+
+When `snapback dev` runs without a TTY, stdin accepts optional
+`snapback.dev-command.v1` JSON lines while it remains open. EOF only closes
+that control channel: it does not stop the server, watcher, or generated
+client arm. Stop a detached loop with SIGINT/SIGTERM; an interactive terminal
+may also use `q` or Ctrl-C. This is deliberately different from stdio MCP
+servers, where EOF ends the protocol process.
+
 If a selected native runtime predates the generated artifact shape, the loop
 reports `SNAPBACK_RUNTIME_ARTIFACT_IDENTITY_MISMATCH` with the exact selected
 binary, its independent build stamp when available, the artifact paths, and
@@ -191,8 +207,18 @@ Headless first — the required surface is driveable without any UI
 product path:
 
 ```sh
-node <app>/tests/acceptance/headless.mjs
+cd <generated-app>
+npm test
 ```
+
+The generated todo and React starters make that default live: it boots and
+loads an isolated Snapback target, executes generated query and mutation
+references, verifies loaded artifact identity, cleans up, and prints a
+`snapback.starter-acceptance.v1` receipt. Use `npm run test:static` for the
+faster generated-file/source-coherence check; it does not boot Snapback and
+does not satisfy acceptance. Repository demos that do not use a generated
+starter run their named headless suite directly, for example
+`node <app>/tests/acceptance/headless.mjs`.
 
 Exit `0` = every declared check passed; `1` = a check failed or the run was
 short (zero checks can never pass); `2` = setup error. See

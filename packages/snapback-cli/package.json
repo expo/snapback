@@ -24,6 +24,7 @@
     "index.d.mts",
     "index.mjs",
     "mcp-control.mjs",
+    "network-profile-authority.json",
     "runtime-readiness.d.mts",
     "runtime-readiness.mjs",
     "runtime-recovery.d.mts",
@@ -93,6 +94,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node fake-expo-push.test.mjs && node hosted-control.test.mjs && node load-generated.test.mjs && node sessions-dev-loop.test.mjs && node comparator-profile.test.mjs && node verify.test.mjs && node hosted-admission-producer.test.mjs && node mcp-control.test.mjs && node dev-cli-diagnostics.test.mjs && node dev-loop.test.mjs && node adapters/fly-machines-vm-driver.test.mjs"
+    "test": "node package.test.mjs && node cli-help.test.mjs && node fake-expo-push.test.mjs && node hosted-control.test.mjs && node load-generated.test.mjs && node sessions-dev-loop.test.mjs && node comparator-profile.test.mjs && node verify.test.mjs && node hosted-admission-producer.test.mjs && node mcp-control.test.mjs && node dev-cli-diagnostics.test.mjs && node dev-loop.test.mjs && node adapters/fly-machines-vm-driver.test.mjs"
   }
 }

@@ -104,6 +104,30 @@ const stdinText = async () => {
   });
 };
 
+const stdinScript = async () => {
+  const script = await stdinText();
+  if (!/\S/u.test(script)) {
+    const error = new Error('run - reached stdin EOF without non-whitespace script source');
+    error.code = 'SNAPBACK_APP_CLI_SCRIPT_EMPTY';
+    error.diagnostic = Object.freeze({
+      code: error.code,
+      message: error.message,
+      details: Object.freeze({
+        source: 'stdin',
+        repair: Object.freeze({
+          kind: 'provideScriptSource',
+          alternatives: Object.freeze([
+            'pass a script file path',
+            'pipe non-whitespace source to stdin',
+          ]),
+        }),
+      }),
+    });
+    throw error;
+  }
+  return script;
+};
+
 const jsonInput = async (flag, fallback) => {
   const selected = value(flag);
   const encoded = selected === '-' ? await stdinText() : selected ?? fallback;
@@ -418,6 +442,11 @@ try {
     if (server === null) throw Object.assign(new Error('run requires --server'), { code: 'SNAPBACK_APP_CLI_USAGE' });
     const scriptPath = parsed.positionals[1];
     if (!scriptPath) throw Object.assign(new Error('run requires a script path or -'), { code: 'SNAPBACK_APP_CLI_USAGE' });
+    // @ref LLP 0062#3-code-mode — stdin is a script-source contract, so EOF
+    // without source is absence, not a successfully executed empty program.
+    // Read it before artifact/principal setup so the refusal has no network or
+    // credential side effects; an open producer still keeps the command alive.
+    const script = scriptPath === '-' ? await stdinScript() : await readFile(scriptPath, 'utf8');
     const surface = await loadSurface();
     const selected = await selection();
     const principal = await principalClient(server, surface, selected, {
@@ -425,7 +454,6 @@ try {
       tokenTtlMs: numberValue('--token-ttl-ms'),
     });
     try {
-      const script = scriptPath === '-' ? await stdinText() : await readFile(scriptPath, 'utf8');
       const result = await (appBoundBridge === null ? runCodeMode : runIbexCodeMode)({
         client: principal.client,
         surface,

@@ -19,6 +19,10 @@ Exports:
   `createExternalSessionClient` and `bindSnapbackAppLifecycle` through a narrow
   browser entry that does not retain optional package exports;
 - `@expo/snapback-client/agent-authority` — scoped agent-authority custody;
+- `@expo/snapback-client/rqs-preload` — the lightweight Channel A/D4 boot
+  registry; mixed-route artifact validation is intentionally absent;
+- `@expo/snapback-client/rqs-registered` — the opt-in mixed-route v2
+  registered-boot validator and registry;
 - `@expo/snapback-client/external-store` —
   `snapback.external-store.v1`, canonical query identity, provider-scoped
   same-key store sharing, immutable snapshots, optimistic settlement,
@@ -29,6 +33,32 @@ Run the complete package-owned tests from the repository root:
 ```sh
 bun run --cwd packages/snapback-client test
 ```
+
+## Durable programmatic query registration
+
+`client.registerQuery(generatedLiveQuery, options)` is the durable successor
+to using a mounted query's `persistResume` option as a retention stand-in.
+`options.registrationId` is a required stable, store-scoped application
+identity; optional fields are `args`, `userId`, `label`, `requestedScope`,
+`retentionRequest`, and `idleTtlClass`. The client derives the qmk1 address and
+current authority partition, and qualified non-writer contexts forward the
+commit to the store writer. The promise resolves the exact
+`RegisterOutcomeV1` envelope (`committed` or a stable `refused` code).
+
+Release with `client.releaseQueryRegistration(registrationId, { userId })`.
+Release is idempotent and returns the same envelope with a `released` outcome.
+Applications never author a materialization address or authority-partition
+digest.
+
+## Owner-gated retained-result transforms
+
+Import the closed evaluator surface from
+`@expo/snapback-client/result-transform`. Applications normally invoke it
+through `client.evaluateLocalResultTransform(generatedReference, options)`,
+which reads proof-verified retained bytes for that exact qmk1 address. The
+server retention owner must have reclassified the plan as
+`result-transform-snapshot-v1`; unreclassified plans and nonclaiming carriers
+keep the `SNAPBACK_LOCAL_EVALUATION_UNADMITTED` floor.
 
 The external store owns UI lifecycle above a provider subscription; it is not
 a second network transport or durable local-first cache. Providers retain

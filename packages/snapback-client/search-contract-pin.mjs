@@ -26,6 +26,7 @@ export async function computeSearchContractPin() {
   }).searchIndex('pin', {
     semanticVersion: 'pin-v1',
     textFields: { title: { weight: 1, classification: 'public' } },
+    visibility: { kind: 'public-read' },
   });
   defineSchema({ pinRows: table });
   const definition = defineSearchQuery({ table, index: 'pin' });

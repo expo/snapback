@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "build": "vite build",
     "test": "node acceptance.mjs",
-    "test:live": "node acceptance.live.mjs"
+    "test:static": "node acceptance.static.mjs",
+    "test:live": "node acceptance.mjs"
   },
   "dependencies": {
     "@expo/snapback-cli": "__SNAPBACK_VERSION__",

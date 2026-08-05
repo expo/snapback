@@ -30,6 +30,12 @@ import {
 
 const PROTOCOL_VERSION = '2025-06-18';
 const SCHEMA_VERSION = 'snapback.v0';
+// @ref LLP 0167#profile-model — MCP projects Rust's finite built-in
+// vocabulary and delay ceiling through a Rust-checked package artifact.
+const NETWORK_PROFILE_AUTHORITY = readJson(join(
+  dirname(fileURLToPath(import.meta.url)),
+  'network-profile-authority.json',
+));
 // The native response charges the complete HostOpsResult, while maxBytes
 // bounds its nested export-page data. Target/authority/artifact fields are
 // fixed-shape; this allowance is asserted by the native HTTP proof fixture.
@@ -235,20 +241,24 @@ const CONTROL_TOOLS = [
       properties: {
         profile: {
           oneOf: [
-            { type: 'string', enum: ['normal', 'optimistic', 'demo-slow'] },
+            { type: 'string', enum: [...NETWORK_PROFILE_AUTHORITY.builtinNames] },
             {
               type: 'object',
               additionalProperties: false,
               required: ['name', 'mutationAckDelayMs', 'liveDeltaDelayMs', 'queryResponseDelayMs'],
               properties: {
                 name: { type: 'string' },
-                mutationAckDelayMs: { type: 'integer', minimum: 0, maximum: 30000 },
-                liveDeltaDelayMs: { type: 'integer', minimum: 0, maximum: 30000 },
-                queryResponseDelayMs: { type: 'integer', minimum: 0, maximum: 30000 },
-                jitterMs: { type: 'integer', minimum: 0, maximum: 30000, default: 0 },
+                mutationAckDelayMs: { type: 'integer', minimum: 0, maximum: NETWORK_PROFILE_AUTHORITY.delayCeilingMs },
+                liveDeltaDelayMs: { type: 'integer', minimum: 0, maximum: NETWORK_PROFILE_AUTHORITY.delayCeilingMs },
+                queryResponseDelayMs: { type: 'integer', minimum: 0, maximum: NETWORK_PROFILE_AUTHORITY.delayCeilingMs },
+                jitterMs: { type: 'integer', minimum: 0, maximum: NETWORK_PROFILE_AUTHORITY.delayCeilingMs, default: 0 },
               },
             },
           ],
+        },
+        operatorPrincipal: {
+          type: 'string',
+          description: 'Optional authenticated local operator principal; requires the process-bound impersonation capability.',
         },
       },
     },
@@ -662,6 +672,9 @@ export class McpControlServer {
           ...(adminToken ? { 'x-snapback-admin-token': adminToken } : {}),
           ...(impersonation ? { 'x-snapback-impersonation-capability': impersonation } : {}),
           ...(secretReadLease ? { 'x-snapback-secret-read-lease': secretReadLease } : {}),
+          // @ref LLP 0167#authority-one-activation-chokepoint — this source
+          // hint affects provenance only; native activation policy remains authoritative.
+          'x-snapback-network-profile-source': 'mcp',
         },
         body: JSON.stringify({ schemaVersion: SCHEMA_VERSION, requestId: requestId(), ...body }),
       });
@@ -828,6 +841,9 @@ export class McpControlServer {
         return this.servedResult({
           operation: 'debug.networkProfileSet',
           input: args.profile,
+          ...(typeof args.operatorPrincipal === 'string' && args.operatorPrincipal
+            ? { userId: args.operatorPrincipal }
+            : {}),
         });
       case 'snapback_telemetry_stats':
         return this.servedResult({ operation: 'telemetry.stats', input: args });

@@ -72,3 +72,11 @@ test('OQ13 freezes a fresh successor manifest and excludes Fleet', async () => {
   assert.equal(manifest.fixture.activeMatches, 100);
   assert.equal(manifest.fleetIncluded, false);
 });
+
+test('retained registration uses the public durable authoring surface', async () => {
+  const source = await readFile(new URL('../src/retained-registration.ts', import.meta.url), 'utf8');
+  assert.match(source, /\.registerQuery\(reference, \{/u);
+  assert.match(source, /result\.outcome\.kind === 'refused'/u);
+  assert.equal(source.includes('__registerDurableQuery'), false);
+  assert.equal(source.includes('__prepareGeneratedMaterializationBridge'), false);
+});

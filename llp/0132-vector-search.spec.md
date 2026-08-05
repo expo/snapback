@@ -5,7 +5,10 @@
 **Systems:** Search, Storage, Schema, Code generation, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-31
-**Revised:** 2026-08-03 (IMPLEMENTED for the experimental local
+**Revised:** 2026-08-05 (authoring-safety clarification: visibility is a
+required declaration; omission refuses with
+`SNAPBACK_VECTOR_INDEX_VISIBILITY_REQUIRED`, so public release is affirmative
+rather than defaulted); 2026-08-03 (IMPLEMENTED for the experimental local
 `local-dev-sqlite-ibex.v1` target: declared fields/indexes/queries, synchronous
 maintenance and resumable rebuild, exact `dot`/`l2sq` execution, public and
 owner release, closed bounds/diagnostics/facts, generated/client/provider
@@ -233,6 +236,10 @@ Application source declares `table.vectorIndex(name, spec)` with:
   visibility are not v1 declarations;
 - a declared `id-asc` or `id-desc` row-id tie-break; and
 - a declared corpus bound `maxIndexedVectorsPerPartition` (1–65,536).
+
+Visibility is required in the authoring declaration. Omission refuses codegen
+with `SNAPBACK_VECTOR_INDEX_VISIBILITY_REQUIRED`; codegen never interprets an
+absent value as `public-read`.
 
 **Classification-to-visibility admission matrix.** Classification
 closes over every participating role, mirroring LLP 0073's resolved

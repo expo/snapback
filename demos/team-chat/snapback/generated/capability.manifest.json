@@ -282,7 +282,8 @@
     "liveDelivery": "live_replace",
     "retention": [
       "none",
-      "opaque-authorized-snapshot-v1"
+      "opaque-authorized-snapshot-v1",
+      "result-transform-snapshot-v1"
     ]
   },
   "replaceOnlyQueries": true,

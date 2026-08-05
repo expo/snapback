@@ -37,30 +37,26 @@ function invalid(reason, details = {}) {
   );
 }
 
-function hasLoneSurrogate(value) {
-  for (let index = 0; index < value.length; index += 1) {
-    const unit = value.charCodeAt(index);
-    if (unit >= 0xd800 && unit <= 0xdbff) {
-      const next = value.charCodeAt(index + 1);
-      if (!(next >= 0xdc00 && next <= 0xdfff)) return true;
-      index += 1;
-    } else if (unit >= 0xdc00 && unit <= 0xdfff) {
-      return true;
-    }
-  }
-  return false;
-}
+const refuseAt = (reason, path, details = {}) => {
+  throw invalid(reason, { path, ...details });
+};
+
+const enforceLimit = (value, limit, reason, path, label) => {
+  if (value > limit) refuseAt(reason, path, { [label]: value, limit });
+};
+
+const hasLoneSurrogate = (value) => /[\uD800-\uDFFF]/u.test(value);
 
 function validateString(value, path, limits) {
-  if (hasLoneSurrogate(value)) throw invalid('lone UTF-16 surrogate', { path });
+  if (hasLoneSurrogate(value)) refuseAt('lone UTF-16 surrogate', path);
   const bytes = utf8.encode(value).byteLength;
-  if (bytes > limits.maxStringUtf8Bytes) {
-    throw invalid('string exceeds the UTF-8 byte limit', {
-      path,
-      bytes,
-      limit: limits.maxStringUtf8Bytes,
-    });
-  }
+  enforceLimit(
+    bytes,
+    limits.maxStringUtf8Bytes,
+    'string exceeds the UTF-8 byte limit',
+    path,
+    'bytes',
+  );
 }
 
 function captureObject(value, path) {
@@ -70,17 +66,16 @@ function captureObject(value, path) {
     keys = Reflect.ownKeys(value);
     descriptors = Object.getOwnPropertyDescriptors(value);
   } catch {
-    throw invalid('object descriptor inspection failed', { path });
+    refuseAt('object descriptor inspection failed', path);
   }
   if (keys.some((key) => typeof key !== 'string')) {
-    throw invalid('symbol object key', { path });
+    refuseAt('symbol object key', path);
   }
-  const descriptorKeys = Reflect.ownKeys(descriptors);
   if (
-    descriptorKeys.length !== keys.length
-    || keys.some((key) => !Object.prototype.hasOwnProperty.call(descriptors, key))
+    Reflect.ownKeys(descriptors).length !== keys.length
+    || keys.some((key) => !Object.hasOwn(descriptors, key))
   ) {
-    throw invalid('inconsistent object descriptors', { path });
+    refuseAt('inconsistent object descriptors', path);
   }
   // A second key-only observation catches mutating and inconsistent proxy
   // traps without ever reading a property value through the source object.
@@ -88,13 +83,13 @@ function captureObject(value, path) {
   try {
     confirmation = Reflect.ownKeys(value);
   } catch {
-    throw invalid('object key confirmation failed', { path });
+    refuseAt('object key confirmation failed', path);
   }
   if (
     confirmation.length !== keys.length
     || confirmation.some((key, index) => key !== keys[index])
   ) {
-    throw invalid('object keys changed during descriptor capture', { path });
+    refuseAt('object keys changed during descriptor capture', path);
   }
   return keys.map((key) => [key, descriptors[key]]);
 }
@@ -104,25 +99,21 @@ function captureObject(value, path) {
  * value is a string because every admitted byte sequence is UTF-8 JSON.
  */
 export function canonicalizeClientValueV1(value, options = {}) {
-  const limits = Object.freeze({
+  const limits = {
     ...CANONICAL_CLIENT_VALUE_V1_LIMITS,
     ...(options.limits ?? {}),
-  });
+  };
   const seen = new Set();
   let nodes = 0;
 
   const visit = (current, depth, path) => {
     nodes += 1;
-    if (nodes > limits.maxNodes) {
-      throw invalid('value exceeds the node limit', { path, nodes, limit: limits.maxNodes });
-    }
-    if (depth > limits.maxDepth) {
-      throw invalid('value exceeds the depth limit', { path, depth, limit: limits.maxDepth });
-    }
+    enforceLimit(nodes, limits.maxNodes, 'value exceeds the node limit', path, 'nodes');
+    enforceLimit(depth, limits.maxDepth, 'value exceeds the depth limit', path, 'depth');
     if (current === null) return 'null';
     if (typeof current === 'boolean') return current ? 'true' : 'false';
     if (typeof current === 'number') {
-      if (!Number.isFinite(current)) throw invalid('non-finite number', { path });
+      if (!Number.isFinite(current)) refuseAt('non-finite number', path);
       return JSON.stringify(Object.is(current, -0) ? 0 : current);
     }
     if (typeof current === 'string') {
@@ -130,34 +121,34 @@ export function canonicalizeClientValueV1(value, options = {}) {
       return JSON.stringify(current);
     }
     if (typeof current !== 'object') {
-      throw invalid(`${typeof current} value`, { path });
+      refuseAt(`${typeof current} value`, path);
     }
-    if (seen.has(current)) throw invalid('cyclic value', { path });
+    if (seen.has(current)) refuseAt('cyclic value', path);
     seen.add(current);
     try {
       if (Array.isArray(current)) {
-        if (current.length > limits.maxArrayEntries) {
-          throw invalid('array exceeds the entry limit', {
-            path,
-            entries: current.length,
-            limit: limits.maxArrayEntries,
-          });
-        }
+        enforceLimit(
+          current.length,
+          limits.maxArrayEntries,
+          'array exceeds the entry limit',
+          path,
+          'entries',
+        );
         const descriptors = captureObject(current, path);
         const byKey = new Map(descriptors);
         for (let index = 0; index < current.length; index += 1) {
           const descriptor = byKey.get(String(index));
           if (!descriptor || !descriptor.enumerable || !('value' in descriptor)) {
-            throw invalid('sparse or accessor array entry', { path: `${path}[${index}]` });
+            refuseAt('sparse or accessor array entry', `${path}[${index}]`);
           }
         }
         for (const [key, descriptor] of descriptors) {
           if (key === 'length') continue;
           if (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= current.length) {
-            throw invalid('non-index array property', { path, key });
+            refuseAt('non-index array property', path, { key });
           }
           if (!descriptor.enumerable || !('value' in descriptor)) {
-            throw invalid('non-data array entry', { path: `${path}[${key}]` });
+            refuseAt('non-data array entry', `${path}[${key}]`);
           }
         }
         const entries = [];
@@ -171,27 +162,27 @@ export function canonicalizeClientValueV1(value, options = {}) {
       try {
         prototype = Object.getPrototypeOf(current);
       } catch {
-        throw invalid('object prototype inspection failed', { path });
+        refuseAt('object prototype inspection failed', path);
       }
       if (prototype !== Object.prototype && prototype !== null) {
-        throw invalid('exotic object prototype', { path });
+        refuseAt('exotic object prototype', path);
       }
       const descriptors = captureObject(current, path);
-      if (descriptors.length > limits.maxObjectFields) {
-        throw invalid('object exceeds the field limit', {
-          path,
-          fields: descriptors.length,
-          limit: limits.maxObjectFields,
-        });
-      }
+      enforceLimit(
+        descriptors.length,
+        limits.maxObjectFields,
+        'object exceeds the field limit',
+        path,
+        'fields',
+      );
       const fields = [];
       for (const [key, descriptor] of descriptors) {
         validateString(key, `${path}{key}`, limits);
         if (!descriptor.enumerable) {
-          throw invalid('non-enumerable object property', { path, key });
+          refuseAt('non-enumerable object property', path, { key });
         }
         if (!('value' in descriptor)) {
-          throw invalid('accessor object property', { path, key });
+          refuseAt('accessor object property', path, { key });
         }
         fields.push([key, descriptor.value]);
       }
@@ -222,32 +213,23 @@ export function canonicalReactStoreKeyV1(providerInstanceId, reference, args) {
       'React provider instance identity is missing',
     );
   }
-  const completeReference = {
-    artifactKind: reference?.artifactKind,
-    schemaVersion: reference?.schemaVersion,
-    appId: reference?.appId,
-    id: reference?.id,
-    name: reference?.name,
-    kind: reference?.kind,
-    implementationHash: reference?.implementationHash,
-    argsContractHash: reference?.argsContractHash,
-    resultContractHash: reference?.resultContractHash,
-  };
+  const completeReference = Object.fromEntries([
+    'artifactKind',
+    'schemaVersion',
+    'appId',
+    'id',
+    'name',
+    'kind',
+    'implementationHash',
+    'argsContractHash',
+    'resultContractHash',
+  ].map((field) => [field, reference?.[field]]));
   // Validate/count the argument tree independently. The fixed key envelope
   // must not consume the argument depth/node budget defined by the public
   // grammar, while its bytes still count toward the final key ceiling.
   const canonicalArgs = canonicalizeClientValueV1(args);
-  const key = [
-    '[',
-    canonicalizeClientValueV1('snapback:react-store-key:v1'),
-    ',',
-    canonicalizeClientValueV1(providerInstanceId),
-    ',',
-    canonicalizeClientValueV1(completeReference),
-    ',',
-    canonicalArgs,
-    ']',
-  ].join('');
+  const key = `["snapback:react-store-key:v1",${canonicalizeClientValueV1(providerInstanceId)
+  },${canonicalizeClientValueV1(completeReference)},${canonicalArgs}]`;
   const bytes = utf8.encode(key).byteLength;
   if (bytes > CANONICAL_CLIENT_VALUE_V1_LIMITS.maxKeyUtf8Bytes) {
     throw invalid('complete store key exceeds the UTF-8 byte limit', {

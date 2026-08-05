@@ -153,7 +153,7 @@ export function parseSearchQueryV1(source, {
   };
 }
 
-export const search = Object.freeze({
+export const search = /* @__PURE__ */ Object.freeze({
   term(value, field) {
     return { Term: { value, ...(field ? { field } : {}) } };
   },

@@ -6,7 +6,12 @@
 Developer experience, Acceptance testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-04
-**Revised:** 2026-08-04 (v1.1 — Implemented. Author rulings: OQ2 ratified
+**Revised:** 2026-08-05 (v1.2 — OQ3 implemented: Rust activation now
+consumes LLP 0158's boot-validated derived-instance identity as the sole
+hosted exception, while Cloudflare uses the dedicated
+`SNAPBACK_DERIVED_INSTANCE_ID` deployment binding without enabling
+`SNAPBACK_TESTING`; both arms carry the expanded fail-closed refusal matrix.);
+2026-08-04 (v1.1 — Implemented. Author rulings: OQ2 ratified
 (`debug.*` family), OQ4 ratified (subscription-stage seam folded,
 nested-commit seam kept as a capped documented micro-seam), OQ3 ruled by
 adopted recommendation (fork-only hosted exception + dedicated Cloudflare
@@ -210,24 +215,26 @@ Every surface that can select a profile — startup env, admin API,
 host-ops, MCP, console — routes through **one activation gate**, which
 enforces, fail-closed:
 
-- **Hosted refusal.** A non-`normal` profile is refused wherever the
-  instance serves hosted/production traffic, keyed to each arm's
-  *authoritative deployment classification*, never an inferable hint. On
-  the Rust server that is the explicit hosted-serving authority
-  (`AppState.hosted_serving`, `src/admin.rs`) — present only when hosted
-  serving is actually configured, never synthesized from request
-  metadata — with the local `ServerProfile` (`Dev|Demo|Test|Prod`,
-  fail-closed to `Prod`) as a *secondary* policy: an instance resolving
-  to `Prod` — explicitly or by the fail-closed default — refuses even
-  without hosted serving. The Cloudflare
-  arm has no `ServerProfile` analogue, so classification is
-  deployment-level: only `SNAPBACK_TESTING === '1'` deployments form the
-  non-hosted class; every other deployment refuses. Missing or
-  contradictory classification refuses. The stable code is
-  `SNAPBACK_NETWORK_PROFILE_FORBIDDEN`; it holds for *every* surface
-  including startup env, and stands as the interim default until OQ3
-  rules on a fork-only exception (LLP 0158 derived instances, which have
-  explicit derived identity — not an informal "production-shaped" test).
+- **Hosted refusal with the fork-only exception.** A non-`normal` profile
+  is refused wherever the instance serves hosted/production traffic unless
+  the target carries LLP 0158's explicit derived-instance identity, keyed
+  to each arm's *authoritative deployment classification*, never an
+  inferable hint. On Rust, `AppState.hosted_serving` remains the explicit
+  hosted-serving fact and `AppState.derived_instance_identity` is captured
+  from the fork lineage already validated at database boot against its mint
+  receipt and fork-local sidecars; neither fact is synthesized from request
+  metadata. A primary hosted tuple refuses; the otherwise-identical tuple
+  with derived identity is the sole hosted allowance. `ServerProfile`
+  (`Dev|Demo|Test|Prod`, fail-closed to `Prod`) remains a conjunctive policy:
+  explicit or defaulted `Prod` refuses even for a derived instance. Local
+  non-`Prod` instances retain their existing allowance. On Cloudflare, the
+  exact `SNAPBACK_TESTING === '1'` class remains non-hosted and may not also
+  claim derived identity. A hosted derived deployment instead carries the
+  dedicated canonical fork-id binding `SNAPBACK_DERIVED_INSTANCE_ID`; it may
+  leave `SNAPBACK_TESTING` absent or set its exact false value, so perturbation
+  authority does not unlock test-only functions. Primary hosted, incomplete,
+  malformed, and contradictory tuples refuse. The stable code for every
+  surface, including startup env, is `SNAPBACK_NETWORK_PROFILE_FORBIDDEN`.
 - **The ceiling** (above), at activation time.
 - **Provenance capture.** Activation records source (env, API, host-ops,
   MCP, console), principal where known, and timestamp.
@@ -391,10 +398,13 @@ ban points at — but the reconciliation must be explicit:
   is re-announced in readiness output.
 - The classification matrix is exercised arm by arm, for startup env and
   runtime set alike: Rust local non-`Prod` allows; `Prod` (explicit or
-  defaulted) refuses; `hosted_serving` present refuses; missing or
-  contradictory classification refuses; Cloudflare
-  `SNAPBACK_TESTING === '1'` allows and any other deployment refuses —
-  every refusal with `SNAPBACK_NETWORK_PROFILE_FORBIDDEN`. A
+  defaulted) refuses; a primary with `hosted_serving` present refuses; the
+  otherwise-identical hosted tuple with boot-validated derived identity
+  allows; missing or contradictory classification refuses. Cloudflare
+  `SNAPBACK_TESTING === '1'` allows as the non-hosted class; primary hosted
+  refuses; hosted with a canonical `SNAPBACK_DERIVED_INSTANCE_ID` allows;
+  missing, malformed, and test-plus-derived classifications refuse — every
+  refusal with `SNAPBACK_NETWORK_PROFILE_FORBIDDEN`. A
   ceiling-exceeding profile is refused with
   `SNAPBACK_NETWORK_PROFILE_DELAY_CEILING`, not clamped.
 - Rejected and no-op mutation responses are delayed from result
@@ -422,8 +432,11 @@ ban points at — but the reconciliation must be explicit:
   radius; primary hosted instances refuse unconditionally. The Cloudflare
   arm gets a dedicated deployment-classification binding tied to derived
   identity rather than piggybacking `SNAPBACK_TESTING` (which also
-  unlocks test-only functions). Implementation is ticketed in the residue
-  ticket; until it lands, the fail-closed interim rule stands unchanged.
+  unlocks test-only functions). **Implemented 2026-08-05:** Rust consumes
+  the exact boot-validated LLP 0158 identity through `AppState`; Cloudflare
+  consumes `SNAPBACK_DERIVED_INSTANCE_ID` while leaving all
+  `SNAPBACK_TESTING` gates independent. The interim unconditional hosted
+  refusal is retired in favor of this fork-only exception.
 - **OQ4 — Coordinator test seams. RESOLVED (author-ratified 2026-08-04,
   as implemented):** `SNAPBACK_TEST_SUBSCRIPTION_STAGE_DELAY_MS` is folded
   into the profile mechanism's live-delta lane (still `SNAPBACK_TESTING`-
@@ -456,6 +469,14 @@ ban points at — but the reconciliation must be explicit:
   `hostOpsResult`; set calls the same `AppState::activate_network_profile`
   gate as admin PUT. Rust `snapback mcp` remains resource-only; the tools live
   on LLP 0042's shipped `snapback mcp-control` surface.
+- 2026-08-05 — OQ3 landed. The Rust authority captures LLP 0158's exact fork
+  identity during trusted `AppState` construction from the database-open
+  proof and admits it as the only hosted non-`Prod` exception. The Cloudflare
+  coordinator accepts a canonical `SNAPBACK_DERIVED_INSTANCE_ID` deployment
+  binding as the hosted-derived class without setting `SNAPBACK_TESTING`.
+  Unit/acceptance matrices cover local, explicit/defaulted `Prod`, primary
+  hosted, hosted derived, missing, malformed, and contradictory facts for env
+  and runtime selection.
 
 ## Revision history
 

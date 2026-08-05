@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "snapback.result-transform-ship-gate.v1",
+  "date": "2026-08-04",
+  "corpus": "snapback-data-tier.result-transform-v1",
+  "corpusFormatVersion": 1,
+  "profileVersion": 1,
+  "corpusManifestSha256": "sha256:03b9c0df6b388b3449dc8b3be797e9dbd8cf579301ed3e9cbc43dddf99e64f12",
+  "rustOutcomes": {
+    "sha256": "sha256:0a4556389213140ecd599cbca3de60475f9194e2f8a653beb826b6d5958fb3cf",
+    "producingRevision": "126d69d62ebd46a8499074cb000e1ebd6da7fecc"
+  },
+  "evaluatorIdentities": {
+    "javascript": "snapback.result-transform.javascript.v1",
+    "rust": "snapback.result-transform.rust.v1"
+  },
+  "evidence": {
+    "rustCasesExact": 56,
+    "javascriptCasesExact": 56,
+    "rustVsJavascriptByteAgreement": 56,
+    "claimingCarriers": [
+      {
+        "context": "browser-indexeddb",
+        "casesExact": 56
+      },
+      {
+        "context": "file-node",
+        "casesExact": 56
+      }
+    ],
+    "refusingCarriers": [
+      {
+        "context": "memory",
+        "floorRefusals": 56,
+        "code": "SNAPBACK_LOCAL_EVALUATION_UNADMITTED"
+      },
+      {
+        "context": "expo",
+        "floorRefusals": 56,
+        "code": "SNAPBACK_LOCAL_EVALUATION_UNADMITTED"
+      }
+    ],
+    "clientOverlayComposition": [
+      {
+        "context": "browser-indexeddb",
+        "status": "PASS"
+      },
+      {
+        "context": "file-node",
+        "status": "PASS"
+      }
+    ],
+    "unreclassifiedDefault": "SNAPBACK_LOCAL_EVALUATION_UNADMITTED"
+  }
+}

@@ -40,7 +40,12 @@ const CARRIERS = [
     receipts: [
       {
         field: 'qualificationReceiptSha256',
-        path: 'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
+        latest: {
+          directory: 'tests/acceptance/fixtures/local-persistent-store',
+          stem: 'carrier-exit',
+        },
+        manifestIncludePrefix: '../tests/acceptance/fixtures/local-persistent-store/carrier-exit.',
+        testIncludePrefix: '../acceptance/fixtures/local-persistent-store/carrier-exit.',
       },
       {
         field: 'supportingReceiptSha256',
@@ -76,17 +81,19 @@ function selectedReceiptPath(receipt) {
   const { directory, stem, pairedStem } = receipt.latest;
   const pattern = new RegExp(`^${escapeRegExp(stem)}\\.(\\d{4}-\\d{2}-\\d{2})\\.v1\\.json$`, 'u');
   const names = readdirSync(join(ROOT, directory));
-  const pairedDates = new Set(names
-    .map((name) => name.match(
-      new RegExp(`^${escapeRegExp(pairedStem)}\\.(\\d{4}-\\d{2}-\\d{2})\\.v1\\.json$`, 'u'),
-    )?.[1])
-    .filter(Boolean));
+  const pairedDates = pairedStem
+    ? new Set(names
+        .map((name) => name.match(
+          new RegExp(`^${escapeRegExp(pairedStem)}\\.(\\d{4}-\\d{2}-\\d{2})\\.v1\\.json$`, 'u'),
+        )?.[1])
+        .filter(Boolean))
+    : null;
   const candidates = names
     .map((name) => ({ name, match: name.match(pattern) }))
-    .filter(({ match }) => match !== null && pairedDates.has(match[1]))
+    .filter(({ match }) => match !== null && (pairedDates === null || pairedDates.has(match[1])))
     .sort((left, right) => left.match[1].localeCompare(right.match[1]));
   if (candidates.length === 0) {
-    throw new Error(`${directory}: no complete dated ${stem}/${pairedStem} receipt pair is present`);
+    throw new Error(`${directory}: no complete dated ${stem}${pairedStem ? `/${pairedStem}` : ''} receipt is present`);
   }
   return join(directory, candidates.at(-1).name);
 }
@@ -117,6 +124,27 @@ function selectManifestReceiptPath(manifestText, receipt, selectedPath) {
   };
 }
 
+function selectTestReceiptPath(testText, receipt, selectedPath) {
+  if (!receipt.testIncludePrefix) return { testText, changed: false };
+  const pattern = new RegExp(
+    `${escapeRegExp(receipt.testIncludePrefix)}\\d{4}-\\d{2}-\\d{2}\\.v1\\.json`,
+    'gu',
+  );
+  const matches = testText.match(pattern) ?? [];
+  if (matches.length !== 1) {
+    throw new Error(
+      `${receipt.testIncludePrefix}: expected exactly one conformance receipt path, found ${matches.length}`,
+    );
+  }
+  const selectedDate = selectedPath.match(/\.(\d{4}-\d{2}-\d{2})\.v1\.json$/u)?.[1];
+  if (!selectedDate) throw new Error(`${selectedPath}: selected receipt has no date`);
+  const desired = `${receipt.testIncludePrefix}${selectedDate}.v1.json`;
+  return {
+    testText: testText.replace(pattern, desired),
+    changed: matches[0] !== desired,
+  };
+}
+
 const MANIFEST = join(ROOT, 'src/manifest.rs');
 
 for (const entry of CARRIERS) {
@@ -126,6 +154,8 @@ for (const entry of CARRIERS) {
   let carrierText = readFileSync(carrierPath, 'utf8');
   const carrier = JSON.parse(carrierText);
   let manifestText = readFileSync(MANIFEST, 'utf8');
+  const testPath = join(ROOT, entry.test);
+  let testText = readFileSync(testPath, 'utf8');
 
   const refreshed = [];
   for (const group of ['executorSourceSha256', 'schemaSourceSha256', 'clientSourceSha256']) {
@@ -161,6 +191,9 @@ for (const entry of CARRIERS) {
     const selectedManifest = selectManifestReceiptPath(manifestText, receipt, receiptPath);
     manifestText = selectedManifest.manifestText;
     if (selectedManifest.changed) refreshed.push(`${receiptPath} (Rust include selection)`);
+    const selectedTest = selectTestReceiptPath(testText, receipt, receiptPath);
+    testText = selectedTest.testText;
+    if (selectedTest.changed) refreshed.push(`${receiptPath} (conformance selection)`);
     const actual = digestOf(join(ROOT, receiptPath));
     if (actual !== recorded) {
       carrierText = carrierText.split(recorded).join(actual);
@@ -177,6 +210,7 @@ for (const entry of CARRIERS) {
   writeFileSync(carrierPath, carrierText);
   const carrierDigestAfter = digestOf(carrierPath);
   writeFileSync(MANIFEST, manifestText);
+  writeFileSync(testPath, testText);
   for (const reader of readers) {
     const text = readFileSync(reader, 'utf8');
     if (!text.includes(carrierDigestBefore)) {

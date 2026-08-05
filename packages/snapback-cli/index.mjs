@@ -89,6 +89,7 @@ import {
 } from './verify.mjs';
 import {
   createHostedPlan,
+  HOSTED_LIFECYCLE_VERBS,
   invokeHostedLifecycle,
   runHostedRead,
   submitHostedOperatorRequest,
@@ -2484,7 +2485,10 @@ export async function runDev(options = {}) {
 // optional `requestId` echoed on the response event). Responses and events
 // ride the one `snapback.dev.v1` JSON-line stream on stdout; unknown or
 // malformed commands produce a structured `command-error` event, never a
-// crash. Returns a detach function.
+// crash. EOF closes only this optional command channel: a detached agent or
+// generated package script must not silently stop the server because its stdin
+// was closed. Signals and the TTY q/Ctrl-C controls own process shutdown.
+// Returns a detach function.
 export function attachDevControlChannel({ verbs, stop, onEvent, stdin = process.stdin }) {
   const emit = (event) => onEvent?.({ schemaVersion: 'snapback.dev.v1', ...event });
   const commandError = (code, message, details) => emit({
@@ -2556,7 +2560,6 @@ export function attachDevControlChannel({ verbs, stop, onEvent, stdin = process.
     }
     invoke(command.verb, context);
   });
-  lines.on('close', () => stop());
   emit({
     ok: true,
     state: 'control-ready',
@@ -2596,9 +2599,262 @@ function printResult(result, json) {
   else console.error(JSON.stringify(result, null, 2));
 }
 
+// This registry is the package-owned half of the composed CLI surface. Keep it
+// data-only: root/per-command help is rendered from it before command dispatch,
+// so asking for help can never scaffold, generate, diagnose, verify, deploy, or
+// start a long-running process. The delegated half is projected from the
+// native binary's clap help at runtime.
+//
+// @ref LLP 0041#cli-commands — the package owns these orchestration verbs while
+// established host operations remain delegated to the native CLI.
+export const PACKAGED_CLI_COMMANDS = Object.freeze([
+  {
+    name: 'new', usage: 'snapback new <name> [--template todo-contract|react] [--json]',
+    description: 'Scaffold a Snapback application from a packaged template.', lifecycle: 'one-shot',
+    output: 'snapback.new.v1 JSON with --json; concise success text otherwise', exits: '0 success; 1 structured CLI/scaffold refusal',
+    recovery: 'Fix the named argument/path diagnostic and rerun; existing files are not silently replaced.',
+  },
+  {
+    name: 'generate', usage: 'snapback generate [<backend-dir>] [--target-profile <id>] [--json]',
+    description: 'Generate and validate reviewable app artifacts.', lifecycle: 'one-shot',
+    output: 'snapback.generate.v1', exits: '0 complete generation; 1 diagnostics contain a refusal',
+    recovery: 'Repair the emitted source/artifact diagnostic, then rerun generation.',
+  },
+  {
+    name: 'doctor', usage: 'snapback doctor [--json]', description: 'Diagnose the packaged runtime and local prerequisites.', lifecycle: 'one-shot/read-only',
+    output: 'snapback.doctor.v1', exits: '0 healthy; 1 one or more checks failed', recovery: 'Follow the diagnostic recovery record; runtime failures normally name bootstrap or receipt repair.',
+  },
+  {
+    name: 'verify', usage: 'snapback verify [<backend-dir>] [--config <file>] [--receipt <file>] [--runtime-binary <path>] [--runtime-receipt <path>] [--json]',
+    description: 'Run the identity-bound partial done-oracle for a declared app.', lifecycle: 'one-shot',
+    output: 'snapback.verify.v1 receipt', exits: '0 all required stages pass; 1 failed/refused stage', recovery: 'Use the failed stage diagnostics and rerun against the same declared app identity.',
+  },
+  {
+    name: 'dev', usage: 'snapback dev [<backend-dir>] [--attach] [--no-watch] [--ready-file <path>] [--db <path>] [--client <dir>] [--client-command <cmd>] [--json]',
+    description: 'Generate, start or attach, load, watch, and optionally run a client surface.', lifecycle: 'long-running unless --no-watch',
+    output: 'snapback.dev.v1 JSON-line events; snapback.dev-command.v1 JSON lines are accepted on non-TTY stdin while it remains open', exits: '0 requested signal/TTY quit or successful --no-watch; 1 startup/watch/server failure',
+    recovery: 'Act on the event diagnostic. Non-TTY stdin EOF only closes the optional control channel; use SIGINT/SIGTERM to stop the dev loop.',
+  },
+  {
+    name: 'accept', usage: 'snapback accept comparator <--config <file>|--verify-receipt <file>> [--receipt <file>] [--timeout-ms <ms>] [--max-age-ms <ms>] [--json]',
+    description: 'Run or verify a comparator acceptance profile.', lifecycle: 'one-shot', output: 'snapback.comparator-acceptance.v1 or snapback.comparator-verification.v1',
+    exits: 'profile-defined acceptance exit code', recovery: 'Inspect the failed comparator check/receipt diagnostic and rerun the named profile.',
+  },
+  {
+    name: 'runtime-qualify', usage: 'snapback runtime-qualify [--persist|--verify] [--receipt <path>] [--json]',
+    description: 'Run native VM qualification, or persist/verify the packaged runtime-readiness receipt.', lifecycle: 'one-shot', output: 'native runtime qualification or snapback.runtime-readiness result',
+    exits: '0 qualified/valid; 1 qualification or receipt failure', recovery: 'Reissue readiness after the exact binary/Hermes artifacts qualify, or run bootstrap for full repair.',
+  },
+  {
+    name: 'mcp-control', usage: 'snapback mcp-control [<backend-dir>] [--ready-file <path>] [--db <path>]',
+    description: 'Serve control-plane MCP over newline-delimited JSON-RPC stdio.', lifecycle: 'long-running stdio server; EOF terminates', output: 'JSON-RPC 2.0 on stdout',
+    exits: '0 clean EOF; non-zero startup/protocol host failure', recovery: 'Reconnect with a valid private ready-file/database target and resend complete JSON-RPC lines.',
+  },
+  {
+    name: 'target', usage: 'snapback target <add|show|doctor|inspect> ... [--control-root <dir>] [--json]', description: 'Register or inspect immutable target descriptors.', lifecycle: 'one-shot',
+    output: 'structured target/control result JSON', exits: '0 success; 1 refusal/unhealthy target', recovery: 'Repair the descriptor or target diagnostic before retrying.',
+  },
+  {
+    name: 'hosted', usage: 'snapback hosted <plan|inspect|logs|operator-request|lifecycle> ... [--json]', description: 'Plan and operate the hosted control profile.', lifecycle: 'one-shot',
+    output: 'structured hosted plan/read/lifecycle result JSON', exits: '0 success; 1 read/plan failure; 2 refused lifecycle operation', recovery: 'Use the returned refusal/recovery record; never infer success from transport status alone.',
+  },
+  {
+    name: 'inspect', usage: 'snapback inspect --target <id> [--since-ms <ms>] [--until-ms <ms>] [--limit <n>] [--cursor <opaque>] [--control-root <dir>] [--json]', description: 'Inspect a registered deployment target.', lifecycle: 'one-shot/read-only',
+    output: 'structured target inspection JSON', exits: '0 success; 1 inspection failure', recovery: 'Repair target identity/authority from the diagnostic and retry.',
+  },
+  {
+    name: 'logs', usage: 'snapback logs --target <id> [--since-ms <ms>] [--until-ms <ms>] [--limit <n>] [--cursor <opaque>] [--control-root <dir>] [--json]', description: 'Read bounded target control logs.', lifecycle: 'one-shot/read-only',
+    output: 'structured bounded log page JSON', exits: '0 success; 1 read failure', recovery: 'Correct target/cursor/bounds using the diagnostic and retry.',
+  },
+  {
+    name: 'audit', usage: 'snapback audit verify [--control-root <dir>] [--json]', description: 'Verify the control audit ledger.', lifecycle: 'one-shot/read-only', output: 'structured audit verification JSON',
+    exits: '0 valid; 1 invalid/incomplete ledger', recovery: 'Preserve the ledger and investigate the first failed integrity diagnostic.',
+  },
+  {
+    name: 'backup', usage: 'snapback backup <create|list|verify> ... --target <id> [--control-root <dir>] [--json]', description: 'Plan/apply, list, or verify target backups.', lifecycle: 'one-shot', output: 'structured backup plan/receipt/list JSON',
+    exits: '0 success; 1 failure/refusal', recovery: 'Use the plan/receipt diagnostic; destructive work requires the exact confirmation token.',
+  },
+  {
+    name: 'restore', usage: 'snapback restore <plan|apply|verify|activate> ... --target <id> [--control-root <dir>] [--json]', description: 'Plan, apply, verify, and activate restores.', lifecycle: 'one-shot', output: 'structured restore plan/receipt JSON',
+    exits: '0 success; 1 failure; 2 plan is not apply-eligible', recovery: 'Resolve every apply-eligibility diagnostic and use the exact confirmation token.',
+  },
+  {
+    name: 'deploy', usage: 'snapback deploy <build|plan|apply|status|rollback> ... [--json]', description: 'Build immutable releases and operate deployment plans.', lifecycle: 'one-shot', output: 'structured release/deploy plan/receipt JSON',
+    exits: '0 success; 1 command failure; 2 plan is not apply-eligible', recovery: 'Repair qualification/identity/plan diagnostics before applying with an exact confirmation.',
+  },
+]);
+
+const PACKAGED_CLI_COMMAND_BY_NAME = new Map(PACKAGED_CLI_COMMANDS.map((entry) => [entry.name, entry]));
+
+function nestedCliHelp(path, usage, description, details = []) {
+  const parent = PACKAGED_CLI_COMMAND_BY_NAME.get(path[0]);
+  return Object.freeze({
+    name: path.join(' '),
+    path: Object.freeze(path),
+    usage,
+    description,
+    lifecycle: parent.lifecycle,
+    output: parent.output,
+    exits: parent.exits,
+    recovery: parent.recovery,
+    details: Object.freeze(details),
+  });
+}
+
+const HOSTED_LIFECYCLE_USAGE = 'snapback hosted lifecycle <closed-verb> --request <lifecycle-v2.json> --operator-request <supervisor-request-v1.json> --supervisor <https-origin> --client-key <mode-0600.pem> --client-cert <pem> --server-ca <pem> --root-public-key <pem> --server-certificate-sha256 <sha256:...> [--json]';
+const HOSTED_LIFECYCLE_HELP_DETAILS = Object.freeze([
+  `Closed verbs: ${Object.keys(HOSTED_LIFECYCLE_VERBS).join(', ')}`,
+  'Availability: disabled until the reviewed lifecycle carrier and live supervisor/provider evidence are complete.',
+]);
+
+// Nested wrapper help is data, too. Keeping every positional dispatch path in
+// this registry prevents the pre-dispatch help guard from collapsing a precise
+// request such as `backup create plan --help` back to top-level backup help.
+//
+// @ref LLP 0111#closed-request-and-command-registry — hosted lifecycle verb
+// spellings are derived from the exhaustive authority registry.
+export const PACKAGED_CLI_SUBCOMMANDS = Object.freeze([
+  nestedCliHelp(['accept', 'comparator'], 'snapback accept comparator <--config <profile.mjs>|--verify-receipt <receipt.json>> [--receipt <receipt.json>] [--timeout-ms <ms>] [--max-age-ms <ms>] [--json]', 'Run a comparator profile or verify its retained receipt.'),
+  nestedCliHelp(['target', 'add'], 'snapback target add --descriptor <target.json> [--control-root <dir>] [--json]', 'Register an immutable target descriptor.'),
+  ...['show', 'doctor', 'inspect'].map((verb) => nestedCliHelp(['target', verb], `snapback target ${verb} <target-id> [--control-root <dir>] [--json]`, `${verb[0].toUpperCase()}${verb.slice(1)} a registered target.`)),
+  nestedCliHelp(['hosted', 'plan'], 'snapback hosted plan [--target <id>] [--control-root <dir>] [--json]', 'Render the closed hosted command and asset plan.'),
+  ...['inspect', 'logs'].map((verb) => nestedCliHelp(['hosted', verb], `snapback hosted ${verb} --target <id> [--since-ms <ms>] [--until-ms <ms>] [--limit <n>] [--cursor <opaque>] [--control-root <dir>] [--json]`, `${verb[0].toUpperCase()}${verb.slice(1)} bounded hosted target facts.`)),
+  nestedCliHelp(['hosted', 'operator-request'], 'snapback hosted operator-request --request <supervisor-request-v1.json> --supervisor <https-origin> --client-key <mode-0600.pem> --client-cert <pem> --server-ca <pem> --root-public-key <pem> --server-certificate-sha256 <sha256:...> [--json]', 'Submit a signed, certificate-pinned supervisor request.'),
+  nestedCliHelp(['hosted', 'lifecycle'], HOSTED_LIFECYCLE_USAGE, 'Invoke one verb from the closed hosted lifecycle registry.', HOSTED_LIFECYCLE_HELP_DETAILS),
+  ...Object.entries(HOSTED_LIFECYCLE_VERBS).map(([verb, operation]) => nestedCliHelp(
+    ['hosted', 'lifecycle', verb],
+    HOSTED_LIFECYCLE_USAGE.replace('<closed-verb>', verb),
+    `Invoke the ${operation} hosted lifecycle operation.`,
+    HOSTED_LIFECYCLE_HELP_DETAILS,
+  )),
+  nestedCliHelp(['audit', 'verify'], 'snapback audit verify [--control-root <dir>] [--json]', 'Verify the control audit ledger.'),
+  nestedCliHelp(['backup', 'create'], 'snapback backup create <plan|apply> ... --target <id> [--control-root <dir>] [--json]', 'Plan or apply creation of a retained backup.'),
+  nestedCliHelp(['backup', 'create', 'plan'], 'snapback backup create plan --target <id> --reason <text> --retention-policy <policy> [--operation-id <id>] [--control-root <dir>] [--json]', 'Create a confirmation-bound backup plan.'),
+  nestedCliHelp(['backup', 'create', 'apply'], 'snapback backup create apply <plan-id> --target <id> --confirm <token> [--control-root <dir>] [--json]', 'Apply an exact confirmed backup plan.'),
+  nestedCliHelp(['backup', 'list'], 'snapback backup list --target <id> [--control-root <dir>] [--json]', 'List retained backups for a target.'),
+  nestedCliHelp(['backup', 'verify'], 'snapback backup verify <backup-id> --target <id> [--control-root <dir>] [--json]', 'Verify a retained backup manifest.'),
+  nestedCliHelp(['restore', 'plan'], 'snapback restore plan <backup-id> --source-target <id> --target <destination-id> --reason <text> [--replace-release <id> --destination-sentinel <sha256>] [--operation-id <id>] [--control-root <dir>] [--json]', 'Create a confirmation-bound restore plan.'),
+  nestedCliHelp(['restore', 'apply'], 'snapback restore apply <plan-id> --target <destination-id> --confirm <token> [--control-root <dir>] [--json]', 'Apply an exact confirmed restore plan.'),
+  nestedCliHelp(['restore', 'verify'], 'snapback restore verify <receipt-id> --target <destination-id> [--control-root <dir>] [--json]', 'Verify a retained restore receipt.'),
+  nestedCliHelp(['restore', 'activate'], 'snapback restore activate <plan|apply> ... --target <destination-id> [--control-root <dir>] [--json]', 'Plan or apply restored-generation activation.'),
+  nestedCliHelp(['restore', 'activate', 'plan'], 'snapback restore activate plan <restore-receipt-id> --target <destination-id> --release <restored-release-dir> --prepared-release <manifest> --adapter-qualification <manifest> --reason <text> [--operation-id <id>] [--control-root <dir>] [--json]', 'Create a confirmation-bound restored-generation activation plan.'),
+  nestedCliHelp(['restore', 'activate', 'apply'], 'snapback restore activate apply <plan-id> --target <destination-id> --release <restored-release-dir> --prepared-release <manifest> --adapter-qualification <manifest> --confirm <token> [--control-root <dir>] [--json]', 'Apply an exact confirmed restored-generation activation plan.'),
+  nestedCliHelp(['deploy', 'build'], 'snapback deploy build [<backend-dir>] [--target-profile <id>] [--output <dir>] [--web-dist <dir>] [--runtime-artifact <dir>] [--runtime-platform <id>] [--runtime-hermes-bundle <id>] [--allow-dirty] [--json]', 'Build and verify an immutable target-neutral release.'),
+  nestedCliHelp(['deploy', 'plan'], 'snapback deploy plan <release-dir> --target <id> --reason <text> [--prepared-release <manifest>] [--adapter-qualification <manifest>] [--operation-id <id>] [--control-root <dir>] [--json]', 'Create a confirmation-bound deployment plan.'),
+  nestedCliHelp(['deploy', 'apply'], 'snapback deploy apply <plan-id> --target <id> --release <release-dir> --prepared-release <manifest> --adapter-qualification <manifest> --confirm <token> [--control-root <dir>] [--json]', 'Apply an exact confirmed deployment plan.'),
+  nestedCliHelp(['deploy', 'status'], 'snapback deploy status --target <id> [--control-root <dir>] [--json]', 'Inspect current deployment status.'),
+  nestedCliHelp(['deploy', 'rollback'], 'snapback deploy rollback <plan|apply> ... --target <id> [--control-root <dir>] [--json]', 'Plan or apply a code-only rollback.'),
+  nestedCliHelp(['deploy', 'rollback', 'plan'], 'snapback deploy rollback plan --target <id> --release <destination-release-dir> --prepared-release <manifest> --adapter-qualification <manifest> --reason <text> [--operation-id <id>] [--control-root <dir>] [--json]', 'Create a confirmation-bound rollback plan.'),
+  nestedCliHelp(['deploy', 'rollback', 'apply'], 'snapback deploy rollback apply <plan-id> --target <id> --release <destination-release-dir> --prepared-release <manifest> --adapter-qualification <manifest> --confirm <token> [--control-root <dir>] [--json]', 'Apply an exact confirmed rollback plan.'),
+]);
+
+const PACKAGED_CLI_HELP_BY_NAME = new Map([
+  ...PACKAGED_CLI_COMMAND_BY_NAME,
+  ...PACKAGED_CLI_SUBCOMMANDS.map((entry) => [entry.name, entry]),
+]);
+
+function resolvePackagedHelpName(command, args = []) {
+  if (!PACKAGED_CLI_COMMAND_BY_NAME.has(command)) return command;
+  let match = command;
+  for (const entry of PACKAGED_CLI_SUBCOMMANDS) {
+    if (entry.path[0] !== command || entry.path.length === 1) continue;
+    const suffix = entry.path.slice(1);
+    if (suffix.every((part, index) => args[index] === part) && entry.path.length > match.split(' ').length) {
+      match = entry.name;
+    }
+  }
+  return match;
+}
+
+function nativeHelp(options, command = null) {
+  try {
+    const runtime = resolveRuntimeBinary(options);
+    const result = spawnSync(runtime.binary, command === null ? ['--help'] : [command, '--help'], {
+      encoding: 'utf8',
+      env: scrubDynamicLoaderEnvironment(options.env),
+    });
+    if (result.error) throw result.error;
+    return {
+      ok: result.status === 0,
+      text: `${result.stdout ?? ''}${result.stderr ?? ''}`.trim(),
+      exitCode: result.status ?? 1,
+    };
+  } catch (error) {
+    return { ok: false, text: `native help unavailable: ${error.message}`, exitCode: 1 };
+  }
+}
+
+function printCliHelp(command, { json, options }) {
+  if (command !== null && PACKAGED_CLI_HELP_BY_NAME.has(command)) {
+    const entry = PACKAGED_CLI_HELP_BY_NAME.get(command);
+    const scope = entry.path ? 'subcommand' : 'command';
+    if (json) {
+      console.log(JSON.stringify({ schemaVersion: 'snapback.cli-help.v1', ok: true, scope, command: entry }, null, 2));
+    } else {
+      console.log([
+        `Usage: ${entry.usage}`,
+        '',
+        entry.description,
+        ...(entry.details?.length ? ['', ...entry.details] : []),
+        '',
+        `Lifecycle: ${entry.lifecycle}`,
+        `Machine output: ${entry.output}`,
+        `Exit taxonomy: ${entry.exits}`,
+        `Recovery: ${entry.recovery}`,
+      ].join('\n'));
+    }
+    return 0;
+  }
+
+  if (command !== null) {
+    const native = nativeHelp(options, command);
+    if (native.text) console.log(native.text);
+    return native.exitCode;
+  }
+
+  const native = nativeHelp(options);
+  if (json) {
+    console.log(JSON.stringify({
+      schemaVersion: 'snapback.cli-help.v1',
+      ok: true,
+      scope: 'root',
+      packagedCommands: PACKAGED_CLI_COMMANDS,
+      nativeHelp: { available: native.ok, text: native.text },
+    }, null, 2));
+  } else {
+    const width = Math.max(...PACKAGED_CLI_COMMANDS.map(({ name }) => name.length));
+    console.log([
+      'Usage: snapback <command> [options]',
+      '',
+      'Packaged commands:',
+      ...PACKAGED_CLI_COMMANDS.map(({ name, description }) => `  ${name.padEnd(width)}  ${description}`),
+      '  Hidden/deprecated packaged commands: none.',
+      '',
+      'Delegated native command inventory:',
+      native.text,
+      '',
+      'Run `snapback <command> --help` for flags, lifecycle, machine output, exit taxonomy, and recovery.',
+    ].join('\n'));
+  }
+  return 0;
+}
+
 export async function runCli(argv, options = {}) {
   const args = [...argv];
   const command = args.shift();
+  const helpIndex = args.findIndex((argument) => argument === '--help' || argument === '-h');
+  if (command === '--help' || command === '-h' || command === 'help' || helpIndex !== -1) {
+    const target = command === '--help' || command === '-h'
+      ? null
+      : command === 'help'
+        ? (() => {
+            const targetIndex = args.findIndex((argument) => !argument.startsWith('-'));
+            if (targetIndex === -1) return null;
+            return resolvePackagedHelpName(args[targetIndex], args.slice(targetIndex + 1));
+          })()
+        : resolvePackagedHelpName(command, args.slice(0, helpIndex));
+    return printCliHelp(target, { json: args.includes('--json'), options });
+  }
   const json = args.includes('--json');
   if (json) args.splice(args.indexOf('--json'), 1);
   const auditActorId = takeFlag(args, '--audit-actor');

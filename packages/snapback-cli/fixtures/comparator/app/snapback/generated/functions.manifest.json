@@ -5,7 +5,7 @@
   ],
   "appId": "app",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:ce98684782b89899",
+  "bundleHash": "sha256:34b959677cac7afc",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -696,7 +696,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "15581e8e32c90298d49f4eb4c013cf31492554a1f0c21784e5e6557880f8a474",
+  "inputsHash": "2aea7332d8429efa3b3686ae63e74c9bfc178ccedd2929624d02b4e03b072914",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": [
     {

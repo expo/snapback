@@ -74,7 +74,7 @@ const server = createServer(async (request, response) => {
   return send({ diagnostic: { code: 'SNAPBACK_TEST_UNEXPECTED' } }, 404);
 });
 
-const run = (args, { stdin = '' } = {}) => new Promise((resolve) => {
+const start = (args) => {
   const child = spawn(process.execPath, [join(process.cwd(), 'cli.mjs'), ...args], {
     cwd: process.cwd(),
     env: { ...process.env, SNAPBACK_ADMIN_TOKEN: 'sbadm_cli_test_must_not_transmit' },
@@ -84,14 +84,22 @@ const run = (args, { stdin = '' } = {}) => new Promise((resolve) => {
   const stderr = [];
   child.stdout.on('data', (chunk) => stdout.push(chunk));
   child.stderr.on('data', (chunk) => stderr.push(chunk));
-  child.stdin.end(stdin);
-  child.once('close', (code, signal) => resolve({
-    code,
-    signal,
-    stdout: Buffer.concat(stdout).toString('utf8'),
-    stderr: Buffer.concat(stderr).toString('utf8'),
-  }));
-});
+  const closed = new Promise((resolve) => {
+    child.once('close', (code, signal) => resolve({
+      code,
+      signal,
+      stdout: Buffer.concat(stdout).toString('utf8'),
+      stderr: Buffer.concat(stderr).toString('utf8'),
+    }));
+  });
+  return { child, closed };
+};
+
+const run = async (args, { stdin = '' } = {}) => {
+  const invocation = start(args);
+  invocation.child.stdin.end(stdin);
+  return invocation.closed;
+};
 
 try {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -155,6 +163,51 @@ try {
     fetchType: 'undefined',
   });
   assert.equal(codeMode.stderr.includes('sbadm_cli_test_must_not_transmit'), false);
+
+  const requestsBeforeEmptyStdin = requests.length;
+  const emptyStdin = await run([...base, 'run', '-']);
+  assert.equal(emptyStdin.code, 2);
+  assert.equal(emptyStdin.stdout, '');
+  assert.deepEqual(JSON.parse(emptyStdin.stderr), {
+    code: 'SNAPBACK_APP_CLI_SCRIPT_EMPTY',
+    message: 'run - reached stdin EOF without non-whitespace script source',
+    details: {
+      source: 'stdin',
+      repair: {
+        kind: 'provideScriptSource',
+        alternatives: [
+          'pass a script file path',
+          'pipe non-whitespace source to stdin',
+        ],
+      },
+    },
+  });
+  assert.equal(requests.length, requestsBeforeEmptyStdin, 'empty stdin must refuse before network setup');
+
+  const whitespaceStdin = await run([...base, 'run', '-'], { stdin: ' \n\t' });
+  assert.equal(whitespaceStdin.code, 2);
+  assert.equal(JSON.parse(whitespaceStdin.stderr).code, 'SNAPBACK_APP_CLI_SCRIPT_EMPTY');
+  assert.equal(requests.length, requestsBeforeEmptyStdin, 'whitespace stdin must refuse before network setup');
+
+  const stdinCodeMode = await run([...base, 'run', '-'], {
+    stdin: 'export default await api.list({ from: "stdin" });',
+  });
+  assert.equal(stdinCodeMode.code, 0, stdinCodeMode.stderr);
+  assert.deepEqual(JSON.parse(stdinCodeMode.stdout), [{ echoed: { from: 'stdin' } }]);
+
+  const noDefaultExport = await run([...base, 'run', '-'], {
+    stdin: 'const complete: boolean = true;',
+  });
+  assert.equal(noDefaultExport.code, 0, noDefaultExport.stderr);
+  assert.equal(noDefaultExport.stdout, '', 'a non-empty program may intentionally export no result');
+
+  const heldStdin = start([...base, 'run', '-']);
+  await new Promise((resolve) => setTimeout(resolve, 75));
+  assert.equal(heldStdin.child.exitCode, null, 'run - must wait while its stdin producer remains open');
+  heldStdin.child.stdin.end('export default { held: true };');
+  const heldResult = await heldStdin.closed;
+  assert.equal(heldResult.code, 0, heldResult.stderr);
+  assert.deepEqual(JSON.parse(heldResult.stdout), { held: true });
 
   const types = await run([...base, 'types']);
   assert.equal(types.code, 0, types.stderr);

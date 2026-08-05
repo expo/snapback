@@ -5,7 +5,11 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-05 (LLP 0175 first implementation tranche: canonical
+**Revised:** 2026-08-05 (generated starter acceptance correction: todo and
+React default `test` commands now own an isolated real target, execute a query
+and mutation, bind loaded artifact identity, reject short/vacuous runs, and
+emit a bounded cleanup-complete receipt; static coherence is separately named
+and cannot claim runtime acceptance). Earlier same day (LLP 0175 first implementation tranche: canonical
 proof gates are named, timed, dependency-aware, and retained as JSONL; a
 failed producer blocks transitive real-server consumers while independent
 gates continue; bootstrap may reuse a clean exact-revision digest-bound
