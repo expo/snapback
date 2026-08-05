@@ -74,3 +74,48 @@ FAIL because CPU and subrequest ceilings are security obligations. The result
 narrows the next work substantially: reproduce the two ignored options in
 Cloudflare's minimal example, determine whether this is account capability or a
 platform regression, and rerun before qualifying Gate 0.
+
+## 2026-08-04 — minimal control and corrected topology
+
+The replacement-token rerun first reproduced the original 21/23 result, which
+was useful because it ruled credentials out cleanly. I then built the smallest
+official-shape control: one binding-free user Worker, one dispatcher, and no
+HOST or outbound Worker. That control changed the diagnosis. Native subrequest
+enforcement failed all three twelve-fetch attempts at five, and a deliberately
+large finite CPU burn was terminated on its second attempt. The account feature
+worked; the old witnesses and the combined outbound option shape did not.
+
+CPU limits were the subtler lesson. Cloudflare documents isolate flexibility
+for occasional overages, and the first 200-million-iteration burn returned 200
+after about 926 ms. The second was terminated. Treating one short burn as an
+exact 20 ms stopwatch had been the wrong test; the useful contract is observed
+native termination under repeated sustained abuse, with every attempt retained.
+
+The outbound interaction required a topology change rather than an assertion
+change. Handler invocations now use a dispatch binding without an outbound
+Worker and retain native CPU enforcement. Action invocations use the outbound
+allowlist plus a generated fail-closed subrequest guard. This keeps the layers
+honest: the receipt does not pretend the minimal native subrequest result was
+observed through the outbound path. A focused follow-up ticket keeps the action
+kill-domain question open.
+
+Workers.dev activation was slow but convergent. The minimal run needed 49
+eight-way rounds and saw 181 generated 404s. The final full run needed 80 rounds
+and saw 141 404s plus one 500 before three consecutive clean rounds. Unique URLs
+showed this was not just one poisoned cache key. Waiting for one successful
+health response was too weak; a bounded, consecutive concurrent barrier made
+the disposable run deterministic while leaving production ingress to P0.2.
+
+The corrected full run passed 23/23. The action guard stopped the sixth
+subrequest with `SNAPBACK_SUBREQUEST_LIMIT`; the calibrated handler CPU witness
+was natively terminated on attempt three. Both the minimal and full runners
+deleted their resources and independently observed HTTP 404 for every exact
+post-cleanup lookup.
+
+Compared with Wrangler-driven everyday deployment, the raw API runner remains
+verbose, but the verbosity paid for itself here: control-plane acknowledgement,
+DNS families, Ray IDs, cache headers, dispatch option composition, and cleanup
+were all visible in one reproducible artifact. Compared with a container kill
+domain, Cloudflare's CPU flexibility is less stopwatch-like, so the capability
+report must describe the measured semantics rather than imply a strict elapsed
+cutoff.
