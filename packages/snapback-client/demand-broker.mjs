@@ -214,6 +214,7 @@ export async function createDemandBroker({
   randomBytes = undefined,
   contextId = null,
   onOutcome = null,
+  onWriterHello = null,
   onSuppressionEnd = null,
   crashBeforeOutcome = null,
   setIntervalFn = globalThis.setInterval,
@@ -242,6 +243,7 @@ export async function createDemandBroker({
   let writerGeneration = 0;
   let writer = storeHandle.isWriter?.() === true;
   let heartbeatTimer = null;
+  let startingWriter = null;
 
   const transaction = (mode, operation) => storeHandle.materializationTransaction(mode, (view) => {
     const state = normalizeBrokerState(view.storeMeta.brokerRoster);
@@ -448,7 +450,10 @@ export async function createDemandBroker({
       }
     } else {
       const stored = await storeHandle.materializationTransaction('readonly', (view) => (
-        view.storeMeta.durableRegistrations[message.registrationId] ?? null
+        Object.values(view.storeMeta.durableRegistrations)
+          .map((byId) => byId?.[message.registrationId] ?? null)
+          .find((registration) => registration !== null)
+          ?? null
       ));
       let storedPartition = null;
       if (stored !== null) {
@@ -497,12 +502,14 @@ export async function createDemandBroker({
     if (admitted.format === 'snapback.writer-hello.v1') {
       writerGeneration = Math.max(writerGeneration, admitted.writerGeneration);
       for (const pair of localPairs.values()) post(pair);
+      await onWriterHello?.(writerGeneration);
       return { applied: true };
     }
     if (admitted.format === 'snapback.register-outcome.v1') {
       if (admitted.contextId === localContextId) onOutcome?.(clone(admitted));
       return { applied: admitted.contextId === localContextId };
     }
+    if (!writer && storeHandle.isWriter?.() === true) await refreshWriterRole();
     if (!writer) return { degraded: true, profile: 'volatile-online-v1' };
     const reaped = await transaction('readonly', (state) => state.reapedContexts.includes(admitted.contextId));
     if (reaped) return { ignored: true };
@@ -534,6 +541,15 @@ export async function createDemandBroker({
       writerGeneration, authorityPartitionDigest: info.authorityPartitionDigest,
       registration: clone(registration),
     };
+    const validation = validateBrokerMessage(message, { resolveRegistration });
+    if (validation.refused) {
+      const outgoing = outcomeMessage(message, {
+        kind: 'refused',
+        code: validation.refused.code,
+      });
+      onOutcome?.(clone(outgoing));
+      return outgoing;
+    }
     if (writer) return receive(message);
     post(message);
     return message;
@@ -544,6 +560,15 @@ export async function createDemandBroker({
       format: 'snapback.register-release.v1', contextId: localContextId, requestId,
       writerGeneration, authorityPartitionDigest, registrationId,
     };
+    const validation = validateBrokerMessage(message, { resolveRegistration });
+    if (validation.refused) {
+      const outgoing = outcomeMessage(message, {
+        kind: 'refused',
+        code: validation.refused.code,
+      });
+      onOutcome?.(clone(outgoing));
+      return outgoing;
+    }
     if (writer) return receive(message);
     post(message);
     return message;
@@ -569,6 +594,8 @@ export async function createDemandBroker({
   };
 
   const maintenance = async () => {
+    await refreshWriterRole();
+    if (!writer) return;
     const current = now();
     const snapshot = await transaction('readonly', (state) => clone(state));
     if (snapshot.suppression.active) {
@@ -618,10 +645,27 @@ export async function createDemandBroker({
       await ledger.releaseContextDemands({ contextId: priorContextId });
     }
     post({ format: 'snapback.writer-hello.v1', writerGeneration });
+    // BroadcastChannel does not deliver to self. A context promoted while it
+    // owns an unresolved forwarded mutation must observe the generation change
+    // through the same hook as its peers so it can replay that request locally.
+    await onWriterHello?.(writerGeneration);
     // A channel never delivers to self: the new writer's own live pairs
     // re-announce locally, applying (or same-revision reconciling) through
     // the identical path a peer's re-announcement takes.
     for (const pair of localPairs.values()) await receive(clone(pair));
+    return true;
+  };
+
+  // A context may construct while queued behind the current store writer and
+  // acquire ownership later. Store ownership is authoritative; the broker
+  // promotes exactly once, then enters the ordinary WriterHello/roster
+  // reconciliation path instead of inventing a parallel handoff protocol.
+  const refreshWriterRole = async () => {
+    if (writer || storeHandle.isWriter?.() !== true) return writer;
+    if (startingWriter !== null) return startingWriter;
+    writer = true;
+    startingWriter = startWriter().finally(() => { startingWriter = null; });
+    await startingWriter;
     return true;
   };
 
@@ -635,6 +679,7 @@ export async function createDemandBroker({
   writerGeneration = await transaction('readonly', (_state, view) => (
     view.storeMeta.generationCounters.writerGeneration
   ));
+  if (!writer && storeHandle.isWriter?.() === true) writer = true;
   await startWriter();
 
   return Object.freeze({

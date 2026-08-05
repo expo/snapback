@@ -9,7 +9,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import test, { after } from 'node:test';
 
 import { generate } from '../snapback-codegen/index.mjs';
-import { SnapbackClient, createRqsRegisteredRegistry } from './index.mjs';
+import { SnapbackClient } from './index.mjs';
+import { createRqsRegisteredRegistry } from './rqs-preload.mjs';
 
 const defineUrl = pathToFileURL(
   join(dirname(fileURLToPath(import.meta.url)), '..', 'snapback-codegen', 'define.mjs'),

@@ -666,6 +666,12 @@
         "retainable": {
           "type": "boolean"
         },
+        "retentionClass": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "rqsEligible": {
           "description": "LLP 0092 §0C.2 derived predicate — never authored; clients key the\nalias-key promotion check and token expectations on it.",
           "type": "boolean"

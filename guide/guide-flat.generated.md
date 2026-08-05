@@ -68,7 +68,7 @@ and `guide-gap`.
 | realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner. The contributor local target additionally ships Experimental `mixed_bundle_boot_v2`: a disjoint LLP 0157 `mixed-route.v2` artifact/wire evaluates live and ordinary children at one pinned snapshot, registers only identity-bound live children, and returns plain children honestly read-only. Qualifying legacy RQS entries enter QMK custody only while connected through prove-or-fresh adoption; legacy bytes stay grandfathered under LLP 0090 until that one-transaction switch. `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register and mixed mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | sync.offline-js-arm | Experimental JS/React offline substrate: default IndexedDB + Web Locks in capable browsers, durable file storage in capable Node hosts, and in-memory fallback; declared public authority-independent retained queries; durable M2 outbox with exact ordered replay and pending-intent projection. Qualifying legacy RQS entries are grandfathered under LLP 0090 and move to QMK custody only while connected through prove-or-fresh, one atomic same-domain transaction; adoption never relabels bytes or drops pending outbox intent. Node/file and React-stub tests pass, and LLP 0155 proves real-Chrome `SIGKILL` persistence plus two-tab lock refusal/takeover. End-to-end browser React/server retained-current, resync/replay, settlement, observer convergence, and protected-refusal proof remain GAPs; no local execution or `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, retainability opt-in, pending intent render | local | partial | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs + `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` (Node/file, same-process) + `demos/zero-bakeoff/stage0/browser/run.mjs` (real-browser carrier substrate only) | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166 | GAP (end-to-end browser product proof; owner: Charlie, review: 2026-08-31; issue: issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md); sync/offline-and-retention.md |
-| sync.local-persistent-store | LLP 0166 store + hydration bridge: one store domain per clientStoreId, registration-led establishment from the generated trusted activation only, completeness-proof validation before any page commit, durable registrations behind the internal OQ8 seam, and proof-revalidated `authoritative`/`retained` relaunch answers. The source-qualified local target now publishes experimental `single_table_v1@1` with Arm A `rqs-authority-independent-snapshot-v1` retention and no `AuthorizedLease`; owner-scoped relational retention remains lease-backed, while snapshot-batch stays volatile (`none`). Legacy RQS entries remain grandfathered until connected prove-or-fresh adoption atomically enters QMK custody. | retained render, materialization, completeness proof, qmk1, hydration bridge, relaunch, answer class, single_table_v1 | local | partial | src/local-persistent-store-publication.v1.json + schemas/capability.manifest.local-dev-sqlite-ibex.json (`single_table_v1`) + tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json (16 PASS / 1 GAP / 0 SKIPPED, 2026-08-04) + tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json | llp/0166, llp/0157, llp/0110, llp/0094 | GAP (Fleet footprint/hydration remains outside support under LLP 0135 OQ5; owner: Charlie, review: 2026-08-31.); sync/offline-and-retention.md |
+| sync.local-persistent-store | LLP 0166 store + hydration bridge: one v3 store domain per clientStoreId, registration-led establishment from the generated trusted activation only, completeness-proof plus applicable lease validation before page commit, public programmatic and manifest-derived preload registrations, and proof-revalidated relaunch answers. Writer maintenance derives custody from registrations: active demand is restart-volatile, durable programmatic demand survives, `none` release compacts immediately, and every retained address exposes one StorePolicyInspectionV1 reason. The D7 result-transform gate is fired on durable IndexedDB and Node/file; memory and Expo report volatile and refuse durable fragments with a structured GAP. Authority-independent `single_table_v1@1` needs no lease but keeps every proof/fence check. The contributor-source local manifest publishes the experimental class from a retained 2026-08-04 carrier exit at 16 PASS / 1 Fleet GAP / 0 skipped plus Triage 8/8; remote-service and Cloudflare manifests remain nonclaims | retained render, materialization, completeness proof, qmk1, hydration bridge, programmatic registration, preload, maintenance, custody inspection, relaunch, result transform, answer class, carrier honesty | local | partial | src/local-persistent-store-publication.v1.json + tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json + tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json + tests/conformance/result-transform-ship-gate-v1.receipt.json (56/56 Rust/JavaScript, two claiming + two refusing carriers) | llp/0166, llp/0157, llp/0110, llp/0094 | GAP (Fleet footprint/hydration remains outside support under LLP 0135 OQ5; owner: Charlie, review: 2026-08-31); sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention (LLP 0043 M1 custody) on the JS/React arm — the Contract arm ships it; this arm does not yet | offline auth browser, lease js | none | design-only | llp/0129-local-first-program.plan.md (Phase 0 status note; no shipped witness) | llp/0043, llp/0053, llp/0129 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260731-js-arm-lease-custody-and-sessions-outbox.md) |
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-31) |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
@@ -4594,6 +4594,7 @@ export const booksWithAuthors = defineRelationalQuery({
   take: 50,
   rootIndex: 'by_owner_title',
   joinedIndex: 'by_slug',
+  retention: 'opaque-authorized-snapshot-v1',
 });
 ```
 
@@ -4630,7 +4631,7 @@ commit touching either source re-runs the query. No incremental delta or
 skip proof is claimed, matching LLP 0080's deliberately conservative v1.
 A relational plan is never `authorityIndependent` — public plans stay
 authority-partition-scoped — and retention is default-deny with a closed
-two-value vocabulary. `retention: 'none'` is the default. An owner-visible
+vocabulary. `retention: 'none'` is the default. An owner-visible
 plan may declare `retention: 'opaque-authorized-snapshot-v1'`: the
 projected result is retained as an opaque authorized snapshot under the
 authenticated lease path (the client decodes it; it never re-executes the
@@ -4640,10 +4641,11 @@ have no admissible v1 retention, refused at generation and again at load
 (`SNAPBACK_AUTH_UNDECLARABLE_RETENTION`). The capability manifest records
 the admitted classes under `relationalQueries.retention`. (Design
 reference: LLP 0080's 2026-08-03 dated amendment, landed with Accepted
-LLP 0166, specifies a third owner-issued class —
-`result-transform-snapshot-v1`, for the local persistent store — but it is
-not yet implemented; authoring and the capability manifest still admit
-exactly the two classes above.)
+LLP 0166, specifies the third owner-issued class
+`result-transform-snapshot-v1`. Selecting it is an owner reclassification:
+it rotates the plan identity and admits the shipped closed result-transform
+evaluator only after the D7 carrier gate; existing opaque records are never
+relabelled in place.)
 
 ## Pagination
 
@@ -11944,10 +11946,11 @@ it is not a hosted claim.
   membership is derived from the public, ambient-free single-table plan and
   cannot be asserted by the author.
 - **Snapshot-batch composites** (`snapshot-batch.v1`) — deliberately
-  volatile: retention is `none`. Stored grace payloads exist only to smooth
-  release; they are **never** authoritative offline answers. Do not read a
-  grace payload's presence as renderability — the answer classes below are
-  the only authority.
+  volatile: retention is `none`. Final release pins that class, so the next
+  writer maintenance pass removes payload immediately; the compacted
+  instance-bookkeeping stub may remain. A `none` registration never acquires
+  payload-retaining release grace. Do not read a stored record's presence as
+  renderability — the answer classes below are the only authority.
 
 ### The controlled local recipe
 
@@ -11997,21 +12000,73 @@ decisions key off `answerClass` + `freshness`, never off "bytes exist":
 | `unknown` | Store cannot classify (no proof, no custody) | No — treat as no data |
 | `refused` | Policy or authorization refused the read | No — surface the refusal |
 
-Inspect stored volatile grace payloads separately from authorized rows with
-`StorePolicyInspectionV1` (`store-policy.test.mjs` exercises it): grace
-payloads report their release pinning, not an answer class, which is how
-the two populations stay visibly distinct.
+The `single_table_v1@1` authority-independent arm is the qmk1 authoritative
+row with `authorizedLeaseHash: null`: a valid proof, witness, current instance
+fence, class binding, and trusted activation are still required, but no lease
+is required or implied. Every failure follows the corresponding qmk1 row.
 
-### The registration boundary (no public durable-authoring API yet)
+Inspect custody separately from answer authority with
+`StorePolicyInspectionV1`. Every address has exactly one retaining reason:
+`registrations`, `release-grace`, `safety-blocker`, or
+`instance-bookkeeping` (plus the explicit grandfathered legacy class). Active
+registrations are volatile and are reaped at restart; programmatic durable
+registrations survive. In the Triage churn proof, the one programmatic Inbox
+registration retains the only payload while all 20 disposed `none` queries are
+compacted bookkeeping stubs after an explicitly driven maintenance pass.
 
-Active live queries register demand automatically — subscribing IS the
-registration, and the sync set equals the registration set. A **durable
-programmatic registration** surface (registering demand with no live
-handle) intentionally has **no public API yet** (LLP 0166 OQ8): the
-methods you may notice underscored on the client are internal seams, not
-product API, and this page deliberately does not teach them. Until the
-surface is ruled public, keep a live handle (or `persistResume` + relaunch)
-as the supported way to keep a query in the sync set.
+### Keep a generated query registered without a live handle
+
+Active live queries still register demand automatically — subscribing is the
+`active` registration, and disposing the handle releases it. For demand that
+must survive a process restart without a mounted handle, use the public
+programmatic API. The application owns a stable, store-scoped
+`registrationId`; Snapback derives the qmk1 address and authority partition
+from the generated reference and current owner snapshot:
+
+```ts source=demos/triage-graph/src/retained-registration.ts
+  const result = await (client as RegistrationClient).registerQuery(reference, {
+    registrationId: 'triage-graph-retained-inbox-v1',
+    args: {},
+    label: 'triage-graph-retained-inbox',
+    requestedScope: { kind: 'page', input: { kind: 'first' } },
+    retentionRequest: 'durable',
+    idleTtlClass: 'default',
+  });
+  if (result.outcome.kind === 'refused') throw new Error(result.outcome.code);
+  return result;
+```
+
+`registerQuery` returns the exact `RegisterOutcomeV1` envelope and works from
+both writer and qualified non-writer contexts. Registration is durable, but
+retention is still owner-admitted: a non-retainable generated query refuses
+rather than silently dropping the durability request. Release with
+`client.releaseQueryRegistration(registrationId)`; repeated releases are
+idempotent and return a `released` outcome. Never author a materialization
+address or authority-partition digest yourself.
+
+### Evaluate an owner-reclassified retained result
+
+The public `@expo/snapback-client/result-transform` subpath exposes the closed
+`result-transform.v1` evaluator and its pinned ship-gate identity. The client
+entry point is `client.evaluateLocalResultTransform(generatedReference,
+options)`. It reads only the reference's proof-verified retained result bytes;
+it never runs the query's source-row plan locally.
+
+This is deliberately owner-gated. The generated reference must carry the
+server-issued `result-transform-snapshot-v1` retention class, which rotates the
+plan hash and qmk1 address. Unreclassified plans, memory storage, and the
+current non-durable Expo carrier refuse with
+`SNAPBACK_LOCAL_EVALUATION_UNADMITTED` before inspecting the transform. The
+claiming carrier contexts are browser IndexedDB and Node/file.
+
+Carrier claims are executable rather than inferred. The dedicated S8 suite
+(`packages/snapback-client/carrier-capability-honesty.test.mjs`) checks that
+IndexedDB and Node/file report durable and admit `durable-fragments-v1`, while
+memory and the current Expo adapter report volatile and refuse the same request
+with `SNAPBACK_MATERIALIZATION_STORAGE_PROFILE_GAP` naming
+`durable_fragments_v1`. An older IndexedDB opener receives `VersionError`
+against v3; a future file blob is preserved in place and refused with
+`SNAPBACK_RQS_STORE_CORRUPT`.
 
 ## Opt a live query into cold retention (`rqsEligible`)
 

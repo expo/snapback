@@ -6,7 +6,7 @@
 export const RQS_STORE_FORMAT_VERSION = 3;
 export const RQS_STORE_META_KEY = 'state';
 
-const RECORD_SLOTS = Object.freeze([
+const RECORD_SLOTS = [
   'durableRegistrations',
   'policyBudgetFacts',
   'brokerRoster',
@@ -17,7 +17,8 @@ const RECORD_SLOTS = Object.freeze([
   // unkeyed hash; this owner slot retains the exact issued bytes and the
   // rollback-checked client deadline that validation projects as leaseStatus.
   'materializationLeaseCustody',
-]);
+];
+const RESET_SLOTS = [...RECORD_SLOTS.slice(0, 3), RECORD_SLOTS.at(-1)];
 
 const plainRecord = (value) => (
   value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -89,13 +90,7 @@ export function createInitialStoreMeta({ clientStoreId = null, randomBytes } = {
       queryGenerationHighWater: 0,
     },
     handleKey: mintStoreHandleKey(randomBytes),
-    durableRegistrations: {},
-    policyBudgetFacts: {},
-    brokerRoster: {},
-    fenceHighWaters: {},
-    tombstoneHighWaters: {},
-    barrierHighWaters: {},
-    materializationLeaseCustody: {},
+    ...Object.fromEntries(RECORD_SLOTS.map((slot) => [slot, {}])),
   };
 }
 
@@ -156,9 +151,6 @@ export function wipeStoreMeta(value, { randomBytes } = {}) {
   return {
     ...meta,
     handleKey: mintStoreHandleKey(randomBytes),
-    durableRegistrations: {},
-    policyBudgetFacts: {},
-    brokerRoster: {},
-    materializationLeaseCustody: {},
+    ...Object.fromEntries(RESET_SLOTS.map((slot) => [slot, {}])),
   };
 }

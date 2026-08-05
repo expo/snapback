@@ -77,6 +77,7 @@ const inventories = [
       'bearer-rotation.test.mjs',
       'browser-closure.test.mjs',
       'bundle.test.mjs',
+      'carrier-capability-honesty.test.mjs',
       'demand-broker.test.mjs',
       'ephemeral-room.test.mjs',
       'evaluation-floor.test.mjs',
@@ -115,6 +116,7 @@ const inventories = [
       'sender-transport.test.mjs',
       'search.test.mjs',
       'store-policy.test.mjs',
+      'store-runtime-wiring.test.mjs',
       'webcrypto-fallback.test.mjs',
       'wire-version.test.mjs',
     ],
@@ -167,6 +169,7 @@ const inventories = [
       'package.test.mjs',
       'presence.test.mjs',
       'subscribe-retry.test.mjs',
+      'subscribe-runtime-import-failure.test.mjs',
       'webcrypto-fallback.test.mjs',
     ],
   },
@@ -532,7 +535,14 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // no-duplicate-transform, pre-settlement paint, and boot-replay suite.
 // 195 -> 198 (2026-08-04, LLP 0062 Phase 2): @expo/snapback-app-cli gains
 // the app-bound Ibex coordinator, bundle, and inert-schema suites.
-assert.equal(total, 198, 'reviewed package/admin test count changed');
+// 198 -> 199 (2026-08-04, LLP 0166 finish-out Lane A): @expo/snapback-client
+// gains the shipped policy-controller and demand-broker construction suite.
+// 199 -> 200 (2026-08-04, LLP 0166 finish-out Lane D): @expo/snapback-client
+// gains the consolidated S8 carrier-capability honesty suite.
+// 200 -> 201 (2026-08-04, LLP 0166 finish-out Lane F): @expo/snapback-react
+// gains the inline subscribe-failure fallback regression for an optional
+// react-runtime chunk rejection.
+assert.equal(total, 201, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

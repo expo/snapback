@@ -201,6 +201,11 @@ test('offline volatile query and liveQuery establishment expose the D4 unknown a
     rqsStore: false,
     offlineQueue: false,
   });
+  let storeRuntimeInvocations = 0;
+  client.__storeRuntimeInvoke = async () => {
+    storeRuntimeInvocations += 1;
+    throw new TypeError('simulated store-runtime chunk rejection');
+  };
 
   await assert.rejects(
     () => client.liveQuery(reference, {
@@ -248,6 +253,11 @@ test('offline volatile query and liveQuery establishment expose the D4 unknown a
     assertOfflineUnavailable,
   );
   assert.equal(fetchCalls, 2, 'query and live establishment each reach transport once');
+  assert.equal(
+    storeRuntimeInvocations,
+    0,
+    'the root D4 builder types offline failure without depending on the optional chunk',
+  );
 });
 
 test('single_table_v1 maps to durable no-lease retention without consuming AuthorizedLease', async () => {

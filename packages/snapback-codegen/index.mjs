@@ -416,7 +416,7 @@ function singleNodeIdentityV1(fn) {
   const retention = singleTable
     ? 'rqs-authority-independent-snapshot-v1'
     : relational && fn.retainable === true
-      ? 'opaque-authorized-snapshot-v1'
+      ? fn.retentionClass ?? 'opaque-authorized-snapshot-v1'
       : 'none';
   const normalizedPlan = singleTable
     ? normalizeSingleTablePlanV1(singleTable, rqsDigestKind)
@@ -554,7 +554,7 @@ function mixedRouteNodeIdentityV2(fn) {
           }
         : { kind: 'none' },
       retention: fn.retainable === true
-        ? 'opaque-authorized-snapshot-v1'
+        ? fn.retentionClass ?? 'opaque-authorized-snapshot-v1'
         : 'none',
       requiredCapabilityIds,
     },
@@ -5845,6 +5845,7 @@ function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
     ...(def.publicInline === true ? { publicInline: true } : {}),
     ...(authorityCreating ? { authorityCreating: true } : {}),
     ...(def.retainable === true ? { retainable: true } : {}),
+    ...(def.retentionClass !== undefined ? { retentionClass: def.retentionClass } : {}),
     ...(Array.isArray(def.refusals) && def.refusals.length > 0 ? { refusals: [...def.refusals] } : {}),
     ...(Array.isArray(def.trackedRefusals) && def.trackedRefusals.length > 0
       ? { trackedRefusals: [...def.trackedRefusals] }
@@ -6389,6 +6390,7 @@ function decorateFunctions(appId, functions) {
       ...(fn.publicInline === true ? { publicInline: true } : {}),
       ...(fn.authorityCreating === true ? { authorityCreating: true } : {}),
       ...(fn.retainable === true ? { retainable: true } : {}),
+      ...(fn.retentionClass !== undefined ? { retentionClass: fn.retentionClass } : {}),
       ...(Array.isArray(fn.refusals) && fn.refusals.length > 0 ? { refusals: [...fn.refusals] } : {}),
       ...(Array.isArray(fn.trackedRefusals) && fn.trackedRefusals.length > 0
         ? { trackedRefusals: [...fn.trackedRefusals] }

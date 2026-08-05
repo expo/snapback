@@ -100,6 +100,8 @@ const qmkExpected = (connected, mutation, action = null) => ({
 const rows = [
   {
     row: 1,
+    family: 'qmk1',
+    state: 'valid proof, retain disposition, valid witness and lease',
     derive: (connected) => deriveQmk1AnswerV1({
       connected,
       ...qmkState(materialization({ freshness: connected ? 'current' : 'retained', proof: true })),
@@ -109,21 +111,29 @@ const rows = [
   },
   {
     row: 2,
+    family: 'qmk1',
+    state: 'proof, binding, signature, or result integrity invalid',
     derive: (connected) => deriveQmk1AnswerV1({ connected, ...qmkState(materialization()), renderable: false, integrity: 'invalid' }),
     expected: (connected) => qmkExpected(connected, 'discard-corrupt-fragment-proof'),
   },
   {
     row: 3,
+    family: 'qmk1',
+    state: 'stored activation mismatches trusted artifact',
     derive: (connected) => deriveQmk1AnswerV1({ connected, ...qmkState(materialization()), renderable: false, activation: 'mismatch' }),
     expected: (connected) => qmkExpected(connected, 'delete-before-read'),
   },
   {
     row: 4,
+    family: 'qmk1',
+    state: 'auth-scoped lease invalid',
     derive: (connected) => deriveQmk1AnswerV1({ connected, ...qmkState(materialization()), renderable: false, lease: 'invalid' }),
     expected: (connected) => qmkExpected(connected, 'delete-before-read'),
   },
   {
     row: 5,
+    family: 'qmk1',
+    state: 'same witness stream with a newer epoch expected',
     derive: (connected) => deriveQmk1AnswerV1({ connected, ...qmkState(materialization()), renderable: false, witness: 'newer-epoch' }),
     expected: (connected) => qmkExpected(
       connected,
@@ -133,16 +143,22 @@ const rows = [
   },
   {
     row: 6,
+    family: 'qmk1',
+    state: 'witness missing or bound to the wrong authority identity',
     derive: (connected) => deriveQmk1AnswerV1({ connected, ...qmkState(materialization()), renderable: false, witness: 'invalid' }),
     expected: (connected) => qmkExpected(connected, 'delete-before-read'),
   },
   {
     row: 7,
+    family: 'qmk1',
+    state: 'current establishment attempt refused without a valid proof',
     derive: (connected) => deriveQmk1AnswerV1({ connected, ...qmkState(materialization({ refused: true })), renderable: false }),
     expected: () => ({ answerClass: 'refused', freshness: null, storeMutation: 'store-refusal', resumeAction: 'safe-fallback' }),
   },
   {
     row: 8,
+    family: 'qmk1',
+    state: 'requested scope or version superseded',
     derive: (connected) => deriveQmk1AnswerV1({ connected, ...qmkState(materialization()), renderable: false, scope: 'superseded' }),
     expected: (connected) => qmkExpected(
       connected,
@@ -152,47 +168,76 @@ const rows = [
   },
   {
     row: 9,
+    family: 'legacy resume',
+    state: 'verified entry with an empty outbox',
     derive: (connected) => deriveLegacyResumeAnswerV1({ connected, verified: true }),
     expected: (connected) => ({ answerClass: 'labeled-retained', freshness: 'retained', storeMutation: 'none', resumeAction: connected ? 'resume-ladder' : 'resume-ladder-on-reconnect' }),
   },
   {
     row: 10,
+    family: 'legacy resume',
+    state: 'verified entry with pending outbox intents',
     derive: (connected) => deriveLegacyResumeAnswerV1({ connected, verified: true, outboxPending: true }),
     expected: (connected) => ({ answerClass: 'labeled-retained', freshness: 'retained', storeMutation: 'none', resumeAction: connected ? 'full-resync-then-replay' : 'full-resync-then-replay-on-reconnect' }),
   },
   {
     row: 11,
+    family: 'legacy resume',
+    state: 'entry verification fails',
     derive: (connected) => deriveLegacyResumeAnswerV1({ connected, verified: false }),
     expected: (connected) => ({ answerClass: 'unknown', freshness: null, storeMutation: 'delete-entry', resumeAction: connected ? 'fresh-subscribe' : 'fresh-subscribe-on-reconnect' }),
   },
   {
     row: 12,
+    family: 'legacy resume',
+    state: 'server-admission token expired',
     derive: (connected) => deriveLegacyResumeAnswerV1({ connected, verified: true, tokenExpired: true }),
     expected: (connected) => ({ answerClass: 'labeled-retained', freshness: 'retained', storeMutation: 'replace-token-on-authoritative-answer', resumeAction: connected ? 'fresh-subscribe-rung-3' : 'none' }),
   },
   {
     row: 13,
+    family: 'legacy resume',
+    state: 'authorization invalidation requires retained-state purge',
     derive: (connected) => deriveLegacyResumeAnswerV1({ connected, verified: true, clearRetained: true }),
     expected: (connected) => ({ answerClass: 'unknown', freshness: null, storeMutation: 'purge-persisted-copy', resumeAction: connected ? 'fresh-subscribe' : 'fresh-subscribe-on-reconnect' }),
   },
   {
     row: 14,
+    family: 'legacy lease',
+    state: 'all LLP 0043 M1 authorization conditions hold',
     derive: (connected) => deriveLegacyLeaseAnswerV1({ connected, ownerFacts: allLeaseFacts }),
     expected: (connected) => ({ answerClass: 'lease-authorized-retained', freshness: 'retained', storeMutation: 'none', resumeAction: connected ? 'full-revalidate-and-fresh-snapshot' : 'full-revalidate-and-fresh-snapshot-on-reconnect' }),
   },
   {
     row: 15,
+    family: 'legacy lease',
+    state: 'lease authorization condition fails',
     derive: (connected) => deriveLegacyLeaseAnswerV1({ connected, ownerFacts: { ...allLeaseFacts, beforeDeadline: false } }),
     expected: (connected) => ({ answerClass: 'unknown', freshness: null, storeMutation: 'commit-delete-tombstone-before-read', resumeAction: connected ? 'full-revalidate-and-fresh-snapshot' : 'full-revalidate-and-fresh-snapshot-on-reconnect' }),
+  },
+  {
+    row: 16,
+    family: 'qmk1 / single_table_v1@1',
+    state: 'authority-independent snapshot has valid proof and no lease',
+    derive: (connected) => deriveQmk1AnswerV1({
+      connected,
+      ...qmkState(materialization({ freshness: connected ? 'current' : 'retained', proof: true })),
+      renderable: true,
+      lease: 'not-required',
+    }),
+    expected: (connected) => ({
+      answerClass: 'authoritative',
+      freshness: connected ? 'current' : 'retained',
+      storeMutation: 'none',
+      resumeAction: 'none',
+    }),
   },
 ];
 
 for (const entry of rows) {
   for (const connected of [true, false]) {
-    test(`S2 row ${entry.row} ${connected ? 'connected' : 'offline'}`, () => {
+    test(`S2 row ${entry.row} — ${entry.family}: ${entry.state} — ${connected ? 'connected' : 'offline'}`, () => {
       assert.deepEqual(entry.derive(connected), entry.expected(connected));
-      if (entry.row === 14) assert.notEqual(entry.derive(connected).answerClass, 'authoritative');
-      if (entry.row === 11 || entry.row === 15) assert.equal(entry.derive(connected).answerClass, 'unknown');
     });
   }
 }

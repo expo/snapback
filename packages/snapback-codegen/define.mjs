@@ -2097,9 +2097,14 @@ const RELATIONAL_SPEC_FIELDS = new Set([
   'root', 'rootAlias', 'joined', 'joinedAlias', 'join', 'kind', 'visibility',
   'projection', 'take', 'rootIndex', 'joinedIndex', 'defaultLive', 'retention',
 ]);
-// The closed retention vocabulary (LLP 0080 §4): default-deny, two values,
-// no third story.
-const RELATIONAL_RETENTION_CLASSES = new Set(['none', 'opaque-authorized-snapshot-v1']);
+// The closed retention vocabulary (LLP 0080 §4; LLP 0166 §D3):
+// default-deny, with result-transform admission available only as an explicit
+// owner reclassification. Shape never upgrades a plan into that class.
+const RELATIONAL_RETENTION_CLASSES = new Set([
+  'none',
+  'opaque-authorized-snapshot-v1',
+  'result-transform-snapshot-v1',
+]);
 const RELATIONAL_VISIBILITY_FIELDS = new Set(['root', 'joined', 'output']);
 const RELATIONAL_IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -2331,7 +2336,8 @@ export function defineRelationalQuery(spec) {
   const retention = spec.retention ?? 'none';
   assert(
     RELATIONAL_RETENTION_CLASSES.has(retention),
-    "relational retention must be 'none' or 'opaque-authorized-snapshot-v1' — the vocabulary is closed",
+    "relational retention must be 'none', 'opaque-authorized-snapshot-v1', or "
+      + "'result-transform-snapshot-v1' — the vocabulary is closed",
   );
   // @ref LLP 0080#4-live-and-retained-capability — the authenticated lease
   // class requires a server-resolved authenticated principal; anonymous
@@ -2346,8 +2352,12 @@ export function defineRelationalQuery(spec) {
     [FN]: true,
     __kind: 'LiveQuery',
     auth: computedOutput === 'owner' ? 'authenticated' : 'public',
-    ...(retention === 'opaque-authorized-snapshot-v1'
-      ? { retainable: true, authorizationDependence: ['userId'] }
+    ...(retention !== 'none'
+      ? {
+          retainable: true,
+          ...(retention === 'result-transform-snapshot-v1' ? { retentionClass: retention } : {}),
+          authorizationDependence: ['userId'],
+        }
       : {}),
     // The one implicit argument every relational query accepts: the opaque
     // versioned continuation cursor from a previous full page (LLP 0080 §2).

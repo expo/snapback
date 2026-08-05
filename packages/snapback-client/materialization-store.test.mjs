@@ -19,7 +19,10 @@ import {
   verifyFiniteCompletenessCarrierV1,
 } from './materialization-store.mjs';
 import { createFileRqsResumeStore } from './rqs-store-file.mjs';
-import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
+import {
+  createMemoryRqsResumeStore,
+  createMemoryRqsStoreBacking,
+} from './rqs-store-memory.mjs';
 import { createIndexedDbRqsResumeStore } from './rqs-store.mjs';
 import { base64UrlNoPad, hex, jcsBytes, sha256 } from './rqs.mjs';
 
@@ -1004,4 +1007,23 @@ test('single-record materialization budget refusal atomically leaves a compacted
   assert.equal(record.fragments.length, 0);
   assert.equal(record.memberships.length, 0);
   assert.equal(deriveCompletenessStatusV1(record), 'unknown');
+});
+
+test('integration regression: a non-writer context constructs the shipped read surface', async (t) => {
+  const backing = createMemoryRqsStoreBacking({ clientStoreId: 'materialization-reader' });
+  const writerHandle = createMemoryRqsResumeStore({ backing });
+  const readerHandle = createMemoryRqsResumeStore({ backing });
+  await writerHandle.whenLockSettled();
+  t.after(async () => {
+    await readerHandle.close();
+    await writerHandle.close();
+  });
+  const writerStore = await createMaterializationStore(writerHandle);
+  const fixture = makeFixture('reader-construction');
+  fixture.identities.storageProfile = 'volatile-online-v1';
+  await writerStore.initialize(fixture.address, fixture.identities, null);
+  const readerStore = await createMaterializationStore(readerHandle);
+  let observed = null;
+  readerStore.observeMaterialization(fixture.address, (value) => { observed = value; })();
+  assert.equal(observed.present, true);
 });

@@ -168,7 +168,7 @@ const exactKeys = (value, expected, where) => {
   }
 };
 
-const INTERNAL_CUSTODY_PREFIXES = Object.freeze([
+const INTERNAL_CUSTODY_PREFIXES = /* @__PURE__ */ Object.freeze([
   'snapback.agent-custody-gate.v1:',
   'snapback.agent-terminal-witness.v1:',
   'snapback.agent-terminal-ledger.v2:',
@@ -1027,10 +1027,11 @@ const nextDurableAuthorityEpoch = (value) => {
   return value + 1;
 };
 
-const memoryLocks = new WeakMap();
+let memoryLocks;
 const MEMORY_OWNERSHIP_WAIT_MS = 250;
 
 const memoryLockFor = (state, custodyId) => {
+  memoryLocks ??= new WeakMap();
   let locks = memoryLocks.get(state);
   if (!locks) {
     locks = new Map();

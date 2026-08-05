@@ -1,0 +1,220 @@
+{
+  "schemaVersion": "snapback.client-bundle-metrology-rollover-baseline.v1",
+  "source": {
+    "revision": "126d69d62ebd46a8499074cb000e1ebd6da7fecc",
+    "packageTrees": {
+      "packages/snapback-client": "7db070e47d3facd95d9c0e38a7c5f3be21af0ec2",
+      "packages/snapback-contract": "6c9718e624243bbaa9ab24a6dc2d8924d0a7c7b8",
+      "packages/snapback-react": "213559521b26487ba41ff80f2fd2833bce5c7e7d"
+    }
+  },
+  "authorities": [
+    "LLP 0063#workstream-8--performance-and-packaging-budgets",
+    "LLP 0145#phase-a--establish-a-size-ratchet",
+    "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
+  ],
+  "frozenRule": "declared prospective workload-version rollover; predecessor receipts remain immutable; valid ceilings never loosen",
+  "workloadVersion": "llp-0166-integrated-review-fixes.2026-08-04.v1",
+  "rationale": {
+    "date": "2026-08-04",
+    "reviewFindings": [
+      6,
+      9
+    ],
+    "summary": "Integrated-review findings 6 and 9 add the legacy preload no-op guard and typed optional-runtime load failure to rqs-preload-core.mjs. These are correctness bytes in the existing public-subpath-rqs-preload workload, so its 5,505-byte predecessor remains immutable and this exact one-profile rollover owns the successor ceiling."
+  },
+  "predecessors": [
+    {
+      "filename": "baseline.local-persistent-store.v1.json",
+      "sha256": "aacedbc6603aaa92eb5a35e0b9a6941b12a9a872c835e720d5ea746b198af66b",
+      "profileIds": [
+        "public-subpath-rqs-preload"
+      ]
+    }
+  ],
+  "method": {
+    "runtime": {
+      "node": "v24.18.0",
+      "zlib": "1.3.1-e00f703",
+      "brotli": "1.2.0"
+    },
+    "bundler": "esbuild@0.28.1",
+    "bundle": true,
+    "platform": "browser",
+    "format": "esm",
+    "target": "es2022",
+    "minify": true,
+    "treeShaking": true,
+    "legalComments": "none",
+    "conditions": [
+      "browser",
+      "import",
+      "default"
+    ],
+    "gzipLevel": 9,
+    "brotliQuality": 11,
+    "reactExternal": true,
+    "attribution": "esbuild module-own bytesInOutput grouped by stable package boundary"
+  },
+  "inputs": {
+    "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
+    "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+  },
+  "behaviorCommands": [
+    "node packages/snapback-client/store-runtime-wiring.test.mjs",
+    "node packages/snapback-client/materialization-bridge.test.mjs",
+    "node packages/snapback-client/browser-closure.test.mjs"
+  ],
+  "profiles": [
+    {
+      "id": "public-subpath-rqs-preload",
+      "package": "@expo/snapback-client/rqs-preload",
+      "fixtureSha256": "508ae1690ce2e6341c75e1eda7642651d929c6958ccbc107b34efd8683f4f90a",
+      "externals": [],
+      "minifiedBytes": 5549,
+      "gzipBytes": 2593,
+      "brotliBytes": 2177,
+      "outputSha256": "fb36a3ddafcbfc6ab5014bdc8656bc8bb49cad99722685c0900b2308dd5a5938",
+      "attribution": {
+        "packages": [
+          {
+            "name": "@expo/snapback-client",
+            "bytes": 5281
+          },
+          {
+            "name": "<fixture>",
+            "bytes": 135
+          }
+        ],
+        "modules": [
+          {
+            "module": "packages/snapback-client/rqs.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 2350
+          },
+          {
+            "module": "packages/snapback-client/rqs-preload-core.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 2198
+          },
+          {
+            "module": "packages/snapback-client/rqs-store.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 392
+          },
+          {
+            "module": "packages/snapback-client/rqs-store-meta.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 185
+          },
+          {
+            "module": "packages/snapback-client/canonical-client-value.mjs",
+            "package": "@expo/snapback-client",
+            "bytes": 156
+          },
+          {
+            "module": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-rqs-preload.fixture.mjs",
+            "package": "<fixture>",
+            "bytes": 135
+          }
+        ]
+      },
+      "metafile": {
+        "inputs": {
+          "packages/snapback-client/canonical-client-value.mjs": {
+            "bytes": 8030,
+            "imports": []
+          },
+          "packages/snapback-client/outbox-shared.mjs": {
+            "bytes": 23710,
+            "imports": [
+              {
+                "path": "packages/snapback-client/canonical-client-value.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs-preload-core.mjs": {
+            "bytes": 4301,
+            "imports": [
+              {
+                "path": "packages/snapback-client/rqs-store.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs-store-meta.mjs": {
+            "bytes": 5550,
+            "imports": []
+          },
+          "packages/snapback-client/rqs-store.mjs": {
+            "bytes": 29656,
+            "imports": [
+              {
+                "path": "./materialization-store-runtime.mjs",
+                "kind": "dynamic-import",
+                "external": true
+              },
+              {
+                "path": "packages/snapback-client/outbox-shared.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs-store-meta.mjs",
+                "kind": "import-statement",
+                "external": false
+              },
+              {
+                "path": "packages/snapback-client/rqs.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          },
+          "packages/snapback-client/rqs.mjs": {
+            "bytes": 15060,
+            "imports": []
+          },
+          "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-rqs-preload.fixture.mjs": {
+            "bytes": 266,
+            "imports": [
+              {
+                "path": "packages/snapback-client/rqs-preload-core.mjs",
+                "kind": "import-statement",
+                "external": false
+              }
+            ]
+          }
+        },
+        "output": {
+          "bytes": 5549,
+          "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-rqs-preload.fixture.mjs",
+          "imports": [],
+          "inputs": {
+            "packages/snapback-client/canonical-client-value.mjs": {
+              "bytesInOutput": 156
+            },
+            "packages/snapback-client/rqs-preload-core.mjs": {
+              "bytesInOutput": 2198
+            },
+            "packages/snapback-client/rqs-store-meta.mjs": {
+              "bytesInOutput": 185
+            },
+            "packages/snapback-client/rqs-store.mjs": {
+              "bytesInOutput": 392
+            },
+            "packages/snapback-client/rqs.mjs": {
+              "bytesInOutput": 2350
+            },
+            "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-rqs-preload.fixture.mjs": {
+              "bytesInOutput": 135
+            }
+          }
+        }
+      }
+    }
+  ]
+}

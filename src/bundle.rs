@@ -652,7 +652,10 @@ pub fn admit_mixed_profile_v2(
         capabilities.sort();
         capabilities.dedup();
         let expected_retention = if served.retainable {
-            "opaque-authorized-snapshot-v1"
+            served
+                .retention_class
+                .as_deref()
+                .unwrap_or("opaque-authorized-snapshot-v1")
         } else {
             "none"
         };
@@ -1375,7 +1378,10 @@ mod tests {
                 "exportKind": export_kind,
                 "live": live,
                 "retention": if function.retainable {
-                    "opaque-authorized-snapshot-v1"
+                    function
+                        .retention_class
+                        .as_deref()
+                        .unwrap_or("opaque-authorized-snapshot-v1")
                 } else {
                     "none"
                 },

@@ -3,6 +3,7 @@ import { test } from 'node:test';
 
 import {
   createRegistrationLedger,
+  derivePreloadQueryRegistrationsV1,
   DURABLE_REGISTRATION_BYTE_CEILING,
   DURABLE_REGISTRATION_RECORD_CEILING,
   prepareQueryRegistrationV1,
@@ -44,8 +45,12 @@ function registration({
     source,
     ownerContext,
     functionReference: address === null
-      ? { name: 'listTodos' }
-      : { name: `query${id}`, materializationKey: address },
+      ? { name: 'listTodos', authorityPartitionDigest: PARTITION }
+      : {
+          name: `query${id}`,
+          materializationKey: address,
+          authorityPartitionDigest: PARTITION,
+        },
     canonicalArgs: args,
     requestedScope: scope,
     retentionRequest,
@@ -111,8 +116,12 @@ test('S1 source durability is exact across restart', async () => {
   const durable = registration({ id: 'durable-restart', source: 'programmatic', context: 'saved' });
   first.ledger.applyContextDemands({
     contextId: 'context-1', authorityPartitionDigest: PARTITION, revision: 1,
-    demands: [active, preload],
+    demands: [active],
   });
+  assert.deepEqual(first.ledger.replacePreloadManifest({
+    manifestRevision: 'manifest-1',
+    registrations: [preload],
+  }), { committed: true, added: 1, retired: 0, duplicate: false });
   assert.deepEqual(await first.ledger.registerDurable(durable), { committed: true });
   await first.store.close();
 
@@ -122,12 +131,109 @@ test('S1 source durability is exact across restart', async () => {
     ['durable-restart'],
     'active is volatile and preload is manifest-derived; only programmatic reloads',
   );
-  second.ledger.applyContextDemands({
-    contextId: 'boot-2', authorityPartitionDigest: PARTITION, revision: 1,
-    demands: [registration({ id: 'preload-boot-2', source: 'preload', context: 'route-1' })],
+  second.ledger.replacePreloadManifest({
+    manifestRevision: 'manifest-2',
+    registrations: [registration({
+      id: 'preload-boot-2', source: 'preload', context: 'route-1',
+    })],
   });
   assert.equal(second.ledger.registrations().length, 2, 'boot re-derives preload demand');
   await second.store.close();
+});
+
+test('preload producer derives route ownership and atomically replaces the manifest set', async (t) => {
+  const { store, ledger } = await memoryLedger();
+  t.after(() => store.close());
+  const references = {
+    listTodos: { name: 'listTodos', materializationKey: qmk(3) },
+    listDone: { name: 'listDone', materializationKey: qmk(4) },
+  };
+  const first = derivePreloadQueryRegistrationsV1({
+    route: '/todos/:team',
+    generation: 'routes-generation-1',
+    entries: [
+      { function: 'listTodos', args: { team: 'red' } },
+      { function: 'listDone', args: { team: 'red' } },
+    ],
+  }, {
+    authorityPartitionDigest: PARTITION,
+    bootId: 'boot-1',
+    functionReferences: references,
+  });
+  assert.equal(first.registrations.length, 2);
+  assert.deepEqual(first.registrations.map((entry) => entry.ownerContext), [
+    { kind: 'route', routeId: '/todos/:team' },
+    { kind: 'route', routeId: '/todos/:team' },
+  ]);
+  assert.equal(first.registrations.every(
+    (entry) => entry.functionReference.authorityPartitionDigest === PARTITION,
+  ), true);
+  assert.deepEqual(ledger.replacePreloadManifest(first), {
+    committed: true, added: 2, retired: 0, duplicate: false,
+  });
+  assert.deepEqual(ledger.replacePreloadManifest(first), {
+    committed: true, added: 0, retired: 0, duplicate: true,
+  });
+
+  const second = derivePreloadQueryRegistrationsV1({
+    route: '/todos/:team',
+    generation: 'routes-generation-2',
+    entries: [{ function: 'listDone', args: { team: 'blue' } }],
+  }, {
+    authorityPartitionDigest: PARTITION,
+    bootId: 'boot-1',
+    functionReferences: references,
+  });
+  assert.deepEqual(ledger.replacePreloadManifest(second), {
+    committed: true, added: 1, retired: 2, duplicate: false,
+  });
+  assert.deepEqual(
+    ledger.registrations().map((entry) => entry.registration.canonicalArgs),
+    [{ team: 'blue' }],
+  );
+
+  const removed = derivePreloadQueryRegistrationsV1({
+    route: '/todos/:team', generation: 'routes-generation-3', entries: [],
+  }, { authorityPartitionDigest: PARTITION, bootId: 'boot-1' });
+  assert.deepEqual(ledger.replacePreloadManifest(removed), {
+    committed: true, added: 0, retired: 1, duplicate: false,
+  });
+  assert.equal(ledger.registrations().length, 0);
+  assert.equal(ledger.demandState(qmk(4)), 'undemanded', 'manifest removal enters ordinary grace');
+});
+
+test('preload manifest over the durable ceilings refuses without truncation or mutation', async (t) => {
+  const { store, ledger } = await memoryLedger();
+  t.after(() => store.close());
+  const baseline = derivePreloadQueryRegistrationsV1({
+    route: '/baseline', generation: 'g1', entries: [{ function: 'listTodos', args: {} }],
+  }, { authorityPartitionDigest: PARTITION, bootId: 'boot-cap' });
+  assert.equal(ledger.replacePreloadManifest(baseline).committed, true);
+  const overCap = derivePreloadQueryRegistrationsV1({
+    route: '/overflow',
+    generation: 'g2',
+    entries: Array.from({ length: DURABLE_REGISTRATION_RECORD_CEILING + 1 }, (_, index) => ({
+      function: 'listTodos', args: { index },
+    })),
+  }, { authorityPartitionDigest: PARTITION, bootId: 'boot-cap' });
+  assert.deepEqual(ledger.replacePreloadManifest(overCap), {
+    refused: { code: 'SNAPBACK_QUERY_REGISTRATION_LIMIT' },
+  });
+  assert.deepEqual(
+    ledger.registrations().map((entry) => entry.registration.registrationId),
+    baseline.registrations.map((entry) => entry.registrationId),
+  );
+  const oversize = derivePreloadQueryRegistrationsV1({
+    route: '/oversize', generation: 'g3', entries: [{ function: 'listTodos', args: {} }],
+  }, {
+    authorityPartitionDigest: PARTITION,
+    bootId: 'boot-cap',
+    functionReferences: { listTodos: { name: 'listTodos', metadata: 'x'.repeat(17_000) } },
+  });
+  assert.deepEqual(ledger.replacePreloadManifest(oversize), {
+    refused: { code: 'SNAPBACK_QUERY_REGISTRATION_BYTES_LIMIT' },
+  });
+  assert.equal(ledger.registrations().length, 1);
 });
 
 test('S1 durable registration caps refuse the 513th and a >16 KiB record without mutation', async (t) => {

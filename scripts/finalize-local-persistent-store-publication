@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+# This command never produces evidence. It accepts only retained, internally
+# qualified receipts, refreshes their source/digest chain, regenerates the
+# Rust-owned capability projection, and verifies the resulting publication.
+node tests/acceptance/triage-graph-move1-v1.mjs --check --require-qualified
+node tests/acceptance/local-store-carrier-exit-v1.mjs --check --require-qualified
+node scripts/refresh-publication-carrier.mjs
+# The committed capability-manifest instances are owned by the p2_ drift
+# tests' blessed update path, not snapback-schemagen (which only reaps
+# stale *.schema.json files).
+SNAPBACK_UPDATE_CAPABILITY_MANIFEST=1 DYLD_FRAMEWORK_PATH="$ROOT/vendor/ibex/ios/Frameworks" \
+  cargo test --test capability_v0 p2_
+node tests/conformance/local-persistent-store-publication-v1.mjs
