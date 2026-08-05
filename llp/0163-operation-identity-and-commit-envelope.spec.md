@@ -688,9 +688,10 @@ never themselves treated as authorization.
 Read, write, context-answer, and receipt detail is encrypted under
 XChaCha20-Poly1305 in `_snapback_operation_protected_detail_v1`; its root key
 lives in a separate owner-only `*.operation-detail-keyring.json` sidecar.
-The owning connection projects the loaded key through a direct-only scalar
-function whose captured bytes zeroize on connection drop; key custody does not
-retain a separate TEMP database pager or make the key durable in the data file.
+The owning connection performs sealing and opening inside a direct-only scalar
+function whose captured root key zeroizes on connection drop and is never an
+SQL input or result; key custody does not retain a separate TEMP database pager
+or make the key durable in the data file.
 Projection resolves the four protected classes plus inline-redacted effects as
 one closed read/write/context/effects/receipt set and
 returns `protected-custody-unavailable` if any required protected member is

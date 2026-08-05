@@ -22,9 +22,15 @@ use crate::diagnostic::{SnapbackError, SnapbackResult};
 
 const FORMAT_VERSION: u32 = 1;
 const KEY_BYTES: usize = 32;
+const NONCE_BYTES: usize = 24;
+const AEAD_TAG_BYTES: usize = 16;
 const PURPOSE: &[u8] = b"snapback:operation-protected-detail:xchacha20:v1";
 const MAX_KEY_FILE_BYTES: usize = 4 * 1024;
-const KEY_PROJECTION_FUNCTION: &str = "__snapback_operation_detail_key_v1";
+const KEY_CRYPTO_FUNCTION: &str = "__snapback_operation_detail_crypto_v1";
+const CRYPTO_RESPONSE_OK: u8 = 0;
+const CRYPTO_RESPONSE_METADATA_INVALID: u8 = 1;
+const CRYPTO_RESPONSE_AUTH_FAILED: u8 = 2;
+const CRYPTO_RESPONSE_VERSION: u8 = 1;
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -195,6 +201,7 @@ pub(crate) fn install(conn: &Connection, database_path: Option<&Path>) -> Snapba
             (key_id, secret)
         }
     };
+    let secret = Zeroizing::new(secret);
     if retained_ciphertext {
         let mismatched: bool = conn.query_row(
             "SELECT EXISTS(
@@ -211,64 +218,89 @@ pub(crate) fn install(conn: &Connection, database_path: Option<&Path>) -> Snapba
         }
         authenticate_retained_ciphertext(conn, &key_id, &secret)?;
     }
-    let key_id_bytes = key_id.as_bytes();
-    let key_id_len = u32::try_from(key_id_bytes.len())
-        .map_err(|_| invalid("protected operation detail key id is too large"))?;
-    let mut projection = Zeroizing::new(Vec::with_capacity(
-        std::mem::size_of::<u32>() + key_id_bytes.len() + KEY_BYTES,
-    ));
-    projection.extend_from_slice(&key_id_len.to_be_bytes());
-    projection.extend_from_slice(key_id_bytes);
-    projection.extend_from_slice(&secret);
-    // @ref LLP 0163#implementation-record--2026-08-04-explanation-and-protected-custody — the root key stays connection-local without retaining a second SQLite pager.
+    // The function returns only ciphertext or plaintext, never the root key.
+    // @ref LLP 0163#implementation-record--2026-08-04-explanation-and-protected-custody — protected crypto stays connection-local without retaining a second SQLite pager or projecting the key through SQL.
     conn.create_scalar_function(
-        KEY_PROJECTION_FUNCTION,
-        0,
+        KEY_CRYPTO_FUNCTION,
+        -1,
         rusqlite::functions::FunctionFlags::SQLITE_UTF8
             | rusqlite::functions::FunctionFlags::SQLITE_DIRECTONLY,
-        move |_| Ok(projection.as_slice().to_vec()),
+        move |context| {
+            if context.is_empty() {
+                return Err(rusqlite::Error::UserFunctionError(Box::new(
+                    std::io::Error::other(
+                        "protected operation detail crypto invocation is invalid",
+                    ),
+                )));
+            }
+            let mode: String = context.get(0)?;
+            match (mode.as_str(), context.len()) {
+                ("seal-v1", 4) => {
+                    let custody_reference: String = context.get(1)?;
+                    let payload_digest: String = context.get(2)?;
+                    let plaintext = Zeroizing::new(context.get::<Vec<u8>>(3)?);
+                    let mut nonce = [0_u8; NONCE_BYTES];
+                    if getrandom::fill(&mut nonce).is_err() {
+                        return Ok(vec![CRYPTO_RESPONSE_METADATA_INVALID]);
+                    }
+                    let Ok(ciphertext) = XChaCha20Poly1305::new((&*secret).into()).encrypt(
+                        XNonce::from_slice(&nonce),
+                        Payload {
+                            msg: &plaintext,
+                            aad: &aad(&custody_reference, &payload_digest),
+                        },
+                    ) else {
+                        return Ok(vec![CRYPTO_RESPONSE_AUTH_FAILED]);
+                    };
+                    let key_id_bytes = key_id.as_bytes();
+                    let Ok(key_id_len) = u32::try_from(key_id_bytes.len()) else {
+                        return Ok(vec![CRYPTO_RESPONSE_METADATA_INVALID]);
+                    };
+                    let mut response = Vec::with_capacity(
+                        2 + std::mem::size_of::<u32>()
+                            + key_id_bytes.len()
+                            + NONCE_BYTES
+                            + ciphertext.len(),
+                    );
+                    response.extend_from_slice(&[CRYPTO_RESPONSE_OK, CRYPTO_RESPONSE_VERSION]);
+                    response.extend_from_slice(&key_id_len.to_be_bytes());
+                    response.extend_from_slice(key_id_bytes);
+                    response.extend_from_slice(&nonce);
+                    response.extend_from_slice(&ciphertext);
+                    Ok(response)
+                }
+                ("open-v1", 6) => {
+                    let custody_reference: String = context.get(1)?;
+                    let payload_digest: String = context.get(2)?;
+                    let stored_key_id: String = context.get(3)?;
+                    let nonce: Vec<u8> = context.get(4)?;
+                    let ciphertext: Vec<u8> = context.get(5)?;
+                    if stored_key_id != key_id || nonce.len() != NONCE_BYTES {
+                        return Ok(vec![CRYPTO_RESPONSE_METADATA_INVALID]);
+                    }
+                    let Ok(plaintext) = XChaCha20Poly1305::new((&*secret).into()).decrypt(
+                        XNonce::from_slice(&nonce),
+                        Payload {
+                            msg: &ciphertext,
+                            aad: &aad(&custody_reference, &payload_digest),
+                        },
+                    ) else {
+                        return Ok(vec![CRYPTO_RESPONSE_AUTH_FAILED]);
+                    };
+                    let mut response = Vec::with_capacity(2 + plaintext.len());
+                    response.extend_from_slice(&[CRYPTO_RESPONSE_OK, CRYPTO_RESPONSE_VERSION]);
+                    response.extend_from_slice(&plaintext);
+                    Ok(response)
+                }
+                _ => Err(rusqlite::Error::UserFunctionError(Box::new(
+                    std::io::Error::other(
+                        "protected operation detail crypto invocation is invalid",
+                    ),
+                ))),
+            }
+        },
     )?;
     Ok(())
-}
-
-fn key(conn: &Connection) -> SnapbackResult<(String, [u8; KEY_BYTES])> {
-    let projection: Vec<u8> = conn
-        .query_row(&format!("SELECT {KEY_PROJECTION_FUNCTION}()"), [], |row| {
-            row.get(0)
-        })
-        .map_err(|_| invalid("protected operation detail key is not installed"))?;
-    let projection = Zeroizing::new(projection);
-    let key_id_len = projection
-        .get(..std::mem::size_of::<u32>())
-        .and_then(|bytes| bytes.try_into().ok())
-        .map(u32::from_be_bytes)
-        .and_then(|length| usize::try_from(length).ok())
-        .ok_or_else(|| invalid("protected operation detail key projection is invalid"))?;
-    let secret_offset = std::mem::size_of::<u32>()
-        .checked_add(key_id_len)
-        .ok_or_else(|| invalid("protected operation detail key projection is invalid"))?;
-    if secret_offset
-        .checked_add(KEY_BYTES)
-        .filter(|length| *length == projection.len())
-        .is_none()
-    {
-        return Err(invalid(
-            "protected operation detail key projection has an invalid length",
-        ));
-    }
-    let key_id = std::str::from_utf8(
-        projection
-            .get(std::mem::size_of::<u32>()..secret_offset)
-            .ok_or_else(|| invalid("protected operation detail key projection is invalid"))?,
-    )
-    .ok()
-    .filter(|key_id| !key_id.is_empty())
-    .map(str::to_owned)
-    .ok_or_else(|| invalid("protected operation detail key id is invalid"))?;
-    let secret = projection[secret_offset..]
-        .try_into()
-        .map_err(|_| invalid("protected operation detail key has an invalid length"))?;
-    Ok((key_id, secret))
 }
 
 fn aad(custody_reference: &str, payload_digest: &str) -> Vec<u8> {
@@ -286,23 +318,70 @@ pub(crate) fn seal_in(
     payload_digest: &str,
     detail: &Value,
 ) -> SnapbackResult<u64> {
-    let plaintext = serde_json::to_vec(detail)
-        .map_err(|_| invalid("protected operation detail could not be encoded"))?;
+    let plaintext = Zeroizing::new(
+        serde_json::to_vec(detail)
+            .map_err(|_| invalid("protected operation detail could not be encoded"))?,
+    );
     let payload_bytes = u64::try_from(plaintext.len())
         .map_err(|_| invalid("protected operation detail length overflowed"))?;
-    let (key_id, secret) = key(tx)?;
-    let mut nonce = [0_u8; 24];
-    getrandom::fill(&mut nonce)
-        .map_err(|_| invalid("protected operation detail nonce generation failed"))?;
-    let ciphertext = XChaCha20Poly1305::new((&secret).into())
-        .encrypt(
-            XNonce::from_slice(&nonce),
-            Payload {
-                msg: &plaintext,
-                aad: &aad(custody_reference, payload_digest),
-            },
+    let response: Vec<u8> = tx
+        .query_row(
+            &format!("SELECT {KEY_CRYPTO_FUNCTION}('seal-v1',?1,?2,?3)"),
+            params![custody_reference, payload_digest, plaintext.as_slice()],
+            |row| row.get(0),
         )
-        .map_err(|_| invalid("protected operation detail encryption failed"))?;
+        .map_err(|_| invalid("protected operation detail crypto is not installed"))?;
+    match response.as_slice() {
+        [CRYPTO_RESPONSE_METADATA_INVALID] => {
+            return Err(invalid(
+                "protected operation detail nonce generation or key metadata failed",
+            ));
+        }
+        [CRYPTO_RESPONSE_AUTH_FAILED] => {
+            return Err(invalid("protected operation detail encryption failed"));
+        }
+        _ => {}
+    }
+    if response.get(..2) != Some(&[CRYPTO_RESPONSE_OK, CRYPTO_RESPONSE_VERSION]) {
+        return Err(invalid(
+            "protected operation detail seal response is invalid",
+        ));
+    }
+    let key_id_len = response
+        .get(2..2 + std::mem::size_of::<u32>())
+        .and_then(|bytes| bytes.try_into().ok())
+        .map(u32::from_be_bytes)
+        .and_then(|length| usize::try_from(length).ok())
+        .ok_or_else(|| invalid("protected operation detail seal response is invalid"))?;
+    let key_id_start = 2 + std::mem::size_of::<u32>();
+    let nonce_start = key_id_start
+        .checked_add(key_id_len)
+        .ok_or_else(|| invalid("protected operation detail seal response is invalid"))?;
+    let ciphertext_start = nonce_start
+        .checked_add(NONCE_BYTES)
+        .ok_or_else(|| invalid("protected operation detail seal response is invalid"))?;
+    let expected_ciphertext_bytes = plaintext
+        .len()
+        .checked_add(AEAD_TAG_BYTES)
+        .ok_or_else(|| invalid("protected operation detail seal response is invalid"))?;
+    if ciphertext_start
+        .checked_add(expected_ciphertext_bytes)
+        .filter(|length| *length == response.len())
+        .is_none()
+    {
+        return Err(invalid(
+            "protected operation detail seal response has an invalid length",
+        ));
+    }
+    let key_id = std::str::from_utf8(&response[key_id_start..nonce_start])
+        .ok()
+        .filter(|key_id| !key_id.is_empty())
+        .map(str::to_owned)
+        .ok_or_else(|| invalid("protected operation detail seal key id is invalid"))?;
+    let nonce: [u8; NONCE_BYTES] = response[nonce_start..ciphertext_start]
+        .try_into()
+        .map_err(|_| invalid("protected operation detail seal nonce is invalid"))?;
+    let ciphertext = &response[ciphertext_start..];
     tx.execute(
         "INSERT INTO _snapback_operation_protected_detail_v1(
            custody_reference,key_id,nonce,ciphertext,payload_digest,payload_bytes
@@ -337,21 +416,42 @@ pub(crate) fn open(
     let Some((stored_key_id, nonce, ciphertext, payload_bytes)) = row else {
         return Ok(None);
     };
-    let (key_id, secret) = key(conn)?;
-    if stored_key_id != key_id || nonce.len() != 24 || payload_bytes < 0 {
+    if nonce.len() != NONCE_BYTES || payload_bytes < 0 {
         return Err(invalid(
             "protected operation detail custody metadata is invalid",
         ));
     }
-    let plaintext = XChaCha20Poly1305::new((&secret).into())
-        .decrypt(
-            XNonce::from_slice(&nonce),
-            Payload {
-                msg: &ciphertext,
-                aad: &aad(custody_reference, payload_digest),
-            },
+    let response: Vec<u8> = conn
+        .query_row(
+            &format!("SELECT {KEY_CRYPTO_FUNCTION}('open-v1',?1,?2,?3,?4,?5)"),
+            params![
+                custody_reference,
+                payload_digest,
+                stored_key_id,
+                nonce,
+                ciphertext
+            ],
+            |row| row.get(0),
         )
-        .map_err(|_| invalid("protected operation detail authentication failed"))?;
+        .map_err(|_| invalid("protected operation detail crypto is not installed"))?;
+    let response = Zeroizing::new(response);
+    match response.as_slice() {
+        [CRYPTO_RESPONSE_METADATA_INVALID] => {
+            return Err(invalid(
+                "protected operation detail custody metadata is invalid",
+            ));
+        }
+        [CRYPTO_RESPONSE_AUTH_FAILED] => {
+            return Err(invalid("protected operation detail authentication failed"));
+        }
+        _ => {}
+    }
+    if response.get(..2) != Some(&[CRYPTO_RESPONSE_OK, CRYPTO_RESPONSE_VERSION]) {
+        return Err(invalid(
+            "protected operation detail open response is invalid",
+        ));
+    }
+    let plaintext = &response[2..];
     if plaintext.len() != payload_bytes as usize {
         return Err(invalid(
             "protected operation detail length does not match custody",
@@ -368,17 +468,22 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn installed_key_uses_no_temp_schema_and_protected_detail_round_trips() {
+    fn installed_key_uses_no_temp_database_and_protected_detail_round_trips() {
         let mut conn = Connection::open_in_memory().expect("database");
         install(&conn, None).expect("install protected custody");
-        let temp_objects: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM sqlite_temp_schema WHERE name NOT GLOB 'sqlite_*'",
+        let attached_temp_databases = |conn: &Connection| {
+            conn.query_row(
+                "SELECT COUNT(*) FROM pragma_database_list WHERE name='temp'",
                 [],
-                |row| row.get(0),
+                |row| row.get::<_, i64>(0),
             )
-            .expect("inspect temp schema");
-        assert_eq!(temp_objects, 0, "key custody must not retain a TEMP pager");
+            .expect("inspect attached databases")
+        };
+        assert_eq!(
+            attached_temp_databases(&conn),
+            0,
+            "key custody must not attach a TEMP pager"
+        );
 
         let tx = conn.transaction().expect("protected detail transaction");
         crate::operation_ledger::create_infra(&tx).expect("operation infra");
@@ -391,6 +496,44 @@ mod tests {
             open(&conn, "operation-detail:test:round-trip", &digest)
                 .expect("open protected detail"),
             Some(expected)
+        );
+        assert_eq!(
+            attached_temp_databases(&conn),
+            0,
+            "a real protected-detail round trip must not attach a TEMP pager"
+        );
+    }
+
+    #[test]
+    fn installed_crypto_refuses_indirect_schema_invocation() {
+        let conn = Connection::open_in_memory().expect("database");
+        install(&conn, None).expect("install protected custody");
+        let digest = format!("sha256:{}", "a".repeat(64));
+        conn.execute_batch(&format!(
+            "CREATE VIEW _snapback_operation_detail_indirect_probe_v1 AS
+             SELECT {KEY_CRYPTO_FUNCTION}(
+               'seal-v1',
+               'operation-detail:test:indirect',
+               '{digest}',
+               X'7B7D'
+             ) AS packed;"
+        ))
+        .expect("create indirect probe view");
+        let error = conn
+            .query_row(
+                "SELECT packed FROM _snapback_operation_detail_indirect_probe_v1",
+                [],
+                |row| row.get::<_, Vec<u8>>(0),
+            )
+            .expect_err("DIRECTONLY crypto must refuse view invocation");
+        let detail = error.to_string();
+        assert!(
+            detail.contains("unsafe use of"),
+            "unexpected error: {detail}"
+        );
+        assert!(
+            detail.contains(KEY_CRYPTO_FUNCTION),
+            "unexpected error: {detail}"
         );
     }
 
