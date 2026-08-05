@@ -307,7 +307,7 @@ export class Gate {
 }
 
 const allowed = new Set([
-  "query", "mutation", "mutation-retry", "runtime-facts", "activation-probe", "ambient-fetch", "ambient-global-fetch", "allowlisted-fetch",
+  "query", "mutation", "mutation-retry", "runtime-facts", "activation-probe", "ambient-fetch", "ambient-global-fetch", "ambient-captured-fetch", "allowlisted-fetch",
   "denied-action-fetch", "slow-action", "queue-hold", "oversized-response",
   "subrequest-bomb", "cpu-spin", "stale-capability", "tamper-app-capability",
   "tamper-release-capability",
@@ -359,7 +359,7 @@ export default {
       return json(400, { ok: false, code: "SNAPBACK_ROLE_OPERATION_MISMATCH" });
     }
     if (role === "action" &&
-        !["activation-probe", "ambient-global-fetch", "allowlisted-fetch", "denied-action-fetch", "slow-action", "subrequest-bomb"].includes(operation)) {
+        !["activation-probe", "ambient-global-fetch", "ambient-captured-fetch", "allowlisted-fetch", "denied-action-fetch", "slow-action", "subrequest-bomb"].includes(operation)) {
       return json(400, { ok: false, code: "SNAPBACK_ROLE_OPERATION_MISMATCH" });
     }
     const bodyBytes = await request.arrayBuffer();
@@ -479,7 +479,7 @@ export default {
 `;
 }
 
-function userWorkerSource({ appId, release, role }) {
+function userWorkerHarnessSource({ appId, release, role }) {
   return `
 const APP_ID = ${JSON.stringify(appId)};
 const ENVIRONMENT_ID = ${JSON.stringify(`${appId}-environment`)};
@@ -488,6 +488,7 @@ const ROLE = ${JSON.stringify(role)};
 const OBJECT_ID = "root";
 const forbiddenScopeKeys = new Set(["appId", "environmentId", "objectId", "release", "requestId", "deadline"]);
 const nativeFetch = globalThis.fetch.bind(globalThis);
+let applicationModulePromise = null;
 
 function json(status, body) {
   return new Response(JSON.stringify(body), {
@@ -501,7 +502,7 @@ Object.defineProperty(globalThis, "fetch", {
     ok: false,
     code: ROLE === "handler"
       ? "SNAPBACK_HANDLER_AMBIENT_NETWORK_DENIED"
-      : "SNAPBACK_ACTION_AMBIENT_NETWORK_DENIED_USE_GOVERNED_FETCH",
+      : "SNAPBACK_ACTION_AMBIENT_NETWORK_DENIED_USE_CTX_FETCH",
     role: ROLE,
   }),
   writable: false,
@@ -539,19 +540,15 @@ async function hostCall(request, env, op, payload, capabilityOverride = null) {
   }));
 }
 
+async function applicationModule() {
+  applicationModulePromise ||= import("./application.mjs");
+  return applicationModulePromise;
+}
+
 export default {
   async fetch(request, env) {
     const { args = {} } = await request.json();
     const operation = request.headers.get("x-snapback-operation");
-    let subrequests = 0;
-    const boundedFetch = async (...fetchArgs) => {
-      if (ROLE !== "action") {
-        return json(403, { ok: false, code: "SNAPBACK_HANDLER_AMBIENT_NETWORK_DENIED", role: ROLE });
-      }
-      subrequests += 1;
-      if (subrequests > ${SUBREQUESTS}) throw new Error("SNAPBACK_SUBREQUEST_LIMIT");
-      return nativeFetch(...fetchArgs);
-    };
     const argKeys = Object.keys(args).sort();
     if (argKeys.some((key) => forbiddenScopeKeys.has(key))) {
       return json(400, {
@@ -559,66 +556,6 @@ export default {
         code: "SNAPBACK_HOST_SCOPE_ARGUMENT_FORBIDDEN",
         rejectedKeys: argKeys.filter((key) => forbiddenScopeKeys.has(key)),
       });
-    }
-    if (operation === "activation-probe") {
-      return json(200, { ok: true, appId: APP_ID, release: RELEASE, role: ROLE });
-    }
-    if (operation === "cpu-spin") {
-      let checksum = 2_166_136_261;
-      const witness = new Uint32Array(256);
-      for (let index = 0; index < 200_000_000; index += 1) {
-        checksum = Math.imul(checksum ^ (index + witness[index & 255]), 16_777_619) >>> 0;
-        if ((index & 1_048_575) === 0) witness[(index >>> 20) & 255] = checksum;
-      }
-      return json(200, { ok: true, unexpected: "CPU limit did not fire", checksum });
-    }
-    if (operation === "runtime-facts") {
-      return json(200, {
-        ok: true,
-        requestCfType: typeof request.cf,
-        cacheDefaultType: typeof caches === "undefined" ? "undefined" : typeof caches.default,
-      });
-    }
-    if (operation === "oversized-response") {
-      return json(200, { ok: true, payload: "x".repeat(128 * 1024) });
-    }
-    if (operation === "ambient-fetch") {
-      const response = await boundedFetch("https://example.com/");
-      return json(200, { ok: true, outboundStatus: response.status, role: ROLE });
-    }
-    if (operation === "ambient-global-fetch") {
-      const response = await globalThis.fetch("https://example.com/");
-      return json(200, { ok: true, outboundStatus: response.status, role: ROLE });
-    }
-    if (operation === "allowlisted-fetch") {
-      const response = await boundedFetch("https://example.com/");
-      return json(200, { ok: true, outboundStatus: response.status, role: ROLE });
-    }
-    if (operation === "denied-action-fetch") {
-      const response = await boundedFetch("https://not-allowlisted.invalid/");
-      return json(200, { ok: true, outboundStatus: response.status, role: ROLE });
-    }
-    if (operation === "slow-action") {
-      await new Promise((resolve) => setTimeout(resolve, Number(args.delayMs || 1_200)));
-      const response = await boundedFetch("https://example.com/");
-      return json(200, { ok: true, outboundStatus: response.status, role: ROLE });
-    }
-    if (operation === "queue-hold") {
-      return hostCall(request, env, "delay", { delayMs: Number(args.delayMs || 700), applicationArgKeys: argKeys });
-    }
-    if (operation === "subrequest-bomb") {
-      try {
-        for (let index = 0; index < 12; index += 1) {
-          const response = await boundedFetch("https://example.com/?snapback-subrequest=" + index);
-          await response.arrayBuffer();
-        }
-      } catch (error) {
-        if (error?.message === "SNAPBACK_SUBREQUEST_LIMIT") {
-          return json(429, { ok: false, code: "SNAPBACK_SUBREQUEST_LIMIT", limit: ${SUBREQUESTS} });
-        }
-        throw error;
-      }
-      return json(200, { ok: true, unexpected: "subrequest limit did not fire" });
     }
     if (operation === "tamper-app-capability") {
       const changed = tamper(request.headers.get("x-snapback-capability"), { appId: "app-b" });
@@ -628,15 +565,119 @@ export default {
       const changed = tamper(request.headers.get("x-snapback-capability"), { release: RELEASE === "r1" ? "r2" : "r1" });
       return hostCall(request, env, "query", { applicationArgKeys: argKeys }, changed);
     }
-    if (operation === "query" || operation === "stale-capability") {
-      return hostCall(request, env, "query", { applicationArgKeys: argKeys, value: args.value ?? null });
+
+    const identity = Object.freeze({ appId: APP_ID, environmentId: ENVIRONMENT_ID, release: RELEASE, role: ROLE });
+    let ctx;
+    if (ROLE === "action") {
+      let subrequests = 0;
+      ctx = Object.freeze({
+        identity,
+        fetch: async (...fetchArgs) => {
+          subrequests += 1;
+          if (subrequests > ${SUBREQUESTS}) throw new Error("SNAPBACK_SUBREQUEST_LIMIT");
+          return nativeFetch(...fetchArgs);
+        },
+      });
+    } else {
+      ctx = Object.freeze({
+        identity,
+        runtimeFacts: Object.freeze({
+          requestCfType: typeof request.cf,
+          cacheDefaultType: typeof caches === "undefined" ? "undefined" : typeof caches.default,
+        }),
+        query: (payload) => hostCall(request, env, "query", payload),
+        mutation: (payload) => hostCall(request, env, "mutation", payload),
+        delay: (payload) => hostCall(request, env, "delay", payload),
+      });
     }
-    if (operation === "mutation" || operation === "mutation-retry") {
-      return hostCall(request, env, "mutation", { applicationArgKeys: argKeys, delta: Number(args.delta || 1) });
-    }
-    return json(400, { ok: false, code: "SNAPBACK_USER_OPERATION_UNKNOWN" });
+    const application = await applicationModule();
+    return application.run({ operation, args, argKeys, ctx });
   },
 };
+`;
+}
+
+function userApplicationSource() {
+  return `
+const capturedAmbientFetch = globalThis.fetch;
+
+function json(status, body) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
+export async function run({ operation, args, argKeys, ctx }) {
+  const role = ctx.identity.role;
+  if (operation === "activation-probe") {
+    return json(200, { ok: true, appId: ctx.identity.appId, release: ctx.identity.release, role });
+  }
+  if (operation === "cpu-spin") {
+    let checksum = 2_166_136_261;
+    const witness = new Uint32Array(256);
+    for (let index = 0; index < 200_000_000; index += 1) {
+      checksum = Math.imul(checksum ^ (index + witness[index & 255]), 16_777_619) >>> 0;
+      if ((index & 1_048_575) === 0) witness[(index >>> 20) & 255] = checksum;
+    }
+    return json(200, { ok: true, unexpected: "CPU limit did not fire", checksum });
+  }
+  if (operation === "runtime-facts") {
+    return json(200, { ok: true, ...ctx.runtimeFacts });
+  }
+  if (operation === "oversized-response") {
+    return json(200, { ok: true, payload: "x".repeat(128 * 1024) });
+  }
+  if (operation === "ambient-fetch") {
+    const response = await fetch("https://example.com/");
+    return json(200, { ok: true, outboundStatus: response.status, role });
+  }
+  if (operation === "ambient-global-fetch") {
+    const response = await globalThis.fetch("https://example.com/");
+    return json(200, { ok: true, outboundStatus: response.status, role });
+  }
+  if (operation === "ambient-captured-fetch") {
+    const response = await capturedAmbientFetch("https://example.com/");
+    return json(200, { ok: true, outboundStatus: response.status, role });
+  }
+  if (operation === "allowlisted-fetch") {
+    const response = await ctx.fetch("https://example.com/");
+    return json(200, { ok: true, outboundStatus: response.status, role });
+  }
+  if (operation === "denied-action-fetch") {
+    const response = await ctx.fetch("https://not-allowlisted.invalid/");
+    return json(200, { ok: true, outboundStatus: response.status, role });
+  }
+  if (operation === "slow-action") {
+    await new Promise((resolve) => setTimeout(resolve, Number(args.delayMs || 1_200)));
+    const response = await ctx.fetch("https://example.com/");
+    return json(200, { ok: true, outboundStatus: response.status, role });
+  }
+  if (operation === "queue-hold") {
+    return ctx.delay({ delayMs: Number(args.delayMs || 700), applicationArgKeys: argKeys });
+  }
+  if (operation === "subrequest-bomb") {
+    try {
+      for (let index = 0; index < 12; index += 1) {
+        const response = await ctx.fetch("https://example.com/?snapback-subrequest=" + index);
+        await response.arrayBuffer();
+      }
+    } catch (error) {
+      if (error?.message === "SNAPBACK_SUBREQUEST_LIMIT") {
+        return json(429, { ok: false, code: "SNAPBACK_SUBREQUEST_LIMIT", limit: ${SUBREQUESTS} });
+      }
+      throw error;
+    }
+    return json(200, { ok: true, unexpected: "subrequest limit did not fire" });
+  }
+  if (operation === "query" || operation === "stale-capability") {
+    return ctx.query({ applicationArgKeys: argKeys, value: args.value ?? null });
+  }
+  if (operation === "mutation" || operation === "mutation-retry") {
+    return ctx.mutation({ applicationArgKeys: argKeys, delta: Number(args.delta || 1) });
+  }
+  return json(400, { ok: false, code: "SNAPBACK_USER_OPERATION_UNKNOWN" });
+}
 `;
 }
 
@@ -704,6 +745,10 @@ async function main() {
       roles: ['handler', 'action'],
       userWorkerCount: 8,
       userWorkerBindingEnvelope: [{ type: 'service', name: 'HOST', service: names.host }],
+      userWorkerModuleBoundary: {
+        trustedMain: 'worker.mjs owns env.HOST, capability transport, native fetch capture, and ambient freeze',
+        application: 'application.mjs is dynamically evaluated after ambient freeze and receives only an invocation-scoped ctx',
+      },
       dispatchPaths: {
         handler: { binding: 'HANDLER_DISPATCHER', outboundWorker: false },
         action: { binding: 'ACTION_DISPATCHER', outboundWorker: names.outbound },
@@ -719,7 +764,7 @@ async function main() {
       },
       generatedHarness: {
         subRequests: SUBREQUESTS,
-        note: 'fail-closed before the outbound Worker handoff; the separate minimal-control receipt proves Cloudflare native subrequest enforcement without an outbound Worker',
+        note: 'invocation-scoped ctx.fetch fails closed before outbound handoff; application.mjs cannot access the trusted main module native-fetch closure, and the separate minimal-control receipt proves native enforcement without outbound',
       },
       dispatcherEnforced: {
         responseBytes: RESPONSE_BYTES,
@@ -735,7 +780,7 @@ async function main() {
     nonClaims: [
       'This disposable proof does not qualify the eas-cloudflare-wfp-v1 capability profile or graduate hosted_untrusted_code.',
       'Cloudflare native CPU enforcement has documented isolate flexibility, so the busy-loop witness repeats until termination and records every attempt rather than asserting a strict elapsed-time cutoff.',
-      'The generated user-Worker harness fails closed at the subrequest ceiling before the outbound Worker handoff. Native WfP subrequest enforcement is independently proved by the binding-free minimal-control receipt because outbound interception changes the observed accounting boundary.',
+      'The trusted user-Worker main module fails closed at the subrequest ceiling before outbound handoff. It freezes ambient fetch before dynamically evaluating separate application.mjs and passes only invocation-scoped ctx.fetch. Native WfP subrequest enforcement is independently proved by the binding-free minimal-control receipt because outbound interception changes the observed accounting boundary.',
       'Response, concurrency, queue, and wall-clock limits remain disposable dispatcher/Gate code.',
       'The action-role mechanism is a separate namespaced script and admission gate; Gate 0 must still select the production kill-domain mechanism.',
       'The disposable Workers.dev route must cross a three-round concurrent readiness barrier before P0.1 starts; this does not qualify any Expo ingress or production route shape, which remains P0.2 work.',
@@ -766,10 +811,15 @@ async function main() {
     return { result: payload?.result ?? payload, headers: response.headers, status: response.status };
   }
 
-  async function uploadScript(pathname, metadata, source) {
+  async function uploadScript(pathname, metadata, modules) {
     const form = new FormData();
     form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-    form.append('worker.mjs', new Blob([source], { type: 'application/javascript+module' }), 'worker.mjs');
+    const moduleEntries = typeof modules === 'string'
+      ? [['worker.mjs', modules]]
+      : Object.entries(modules);
+    for (const [moduleName, source] of moduleEntries) {
+      form.append(moduleName, new Blob([source], { type: 'application/javascript+module' }), moduleName);
+    }
     return api(pathname, { method: 'PUT', body: form });
   }
 
@@ -778,16 +828,23 @@ async function main() {
     created.workers.push(name);
   }
 
-  async function uploadNamespaced(name, metadata, source) {
+  async function uploadNamespaced(name, metadata, harnessSource, applicationSource) {
     const base = `/accounts/${accountId}/workers/dispatch/namespaces/${encodeURIComponent(options.namespace)}/scripts/${encodeURIComponent(name)}`;
-    const uploaded = await uploadScript(base, metadata, source);
+    const uploaded = await uploadScript(base, metadata, {
+      'worker.mjs': harnessSource,
+      'application.mjs': applicationSource,
+    });
     created.namespaceScripts.push(name);
     const readBack = await api(`${base}/bindings`);
     const returnedBindings = Array.isArray(uploaded.result?.bindings) ? uploaded.result.bindings : [];
     const readBackBindings = Array.isArray(readBack.result) ? readBack.result : [];
     bindingReceipts.push({
       script: name,
-      sourceSha256: sha256(source),
+      sourceSha256: sha256(`${harnessSource}\n${applicationSource}`),
+      moduleSha256: {
+        'worker.mjs': sha256(harnessSource),
+        'application.mjs': sha256(applicationSource),
+      },
       multipartMetadata: metadata.bindings,
       uploadResponseBindings: returnedBindings,
       bindingsEndpoint: readBackBindings,
@@ -928,7 +985,12 @@ async function main() {
         for (const role of ['handler', 'action']) {
           const script = `${appId}-${release}-${role}`;
           const metadata = metadataForUserWorker(names.host);
-          await uploadNamespaced(script, metadata, userWorkerSource({ appId, release, role }));
+          await uploadNamespaced(
+            script,
+            metadata,
+            userWorkerHarnessSource({ appId, release, role }),
+            userApplicationSource(),
+          );
         }
       }
     }
@@ -1205,9 +1267,11 @@ async function main() {
 
     const deniedHandler = await invoke('app-a', 'r1', 'handler', 'ambient-fetch');
     const deniedGlobalHandler = await invoke('app-a', 'r1', 'handler', 'ambient-global-fetch');
+    const deniedCapturedHandler = await invoke('app-a', 'r1', 'handler', 'ambient-captured-fetch');
     check('handler-ambient-network-denied', deniedHandler.status === 200 &&
       deniedHandler.body?.outboundStatus === 403 && deniedGlobalHandler.status === 200 &&
-      deniedGlobalHandler.body?.outboundStatus === 403, {
+      deniedGlobalHandler.body?.outboundStatus === 403 && deniedCapturedHandler.status === 200 &&
+      deniedCapturedHandler.body?.outboundStatus === 403, {
       lexicalFetch: {
         status: deniedHandler.status,
         outboundStatus: deniedHandler.body?.outboundStatus,
@@ -1218,16 +1282,23 @@ async function main() {
         outboundStatus: deniedGlobalHandler.body?.outboundStatus,
         role: deniedGlobalHandler.body?.role || null,
       },
-      layer: 'generated handler harness freezes globalThis.fetch before handler code runs',
+      applicationCapturedFetch: {
+        status: deniedCapturedHandler.status,
+        outboundStatus: deniedCapturedHandler.body?.outboundStatus,
+        role: deniedCapturedHandler.body?.role || null,
+      },
+      layer: 'trusted main module freezes globalThis.fetch before dynamically evaluating the separate application module',
     });
 
     const allowedAction = await invoke('app-a', 'r1', 'action', 'allowlisted-fetch');
     const deniedGlobalAction = await invoke('app-a', 'r1', 'action', 'ambient-global-fetch');
+    const deniedCapturedAction = await invoke('app-a', 'r1', 'action', 'ambient-captured-fetch');
     const deniedAction = await invoke('app-a', 'r1', 'action', 'denied-action-fetch');
     check('action-allowlisted-fetch', allowedAction.status === 200 &&
       allowedAction.body?.outboundStatus === 200 && allowedAction.body?.role === 'action' &&
       deniedGlobalAction.status === 200 && deniedGlobalAction.body?.outboundStatus === 403 &&
-      deniedGlobalAction.body?.role === 'action', {
+      deniedGlobalAction.body?.role === 'action' && deniedCapturedAction.status === 200 &&
+      deniedCapturedAction.body?.outboundStatus === 403 && deniedCapturedAction.body?.role === 'action', {
       status: allowedAction.status,
       outboundStatus: allowedAction.body?.outboundStatus,
       ambientGlobalFetch: {
@@ -1235,7 +1306,12 @@ async function main() {
         outboundStatus: deniedGlobalAction.body?.outboundStatus,
         role: deniedGlobalAction.body?.role || null,
       },
-      layer: 'action ambient global fetch is frozen-denied; outbound access requires the per-invocation governed helper',
+      applicationCapturedFetch: {
+        status: deniedCapturedAction.status,
+        outboundStatus: deniedCapturedAction.body?.outboundStatus,
+        role: deniedCapturedAction.body?.role || null,
+      },
+      layer: 'application module loads after ambient freeze; outbound access requires invocation-scoped ctx.fetch',
     });
     check('action-nonallowlisted-fetch-denied', deniedAction.status === 200 &&
       deniedAction.body?.outboundStatus === 403 && deniedAction.body?.role === 'action', {
