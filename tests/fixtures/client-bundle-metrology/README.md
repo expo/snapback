@@ -131,13 +131,6 @@ installation-storage subpath independently, including a closure assertion that
 the adapter does not pull the push-registry runtime or a native module into the
 bundle.
 
-The LLP 0044 asset implementation-identity landing advances only the existing
-`public-subpath-assets` workload. Its
-`asset-implementation-identity-profiles.v1.json` declaration rolls that row
-forward from the immutable primary receipt and retains exact before/after
-metrics in `baseline.asset-implementation-identity.v1.json`; no unrelated
-public closure receives a new ceiling.
-
 The LLP 0166 finish-out extension is `baseline.result-transform.v1.json`,
 backed by `result-transform-profiles.v1.json`. It freezes the newly public pure
 evaluator subpath and Lane E's opt-in `./rqs-registered` mixed-route validator

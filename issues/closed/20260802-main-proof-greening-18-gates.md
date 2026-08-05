@@ -577,11 +577,15 @@ act. The tag carrier preserves both immutable source objects without weakening
 LLP 0134's transition audit.
 
 After current main advanced to `4a6000ac6`, the asset implementation-identity
-landing `58b9755ee` grew only `public-subpath-assets` by 138 minified, 29 gzip,
-and 19 Brotli bytes. This pass declares the LLP 0044 one-profile workload
-rollover and retains the primary receipt as its immutable predecessor. It is
-asset-carrier drift attributable to that landing, not a PUSH-01 or F0a
-correctness failure.
+landing `58b9755ee` initially appeared to grow only `public-subpath-assets` by
+138 minified, 29 gzip, and 19 Brotli bytes. The first integrated pass therefore
+prepared a one-profile LLP 0044 rollover. Main commit `ba4864e34` then isolated
+the breach to the dead `state.lifecycleGeneration` assignment introduced by
+`1b4d104bc` and removed it, bringing the profile to 13,855 / 5,550 / 4,814 —
+below the original immutable 13,860 / 5,564 / 4,814 ceiling. The candidate
+absorbs that fix and drops the prepared rollover instead of permanently
+loosening a ceiling for dead code. This was asset-carrier drift attributable
+to those landings, not a PUSH-01 or F0a correctness failure.
 
 ### Batched publication-carrier refresh — 2026-08-05
 

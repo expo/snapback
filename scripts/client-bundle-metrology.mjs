@@ -322,12 +322,6 @@ const POST_FFEE_ROLLOVER_PROFILE_IDS = Object.freeze([
   ...POST_FFEE_FINITE_PREDECESSOR_PROFILE_IDS,
   ...POST_FFEE_PRIMARY_PREDECESSOR_PROFILE_IDS,
 ].toSorted());
-// @ref LLP 0044#asset-intent-implementation-identity-the-helper-closure-joins-the-carrier-dated-decision-2026-08-03
-// — carrying executable identity through the public upload reference evolves
-// only the already-measured assets subpath closure.
-const ASSET_IMPLEMENTATION_IDENTITY_ROLLOVER_PROFILE_IDS = Object.freeze([
-  'public-subpath-assets',
-]);
 const ROLLOVER_LEDGER_SPECS = Object.freeze([
   Object.freeze({
     filename: 'baseline.local-persistent-store.v1.json',
@@ -606,27 +600,6 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/mixed-route-v2.test.mjs']],
       ['node', ['packages/snapback-client/logout-v3-bridge.test.mjs']],
       ['node', ['packages/snapback-client/demand-broker.test.mjs']],
-    ]),
-  }),
-  Object.freeze({
-    filename: 'baseline.asset-implementation-identity.v1.json',
-    profileFilename: 'asset-implementation-identity-profiles.v1.json',
-    workloadVersion: 'llp-0044-asset-implementation-identity.v1',
-    profileIds: ASSET_IMPLEMENTATION_IDENTITY_ROLLOVER_PROFILE_IDS,
-    predecessors: Object.freeze([
-      Object.freeze({
-        filename: 'baseline.v1.json',
-        profileIds: ASSET_IMPLEMENTATION_IDENTITY_ROLLOVER_PROFILE_IDS,
-      }),
-    ]),
-    authorities: Object.freeze([
-      'LLP 0063#workstream-8--performance-and-packaging-budgets',
-      'LLP 0145#phase-a--establish-a-size-ratchet',
-      'LLP 0044#asset-intent-implementation-identity-the-helper-closure-joins-the-carrier-dated-decision-2026-08-03',
-    ]),
-    beforeAfterProfileIds: ASSET_IMPLEMENTATION_IDENTITY_ROLLOVER_PROFILE_IDS,
-    behaviorCommands: Object.freeze([
-      ['node', ['packages/snapback-client/assets.test.mjs']],
     ]),
   }),
 ]);
