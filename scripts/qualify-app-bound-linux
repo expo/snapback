@@ -233,9 +233,12 @@ consumer=(sudo /usr/bin/unshare --mount --pid --fork --mount-proc=/proc \
   --args-json '{"title":"clean-consumer-root","body":"no-producer-fallbacks"}' \
   call createNote >"$RECEIPTS/consumer-root-call.json"
 "${consumer[@]}" run /run/probe.ts >"$RECEIPTS/consumer-root-run.json"
-grep -q '"consumerRoot":true' "$RECEIPTS/consumer-root-run.json"
-grep -q '"fetchType":"undefined"' "$RECEIPTS/consumer-root-run.json"
-grep -q '"processType":"undefined"' "$RECEIPTS/consumer-root-run.json"
+node - "$RECEIPTS/consumer-root-run.json" <<'NODE'
+const value = JSON.parse(require('fs').readFileSync(process.argv[2], 'utf8'));
+if (value.consumerRoot !== true || value.fetchType !== 'undefined' || value.processType !== 'undefined') {
+  throw new Error('clean-consumer script result did not prove the restricted worker globals');
+}
+NODE
 "${consumer[@]}" --offline introspect >"$RECEIPTS/consumer-root-offline.json"
 
 catalog_digest="$(node -e "const v=JSON.parse(require('fs').readFileSync(process.argv[1]));process.stdout.write(v.catalogDigest)" "$KIT/catalog-report.json")"
