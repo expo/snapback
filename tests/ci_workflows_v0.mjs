@@ -10,6 +10,7 @@ const workflowDir = join(ROOT, '.github', 'workflows');
 const workflowNames = readdirSync(workflowDir).filter((name) => /\.ya?ml$/.test(name)).sort();
 assert.deepEqual(workflowNames, [
   'all-aboard-cold-clone.yml',
+  'app-bound-linux-qualification.yml',
   'deployment-identity.yml',
   'linux-runtime-package.yml',
   'local-proof.yml',
@@ -38,7 +39,7 @@ assert(
   'deployment-identity CI must materialize ignored All Aboard inputs and refuse review drift before checking identity',
 );
 
-const activeCheckoutUse = /^\s*-\s+uses:\s+actions\/checkout@[^\s#]+(?:\s+#.*)?$/;
+const activeCheckoutUse = /^\s*(?:-\s+)?uses:\s+actions\/checkout@[^\s#]+(?:\s+#.*)?$/;
 const activeCredentialCheck = /^\s*run:\s*scripts\/check-checkout-credentials\s*(?:#.*)?$/m;
 const activePersistCredentialsFalse = /^\s+persist-credentials:\s*false\s*(?:#.*)?$/m;
 
@@ -47,14 +48,27 @@ function checkoutStepBlocks(text) {
   const blocks = [];
   for (let index = 0; index < lines.length; index += 1) {
     if (!activeCheckoutUse.test(lines[index])) continue;
-    const indent = /^\s*/.exec(lines[index])[0].length;
+    const usesIndent = /^\s*/.exec(lines[index])[0].length;
+    let start = index;
+    let stepIndent = usesIndent;
+    if (!/^\s*-\s+uses:/.test(lines[index])) {
+      for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+        const cursorIndent = /^\s*/.exec(lines[cursor])[0].length;
+        if (/^\s*-\s+/.test(lines[cursor]) && cursorIndent < usesIndent) {
+          start = cursor;
+          stepIndent = cursorIndent;
+          break;
+        }
+        if (lines[cursor].trim() && cursorIndent < usesIndent) break;
+      }
+    }
     let end = index + 1;
     while (end < lines.length) {
       const nextIndent = /^\s*/.exec(lines[end])[0].length;
-      if (/^\s*-\s/.test(lines[end]) && nextIndent === indent) break;
+      if (/^\s*-\s/.test(lines[end]) && nextIndent === stepIndent) break;
       end += 1;
     }
-    blocks.push(lines.slice(index, end).join('\n'));
+    blocks.push(lines.slice(start, end).join('\n'));
   }
   return blocks;
 }
@@ -94,10 +108,13 @@ for (const name of workflowNames) {
   const text = readFileSync(join(workflowDir, name), 'utf8');
   const permissions = /^permissions:\n((?:[ \t]+[^\n]*(?:\n|$))*)/m.exec(text);
   assert(permissions, `${name} must declare top-level permissions`);
+  const expectedPermissions = name === 'app-bound-linux-qualification.yml'
+    ? 'contents: read\n  attestations: read'
+    : 'contents: read';
   assert.equal(
     permissions[1].trim(),
-    'contents: read',
-    `${name} must grant only read-only contents permission`,
+    expectedPermissions,
+    `${name} must grant only its reviewed read-only permissions`,
   );
   assert.match(text, activeCredentialCheck, `${name} must attest checkout cleanup`);
 
@@ -105,7 +122,11 @@ for (const name of workflowNames) {
   assert(uses.length > 0, `${name} must contain actions`);
   for (const match of uses) {
     const [ownerRepo, revision] = match[1].split('@');
-    assert.match(ownerRepo, /^[^/\s]+\/[^/\s]+$/, `${name} has an invalid action owner/repo`);
+    assert.match(
+      ownerRepo,
+      /^[^/\s]+\/[^/\s]+(?:\/[^/\s]+)*$/,
+      `${name} has an invalid action owner/repo path`,
+    );
     assert.match(revision ?? '', /^[0-9a-f]{40}$/, `${name} action ${match[1]} must use an immutable SHA`);
     assert(match[2], `${name} action ${match[1]} must keep a human-readable version comment`);
     actionCount += 1;
@@ -156,13 +177,15 @@ for (const name of workflowNames) {
     );
   }
 }
-assert.equal(setupNodeCount, 7, 'the Node-using workflow inventory changed; review and update this count');
+assert.equal(setupNodeCount, 8, 'the Node-using workflow inventory changed; review and update this count');
 // 30 -> 31 (2026-08-02): the expo-large local-proof runner does not include
 // Chrome, so the required admin browser-security lane now provisions one
 // through a pinned action instead of inheriting an ambient browser.
 // 31 -> 32 (2026-08-05): LLP 0175 retains structured per-gate timings from
 // the canonical proof even when the proof itself is red.
-assert.equal(actionCount, 32, 'the reviewed workflow action inventory changed; review and update this count');
+// 32 -> 38 (2026-08-05): LLP 0062's Linux final-artifact qualification adds
+// six pinned actions: checkout, Node, Bun, cache restore/save, and upload.
+assert.equal(actionCount, 38, 'the reviewed workflow action inventory changed; review and update this count');
 
 const publicPackageProof = readFileSync(
   join(workflowDir, 'public-package-proof.yml'),

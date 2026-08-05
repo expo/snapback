@@ -188,9 +188,9 @@ try {
       && surface.offline === false
       && functionManifest.functions.every((fn) => {
         const served = surface.functions.find((entry) => entry.id === fn.id);
-        // The engine normalizes kinds to its own lowercase vocabulary.
+        // The engine normalizes manifest kinds to its lower-camel vocabulary.
         return served?.name === fn.name
-          && served.kind === fn.kind.toLowerCase()
+          && served.kind === `${fn.kind[0].toLowerCase()}${fn.kind.slice(1)}`
           && served.argsSchema !== null;
       }),
     JSON.stringify(surface.functions.map((f) => ({ id: f.id, kind: f.kind, hasSchema: f.argsSchema !== null }))),

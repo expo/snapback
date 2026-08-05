@@ -659,3 +659,52 @@ drift in the same main run is likewise attributed to `1b8971233` and
 `d732a700a`, whose new packaged command/subcommand exports lacked declaration
 entries; the candidate adds those declarations. None of these failures is in
 the actively owned PUSH-01 seam or F0a fork implementation.
+
+### Latest-main cascade and final suite-fixture reconciliation — 2026-08-05
+
+At the post-interruption reinspection, the newest completed main proof was
+run `31005939253` at `e9e4a92ee`. Its KEEP-GOING summary named 35 root
+failures and one blocked gate. The branch replay separated the independent
+defects from the cascade: the carrier, export/type, deployment-identity,
+telemetry, clippy, Rust, Cloudflare, workout, demo, regression, Exact, and
+admin-unit lanes all pass on the combined candidate. The repeated server-gate
+failures on main were downstream of a dirty source identity and 90-second
+fallback link exhaustion, not 35 independent product regressions.
+
+Three suite fixtures required fixing forward:
+
+1. App-bound Linux workflow landing `8f217183f` added an eighth workflow and
+   six pinned actions without extending `tests/ci_workflows_v0.mjs`. The
+   inventory now covers the workflow, its reviewed read-only
+   `attestations: read` permission (needed by the coded Hermes bootstrap's
+   `gh attestation verify`), named checkout-step shape, and the
+   `actions/cache/restore` / `actions/cache/save` action subpaths. The focused
+   gate passes with 8 workflows and 38 immutable action pins.
+2. The served app-CLI journey landed in `8a6731dfc` with a latent assertion
+   that lowercased `LiveQuery` to `livequery`, while the engine's closed kind
+   vocabulary correctly reports lower-camel `liveQuery`. Local-proof landing
+   `702f82f5b` first selected that journey in the recurring proof. The fixture
+   now compares the manifest and engine lower-camel forms; canonical
+   app-qualified function ids, argument schemas, and the engine itself are
+   unchanged.
+3. Client cleanup landing `ba4864e34` removed the dead assets assignment that
+   had breached bundle metrology, but the committed cursors Contract
+   production dist still named the pre-cleanup chunks. The required-surface
+   gate honestly rebuilt those tracked bytes in place, leaving the checkout
+   dirty and making later binary-identity consumers refuse prebuilt reuse.
+   The tracked dist is regenerated from the exact Linux surface lock and the
+   resulting directory's combined SHA-256 is
+   `fded363c61e8f57cfc3bfef13aa9b0687f4a59ddedb3494cbe56044178fec971`;
+   the artifact-path hygiene gate passes.
+
+The first complete fleet replay at candidate `e476847e6` therefore reported
+five roots: the first two fixture defects above plus three host-policy
+refusals. The two custody gates correctly rejected temporary/profile roots
+under shared `/var/cache/expose-build`, and Chrome correctly refused to start
+on a host with no usable browser sandbox. Those are execution-environment
+errors, not code changes: no custody check was weakened, no `--no-sandbox`
+escape was added, and no administrator change was made. The final replay uses
+ordinary-user-owned 0700 temp/profile ancestry; the normal GitHub sandbox
+runner remains the authority for the browser leg. None of these defects or
+environment refusals is a correctness failure in the actively owned PUSH-01
+seam or F0a fork implementation.
