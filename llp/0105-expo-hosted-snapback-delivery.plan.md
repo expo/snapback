@@ -5,14 +5,18 @@
 **Systems:** Product, Deployment, Runtime, Storage, Auth, Security, Billing, Observability, Developer experience, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-28
-**Revised:** 2026-08-04 (replacement account token verified active read-only;
-P0.1 rerun reproduced the same 21/23 result, complete cleanup, unenforced native
-CPU/subrequest limits, and Workers.dev activation 404s; receipt timestamps are
-2026-08-05 UTC). 2026-08-03 (WfP access enabled; P0.1 real namespace run retained
-21/23 checks with exact HOST-only binding read-back and complete cleanup, but
-Gate 0 remains blocked because documented per-dispatch CPU/subrequest limits
-were accepted without enforcement; rapid Workers.dev activation instability
-is recorded for P0.2). 2026-08-01 (Phase 0 authorized by Charlie and execution
+**Revised:** 2026-08-04 (P0.1 hardened run passed 23/23: a binding-free control
+proved native WfP CPU/subrequest enforcement, handler/action dispatch bindings
+were split so handler CPU remains native while action egress uses an explicit
+invocation-scoped `ctx.fetch` guard; a trusted main module freezes ambient fetch
+before dynamically evaluating separate app code, and bounded-retry Workers.dev
+plus consecutive all-script readiness barriers converged;
+Gate 0 remains open on the other Phase-0 obligations and the outbound action
+kill-domain follow-up). 2026-08-03 (WfP access enabled; initial P0.1 real
+namespace run retained 21/23 checks with exact HOST-only binding read-back and
+complete cleanup, but documented per-dispatch CPU/subrequest limits appeared
+unenforced and rapid Workers.dev activation instability was recorded for P0.2).
+2026-08-01 (Phase 0 authorized by Charlie and execution
 begun: WfP access-gap receipt + enablement ticket, dated pricing facts
 — rows-written pricing confirms write amplification as the decisive
 margin input — and the locally-decisive P0.4 spikes; see §Status
@@ -521,7 +525,7 @@ execution began the same day. Per this section's own rule, each gate
 revision below carries machine-readable receipts and dated
 platform/pricing facts.
 
-**Phase-0 execution ledger (2026-08-01 first pass; updated 2026-08-03):**
+**Phase-0 execution ledger (2026-08-01 first pass; updated 2026-08-04):**
 
 - **Access reality — RESOLVED 2026-08-03** (receipts
   `demos/eas-phase0/receipts/p0-access-wfp.json` and
@@ -530,30 +534,35 @@ platform/pricing facts.
   Platforms, the read-only namespace endpoint succeeded. The access recipe is
   closed at `issues/closed/20260801-eas-phase0-wfp-enablement.md`. This proves
   the proof account's entitlement, not production Expo-org credential custody.
-- **P0.1 real namespace — FAIL, 21/23 checks, 2026-08-03** `[observed]`
+- **P0.1 real namespace — PASS, 23/23 checks, 2026-08-04** `[observed]`
   (location: `demos/eas-phase0/receipts/p0.1-wfp-dispatch-namespace.json`): the
   disposable `eas-p0-spike-20260803` run uploaded two apps × two releases ×
   handler/action, read back the exact single `HOST` service binding on all eight
   user Workers, and passed untrusted-runtime, query/mutation host bridge,
   app/release isolation, idempotent retry, forbidden scope arguments,
-  stale/tampered capability, handler egress denial, action allowlist, independent
-  handler/action progress, bounded queue/concurrency, and response-size checks.
-  The namespace and three ordinary Workers were deleted and independently
-  observed absent. Gate 0 does **not** qualify: Cloudflare accepted the
-  documented `{ cpuMs: 20, subRequests: 5 }` dispatch options, yet a
-  20-million-iteration CPU burn and twelve real allowlisted subrequests both
-  returned 200. Follow-up:
-  `issues/20260803-eas-phase0-wfp-custom-limits-not-enforced.md`. Concurrent
-  Workers.dev activation also produced intermittent Cloudflare 404 pages during
-  the disposable run; P0.2 must resolve that separately via
-  `issues/20260803-eas-phase0-workers-dev-activation-instability.md`.
-  **Replacement-token rerun, 2026-08-04 local / 2026-08-05 UTC** `[observed]`
-  (same receipt location, start `2026-08-05T05:21:14.731Z`): the replacement
-  account token verified active without exposing its value, and the complete
-  disposable run reproduced 21/23. Twelve allowlisted subrequests returned 200
-  in 3264.5 ms and the 20-million-iteration CPU burn returned 200 in 108.8 ms;
-  all exact namespace/Worker lookups independently returned 404 after cleanup.
-  The repeated observation strengthens the blocker but does not change status.
+  stale/tampered capability, handler egress denial, governed action allowlist
+  with lexical/global/module-captured ambient-fetch denial, independent
+  handler/action progress, bounded queue/concurrency, response-size limits, a
+  generated action subrequest ceiling with post-settlement fetch revocation,
+  trusted-entry re-entry denial, and native handler CPU termination. The
+  binding-free control receipt
+  (`demos/eas-phase0/receipts/p0.1-wfp-minimal-control.json`) proved the account's
+  native custom limits independently: three subrequest bombs failed at five and
+  a calibrated CPU burn terminated after the runtime's documented flexibility.
+  The corrected topology uses a no-outbound handler dispatch binding for native
+  CPU enforcement and an outbound action binding with a fail-closed generated
+  subrequest guard; the narrower composition question remains in
+  `issues/20260804-eas-phase0-wfp-outbound-custom-limit-interaction.md`. A
+  Workers.dev barrier now requires three body-verified rounds with eight
+  independently bounded retry lanes, followed by three consecutive clean rounds
+  across all eight namespaced scripts. The final run absorbed 22 transient
+  Workers.dev 404s and one 500 (slowest lane: four attempts). The namespace
+  barrier then observed 136 transient public-route 404s before reaching three
+  clean rounds at round 70, retaining DNS, Ray-ID, and cache
+  evidence. The namespace and all three ordinary
+  Workers were deleted, then four independent exact lookups returned HTTP 404.
+  The two original findings are closed under `issues/closed/`; this P0.1 pass does
+  not qualify P0.2's Expo ingress shapes or complete the other Gate-0 obligations.
 - **Dated platform/pricing facts
   (`demos/eas-phase0/receipts/p0-platform-pricing-facts.md`):** WfP
   $25/mo, 20M req + 60M CPU-ms + 1,000 scripts included; DO-SQLite rows

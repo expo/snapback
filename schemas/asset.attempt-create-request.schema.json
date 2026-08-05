@@ -25,6 +25,13 @@
         "null"
       ]
     },
+    "implementationHash": {
+      "description": "Additive for wire decoding, but semantically required by admission:\nan old client/reference that omits it refuses stale before staging.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "intentId": {
       "type": "string"
     },

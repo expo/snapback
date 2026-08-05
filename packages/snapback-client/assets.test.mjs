@@ -23,6 +23,7 @@ const AVATAR_UPLOAD_REF = Object.freeze({
   artifactKind: 'assetUploadReference',
   name: 'avatarUpload',
   intentPolicyHash: 'sha256:test-policy',
+  implementationHash: 'sha256:test-implementation',
 });
 
 function makeFile(bytes, { name = 'pic.jpg', type = 'image/jpeg' } = {}) {
@@ -56,6 +57,7 @@ function makeAssetServer() {
       method: request.method,
       path: url.pathname,
       headers: { ...request.headers },
+      body: body.toString('utf8'),
     });
     const json = (value, status = 200) => {
       response.writeHead(status, { 'content-type': 'application/json' });
@@ -212,6 +214,14 @@ const client = { baseUrl, subscribeLive: () => {} };
   assert.equal(final.integrityBasis, 'end-to-end-verified');
   assert.deepEqual(seen[0], 'creating');
   assert.ok(seen.includes('uploading') && seen.includes('finalizing'));
+  const createRequest = state.requests.find(
+    (request) => request.method === 'POST' && request.path === '/assets/attempts',
+  );
+  assert.equal(
+    JSON.parse(createRequest.body).implementationHash,
+    AVATAR_UPLOAD_REF.implementationHash,
+    'attempt admission carries the generated implementation identity',
+  );
   // Every PATCH carried a sha256 checksum (the conformance requirement).
   const patches = state.requests.filter((request) => request.method === 'PATCH');
   assert.ok(patches.length >= 3, `chunked into multiple PATCHes: ${patches.length}`);

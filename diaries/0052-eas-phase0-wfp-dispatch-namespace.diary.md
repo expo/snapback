@@ -98,3 +98,106 @@ and outbound Worker, and a separate read-only verification returned 404 for
 every exact resource. The practical verdict is unchanged: the WfP isolation
 shape is useful, but P0.1 and Gate 0 remain blocked until Cloudflare's documented
 CPU and subrequest ceilings can be made observably fail closed.
+## 2026-08-04 — minimal control and corrected topology
+
+The replacement-token rerun first reproduced the original 21/23 result, which
+was useful because it ruled credentials out cleanly. I then built the smallest
+official-shape control: one binding-free user Worker, one dispatcher, and no
+HOST or outbound Worker. That control changed the diagnosis. Native subrequest
+enforcement failed all three twelve-fetch attempts at five, and a deliberately
+large finite CPU burn was terminated on its second attempt. The account feature
+worked; the old witnesses and the combined outbound option shape did not.
+
+CPU limits were the subtler lesson. Cloudflare documents isolate flexibility
+for occasional overages, and the first 200-million-iteration burn returned 200
+after about 926 ms. The second was terminated. Treating one short burn as an
+exact 20 ms stopwatch had been the wrong test; the useful contract is observed
+native termination under repeated sustained abuse, with every attempt retained.
+
+The outbound interaction required a topology change rather than an assertion
+change. Handler invocations now use a dispatch binding without an outbound
+Worker and retain native CPU enforcement. Action invocations use the outbound
+allowlist plus a generated fail-closed subrequest guard. This keeps the layers
+honest: the receipt does not pretend the minimal native subrequest result was
+observed through the outbound path. A focused follow-up ticket keeps the action
+kill-domain question open.
+
+Workers.dev activation was slow but convergent. The first minimal run needed 49
+eight-way rounds and saw 181 generated 404s. A pre-commit full run needed 80
+rounds and saw 141 404s plus one 500 before three consecutive clean rounds.
+Unique URLs showed this was not just one poisoned cache key. Waiting for one
+successful health response was too weak; a bounded, consecutive concurrent
+barrier made the disposable run deterministic while leaving production ingress
+to P0.2.
+
+The corrected full run passed 23/23. The action guard stopped the sixth
+subrequest with `SNAPBACK_SUBREQUEST_LIMIT`; the calibrated handler CPU witness
+was natively terminated on attempt three. Both the minimal and full runners
+deleted their resources and independently observed HTTP 404 for every exact
+post-cleanup lookup.
+
+Compared with Wrangler-driven everyday deployment, the raw API runner remains
+verbose, but the verbosity paid for itself here: control-plane acknowledgement,
+DNS families, Ray IDs, cache headers, dispatch option composition, and cleanup
+were all visible in one reproducible artifact. Compared with a container kill
+domain, Cloudflare's CPU flexibility is less stopwatch-like, so the capability
+report must describe the measured semantics rather than imply a strict elapsed
+cutoff.
+
+The clean-SHA evidence rerun was slower again: the first 60-round minimal cap
+failed closed (and cleaned up), so I corrected the promised maximum to 90. The
+passing rerun converged at round 77 after 276 generated 404s; all three
+subrequest probes failed natively, and CPU termination arrived on attempt four.
+That variance reinforces why the receipts retain every attempt and why the
+readiness protocol is bounded by a conservative ceiling rather than a typical
+round count. The first clean full run converged at round 81 after 312 HTTP 404s;
+all 23 checks passed, native CPU terminated on attempt three, and four exact
+post-delete API lookups returned 404.
+
+Before delivery I tightened one assertion that had become too cooperative after
+splitting the dispatch paths: calling the harness's `boundedFetch` did not by
+itself prove a handler could not spell the ambient capability as
+`globalThis.fetch`. The generated handler now freezes that global entry point to
+the deny function before handler code runs, and the same check attacks both
+spellings. The production generator still needs its own escape audit, which is
+why the narrower outbound/custom-limit follow-up remains open.
+
+A fresh review caught the symmetric action escape: after the dispatch split,
+raw `globalThis.fetch` could skip the action's cooperative counter. Freezing the
+global alone was still insufficient because the single generated module kept
+its native-fetch alias in the same lexical scope as the simulated app code. The
+final topology splits each user Worker into trusted `worker.mjs` and application
+`application.mjs`: trusted setup captures native fetch, freezes ambient fetch,
+and only then dynamically evaluates the app module. App code receives a frozen
+invocation-scoped context, never the native-fetch closure, `env`, or raw `HOST`.
+The live matrix now proves lexical/global/module-captured ambient denial,
+allowlisted `ctx.fetch`, non-allowlisted `ctx.fetch` denial, and sixth-call
+rejection together. A second review caught that an application module could
+retain an old `ctx.fetch` across requests, so trusted setup now revokes the
+closure after settlement. The retained attack warmed isolate-local module state
+and then observed `SNAPBACK_STALE_ACTION_FETCH` from the prior invocation. The
+next review found that app code could import the main module and re-enter its
+exported handler to mint another counter. Trusted entry is now bound to the
+first real `env.HOST` service-binding object in that isolate; app code never
+receives it, and forged re-entry returned `SNAPBACK_TRUSTED_ENTRY_REQUIRED` in
+the live run. The production generator still needs the dynamic-escape audit
+tracked in the focused follow-up.
+
+The same final rerun exposed a separate readiness bug rather than another
+isolation failure. The dispatcher encodes `Worker not found.` as structured
+HTTP 502, but the client retried only HTTP 500. I fixed the predicate and added
+a second three-round barrier that probes all eight namespace scripts after the
+Workers.dev route stabilizes. Two later clean-source attempts proved that
+waiting for three instantaneous all-200 rounds was itself brittle: one run had
+550 valid responses and 170 intermittent 404s without ever getting that streak.
+The final protocol instead runs three body-verified rounds with eight
+independently bounded retry lanes. One qualifying run passed after absorbing
+149 transient 404s and two 500s; the slowest lane needed 43 attempts. The final
+retained rerun also proved that ordinary assertions retry unstructured route
+404s without retrying structured `SNAPBACK_*` application errors: it absorbed
+22 404s and one 500, then the namespace barrier observed 136 transient
+public-route 404s before passing at round 70. All 23 P0.1 checks passed, the
+stale-fetch attack failed closed on module sequence 4 after being retained at 3
+(while a second isolate warmed at 75), forged trusted-entry re-entry failed
+closed, native CPU terminated on attempt three, and four exact post-cleanup
+lookups returned 404.
