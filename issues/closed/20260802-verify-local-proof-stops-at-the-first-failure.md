@@ -62,3 +62,22 @@ fail-fast stops at first gate with exit 3; all-pass keep-going exits 0 with
 no summary; `bash -n` clean. Known accepted shape: gates downstream of a
 failed producer (e.g. the built binary) fail as a cascade — the summary
 shows all, first failure is authoritative.
+
+## Corrective completion (2026-08-05, LLP 0175)
+
+The accepted cascade above did not meet this issue's original dependency-aware
+exit criterion. LLP 0175's first implementation tranche completes it:
+
+- every canonical command now has a stable gate id and structured duration;
+- producer prerequisites are explicit and transitive;
+- keep-going records dependents as `BLOCKED` without executing them, while
+  independent gates continue;
+- selected `BLOCKED` gates keep the proof red but do not become additional root
+  product failures; and
+- fixtures prove a failed build blocks readiness and downstream acceptance,
+  and the inventory rejects a newly declared direct real-server gate without
+  current-binary readiness.
+
+CI retains the JSONL gate artifact on both green and red runs. The issue is
+therefore still resolved, now for its intended exit rather than the interim
+flat-runner behavior.

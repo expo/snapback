@@ -605,6 +605,30 @@ process.exit(1);
       ],
     );
     assert.deepEqual(probeTempDirectories(), before);
+
+    const reuseResult = spawnSync(
+      join(scripts, 'ibex-doctor'),
+      ['--reuse-authoritative-build', '--json'],
+      {
+        cwd: scratch,
+        encoding: 'utf8',
+        env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+        timeout: 20_000,
+      },
+    );
+    assert.equal(reuseResult.status, 1, `${reuseResult.stdout}\n${reuseResult.stderr}`);
+    const reuseReport = JSON.parse(reuseResult.stdout);
+    assert.equal(reuseReport.probeMode, 'receipt-reuse');
+    assert.equal(reuseReport.runtimeRecovery, null);
+    assert(
+      reuseReport.checks.some((check) => check.code === 'SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID'),
+      JSON.stringify(reuseReport),
+    );
+    assert(
+      !reuseReport.checks.some((check) => check.code === 'SNAPBACK_IBEX_RUNTIME_LINK_FAILED'),
+      'receipt-reuse mode must not create the disposable Cargo target',
+    );
+    assert.deepEqual(probeTempDirectories(), before);
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

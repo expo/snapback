@@ -246,7 +246,8 @@ pub struct AssetRecordV1 {
 
 /// The admission facts captured when the authorizer admitted the attempt:
 /// the LLP 0007 complete read-set witness, the LLP 0053 authorization pair,
-/// and the frozen policy identity finalization re-validates under.
+/// and the frozen policy plus implementation identities finalization
+/// re-validates under.
 ///
 /// @ref LLP 0044#internal-model — witness validation is re-validate, then
 ///   refuse only on denial; the witness is the substrate.
@@ -254,6 +255,11 @@ pub struct AssetRecordV1 {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct AssetAdmissionV1 {
     pub intent_policy_hash: String,
+    /// Executable authorizer identity. Legacy pre-carrier attempts decode
+    /// with this absent and are refused at finalization rather than silently
+    /// adopting whichever authorizer is currently deployed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub implementation_hash: Option<String>,
     pub policy_generation: u64,
     pub owner_principal: String,
     /// The sealed caller identity facts the decision ran under.
@@ -527,9 +533,10 @@ pub struct AssetWorkRowV1 {
 /// whole-artifact idiom. Deliberately carries no `ExpectedOperationV1`
 /// member — that carrier stays removed (LLP 0108 §B).
 ///
-/// @ref LLP 0044#generated-upload-intents — the reference freezes admitted
-///   policy identity: `intentPolicyHash` plus the per-intent policy
-///   generation an attempt finalizes under.
+/// @ref LLP 0044#asset-intent-implementation-identity-the-helper-closure-joins-the-carrier-dated-decision-2026-08-03 —
+///   the generated reference carries both policy and executable identity;
+///   admission binds them to the per-intent generation an attempt finalizes
+///   under.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct AssetUploadReference {
@@ -571,6 +578,10 @@ pub struct AssetTaskStateV1 {
 pub struct AssetAttemptCreateRequestV1 {
     pub intent_id: String,
     pub intent_policy_hash: String,
+    /// Additive for wire decoding, but semantically required by admission:
+    /// an old client/reference that omits it refuses stale before staging.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub implementation_hash: Option<String>,
     pub args: Value,
     pub declared_filename: Option<String>,
     /// Deferred-length creation is refused on every v1 lane with a
@@ -950,6 +961,7 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
          CREATE TABLE IF NOT EXISTS _snapback_asset_intent_generations_v1 (
              intent_id TEXT PRIMARY KEY NOT NULL,
              intent_policy_hash TEXT NOT NULL,
+             implementation_hash TEXT,
              generation INTEGER NOT NULL,
              revoked INTEGER NOT NULL DEFAULT 0,
              updated_at_ms INTEGER NOT NULL
@@ -1001,17 +1013,35 @@ pub fn create_infra(tx: &Transaction<'_>) -> SnapbackResult<()> {
             [],
         )?;
     }
+    // The implementation carrier landed additively. Existing rows remain
+    // NULL so the first admission under a carrier-aware deployment observes
+    // an identity change and bumps instead of silently blessing the legacy
+    // policy-only generation.
+    let has_implementation_hash = {
+        let mut stmt = tx.prepare(
+            "SELECT 1 FROM pragma_table_info('_snapback_asset_intent_generations_v1')
+             WHERE name = 'implementation_hash'",
+        )?;
+        stmt.exists([])?
+    };
+    if !has_implementation_hash {
+        tx.execute(
+            "ALTER TABLE _snapback_asset_intent_generations_v1
+             ADD COLUMN implementation_hash TEXT",
+            [],
+        )?;
+    }
     Ok(())
 }
 
 // ---------------------------------------------------------------------------
 // Per-intent policy generations (LLP 0044 §Internal model). Generations are
 // minted lazily inside the attempt-create transaction: the loaded manifest's
-// policy hash is the activation identity, so the first admission after a
-// changed intent deploys bumps the generation — an O(1) per-intent event,
-// never per-asset fanout. Revocation has exactly three explicit triggers
-// (intent removal, a revoking-flagged deployment, the operator action); the
-// flag lives here and refuses finalization-side work.
+// policy + implementation hashes are the activation identity, so the first
+// admission after either changes bumps the generation — an O(1) per-intent
+// event, never per-asset fanout. Revocation has exactly three explicit
+// triggers (intent removal, a revoking-flagged deployment, the operator
+// action); the flag lives here and refuses finalization-side work.
 // ---------------------------------------------------------------------------
 
 pub struct IntentGeneration {
@@ -1023,45 +1053,64 @@ pub fn ensure_intent_generation(
     tx: &Transaction<'_>,
     intent_id: &str,
     intent_policy_hash: &str,
+    implementation_hash: &str,
     intent_json: &str,
     now_ms: u64,
 ) -> SnapbackResult<IntentGeneration> {
-    let existing: Option<(String, u64, bool)> = tx
+    let existing: Option<(String, Option<String>, u64, bool)> = tx
         .query_row(
-            "SELECT intent_policy_hash, generation, revoked
+            "SELECT intent_policy_hash, implementation_hash, generation, revoked
              FROM _snapback_asset_intent_generations_v1 WHERE intent_id = ?1",
             [intent_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get::<_, i64>(2)? != 0)),
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get::<_, i64>(3)? != 0,
+                ))
+            },
         )
         .optional()?;
     let result = match existing {
         None => {
             tx.execute(
                 "INSERT INTO _snapback_asset_intent_generations_v1 (
-                     intent_id, intent_policy_hash, generation, revoked, updated_at_ms
-                 ) VALUES (?1, ?2, 1, 0, ?3)",
-                rusqlite::params![intent_id, intent_policy_hash, now_ms],
+                     intent_id, intent_policy_hash, implementation_hash,
+                     generation, revoked, updated_at_ms
+                 ) VALUES (?1, ?2, ?3, 1, 0, ?4)",
+                rusqlite::params![intent_id, intent_policy_hash, implementation_hash, now_ms],
             )?;
             IntentGeneration {
                 generation: 1,
                 revoked: false,
             }
         }
-        Some((stored_hash, generation, revoked)) if stored_hash == intent_policy_hash => {
+        Some((stored_policy_hash, Some(stored_implementation_hash), generation, revoked))
+            if stored_policy_hash == intent_policy_hash
+                && stored_implementation_hash == implementation_hash =>
+        {
             IntentGeneration {
                 generation,
                 revoked,
             }
         }
-        Some((_, generation, _)) => {
+        Some((_, _, generation, _)) => {
             // A changed intent activated: bump, and clear any revocation —
-            // the new policy is the author's current word.
+            // the new policy and implementation are the author's current
+            // word.
             tx.execute(
                 "UPDATE _snapback_asset_intent_generations_v1
-                 SET intent_policy_hash = ?2, generation = ?3, revoked = 0,
-                     updated_at_ms = ?4
+                 SET intent_policy_hash = ?2, implementation_hash = ?3,
+                     generation = ?4, revoked = 0, updated_at_ms = ?5
                  WHERE intent_id = ?1",
-                rusqlite::params![intent_id, intent_policy_hash, generation + 1, now_ms],
+                rusqlite::params![
+                    intent_id,
+                    intent_policy_hash,
+                    implementation_hash,
+                    generation + 1,
+                    now_ms
+                ],
             )?;
             IntentGeneration {
                 generation: generation + 1,
@@ -3814,6 +3863,52 @@ mod tests {
             )
             .expect("count");
         assert_eq!(count, 2, "the loser adopted the winner's reference");
+    }
+
+    #[test]
+    fn implementation_carrier_migrates_policy_only_generation_and_bumps() {
+        let mut conn = Connection::open_in_memory().expect("db");
+        let tx = test_tx(&mut conn);
+        tx.execute_batch(
+            "CREATE TABLE _snapback_asset_intent_generations_v1 (
+                 intent_id TEXT PRIMARY KEY NOT NULL,
+                 intent_policy_hash TEXT NOT NULL,
+                 generation INTEGER NOT NULL,
+                 revoked INTEGER NOT NULL DEFAULT 0,
+                 updated_at_ms INTEGER NOT NULL
+             );
+             INSERT INTO _snapback_asset_intent_generations_v1 (
+                 intent_id, intent_policy_hash, generation, revoked, updated_at_ms
+             ) VALUES ('app:avatarUpload', 'sha256:same-policy', 4, 0, 1);",
+        )
+        .expect("legacy policy-only generation");
+
+        create_infra(&tx).expect("additive carrier migration");
+        let generation = ensure_intent_generation(
+            &tx,
+            "app:avatarUpload",
+            "sha256:same-policy",
+            "sha256:current-implementation",
+            "{}",
+            2,
+        )
+        .expect("carrier-aware activation");
+        assert_eq!(generation.generation, 5);
+        let stored: (String, Option<String>, u64) = tx
+            .query_row(
+                "SELECT intent_policy_hash, implementation_hash, generation
+                 FROM _snapback_asset_intent_generations_v1
+                 WHERE intent_id = 'app:avatarUpload'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("migrated generation");
+        assert_eq!(stored.0, "sha256:same-policy");
+        assert_eq!(stored.1.as_deref(), Some("sha256:current-implementation"));
+        assert_eq!(
+            stored.2, 5,
+            "legacy NULL identity cannot be adopted in place"
+        );
     }
 
     #[test]

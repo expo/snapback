@@ -1,0 +1,103 @@
+import assert from 'node:assert/strict';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import test from 'node:test';
+
+const root = resolve(import.meta.dirname, '..');
+const runner = join(root, 'scripts', 'lib', 'proof-runner.sh');
+
+function fixture(body, { keepGoing = 1 } = {}) {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-proof-runner-'));
+  const receipt = join(scratch, 'results.jsonl');
+  const marker = join(scratch, 'dependent-ran');
+  const script = `
+set -euo pipefail
+source ${JSON.stringify(runner)}
+proof_runner_init fixture ${JSON.stringify(receipt)} ${keepGoing}
+${body}
+proof_runner_finish
+`;
+  const result = spawnSync('/bin/bash', ['-c', script], {
+    cwd: root,
+    encoding: 'utf8',
+    env: { ...process.env, FIXTURE_MARKER: marker },
+  });
+  const records = existsSync(receipt)
+    ? readFileSync(receipt, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse)
+    : [];
+  return { scratch, receipt, marker, result, records };
+}
+
+test('fail-fast preserves the root command exit and never reaches later gates', () => {
+  const run = fixture(`
+proof_gate producer -- /bin/bash -c 'exit 23'
+proof_gate never-reached -- /bin/bash -c 'touch "$FIXTURE_MARKER"'
+`, { keepGoing: 0 });
+  try {
+    assert.equal(run.result.status, 23, run.result.stderr);
+    assert.equal(existsSync(run.marker), false);
+    assert.deepEqual(
+      run.records.map(({ gateId, state, exitCode }) => [gateId, state, exitCode]),
+      [['producer', 'FAIL', 23]],
+    );
+  } finally {
+    rmSync(run.scratch, { recursive: true, force: true });
+  }
+});
+
+test('keep-going continues independent gates and blocks failed-producer dependents', () => {
+  const run = fixture(`
+proof_gate native-runtime -- /bin/bash -c 'exit 17'
+proof_gate independent-static -- /bin/bash -c 'exit 0'
+proof_gate real-server --requires native-runtime -- /bin/bash -c 'touch "$FIXTURE_MARKER"'
+`);
+  try {
+    assert.equal(run.result.status, 1, run.result.stderr);
+    assert.equal(existsSync(run.marker), false, 'a blocked command must not execute');
+    assert.deepEqual(
+      run.records.map(({ gateId, state }) => [gateId, state]),
+      [
+        ['native-runtime', 'FAIL'],
+        ['independent-static', 'PASS'],
+        ['real-server', 'BLOCKED'],
+      ],
+    );
+    assert.deepEqual(run.records[2].blockedBy, ['native-runtime']);
+    assert.match(run.result.stdout, /1 root failure\(s\), 1 blocked gate\(s\)/);
+  } finally {
+    rmSync(run.scratch, { recursive: true, force: true });
+  }
+});
+
+test('transitive dependency failure blocks without another timeout or product failure', () => {
+  const run = fixture(`
+proof_gate build -- /bin/bash -c 'exit 9'
+proof_gate readiness --requires build -- /bin/bash -c 'touch "$FIXTURE_MARKER"'
+proof_gate acceptance --requires readiness -- /bin/bash -c 'touch "$FIXTURE_MARKER"'
+`);
+  try {
+    assert.equal(run.result.status, 1, run.result.stderr);
+    assert.equal(existsSync(run.marker), false);
+    assert.deepEqual(run.records.map(({ state }) => state), ['FAIL', 'BLOCKED', 'BLOCKED']);
+    assert.deepEqual(run.records[2].blockedBy, ['readiness']);
+  } finally {
+    rmSync(run.scratch, { recursive: true, force: true });
+  }
+});
+
+test('unknown prerequisites and duplicate gate ids fail closed as inventory errors', () => {
+  for (const body of [
+    `proof_gate dependent --requires missing -- /usr/bin/true`,
+    `proof_gate same -- /usr/bin/true\nproof_gate same -- /usr/bin/true`,
+  ]) {
+    const run = fixture(body);
+    try {
+      assert.equal(run.result.status, 2, `${run.result.stdout}\n${run.result.stderr}`);
+      assert.match(run.result.stderr, /unknown or not-yet-run prerequisite|duplicate gate id/);
+    } finally {
+      rmSync(run.scratch, { recursive: true, force: true });
+    }
+  }
+});

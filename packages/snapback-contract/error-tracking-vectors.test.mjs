@@ -47,4 +47,47 @@ assert.equal(allocation.details.detailFlags.messageTemplateTruncated, false);
 assert.equal(allocation.details.detailFlags.messageTruncated, false);
 assert.equal(allocation.details.detailFlags.stackTruncated, true);
 
+// The multi-rejection carrier is still one failure record. JavaScript pins
+// Rust's first-ordered authority, the complete queue-ordered carrier facts,
+// and the singular observation/group/count/exemplar semantics together.
+const multi = carrier.multiRejection;
+const multiEncoded = encodeFingerprintV1(multi.fingerprintInput);
+const multiSha256 = createHash('sha256').update(multiEncoded).digest();
+assert.equal(multi.details.fp_branch, 'exception');
+assert.equal(multi.details.fp_version, corpus.fingerprintVersion);
+assert.equal(multi.details.fp_hash, lowerHex(multiSha256.subarray(0, 16)));
+assert.equal(multi.details.errorClass, 'TypeError');
+assert.equal(multi.details.messageTemplate, 'first rejection <digits>');
+assert.equal(multi.fingerprintInput.errorClass, multi.details.rejectionCarriers[0].errorClass);
+assert.deepEqual(
+  multi.details.rejectionCarriers,
+  [
+    {
+      errorClass: 'TypeError',
+      message: 'first rejection 123',
+      messageExtractionTruncated: false,
+      stack: 'at first (handler.js:1:1)',
+      stackExtractionTruncated: false,
+    },
+    {
+      errorClass: 'RangeError',
+      message: 'second rejection 456',
+      messageExtractionTruncated: false,
+      stack: 'at second (handler.js:2:1)',
+      stackExtractionTruncated: false,
+    },
+  ],
+);
+assert.deepEqual(multi.expectedSemantics, {
+  observationCount: 1,
+  groupMembershipCount: 1,
+  occurrenceIncrement: 1,
+  exemplarCount: 1,
+});
+assert.equal(
+  new TextEncoder().encode(JSON.stringify(multi.details)).byteLength,
+  multi.serializedBytes,
+);
+assert.ok(multi.serializedBytes <= carrier.limits.detailsBytes);
+
 console.log('ok - packages/snapback-contract/error-tracking-vectors.test.mjs');

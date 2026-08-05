@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "86a43eacc6aaaf4b7af23d619eaf6b52dbbda138"
+    "commit": "544e80e2f531bbac266e57afc4ed70268a9c72ce"
   },
   "nav": {
     ".": [
@@ -1448,7 +1448,7 @@
       "examples": [],
       "reviewed": "2026-08-04",
       "reviewedCommit": "HEAD",
-      "sha256": "b58cae34feb3a567475cb5c73e7cb4944f7bd57cfcaf03fa2c1762077f866c3c",
+      "sha256": "9049a545a03d8e5d77858c2de678345b66c359a5359713aab6f2b3a5c9791250",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2221,9 +2221,9 @@
         "admin-ui/admin-boundary.mjs"
       ],
       "examples": [],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "3109a3b4f5068595a71448b10788b56b4fa358f5",
-      "sha256": "5a6cda495bb52e2f20159d889ca6af441a9210b85d30b5679e4b481cb8000ce6",
+      "reviewed": "2026-08-04",
+      "reviewedCommit": "HEAD",
+      "sha256": "90f58a2bbafe6cc45c6680255f3bfaf09ad77be510566ecf065aa34afdc6d864",
       "snippets": []
     },
     "operating.host-ops": {
@@ -3025,5 +3025,5 @@
     "routes": 116,
     "hostOps": 37
   },
-  "contentHash": "b3272e6ef6c2c3df952c7cd9ffe875fe5e8753dee8f6f1dc6d14d7151c08e723"
+  "contentHash": "b59eefd62ffa4ceecbc4efb6b0a76a019c963557099b99ad17231b614754aad8"
 }

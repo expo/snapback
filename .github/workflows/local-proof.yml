@@ -143,6 +143,7 @@ jobs:
           CARGO_PROFILE_TEST_DEBUG: "0"
           SNAPBACK_VERIFY_EXACT: "1"
           CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
+          SNAPBACK_PROOF_RESULTS: ${{ github.workspace }}/target/proof/local-proof-results.jsonl
           SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT: /opt/snapback-app-cli-test-${{ github.run_id }}
           # One red round names every broken gate instead of only the first
           # (issues/20260802-verify-local-proof-stops-at-the-first-failure.md).
@@ -159,3 +160,13 @@ jobs:
             "$SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT"
           trap 'sudo rm -rf -- "$SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT"' EXIT
           scripts/verify-local-proof
+
+      # @ref LLP 0175#d5--make-test-economics-part-of-the-inventory — retain
+      # every named gate's duration and PASS/FAIL/BLOCKED state even on red.
+      - name: Upload local-proof gate timings
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: local-proof-gate-results-${{ github.run_id }}
+          path: target/proof/local-proof-results.jsonl
+          if-no-files-found: warn
