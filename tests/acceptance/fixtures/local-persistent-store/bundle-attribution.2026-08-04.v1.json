@@ -2,11 +2,18 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-04",
   "source": {
-    "revision": "d7275aefc7ca449b55b75dad69bc2a4936dcebf2",
+    "revision": "0bc4f3d59f95c3b309dbb862fc3b0cc85b1e37f3",
     "dirty": true,
     "dirtyPaths": [
-      "endor/ibex",
-      "scripts/.vlp-skip-telemetry.sh"
+      "emos/latency-kanban/snapback/generated/artifacts.json",
+      "demos/latency-kanban/snapback/trusted-composition-activation.json",
+      "demos/triage-graph/snapback/generated/artifacts.json",
+      "demos/triage-graph/snapback/trusted-composition-activation.json",
+      "tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json",
+      "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
+      "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
+      "tests/acceptance/latency-kanban-move3-v1-evidence.md",
+      "tests/acceptance/triage-graph-move1-v1-evidence.md"
     ],
     "files": [
       {
@@ -51,15 +58,15 @@
       },
       {
         "path": "packages/snapback-client/index.mjs",
-        "sha256": "0ba8dd2b9886f304edea2e37fd89ba98f76b9aef014fa95dca275a863b5072e1"
+        "sha256": "2d3e0a2f0f6fe6772f903ed6d20f52d9d161d63fe841a96bb005ef3693435e24"
       },
       {
         "path": "packages/snapback-client/rqs-store.mjs",
-        "sha256": "9c27319ed28037c2549c2741763f06a9f82abd77e896a2ec93c77e1c3eaf740f"
+        "sha256": "58838c64b5838d6445bf027197adf67eeb17d298884610e2e33469b722a72f39"
       },
       {
         "path": "packages/snapback-client/rqs-store-file.mjs",
-        "sha256": "486b8c743ca807b051ec45042b6715cc141e1a0d3d2ca5a83cee75d53c8c3e3e"
+        "sha256": "04302d2c2aa131f81110b4257fbb60796ee192a8dbf6230fe0460591ed63a643"
       },
       {
         "path": "packages/snapback-contract/auth-coordinator.mjs",
@@ -87,19 +94,19 @@
       },
       {
         "path": "demos/triage-graph/snapback/trusted-composition-activation.json",
-        "sha256": "ef39d6d5239c25b6e909923f2d94ffae171863c7af3109c0ba576792a542af42"
+        "sha256": "01ddab111dc72a09011c5716602ecc95b9d4de9d691e246934a677d2428ec2c7"
       },
       {
         "path": "demos/triage-graph/snapback/generated/artifacts.json",
-        "sha256": "21ce1d6e6a0c3667e4dc5a2e0c05967b72f86c793136b15953ec3a260757336a"
+        "sha256": "19cbbc1169980cee73eb3fdfb51614155c232c076c96e8085a557dee36b5d0ff"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
-        "sha256": "1dbf954ae06038cc69c520a493de988be27ea5c2c31c3d3fd73bb9704422375d"
+        "sha256": "b955a2888b86ad59164588af2354f57725c5752078a4d46537ed39f9ebedd68f"
       },
       {
         "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
-        "sha256": "ff822310323c5bb66c4302574d9f3754b170104d2cc9022c34181eecb0fff429"
+        "sha256": "0e6c4a01594965e612c6c3f75adf1f983926bb92a024d94178d38d6614681e1a"
       }
     ]
   },
@@ -123,10 +130,10 @@
     "external": []
   },
   "output": {
-    "minifiedBytes": 592353,
-    "gzipBytes": 164084,
-    "brotliBytes": 133315,
-    "sha256": "33c4edc9c66e2eb2bae1ab22735c9e79c4e025a005cc9ff2b755a3c92af402a8"
+    "minifiedBytes": 604119,
+    "gzipBytes": 166297,
+    "brotliBytes": 135398,
+    "sha256": "05cfa24223ac6cbf5ea246581acf3ffc81be7504623377d7a9cf49c9e76b34fc"
   },
   "modules": [
     {

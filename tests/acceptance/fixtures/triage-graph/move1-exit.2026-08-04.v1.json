@@ -8,7 +8,7 @@
     "LLP 0166#d4--completeness-honest-local-answers"
   ],
   "source": {
-    "revision": "fd0c8a34f0d7cdd0d50cb50b4aa52252c633a18b",
+    "revision": "0bc4f3d59f95c3b309dbb862fc3b0cc85b1e37f3",
     "dirty": true,
     "files": [
       {
@@ -25,11 +25,11 @@
       },
       {
         "path": "demos/triage-graph/snapback/trusted-composition-activation.json",
-        "sha256": "ef39d6d5239c25b6e909923f2d94ffae171863c7af3109c0ba576792a542af42"
+        "sha256": "01ddab111dc72a09011c5716602ecc95b9d4de9d691e246934a677d2428ec2c7"
       },
       {
         "path": "demos/triage-graph/snapback/generated/artifacts.json",
-        "sha256": "21ce1d6e6a0c3667e4dc5a2e0c05967b72f86c793136b15953ec3a260757336a"
+        "sha256": "19cbbc1169980cee73eb3fdfb51614155c232c076c96e8085a557dee36b5d0ff"
       },
       {
         "path": "demos/triage-graph/demo.snapback.json",
@@ -53,13 +53,13 @@
     "status": "PASS",
     "runtime": {
       "serverBinary": "target/debug/snapback",
-      "serverBinarySha256": "e011714c1d821d41da2b0cda649158950bdb84519469c6f61fee8bc749d0b63a",
+      "serverBinarySha256": "af27b3355249d436afc0af512b6d782948d8c55b75229678b274f15804c4cc82",
       "launchRung": "configured",
       "backendStoppedBeforeRelaunch": true
     },
     "activation": {
       "format": "snapback.composition-activation-preparation.v1",
-      "activationHash": "sha256:8e1772130afd2d4c1a9329db8c079562e7d1341c5e519e2365bc33d865c19593",
+      "activationHash": "sha256:1d97cf75c8938172ee0e68a6b16ef596813bc1b6e22be765c99e27e75f2f1b7e",
       "deploymentId": "triage-graph-p3-controlled-run"
     }
   },
@@ -89,13 +89,13 @@
         "durableRegistrations": 1,
         "registrationBytes": 612,
         "leaseRecords": 1,
-        "physicalCarrierBytes": 124572
+        "physicalCarrierBytes": 124601
       },
       "hydration": {
         "attempts": 1,
         "rowsInstalled": 100,
         "payloadBytes": 14981,
-        "elapsedMs": 232.918
+        "elapsedMs": 232.366
       }
     },
     "frozenCeilings": {
@@ -155,7 +155,7 @@
         "authoritativeRetainedRowsExplained": 100,
         "durableRegistrations": 1,
         "leaseRecords": 1,
-        "addressKey": "qmk1.3t7TB1oDbJQMI8EP308dZoy_m3O7I4ruOyWxb5r2p2s",
+        "addressKey": "qmk1.MNawI8MiWRRxrvdacENVw6xvtHEgjLP-IIFqeAnFZnk",
         "currentTransition": {
           "answerClass": "authoritative",
           "freshness": "current"
@@ -250,7 +250,7 @@
         "authoritativeRetainedRowsExplained": 100,
         "durableRegistrations": 1,
         "leaseRecords": 1,
-        "addressKey": "qmk1.3t7TB1oDbJQMI8EP308dZoy_m3O7I4ruOyWxb5r2p2s",
+        "addressKey": "qmk1.MNawI8MiWRRxrvdacENVw6xvtHEgjLP-IIFqeAnFZnk",
         "currentTransition": {
           "answerClass": "authoritative",
           "freshness": "current"

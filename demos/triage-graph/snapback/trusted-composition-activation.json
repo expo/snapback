@@ -2,27 +2,27 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v1",
-    "databaseId": "019fcfb2-dceb-7e43-82ab-0801e67e4cb6",
+    "databaseId": "019fd078-3b3a-7212-b29e-7f4292f486c0",
     "deploymentId": "triage-graph-p3-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
     "expectedGeneration": {
       "schemaVersion": "snapback.v1",
       "appId": "triage-graph",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:90ede1caedc062ee4681ef3b7b385ce86eda76720b526209007e1046c8fd7898",
-      "bundleHash": "snapback.v1:sessions:function:sha256:035a4b27a1080d3bc4317fcc6ee2954099b33160c1320cace3bb4b09feebc6fe",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:1364c23765775fa4af6342f9cd7c74d9d1454b659e24bdd4d49a959d276e327d"
+      "schemaHash": "snapback.v1:sessions:schema:sha256:acad704e94c28b4c408e3d7f02a7955bcfc3a2119006695698b5d2e4e5e15840",
+      "bundleHash": "snapback.v1:sessions:function:sha256:cc8ef10b83fdedb74ddf735097e0da892aedc5bba3a126a757c5cb237a00769b",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:5706e6f06fef1d24c9567fb9f495c92bf06c7eb478435ad806790c638df204b2"
     },
-    "proofKeyManifestDigest": "sha256:4491e76ec35ca9edd920ab3363bbce3d73bad8e63a54f4f7a54d4114f9f91f0d"
+    "proofKeyManifestDigest": "sha256:692e006d53a3194c6b66d951b38ae0d172687fd32c24aa7e65687a9a8e91025a"
   },
-  "activationHash": "sha256:8e1772130afd2d4c1a9329db8c079562e7d1341c5e519e2365bc33d865c19593",
+  "activationHash": "sha256:1d97cf75c8938172ee0e68a6b16ef596813bc1b6e22be765c99e27e75f2f1b7e",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.vXe63CS7-331DYERJ_yRZg",
+        "proofKeyId": "sbpk1.ROIbSaIWeRalNgp33vstHg",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "42KsZ8E7_qfPQ9mV3uUNlKennTCDzn8WttfSQGHBe9o"
+        "publicKeyBase64url": "J_a67motnVdEQr1lPeTfTZsOZaax5k6SLg1hB6Q3HVo"
       }
     ]
   }
