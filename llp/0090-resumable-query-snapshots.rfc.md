@@ -5,12 +5,14 @@
 **Systems:** Sync, Realtime, API, Client integration, Deployment, Auth
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-08-03 (`single_table_v1@1` owner amendment: Channel B's
+**Revised:** 2026-08-04 (mixed-route v2 successor amendment promoted to
+normative by Charlie Cheever's explicit author direction; capability maturity
+and publication claims remain gated as specified); 2026-08-03
+(`single_table_v1@1` owner amendment: Channel B's
 `rqsEligible` authority travels as
 `rqs-authority-independent-snapshot-v1`; prove-or-fresh adoption leaves
 token/digest/admission bytes unchanged and keeps QMK resume separate through
-LLP 0166 OQ2; semantic only.) 2026-08-03 (**DRAFT**, non-normative pending orchestrator/author
-review: mixed-route v2 successor amendment — one pinned snapshot,
+LLP 0166 OQ2; semantic only.) 2026-08-03 (mixed-route v2 successor amendment — one pinned snapshot,
 binding-derived per-child registration, and an honestly read-only weakest
 aggregate; see Revision history and D1.2); 2026-08-03 (Accepted LLP
 0166 boundary: LLP 0166 is the
@@ -61,8 +63,8 @@ Revision history); 2026-07-24 (v0.6 — see Revision history)
   cross-check LLP 0157 plan/materialization identity without making plan
   shape imply liveness. Until author review accepts such a profile, D1.2 and
   LLP 0112's all-live contract remain unchanged.
-- **DRAFT amendment (2026-08-03 — mixed-route v2; non-normative pending
-  orchestrator/author review).** The proposal's successor is specified as
+- **Accepted implementation amendment (2026-08-03 — mixed-route v2;
+  author-promoted 2026-08-04).** The proposal's successor is specified as
   generated artifact/wire format 2 and LLP 0157 profile `mixed-route.v2`.
   Every child is evaluated in one pinned read transaction; only children
   whose admitted `NodeCapabilityBindingV1.live.kind` is `admitted` become
@@ -71,8 +73,9 @@ Revision history); 2026-07-24 (v0.6 — see Revision history)
   the group's weakest `read-only` aggregate. LLP 0112 format 1 is byte-
   compatible and unchanged. The exact contract, failure/authority/cleanup
   rules, bounds, nonclaim boundary, and executable evidence are recorded in
-  D1.2. This entry does not become document law merely because implementation
-  witnesses exist; review must promote it explicitly.
+  D1.2. This entry became document law through Charlie Cheever's explicit
+  2026-08-04 author promotion; implementation witnesses do not independently
+  alter capability maturity or publication claims.
 
 ## Summary
 
@@ -546,8 +549,9 @@ authenticated identity exactly like a subscription (LLP 0011). Modes:
 
 ##### Mixed-route v2 implementation amendment (2026-08-03)
 
-**Dated normative amendment** — executes the wave-3 program's mixed-route
-assignment, designed against Accepted LLP 0157 and reviewed at landing;
+**Dated normative amendment, author-promoted 2026-08-04** — executes the
+wave-3 program's mixed-route assignment, designed against Accepted LLP 0157,
+reviewed at landing, and explicitly promoted by Charlie Cheever;
 it converts the non-normative 2026-08-02 register-gradient proposal in
 the Revised header into this profile's contract.
 
@@ -679,8 +683,9 @@ group reports the weakest honest state (`connection:"idle"`, aggregate
 `weakest:"read-only"`) while live siblings continue to report `live` and
 receive updates. This amendment makes no target capability, maturity,
 hosted, or public-package publication claim; an unimplemented profile or unsupported
-target refuses explicitly. Executable witnesses inform review but do not
-promote the amendment: the native pinned-read fixture, the codegen v2/format-1
+target refuses explicitly. Executable witnesses support this accepted
+amendment but do not independently promote capability maturity: the native
+pinned-read fixture, the codegen v2/format-1
 goldens, the client liveness near-miss/refusal suite, and the React mixed-group
 acceptance. Those are partial implementation witnesses, not evidence that the
 QMK installation gate above is satisfied; a target may not advertise this

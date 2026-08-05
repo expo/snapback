@@ -51,6 +51,14 @@ Main later advanced through `917b16e7c`; those landings did not intersect the
 receipt's enumerated source closure. The receipt therefore remains the exact
 measured artifact, rather than a re-labelled or locally synthesized carrier.
 
+After this receipt was produced, an independent full run on the Minisforum
+fleet lane measured 12 CPU ticks twice against the same 10-tick ceiling. That
+cross-host correctness discrepancy is preserved in the still-open
+`issues/20260804-idle-cpu-regression.md`; this ticket's resolution records only
+that the stale evidence carrier was honestly re-minted by the required full
+producer. It does not retract the Minisforum measurements, claim that every
+Linux host meets the ceiling, or widen the ceiling.
+
 ## Verification
 
 - `scripts/verify-telemetry-phase1-proof --full` — pass on Linux;
