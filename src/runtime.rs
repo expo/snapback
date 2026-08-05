@@ -4947,7 +4947,7 @@ mod private_failure_carrier_tests {
     }
 
     #[test]
-    fn multiple_unhandled_rejections_preserve_queue_order_without_a_winner() {
+    fn multiple_unhandled_rejections_preserve_first_authority_queue_order() {
         let error = run(
             r#"
             globalThis.__snapbackHandlers = {

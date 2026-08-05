@@ -239,6 +239,11 @@ for a multi-rejection handler terminal is the first ordered rejection;
 the full ordered rejection carrier is retained as facts on the failure
 record; no per-rejection group split and no aggregate grammar. See
 §Amendment (2026-08-03): multi-rejection fingerprint authority.)
+**Revised:** 2026-08-04 (dated E0/E1 implementation-record extension — the
+first-ordered multi-rejection authority now ships locally with the complete
+ordered carrier retained in raw failure details and singular observation,
+group-count, metering, and exemplar semantics; fingerprint scheme v1 remains
+current because its exception tuple and normalizer did not change.)
 **Related:** LLP 0154 (minimal observability; the substrate this layers
 on — spans, the telemetry sibling store, flush-path maintenance, typed
 operations, the variance envelope; this RFC amends its registry, D2
@@ -1425,6 +1430,23 @@ questions named above; there is no client-ingest protocol or implementation.
 It is deferred by phasing and entirely unbuilt. The RFC remains **Accepted**;
 this implementation record closes the local E0/E1 tranche without asserting
 completion of either later phase.
+
+**Implementation update (2026-08-04 — multi-rejection authority).** The
+2026-08-03 ruling now ships on the local E0/E1 producer seam. A terminal with
+multiple queue-ordered unhandled rejections uses the first carrier's validated
+class and normalized message template as the existing exception-v1 fingerprint
+input. Its complete ordered `rejectionCarriers` vector remains on the one raw
+failure record under the bounded-details truncation witnesses; the flusher
+materializes one group membership, advances its occurrence count once, and
+retains one exemplar from that same first carrier. Metering still observes the
+single handler terminal and is unchanged. Well-formed vectors no longer take
+the raw-only malformed-stamp path; genuinely malformed eligible stamps still
+advance `malformed_error_stamp_count` without a guessed group. The fingerprint
+scheme stays at v1: neither the exception tuple nor its normalizer changed, and
+the formerly raw-only terminals have no prior fingerprinted group identity to
+re-key or split. This supersedes only the multiple-unhandled residue in the
+preceding 2026-08-03 record; hosted grouping, E2, and E3 remain the reasons the
+capability is partial.
 
 ## Amendment (2026-08-03): multi-rejection fingerprint authority
 
