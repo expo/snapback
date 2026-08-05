@@ -72,7 +72,6 @@ jobs:
             ~/.cache/exact/hermes-linux
             vendor/ibex/linux
             vendor/ibex/tools/hermes
-            target
             vendor/ibex/target
           key: app-bound-linux-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.lock', 'Cargo.lock') }}
 
@@ -94,7 +93,6 @@ jobs:
             ~/.cache/exact/hermes-linux
             vendor/ibex/linux
             vendor/ibex/tools/hermes
-            target
             vendor/ibex/target
           key: app-bound-linux-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.lock', 'Cargo.lock') }}
 
