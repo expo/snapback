@@ -28,8 +28,8 @@ retained receipt proves that the account capability works:
 
 - all three twelve-fetch attempts failed at the configured five-subrequest
   ceiling with Cloudflare's `Too many subrequests` exception;
-- a calibrated finite CPU burn returned once and was natively terminated on
-  the second attempt with `Worker exceeded CPU time limit.`
+- a calibrated finite CPU burn was natively terminated after repeated attempts
+  with `Worker exceeded CPU time limit.`
 
 The first successful CPU attempt matches Cloudflare's documented isolate
 flexibility for occasional CPU overages. A single short burn was therefore not

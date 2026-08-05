@@ -119,3 +119,11 @@ were all visible in one reproducible artifact. Compared with a container kill
 domain, Cloudflare's CPU flexibility is less stopwatch-like, so the capability
 report must describe the measured semantics rather than imply a strict elapsed
 cutoff.
+
+The clean-SHA evidence rerun was slower again: the first 60-round minimal cap
+failed closed (and cleaned up), so I corrected the promised maximum to 90. The
+passing rerun converged at round 77 after 276 generated 404s; all three
+subrequest probes failed natively, and CPU termination arrived on attempt four.
+That variance reinforces why the receipts retain every attempt and why the
+readiness protocol is bounded by a conservative ceiling rather than a typical
+round count.

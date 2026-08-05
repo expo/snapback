@@ -23,6 +23,9 @@ const DEFAULT_NAMESPACE = 'eas-p0-limits-20260804';
 const COMPATIBILITY_DATE = '2026-07-01';
 const CPU_MS = 20;
 const SUBREQUESTS = 5;
+const EDGE_PROBE_CONCURRENCY = 8;
+const EDGE_STABLE_ROUNDS = 3;
+const EDGE_MAX_ROUNDS = 90;
 const here = path.dirname(fileURLToPath(import.meta.url));
 const defaultReceipt = path.resolve(here, '../receipts/p0.1-wfp-minimal-control.json');
 
@@ -309,8 +312,12 @@ async function main() {
 
     const rounds = [];
     let consecutiveStableRounds = 0;
-    for (let round = 1; round <= 60 && consecutiveStableRounds < 3; round += 1) {
-      const results = await Promise.all(Array.from({ length: 8 }, () => uniqueProbe('/noop')));
+    for (let round = 1;
+      round <= EDGE_MAX_ROUNDS && consecutiveStableRounds < EDGE_STABLE_ROUNDS;
+      round += 1) {
+      const results = await Promise.all(
+        Array.from({ length: EDGE_PROBE_CONCURRENCY }, () => uniqueProbe('/noop')),
+      );
       const stable = results.every((entry) => entry.status === 200 && entry.body?.ok === true);
       consecutiveStableRounds = stable ? consecutiveStableRounds + 1 : 0;
       rounds.push({
@@ -321,15 +328,19 @@ async function main() {
           generatedNotFound: isGeneratedNotFound({ ...evidence, body }),
         })),
       });
-      if (consecutiveStableRounds < 3) await new Promise((resolve) => setTimeout(resolve, 1_000));
+      if (consecutiveStableRounds < EDGE_STABLE_ROUNDS) {
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+      }
     }
     receipt.activation = {
       controlPlanePost: enabled.result,
       controlPlaneReadBack: enabledReadBack.result,
       dns,
-      requiredConsecutiveStableRounds: 3,
+      concurrency: EDGE_PROBE_CONCURRENCY,
+      requiredConsecutiveStableRounds: EDGE_STABLE_ROUNDS,
+      maxRounds: EDGE_MAX_ROUNDS,
       consecutiveStableRounds,
-      stable: consecutiveStableRounds >= 3,
+      stable: consecutiveStableRounds >= EDGE_STABLE_ROUNDS,
       rounds,
       generatedNotFoundCount: rounds.flatMap((entry) => entry.results)
         .filter((entry) => entry.generatedNotFound).length,
