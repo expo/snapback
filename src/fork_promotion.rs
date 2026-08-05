@@ -3041,7 +3041,7 @@ pub fn ensure_promotion_tables(conn: &Connection) -> SnapbackResult<()> {
     // Promotion may be invoked on a pre-v2 store through the lower-level Rust
     // surface. Upgrade the proof/history infrastructure before replay writes
     // enter storage's central history seam.
-    crate::proof_checkpoint::create_infra(conn)?;
+    crate::proof_checkpoint::create_history_infra(conn)?;
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS _snapback_promotion_admission (
             canonical_stream_id TEXT NOT NULL,

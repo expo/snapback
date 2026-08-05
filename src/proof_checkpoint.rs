@@ -866,8 +866,125 @@ pub struct RecordHistoryPageV1 {
     pub horizon: RecordHistoryHorizonV1,
 }
 
-pub(crate) fn create_infra(conn: &Connection) -> SnapbackResult<()> {
+const CHECKPOINT_ERASURE_TABLES: [&str; 4] = [
+    CHECKPOINT_REGISTRY_TABLE,
+    PROTECTED_CHECKPOINT_ERASURE_TABLE,
+    PROTECTED_RECORD_ERASURE_TABLE,
+    PROTECTED_ERASURE_GENERATION_TABLE,
+];
+
+/// History is part of the ordinary mutation seam, so its tables remain eager.
+/// Checkpoint and erasure authority is deliberately initialized separately at
+/// the first owning operation.
+///
+/// @ref LLP 0162#measurement-gate — ordinary covered
+/// storage does not retain unused checkpoint/erasure schema state.
+pub(crate) fn create_history_infra(conn: &Connection) -> SnapbackResult<()> {
     conn.execute_batch(&format!(
+        "CREATE TABLE IF NOT EXISTS {HISTORY_POLICY_TABLE} (
+           table_name TEXT PRIMARY KEY,
+           retain_ms INTEGER NOT NULL CHECK(retain_ms > 0),
+           max_rows INTEGER NOT NULL CHECK(max_rows > 0)
+         );
+         CREATE TABLE IF NOT EXISTS {HISTORY_POLICY_TABLE_V2} (
+           table_name TEXT PRIMARY KEY,
+           retain_ms INTEGER NOT NULL CHECK(retain_ms > 0),
+           max_versions_per_record INTEGER NOT NULL CHECK(max_versions_per_record > 0)
+         );
+         CREATE TABLE IF NOT EXISTS {RECORD_HISTORY_TABLE} (
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           version INTEGER NOT NULL,
+           table_name TEXT NOT NULL,
+           row_id TEXT NOT NULL,
+           op TEXT NOT NULL,
+           row_json TEXT,
+           changed_at_ms INTEGER NOT NULL,
+           operation_id TEXT
+         );
+         CREATE INDEX IF NOT EXISTS _snapback_record_history_v1_by_record
+           ON {RECORD_HISTORY_TABLE}(table_name,row_id,version,id);
+         CREATE INDEX IF NOT EXISTS _snapback_record_history_v1_by_age
+           ON {RECORD_HISTORY_TABLE}(table_name,changed_at_ms,version,id);"
+    ))?;
+    Ok(())
+}
+
+fn checkpoint_registry_exists(conn: &Connection) -> SnapbackResult<bool> {
+    Ok(conn
+        .query_row(
+            "SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?1",
+            [CHECKPOINT_REGISTRY_TABLE],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some())
+}
+
+fn checkpoint_erasure_infra_complete(conn: &Connection) -> SnapbackResult<bool> {
+    for table in CHECKPOINT_ERASURE_TABLES {
+        if !conn
+            .query_row(
+                "SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?1",
+                [table],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some()
+        {
+            return Ok(false);
+        }
+    }
+    let has_intent: bool = conn.query_row(
+        &format!(
+            "SELECT EXISTS(
+               SELECT 1 FROM pragma_table_info('{CHECKPOINT_REGISTRY_TABLE}')
+               WHERE name='intent_json'
+             )"
+        ),
+        [],
+        |row| row.get(0),
+    )?;
+    let has_generation: bool = conn.query_row(
+        &format!(
+            "SELECT EXISTS(
+               SELECT 1 FROM {PROTECTED_ERASURE_GENERATION_TABLE} WHERE id=1
+             )"
+        ),
+        [],
+        |row| row.get(0),
+    )?;
+    Ok(has_intent && has_generation)
+}
+
+fn any_checkpoint_erasure_infra_exists(conn: &Connection) -> SnapbackResult<bool> {
+    for table in CHECKPOINT_ERASURE_TABLES {
+        if conn
+            .query_row(
+                "SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?1",
+                [table],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some()
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+/// Create the complete checkpoint/erasure authority family in one serialized
+/// transaction. First-use races converge, and an existing partial or legacy
+/// family is completed without discarding its authority records.
+///
+/// @ref LLP 0162#6-bounded-history-and-named-checkpoints — checkpoint and
+/// erasure authority is a single fail-closed durable family.
+pub(crate) fn ensure_checkpoint_erasure_infra(conn: &Connection) -> SnapbackResult<()> {
+    if checkpoint_erasure_infra_complete(conn)? {
+        return Ok(());
+    }
+    let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)?;
+    tx.execute_batch(&format!(
         "CREATE TABLE IF NOT EXISTS {CHECKPOINT_REGISTRY_TABLE} (
            checkpoint_id TEXT PRIMARY KEY,
            operation_id TEXT NOT NULL UNIQUE,
@@ -899,33 +1016,9 @@ pub(crate) fn create_infra(conn: &Connection) -> SnapbackResult<()> {
            generation INTEGER NOT NULL CHECK(generation >= 0)
          );
          INSERT INTO {PROTECTED_ERASURE_GENERATION_TABLE}(id,generation)
-         VALUES(1,0) ON CONFLICT(id) DO NOTHING;
-         CREATE TABLE IF NOT EXISTS {HISTORY_POLICY_TABLE} (
-           table_name TEXT PRIMARY KEY,
-           retain_ms INTEGER NOT NULL CHECK(retain_ms > 0),
-           max_rows INTEGER NOT NULL CHECK(max_rows > 0)
-         );
-         CREATE TABLE IF NOT EXISTS {HISTORY_POLICY_TABLE_V2} (
-           table_name TEXT PRIMARY KEY,
-           retain_ms INTEGER NOT NULL CHECK(retain_ms > 0),
-           max_versions_per_record INTEGER NOT NULL CHECK(max_versions_per_record > 0)
-         );
-         CREATE TABLE IF NOT EXISTS {RECORD_HISTORY_TABLE} (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           version INTEGER NOT NULL,
-           table_name TEXT NOT NULL,
-           row_id TEXT NOT NULL,
-           op TEXT NOT NULL,
-           row_json TEXT,
-           changed_at_ms INTEGER NOT NULL,
-           operation_id TEXT
-         );
-         CREATE INDEX IF NOT EXISTS _snapback_record_history_v1_by_record
-           ON {RECORD_HISTORY_TABLE}(table_name,row_id,version,id);
-         CREATE INDEX IF NOT EXISTS _snapback_record_history_v1_by_age
-           ON {RECORD_HISTORY_TABLE}(table_name,changed_at_ms,version,id);"
+         VALUES(1,0) ON CONFLICT(id) DO NOTHING;"
     ))?;
-    let has_intent: bool = conn.query_row(
+    let has_intent: bool = tx.query_row(
         &format!(
             "SELECT EXISTS(
                SELECT 1 FROM pragma_table_info('{CHECKPOINT_REGISTRY_TABLE}')
@@ -936,10 +1029,21 @@ pub(crate) fn create_infra(conn: &Connection) -> SnapbackResult<()> {
         |row| row.get(0),
     )?;
     if !has_intent {
-        conn.execute(
+        tx.execute(
             &format!("ALTER TABLE {CHECKPOINT_REGISTRY_TABLE} ADD COLUMN intent_json TEXT"),
             [],
         )?;
+    }
+    tx.commit()?;
+    Ok(())
+}
+
+/// Fresh ordinary stores stay free of optional checkpoint/erasure state. A
+/// pre-existing family, including a partial older migration, is completed at
+/// open so no retained authority can be mistaken for an empty inventory.
+pub(crate) fn upgrade_checkpoint_erasure_infra_if_present(conn: &Connection) -> SnapbackResult<()> {
+    if any_checkpoint_erasure_infra_exists(conn)? {
+        ensure_checkpoint_erasure_infra(conn)?;
     }
     Ok(())
 }
@@ -1370,7 +1474,9 @@ fn required_checkpoint_schema_hash(schema: &SchemaManifest) -> SnapbackResult<&s
         })
 }
 
-fn validate_checkpoint_request(request: &NamedCheckpointRequestV1) -> SnapbackResult<()> {
+pub(crate) fn validate_checkpoint_request(
+    request: &NamedCheckpointRequestV1,
+) -> SnapbackResult<()> {
     crate::manifest::validate_portable_timestamp_millis(request.now_ms)?;
     crate::manifest::validate_portable_timestamp_millis(request.lease_expires_at_ms)?;
     let lease = request
@@ -1712,7 +1818,7 @@ fn save_protected_record_erasure(
     Ok(())
 }
 
-fn validate_protected_record_erasure_request(
+pub(crate) fn validate_protected_record_erasure_request(
     schema: &SchemaManifest,
     request: &ProtectedRecordErasureRequestV1,
 ) -> SnapbackResult<()> {
@@ -2118,6 +2224,7 @@ fn create_named_checkpoint_inner(
     cut_at: Option<CheckpointPublicationCut>,
 ) -> SnapbackResult<NamedCheckpointReceiptV1> {
     validate_checkpoint_request(request)?;
+    ensure_checkpoint_erasure_infra(conn)?;
     refuse_checkpoint_if_erasure_fenced(conn)?;
     let erasure_generation = protected_erasure_generation(conn)?;
     let schema_hash = required_checkpoint_schema_hash(schema)?;
@@ -2440,6 +2547,9 @@ pub(crate) fn create_named_checkpoint(
     if error.diagnostic.code == "SNAPBACK_CHECKPOINT_TEST_CRASH_CUT" {
         return Err(error);
     }
+    if !checkpoint_registry_exists(conn)? {
+        return Err(error);
+    }
     let Some(record) = registry_record_by_operation(conn, &request.operation_id)? else {
         return Err(error);
     };
@@ -2465,6 +2575,12 @@ pub(crate) fn inspect_checkpoint(
     now_ms: u64,
 ) -> SnapbackResult<NamedCheckpointReceiptV1> {
     crate::manifest::validate_portable_timestamp_millis(now_ms)?;
+    if !checkpoint_registry_exists(conn)? {
+        return Err(proof_error(
+            "SNAPBACK_CHECKPOINT_NOT_FOUND",
+            "checkpoint is not registered",
+        ));
+    }
     let record = registry_record(conn, checkpoint_id)?.ok_or_else(|| {
         proof_error(
             "SNAPBACK_CHECKPOINT_NOT_FOUND",
@@ -2541,6 +2657,12 @@ fn erase_checkpoint_with(
     destroy: impl FnOnce(&Path) -> std::io::Result<()>,
 ) -> SnapbackResult<CheckpointRegistryRecordV1> {
     crate::manifest::validate_portable_timestamp_millis(now_ms)?;
+    if !checkpoint_registry_exists(conn)? {
+        return Err(proof_error(
+            "SNAPBACK_CHECKPOINT_NOT_FOUND",
+            "checkpoint is not registered",
+        ));
+    }
     let mut record = registry_record(conn, checkpoint_id)?.ok_or_else(|| {
         proof_error(
             "SNAPBACK_CHECKPOINT_NOT_FOUND",
@@ -2790,6 +2912,8 @@ fn erase_protected_record_with(
     mut destroy: impl FnMut(&Path) -> std::io::Result<()>,
     cut: Option<ProtectedRecordErasureCutV1>,
 ) -> SnapbackResult<ProtectedRecordErasureReceiptV1> {
+    validate_protected_record_erasure_request(schema, request)?;
+    ensure_checkpoint_erasure_infra(conn)?;
     let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)?;
     let mut receipt = begin_protected_record_erasure(&tx, schema, request, cut)?;
     tx.commit()?;
@@ -2897,6 +3021,22 @@ fn erase_protected_record_with(
     Ok(receipt)
 }
 
+pub(crate) fn validate_checkpoint_copy_erasure_request(
+    qualified_table: &str,
+    row_id: &str,
+    operation_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<()> {
+    crate::manifest::validate_portable_timestamp_millis(now_ms)?;
+    if qualified_table.is_empty() || row_id.is_empty() || operation_id.is_empty() {
+        return Err(proof_error(
+            "SNAPBACK_CHECKPOINT_ERASURE_REQUEST_INVALID",
+            "protected-record checkpoint erasure requires table, row, and operation identity",
+        ));
+    }
+    Ok(())
+}
+
 fn erase_protected_record_checkpoint_copies_with(
     conn: &Connection,
     qualified_table: &str,
@@ -2906,13 +3046,8 @@ fn erase_protected_record_checkpoint_copies_with(
     mut destroy: impl FnMut(&Path) -> std::io::Result<()>,
     cut_after_first_physical_destroy: bool,
 ) -> SnapbackResult<ProtectedRecordCheckpointErasureReceiptV1> {
-    crate::manifest::validate_portable_timestamp_millis(now_ms)?;
-    if qualified_table.is_empty() || row_id.is_empty() || operation_id.is_empty() {
-        return Err(proof_error(
-            "SNAPBACK_CHECKPOINT_ERASURE_REQUEST_INVALID",
-            "protected-record checkpoint erasure requires table, row, and operation identity",
-        ));
-    }
+    validate_checkpoint_copy_erasure_request(qualified_table, row_id, operation_id, now_ms)?;
+    ensure_checkpoint_erasure_infra(conn)?;
 
     let mut receipt = if let Some(existing) = protected_erasure_by_operation(conn, operation_id)? {
         if existing.qualified_table != qualified_table || existing.row_id != row_id {
@@ -3182,6 +3317,12 @@ pub(crate) fn recover_checkpoint(
     now_ms: u64,
 ) -> SnapbackResult<CheckpointRegistryRecordV1> {
     crate::manifest::validate_portable_timestamp_millis(now_ms)?;
+    if !checkpoint_registry_exists(conn)? {
+        return Err(proof_error(
+            "SNAPBACK_CHECKPOINT_NOT_FOUND",
+            "checkpoint is not registered",
+        ));
+    }
     let mut record = registry_record(conn, checkpoint_id)?.ok_or_else(|| {
         proof_error(
             "SNAPBACK_CHECKPOINT_NOT_FOUND",
@@ -3333,6 +3474,204 @@ mod tests {
             })
             .expect("seed row");
         database
+    }
+
+    fn checkpoint_erasure_table_count(conn: &Connection) -> u64 {
+        CHECKPOINT_ERASURE_TABLES
+            .iter()
+            .map(|table| {
+                conn.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?1)",
+                    [*table],
+                    |row| row.get::<_, u64>(0),
+                )
+                .expect("inspect optional checkpoint/erasure table")
+            })
+            .sum()
+    }
+
+    #[test]
+    fn ordinary_storage_keeps_checkpoint_erasure_authority_pay_for_play() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let database_path = temp.path().join("ordinary.sqlite");
+        let mut database = seeded_file_database(&database_path);
+        database
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Patch {
+                    table: "items".to_owned(),
+                    id: "item-a".to_owned(),
+                    values: Map::from_iter([("visibility".to_owned(), json!("updated"))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("ordinary mutation still uses the eager history seam");
+
+        let reader = Connection::open(&database_path).expect("inspect ordinary schema");
+        assert_eq!(checkpoint_erasure_table_count(&reader), 0);
+        for table in [
+            HISTORY_POLICY_TABLE,
+            HISTORY_POLICY_TABLE_V2,
+            RECORD_HISTORY_TABLE,
+        ] {
+            assert!(
+                reader
+                    .query_row(
+                        "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?1)",
+                        [table],
+                        |row| row.get::<_, bool>(0),
+                    )
+                    .expect("inspect eager history table"),
+                "ordinary mutation requires {table}"
+            );
+        }
+
+        let mut invalid_checkpoint = checkpoint_request(9);
+        invalid_checkpoint.label.clear();
+        assert_eq!(
+            database
+                .create_named_checkpoint(None, &invalid_checkpoint)
+                .expect_err("invalid checkpoint refuses before first-use DDL")
+                .diagnostic
+                .code,
+            "SNAPBACK_CHECKPOINT_REQUEST_INVALID"
+        );
+        let mut invalid_erasure =
+            protected_erasure_request("invalid-erasure", "operator-a", "item-a", 9);
+        invalid_erasure.row_id.clear();
+        assert_eq!(
+            database
+                .erase_protected_record(&invalid_erasure)
+                .expect_err("invalid erasure refuses before first-use DDL")
+                .diagnostic
+                .code,
+            "SNAPBACK_PROTECTED_ERASURE_REQUEST_INVALID"
+        );
+        assert_eq!(
+            database
+                .erase_protected_record_checkpoint_copies("items", "item-a", "", 9)
+                .expect_err("invalid copy erasure refuses before first-use DDL")
+                .diagnostic
+                .code,
+            "SNAPBACK_CHECKPOINT_ERASURE_REQUEST_INVALID"
+        );
+        assert_eq!(checkpoint_erasure_table_count(&reader), 0);
+
+        for outcome in [
+            database.inspect_named_checkpoint("checkpoint-v1:absent", 10),
+            database
+                .erase_named_checkpoint("checkpoint-v1:absent", 10)
+                .map(|record| record.receipt),
+            database
+                .recover_named_checkpoint("checkpoint-v1:absent", 10)
+                .map(|record| record.receipt),
+        ] {
+            assert_eq!(
+                outcome
+                    .expect_err("absent registry refuses stably")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_CHECKPOINT_NOT_FOUND"
+            );
+            assert_eq!(checkpoint_erasure_table_count(&reader), 0);
+        }
+    }
+
+    #[test]
+    fn first_checkpoint_or_erasure_creates_one_complete_authority_family() {
+        let checkpoint_temp = tempfile::tempdir().expect("checkpoint tempdir");
+        let checkpoint_path = checkpoint_temp.path().join("checkpoint.sqlite");
+        let mut checkpoint_database = seeded_file_database(&checkpoint_path);
+        checkpoint_database
+            .activate_ordinary_mutation_coverage_for_evidence(99)
+            .expect("arm the active coverage authorizer before first checkpoint use");
+        assert_eq!(
+            checkpoint_erasure_table_count(
+                &Connection::open(&checkpoint_path).expect("inspect pre-checkpoint schema")
+            ),
+            0
+        );
+        let mut request = checkpoint_request(100);
+        request.substrate = CheckpointSubstrateV1::ReceiptOnly;
+        checkpoint_database
+            .create_named_checkpoint(None, &request)
+            .expect("first checkpoint initializes authority");
+        let checkpoint_reader =
+            Connection::open(&checkpoint_path).expect("inspect checkpoint authority");
+        assert_eq!(checkpoint_erasure_table_count(&checkpoint_reader), 4);
+        assert_eq!(protected_erasure_generation(&checkpoint_reader).unwrap(), 0);
+
+        let erasure_temp = tempfile::tempdir().expect("erasure tempdir");
+        let erasure_path = erasure_temp.path().join("erasure.sqlite");
+        let erasure_database = seeded_file_database(&erasure_path);
+        let erasure_request =
+            protected_erasure_request("erase-first-use", "operator-a", "item-a", 200);
+        let receipt = erasure_database
+            .erase_protected_record(&erasure_request)
+            .expect("first erasure initializes authority");
+        assert_eq!(receipt.state, ProtectedRecordErasureStateV1::Complete);
+        assert!(receipt.copies.is_empty());
+        let erasure_reader = Connection::open(&erasure_path).expect("inspect erasure authority");
+        assert_eq!(checkpoint_erasure_table_count(&erasure_reader), 4);
+        assert_eq!(protected_erasure_generation(&erasure_reader).unwrap(), 1);
+        assert_eq!(
+            erasure_database
+                .erase_protected_record(&erasure_request)
+                .expect("exact first-use retry is idempotent")
+                .erasure_id,
+            receipt.erasure_id
+        );
+        assert_eq!(protected_erasure_generation(&erasure_reader).unwrap(), 1);
+    }
+
+    #[test]
+    fn open_completes_partial_legacy_checkpoint_authority_without_data_loss() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let database_path = temp.path().join("legacy.sqlite");
+        drop(LocalDatabase::open(&database_path).expect("create ordinary database"));
+        let legacy = Connection::open(&database_path).expect("open legacy schema");
+        legacy
+            .execute_batch(&format!(
+                "CREATE TABLE {CHECKPOINT_REGISTRY_TABLE} (
+                   checkpoint_id TEXT PRIMARY KEY,
+                   operation_id TEXT NOT NULL UNIQUE,
+                   state TEXT NOT NULL,
+                   record_json TEXT NOT NULL,
+                   updated_at_ms INTEGER NOT NULL
+                 );
+                 INSERT INTO {CHECKPOINT_REGISTRY_TABLE}(
+                   checkpoint_id,operation_id,state,record_json,updated_at_ms
+                 ) VALUES('legacy-checkpoint','legacy-operation','invalid','{{}}',1);"
+            ))
+            .expect("install partial legacy authority");
+        drop(legacy);
+
+        drop(LocalDatabase::open(&database_path).expect("upgrade retained authority"));
+        let reader = Connection::open(&database_path).expect("inspect upgraded authority");
+        assert_eq!(checkpoint_erasure_table_count(&reader), 4);
+        assert!(
+            reader
+                .query_row(
+                    &format!(
+                        "SELECT EXISTS(SELECT 1 FROM pragma_table_info('{CHECKPOINT_REGISTRY_TABLE}') WHERE name='intent_json')"
+                    ),
+                    [],
+                    |row| row.get::<_, bool>(0),
+                )
+                .expect("inspect legacy intent migration")
+        );
+        assert_eq!(
+            reader
+                .query_row(
+                    &format!("SELECT COUNT(*) FROM {CHECKPOINT_REGISTRY_TABLE}"),
+                    [],
+                    |row| row.get::<_, u64>(0),
+                )
+                .expect("count preserved registry rows"),
+            1
+        );
+        assert_eq!(protected_erasure_generation(&reader).unwrap(), 0);
     }
 
     #[test]

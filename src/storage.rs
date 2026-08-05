@@ -3260,9 +3260,11 @@ impl LocalDatabase {
                 "named checkpoints require a file-backed database",
             )
         })?;
+        crate::proof_checkpoint::validate_checkpoint_request(request)?;
         // Initialize the stream before pinning. It is part of the compared
         // checkpoint header and cannot be minted after the source scan.
         let _ = self.data_version_stream()?;
+        self.ensure_checkpoint_erasure_infra()?;
         crate::proof_checkpoint::create_named_checkpoint(
             &self.conn,
             &source,
@@ -3311,6 +3313,8 @@ impl LocalDatabase {
         &self,
         request: &crate::proof_checkpoint::ProtectedRecordErasureRequestV1,
     ) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordErasureReceiptV1> {
+        crate::proof_checkpoint::validate_protected_record_erasure_request(&self.schema, request)?;
+        self.ensure_checkpoint_erasure_infra()?;
         crate::proof_checkpoint::erase_protected_record(&self.conn, &self.schema, request)
     }
 
@@ -3325,6 +3329,13 @@ impl LocalDatabase {
         operation_id: &str,
         now_ms: u64,
     ) -> SnapbackResult<crate::proof_checkpoint::ProtectedRecordCheckpointErasureReceiptV1> {
+        crate::proof_checkpoint::validate_checkpoint_copy_erasure_request(
+            qualified_table,
+            row_id,
+            operation_id,
+            now_ms,
+        )?;
+        self.ensure_checkpoint_erasure_infra()?;
         crate::proof_checkpoint::erase_protected_record_checkpoint_copies(
             &self.conn,
             qualified_table,
@@ -3340,6 +3351,11 @@ impl LocalDatabase {
         now_ms: u64,
     ) -> SnapbackResult<crate::proof_checkpoint::CheckpointRegistryRecordV1> {
         crate::proof_checkpoint::recover_checkpoint(&self.conn, checkpoint_id, now_ms)
+    }
+
+    fn ensure_checkpoint_erasure_infra(&self) -> SnapbackResult<()> {
+        let _schema_maintenance = self.writer_authority.enter_internal_schema_maintenance()?;
+        crate::proof_checkpoint::ensure_checkpoint_erasure_infra(&self.conn)
     }
 
     pub fn change_journal_len(&self) -> SnapbackResult<u64> {
@@ -7305,7 +7321,8 @@ impl LocalDatabase {
               ON _snapback_authorized_lease_reservations(authorized_until_server_ms);
             ",
         )?;
-        crate::proof_checkpoint::create_infra(&self.conn)?;
+        crate::proof_checkpoint::create_history_infra(&self.conn)?;
+        crate::proof_checkpoint::upgrade_checkpoint_erasure_infra_if_present(&self.conn)?;
         crate::search::sqlite::create_infra(&self.conn)?;
         crate::vector::sqlite::create_infra(&self.conn)?;
         // @ref LLP 0070#job-identity-and-enqueue — the durable one-off job and
@@ -26805,6 +26822,38 @@ mod guarded_commit_tests {
             .expect_err("same-process authorizer must arm before activation returns");
         assert!(matches!(
             immediate,
+            rusqlite::Error::SqliteFailure(failure, _)
+                if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+        ));
+        {
+            let _maintenance = db
+                .writer_authority
+                .enter_internal_schema_maintenance()
+                .expect("enter bounded internal schema maintenance");
+            crate::proof_checkpoint::ensure_checkpoint_erasure_infra(&db.conn)
+                .expect("owned checkpoint schema is admitted while armed");
+            for sql in [
+                "CREATE TABLE app_schema_bypass(id INTEGER)",
+                "ALTER TABLE items ADD COLUMN app_schema_bypass TEXT",
+                "DROP TABLE items",
+            ] {
+                let error = db
+                    .conn
+                    .execute(sql, [])
+                    .expect_err("internal maintenance cannot authorize application DDL");
+                assert!(matches!(
+                    error,
+                    rusqlite::Error::SqliteFailure(failure, _)
+                        if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
+                ));
+            }
+        }
+        let revoked = db
+            .conn
+            .execute("CREATE TABLE _snapback_maintenance_escape(id INTEGER)", [])
+            .expect_err("internal schema authority is revoked when its token drops");
+        assert!(matches!(
+            revoked,
             rusqlite::Error::SqliteFailure(failure, _)
                 if failure.code == rusqlite::ErrorCode::AuthorizationForStatementDenied
         ));

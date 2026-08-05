@@ -2060,6 +2060,8 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let source = source_database(directory.path());
         let mut parent = Connection::open(&source).unwrap();
+        crate::proof_checkpoint::ensure_checkpoint_erasure_infra(&parent)
+            .expect("initialize exercised checkpoint/erasure custody");
         crate::operation_detail::install(&parent, Some(&source))
             .expect("install parent operation detail custody");
         let tx = parent.transaction().unwrap();

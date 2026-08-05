@@ -255,6 +255,7 @@ struct WriterAuthorityState {
     manifest: Option<OperationCoverageManifestV1>,
     active_writer: Option<LocalWriterLaneV1>,
     active_depth: usize,
+    internal_schema_maintenance: bool,
 }
 
 impl WriterAuthorityState {
@@ -266,11 +267,12 @@ impl WriterAuthorityState {
         !self.armed() || self.active_writer.is_some()
     }
 
-    fn permits_schema_change(&self) -> bool {
+    fn permits_schema_change(&self, internal_target: bool) -> bool {
         !self.armed()
             || self
                 .active_writer
                 .is_some_and(LocalWriterLaneV1::schema_authority)
+            || (self.internal_schema_maintenance && internal_target)
     }
 }
 
@@ -399,6 +401,29 @@ impl WriterAuthorityV1 {
         Ok(GeneratedWriterTokenV1 {
             state: Arc::clone(&self.state),
             writer,
+        })
+    }
+
+    /// Admit only in-crate, system-table DDL needed by a pay-for-play
+    /// subsystem. This is intentionally distinct from a generated writer
+    /// token: it cannot authorize application DML, and it cannot overlap a
+    /// writer transaction.
+    ///
+    /// @ref LLP 0162#coverage — optional internal schema initialization does
+    /// not widen the closed application-writer surface.
+    pub(super) fn enter_internal_schema_maintenance(
+        &self,
+    ) -> SnapbackResult<InternalSchemaMaintenanceTokenV1> {
+        let mut state = self.lock()?;
+        if state.internal_schema_maintenance || state.active_writer.is_some() {
+            return Err(authority_invalid(
+                "internal schema maintenance cannot overlap another writer",
+            ));
+        }
+        state.internal_schema_maintenance = true;
+        drop(state);
+        Ok(InternalSchemaMaintenanceTokenV1 {
+            state: Arc::clone(&self.state),
         })
     }
 
@@ -547,6 +572,20 @@ pub(super) struct GeneratedWriterTokenV1 {
     writer: LocalWriterLaneV1,
 }
 
+pub(super) struct InternalSchemaMaintenanceTokenV1 {
+    state: Arc<Mutex<WriterAuthorityState>>,
+}
+
+impl Drop for InternalSchemaMaintenanceTokenV1 {
+    fn drop(&mut self) {
+        let Ok(mut state) = self.state.lock() else {
+            return;
+        };
+        debug_assert!(state.internal_schema_maintenance);
+        state.internal_schema_maintenance = false;
+    }
+}
+
 impl Drop for GeneratedWriterTokenV1 {
     fn drop(&mut self) {
         let Ok(mut state) = self.state.lock() else {
@@ -565,6 +604,7 @@ fn authorize(state: &Arc<Mutex<WriterAuthorityState>>, context: AuthContext<'_>)
         return Authorization::Deny;
     };
     let protected = |table: &str| state.covered_tables.contains(table);
+    let internal_schema_target = internal_schema_maintenance_target(&context.action);
     match context.action {
         AuthAction::Insert { table_name }
         | AuthAction::Delete { table_name }
@@ -590,13 +630,28 @@ fn authorize(state: &Arc<Mutex<WriterAuthorityState>>, context: AuthContext<'_>)
         | AuthAction::DropTrigger { .. }
         | AuthAction::DropView { .. }
         | AuthAction::AlterTable { .. } => {
-            if state.permits_schema_change() {
+            if state.permits_schema_change(internal_schema_target) {
                 Authorization::Allow
             } else {
                 Authorization::Deny
             }
         }
         _ => Authorization::Allow,
+    }
+}
+
+fn internal_schema_maintenance_target(action: &AuthAction<'_>) -> bool {
+    let owned = |name: &str| name.starts_with("_snapback_");
+    match action {
+        AuthAction::CreateTable { table_name } => owned(table_name),
+        AuthAction::CreateIndex {
+            index_name,
+            table_name,
+        } => {
+            owned(table_name) && (owned(index_name) || index_name.starts_with("sqlite_autoindex_"))
+        }
+        AuthAction::AlterTable { table_name, .. } => owned(table_name),
+        _ => false,
     }
 }
 
