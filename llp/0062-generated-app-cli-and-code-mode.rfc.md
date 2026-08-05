@@ -104,8 +104,8 @@ Ibex/Hermes, this generic engine, and the fixed app origin and identity.
 The executable does **not** bake the app's current function surface or
 handler code; it fetches the same dynamic envelope as the Node engine,
 so ordinary app deployments do not require a new download. That
-direction remains outside phase 1 and requires explicit ibex-side
-contract revisions before implementation (§6).
+direction remains outside phase 1; its explicit Ibex-side contract revisions
+landed before the phase-2 implementation (§6).
 
 ## Motivation
 
@@ -1339,14 +1339,13 @@ additional machinery.
    sandbox, so the extension must state its threat model honestly and must
    not claim containment beyond the enforced policy.
 
-   Phase 2 proceeds only after those ibex contracts are revised and reviewed.
+   Phase 2 proceeds only after those Ibex contracts are revised and reviewed.
    This amendment creates no phase-1 embedded-Ibex, computed-import, or
-   single-file delivery requirement, and phase 1 depends on none of it.
-   Ibex 0028's current citation of this RFC predates that scoping, while ibex
-   0029's statement that v1 "prototypes the Snapback CLI" still lacks this
-   external-script lane; **the correcting ibex-side amendments to both 0028
-   and 0029 remain a landing obligation before implementation**. The §3
-   brokered ABI and §7 host-portable suite make the eventual move checkable.
+   single-file delivery requirement, and phase 1 depends on none of it. That
+   prerequisite was satisfied on 2026-08-03 by revised Ibex LLPs 0028 and 0029
+   plus new LLP 0048 in Ibex commit
+   `36442ab9fa399b315ca562da1bdb72190a4aa4f6`. The §3 brokered ABI and §7
+   host-portable suite make the implemented move checkable.
 
 ### 7. Acceptance
 

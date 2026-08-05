@@ -33,6 +33,7 @@ trap cleanup EXIT
 
 [[ "$(uname -s)-$(uname -m)" == "Linux-x86_64" ]] || { echo "qualification requires Linux x86_64" >&2; exit 2; }
 command -v socat >/dev/null || { echo "qualification requires socat" >&2; exit 2; }
+[[ -x /usr/bin/unshare ]] || { echo "qualification requires /usr/bin/unshare" >&2; exit 2; }
 [[ -f "$IBEX/scripts/build-sfe-release.sh" ]] || { echo "vendor/ibex is not initialized" >&2; exit 2; }
 mkdir -p "$RUN_ROOT" "$RECEIPTS"
 
@@ -178,7 +179,7 @@ printf '%s\n' "$elf_interpreter" >"$RECEIPTS/elf-interpreter.txt"
 # are outside its namespace, while an empty PATH prevents tool discovery.
 rm -rf "$CONSUMER_ROOT"
 mkdir -p "$CONSUMER_ROOT/app-bin" "$CONSUMER_ROOT/dev" "$CONSUMER_ROOT/etc/ssl/certs" \
-  "$CONSUMER_ROOT/root" "$CONSUMER_ROOT/run" "$CONSUMER_ROOT/tmp"
+  "$CONSUMER_ROOT/proc" "$CONSUMER_ROOT/root" "$CONSUMER_ROOT/run" "$CONSUMER_ROOT/tmp"
 chmod 1777 "$CONSUMER_ROOT/tmp"
 install -m 0755 "$APP" "$CONSUMER_ROOT/app-bin/snapback-app"
 install -m 0600 "$bearer_file" "$CONSUMER_ROOT/run/session-bearer"
@@ -204,8 +205,13 @@ sudo mknod -m 0666 "$CONSUMER_ROOT/dev/urandom" c 1 9
 install -m 0644 /dev/stdin "$CONSUMER_ROOT/run/probe.ts" <<'PROBE'
 export default { consumerRoot: true, fetchType: typeof fetch, processType: typeof process };
 PROBE
-consumer=(sudo env -i HOME=/root PATH=/no-producer-tools \
-  SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+# Ibex pins the file mapped as this process through /proc/self/exe and checks
+# its device/inode against /proc/self/maps. Give each consumer invocation a
+# fresh PID+mount namespace and a private procfs: the check remains real while
+# producer processes (and their /proc/<pid>/cwd/root handles) stay invisible.
+consumer=(sudo /usr/bin/unshare --mount --pid --fork \
+  --mount-proc="$CONSUMER_ROOT/proc" /usr/bin/env -i \
+  HOME=/root PATH=/no-producer-tools SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
   /usr/sbin/chroot --userspec="$(id -u):$(id -g)" \
   "$CONSUMER_ROOT" /app-bin/snapback-app)
 "${consumer[@]}" introspect >"$RECEIPTS/consumer-root-introspect.json"
