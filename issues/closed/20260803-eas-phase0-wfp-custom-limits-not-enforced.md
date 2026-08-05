@@ -51,18 +51,21 @@ The real P0.1 runner now uses two dispatch bindings to the same namespace:
   subrequest counter that returns the stable `SNAPBACK_SUBREQUEST_LIMIT`
   diagnostic before the sixth outbound handoff.
 
-The generated harness freezes ambient `globalThis.fetch` before operation code
-runs. Handler operations exercise and deny both lexical `fetch` and explicit
-`globalThis.fetch`; action operations prove that raw `globalThis.fetch` is also
-denied and that outbound access succeeds only through the governed,
-per-invocation helper that owns the subrequest counter.
+The trusted `worker.mjs` harness freezes ambient `globalThis.fetch` and only
+then dynamically evaluates a separate `application.mjs`. Application code
+never shares the harness's native-fetch closure, `env`, or raw `HOST` binding;
+it receives a frozen invocation-scoped context. Handler operations exercise and
+deny lexical `fetch`, explicit `globalThis.fetch`, and fetch captured when the
+application module evaluates. Actions prove the same ambient denials and that
+outbound access succeeds only through `ctx.fetch`, whose closure owns the
+subrequest counter.
 The CPU witness uses a 200,000,000-iteration finite burn, records up to five
 attempts, and requires an actual Cloudflare termination instead of inferring
 CPU time from client wall time.
 
 The corrected disposable run retained at
 `demos/eas-phase0/receipts/p0.1-wfp-dispatch-namespace.json` passed all 23
-checks. The native CPU witness terminated on attempt three; the action
+checks. The native CPU witness terminated on attempt five; the action
 subrequest witness returned HTTP 429 with `SNAPBACK_SUBREQUEST_LIMIT` at limit
 five, and the action ambient-global-fetch attack returned HTTP 403. The separate
 minimal-control receipt preserves the native subrequest proof without the

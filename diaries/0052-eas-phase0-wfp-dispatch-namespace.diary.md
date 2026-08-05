@@ -140,17 +140,24 @@ spellings. The production generator still needs its own escape audit, which is
 why the narrower outbound/custom-limit follow-up remains open.
 
 A fresh review caught the symmetric action escape: after the dispatch split,
-raw `globalThis.fetch` could skip the action's cooperative counter. The final
-hardened harness freezes ambient global fetch for both roles. Actions can reach
-the outbound Worker only through the per-invocation governed helper; the live
-matrix now proves allowlisted helper egress, non-allowlisted helper denial, raw
-action-global denial, and sixth-call rejection together. The production
-generator still needs the dynamic-escape audit tracked in the focused follow-up.
+raw `globalThis.fetch` could skip the action's cooperative counter. Freezing the
+global alone was still insufficient because the single generated module kept
+its native-fetch alias in the same lexical scope as the simulated app code. The
+final topology splits each user Worker into trusted `worker.mjs` and application
+`application.mjs`: trusted setup captures native fetch, freezes ambient fetch,
+and only then dynamically evaluates the app module. App code receives a frozen
+invocation-scoped context, never the native-fetch closure, `env`, or raw `HOST`.
+The live matrix now proves lexical/global/module-captured ambient denial,
+allowlisted `ctx.fetch`, non-allowlisted `ctx.fetch` denial, and sixth-call
+rejection together. The production generator still needs the dynamic-escape
+audit tracked in the focused follow-up.
 
 The same final rerun exposed a separate readiness bug rather than another
 isolation failure. The dispatcher encodes `Worker not found.` as structured
 HTTP 502, but the client retried only HTTP 500. I fixed the predicate and added
 a second three-round barrier that probes all eight namespace scripts after the
-Workers.dev route stabilizes. The retained run crossed Workers.dev at round 50
-after 126 HTTP 404s, then passed 24/24 namespace activation probes, all 23 P0.1
-checks, native CPU termination on attempt three, and four post-cleanup 404s.
+Workers.dev route stabilizes. The final retained run crossed Workers.dev at
+round 41 after 48 HTTP 404s. The namespace barrier then observed 48 structured
+`Worker not found.` responses before passing three clean eight-way rounds at
+round 19. All 23 P0.1 checks passed, native CPU terminated on attempt five, and
+four exact post-cleanup lookups returned 404.

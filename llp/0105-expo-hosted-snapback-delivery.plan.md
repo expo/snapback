@@ -8,7 +8,8 @@
 **Revised:** 2026-08-04 (P0.1 hardened run passed 23/23: a binding-free control
 proved native WfP CPU/subrequest enforcement, handler/action dispatch bindings
 were split so handler CPU remains native while action egress uses an explicit
-subrequest guard with ambient global fetch frozen-denied, and consecutive
+invocation-scoped `ctx.fetch` guard; a trusted main module freezes ambient fetch
+before dynamically evaluating separate app code, and consecutive
 readiness barriers converged for both Workers.dev and all eight dispatch scripts;
 Gate 0 remains open on the other Phase-0 obligations and the outbound action
 kill-domain follow-up). 2026-08-03 (WfP access enabled; initial P0.1 real
@@ -540,7 +541,7 @@ platform/pricing facts.
   user Workers, and passed untrusted-runtime, query/mutation host bridge,
   app/release isolation, idempotent retry, forbidden scope arguments,
   stale/tampered capability, handler egress denial, governed action allowlist
-  with raw global-fetch denial, independent
+  with lexical/global/module-captured ambient-fetch denial, independent
   handler/action progress, bounded queue/concurrency, response-size limits, a
   generated action subrequest ceiling, and native handler CPU termination. The
   binding-free control receipt
@@ -553,8 +554,9 @@ platform/pricing facts.
   `issues/20260804-eas-phase0-wfp-outbound-custom-limit-interaction.md`. A
   Workers.dev barrier now requires three consecutive clean eight-way rounds,
   followed by the same standard across all eight namespaced scripts. The final
-  run crossed Workers.dev at round 50 after 126 HTTP 404s, then passed 24/24
-  namespaced-script activation probes, retaining DNS, Ray-ID, and cache
+  run crossed Workers.dev at round 41 after 48 HTTP 404s. The namespace barrier
+  then observed 48 structured `Worker not found.` responses before reaching
+  three clean eight-way rounds at round 19, retaining DNS, Ray-ID, and cache
   evidence. The namespace and all three ordinary
   Workers were deleted, then four independent exact lookups returned HTTP 404.
   The two original findings are closed under `issues/closed/`; this P0.1 pass does

@@ -17,8 +17,8 @@ not merely one stale negative cache key:
 
 - the final minimal control observed 276 generated 404 responses and reached
   three consecutive clean eight-way rounds only at round 77;
-- the final hardened full run observed 126 HTTP 404 responses with Cloudflare
-  Ray IDs before reaching the same barrier at round 50.
+- the final hardened full run observed 48 HTTP 404 responses with Cloudflare
+  Ray IDs before reaching the same barrier at round 41.
 
 Both receipts retain the control-plane state, resolved IPv4 and IPv6 address
 sets, response status, Ray ID, cache headers, and server header without storing
@@ -42,10 +42,11 @@ dispatcher's actual structured HTTP 502 `Worker not found.` response; the old
 HTTP 500-only predicate was the direct cause of the app-B false failures in the
 first hardened rerun.
 
-The final real run passed the Workers.dev barrier at round 50 and all eight
-namespaced scripts passed three consecutive rounds immediately afterward; all
-23 checks then passed. This is a deterministic disposable-run readiness
-protocol, not a claim that Workers.dev is suitable production ingress;
+The final real run passed the Workers.dev barrier at round 41. The namespace
+barrier then observed 48 structured `Worker not found.` responses before all
+eight scripts reached three consecutive clean rounds at round 19; all 23 checks
+then passed. This is a deterministic disposable-run readiness protocol, not a
+claim that Workers.dev is suitable production ingress;
 LLP 0105 P0.2 still owns Expo subdomains, previews, aliases, custom domains,
 HTTP/WebSocket routing, and failover.
 
