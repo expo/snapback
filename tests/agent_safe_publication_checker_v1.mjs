@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
@@ -243,15 +243,36 @@ function validAbsoluteEvidence(commit) {
 
 function fixture() {
   const scratch = mkdtempSync(join(tmpdir(), 'snapback-agent-safe-publication-'));
-  for (const path of [storage.anchor, storage.carrier, storage.receipt]) {
-    mkdirSync(dirname(join(scratch, path)), { recursive: true });
-    cpSync(join(root, path), join(scratch, path));
+  const liveCarrier = JSON.parse(readFileSync(join(root, storage.carrier)));
+  const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+  const revision = /^[0-9a-f]{40}$/u.test(liveCarrier.qualifiedSourceCommit)
+      && liveCarrier.qualifiedSourceCommit !== '0'.repeat(40)
+    ? liveCarrier.qualifiedSourceCommit
+    : head;
+  for (const record of [storage, derived]) {
+    for (const path of [record.anchor, record.carrier, record.receipt]) {
+      mkdirSync(dirname(join(scratch, path)), { recursive: true });
+      writeFileSync(
+        join(scratch, path),
+        execFileSync('git', ['show', `${revision}:${path}`], { cwd: root }),
+      );
+    }
   }
   return scratch;
 }
 
 test('frozen C validates both independent records as withheld', () => {
-  assert.deepEqual(runChecker(root).map(({ state }) => state), ['withheld', 'withheld']);
+  const scratch = fixture();
+  assert.deepEqual(
+    [storage, derived].map((record) => validatePublicationRecord(scratch, record).state),
+    ['withheld', 'withheld'],
+  );
+  const live = runChecker(root);
+  assert.equal(live[1].state, 'withheld');
+  if (live[0].state === 'published') {
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+    assert.notEqual(live[0].commit, head, 'publication P must be later than qualification C');
+  }
 });
 
 test('withheld anchor cannot smuggle a carrier digest', () => {
