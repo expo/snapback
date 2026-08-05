@@ -5,12 +5,13 @@
 **Systems:** Product, Deployment, Runtime, Storage, Auth, Security, Billing, Observability, Developer experience, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-28
-**Revised:** 2026-08-04 (P0.1 corrected run passed 23/23: a binding-free control
+**Revised:** 2026-08-04 (P0.1 hardened run passed 23/23: a binding-free control
 proved native WfP CPU/subrequest enforcement, handler/action dispatch bindings
 were split so handler CPU remains native while action egress uses an explicit
-subrequest guard, and a three-round concurrent Workers.dev readiness barrier
-converged; Gate 0 remains open on the other Phase-0 obligations and the outbound
-action kill-domain follow-up). 2026-08-03 (WfP access enabled; initial P0.1 real
+subrequest guard with ambient global fetch frozen-denied, and consecutive
+readiness barriers converged for both Workers.dev and all eight dispatch scripts;
+Gate 0 remains open on the other Phase-0 obligations and the outbound action
+kill-domain follow-up). 2026-08-03 (WfP access enabled; initial P0.1 real
 namespace run retained 21/23 checks with exact HOST-only binding read-back and
 complete cleanup, but documented per-dispatch CPU/subrequest limits appeared
 unenforced and rapid Workers.dev activation instability was recorded for P0.2).
@@ -538,7 +539,8 @@ platform/pricing facts.
   handler/action, read back the exact single `HOST` service binding on all eight
   user Workers, and passed untrusted-runtime, query/mutation host bridge,
   app/release isolation, idempotent retry, forbidden scope arguments,
-  stale/tampered capability, handler egress denial, action allowlist, independent
+  stale/tampered capability, handler egress denial, governed action allowlist
+  with raw global-fetch denial, independent
   handler/action progress, bounded queue/concurrency, response-size limits, a
   generated action subrequest ceiling, and native handler CPU termination. The
   binding-free control receipt
@@ -549,9 +551,11 @@ platform/pricing facts.
   CPU enforcement and an outbound action binding with a fail-closed generated
   subrequest guard; the narrower composition question remains in
   `issues/20260804-eas-phase0-wfp-outbound-custom-limit-interaction.md`. A
-  Workers.dev barrier now requires three consecutive clean eight-way rounds;
-  the final run converged at round 81 after 312 HTTP 404s,
-  retaining DNS, Ray-ID, and cache evidence. The namespace and all three ordinary
+  Workers.dev barrier now requires three consecutive clean eight-way rounds,
+  followed by the same standard across all eight namespaced scripts. The final
+  run crossed Workers.dev at round 50 after 126 HTTP 404s, then passed 24/24
+  namespaced-script activation probes, retaining DNS, Ray-ID, and cache
+  evidence. The namespace and all three ordinary
   Workers were deleted, then four independent exact lookups returned HTTP 404.
   The two original findings are closed under `issues/closed/`; this P0.1 pass does
   not qualify P0.2's Expo ingress shapes or complete the other Gate-0 obligations.

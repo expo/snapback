@@ -127,7 +127,7 @@ passing rerun converged at round 77 after 276 generated 404s; all three
 subrequest probes failed natively, and CPU termination arrived on attempt four.
 That variance reinforces why the receipts retain every attempt and why the
 readiness protocol is bounded by a conservative ceiling rather than a typical
-round count. The final clean full run converged at round 81 after 312 HTTP 404s;
+round count. The first clean full run converged at round 81 after 312 HTTP 404s;
 all 23 checks passed, native CPU terminated on attempt three, and four exact
 post-delete API lookups returned 404.
 
@@ -138,3 +138,19 @@ itself prove a handler could not spell the ambient capability as
 the deny function before handler code runs, and the same check attacks both
 spellings. The production generator still needs its own escape audit, which is
 why the narrower outbound/custom-limit follow-up remains open.
+
+A fresh review caught the symmetric action escape: after the dispatch split,
+raw `globalThis.fetch` could skip the action's cooperative counter. The final
+hardened harness freezes ambient global fetch for both roles. Actions can reach
+the outbound Worker only through the per-invocation governed helper; the live
+matrix now proves allowlisted helper egress, non-allowlisted helper denial, raw
+action-global denial, and sixth-call rejection together. The production
+generator still needs the dynamic-escape audit tracked in the focused follow-up.
+
+The same final rerun exposed a separate readiness bug rather than another
+isolation failure. The dispatcher encodes `Worker not found.` as structured
+HTTP 502, but the client retried only HTTP 500. I fixed the predicate and added
+a second three-round barrier that probes all eight namespace scripts after the
+Workers.dev route stabilizes. The retained run crossed Workers.dev at round 50
+after 126 HTTP 404s, then passed 24/24 namespace activation probes, all 23 P0.1
+checks, native CPU termination on attempt three, and four post-cleanup 404s.

@@ -24,7 +24,9 @@ P0.1 splits the namespace into two dispatcher bindings:
 - handler invocations have no outbound Worker and retain native CPU
   termination; the generated harness denies handler network access;
 - action invocations retain the outbound allowlist and fail closed through the
-  generated `SNAPBACK_SUBREQUEST_LIMIT` guard.
+  generated `SNAPBACK_SUBREQUEST_LIMIT` guard. Ambient `globalThis.fetch` is
+  frozen-denied for actions, so egress is available only through the governed
+  per-invocation helper.
 
 The capability profile must report these layers honestly and must not project
 the minimal native result onto the outbound action path.
@@ -35,9 +37,9 @@ the minimal native result onto the outbound action path.
    Cloudflare example with timestamps and Ray IDs but no account values.
 2. Confirm with Cloudflare whether custom limits are specified to compose with
    outbound Workers or whether the accounting boundary is intentionally reset.
-3. Prove the production generated harness prevents alternate global-fetch
-   spellings and dynamic escape paths, or replace it with a stronger host/kill
-   boundary.
+3. Carry the spike's frozen ambient-global boundary into the production
+   generator and adversarially audit dynamic escape paths, or replace it with a
+   stronger host/kill boundary.
 4. Select and adversarially qualify the action CPU/wall-clock kill domain before
    `eas-cloudflare-wfp-v1` claims hosted untrusted execution.
 
