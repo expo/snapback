@@ -149,15 +149,24 @@ and only then dynamically evaluates the app module. App code receives a frozen
 invocation-scoped context, never the native-fetch closure, `env`, or raw `HOST`.
 The live matrix now proves lexical/global/module-captured ambient denial,
 allowlisted `ctx.fetch`, non-allowlisted `ctx.fetch` denial, and sixth-call
-rejection together. The production generator still needs the dynamic-escape
-audit tracked in the focused follow-up.
+rejection together. A second review caught that an application module could
+retain an old `ctx.fetch` across requests, so trusted setup now revokes the
+closure after settlement. The retained attack warmed isolate-local module state
+and then observed `SNAPBACK_STALE_ACTION_FETCH` from the prior invocation. The
+production generator still needs the dynamic-escape audit tracked in the
+focused follow-up.
 
 The same final rerun exposed a separate readiness bug rather than another
 isolation failure. The dispatcher encodes `Worker not found.` as structured
 HTTP 502, but the client retried only HTTP 500. I fixed the predicate and added
 a second three-round barrier that probes all eight namespace scripts after the
-Workers.dev route stabilizes. The final retained run crossed Workers.dev at
-round 41 after 48 HTTP 404s. The namespace barrier then observed 48 structured
-`Worker not found.` responses before passing three clean eight-way rounds at
-round 19. All 23 P0.1 checks passed, native CPU terminated on attempt five, and
-four exact post-cleanup lookups returned 404.
+Workers.dev route stabilizes. Two later clean-source attempts proved that
+waiting for three instantaneous all-200 rounds was itself brittle: one run had
+550 valid responses and 170 intermittent 404s without ever getting that streak.
+The final protocol instead runs three body-verified rounds with eight
+independently bounded retry lanes. It passed after absorbing 149 transient 404s
+and two 500s; the slowest lane needed 43 attempts. The namespace barrier then
+observed 36 structured `Worker not found.` responses before passing three clean
+eight-way rounds at round 65. All 23 P0.1 checks passed, the stale-fetch attack
+failed closed, native CPU terminated on attempt four, and four exact
+post-cleanup lookups returned 404.

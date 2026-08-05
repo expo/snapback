@@ -58,16 +58,20 @@ it receives a frozen invocation-scoped context. Handler operations exercise and
 deny lexical `fetch`, explicit `globalThis.fetch`, and fetch captured when the
 application module evaluates. Actions prove the same ambient denials and that
 outbound access succeeds only through `ctx.fetch`, whose closure owns the
-subrequest counter.
+subrequest counter. Trusted setup revokes each `ctx.fetch` after application
+settlement; a live later-request attack retains old handles in application
+module state and requires `SNAPBACK_STALE_ACTION_FETCH` before the limit check
+can pass.
 The CPU witness uses a 200,000,000-iteration finite burn, records up to five
 attempts, and requires an actual Cloudflare termination instead of inferring
 CPU time from client wall time.
 
 The corrected disposable run retained at
 `demos/eas-phase0/receipts/p0.1-wfp-dispatch-namespace.json` passed all 23
-checks. The native CPU witness terminated on attempt five; the action
+checks. The native CPU witness terminated on attempt four; the action
 subrequest witness returned HTTP 429 with `SNAPBACK_SUBREQUEST_LIMIT` at limit
-five, and the action ambient-global-fetch attack returned HTTP 403. The separate
+five, the retained-handle attack returned `SNAPBACK_STALE_ACTION_FETCH`, and the
+action ambient-global-fetch attack returned HTTP 403. The separate
 minimal-control receipt preserves the native subrequest proof without the
 outbound accounting boundary.
 

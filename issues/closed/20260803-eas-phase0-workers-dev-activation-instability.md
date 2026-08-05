@@ -17,8 +17,9 @@ not merely one stale negative cache key:
 
 - the final minimal control observed 276 generated 404 responses and reached
   three consecutive clean eight-way rounds only at round 77;
-- the final hardened full run observed 48 HTTP 404 responses with Cloudflare
-  Ray IDs before reaching the same barrier at round 41.
+- the final hardened full run needed as many as 43 attempts in one probe lane
+  and absorbed 149 HTTP 404 plus two HTTP 500 responses while completing three
+  body-verified eight-lane rounds.
 
 Both receipts retain the control-plane state, resolved IPv4 and IPv6 address
 sets, response status, Ray ID, cache headers, and server header without storing
@@ -27,13 +28,17 @@ route propagation after the control plane acknowledges enablement.
 
 ## Resolution
 
-Both runners now:
+Both runners POST and read back the script-subdomain configuration, resolve and
+record both address families, and use unique explicitly uncached health URLs.
+The minimal control's retained run crossed its conservative 90-round
+consecutive-clean barrier. The full P0.1 runner uses the more robust protocol
+derived from the later failures:
 
-1. POST the script subdomain configuration and read it back;
-2. resolve and record both address families;
-3. probe unique, explicitly uncached health URLs eight at a time;
-4. require three consecutive all-200, body-verified rounds;
-5. allow up to ninety one-second rounds before failing closed.
+1. run three body-verified readiness rounds;
+2. in each round, start eight independent probe lanes;
+3. retry each lane's transient route misses for up to ninety one-second
+   attempts, retaining every status and Ray ID;
+4. fail closed immediately if any lane exhausts its budget.
 
 The full runner additionally invokes every app × release × role script through
 the dispatch namespace and requires three consecutive all-200, identity-checked
@@ -42,9 +47,10 @@ dispatcher's actual structured HTTP 502 `Worker not found.` response; the old
 HTTP 500-only predicate was the direct cause of the app-B false failures in the
 first hardened rerun.
 
-The final real run passed the Workers.dev barrier at round 41. The namespace
-barrier then observed 48 structured `Worker not found.` responses before all
-eight scripts reached three consecutive clean rounds at round 19; all 23 checks
+The final real run completed all 24 Workers.dev lanes after 149 transient 404s
+and two transient 500s; the slowest lane needed 43 attempts. The namespace
+barrier then observed 36 structured `Worker not found.` responses before all
+eight scripts reached three consecutive clean rounds at round 65; all 23 checks
 then passed. This is a deterministic disposable-run readiness protocol, not a
 claim that Workers.dev is suitable production ingress;
 LLP 0105 P0.2 still owns Expo subdomains, previews, aliases, custom domains,

@@ -27,7 +27,8 @@ P0.1 splits the namespace into two dispatcher bindings:
   generated `SNAPBACK_SUBREQUEST_LIMIT` guard. Ambient `globalThis.fetch` is
   frozen-denied before a separate application module is evaluated, so app code
   cannot reach the trusted native-fetch closure and egress is available only
-  through the governed per-invocation `ctx.fetch` helper.
+  through the governed per-invocation `ctx.fetch` helper, which is revoked after
+  application settlement.
 
 The capability profile must report these layers honestly and must not project
 the minimal native result onto the outbound action path.

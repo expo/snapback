@@ -9,8 +9,8 @@
 proved native WfP CPU/subrequest enforcement, handler/action dispatch bindings
 were split so handler CPU remains native while action egress uses an explicit
 invocation-scoped `ctx.fetch` guard; a trusted main module freezes ambient fetch
-before dynamically evaluating separate app code, and consecutive
-readiness barriers converged for both Workers.dev and all eight dispatch scripts;
+before dynamically evaluating separate app code, and bounded-retry Workers.dev
+plus consecutive all-script readiness barriers converged;
 Gate 0 remains open on the other Phase-0 obligations and the outbound action
 kill-domain follow-up). 2026-08-03 (WfP access enabled; initial P0.1 real
 namespace run retained 21/23 checks with exact HOST-only binding read-back and
@@ -543,7 +543,8 @@ platform/pricing facts.
   stale/tampered capability, handler egress denial, governed action allowlist
   with lexical/global/module-captured ambient-fetch denial, independent
   handler/action progress, bounded queue/concurrency, response-size limits, a
-  generated action subrequest ceiling, and native handler CPU termination. The
+  generated action subrequest ceiling with post-settlement fetch revocation,
+  and native handler CPU termination. The
   binding-free control receipt
   (`demos/eas-phase0/receipts/p0.1-wfp-minimal-control.json`) proved the account's
   native custom limits independently: three subrequest bombs failed at five and
@@ -552,11 +553,12 @@ platform/pricing facts.
   CPU enforcement and an outbound action binding with a fail-closed generated
   subrequest guard; the narrower composition question remains in
   `issues/20260804-eas-phase0-wfp-outbound-custom-limit-interaction.md`. A
-  Workers.dev barrier now requires three consecutive clean eight-way rounds,
-  followed by the same standard across all eight namespaced scripts. The final
-  run crossed Workers.dev at round 41 after 48 HTTP 404s. The namespace barrier
-  then observed 48 structured `Worker not found.` responses before reaching
-  three clean eight-way rounds at round 19, retaining DNS, Ray-ID, and cache
+  Workers.dev barrier now requires three body-verified rounds with eight
+  independently bounded retry lanes, followed by three consecutive clean rounds
+  across all eight namespaced scripts. The final run absorbed 149 transient
+  Workers.dev 404s and two 500s (slowest lane: 43 attempts). The namespace
+  barrier then observed 36 structured `Worker not found.` responses before
+  reaching three clean rounds at round 65, retaining DNS, Ray-ID, and cache
   evidence. The namespace and all three ordinary
   Workers were deleted, then four independent exact lookups returned HTTP 404.
   The two original findings are closed under `issues/closed/`; this P0.1 pass does
