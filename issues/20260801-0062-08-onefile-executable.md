@@ -65,7 +65,7 @@ implementation remainder from the earlier checkpoint:
 The final qualified macOS arm64 catalog is
 `sha256-7Pt7_U-TZ7QHWQHUkh9ytz7SISktYhL4rnNH_PPxz_Q`. Two builds of the
 literal executable from identical inputs were byte-for-byte identical at
-SHA-256 `462904fb75c571394c10745fdb39ba3be301afe15476e3e322e39c2dce7a407d`.
+SHA-256 `7eb31cf1f3b4aaa24aa10ea45268f28c7a33e51a6d92437a8cd6a78b60e3a8f5`.
 The exact final artifact passed live authenticated broker calls; file and stdin
 top-level-await TypeScript; categorical import, enum, namespace, and parameter-
 property refusal; absent-default output; strict-result and call/output ceilings;
