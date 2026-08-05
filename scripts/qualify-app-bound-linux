@@ -35,6 +35,10 @@ command -v socat >/dev/null || { echo "qualification requires socat" >&2; exit 2
 [[ -f "$IBEX/scripts/build-sfe-release.sh" ]] || { echo "vendor/ibex is not initialized" >&2; exit 2; }
 mkdir -p "$RUN_ROOT" "$RECEIPTS"
 
+# Release packaging selects gzip explicitly. Do not let a runner-level tar
+# default add a second compression mode and make GNU tar reject the catalog.
+unset TAR_OPTIONS
+
 glibc_host="$(ldd --version | sed -n '1s/.* //p')"
 [[ "$glibc_host" == "2.35" ]] || { echo "expected GLIBC 2.35 host, got $glibc_host" >&2; exit 1; }
 
