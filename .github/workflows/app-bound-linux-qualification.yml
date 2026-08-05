@@ -1,0 +1,126 @@
+name: app-bound-linux-qualification
+
+# @ref LLP 0062#7-acceptance — qualify the literal final product on the exact
+# Linux floor rather than treating a newer developer host as portable evidence.
+on:
+  push:
+    branches:
+      - main
+      - llp-ship/llp0062-linux-**
+    paths:
+      - .github/workflows/app-bound-linux-qualification.yml
+      - .node-version
+      - Cargo.lock
+      - Cargo.toml
+      - build.rs
+      - bun.lock
+      - package.json
+      - rust-toolchain.toml
+      - src/**
+      - packages/snapback-app-cli/**
+      - packages/snapback-cli/**
+      - packages/snapback-client/**
+      - packages/snapback-codegen/**
+      - packages/snapback-contract/**
+      - schemas/**
+      - demos/_kit/**
+      - guide/capabilities.md
+      - guide/clients/app-cli.md
+      - issues/**/20260801-0062-00-program.md
+      - issues/**/20260801-0062-08-onefile-executable.md
+      - llp/0062-generated-app-cli-and-code-mode.rfc.md
+      - scripts/build-app-bound-executable
+      - scripts/bootstrap-ibex-runtime
+      - scripts/qualify-app-bound-linux
+      - tests/acceptance/app-bound-**
+      - tests/acceptance/fixtures/app-cli-journey/**
+      - vendor/ibex
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  attestations: read
+
+concurrency:
+  group: app-bound-linux-qualification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualify:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+      - name: Check out Snapback
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Initialize the pinned Ibex runtime
+        run: git submodule update --init vendor/ibex
+
+      - name: Verify checkout credentials were removed
+        run: scripts/check-checkout-credentials
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates cmake ninja-build libcurl4-openssl-dev libicu-dev openssl pkg-config socat zlib1g-dev binutils
+
+      - name: Install the pinned Rust toolchain
+        run: |
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs \
+              | sh -s -- -y --default-toolchain none --profile minimal
+          fi
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.cargo/bin:$PATH"
+          rustup toolchain install
+          rustup show active-toolchain
+
+      - name: Cache Hermes and Rust build products
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/exact/hermes-linux
+            vendor/ibex/linux
+            vendor/ibex/tools/hermes
+            vendor/ibex/target
+          key: app-bound-linux-v2-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.lock', 'Cargo.lock') }}
+
+      - name: Install JavaScript dependencies
+        run: |
+          bun install --frozen-lockfile
+          (cd vendor/ibex && bun install --frozen-lockfile)
+
+      - name: Build and qualify the exact Linux final artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/qualify-app-bound-linux
+
+      - name: Save Hermes and Rust build products
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/exact/hermes-linux
+            vendor/ibex/linux
+            vendor/ibex/tools/hermes
+            vendor/ibex/target
+          key: app-bound-linux-v2-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.lock', 'Cargo.lock') }}
+
+      - name: Upload value-free qualification receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: app-bound-linux-qualification-${{ github.sha }}
+          path: ${{ runner.temp }}/snapback-app-bound-linux/receipts
+          if-no-files-found: warn
+          retention-days: 30

@@ -43,6 +43,32 @@
         },
         "name": "listNotes",
         "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"body\": string; \"title\": string }>"
+      },
+      {
+        "argumentsType": "{ \"title\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "notes"
+          ]
+        },
+        "name": "watchNotes",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"body\": string; \"title\": string }>"
       }
     ]
   },
@@ -52,7 +78,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "snapback.v1:sessions:inputs:sha256:bd324babb86c374d6d174db3b5c190b2f50cb6df9ae23bc6fa00932253a129e3",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:fbd9e86d4c5a8d51a5b243b2ab58e9cf3f9a9546b29f40b22e0e199c4fec2f01",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

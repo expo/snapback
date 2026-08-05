@@ -17170,7 +17170,17 @@ async fn app_api_current(State(runtime): State<AppState>) -> Result<Response, Ap
         header::CONTENT_TYPE,
         HeaderValue::from_static("application/json"),
     );
-    headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    // Discovery is a public artifact too: forbid intermediaries from changing
+    // its representation, even though it is never cacheable. The app client
+    // requests and enforces identity coding for both discovery and envelopes.
+    headers.insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("no-store, no-transform"),
+    );
+    headers.insert(
+        header::CONTENT_ENCODING,
+        HeaderValue::from_static("identity"),
+    );
     Ok(response)
 }
 

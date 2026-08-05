@@ -1,8 +1,8 @@
 # 0062-08: the app-bound one-file Ibex executable
 
-**Status:** OPEN — the macOS arm64 implementation and complete host-portable
-acceptance matrix landed on 2026-08-04; only the qualified Linux x86_64 tuple
-is still required. **Authority:** LLP 0062 §6.2 whole (the 2026-08-01 author
+**Status:** CLOSED — the Linux x86_64 GLIBC 2.35 tuple and its literal
+clean-consumer proof landed on 2026-08-05, completing the macOS arm64 and Linux
+host-portable matrix. **Authority:** LLP 0062 §6.2 whole (the 2026-08-01 author
 direction: embeds Ibex/Hermes + the generic trusted engine + the fixed
 app binding; fetches the dynamic envelope; ordinary deploys never
 rebuild it; one executable per app × platform; the one-file claim is
@@ -14,6 +14,40 @@ platforms refuse rather than approximate.
 
 Done when: `./example introspect|call|run` works from a single
 downloaded file against a live target, with §7's host-portable suite green.
+
+## Resolution — 2026-08-05
+
+GitHub Actions run
+[`30999145126`](https://github.com/expo/snapback/actions/runs/30999145126)
+qualified exact Snapback commit
+`c1017fb28806ab202112819eccd165018fda4c1c` with Ibex commit
+`4c34c831aa087d6783b0d68f281cdb374ed7fc89` on Ubuntu 22.04 / GLIBC
+2.35. The release audit measured x86-64 baseline ISA, a maximum required GLIBC
+symbol version of 2.34, static libcurl, no RPATH, and only the system loader,
+libc, libgcc_s, libm, libresolv, libstdc++, and libz dynamic closure.
+
+Two builds from identical inputs were byte-for-byte identical at SHA-256
+`8304629907311b69db92e133e975ce7c1884a5abbf41cb45f03e5fd47edc5cc8`.
+The qualified catalog was
+`sha256-paCt8NEEtQBK5Pvlh8T2nDAQTOWNwAeqJQoQSijiNUY`; the engine compatibility
+identity was `sha256-biQ4cYwhIHbfyvYuTlOXxX8EhD72I0yFdbjV9ZlYqNE`.
+
+The literal executable passed 21 final-artifact cases, including authenticated
+mutation, a parameterized authenticated live query whose post-establishment
+update required the statically linked WebSocket path with HTTP polling
+disabled, file/stdin TypeScript, language-profile refusals, value
+non-disclosure, ceilings, timeout/SIGTERM grace, deterministic cleanup,
+authenticated inspection, and offline relocation. A second consumer proof ran
+only the executable, its audited system-library closure, CA/localhost data, and
+explicit inputs inside a chroot with an empty producer-tool PATH and a private
+PID/mount procfs. Chrooted introspection, authenticated mutation, restricted
+TypeScript execution, and cached offline introspection all passed; Node, Bun,
+the checkout, and the installed catalog were outside that namespace.
+
+The pinned workflow now rebuilds twice and repeats this proof on relevant app
+CLI, server, fixture, builder, Ibex, LLP, ticket, and guide changes. Unsupported
+tuples continue to refuse rather than produce a wrapper or sidecar
+approximation.
 
 ## Implementation checkpoint (2026-08-04)
 

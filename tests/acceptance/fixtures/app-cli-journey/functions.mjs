@@ -1,10 +1,11 @@
-// App-CLI served-journey fixture functions: one mutation with required args
-// and one query, so the envelope carries distinguishable operation schemas
-// and kind-specific binding declarations.
+// App-CLI served-journey fixture functions: one mutation with required args,
+// one ordinary query, and one parameterized live query, so the envelope carries
+// distinguishable operation schemas and kind-specific binding declarations.
 import {
   arg,
   asc,
   authUserId,
+  defineLiveQuery,
   defineMutation,
   defineQuery,
   eq,
@@ -29,5 +30,13 @@ export const listNotes = defineQuery({
   table: 'notes',
   args: {},
   filter: [eq('authorId', authUserId())],
+  order: [asc('_createdAt')],
+});
+
+export const watchNotes = defineLiveQuery({
+  auth: 'authenticated',
+  table: 'notes',
+  args: { title: v.string() },
+  filter: [eq('authorId', authUserId()), eq('title', arg('title'))],
   order: [asc('_createdAt')],
 });

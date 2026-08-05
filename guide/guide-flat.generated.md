@@ -87,7 +87,7 @@ and `guide-gap`.
 | clients.poll-hosted | Socketless hosted demand ownership and poll delivery | hosted polling, poll hosted | cloudflare | partial | cloudflare/src/coordinator.js | llp/0093, llp/0095 | GAP (owner: Charlie, review: 2026-08-31) |
 | clients.external-store | Shared current-value/subscription store | external store | local | shipped | `createExternalQueryStoreRegistry` in packages/snapback-client/external-store.mjs | llp/0012, llp/0064 | clients/headless.md |
 | clients.framework-bindings | React/Contract bindings | bindings | local | partial | `SNAPBACK_EXTERNAL_STORE_PROTOCOL` in packages/snapback-client/external-store.mjs | llp/0012, llp/0034, llp/0064 | clients/framework-bindings.md |
-| clients.app-cli | Local artifact/served-envelope app CLI, brokered code mode, stable two-section `agentDigest.v1` introspection, and an experimental app-bound Ibex one-file build for qualified platform tuples. Public inspection still lacks row-count magnitudes and D1 verdicts; hosted targets and the complete host-portable one-file acceptance matrix remain GAPs. | app cli, code mode, introspect, agent digest, changed since, digest cursor, one-file executable | local | partial | `buildAgentDigest` in packages/snapback-app-cli/digest.mjs + scripts/build-app-bound-executable + packages/snapback-app-cli/code-mode-ibex.test.mjs | llp/0062, llp/0146 | clients/app-cli.md |
+| clients.app-cli | Local artifact/served-envelope app CLI, brokered code mode, stable two-section `agentDigest.v1` introspection, and an experimental app-bound Ibex one-file build qualified on macOS arm64 and Linux x86_64 GLIBC 2.35. Public inspection still lacks row-count magnitudes and D1 verdicts; hosted targets remain a GAP. | app cli, code mode, introspect, agent digest, changed since, digest cursor, one-file executable | local | partial | `buildAgentDigest` in packages/snapback-app-cli/digest.mjs + scripts/build-app-bound-executable + packages/snapback-app-cli/code-mode-ibex.test.mjs + GitHub Actions run 30999145126 | llp/0062, llp/0146 | clients/app-cli.md |
 | clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
 | clients.contract-provider-generation | Provider-neutral Contract manifest, bindings, metadata, types, fixtures, and docs from a provider declaration | provider declaration, contract sidecar generator, convex bindings | local | shipped | `generateFromDeclaration` in demos/partiful-matrix/scripts/generate-contract-provider.mjs | llp/0063 | clients/contract-adapter.md |
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
@@ -6785,8 +6785,8 @@ examples: [packages/snapback-app-cli/package.test.mjs, packages/snapback-app-cli
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-04
-reviewed-commit: e8e9ada94aa7354a5f8845ee0199d4bbe0bc5746
+reviewed: 2026-08-05
+reviewed-commit: c1017fb28806ab202112819eccd165018fda4c1c
 ---
 
 # The artifact-driven app CLI
@@ -6802,14 +6802,15 @@ descriptor, and exposes the generic `snapback-app` command. Calls carry the
 five-part generated identity so a deploy between discovery and dispatch
 refuses rather than running against different code.
 
-The local phase-1 engine is shipped. Phase 2 now has an app-bound Ibex builder,
-embedded coordinator, and literal executable proof on the qualified macOS
-arm64 tuple. Its host-portable lifecycle and acceptance matrix is complete on
-that tuple, including signal-first grace, exact frame admission, strict
-settlement, resource classification, deterministic cleanup, and value-free
-audits. The capability remains partial: hosted targets do not advertise it,
-and ticket 0062-08 keeps the qualified Linux GLIBC 2.35 tuple open. The
-ordinary supported download remains the Node package until that tuple lands.
+The local phase-1 engine is shipped. Phase 2 has an app-bound Ibex builder,
+embedded coordinator, and literal executable proof on qualified macOS arm64
+and Linux x86_64 GLIBC 2.35 tuples. Its host-portable lifecycle and acceptance
+matrix is complete on both, including signal-first grace, exact frame
+admission, strict settlement, resource classification, deterministic cleanup,
+value-free audits, static Linux Fetch/WebSocket networking, and a
+producer-free clean-consumer proof. The capability remains partial because
+hosted targets do not advertise it and public inspection still lacks the
+dynamic observations described below.
 
 ## Discover the app surface
 
@@ -6999,10 +7000,11 @@ executable admits only its embedded app identity. The current API envelope is
 dynamic data fetched from that origin, so ordinary function and schema deploys
 do not alter the fixed binding. Rebuilds are intended only for that binding,
 the trusted engine/runtime, policy/protocol, platform, or release provenance;
-ticket 0062-08 still owns the qualified Linux x86_64 tuple. The comprehensive
-§7 disclosure, ceiling, lifecycle, and race matrix is green on qualified macOS
-arm64. Unsupported producer tuples refuse instead of emitting a wrapper or
-sidecar approximation.
+the comprehensive §7 disclosure, ceiling, lifecycle, race, dependency, and
+relocation matrix is green on qualified macOS arm64 and Linux x86_64 GLIBC
+2.35. Unsupported producer tuples refuse instead of emitting a wrapper or
+sidecar approximation. Qualification establishes the producer and executable
+contract; it does not by itself create or promise a public download channel.
 
 ## Run the packaged agent journey
 
@@ -7035,8 +7037,9 @@ semantics and durable daemon custody, read
   profile.
 - Do not infer agent safety from a hostname; the phase-1 lane requires a
   literal loopback origin and peer.
-- Do not present the app-bound build checkpoint as a generally released
-  download until ticket 0062-08's qualified Linux tuple is complete.
+- Do not infer a public release channel from producer qualification; publish
+  an app-bound executable only through a release process that preserves its
+  binding and provenance.
 - Do not describe the Node package as the app-bound one-file executable; they
   remain distinct products with different trust and distribution postures.
 

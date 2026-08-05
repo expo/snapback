@@ -1,14 +1,18 @@
 # RFC 0062: Generated Per-App CLI and Code Mode
 
 **Type:** RFC
-**Status:** Review (implementation program recommissioned 2026-08-01 — see Revised)
+**Status:** Implemented
 **Systems:** Client integration, Developer experience, Tooling, API, Auth, Docs
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-17
-**Revised:** 2026-08-05, latest (`run -` now refuses stdin EOF without
+**Revised:** 2026-08-05 (implementation program complete: the qualified Linux
+x86_64 GLIBC 2.35 artifact completed the two-platform host-portable matrix;
+exact evidence is in the latest revision-history entry and closed ticket
+0062-08; author acceptance recorded and status advanced to Implemented). Also
+2026-08-05, `run -` now refuses stdin EOF without
 non-whitespace source as `SNAPBACK_APP_CLI_SCRIPT_EMPTY`/exit 2 before artifact
 or authority setup; a held-open producer still waits, and a non-empty program
-with no default export still succeeds without stdout). 2026-08-04 (phase-2 completion pass: the qualified macOS
+with no default export still succeeds without stdout. 2026-08-04 (phase-2 completion pass: the qualified macOS
 arm64 artifact now passes the complete §7 host-portable disclosure, ceiling,
 lifecycle, settlement, and race matrix; ticket 08 remains open only for a Linux
 x86_64 artifact qualified at the declared GLIBC 2.35 floor; see the dated record
@@ -107,8 +111,8 @@ Ibex/Hermes, this generic engine, and the fixed app origin and identity.
 The executable does **not** bake the app's current function surface or
 handler code; it fetches the same dynamic envelope as the Node engine,
 so ordinary app deployments do not require a new download. That
-direction remains outside phase 1 and requires explicit ibex-side
-contract revisions before implementation (§6).
+direction remains outside phase 1; its explicit Ibex-side contract revisions
+landed before the phase-2 implementation (§6).
 
 ## Motivation
 
@@ -1350,14 +1354,13 @@ additional machinery.
    sandbox, so the extension must state its threat model honestly and must
    not claim containment beyond the enforced policy.
 
-   Phase 2 proceeds only after those ibex contracts are revised and reviewed.
+   Phase 2 proceeds only after those Ibex contracts are revised and reviewed.
    This amendment creates no phase-1 embedded-Ibex, computed-import, or
-   single-file delivery requirement, and phase 1 depends on none of it.
-   Ibex 0028's current citation of this RFC predates that scoping, while ibex
-   0029's statement that v1 "prototypes the Snapback CLI" still lacks this
-   external-script lane; **the correcting ibex-side amendments to both 0028
-   and 0029 remain a landing obligation before implementation**. The §3
-   brokered ABI and §7 host-portable suite make the eventual move checkable.
+   single-file delivery requirement, and phase 1 depends on none of it. That
+   prerequisite was satisfied on 2026-08-03 by revised Ibex LLPs 0028 and 0029
+   plus new LLP 0048 in Ibex commit
+   `36442ab9fa399b315ca562da1bdb72190a4aa4f6`. The §3 brokered ABI and §7
+   host-portable suite make the implemented move checkable.
 
 ### 7. Acceptance
 
@@ -1675,6 +1678,23 @@ Revisions r1–r10 were made 2026-07-17, one per /llp-super-refine round;
 full review artifacts are under
 `llp/reviews/0062-*.{fable,codex}.md`. Later dated amendments are author
 direction or implementation reconciliation, not additional review rounds.
+
+- **2026-08-05 phase-2 implementation completion** — Exact GitHub Actions run
+  [`30999145126`](https://github.com/expo/snapback/actions/runs/30999145126)
+  qualified Snapback `c1017fb28806ab202112819eccd165018fda4c1c` and Ibex
+  `4c34c831aa087d6783b0d68f281cdb374ed7fc89` on Ubuntu 22.04 / GLIBC
+  2.35. The x86-64-baseline artifact required at most GLIBC 2.34, statically
+  linked libcurl, carried no RPATH, and depended only on the allowed system
+  closure. Two builds were identical at SHA-256
+  `8304629907311b69db92e133e975ce7c1884a5abbf41cb45f03e5fd47edc5cc8`.
+  All 21 final-artifact cases passed, including authenticated parameterized
+  WebSocket live delivery with HTTP polling disabled. Introspection,
+  authenticated mutation, restricted TypeScript, and cached offline
+  introspection also passed in a clean-consumer chroot containing only the
+  executable, audited system closure, trust/localhost data, explicit inputs,
+  and private procfs; producer Node/Bun/source/catalog state was absent. This
+  closes ticket 08 and the recommissioned implementation program. The author
+  accepted the completed program on 2026-08-04, so this RFC is Implemented.
 
 - **2026-08-04 phase-2 completion pass** — The qualified macOS arm64
   implementation now closes the earlier lifecycle remainder: exact closed
