@@ -105,6 +105,7 @@ TARGET_PID=$!
 for _ in $(seq 1 120); do [[ -s "$READY_FILE" ]] && break; kill -0 "$TARGET_PID" 2>/dev/null || break; sleep 1; done
 [[ -s "$READY_FILE" ]] || { cat "$RUN_ROOT/live-target.log" >&2; exit 1; }
 
+: >"$RUN_ROOT/cloudflared.log"
 "$CLOUDFLARED" tunnel --no-autoupdate --url "http://127.0.0.1:$TARGET_PORT" \
   --logfile "$RUN_ROOT/cloudflared.log" >"$RUN_ROOT/cloudflared.stdout" 2>&1 &
 TUNNEL_PID=$!
