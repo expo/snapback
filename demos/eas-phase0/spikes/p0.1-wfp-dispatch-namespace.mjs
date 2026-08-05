@@ -33,7 +33,7 @@ const QUEUE_DEPTH = 2;
 const INVOCATION_DEADLINE_MS = 10_000;
 const EDGE_PROBE_CONCURRENCY = 8;
 const EDGE_STABLE_ROUNDS = 3;
-const EDGE_MAX_ROUNDS = 90;
+const EDGE_MAX_ATTEMPTS_PER_PROBE = 90;
 const NAMESPACE_STABLE_ROUNDS = 3;
 const NAMESPACE_MAX_ROUNDS = 90;
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -821,7 +821,7 @@ async function main() {
       'The trusted user-Worker main module fails closed at the subrequest ceiling before outbound handoff. It freezes ambient fetch before dynamically evaluating separate application.mjs, passes only invocation-scoped ctx.fetch, and revokes that function after application settlement. Native WfP subrequest enforcement is independently proved by the binding-free minimal-control receipt because outbound interception changes the observed accounting boundary.',
       'Response, concurrency, queue, and wall-clock limits remain disposable dispatcher/Gate code.',
       'The action-role mechanism is a separate namespaced script and admission gate; Gate 0 must still select the production kill-domain mechanism.',
-      'The disposable Workers.dev route must cross a three-round concurrent readiness barrier before P0.1 starts; this does not qualify any Expo ingress or production route shape, which remains P0.2 work.',
+      'The disposable Workers.dev route must cross three body-verified readiness rounds, each with eight independently bounded retry lanes, before P0.1 starts; this does not qualify any Expo ingress or production route shape, which remains P0.2 work.',
       'No production Expo-org credential custody, stable identity, billing, hosted auth, or route-shape claim is made.',
     ],
   };
@@ -1110,37 +1110,60 @@ async function main() {
     const edgeRounds = [];
     let consecutiveStableRounds = 0;
     let health = null;
-    for (let round = 1; round <= EDGE_MAX_ROUNDS && consecutiveStableRounds < EDGE_STABLE_ROUNDS; round += 1) {
-      const results = await Promise.all(Array.from({ length: EDGE_PROBE_CONCURRENCY }, async () => {
-        try {
-          const nonce = randomBytes(8).toString('hex');
-          const response = await fetch(`${baseUrl}/health?probe=${nonce}`, {
-            headers: { 'cache-control': 'no-cache, no-store', pragma: 'no-cache' },
-          });
-          const text = await response.text();
-          let body;
-          try { body = JSON.parse(text); } catch { body = { text: text.slice(0, 240) }; }
-          if (body?.ok === true && body?.namespace === options.namespace) health = body;
-          return {
-            status: response.status,
-            ok: body?.ok === true && body?.namespace === options.namespace,
-            generatedNotFound: response.status >= 404 && typeof body?.text === 'string' &&
-              /(?:Page|Script) not found/iu.test(body.text),
-            cfRay: response.headers.get('cf-ray'),
-            cfCacheStatus: response.headers.get('cf-cache-status'),
-            age: response.headers.get('age'),
-            server: response.headers.get('server'),
-          };
-        } catch (error) {
-          return { status: 0, ok: false, networkError: safeMessage(error, accountId) };
+    for (let round = 1; round <= EDGE_STABLE_ROUNDS; round += 1) {
+      const results = await Promise.all(Array.from({ length: EDGE_PROBE_CONCURRENCY }, async (_, lane) => {
+        const attempts = [];
+        for (let attempt = 1; attempt <= EDGE_MAX_ATTEMPTS_PER_PROBE; attempt += 1) {
+          let observation;
+          try {
+            const nonce = randomBytes(8).toString('hex');
+            const response = await fetch(`${baseUrl}/health?probe=${nonce}`, {
+              headers: { 'cache-control': 'no-cache, no-store', pragma: 'no-cache' },
+            });
+            const text = await response.text();
+            let body;
+            try { body = JSON.parse(text); } catch { body = { text: text.slice(0, 240) }; }
+            const ok = body?.ok === true && body?.namespace === options.namespace;
+            if (ok) health = body;
+            observation = {
+              attempt,
+              status: response.status,
+              ok,
+              generatedNotFound: response.status >= 404 && typeof body?.text === 'string' &&
+                /(?:Page|Script) not found/iu.test(body.text),
+              cfRay: response.headers.get('cf-ray'),
+              cfCacheStatus: response.headers.get('cf-cache-status'),
+              age: response.headers.get('age'),
+              server: response.headers.get('server'),
+            };
+          } catch (error) {
+            observation = {
+              attempt,
+              status: 0,
+              ok: false,
+              networkError: safeMessage(error, accountId),
+            };
+          }
+          attempts.push(observation);
+          if (observation.status === 200 && observation.ok) {
+            return { lane, ...observation, activationAttempts: attempt, attempts };
+          }
+          if (attempt < EDGE_MAX_ATTEMPTS_PER_PROBE) {
+            await new Promise((resolve) => setTimeout(resolve, 1_000));
+          }
         }
+        const final = attempts.at(-1);
+        return {
+          lane,
+          ...final,
+          activationAttempts: EDGE_MAX_ATTEMPTS_PER_PROBE,
+          attempts,
+        };
       }));
       const stable = results.every((entry) => entry.status === 200 && entry.ok);
       consecutiveStableRounds = stable ? consecutiveStableRounds + 1 : 0;
       edgeRounds.push({ round, stable, results });
-      if (consecutiveStableRounds < EDGE_STABLE_ROUNDS) {
-        await new Promise((resolve) => setTimeout(resolve, 1_000));
-      }
+      if (!stable) break;
     }
     receipt.cloudflare.dispatcherEdgeActivationObservation = {
       stable: consecutiveStableRounds >= EDGE_STABLE_ROUNDS,
@@ -1150,11 +1173,15 @@ async function main() {
       concurrency: EDGE_PROBE_CONCURRENCY,
       requiredConsecutiveStableRounds: EDGE_STABLE_ROUNDS,
       consecutiveStableRounds,
-      maxRounds: EDGE_MAX_ROUNDS,
+      maxAttemptsPerProbe: EDGE_MAX_ATTEMPTS_PER_PROBE,
       rounds: edgeRounds,
       generatedNotFoundCount: edgeRounds.flatMap((entry) => entry.results)
+        .flatMap((entry) => entry.attempts)
         .filter((entry) => entry.generatedNotFound).length,
-      scope: 'P0.2 ingress follow-up; P0.1 starts only after the stable readiness barrier',
+      http404Count: edgeRounds.flatMap((entry) => entry.results)
+        .flatMap((entry) => entry.attempts)
+        .filter((entry) => entry.status === 404).length,
+      scope: 'P0.2 ingress follow-up; three body-verified rounds, each with eight bounded retry lanes, must pass before P0.1 starts',
     };
 
     const namespaceActivationRounds = [];
