@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# @ref LLP 0175#d1--make-keep-going-dependency-aware — browser acceptance has
+# an explicit producer so its consumers block causally instead of each failing.
+
+if [ -n "${CHROME_BIN:-}" ]; then
+    if [ -x "$CHROME_BIN" ]; then
+        printf '[snapback-browser] available: %s\n' "$CHROME_BIN"
+        exit 0
+    fi
+    printf 'SNAPBACK_CAPABILITY_CHROME_MISSING: CHROME_BIN is not executable: %s\n' "$CHROME_BIN" >&2
+    exit 1
+fi
+
+case "$(uname -s | tr '[:upper:]' '[:lower:]')" in
+    darwin)
+        chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+        if [ -x "$chrome" ]; then
+            printf '[snapback-browser] available: %s\n' "$chrome"
+            exit 0
+        fi
+        ;;
+    linux)
+        for candidate in google-chrome google-chrome-stable chromium chromium-browser; do
+            if command -v "$candidate" >/dev/null 2>&1; then
+                printf '[snapback-browser] available: %s\n' "$(command -v "$candidate")"
+                exit 0
+            fi
+        done
+        ;;
+esac
+
+printf 'SNAPBACK_CAPABILITY_CHROME_MISSING: set CHROME_BIN to a Chrome/Chromium executable\n' >&2
+exit 1

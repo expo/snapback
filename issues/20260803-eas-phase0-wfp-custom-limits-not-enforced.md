@@ -19,14 +19,26 @@ Cloudflare accepted the dispatcher upload and the user Workers executed, but
 both native limit witnesses failed:
 
 - a handler performed a fixed 20,000,000-iteration CPU burn and returned 200
-  with its checksum in 87.8 ms instead of being terminated at 20 CPU-ms;
+  with its checksum in 108.8 ms instead of being terminated at 20 CPU-ms;
 - an action completed twelve real allowlisted `https://example.com` fetches and
-  returned 200 in 212.4 ms instead of exceeding the five-subrequest limit.
+  returned 200 in 3264.5 ms instead of exceeding the five-subrequest limit.
 
 The same run proved the dispatch namespace was untrusted (`request.cf` was
 undefined), read back all eight exact `HOST`-only binding envelopes, and passed
 the other 21 checks. This is therefore not explained by trusted mode, a missing
 user Worker, or a malformed namespace binding.
+
+## Replacement-token rerun — 2026-08-04 local / 2026-08-05 UTC
+
+The replacement account token was verified read-only through the account-token
+verification endpoint (HTTP 200, active) without printing or retaining its
+value. The same existing runner and receipt were then reused against
+`eas-p0-spike-20260803` (receipt start `2026-08-05T05:21:14.731Z`). The result
+reproduced exactly: 21/23 checks passed, while both documented native limits
+returned 200. The earlier committed receipt measured the same CPU/subrequest
+failures at 87.8 ms and 212.4 ms respectively; the replacement-token rerun
+measured 108.8 ms and 3264.5 ms. Token replacement therefore did not change the
+capability result.
 
 ## Impact
 
@@ -50,4 +62,6 @@ limit is a security failure under LLP 0009 and LLP 0047, not a soft launch gap.
 ## Cleanup
 
 The run deleted its namespace and ordinary Workers. A separate read-only check
-confirmed all four resource lookups return HTTP 404.
+confirmed all four resource lookups return HTTP 404. The replacement-token
+rerun repeated that independent check for the exact run-specific names and
+namespace, again returning HTTP 404 for all four.

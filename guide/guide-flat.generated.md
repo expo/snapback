@@ -2064,7 +2064,7 @@ id: backend.queries
 order: 1
 audience: agent-first
 capabilities: [backend.functions, backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, src/result_contract.rs, demos/signal-desk/snapback/functions.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, src/result_contract.rs, demos/signal-desk/snapback/functions.mjs]
 examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
@@ -2150,7 +2150,8 @@ resolved and spliced in with the handler, and everything else must live
 inside the direct handler expression. Class syntax, dynamic import, `eval`,
 and `Function` are refused during generation. The legacy
 `{ source, exportName }` form remains supported for existing handlers, but it
-cannot be mixed with `handler`.
+cannot be mixed with `handler`. It also reads one closed script: same-file
+helpers work, while imports are refused with `BUNDLE_UNSUPPORTED_IMPORT`.
 
 Every JS query handler returns an **array of rows**, including point reads:
 return `[]` for missing or `[row]` for present. Returning a single object fails
@@ -2311,8 +2312,8 @@ polling contract. See [live queries](../realtime/live-queries.md).
   handler.** Statically reachable same-file function declarations—including
   context-reader helpers that receive `ctx.db`—are admitted. Imported helpers,
   top-level `const`/class state, and multi-file capability graphs remain
-  outside the landed slice; use the legacy module form when that boundary is
-  intentional.
+  outside the inline landed slice. The legacy module form is not an import
+  escape hatch: it reads one closed script and admits same-file helpers only.
 
 ---
 
@@ -2323,7 +2324,7 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, src/server.rs, src/result_contract.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, src/server.rs, src/result_contract.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
@@ -2397,10 +2398,11 @@ export const createIncident = defineJsMutation({
 The handler writes only through `ctx.db`. Server-owned ids, row versions, and
 storage timestamps are never authored by the handler. An inline handler
 captures no imports or top-level `const` bindings; statically reachable
-same-file function declarations are resolved and spliced in with it, while
-imported helpers and multi-file graphs require the legacy
-`{ source, exportName }` form, which remains compatible but cannot be mixed
-with `handler`.
+same-file function declarations are resolved and spliced in with it. The legacy
+`{ source, exportName }` form remains compatible but cannot be mixed with
+`handler`; it also reads one closed script, supports same-file helpers, and
+refuses imports with `BUNDLE_UNSUPPORTED_IMPORT`. Imported helpers, third-party
+packages, and multi-file graphs are not admitted by that compatibility lane.
 
 `defineMutation` is the declarative twin: compose `insert`, `patch`,
 `delete`, conditions, and a declared return binding without running a JS
@@ -8673,7 +8675,7 @@ id: getting-started.your-first-backend
 order: 1
 audience: agent-first
 capabilities: [backend.schema, backend.functions, backend.seed, backend.provisioning, backend.codegen]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs]
 examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapback, packages/snapback-codegen/inline-result-contracts.test.mjs]
 status: current
 targets: [local]
@@ -9005,11 +9007,14 @@ globalThis.__snapbackHandlers = {
   },
 ```
 
-The `{ source, exportName }` lane remains useful for existing apps already
-on the split and for logic that genuinely needs imported or sibling helpers,
-which inline v1 deliberately refuses to capture. One definition declares
-`handler` or `source`/`exportName`, never both — mixed or missing
-discriminants fail generation with
+The `{ source, exportName }` lane reads exactly one closed script. It supports
+top-level helper functions in that same file; it does not load imported helpers
+or a multi-file module graph. Any static or dynamic import is refused during
+generation with `BUNDLE_UNSUPPORTED_IMPORT`. Third-party package admission is
+still an open code-execution and supply-chain design question, not a sanctioned
+pre-bundling workaround. One definition declares `handler` or
+`source`/`exportName`, never both — mixed or missing discriminants fail
+generation with
 `SNAPBACK_FUNCTION_HANDLER_FORM_INVALID`.
 
 ## Anti-patterns
@@ -9020,8 +9025,8 @@ discriminants fail generation with
   demos accumulated unauditable glue before the kit existed.
 - **Do not start new JS functions on the bundled `handlers.mjs` split.**
   Inline `handler:` is the paved form; the `source`/`exportName` module lane
-  is compatibility for existing apps and for logic that needs sibling
-  modules.
+  is compatibility for existing apps. It is still a closed single script,
+  not an import or package-admission escape hatch.
 - **Do not edit anything under `generated/` or `.snapback/codegen-cache/`.**
   Regenerate. The server
   rejects stale artifacts loudly (`SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION`,
@@ -11460,12 +11465,12 @@ id: recipes.optimistic-toggle
 order: 3
 audience: agent-first
 capabilities: [clients.react]
-authorities: [llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-react/index.mjs]
-examples: [packages/snapback-react/optimistic.test.mjs]
+authorities: [llp/0090-resumable-query-snapshots.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/app/src/post-card.tsx, demos/warble/tests/acceptance/offline-local-first.mjs]
+examples: [demos/warble, packages/snapback-react/optimistic.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-04
+reviewed: 2026-08-05
 reviewed-commit: HEAD
 ---
 
@@ -11475,14 +11480,18 @@ reviewed-commit: HEAD
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-A like/favorite button with a count: the heart flips instantly, the count
-moves with it, and the authoritative live query settles both without a
-flicker or a double increment. This is the paved implementation of
-`useSnapbackMutation`'s optimistic projection
+A like/favorite button with a count has two honest query layouts. When one
+viewer-aware query returns both `liked` and `likeCount`, the heart and count
+flip instantly and the authoritative live query settles both without a
+flicker or double increment. When cold retention requires a separate public
+viewer-fact query, both facts remain query-owned, but the current optimistic
+path can move only the count; the heart settles from that second query's live
+delivery. The joined layout is the paved implementation of
+`useSnapbackMutation`'s two-field optimistic projection
 ([the React client](../clients/react.md#run-a-mutation)) for the
-toggle-plus-counter shape, and every behavioral claim on this page is
-asserted by `packages/snapback-react/optimistic.test.mjs` (run by the
-package's CI test suite).
+toggle-plus-counter shape, and its behavioral claims are asserted by
+`packages/snapback-react/optimistic.test.mjs` (run by the package's CI test
+suite).
 
 The failure this recipe prevents is real and easy to reach: keep the heart in
 component state, add a local `+1` to the count, and the live query
@@ -11490,25 +11499,73 @@ independently delivers the authoritative increment — the UI briefly shows a
 two-count jump, and a rebase can visibly flip the heart back. Every fact
 below exists to make that impossible.
 
-## Model the viewer's fact in the query
+## Model the viewer's fact in query data
 
-The toggle state is per-viewer data, not UI state. The query that renders the
-button must return both fields for the current viewer — a server-side join
-against the viewer's like row plus the denormalized count:
+The toggle state is per-viewer data, not UI state. It must come from canonical
+query data in one of the two layouts below.
+
+### Joined layout: both fields on the rendered row
+
+The query that renders the button returns both fields for the current viewer
+— a server-side join against the viewer's like row plus the denormalized count:
 
 ```text
 timeline(viewer) -> [{ id, body, ..., liked: boolean, likeCount: number }]
 ```
 
-If `liked` is not in the query result, there is nothing authoritative to
+If `liked` is absent from all query data, there is nothing authoritative to
 reconcile against, and component state is the only place left to put it —
-which is exactly the anti-pattern. Add the viewer-aware fields to the query
-first; the rest of the recipe assumes them.
+which is exactly the anti-pattern. The joined projection sections below assume
+this layout.
 
-## Project both fields atomically, and capture the outcome
+### Cold-retained public layout: split the viewer fact
 
-Declare one optimistic projection beside the mutation hook. Two rules carry
-the whole recipe, and both are visible in the CI-exercised fixture:
+`rqsEligible` v1 is a closed single-table plan, so a retainable posts timeline
+cannot join in the viewer's like row. It can coexist with a second public
+query keyed by an explicit viewer argument: keep `{ ..., likeCount }` in the
+posts query, query like rows with `{ handle: viewerHandle }`, and derive the
+heart from the second query:
+
+```tsx fragment reason="generated application query types and component props vary by app"
+const likeSet = new Set(myLikes.data?.map((like) => like.postId));
+const liked = likeSet.has(post._id);
+```
+
+The exact retention declaration and its security boundary are in
+[retain public viewer facts by argument, not authority](../sync/offline-and-retention.md#retain-public-viewer-facts-by-argument-not-authority).
+An argument is caller-controlled and does not enforce privacy, so this layout
+is only for public facts. Private viewer data must use server-derived authority
+and the Contract arm's `retainable: true`, `AuthorizedLease` path; never
+replace `authUserId()` with an argument merely to make a query retainable.
+
+An optimistic layer is validated against the generated result contract of the
+one query store it targets. If `liked` is not a field on the posts result,
+projecting `{ liked, likeCount }` into a post row is refused before mutation
+dispatch with `SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED`. Project only the
+field that belongs to that row:
+
+```tsx fragment reason="generated application query types and component props vary by app"
+optimistic: {
+  query: api.timeline,
+  args: {},
+  ...projectRecordFields(post._id, { likeCount }),
+}
+```
+
+The count then moves optimistically, while the heart changes when the
+authoritative `myLikes` delivery adds or removes the like row. The boolean is
+still derived from canonical query data, not component state. A symmetric
+instant heart for the like case would require appending a missing row to
+`myLikes`; optimistic create has no paved path in v1, so this split layout does
+not promise the joined layout's zero-latency heart. Warble implements this
+count-only projection; its acceptance suite proves retained rendering plus
+exactly-once like settlement.
+
+## Project both fields atomically when they share a row
+
+For the joined layout, declare one optimistic projection beside the mutation
+hook. Two rules carry the recipe, and both are visible in the CI-exercised
+fixture:
 
 ```js source=packages/snapback-react/optimistic.test.mjs
 // Capture the intended outcome at admission. The projection is replayed over
@@ -11594,7 +11651,9 @@ The fixture's rows key on `id`; generated application rows carry the default
 be primitives (`boolean | number | string | null`) — the helper deliberately
 expresses only the capture-and-set shape, so it cannot encode the replay
 hazard. Prefer it over a hand-written reducer whenever the projection is
-"set these fields on this row".
+"set these fields on this row". In the split cold-retained layout, pass only
+`{ likeCount }`; injecting `liked` into the posts row violates that query's
+generated result contract.
 
 Hand-written reducers get a development safety net: at admission the
 provider replays the just-validated projection through the reducer a second
@@ -11683,8 +11742,13 @@ not.
   local arithmetic.
 - **Do not keep the toggle in component state.** `useState(liked)` has no
   reconciliation with query authority: it drifts on other-client changes,
-  survives rejection, and fights the live delivery. Model the fact in the
-  query result and project it optimistically.
+  survives rejection, and fights the live delivery. Model the fact in query
+  data: either as a field on the rendered row or as a boolean derived from a
+  separate canonical likes query.
+- **Do not project a field into the wrong query's row contract.** In the split
+  cold-retained layout, `{ liked, likeCount }` is not a valid posts row when
+  `liked` lives in `myLikes`; the layer is refused. Project `{ likeCount }`
+  only and let the heart settle from the authoritative viewer-fact query.
 - **Do not toggle or increment inside `update`.** The projection is replayed
   during rebase; capture the intended outcome and set it (or let
   `projectRecordFields` do both rules for you). In development the replay
@@ -11714,12 +11778,12 @@ id: sync.offline-and-retention
 order: 1
 audience: agent-first
 capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.local-persistent-store]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs]
-examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-codegen/index.mjs, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/tests/acceptance/offline-local-first.mjs]
+examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, demos/warble, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-04
+reviewed: 2026-08-05
 reviewed-commit: HEAD
 ---
 
@@ -11958,9 +12022,10 @@ The opt-in is two declaration facts on a **declarative** live query
 
 - `auth: 'public'` — the query is invocable without a resolved user;
 - `authorityIndependent: true` — the trusted declaration that the complete
-  result is identical for every caller. Codegen accepts it only on a public,
-  ambient-free plan; it is refused on queries with `authScopeField`,
-  `membership`, `authUserId()` filters, or time/randomness reads.
+  result, for the same database state and explicit arguments, is identical for
+  every caller. Codegen accepts it only on a public, ambient-free plan; it is
+  refused on queries with `authScopeField`, `membership`, `authUserId()`
+  filters, or time/randomness reads.
 
 From those facts plus the closed-inputs proof (single-table plan whose read
 summary equals the plan's table), the server derives the `rqsEligible`
@@ -11989,6 +12054,49 @@ export const dashboardMetrics = defineLiveQuery({
 permission for HTML boot — see
 [snapshot bundles](../realtime/snapshot-bundles.md) — and is **not**
 required for retention.)
+
+### Retain public viewer facts by argument, not authority
+
+`authorityIndependent` does **not** require one result for every possible
+argument value. Explicit `arg(...)` values are part of the query identity, not
+ambient authority, so a caller-selected viewer key can still qualify when the
+rest of the plan satisfies the proof:
+
+- `eq('userHandle', arg('handle'))` can be `rqsEligible` and cold-retained;
+- `eq('userHandle', authUserId())` depends on server authority, is not
+  `rqsEligible`, and is classified
+  `SNAPBACK_RETENTION_NOT_RETAINABLE` on this JS-arm path.
+
+For a public social feed, split the data into two retainable live queries:
+keep posts and their public `likeCount` in the timeline, keep public like rows
+in a viewer-keyed query, and derive `liked` from that second query on the
+client. Warble uses this declaration:
+
+```js source=demos/warble/snapback/functions.mjs
+export const myLikes = defineLiveQuery({
+  table: 'likes',
+  args: { handle: v.string() },
+  filter: [eq('userHandle', arg('handle'))],
+  index: 'by_user',
+  auth: 'public',
+  authorityIndependent: true,
+});
+```
+
+Its acceptance suite proves that both the timeline and `myLikes` render from
+retained storage with the backend stopped. The client computes the viewer fact
+from canonical query data, for example
+`new Set(likes.data?.map((like) => like.postId)).has(post._id)`; it does not
+copy the boolean into component state.
+
+This pattern is a data-layout technique, **not an authorization boundary**.
+The caller controls `handle`, so any caller can request any handle's rows. Use
+it only for facts that are genuinely public, such as likes and public
+reactions. Private viewer data must stay server-scoped (for example with
+`authUserId()`) and use the Contract arm's `retainable: true`,
+`AuthorizedLease`-backed path described in
+[hidden hands](../recipes/hidden-hands.md); do not make private rows public to
+gain JS-arm cold retention.
 
 Existing legacy RQS entries are not rewritten merely because the class is now
 active. LLP 0090 grandfathers those bytes. While connected, adoption either

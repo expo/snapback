@@ -8,13 +8,21 @@ During the 2026-08-03 real WfP spike, a newly uploaded and enabled dispatcher
 served `/health` successfully, but repeated eight-way concurrent probes still
 returned intermittent Cloudflare-generated 404 `Page not found` or
 `Script not found` responses after twenty one-second rounds. The retained final
-receipt's last round was seven 200 responses and one 404:
+receipt's original last round was seven 200 responses and one 404:
 `demos/eas-phase0/receipts/p0.1-wfp-dispatch-namespace.json`.
 
 Per-run unique ordinary Worker names removed delete/recreate name reuse as a
 confounder. P0.1 application calls retried only Cloudflare's activation pages;
 the concurrency/queue witness moved behind one dispatcher request so edge
 activation could not masquerade as an admission result.
+
+## Replacement-token rerun — 2026-08-04 local / 2026-08-05 UTC
+
+The existing runner reproduced the activation instability after twenty rounds:
+the retained receipt's final eight-way probe contained six 200 responses and
+two Cloudflare-generated 404 responses. Ordinary Workers again had a unique
+per-run suffix, so replacement-token permissions and deleted-name reuse do not
+explain the observation. This remains P0.2 evidence, not a P0.1 ingress claim.
 
 ## Impact
 
@@ -37,3 +45,5 @@ claim should rely on a single successful Workers.dev health response.
 
 The observed run deleted the dispatcher, host, outbound Worker, and dispatch
 namespace; independent GETs returned HTTP 404 for each exact name.
+The replacement-token rerun repeated that cleanup and independent absence
+verification successfully.

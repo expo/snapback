@@ -198,8 +198,8 @@ function refusal(reason, message, { receiptPath, binaryPath, root, details = {} 
 
 /// Read-only digest-coherence verification of a binary's persisted readiness
 /// receipt. Never writes; never runs the binary. `reason` classifies:
-/// `coherent` (ok), `absent`, `malformed`, `unqualified`, `binary-missing`,
-/// `binary-drift`, `framework-drift`. Every refusal carries the one shared
+/// `coherent` (ok), `absent`, `malformed`, `unqualified`, `probe-contract-drift`,
+/// `binary-missing`, `binary-drift`, `framework-drift`. Every refusal carries the one shared
 /// `SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID` diagnostic.
 export function verifyRuntimeReadinessReceipt({
   root,
@@ -237,6 +237,13 @@ export function verifyRuntimeReadinessReceipt({
   }
   if (receipt.qualification?.ok !== true) {
     return refusal('unqualified', 'the runtime readiness receipt does not carry an OK qualification verdict', context);
+  }
+  if (receipt.qualification?.probe !== 'restricted-no-eval-handler-vm') {
+    return refusal(
+      'probe-contract-drift',
+      'the runtime readiness receipt was not issued by the restricted no-eval handler-VM qualification contract',
+      { ...context, details: { observedProbe: receipt.qualification?.probe ?? null } },
+    );
   }
   const binaryDigest = sha256File(binaryPath);
   if (!binaryDigest || binaryDigest.sha256 !== receipt.binary.sha256) {

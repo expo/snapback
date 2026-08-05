@@ -5,7 +5,10 @@
 **Systems:** Product, Deployment, Runtime, Storage, Auth, Security, Billing, Observability, Developer experience, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-28
-**Revised:** 2026-08-03 (WfP access enabled; P0.1 real namespace run retained
+**Revised:** 2026-08-04 (replacement account token verified active read-only;
+P0.1 rerun reproduced the same 21/23 result, complete cleanup, unenforced native
+CPU/subrequest limits, and Workers.dev activation 404s; receipt timestamps are
+2026-08-05 UTC). 2026-08-03 (WfP access enabled; P0.1 real namespace run retained
 21/23 checks with exact HOST-only binding read-back and complete cleanup, but
 Gate 0 remains blocked because documented per-dispatch CPU/subrequest limits
 were accepted without enforcement; rapid Workers.dev activation instability
@@ -544,6 +547,13 @@ platform/pricing facts.
   Workers.dev activation also produced intermittent Cloudflare 404 pages during
   the disposable run; P0.2 must resolve that separately via
   `issues/20260803-eas-phase0-workers-dev-activation-instability.md`.
+  **Replacement-token rerun, 2026-08-04 local / 2026-08-05 UTC** `[observed]`
+  (same receipt location, start `2026-08-05T05:21:14.731Z`): the replacement
+  account token verified active without exposing its value, and the complete
+  disposable run reproduced 21/23. Twelve allowlisted subrequests returned 200
+  in 3264.5 ms and the 20-million-iteration CPU burn returned 200 in 108.8 ms;
+  all exact namespace/Worker lookups independently returned 404 after cleanup.
+  The repeated observation strengthens the blocker but does not change status.
 - **Dated platform/pricing facts
   (`demos/eas-phase0/receipts/p0-platform-pricing-facts.md`):** WfP
   $25/mo, 20M req + 60M CPU-ms + 1,000 scripts included; DO-SQLite rows

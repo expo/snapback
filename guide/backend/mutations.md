@@ -4,7 +4,7 @@ id: backend.mutations
 order: 2
 audience: agent-first
 capabilities: [backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, src/server.rs, src/result_contract.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, src/server.rs, src/result_contract.rs, schemas/mutation.output.schema.json, packages/snapback-codegen/define.mjs, demos/signal-desk/snapback/functions.mjs, demos/todo/tests/acceptance/headless.mjs]
 examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
@@ -78,10 +78,11 @@ export const createIncident = defineJsMutation({
 The handler writes only through `ctx.db`. Server-owned ids, row versions, and
 storage timestamps are never authored by the handler. An inline handler
 captures no imports or top-level `const` bindings; statically reachable
-same-file function declarations are resolved and spliced in with it, while
-imported helpers and multi-file graphs require the legacy
-`{ source, exportName }` form, which remains compatible but cannot be mixed
-with `handler`.
+same-file function declarations are resolved and spliced in with it. The legacy
+`{ source, exportName }` form remains compatible but cannot be mixed with
+`handler`; it also reads one closed script, supports same-file helpers, and
+refuses imports with `BUNDLE_UNSUPPORTED_IMPORT`. Imported helpers, third-party
+packages, and multi-file graphs are not admitted by that compatibility lane.
 
 `defineMutation` is the declarative twin: compose `insert`, `patch`,
 `delete`, conditions, and a declared return binding without running a JS

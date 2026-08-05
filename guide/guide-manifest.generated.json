@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "a1f77a16eded4765892097a754817a906ec36efb"
+    "commit": "19823db7d903ced8c825ac724b2341b3c1cb0460"
   },
   "nav": {
     ".": [
@@ -948,6 +948,7 @@
         "llp/0007-storage-portability.spec.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
         "llp/0108-inline-handlers-and-result-contracts.spec.md",
+        "llp/0174-authoring-incidents-at-security-fences.research.md",
         "src/server.rs",
         "src/result_contract.rs",
         "schemas/mutation.output.schema.json",
@@ -962,7 +963,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "b9d1fd4c11c645e5f21e2ec16044672e35996d4ab0a693be79da97a2613c87f8",
+      "sha256": "02a895c71904066c454ac15414c3e6f1dfd19eddd61e84d8bf9b71f4b8d3115e",
       "snippets": [
         {
           "lang": "js",
@@ -1004,6 +1005,7 @@
         "llp/0004-application-data-api.rfc.md",
         "llp/0007-storage-portability.spec.md",
         "llp/0108-inline-handlers-and-result-contracts.spec.md",
+        "llp/0174-authoring-incidents-at-security-fences.research.md",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/inline-handlers.mjs",
         "packages/snapback-codegen/result-contracts.mjs",
@@ -1017,7 +1019,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "f9ae0083ef41bfc9d07f033da440f96048919613",
-      "sha256": "b926e7470f35d6f1db978f265c25731328adebd2217ae0adee0f5607730d82b6",
+      "sha256": "28ca6d2a48b56b9fa464c8f21d89daa072c6cbeb6ab31d99cdafc7448279b168",
       "snippets": [
         {
           "lang": "js",
@@ -2015,6 +2017,7 @@
         "llp/0037-schema-source-of-truth.decision.md",
         "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
         "llp/0108-inline-handlers-and-result-contracts.spec.md",
+        "llp/0174-authoring-incidents-at-security-fences.research.md",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/inline-handlers.mjs",
         "packages/snapback-codegen/index.mjs",
@@ -2028,7 +2031,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "720ac44d69d1ca54f66ce19e86ac550461d4fc73bf019ace205cbfda8ddeae91",
+      "sha256": "ffe0b6eb9260fb91e2c478a067c5b7aaca5213a394a6324f14164b2380f8f7a8",
       "snippets": [
         {
           "lang": "js",
@@ -2572,17 +2575,30 @@
         "clients.react"
       ],
       "authorities": [
+        "llp/0090-resumable-query-snapshots.rfc.md",
         "llp/0107-react-presence-and-optimistic-lifecycle.spec.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
-        "packages/snapback-react/index.mjs"
+        "packages/snapback-react/index.mjs",
+        "demos/warble/snapback/functions.mjs",
+        "demos/warble/app/src/post-card.tsx",
+        "demos/warble/tests/acceptance/offline-local-first.mjs"
       ],
       "examples": [
+        "demos/warble",
         "packages/snapback-react/optimistic.test.mjs"
       ],
-      "reviewed": "2026-08-04",
+      "reviewed": "2026-08-05",
       "reviewedCommit": "HEAD",
-      "sha256": "bde9cea17a62cb21561596a38104f98922ca2891406c16971cb97453dbc924ee",
+      "sha256": "39a5e3dbafa4095f193a0cfc3242f7aba0c05c56a861d15f6dc485986a543277",
       "snippets": [
+        {
+          "lang": "tsx",
+          "class": "fragment"
+        },
+        {
+          "lang": "tsx",
+          "class": "fragment"
+        },
         {
           "lang": "js",
           "class": "transcluded",
@@ -2729,6 +2745,7 @@
         "llp/0157-composition-algebra-and-completeness.spec.md",
         "llp/0166-local-persistent-store.spec.md",
         "src/local-persistent-store-publication.v1.json",
+        "packages/snapback-codegen/index.mjs",
         "packages/snapback-client/local-read-admission.mjs",
         "packages/snapback-client/materialization-bridge.mjs",
         "tests/acceptance/local-store-carrier-exit-v1.mjs",
@@ -2738,19 +2755,22 @@
         "packages/snapback-client/external-store.mjs",
         "packages/snapback-client/external-store.test.mjs",
         "packages/snapback-client/outbox-store.test.mjs",
-        "packages/snapback-react/index.mjs"
+        "packages/snapback-react/index.mjs",
+        "demos/warble/snapback/functions.mjs",
+        "demos/warble/tests/acceptance/offline-local-first.mjs"
       ],
       "examples": [
         "demos/triage-graph",
         "demos/card-game",
         "demos/todo-v2/surfaces/contract",
         "demos/public-dashboard",
+        "demos/warble",
         "packages/snapback-contract/agent-authority-contract.test.mjs",
         "packages/snapback-react/offline.test.mjs"
       ],
-      "reviewed": "2026-08-04",
+      "reviewed": "2026-08-05",
       "reviewedCommit": "HEAD",
-      "sha256": "d65b8248111cc4e216e53ff4e6d03b7e2fc616e1218e71b95c39a08463a182e4",
+      "sha256": "28897bc12df124ca3257de377e0d4e4fd643be3f57a4c868f0a6321284817c62",
       "snippets": [
         {
           "lang": "js",
@@ -2776,6 +2796,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/public-dashboard/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/warble/snapback/functions.mjs"
         },
         {
           "lang": "js",
@@ -2981,5 +3006,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "d1d604c873f3349061452dae9a2936769803a7a37bfd741866de9622740418c5"
+  "contentHash": "878a3a2f42d203d3cd1a0d0ccbc57795f57ac31de923bb76dfa24c6eaed6d0fd"
 }
