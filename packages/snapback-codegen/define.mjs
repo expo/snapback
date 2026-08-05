@@ -760,7 +760,14 @@ class TableBuilder {
       assert(new Set(fields).size === fields.length, `search index ${name} ${label} must not contain duplicates`);
       return [...fields].sort();
     };
-    const authoredVisibility = spec.visibility ?? { kind: 'public-read' };
+    // @ref LLP 0073#search-declarations — public release is an affirmative
+    // author decision; omission must never widen an index to public-read.
+    assert(
+      spec.visibility !== undefined,
+      `search index ${name} requires explicit visibility; use { kind: 'public-read' } only for intentionally public data`,
+      'SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED',
+    );
+    const authoredVisibility = spec.visibility;
     assert(authoredVisibility && typeof authoredVisibility === 'object' && !Array.isArray(authoredVisibility), `search index ${name} visibility is required`);
     let visibility;
     if (authoredVisibility.kind === 'public-read') {
@@ -965,7 +972,14 @@ class TableBuilder {
     for (const [field, classification] of Object.entries(classifications)) {
       assert(typeof field === 'string' && field.length > 0 && SEARCH_FIELD_CLASSIFICATIONS.has(classification), `vector index ${name} field ${field} has unknown classification`);
     }
-    const authoredVisibility = spec.visibility ?? { kind: 'public-read' };
+    // @ref LLP 0132#index-declarations — public release is an affirmative
+    // author decision; omission must never widen an index to public-read.
+    assert(
+      spec.visibility !== undefined,
+      `vector index ${name} requires explicit visibility; use { kind: 'public-read' } only for intentionally public data`,
+      'SNAPBACK_VECTOR_INDEX_VISIBILITY_REQUIRED',
+    );
+    const authoredVisibility = spec.visibility;
     let visibility;
     if (authoredVisibility.kind === 'public-read') {
       exactObject(authoredVisibility, `vector index ${name} public-read visibility`, new Set(['kind']));
@@ -2770,11 +2784,22 @@ export const letBind = (bindAs, expr) => {
   return { Let: { bind_as: bindAs, expr: expectExpr(expr, 'letBind()') } };
 };
 
-/** Set-oriented delete; empty (or omitted) filter clears the table. */
-export const deleteWhere = (table, filter = []) => {
-  assert(Array.isArray(filter), 'deleteWhere() filter must be an array');
+/** Set-oriented delete; an explicitly authored empty filter clears the table.
+ * @ref LLP 0051#d2-promote-the-mutation-ir-extend-it-to-the-common-mutation — clear-table remains
+ * the empty-filter IR, but authors must opt into that destructive effect. */
+export function deleteWhere(table, filter) {
+  assert(
+    arguments.length >= 2,
+    'deleteWhere() requires an explicit filter array; pass [] to clear the table intentionally',
+    'SNAPBACK_DELETE_WHERE_FILTER_REQUIRED',
+  );
+  assert(
+    Array.isArray(filter),
+    'deleteWhere() filter must be an array',
+    'SNAPBACK_DELETE_WHERE_FILTER_INVALID',
+  );
   return { DeleteWhere: { table, filter } };
-};
+}
 
 /** One insert per element of an argument-supplied array — a bounded
  * comprehension. Values are expressions over the itemAs binding. */
@@ -3733,6 +3758,9 @@ export function isEphemeralDef(value) {
   return !!(value && value[EPHEMERAL]);
 }
 
-export function assert(cond, message) {
-  if (!cond) throw new Error(`[snapback-define] ${message}`);
+export function assert(cond, message, code = undefined) {
+  if (cond) return;
+  const error = new Error(`[snapback-define] ${message}`);
+  if (code !== undefined) error.code = code;
+  throw error;
 }

@@ -4,9 +4,8 @@
 //    failure), the failed envelope reaches the terminal through the same
 //    printResult path every other command uses — previously the dev branch
 //    returned `result.ok ? 0 : 1` without printing anything.
-// 2. A flag-shaped positional (`snapback dev --help`) is rejected with a
-//    usage diagnostic instead of being consumed as the backend directory
-//    name and silently exiting 1.
+// 2. `snapback dev --help` is routed through composed package help before the
+//    dev command executes.
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -57,14 +56,11 @@ export const listGhosts = defineQuery({ table: 'ghosts', args: {} });
     env: { ...process.env },
     timeout: 60_000,
   });
-  assert.notEqual(help.status, 0, 'dev --help must not exit 0');
+  assert.equal(help.status, 0, 'dev --help must exit 0');
   const helpSurfaced = `${help.stdout}\n${help.stderr}`;
-  assert.match(
-    helpSurfaced,
-    /SNAPBACK_CLI_ARGUMENT_INVALID/,
-    `a flag-shaped positional must be rejected loudly, got: ${helpSurfaced.slice(0, 2_000)}`,
-  );
-  assert.match(helpSurfaced, /usage: snapback dev/, 'the rejection must carry dev usage');
+  assert.match(helpSurfaced, /Usage: snapback dev/, 'help must carry dev usage');
+  assert.match(helpSurfaced, /Lifecycle: long-running/, 'help must declare lifecycle');
+  assert.doesNotMatch(helpSurfaced, /SNAPBACK_CLI_ARGUMENT_INVALID/);
 
   console.log('dev-cli-diagnostics.test.mjs: all cases passed');
 } finally {

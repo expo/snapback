@@ -331,6 +331,42 @@ async function provePackagedDevLoop({ cli, scaffoldRoot }) {
   return { readyFile, database };
 }
 
+function assertStarterAcceptanceReceipt(output, label) {
+  const line = String(output).trim().split('\n').findLast((candidate) => candidate.trim().startsWith('{'));
+  let receipt;
+  try {
+    receipt = JSON.parse(line ?? '');
+  } catch {
+    fail(`${label} emitted no parseable starter acceptance receipt`);
+  }
+  if (
+    receipt.schemaVersion !== 'snapback.starter-acceptance.v1'
+    || receipt.status !== 'passed'
+    || !Number.isSafeInteger(receipt.expectedCheckCount)
+    || receipt.expectedCheckCount <= 0
+    || receipt.executedCheckCount !== receipt.expectedCheckCount
+    || receipt.checks?.length !== receipt.expectedCheckCount
+    || receipt.checks.some(({ status }) => status !== 'passed')
+    || typeof receipt.identity?.artifact?.appId !== 'string'
+    || receipt.identity?.loaded?.appId !== receipt.identity.artifact.appId
+    || receipt.identity?.loaded?.bundleHash !== receipt.identity.artifact.bundleHash
+    || receipt.lifecycle?.owned !== true
+    || receipt.lifecycle?.readyDescriptorObserved !== true
+    || receipt.lifecycle?.generatedAndLoadedObserved !== true
+    || typeof receipt.operations?.queryFunctionId !== 'string'
+    || typeof receipt.operations?.mutationFunctionId !== 'string'
+    || receipt.cleanup?.attempted !== true
+    || receipt.cleanup?.clientResourcesReleased !== true
+    || receipt.cleanup?.devExited !== true
+    || receipt.cleanup?.temporaryStateRemoved !== true
+    || receipt.cleanup?.ok !== true
+    || receipt.diagnostic !== null
+  ) {
+    fail(`${label} emitted an invalid starter acceptance receipt: ${JSON.stringify(receipt)}`);
+  }
+  return receipt;
+}
+
 async function inspectBrowserStorage(page) {
   return page.evaluate(async ({
     maxDepth,
@@ -2684,9 +2720,16 @@ await build({
     cwd: scaffoldRoot,
     env: { ...process.env, npm_config_offline: 'true' },
   });
-  run(process.execPath, ['acceptance.mjs'], { cwd: scaffoldRoot });
+  run('npm', ['run', 'test:static'], { cwd: scaffoldRoot });
+  assertStarterAcceptanceReceipt(
+    run('npm', ['test'], { cwd: scaffoldRoot, timeout: 120_000 }),
+    'todo-contract default test',
+  );
   run('git', ['init', '--quiet'], { cwd: scaffoldRoot });
-  run('git', ['add', 'package.json', 'package-lock.json', 'acceptance.mjs', 'snapback'], { cwd: scaffoldRoot });
+  run('git', [
+    'add', 'package.json', 'package-lock.json', 'acceptance.mjs',
+    'acceptance.live.mjs', 'acceptance.static.mjs', 'snapback',
+  ], { cwd: scaffoldRoot });
   run('git', [
     '-c', 'user.name=Snapback Package Proof',
     '-c', 'user.email=snapback-package-proof@example.invalid',
@@ -2782,7 +2825,7 @@ await build({
     { cwd: reactScaffoldRoot, env: { ...process.env, npm_config_offline: 'true' } },
   );
   run('npm', ['run', 'typecheck'], { cwd: reactScaffoldRoot });
-  run('npm', ['test'], { cwd: reactScaffoldRoot });
+  run('npm', ['run', 'test:static'], { cwd: reactScaffoldRoot });
   const browserSecretCanary = `snapback-cold-canary-${randomBytes(24).toString('hex')}`;
   run('npm', ['run', 'build'], {
     cwd: reactScaffoldRoot,
@@ -2796,7 +2839,10 @@ await build({
     reactScaffoldRoot,
     sourceIdentity,
   );
-  run('npm', ['run', 'test:live'], { cwd: reactScaffoldRoot, timeout: 120_000 });
+  assertStarterAcceptanceReceipt(
+    run('npm', ['test'], { cwd: reactScaffoldRoot, timeout: 120_000 }),
+    'React starter default test',
+  );
   const reactManifest = JSON.parse(readFileSync(join(reactScaffoldRoot, 'package.json'), 'utf8'));
   const reactMain = readFileSync(join(reactScaffoldRoot, 'src', 'main.tsx'), 'utf8');
   const reactViteConfig = readFileSync(join(reactScaffoldRoot, 'vite.config.ts'), 'utf8');

@@ -6,6 +6,19 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (unattended CLI contract):** 2026-08-05 (`snapback --help` now
+composes the package-owned and delegated native inventories; package command
+help is data-only and declares lifecycle/output/exit/recovery; a follow-up
+review closed the shallow-routing defect by giving every positional wrapper
+dispatch, including each closed hosted lifecycle verb, exact non-executing
+nested help; non-TTY stdin EOF closes only `snapback dev`'s optional control
+channel and no longer stops the managed loop).
+
+**Revised (live generated acceptance defaults):** 2026-08-05 (the generated
+todo and React starters now map default `test` to isolated runtime acceptance
+with a bounded identity/check/cleanup receipt; static scaffold coherence is
+explicitly `test:static`, and `test:live` remains a compatibility alias.)
+
 **Revised (first-publication bootstrap lineage):** 2026-08-01 (see §First-publication `latest` bootstrap lineage: "record and move on" — no bootstrap path built; 0.1.7's npm-auto-`latest` first publish recorded as dated lineage.)
 
 **Revised (decision-9 scope migration):** 2026-07-31 (see §Decision-9 terminal-scope migration.)
@@ -842,6 +855,16 @@ commands:
 Commands return structured diagnostics and stable exit codes. Human text is
 rendered from the structured result.
 
+The packaged entry point owns a composed, non-executing help registry for
+every package-dispatched command and positional subcommand path and appends the
+native binary's clap-derived inventory at root help.
+`snapback <package-command> [<subcommand>...] --help` selects the longest exact
+registered path before dispatch and declares that path's flags,
+one-shot/long-running lifecycle, machine output, exit taxonomy, and recovery
+channel. Closed hosted lifecycle verbs are derived from the same exhaustive
+registry that dispatch uses. Delegated native command help is still rendered
+by clap; help never invokes the command body.
+
 ### Watch mode
 
 Watch mode coalesces edits and performs:
@@ -891,7 +914,11 @@ The first client surface is the SC-2a-migrated Contract demo served through
 refused for attached servers) — are available with or without a client arm,
 interactively (TTY single keys) and machine-readably (newline-delimited
 `snapback.dev-command.v1` commands on stdin, responses and states on the
-`snapback.dev.v1` stdout stream).
+`snapback.dev.v1` stdout stream). For non-TTY launchers, stdin is an optional
+control channel rather than process-lifetime authority: EOF disables further
+commands but leaves the dev loop and managed arms running. SIGINT/SIGTERM (or
+TTY `q`/Ctrl-C) owns shutdown. MCP stdio commands retain their independent
+EOF-terminates-server contract.
 
 The same contract is the **Exact-side seam** for a native Contract/Exact
 client arm: an Exact surface participates by (a) being spawned as the
@@ -916,7 +943,14 @@ The first templates:
 - a minimal headless test fixture.
 
 Each template includes a small acceptance script that can run without external
-services.
+services. As implemented 2026-08-05, the default `test` is runtime acceptance:
+it owns an isolated local server/database/ready descriptor, binds the loaded
+artifact identity to the generated review manifest, executes a real query and
+mutation through the template's product client, refuses zero/short execution,
+and emits a bounded `snapback.starter-acceptance.v1` receipt only after cleanup.
+Static generated-file/source coherence remains available as `test:static` and
+cannot satisfy the acceptance claim. `test:live` is a compatibility alias for
+the runtime default, not a stronger opt-in tier.
 
 ### Demo dependency policy
 

@@ -10034,6 +10034,12 @@ function codegenWorkerFailure(error) {
 const DEFINITION_EVALUATION_TIMEOUT_MS = 5_000;
 const DEFINITION_EVALUATOR_PROCESS_TIMEOUT_MS = 15_000;
 const DEFINITION_EVALUATOR_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;
+const DEFINITION_EVALUATION_DIAGNOSTIC_CODES = new Set([
+  'SNAPBACK_DELETE_WHERE_FILTER_INVALID',
+  'SNAPBACK_DELETE_WHERE_FILTER_REQUIRED',
+  'SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED',
+  'SNAPBACK_VECTOR_INDEX_VISIBILITY_REQUIRED',
+]);
 
 // A second process is intentional even though generate() already uses a
 // worker. The generation worker needs filesystem and output authority; this
@@ -10099,11 +10105,13 @@ try {
   }
   process.stdout.write(JSON.stringify({ ok: true, values }));
 } catch (error) {
+  const errorObject = error !== null && typeof error === 'object';
   process.stdout.write(JSON.stringify({
     ok: false,
     error: {
-      name: error instanceof Error ? error.name : null,
-      message: error instanceof Error ? error.message : String(error),
+      name: errorObject && typeof error.name === 'string' ? error.name : null,
+      code: errorObject && typeof error.code === 'string' ? error.code : null,
+      message: errorObject && typeof error.message === 'string' ? error.message : String(error),
     },
   }));
 }
@@ -10487,8 +10495,11 @@ function evaluateDefinitionBundles(schemaBuild, functionsBuild, diagnostics, rou
         return;
       }
       if (!response?.ok) {
+        const evaluationCode = response?.error?.code;
         diagnostics.push({
-          code: 'CODEGEN_MODULE_EVALUATION_FAILED',
+          code: DEFINITION_EVALUATION_DIAGNOSTIC_CODES.has(evaluationCode)
+            ? evaluationCode
+            : 'CODEGEN_MODULE_EVALUATION_FAILED',
           severity: 'error',
           subsystem: 'codegen',
           message: response?.error?.message ?? 'isolated definition evaluation failed',

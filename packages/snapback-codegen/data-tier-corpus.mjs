@@ -113,7 +113,7 @@ export function buildResetFeedPlan() {
           status: lit('on-time'),
           observedAt: runtimeNow(),
         })),
-      deleteWhere('liveDepartures'),
+      deleteWhere('liveDepartures', []),
       patch('feedRefreshState', lit('caltrain'), {
         fetchedAt: runtimeNow(),
         tickIndex: lit(0),
@@ -149,7 +149,7 @@ export function buildApplyFeedTickPlan() {
           status: cond(gte(delayFor(id), lit(120)), lit('delayed'), lit('on-time')),
           observedAt: runtimeNow(),
         })),
-      deleteWhere('liveDepartures'),
+      deleteWhere('liveDepartures', []),
       patch('feedRefreshState', lit('caltrain'), {
         fetchedAt: runtimeNow(),
         tickIndex: bindingRef('nextIndex'),
@@ -173,7 +173,7 @@ export function buildSnapshotFragmentsPlan() {
   return defineMutation({
     args: { departures: 'unused' },
     plan: [
-      deleteWhere('liveDepartures'),
+      deleteWhere('liveDepartures', []),
       insertEach('liveDepartures', arg('departures'), 'dep', {
         departureId: dep('departureId'),
         stationId: dep('stationId'),

@@ -330,8 +330,17 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   assert.equal(badJson.diagnostics[0].code, 'SNAPBACK_DEV_COMMAND_INVALID');
   console.log('unknown verbs and malformed commands produce structured errors, not a crash');
 
-  // --- clean shutdown tears down both arms -----------------------------------
+  // Closed stdin is ordinary for detached agents and generated package scripts:
+  // it closes the optional command channel without silently stopping dev.
   dev.stdin.end();
+  await new Promise((resolveDelay) => setTimeout(resolveDelay, 250));
+  assert.equal(dev.exitCode, null, 'snapback dev must remain live after non-TTY stdin EOF');
+  const healthAfterEof = await fetch(`${serverUrl}/health`).then((response) => response.json());
+  assert.equal(healthAfterEof.ok, true, 'managed backend must remain healthy after stdin EOF');
+  console.log('stdin EOF closes only the control channel; dev and both managed arms remain live');
+
+  // --- clean signal shutdown tears down both arms ----------------------------
+  dev.kill('SIGTERM');
   const exitCode = await new Promise((resolveExit) => dev.once('exit', resolveExit));
   assert.equal(exitCode, 0, `snapback dev must exit cleanly; stderr tail: ${stream.stderr.slice(-2_000)}`);
   dev = null;

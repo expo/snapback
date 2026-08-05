@@ -229,8 +229,8 @@ export declare function guard(cond: ValueExpr, elseError: string): MutationStep;
 export declare function letBind(bindAs: string, expr: ValueExpr): MutationStep;
 /** One host-owned scoped allocation, admitted only by write-with-activity.v1. */
 export declare function allocateSequence(counter: string, scope: ValueExpr, into: string): MutationStep;
-/** Set-oriented delete; empty filter clears the table. */
-export declare function deleteWhere(table: string, filter?: FilterSpec[]): MutationStep;
+/** Set-oriented delete; an explicitly authored empty filter clears the table. */
+export declare function deleteWhere(table: string, filter: FilterSpec[]): MutationStep;
 /** One insert per element of an argument-supplied array (bounded fan-out). */
 export declare function insertEach(
   table: string,
@@ -534,7 +534,7 @@ export interface SearchIndexSpec<Fields extends Record<string, Validator>> {
   equalityFilters?: Array<keyof Fields & string>;
   storedFields?: Array<keyof Fields & string>;
   highlightFields?: Array<keyof Fields & string>;
-  visibility?:
+  visibility:
     | { kind: 'public-read' }
     | { kind: 'owner'; field: keyof Fields & string }
     | {
@@ -573,7 +573,7 @@ export interface VectorIndexSpec<Fields extends Record<string, Validator>> {
   fieldClassifications: Partial<Record<keyof Fields & string, SearchFieldClassification>>;
   equalityFilters?: Array<keyof Fields & string>;
   storedFields?: Array<keyof Fields & string>;
-  visibility?:
+  visibility:
     | { kind: 'public-read' }
     | { kind: 'owner'; field: keyof Fields & string };
   tieBreak?: 'id-asc' | 'id-desc';
@@ -587,7 +587,7 @@ export interface VectorIndexSpec<Fields extends Record<string, Validator>> {
   fieldClassifications: Partial<Record<keyof Fields & string, SearchFieldClassification>>;
   equalityFilters?: Array<keyof Fields & string>;
   storedFields?: Array<keyof Fields & string>;
-  visibility?: { kind: 'public-read' } | { kind: 'owner'; field: keyof Fields & string };
+  visibility: { kind: 'public-read' } | { kind: 'owner'; field: keyof Fields & string };
   tieBreak?: 'id-asc' | 'id-desc';
   maxIndexedVectorsPerPartition: number;
   maintenanceLimits?: { vectorMaintenanceEffects?: number; vectorBytes?: number };

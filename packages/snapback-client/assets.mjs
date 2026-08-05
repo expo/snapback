@@ -448,7 +448,6 @@ export class SnapbackAssetClient {
         { userId: state.userId },
       );
       state.transfer = created.transfer;
-      state.lifecycleGeneration = created.task.availability === 'pending' ? 1 : 1;
       task._apply({
         assetId: created.task.assetId,
         assetRef: created.task.assetId,

@@ -286,6 +286,7 @@ export default defineSchema({
     semanticVersion: 'notes.v1',
     textFields: { body: { weight: 1, classification: 'public' } },
     equalityFilters: ['status'],
+    visibility: { kind: 'public-read' },
   }),
 });
 `,
@@ -1214,6 +1215,7 @@ export default defineSchema({
   notes: defineTable({ body: v.string() }).searchIndex('search_notes', {
     semanticVersion: 'notes.v1',
     textFields: { body: { weight: 1, classification: 'sensitive' } },
+    visibility: { kind: 'public-read' },
   }),
 });
 `,

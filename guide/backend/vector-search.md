@@ -9,8 +9,8 @@ examples: [packages/snapback-codegen/vector-authoring.test.mjs, packages/snapbac
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-05
+reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
 ---
 
 # Portable exact vector search
@@ -61,7 +61,9 @@ fields, tie direction, and corpus ceiling into one semantic version.
 Use `visibility: { kind: 'owner', field: 'ownerId' }` for owner-private
 retrieval. Snapback derives the effective principal on the server, pushes it
 into the posting partition, and rechecks the authoritative source row before
-release. `public-read` permits only public participating fields. Owner indexes
+release. Visibility is required: omission refuses generation with
+`SNAPBACK_VECTOR_INDEX_VISIBILITY_REQUIRED`, so `public-read` is always an
+affirmative declaration. `public-read` permits only public participating fields. Owner indexes
 may use private fields, but every participating role rejects `sensitive` and
 `forbidden`; membership-derived visibility is not a v1 shape.
 
