@@ -249,6 +249,35 @@ link_peer_cli() {
     fi
 }
 
+reuse_authoritative_runtime_receipt() {
+    # @ref LLP 0175#d32-reuse-one-bootstrapreadiness-result — on a clean exact
+    # checkout, a digest-coherent receipt for this revision and the current
+    # restricted-handler-VM probe is the result the expensive link/qualify
+    # producer would recreate. Dirty trees rebuild because a commit identity
+    # alone cannot prove which uncommitted source bytes produced the binary.
+    local binary="$ROOT/target/debug/snapback"
+    [ -x "$binary" ] || return 1
+    git -C "$ROOT" diff --quiet --ignore-submodules=untracked || return 1
+    git -C "$ROOT" diff --cached --quiet --ignore-submodules=untracked || return 1
+    [ -z "$(git -C "$ROOT" ls-files --others --exclude-standard)" ] || return 1
+
+    local current_commit readiness_json readiness_commit readiness_dirty readiness_profile
+    current_commit="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null)" || return 1
+    if ! readiness_json="$(node "$ROOT/packages/snapback-cli/runtime-readiness.mjs" verify \
+        --binary "$binary" --root "$ROOT" --json)"; then
+        return 1
+    fi
+    readiness_commit="$(printf '%s' "$readiness_json" | python3 -c \
+        'import json,sys; print((json.load(sys.stdin).get("receipt") or {}).get("buildIdentity",{}).get("gitCommit") or "")')"
+    readiness_dirty="$(printf '%s' "$readiness_json" | python3 -c \
+        'import json,sys; print(str((json.load(sys.stdin).get("receipt") or {}).get("buildIdentity",{}).get("gitDirty", True)).lower())')"
+    readiness_profile="$(printf '%s' "$readiness_json" | python3 -c \
+        'import json,sys; print((json.load(sys.stdin).get("receipt") or {}).get("buildIdentity",{}).get("buildProfile") or "")')"
+    [ "$readiness_commit" = "$current_commit" ] || return 1
+    [ "$readiness_dirty" = "false" ] || return 1
+    [ "$readiness_profile" = "debug" ] || return 1
+}
+
 # @ref LLP 0010#native-runtime-bootstrap -- vendor/ibex is a git submodule;
 # resolve its checkout state BEFORE writing any artifacts into the path.
 # Running this script ahead of `git submodule update --init` used to wedge
@@ -336,6 +365,11 @@ has_usable_target_artifacts "$VENDOR_IBEX" || fail "SNAPBACK_CAPABILITY_IBEX_HER
 link_peer_cli
 
 if [ "$RUN_CHECK" != "0" ]; then
+    if reuse_authoritative_runtime_receipt; then
+        log "reusing exact current-revision runtime readiness receipt; link and qualification are already authoritative"
+        log "Ibex runtime bootstrap complete"
+        exit 0
+    fi
     # @ref LLP 0010#native-runtime-bootstrap -- validate with a real link + launch,
     # not just `cargo check`. cargo check never links or loads hermesvm.framework,
     # so it could not catch the missing-LC_RPATH launch wedge that made a fresh

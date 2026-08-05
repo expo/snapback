@@ -9,8 +9,8 @@ examples: []
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
+reviewed: 2026-08-04
+reviewed-commit: HEAD
 ---
 
 # Backend error tracking
@@ -28,10 +28,17 @@ filters, raw exemplars, or compare-and-swap state transitions.
 This is LLP 0156's local Phase E0/E1 capability, built on the
 [observability substrate](./observability.md). It is partial rather than a
 general crash service: grouped state does not ship on the Cloudflare target;
-one terminal containing multiple unhandled rejections is retained as raw
-telemetry but deliberately receives no guessed fingerprint while its owning
-authority question remains open; E2 alert delivery is unbuilt; and E3 client
-crash ingest is unbuilt. Server-side stacks are raw rather than symbolicated.
+E2 alert delivery is unbuilt; and E3 client crash ingest is unbuilt.
+Server-side stacks are raw rather than symbolicated.
+
+When one handler terminal contains multiple ordered unhandled rejections, it
+remains one observation. The first ordered rejection supplies the exception
+class and normalized message template for one fingerprint and one exemplar;
+the terminal increments that group's occurrence count once. The complete
+ordered carrier vector remains in the raw telemetry event's
+`details.rejectionCarriers` facts, within the ordinary bounded-details and
+truncation rules. Snapback neither creates one group per rejection nor invents
+an aggregate fingerprint.
 
 ## Triage open and regressed issues in the console
 

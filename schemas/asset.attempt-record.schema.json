@@ -2,13 +2,20 @@
   "$defs": {
     "AssetAdmissionV1": {
       "additionalProperties": false,
-      "description": "The admission facts captured when the authorizer admitted the attempt:\nthe LLP 0007 complete read-set witness, the LLP 0053 authorization pair,\nand the frozen policy identity finalization re-validates under.\n\n@ref LLP 0044#internal-model — witness validation is re-validate, then\n  refuse only on denial; the witness is the substrate.",
+      "description": "The admission facts captured when the authorizer admitted the attempt:\nthe LLP 0007 complete read-set witness, the LLP 0053 authorization pair,\nand the frozen policy plus implementation identities finalization\nre-validates under.\n\n@ref LLP 0044#internal-model — witness validation is re-validate, then\n  refuse only on denial; the witness is the substrate.",
       "properties": {
         "args": {
           "description": "Canonical intent arguments the authorizer admitted."
         },
         "auth": {
           "description": "The sealed caller identity facts the decision ran under."
+        },
+        "implementationHash": {
+          "description": "Executable authorizer identity. Legacy pre-carrier attempts decode\nwith this absent and are refused at finalization rather than silently\nadopting whichever authorizer is currently deployed.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "intentPolicyHash": {
           "type": "string"

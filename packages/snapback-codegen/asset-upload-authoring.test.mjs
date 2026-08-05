@@ -139,6 +139,87 @@ export const avatarUpload = defineAssetUpload({
   assert.equal(codes(result).includes('SNAPBACK_ASSET_SHARING_UNDECLARED'), false);
 }
 
+// --- implementation identity metamorphics: root, helper closure, reads ----
+
+{
+  const schema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({
+  profiles: defineTable({ ownerId: v.principal() }).sync(),
+  teams: defineTable({ ownerId: v.principal() }).sync(),
+});
+`;
+  const functions = ({
+    helperBody = 'return ctx.auth.userId;',
+    authorize = 'async (ctx) => ({ owner: ownerForAsset(ctx) })',
+    reads = "['profiles']",
+  } = {}) => `
+import { defineAssetUpload } from '${defineUrl}';
+function ownerForAsset(ctx) { ${helperBody} }
+export const avatarUpload = defineAssetUpload({
+  auth: 'authenticated',
+  reads: ${reads},
+  accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  authorize: ${authorize},
+});
+export const unrelatedUpload = defineAssetUpload({
+  auth: 'authenticated',
+  accept: { mediaTypes: ['application/pdf'], maxBytes: 1_000_000 },
+  authorize: async (ctx) => ({ owner: ctx.auth.userId }),
+});
+`;
+  const generateManifest = async (options) => {
+    const { dir, result } = await runCase({ schema, functions: functions(options) });
+    assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+    return JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
+  };
+  const intent = (manifest, name) => manifest.assetUploadIntents.find(
+    (candidate) => candidate.name === name,
+  );
+
+  const baseline = await generateManifest();
+  const directBody = await generateManifest({
+    authorize: `async (ctx) => {
+      const owner = ownerForAsset(ctx);
+      return { owner };
+    }`,
+  });
+  const helperOnly = await generateManifest({
+    helperBody: 'const owner = ctx.auth.userId; return owner;',
+  });
+  const readsOnly = await generateManifest({ reads: "['teams', 'profiles']" });
+  const baselineIntent = intent(baseline, 'avatarUpload');
+  const baselineUnrelated = intent(baseline, 'unrelatedUpload');
+
+  for (const [change, manifest] of [
+    ['direct authorizer body', directBody],
+    ['reachable helper only', helperOnly],
+    ['declared reads', readsOnly],
+  ]) {
+    const changedIntent = intent(manifest, 'avatarUpload');
+    assert.notEqual(
+      changedIntent.implementationHash,
+      baselineIntent.implementationHash,
+      `${change} moves implementationHash`,
+    );
+    assert.equal(
+      changedIntent.intentPolicyHash,
+      baselineIntent.intentPolicyHash,
+      `${change} does not masquerade as an intent-policy change`,
+    );
+    assert.equal(
+      intent(manifest, 'unrelatedUpload').implementationHash,
+      baselineUnrelated.implementationHash,
+      `${change} leaves an unrelated intent stable`,
+    );
+  }
+  assert.notEqual(
+    intent(helperOnly, 'avatarUpload').runtime.IbexModule.source,
+    baselineIntent.runtime.IbexModule.source,
+    'the helper-only fixture changes the spliced executable bytes',
+  );
+}
+
 // --- via-references warning when a reachable table lacks the declaration ---
 
 {

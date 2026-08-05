@@ -160,7 +160,9 @@ assert.equal(setupNodeCount, 7, 'the Node-using workflow inventory changed; revi
 // 30 -> 31 (2026-08-02): the expo-large local-proof runner does not include
 // Chrome, so the required admin browser-security lane now provisions one
 // through a pinned action instead of inheriting an ambient browser.
-assert.equal(actionCount, 31, 'the reviewed workflow action inventory changed; review and update this count');
+// 31 -> 32 (2026-08-05): LLP 0175 retains structured per-gate timings from
+// the canonical proof even when the proof itself is red.
+assert.equal(actionCount, 32, 'the reviewed workflow action inventory changed; review and update this count');
 
 const publicPackageProof = readFileSync(
   join(workflowDir, 'public-package-proof.yml'),
@@ -218,6 +220,11 @@ assert.match(
   localProof,
   /CHROME_BIN:\s*\$\{\{ steps\.setup-chrome\.outputs\.chrome-path \}\}/,
   'canonical CI must pass the action-owned Chrome path to the proof',
+);
+assert.match(
+  localProof,
+  /if:\s*always\(\)[\s\S]*name:\s*local-proof-gate-results-\$\{\{ github\.run_id \}\}/,
+  'canonical CI must retain structured local-proof gate results on green and red runs',
 );
 assert.doesNotMatch(
   localProof,

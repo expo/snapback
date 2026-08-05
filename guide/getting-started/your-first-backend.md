@@ -4,7 +4,7 @@ id: getting-started.your-first-backend
 order: 1
 audience: agent-first
 capabilities: [backend.schema, backend.functions, backend.seed, backend.provisioning, backend.codegen]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0037-schema-source-of-truth.decision.md, llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs]
 examples: [demos/todo/snapback, demos/todo-v2/snapback, demos/signal-desk/snapback, packages/snapback-codegen/inline-result-contracts.test.mjs]
 status: current
 targets: [local]
@@ -336,11 +336,14 @@ globalThis.__snapbackHandlers = {
   },
 ```
 
-The `{ source, exportName }` lane remains useful for existing apps already
-on the split and for logic that genuinely needs imported or sibling helpers,
-which inline v1 deliberately refuses to capture. One definition declares
-`handler` or `source`/`exportName`, never both — mixed or missing
-discriminants fail generation with
+The `{ source, exportName }` lane reads exactly one closed script. It supports
+top-level helper functions in that same file; it does not load imported helpers
+or a multi-file module graph. Any static or dynamic import is refused during
+generation with `BUNDLE_UNSUPPORTED_IMPORT`. Third-party package admission is
+still an open code-execution and supply-chain design question, not a sanctioned
+pre-bundling workaround. One definition declares `handler` or
+`source`/`exportName`, never both — mixed or missing discriminants fail
+generation with
 `SNAPBACK_FUNCTION_HANDLER_FORM_INVALID`.
 
 ## Anti-patterns
@@ -351,8 +354,8 @@ discriminants fail generation with
   demos accumulated unauditable glue before the kit existed.
 - **Do not start new JS functions on the bundled `handlers.mjs` split.**
   Inline `handler:` is the paved form; the `source`/`exportName` module lane
-  is compatibility for existing apps and for logic that needs sibling
-  modules.
+  is compatibility for existing apps. It is still a closed single script,
+  not an import or package-admission escape hatch.
 - **Do not edit anything under `generated/` or `.snapback/codegen-cache/`.**
   Regenerate. The server
   rejects stale artifacts loudly (`SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION`,

@@ -70,6 +70,7 @@ export interface AssetUploadReferenceLike {
   artifactKind: 'assetUploadReference';
   name: string;
   intentPolicyHash?: string;
+  implementationHash?: string;
 }
 
 export declare class SnapbackAssetClient {

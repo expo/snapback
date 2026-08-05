@@ -3384,6 +3384,9 @@ export async function generateInProcess(backendDir, options = {}) {
           exportName,
           handlerForm: 'inline',
           inlineAst: extracted.ast,
+          inlineHelpers: (extracted.helpers ?? []).map(
+            ({ name: helperName, contentHash }) => ({ name: helperName, contentHash }),
+          ),
           sourceSpan: extracted.sourceSpan,
         };
       } else {
@@ -3414,12 +3417,32 @@ export async function generateInProcess(backendDir, options = {}) {
         authRequirement: def.auth,
         argsContractHash: argsContractHash(def.args ?? {}),
       };
+      // @ref LLP 0044#asset-intent-implementation-identity-the-helper-closure-joins-the-carrier-dated-decision-2026-08-03 —
+      //   executable identity includes the same sorted reachable-helper
+      //   content edges as an ordinary inline function. The asset identity
+      //   domain remains v1 per the ruling; helper-free preimages stay exact.
+      const inlineHelpers = resolvedAuthorizer.inlineAst !== undefined
+        && Array.isArray(resolvedAuthorizer.inlineHelpers)
+        && resolvedAuthorizer.inlineHelpers.length > 0
+        ? [...resolvedAuthorizer.inlineHelpers]
+          .sort((left, right) => (left.name < right.name ? -1 : 1))
+        : null;
       const implementationIdentity = {
         format: 'snapback.asset-intent-implementation.v1',
         app: appId,
         intent: exportName,
         handler: resolvedAuthorizer.handlerForm === 'inline'
-          ? { form: 'inline', canonicalAst: resolvedAuthorizer.inlineAst }
+          ? {
+              form: 'inline',
+              canonicalAst: resolvedAuthorizer.inlineAst,
+              ...(inlineHelpers
+                ? {
+                    helpers: inlineHelpers.map(
+                      ({ name, contentHash }) => ({ name, contentHash }),
+                    ),
+                  }
+                : {}),
+            }
           : {
               form: 'module',
               sourceHash: `sha256:${sha256(resolvedAuthorizer.source)}`,
@@ -8164,7 +8187,8 @@ function renderQueryGroupReferences(appId, functions, routesManifest, expectedGe
 // @ref LLP 0044#generated-upload-intents — the emitted reference is the exact
 //   Rust-owned `assetUploadReference` DTO. `policyGeneration` is 0 at
 //   generation: the deployment mints real generations at activation, and the
-//   client→server identity fact is `intentPolicyHash`, never the generation.
+//   client→server carrier is the pair (`intentPolicyHash`,
+//   `implementationHash`), never the generation.
 function renderAssetUploadReferences(appId, assetUploadIntents, functionsModule) {
   return assetUploadIntents.map((intent) => ({
     artifactKind: 'assetUploadReference',

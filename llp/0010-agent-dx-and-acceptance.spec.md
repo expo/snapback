@@ -5,7 +5,12 @@
 **Systems:** Developer experience, Testing, API, Runtime, Build, Sync, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-03 (fresh-worktree Hermes reuse now requires the
+**Revised:** 2026-08-05 (LLP 0175 first implementation tranche: canonical
+proof gates are named, timed, dependency-aware, and retained as JSONL; a
+failed producer blocks transitive real-server consumers while independent
+gates continue; bootstrap may reuse a clean exact-revision digest-bound
+readiness result, and doctor retains its full default while adding the
+receipt-only proof-consumer mode). 2026-08-03 (fresh-worktree Hermes reuse now requires the
 prepared receipt's authority-bound source-cache key to match the vendored Ibex
 revision before copy/use; incompatible sibling artifacts are skipped for the
 existing vendored download/build fallback, while Ibex `build.rs` remains the
@@ -41,7 +46,7 @@ was satisfiable by a binary that cannot create the handler VM);
 2026-07-27 (LLP 0108 amendment: generated review evidence covers
 inline-handler admission, effective result contracts, exact client inference,
 and pre-publication/pre-commit validation); 2026-07-23 (dated pointer note: LLP 0089 proposes the agent provisioning acceptance gate under this Spec's bar); 2026-07-12 (ENG-24351 isolation follow-up: an AST-resolved exact graph is evaluated as bundled bytes in a capability-empty, permission-denied child VM; computed ambient access and nondeterminism are unavailable by construction, including indirect locale-sensitive intrinsic methods; evaluated output must be strict JSON data rather than values `JSON.stringify` would silently coerce or drop; every privileged input read is an fd-attested, root-contained capability and handler paths are canonical backend-relative identities; the cache-busting generation worker pins an empty exec-argument set, repository cwd, minimal environment, disconnected data stdio, and one IPC result so caller `--eval`/preload/debug authority cannot contaminate it; node_modules package scopes stop at their boundary; canonical evaluated values join artifact identity, and every identity domain/item is byte-length-framed so source-legal NUL bytes cannot alias path/source boundaries; ENG-24378: demo helpers launch on an OS-assigned port, accept readiness only through a unique descriptor plus matching build/startup identity, return credentials explicitly, and tear down the process tree race-free; earlier ENG-24351: CommonJS/dynamic/ambiguous graphs fail closed and generated identity covers every permitted transitive input). 2026-07-03 (acceptance ladder: collaborative graffiti/whiteboard slice added between kanban and card game — shipped as `demos/graffiti/` (ENG-22219, Diary 0006) — and §Reference-App Coverage moves the whiteboard from needs-profile to covered; ladder reconciled with LLP 0015/0016 per LLP 0016 R6. Earlier same day: ENG-22595: bootstrap resolves the vendor/ibex submodule state before writing artifacts; scripts/ibex-doctor added. ENG-22660: stable diagnostic codes for the non-submodule bootstrap failure paths; ENG-22664: build.rs emits the macOS Hermes LC_RPATH and bootstrap validates with a real link + launch)
-**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0024, LLP 0108
+**Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0015, LLP 0024, LLP 0108, LLP 0175
 
 ## Summary
 
@@ -200,6 +205,21 @@ binary-override recovery. The shared probe remains bounded and kills its Cargo
 process group before cleaning the temporary target on timeout; its fifteen-minute
 deadline admits a clean serialized hosted build without accepting a stale or
 cached substitute.
+
+The full disposable-target doctor probe remains the default for interactive
+diagnosis, fresh-worktree bring-up, and clean-machine lanes. Inside the
+canonical proof, an explicit `--reuse-authoritative-build` mode is permitted
+only after the named native bootstrap producer has built and handler-VM-
+qualified the ordinary served binary. That mode still runs every source,
+artifact, toolchain, loader, and digest-bound readiness-receipt check; it only
+suppresses the second disposable Cargo target. Selecting it without a served
+binary or coherent receipt is an error, never a skip. On a clean checkout,
+bootstrap itself may return early when the exact current revision, debug build
+identity, binary digest, current Hermes artifact digests, and restricted
+no-eval handler-VM probe all match the persisted receipt. Dirty checkouts do
+not take that shortcut because a commit id cannot identify uncommitted source
+bytes. [LLP 0175](./0175-local-proof-economics.rfc.md) D3.1–D3.2 owns the
+economic rationale.
 
 ### Bootstrap diagnostic codes
 
@@ -780,6 +800,24 @@ an explicit non-vacuous suite manifest, and required web surfaces must declare
 their build target in the demo manifest independently of filesystem artifacts.
 CI requires the Contract/Exact and admin behavior lanes; missing dependencies
 are failures there, never automatic skips.
+
+The canonical runner additionally gives every command a stable gate id and an
+explicit prerequisite set. Its terminal vocabulary is `PASS | FAIL | BLOCKED |
+NOT_SELECTED`: keep-going continues independent gates after a root `FAIL`, but
+does not execute a transitive dependent; a selected `BLOCKED` result still
+makes the proof red. The runner writes one JSONL result per gate with command,
+prerequisites, timestamps, duration, exit status, and causal blockers, and CI
+retains that artifact even on failure. The dependency inventory rejects an
+unknown prerequisite, duplicate stable id, or a newly added direct
+`startServer` gate that omits current-binary readiness. This is the landed
+Phase-0 boundary of [LLP 0175](./0175-local-proof-economics.rfc.md), not the
+still-unimplemented affected-path cadence in that RFC.
+
+CI also computes the Cargo target headroom verdict before cleaning the test
+profile. A measured `preserve` keeps reusable test/dependency artifacts for the
+final binary and filtered historical witnesses; `clean` or an unmeasurable
+verdict performs the fail-safe profile clean and logs that choice. Cleanup no
+longer manufactures its own apparent headroom before the decision.
 
 Proof inputs are repository facts: an exact root Bun authority and single Bun
 lock, an exact Rust toolchain coordinated with vendored Ibex, lock-installed

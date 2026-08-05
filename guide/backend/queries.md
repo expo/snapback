@@ -4,7 +4,7 @@ id: backend.queries
 order: 1
 audience: agent-first
 capabilities: [backend.functions, backend.query-semantics]
-authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, src/result_contract.rs, demos/signal-desk/snapback/functions.mjs]
+authorities: [llp/0003-local-code-hosting-and-storage-core.rfc.md, llp/0004-application-data-api.rfc.md, llp/0007-storage-portability.spec.md, llp/0108-inline-handlers-and-result-contracts.spec.md, llp/0174-authoring-incidents-at-security-fences.research.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/inline-handlers.mjs, packages/snapback-codegen/result-contracts.mjs, src/result_contract.rs, demos/signal-desk/snapback/functions.mjs]
 examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
@@ -90,7 +90,8 @@ resolved and spliced in with the handler, and everything else must live
 inside the direct handler expression. Class syntax, dynamic import, `eval`,
 and `Function` are refused during generation. The legacy
 `{ source, exportName }` form remains supported for existing handlers, but it
-cannot be mixed with `handler`.
+cannot be mixed with `handler`. It also reads one closed script: same-file
+helpers work, while imports are refused with `BUNDLE_UNSUPPORTED_IMPORT`.
 
 Every JS query handler returns an **array of rows**, including point reads:
 return `[]` for missing or `[row]` for present. Returning a single object fails
@@ -251,5 +252,5 @@ polling contract. See [live queries](../realtime/live-queries.md).
   handler.** Statically reachable same-file function declarations—including
   context-reader helpers that receive `ctx.db`—are admitted. Imported helpers,
   top-level `const`/class state, and multi-file capability graphs remain
-  outside the landed slice; use the legacy module form when that boundary is
-  intentional.
+  outside the inline landed slice. The legacy module form is not an import
+  escape hatch: it reads one closed script and admits same-file helpers only.

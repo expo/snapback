@@ -103,6 +103,46 @@ ibex_hermes_linux_source_cache_key() { printf 'fixture-linux\\n'; }
   assert.match(result.stdout, /linked vendored Ibex CLI/);
   assert.equal(readlinkSync(vendoredCli), peerCli);
 
+  // LLP 0175 D3.2: a clean exact-revision, digest-coherent readiness receipt
+  // makes a repeated bootstrap a verifier, not another Cargo producer. The
+  // fixture deliberately has no runtime-link-smoke helper, so success proves
+  // the exact-link path was not entered.
+  const servedBinary = join(checkout, 'target', 'debug', 'snapback');
+  touch(servedBinary, '#!/usr/bin/env sh\nexit 0\n');
+  chmodSync(servedBinary, 0o755);
+  spawnSync('git', ['init', '-q'], { cwd: checkout });
+  spawnSync('git', ['config', 'user.email', 'fixture@example.invalid'], { cwd: checkout });
+  spawnSync('git', ['config', 'user.name', 'Snapback Fixture'], { cwd: checkout });
+  spawnSync('git', ['add', '-A'], { cwd: checkout });
+  const commitResult = spawnSync('git', ['commit', '-qm', 'fixture'], {
+    cwd: checkout,
+    encoding: 'utf8',
+  });
+  assert.equal(commitResult.status, 0, commitResult.stderr);
+  const fixtureCommit = spawnSync('git', ['rev-parse', 'HEAD'], {
+    cwd: checkout,
+    encoding: 'utf8',
+  }).stdout.trim();
+  const fakeBin = join(scratch, 'fake-bin');
+  const fakeNode = join(fakeBin, 'node');
+  touch(fakeNode, `#!/usr/bin/env bash
+printf '{"ok":true,"receipt":{"buildIdentity":{"gitCommit":"%s","gitDirty":false,"buildProfile":"debug"}}}\\n' "$FIXTURE_COMMIT"
+`);
+  chmodSync(fakeNode, 0o755);
+  const reuseResult = spawnSync(script, [], {
+    cwd: checkout,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PATH: `${fakeBin}:${process.env.PATH}`,
+      FIXTURE_COMMIT: fixtureCommit,
+      SNAPBACK_BOOTSTRAP_CHECK: '1',
+      SNAPBACK_IBEX_CHECKOUT: peer,
+    },
+  });
+  assert.equal(reuseResult.status, 0, `${reuseResult.stdout}\n${reuseResult.stderr}`);
+  assert.match(reuseResult.stdout, /reusing exact current-revision runtime readiness receipt/);
+
   const driftCheckout = join(scratch, 'snapback-drift');
   const driftVendor = join(driftCheckout, 'vendor', 'ibex');
   const driftPeer = join(scratch, 'ibex-drift');
