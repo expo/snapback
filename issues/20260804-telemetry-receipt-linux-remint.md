@@ -19,3 +19,19 @@ fleet machine. Run `--full` there on current main and land the refreshed
 receipt. Until then this gate is red for every macOS `verify-local-proof`
 run; the 2026-08-04 capability landing verified every other gate and
 skipped exactly this one, recorded here.
+
+## 2026-08-04 re-mint attempt — blocked by a real idle regression
+
+The Minisforum lane is fully provisioned (system libicu/libcurl/
+pkg-config via operator apt; user-space rust/volta/bun/sqlite3) and the
+`--full` pipeline now runs end to end at current main (5df6d666f):
+bootstrap, cargo test, release build, benchmark all pass. The **idle
+proof fails its resource ceiling deterministically**: two independent
+runs both measured `cpuTicksDelta: 12` (120 ms CPU in the idle window)
+against the 100 ms / 10-tick ceiling — identical readings, zero
+variance; write-IO 0 and RSS growth 0 both times. This is a real idle
+CPU regression introduced after the retained receipt's measured
+revision (de86d22a), not measurement noise, and the receipt cannot
+honestly land until it is fixed. See
+`issues/20260804-idle-cpu-regression.md`. This ticket stays open,
+retargeted: re-run the re-mint here once the regression lands its fix.
