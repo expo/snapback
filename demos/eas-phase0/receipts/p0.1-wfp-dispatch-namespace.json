@@ -1,7 +1,7 @@
 {
   "receipt": "eas-phase0/p0.1/wfp-dispatch-namespace",
-  "date": "2026-08-03",
-  "startedAt": "2026-08-03T19:47:57.998Z",
+  "date": "2026-08-05",
+  "startedAt": "2026-08-05T06:59:10.594Z",
   "command": "CLOUDFLARE_ACCOUNT_ID=<account-id> CLOUDFLARE_API_TOKEN=<token> node demos/eas-phase0/spikes/p0.1-wfp-dispatch-namespace.mjs --namespace eas-p0-spike-20260803",
   "authority": {
     "plan": "LLP 0105 §P0.1 WfP handler and host bridge",
@@ -13,15 +13,15 @@
     "enablementReceipt": "demos/eas-phase0/receipts/p0-access-wfp-enabled.json"
   },
   "repository": {
-    "sha": "8ac5f34e4fe573e5828e8ca3deb36c69bd3ea9db",
-    "dirty": true
+    "sha": "1a47c8bc990e6893f1e8ac4b55e7bc24fca115a2",
+    "dirty": false
   },
   "cloudflare": {
     "account": "ccheever@expo.io account",
     "accountIdRedacted": true,
     "tokenPosture": "account-scoped API token from the LLP 0040 credential store; value not retained",
     "namespace": "eas-p0-spike-20260803",
-    "runId": "ac6293",
+    "runId": "ba0ca1",
     "namespaceTrustedWorkers": null,
     "compatibilityDate": "2026-07-01",
     "compatibilityFlags": [],
@@ -43,16 +43,12 @@
     ],
     "dispatcherBindings": [
       {
-        "type": "secret_text",
-        "name": "CAP_SECRET"
-      },
-      {
         "type": "dispatch_namespace",
-        "name": "DISPATCHER",
+        "name": "ACTION_DISPATCHER",
         "namespace": "eas-p0-spike-20260803",
         "outbound": {
           "worker": {
-            "service": "snapback-eas-p0-20260803-ac6293-outbound"
+            "service": "snapback-eas-p0-20260803-ba0ca1-outbound"
           },
           "params": [
             {
@@ -63,33 +59,5233 @@
         }
       },
       {
+        "type": "secret_text",
+        "name": "CAP_SECRET"
+      },
+      {
         "type": "durable_object_namespace",
         "name": "GATES",
         "className": "Gate"
+      },
+      {
+        "type": "dispatch_namespace",
+        "name": "HANDLER_DISPATCHER",
+        "namespace": "eas-p0-spike-20260803"
       }
     ],
-    "dispatcherUrl": "https://snapback-eas-p0-20260803-ac6293-dispatch.ccheever-0f6.workers.dev",
+    "dispatcherUrl": "https://snapback-eas-p0-20260803-ba0ca1-dispatch.ccheever-0f6.workers.dev",
     "dispatcherEdgeActivationObservation": {
-      "stable": false,
-      "round": 20,
-      "concurrentProbeStatuses": [
-        200,
-        404,
-        200,
-        200,
-        200,
-        200,
-        200,
-        200
+      "stable": true,
+      "controlPlanePost": {
+        "enabled": true,
+        "previews_enabled": false
+      },
+      "controlPlaneReadBack": {
+        "enabled": true,
+        "previews_enabled": false
+      },
+      "dns": {
+        "ipv4": [
+          "172.67.139.211",
+          "104.21.62.221"
+        ],
+        "ipv6": [
+          "2606:4700:3032::6815:3edd",
+          "2606:4700:3030::ac43:8bd3"
+        ],
+        "errors": []
+      },
+      "concurrency": 8,
+      "requiredConsecutiveStableRounds": 3,
+      "consecutiveStableRounds": 3,
+      "maxAttemptsPerProbe": 90,
+      "rounds": [
+        {
+          "round": 1,
+          "stable": true,
+          "results": [
+            {
+              "lane": 0,
+              "attempt": 2,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb23c955456e-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 2,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb1d48c88fc5-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb23c955456e-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 1,
+              "attempt": 2,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb23b8d48fc5-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 2,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb1d5e22456e-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb23b8d48fc5-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 2,
+              "attempt": 3,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb2a4b23456e-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 3,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb1d5a8fd84b-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb23ca98d84b-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 3,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb2a4b23456e-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 3,
+              "attempt": 3,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb2a4be68fc5-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 3,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb1d5dbccf1a-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb23cb7dcf1a-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 3,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb2a4be68fc5-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 4,
+              "attempt": 4,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb30cd94456e-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 4,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb1d6a30fca9-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb23dbf82fe9-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 3,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb2a4f68cf1a-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 4,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb30cd94456e-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 5,
+              "attempt": 4,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb30cc468fc5-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 4,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb1d684ae8c2-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb23da9be8c2-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 3,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb2a49b7d84b-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 4,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb30cc468fc5-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 6,
+              "attempt": 3,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb2b3d188fc5-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 3,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb1d5ebf2fe9-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 500,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb23ddf8fca9-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 3,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb2b3d188fc5-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 7,
+              "attempt": 2,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb23edf0f93d-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 2,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb1d7b11f93d-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb23edf0f93d-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "stable": true,
+          "results": [
+            {
+              "lane": 0,
+              "attempt": 1,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb30fc928fc5-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 1,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb30fc928fc5-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 1,
+              "attempt": 1,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb30fdd2456e-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 1,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb30fdd2456e-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 2,
+              "attempt": 3,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb3ddc198fc5-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 3,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb30f95fd84b-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb376878d84b-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 3,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb3ddc198fc5-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 3,
+              "attempt": 2,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb376bf78fc5-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 2,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb30fcaacf1a-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb376bf78fc5-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 4,
+              "attempt": 1,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb30feaafca9-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 1,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb30feaafca9-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 5,
+              "attempt": 1,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb30f856e8c2-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 1,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb30f856e8c2-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 6,
+              "attempt": 2,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb3768cd456e-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 2,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb30f9892fe9-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb3768cd456e-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 7,
+              "attempt": 1,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb30f9cbf93d-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 1,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb30f9cbf93d-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "stable": true,
+          "results": [
+            {
+              "lane": 0,
+              "attempt": 1,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb3e0c478fc5-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 1,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb3e0c478fc5-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 1,
+              "attempt": 1,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb3e0e23456e-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 1,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb3e0e23456e-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 2,
+              "attempt": 3,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb4bfc5d8fc5-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 3,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb3e0f2cd84b-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb459f89d84b-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 3,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb4bfc5d8fc5-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 3,
+              "attempt": 2,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb44dbf88fc5-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 2,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb3e0e88cf1a-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb44dbf88fc5-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 4,
+              "attempt": 1,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb3e0f02fca9-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 1,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb3e0f02fca9-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 5,
+              "attempt": 1,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb3e0f57e8c2-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 1,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb3e0f57e8c2-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 6,
+              "attempt": 2,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb459b30456e-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 2,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb3e0e4a2fe9-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb459b30456e-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 7,
+              "attempt": 1,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263eb3e0d53f93d-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 1,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263eb3e0d53f93d-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            }
+          ]
+        }
       ],
-      "scope": "P0.2 ingress follow-up; P0.1 calls retry only Cloudflare activation pages"
+      "generatedNotFoundCount": 0,
+      "http404Count": 22,
+      "scope": "P0.2 ingress follow-up; three body-verified rounds, each with eight bounded retry lanes, must pass before P0.1 starts"
+    },
+    "namespaceDispatchActivationObservation": {
+      "stable": true,
+      "concurrency": 8,
+      "requiredConsecutiveStableRounds": 3,
+      "consecutiveStableRounds": 3,
+      "maxRounds": 90,
+      "rounds": [
+        {
+          "round": 1,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 3,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 4,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 5,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 6,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 7,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 8,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 9,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 10,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 11,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 12,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 13,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 14,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 15,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 16,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 17,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 18,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 19,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 20,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 21,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 22,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 23,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 24,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 25,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 26,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 27,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 28,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 29,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 30,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 31,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 32,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 33,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 34,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 35,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 36,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 37,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 38,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 39,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 40,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 41,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 42,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 43,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 44,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 45,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 46,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 47,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 48,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 49,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 50,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 51,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 52,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 53,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 54,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 55,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 56,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 57,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 58,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 59,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 60,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 61,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 62,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 63,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 64,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 65,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 66,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 67,
+          "stable": false,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 68,
+          "stable": true,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 69,
+          "stable": true,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        },
+        {
+          "round": 70,
+          "stable": true,
+          "results": [
+            {
+              "script": "app-a-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            }
+          ]
+        }
+      ],
+      "workerNotFoundCount": 0,
+      "scope": "all two-app/two-release/two-role namespaced scripts before P0.1 assertions"
     }
   },
   "topology": {
     "regularWorkers": {
-      "host": "snapback-eas-p0-20260803-ac6293-host",
-      "outbound": "snapback-eas-p0-20260803-ac6293-outbound",
-      "dispatcher": "snapback-eas-p0-20260803-ac6293-dispatch"
+      "host": "snapback-eas-p0-20260803-ba0ca1-host",
+      "outbound": "snapback-eas-p0-20260803-ba0ca1-outbound",
+      "dispatcher": "snapback-eas-p0-20260803-ba0ca1-dispatch"
     },
     "apps": [
       "app-a",
@@ -108,9 +5304,23 @@
       {
         "type": "service",
         "name": "HOST",
-        "service": "snapback-eas-p0-20260803-ac6293-host"
+        "service": "snapback-eas-p0-20260803-ba0ca1-host"
       }
     ],
+    "userWorkerModuleBoundary": {
+      "trustedMain": "worker.mjs binds entry to the first real env.HOST object and owns capability transport, native fetch capture, and ambient freeze",
+      "application": "application.mjs is dynamically evaluated after ambient freeze and receives only an invocation-scoped ctx"
+    },
+    "dispatchPaths": {
+      "handler": {
+        "binding": "HANDLER_DISPATCHER",
+        "outboundWorker": false
+      },
+      "action": {
+        "binding": "ACTION_DISPATCHER",
+        "outboundWorker": "snapback-eas-p0-20260803-ba0ca1-outbound"
+      }
+    },
     "capabilityFields": [
       "appId",
       "environmentId",
@@ -124,7 +5334,13 @@
   "limits": {
     "nativeWfpPerInvocation": {
       "cpuMs": 20,
-      "subRequests": 5
+      "subRequests": 5,
+      "fullTopologyCpuScope": "handler binding without outbound Worker",
+      "nativeSubrequestControlReceipt": "demos/eas-phase0/receipts/p0.1-wfp-minimal-control.json"
+    },
+    "generatedHarness": {
+      "subRequests": 5,
+      "note": "ctx.fetch fails closed before outbound handoff and is revoked after application settlement; trusted entry requires the captured real env.HOST identity, application.mjs cannot access the native-fetch closure, and the separate control proves native enforcement without outbound"
     },
     "dispatcherEnforced": {
       "responseBytes": 65536,
@@ -137,12 +5353,16 @@
   "exactMultipartBindingMetadata": [
     {
       "script": "app-a-r1-handler",
-      "sourceSha256": "ba0d5974fcca1bcfb0deef57fab3c1813cecbfb85d02a49b477f5bc9814cf2bc",
+      "sourceSha256": "2135878cbe98d692bd05bbf4618488e4e641aaaf609856240030bb068b4dc7c6",
+      "moduleSha256": {
+        "worker.mjs": "ed23bfb69b6e9c7207c292988cabfb8a32a4b27ab490e47991eaac575eafad84",
+        "application.mjs": "c5ba9aacdd3592dd70bb6f6d3fcb80af32e3dc27cec51684f371863cb40839d8"
+      },
       "multipartMetadata": [
         {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host"
+          "service": "snapback-eas-p0-20260803-ba0ca1-host"
         }
       ],
       "uploadResponseBindings": [],
@@ -150,19 +5370,23 @@
         {
           "environment": "production",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host",
+          "service": "snapback-eas-p0-20260803-ba0ca1-host",
           "type": "service"
         }
       ]
     },
     {
       "script": "app-a-r1-action",
-      "sourceSha256": "30b64fb57b338f8d5dd75cd9589ae9f68b4d2e390d0ed1570d46d7bfe0dc28e0",
+      "sourceSha256": "1eb4daa2ad4d3b4a9ad9a0654f406779fd05094d54baa31a5854740b5739aaf2",
+      "moduleSha256": {
+        "worker.mjs": "ef922f1d6780553b1322e84da76c4fd7b121f34de7638af72f42bc90754792f5",
+        "application.mjs": "c5ba9aacdd3592dd70bb6f6d3fcb80af32e3dc27cec51684f371863cb40839d8"
+      },
       "multipartMetadata": [
         {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host"
+          "service": "snapback-eas-p0-20260803-ba0ca1-host"
         }
       ],
       "uploadResponseBindings": [],
@@ -170,19 +5394,23 @@
         {
           "environment": "production",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host",
+          "service": "snapback-eas-p0-20260803-ba0ca1-host",
           "type": "service"
         }
       ]
     },
     {
       "script": "app-a-r2-handler",
-      "sourceSha256": "366f5f5f9af5c6eb62dbe3c63fc2b571996dae3825a0a571ac751ea36fa44c20",
+      "sourceSha256": "30cc674467ebcb15fa038ca9d93fa5789e9b6ef75b0e17e6f0e0e29c3653389f",
+      "moduleSha256": {
+        "worker.mjs": "1913a6f145cd7571c07b7adb7c17cd7377bdb4fab45ea2fff1b6deb419b4eeb5",
+        "application.mjs": "c5ba9aacdd3592dd70bb6f6d3fcb80af32e3dc27cec51684f371863cb40839d8"
+      },
       "multipartMetadata": [
         {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host"
+          "service": "snapback-eas-p0-20260803-ba0ca1-host"
         }
       ],
       "uploadResponseBindings": [],
@@ -190,19 +5418,23 @@
         {
           "environment": "production",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host",
+          "service": "snapback-eas-p0-20260803-ba0ca1-host",
           "type": "service"
         }
       ]
     },
     {
       "script": "app-a-r2-action",
-      "sourceSha256": "76210cbe4c74f5c936790a01437128c061c392397806a553600e85b40f193276",
+      "sourceSha256": "1692d0df8649af1840a5f9d526de28ef0dcb8d2f9ff6630dd7002fc2f3e2f2e1",
+      "moduleSha256": {
+        "worker.mjs": "53ec9dd3bd3623a2a700282a7bccb59e5bf2cd310ce418aca0e8712628b26959",
+        "application.mjs": "c5ba9aacdd3592dd70bb6f6d3fcb80af32e3dc27cec51684f371863cb40839d8"
+      },
       "multipartMetadata": [
         {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host"
+          "service": "snapback-eas-p0-20260803-ba0ca1-host"
         }
       ],
       "uploadResponseBindings": [],
@@ -210,19 +5442,23 @@
         {
           "environment": "production",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host",
+          "service": "snapback-eas-p0-20260803-ba0ca1-host",
           "type": "service"
         }
       ]
     },
     {
       "script": "app-b-r1-handler",
-      "sourceSha256": "1a07835133c30676d0b09a6dfdb49ba715c74a2395606c05eee3c67af4832646",
+      "sourceSha256": "07c4f4ee7c9b119a4fd1eb4bbb2a93ef6ada10218a5cdca750d83936a5efd55f",
+      "moduleSha256": {
+        "worker.mjs": "f2cd5086f30075ee2b813ba256652df7c294083346a086f06a093222ae92439d",
+        "application.mjs": "c5ba9aacdd3592dd70bb6f6d3fcb80af32e3dc27cec51684f371863cb40839d8"
+      },
       "multipartMetadata": [
         {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host"
+          "service": "snapback-eas-p0-20260803-ba0ca1-host"
         }
       ],
       "uploadResponseBindings": [],
@@ -230,19 +5466,23 @@
         {
           "environment": "production",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host",
+          "service": "snapback-eas-p0-20260803-ba0ca1-host",
           "type": "service"
         }
       ]
     },
     {
       "script": "app-b-r1-action",
-      "sourceSha256": "fb94f3922101d72db4d4c1eb16cfb2f6b155b25e775626aa4d1ff169c59d4c90",
+      "sourceSha256": "5fdebd40ea08280f5c279f4db1e361df7b3033e4f4412ea943cdd3964d6f8714",
+      "moduleSha256": {
+        "worker.mjs": "d85d47be283cadd9c661fda27f3898eddab946364bdc533d32ed3ad6954412a7",
+        "application.mjs": "c5ba9aacdd3592dd70bb6f6d3fcb80af32e3dc27cec51684f371863cb40839d8"
+      },
       "multipartMetadata": [
         {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host"
+          "service": "snapback-eas-p0-20260803-ba0ca1-host"
         }
       ],
       "uploadResponseBindings": [],
@@ -250,19 +5490,23 @@
         {
           "environment": "production",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host",
+          "service": "snapback-eas-p0-20260803-ba0ca1-host",
           "type": "service"
         }
       ]
     },
     {
       "script": "app-b-r2-handler",
-      "sourceSha256": "428cb38f12a6f9351f71cf7765700284d550b2204d8a9c8eab59f53d0271fcf5",
+      "sourceSha256": "d994adcdb1ed17792399124841d273d630e0b212a8d337f055e952b84e76da64",
+      "moduleSha256": {
+        "worker.mjs": "83655748d5cca786bf8f1d99e18edbb0b662c6ad88cc6aa78fcdf41bbd7fd782",
+        "application.mjs": "c5ba9aacdd3592dd70bb6f6d3fcb80af32e3dc27cec51684f371863cb40839d8"
+      },
       "multipartMetadata": [
         {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host"
+          "service": "snapback-eas-p0-20260803-ba0ca1-host"
         }
       ],
       "uploadResponseBindings": [],
@@ -270,19 +5514,23 @@
         {
           "environment": "production",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host",
+          "service": "snapback-eas-p0-20260803-ba0ca1-host",
           "type": "service"
         }
       ]
     },
     {
       "script": "app-b-r2-action",
-      "sourceSha256": "37fb5d514e9fae3ee2e1ebb8b61088a624494922e71a86474adf8e1856f7fa8c",
+      "sourceSha256": "53f8cb7d0fd1c41a19bb73201570b857ac860e63cb5c25e4665d45c849476104",
+      "moduleSha256": {
+        "worker.mjs": "c7f1fdd26700a1c8ef3acf71d6d7ac42e58a613f8097e5a5c82c9101e45f337f",
+        "application.mjs": "c5ba9aacdd3592dd70bb6f6d3fcb80af32e3dc27cec51684f371863cb40839d8"
+      },
       "multipartMetadata": [
         {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host"
+          "service": "snapback-eas-p0-20260803-ba0ca1-host"
         }
       ],
       "uploadResponseBindings": [],
@@ -290,7 +5538,7 @@
         {
           "environment": "production",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host",
+          "service": "snapback-eas-p0-20260803-ba0ca1-host",
           "type": "service"
         }
       ]
@@ -334,6 +5582,26 @@
           "actionConcurrency": 1,
           "queueDepth": 2,
           "deadlineMs": 10000
+        },
+        "workersDev": {
+          "requiredConsecutiveStableRounds": 3,
+          "consecutiveStableRounds": 3,
+          "rounds": 3
+        },
+        "namespaceDispatch": {
+          "scripts": [
+            "app-a-r1-handler",
+            "app-a-r1-action",
+            "app-a-r2-handler",
+            "app-a-r2-action",
+            "app-b-r1-handler",
+            "app-b-r1-action",
+            "app-b-r2-handler",
+            "app-b-r2-action"
+          ],
+          "requiredConsecutiveStableRounds": 3,
+          "consecutiveStableRounds": 3,
+          "rounds": 70
         }
       }
     },
@@ -349,8 +5617,8 @@
           "requestCfType": "undefined",
           "cacheDefaultType": "object"
         },
-        "elapsedMs": 7744,
-        "activationAttempts": 7
+        "elapsedMs": 45.9,
+        "activationAttempts": 1
       }
     },
     {
@@ -370,7 +5638,7 @@
         "binding": {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-ac6293-host"
+          "service": "snapback-eas-p0-20260803-ba0ca1-host"
         },
         "uploadResponseBindingCounts": [
           0,
@@ -390,7 +5658,7 @@
       "pass": true,
       "evidence": {
         "status": 200,
-        "elapsedMs": 638.9,
+        "elapsedMs": 483.5,
         "activationAttempts": 1,
         "capability": {
           "appId": "app-a",
@@ -398,8 +5666,8 @@
           "objectId": "root",
           "release": "r1",
           "operation": "query",
-          "requestId": "ee6bb9ab-fbae-47fe-acf4-7f873bdfcfa6",
-          "deadline": 1785786533241
+          "requestId": "6b8ae672-b002-413b-8ea9-2df1acc63086",
+          "deadline": 1785913250642
         },
         "responseBody": {
           "ok": true,
@@ -410,8 +5678,8 @@
             "objectId": "root",
             "release": "r1",
             "operation": "query",
-            "requestId": "ee6bb9ab-fbae-47fe-acf4-7f873bdfcfa6",
-            "deadline": 1785786533241
+            "requestId": "6b8ae672-b002-413b-8ea9-2df1acc63086",
+            "deadline": 1785913250642
           },
           "applicationArgKeys": [
             "value"
@@ -427,7 +5695,7 @@
       "pass": true,
       "evidence": {
         "status": 200,
-        "elapsedMs": 273.9,
+        "elapsedMs": 54.5,
         "activationAttempts": 1,
         "capability": {
           "appId": "app-a",
@@ -435,8 +5703,8 @@
           "objectId": "root",
           "release": "r2",
           "operation": "query",
-          "requestId": "1b48ee49-d39d-415b-9f87-4dd7bac73abe",
-          "deadline": 1785786533898
+          "requestId": "42064623-fcc4-43f7-8509-17eefdaa53e7",
+          "deadline": 1785913251130
         },
         "responseBody": {
           "ok": true,
@@ -447,8 +5715,8 @@
             "objectId": "root",
             "release": "r2",
             "operation": "query",
-            "requestId": "1b48ee49-d39d-415b-9f87-4dd7bac73abe",
-            "deadline": 1785786533898
+            "requestId": "42064623-fcc4-43f7-8509-17eefdaa53e7",
+            "deadline": 1785913251130
           },
           "applicationArgKeys": [
             "value"
@@ -464,7 +5732,7 @@
       "pass": true,
       "evidence": {
         "status": 200,
-        "elapsedMs": 873.9,
+        "elapsedMs": 450.9,
         "activationAttempts": 1,
         "capability": {
           "appId": "app-b",
@@ -472,8 +5740,8 @@
           "objectId": "root",
           "release": "r1",
           "operation": "query",
-          "requestId": "96da0183-7831-491e-be99-15cd75aceafa",
-          "deadline": 1785786534431
+          "requestId": "24fb0f35-bdf7-4240-81f9-230ec20d32f0",
+          "deadline": 1785913251182
         },
         "responseBody": {
           "ok": true,
@@ -484,8 +5752,8 @@
             "objectId": "root",
             "release": "r1",
             "operation": "query",
-            "requestId": "96da0183-7831-491e-be99-15cd75aceafa",
-            "deadline": 1785786534431
+            "requestId": "24fb0f35-bdf7-4240-81f9-230ec20d32f0",
+            "deadline": 1785913251182
           },
           "applicationArgKeys": [
             "value"
@@ -501,7 +5769,7 @@
       "pass": true,
       "evidence": {
         "status": 200,
-        "elapsedMs": 190.6,
+        "elapsedMs": 67.6,
         "activationAttempts": 1,
         "capability": {
           "appId": "app-b",
@@ -509,8 +5777,8 @@
           "objectId": "root",
           "release": "r2",
           "operation": "query",
-          "requestId": "0da0d04f-d0b5-4ccd-b365-ba9f1d653875",
-          "deadline": 1785786535021
+          "requestId": "06f37cc5-a1b5-43a6-853c-c3b6acd44852",
+          "deadline": 1785913251638
         },
         "responseBody": {
           "ok": true,
@@ -521,8 +5789,8 @@
             "objectId": "root",
             "release": "r2",
             "operation": "query",
-            "requestId": "0da0d04f-d0b5-4ccd-b365-ba9f1d653875",
-            "deadline": 1785786535021
+            "requestId": "06f37cc5-a1b5-43a6-853c-c3b6acd44852",
+            "deadline": 1785913251638
           },
           "applicationArgKeys": [
             "value"
@@ -606,8 +5874,22 @@
       "id": "handler-ambient-network-denied",
       "pass": true,
       "evidence": {
-        "status": 200,
-        "outboundStatus": 403
+        "lexicalFetch": {
+          "status": 200,
+          "outboundStatus": 403,
+          "role": "handler"
+        },
+        "globalFetch": {
+          "status": 200,
+          "outboundStatus": 403,
+          "role": "handler"
+        },
+        "applicationCapturedFetch": {
+          "status": 200,
+          "outboundStatus": 403,
+          "role": "handler"
+        },
+        "layer": "trusted main module freezes globalThis.fetch before dynamically evaluating the separate application module"
       }
     },
     {
@@ -615,7 +5897,18 @@
       "pass": true,
       "evidence": {
         "status": 200,
-        "outboundStatus": 200
+        "outboundStatus": 200,
+        "ambientGlobalFetch": {
+          "status": 200,
+          "outboundStatus": 403,
+          "role": "action"
+        },
+        "applicationCapturedFetch": {
+          "status": 200,
+          "outboundStatus": 403,
+          "role": "action"
+        },
+        "layer": "application module loads after ambient freeze; outbound access requires invocation-scoped ctx.fetch"
       }
     },
     {
@@ -646,14 +5939,14 @@
             "objectId": "root",
             "release": "r1",
             "operation": "query",
-            "requestId": "c2884678-8523-4094-bc2c-3a5cbdc1d113",
-            "deadline": 1785786537419
+            "requestId": "9959bc79-f83d-42d2-910e-896868dd171b",
+            "deadline": 1785913252618
           },
           "applicationArgKeys": []
         },
-        "queryElapsedMs": 117.6,
-        "queryFinishedAfterStartMs": 219,
-        "actionFinishedAfterStartMs": 1262,
+        "queryElapsedMs": 52.6,
+        "queryFinishedAfterStartMs": 153,
+        "actionFinishedAfterStartMs": 1284,
         "actionScript": "app-a-r1-action",
         "handlerScript": "app-a-r1-handler"
       }
@@ -698,7 +5991,7 @@
             "code": "SNAPBACK_QUEUE_LIMIT"
           }
         ],
-        "elapsedMs": 1530.9,
+        "elapsedMs": 1733.6,
         "activationAttempts": 1,
         "layer": "dispatcher Durable Object admission gate"
       }
@@ -714,38 +6007,115 @@
       }
     },
     {
-      "id": "native-wfp-subrequest-limit",
-      "pass": false,
+      "id": "generated-harness-subrequest-limit",
+      "pass": true,
       "evidence": {
-        "status": 200,
+        "status": 429,
+        "code": "SNAPBACK_SUBREQUEST_LIMIT",
         "category": null,
         "responseBody": {
-          "ok": true,
-          "unexpected": "subrequest limit did not fire"
+          "ok": false,
+          "code": "SNAPBACK_SUBREQUEST_LIMIT",
+          "limit": 5
         },
-        "elapsedMs": 212.4
+        "elapsedMs": 110,
+        "limit": 5,
+        "retainedFetchAttempts": [
+          {
+            "attempt": 1,
+            "status": 409,
+            "body": {
+              "ok": false,
+              "code": "SNAPBACK_NO_RETAINED_ACTION_FETCH",
+              "moduleInvocationSequence": 3
+            },
+            "elapsedMs": 55.7,
+            "activationAttempts": 1
+          },
+          {
+            "attempt": 2,
+            "status": 409,
+            "body": {
+              "ok": false,
+              "code": "SNAPBACK_NO_RETAINED_ACTION_FETCH",
+              "moduleInvocationSequence": 75
+            },
+            "elapsedMs": 43.6,
+            "activationAttempts": 1
+          },
+          {
+            "attempt": 3,
+            "status": 409,
+            "body": {
+              "ok": false,
+              "code": "SNAPBACK_STALE_ACTION_FETCH",
+              "moduleInvocationSequence": 4
+            },
+            "elapsedMs": 36.7,
+            "activationAttempts": 1
+          }
+        ],
+        "staleRetainedFetch": {
+          "status": 409,
+          "code": "SNAPBACK_STALE_ACTION_FETCH",
+          "moduleInvocationSequence": 4
+        },
+        "trustedEntryReentry": {
+          "status": 403,
+          "code": "SNAPBACK_TRUSTED_ENTRY_REQUIRED"
+        },
+        "layer": "trusted main owns an invocation-scoped, post-settlement-revoked ctx.fetch before outbound handoff",
+        "nativeControlReceipt": "demos/eas-phase0/receipts/p0.1-wfp-minimal-control.json"
       }
     },
     {
       "id": "native-wfp-cpu-termination",
-      "pass": false,
+      "pass": true,
       "evidence": {
-        "status": 200,
-        "category": null,
-        "responseBody": {
-          "ok": true,
-          "unexpected": "CPU limit did not fire",
-          "checksum": 884703232
-        },
-        "elapsedMs": 87.8,
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": 200,
+            "body": {
+              "ok": true,
+              "unexpected": "CPU limit did not fire",
+              "checksum": 3411226650
+            },
+            "elapsedMs": 1564.4,
+            "activationAttempts": 1
+          },
+          {
+            "attempt": 2,
+            "status": 200,
+            "body": {
+              "ok": true,
+              "unexpected": "CPU limit did not fire",
+              "checksum": 3411226650
+            },
+            "elapsedMs": 1464.9,
+            "activationAttempts": 1
+          },
+          {
+            "attempt": 3,
+            "status": 502,
+            "body": {
+              "ok": false,
+              "code": "SNAPBACK_USER_WORKER_FAILED",
+              "category": "Worker exceeded CPU time limit."
+            },
+            "elapsedMs": 815.9,
+            "activationAttempts": 1
+          }
+        ],
         "cpuMs": 20,
-        "finiteBurnIterations": 20000000
+        "finiteBurnIterationsPerAttempt": 200000000,
+        "semantics": "Cloudflare documents isolate flexibility for occasional CPU overages; repeat a calibrated finite burn and require an observed native termination"
       }
     }
   ],
   "cleanup": [
     {
-      "resource": "Worker snapback-eas-p0-20260803-ac6293-dispatch",
+      "resource": "Worker snapback-eas-p0-20260803-ba0ca1-dispatch",
       "deleted": true
     },
     {
@@ -753,23 +6123,47 @@
       "deleted": true
     },
     {
-      "resource": "Worker snapback-eas-p0-20260803-ac6293-host",
+      "resource": "Worker snapback-eas-p0-20260803-ba0ca1-host",
       "deleted": true
     },
     {
-      "resource": "Worker snapback-eas-p0-20260803-ac6293-outbound",
+      "resource": "Worker snapback-eas-p0-20260803-ba0ca1-outbound",
       "deleted": true
     }
   ],
   "nonClaims": [
     "This disposable proof does not qualify the eas-cloudflare-wfp-v1 capability profile or graduate hosted_untrusted_code.",
-    "The documented native WfP CPU/subrequest options are exercised, but this run makes no enforcement claim unless both corresponding checks pass; response, concurrency, queue, and wall-clock limits remain disposable dispatcher/Gate code.",
+    "Cloudflare native CPU enforcement has documented isolate flexibility, so the busy-loop witness repeats until termination and records every attempt rather than asserting a strict elapsed-time cutoff.",
+    "The trusted user-Worker main module fails closed at the subrequest ceiling before outbound handoff. It freezes ambient fetch before dynamically evaluating separate application.mjs, passes only invocation-scoped ctx.fetch, and revokes that function after application settlement. Native WfP subrequest enforcement is independently proved by the binding-free minimal-control receipt because outbound interception changes the observed accounting boundary.",
+    "Response, concurrency, queue, and wall-clock limits remain disposable dispatcher/Gate code.",
     "The action-role mechanism is a separate namespaced script and admission gate; Gate 0 must still select the production kill-domain mechanism.",
-    "Rapid disposable Workers.dev activation was not stable under concurrent probes; that ingress concern belongs to P0.2 and is recorded without qualifying a route.",
+    "The disposable Workers.dev route must cross three body-verified readiness rounds, each with eight independently bounded retry lanes, before P0.1 starts; this does not qualify any Expo ingress or production route shape, which remains P0.2 work.",
     "No production Expo-org credential custody, stable identity, billing, hosted auth, or route-shape claim is made."
   ],
-  "finishedAt": "2026-08-03T19:48:51.319Z",
-  "durationMs": 53321,
+  "postCleanupAbsence": [
+    {
+      "resource": "Worker snapback-eas-p0-20260803-ba0ca1-dispatch",
+      "status": 404,
+      "absent": true
+    },
+    {
+      "resource": "dispatch namespace eas-p0-spike-20260803",
+      "status": 404,
+      "absent": true
+    },
+    {
+      "resource": "Worker snapback-eas-p0-20260803-ba0ca1-host",
+      "status": 404,
+      "absent": true
+    },
+    {
+      "resource": "Worker snapback-eas-p0-20260803-ba0ca1-outbound",
+      "status": 404,
+      "absent": true
+    }
+  ],
+  "finishedAt": "2026-08-05T07:00:51.687Z",
+  "durationMs": 101093,
   "namespaceLifecycle": {
     "created": true,
     "scriptsUploaded": [
@@ -784,5 +6178,5 @@
     ],
     "deleted": true
   },
-  "verdict": "FAIL"
+  "verdict": "PASS: real WfP namespace, exact HOST-only user-Worker bindings, two-app/two-release isolation, action egress, retry, stale/tamper refusal, native CPU termination, and fail-closed resource limits witnessed; disposable resources deleted"
 }
