@@ -932,8 +932,8 @@ async function main() {
       try { body = JSON.parse(text); } catch { body = { text: text.slice(0, 500) }; }
       const workerNotFound = retryWorker && response.status === 502 &&
         body?.code === 'SNAPBACK_USER_WORKER_FAILED' && body?.category === 'Worker not found.';
-      const edgeNotReady = retryEdge && response.status >= 404 && typeof body?.text === 'string' &&
-        /(?:Page|Script) not found/iu.test(body.text);
+      const edgeNotReady = retryEdge && response.status === 404 &&
+        (typeof body?.code !== 'string' || !body.code.startsWith('SNAPBACK_'));
       if ((!workerNotFound && !edgeNotReady) || activationAttempt === maxAttempts) {
         return {
           status: response.status,
@@ -963,8 +963,8 @@ async function main() {
       const text = await response.text();
       let body;
       try { body = JSON.parse(text); } catch { body = { text: text.slice(0, 500) }; }
-      const edgeNotReady = response.status >= 404 && typeof body?.text === 'string' &&
-        /(?:Page|Script) not found/iu.test(body.text);
+      const edgeNotReady = response.status === 404 &&
+        (typeof body?.code !== 'string' || !body.code.startsWith('SNAPBACK_'));
       if (!edgeNotReady || activationAttempt === 60) {
         return {
           status: response.status,
