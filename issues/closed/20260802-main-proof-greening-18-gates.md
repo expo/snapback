@@ -484,3 +484,25 @@ recorded by reopening
 `issues/20260802-exact-production-runtime-breaks-contract-routes.md`; this pass
 did not edit the external Exact implementation or misrepresent a dev-browser
 pass as a production-runtime pass.
+
+### Exact-main multiplexed fixture reconciliation — 2026-08-04
+
+After PR #12 merged normally, exact main commit
+`1302272f60b8d18b82ea1b4b9f3363a577774209` passed the coded
+link/launch/restricted-handler-VM bootstrap and every non-local-proof workflow,
+including the normal-sandbox All Aboard cold clone at 34/34. Its complete local
+KEEP-GOING replay found one failed gate and no cascade. The 7,709-line
+transcript has SHA-256
+`c06f6f3651d216d425a799df824b5cb51b6e28aebe8c8e06e50a3312ed5a1e81`.
+
+`regression-multiplexed-lanes` began its second independent lifecycle check by
+reusing the first check's hard-coded connection id while exact socket teardown
+was still terminalizing, and correctly received
+`SNAPBACK_CONNECTION_TEARDOWN_PENDING`. The reuse dates to the named P4 fixture
+landing `8027cd145`; exact fail-closed teardown suspension landed later in
+`9365aa708`. The immediately preceding head proof passed the same fixture,
+confirming timing sensitivity rather than a deterministic push, F0a, or
+realtime correctness regression. The fixture now assigns distinct connection
+ids to its independent checks while each check still proves that its two
+durable handles and ephemeral overlay share one socket. The server's teardown
+fence is unchanged.

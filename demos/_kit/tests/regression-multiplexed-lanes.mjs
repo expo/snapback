@@ -72,12 +72,17 @@ try {
 
   const scope = { boardId: 'board_1' };
   const permissions = [SnapbackClient.roomPermission('boardMember', scope)];
-  const CONN = 'mux_conn';
+  // @ref LLP 0034#101-implementation-review-round--first-proof-2026-07-02
+  // — exact socket teardown temporarily suspends one connection id. These
+  // independent lifecycle checks use distinct ids so check two cannot race
+  // check one's legal cleanup while each still proves same-socket multiplexing.
+  const SHARED_CONN = 'mux_shared_conn';
+  const RECONNECT_CONN = 'mux_reconnect_conn';
 
   await suite.check('two durable handles + an ephemeral overlay share one connection; every lane advances', async () => {
-    const a = await db.liveQuery('listTodos', { connectionId: CONN, userId: ADA, transport: 'stream', stream: FAST });
-    const b = await db.liveQuery('listTodos', { connectionId: CONN, userId: ADA, transport: 'stream', stream: FAST });
-    const overlay = await db.subscribeEphemeral(cursorRef, { connectionId: CONN, scope, userId: ADA, permissions });
+    const a = await db.liveQuery('listTodos', { connectionId: SHARED_CONN, userId: ADA, transport: 'stream', stream: FAST });
+    const b = await db.liveQuery('listTodos', { connectionId: SHARED_CONN, userId: ADA, transport: 'stream', stream: FAST });
+    const overlay = await db.subscribeEphemeral(cursorRef, { connectionId: SHARED_CONN, scope, userId: ADA, permissions });
     const writer = new SnapbackClient(server.baseUrl, server.clientOptions);
     try {
       await waitFor(() => a.connection === 'live' && b.connection === 'live', "both durable handles 'live'");
@@ -115,19 +120,19 @@ try {
   await suite.check('a socket kill converges every lane (fresh snapshots, no resume)', async () => {
     const events = [];
     const a = await db.liveQuery('listTodos', {
-      connectionId: CONN,
+      connectionId: RECONNECT_CONN,
       userId: ADA,
       transport: 'stream',
       stream: FAST,
       onSubscriptionEvent: (e) => events.push(e),
     });
-    const b = await db.liveQuery('listTodos', { connectionId: CONN, userId: ADA, transport: 'stream', stream: FAST });
+    const b = await db.liveQuery('listTodos', { connectionId: RECONNECT_CONN, userId: ADA, transport: 'stream', stream: FAST });
     const writer = new SnapbackClient(server.baseUrl, server.clientOptions);
     try {
       await waitFor(() => a.connection === 'live' && b.connection === 'live', "both handles 'live'");
       const beforeA = a.subscriptionId;
 
-      db.liveStreamManager(CONN).debugCloseSocket();
+      db.liveStreamManager(RECONNECT_CONN).debugCloseSocket();
       await waitFor(
         () => events.some((e) => e.event === 'resubscribed' && e.reason === 'reconnect'),
         'handle A resubscribed after the kill',
@@ -141,7 +146,7 @@ try {
       await writer.mutate('createTodo', { args: { title: 'post-kill durable' }, userId: ADA });
       await waitFor(() => a.rows.some((r) => r.title === 'post-kill durable') && b.rows.some((r) => r.title === 'post-kill durable'), 'durable lanes converged');
 
-      const overlay = await db.subscribeEphemeral(cursorRef, { connectionId: CONN, scope, userId: ADA, permissions });
+      const overlay = await db.subscribeEphemeral(cursorRef, { connectionId: RECONNECT_CONN, scope, userId: ADA, permissions });
       try {
         await writer.publishEphemeral(cursorRef, {
           connectionId: 'mux_publisher',
