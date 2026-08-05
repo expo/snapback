@@ -445,3 +445,14 @@ clean, then identified `tests/ref_check_v0.py` as the first gate to change
 `git status`, with only `?? __pycache__/`. The fixture fix ignores
 `__pycache__/` repository-wide. No readiness check, bootstrap rung, identity
 comparison, or timeout was bypassed or weakened.
+
+Cold-clone run `30964273134` at
+`3fb0d22c2fa4fb381d6e0be352a307dbdc52f8f2` again passed the coded bootstrap,
+registry install, production build, and 32/34 checks. Both failed documents
+reported successful `main.ts` and `@vite/client` resource loads, complete,
+focused, visible documents, and empty roots. The new Runtime/console/network
+capture was present after that page context, but the canonical CI failure tail
+retains only the first 500 characters of a line and clipped it. The receipt now
+places a compact first browser-failure summary before page metadata so the next
+normal-sandbox run can complete attribution without widening or bypassing the
+bounded logger.

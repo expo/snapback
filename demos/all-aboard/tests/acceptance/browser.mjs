@@ -1141,6 +1141,19 @@ async function connectCdp(url) {
         );
       };
       const diagnostics = async () => ({
+        // CI retains only the first 500 characters of each failing acceptance
+        // line. Put the decisive first browser failure ahead of page/resource
+        // context so the bounded log remains an attribution receipt.
+        failureSummary: {
+          runtimeException: captured.runtimeExceptions.at(-1) ?? null,
+          consoleError: captured.consoleErrors.at(-1) ?? null,
+          logEntry: captured.logEntries.findLast((entry) => entry.level === 'error')
+            ?? captured.logEntries.at(-1)
+            ?? null,
+          networkFailure: captured.networkFailures.at(-1) ?? null,
+          moduleResponses: captured.moduleResponses.filter((response) =>
+            response.url?.includes('/main.ts') || response.url?.includes('/@vite/client')),
+        },
         page: await evalRaw(`({
           href: location.href,
           readyState: document.readyState,
