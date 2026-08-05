@@ -5,7 +5,12 @@
 **Systems:** Local server lifecycle, HTTP surface, Security/authorization, Admin API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-01
-**Revised:** 2026-08-04 (dated route-class registration for the
+**Revised:** 2026-08-05 (LLP 0184 Phase 0 item 5 audit: corrected the
+2026-07-25 hosted route table, which was missing the
+`/_snapback/api/debug/network-profile` row — see the dated correction;
+the full first-pass audited inventory of `gateway.js`'s hand-routed
+system/control paths lives at `cloudflare/gateway-paths.inventory.json`.)
+2026-08-04 (dated route-class registration for the
 landed `/app-api/*` app-data-plane envelope surface — LLP 0062 Phase 1:
 `GET /app-api/current` is the sessions-only `PublicNoStore` discovery
 route and `GET /app-api/envelope/{sha256}` the content-addressed
@@ -1138,6 +1143,32 @@ has no enforceable route registry (the gateway is a hand-routed Worker);
 the Cloudflare acceptance suites are its enforcement seam, and
 `cloudflare/test/acceptance.mjs` + `acceptance.protocol-hardening.mjs`
 exercise the migrated paths and gates.
+
+*Dated correction (2026-08-05, LLP 0184 Phase 0 item 5 audit):* the hosted
+route table above was one row short of `gateway.js`'s real path count —
+`/_snapback/api/debug/network-profile` (the LLP 0167 runtime network-profile
+selector) was hand-routed in `gateway.js` before this table was written and
+was never added to it. It has no root alias (introduced directly under the
+reserved namespace, not part of the 2026-07-25 root migration), so it is
+recorded here rather than in the migration table above:
+
+| Route | Class | Gate |
+| --- | --- | --- |
+| `GET,HEAD /_snapback/api/debug/network-profile` | system API (read) | admin-read gate (coordinator-owned) |
+| `<write> /_snapback/api/debug/network-profile` | system API | admin-write activation gate (coordinator-owned) |
+
+`gateway.js` hand-routes every HTTP method for this single path to the
+coordinator with no method-level branch of its own; the coordinator is what
+dispatches `GET`/`HEAD` through the admin-read gate and any write method
+through the admin-write activation gate — two distinct semantic operations
+sharing one path, with different authority, effect, and schema. This is the
+worked example LLP 0184 §3a uses for why the hosted-adapter manifest it
+specifies must key entries by `(method, path, operation)` rather than by
+path alone. The full first-pass audited inventory of `gateway.js`'s
+hand-routed system/control paths — including this correction — is checked
+in at
+[`cloudflare/gateway-paths.inventory.json`](../cloudflare/gateway-paths.inventory.json);
+Phase 1's hosted-adapter manifest is generated against that fixture.
 
 ## Dated amendment: asset upload-session route family (2026-07-31)
 
