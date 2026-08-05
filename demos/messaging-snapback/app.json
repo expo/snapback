@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Snapback Messenger",
+    "slug": "snapback-messaging",
+    "scheme": "snapbackmessenger",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.snapback.messaging",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
+        "NSPhotoLibraryUsageDescription": "Snapback Messenger needs photo access to send images in chats."
+      }
+    },
+    "android": {
+      "package": "com.snapback.messaging",
+      "usesCleartextTraffic": true
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

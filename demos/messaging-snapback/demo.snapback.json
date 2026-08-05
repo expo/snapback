@@ -1,0 +1,18 @@
+{
+  "id": "messaging-snapback",
+  "title": "Snapback Messenger — DMs, groups, reactions, replies, typing",
+  "description": "An Expo Router SDK 57 messaging app backed by Snapback: 1-1 DMs, group chats, text and image messages, emoji reactions, WhatsApp-style reply previews, and live typing indicators.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["API", "Storage", "Runtime", "Realtime", "Assets", "React/Expo", "Developer experience"],
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs",
+    "codegen": "node ../../packages/snapback-codegen/index.mjs snapback",
+    "generated": ["snapback/generated/artifacts.json"]
+  },
+  "surfaces": {
+    "expo": { "buildTargets": ["ios", "android", "web"], "entrypoint": "src/app/_layout.tsx" },
+    "headless": { "runner": "node tests/acceptance/headless.mjs" }
+  },
+  "notClaiming": ["hosted Snapback backend; this demo runs against a local dev server only"]
+}

@@ -1,0 +1,100 @@
+{
+  "tables": {
+    "users": [
+      { "_id": "user_lin", "handle": "lin", "name": "Lin Chen", "avatarEmoji": "🦊", "avatarColor": "#F97362" },
+      { "_id": "user_ada", "handle": "ada", "name": "Ada Lovelace", "avatarEmoji": "🦄", "avatarColor": "#8B5CF6" },
+      { "_id": "user_grace", "handle": "grace", "name": "Grace Hopper", "avatarEmoji": "⚓️", "avatarColor": "#2563EB" },
+      { "_id": "user_mo", "handle": "mo", "name": "Mo Farah", "avatarEmoji": "🏃", "avatarColor": "#16A34A" },
+      { "_id": "user_priya", "handle": "priya", "name": "Priya Rao", "avatarEmoji": "🌈", "avatarColor": "#DB2777" }
+    ],
+    "conversations": [
+      {
+        "_id": "conv_dm_lin_ada",
+        "kind": "dm",
+        "title": "",
+        "memberHandles": ["lin", "ada"],
+        "lastMessageText": "See you at 3 👋",
+        "lastMessageAuthorName": "Ada Lovelace",
+        "lastMessageAt": 1785773400000,
+        "createdAt": 1785700000000
+      },
+      {
+        "_id": "conv_dm_lin_grace",
+        "kind": "dm",
+        "title": "",
+        "memberHandles": ["lin", "grace"],
+        "lastMessageText": "Ha! A ship in port is safe, but that's not what ships are for.",
+        "lastMessageAuthorName": "Grace Hopper",
+        "lastMessageAt": 1785772100000,
+        "createdAt": 1785690000000
+      },
+      {
+        "_id": "conv_group_founders",
+        "kind": "group",
+        "title": "Snapback Founders",
+        "memberHandles": ["lin", "ada", "grace", "mo"],
+        "lastMessageText": "let's ship it 🚀",
+        "lastMessageAuthorName": "Mo Farah",
+        "lastMessageAt": 1785774600000,
+        "createdAt": 1785600000000
+      },
+      {
+        "_id": "conv_group_trip",
+        "kind": "group",
+        "title": "Weekend Trip 🏔️",
+        "memberHandles": ["lin", "mo", "priya"],
+        "lastMessageText": "packing list incoming",
+        "lastMessageAuthorName": "Priya Rao",
+        "lastMessageAt": 1785771000000,
+        "createdAt": 1785650000000
+      }
+    ],
+    "conversationMembers": [
+      { "_id": "cm_dm1_lin", "conversationId": "conv_dm_lin_ada", "userHandle": "lin", "joinedAt": 1785700000000 },
+      { "_id": "cm_dm1_ada", "conversationId": "conv_dm_lin_ada", "userHandle": "ada", "joinedAt": 1785700000000 },
+      { "_id": "cm_dm2_lin", "conversationId": "conv_dm_lin_grace", "userHandle": "lin", "joinedAt": 1785690000000 },
+      { "_id": "cm_dm2_grace", "conversationId": "conv_dm_lin_grace", "userHandle": "grace", "joinedAt": 1785690000000 },
+      { "_id": "cm_gf_lin", "conversationId": "conv_group_founders", "userHandle": "lin", "joinedAt": 1785600000000 },
+      { "_id": "cm_gf_ada", "conversationId": "conv_group_founders", "userHandle": "ada", "joinedAt": 1785600000000 },
+      { "_id": "cm_gf_grace", "conversationId": "conv_group_founders", "userHandle": "grace", "joinedAt": 1785600000000 },
+      { "_id": "cm_gf_mo", "conversationId": "conv_group_founders", "userHandle": "mo", "joinedAt": 1785600000000 },
+      { "_id": "cm_gt_lin", "conversationId": "conv_group_trip", "userHandle": "lin", "joinedAt": 1785650000000 },
+      { "_id": "cm_gt_mo", "conversationId": "conv_group_trip", "userHandle": "mo", "joinedAt": 1785650000000 },
+      { "_id": "cm_gt_priya", "conversationId": "conv_group_trip", "userHandle": "priya", "joinedAt": 1785650000000 }
+    ],
+    "messages": [
+      { "_id": "msg_dm1_1", "conversationId": "conv_dm_lin_ada", "authorHandle": "ada", "authorName": "Ada Lovelace", "body": "Hey! Did you get a chance to look at the analytical engine notes?", "createdAt": 1785773000000 },
+      { "_id": "msg_dm1_2", "conversationId": "conv_dm_lin_ada", "authorHandle": "lin", "authorName": "Lin Chen", "body": "Just finished — the loop diagram is beautiful.", "createdAt": 1785773200000 },
+      { "_id": "msg_dm1_3", "conversationId": "conv_dm_lin_ada", "authorHandle": "ada", "authorName": "Ada Lovelace", "body": "Want to go through it together?", "createdAt": 1785773300000 },
+      { "_id": "msg_dm1_4", "conversationId": "conv_dm_lin_ada", "authorHandle": "lin", "authorName": "Lin Chen", "body": "Yes — free after lunch?", "replyToId": "msg_dm1_3", "createdAt": 1785773360000 },
+      { "_id": "msg_dm1_5", "conversationId": "conv_dm_lin_ada", "authorHandle": "ada", "authorName": "Ada Lovelace", "body": "See you at 3 👋", "createdAt": 1785773400000 },
+
+      { "_id": "msg_dm2_1", "conversationId": "conv_dm_lin_grace", "authorHandle": "grace", "authorName": "Grace Hopper", "body": "Reminder: demo day is Friday.", "createdAt": 1785771600000 },
+      { "_id": "msg_dm2_2", "conversationId": "conv_dm_lin_grace", "authorHandle": "lin", "authorName": "Lin Chen", "body": "On it. Backend's green, just polishing the client.", "createdAt": 1785771800000 },
+      { "_id": "msg_dm2_3", "conversationId": "conv_dm_lin_grace", "authorHandle": "grace", "authorName": "Grace Hopper", "body": "A ship in port is safe, but that's not what ships are for.", "createdAt": 1785772100000 },
+
+      { "_id": "msg_gf_1", "conversationId": "conv_group_founders", "authorHandle": "grace", "authorName": "Grace Hopper", "body": "Morning founders ☀️ — status check?", "createdAt": 1785774000000 },
+      { "_id": "msg_gf_2", "conversationId": "conv_group_founders", "authorHandle": "ada", "authorName": "Ada Lovelace", "body": "Engine notes are done, reviewing with Lin at 3.", "createdAt": 1785774100000 },
+      { "_id": "msg_gf_3", "conversationId": "conv_group_founders", "authorHandle": "lin", "authorName": "Lin Chen", "body": "Messaging demo backend is live — DMs, groups, reactions, replies, typing.", "createdAt": 1785774300000 },
+      { "_id": "msg_gf_4", "conversationId": "conv_group_founders", "authorHandle": "grace", "authorName": "Grace Hopper", "body": "That was fast.", "replyToId": "msg_gf_3", "createdAt": 1785774400000 },
+      { "_id": "msg_gf_5", "conversationId": "conv_group_founders", "authorHandle": "mo", "authorName": "Mo Farah", "body": "let's ship it 🚀", "createdAt": 1785774600000 },
+
+      { "_id": "msg_gt_1", "conversationId": "conv_group_trip", "authorHandle": "mo", "authorName": "Mo Farah", "body": "Cabin's booked for the 14th!", "createdAt": 1785770000000 },
+      { "_id": "msg_gt_2", "conversationId": "conv_group_trip", "authorHandle": "priya", "authorName": "Priya Rao", "body": "Amazing. Who's driving?", "createdAt": 1785770300000 },
+      { "_id": "msg_gt_3", "conversationId": "conv_group_trip", "authorHandle": "lin", "authorName": "Lin Chen", "body": "I can take the van, fits everyone + gear.", "replyToId": "msg_gt_2", "createdAt": 1785770500000 },
+      { "_id": "msg_gt_4", "conversationId": "conv_group_trip", "authorHandle": "priya", "authorName": "Priya Rao", "body": "packing list incoming", "createdAt": 1785771000000 }
+    ],
+    "reactions": [
+      { "_id": "rx_1", "messageId": "msg_dm1_2", "userHandle": "ada", "emoji": "❤️", "createdAt": 1785773210000 },
+      { "_id": "rx_2", "messageId": "msg_dm2_3", "userHandle": "lin", "emoji": "😂", "createdAt": 1785772110000 },
+      { "_id": "rx_3", "messageId": "msg_gf_3", "userHandle": "ada", "emoji": "👍", "createdAt": 1785774310000 },
+      { "_id": "rx_4", "messageId": "msg_gf_3", "userHandle": "grace", "emoji": "👍", "createdAt": 1785774320000 },
+      { "_id": "rx_5", "messageId": "msg_gf_3", "userHandle": "mo", "emoji": "🚀", "createdAt": 1785774330000 },
+      { "_id": "rx_6", "messageId": "msg_gf_5", "userHandle": "lin", "emoji": "🚀", "createdAt": 1785774610000 },
+      { "_id": "rx_7", "messageId": "msg_gf_5", "userHandle": "ada", "emoji": "🚀", "createdAt": 1785774620000 },
+      { "_id": "rx_8", "messageId": "msg_gt_1", "userHandle": "priya", "emoji": "🎉", "createdAt": 1785770010000 },
+      { "_id": "rx_9", "messageId": "msg_gt_1", "userHandle": "lin", "emoji": "🎉", "createdAt": 1785770020000 },
+      { "_id": "rx_10", "messageId": "msg_gt_3", "userHandle": "mo", "emoji": "👍", "createdAt": 1785770510000 }
+    ]
+  }
+}

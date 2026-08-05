@@ -1,0 +1,151 @@
+# 0058 — Snapback Messenger (demos/messaging-snapback)
+
+**Date:** 2026-08-05
+**Systems:** Backend (schema/functions), live queries, ephemeral state, assets, React/Expo client
+**Related:** `demos/messaging-snapback`, `issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`
+
+## What this is
+
+A messaging app ("Snapback Messenger") built end to end on Snapback: 1-1 DMs,
+group chats, text and image messages, emoji reactions, WhatsApp-style
+lightweight reply previews (a quoted pointer, never a nested thread), and
+live typing indicators. Expo Router client, dev-mode client-asserted auth
+with a persona switcher (same trade-off `demos/warble` documents). Backend is
+`demos/messaging-snapback/snapback/{schema,functions}.mjs` plus a seed
+backlog covering every feature (including two messages with real uploaded
+images, seeded through the actual upload pipeline, not a raw row insert).
+
+## What felt good
+
+- **The declarative-vs-JS-handler split was exactly the right shape for a
+  chat app.** `myConversations` and `conversationMessages` both need a join
+  (`conversationMembers` → `conversations`) or a fan-out aggregate (reactions
+  per message, reply preview lookup) that the declarative plan vocabulary
+  can't express — `defineJsLiveQuery` with same-file helper functions
+  (`summarizeReactions`, `findReplyPreview`) spliced into the handler was
+  clean and readable. I never wanted for a "just let me write a query"
+  escape hatch; the guide's own advice ("use JS for bounded logic the plan
+  can't express") was correct in practice.
+- **`toggleReaction`'s unique index (`by_message_user_emoji`) did the dedup
+  work for free.** No handler-side scan needed to prevent double-reacting;
+  the unique index plus a `.first()` lookup is the whole mechanism. This is
+  the same "structural constraint over runtime check" pattern Warble uses
+  for likes, and it held up cleanly for reactions too.
+- **Ephemeral typing state was genuinely fast to wire once I found the
+  pattern.** There is no `useSnapbackEphemeral` React hook (confirmed by
+  grep, not assumption), so I hand-wired `client.subscribeEphemeral`
+  following `demos/cursors-web`'s `useCursorRoom` shape. Once I had a
+  reference to the raw client (exported from `lib/snapback.ts` as a module
+  singleton, captured at provider-construction time), the rest — snapshot +
+  delta overlay, TTL, self-filtering by `grantedConnectionId` — worked on
+  the first try and is verifiably live: I proved it by publishing typing
+  presence from a *second, independent* `SnapbackClient` in a Node script
+  while a real browser tab had the conversation open, and the "Priya Rao is
+  typing…" indicator appeared with no page reload
+  (`demos/messaging-snapback/scripts/verify-typing.mjs`,
+  `evidence/03-typing.png`). That's a real server-push proof, not a
+  simulated one.
+- **The headless acceptance harness caught every real bug before the UI ever
+  ran.** All 10 backend checks (seed shape, reply pointer semantics, reaction
+  idempotency, dm dedup, group membership, a *real* asset upload through
+  the trusted pipeline, and the ephemeral typing overlay) were written and
+  green before I opened a browser. When the UI later showed a broken image,
+  I already knew from the harness that the bytes were correct server-side —
+  it narrowed the bug to "browser cross-origin embed," not "did my mutation
+  even work."
+
+## What felt bad / surprising
+
+- **`results.records(...)` is a closed shape, and "spread the stored row"
+  silently violates it.** My first `myConversations`/`conversationMessages`
+  handlers did `return [...conversation]` / `{...message, reactions: ...}`
+  — returning the raw `ctx.db.get()`/query row, which carries `_version` and
+  `_updatedAt` system fields I hadn't declared in my result `v.object(...)`.
+  Every one of those queries failed with
+  `SNAPBACK_HANDLER_RESULT_CONTRACT_VIOLATION` and a `pathHash` that gives
+  no field name — I had to work out from first principles that "extra
+  fields" was the failure mode, not "wrong types." The fix (explicitly pick
+  only the declared fields into a new object) is right, but the error
+  message could name which field was unexpected, and the guide's line "does
+  not invent system fields" reads like documentation of a feature, not a
+  warning about a footgun in the return-the-raw-row idiom every JS-handler
+  example otherwise encourages (`ctx.db.query(...).collect()` returning
+  straight through is the paved happy path for `results.documents(table)`,
+  but breaks the instant you add one computed field via `results.records`).
+- **Table fields have no array validator — `v.array()` is result-contract-only,
+  and the schema-authoring error message doesn't say what to do.** I wanted
+  `conversations.memberHandles: v.array(v.string())` as a stored field;
+  codegen's refusal (`unsupported validator primitive/field type
+  "array"/"Json"`) named the problem but not the fix. `guide/getting-started/
+  your-first-backend.md`'s validator inventory lists `v.json()` but doesn't
+  connect the dots ("store an array in a table field via `v.json()`, and
+  re-validate its shape with `v.array()` only in a result contract"). I only
+  found the fix by grepping the codegen source's assert message text.
+- **The real headline finding: dev-mode asset uploads cannot complete over
+  the plain client HTTP surface, for *any* auth mode, and this generalizes
+  well past the one browser caveat the guide states.** Filed as
+  `issues/20260805-guide-gap-dev-mode-asset-upload-anonymous-caller.md`
+  with the exact mechanism (caller resolves anonymous; owner_principal is a
+  required non-optional string; the equality check can therefore never
+  pass). This blocked the in-app "add photo" feature from ever completing
+  against this demo's dev-mode-no-sessions server — I worked around it for
+  *seeding* by shelling out to `snapback assets put --user <handle>` (the
+  CLI's admin-impersonated path), and I left the in-app photo picker wired
+  correctly (it demonstrates the real `useSnapbackAssetUpload` integration)
+  but it now surfaces an honest in-UI error explaining why it 403s here,
+  rather than hanging or crashing.
+- **`public-immutable` delivery is documented as cross-origin "pasteable"
+  but isn't, in practice** — every asset response carries
+  `Cross-Origin-Resource-Policy: same-origin`, which a browser enforces
+  against `<img>` embedding from a different origin. My Expo web dev preview
+  (`:8099`) and the Snapback backend (`:4421`) are different origins, so the
+  two seeded photo messages show as a broken/placeholder box in the web
+  screenshot even though `curl`-fetching the same URL directly returns
+  correct bytes. Also filed in the ticket above. I did not have time to
+  verify whether this specific CORP restriction reproduces on a native
+  (non-browser) `expo-image` load — noted as an open question, not a claim
+  either way.
+
+## Comparison to React + Convex/Supabase
+
+- The declarative-plan-vs-JS-handler choice has no real analog in Convex
+  (everything is a TypeScript function) or Supabase (everything is SQL/RLS);
+  Snapback's split felt closer to "write SQL when a view expresses it,
+  write a stored procedure when it doesn't" than to either alternative, and
+  for a chat app's two genuinely joined/aggregated queries, that mixed
+  posture was the right level of ceremony — no more boilerplate than a
+  Convex query function, but with a machine-checked closed result shape
+  neither Convex nor Supabase gives you for free.
+- The ephemeral-state primitive (typed rooms, TTL, connection-owned cleanup)
+  is a closer match to what you'd hand-roll with Convex presence patterns or
+  a Supabase Realtime channel than to anything built in — but Snapback's
+  version is schema-declared and budget-enforced (`publishRate`,
+  `maxValueBytes`) up front, which is more ceremony than a bare Supabase
+  channel but caught a would-be-runtime mistake (an over-budget declared
+  rate) at generation time instead of during a live demo.
+- The asset upload/finalize/attach lifecycle is considerably more thorough
+  than Supabase Storage's client-side-upload-then-insert-a-row pattern (GPS
+  stripping, variant generation, dedup, callback events, a full receipt
+  ledger) — but that thoroughness is exactly what surfaced the dev-mode
+  caller-identity gap above: Supabase's simpler "presigned URL, anyone with
+  the URL can PUT" model has no equivalent multi-step caller-consistency
+  check to trip over in a sessionless dev setup.
+
+## Verification performed
+
+- `node demos/messaging-snapback/tests/acceptance/headless.mjs` — 10/10
+  passing (seed shape, reply-as-pointer semantics, reaction idempotency, dm
+  dedup, group membership, a real asset upload through the trusted
+  pipeline, empty-message refusal, live ephemeral typing).
+- `expo start --web` against a real local `snapback` server; screenshots
+  under `demos/messaging-snapback/evidence/`: conversation list (live
+  connection dot), an open group chat showing a reply-as-quoted-pointer, two
+  reactions, and a seeded photo message; a DM with a real sent text message,
+  a real toggled reaction, and a real sent reply, all driven by actual
+  clicks/typing in headless Chrome (`scripts/verify-golden-path.mjs`); and a
+  live cross-client typing indicator (`scripts/verify-typing.mjs`).
+- Not verified: native iOS/Android build (time budget; Expo web was the
+  faster path to a real, screenshot-able golden-path proof, and the guide's
+  React/Expo client page documents the native carrier as the same generated
+  surface plus platform-specific store/crypto concerns already exercised
+  elsewhere in the repo, e.g. `demos/rn-durable-store-witness`).

@@ -1,0 +1,11 @@
+# Local dev server state — sqlite database, minted admin token, ready file.
+.dev/
+.dev.snapback.restore.lock
+
+node_modules/
+.expo/
+.snapback/
+.snapback*
+dist/
+acceptance-report.json
+expo-env.d.ts
