@@ -1,11 +1,26 @@
 # LLP 0158: Instance forking
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Storage, Deployment, Runtime, Scheduling, Assets, Security, Agent experience, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (LLP 0167 OQ3 boundary note: network-profile
+**Revised:** 2026-08-05 (v0.19 — author acceptance after independent
+implementation review: the same-`appId` derived-deployment identity decision
+and its in-document LLP 0018/0012 amendment are now normative. F0a, F0b, and F1
+remain the accepted local design and landed substrate; this status transition
+does not publish `agent_safe_derived_deployment_fork_v1`, whose distinct
+qualification and publication gates remain unsatisfied and whose public tuple
+therefore remains wholly `Missing`.); 2026-08-05 (v0.18 — LLP 0162 implementation-review correction:
+OQ9's proposed-normative LLP 0018/0012 amendment now explicitly makes every
+independently mutable deployment concern instance-owned — schema and migration
+state, function bundle, database/storage, sync/realtime state, auth/provider
+state, secrets, admin/diagnostics, and lifecycle operations — rather than
+mentioning only client namespaces and commit streams. The shared `appId` is a
+generated compatibility identity, never authority to infer or reuse another
+instance's state. This documentation correction does not publish the derived-
+deployment capability, which remains Missing behind its distinct F0b gate.);
+2026-08-05 (LLP 0167 OQ3 boundary note: network-profile
 authority now consumes the existing boot-validated local fork lineage as a
 derived-instance fact; the Cloudflare arm reserves the deployment binding
 `SNAPBACK_DERIVED_INSTANCE_ID` as its fork-id carrier. This does not implement
@@ -194,25 +209,28 @@ crosses the action-only `ctx.fetch` → `host.fetch` host seam, LLP 0049);
 explicit graduation criteria added to §Status.
 **Related:** LLP 0007, LLP 0008, LLP 0018, LLP 0027, LLP 0028, LLP 0036, LLP 0044, LLP 0049, LLP 0070, LLP 0081, LLP 0083, LLP 0088, LLP 0097 (ephemeral data branches — the implemented in-app sibling this RFC must position against), LLP 0099, LLP 0139, LLP 0146
 
-> **Experimental.** This RFC explores a capability. It commits no
-> implementation, no schedule, and no priority relative to the accepted
-> program work (LLP 0130's wave, LLP 0155's local-sync lanes). It exists so
-> the design space is thought through once, on paper, before anyone builds
-> anything — and so that if the answer is "not now," the reasoning is
-> recorded rather than re-derived.
+> **Accepted design; capability not published.** The local F0a/F0b/F1 design,
+> including the same-`appId` derived-deployment amendment below, is accepted.
+> Acceptance records the contract and the landed local substrate; it is not a
+> capability advertisement. `agent_safe_derived_deployment_fork_v1` remains
+> wholly `Missing` until its distinct qualification and publication gates pass.
 
 ## Summary
 
-Should Snapback support **forking a logical app** — producing a new,
+Snapback supports **forking a logical app** as an accepted instance-level
+design — producing a new,
 independent instance whose data starts as a consistent snapshot of an
 existing one (copy-on-write-cheap when the parent is cold; a consistent
-full copy via the backup primitive when it is live)? This RFC argues the capability is distinct from, and far
+full copy via the backup primitive when it is live). This RFC establishes that
+the capability is distinct from, and far
 cheaper than, the record-level branching that
 [LLP 0088](./0088-record-history-and-branching.rfc.md) deferred: a fork is a
-whole-instance operation that lands exactly on the logical-app boundary
-[LLP 0018](./0018-app-instance-boundaries.rfc.md) already defines, so none of
-the sync-core invariants (single per-app gap-free version stream, LLP 0007
-DK-2) acquire a branch dimension. The interesting design work is not the
+whole-instance operation that extends the logical-app boundary in
+[LLP 0018](./0018-app-instance-boundaries.rfc.md) with same-`appId` derived
+deployments. Each derived deployment owns an independent canonical stream, so
+none of the sync-core invariants acquire a branch dimension; the accepted OQ9
+amendment below changes the stream ownership rule from per logical app to per
+instance. The interesting design work is not the
 database copy — measured effectively free for a cold parent on SQLite,
 an unmeasured full copy live — but the **runtime plane**:
 what a fork does about scheduled work, outbound side effects, secrets,
@@ -221,7 +239,7 @@ the data, a Snapback fork can be a whole-*backend* fork, which is both the
 hard part and the reason it would be more valuable than what
 database-only vendors ship.
 
-The recommended posture, if this is ever pursued: **throwaway-first**.
+The accepted posture is **throwaway-first**.
 Forks are cheap, quarantined, disposable rehearsal environments with a
 machine-readable "what changed" diff surface — not long-lived branches and
 not merge targets. Merge stays app-level per LLP 0088 §4.
@@ -331,14 +349,14 @@ The two capabilities are different points on one isolation axis:
 
 | | LLP 0097 branch (substrate landed, unwired) | LLP 0158 fork (this RFC) |
 | --- | --- | --- |
-| Boundary | Ephemeral child *inside* one logical app's trust boundary | A separate instance — new logical app or derived deployment, identity model open as OQ9 (LLP 0018) |
+| Boundary | Ephemeral child *inside* one logical app's trust boundary | A same-`appId` derived deployment: separate instance identity and independent ownership/mutation boundary (accepted OQ9 amendment to LLP 0018/0012) |
 | Schema / function bundle | **Shared with parent** — a branch cannot diverge them | Fully divergent — fork can run a different app version |
 | Version stream | Typed child stream, never numerically comparable to canonical (0097's 0007/0018 amendment) | The fork's own canonical stream: same numbering space continuing from the fork point, **new stream identity** minted so cursors cannot cross (§Design sketch; §Spike evidence 5) |
 | External effects | Captured as durable intents, settle on promotion | No promotion — quarantined outright (§Runtime plane, reusing 0097's mediation) |
 | Merge-back | Staged promotion by re-execution, one canonical transaction | **None** (non-goal) |
 | Placement | Lives inside the parent server process | Independent process/host; physically portable (clone-to-laptop, clone-to-another-machine) |
 | Cost per instance | Overlay + child stream — cheap, many-at-once (N live futures) | One clonefile + a boot — cheap locally, heavier hosted |
-| Trust posture | Cooperating-not-adversarial (0018) | Separate app; suitable when the experiment must not share the parent's trust boundary |
+| Trust posture | Cooperating-not-adversarial (0018) | Separate instance; suitable when the experiment must not share the parent's runtime or durable-state boundary |
 
 Consequences for this RFC:
 
@@ -368,30 +386,28 @@ Consequences for this RFC:
   fork. Whichever of 0097-wiring or 0158-F0 lands first builds the
   mediation seam the other then reuses.
 - **The version-stream stories are compatible, not competing.** 0097's
-  amendment governs child streams *within* one logical app. A fork is a
-  separate instance owning an ordinary canonical stream; continuation from
-  the fork point (observed native in §Spike evidence) violates nothing
-  in the amendment. But the co-existence should be stated in whichever
-  document graduates first.
-- **A legitimate outcome of this RFC is a fold, not a feature.** If the
-  residual set is thin, the right landing may be a dated amendment to
-  LLP 0097 rather than a standalone capability — concretely, a **shared
-  snapshot/materialization engine**: 0097's `MaterializedBase` already
-  snapshots a source database into a fresh, atomically consistent
-  database file via SQLite's backup primitive (`src/branches.rs`), which
-  is the storage half of a heavy fork; what would remain 0158-specific
-  is the instance-identity scrub/mint and quarantine layer. §Status's
-  graduation criteria make this concrete.
+  amendment governs child streams *within an instance*. A fork is a
+  same-`appId` separate instance owning an ordinary canonical stream;
+  continuation from the fork point (observed native in §Spike evidence)
+  violates nothing in either amendment. Versions and cursors remain opaque
+  and non-comparable across the two instance identities.
+- **The accepted result is a standalone derived-deployment design, not a
+  fold into 0097.** The RFC considered a fold while the residual demand was
+  uncertain. The completed first-consumer criterion established the distinct
+  schema/function-divergent and out-of-process workflow. The two designs still
+  share a snapshot/materialization engine: 0097's `MaterializedBase` is the
+  storage half, while 0158 owns instance-identity scrub/mint and quarantine.
 
 ### Why this is still not LLP 0088 reopened
 
 LLP 0088 §3's deferral of *record-level* branching was answered by
 LLP 0097 for the in-app case under 0088's own revisit trigger. This RFC
-introduces no branch identity inside any data model and no further
-change to the 0007/0018 stream contracts: the fork is a **separate
-instance** — its own schema copy, its own canonical stream, its own
-auth namespace after the scrub-and-mint — whether OQ9 lands on "new
-logical app" or "derived deployment." Parent and fork share history
+introduces no branch identity inside any data model. Its accepted OQ9
+amendment narrows the necessary 0018/0012 contract change: the fork is a
+same-`appId` **derived deployment** with a separate instance identity — its
+own schema and function custody, canonical stream, storage, auth/provider
+state, secrets, diagnostics, and lifecycle authority after scrub-and-mint.
+Parent and fork share history
 before the fork point and nothing after. LLP 0088's remaining postures (no
 semantic merge in the sync core; independent retention clocks) are
 inherited here unchanged.
@@ -419,9 +435,8 @@ inherited here unchanged.
 
 ### The fork operation
 
-`fork(parent_app, options) → new instance` (a new logical app or a
-derived deployment of the same one — the identity model is OQ9 and all
-pre-OQ9 language here is identity-neutral) with, at minimum:
+`fork(parent_app, options) → same-app derived deployment` with a fresh
+instance identity and independent ownership/mutation boundary, with at minimum:
 
 - **A consistent snapshot boundary.** The fork captures the parent at a
   single committed version — the same consistency class as LLP 0007's
@@ -470,11 +485,10 @@ pre-OQ9 language here is identity-neutral) with, at minimum:
   (`app.reset`'s deletion sequence is a useful precedent but provably
   incomplete — it omits the durable-jobs tables — so it cannot be the
   authority; round-2 review caught this document briefly claiming
-  otherwise.) **No invalidity claim in this document is asserted until a
-  negative-test spike presents parent session, agent, and resume
-  credentials to a minted fork and sees all three refused.** The logical
-  `appId` is kept in v1 (manifest-bound); whether that makes the fork a
-  "derived deployment" rather than a new logical app is OQ9.
+  otherwise.) The landed negative corpus presents parent session, agent, and
+  resume credentials to a minted fork and sees all three refused. The logical
+  `appId` is kept in v1 (manifest-bound); the minted fork is the accepted OQ9
+  **derived deployment**, with fresh instance identity and independent custody.
 - **Crash-safe mint publication — a fork is never bootable unminted.**
   The scrub-and-mint cannot be "the clone, then some fixes": between
   clone and scrub, the copy is a bootable database that accepts copied
@@ -489,8 +503,8 @@ pre-OQ9 language here is identity-neutral) with, at minimum:
   of review each caught an ordering hole in looser prose versions —
   first a clone-before-stamp bootable window, then an unspecified
   transition to bootability; the states and transitions below are the
-  design, and every refusal behavior named here is **F0 work to build —
-  none of it exists in `snapback start` today**):
+  design. These refusal behaviors were F0 work and are now covered by the
+  implementation record and corpus below):
 
   - **S0 staged-empty.** The verb creates a staging directory *on the
     same filesystem as its destination* (`rename(2)` atomicity requires
@@ -545,16 +559,15 @@ pre-OQ9 language here is identity-neutral) with, at minimum:
   the rename vs its directory fsyncs, registry finalization, and the
   sentinel unlink — with the post-recovery boot assertion after every
   cut.
-- **A version-stream decision.** The fork's stream should **continue the
+- **A version-stream decision.** The fork's stream **continues the
   parent's numbering from the fork point** rather than restart at zero:
   it keeps `_version` values in copied rows meaningful, keeps the
   journal's retained window usable for post-fork diffs, and costs
   nothing mechanically (the counter is in the file). One OQ9 consequence
-  the round-3 review surfaced: LLP 0018 currently pins the stream as
-  per-*logical-app* — under OQ9's derived-deployment branch, parent and
-  fork would be two instances of one logical app with independent
-  streams, so the OQ9 amendment must widen 0018's one-stream-per-app
-  clause to per-instance, not just the identifier scoping. Restart-from-zero would
+  the round-3 review surfaced is now normative: parent and fork are two
+  instances of one logical app with independent streams, so the amendment
+  widens LLP 0018's one-stream-per-app clause to per-instance, not just the
+  identifier scoping. Restart-from-zero would
   require rewriting `_version` on every copied row or breaking the
   monotonic-stream contract. The spike confirmed continuation is what
   the substrate does natively — the version counter lives inside the
@@ -577,7 +590,7 @@ pre-OQ9 language here is identity-neutral) with, at minimum:
 ### The copy, per target
 
 The portable contract is **fork = consistent snapshot materialized as a
-separate instance** (identity model per OQ9), with per-target
+same-`appId` derived deployment with independent instance ownership**, with per-target
 implementation quality — the same
 capability-contract pattern LLP 0007 uses for snapshot/restore. Speed is a
 quality-of-implementation property; correctness (consistent boundary,
@@ -889,21 +902,19 @@ identity are real new work*):
 
 Two design points the inventory surfaces:
 
-- **Identity, precisely — and OQ9.** The `appId` is baked into the
+- **Identity, precisely — OQ9 decided.** The `appId` is baked into the
   generated schema/functions manifest pair and validated on load
   (`pair.schema.appId`), so a v1 fork keeps the logical `appId` — like a
   git clone keeps the project name — and gains instance-level identity:
   fork id, rotated auth *and data-stream* identities, fresh sidecars,
   fresh endpoints, fork-point stamp. The Codex review is right that this
-  strains LLP 0018 as written (0018 makes `appId` *the* identifier that
-  scopes local-store keys, diagnostics, and telemetry — two live
-  instances sharing it can mix client-side state). The candidate
-  resolutions — mint a new `appId` and rebind the manifest pair, or
-  define the fork as a **derived deployment** of the same logical app
-  with an instance identity threaded through credentials, cursors,
-  local-store keys, and telemetry — both require a dated LLP 0018 (and
-  likely 0012) amendment. Recorded as **OQ9**; F0 cannot ship before it
-  is decided.
+  required an explicit LLP 0018/0012 amendment because 0018 made `appId`
+  *the* identifier scoping local-store keys, diagnostics, and telemetry.
+  OQ9 decides the fork is a **derived deployment** of the same logical app:
+  instance identity is threaded through credentials, cursors, local-store
+  keys, telemetry, and every other independently mutable concern named in
+  the normative amendment. The shared `appId` is compatibility identity,
+  never authority to select or reuse a sibling instance's state.
 - **Forking a *live* parent.** `clonefile` of a database mid-write, with
   a separate WAL, is not a consistent pair — and `src/instance_lock.rs`
   provides ownership and metadata, not a checkpoint primitive. Cold
@@ -979,7 +990,8 @@ comes before the CLI verb, and no duration estimates until it exists):
   parent-state preservation, inert/deny-all creation facts, one bounded
   fork-only app-row diff, live-parent invisibility, and cleanup through
   registry-bound `fork drop`. The capability row deliberately remains an
-  unpublished target-`none` GAP while this RFC is Draft.
+  unpublished target-`none` GAP because the derived-deployment capability's
+  distinct qualification and publication gates have not passed.
 - **F2 — hosted:** the OQ4 DO-bookmark spike decides bookmark-fork vs
   export/import on Cloudflare; container-VM rides Fly volume forks
   (LLP 0099) and adds the ProcessContained tier (§Threat model);
@@ -1026,10 +1038,11 @@ moat relative to database-only vendors, but honest work, not a toggle.
 its branch/fork feature has shifted between product generations;
 re-verify before citing competitively.)
 
-## What this would cost
+## Cost shape and remaining work
 
-Not estimated in engineering detail (deliberately — experimental status),
-but the shape of the bill, roughly ordered:
+The original implementation estimate is retained as a shape-of-work record.
+F0a/F0b/F1 landed the local scrub/mint, bookkeeping, copy, and receipt legs;
+capture-ledger wiring and hosted F2 remain open:
 
 1. **Egress mediation wiring** — threading an isolation policy through
    every outbound-initiation family (`host.fetch`, `push.send`, the
@@ -1050,10 +1063,11 @@ but the shape of the bill, roughly ordered:
    receipt format LLP 0081 already prototypes, extended with coverage
    metadata and possibly a per-instance retention pin.
 
-Notably absent from the bill: any change to LLP 0007/0008 core contracts.
-Like LLP 0088's phase 1, this consumes existing machinery (snapshot,
-journal, per-app streams) rather than amending it — the strongest
-structural argument that the capability is priced correctly.
+Notably absent from the bill: any change to LLP 0007/0008 core mechanics.
+Like LLP 0088's phase 1, this consumes existing snapshot and journal
+machinery. The accepted OQ9 decision does make the dated LLP 0018/0012
+ownership amendment below: canonical stream and all independently mutable
+runtime/durable concerns are scoped per instance, not merely per `appId`.
 
 ## Open questions
 
@@ -1109,28 +1123,63 @@ structural argument that the capability is priced correctly.
   incarnation, rotated data-stream identity, fresh endpoints and
   sidecars). Fork-as-new-product remains a distinct future feature (an
   explicit copy-as-template rename op), not foreclosed. The required
-  amendment follows LLP 0097's in-doc amendment pattern
-  (proposed-normative here; effective when this RFC is accepted):
+  amendment follows LLP 0097's in-doc amendment pattern and is normative as
+  of this RFC's 2026-08-05 acceptance:
 
-  > **Amendment (proposed-normative; effective on acceptance of this
-  > LLP).** LLP 0018's Terms gain **derived deployment**: a physically
+  > **Normative amendment (effective 2026-08-05).** LLP 0018's Terms gain
+  > **derived deployment**: a physically
   > separate instance of one logical app, minted from a consistent
   > snapshot by the LLP 0158 fork operation, carrying its own instance
   > identity — fork id, auth-stream incarnation, data-version-stream
   > identity, endpoints, and sidecars — while sharing the logical
-  > `appId`. Two clauses of LLP 0018 are amended accordingly: (1) the
-  > namespaces LLP 0018 scopes by `appId` (client local-store keys,
-  > offline mutation queues, diagnostics, telemetry) are scoped by
-  > `(appId, instance identity)` wherever more than one instance of a
-  > logical app exists — clients distinguish instances by endpoint and
-  > stream identity, never by `appId` alone; (2) the
-  > one-canonical-commit-version-stream-per-logical-app rule (as
-  > already amended by LLP 0097 for child streams) becomes one
-  > canonical stream per *instance*; LLP 0097's child-stream amendment
-  > continues to govern within each instance. LLP 0012's headless
-  > integration contract inherits (1): generated-artifact consumers
-  > treat instance identity as part of the connection identity, not a
-  > new schema surface.
+  > `appId`. LLP 0018's paved-path statement that one logical app owns
+  > one backend state remains the single-instance default, but its
+  > ownership clauses are amended for a derived-deployment family as
+  > follows:
+  >
+  > 1. Each derived deployment is a distinct ownership and mutation
+  >    boundary. It independently owns its accepted schema manifest and
+  >    migration history/receipts/locks; function manifest, handler bundle,
+  >    bundle hash, and loaded generation; durable database and asset-store
+  >    namespace; commit-version stream, changesets, tombstones, cursors,
+  >    outboxes, subscriptions, and ephemeral rooms; auth users, sessions,
+  >    providers, authorization epochs, and auth-stream incarnation; secrets
+  >    and capability grants; admin authority, audit/diagnostic state, and
+  >    resource limits; and backup, restore, export, import, reset, seed, and
+  >    disposal operations. The fork begins from a consistent snapshot of
+  >    the parent's applicable state, then any of these concerns may diverge.
+  >    A schema load, function load, migration, write, credential change, or
+  >    lifecycle operation in one instance must neither mutate nor satisfy a
+  >    precondition for another instance.
+  > 2. Every lookup, cache, lock, receipt, cursor, provider binding, local-
+  >    store key, offline mutation queue, diagnostic, telemetry stream, and
+  >    admin operation that could address more than one instance is scoped by
+  >    `(appId, instance identity)` (or by an equivalent endpoint-plus-stream
+  >    binding that resolves to exactly one such pair). The shared `appId`
+  >    identifies generated schema/function compatibility; it is never
+  >    sufficient authority to infer, select, reuse, or compare another
+  >    instance's runtime or durable state.
+  > 3. The one-canonical-commit-version-stream-per-logical-app rule (as
+  >    already amended by LLP 0097 for child streams) becomes one canonical
+  >    stream per *instance*; LLP 0097's child-stream amendment continues to
+  >    govern within each instance. Versions and cursors from different
+  >    instances are opaque and non-comparable even when their numeric
+  >    counters share a fork point.
+  >
+  > LLP 0012's headless integration contract inherits all three clauses:
+  > generated-artifact consumers may reuse the same manifest `appId` and
+  > function identifiers, but treat instance identity as part of connection,
+  > artifact-attestation, cache, auth, and migration identity. This is an
+  > instance/runtime ownership dimension, not a new author-authored schema
+  > surface. No adapter may collapse two endpoints to one deployment merely
+  > because their `appId`, schema hash, or bundle hash is equal. In a context
+  > where multiple instances may exist, admission or control input that names
+  > only `appId` and cannot resolve exactly one instance must refuse as
+  > ambiguous. Before any derived-deployment capability is published, its
+  > distinct acceptance corpus must prove that schema/function loads, storage
+  > writes, auth/provider transitions, migrations, and lifecycle operations in
+  > either side of a same-`appId` parent/fork pair cannot select, mutate, or
+  > satisfy the sibling's state.
 
   Residual sub-question, still open: should copied user records retain
   their identities for re-sign-in in the fork (useful for testing,
@@ -1151,34 +1200,33 @@ structural argument that the capability is priced correctly.
 On 2026-08-04, `agent_safe_derived_deployment_fork_v1` entered the closed
 target-capability registry at `Experimental` maturity. Registration reserves
 the additive derived-deployment fork tuple independently from LLP 0162's
-storage extension and from in-app branches; it does not publish support. Its
-positive predicate remains false on every target, the public tuple remains
-wholly `Missing`, and the guide keeps the GAP while this RFC remains Draft and
-until independent review, author acceptance, qualification, and publication.
+storage extension and from in-app branches; it does not publish support. This
+RFC's acceptance makes the identity/ownership amendment effective, but the
+capability's positive predicate remains false on every target, the public tuple
+remains wholly `Missing`, and the guide keeps the GAP until the capability's
+distinct qualification and publication gates pass.
 
 ## Status
 
-Draft, **experimental**. Authored 2026-08-03 from a brainstorming session;
-F0a, F0b, and F1 now implement the local safety substrate, CLI consumer,
-dated fleet dogfood, guide, and fork-aware harness, while F2 hosted work remains open. This
-status records implementation progress but stays Draft until the author makes
-the LLP 0005 transition; it is not a capability advertisement. The earliest
-local-only `clonefile` validation and its corrected claim remain in §Spike
-evidence. The
-same-day 0097 reconciliation narrowed the claimed territory. A
+**Accepted 2026-08-05.** F0a, F0b, and F1 implement the local safety
+substrate, CLI consumer, dated fleet dogfood, guide, and fork-aware harness;
+F2 hosted work remains open. Acceptance records the approved design, the
+same-`appId` derived-deployment amendment, and the landed local substrate. It
+does not advertise `agent_safe_derived_deployment_fork_v1`; that capability
+remains wholly `Missing` behind its separate qualification/publication gate.
+The earliest local-only `clonefile` validation and its corrected claim remain
+in §Spike evidence. The same-day 0097 reconciliation narrowed the claimed
+territory. A
 six-round dual-family super-refine loop ran the same day and
 **converged dual-READY at v0.11** (Fable READY rounds 2–4; Codex READY
 round 6 after a strictly shrinking defect set — 4 blockers + 6 majors in
 round 1 down to clean; two convergent cross-family findings; artifacts
 under `llp/reviews/0158-instance-forking.{claude,codex}.md`). Both
 families' shared closing guidance authorized the now-landed F0a after OQ9's
-author decision. Per LLP 0005, any status transition is still the author's call —
-this document proposes, on that basis, moving to **Review** when the
-author is ready, and stays Draft until then.
+author decision. The 2026-08-05 independent implementation review and explicit
+author acceptance complete the LLP 0005 transition to Accepted.
 
-**Graduation criteria.** This RFC graduates from experiment (proceeds
-toward Review and an implementation decision) only when **all three**
-hold:
+**Acceptance basis.** All three graduation criteria hold:
 
 1. **A named first consumer exists for a residual use case** — one that
    an implemented LLP 0097 branch cannot serve (§Relationship to
@@ -1215,14 +1263,12 @@ hold:
    asset URL refusal, the crash-cut publication tests, and the egress
    capture-or-refuse legs including S3/provider I/O under inherited
    env credentials. No safety claim in this document graduates on
-   design alone.
+   design alone. **Completed 2026-08-03:** the custody, credential-negative,
+   publication crash-cut, asset-refusal, and deny-all egress corpora are green,
+   including fail-closed treatment of unknown future custody and host-op classes.
 
-If (1) arrives but points at machinery 0097 already owns, the recorded
-fallback is a **fold**: land the fork as a dated LLP 0097 amendment (a
-branch base materialized into a separate instance) and tombstone this RFC
-into it. If neither criterion is met after a reasonable interval, this
-document stands as recorded reasoning: LLP 0097 owns everything
-branch-shaped inside the app boundary, and whole-instance forking stays
-un-built with its design costed. Remaining pre-graduation spikes, only
-if criterion 1 shows signs of arriving: the OQ4 DO-bookmark spike and
-the OQ2 residual (egress-path enumeration for out-of-process executors).
+The earlier fold fallback did not fire: the completed first-consumer diary
+demonstrated schema/function-divergent, out-of-process value beyond LLP 0097's
+in-app branch. Remaining follow-ons are the OQ4 DO-bookmark spike and OQ2's
+capture-ledger wiring for out-of-process executors; neither is a condition of
+this design acceptance, and neither may be advertised before its own gate.
