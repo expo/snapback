@@ -441,13 +441,15 @@ test('generated-artifact registry covers every codegen job exactly once', () => 
   assert.deepEqual(jobs, policies);
   assert.equal(new Set(jobs).size, jobs.length);
   assert.ok(REVIEW_CACHE_ROOTS.includes('demos/party-wall/snapback/generated'));
+  assert.ok(REVIEW_CACHE_ROOTS.includes('demos/triage-graph/snapback/generated'));
+  assert.ok(REVIEW_CACHE_ROOTS.includes('demos/chirp/snapback/generated'));
   assert.deepEqual(ADMIN_GENERATED_ROOTS, ['admin-ui/generated']);
 });
 
 test('P-vs-C generated allowance is the exact qualification-C leaf set', () => {
   const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
   const generated = generatedPublicationPathsAt(root, head);
-  assert.equal(generated.size, 175);
+  assert.equal(generated.size, 177);
   const unchangedPublicationEntries = new Map(
     [...generated].map(([path, entry]) => [path, { ...entry }]),
   );
@@ -462,6 +464,8 @@ test('P-vs-C generated allowance is the exact qualification-C leaf set', () => {
     'demos/competitive-checkpoint/snapback/generated/api.d.ts',
     'demos/competitive-checkpoint/snapback/generated/api.mjs',
     'demos/partiful-matrix/snapback/generated/api.mjs',
+    'demos/triage-graph/snapback/generated/artifacts.json',
+    'demos/chirp/snapback/generated/artifacts.json',
     'demos/team-chat/snapback/generated/artifacts.json',
     'packages/snapback-cli/fixtures/comparator/app/snapback/generated/api.mjs',
     'packages/snapback-cli/fixtures/push-seam/app/snapback/generated/api.mjs',
@@ -475,7 +479,6 @@ test('P-vs-C generated allowance is the exact qualification-C leaf set', () => {
     'demos/todo/snapback/generatedness/artifacts.json',
     'demos/todo/snapback/generated-evil/artifacts.json',
     'demos/todo/.snapback/codegen-cache/forged/api.mjs',
-    'demos/chirp/snapback/generated/artifacts.json',
     'demos/todo/snapback/schema.ts',
     'packages/snapback-cli/index.mjs',
     'packages/snapback-cli/fixtures/comparator/app/snapback/generated/evil.mjs',
