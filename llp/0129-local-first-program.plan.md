@@ -5,7 +5,10 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-04 (read-lane capability activation record:
+**Revised:** 2026-08-04 (rung-2 evidence-gate half (a) accepted — the
+no-widening reading; W2/W3 collapse as evidence-vacuous, W4 proceeds on
+rung 1's ceiling; see the dated acceptance under OQ5.)
+2026-08-04 (read-lane capability activation record:
 `single_table_v1` registered/required and source-qualified local support
 published; no write-rung authority changes). 2026-08-04 (OQ5 dated ruling — write rung 2 (LLP 0155
 Move 4) opened: owner/timebox recorded, Candidate-A framing and the
@@ -1773,6 +1776,24 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    > the lab is untouched and Field Notebook, the rung-3 discriminator,
    > is not used or repurposed. The browser-WASM ladder (Phase 2a) and
    > desktop ladder (Phase 2b) remain unassigned.
+   >
+   > **Evidence-gate half (a) ACCEPTED (2026-08-04, Charlie Cheever) —
+   > the no-widening reading.** The W1 sizing spike
+   > (`tests/acceptance/fixtures/write-lane/
+   > rung2-sizing-spike.2026-08-04.v1.md`, landed 589bee2cc) measured
+   > Contention Calendar's frozen common path as exactly one `Insert` —
+   > `AllocateSequence`, `Delete`, and `Let` occur zero times (loser
+   > correction is settlement-layer retirement; retry idempotence is
+   > protocol identity) — and recommended retaining the
+   > `Insert`/`Get`/`Guard`/`Patch` ceiling; measured widening deltas
+   > (+1,118 min / +328 gzip cumulative) are retained as evidence. The
+   > author accepts the reading: the ceiling stays unwidened, the
+   > program's W2 (D5 extension for newly exported verbs) and W3
+   > (evaluator widening) lanes collapse as evidence-vacuous, and the
+   > rung proceeds directly to W4 (the Calendar exit application) on
+   > rung 1's existing ceiling. A later inexpressibility finding
+   > returns here for a fresh dated ruling; nothing in this acceptance
+   > is an Option-C trigger detection or admission (LLP 0130 ER-1).
 6. **The ephemeral no-sync pin.** Does the proposed LLP 0013
    amendment (0126 OQ8; constraint 4) land with Phase 0 or
    independently, and who writes it?
