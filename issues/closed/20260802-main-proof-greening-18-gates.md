@@ -515,3 +515,44 @@ realtime correctness regression. The fixture now assigns distinct connection
 ids to its independent checks while each check still proves that its two
 durable handles and ephemeral overlay share one socket. The server's teardown
 fence is unchanged.
+
+### Post-capability main drift reconciliation — 2026-08-05
+
+Main KEEP-GOING run `30974150301` at
+`589bee2cc103c0330ebdfe89e87a63907cf8ef57` completed with exactly two
+failed gates:
+
+1. `node scripts/client-bundle-metrology.mjs --check` failed before size
+   comparison because the IR-evaluator supplemental baseline added by
+   `30e3d09c7` named measurement commit `fd0c8a34`, but that commit was not
+   reachable from main or a remote ref. The baseline bytes and package-tree
+   hashes were correct in the producing worktree. Carrier `5cd6fb927` anchors
+   that exact commit in the branch ancestry without rewriting a historical
+   ledger or loosening a ceiling. A branch-only bundle/clone resolved the
+   recorded `snapback-client` tree, and the full Node 24.18.0 metrology check
+   passed all 43 profiles.
+2. `scripts/verify-telemetry-phase1-proof --check` correctly rejected the
+   stale Linux receipt after the P1, LLP 0167, Move-3, and capability landings
+   changed its bound source closure. The first exact fleet replay then exposed
+   a proof-fixture dependency on a system `sqlite3` executable. That dependency
+   belongs to the telemetry harness, not telemetry correctness or machine
+   provisioning: the two read-only queries now use pinned Node 24
+   `node:sqlite`, preserving their separators and bounded lock retry.
+
+The full Linux producer at exact source `305dd0081` passed coded bootstrap,
+binary launch, restricted handler-VM qualification, smoke, release benchmark,
+and the complete 120-second idle witness. It wrote receipt SHA-256
+`2b33ac4b4677312e08fdc6ccfbe4ae8dd60d24c73b90d1c5acabbc11574e8f73`
+for source-closure digest
+`4bf171fab89c55e95c3e09cead373a5f7b54c9c2b70fb29234d0194707e8679a`.
+The 668-line producer transcript has SHA-256
+`5c493cd4c87c293f9a81d87e443e927c998f82298a0235b9d5f06a035102be9d`.
+The idle interval observed zero storage mutations, zero read/write-byte
+deltas, 8/10 allowed CPU ticks, and 0/8 allowed RSS-page growth. No
+administrator change, degraded curl fallback, stale binary, or shortened
+witness was accepted.
+
+These are both proof-carrier defects attributed to their introducing
+landings. Neither is a correctness failure in the actively owned PUSH-01 seam
+or F0a fork code. The current main advance through `917b16e7c` does not
+intersect the telemetry receipt's enumerated source closure.
