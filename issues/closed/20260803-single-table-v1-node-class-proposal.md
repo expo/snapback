@@ -1,7 +1,6 @@
 # Proposal — `single_table_v1` node class
 
-**Status:** Proposal for owner review; non-normative until every named owner
-accepts its dated amendment
+**Status:** Closed — owner rulings and activation landed
 **Date:** 2026-08-03
 **Source ticket:** `issues/20260803-p4-single-table-node-class.md`
 **Decision owners:** LLP 0004, LLP 0007, LLP 0080, LLP 0090, LLP 0157, and
@@ -645,11 +644,23 @@ These rulings accept the semantic amendment set only. They grant no
 implementation or capability claim; the implementation and staged-adoption
 program remain separately commissioned.
 
-## Resolution (2026-08-04)
+## Resolution — 2026-08-04
 
-Fully executed: Charlie's five §10 rulings recorded; the
-eleven-document amendment set landed (3f77ffe5b); the adoption
-implementation landed dormant (9143e3b56,
-issues/closed/20260803-single-table-v1-adoption-implementation.md).
-The only remainder — moving the capability rows — is the owner's
-activation act, recorded there; nothing further tracks here.
+Fully executed: Charlie's five §10 rulings are reflected in the owning LLP
+amendments; the eleven-document amendment set landed (`3f77ffe5b`); and the
+adoption implementation landed dormant (`9143e3b56`,
+`issues/closed/20260803-single-table-v1-adoption-implementation.md`). The
+sole remainder named at that point was the owner's activation act. This
+landing completes it: `single_table_v1` is a registered experimental target
+capability, qualifying generated functions require it, and the
+contributor-source local target publishes it through the dedicated LLP
+0110/0166 carrier. Class membership remains host-derived, multi-node admission
+remains closed, and Arm A retains no `AuthorizedLease`.
+
+The legacy-to-QMK path remains connected-only prove-or-fresh and performs one
+atomic same-domain switch without relabeling bytes or dropping pending outbox
+intent. Public packages, remote/hosted targets, and the Fleet footprint leg
+retain their structured GAPs. The broader finite/page-set server-proof work
+landed separately and is recorded in
+`issues/closed/20260803-p1-server-proof-issuance.md`; that work was not closed
+by this resolution.

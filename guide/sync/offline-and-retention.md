@@ -3,14 +3,14 @@ title: Offline retention and mutation replay
 id: sync.offline-and-retention
 order: 1
 audience: agent-first
-capabilities: [sync.offline, sync.offline-js-arm, sync.local-persistent-store]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs]
+capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.local-persistent-store]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs]
 examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: d3e80b7d4981c4fa14535e2a852e8cc2bc82e95d
+reviewed-commit: HEAD
 ---
 
 # Offline retention and mutation replay
@@ -139,8 +139,9 @@ stored fragments were installed only after server-side completeness-proof
 and lease validation. This is the strongest retained-render path on the
 JS arm and it is receipt-proven end to end by
 [`tests/acceptance/local-store-carrier-exit-v1.mjs`](repo:tests/acceptance/local-store-carrier-exit-v1.mjs)
-(run in the local proof; receipt currently **15 PASS / 2 GAP**, the two
-GAPs being capability-publication rows, not mechanism gaps).
+(run in the local proof; the retained 2026-08-04 run measured **16 PASS / 1
+GAP / 0 SKIPPED** after consuming Triage's qualified budget freeze; Fleet
+remains the one explicit LLP 0135 OQ5 boundary).
 
 Evidence scope, stated precisely: local target, Node process, file carrier,
 owner-scoped generated relational queries. It is not a browser-restart
@@ -153,6 +154,14 @@ it is not a hosted claim.
   composites) — retainable: their materializations carry qmk1 identity,
   a completeness proof, and lease custody, so a fresh client may re-render
   them offline as `authoritative` / `retained`.
+- **Host-derived `single_table_v1@1` live queries** — retainable through
+  `rqs-authority-independent-snapshot-v1`: the generated function carries the
+  experimental capability requirement, and the contributor-source local
+  target publishes it through the exact LLP 0110/0166 carrier. This is Arm A:
+  `authorizedLeaseHash` stays `null`, and no `AuthorizedLease` is consumed.
+  Ordered or limited results remain whole-result `live_replace`; class
+  membership is derived from the public, ambient-free single-table plan and
+  cannot be asserted by the author.
 - **Snapshot-batch composites** (`snapshot-batch.v1`) — deliberately
   volatile: retention is `none`. Stored grace payloads exist only to smooth
   release; they are **never** authoritative offline answers. Do not read a
@@ -202,7 +211,7 @@ decisions key off `answerClass` + `freshness`, never off "bytes exist":
 | `answerClass` | Meaning | Render offline? |
 | --- | --- | --- |
 | `authoritative` (`freshness: current`) | Live, connected, proof-backed | Yes |
-| `authoritative` (`freshness: retained`) | Relaunch answer whose proof and lease custody revalidated | Yes, marked retained |
+| `authoritative` (`freshness: retained`) | Relaunch answer whose proof and applicable retention custody revalidated (lease-backed for protected relational results; no-lease Arm A for `single_table_v1`) | Yes, marked retained |
 | `labeled-retained` | Rows retained but authority could not be revalidated | Only with an explicit degraded label |
 | `unknown` | Store cannot classify (no proof, no custody) | No — treat as no data |
 | `refused` | Policy or authorization refused the read | No — surface the refusal |
@@ -247,7 +256,11 @@ From those facts plus the closed-inputs proof (single-table plan whose read
 summary equals the plan's table), the server derives the `rqsEligible`
 predicate and mints resume tokens — there is no authored `rqsEligible`
 field, and a query failing the proof is simply not eligible, never a load
-error (LLP 0090). The eligible query in the public-dashboard demo:
+error (LLP 0090). The same predicate now derives LLP 0157's
+`single_table_v1@1` node class; codegen adds that experimental target
+requirement automatically, while multi-node composition remains closed and
+the 1,024 examined-entry refusal applies only during QMK establishment. The
+eligible query in the public-dashboard demo:
 
 ```js source=demos/public-dashboard/snapback/functions.mjs
 export const dashboardMetrics = defineLiveQuery({
@@ -266,6 +279,12 @@ export const dashboardMetrics = defineLiveQuery({
 permission for HTML boot — see
 [snapshot bundles](../realtime/snapshot-bundles.md) — and is **not**
 required for retention.)
+
+Existing legacy RQS entries are not rewritten merely because the class is now
+active. LLP 0090 grandfathers those bytes. While connected, adoption either
+proves the exact legacy identity or performs a fresh sync, then switches into
+QMK custody in one atomic same-domain transaction. It never relabels in place,
+never adopts while offline, and never drops pending outbox intent.
 
 The handle tells you whether the opt-in took: `handle.retention` is the
 refuse-with-clarity classification, and an eligible query holds a

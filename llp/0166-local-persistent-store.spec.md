@@ -12,7 +12,9 @@ failure with no authoritative retained answer now surfaces the typed
 class and retention disposition. This deliberately evolves the shipped
 Full/root bundle workload through an LLP 0063 prospective rollover of only
 the affected profiles; prior receipts and unaffected ceilings remain
-immutable.) 2026-08-03 (v1.1 semantic amendment: Charlie accepted
+immutable.) 2026-08-04 (local contributor-source publication amendment;
+LLP 0110 owns the exact carrier authority). 2026-08-03 (v1.1 semantic
+amendment: Charlie accepted
 `single_table_v1@1` and Arm A,
 `rqs-authority-independent-snapshot-v1`; the QMK predicate, no-lease answer,
 durable+`pinned` Channel-B mapping, connected prove-or-fresh atomic adoption,
@@ -2155,3 +2157,23 @@ contract. No target is claimed to implement or advertise the class, retention
 authority, no-lease proof path, generated mapping, or atomic switch. The
 adoption implementation remains a separately commissioned follow-on, and OQ2
 remains a separate future resume-credential lane.
+
+## Local publication carrier amendment — 2026-08-04
+
+LLP 0110's dated local-publication-authority amendment admits the exact
+contributor-source `LocalCapabilityPublicationV1` carrier for
+`single_table_v1`. That carrier binds this Spec's carrier-exit evidence, the
+qualified Triage successor receipts, and the exact implementation sources;
+it does not generalize to Fleet, public packages, remote services, or hosted
+targets. The Fleet footprint/hydration leg remains the explicit LLP 0135 OQ5
+boundary.
+
+When that carrier verifies, the local target may advertise the id at code-owned
+`experimental` maturity. This publication does not weaken §D5/§D6: legacy
+entries remain grandfathered under LLP 0090, while entry into the QMK
+population is connected-only, prove-or-fresh, and one atomic same-domain
+transaction. It also does not commission an `AuthorizedLease`; Arm A retains
+`authorizedLeaseHash: null` and
+`rqs-authority-independent-snapshot-v1`. Finite/page-set proof issuance landed with the
+2026-08-04 LLP 0094 finite-carrier amendment
+(`issues/closed/20260803-p1-server-proof-issuance.md`).

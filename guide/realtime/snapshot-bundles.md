@@ -4,13 +4,13 @@ id: realtime.snapshot-bundles
 order: 3
 audience: agent-first
 capabilities: [realtime.snapshot-bundles]
-authorities: [llp/0090-resumable-query-snapshots.rfc.md, llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-codegen/index.mjs, src/bundle.rs, src/local.rs]
+authorities: [llp/0090-resumable-query-snapshots.rfc.md, llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-codegen/index.mjs, src/bundle.rs, src/local.rs]
 examples: [demos/public-dashboard]
 status: current
 targets: [local, cloudflare]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-04
+reviewed-commit: HEAD
 ---
 
 # Route snapshot bundles
@@ -23,6 +23,14 @@ carry resumable-query tokens.
 The local target supports read and authenticated register mode. The Cloudflare
 target supports read-mode bundles and token resume; register mode remains
 deferred there.
+
+For a qualifying public authority-independent single-table live query, the
+local target now uses the host-derived experimental `single_table_v1@1` class
+and QMK identity. Existing legacy RQS entries do not change identity merely
+because this class is active: LLP 0090 grandfathers them until a connected
+prove-or-fresh adoption installs the QMK record and switches custody in one
+atomic same-domain transaction. Adoption never relabels old bytes in place and
+never drops pending outbox intent.
 
 ### Mix live and read-only children without losing the live siblings
 
