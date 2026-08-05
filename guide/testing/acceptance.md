@@ -9,8 +9,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/accep
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
+reviewed: 2026-08-05
+reviewed-commit: HEAD
 ---
 
 # Acceptance testing
@@ -23,6 +23,16 @@ Snapback apps are proven **headless-first** (LLP 0012): the required
 surface is a suite that boots a real server, loads the real generated
 artifacts, and drives the product client — no UI in the loop. UI arms
 (Contract, React) are additional surfaces over the same backend.
+
+Generated `todo-contract` and React starters preserve that meaning in their
+default command: `npm test` owns an isolated local server and database, waits
+for the ready descriptor and generated-and-loaded lifecycle event, verifies
+the loaded artifact identity, executes a real query and mutation through the
+starter's product client, tears everything down, and emits one bounded
+`snapback.starter-acceptance.v1` receipt. `npm run test:static` is deliberately
+different: it checks generated-file and scaffold-source coherence without
+starting Snapback. A static pass is useful and fast, but it is not runtime
+acceptance and must not be used as the app's done-oracle.
 
 ## The harness
 

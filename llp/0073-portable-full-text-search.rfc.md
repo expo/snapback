@@ -5,7 +5,10 @@
 **Systems:** Search, Storage, Schema, Code generation, Auth, Client integration, Admin, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-02 (Accepted LLP 0136 design fold: a separately gated
+**Revised:** 2026-08-05 (authoring-safety clarification: visibility is a
+required declaration; omission refuses with
+`SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED`, so public release is affirmative
+rather than defaulted); 2026-08-02 (Accepted LLP 0136 design fold: a separately gated
 `live_full_text_search_v1` successor is registered without claiming its
 unimplemented path; ordinary search remains non-live); 2026-08-01 (membership visibility amendment, commissioned by LLP 0100 §8a: third pushdown-compilable `membership` visibility variant with required equality-bound resource argument, one-snapshot seat resolution, outsider-empty ≡ nonexistent, authorization-version-bound continuations, and the two pinned post-revocation observables — see the dated section at the end). 2026-07-30 (Diary 0039 absorption, per LLP 0115 CV-5/10/11/12:
 (a) numeric canonicalization pin — stored/filter scalar bytes at the
@@ -122,6 +125,10 @@ stored, and highlight fields. `owner.v1` indexes may admit `public` or
 `private` fields because the canonical effective-user partition is both the
 posting key and release authority. A classification change is a semantic
 index migration and rebuild, not an in-place inspection flag.
+
+Visibility is required in the authoring declaration. Omission refuses codegen
+with `SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED`; codegen never interprets an
+absent value as `public-read`.
 
 Raw SQL expressions, arbitrary user tokenizers, handler-returned
 opaque objects, maintained projections, document/asset extraction, and secrets

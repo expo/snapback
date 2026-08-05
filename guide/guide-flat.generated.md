@@ -2329,8 +2329,8 @@ examples: [demos/todo, demos/todo-v2, demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-05
+reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
 ---
 
 # Mutations
@@ -2407,6 +2407,13 @@ packages, and multi-file graphs are not admitted by that compatibility lane.
 `defineMutation` is the declarative twin: compose `insert`, `patch`,
 `delete`, conditions, and a declared return binding without running a JS
 handler.
+
+Set-oriented deletion is `deleteWhere(table, filter)`. The filter argument is
+required; omitting it refuses generation with
+`SNAPBACK_DELETE_WHERE_FILTER_REQUIRED`. An explicitly authored empty array,
+`deleteWhere(table, [])`, retains the clear-table IR and therefore means
+"delete every row" deliberately. Never derive or substitute that empty array
+for an absent filter.
 
 Two transactional effects beyond `ctx.db` writes commit or roll back with the
 same mutation and have their own pages: a declared `sequences` counter
@@ -4904,8 +4911,8 @@ examples: [demos/signal-desk]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-05
+reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
 ---
 
 # Portable indexed text search
@@ -4973,7 +4980,9 @@ Text weights are integers from 1 through 64. Every participating field needs
 an explicit classification: text fields carry it beside their weight, while
 `fieldClassifications` must classify exactly the participating equality,
 stored, or owner fields that are not text fields. `public-read` admits only
-public fields. Owner search instead declares
+public fields. Visibility is required: omission refuses generation with
+`SNAPBACK_SEARCH_INDEX_VISIBILITY_REQUIRED`, so public release is always an
+affirmative declaration. Owner search instead declares
 `visibility: { kind: 'owner', field: 'ownerId' }`; the field must be a required
 string or principal and every query is pushed into the server-resolved
 effective user's partition.
@@ -5175,8 +5184,8 @@ examples: [packages/snapback-codegen/vector-authoring.test.mjs, packages/snapbac
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: c442237dedd412d1fe66a85c7a0ed463eba1e013
+reviewed: 2026-08-05
+reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
 ---
 
 # Portable exact vector search
@@ -5227,7 +5236,9 @@ fields, tie direction, and corpus ceiling into one semantic version.
 Use `visibility: { kind: 'owner', field: 'ownerId' }` for owner-private
 retrieval. Snapback derives the effective principal on the server, pushes it
 into the posting partition, and rechecks the authoritative source row before
-release. `public-read` permits only public participating fields. Owner indexes
+release. Visibility is required: omission refuses generation with
+`SNAPBACK_VECTOR_INDEX_VISIBILITY_REQUIRED`, so `public-read` is always an
+affirmative declaration. `public-read` permits only public participating fields. Owner indexes
 may use private fields, but every participating role rejects `sensitive` and
 `forbidden`; membership-derived visibility is not a v1 shape.
 
@@ -9052,8 +9063,8 @@ examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-05
+reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
 ---
 
 # The authoring loop
@@ -9178,6 +9189,22 @@ started by this command is stopped. If later generation succeeds but live load
 fails, the event state is `generated-but-not-loaded`; generation errors are
 the distinct `generation-failed` state.
 
+Use `snapback --help` to enumerate the complete packaged and delegated native
+surface. `snapback <command> [<subcommand>...] --help` is non-executing and
+selects the longest registered wrapper path, so commands such as
+`snapback backup create plan --help` show their actual required flags rather
+than only the top-level backup summary. Package help also declares whether the
+selected command is one-shot or long-running, its machine output, exit
+taxonomy, and recovery channel. `snapback hosted lifecycle --help` lists its
+closed verbs, transport flags, and current availability gate.
+
+When `snapback dev` runs without a TTY, stdin accepts optional
+`snapback.dev-command.v1` JSON lines while it remains open. EOF only closes
+that control channel: it does not stop the server, watcher, or generated
+client arm. Stop a detached loop with SIGINT/SIGTERM; an interactive terminal
+may also use `q` or Ctrl-C. This is deliberately different from stdio MCP
+servers, where EOF ends the protocol process.
+
 If a selected native runtime predates the generated artifact shape, the loop
 reports `SNAPBACK_RUNTIME_ARTIFACT_IDENTITY_MISMATCH` with the exact selected
 binary, its independent build stamp when available, the artifact paths, and
@@ -9234,8 +9261,18 @@ Headless first — the required surface is driveable without any UI
 product path:
 
 ```sh
-node <app>/tests/acceptance/headless.mjs
+cd <generated-app>
+npm test
 ```
+
+The generated todo and React starters make that default live: it boots and
+loads an isolated Snapback target, executes generated query and mutation
+references, verifies loaded artifact identity, cleans up, and prints a
+`snapback.starter-acceptance.v1` receipt. Use `npm run test:static` for the
+faster generated-file/source-coherence check; it does not boot Snapback and
+does not satisfy acceptance. Repository demos that do not use a generated
+starter run their named headless suite directly, for example
+`node <app>/tests/acceptance/headless.mjs`.
 
 Exit `0` = every declared check passed; `1` = a check failed or the run was
 short (zero checks can never pass); `2` = setup error. See
@@ -9717,8 +9754,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/a
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-05
+reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
 ---
 
 # Diagnostics and local doctoring
@@ -9768,6 +9805,13 @@ export async function assertThrows(fn, code, message) {
 
 Messages may improve without a compatibility event. A code change is a
 contract change and must update its schemas, callers, tests, and docs together.
+
+A native `snapback start` without `--ready-file` may hand process-bound
+capabilities to a controlling terminal. A detached start has no safe carrier
+and fails before database creation with
+`SNAPBACK_READY_DESCRIPTOR_REQUIRED`; its diagnostic `details.next` names
+`snapback start --ready-file <owner-only-path> ...` as the repair. Never scrape
+the human startup log or redirect a bearer through inherited stdout/stderr.
 
 ## Repair ambient time and identifier diagnostics
 
@@ -12474,8 +12518,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/accep
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 3109a3b4f5068595a71448b10788b56b4fa358f5
+reviewed: 2026-08-05
+reviewed-commit: HEAD
 ---
 
 # Acceptance testing
@@ -12488,6 +12532,16 @@ Snapback apps are proven **headless-first** (LLP 0012): the required
 surface is a suite that boots a real server, loads the real generated
 artifacts, and drives the product client — no UI in the loop. UI arms
 (Contract, React) are additional surfaces over the same backend.
+
+Generated `todo-contract` and React starters preserve that meaning in their
+default command: `npm test` owns an isolated local server and database, waits
+for the ready descriptor and generated-and-loaded lifecycle event, verifies
+the loaded artifact identity, executes a real query and mutation through the
+starter's product client, tears everything down, and emits one bounded
+`snapback.starter-acceptance.v1` receipt. `npm run test:static` is deliberately
+different: it checks generated-file and scaffold-source coherence without
+starting Snapback. A static pass is useful and fast, but it is not runtime
+acceptance and must not be used as the app's done-oracle.
 
 ## The harness
 

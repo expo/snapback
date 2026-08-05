@@ -1,6 +1,6 @@
 # Detached server start without a ready file fails with prose and no stable code
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 5
@@ -42,3 +42,13 @@ The generalized A/B/C lifecycle suite pins:
 - PTY without a ready file may use terminal capability handoff and stay live;
 - detached without a ready file exits non-zero with the stable code and repair;
 - detached with a ready file reaches ready and stays live.
+
+## Resolution (2026-08-05)
+
+Native startup now checks for a controlling terminal before any database path
+is resolved or created. Without a terminal and without `--ready-file`, it exits
+non-zero with a one-line structured diagnostic carrying
+`SNAPBACK_READY_DESCRIPTOR_REQUIRED` and the requested `details.next` repair.
+The terminal fallback and owner-only ready-file handoff remain unchanged, and
+a second fail-closed mapping covers loss of a terminal between preflight and
+capability emission.

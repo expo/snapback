@@ -5,7 +5,9 @@
 **Systems:** Runtime, Codegen, Wire Protocol, Client SDK, Client integration, Conformance, Packaging, Security, Contract/Exact, Cloudflare
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-09
-**Revised:** 2026-08-03 (D5 scope ruling by the owner: the LLP 0166 §D7
+**Revised:** 2026-08-05 (authoring-safety clarification: the builder requires
+an explicit `DeleteWhere` filter; `[]` remains the clear-table IR, while
+omission refuses with `SNAPBACK_DELETE_WHERE_FILTER_REQUIRED`); 2026-08-03 (D5 scope ruling by the owner: the LLP 0166 §D7
 result-transform conformance corpus is a D5 extension — same corpus
 discipline and cross-runtime exactness bar — per LLP 0157 OQ9's dated
 ruling; the 2026-08-03 write-lane D5 evidence run, 37/37 Rust-vs-JS
@@ -406,6 +408,10 @@ path.
   data tier stays set-oriented the way its substrate is. General
   iteration, recursion, and cross-step data-dependent control flow
   stay out of the profile permanently.
+  The typed builder requires the filter argument explicitly: `[]` is the
+  deliberate clear-table spelling, while omission refuses codegen with
+  `SNAPBACK_DELETE_WHERE_FILTER_REQUIRED` rather than synthesizing destructive
+  scope.
 - **Field access is by arbitrary string key, and access on null
   propagates null.** The IR is serde data, so a field-access node
   carries any field-name string — hyphenated JSON keys

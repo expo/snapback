@@ -60,6 +60,11 @@ const refusedWith = (record) => resultExitCode(buildResultCore({
   diagnostics: [record],
 }));
 assert.equal(refusedWith(diagnosticRecord({ code: 'SNAPBACK_APP_CLI_USAGE', locus: 'engine' })), 2);
+assert.equal(
+  refusedWith(diagnosticRecord({ code: 'SNAPBACK_APP_CLI_SCRIPT_EMPTY', locus: 'engine' })),
+  2,
+  'stdin EOF without source is a usage refusal, not a script failure',
+);
 for (const code of [
   'SNAPBACK_APP_CLI_CREDENTIAL_SOURCE_INVALID',
   'SNAPBACK_APP_CLI_AGENT_ORIGIN_UNSAFE',

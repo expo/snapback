@@ -1,4 +1,5 @@
 import {
+  deleteWhere,
   defineSchema,
   defineTable,
   defineVectorQuery,
@@ -13,6 +14,15 @@ void exact;
 // @ts-expect-error v.vector(D) retains exact D in the authored value type.
 const tooShort: Vector3 = [1, 2];
 void tooShort;
+
+// @ts-expect-error deleteWhere requires an explicit filter; [] is clear-table.
+deleteWhere('documents');
+
+// @ts-expect-error search visibility must be an explicit author decision.
+defineTable({ body: v.string() }).searchIndex('missing_visibility', {
+  semanticVersion: 'missing-search-visibility.v1',
+  textFields: { body: { weight: 1, classification: 'public' } },
+});
 
 export const documents = defineTable({
   embedding: vector3,
@@ -29,6 +39,7 @@ export const documents = defineTable({
   },
   equalityFilters: ['category'],
   storedFields: ['title'],
+  visibility: { kind: 'public-read' },
   maxIndexedVectorsPerPartition: 128,
 });
 defineSchema({ documents });
@@ -39,7 +50,17 @@ documents.vectorIndex('forged', {
   vectorField: 'embedding',
   metric: 'dot',
   fieldClassifications: { embedding: 'public' },
+  visibility: { kind: 'public-read' },
   maxIndexedVectorsPerPartition: 1,
   // @ts-expect-error maxScalarPairs is derived, not an authoring knob.
   maxScalarPairs: 3,
+});
+
+// @ts-expect-error vector visibility must be an explicit author decision.
+documents.vectorIndex('missing_visibility', {
+  semanticVersion: 'missing-visibility.v1',
+  vectorField: 'embedding',
+  metric: 'dot',
+  fieldClassifications: { embedding: 'public' },
+  maxIndexedVectorsPerPartition: 1,
 });
