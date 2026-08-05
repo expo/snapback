@@ -335,7 +335,8 @@ console.log(JSON.stringify({ event: 'client-listening', origin: 'http://127.0.0.
   dev.stdin.end();
   await new Promise((resolveDelay) => setTimeout(resolveDelay, 250));
   assert.equal(dev.exitCode, null, 'snapback dev must remain live after non-TTY stdin EOF');
-  assert.equal((await health()).ok, true, 'managed backend must remain healthy after stdin EOF');
+  const healthAfterEof = await fetch(`${serverUrl}/health`).then((response) => response.json());
+  assert.equal(healthAfterEof.ok, true, 'managed backend must remain healthy after stdin EOF');
   console.log('stdin EOF closes only the control channel; dev and both managed arms remain live');
 
   // --- clean signal shutdown tears down both arms ----------------------------
