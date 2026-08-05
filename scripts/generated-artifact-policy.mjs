@@ -15,6 +15,7 @@ export const CODEGEN_JOBS = Object.freeze([
   { backend: 'demos/todo-v2/snapback', targetProfile: 'remote-service-sqlite-ibex' },
   { backend: 'demos/latency-kanban/snapback' },
   { backend: 'demos/triage-graph/snapback' },
+  { backend: 'demos/zero-bakeoff/apps/contention-calendar/snapback' },
   { backend: 'demos/all-aboard/snapback', outboundActions: true },
   { backend: 'demos/all-aboard/tests/egress-probe', outboundActions: true },
   { backend: 'demos/competitive-checkpoint/snapback', outboundActions: true },
@@ -70,6 +71,7 @@ export const REVIEW_CACHE_ROOTS = Object.freeze([
 ]);
 
 export const FULLY_COMMITTED_ROOTS = Object.freeze([
+  'demos/zero-bakeoff/apps/contention-calendar/snapback/generated',
   'demos/team-chat/snapback/generated',
   'packages/snapback-cli/fixtures/comparator/app/snapback/generated',
   'packages/snapback-cli/fixtures/push-seam/app/snapback/generated',

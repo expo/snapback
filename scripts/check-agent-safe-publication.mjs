@@ -36,8 +36,13 @@ const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'tests/acceptance/fixtures/agent-safe-storage/agent-safe-active-covered-paired.2026-08-04.v1.json',
   'tests/acceptance/fixtures/agent-safe-storage/fork-promotion-performance.2026-08-04.v1.json',
   'tests/acceptance/fixtures/agent-safe-storage/author-acceptance.2026-08-04.v1.json',
-  'tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.v1.json',
+  'tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json',
   'tests/acceptance/latency-kanban-move3-v1-evidence.md',
+  'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json',
+  'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json',
+  'tests/acceptance/triage-graph-move1-v1-evidence.md',
+  'tests/acceptance/fixtures/contention-calendar/rung2-exit.2026-08-04.r1.v1.json',
+  'tests/acceptance/contention-calendar-rung2-v1-evidence.md',
 ]);
 
 const EVIDENCE = [
@@ -105,6 +110,8 @@ const PUBLICATION_ONLY_PATHS = new Set([
   'schemas/inspect.public.schema.json',
   'schemas/inspect.schema.json',
   'demos/latency-kanban/snapback/trusted-composition-activation.json',
+  'demos/triage-graph/snapback/trusted-composition-activation.json',
+  'demos/zero-bakeoff/apps/contention-calendar/snapback/trusted-composition-activation.json',
 ]);
 
 export function allowedPublicationPath(path, generatedPaths = new Map()) {

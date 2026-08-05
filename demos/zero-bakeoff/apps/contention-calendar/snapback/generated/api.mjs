@@ -5,28 +5,28 @@ export const artifacts = deepFreeze({
   "trustedCompositionActivation": {
     "activation": {
       "authMode": "dev",
-      "databaseId": "019fd04b-f8d8-7ec1-91e1-adcaa117fbdf",
+      "databaseId": "019fd367-2e19-7c50-b2ea-22cb467d86f8",
       "deploymentId": "contention-calendar-rung2-exit",
       "expectedGeneration": {
         "appId": "contention-calendar",
-        "bundleHash": "sha256:c090746da9251574",
-        "inputsHash": "3989e4954d30583eea1d60a05251dab5ca3b755b9c5878695feda426897ebb5c",
-        "schemaHash": "sha256:553168120ed3092b",
+        "bundleHash": "sha256:8590a5c2fd5cc6e5",
+        "inputsHash": "8b114f8658a79e89c9a204f63f466284a13752f247adcac9179b23614ba2aa07",
+        "schemaHash": "sha256:452f084e7eaeb8ee",
         "schemaVersion": "snapback.v0"
       },
       "format": "snapback.composition-activation.v1",
-      "proofKeyManifestDigest": "sha256:5bd8157a3c92e98641969b7b46988874f336eaf751750e3ff880555b14979a84",
+      "proofKeyManifestDigest": "sha256:a1359a0736bbaf2d35968af6e288f5cca5fb6bfd9b125e96e8684c1cf315f219",
       "targetProfileId": "local-dev-sqlite-ibex"
     },
-    "activationHash": "sha256:addb2254e108c3505fbc55654b4a6c88007025ed85bbb1f85d090198e45eb7c0",
+    "activationHash": "sha256:140e27718374f2cc405c2e480adc0359607a4a4675dade19768afb38b932d49a",
     "format": "snapback.trusted-composition-activation.v1",
     "proofKeys": {
       "format": "snapback.completeness-proof-keys.v1",
       "keys": [
         {
           "algorithm": "Ed25519",
-          "proofKeyId": "sbpk1.lqUHUK39e-ykIdwqS5kl6g",
-          "publicKeyBase64url": "2XH2uJtofHRI1kw_H1ZMYbQ6O7Z3LCKxnYViFjXO6PE"
+          "proofKeyId": "sbpk1.MEmDe8MXPOWinsWw21oFIQ",
+          "publicKeyBase64url": "bPCP6mkzNe0Us025y6-utWkfRfCnxIX5B7TZL4XcSqs"
         }
       ]
     }
@@ -50,9 +50,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "contention-calendar",
-      "bundleHash": "sha256:c090746da9251574",
-      "inputsHash": "3989e4954d30583eea1d60a05251dab5ca3b755b9c5878695feda426897ebb5c",
-      "schemaHash": "sha256:553168120ed3092b",
+      "bundleHash": "sha256:8590a5c2fd5cc6e5",
+      "inputsHash": "8b114f8658a79e89c9a204f63f466284a13752f247adcac9179b23614ba2aa07",
+      "schemaHash": "sha256:452f084e7eaeb8ee",
       "schemaVersion": "snapback.v0"
     },
     "id": "contention-calendar:clearReservations",
@@ -86,9 +86,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "contention-calendar",
-      "bundleHash": "sha256:c090746da9251574",
-      "inputsHash": "3989e4954d30583eea1d60a05251dab5ca3b755b9c5878695feda426897ebb5c",
-      "schemaHash": "sha256:553168120ed3092b",
+      "bundleHash": "sha256:8590a5c2fd5cc6e5",
+      "inputsHash": "8b114f8658a79e89c9a204f63f466284a13752f247adcac9179b23614ba2aa07",
+      "schemaHash": "sha256:452f084e7eaeb8ee",
       "schemaVersion": "snapback.v0"
     },
     "id": "contention-calendar:reservationsForSlot",
@@ -136,9 +136,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "contention-calendar",
-      "bundleHash": "sha256:c090746da9251574",
-      "inputsHash": "3989e4954d30583eea1d60a05251dab5ca3b755b9c5878695feda426897ebb5c",
-      "schemaHash": "sha256:553168120ed3092b",
+      "bundleHash": "sha256:8590a5c2fd5cc6e5",
+      "inputsHash": "8b114f8658a79e89c9a204f63f466284a13752f247adcac9179b23614ba2aa07",
+      "schemaHash": "sha256:452f084e7eaeb8ee",
       "schemaVersion": "snapback.v0"
     },
     "id": "contention-calendar:reserve",
@@ -155,7 +155,7 @@ const references = {
       "mintSites": [
         "plan/steps/0/insert/row-id"
       ],
-      "operationHash": "sha256:75e9ddc6c6d601ae26ca8262c3d869c70db08b4372f6599a88b8c0f88c45790a",
+      "operationHash": "sha256:29f08ccccc61afb445a3d46615d0f95692ab30b75c5df25be83ba6be19065af1",
       "plan": {
         "return_value": {
           "Binding": "reservationId"
@@ -245,15 +245,15 @@ const references = {
       },
       "schemaIdentity": {
         "appId": "contention-calendar",
-        "schemaHash": "sha256:553168120ed3092b",
+        "schemaHash": "sha256:452f084e7eaeb8ee",
         "schemaVersion": "snapback.v0"
       },
       "sourceIdentity": {
         "activation": {
           "appId": "contention-calendar",
-          "bundleHash": "sha256:c090746da9251574",
-          "inputsHash": "3989e4954d30583eea1d60a05251dab5ca3b755b9c5878695feda426897ebb5c",
-          "schemaHash": "sha256:553168120ed3092b",
+          "bundleHash": "sha256:8590a5c2fd5cc6e5",
+          "inputsHash": "8b114f8658a79e89c9a204f63f466284a13752f247adcac9179b23614ba2aa07",
+          "schemaHash": "sha256:452f084e7eaeb8ee",
           "schemaVersion": "snapback.v0"
         },
         "functionId": "contention-calendar:reserve",
@@ -276,9 +276,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "contention-calendar",
-      "bundleHash": "sha256:c090746da9251574",
-      "inputsHash": "3989e4954d30583eea1d60a05251dab5ca3b755b9c5878695feda426897ebb5c",
-      "schemaHash": "sha256:553168120ed3092b",
+      "bundleHash": "sha256:8590a5c2fd5cc6e5",
+      "inputsHash": "8b114f8658a79e89c9a204f63f466284a13752f247adcac9179b23614ba2aa07",
+      "schemaHash": "sha256:452f084e7eaeb8ee",
       "schemaVersion": "snapback.v0"
     },
     "id": "contention-calendar:resourceList",
@@ -299,9 +299,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "contention-calendar",
-      "bundleHash": "sha256:c090746da9251574",
-      "inputsHash": "3989e4954d30583eea1d60a05251dab5ca3b755b9c5878695feda426897ebb5c",
-      "schemaHash": "sha256:553168120ed3092b",
+      "bundleHash": "sha256:8590a5c2fd5cc6e5",
+      "inputsHash": "8b114f8658a79e89c9a204f63f466284a13752f247adcac9179b23614ba2aa07",
+      "schemaHash": "sha256:452f084e7eaeb8ee",
       "schemaVersion": "snapback.v0"
     },
     "id": "contention-calendar:schedule",

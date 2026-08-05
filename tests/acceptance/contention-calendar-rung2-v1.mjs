@@ -69,7 +69,7 @@ const TRANSCRIPTION = Object.freeze({
 });
 const SOURCE_PATHS = Object.freeze([
   'tests/acceptance/contention-calendar-rung2-v1.mjs',
-  'issues/20260804-move4-rung2-program.md',
+  'issues/closed/20260804-move4-rung2-program.md',
   'issues/closed/20260804-0129-write-rung2-ruling.md',
   'tests/acceptance/fixtures/write-lane/rung2-sizing-spike.2026-08-04.v1.md',
   'demos/zero-bakeoff/protocol/acceptance/contention-calendar.v1.json',
@@ -739,7 +739,7 @@ function sourceProvenance() {
   }).trim();
   const dirtyLines = execFileSync('git', ['status', '--short'], {
     cwd: ROOT, encoding: 'utf8',
-  }).trim().split(/\r?\n/u).filter(Boolean);
+  }).split(/\r?\n/u).filter(Boolean);
   for (const path of SOURCE_PATHS) {
     assert.equal(existsSync(join(ROOT, path)), true, `${path}: gate source is missing`);
   }

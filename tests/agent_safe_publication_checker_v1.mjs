@@ -564,13 +564,16 @@ test('generated-artifact registry covers every codegen job exactly once', () => 
   assert.ok(REVIEW_CACHE_ROOTS.includes('demos/party-wall/snapback/generated'));
   assert.ok(REVIEW_CACHE_ROOTS.includes('demos/triage-graph/snapback/generated'));
   assert.ok(REVIEW_CACHE_ROOTS.includes('demos/chirp/snapback/generated'));
+  assert.ok(FULLY_COMMITTED_ROOTS.includes(
+    'demos/zero-bakeoff/apps/contention-calendar/snapback/generated',
+  ));
   assert.deepEqual(ADMIN_GENERATED_ROOTS, ['admin-ui/generated']);
 });
 
 test('P-vs-C generated allowance is the exact qualification-C leaf set', () => {
   const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
   const generated = generatedPublicationPathsAt(root, head);
-  assert.equal(generated.size, 177);
+  assert.equal(generated.size, 207);
   const unchangedPublicationEntries = new Map(
     [...generated].map(([path, entry]) => [path, { ...entry }]),
   );
@@ -646,8 +649,23 @@ test('P-vs-C publication path allowlist rejects executable drift', () => {
     true,
   );
   assert.equal(
-    allowedPublicationPath('tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.v1.json'),
+    allowedPublicationPath('tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json'),
     true,
+  );
+  for (const path of [
+    'demos/triage-graph/snapback/trusted-composition-activation.json',
+    'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json',
+    'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json',
+    'tests/acceptance/triage-graph-move1-v1-evidence.md',
+    'demos/zero-bakeoff/apps/contention-calendar/snapback/trusted-composition-activation.json',
+    'tests/acceptance/fixtures/contention-calendar/rung2-exit.2026-08-04.r1.v1.json',
+    'tests/acceptance/contention-calendar-rung2-v1-evidence.md',
+  ]) {
+    assert.equal(allowedPublicationPath(path), true, path);
+  }
+  assert.equal(
+    allowedPublicationPath('tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.v1.json'),
+    false,
   );
   assert.equal(allowedPublicationPath('guide/arbitrary-executable.mjs'), false);
 });
