@@ -193,3 +193,121 @@ export function signalProcessTree(child, signal, {
     });
   }
 }
+
+function childCloseObserved(child) {
+  if (child?.exitCode == null && child?.signalCode == null) return false;
+  return [child.stdout, child.stderr].every(
+    (stream) => !stream || stream.closed === true || stream.destroyed === true,
+  );
+}
+
+async function waitForChildClose(child, timeoutMs) {
+  if (childCloseObserved(child)) return true;
+  return new Promise((resolveClose) => {
+    let settled = false;
+    let timeout;
+    const finish = (closed) => {
+      if (settled) return;
+      settled = true;
+      if (timeout) clearTimeout(timeout);
+      child.off?.('close', onClose);
+      resolveClose(closed);
+    };
+    const onClose = () => finish(true);
+    child.once?.('close', onClose);
+    timeout = setTimeout(() => finish(childCloseObserved(child)), timeoutMs);
+  });
+}
+
+/**
+ * Request an owned child tree's normal stop, then hard-stop and attest any
+ * descendant that outlives the leader. Captured stdio is retired only after
+ * the native tree primitive completes, so a grandchild cannot keep the
+ * caller alive indefinitely by retaining the leader's pipe descriptors.
+ */
+export async function stopOwnedProcessTree(child, {
+  requestGracefulStop = () => child?.stdin?.end(),
+  gracefulTimeoutMs = 15_000,
+  leaderCloseTimeoutMs = 2_000,
+  signalTree = signalProcessTree,
+  platform = process.platform,
+  taskkillTimeoutMs = 2_000,
+  processGroupTimeoutMs = 2_000,
+  processGroupPollMs = 10,
+  processKill = process.kill,
+} = {}) {
+  const pid = child?.pid;
+  if (!pid) {
+    return {
+      ok: true,
+      pid: null,
+      gracefulStopRequested: false,
+      leaderClosed: true,
+      cleanup: { ok: true, mechanism: 'none', signal: 'SIGKILL', pid: null },
+    };
+  }
+
+  let gracefulStopError = null;
+  try {
+    await requestGracefulStop?.();
+  } catch (error) {
+    gracefulStopError = cleanupError(error);
+  }
+  let leaderClosed = await waitForChildClose(child, gracefulTimeoutMs);
+
+  let cleanup;
+  if (platform === 'win32' && leaderClosed) {
+    // Once a normally stopping Windows leader has closed, taskkill can no
+    // longer address its former tree by pid. The process owns descendant
+    // shutdown on this successful path; live leaders still take /T /F below.
+    cleanup = {
+      ok: true,
+      mechanism: 'graceful-leader-close',
+      signal: 'SIGKILL',
+      pid,
+      exitAttested: true,
+    };
+  } else {
+    try {
+      cleanup = await signalTree(child, 'SIGKILL', {
+        platform,
+        taskkillTimeoutMs,
+        processGroupTimeoutMs,
+        processGroupPollMs,
+        processKill,
+      });
+    } catch (error) {
+      cleanup = {
+        ok: false,
+        mechanism: 'cleanup-seam',
+        signal: 'SIGKILL',
+        pid,
+        error: cleanupError(error),
+      };
+    }
+  }
+
+  // After whole-tree exit is attested, no subprocess can legitimately own
+  // these handles. Retiring them prevents a stale captured pipe from keeping
+  // the proof runner's event loop alive while close delivery settles.
+  try { child.stdin?.destroy?.(); } catch { /* tree result remains authority */ }
+  try { child.stdout?.destroy?.(); } catch { /* tree result remains authority */ }
+  try { child.stderr?.destroy?.(); } catch { /* tree result remains authority */ }
+  if (!leaderClosed) {
+    leaderClosed = await waitForChildClose(child, leaderCloseTimeoutMs);
+  }
+
+  return {
+    ok: cleanup.ok === true && leaderClosed,
+    pid,
+    gracefulStopRequested: true,
+    ...(gracefulStopError ? { gracefulStopError } : {}),
+    leaderClosed,
+    cleanup,
+    ...(!cleanup.ok
+      ? { error: cleanup.error ?? 'process-tree cleanup was not attested' }
+      : !leaderClosed
+        ? { error: `process tree exited but leader close was not observed within ${leaderCloseTimeoutMs}ms` }
+        : {}),
+  };
+}

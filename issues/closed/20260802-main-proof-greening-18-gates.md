@@ -729,3 +729,27 @@ metadata-declared demos through exactly one reset. The downstream required
 surface build gate also passes for both registry-selected web surfaces. This
 is suite-fixture and generated-carrier drift attributable to `4b30b364e`, not
 a correctness failure in the actively owned PUSH-01 seam or F0a fork code.
+
+### Linux package post-receipt teardown closure — 2026-08-05
+
+Linux package run `31017196511` at `b6f52862b` built and launch-qualified the
+relocatable runtime, completed the staged public-alias cold-install journey,
+and emitted its green receipt at `2026-08-05T15:04:00Z`. It then produced no
+further output for 61 minutes and was cancelled only when the next branch push
+activated the workflow's concurrency replacement. Actions cleanup found the
+outer Node proof plus a surviving `snapback`, shell, and Node child tree. The
+receipt was truthful about the checks it had completed, but the workflow could
+never retain that receipt or finish green.
+
+The latent ownership defect is attributed to one-command starter landing
+`b1006fa2d`: `scripts/snapback-package-cold-install.mjs` spawned `npm run dev`
+with captured pipes and later signaled only the npm leader. A shell or Snapback
+descendant could retain those pipes after the leader exited and keep the proof
+runner alive indefinitely. The fix launches both long-lived cold-install dev
+arms as owned POSIX process groups and reuses the repository's cross-platform
+tree primitive for bounded graceful stop, hard cleanup, POSIX ESRCH exit
+attestation, leader-close observation, and captured-handle retirement. A real
+regression fixture leaves a TERM-resistant descendant holding the leader's
+pipes; teardown kills and attests the whole group and the test process exits.
+This is package-proof harness debt, not a PUSH-01/F0a correctness failure, and
+no browser sandbox, custody boundary, or administrator setting is weakened.
