@@ -75,6 +75,29 @@ narrows the next work substantially: reproduce the two ignored options in
 Cloudflare's minimal example, determine whether this is account capability or a
 platform regression, and rerun before qualifying Gate 0.
 
+## 2026-08-04 — replacement-token rerun (Codex)
+
+I verified the replacement account token against Cloudflare's read-only
+account-token endpoint without printing it, then reran the unchanged P0.1
+runner and receipt against `eas-p0-spike-20260803`. The live topology and
+adversarial matrix behaved consistently with the first retained run: 21 of 23
+checks passed, including all eight exact `HOST`-only binding read-backs,
+two-app/two-release isolation, capability attacks, egress policy, admission
+limits, and response bounds.
+
+The two native custom-limit checks failed again. Twelve real allowlisted
+subrequests returned 200, now in 3264.5 ms, and the fixed 20-million-iteration
+CPU burn returned 200 in 108.8 ms despite `cpuMs: 20`. The replacement token
+therefore ruled out an expired-token explanation but did not change the
+platform capability. Concurrent Workers.dev readiness also remained unstable:
+the twentieth eight-way health round returned six 200s and two Cloudflare
+404s.
+
+Cleanup stayed dependable. The runner deleted its dispatcher, namespace, host,
+and outbound Worker, and a separate read-only verification returned 404 for
+every exact resource. The practical verdict is unchanged: the WfP isolation
+shape is useful, but P0.1 and Gate 0 remain blocked until Cloudflare's documented
+CPU and subrequest ceilings can be made observably fail closed.
 ## 2026-08-04 — minimal control and corrected topology
 
 The replacement-token rerun first reproduced the original 21/23 result, which

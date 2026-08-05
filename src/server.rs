@@ -3290,15 +3290,27 @@ pub fn spawn_jobs_worker(state: SharedSnapback, autonomy_disabled: bool) -> Join
         if autonomy_disabled {
             return;
         }
+        // The durable queue initializes this hint at open and every committed
+        // enqueue arms it. An empty instance therefore pays only this atomic
+        // load per tick, not a SQLite transaction and file-lock round trip.
+        //
+        // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L5: idle
+        // means idle across cron and one-off job schedulers.
+        let jobs_active = state.lock().await.jobs_activity_flag();
         let mut ticks = interval(Duration::from_secs(1));
-        // First tick resolves immediately; it doubles as the startup recovery
-        // sweep for jobs that were pending/claimed at the last shutdown.
+        // First tick resolves immediately. Startup hydration arms the hint
+        // when pending/claimed rows survived the last shutdown, so it also
+        // doubles as the recovery sweep for a non-empty durable queue.
         loop {
             ticks.tick().await;
-            // Cheap idle path: one indexed COUNT under the lock only decides
-            // whether a drain is worth running; the drain itself claims.
+            if !jobs_active.load(std::sync::atomic::Ordering::Relaxed) {
+                continue;
+            }
+            // The flag is only a wakeup hint; durable rows remain authority.
+            // Refresh under the Local lock so a concurrent enqueue cannot be
+            // lost between the count and clearing the flag.
             let pending =
-                match with_snapback(&state, |snapback| snapback.jobs_pending_count()).await {
+                match with_snapback(&state, |snapback| snapback.refresh_jobs_activity()).await {
                     Ok(pending) => pending,
                     Err(error) => {
                         state.lock().await.record_cron_tick_error(

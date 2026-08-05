@@ -3036,6 +3036,13 @@ pub struct LocalSnapback {
     // no cron jobs are loaded; the persisted cron state is written only when it
     // changes, so an idle instance performs no periodic disk writes.
     cron_active: Arc<AtomicBool>,
+    // The durable jobs table remains authoritative. This process-local hint
+    // only keeps the one-second worker out of SQLite when startup found no
+    // pending/claimed rows and no committed enqueue has armed it since.
+    //
+    // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L5's idle-cost
+    // gate applies to every autonomous scheduler, including one-off jobs.
+    jobs_active: Arc<AtomicBool>,
     last_persisted_cron: Option<Value>,
     cron_state_writes: u64,
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2: last-seen
@@ -14068,6 +14075,12 @@ impl LocalSnapback {
             || !commit.job_changes.is_empty()
             || !commit.job_enqueues.is_empty()
             || !commit.sequence_allocations.is_empty();
+        if !commit.job_changes.is_empty() {
+            // The enqueue is already durable. Arm the autonomous worker before
+            // this Local authority can be released so a concurrent empty-queue
+            // refresh cannot overwrite the wakeup.
+            self.jobs_active.store(true, Ordering::Relaxed);
+        }
         commit.network_egress = if commit.authorization.is_some() && has_observable_effect {
             self.network_profiles
                 .admit_commit(Instant::now())
@@ -19829,6 +19842,19 @@ impl LocalSnapback {
         self.db.pending_job_count()
     }
 
+    /// A lock-free hint allowing the autonomous worker to skip SQLite while
+    /// the durable queue is empty. The worker refreshes it under the Local
+    /// lock, and every committed enqueue arms it before releasing that lock.
+    pub(crate) fn jobs_activity_flag(&self) -> Arc<AtomicBool> {
+        self.jobs_active.clone()
+    }
+
+    pub(crate) fn refresh_jobs_activity(&self) -> SnapbackResult<u64> {
+        let pending = self.jobs_pending_count()?;
+        self.jobs_active.store(pending != 0, Ordering::Relaxed);
+        Ok(pending)
+    }
+
     /// Asset-runner loop errors land in the same bounded diagnostics ring as
     /// cron tick errors; the ledger rows themselves carry per-item failure
     /// state, so this records only scheduler-machinery faults.
@@ -20417,6 +20443,9 @@ impl LocalSnapback {
             )?,
         };
         let cron = LocalCronRuntime::from_persisted(db.load_cron_state()?)?;
+        // One startup read preserves crash recovery without turning an empty
+        // durable queue into a forever-polling database workload.
+        let jobs_active = db.pending_job_count()? != 0;
         let auth_mode = db.auth_mode_snapshot()?.state;
         // @ref LLP 0081#4-execution-journaling-and-crash-recovery — the
         //   persisted migration fence outlives the process: opening over a
@@ -20508,6 +20537,7 @@ impl LocalSnapback {
             maintenance_permission_reported_at_ms: None,
             maintenance_prune_reported_at_ms: None,
             cron_active: Arc::new(AtomicBool::new(false)),
+            jobs_active: Arc::new(AtomicBool::new(jobs_active)),
             last_persisted_cron: None,
             cron_state_writes: 0,
             connections_last_seen: ConnectionActivity::default(),
@@ -53037,6 +53067,89 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             (phase.as_str(), status, code.as_str()),
             ("joined", 500, "SNAPBACK_AUTH_MODE_PENDING")
+        );
+    }
+
+    #[test]
+    fn job_activity_hint_arms_on_commit_survives_restart_and_clears_when_empty() {
+        let directory = tempfile::tempdir().expect("job activity fixture directory");
+        let database_path = directory.path().join("job-activity.sqlite3");
+        let mut snapback = LocalSnapback::open(&database_path).expect("open job activity fixture");
+        let activity = snapback.jobs_activity_flag();
+        assert!(
+            !activity.load(Ordering::Relaxed),
+            "an empty queue starts idle"
+        );
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![
+                FunctionDefinition::new(
+                    "scheduleOnly",
+                    FunctionKind::Mutation,
+                    FunctionRuntime::IbexModule(IbexModule {
+                        source: "globalThis.__snapbackHandlers = { async scheduleOnly(ctx) { return await ctx.jobs.enqueue('inertNotify', {}); } };"
+                            .to_owned(),
+                        export: "scheduleOnly".to_owned(),
+                    }),
+                ),
+                FunctionDefinition::new(
+                    "inertNotify",
+                    FunctionKind::Action,
+                    FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                        steps: Vec::new(),
+                        return_value: None,
+                    })),
+                ),
+            ],
+            acknowledged_experimental_capabilities: vec!["jobs_one_off_v1".to_owned()],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "job activity fixture must load: {diagnostics:?}"
+        );
+        let output = snapback
+            .invoke_mutation("scheduleOnly", HandlerInput::default())
+            .expect("enqueue job activity fixture");
+        let available_at = output.result["availableAtMs"]
+            .as_u64()
+            .expect("enqueue returns availability");
+        assert!(
+            activity.load(Ordering::Relaxed),
+            "the durable enqueue arms the worker before Local is released"
+        );
+        drop(snapback);
+
+        let mut reopened =
+            LocalSnapback::open(&database_path).expect("reopen job activity fixture");
+        let reopened_activity = reopened.jobs_activity_flag();
+        assert!(
+            reopened_activity.load(Ordering::Relaxed),
+            "startup recovers the activity hint from durable pending rows"
+        );
+        let mut claims = reopened
+            .claim_due_jobs(
+                available_at,
+                1,
+                "activity-test",
+                DiagnosticBoundary::Attached,
+            )
+            .expect("claim activity fixture job");
+        assert_eq!(claims.len(), 1);
+        reopened
+            .finish_job_claim(claims.remove(0), Ok(Value::Null))
+            .expect("finish activity fixture job");
+        assert_eq!(
+            reopened
+                .refresh_jobs_activity()
+                .expect("refresh empty queue"),
+            0
+        );
+        assert!(
+            !reopened_activity.load(Ordering::Relaxed),
+            "the authoritative empty count disarms the worker"
         );
     }
 

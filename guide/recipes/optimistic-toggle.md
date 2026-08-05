@@ -4,12 +4,12 @@ id: recipes.optimistic-toggle
 order: 3
 audience: agent-first
 capabilities: [clients.react]
-authorities: [llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-react/index.mjs]
-examples: [packages/snapback-react/optimistic.test.mjs]
+authorities: [llp/0090-resumable-query-snapshots.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-react/index.mjs, demos/warble/snapback/functions.mjs, demos/warble/app/src/post-card.tsx, demos/warble/tests/acceptance/offline-local-first.mjs]
+examples: [demos/warble, packages/snapback-react/optimistic.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-04
+reviewed: 2026-08-05
 reviewed-commit: HEAD
 ---
 
@@ -19,14 +19,18 @@ reviewed-commit: HEAD
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-A like/favorite button with a count: the heart flips instantly, the count
-moves with it, and the authoritative live query settles both without a
-flicker or a double increment. This is the paved implementation of
-`useSnapbackMutation`'s optimistic projection
+A like/favorite button with a count has two honest query layouts. When one
+viewer-aware query returns both `liked` and `likeCount`, the heart and count
+flip instantly and the authoritative live query settles both without a
+flicker or double increment. When cold retention requires a separate public
+viewer-fact query, both facts remain query-owned, but the current optimistic
+path can move only the count; the heart settles from that second query's live
+delivery. The joined layout is the paved implementation of
+`useSnapbackMutation`'s two-field optimistic projection
 ([the React client](../clients/react.md#run-a-mutation)) for the
-toggle-plus-counter shape, and every behavioral claim on this page is
-asserted by `packages/snapback-react/optimistic.test.mjs` (run by the
-package's CI test suite).
+toggle-plus-counter shape, and its behavioral claims are asserted by
+`packages/snapback-react/optimistic.test.mjs` (run by the package's CI test
+suite).
 
 The failure this recipe prevents is real and easy to reach: keep the heart in
 component state, add a local `+1` to the count, and the live query
@@ -34,25 +38,73 @@ independently delivers the authoritative increment — the UI briefly shows a
 two-count jump, and a rebase can visibly flip the heart back. Every fact
 below exists to make that impossible.
 
-## Model the viewer's fact in the query
+## Model the viewer's fact in query data
 
-The toggle state is per-viewer data, not UI state. The query that renders the
-button must return both fields for the current viewer — a server-side join
-against the viewer's like row plus the denormalized count:
+The toggle state is per-viewer data, not UI state. It must come from canonical
+query data in one of the two layouts below.
+
+### Joined layout: both fields on the rendered row
+
+The query that renders the button returns both fields for the current viewer
+— a server-side join against the viewer's like row plus the denormalized count:
 
 ```text
 timeline(viewer) -> [{ id, body, ..., liked: boolean, likeCount: number }]
 ```
 
-If `liked` is not in the query result, there is nothing authoritative to
+If `liked` is absent from all query data, there is nothing authoritative to
 reconcile against, and component state is the only place left to put it —
-which is exactly the anti-pattern. Add the viewer-aware fields to the query
-first; the rest of the recipe assumes them.
+which is exactly the anti-pattern. The joined projection sections below assume
+this layout.
 
-## Project both fields atomically, and capture the outcome
+### Cold-retained public layout: split the viewer fact
 
-Declare one optimistic projection beside the mutation hook. Two rules carry
-the whole recipe, and both are visible in the CI-exercised fixture:
+`rqsEligible` v1 is a closed single-table plan, so a retainable posts timeline
+cannot join in the viewer's like row. It can coexist with a second public
+query keyed by an explicit viewer argument: keep `{ ..., likeCount }` in the
+posts query, query like rows with `{ handle: viewerHandle }`, and derive the
+heart from the second query:
+
+```tsx fragment reason="generated application query types and component props vary by app"
+const likeSet = new Set(myLikes.data?.map((like) => like.postId));
+const liked = likeSet.has(post._id);
+```
+
+The exact retention declaration and its security boundary are in
+[retain public viewer facts by argument, not authority](../sync/offline-and-retention.md#retain-public-viewer-facts-by-argument-not-authority).
+An argument is caller-controlled and does not enforce privacy, so this layout
+is only for public facts. Private viewer data must use server-derived authority
+and the Contract arm's `retainable: true`, `AuthorizedLease` path; never
+replace `authUserId()` with an argument merely to make a query retainable.
+
+An optimistic layer is validated against the generated result contract of the
+one query store it targets. If `liked` is not a field on the posts result,
+projecting `{ liked, likeCount }` into a post row is refused before mutation
+dispatch with `SNAPBACK_REACT_OPTIMISTIC_INSTALL_FAILED`. Project only the
+field that belongs to that row:
+
+```tsx fragment reason="generated application query types and component props vary by app"
+optimistic: {
+  query: api.timeline,
+  args: {},
+  ...projectRecordFields(post._id, { likeCount }),
+}
+```
+
+The count then moves optimistically, while the heart changes when the
+authoritative `myLikes` delivery adds or removes the like row. The boolean is
+still derived from canonical query data, not component state. A symmetric
+instant heart for the like case would require appending a missing row to
+`myLikes`; optimistic create has no paved path in v1, so this split layout does
+not promise the joined layout's zero-latency heart. Warble implements this
+count-only projection; its acceptance suite proves retained rendering plus
+exactly-once like settlement.
+
+## Project both fields atomically when they share a row
+
+For the joined layout, declare one optimistic projection beside the mutation
+hook. Two rules carry the recipe, and both are visible in the CI-exercised
+fixture:
 
 ```js source=packages/snapback-react/optimistic.test.mjs
 // Capture the intended outcome at admission. The projection is replayed over
@@ -138,7 +190,9 @@ The fixture's rows key on `id`; generated application rows carry the default
 be primitives (`boolean | number | string | null`) — the helper deliberately
 expresses only the capture-and-set shape, so it cannot encode the replay
 hazard. Prefer it over a hand-written reducer whenever the projection is
-"set these fields on this row".
+"set these fields on this row". In the split cold-retained layout, pass only
+`{ likeCount }`; injecting `liked` into the posts row violates that query's
+generated result contract.
 
 Hand-written reducers get a development safety net: at admission the
 provider replays the just-validated projection through the reducer a second
@@ -227,8 +281,13 @@ not.
   local arithmetic.
 - **Do not keep the toggle in component state.** `useState(liked)` has no
   reconciliation with query authority: it drifts on other-client changes,
-  survives rejection, and fights the live delivery. Model the fact in the
-  query result and project it optimistically.
+  survives rejection, and fights the live delivery. Model the fact in query
+  data: either as a field on the rendered row or as a boolean derived from a
+  separate canonical likes query.
+- **Do not project a field into the wrong query's row contract.** In the split
+  cold-retained layout, `{ liked, likeCount }` is not a valid posts row when
+  `liked` lives in `myLikes`; the layer is refused. Project `{ likeCount }`
+  only and let the heart settle from the authoritative viewer-fact query.
 - **Do not toggle or increment inside `update`.** The projection is replayed
   during rebase; capture the intended outcome and set it (or let
   `projectRecordFields` do both rules for you). In development the replay
