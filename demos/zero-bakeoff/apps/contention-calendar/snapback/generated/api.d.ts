@@ -11,7 +11,27 @@ export interface SearchMatchRangeV1 { start: number; end: number }
 export interface SearchHighlightV1 { field: string; text: string; matches: readonly SearchMatchRangeV1[] }
 export interface SearchItemV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { rowId: RowId; score: number; fields: Fields; highlights: readonly SearchHighlightV1[] }
 export interface SearchPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { items: readonly SearchItemV1<Fields, RowId>[]; cursor: string | null; hasMore: boolean }
+export interface VectorItemV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { rowId: RowId; distance: number; fields: Fields }
+export interface VectorPageV1<Fields extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>, RowId extends string = string> { items: readonly VectorItemV1<Fields, RowId>[] }
+export interface GeneratedArtifacts { readonly trustedCompositionActivation: Readonly<Record<string, unknown>> | null }
+export const artifacts: GeneratedArtifacts;
 export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';
+export interface GeneratedMutationIrV1 {
+  readonly format: 'snapback.generated-mutation-ir.v1';
+  readonly operationHash: `sha256:${string}`;
+  readonly sourceIdentity: Readonly<{ functionId: string; implementationHash: string; activation: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }> }> ;
+  readonly schemaIdentity: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string }> ;
+  readonly capabilityClass: 'local-executable' | 'server-only';
+  readonly capabilityCode: string;
+  readonly declaredEffectClass: 'snapback.browser-ir.insert-get-guard-patch.v1';
+  readonly declaredReads: readonly string[];
+  readonly localReadRequirements: readonly Readonly<{ kind: 'point'; table: string; idArg: string; binding: string | null; requiredFields: readonly string[] }>[];
+  readonly schema: Readonly<{ tables: readonly Readonly<{ name: string; fields: readonly Readonly<{ name: string }>[] }>[] }> ;
+  readonly plan: Readonly<Record<string, unknown>>;
+  readonly mintSites: readonly string[];
+  readonly usesRuntimeNow: boolean;
+  readonly boundedSkew: Readonly<{ field: string; maxSkewMs: number }> | null;
+}
 export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
   artifactKind: 'functionReference';
   schemaVersion: SchemaVersion;
@@ -23,6 +43,9 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   argsContractHash: string;
   resultContractHash: string;
   expectedGeneration: Readonly<{ schemaVersion: SchemaVersion; appId: string; schemaHash: string; bundleHash: string; inputsHash: string }>;
+  mutationIr?: GeneratedMutationIrV1;
+  composition?: Readonly<{ normalizedCompositePlan: Readonly<Record<string, unknown>>; planHash: `sha256:${string}`; resultContract: Readonly<Record<string, unknown>> }>;
+  readonly artifacts?: GeneratedArtifacts;
   argumentSchema: Readonly<Record<string, unknown>>;
   readonly __args?: Args;
   readonly __result?: Result;
@@ -53,8 +76,47 @@ export interface QueryGroupReference<Route extends string, Params, Queries exten
   readonly __params?: Params;
   readonly __entries?: QueryGroupEntryResults<Queries>;
 }
-export type QueryGroupParams<Ref> = Ref extends QueryGroupReference<string, infer Params, readonly QueryGroupEntry[]> ? Params : never;
-export type QueryGroupEntries<Ref> = Ref extends QueryGroupReference<string, unknown, infer Queries> ? QueryGroupEntryResults<Queries> : never;
+export interface MixedQueryGroupEntry<Name extends string = string, Ref extends FunctionReference<string, "Query" | "LiveQuery", unknown, unknown> = FunctionReference<string, "Query" | "LiveQuery", unknown, unknown>, Args extends Readonly<Record<string, unknown>> = Readonly<Record<string, unknown>>> {
+  readonly name: Name;
+  readonly ref: Ref;
+  readonly args: Args;
+  readonly nodePlan: Readonly<Record<string, unknown>>;
+  readonly nodePlanHash: `sha256:${string}`;
+}
+export type MixedQueryGroupEntryResults<Queries extends readonly MixedQueryGroupEntry[]> = {
+  readonly [Entry in Queries[number] as Entry["name"]]: { readonly ref: Entry["ref"]; readonly args: FunctionArgs<Entry["ref"]> };
+};
+export interface MixedQueryGroupReference<Route extends string, Params, Queries extends readonly MixedQueryGroupEntry[]> {
+  readonly artifactKind: 'queryGroupReference';
+  readonly formatVersion: 2;
+  readonly profile: 'mixed-route.v2';
+  readonly schemaVersion: SchemaVersion;
+  readonly appId: string;
+  readonly id: `${string}:query-group-v2:${Route}`;
+  readonly route: Route;
+  readonly definitionHash: `sha256:${string}`;
+  readonly planHash: `sha256:${string}`;
+  readonly queries: Queries;
+  readonly persist?: false;
+  readonly __params?: Params;
+  readonly __entries?: MixedQueryGroupEntryResults<Queries>;
+}
+export type QueryGroupParams<Ref> = Ref extends QueryGroupReference<string, infer Params, readonly QueryGroupEntry[]> ? Params : Ref extends MixedQueryGroupReference<string, infer Params, readonly MixedQueryGroupEntry[]> ? Params : never;
+export type QueryGroupEntries<Ref> = Ref extends QueryGroupReference<string, unknown, infer Queries> ? QueryGroupEntryResults<Queries> : Ref extends MixedQueryGroupReference<string, unknown, infer Queries> ? MixedQueryGroupEntryResults<Queries> : never;
+export interface AssetUploadReference<Name extends string, Args = Record<string, never>> {
+  artifactKind: 'assetUploadReference';
+  schemaVersion: SchemaVersion;
+  appId: string;
+  id: string;
+  name: Name;
+  implementationHash: string;
+  argsContractHash: string;
+  argumentSchema: Readonly<Record<string, unknown>>;
+  intentPolicyHash: string;
+  policyGeneration: number;
+  requiredCapabilities: readonly string[];
+  readonly __args?: Args;
+}
 export interface EphemeralCollectionReference<Name extends string, Scope, Value, KeyMode extends EphemeralKeyMode = EphemeralKeyMode> {
   artifactKind: 'ephemeralCollectionReference';
   schemaVersion: SchemaVersion;
@@ -76,17 +138,61 @@ export interface GeneratedDataModel {
   resources: { _id: Id<'resources'>; _version: number; _createdAt: number; _updatedAt: number; key: string; title: string };
   reservations: { _id: Id<'reservations'>; _version: number; _createdAt: number; _updatedAt: number; idempotencyKey: string; resourceKey: string; slotKey: string; resourceSlotKey: string; ownerId: string; title: string; createdAt: number };
 }
+export type GeneratedTableName = keyof GeneratedDataModel & string;
+export type GeneratedReadableTableName = Exclude<GeneratedTableName, never>;
+export type GeneratedInsertableTableName = Exclude<GeneratedReadableTableName, never>;
+export type GeneratedPatchableTableName = GeneratedReadableTableName;
+export type GeneratedDeletableTableName = Exclude<GeneratedReadableTableName, never>;
+export interface GeneratedInsertModel {
+  "resources": { "key": string; "title": string };
+  "reservations": { "idempotencyKey": string; "resourceKey": string; "slotKey": string; "resourceSlotKey": string; "ownerId": string; "title": string; "createdAt": number };
+}
+export interface GeneratedPatchModel {
+  "resources": { "key"?: string; "title"?: string };
+  "reservations": { "idempotencyKey"?: string; "resourceKey"?: string; "slotKey"?: string; "resourceSlotKey"?: string; "ownerId"?: string; "title"?: string; "createdAt"?: number };
+}
+export interface GeneratedIndexNames {
+  "resources": "by_key";
+  "reservations": "by_idempotency" | "by_resource_slot" | "by_slot_owner";
+}
+export interface GeneratedQueryBuilder<Table extends GeneratedReadableTableName> {
+  withIndex(index: GeneratedIndexNames[Table]): GeneratedQueryBuilder<Table>;
+  eq<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;
+  in<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, values: ReadonlyArray<GeneratedDataModel[Table][Field]>): GeneratedQueryBuilder<Table>;
+  lt<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;
+  lte<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;
+  gt<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;
+  gte<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, value: GeneratedDataModel[Table][Field]): GeneratedQueryBuilder<Table>;
+  order<Field extends keyof GeneratedDataModel[Table] & string>(field: Field, direction?: "asc" | "desc" | "Asc" | "Desc"): GeneratedQueryBuilder<Table>;
+  take(limit: number): GeneratedQueryBuilder<Table>;
+  collect(): Promise<Array<GeneratedDataModel[Table]>>;
+  first(): Promise<GeneratedDataModel[Table] | null>;
+}
+export interface GeneratedQueryDatabase {
+  get<Table extends GeneratedReadableTableName>(table: Table, id: Id<Table>): Promise<GeneratedDataModel[Table] | null>;
+  query<Table extends GeneratedReadableTableName>(table: Table): GeneratedQueryBuilder<Table>;
+}
+export interface GeneratedMutationDatabase extends GeneratedQueryDatabase {
+  insert<Table extends GeneratedInsertableTableName>(table: Table, values: GeneratedInsertModel[Table]): Promise<Id<Table>>;
+  patch<Table extends GeneratedPatchableTableName>(table: Table, id: Id<Table>, values: GeneratedPatchModel[Table]): Promise<unknown>;
+  delete<Table extends GeneratedDeletableTableName>(table: Table, id: Id<Table>): Promise<unknown>;
+}
+export interface GeneratedAnonymousAuthContext { readonly userId: null; readonly sessionId: null; readonly isAuthenticated: false }
+export interface GeneratedAuthenticatedAuthContext { readonly userId: Principal; readonly sessionId: string | null; readonly isAuthenticated: true; readonly provider?: string; readonly roles: readonly string[]; readonly kind: "human" | "agent"; readonly actor?: { readonly userId: Principal; readonly kind: "agent"; readonly grantId: string }; readonly actorKind?: "asset-callbacks" }
+export type GeneratedAuthContext = GeneratedAnonymousAuthContext | GeneratedAuthenticatedAuthContext;
+export interface GeneratedRuntimeContext { now(): number; id(): string }
 export interface GeneratedPermissions {
 }
 export interface GeneratedMembership {
 }
-export interface GeneratedQueryContext { readonly permissions: GeneratedPermissions }
-export interface GeneratedMutationContext extends GeneratedQueryContext { readonly membership: GeneratedMembership }
-export interface GeneratedActionContext {}
+export interface GeneratedQueryContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly db: GeneratedQueryDatabase; readonly permissions: GeneratedPermissions; readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; isDirectHuman(): boolean; refuse(code: string, details?: unknown): never }
+export interface GeneratedMutationContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> extends GeneratedQueryContext<Auth> { readonly db: GeneratedMutationDatabase; readonly membership: GeneratedMembership; readonly jobs: { enqueue(name: string, args: Readonly<Record<string, unknown>>, options?: Readonly<Record<string, unknown>>): Promise<unknown> } }
+export interface GeneratedActionContext<Auth extends GeneratedAuthContext = GeneratedAuthContext> { readonly auth: Auth; readonly runtime: GeneratedRuntimeContext; readonly assets: any; readonly secrets: { get(name: string): any; rotating(name: string): any }; readonly run: unknown; readonly cron: unknown; isDirectHuman(): boolean; runMutation(name: string, args: Readonly<Record<string, unknown>>): Promise<unknown>; fetch(request: Readonly<Record<string, unknown>>): Promise<any>; fetchStream(request: Readonly<Record<string, unknown>>): Promise<any>; readonly streamAttempt: any; refuse(code: string, details?: unknown): never }
 export interface GeneratedFunctionContexts {
   clearReservations: GeneratedMutationContext;
   reservationsForSlot: GeneratedQueryContext;
   reserve: GeneratedMutationContext;
+  resourceList: GeneratedQueryContext;
   schedule: GeneratedQueryContext;
 }
 export interface GeneratedEphemeral {
@@ -97,12 +203,17 @@ export interface GeneratedApi {
   clearReservations: FunctionReference<'clearReservations', 'Mutation', Record<string, never>, number>;
   reservationsForSlot: FunctionReference<'reservationsForSlot', 'LiveQuery', { slotKey: string; ownerId: string }, ReadonlyArray<GeneratedDataModel["reservations"]>>;
   reserve: FunctionReference<'reserve', 'Mutation', { idempotencyKey: string; resourceKey: string; slotKey: string; ownerId: string; title: string; now: number }, Id<"reservations">>;
+  resourceList: FunctionReference<'resourceList', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["resources"]>>;
   schedule: FunctionReference<'schedule', 'LiveQuery', Record<string, never>, ReadonlyArray<GeneratedDataModel["reservations"]>>;
   ephemeral: GeneratedEphemeral;
   groups: GeneratedQueryGroups;
 }
+export type GeneratedFunctionName = keyof GeneratedFunctionContexts & keyof GeneratedApi;
+export type GeneratedHandler<Name extends GeneratedFunctionName> = GeneratedApi[Name] extends FunctionReference<string, FunctionKind, infer Args, infer Result> ? (ctx: GeneratedFunctionContexts[Name], args: Args) => Result | Promise<Result> : never;
 export declare const ephemeral: GeneratedEphemeral;
 export declare const groups: GeneratedQueryGroups;
-export declare const defaults: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+export interface GeneratedAssetUploadDefaults {
+}
+export declare const defaults: GeneratedAssetUploadDefaults;
 export declare const api: GeneratedApi;
 export default api;

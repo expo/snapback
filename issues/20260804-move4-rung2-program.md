@@ -34,6 +34,21 @@ Commissioned separately from the ruling per 0129's machinery, mirroring
   ordering/filtering/count lifecycle. Transcribed exit gate with a
   dated served-run fixture, per the Move-3 Kanban exit's shape.
 
+## Execution note — 2026-08-04
+
+W1's exact-workload recommendation governs the implementation: Contention
+Calendar is expressible with one generated `Insert` and the existing
+`snapback.browser-ir.insert-get-guard-patch.v1` ceiling. The candidate verb
+inventory is empty (`AllocateSequence`: 0, `Delete`: 0, `Let`: 0). W2 and W3
+are therefore no-ops for this Calendar exit; no evaluator export, codegen
+admission, or D5 corpus extension is warranted by the workload.
+
+W4 is authored in `demos/zero-bakeoff/apps/contention-calendar/` with the
+transcribed gate at `tests/acceptance/contention-calendar-rung2-v1.mjs`.
+Presentation remains pending the orchestrator-owned served run and dated
+receipt. This records the W1 reading for execution and does not broaden the
+author's ruling into an Option-C or decision-lab claim.
+
 ## Standing constraints (from the ruling)
 
 Candidate-A substrate work under rung 1's authority; no Option-C

@@ -5,6 +5,7 @@ export interface SnapbackContractLinks {
   clearReservations(args: Record<string, never>): unknown;
   reservationsForSlot(args: { slotKey: string; ownerId: string }): unknown;
   reserve(args: { idempotencyKey: string; resourceKey: string; slotKey: string; ownerId: string; title: string; now: number }): unknown;
+  resourceList(args: Record<string, never>): unknown;
   schedule(args: Record<string, never>): unknown;
 }
 

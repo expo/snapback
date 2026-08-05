@@ -3,13 +3,13 @@
   "capabilities": {
     "claims": {
       "branchableFixtures": false,
-      "derivedOptimisticOverlays": false,
+      "derivedOptimisticOverlays": true,
       "forceStates": true,
       "headlessBoot": true,
       "initialSnapshot": true,
       "localReplica": false,
       "offlineReplay": false,
-      "optimisticMutations": false,
+      "optimisticMutations": true,
       "rowSyncState": true,
       "serverRunnableQueries": true,
       "subscriptions": true
@@ -99,7 +99,7 @@
         },
         "contract": {
           "argumentsHash": "sha256:cb710277debe850d8fb6785162929db30f826c4a5d8ecada88411db05fcfcc81",
-          "implementationHash": "sha256:3e8673acc58deff9d3b791b85564871dc4d7f27b3295c8983273355158179efe",
+          "implementationHash": "sha256:f1b9530e4bf51e34e95c941fc68431d8d0fae6ef8b020d70e979ee51dca8f11f",
           "result": {
             "kind": "value",
             "value": {
@@ -122,10 +122,60 @@
           "localRunnable": false,
           "serverRunnable": true
         },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": {
+                "Binding": "reservationId"
+              },
+              "steps": [
+                {
+                  "Insert": {
+                    "bind_id_as": "reservationId",
+                    "table": "reservations",
+                    "values": {
+                      "createdAt": {
+                        "Arg": "now"
+                      },
+                      "idempotencyKey": {
+                        "Arg": "idempotencyKey"
+                      },
+                      "ownerId": {
+                        "Arg": "ownerId"
+                      },
+                      "resourceKey": {
+                        "Arg": "resourceKey"
+                      },
+                      "resourceSlotKey": {
+                        "Concat": [
+                          {
+                            "Arg": "resourceKey"
+                          },
+                          {
+                            "Literal": "|"
+                          },
+                          {
+                            "Arg": "slotKey"
+                          }
+                        ]
+                      },
+                      "slotKey": {
+                        "Arg": "slotKey"
+                      },
+                      "title": {
+                        "Arg": "title"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
         "name": "reserve",
         "optimistic": {
-          "source": "none",
-          "supported": false
+          "source": "provider-plan",
+          "supported": true
         }
       }
     ],
@@ -341,6 +391,137 @@
         },
         "contract": {
           "argumentsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+          "implementationHash": "sha256:4719035ac68eff06c4e9655e0061275cd8c7f275e9e1b5e5736c8f32533979f2",
+          "result": {
+            "document": {
+              "allowExtra": false,
+              "fields": [
+                {
+                  "name": "_id",
+                  "required": true,
+                  "value": {
+                    "kind": "id",
+                    "table": "resources"
+                  }
+                },
+                {
+                  "name": "_version",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_createdAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "_updatedAt",
+                  "required": true,
+                  "value": {
+                    "kind": "integer",
+                    "max": 9007199254740991,
+                    "min": 0
+                  }
+                },
+                {
+                  "name": "key",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                },
+                {
+                  "name": "title",
+                  "required": true,
+                  "value": {
+                    "kind": "string",
+                    "maxBytes": 1048576
+                  }
+                }
+              ],
+              "kind": "object"
+            },
+            "kind": "documents",
+            "table": "resources"
+          },
+          "resultHash": "sha256:e336a4d9ca12f646f47195ff4f28593cfc1a3b61c4cc26a155e35254f1d0203c",
+          "revision": "snapback.result-contract.v1"
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "resources"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "resourceList",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "key": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "contract": {
+          "argumentsHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
           "implementationHash": "sha256:426c55946515d2c0e56bf6272b6fbe9efd9219c3065706dd90459ec05bf36858",
           "result": {
             "document": {
@@ -534,8 +715,8 @@
   },
   "schemaVersion": "provider-introspection.v1",
   "source": {
-    "implementationHash": "sha256:528550ec64be5b22",
-    "inputsHash": "219f0837561b0601baef99bd4495f9f9d8b3b3ed9c95e0dec2a5aa3e1bbe083b",
-    "schemaHash": "sha256:75e69d5b58e4b3ed"
+    "implementationHash": "sha256:c090746da9251574",
+    "inputsHash": "3989e4954d30583eea1d60a05251dab5ca3b755b9c5878695feda426897ebb5c",
+    "schemaHash": "sha256:553168120ed3092b"
   }
 }
