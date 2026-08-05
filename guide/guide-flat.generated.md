@@ -6756,7 +6756,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: ef39198a819669f832d93be65dfbcf6686025a6b
+reviewed-commit: e8e9ada94aa7354a5f8845ee0199d4bbe0bc5746
 ---
 
 # The artifact-driven app CLI
