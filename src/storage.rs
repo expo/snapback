@@ -9812,7 +9812,7 @@ fn query_on_with_storage_limit_visibility_keyset(
                 },
             )?;
         }
-        let mut statement = conn.prepare_cached(&sql)?;
+        let mut statement = conn.prepare(&sql)?;
         let columns = statement
             .column_names()
             .into_iter()

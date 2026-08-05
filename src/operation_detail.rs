@@ -12,6 +12,9 @@ use std::{
     sync::Mutex,
 };
 
+#[cfg(unix)]
+use std::{ffi::CStr, ffi::OsStr, os::unix::ffi::OsStrExt as _};
+
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use chacha20poly1305::{
     XChaCha20Poly1305, XNonce,
@@ -320,40 +323,41 @@ fn authenticate_retained_ciphertext(
     Ok(())
 }
 
-/// Install one process-local key projection. Existing ciphertext makes a
-/// missing/corrupt sidecar a hard fail-closed condition. An empty database
-/// registers the direct-only function without reading, minting, or persisting
-/// a key; the function initializes custody on its first seal.
+/// Install one process-local key projection when retained ciphertext requires
+/// it. Existing ciphertext makes a missing/corrupt sidecar a hard fail-closed
+/// condition. An empty database stays fully dormant until its first seal.
 pub(crate) fn install(conn: &Connection, database_path: Option<&Path>) -> SnapbackResult<()> {
     let retained_ciphertext = retained_ciphertext_exists(conn)?;
+    if !retained_ciphertext {
+        return Ok(());
+    }
     let persisted = database_path.map(keyring_path);
-    let custody = if retained_ciphertext {
-        let loaded = persisted
-            .as_deref()
-            .and_then(|path| load_key(path).ok())
-            .ok_or_else(|| {
-                invalid(
-                    "protected operation detail exists but its owner-only key sidecar is unavailable",
-                )
-            })?;
-        let mismatched: bool = conn.query_row(
-            "SELECT EXISTS(
+    let loaded = persisted
+        .as_deref()
+        .and_then(|path| load_key(path).ok())
+        .ok_or_else(|| {
+            invalid(
+                "protected operation detail exists but its owner-only key sidecar is unavailable",
+            )
+        })?;
+    let mismatched: bool = conn.query_row(
+        "SELECT EXISTS(
                SELECT 1 FROM _snapback_operation_protected_detail_v1
                 WHERE key_id<>?1 LIMIT 1
              )",
-            [&loaded.key_id],
-            |row| row.get(0),
-        )?;
-        if mismatched {
-            return Err(invalid(
-                "protected operation detail does not match its owner-only key sidecar",
-            ));
-        }
-        authenticate_retained_ciphertext(conn, &loaded.key_id, &loaded.secret)?;
-        LazyCustodyKey::with_loaded(persisted, loaded)
-    } else {
-        LazyCustodyKey::for_empty_database(persisted)
-    };
+        [&loaded.key_id],
+        |row| row.get(0),
+    )?;
+    if mismatched {
+        return Err(invalid(
+            "protected operation detail does not match its owner-only key sidecar",
+        ));
+    }
+    authenticate_retained_ciphertext(conn, &loaded.key_id, &loaded.secret)?;
+    register_crypto_function(conn, LazyCustodyKey::with_loaded(persisted, loaded))
+}
+
+fn register_crypto_function(conn: &Connection, custody: LazyCustodyKey) -> SnapbackResult<()> {
     let custody = Mutex::new(custody);
     // The function returns only ciphertext or plaintext, never the root key.
     // @ref LLP 0163#implementation-record--2026-08-04-explanation-and-protected-custody — protected crypto stays connection-local without retaining a second SQLite pager or projecting the key through SQL.
@@ -452,6 +456,58 @@ pub(crate) fn install(conn: &Connection, database_path: Option<&Path>) -> Snapba
     Ok(())
 }
 
+fn database_path(conn: &Connection) -> Option<PathBuf> {
+    #[cfg(unix)]
+    {
+        // SAFETY: `conn.handle()` is used only for this immediate SQLite
+        // metadata lookup, `main\0` is a valid C string, and the returned
+        // connection-owned bytes are copied before this function returns.
+        let bytes = unsafe {
+            let filename =
+                rusqlite::ffi::sqlite3_db_filename(conn.handle(), b"main\0".as_ptr().cast());
+            (!filename.is_null()).then(|| CStr::from_ptr(filename).to_bytes().to_vec())
+        }?;
+        (!bytes.is_empty()).then(|| PathBuf::from(OsStr::from_bytes(&bytes)))
+    }
+    #[cfg(not(unix))]
+    {
+        conn.path()
+            .filter(|path| !path.is_empty())
+            .map(PathBuf::from)
+    }
+}
+
+fn crypto_function_is_missing(error: &rusqlite::Error) -> bool {
+    let expected = format!("no such function: {KEY_CRYPTO_FUNCTION}");
+    match error {
+        rusqlite::Error::SqliteFailure(_, Some(detail)) => detail == &expected,
+        rusqlite::Error::SqlInputError { msg, .. } => msg == &expected,
+        _ => false,
+    }
+}
+
+fn install_crypto_function_for_first_seal(conn: &Connection) -> SnapbackResult<()> {
+    let database_path = database_path(conn);
+    if retained_ciphertext_exists(conn)? {
+        return install(conn, database_path.as_deref());
+    }
+    let persisted = database_path.as_deref().map(keyring_path);
+    register_crypto_function(conn, LazyCustodyKey::for_empty_database(persisted))
+}
+
+#[cfg(test)]
+fn crypto_function_is_installed(conn: &Connection) -> SnapbackResult<bool> {
+    conn.query_row(
+        "SELECT EXISTS(
+           SELECT 1 FROM pragma_function_list
+            WHERE name=?1 AND builtin=0
+         )",
+        [KEY_CRYPTO_FUNCTION],
+        |row| row.get(0),
+    )
+    .map_err(Into::into)
+}
+
 fn aad(custody_reference: &str, payload_digest: &str) -> Vec<u8> {
     let mut aad = PURPOSE.to_vec();
     for value in [custody_reference.as_bytes(), payload_digest.as_bytes()] {
@@ -473,13 +529,32 @@ pub(crate) fn seal_in(
     );
     let payload_bytes = u64::try_from(plaintext.len())
         .map_err(|_| invalid("protected operation detail length overflowed"))?;
-    let response: Vec<u8> = tx
-        .query_row(
-            &format!("SELECT {KEY_CRYPTO_FUNCTION}('seal-v1',?1,?2,?3)"),
+    let statement = format!("SELECT {KEY_CRYPTO_FUNCTION}('seal-v1',?1,?2,?3)");
+    let invoke = || {
+        tx.query_row(
+            &statement,
             params![custody_reference, payload_digest, plaintext.as_slice()],
             |row| row.get(0),
         )
-        .map_err(|_| invalid("protected operation detail crypto is not installed"))?;
+    };
+    let response: Vec<u8> = match invoke() {
+        Ok(response) => response,
+        Err(error) if crypto_function_is_missing(&error) => {
+            // Empty databases retain no custody function or mutex. The first
+            // actual protected write installs the connection-local DIRECTONLY
+            // carrier and retries the still-unexecuted crypto statement.
+            // Retained ciphertext remains a boot-time fail-closed condition in
+            // `install`.
+            // @ref LLP 0163#implementation-record--2026-08-04-explanation-and-protected-custody — protected custody is lazy for empty stores but mandatory before ciphertext exists.
+            install_crypto_function_for_first_seal(tx)?;
+            invoke().map_err(|_| invalid("protected operation detail crypto is not installed"))?
+        }
+        Err(_) => {
+            return Err(invalid(
+                "protected operation detail crypto is not installed",
+            ));
+        }
+    };
     match response.as_slice() {
         [CRYPTO_RESPONSE_METADATA_INVALID] => {
             return Err(invalid(
@@ -656,9 +731,19 @@ mod tests {
 
     #[test]
     fn installed_crypto_refuses_indirect_schema_invocation() {
-        let conn = Connection::open_in_memory().expect("database");
+        let mut conn = Connection::open_in_memory().expect("database");
         install(&conn, None).expect("install protected custody");
         let digest = format!("sha256:{}", "a".repeat(64));
+        let tx = conn.transaction().expect("protected detail transaction");
+        crate::operation_ledger::create_infra(&tx).expect("operation infra");
+        seal_in(
+            &tx,
+            "operation-detail:test:direct-only",
+            &digest,
+            &json!({ "secret": "install-function" }),
+        )
+        .expect("first seal installs protected custody");
+        tx.commit().expect("commit protected detail");
         conn.execute_batch(&format!(
             "CREATE VIEW _snapback_operation_detail_indirect_probe_v1 AS
              SELECT {KEY_CRYPTO_FUNCTION}(
@@ -696,6 +781,10 @@ mod tests {
 
         install(&conn, Some(&database)).expect("install lazy protected custody");
         assert!(
+            !crypto_function_is_installed(&conn).expect("inspect crypto registration"),
+            "opening an empty database must not retain the protected-detail crypto function"
+        );
+        assert!(
             !key_path.exists(),
             "opening an empty database must not mint a protected-detail sidecar"
         );
@@ -718,6 +807,10 @@ mod tests {
         seal_in(&tx, "operation-detail:test:lazy", &digest, &expected)
             .expect("first seal initializes protected custody");
         assert!(
+            crypto_function_is_installed(&tx).expect("inspect crypto registration"),
+            "the first protected write must install the direct-only crypto function"
+        );
+        assert!(
             persisted_file_has_key(&database),
             "the first protected write must persist its owner-only sidecar before the row"
         );
@@ -728,6 +821,56 @@ mod tests {
         install(&reopened, Some(&database)).expect("authenticate retained custody at boot");
         assert_eq!(
             open(&reopened, "operation-detail:test:lazy", &digest)
+                .expect("open protected detail after restart"),
+            Some(expected)
+        );
+    }
+
+    // APFS refuses non-UTF-8 filenames, so this Unix path-carrier regression
+    // is executable on platforms whose filesystems admit the SQLite name.
+    #[cfg(all(unix, not(target_os = "macos")))]
+    #[test]
+    fn non_utf8_database_path_persists_first_seal_custody_and_reopens() {
+        use std::{ffi::OsString, os::unix::ffi::OsStringExt as _};
+
+        let directory = tempfile::tempdir().expect("tempdir");
+        let database = directory
+            .path()
+            .join(OsString::from_vec(b"app-\xFF.sqlite3".to_vec()));
+        let key_path = keyring_path(&database);
+        let mut conn = Connection::open(&database).expect("non-UTF-8 database");
+        install(&conn, Some(&database)).expect("install dormant protected custody");
+        let tx = conn.transaction().expect("infra transaction");
+        crate::operation_ledger::create_infra(&tx).expect("operation infra");
+        tx.commit().expect("commit infra");
+
+        let digest = format!("sha256:{}", "f".repeat(64));
+        let expected = json!({ "secret": "non-utf8-path" });
+        let tx = conn.transaction().expect("protected detail transaction");
+        seal_in(
+            &tx,
+            "operation-detail:test:non-utf8-path",
+            &digest,
+            &expected,
+        )
+        .expect("first seal recovers the raw SQLite filename");
+        tx.commit().expect("commit protected detail");
+        assert!(
+            persisted_file_has_key(&database),
+            "first seal on a non-UTF-8 path must persist its sidecar"
+        );
+        assert_eq!(
+            key_path,
+            directory
+                .path()
+                .join("snapback.db.operation-detail-keyring.json")
+        );
+        drop(conn);
+
+        let reopened = Connection::open(&database).expect("reopen non-UTF-8 database");
+        install(&reopened, Some(&database)).expect("authenticate retained custody at boot");
+        assert_eq!(
+            open(&reopened, "operation-detail:test:non-utf8-path", &digest)
                 .expect("open protected detail after restart"),
             Some(expected)
         );
