@@ -10174,6 +10174,12 @@ impl TargetCapabilityFacts {
         self
     }
 
+    fn with_agent_safe_publication_withheld(mut self) -> Self {
+        self.local_agent_safe_storage_publication_v1_verified = false;
+        self.local_agent_safe_derived_fork_publication_v1_verified = false;
+        self
+    }
+
     #[cfg(test)]
     fn with_sequence_allocation_publication_withheld(mut self) -> Self {
         self.sequence_allocation_v1_registered = false;
@@ -11344,14 +11350,22 @@ fn ensure_mixed_bundle_capability_gap(gaps: &mut Vec<String>) {
 }
 
 fn ensure_agent_safe_capability_gaps(gaps: &mut Vec<String>) {
-    for gap in [
-        "agent_safe_storage_v1",
-        "agent_safe_derived_deployment_fork_v1",
-    ] {
-        if !gaps.iter().any(|existing| existing == gap) {
-            gaps.push(gap.to_owned());
-        }
-    }
+    let insertion_index = gaps
+        .iter()
+        .position(|gap| {
+            gap == "agent_safe_storage_v1" || gap == "agent_safe_derived_deployment_fork_v1"
+        })
+        .unwrap_or(gaps.len());
+    gaps.retain(|gap| {
+        gap != "agent_safe_storage_v1" && gap != "agent_safe_derived_deployment_fork_v1"
+    });
+    gaps.splice(
+        insertion_index..insertion_index,
+        [
+            "agent_safe_storage_v1".to_owned(),
+            "agent_safe_derived_deployment_fork_v1".to_owned(),
+        ],
+    );
 }
 
 impl CapabilityManifest {
@@ -11620,7 +11634,10 @@ impl CapabilityManifest {
         ensure_relation_activity_capability_gaps(&mut manifest.capability_gaps);
         let mut facts = TargetCapabilityFacts::local_auth_aware()
             .with_relation_activity_publication_withheld()
-            .with_local_persistent_store_publication_withheld();
+            .with_local_persistent_store_publication_withheld()
+            // @ref LLP 0162#8-capability-honesty — a local publication may
+            // not become evidence for this independently qualified target.
+            .with_agent_safe_publication_withheld();
         facts.full_text_search_v1_registered = false;
         facts.vector_search_v1_registered = false;
         facts.asset_lifecycle_local_fs_registered = false;
@@ -11931,6 +11948,12 @@ impl CapabilityManifest {
                     .push(crate::vector::VECTOR_CAPABILITY.to_owned());
             }
         }
+        // Re-establish the closed pair at its original position before
+        // support removes either member. Derived targets can inherit a local
+        // declaration where storage was published and therefore absent from
+        // the GAP list; appending it at the tail would make their committed
+        // projection order depend on a sibling target's publication state.
+        ensure_agent_safe_capability_gaps(&mut self.capability_gaps);
         for id in [
             TargetCapabilityId::AgentSafeStorageV1,
             TargetCapabilityId::AgentSafeDerivedDeploymentForkV1,
@@ -12094,6 +12117,35 @@ mod agent_safe_capability_tests {
                 assert!(!manifest.supported_capabilities.contains(&id));
             }
         }
+    }
+
+    #[test]
+    fn remote_projection_withholds_even_verified_local_agent_safe_publications() {
+        let local_published = TargetCapabilityFacts {
+            local_agent_safe_storage_publication_v1_verified: true,
+            local_agent_safe_derived_fork_publication_v1_verified: true,
+            ..TargetCapabilityFacts::local_auth_aware()
+        };
+        let remote = local_published.with_agent_safe_publication_withheld();
+
+        assert!(!remote.local_agent_safe_storage_publication_v1_verified);
+        assert!(!remote.local_agent_safe_derived_fork_publication_v1_verified);
+
+        let mut inherited_gaps = vec![
+            "before".to_owned(),
+            "agent_safe_derived_deployment_fork_v1".to_owned(),
+            "after".to_owned(),
+        ];
+        ensure_agent_safe_capability_gaps(&mut inherited_gaps);
+        assert_eq!(
+            inherited_gaps,
+            [
+                "before",
+                "agent_safe_storage_v1",
+                "agent_safe_derived_deployment_fork_v1",
+                "after",
+            ]
+        );
     }
 
     #[test]
