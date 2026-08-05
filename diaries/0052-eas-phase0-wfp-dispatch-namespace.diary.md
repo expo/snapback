@@ -164,9 +164,12 @@ Workers.dev route stabilizes. Two later clean-source attempts proved that
 waiting for three instantaneous all-200 rounds was itself brittle: one run had
 550 valid responses and 170 intermittent 404s without ever getting that streak.
 The final protocol instead runs three body-verified rounds with eight
-independently bounded retry lanes. It passed after absorbing 149 transient 404s
-and two 500s; the slowest lane needed 43 attempts. The namespace barrier then
-observed 36 structured `Worker not found.` responses before passing three clean
-eight-way rounds at round 65. All 23 P0.1 checks passed, the stale-fetch attack
-failed closed, native CPU terminated on attempt four, and four exact
+independently bounded retry lanes. One qualifying run passed after absorbing
+149 transient 404s and two 500s; the slowest lane needed 43 attempts. The final
+retained rerun also proved that ordinary assertions retry unstructured route
+404s without retrying structured `SNAPBACK_*` application errors: it absorbed
+22 404s and one 500, then the namespace barrier observed 58 structured
+`Worker not found.` responses before passing at round 46. All 23 P0.1 checks
+passed, the stale-fetch attack failed closed on module sequence 54 after being
+retained at 53, native CPU terminated on attempt five, and four exact
 post-cleanup lookups returned 404.

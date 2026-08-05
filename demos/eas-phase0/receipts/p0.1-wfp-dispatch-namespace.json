@@ -1,7 +1,7 @@
 {
   "receipt": "eas-phase0/p0.1/wfp-dispatch-namespace",
   "date": "2026-08-05",
-  "startedAt": "2026-08-05T06:47:22.532Z",
+  "startedAt": "2026-08-05T06:52:12.138Z",
   "command": "CLOUDFLARE_ACCOUNT_ID=<account-id> CLOUDFLARE_API_TOKEN=<token> node demos/eas-phase0/spikes/p0.1-wfp-dispatch-namespace.mjs --namespace eas-p0-spike-20260803",
   "authority": {
     "plan": "LLP 0105 §P0.1 WfP handler and host bridge",
@@ -13,7 +13,7 @@
     "enablementReceipt": "demos/eas-phase0/receipts/p0-access-wfp-enabled.json"
   },
   "repository": {
-    "sha": "b4abfff9b5d5a7e66566ac3573ea089c421c6384",
+    "sha": "7255e1f5e81adc87147bcde65a3a35d2c5c59884",
     "dirty": false
   },
   "cloudflare": {
@@ -21,7 +21,7 @@
     "accountIdRedacted": true,
     "tokenPosture": "account-scoped API token from the LLP 0040 credential store; value not retained",
     "namespace": "eas-p0-spike-20260803",
-    "runId": "f84346",
+    "runId": "2dbc53",
     "namespaceTrustedWorkers": null,
     "compatibilityDate": "2026-07-01",
     "compatibilityFlags": [],
@@ -48,7 +48,7 @@
         "namespace": "eas-p0-spike-20260803",
         "outbound": {
           "worker": {
-            "service": "snapback-eas-p0-20260803-f84346-outbound"
+            "service": "snapback-eas-p0-20260803-2dbc53-outbound"
           },
           "params": [
             {
@@ -73,7 +73,7 @@
         "namespace": "eas-p0-spike-20260803"
       }
     ],
-    "dispatcherUrl": "https://snapback-eas-p0-20260803-f84346-dispatch.ccheever-0f6.workers.dev",
+    "dispatcherUrl": "https://snapback-eas-p0-20260803-2dbc53-dispatch.ccheever-0f6.workers.dev",
     "dispatcherEdgeActivationObservation": {
       "stable": true,
       "controlPlanePost": {
@@ -86,12 +86,12 @@
       },
       "dns": {
         "ipv4": [
-          "172.67.139.211",
-          "104.21.62.221"
+          "104.21.62.221",
+          "172.67.139.211"
         ],
         "ipv6": [
-          "2606:4700:3032::6815:3edd",
-          "2606:4700:3030::ac43:8bd3"
+          "2606:4700:3030::ac43:8bd3",
+          "2606:4700:3032::6815:3edd"
         ],
         "errors": []
       },
@@ -106,1505 +106,11 @@
           "results": [
             {
               "lane": 0,
-              "attempt": 4,
-              "status": 200,
-              "ok": true,
-              "generatedNotFound": false,
-              "cfRay": "a263d9f45a9fab58-SJC",
-              "cfCacheStatus": null,
-              "age": null,
-              "server": "cloudflare",
-              "activationAttempts": 4,
-              "attempts": [
-                {
-                  "attempt": 1,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9df1ccc91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 2,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9e75e2cebe7-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 3,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9eddaa4c65e-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 4,
-                  "status": 200,
-                  "ok": true,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9f45a9fab58-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                }
-              ]
-            },
-            {
-              "lane": 1,
-              "attempt": 40,
-              "status": 200,
-              "ok": true,
-              "generatedNotFound": false,
-              "cfRay": "a263daef29e1ebed-SJC",
-              "cfCacheStatus": null,
-              "age": null,
-              "server": "cloudflare",
-              "activationAttempts": 40,
-              "attempts": [
-                {
-                  "attempt": 1,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9df1b3cebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 2,
-                  "status": 500,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9e75894cee1-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 3,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9ef7f4391f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 4,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9f699f1ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 5,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9fd58e6ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 6,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da046a5aebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 7,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da0b1aaaebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 8,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da11bab5ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 9,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da18ec69ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 10,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da203b0591f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 11,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da276b5091f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 12,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da2f3ae8ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 13,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da35ca68ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 14,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da3d2d28ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 15,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da43ad5f91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 16,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da4b0cdc91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 17,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da51daf691f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 18,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da589fec91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 19,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da5fbee191f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 20,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da66acfd91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 21,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da6d2b3191f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 22,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da747b3c91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 23,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da7b092d91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 24,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da8198a8ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 25,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da88c99cebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 26,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da8f3ac691f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 27,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da971d4d91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 28,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da9dfc25ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 29,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263daa4fda5ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 30,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263daab8ad091f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 31,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dab2093d91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 32,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dab90eddebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 33,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dabfa83eebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 34,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dac62ffbebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 35,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dacd0fcaebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 36,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dad4092debed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 37,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dadae918eb20-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 38,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dae208e0eb20-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 39,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dae8a876eb20-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 40,
-                  "status": 200,
-                  "ok": true,
-                  "generatedNotFound": false,
-                  "cfRay": "a263daef29e1ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                }
-              ]
-            },
-            {
-              "lane": 2,
-              "attempt": 3,
-              "status": 200,
-              "ok": true,
-              "generatedNotFound": false,
-              "cfRay": "a263d9edd931ab58-SJC",
-              "cfCacheStatus": null,
-              "age": null,
-              "server": "cloudflare",
-              "activationAttempts": 3,
-              "attempts": [
-                {
-                  "attempt": 1,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9df1fedab58-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 2,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9e74e9191f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 3,
-                  "status": 200,
-                  "ok": true,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9edd931ab58-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                }
-              ]
-            },
-            {
-              "lane": 3,
-              "attempt": 12,
-              "status": 200,
-              "ok": true,
-              "generatedNotFound": false,
-              "cfRay": "a263da2a0fab0dac-SJC",
-              "cfCacheStatus": null,
-              "age": null,
-              "server": "cloudflare",
-              "activationAttempts": 12,
-              "attempts": [
-                {
-                  "attempt": 1,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9df1c58c65e-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 2,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9e74918c65e-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 3,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9edde7aebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 4,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9f44d20ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 5,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9fabb52ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 6,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da012a2aebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 7,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da07895791f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 8,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da0e3e1a91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 9,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da14ab3691f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 10,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da1b387591f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 11,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da21b997ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 12,
-                  "status": 200,
-                  "ok": true,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da2a0fab0dac-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                }
-              ]
-            },
-            {
-              "lane": 4,
-              "attempt": 43,
-              "status": 200,
-              "ok": true,
-              "generatedNotFound": false,
-              "cfRay": "a263dafbf8f691f0-SJC",
-              "cfCacheStatus": null,
-              "age": null,
-              "server": "cloudflare",
-              "activationAttempts": 43,
-              "attempts": [
-                {
-                  "attempt": 1,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9df19abebe7-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 2,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9e74e7cebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 3,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9eddbf591f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 4,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9f448c691f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 5,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9fabdfd91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 6,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da012cb491f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 7,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da079a23ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 8,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da0e4a4debed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 9,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da14b9bcebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 10,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da1b39fdebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 11,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da21beb091f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 12,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da2a0bd7b1ae-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 13,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da30880291f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 14,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da371cc791f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 15,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da3db98b91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 16,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da446ef491f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 17,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da4c7df22b29-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 18,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da52fd5e91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 19,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da59ea8291f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 20,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da60785a91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 21,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da676e8d91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 22,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da6e0d7591f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 23,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da754d0f91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 24,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da7bcae491f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 25,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da82496d91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 26,
-                  "status": 500,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da8abd35ce4c-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 27,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da923a2791f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 28,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da98d97591f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 29,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da9f4eb491f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 30,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263daa5bc8d91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 31,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263daac3c5d91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 32,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dab29aa291f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 33,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dab94c25eb20-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 34,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dabfc93deb20-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 35,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dac63f40eb20-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 36,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dacd0cadeb20-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 37,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dad40e9c91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 38,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dadaedeb91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 39,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dae20bfd91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 40,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dae8a89c91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 41,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263daef2e5491f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 42,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263daf58c1491f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 43,
-                  "status": 200,
-                  "ok": true,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dafbf8f691f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                }
-              ]
-            },
-            {
-              "lane": 5,
-              "attempt": 39,
-              "status": 200,
-              "ok": true,
-              "generatedNotFound": false,
-              "cfRay": "a263dae8aa4aebed-SJC",
-              "cfCacheStatus": null,
-              "age": null,
-              "server": "cloudflare",
-              "activationAttempts": 39,
-              "attempts": [
-                {
-                  "attempt": 1,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9dfce10cee1-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 2,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9e8283791f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 3,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9ef7a65ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 4,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9f68d0891f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 5,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9fd4baf91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 6,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da046afb91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 7,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da0b1fde91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 8,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da11bc8291f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 9,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da18ec4191f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 10,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da203df6ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 11,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da2768b8ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 12,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da2f3d5691f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 13,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da35ca3391f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 14,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da3d286f91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 15,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da43ae11ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 16,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da4b0857ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 17,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da51d8d9ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 18,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da58981debed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 19,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da5fb94bebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 20,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da66aa5aebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 21,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da6d2a3cebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 22,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da747a76ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 23,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da7b095aebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 24,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da81980f91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 25,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da88cecd91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 26,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da8f48f4ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 27,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da971ba9ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 28,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263da9dfc2e91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 29,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263daa4fae891f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 30,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263daab8ca1ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 31,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dab20c5cebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 32,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dab9092791f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 33,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dabfafea91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 34,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dac61e4a91f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 35,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dacd0f2191f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 36,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dad40b7feb20-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 37,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dadaea13ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 38,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dae20ab0ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 39,
-                  "status": 200,
-                  "ok": true,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dae8aa4aebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                }
-              ]
-            },
-            {
-              "lane": 6,
               "attempt": 2,
               "status": 200,
               "ok": true,
               "generatedNotFound": false,
-              "cfRay": "a263d9e74dceab58-SJC",
+              "cfRay": "a263e0f7cba3eb21-SJC",
               "cfCacheStatus": null,
               "age": null,
               "server": "cloudflare",
@@ -1615,7 +121,7 @@
                   "status": 404,
                   "ok": false,
                   "generatedNotFound": false,
-                  "cfRay": "a263d9df1823f9e4-SJC",
+                  "cfRay": "a263e0f10df4eb21-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -1625,7 +131,251 @@
                   "status": 200,
                   "ok": true,
                   "generatedNotFound": false,
-                  "cfRay": "a263d9e74dceab58-SJC",
+                  "cfRay": "a263e0f7cba3eb21-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 1,
+              "attempt": 3,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263e0fe380aeb21-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 3,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0f10fce7ac7-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0f7cad8f31f-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 3,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0fe380aeb21-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 2,
+              "attempt": 2,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263e0f7ca907ac7-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 2,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0f12b843451-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0f7ca907ac7-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 3,
+              "attempt": 2,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263e0f7ca923451-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 2,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0f10dacf31f-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0f7ca923451-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 4,
+              "attempt": 3,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263e0ff49f9eb21-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 3,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0f14f8d5527-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 500,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0f7dcf75cfb-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 3,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0ff49f9eb21-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 5,
+              "attempt": 3,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263e0fe5843eb21-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 3,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0f14ffc963f-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0f7dd0215be-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 3,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0fe5843eb21-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 6,
+              "attempt": 3,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263e0fe49c23451-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 3,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0f12a3215be-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0f7de5c963f-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 3,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0fe49c23451-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -1634,22 +384,22 @@
             },
             {
               "lane": 7,
-              "attempt": 4,
+              "attempt": 3,
               "status": 200,
               "ok": true,
               "generatedNotFound": false,
-              "cfRay": "a263d9f46cc5c65e-SJC",
+              "cfRay": "a263e0fe4d5d7ac7-SJC",
               "cfCacheStatus": null,
               "age": null,
               "server": "cloudflare",
-              "activationAttempts": 4,
+              "activationAttempts": 3,
               "attempts": [
                 {
                   "attempt": 1,
                   "status": 404,
                   "ok": false,
                   "generatedNotFound": false,
-                  "cfRay": "a263d9df1af1eb24-SJC",
+                  "cfRay": "a263e0f118115cfb-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -1659,27 +409,17 @@
                   "status": 404,
                   "ok": false,
                   "generatedNotFound": false,
-                  "cfRay": "a263d9e75ae6f9e4-SJC",
+                  "cfRay": "a263e0f7dc585527-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
                 },
                 {
                   "attempt": 3,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263d9eddd21ebe7-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 4,
                   "status": 200,
                   "ok": true,
                   "generatedNotFound": false,
-                  "cfRay": "a263d9f46cc5c65e-SJC",
+                  "cfRay": "a263e0fe4d5d7ac7-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -1698,7 +438,7 @@
               "status": 200,
               "ok": true,
               "generatedNotFound": false,
-              "cfRay": "a263dafc396291f0-SJC",
+              "cfRay": "a263e0ff7a36eb21-SJC",
               "cfCacheStatus": null,
               "age": null,
               "server": "cloudflare",
@@ -1709,7 +449,7 @@
                   "status": 200,
                   "ok": true,
                   "generatedNotFound": false,
-                  "cfRay": "a263dafc396291f0-SJC",
+                  "cfRay": "a263e0ff7a36eb21-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -1722,7 +462,7 @@
               "status": 200,
               "ok": true,
               "generatedNotFound": false,
-              "cfRay": "a263dafc382aebed-SJC",
+              "cfRay": "a263e0ff7de07ac7-SJC",
               "cfCacheStatus": null,
               "age": null,
               "server": "cloudflare",
@@ -1733,7 +473,7 @@
                   "status": 200,
                   "ok": true,
                   "generatedNotFound": false,
-                  "cfRay": "a263dafc382aebed-SJC",
+                  "cfRay": "a263e0ff7de07ac7-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -1742,32 +482,22 @@
             },
             {
               "lane": 2,
-              "attempt": 2,
+              "attempt": 1,
               "status": 200,
               "ok": true,
               "generatedNotFound": false,
-              "cfRay": "a263db034f3291f0-SJC",
+              "cfRay": "a263e0ff7c813451-SJC",
               "cfCacheStatus": null,
               "age": null,
               "server": "cloudflare",
-              "activationAttempts": 2,
+              "activationAttempts": 1,
               "attempts": [
                 {
                   "attempt": 1,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dafc3d30eb20-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 2,
                   "status": 200,
                   "ok": true,
                   "generatedNotFound": false,
-                  "cfRay": "a263db034f3291f0-SJC",
+                  "cfRay": "a263e0ff7c813451-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -1780,7 +510,7 @@
               "status": 200,
               "ok": true,
               "generatedNotFound": false,
-              "cfRay": "a263db037f11ebed-SJC",
+              "cfRay": "a263e105ef79eb21-SJC",
               "cfCacheStatus": null,
               "age": null,
               "server": "cloudflare",
@@ -1791,7 +521,7 @@
                   "status": 404,
                   "ok": false,
                   "generatedNotFound": false,
-                  "cfRay": "a263dafc8ef9f017-SJC",
+                  "cfRay": "a263e0ff7919f31f-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -1801,7 +531,7 @@
                   "status": 200,
                   "ok": true,
                   "generatedNotFound": false,
-                  "cfRay": "a263db037f11ebed-SJC",
+                  "cfRay": "a263e105ef79eb21-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -1810,42 +540,32 @@
             },
             {
               "lane": 4,
-              "attempt": 3,
+              "attempt": 2,
               "status": 200,
               "ok": true,
               "generatedNotFound": false,
-              "cfRay": "a263db0b787791f0-SJC",
+              "cfRay": "a263e105e9027ac7-SJC",
               "cfCacheStatus": null,
               "age": null,
               "server": "cloudflare",
-              "activationAttempts": 3,
+              "activationAttempts": 2,
               "attempts": [
                 {
                   "attempt": 1,
                   "status": 404,
                   "ok": false,
                   "generatedNotFound": false,
-                  "cfRay": "a263dafc8eec15c2-SJC",
+                  "cfRay": "a263e0ff7cd95527-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
                 },
                 {
                   "attempt": 2,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263db037ae2f017-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 3,
                   "status": 200,
                   "ok": true,
                   "generatedNotFound": false,
-                  "cfRay": "a263db0b787791f0-SJC",
+                  "cfRay": "a263e105e9027ac7-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -1854,11 +574,45 @@
             },
             {
               "lane": 5,
+              "attempt": 2,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263e105ebd83451-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 2,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e0ff7f4b963f-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e105ebd83451-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 6,
               "attempt": 3,
               "status": 200,
               "ok": true,
               "generatedNotFound": false,
-              "cfRay": "a263db0b78e1ebed-SJC",
+              "cfRay": "a263e10c5cb9eb21-SJC",
               "cfCacheStatus": null,
               "age": null,
               "server": "cloudflare",
@@ -1869,7 +623,7 @@
                   "status": 404,
                   "ok": false,
                   "generatedNotFound": false,
-                  "cfRay": "a263dafc89ce8462-SJC",
+                  "cfRay": "a263e0ff785a15be-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -1879,7 +633,7 @@
                   "status": 404,
                   "ok": false,
                   "generatedNotFound": false,
-                  "cfRay": "a263db037ccaeb20-SJC",
+                  "cfRay": "a263e105ed36f31f-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -1889,31 +643,7 @@
                   "status": 200,
                   "ok": true,
                   "generatedNotFound": false,
-                  "cfRay": "a263db0b78e1ebed-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                }
-              ]
-            },
-            {
-              "lane": 6,
-              "attempt": 1,
-              "status": 200,
-              "ok": true,
-              "generatedNotFound": false,
-              "cfRay": "a263dafc8d0ecf2f-SJC",
-              "cfCacheStatus": null,
-              "age": null,
-              "server": "cloudflare",
-              "activationAttempts": 1,
-              "attempts": [
-                {
-                  "attempt": 1,
-                  "status": 200,
-                  "ok": true,
-                  "generatedNotFound": false,
-                  "cfRay": "a263dafc8d0ecf2f-SJC",
+                  "cfRay": "a263e10c5cb9eb21-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -1926,7 +656,7 @@
               "status": 200,
               "ok": true,
               "generatedNotFound": false,
-              "cfRay": "a263dafdbb9f6894-SJC",
+              "cfRay": "a263e0ff7bcd5cfb-SJC",
               "cfCacheStatus": null,
               "age": null,
               "server": "cloudflare",
@@ -1937,7 +667,7 @@
                   "status": 200,
                   "ok": true,
                   "generatedNotFound": false,
-                  "cfRay": "a263dafdbb9f6894-SJC",
+                  "cfRay": "a263e0ff7bcd5cfb-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -1956,7 +686,7 @@
               "status": 200,
               "ok": true,
               "generatedNotFound": false,
-              "cfRay": "a263db0b98cd91f0-SJC",
+              "cfRay": "a263e10c8d23eb21-SJC",
               "cfCacheStatus": null,
               "age": null,
               "server": "cloudflare",
@@ -1967,7 +697,7 @@
                   "status": 200,
                   "ok": true,
                   "generatedNotFound": false,
-                  "cfRay": "a263db0b98cd91f0-SJC",
+                  "cfRay": "a263e10c8d23eb21-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -1980,7 +710,7 @@
               "status": 200,
               "ok": true,
               "generatedNotFound": false,
-              "cfRay": "a263db0b9945ebed-SJC",
+              "cfRay": "a263e10c8bcb7ac7-SJC",
               "cfCacheStatus": null,
               "age": null,
               "server": "cloudflare",
@@ -1991,7 +721,7 @@
                   "status": 200,
                   "ok": true,
                   "generatedNotFound": false,
-                  "cfRay": "a263db0b9945ebed-SJC",
+                  "cfRay": "a263e10c8bcb7ac7-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -2000,32 +730,22 @@
             },
             {
               "lane": 2,
-              "attempt": 2,
+              "attempt": 1,
               "status": 200,
               "ok": true,
               "generatedNotFound": false,
-              "cfRay": "a263db137bc4ebed-SJC",
+              "cfRay": "a263e10c8a603451-SJC",
               "cfCacheStatus": null,
               "age": null,
               "server": "cloudflare",
-              "activationAttempts": 2,
+              "activationAttempts": 1,
               "attempts": [
                 {
                   "attempt": 1,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263db0b9db4eb20-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 2,
                   "status": 200,
                   "ok": true,
                   "generatedNotFound": false,
-                  "cfRay": "a263db137bc4ebed-SJC",
+                  "cfRay": "a263e10c8a603451-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -2038,7 +758,7 @@
               "status": 200,
               "ok": true,
               "generatedNotFound": false,
-              "cfRay": "a263db13790691f0-SJC",
+              "cfRay": "a263e1130a163451-SJC",
               "cfCacheStatus": null,
               "age": null,
               "server": "cloudflare",
@@ -2049,7 +769,7 @@
                   "status": 404,
                   "ok": false,
                   "generatedNotFound": false,
-                  "cfRay": "a263db0b99a9f017-SJC",
+                  "cfRay": "a263e10c891ff31f-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -2059,7 +779,7 @@
                   "status": 200,
                   "ok": true,
                   "generatedNotFound": false,
-                  "cfRay": "a263db13790691f0-SJC",
+                  "cfRay": "a263e1130a163451-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -2068,42 +788,32 @@
             },
             {
               "lane": 4,
-              "attempt": 3,
+              "attempt": 2,
               "status": 200,
               "ok": true,
               "generatedNotFound": false,
-              "cfRay": "a263db19ea6cebed-SJC",
+              "cfRay": "a263e11309efeb21-SJC",
               "cfCacheStatus": null,
               "age": null,
               "server": "cloudflare",
-              "activationAttempts": 3,
+              "activationAttempts": 2,
               "attempts": [
                 {
                   "attempt": 1,
                   "status": 404,
                   "ok": false,
                   "generatedNotFound": false,
-                  "cfRay": "a263db0b9d4215c2-SJC",
+                  "cfRay": "a263e10c8f065527-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
                 },
                 {
                   "attempt": 2,
-                  "status": 404,
-                  "ok": false,
-                  "generatedNotFound": false,
-                  "cfRay": "a263db137eb4f017-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                },
-                {
-                  "attempt": 3,
                   "status": 200,
                   "ok": true,
                   "generatedNotFound": false,
-                  "cfRay": "a263db19ea6cebed-SJC",
+                  "cfRay": "a263e11309efeb21-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -2112,11 +822,45 @@
             },
             {
               "lane": 5,
+              "attempt": 2,
+              "status": 200,
+              "ok": true,
+              "generatedNotFound": false,
+              "cfRay": "a263e1130e4a7ac7-SJC",
+              "cfCacheStatus": null,
+              "age": null,
+              "server": "cloudflare",
+              "activationAttempts": 2,
+              "attempts": [
+                {
+                  "attempt": 1,
+                  "status": 404,
+                  "ok": false,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e10c8b25963f-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                },
+                {
+                  "attempt": 2,
+                  "status": 200,
+                  "ok": true,
+                  "generatedNotFound": false,
+                  "cfRay": "a263e1130e4a7ac7-SJC",
+                  "cfCacheStatus": null,
+                  "age": null,
+                  "server": "cloudflare"
+                }
+              ]
+            },
+            {
+              "lane": 6,
               "attempt": 3,
               "status": 200,
               "ok": true,
               "generatedNotFound": false,
-              "cfRay": "a263db19ef2091f0-SJC",
+              "cfRay": "a263e1196e20eb21-SJC",
               "cfCacheStatus": null,
               "age": null,
               "server": "cloudflare",
@@ -2127,7 +871,7 @@
                   "status": 404,
                   "ok": false,
                   "generatedNotFound": false,
-                  "cfRay": "a263db0b9bdc8462-SJC",
+                  "cfRay": "a263e10c8dde15be-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -2137,7 +881,7 @@
                   "status": 404,
                   "ok": false,
                   "generatedNotFound": false,
-                  "cfRay": "a263db137ee6eb20-SJC",
+                  "cfRay": "a263e1130d2af31f-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -2147,31 +891,7 @@
                   "status": 200,
                   "ok": true,
                   "generatedNotFound": false,
-                  "cfRay": "a263db19ef2091f0-SJC",
-                  "cfCacheStatus": null,
-                  "age": null,
-                  "server": "cloudflare"
-                }
-              ]
-            },
-            {
-              "lane": 6,
-              "attempt": 1,
-              "status": 200,
-              "ok": true,
-              "generatedNotFound": false,
-              "cfRay": "a263db0b9eabcf2f-SJC",
-              "cfCacheStatus": null,
-              "age": null,
-              "server": "cloudflare",
-              "activationAttempts": 1,
-              "attempts": [
-                {
-                  "attempt": 1,
-                  "status": 200,
-                  "ok": true,
-                  "generatedNotFound": false,
-                  "cfRay": "a263db0b9eabcf2f-SJC",
+                  "cfRay": "a263e1196e20eb21-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -2184,7 +904,7 @@
               "status": 200,
               "ok": true,
               "generatedNotFound": false,
-              "cfRay": "a263db0baf3b6894-SJC",
+              "cfRay": "a263e10c8e245cfb-SJC",
               "cfCacheStatus": null,
               "age": null,
               "server": "cloudflare",
@@ -2195,7 +915,7 @@
                   "status": 200,
                   "ok": true,
                   "generatedNotFound": false,
-                  "cfRay": "a263db0baf3b6894-SJC",
+                  "cfRay": "a263e10c8e245cfb-SJC",
                   "cfCacheStatus": null,
                   "age": null,
                   "server": "cloudflare"
@@ -2206,7 +926,7 @@
         }
       ],
       "generatedNotFoundCount": 0,
-      "http404Count": 149,
+      "http404Count": 22,
       "scope": "P0.2 ingress follow-up; three body-verified rounds, each with eight bounded retry lanes, must pass before P0.1 starts"
     },
     "namespaceDispatchActivationObservation": {
@@ -2229,15 +949,15 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -2257,24 +977,24 @@
             },
             {
               "script": "app-b-r1-action",
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
+            },
+            {
+              "script": "app-b-r2-handler",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -2291,15 +1011,15 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -2319,24 +1039,24 @@
             },
             {
               "script": "app-b-r1-action",
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
+            },
+            {
+              "script": "app-b-r2-handler",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -2353,15 +1073,15 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -2381,24 +1101,24 @@
             },
             {
               "script": "app-b-r1-action",
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
+            },
+            {
+              "script": "app-b-r2-handler",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -2415,15 +1135,15 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -2443,24 +1163,24 @@
             },
             {
               "script": "app-b-r1-action",
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
+            },
+            {
+              "script": "app-b-r2-handler",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -2477,15 +1197,15 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -2505,24 +1225,24 @@
             },
             {
               "script": "app-b-r1-action",
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
+            },
+            {
+              "script": "app-b-r2-handler",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -2539,15 +1259,15 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -2567,24 +1287,24 @@
             },
             {
               "script": "app-b-r1-action",
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
+            },
+            {
+              "script": "app-b-r2-handler",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -2601,15 +1321,15 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -2629,24 +1349,24 @@
             },
             {
               "script": "app-b-r1-action",
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
+            },
+            {
+              "script": "app-b-r2-handler",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -2663,15 +1383,15 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -2691,24 +1411,24 @@
             },
             {
               "script": "app-b-r1-action",
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
+            },
+            {
+              "script": "app-b-r2-handler",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -2725,15 +1445,15 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -2753,24 +1473,24 @@
             },
             {
               "script": "app-b-r1-action",
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
+            },
+            {
+              "script": "app-b-r2-handler",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -2787,15 +1507,15 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -2815,24 +1535,24 @@
             },
             {
               "script": "app-b-r1-action",
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
+            },
+            {
+              "script": "app-b-r2-handler",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -2849,15 +1569,15 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -2870,31 +1590,31 @@
             },
             {
               "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
+              "script": "app-b-r1-action",
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
+            },
+            {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -2911,15 +1631,15 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -2932,31 +1652,31 @@
             },
             {
               "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
+              "script": "app-b-r1-action",
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
+            },
+            {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -2973,52 +1693,52 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-a-r2-action",
+              "script": "app-b-r1-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
               "status": 500,
               "ok": false,
               "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
               "category": "Worker not found."
             },
             {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -3035,52 +1755,52 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-a-r2-action",
+              "script": "app-b-r1-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
               "status": 500,
               "ok": false,
               "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
               "category": "Worker not found."
             },
             {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -3097,52 +1817,52 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-a-r2-action",
+              "script": "app-b-r1-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
               "status": 500,
               "ok": false,
               "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
               "category": "Worker not found."
             },
             {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -3159,52 +1879,52 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-a-r2-action",
+              "script": "app-b-r1-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
               "status": 500,
               "ok": false,
               "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
               "category": "Worker not found."
             },
             {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -3221,52 +1941,52 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-a-r2-action",
+              "script": "app-b-r1-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
               "status": 500,
               "ok": false,
               "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
               "category": "Worker not found."
             },
             {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -3283,52 +2003,52 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-a-r2-action",
+              "script": "app-b-r1-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
               "status": 500,
               "ok": false,
               "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
               "category": "Worker not found."
             },
             {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -3345,52 +2065,52 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-a-r2-action",
+              "script": "app-b-r1-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
               "status": 500,
               "ok": false,
               "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
               "category": "Worker not found."
             },
             {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -3407,52 +2127,52 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-a-r2-action",
+              "script": "app-b-r1-handler",
+              "status": 404,
+              "ok": false,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-action",
               "status": 500,
               "ok": false,
               "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
               "category": "Worker not found."
             },
             {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -3469,52 +2189,52 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-a-r2-action",
+              "script": "app-b-r1-action",
               "status": 500,
               "ok": false,
               "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
               "category": "Worker not found."
             },
             {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -3531,52 +2251,52 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-a-r2-action",
+              "script": "app-b-r1-action",
               "status": 500,
               "ok": false,
               "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
               "category": "Worker not found."
             },
             {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -3593,52 +2313,52 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-a-r2-action",
+              "script": "app-b-r1-action",
               "status": 500,
               "ok": false,
               "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
               "category": "Worker not found."
             },
             {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -3655,52 +2375,52 @@
             },
             {
               "script": "app-a-r1-action",
-              "status": 500,
-              "ok": false,
-              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
-              "category": "Worker not found."
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
             },
             {
               "script": "app-a-r2-handler",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-a-r2-action",
+              "status": 200,
+              "ok": true,
+              "code": null,
+              "category": null
+            },
+            {
+              "script": "app-b-r1-handler",
               "status": 404,
               "ok": false,
               "code": null,
               "category": null
             },
             {
-              "script": "app-a-r2-action",
+              "script": "app-b-r1-action",
               "status": 500,
               "ok": false,
               "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
               "category": "Worker not found."
             },
             {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -3724,8 +2444,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -3738,31 +2458,31 @@
             },
             {
               "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -3786,8 +2506,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -3807,24 +2527,24 @@
             },
             {
               "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -3848,8 +2568,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -3869,24 +2589,24 @@
             },
             {
               "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -3910,8 +2630,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -3931,24 +2651,24 @@
             },
             {
               "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -3972,8 +2692,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -3993,24 +2713,24 @@
             },
             {
               "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
             {
               "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
+              "status": 500,
+              "ok": false,
+              "code": "SNAPBACK_DISPATCHER_GATE_FAILED",
+              "category": "Worker not found."
             }
           ]
         },
@@ -4034,8 +2754,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -4062,8 +2782,8 @@
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
@@ -4096,8 +2816,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -4124,8 +2844,8 @@
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
@@ -4158,8 +2878,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -4186,8 +2906,8 @@
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
@@ -4220,8 +2940,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -4248,8 +2968,8 @@
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
@@ -4282,8 +3002,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -4310,8 +3030,8 @@
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
@@ -4344,8 +3064,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -4372,8 +3092,8 @@
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
@@ -4406,8 +3126,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -4434,8 +3154,8 @@
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
@@ -4468,8 +3188,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -4496,8 +3216,8 @@
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
@@ -4530,8 +3250,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -4558,8 +3278,8 @@
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
@@ -4592,8 +3312,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -4620,8 +3340,8 @@
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
@@ -4654,8 +3374,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -4682,8 +3402,8 @@
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
@@ -4716,8 +3436,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -4744,8 +3464,8 @@
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
@@ -4778,8 +3498,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -4806,8 +3526,8 @@
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
@@ -4840,8 +3560,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -4868,8 +3588,8 @@
             },
             {
               "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
+              "status": 404,
+              "ok": false,
               "code": null,
               "category": null
             },
@@ -4884,7 +3604,7 @@
         },
         {
           "round": 44,
-          "stable": false,
+          "stable": true,
           "results": [
             {
               "script": "app-a-r1-handler",
@@ -4902,8 +3622,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -4946,7 +3666,7 @@
         },
         {
           "round": 45,
-          "stable": false,
+          "stable": true,
           "results": [
             {
               "script": "app-a-r1-handler",
@@ -4964,8 +3684,8 @@
             },
             {
               "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
+              "status": 200,
+              "ok": true,
               "code": null,
               "category": null
             },
@@ -5008,1184 +3728,6 @@
         },
         {
           "round": 46,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 47,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 48,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 49,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 50,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 51,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 52,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 53,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 54,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 55,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 56,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 57,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 58,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 59,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 60,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 61,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 62,
-          "stable": false,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 404,
-              "ok": false,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 63,
-          "stable": true,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 64,
-          "stable": true,
-          "results": [
-            {
-              "script": "app-a-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-a-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r1-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-handler",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            },
-            {
-              "script": "app-b-r2-action",
-              "status": 200,
-              "ok": true,
-              "code": null,
-              "category": null
-            }
-          ]
-        },
-        {
-          "round": 65,
           "stable": true,
           "results": [
             {
@@ -6247,15 +3789,15 @@
           ]
         }
       ],
-      "workerNotFoundCount": 36,
+      "workerNotFoundCount": 58,
       "scope": "all two-app/two-release/two-role namespaced scripts before P0.1 assertions"
     }
   },
   "topology": {
     "regularWorkers": {
-      "host": "snapback-eas-p0-20260803-f84346-host",
-      "outbound": "snapback-eas-p0-20260803-f84346-outbound",
-      "dispatcher": "snapback-eas-p0-20260803-f84346-dispatch"
+      "host": "snapback-eas-p0-20260803-2dbc53-host",
+      "outbound": "snapback-eas-p0-20260803-2dbc53-outbound",
+      "dispatcher": "snapback-eas-p0-20260803-2dbc53-dispatch"
     },
     "apps": [
       "app-a",
@@ -6274,7 +3816,7 @@
       {
         "type": "service",
         "name": "HOST",
-        "service": "snapback-eas-p0-20260803-f84346-host"
+        "service": "snapback-eas-p0-20260803-2dbc53-host"
       }
     ],
     "userWorkerModuleBoundary": {
@@ -6288,7 +3830,7 @@
       },
       "action": {
         "binding": "ACTION_DISPATCHER",
-        "outboundWorker": "snapback-eas-p0-20260803-f84346-outbound"
+        "outboundWorker": "snapback-eas-p0-20260803-2dbc53-outbound"
       }
     },
     "capabilityFields": [
@@ -6332,7 +3874,7 @@
         {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host"
+          "service": "snapback-eas-p0-20260803-2dbc53-host"
         }
       ],
       "uploadResponseBindings": [],
@@ -6340,7 +3882,7 @@
         {
           "environment": "production",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host",
+          "service": "snapback-eas-p0-20260803-2dbc53-host",
           "type": "service"
         }
       ]
@@ -6356,7 +3898,7 @@
         {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host"
+          "service": "snapback-eas-p0-20260803-2dbc53-host"
         }
       ],
       "uploadResponseBindings": [],
@@ -6364,7 +3906,7 @@
         {
           "environment": "production",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host",
+          "service": "snapback-eas-p0-20260803-2dbc53-host",
           "type": "service"
         }
       ]
@@ -6380,7 +3922,7 @@
         {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host"
+          "service": "snapback-eas-p0-20260803-2dbc53-host"
         }
       ],
       "uploadResponseBindings": [],
@@ -6388,7 +3930,7 @@
         {
           "environment": "production",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host",
+          "service": "snapback-eas-p0-20260803-2dbc53-host",
           "type": "service"
         }
       ]
@@ -6404,7 +3946,7 @@
         {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host"
+          "service": "snapback-eas-p0-20260803-2dbc53-host"
         }
       ],
       "uploadResponseBindings": [],
@@ -6412,7 +3954,7 @@
         {
           "environment": "production",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host",
+          "service": "snapback-eas-p0-20260803-2dbc53-host",
           "type": "service"
         }
       ]
@@ -6428,7 +3970,7 @@
         {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host"
+          "service": "snapback-eas-p0-20260803-2dbc53-host"
         }
       ],
       "uploadResponseBindings": [],
@@ -6436,7 +3978,7 @@
         {
           "environment": "production",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host",
+          "service": "snapback-eas-p0-20260803-2dbc53-host",
           "type": "service"
         }
       ]
@@ -6452,7 +3994,7 @@
         {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host"
+          "service": "snapback-eas-p0-20260803-2dbc53-host"
         }
       ],
       "uploadResponseBindings": [],
@@ -6460,7 +4002,7 @@
         {
           "environment": "production",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host",
+          "service": "snapback-eas-p0-20260803-2dbc53-host",
           "type": "service"
         }
       ]
@@ -6476,7 +4018,7 @@
         {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host"
+          "service": "snapback-eas-p0-20260803-2dbc53-host"
         }
       ],
       "uploadResponseBindings": [],
@@ -6484,7 +4026,7 @@
         {
           "environment": "production",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host",
+          "service": "snapback-eas-p0-20260803-2dbc53-host",
           "type": "service"
         }
       ]
@@ -6500,7 +4042,7 @@
         {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host"
+          "service": "snapback-eas-p0-20260803-2dbc53-host"
         }
       ],
       "uploadResponseBindings": [],
@@ -6508,7 +4050,7 @@
         {
           "environment": "production",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host",
+          "service": "snapback-eas-p0-20260803-2dbc53-host",
           "type": "service"
         }
       ]
@@ -6571,7 +4113,7 @@
           ],
           "requiredConsecutiveStableRounds": 3,
           "consecutiveStableRounds": 3,
-          "rounds": 65
+          "rounds": 46
         }
       }
     },
@@ -6587,7 +4129,7 @@
           "requestCfType": "undefined",
           "cacheDefaultType": "object"
         },
-        "elapsedMs": 41.3,
+        "elapsedMs": 76.5,
         "activationAttempts": 1
       }
     },
@@ -6608,7 +4150,7 @@
         "binding": {
           "type": "service",
           "name": "HOST",
-          "service": "snapback-eas-p0-20260803-f84346-host"
+          "service": "snapback-eas-p0-20260803-2dbc53-host"
         },
         "uploadResponseBindingCounts": [
           0,
@@ -6628,7 +4170,7 @@
       "pass": true,
       "evidence": {
         "status": 200,
-        "elapsedMs": 509.6,
+        "elapsedMs": 555.7,
         "activationAttempts": 1,
         "capability": {
           "appId": "app-a",
@@ -6636,8 +4178,8 @@
           "objectId": "root",
           "release": "r1",
           "operation": "query",
-          "requestId": "d60be64e-4fce-4534-8caa-ace72b7aec36",
-          "deadline": 1785912585171
+          "requestId": "bbf067d1-edf5-477a-82e8-cac1dc6b62b8",
+          "deadline": 1785912809968
         },
         "responseBody": {
           "ok": true,
@@ -6648,8 +4190,8 @@
             "objectId": "root",
             "release": "r1",
             "operation": "query",
-            "requestId": "d60be64e-4fce-4534-8caa-ace72b7aec36",
-            "deadline": 1785912585171
+            "requestId": "bbf067d1-edf5-477a-82e8-cac1dc6b62b8",
+            "deadline": 1785912809968
           },
           "applicationArgKeys": [
             "value"
@@ -6665,7 +4207,7 @@
       "pass": true,
       "evidence": {
         "status": 200,
-        "elapsedMs": 94.2,
+        "elapsedMs": 91.5,
         "activationAttempts": 1,
         "capability": {
           "appId": "app-a",
@@ -6673,8 +4215,8 @@
           "objectId": "root",
           "release": "r2",
           "operation": "query",
-          "requestId": "ea22ce96-95bd-4b18-95e3-89dff6d382fb",
-          "deadline": 1785912585686
+          "requestId": "a3291b86-cd16-49fc-b737-8b2588a40a30",
+          "deadline": 1785912810524
         },
         "responseBody": {
           "ok": true,
@@ -6685,8 +4227,8 @@
             "objectId": "root",
             "release": "r2",
             "operation": "query",
-            "requestId": "ea22ce96-95bd-4b18-95e3-89dff6d382fb",
-            "deadline": 1785912585686
+            "requestId": "a3291b86-cd16-49fc-b737-8b2588a40a30",
+            "deadline": 1785912810524
           },
           "applicationArgKeys": [
             "value"
@@ -6702,7 +4244,7 @@
       "pass": true,
       "evidence": {
         "status": 200,
-        "elapsedMs": 574,
+        "elapsedMs": 474.7,
         "activationAttempts": 1,
         "capability": {
           "appId": "app-b",
@@ -6710,8 +4252,8 @@
           "objectId": "root",
           "release": "r1",
           "operation": "query",
-          "requestId": "3cac9c5c-739d-4ab7-b197-de8ab699d046",
-          "deadline": 1785912585776
+          "requestId": "ebf205d1-f03f-45a2-8364-2a4f1b2afbc2",
+          "deadline": 1785912810604
         },
         "responseBody": {
           "ok": true,
@@ -6722,8 +4264,8 @@
             "objectId": "root",
             "release": "r1",
             "operation": "query",
-            "requestId": "3cac9c5c-739d-4ab7-b197-de8ab699d046",
-            "deadline": 1785912585776
+            "requestId": "ebf205d1-f03f-45a2-8364-2a4f1b2afbc2",
+            "deadline": 1785912810604
           },
           "applicationArgKeys": [
             "value"
@@ -6739,7 +4281,7 @@
       "pass": true,
       "evidence": {
         "status": 200,
-        "elapsedMs": 190.6,
+        "elapsedMs": 73.8,
         "activationAttempts": 1,
         "capability": {
           "appId": "app-b",
@@ -6747,8 +4289,8 @@
           "objectId": "root",
           "release": "r2",
           "operation": "query",
-          "requestId": "9c2c6c76-b5e5-4e41-9537-cb6c614f8763",
-          "deadline": 1785912586478
+          "requestId": "6c70bd33-3751-4d0c-9059-e5a2062765f1",
+          "deadline": 1785912811080
         },
         "responseBody": {
           "ok": true,
@@ -6759,8 +4301,8 @@
             "objectId": "root",
             "release": "r2",
             "operation": "query",
-            "requestId": "9c2c6c76-b5e5-4e41-9537-cb6c614f8763",
-            "deadline": 1785912586478
+            "requestId": "6c70bd33-3751-4d0c-9059-e5a2062765f1",
+            "deadline": 1785912811080
           },
           "applicationArgKeys": [
             "value"
@@ -6909,14 +4451,14 @@
             "objectId": "root",
             "release": "r1",
             "operation": "query",
-            "requestId": "dab98b8b-77bb-4385-8782-61f101b22491",
-            "deadline": 1785912588464
+            "requestId": "ebfc54af-6052-4974-8c2f-73c4b5ea2a72",
+            "deadline": 1785912812308
           },
           "applicationArgKeys": []
         },
-        "queryElapsedMs": 167.3,
-        "queryFinishedAfterStartMs": 268,
-        "actionFinishedAfterStartMs": 1351,
+        "queryElapsedMs": 71.9,
+        "queryFinishedAfterStartMs": 172,
+        "actionFinishedAfterStartMs": 1260,
         "actionScript": "app-a-r1-action",
         "handlerScript": "app-a-r1-handler"
       }
@@ -6961,7 +4503,7 @@
             "code": "SNAPBACK_QUEUE_LIMIT"
           }
         ],
-        "elapsedMs": 1655.7,
+        "elapsedMs": 1527.7,
         "activationAttempts": 1,
         "layer": "dispatcher Durable Object admission gate"
       }
@@ -6988,7 +4530,7 @@
           "code": "SNAPBACK_SUBREQUEST_LIMIT",
           "limit": 5
         },
-        "elapsedMs": 102.1,
+        "elapsedMs": 109.4,
         "limit": 5,
         "retainedFetchAttempts": [
           {
@@ -6997,9 +4539,9 @@
             "body": {
               "ok": false,
               "code": "SNAPBACK_NO_RETAINED_ACTION_FETCH",
-              "moduleInvocationSequence": 3
+              "moduleInvocationSequence": 53
             },
-            "elapsedMs": 48,
+            "elapsedMs": 41.3,
             "activationAttempts": 1
           },
           {
@@ -7007,28 +4549,17 @@
             "status": 409,
             "body": {
               "ok": false,
-              "code": "SNAPBACK_NO_RETAINED_ACTION_FETCH",
-              "moduleInvocationSequence": 46
-            },
-            "elapsedMs": 42.2,
-            "activationAttempts": 1
-          },
-          {
-            "attempt": 3,
-            "status": 409,
-            "body": {
-              "ok": false,
               "code": "SNAPBACK_STALE_ACTION_FETCH",
-              "moduleInvocationSequence": 4
+              "moduleInvocationSequence": 54
             },
-            "elapsedMs": 88.7,
+            "elapsedMs": 41.1,
             "activationAttempts": 1
           }
         ],
         "staleRetainedFetch": {
           "status": 409,
           "code": "SNAPBACK_STALE_ACTION_FETCH",
-          "moduleInvocationSequence": 4
+          "moduleInvocationSequence": 54
         },
         "layer": "trusted main owns an invocation-scoped, post-settlement-revoked ctx.fetch before outbound handoff",
         "nativeControlReceipt": "demos/eas-phase0/receipts/p0.1-wfp-minimal-control.json"
@@ -7047,7 +4578,7 @@
               "unexpected": "CPU limit did not fire",
               "checksum": 3411226650
             },
-            "elapsedMs": 1437.1,
+            "elapsedMs": 1040,
             "activationAttempts": 1
           },
           {
@@ -7058,7 +4589,7 @@
               "unexpected": "CPU limit did not fire",
               "checksum": 3411226650
             },
-            "elapsedMs": 1495.4,
+            "elapsedMs": 324,
             "activationAttempts": 1
           },
           {
@@ -7069,18 +4600,29 @@
               "unexpected": "CPU limit did not fire",
               "checksum": 3411226650
             },
-            "elapsedMs": 1396.5,
+            "elapsedMs": 1001.7,
             "activationAttempts": 1
           },
           {
             "attempt": 4,
+            "status": 200,
+            "body": {
+              "ok": true,
+              "unexpected": "CPU limit did not fire",
+              "checksum": 3411226650
+            },
+            "elapsedMs": 966.7,
+            "activationAttempts": 1
+          },
+          {
+            "attempt": 5,
             "status": 502,
             "body": {
               "ok": false,
               "code": "SNAPBACK_USER_WORKER_FAILED",
               "category": "Worker exceeded CPU time limit."
             },
-            "elapsedMs": 889.5,
+            "elapsedMs": 310.8,
             "activationAttempts": 1
           }
         ],
@@ -7092,7 +4634,7 @@
   ],
   "cleanup": [
     {
-      "resource": "Worker snapback-eas-p0-20260803-f84346-dispatch",
+      "resource": "Worker snapback-eas-p0-20260803-2dbc53-dispatch",
       "deleted": true
     },
     {
@@ -7100,11 +4642,11 @@
       "deleted": true
     },
     {
-      "resource": "Worker snapback-eas-p0-20260803-f84346-host",
+      "resource": "Worker snapback-eas-p0-20260803-2dbc53-host",
       "deleted": true
     },
     {
-      "resource": "Worker snapback-eas-p0-20260803-f84346-outbound",
+      "resource": "Worker snapback-eas-p0-20260803-2dbc53-outbound",
       "deleted": true
     }
   ],
@@ -7119,7 +4661,7 @@
   ],
   "postCleanupAbsence": [
     {
-      "resource": "Worker snapback-eas-p0-20260803-f84346-dispatch",
+      "resource": "Worker snapback-eas-p0-20260803-2dbc53-dispatch",
       "status": 404,
       "absent": true
     },
@@ -7129,18 +4671,18 @@
       "absent": true
     },
     {
-      "resource": "Worker snapback-eas-p0-20260803-f84346-host",
+      "resource": "Worker snapback-eas-p0-20260803-2dbc53-host",
       "status": 404,
       "absent": true
     },
     {
-      "resource": "Worker snapback-eas-p0-20260803-f84346-outbound",
+      "resource": "Worker snapback-eas-p0-20260803-2dbc53-outbound",
       "status": 404,
       "absent": true
     }
   ],
-  "finishedAt": "2026-08-05T06:49:48.913Z",
-  "durationMs": 146381,
+  "finishedAt": "2026-08-05T06:53:30.331Z",
+  "durationMs": 78193,
   "namespaceLifecycle": {
     "created": true,
     "scriptsUploaded": [
