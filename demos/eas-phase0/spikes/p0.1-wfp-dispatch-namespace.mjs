@@ -606,8 +606,8 @@ export default {
 function userApplicationSource() {
   return `
 const capturedAmbientFetch = globalThis.fetch;
-const moduleInstance = crypto.randomUUID();
 let retainedActionFetch = null;
+let moduleInvocationSequence = 0;
 
 function json(status, body) {
   return new Response(JSON.stringify(body), {
@@ -617,6 +617,7 @@ function json(status, body) {
 }
 
 export async function run({ operation, args, argKeys, ctx }) {
+  moduleInvocationSequence += 1;
   const role = ctx.identity.role;
   if (operation === "activation-probe") {
     return json(200, { ok: true, appId: ctx.identity.appId, release: ctx.identity.release, role });
@@ -682,7 +683,11 @@ export async function run({ operation, args, argKeys, ctx }) {
     const priorFetch = retainedActionFetch;
     retainedActionFetch = ctx.fetch;
     if (!priorFetch) {
-      return json(409, { ok: false, code: "SNAPBACK_NO_RETAINED_ACTION_FETCH", moduleInstance });
+      return json(409, {
+        ok: false,
+        code: "SNAPBACK_NO_RETAINED_ACTION_FETCH",
+        moduleInvocationSequence,
+      });
     }
     try {
       const response = await priorFetch("https://example.com/?snapback-retained-action-fetch=1");
@@ -690,11 +695,15 @@ export async function run({ operation, args, argKeys, ctx }) {
         ok: true,
         unexpected: "retained action fetch remained live",
         outboundStatus: response.status,
-        moduleInstance,
+        moduleInvocationSequence,
       });
     } catch (error) {
       if (error?.message === "SNAPBACK_STALE_ACTION_FETCH") {
-        return json(409, { ok: false, code: "SNAPBACK_STALE_ACTION_FETCH", moduleInstance });
+        return json(409, {
+          ok: false,
+          code: "SNAPBACK_STALE_ACTION_FETCH",
+          moduleInvocationSequence,
+        });
       }
       throw error;
     }
@@ -1205,6 +1214,10 @@ async function main() {
         rounds: namespaceActivationRounds.length,
       },
     });
+    if (consecutiveStableRounds < EDGE_STABLE_ROUNDS ||
+        namespaceConsecutiveStableRounds < NAMESPACE_STABLE_ROUNDS) {
+      throw new Error('SNAPBACK_ACTIVATION_READINESS_TIMEOUT');
+    }
 
     const runtimeFacts = await invoke('app-a', 'r1', 'handler', 'runtime-facts');
     check('namespaced-worker-untrusted-runtime', runtimeFacts.status === 200 &&
@@ -1413,7 +1426,7 @@ async function main() {
       staleRetainedFetch: staleRetainedFetch ? {
         status: staleRetainedFetch.status,
         code: staleRetainedFetch.body?.code,
-        moduleInstance: staleRetainedFetch.body?.moduleInstance,
+        moduleInvocationSequence: staleRetainedFetch.body?.moduleInvocationSequence,
       } : null,
       layer: 'trusted main owns an invocation-scoped, post-settlement-revoked ctx.fetch before outbound handoff',
       nativeControlReceipt: 'demos/eas-phase0/receipts/p0.1-wfp-minimal-control.json',
