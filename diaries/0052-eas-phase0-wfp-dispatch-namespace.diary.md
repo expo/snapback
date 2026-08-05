@@ -130,3 +130,11 @@ readiness protocol is bounded by a conservative ceiling rather than a typical
 round count. The final clean full run converged at round 81 after 312 HTTP 404s;
 all 23 checks passed, native CPU terminated on attempt three, and four exact
 post-delete API lookups returned 404.
+
+Before delivery I tightened one assertion that had become too cooperative after
+splitting the dispatch paths: calling the harness's `boundedFetch` did not by
+itself prove a handler could not spell the ambient capability as
+`globalThis.fetch`. The generated handler now freezes that global entry point to
+the deny function before handler code runs, and the same check attacks both
+spellings. The production generator still needs its own escape audit, which is
+why the narrower outbound/custom-limit follow-up remains open.

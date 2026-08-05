@@ -51,7 +51,9 @@ The real P0.1 runner now uses two dispatch bindings to the same namespace:
   subrequest counter that returns the stable `SNAPBACK_SUBREQUEST_LIMIT`
   diagnostic before the sixth outbound handoff.
 
-Handler `fetch` calls are denied in the generated harness before network I/O.
+The generated handler harness freezes `globalThis.fetch` to its deny function
+before handler code runs; the retained attack exercises both lexical `fetch`
+and explicit `globalThis.fetch` before any network I/O.
 The CPU witness uses a 200,000,000-iteration finite burn, records up to five
 attempts, and requires an actual Cloudflare termination instead of inferring
 CPU time from client wall time.

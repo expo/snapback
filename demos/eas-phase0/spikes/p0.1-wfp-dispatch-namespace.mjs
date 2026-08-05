@@ -305,7 +305,7 @@ export class Gate {
 }
 
 const allowed = new Set([
-  "query", "mutation", "mutation-retry", "runtime-facts", "ambient-fetch", "allowlisted-fetch",
+  "query", "mutation", "mutation-retry", "runtime-facts", "ambient-fetch", "ambient-global-fetch", "allowlisted-fetch",
   "denied-action-fetch", "slow-action", "queue-hold", "oversized-response",
   "subrequest-bomb", "cpu-spin", "stale-capability", "tamper-app-capability",
   "tamper-release-capability",
@@ -493,6 +493,18 @@ function json(status, body) {
   });
 }
 
+if (ROLE === "handler") {
+  Object.defineProperty(globalThis, "fetch", {
+    value: async () => json(403, {
+      ok: false,
+      code: "SNAPBACK_HANDLER_AMBIENT_NETWORK_DENIED",
+      role: ROLE,
+    }),
+    writable: false,
+    configurable: false,
+  });
+}
+
 function toB64url(text) {
   return btoa(text).split("+").join("-").split("/").join("_").replace(/=+$/g, "");
 }
@@ -566,6 +578,10 @@ export default {
     }
     if (operation === "ambient-fetch") {
       const response = await boundedFetch("https://example.com/");
+      return json(200, { ok: true, outboundStatus: response.status, role: ROLE });
+    }
+    if (operation === "ambient-global-fetch") {
+      const response = await globalThis.fetch("https://example.com/");
       return json(200, { ok: true, outboundStatus: response.status, role: ROLE });
     }
     if (operation === "allowlisted-fetch") {
@@ -1128,11 +1144,21 @@ async function main() {
     });
 
     const deniedHandler = await invoke('app-a', 'r1', 'handler', 'ambient-fetch');
+    const deniedGlobalHandler = await invoke('app-a', 'r1', 'handler', 'ambient-global-fetch');
     check('handler-ambient-network-denied', deniedHandler.status === 200 &&
-      deniedHandler.body?.outboundStatus === 403, {
-      status: deniedHandler.status,
-      outboundStatus: deniedHandler.body?.outboundStatus,
-      outboundRole: deniedHandler.body?.role || null,
+      deniedHandler.body?.outboundStatus === 403 && deniedGlobalHandler.status === 200 &&
+      deniedGlobalHandler.body?.outboundStatus === 403, {
+      lexicalFetch: {
+        status: deniedHandler.status,
+        outboundStatus: deniedHandler.body?.outboundStatus,
+        role: deniedHandler.body?.role || null,
+      },
+      globalFetch: {
+        status: deniedGlobalHandler.status,
+        outboundStatus: deniedGlobalHandler.body?.outboundStatus,
+        role: deniedGlobalHandler.body?.role || null,
+      },
+      layer: 'generated handler harness freezes globalThis.fetch before handler code runs',
     });
 
     const allowedAction = await invoke('app-a', 'r1', 'action', 'allowlisted-fetch');
