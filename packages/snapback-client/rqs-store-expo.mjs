@@ -74,6 +74,8 @@ const launchId = makeLaunchId();
 /** Build the createFileRqsResumeStore adapter over Expo's File/Directory API. */
 export function createExpoFilesAdapter(fileSystem) {
   assertFileSystem(fileSystem);
+  const openFile = (...args) => new fileSystem.File(...args);
+  const openDirectory = (...args) => new fileSystem.Directory(...args);
 
   return {
     // Expo's current File/Directory projection has no file or directory sync
@@ -81,19 +83,19 @@ export function createExpoFilesAdapter(fileSystem) {
     // useful persistence, but cannot claim LLP 0043's publication boundary.
     powerLossDurable: false,
     async mkdir(path) {
-      const directory = new fileSystem.Directory(path);
+      const directory = openDirectory(path);
       try {
         directory.create({ intermediates: true, idempotent: true });
       } catch (error) {
         // Expo versions/platforms may omit idempotent handling. State, never
         // a platform-specific error message, classifies the successful race.
-        if (new fileSystem.Directory(path).exists) return;
+        if (openDirectory(path).exists) return;
         throw error;
       }
     },
 
     async readFile(path) {
-      const file = new fileSystem.File(path);
+      const file = openFile(path);
       if (!file.exists) return null;
       try {
         return file.textSync();
@@ -104,7 +106,7 @@ export function createExpoFilesAdapter(fileSystem) {
     },
 
     async writeFile(path, data) {
-      const file = new fileSystem.File(path);
+      const file = openFile(path);
       try {
         file.create({ intermediates: true, overwrite: true });
       } catch (error) {
@@ -116,7 +118,7 @@ export function createExpoFilesAdapter(fileSystem) {
     },
 
     async writeFileExclusive(path, data) {
-      const file = new fileSystem.File(path);
+      const file = openFile(path);
       try {
         file.create({ intermediates: true });
       } catch (error) {
@@ -128,8 +130,8 @@ export function createExpoFilesAdapter(fileSystem) {
     },
 
     async rename(from, to) {
-      const source = new fileSystem.File(from);
-      const destination = new fileSystem.File(to);
+      const source = openFile(from);
+      const destination = openFile(to);
       try {
         source.moveSync(destination, { overwrite: true });
       } catch (error) {
@@ -139,12 +141,12 @@ export function createExpoFilesAdapter(fileSystem) {
         // process writer, so there is no concurrent reader in the window; a
         // crash loses the blob to the fail-safe fresh-subscribe path, never
         // to a partially combined or corrupt state.
-        source.moveSync(new fileSystem.File(to), { overwrite: true });
+        source.moveSync(openFile(to), { overwrite: true });
       }
     },
 
     async unlink(path) {
-      const file = new fileSystem.File(path);
+      const file = openFile(path);
       if (!file.exists) return false;
       try {
         file.delete();
@@ -156,7 +158,7 @@ export function createExpoFilesAdapter(fileSystem) {
     },
 
     async readdir(path) {
-      const directory = new fileSystem.Directory(path);
+      const directory = openDirectory(path);
       if (!directory.exists) return [];
       try {
         return directory.list().map((entry) => basenameFromUri(entry.uri));

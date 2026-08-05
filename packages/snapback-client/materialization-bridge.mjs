@@ -62,6 +62,42 @@ const inputAuth = (userId) => ({
   user_id: userId,
 });
 
+// @ref LLP 0157#d2--plan-identity — AuthorityPartitionV1 is an owner-issued
+// input to every qmk1 address. The client hashes the server-issued authority
+// snapshot; callers never substitute the pre-Move-2 authority-independent
+// sentinel or author a partition digest themselves.
+export function deriveAuthorityPartitionDigestV1({
+  userId = null,
+  authorizationScope,
+  session = null,
+} = {}) {
+  if (
+    !authorizationScope?.principalScope
+    || !authorizationScope?.authorityDescriptor
+  ) return null;
+  const invocationUserId = typeof userId === 'string' ? userId : null;
+  const principalUserId = typeof authorizationScope.principalScope.userId === 'string'
+    ? authorizationScope.principalScope.userId
+    : null;
+  const authorityPartition = {
+    format: 'snapback.authority-partition.v1',
+    principalDataScope: {
+      authMode: authorizationScope.principalScope.authMode,
+      userId: principalUserId,
+      authorizationStreamIncarnation:
+        authorizationScope.principalScope.authorizationStreamIncarnation,
+    },
+    authorityInstanceId: authorizationScope.authorityDescriptor.authorityInstanceId,
+    authFingerprint: snapbackAuthFingerprint(inputAuth(invocationUserId)),
+    tenantId: null,
+    providerId: authorizationScope.principalScope.authMode === 'sessions'
+      ? session?.provider?.key ?? null
+      : null,
+    delegation: null,
+  };
+  return domainDigest('snapback:authority-partition:v1:', authorityPartition);
+}
+
 const nodesFromPlan = (plan) => plan.nodes.map((entry) => ({
   position: entry.position,
   classId: entry.nodePlan.classId,
@@ -112,31 +148,12 @@ export function deriveGeneratedMaterializationBridge({
   ) return null;
   const { activation, composition, canonicalArgs, argsDigest } = generated;
   if (activation.activation.authMode !== authorizationScope.principalScope.authMode) return null;
-  const invocationUserId = typeof userId === 'string' ? userId : null;
-  const principalUserId = typeof authorizationScope.principalScope.userId === 'string'
-    ? authorizationScope.principalScope.userId
-    : null;
   const session = authorizationScope.session ?? null;
-  const authorityPartition = {
-    format: 'snapback.authority-partition.v1',
-    principalDataScope: {
-      authMode: authorizationScope.principalScope.authMode,
-      userId: principalUserId,
-      authorizationStreamIncarnation:
-        authorizationScope.principalScope.authorizationStreamIncarnation,
-    },
-    authorityInstanceId: authorizationScope.authorityDescriptor.authorityInstanceId,
-    authFingerprint: snapbackAuthFingerprint(inputAuth(invocationUserId)),
-    tenantId: null,
-    providerId: authorizationScope.principalScope.authMode === 'sessions'
-      ? session?.provider?.key ?? null
-      : null,
-    delegation: null,
-  };
-  const authorityPartitionDigest = domainDigest(
-    'snapback:authority-partition:v1:',
-    authorityPartition,
-  );
+  const authorityPartitionDigest = deriveAuthorityPartitionDigestV1({
+    userId,
+    authorizationScope,
+    session,
+  });
   const preimage = {
     format: 'snapback.query-materialization.v1',
     appId: ref.appId,
@@ -182,13 +199,13 @@ export function deriveGeneratedMaterializationBridge({
       activationHash: activation.activationHash,
       argsDigest,
       authorityPartitionDigest,
-      storageProfile: retentionRequested ? 'durable-fragments-v1' : 'volatile-online-v1',
-      authorityState: {
+        storageProfile: retentionRequested ? 'durable-fragments-v1' : 'volatile-online-v1',
+        authorityState: {
         query_instance_id: null,
         query_lifecycle: 'active',
         authority_generation: 0,
         query_generation: 0,
-        authority_instance_id: authorityPartition.authorityInstanceId,
+        authority_instance_id: authorizationScope.authorityDescriptor.authorityInstanceId,
         expected_boot_issuer: null,
         expected_authorization: {
           incarnation: authorizationScope.principalScope.authorizationStreamIncarnation,

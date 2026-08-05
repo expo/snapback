@@ -37,9 +37,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:applyReplyProgress",
@@ -67,9 +67,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:cancelReply",
@@ -105,9 +105,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:completeReply",
@@ -135,9 +135,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:conversationBySlug",
@@ -350,9 +350,9 @@ const references = {
     },
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:conversationsWithModel",
@@ -388,9 +388,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:createConversation",
@@ -407,7 +407,7 @@ const references = {
       "mintSites": [
         "plan/steps/0/insert/row-id"
       ],
-      "operationHash": "sha256:7c613f71c23686f1e0a3b08e94b085e1240b7bff39f11fd3d5088e160b80a8bf",
+      "operationHash": "sha256:167e54a56baad60cbc932df0229c5e0828d62861e2f97d2ebadc06d9a36649ac",
       "plan": {
         "return_value": {
           "Document": {
@@ -539,15 +539,15 @@ const references = {
       },
       "schemaIdentity": {
         "appId": "competitive-checkpoint",
-        "schemaHash": "sha256:d1659f1faae6d578",
+        "schemaHash": "sha256:d3dcef3522e1ebc7",
         "schemaVersion": "snapback.v0"
       },
       "sourceIdentity": {
         "activation": {
           "appId": "competitive-checkpoint",
-          "bundleHash": "sha256:0ebae8b9d88d2223",
-          "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-          "schemaHash": "sha256:d1659f1faae6d578",
+          "bundleHash": "sha256:385195ef861ccab3",
+          "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+          "schemaHash": "sha256:d3dcef3522e1ebc7",
           "schemaVersion": "snapback.v0"
         },
         "functionId": "competitive-checkpoint:createConversation",
@@ -577,9 +577,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:deleteConversation",
@@ -607,7 +607,7 @@ const references = {
         }
       ],
       "mintSites": [],
-      "operationHash": "sha256:94247a4167ddf1ef1c98d7e90525758314c4c0b16d9c359d636bf7e505817fd0",
+      "operationHash": "sha256:e83bf55900352087219abecf8c58eed53169d67548f7f51a531cc1a613c242e8",
       "plan": {
         "return_value": null,
         "steps": [
@@ -748,15 +748,15 @@ const references = {
       },
       "schemaIdentity": {
         "appId": "competitive-checkpoint",
-        "schemaHash": "sha256:d1659f1faae6d578",
+        "schemaHash": "sha256:d3dcef3522e1ebc7",
         "schemaVersion": "snapback.v0"
       },
       "sourceIdentity": {
         "activation": {
           "appId": "competitive-checkpoint",
-          "bundleHash": "sha256:0ebae8b9d88d2223",
-          "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-          "schemaHash": "sha256:d1659f1faae6d578",
+          "bundleHash": "sha256:385195ef861ccab3",
+          "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+          "schemaHash": "sha256:d3dcef3522e1ebc7",
           "schemaVersion": "snapback.v0"
         },
         "functionId": "competitive-checkpoint:deleteConversation",
@@ -780,9 +780,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:firstConversationPage",
@@ -810,9 +810,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:getConversation",
@@ -834,9 +834,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:listConversationCards",
@@ -857,9 +857,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:listConversations",
@@ -887,9 +887,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:listMessages",
@@ -917,9 +917,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:nextConversationPage",
@@ -954,9 +954,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:registerModel",
@@ -973,7 +973,7 @@ const references = {
       "mintSites": [
         "plan/steps/0/insert/row-id"
       ],
-      "operationHash": "sha256:475c4586a98e1b704448179b7b3662531661be525c063916e655e91e1e3a56cb",
+      "operationHash": "sha256:e44d2a7140e3060b58b448f57dfb38002ac07c4c1db068a7fa9398440857619c",
       "plan": {
         "return_value": null,
         "steps": [
@@ -1097,15 +1097,15 @@ const references = {
       },
       "schemaIdentity": {
         "appId": "competitive-checkpoint",
-        "schemaHash": "sha256:d1659f1faae6d578",
+        "schemaHash": "sha256:d3dcef3522e1ebc7",
         "schemaVersion": "snapback.v0"
       },
       "sourceIdentity": {
         "activation": {
           "appId": "competitive-checkpoint",
-          "bundleHash": "sha256:0ebae8b9d88d2223",
-          "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-          "schemaHash": "sha256:d1659f1faae6d578",
+          "bundleHash": "sha256:385195ef861ccab3",
+          "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+          "schemaHash": "sha256:d3dcef3522e1ebc7",
           "schemaVersion": "snapback.v0"
         },
         "functionId": "competitive-checkpoint:registerModel",
@@ -1139,9 +1139,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:settleReply",
@@ -1177,9 +1177,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:startReply",
@@ -1219,9 +1219,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:streamReply",
@@ -1257,9 +1257,9 @@ const references = {
     "artifactKind": "functionReference",
     "expectedGeneration": {
       "appId": "competitive-checkpoint",
-      "bundleHash": "sha256:0ebae8b9d88d2223",
-      "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-      "schemaHash": "sha256:d1659f1faae6d578",
+      "bundleHash": "sha256:385195ef861ccab3",
+      "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+      "schemaHash": "sha256:d3dcef3522e1ebc7",
       "schemaVersion": "snapback.v0"
     },
     "id": "competitive-checkpoint:updateConversation",
@@ -1287,7 +1287,7 @@ const references = {
         }
       ],
       "mintSites": [],
-      "operationHash": "sha256:b18c8e1f34fa3f46ed2ee267c6c81d70b8c26a86f4344ecea5ea8c93304bb828",
+      "operationHash": "sha256:685aa79dd57c75527c4793ade1631f0991f4d3109a575b0b895ebf6b0f9dbb2a",
       "plan": {
         "return_value": {
           "Document": {
@@ -1444,15 +1444,15 @@ const references = {
       },
       "schemaIdentity": {
         "appId": "competitive-checkpoint",
-        "schemaHash": "sha256:d1659f1faae6d578",
+        "schemaHash": "sha256:d3dcef3522e1ebc7",
         "schemaVersion": "snapback.v0"
       },
       "sourceIdentity": {
         "activation": {
           "appId": "competitive-checkpoint",
-          "bundleHash": "sha256:0ebae8b9d88d2223",
-          "inputsHash": "70aeb8adece00cfb2314a3ddfed13651327993c987f56bba041e76bb2b629a87",
-          "schemaHash": "sha256:d1659f1faae6d578",
+          "bundleHash": "sha256:385195ef861ccab3",
+          "inputsHash": "088c24583c005a04d681832b020c603202df911d04aac59e51eda869718ec2e4",
+          "schemaHash": "sha256:d3dcef3522e1ebc7",
           "schemaVersion": "snapback.v0"
         },
         "functionId": "competitive-checkpoint:updateConversation",

@@ -11,7 +11,10 @@ import {
   materializationAddressKey,
 } from './materialization-store.mjs';
 import { createFileRqsResumeStore } from './rqs-store-file.mjs';
-import { createMemoryRqsResumeStore } from './rqs-store-memory.mjs';
+import {
+  createMemoryRqsResumeStore,
+  createMemoryRqsStoreBacking,
+} from './rqs-store-memory.mjs';
 import { base64UrlNoPad, sha256 } from './rqs.mjs';
 import {
   createStorePolicyController,
@@ -132,6 +135,40 @@ test('release grace pins the last snapshot in both release orders and rollback n
   inspection = await policy.inspection({ authorityPartitionDigest: partition('a') });
   assert.equal(inspection.addresses.find((entry) => entry.addressKey === a.addressKey).compacted, true);
   assert.equal(inspection.addresses.find((entry) => entry.addressKey === b.addressKey).compacted, false, 'pinned is GC-exempt');
+});
+
+// @ref LLP 0166#the-registration-record — release grace pins both axes, but
+// a retentionRequest of none retains no payload even when the TTL axis is
+// default and would otherwise keep durable custody in grace.
+test('none-pinned release compacts at the next pass instead of retaining payload for the TTL window', async (t) => {
+  const { handle, materializations } = await setup(t);
+  const item = await addRecord(handle, materializations, 'none-release');
+  const policy = createStorePolicyController({
+    storeHandle: handle,
+    materializationStore: materializations,
+    now: () => 1_000,
+  });
+  await policy.updateRegistrationSet({
+    addressKey: item.addressKey,
+    authorityPartitionDigest: partition('a'),
+    registrations: [registration({
+      id: 'volatile-active', source: 'active', ttl: 'default', retention: 'none',
+    })],
+  });
+  await policy.updateRegistrationSet({
+    addressKey: item.addressKey,
+    authorityPartitionDigest: partition('a'),
+    registrations: [],
+  });
+  let inspected = await policy.inspection({ authorityPartitionDigest: partition('a') });
+  assert.equal(inspected.addresses[0].effectiveRetentionRequest, 'none');
+  assert.equal(inspected.addresses[0].retainingReason.kind, 'release-grace');
+  assert.equal(inspected.addresses[0].compacted, false);
+
+  assert.deepEqual((await policy.maintenance()).compacted, [item.addressKey]);
+  inspected = await policy.inspection({ authorityPartitionDigest: partition('a') });
+  assert.deepEqual(inspected.addresses[0].retainingReason, { kind: 'instance-bookkeeping' });
+  assert.equal(inspected.addresses[0].compacted, true);
 });
 
 for (const carrier of ['memory', 'file']) {
@@ -318,4 +355,75 @@ test('StorePolicyInspectionV1 exposes enforced ceilings, one reason, and no secr
   assert.equal(serialized.includes('never-inspect'), false);
   assert.equal(serialized.includes('secret-label'), false);
   assert.equal(serialized.includes(partition('b')), false);
+});
+
+test('integration regression: synchronizeFacts reads the ledger nested durable-registration layout', async (t) => {
+  const { handle, materializations } = await setup(t);
+  const item = await addRecord(handle, materializations, 'nested-durable');
+  const durable = registration({ id: 'persisted', source: 'programmatic', ttl: 'default' });
+  await handle.materializationTransaction('readwrite', (view) => {
+    view.storeMeta.durableRegistrations[item.addressKey] = { persisted: durable };
+  });
+  const policy = createStorePolicyController({
+    storeHandle: handle,
+    materializationStore: materializations,
+    resolveRegistration: () => ({
+      addressKey: item.addressKey,
+      authorityPartitionDigest: partition('a'),
+    }),
+  });
+  const inspected = await policy.inspection({ authorityPartitionDigest: partition('a') });
+  assert.equal(inspected.addresses[0].demandState, 'demanded-idle');
+  assert.deepEqual(inspected.addresses[0].retainingReason, {
+    kind: 'registrations',
+    entries: [{
+      registrationId: 'persisted', source: 'programmatic', ownerContextKind: 'api',
+    }],
+  });
+});
+
+test('integration regression: policy inspection stays read-only in a non-writer context', async (t) => {
+  const backing = createMemoryRqsStoreBacking({ clientStoreId: 'policy-store' });
+  const writerHandle = createMemoryRqsResumeStore({ backing });
+  const readerHandle = createMemoryRqsResumeStore({ backing });
+  await writerHandle.whenLockSettled();
+  t.after(async () => {
+    await readerHandle.close();
+    await writerHandle.close();
+  });
+  const writerMaterializations = await createMaterializationStore(writerHandle);
+  await addRecord(writerHandle, writerMaterializations, 'reader-inspection');
+  const writerPolicy = createStorePolicyController({
+    storeHandle: writerHandle,
+    materializationStore: writerMaterializations,
+  });
+  await writerPolicy.inspection({ authorityPartitionDigest: partition('a') });
+
+  const readerMaterializations = await createMaterializationStore(readerHandle);
+  const readerPolicy = createStorePolicyController({
+    storeHandle: readerHandle,
+    materializationStore: readerMaterializations,
+  });
+  const inspected = await readerPolicy.inspection({ authorityPartitionDigest: partition('a') });
+  assert.equal(inspected.format, 'snapback.store-policy-inspection.v1');
+  assert.equal(inspected.addresses.length, 1);
+});
+
+test('synchronizeFacts prunes record-less registration-less grace-less policy facts', async (t) => {
+  const { handle, materializations } = await setup(t);
+  const item = await addRecord(handle, materializations, 'pruned-fact');
+  const policy = createStorePolicyController({ storeHandle: handle, materializationStore: materializations });
+  await policy.updateRegistrationSet({
+    addressKey: item.addressKey,
+    authorityPartitionDigest: partition('a'),
+    registrations: [],
+  });
+  await handle.materializationTransaction('readwrite', (view) => {
+    view.materializations.delete(materializationAddressKey(item.address));
+  });
+  await policy.synchronizeFacts();
+  const facts = await handle.materializationTransaction('readonly', (view) => (
+    structuredClone(view.storeMeta.policyBudgetFacts.addresses)
+  ));
+  assert.equal(Object.hasOwn(facts, item.addressKey), false);
 });

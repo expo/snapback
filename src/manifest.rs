@@ -3882,6 +3882,26 @@ fn relational_authorization_dimensions(
 }
 
 fn validate_retainable_query(function: &FunctionDefinition) -> SnapbackResult<()> {
+    if let Some(retention_class) = function.retention_class.as_deref() {
+        if !function.retainable {
+            return Err(undeclarable_retention(
+                function,
+                "retentionClassWithoutRetainable",
+            ));
+        }
+        if retention_class != "result-transform-snapshot-v1" {
+            return Err(undeclarable_retention(function, "unknownRetentionClass"));
+        }
+        if !matches!(
+            &function.runtime,
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(_))
+        ) {
+            return Err(undeclarable_retention(
+                function,
+                "resultTransformRequiresRelationalPlan",
+            ));
+        }
+    }
     if !function.retainable {
         return Ok(());
     }
@@ -3890,9 +3910,10 @@ fn validate_retainable_query(function: &FunctionDefinition) -> SnapbackResult<()
     }
 
     // @ref LLP 0080#4-live-and-retained-capability — retention is a closed
-    //   default-deny plan capability for relational queries: `retainable`
-    //   on a relational plan declares exactly the
-    //   `opaque-authorized-snapshot-v1` class (there is no third value),
+    //   default-deny plan capability for relational queries: legacy
+    //   `retainable` declares `opaque-authorized-snapshot-v1`; only the
+    //   retention owner may explicitly reclassify it as the post-gate
+    //   `result-transform-snapshot-v1` class,
     //   which treats the projected result as an opaque authorized snapshot
     //   under LLP 0053's lease and reconnect rules and therefore requires a
     //   server-resolved authenticated principal. Anonymous results have no
@@ -4872,11 +4893,7 @@ pub fn single_node_identity_v1(
                     "relational plan does not serialize",
                 )
             })?,
-            if function.retainable {
-                "opaque-authorized-snapshot-v1"
-                } else {
-                    "none"
-                },
+                function.effective_retention_class(),
                 "live_replace",
                 "table-granular-resnapshot",
                 vec!["relational_query_v1".to_owned()],
@@ -6093,6 +6110,20 @@ pub struct FunctionDefinition {
     ///   explicit capability, never inferred from live/callable status.
     #[serde(default, skip_serializing_if = "is_false")]
     pub retainable: bool,
+    /// Optional owner-issued refinement of the retained-result class. Its
+    /// absence preserves the legacy `retainable: true` encoding and means
+    /// `opaque-authorized-snapshot-v1`; the only admitted explicit value is
+    /// the post-gate `result-transform-snapshot-v1` class.
+    // @ref LLP 0166#d3--retention-keyed-by-plan-identity — the server-side
+    //   retention owner reclassifies a plan; the class is identity input, so
+    //   old records are never mutated into the new class.
+    #[serde(
+        default,
+        rename = "retentionClass",
+        alias = "retention_class",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub retention_class: Option<String>,
     /// Closed set of application refusal codes this function may raise through
     /// `ctx.refuse`. The declaration is what makes an app-minted code typed: a
     /// thrown code outside this set folds to `SNAPBACK_HANDLER_FAILED`, so a
@@ -6190,6 +6221,7 @@ impl FunctionDefinition {
             public_inline: false,
             authority_creating: false,
             retainable: false,
+            retention_class: None,
             refusals: Vec::new(),
             tracked_refusals: Vec::new(),
             authorization_dependence: Vec::new(),
@@ -6215,6 +6247,18 @@ impl FunctionDefinition {
     /// it unless they opt into retention.
     pub fn is_protected_query(&self) -> bool {
         self.retainable || (self.kind == FunctionKind::LiveQuery && !self.authority_independent)
+    }
+
+    /// Effective owner-issued class used by composition identity. Only call
+    /// after manifest validation when consuming an authored explicit class.
+    pub fn effective_retention_class(&self) -> &str {
+        if !self.retainable {
+            "none"
+        } else {
+            self.retention_class
+                .as_deref()
+                .unwrap_or("opaque-authorized-snapshot-v1")
+        }
     }
 
     /// True only for retained results whose continued visibility is bound to
@@ -6860,6 +6904,8 @@ pub struct PublicFunctionDefinition {
     pub authority_creating: bool,
     #[serde(skip_serializing_if = "is_false")]
     pub retainable: bool,
+    #[serde(rename = "retentionClass", skip_serializing_if = "Option::is_none")]
+    pub retention_class: Option<String>,
     #[serde(
         rename = "authorizationDependence",
         skip_serializing_if = "Vec::is_empty"
@@ -7041,6 +7087,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             public_inline,
             authority_creating,
             retainable,
+            retention_class,
             // Declared app-refusal vocabulary and its tracking subset are
             // private authoring/invocation authority; the public identity
             // descriptor restates neither.
@@ -7077,6 +7124,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             rqs_eligible,
             authority_creating,
             retainable,
+            retention_class,
             authorization_dependence,
             syncability_class,
             read_set_summary,
@@ -9469,19 +9517,19 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:48a7756abe42d2e0c5038130f7dc0c26796022b9de49019ed141237360cefdb7";
+    "sha256:281f4a0aecf9915e92b8312518f1d43ef94dde5e4d7d0d1a502f6481645bff03";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:9b2f3d432eb0ed8ba2b438f81ab235c3e37130d458c31e52aa8c903e6be8013c";
+    "sha256:86b342751813f5b19e631233075f0da9a53042199d05e1c9f2711e3510c828b8";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-persistent-store-publication.v1.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256: &str =
-    "sha256:c1a4737b0d36cb71f746a6ae54b75ff09bb8334ce21ef28e7922e6ee6dcd52c4";
+    "sha256:d5fcb351ec481352e7e4c49eadeb612bae68c40f9aaea563f459319efb4058b7";
 const LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES: &[u8] = include_bytes!(
     "../tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json"
 );
@@ -9619,7 +9667,7 @@ fn local_relation_activity_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:b7f401c0a33b5e9bef08e8166e53230998657ddda734850f43cb6ab30dd5ed64"
+                "sha256:eba01442e65b0a824ae216613c6d475e6ce062ec8d7073cbaf4b71d8ccd9c7a8"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
@@ -9682,7 +9730,7 @@ fn local_sequence_allocation_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:b7f401c0a33b5e9bef08e8166e53230998657ddda734850f43cb6ab30dd5ed64"
+                "sha256:eba01442e65b0a824ae216613c6d475e6ce062ec8d7073cbaf4b71d8ccd9c7a8"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -9740,7 +9788,11 @@ fn local_persistent_store_publication_verified_for(
     else {
         return false;
     };
-    carrier.schema_version == "snapback.local-capability-publication.v1"
+    local_persistent_store_receipts_qualified(
+        carrier_exit_receipt_bytes,
+        triage_move1_receipt_bytes,
+        triage_budget_receipt_bytes,
+    ) && carrier.schema_version == "snapback.local-capability-publication.v1"
         && carrier.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
         && carrier.capability_ids == ["single_table_v1".to_owned()]
         && carrier.maturity == "experimental"
@@ -9772,7 +9824,7 @@ fn local_persistent_store_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:4c0fdc94ae7570b8f48b5bc58354db447b701efb0d604d48f1149d49ed44ca74"
+                "sha256:52d51e300481dd9802002b8bcaed4ea6c6a1eee240e126e7aa09edfef6d40a9f"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -9784,17 +9836,66 @@ fn local_persistent_store_publication_verified_for(
                 ),
                 (
                     "packages/snapback-client/materialization-bridge.mjs".to_owned(),
-                    "sha256:3c5a4038feb347718e78385767c5cc867ab871e7410f1c335378c10d6d5af259"
+                    "sha256:5e8681971300b089e29b43b1ecd1bf4b3f7ad0ce7966e2dfc5a6f69d4cda27a1"
                         .to_owned(),
                 ),
                 (
                     "packages/snapback-client/materialization-store.mjs".to_owned(),
-                    "sha256:bd7e4935d031af165c4cdfe57d25a89e871f0eff72932b02240b846163471063"
+                    "sha256:e490cd25fba95521c3e0fc2f79d83bbead1f3b33f4e6fa1ab155e4e058c0717e"
+                        .to_owned(),
+                ),
+                (
+                    "packages/snapback-client/materialization-store-runtime.mjs".to_owned(),
+                    "sha256:525ffb0bee554a6b9c2e65256e0668ebfbcc23c43b0d4ae046c399aed410c049"
+                        .to_owned(),
+                ),
+                (
+                    "packages/snapback-client/rqs-preload-core.mjs".to_owned(),
+                    "sha256:6635964dd97069c68e42f88ff7d0ac74431b88204855afce30aa3def5b4d5286"
+                        .to_owned(),
+                ),
+                (
+                    "packages/snapback-client/store-runtime.mjs".to_owned(),
+                    "sha256:07f7d68a8e9a34cd1232a21b54c7a486a86d6414b21cc9b1d0f47daa6b092731"
                         .to_owned(),
                 ),
             ])
         && carrier.package_closure_sha256.is_none()
         && carrier.build_provenance_requirement == "source-commit-and-embedded-carrier-sha256"
+}
+
+fn local_persistent_store_receipts_qualified(
+    carrier_exit_receipt_bytes: &[u8],
+    triage_move1_receipt_bytes: &[u8],
+    triage_budget_receipt_bytes: &[u8],
+) -> bool {
+    let (Ok(carrier_exit), Ok(triage_move1), Ok(triage_budget)) = (
+        serde_json::from_slice::<Value>(carrier_exit_receipt_bytes),
+        serde_json::from_slice::<Value>(triage_move1_receipt_bytes),
+        serde_json::from_slice::<Value>(triage_budget_receipt_bytes),
+    ) else {
+        return false;
+    };
+    let leg_status = |name: &str| {
+        carrier_exit["legs"]
+            .as_array()
+            .and_then(|legs| legs.iter().find(|leg| leg["leg"] == name))
+            .and_then(|leg| leg["status"].as_str())
+    };
+    carrier_exit["schemaVersion"] == "snapback.local-persistent-store.carrier-exit.v1"
+        && carrier_exit["partial"] == false
+        && carrier_exit["summary"]["pass"].as_u64() == Some(16)
+        && carrier_exit["summary"]["gap"].as_u64() == Some(1)
+        && carrier_exit["summary"]["skipped"].as_u64() == Some(0)
+        && leg_status("footprint-hydration-triage") == Some("PASS")
+        && leg_status("footprint-hydration-fleet") == Some("GAP")
+        && triage_move1["schemaVersion"] == "snapback.triage-graph.move1-exit.v1"
+        && triage_move1["controlledRun"]["status"] == "PASS"
+        && triage_move1["summary"]["blocked"].as_u64() == Some(0)
+        && triage_move1["summary"]["pass"] == triage_move1["summary"]["total"]
+        && triage_budget["schemaVersion"] == "snapback.triage-graph.budget-freeze.v1"
+        && triage_move1["date"] == triage_budget["date"]
+        && triage_move1["budgetFreeze"] == triage_budget
 }
 
 #[cfg(test)]
@@ -10447,9 +10548,10 @@ pub struct RelationalQueryFacts {
     pub live_delivery: String,
     /// Closed, default-deny retention classes the target admits for
     /// relational plans: `none` (the default) and
-    /// `opaque-authorized-snapshot-v1` (the authenticated lease class —
-    /// owner-visible plans only; anonymous results have no admissible
-    /// retention).
+    /// `opaque-authorized-snapshot-v1` (the authenticated lease class) and
+    /// `result-transform-snapshot-v1` (the owner-reclassified post-gate
+    /// class). Both retained classes require owner-visible plans; anonymous
+    /// results have no admissible retention.
     pub retention: Vec<String>,
 }
 
@@ -10460,6 +10562,7 @@ impl RelationalQueryFacts {
             retention: vec![
                 "none".to_owned(),
                 "opaque-authorized-snapshot-v1".to_owned(),
+                "result-transform-snapshot-v1".to_owned(),
             ],
         }
     }
@@ -11127,9 +11230,6 @@ impl CapabilityManifest {
         } else {
             ensure_snapshot_batch_capability_gap(&mut self.capability_gaps);
         }
-        // @ref LLP 0113#1-closed-capability-registry-assignment — support is
-        // independently derived from the local carrier; maturity does not
-        // remove this structured GAP on any target where the predicate fails.
         if self
             .supported_capabilities
             .contains(&TargetCapabilityId::SingleTableV1)
@@ -12533,6 +12633,105 @@ mod membership_manifest_grammar_tests {
     }
 
     #[test]
+    fn single_table_publication_is_experimental_and_evidence_gated() {
+        let published = local_persistent_store_publication_verified();
+        assert_eq!(
+            published,
+            local_persistent_store_receipts_qualified(
+                LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+                LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+                LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+            ),
+            "the exact embedded carrier chain publishes iff its receipts qualify",
+        );
+        let mut qualified_exit: Value = serde_json::from_slice(
+            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+        )
+        .expect("carrier exit fixture parses");
+        qualified_exit["summary"]["pass"] = json!(16);
+        qualified_exit["summary"]["gap"] = json!(1);
+        let triage = qualified_exit["legs"]
+            .as_array_mut()
+            .and_then(|legs| {
+                legs.iter_mut()
+                    .find(|leg| leg["leg"] == "footprint-hydration-triage")
+            })
+            .expect("carrier exit carries the Triage leg");
+        triage["status"] = json!("PASS");
+        assert!(local_persistent_store_receipts_qualified(
+            &serde_json::to_vec(&qualified_exit).expect("qualified fixture serializes"),
+            LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+        ));
+        assert_eq!(
+            TargetCapabilityId::SingleTableV1.maturity(),
+            CapabilityMaturity::Experimental,
+        );
+        for manifest in [
+            CapabilityManifest::local_v0_declared(),
+            CapabilityManifest::local_v0_instance(Vec::new(), true),
+        ] {
+            assert_eq!(
+                manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::SingleTableV1),
+                published,
+            );
+            assert_eq!(
+                manifest.capability_gaps.iter().any(|gap| gap == "single_table_v1"),
+                !published,
+            );
+        }
+        for manifest in [
+            CapabilityManifest::remote_service_sqlite_ibex_declared(),
+            CapabilityManifest::conformance_workerd_v8(json!({})),
+            CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+        ] {
+            assert!(
+                !manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::SingleTableV1),
+                "{} must not inherit contributor-source publication",
+                manifest.target_profile_id,
+            );
+            assert!(manifest.capability_gaps.iter().any(|gap| gap == "single_table_v1"));
+        }
+    }
+
+    #[test]
+    fn single_table_publication_tamper_and_package_substitutions_fail_closed() {
+        let mut tampered_carrier = LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES.to_vec();
+        tampered_carrier[0] ^= 1;
+        assert!(!local_persistent_store_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+            &tampered_carrier,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+        ));
+        assert!(!local_persistent_store_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+        ));
+        let withheld = CapabilityManifest::local_v0_with_facts(
+            Vec::new(),
+            TargetCapabilityFacts::local_auth_aware()
+                .with_local_persistent_store_publication_withheld(),
+        );
+        assert!(
+            !withheld
+                .supported_capabilities
+                .contains(&TargetCapabilityId::SingleTableV1)
+        );
+        assert!(withheld.capability_gaps.iter().any(|gap| gap == "single_table_v1"));
+    }
+
+    #[test]
     fn snapshot_batch_registry_is_experimental_and_local_only() {
         assert_eq!(
             TargetCapabilityId::SnapshotBatchV1.maturity(),
@@ -12590,115 +12789,6 @@ mod membership_manifest_grammar_tests {
                 manifest.target_profile_id,
             );
         }
-    }
-
-    #[test]
-    fn single_table_publication_is_experimental_local_source_only() {
-        assert!(local_persistent_store_publication_verified());
-        assert_eq!(
-            TargetCapabilityId::SingleTableV1.maturity(),
-            CapabilityMaturity::Experimental,
-        );
-        for manifest in [
-            CapabilityManifest::local_v0_declared(),
-            CapabilityManifest::local_v0_instance(Vec::new(), true),
-        ] {
-            assert!(
-                manifest
-                    .supported_capabilities
-                    .contains(&TargetCapabilityId::SingleTableV1),
-                "{} must publish the qualified host-derived class",
-                manifest.target_profile_id,
-            );
-            assert_eq!(
-                manifest
-                    .capability_maturity
-                    .get(&TargetCapabilityId::SingleTableV1),
-                Some(&CapabilityMaturity::Experimental),
-            );
-            assert!(
-                !manifest
-                    .capability_gaps
-                    .iter()
-                    .any(|gap| gap == "single_table_v1")
-            );
-        }
-        for manifest in [
-            CapabilityManifest::remote_service_sqlite_ibex_declared(),
-            CapabilityManifest::conformance_workerd_v8(json!({})),
-            CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
-        ] {
-            assert!(
-                !manifest
-                    .supported_capabilities
-                    .contains(&TargetCapabilityId::SingleTableV1),
-                "{} must not inherit contributor-source publication",
-                manifest.target_profile_id,
-            );
-            assert!(
-                manifest
-                    .capability_gaps
-                    .iter()
-                    .any(|gap| gap == "single_table_v1"),
-                "{} must retain the structured single_table_v1 GAP",
-                manifest.target_profile_id,
-            );
-            assert!(
-                !manifest
-                    .capability_maturity
-                    .contains_key(&TargetCapabilityId::SingleTableV1),
-                "unsupported ids do not receive maturity annotations",
-            );
-        }
-
-        let withheld = CapabilityManifest::local_v0_with_facts(
-            Vec::new(),
-            TargetCapabilityFacts::local_auth_aware()
-                .with_local_persistent_store_publication_withheld(),
-        );
-        assert!(
-            !withheld
-                .supported_capabilities
-                .contains(&TargetCapabilityId::SingleTableV1)
-        );
-        assert!(
-            withheld
-                .capability_gaps
-                .iter()
-                .any(|gap| gap == "single_table_v1")
-        );
-    }
-
-    #[test]
-    fn single_table_publication_tamper_and_package_substitutions_fail_closed() {
-        let mut tampered_carrier = LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES.to_vec();
-        tampered_carrier[0] ^= 1;
-        assert!(!local_persistent_store_publication_verified_for(
-            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
-            &tampered_carrier,
-            LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
-            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
-            LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
-            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
-        ));
-        let mut stale_triage = LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES.to_vec();
-        stale_triage.push(b'\n');
-        assert!(!local_persistent_store_publication_verified_for(
-            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
-            LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
-            LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
-            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
-            &stale_triage,
-            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
-        ));
-        assert!(!local_persistent_store_publication_verified_for(
-            crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
-            LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
-            LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
-            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
-            LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
-            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
-        ));
     }
 
     #[test]

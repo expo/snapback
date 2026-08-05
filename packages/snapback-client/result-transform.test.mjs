@@ -19,9 +19,13 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import { canonicalizeClientValueV1 } from './canonical-client-value.mjs';
+import { SnapbackClient } from './index.mjs';
 import {
   RESULT_TRANSFORM_V1_JAVASCRIPT_EVALUATOR_ID,
-  evaluateResultTransformWithClientLayersV1,
+  RESULT_TRANSFORM_V1_RETENTION_CLASS,
+  RESULT_TRANSFORM_V1_RUST_EVALUATOR_ID,
+  RESULT_TRANSFORM_V1_SHIP_GATE,
+  evaluateAdmittedResultTransformV1,
   transformHashV1,
 } from './result-transform.mjs';
 import {
@@ -36,6 +40,32 @@ const CORPUS_DIR = join(ROOT, 'tests', 'conformance', 'data-tier', 'result-trans
 const MANIFEST_PATH = join(CORPUS_DIR, 'corpus.manifest.json');
 const WRITE = process.argv.includes('--write');
 const sha256 = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
+const claimingCarriers = Object.freeze([
+  Object.freeze({ implementation: 'indexeddb', durable: true }),
+  Object.freeze({ implementation: 'file', durable: true }),
+]);
+
+const caseRequest = (testCase) => ({
+  plan: testCase.plan,
+  executingMaterializationKey: testCase.executingMaterializationKey,
+  projectedFields: testCase.projectedFields,
+  base: testCase.base,
+  ...(Object.prototype.hasOwnProperty.call(testCase, 'clientOverlayRows')
+    ? { clientOverlayRows: testCase.clientOverlayRows }
+    : {}),
+});
+
+const capturedOutcome = (evaluate) => {
+  try {
+    return { status: 'ok', rows: evaluate() };
+  } catch (error) {
+    return {
+      status: 'refused',
+      code: error?.code ?? 'SNAPBACK_RESULT_TRANSFORM_UNTYPED_FAILURE',
+      reason: error?.reason ?? 'untyped-failure',
+    };
+  }
+};
 
 async function renderedCorpusCases() {
   return Promise.all(buildResultTransformCorpusCases().map(async (testCase) => {
@@ -135,6 +165,138 @@ test('result-transform D5 extension is generated, pinned, and exact in JavaScrip
   assert.equal(existsSync(MANIFEST_PATH), true);
 });
 
+test('S6 ship gate runs all 56 cases on each claiming carrier and floors non-claiming carriers', () => {
+  assert.deepEqual(RESULT_TRANSFORM_V1_SHIP_GATE.evaluatorIdentities, {
+    javascript: RESULT_TRANSFORM_V1_JAVASCRIPT_EVALUATOR_ID,
+    rust: RESULT_TRANSFORM_V1_RUST_EVALUATOR_ID,
+  });
+  assert.equal(RESULT_TRANSFORM_V1_SHIP_GATE.corpusCases, cases.length);
+  for (const carrier of claimingCarriers) {
+    for (const testCase of cases) {
+      const actual = capturedOutcome(() => evaluateAdmittedResultTransformV1({
+        retentionClass: RESULT_TRANSFORM_V1_RETENTION_CLASS,
+        carrier,
+      }, caseRequest(testCase)));
+      assert.deepEqual(
+        actual,
+        testCase.expect.outcome,
+        `${carrier.implementation}/${testCase.name}: admitted carrier outcome`,
+      );
+      assert.equal(
+        canonicalizeClientValueV1(actual),
+        canonicalizeClientValueV1(testCase.expect.outcome),
+        `${carrier.implementation}/${testCase.name}: canonical outcome bytes`,
+      );
+    }
+  }
+
+  for (const carrier of [
+    { implementation: 'memory', durable: false },
+    { implementation: 'expo-file-system', durable: false },
+  ]) {
+    for (const testCase of cases) {
+      assert.throws(
+        () => evaluateAdmittedResultTransformV1({
+          retentionClass: RESULT_TRANSFORM_V1_RETENTION_CLASS,
+          carrier,
+        }, caseRequest(testCase)),
+        { code: 'SNAPBACK_LOCAL_EVALUATION_UNADMITTED' },
+        `${carrier.implementation}/${testCase.name}: non-claiming carrier stays on floor`,
+      );
+    }
+  }
+
+  assert.throws(
+    () => evaluateAdmittedResultTransformV1({
+      retentionClass: 'opaque-authorized-snapshot-v1',
+      carrier: claimingCarriers[0],
+    }, caseRequest(cases[0])),
+    { code: 'SNAPBACK_LOCAL_EVALUATION_UNADMITTED' },
+    'the owner must reclassify the plan before the gate can evaluate it',
+  );
+});
+
+test('the shipped client invocation seam preserves the floor before request inspection', async () => {
+  const client = Object.create(SnapbackClient.prototype);
+  client.rqsStoreInfo = Object.freeze({ implementation: 'indexeddb', durable: true });
+  let transformInspected = false;
+  const transformPlan = new Proxy({}, {
+    get() {
+      transformInspected = true;
+      throw new Error('unreclassified request must not be inspected');
+    },
+  });
+  await assert.rejects(
+    client.evaluateLocalResultTransform({
+      name: 'opaquePlan',
+      composition: {
+        normalizedCompositePlan: {
+          classification: { retention: 'opaque-authorized-snapshot-v1' },
+        },
+      },
+    }, { transformPlan }),
+    { code: 'SNAPBACK_LOCAL_EVALUATION_UNADMITTED' },
+  );
+  assert.equal(transformInspected, false);
+});
+
+test('the shipped client invocation seam evaluates only proof-verified reclassified bytes', async () => {
+  const client = Object.create(SnapbackClient.prototype);
+  client.rqsStoreInfo = Object.freeze({ implementation: 'file', durable: true });
+  let renderedReads = 0;
+  client.__prepareGeneratedMaterializationBridge = async () => ({
+    bridge: {
+      address: ['snapback:client-materialization-address:v1', 'ship-gate-store', 'qmk1.ship-gate'],
+      identities: { planHash: 'sha256:proof-verified-plan' },
+      retentionClass: RESULT_TRANSFORM_V1_RETENTION_CLASS,
+      retentionRequested: true,
+      resultContract: {
+        record: {
+          fields: [{ name: 'id' }, { name: 'active' }, { name: 'rank' }],
+        },
+      },
+    },
+    record: {
+      queryInstanceId: 7,
+      authorityState: { authority_generation: 3, query_generation: 4 },
+    },
+    store: {
+      async readRenderable(_address, fence) {
+        renderedReads += 1;
+        assert.deepEqual(fence, {
+          queryInstanceId: 7,
+          authorityGeneration: 3,
+          queryGeneration: 4,
+        });
+        return new TextEncoder().encode(JSON.stringify([
+          { id: 'base', active: true, rank: 1 },
+          { id: 'inactive', active: false, rank: 9 },
+        ]));
+      },
+    },
+  });
+  const rows = await client.evaluateLocalResultTransform({
+    name: 'reclassifiedPlan',
+    composition: {
+      normalizedCompositePlan: {
+        classification: { retention: RESULT_TRANSFORM_V1_RETENTION_CLASS },
+      },
+    },
+  }, {
+    transformPlan: {
+      format: 'snapback.result-transform.v1',
+      materializationKey: 'qmk1.ship-gate',
+      overlay: 'none',
+      filterGrammar: 'basic-v1',
+      filter: [{ field: 'active', op: 'eq', value: true }],
+      order: [{ field: 'rank', direction: 'desc' }],
+      limit: 10,
+    },
+  });
+  assert.deepEqual(rows, [{ id: 'base', active: true, rank: 1 }]);
+  assert.equal(renderedReads, 1);
+});
+
 test('client-only overlay callbacks compose in owner order before the pure transform', () => {
   const transformPlan = {
     format: 'snapback.result-transform.v1',
@@ -145,7 +307,7 @@ test('client-only overlay callbacks compose in owner order before the pure trans
     order: [{ field: 'rank', direction: 'desc' }],
     limit: 2,
   };
-  const rows = evaluateResultTransformWithClientLayersV1({
+  const request = {
     plan: transformPlan,
     executingMaterializationKey: 'qmk1.result-transform-fixture',
     projectedFields: ['id', 'active', 'rank'],
@@ -164,15 +326,24 @@ test('client-only overlay callbacks compose in owner order before the pure trans
         row.id === 'base' ? { ...row, rank: 3 } : row
       )),
     ],
-  });
-  assert.deepEqual(rows, [
-    { id: 'base', active: true, rank: 3 },
-    { id: 'only-overlay', active: true, rank: 2 },
-  ]);
+  };
+  for (const carrier of claimingCarriers) {
+    const rows = evaluateAdmittedResultTransformV1({
+      retentionClass: RESULT_TRANSFORM_V1_RETENTION_CLASS,
+      carrier,
+    }, request);
+    assert.deepEqual(rows, [
+      { id: 'base', active: true, rank: 3 },
+      { id: 'only-overlay', active: true, rank: 2 },
+    ]);
+  }
 
   let invalidLayerCalled = false;
   assert.throws(
-    () => evaluateResultTransformWithClientLayersV1({
+    () => evaluateAdmittedResultTransformV1({
+      retentionClass: RESULT_TRANSFORM_V1_RETENTION_CLASS,
+      carrier: claimingCarriers[0],
+    }, {
       plan: transformPlan,
       executingMaterializationKey: 'qmk1.other-address',
       projectedFields: ['id', 'active', 'rank'],
@@ -191,7 +362,7 @@ test('client-only overlay callbacks compose in owner order before the pure trans
   assert.equal(invalidLayerCalled, false, 'contextual refusal precedes client callback execution');
 });
 
-test('the dormant evaluator source is browser-safe', () => {
+test('the shipped evaluator source is browser-safe', () => {
   const source = readFileSync(join(ROOT, 'packages', 'snapback-client', 'result-transform.mjs'), 'utf8');
   assert.equal(/\bBuffer\b/.test(source), false, 'no Buffer dependency');
   assert.equal(/^\s*import\s+.*['"]node:/mu.test(source), false, 'no static node: import');

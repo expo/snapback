@@ -223,6 +223,36 @@ test('durable forwarding/release is partition-safe, replayable, and generation-f
   assert.equal(stale.outcome.code, 'SNAPBACK_BROKER_STALE_WRITER_GENERATION');
 });
 
+test('a pre-broker durable registration keeps its owner partition on release', async (t) => {
+  const { handle, broker } = await setup(t);
+  const a = partition('a');
+  const existing = registration({ id: 'pre-broker', source: 'programmatic', part: a });
+  await handle.materializationTransaction('readwrite', (view) => {
+    view.storeMeta.durableRegistrations[existing.functionReference.addressKey] = {
+      [existing.registrationId]: structuredClone(existing),
+    };
+  });
+  const generation = broker.writerGeneration();
+  const wrong = await broker.receive({
+    format: 'snapback.register-release.v1',
+    contextId: 'tab-a',
+    requestId: 'pre-broker-wrong',
+    writerGeneration: generation,
+    authorityPartitionDigest: partition('b'),
+    registrationId: existing.registrationId,
+  });
+  assert.equal(wrong.outcome.code, 'SNAPBACK_BROKER_PARTITION_MISMATCH');
+  const released = await broker.receive({
+    format: 'snapback.register-release.v1',
+    contextId: 'tab-a',
+    requestId: 'pre-broker-release',
+    writerGeneration: generation,
+    authorityPartitionDigest: a,
+    registrationId: existing.registrationId,
+  });
+  assert.equal(released.outcome.kind, 'released');
+});
+
 test('release-before-forward tombstones are partition-keyed and evict at 1,025 total', async (t) => {
   const broker = await createDemandBroker({
     storeHandle: fastStoreHandle(), registrationLedger: fakeLedger(), resolveRegistration,
@@ -507,4 +537,44 @@ test('a REAL BroadcastChannel delivers announces and handoff confirmations (fake
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
   assert.equal(ledger.active.has(`reader-tab:${part}`), true, 'real-channel announce applies at the writer');
+});
+
+test('integration regression: a broker constructed as reader promotes through writer handoff', async (t) => {
+  const backing = createMemoryRqsStoreBacking({ clientStoreId: 'late-writer' });
+  const firstHandle = createMemoryRqsResumeStore({ backing });
+  const nextHandle = createMemoryRqsResumeStore({ backing });
+  await firstHandle.whenLockSettled();
+  const first = await createDemandBroker({
+    storeHandle: firstHandle,
+    registrationLedger: fakeLedger(),
+    resolveRegistration,
+    lockManager: locks,
+    contextId: 'first-writer',
+  });
+  const next = await createDemandBroker({
+    storeHandle: nextHandle,
+    registrationLedger: fakeLedger(),
+    resolveRegistration,
+    lockManager: locks,
+    contextId: 'next-writer',
+  });
+  t.after(async () => {
+    await next.close();
+    await nextHandle.close();
+  });
+  const part = partition('a');
+  await first.receive({
+    format: 'snapback.demand-announce.v1',
+    contextId: 'peer',
+    revision: 1,
+    authorityPartitionDigest: part,
+    demands: [registration({ id: 'peer-demand', contextId: 'peer', part })],
+  });
+  const priorGeneration = next.writerGeneration();
+  await first.close();
+  await firstHandle.close();
+  await nextHandle.whenLockSettled();
+  await next.maintenance();
+  assert.equal(next.writerGeneration(), priorGeneration + 1);
+  assert.equal(await next.suppressionActive(), true, 'the persisted peer pair awaits reconciliation');
 });

@@ -677,6 +677,9 @@ export interface RelationalQuerySpec {
   rootIndex: string;
   joinedIndex: string;
   defaultLive?: boolean;
+  /** Owner-issued retained-result class. Changing this value rotates the
+   * generated plan/materialization identity; it never mutates old records. */
+  retention?: 'none' | 'opaque-authorized-snapshot-v1' | 'result-transform-snapshot-v1';
 }
 export declare function defineRelationalQuery(spec: RelationalQuerySpec): unknown;
 export declare function owner(field: string): { kind: 'owner'; field: string };

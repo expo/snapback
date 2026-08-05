@@ -93,3 +93,56 @@ logic and make offline authority far more explicit. Snapback currently adds
 more deployment-specific activation ceremony, internal registration plumbing,
 and generated-cache handling than either familiar alternative, so the data
 model felt better while the local-first application setup felt less mature.
+
+## 2026-08-04 — Move 2 public registration follow-through
+
+The OQ8 programmatic-registration half is now public, so I replaced the demo's
+private bridge/address assembly with one `client.registerQuery` call over the
+generated `retainedInbox` reference. The client now owns qmk1 construction,
+the authority-partition digest, the closed registration record, and writer vs
+non-writer broker forwarding. That removes the most brittle app-specific code
+from the original diary entry while preserving the stable
+`triage-graph-retained-inbox-v1` identity and exact retention policy.
+
+The new outcome envelope is a useful ergonomic improvement over the private
+boolean-shaped seam: the demo handles `committed` and stable refusals through
+the same `RegisterOutcomeV1` shape used by forwarded contexts. The remaining
+friction is deliberate but visible: the app must choose and permanently own a
+store-scoped registration id, and durable intent can still refuse when the
+generated query's owner classification does not admit retention. Compared with
+React plus Convex or Supabase, that asks for more explicit custody policy, but
+it no longer asks the application to know a materialization address or auth
+partition digest.
+
+## 2026-08-04 — Maintenance-aware custody correction
+
+The original 21-fragment/120-row freeze captured the demo before LLP 0166's
+maintenance pass was wired into the shipped client. Once Lane A added that
+pass, the old assertion became actively misleading: all 20 query-change
+handles had been disposed with `persistResume: false`, so their pinned
+retention was `none` and §D5 required payload compaction at the next writer
+pass. They were not release-grace payloads under the implemented policy.
+
+The acceptance harness now injects a fixed clock and inert scheduler, prepares
+and records each exact qmk1 address, then explicitly drives one maintenance
+pass—no sleep and no idle-callback race. `StorePolicyInspectionV1` must explain
+the resulting set as one programmatic registration retaining the 100-row Inbox,
+zero release-grace or blocker-held records, and 20 compacted
+`instance-bookkeeping` stubs. This was a stale-harness defect, not lost durable
+payload: the registered Inbox remained present throughout the reported
+failure.
+
+The adjudication also exposed a separate Lane A over-retention defect. The
+maintenance predicate compacted `retentionRequest: none` while demand was
+active, but missed the same pinned request after final release, allowing a
+default (or infinite) TTL axis to keep payload that §D2 says may not be kept.
+The policy now reclaims that payload on the next explicit pass and has an
+owning regression. No registered or payload-retaining grace record was lost;
+the defect retained too much.
+
+This made Snapback's policy model feel substantially better than an ordinary
+opaque cache once the right inspection was in hand: the test can state why
+every address exists and which one may own bytes. The ergonomic miss was that
+an acceptance workload could previously observe whichever queued maintenance
+callbacks happened to run. The injected clock/scheduler seam fixed that cleanly
+and belongs in future custody-oriented demo harnesses from the beginning.

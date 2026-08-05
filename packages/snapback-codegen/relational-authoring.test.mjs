@@ -63,7 +63,7 @@ const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
   // and the authenticated lease class needs an owner-visible output.
   assert.throws(
     () => defineRelationalQuery({ ...base, retention: 'forever' }),
-    /retention must be 'none' or 'opaque-authorized-snapshot-v1'/,
+    /retention must be 'none', 'opaque-authorized-snapshot-v1', or 'result-transform-snapshot-v1'/,
     'the retention vocabulary is closed',
   );
   assert.throws(
@@ -78,7 +78,14 @@ const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
   {
     const retained = defineRelationalQuery({ ...base, retention: 'opaque-authorized-snapshot-v1' });
     assert.equal(retained.retainable, true, 'the lease class declares retainable');
+    assert.equal(retained.retentionClass, undefined, 'legacy opaque manifests retain their byte shape');
     assert.deepEqual(retained.authorizationDependence, ['userId']);
+    const reclassified = defineRelationalQuery({
+      ...base,
+      retention: 'result-transform-snapshot-v1',
+    });
+    assert.equal(reclassified.retainable, true, 'the reclassified plan remains retained');
+    assert.equal(reclassified.retentionClass, 'result-transform-snapshot-v1');
     const plain = defineRelationalQuery(base);
     assert.equal(plain.retainable, undefined, 'retention defaults to none');
   }
@@ -199,6 +206,7 @@ export const booksWithAuthors = defineRelationalQuery({
   take: 50,
   rootIndex: 'by_owner_title',
   joinedIndex: 'by_slug',
+  retention: 'opaque-authorized-snapshot-v1',
 });
 
 export const booksWithMaybeAuthors = defineRelationalQuery({
@@ -229,6 +237,8 @@ export const booksWithMaybeAuthors = defineRelationalQuery({
   const fn = manifest.functions.find((candidate) => candidate.name === 'booksWithAuthors');
   assert(fn, 'relational function must be emitted');
   assert.equal(fn.authRequirement, 'authenticated');
+  assert.equal(fn.retainable, true);
+  assert.equal(fn.retentionClass, undefined, 'opaque compatibility encoding stays unchanged');
   const plan = fn.runtime.HostPlan.RelationalQuery;
   assert.equal(plan.root, 'books');
   assert.equal(plan.joined, 'authors');
@@ -357,6 +367,40 @@ void [shelf, featured, edition, note];
     readFileSync(join(dir, 'generated', 'functions.manifest.json')),
     first,
     'regeneration must be byte-identical',
+  );
+
+  const opaqueApi = await import(`${pathToFileURL(join(dir, 'generated', 'api.mjs')).href}?opaque`);
+  const opaqueComposition = opaqueApi.api.booksWithAuthors.composition;
+  assert.equal(
+    opaqueComposition.normalizedCompositePlan.classification.retention,
+    'opaque-authorized-snapshot-v1',
+  );
+  const functionsPath = join(dir, 'functions.mjs');
+  const reclassifiedSource = readFileSync(functionsPath, 'utf8').replace(
+    "retention: 'opaque-authorized-snapshot-v1'",
+    "retention: 'result-transform-snapshot-v1'",
+  );
+  writeFileSync(functionsPath, reclassifiedSource);
+  const reclassified = await generate(dir);
+  assert.equal(reclassified.ok, true, JSON.stringify(reclassified.diagnostics));
+  const reclassifiedManifest = JSON.parse(
+    readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'),
+  );
+  const reclassifiedFunction = reclassifiedManifest.functions
+    .find((candidate) => candidate.name === 'booksWithAuthors');
+  assert.equal(reclassifiedFunction.retentionClass, 'result-transform-snapshot-v1');
+  const reclassifiedApi = await import(
+    `${pathToFileURL(join(dir, 'generated', 'api.mjs')).href}?result-transform`,
+  );
+  const reclassifiedComposition = reclassifiedApi.api.booksWithAuthors.composition;
+  assert.equal(
+    reclassifiedComposition.normalizedCompositePlan.classification.retention,
+    'result-transform-snapshot-v1',
+  );
+  assert.notEqual(
+    reclassifiedComposition.planHash,
+    opaqueComposition.planHash,
+    'owner reclassification rotates plan identity so records re-derive under a new QMK',
   );
 } finally {
   rmSync(dir, { recursive: true, force: true });

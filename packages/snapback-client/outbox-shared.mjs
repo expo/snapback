@@ -37,17 +37,26 @@ export const OUTBOX_MAX_PENDING_ACKS = 4096;
 // without crossing the stamped boundary. Caller-owned aborts and deadline
 // expiries are not outages; anything the server answered — refusals,
 // conflicts, rejections — is NOT connectivity and is never queued.
-const CONNECTIVITY_EXCLUDED_ERROR_NAMES = new Set(['AbortError', 'TimeoutError']);
 export const isConnectivityFailureError = (error) => (
   (error?.fetchDispatchFailed === true || error instanceof TypeError)
-  && !CONNECTIVITY_EXCLUDED_ERROR_NAMES.has(error?.name)
+  && error?.name !== 'AbortError'
+  && error?.name !== 'TimeoutError'
   && error?.status === undefined
   && error?.diagnostic === undefined
   && error?.receipt === undefined
 );
 
 const REPLAY_OPAQUE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
-const SETTLEMENT_LANES = new Set(['replay-accept', 're-derive']);
+const plainRecord = (value) => value !== null
+  && typeof value === 'object'
+  && !Array.isArray(value);
+const stringOrNull = (value) => typeof value === 'string' ? value : null;
+const authorityInstanceId = (descriptor) => stringOrNull(descriptor?.authorityInstanceId);
+const acknowledgementMatches = (ack, userId, descriptor) => (
+  (userId === undefined || ack.userId === stringOrNull(userId))
+  && (descriptor === undefined
+    || (ack.authorityInstanceId ?? null) === authorityInstanceId(descriptor))
+);
 
 function outboxError(code, message, details = {}) {
   const error = new Error(`${code}: ${message}`);
@@ -55,6 +64,10 @@ function outboxError(code, message, details = {}) {
   error.diagnostic = { code, message, details };
   return error;
 }
+const invalidOutboxRecord = (message) => outboxError(
+  'SNAPBACK_OUTBOX_RECORD_INVALID',
+  message,
+);
 
 export const outboxNotWriterError = () => outboxError(
   'SNAPBACK_OUTBOX_NOT_WRITER',
@@ -79,58 +92,50 @@ export const outboxOversizeError = (bytes) => outboxError(
   `serialized outbox record is ${bytes} bytes (max ${OUTBOX_MAX_RECORD_BYTES})`,
 );
 
-const utf8Length = (value) => new TextEncoder().encode(value).length;
-
 /// Validate + normalize one enqueue input into the stored record shape.
 /// `sequence`, `enqueuedAt`, and `status` are store-assigned, never caller
 /// input. Throws typed SNAPBACK_OUTBOX_RECORD_INVALID on a bad shape.
 export function normalizeOutboxRecordInput(record) {
-  if (!record || typeof record !== 'object' || Array.isArray(record)) {
-    throw outboxError('SNAPBACK_OUTBOX_RECORD_INVALID', 'outbox record must be an object');
+  if (!plainRecord(record)) {
+    throw invalidOutboxRecord('outbox record must be an object');
   }
   const { id, function: functionName } = record;
   if (typeof id !== 'string' || !REPLAY_OPAQUE_ID.test(id)) {
-    throw outboxError(
-      'SNAPBACK_OUTBOX_RECORD_INVALID',
+    throw invalidOutboxRecord(
       'outbox record id must match the opaque replay-id alphabet (LLP 0043)',
     );
   }
-  if (typeof functionName !== 'string' || functionName.length === 0) {
-    throw outboxError('SNAPBACK_OUTBOX_RECORD_INVALID', 'outbox record needs a function name');
+  if (typeof functionName !== 'string' || !functionName) {
+    throw invalidOutboxRecord('outbox record needs a function name');
   }
   const settlementLane = record.settlementLane ?? 'replay-accept';
-  if (!SETTLEMENT_LANES.has(settlementLane)) {
-    throw outboxError(
-      'SNAPBACK_OUTBOX_RECORD_INVALID',
+  if (settlementLane !== 'replay-accept' && settlementLane !== 're-derive') {
+    throw invalidOutboxRecord(
       'outbox settlement lane must be replay-accept or re-derive',
     );
   }
+  // The protocol identity is the layer identity. Callers may capture the IR
+  // before minting an id; normalize the durable copy once rather than retain
+  // a second local-only identity that cannot match settlement.
   let optimisticOperation = null;
   if (record.optimisticOperation != null) {
     try {
       optimisticOperation = JSON.parse(canonicalizeClientValueV1(record.optimisticOperation));
     } catch {
-      throw outboxError(
-        'SNAPBACK_OUTBOX_RECORD_INVALID',
+      throw invalidOutboxRecord(
         'outbox optimistic operation must be a finite canonical client value',
       );
     }
-    if (optimisticOperation === null || typeof optimisticOperation !== 'object' || Array.isArray(optimisticOperation)) {
-      throw outboxError(
-        'SNAPBACK_OUTBOX_RECORD_INVALID',
-        'outbox optimistic operation must be an object',
-      );
+    if (!plainRecord(optimisticOperation)) {
+      throw invalidOutboxRecord('outbox optimistic operation must be an object');
     }
-    // The protocol identity is the layer identity. Callers may capture the IR
-    // before minting an id; normalize the durable copy once rather than retain
-    // a second local-only identity that cannot match settlement.
     optimisticOperation.layerId = id;
   }
   return {
     id,
     function: functionName,
     args: record.args ?? {},
-    userId: typeof record.userId === 'string' ? record.userId : null,
+    userId: stringOrNull(record.userId),
     readSet: Array.isArray(record.readSet) ? record.readSet : [],
     correlation: record.correlation ?? null,
     // The authority descriptor captured at enqueue (LLP 0043 §Auth posture):
@@ -170,17 +175,20 @@ const durableReplayIdentity = (record) => {
 
 /// Serialized-size guard shared by every arm.
 export function outboxRecordBytes(stored) {
-  return utf8Length(JSON.stringify(stored));
+  return new TextEncoder().encode(JSON.stringify(stored)).length;
 }
 
 /// Ordering rule: the client-local monotonic sequence, never a wall clock.
 export const outboxOrder = (a, b) => a.sequence - b.sequence;
 
-const settlementMintIds = (record) => (Array.isArray(record?.settlementClaims?.mints)
+const settlementMints = (record) => (Array.isArray(record?.settlementClaims?.mints)
   ? record.settlementClaims.mints
+  : []);
+
+const settlementMintIds = (record) => (settlementMints(record)
     .map((mint) => mint?.claimed)
     .filter((claimed) => typeof claimed === 'string')
-  : []);
+);
 
 const rewriteStringLeaves = (value, replacements) => {
   if (typeof value === 'string') return replacements.get(value) ?? value;
@@ -204,12 +212,6 @@ const hasStringLeaf = (value, candidates) => {
     && Object.values(value).some((item) => hasStringLeaf(item, candidates));
 };
 
-const mutationReceipt = (settlement) => {
-  if (settlement?.receipt?.kind === 'mutation') return settlement.receipt;
-  if (settlement?.kind === 'mutation') return settlement;
-  return null;
-};
-
 // Resolve only ids attested by this client's own mint ledger. Receipt entries
 // outside that ledger do not gain rewrite authority, and every ambiguity is
 // treated as unmapped. Lane Q needs no rewrite because replay-accept preserves
@@ -221,9 +223,7 @@ const settlementIdResolution = (record, settlement) => {
   if (record?.settlementLane !== 're-derive') {
     return { replacements: new Map(), unresolved: new Set() };
   }
-  const claimedMints = Array.isArray(record?.settlementClaims?.mints)
-    ? record.settlementClaims.mints
-    : [];
+  const claimedMints = settlementMints(record);
   const claimed = settlementMintIds(record);
   const claimCounts = new Map();
   for (const id of claimed) claimCounts.set(id, (claimCounts.get(id) ?? 0) + 1);
@@ -231,7 +231,10 @@ const settlementIdResolution = (record, settlement) => {
     .filter((mint) => typeof mint?.claimed === 'string')
     .map((mint) => [mint.claimed, mint]));
   const entries = new Map();
-  const receiptMap = mutationReceipt(settlement)?.idMap;
+  const receipt = settlement?.receipt?.kind === 'mutation'
+    ? settlement.receipt
+    : settlement?.kind === 'mutation' ? settlement : null;
+  const receiptMap = receipt?.idMap;
   for (const entry of Array.isArray(receiptMap) ? receiptMap : []) {
     if (!claimCounts.has(entry?.speculative)) continue;
     const candidates = entries.get(entry.speculative) ?? [];
@@ -244,12 +247,13 @@ const settlementIdResolution = (record, settlement) => {
   for (const [speculative, count] of claimCounts) {
     const candidates = entries.get(speculative) ?? [];
     const entry = candidates.length === 1 ? candidates[0] : null;
+    const claim = claimById.get(speculative);
     if (
       count !== 1
       || entry?.disposition !== 'mapped'
       || typeof entry?.authoritative !== 'string'
-      || entry?.site !== claimById.get(speculative)?.site
-      || entry?.occurrence !== claimById.get(speculative)?.occurrence
+      || entry?.site !== claim?.site
+      || entry?.occurrence !== claim?.occurrence
     ) {
       unresolved.add(speculative);
       continue;
@@ -268,7 +272,7 @@ const settlementIdResolution = (record, settlement) => {
 };
 
 const cascadeFailure = (state, unresolvedIds, afterSequence) => {
-  if (unresolvedIds.size === 0) return { state, failedIds: [] };
+  if (!unresolvedIds.size) return { state, failedIds: [] };
   const records = { ...state.records };
   const failedIds = [];
   let changed = true;
@@ -293,7 +297,7 @@ const cascadeFailure = (state, unresolvedIds, afterSequence) => {
       changed = true;
     }
   }
-  return failedIds.length === 0
+  return !failedIds.length
     ? { state, failedIds }
     : { state: { ...state, records }, failedIds };
 };
@@ -301,7 +305,7 @@ const cascadeFailure = (state, unresolvedIds, afterSequence) => {
 const reconcileSettledMintIds = (state, record, settlement) => {
   const { replacements, unresolved } = settlementIdResolution(record, settlement);
   let records = state.records;
-  if (replacements.size > 0) {
+  if (replacements.size) {
     records = { ...records };
     for (const candidate of Object.values(records)) {
       if (candidate.status !== 'pending' || candidate.sequence <= record.sequence) continue;
@@ -328,9 +332,9 @@ export const emptyOutboxState = () => ({ sequence: 0, records: {}, acks: [] });
 
 export function validateOutboxState(value) {
   if (
-    !value || typeof value !== 'object' || Array.isArray(value)
+    !plainRecord(value)
     || !Number.isSafeInteger(value.sequence) || value.sequence < 0
-    || !value.records || typeof value.records !== 'object' || Array.isArray(value.records)
+    || !plainRecord(value.records)
     || !Array.isArray(value.acks)
   ) return null;
   return value;
@@ -415,16 +419,14 @@ export const outboxOps = {
   recordAck(state, id, userId, authorityDescriptor = null, ready = true) {
     if (state.acks.some((ack) => ack.id === id)) return { state, result: false };
     if (state.acks.length >= OUTBOX_MAX_PENDING_ACKS) throw outboxAckFullError();
-    const descriptor = authorityDescriptor
-      ?? state.records[id]?.settlementAuthorityDescriptor
-      ?? state.records[id]?.authorityDescriptor
-      ?? null;
     const acks = [...state.acks, {
       id,
-      userId: typeof userId === 'string' ? userId : null,
-      authorityInstanceId: typeof descriptor?.authorityInstanceId === 'string'
-        ? descriptor.authorityInstanceId
-        : null,
+      userId: stringOrNull(userId),
+      authorityInstanceId: authorityInstanceId(
+        authorityDescriptor
+          ?? state.records[id]?.settlementAuthorityDescriptor
+          ?? state.records[id]?.authorityDescriptor,
+      ),
       ready,
     }];
     return { state: { ...state, acks }, result: true };
@@ -486,7 +488,7 @@ export const outboxOps = {
     for (const predecessor of Object.values(working.records).sort(outboxOrder)) {
       if (predecessor.sequence >= target.sequence) break;
       const minted = new Set(settlementMintIds(predecessor));
-      if (minted.size === 0 || !hasStringLeaf(target.args, minted)) continue;
+      if (!minted.size || !hasStringLeaf(target.args, minted)) continue;
       if (predecessor.status === 'pending') {
         return { state: working, result: { status: 'blocked', record: null } };
       }
@@ -511,46 +513,33 @@ export const outboxOps = {
   },
   markAcksReady(state, ids, userId = undefined, authorityDescriptor = undefined) {
     const selected = new Set(ids);
-    const expectedUser = typeof userId === 'string' ? userId : null;
-    const expectedAuthority = typeof authorityDescriptor?.authorityInstanceId === 'string'
-      ? authorityDescriptor.authorityInstanceId
-      : null;
     let changed = 0;
     const acks = state.acks.map((ack) => {
       if (
         !selected.has(ack.id)
         || ack.ready === true
-        || (userId !== undefined && ack.userId !== expectedUser)
-        || (authorityDescriptor !== undefined
-          && (ack.authorityInstanceId ?? null) !== expectedAuthority)
+        || !acknowledgementMatches(ack, userId, authorityDescriptor)
       ) return ack;
       changed += 1;
       return { ...ack, ready: true };
     });
-    return changed === 0
+    return !changed
       ? { state, result: 0 }
       : { state: { ...state, acks }, result: changed };
   },
   confirmAcks(state, ids, userId = undefined, authorityDescriptor = undefined) {
     const requested = new Set(ids);
-    const expectedUser = typeof userId === 'string' ? userId : null;
-    const expectedAuthority = typeof authorityDescriptor?.authorityInstanceId === 'string'
-      ? authorityDescriptor.authorityInstanceId
-      : null;
     const confirmed = new Set(state.acks
-      .filter((ack) => requested.has(ack.id))
-      .filter((ack) => userId === undefined || ack.userId === expectedUser)
       .filter((ack) => (
-        authorityDescriptor === undefined || (ack.authorityInstanceId ?? null) === expectedAuthority
+        requested.has(ack.id)
+        && acknowledgementMatches(ack, userId, authorityDescriptor)
       ))
       .map((ack) => ack.id));
+    if (!confirmed.size) return { state, result: 0 };
     const acks = state.acks.filter((ack) => !confirmed.has(ack.id));
     const records = { ...state.records };
     for (const id of confirmed) {
       if (records[id]?.status === 'settled') delete records[id];
-    }
-    if (acks.length === state.acks.length && Object.keys(records).length === Object.keys(state.records).length) {
-      return { state, result: 0 };
     }
     return {
       state: { ...state, acks, records },
@@ -574,13 +563,9 @@ export const pendingAcknowledgementsFor = (
   limit,
   authorityDescriptor = null,
 ) => state.acks
-  .filter((ack) => ack.userId === (typeof userId === 'string' ? userId : null))
-  .filter((ack) => ack.ready === true)
   .filter((ack) => (
-    (ack.authorityInstanceId ?? null)
-      === (typeof authorityDescriptor?.authorityInstanceId === 'string'
-        ? authorityDescriptor.authorityInstanceId
-        : null)
+    acknowledgementMatches(ack, userId ?? null, authorityDescriptor)
+    && ack.ready === true
   ))
   .slice(0, limit)
   .map((ack) => ack.id);
