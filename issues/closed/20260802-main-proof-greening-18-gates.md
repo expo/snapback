@@ -556,3 +556,22 @@ These are both proof-carrier defects attributed to their introducing
 landings. Neither is a correctness failure in the actively owned PUSH-01 seam
 or F0a fork code. The current main advance through `917b16e7c` does not
 intersect the telemetry receipt's enumerated source closure.
+
+### Clean-host publication-carrier reachability — 2026-08-05
+
+PR proof run `30981322562` at `c5732d531` passed every gate except client
+bundle metrology. The check failed before measuring bytes because clean CI
+could not resolve `f2b79cc6d457a5fbdad45427957ab2d328e4428c`'s
+`packages/snapback-client` tree. A complete audit of all 43 immutable baseline
+source revisions found exactly two sources outside the branch ancestry:
+
+- Move-3's single-table lifecycle baseline pointed to `f2b79cc6d4`, the
+  LLP 0166 capability publication landing that produced its measured tree.
+- PUSH installation's Expo baseline pointed to `553a9bc131`, the Expo
+  installation-identity-default landing that produced its measured tree.
+
+Carrier `441b514f5` anchors both exact source commits as history parents. It
+does not change package bytes, baseline ledgers, or ceilings. With every
+source reachable, the exact failed command passed all 43 profiles locally.
+This is publication-carrier debt attributed to those two baseline-producing
+landings, not a push-seam, F0a-fork, or bundle-size correctness failure.
