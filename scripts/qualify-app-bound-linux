@@ -37,11 +37,15 @@ command -v socat >/dev/null || { echo "qualification requires socat" >&2; exit 2
 [[ -f "$IBEX/scripts/build-sfe-release.sh" ]] || { echo "vendor/ibex is not initialized" >&2; exit 2; }
 mkdir -p "$RUN_ROOT" "$RECEIPTS"
 
-# Fail before the expensive native builds if this runner cannot provide the
-# private procfs required by Ibex's mapped-self-image proof in the consumer
-# root. The real consumer commands repeat this isolation around the chroot.
-sudo /usr/bin/unshare --mount --pid --fork --mount-proc=/proc \
-  /bin/sh -c 'test -r /proc/self/exe && test -r /proc/self/maps'
+# Fail before the expensive native builds if this runner cannot provide and
+# bind a private procfs into the consumer root. The real consumer commands
+# repeat this exact isolation around the chroot.
+NAMESPACE_PREFLIGHT_ROOT="$RUN_ROOT/namespace-preflight"
+mkdir -p "$NAMESPACE_PREFLIGHT_ROOT/proc"
+sudo /usr/bin/unshare --mount --pid --fork --mount-proc=/proc /bin/sh -c '
+  /usr/bin/mount --bind /proc "$1/proc"
+  test -r "$1/proc/self/exe" && test -r "$1/proc/self/maps"
+' snapback-consumer-preflight "$NAMESPACE_PREFLIGHT_ROOT"
 printf '%s\n' private-pid-mount-proc-ok >"$RECEIPTS/consumer-namespace-preflight.txt"
 
 glibc_host="$(ldd --version | sed -n '1s/.* //p')"
@@ -216,8 +220,11 @@ PROBE
 # its device/inode against /proc/self/maps. Give each consumer invocation a
 # fresh PID+mount namespace and a private procfs: the check remains real while
 # producer processes (and their /proc/<pid>/cwd/root handles) stay invisible.
-consumer=(sudo /usr/bin/unshare --mount --pid --fork \
-  --mount-proc="$CONSUMER_ROOT/proc" /usr/bin/env -i \
+# $1/$@ belong to the inner namespace shell.
+# shellcheck disable=SC2016
+consumer=(sudo /usr/bin/unshare --mount --pid --fork --mount-proc=/proc \
+  /bin/sh -c '/usr/bin/mount --bind /proc "$1/proc"; shift; exec "$@"' \
+  snapback-consumer "$CONSUMER_ROOT" /usr/bin/env -i \
   HOME=/root PATH=/no-producer-tools SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
   /usr/sbin/chroot --userspec="$(id -u):$(id -g)" \
   "$CONSUMER_ROOT" /app-bin/snapback-app)
