@@ -544,7 +544,7 @@ platform/pricing facts.
   with lexical/global/module-captured ambient-fetch denial, independent
   handler/action progress, bounded queue/concurrency, response-size limits, a
   generated action subrequest ceiling with post-settlement fetch revocation,
-  and native handler CPU termination. The
+  trusted-entry re-entry denial, and native handler CPU termination. The
   binding-free control receipt
   (`demos/eas-phase0/receipts/p0.1-wfp-minimal-control.json`) proved the account's
   native custom limits independently: three subrequest bombs failed at five and
@@ -556,9 +556,9 @@ platform/pricing facts.
   Workers.dev barrier now requires three body-verified rounds with eight
   independently bounded retry lanes, followed by three consecutive clean rounds
   across all eight namespaced scripts. The final run absorbed 22 transient
-  Workers.dev 404s and one 500 (slowest lane: three attempts). The namespace
-  barrier then observed 58 structured `Worker not found.` responses before
-  reaching three clean rounds at round 46, retaining DNS, Ray-ID, and cache
+  Workers.dev 404s and one 500 (slowest lane: four attempts). The namespace
+  barrier then observed 136 transient public-route 404s before reaching three
+  clean rounds at round 70, retaining DNS, Ray-ID, and cache
   evidence. The namespace and all three ordinary
   Workers were deleted, then four independent exact lookups returned HTTP 404.
   The two original findings are closed under `issues/closed/`; this P0.1 pass does

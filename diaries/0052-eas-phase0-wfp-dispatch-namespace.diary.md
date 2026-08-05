@@ -153,8 +153,12 @@ rejection together. A second review caught that an application module could
 retain an old `ctx.fetch` across requests, so trusted setup now revokes the
 closure after settlement. The retained attack warmed isolate-local module state
 and then observed `SNAPBACK_STALE_ACTION_FETCH` from the prior invocation. The
-production generator still needs the dynamic-escape audit tracked in the
-focused follow-up.
+next review found that app code could import the main module and re-enter its
+exported handler to mint another counter. Trusted entry is now bound to the
+first real `env.HOST` service-binding object in that isolate; app code never
+receives it, and forged re-entry returned `SNAPBACK_TRUSTED_ENTRY_REQUIRED` in
+the live run. The production generator still needs the dynamic-escape audit
+tracked in the focused follow-up.
 
 The same final rerun exposed a separate readiness bug rather than another
 isolation failure. The dispatcher encodes `Worker not found.` as structured
@@ -168,8 +172,9 @@ independently bounded retry lanes. One qualifying run passed after absorbing
 149 transient 404s and two 500s; the slowest lane needed 43 attempts. The final
 retained rerun also proved that ordinary assertions retry unstructured route
 404s without retrying structured `SNAPBACK_*` application errors: it absorbed
-22 404s and one 500, then the namespace barrier observed 58 structured
-`Worker not found.` responses before passing at round 46. All 23 P0.1 checks
-passed, the stale-fetch attack failed closed on module sequence 54 after being
-retained at 53, native CPU terminated on attempt five, and four exact
-post-cleanup lookups returned 404.
+22 404s and one 500, then the namespace barrier observed 136 transient
+public-route 404s before passing at round 70. All 23 P0.1 checks passed, the
+stale-fetch attack failed closed on module sequence 4 after being retained at 3
+(while a second isolate warmed at 75), forged trusted-entry re-entry failed
+closed, native CPU terminated on attempt three, and four exact post-cleanup
+lookups returned 404.

@@ -20,7 +20,7 @@ not merely one stale negative cache key:
 - one qualifying full run needed as many as 43 attempts in one probe lane and
   absorbed 149 HTTP 404 plus two HTTP 500 responses while completing three
   body-verified eight-lane rounds; the final retained run absorbed 22 404s and
-  one 500, with a maximum of three attempts in a lane.
+  one 500, with a maximum of four attempts in a lane.
 
 Both receipts retain the control-plane state, resolved IPv4 and IPv6 address
 sets, response status, Ray ID, cache headers, and server header without storing
@@ -49,9 +49,9 @@ HTTP 500-only predicate was the direct cause of the app-B false failures in the
 first hardened rerun.
 
 The final retained run completed all 24 Workers.dev lanes after 22 transient
-404s and one transient 500; the slowest lane needed three attempts. The
-namespace barrier then observed 58 structured `Worker not found.` responses
-before all eight scripts reached three consecutive clean rounds at round 46;
+404s and one transient 500; the slowest lane needed four attempts. The
+namespace barrier then observed 136 transient public-route 404s before all
+eight scripts reached three consecutive clean rounds at round 70;
 all 23 checks then passed. This is a deterministic disposable-run readiness
 protocol, not a claim that Workers.dev is suitable production ingress;
 LLP 0105 P0.2 still owns Expo subdomains, previews, aliases, custom domains,
