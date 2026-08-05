@@ -35,12 +35,19 @@ glibc_host="$(ldd --version | sed -n '1s/.* //p')"
 hermes_gh_token="${GH_TOKEN:-}"
 (cd "$IBEX" && GH_TOKEN="$hermes_gh_token" scripts/download-hermes.sh)
 unset GH_TOKEN GITHUB_TOKEN hermes_gh_token
-SNAPBACK_BOOTSTRAP_CHECK=0 SNAPBACK_IBEX_CHECKOUT="$IBEX" scripts/bootstrap-ibex-runtime
+IBEX_ALLOW_CURL_CLI_FALLBACK=1 SNAPBACK_BOOTSTRAP_CHECK=0 \
+  SNAPBACK_IBEX_CHECKOUT="$IBEX" scripts/bootstrap-ibex-runtime
 # Keep the compiler/linker transcript visible in CI. The bootstrap smoke emits
 # only a stable coded recovery record on failure, which is right for callers
 # but insufficient evidence for repairing a new target tuple.
-cargo build --locked --bin snapback
-SNAPBACK_IBEX_CHECKOUT="$IBEX" scripts/bootstrap-ibex-runtime
+# Ubuntu 22.04's host libcurl predates WebSocket support. This debug Snapback
+# process is only the live application target used by the consumer proof, so
+# it uses Ibex's explicit fetch-only host fallback. The literal executable is
+# built below by build-sfe-release.sh with sfe-static-network and is separately
+# audited to contain the pinned static libcurl Fetch/WebSocket backend.
+IBEX_ALLOW_CURL_CLI_FALLBACK=1 cargo build --locked --bin snapback
+IBEX_ALLOW_CURL_CLI_FALLBACK=1 SNAPBACK_IBEX_CHECKOUT="$IBEX" \
+  scripts/bootstrap-ibex-runtime
 
 icu_lib_dir="$(pkg-config --variable=libdir icu-i18n)"
 rm -rf "$KIT"
