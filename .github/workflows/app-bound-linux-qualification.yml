@@ -77,7 +77,9 @@ jobs:
           key: app-bound-linux-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.lock', 'Cargo.lock') }}
 
       - name: Install JavaScript dependencies
-        run: bun install --frozen-lockfile
+        run: |
+          bun install --frozen-lockfile
+          (cd vendor/ibex && bun install --frozen-lockfile)
 
       - name: Install checksum-pinned Cloudflare tunnel client
         env:
