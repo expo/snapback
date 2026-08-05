@@ -43,3 +43,12 @@ now passes at 6 CPU ticks (60 ms) over 120 seconds, with zero storage
 mutations, zero write bytes, and zero RSS growth. The regression ticket moved
 to `issues/closed/20260804-idle-cpu-regression.md`. This ticket remains open
 for the source-revision-bound receipt re-mint after the fix is committed.
+
+## Resolution (2026-08-05)
+
+Complete. The idle regression this lane surfaced was fixed (jobs-worker
+activity hint, `issues/closed/20260804-idle-cpu-regression.md`) and the
+receipt was re-minted on expo-build-1000 at the Move-2 tip (f17cb9dfd);
+`scripts/verify-telemetry-phase1-proof --check` passes on macOS at
+current main. The Minisforum remains a provisioned secondary Linux lane
+(system libicu/libcurl/pkg-config; user-space rust/volta/bun/sqlite3).
