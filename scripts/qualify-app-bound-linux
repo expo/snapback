@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+# Hosted runner setup/cache actions may leave a default tar compression
+# selection in the process environment. Release packaging chooses gzip
+# explicitly, so ambient tar options must not select a second compressor.
+unset TAR_OPTIONS
+
 # @ref LLP 0062#7-acceptance — one Ubuntu 22.04 lane qualifies the exact
 # GLIBC-floor release kit and the literal app-bound consumer as one product.
 
