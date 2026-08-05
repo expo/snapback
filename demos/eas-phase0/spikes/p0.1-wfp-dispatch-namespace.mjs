@@ -309,7 +309,7 @@ export class Gate {
 const allowed = new Set([
   "query", "mutation", "mutation-retry", "runtime-facts", "activation-probe", "ambient-fetch", "ambient-global-fetch", "ambient-captured-fetch", "allowlisted-fetch",
   "denied-action-fetch", "slow-action", "queue-hold", "oversized-response",
-  "subrequest-bomb", "retained-action-fetch", "cpu-spin", "stale-capability", "tamper-app-capability",
+  "subrequest-bomb", "retained-action-fetch", "trusted-entry-reentry", "cpu-spin", "stale-capability", "tamper-app-capability",
   "tamper-release-capability",
 ]);
 
@@ -359,7 +359,7 @@ export default {
       return json(400, { ok: false, code: "SNAPBACK_ROLE_OPERATION_MISMATCH" });
     }
     if (role === "action" &&
-        !["activation-probe", "ambient-global-fetch", "ambient-captured-fetch", "allowlisted-fetch", "denied-action-fetch", "slow-action", "subrequest-bomb", "retained-action-fetch"].includes(operation)) {
+        !["activation-probe", "ambient-global-fetch", "ambient-captured-fetch", "allowlisted-fetch", "denied-action-fetch", "slow-action", "subrequest-bomb", "retained-action-fetch", "trusted-entry-reentry"].includes(operation)) {
       return json(400, { ok: false, code: "SNAPBACK_ROLE_OPERATION_MISMATCH" });
     }
     const bodyBytes = await request.arrayBuffer();
@@ -489,6 +489,7 @@ const OBJECT_ID = "root";
 const forbiddenScopeKeys = new Set(["appId", "environmentId", "objectId", "release", "requestId", "deadline"]);
 const nativeFetch = globalThis.fetch.bind(globalThis);
 let applicationModulePromise = null;
+let trustedHostBinding = null;
 
 function json(status, body) {
   return new Response(JSON.stringify(body), {
@@ -547,6 +548,10 @@ async function applicationModule() {
 
 export default {
   async fetch(request, env) {
+    if (trustedHostBinding === null) trustedHostBinding = env?.HOST || null;
+    if (trustedHostBinding === null || env?.HOST !== trustedHostBinding) {
+      return json(403, { ok: false, code: "SNAPBACK_TRUSTED_ENTRY_REQUIRED" });
+    }
     const { args = {} } = await request.json();
     const operation = request.headers.get("x-snapback-operation");
     const argKeys = Object.keys(args).sort();
@@ -708,6 +713,20 @@ export async function run({ operation, args, argKeys, ctx }) {
       throw error;
     }
   }
+  if (operation === "trusted-entry-reentry") {
+    const trustedMain = await import("./worker.mjs");
+    const response = await trustedMain.default.fetch(new Request("https://user-worker.internal/invoke", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-snapback-operation": "allowlisted-fetch",
+      },
+      body: JSON.stringify({ args: {} }),
+    }), {});
+    let body = null;
+    try { body = await response.json(); } catch {}
+    return json(response.status, body || { ok: false, code: "SNAPBACK_REENTRY_RESPONSE_INVALID" });
+  }
   if (operation === "query" || operation === "stale-capability") {
     return ctx.query({ applicationArgKeys: argKeys, value: args.value ?? null });
   }
@@ -784,7 +803,7 @@ async function main() {
       userWorkerCount: 8,
       userWorkerBindingEnvelope: [{ type: 'service', name: 'HOST', service: names.host }],
       userWorkerModuleBoundary: {
-        trustedMain: 'worker.mjs owns env.HOST, capability transport, native fetch capture, and ambient freeze',
+        trustedMain: 'worker.mjs binds entry to the first real env.HOST object and owns capability transport, native fetch capture, and ambient freeze',
         application: 'application.mjs is dynamically evaluated after ambient freeze and receives only an invocation-scoped ctx',
       },
       dispatchPaths: {
@@ -802,7 +821,7 @@ async function main() {
       },
       generatedHarness: {
         subRequests: SUBREQUESTS,
-        note: 'ctx.fetch fails closed before outbound handoff and is revoked after application settlement; application.mjs cannot access the trusted main module native-fetch closure, and the separate minimal-control receipt proves native enforcement without outbound',
+        note: 'ctx.fetch fails closed before outbound handoff and is revoked after application settlement; trusted entry requires the captured real env.HOST identity, application.mjs cannot access the native-fetch closure, and the separate control proves native enforcement without outbound',
       },
       dispatcherEnforced: {
         responseBytes: RESPONSE_BYTES,
@@ -1440,9 +1459,12 @@ async function main() {
         break;
       }
     }
+    const trustedEntryReentry = await invoke('app-a', 'r1', 'action', 'trusted-entry-reentry');
     check('generated-harness-subrequest-limit', subrequests.status === 429 &&
       subrequests.body?.code === 'SNAPBACK_SUBREQUEST_LIMIT' &&
-      subrequests.body?.limit === SUBREQUESTS && Boolean(staleRetainedFetch), {
+      subrequests.body?.limit === SUBREQUESTS && Boolean(staleRetainedFetch) &&
+      trustedEntryReentry.status === 403 &&
+      trustedEntryReentry.body?.code === 'SNAPBACK_TRUSTED_ENTRY_REQUIRED', {
       status: subrequests.status,
       code: subrequests.body?.code,
       category: subrequests.body?.category || null,
@@ -1455,6 +1477,10 @@ async function main() {
         code: staleRetainedFetch.body?.code,
         moduleInvocationSequence: staleRetainedFetch.body?.moduleInvocationSequence,
       } : null,
+      trustedEntryReentry: {
+        status: trustedEntryReentry.status,
+        code: trustedEntryReentry.body?.code,
+      },
       layer: 'trusted main owns an invocation-scoped, post-settlement-revoked ctx.fetch before outbound handoff',
       nativeControlReceipt: 'demos/eas-phase0/receipts/p0.1-wfp-minimal-control.json',
     });
