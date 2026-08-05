@@ -154,6 +154,33 @@ async function ensureVite() {
   throw new Error('Vite did not become ready');
 }
 
+async function launchIsolatedPage(userDataPrefix) {
+  const chrome = await launchChromeCdp({
+    chromeBin,
+    userDataPrefix,
+    env: unprivilegedChildEnv(),
+  });
+  let connection = null;
+  let isolatedPage = null;
+  try {
+    connection = await connectCdp(chrome.ws);
+    isolatedPage = await connection.newPage();
+    await isolatedPage.activate();
+  } catch (error) {
+    connection?.close();
+    await chrome.stop();
+    throw error;
+  }
+  return {
+    page: isolatedPage,
+    close: async () => {
+      await isolatedPage.close().catch(() => { /* target may already be gone */ });
+      connection.close();
+      await chrome.stop();
+    },
+  };
+}
+
 async function main() {
   if (!existsSync(surfaceExactPackage)) {
     // ENG-22480: the cold-clone lane exists to prove the surface is buildable
@@ -439,7 +466,13 @@ async function main() {
     });
 
     await suite.check('second window boot does not clear the first (D4 inspect-first)', async () => {
-      const page2 = await cdp.newPage({ newWindow: true });
+      // Chrome 151 on GitHub's Linux image exhausts per-process loader
+      // resources when two raw Exact dev-module graphs are resident at once.
+      // Keep the product invariant honest — two simultaneous app windows on
+      // the same backend, with the first still live — by giving the second
+      // real window its own browser process and resource pool.
+      const isolated = await launchIsolatedPage('aa-browser-second-');
+      const page2 = isolated.page;
       try {
         // Contract commits are frame-driven. Chrome throttles background tabs,
         // so make the window under test foreground before asking it to boot.
@@ -490,7 +523,7 @@ async function main() {
         if (conns.liveTrainStatus !== 'live') throw new Error(`first window degraded: ${JSON.stringify(conns)}`);
         return { second, firstStillLive: conns };
       } finally {
-        await page2.close();
+        await isolated.close();
         await page.activate();
       }
     });
@@ -958,35 +991,40 @@ async function main() {
     // health/ensure/subscribe again, this page would render nothing but
     // loading chrome.
     await suite.check('backend unreachable: the open still shows a schedule board, honestly labeled', async () => {
-      // This is the last check, so reload the already-active primary target
-      // with its API origin refused. Creating an otherwise-unused background
-      // tab made the assertion depend on Chrome's hidden-tab scheduling rather
-      // than on the product's render-first offline behavior.
-      await page.blockUrls(`${apiUrl}/*`);
-      await page.navigate(`${viteUrl}/?appearance=light`);
+      // Use a foreground-only isolated browser for this independent cold open.
+      // It avoids both hidden-tab scheduling and stale diagnostics/resources
+      // accumulated by the long interactive primary session.
+      const isolated = await launchIsolatedPage('aa-browser-offline-');
+      const offlinePage = isolated.page;
       try {
-        await page.waitForTestId('station-name');
-      } catch (error) {
-        const diagnostics = await page.diagnostics().catch((diagnosticsError) => ({
-          diagnosticsError: diagnosticsError.message,
-        }));
-        throw new Error(`${error.message}; diagnostics=${JSON.stringify(diagnostics)}`, { cause: error });
+        await offlinePage.blockUrls(`${apiUrl}/*`);
+        await offlinePage.navigate(`${viteUrl}/?appearance=light`);
+        try {
+          await offlinePage.waitForTestId('station-name');
+        } catch (error) {
+          const diagnostics = await offlinePage.diagnostics().catch((diagnosticsError) => ({
+            diagnosticsError: diagnosticsError.message,
+          }));
+          throw new Error(`${error.message}; diagnostics=${JSON.stringify(diagnostics)}`, { cause: error });
+        }
+        const stationName = await offlinePage.text('station-name');
+        const heroMinutes = await offlinePage.text('hero-minutes');
+        const badge = await offlinePage.text('data-source');
+        const note = await offlinePage.pollText('delays-loading', 'Connecting for live updates|Offline — showing scheduled departures', 8000);
+        if (!stationName) throw new Error('no station rendered with the backend unreachable');
+        if (!/^\d+$/.test(heroMinutes ?? '')) throw new Error(`no schedule departure rendered: ${heroMinutes}`);
+        if (!/SCHEDULE/.test(badge ?? '')) throw new Error(`schedule data not honestly labeled: ${badge}`);
+        if (!/Connecting for live updates|Offline/.test(note ?? '')) throw new Error(`honest status note missing: ${note}`);
+        const timing = await offlinePage.eval('window.allAboard?.startupTiming ?? null');
+        if (timing?.backendConnectedMs !== null) throw new Error(`backend unexpectedly attached: ${JSON.stringify(timing)}`);
+        const bootChromeVisible = await offlinePage.eval(
+          `(() => { const el = document.getElementById('boot-status'); return el ? getComputedStyle(el).display !== 'none' : false; })()`,
+        );
+        if (bootChromeVisible) throw new Error('blocking boot chrome shown instead of the board');
+        return { stationName, heroMinutes, badge, note };
+      } finally {
+        await isolated.close();
       }
-      const stationName = await page.text('station-name');
-      const heroMinutes = await page.text('hero-minutes');
-      const badge = await page.text('data-source');
-      const note = await page.pollText('delays-loading', 'Connecting for live updates|Offline — showing scheduled departures', 8000);
-      if (!stationName) throw new Error('no station rendered with the backend unreachable');
-      if (!/^\d+$/.test(heroMinutes ?? '')) throw new Error(`no schedule departure rendered: ${heroMinutes}`);
-      if (!/SCHEDULE/.test(badge ?? '')) throw new Error(`schedule data not honestly labeled: ${badge}`);
-      if (!/Connecting for live updates|Offline/.test(note ?? '')) throw new Error(`honest status note missing: ${note}`);
-      const timing = await page.eval('window.allAboard?.startupTiming ?? null');
-      if (timing?.backendConnectedMs !== null) throw new Error(`backend unexpectedly attached: ${JSON.stringify(timing)}`);
-      const bootChromeVisible = await page.eval(
-        `(() => { const el = document.getElementById('boot-status'); return el ? getComputedStyle(el).display !== 'none' : false; })()`,
-      );
-      if (bootChromeVisible) throw new Error('blocking boot chrome shown instead of the board');
-      return { stationName, heroMinutes, badge, note };
     });
   }, { cleanups });
 }
@@ -1033,11 +1071,10 @@ async function connectCdp(url) {
   };
   return {
     close: () => socket.close(),
-    newPage: async ({ newWindow = false } = {}) => {
+    newPage: async () => {
       const { targetId } = await send('Target.createTarget', {
         url: 'about:blank',
         background: false,
-        ...(newWindow ? { newWindow: true } : {}),
       });
       const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
       const requestUrls = new Map();

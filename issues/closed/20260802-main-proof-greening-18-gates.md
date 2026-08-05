@@ -456,3 +456,31 @@ retains only the first 500 characters of a line and clipped it. The receipt now
 places a compact first browser-failure summary before page metadata so the next
 normal-sandbox run can complete attribution without widening or bypassing the
 bounded logger.
+
+Cold-clone run `30964826098` at
+`c2089d024b439d5d4d44017f644ef3d3e9f289f3` completed that attribution. The
+first D4 browser error was Chrome 151's
+`net::ERR_INSUFFICIENT_RESOURCES` while loading the second resident Exact
+development graph (`@exact/contract/src/runtime/contracts.ts`, followed by a
+failed request for `tokens.ts`). The document itself was complete, visible,
+and focused; this was a per-browser-process loader exhaustion, not an
+application exception, provisioning write, push-seam failure, or F0a fork
+failure. The final offline check's captured `element.matches` exception was
+from an earlier synthetic interaction because that primary page's diagnostics
+were cumulative; it was not honest evidence for the reload failure.
+
+The fixture now gives each independent additional cold open its own ordinary
+headless Chrome process while keeping the primary app and backend alive. D4
+still proves two simultaneous app windows on the same backend, zero
+provisioning writes from the second boot, and continued push delivery to the
+first; the backend-unreachable leg uses a foreground-only isolated cold open,
+so neither check depends on hidden-tab scheduling or stale per-process loader
+state. The exact local dev-browser lane passed 34/34 with zero cleanup errors.
+A normal-sandbox Linux run remains the merge boundary.
+
+An attempted production-bundle alternative was rejected after it reproduced
+the Exact `0.1.10` AOT `ident` closure correctness failure. That finding is
+recorded by reopening
+`issues/20260802-exact-production-runtime-breaks-contract-routes.md`; this pass
+did not edit the external Exact implementation or misrepresent a dev-browser
+pass as a production-runtime pass.
