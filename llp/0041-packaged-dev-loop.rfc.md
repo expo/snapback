@@ -8,9 +8,11 @@
 
 **Revised (unattended CLI contract):** 2026-08-05 (`snapback --help` now
 composes the package-owned and delegated native inventories; package command
-help is data-only and declares lifecycle/output/exit/recovery; non-TTY stdin
-EOF closes only `snapback dev`'s optional control channel and no longer stops
-the managed loop).
+help is data-only and declares lifecycle/output/exit/recovery; a follow-up
+review closed the shallow-routing defect by giving every positional wrapper
+dispatch, including each closed hosted lifecycle verb, exact non-executing
+nested help; non-TTY stdin EOF closes only `snapback dev`'s optional control
+channel and no longer stops the managed loop).
 
 **Revised (live generated acceptance defaults):** 2026-08-05 (the generated
 todo and React starters now map default `test` to isolated runtime acceptance
@@ -854,11 +856,14 @@ Commands return structured diagnostics and stable exit codes. Human text is
 rendered from the structured result.
 
 The packaged entry point owns a composed, non-executing help registry for
-every package-dispatched command and appends the native binary's clap-derived
-inventory at root help. `snapback <package-command> --help` is resolved before
-dispatch and declares its flags, one-shot/long-running lifecycle, machine
-output, exit taxonomy, and recovery channel. Delegated native command help is
-still rendered by clap; help never invokes the command body.
+every package-dispatched command and positional subcommand path and appends the
+native binary's clap-derived inventory at root help.
+`snapback <package-command> [<subcommand>...] --help` selects the longest exact
+registered path before dispatch and declares that path's flags,
+one-shot/long-running lifecycle, machine output, exit taxonomy, and recovery
+channel. Closed hosted lifecycle verbs are derived from the same exhaustive
+registry that dispatch uses. Delegated native command help is still rendered
+by clap; help never invokes the command body.
 
 ### Watch mode
 

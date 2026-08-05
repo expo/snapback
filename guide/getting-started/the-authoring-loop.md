@@ -136,9 +136,13 @@ fails, the event state is `generated-but-not-loaded`; generation errors are
 the distinct `generation-failed` state.
 
 Use `snapback --help` to enumerate the complete packaged and delegated native
-surface. `snapback <command> --help` is non-executing; package-command help
-also declares whether the command is one-shot or long-running, its machine
-output, exit taxonomy, and recovery channel.
+surface. `snapback <command> [<subcommand>...] --help` is non-executing and
+selects the longest registered wrapper path, so commands such as
+`snapback backup create plan --help` show their actual required flags rather
+than only the top-level backup summary. Package help also declares whether the
+selected command is one-shot or long-running, its machine output, exit
+taxonomy, and recovery channel. `snapback hosted lifecycle --help` lists its
+closed verbs, transport flags, and current availability gate.
 
 When `snapback dev` runs without a TTY, stdin accepts optional
 `snapback.dev-command.v1` JSON lines while it remains open. EOF only closes

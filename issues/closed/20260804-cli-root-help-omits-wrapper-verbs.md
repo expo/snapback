@@ -57,3 +57,22 @@ recovery; delegated native help remains clap-owned.
 `runCli`, compares it to the registry, exercises root/native composition, and
 runs every package command's help against a trap binary to prove help did not
 execute the command.
+
+### Follow-up closure: nested wrapper paths
+
+Independent review on 2026-08-05 found that the first closure was too shallow:
+the global pre-dispatch guard correctly prevented execution, but reduced every
+help request to its first token. For example, `backup create plan --help`
+printed only backup's broad usage and hid `--reason` and
+`--retention-policy`; `hosted lifecycle --help` hid the closed verbs and
+transport flags. The ticket was therefore not fully closed by the first
+resolution.
+
+The follow-up adds a data-only registry for every positional wrapper dispatch,
+derives the hosted per-verb entries from the closed lifecycle registry, and
+selects the longest matching path before dispatch. Acceptance now invokes
+every registered nested path against the execution-trap binary, checks exact
+usage, and explicitly proves backup-plan flags plus hosted lifecycle verbs,
+transport flags, JSON help, and the current disabled availability gate. With
+that additional evidence, the original non-executing discovery requirement is
+closed.

@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { PACKAGED_CLI_COMMANDS } from './index.mjs';
+import { PACKAGED_CLI_COMMANDS, PACKAGED_CLI_SUBCOMMANDS } from './index.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
 const cli = join(packageDir, 'cli.mjs');
@@ -74,6 +74,45 @@ exit 97
     assert.doesNotMatch(`${help.stdout}\n${help.stderr}`, /EXECUTED/);
   }
 
+  for (const entry of PACKAGED_CLI_SUBCOMMANDS) {
+    const help = spawnSync(process.execPath, [cli, ...entry.path, '--help'], { encoding: 'utf8', env });
+    assert.equal(help.status, 0, `${entry.name} --help failed: ${help.stderr}`);
+    assert.match(help.stdout, new RegExp(`^Usage: ${entry.usage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'));
+    assert.doesNotMatch(`${help.stdout}\n${help.stderr}`, /EXECUTED/);
+  }
+
+  const backupPlanHelp = spawnSync(process.execPath, [cli, 'backup', 'create', 'plan', '--help'], { encoding: 'utf8', env });
+  assert.equal(backupPlanHelp.status, 0, backupPlanHelp.stderr);
+  for (const flag of ['--target', '--reason', '--retention-policy', '--operation-id', '--control-root', '--json']) {
+    assert.match(backupPlanHelp.stdout, new RegExp(flag), `backup create plan help omits ${flag}`);
+  }
+  assert.doesNotMatch(backupPlanHelp.stdout, /<create\|list\|verify>/, 'nested backup help fell back to top-level backup usage');
+
+  const lifecycleHelp = spawnSync(process.execPath, [cli, 'hosted', 'lifecycle', '--help'], { encoding: 'utf8', env });
+  assert.equal(lifecycleHelp.status, 0, lifecycleHelp.stderr);
+  for (const flag of ['--request', '--operator-request', '--supervisor', '--client-key', '--client-cert', '--server-ca', '--root-public-key', '--server-certificate-sha256', '--json']) {
+    assert.match(lifecycleHelp.stdout, new RegExp(flag), `hosted lifecycle help omits ${flag}`);
+  }
+  for (const verb of ['acquire-lease', 'activate-generation', 'restore-backup-inactive', 'release-lease']) {
+    assert.match(lifecycleHelp.stdout, new RegExp(verb), `hosted lifecycle help omits ${verb}`);
+  }
+  assert.match(lifecycleHelp.stdout, /Availability: disabled/, 'hosted lifecycle help must expose the current carrier gate');
+
+  const lifecycleVerbJson = spawnSync(
+    process.execPath,
+    [cli, 'hosted', 'lifecycle', 'acquire-lease', '--help', '--json'],
+    { encoding: 'utf8', env },
+  );
+  assert.equal(lifecycleVerbJson.status, 0, lifecycleVerbJson.stderr);
+  const parsedLifecycleVerb = JSON.parse(lifecycleVerbJson.stdout);
+  assert.equal(parsedLifecycleVerb.scope, 'subcommand');
+  assert.equal(parsedLifecycleVerb.command.name, 'hosted lifecycle acquire-lease');
+  assert.match(parsedLifecycleVerb.command.usage, /lifecycle acquire-lease .*--request/);
+
+  const helpVerb = spawnSync(process.execPath, [cli, 'help', 'backup', 'create', 'plan'], { encoding: 'utf8', env });
+  assert.equal(helpVerb.status, 0, helpVerb.stderr);
+  assert.match(helpVerb.stdout, /^Usage: snapback backup create plan .*--retention-policy/m);
+
   const nativeHelp = spawnSync(process.execPath, [cli, 'start', '--help'], { encoding: 'utf8', env });
   assert.equal(nativeHelp.status, 0, nativeHelp.stderr);
   assert.match(nativeHelp.stdout, /Native help for start/);
@@ -101,7 +140,7 @@ exit 97
   assert.equal(heldExit, 0);
   assert.match(heldOutput, /^Usage: snapback doctor/m);
 
-  console.log('cli-help.test.mjs: dispatch parity and non-executing root/per-command help pass');
+  console.log('cli-help.test.mjs: dispatch parity and non-executing root/per-command/nested help pass');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

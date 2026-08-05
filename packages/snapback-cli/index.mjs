@@ -89,6 +89,7 @@ import {
 } from './verify.mjs';
 import {
   createHostedPlan,
+  HOSTED_LIFECYCLE_VERBS,
   invokeHostedLifecycle,
   runHostedRead,
   submitHostedOperatorRequest,
@@ -2685,6 +2686,86 @@ export const PACKAGED_CLI_COMMANDS = Object.freeze([
 
 const PACKAGED_CLI_COMMAND_BY_NAME = new Map(PACKAGED_CLI_COMMANDS.map((entry) => [entry.name, entry]));
 
+function nestedCliHelp(path, usage, description, details = []) {
+  const parent = PACKAGED_CLI_COMMAND_BY_NAME.get(path[0]);
+  return Object.freeze({
+    name: path.join(' '),
+    path: Object.freeze(path),
+    usage,
+    description,
+    lifecycle: parent.lifecycle,
+    output: parent.output,
+    exits: parent.exits,
+    recovery: parent.recovery,
+    details: Object.freeze(details),
+  });
+}
+
+const HOSTED_LIFECYCLE_USAGE = 'snapback hosted lifecycle <closed-verb> --request <lifecycle-v2.json> --operator-request <supervisor-request-v1.json> --supervisor <https-origin> --client-key <mode-0600.pem> --client-cert <pem> --server-ca <pem> --root-public-key <pem> --server-certificate-sha256 <sha256:...> [--json]';
+const HOSTED_LIFECYCLE_HELP_DETAILS = Object.freeze([
+  `Closed verbs: ${Object.keys(HOSTED_LIFECYCLE_VERBS).join(', ')}`,
+  'Availability: disabled until the reviewed lifecycle carrier and live supervisor/provider evidence are complete.',
+]);
+
+// Nested wrapper help is data, too. Keeping every positional dispatch path in
+// this registry prevents the pre-dispatch help guard from collapsing a precise
+// request such as `backup create plan --help` back to top-level backup help.
+//
+// @ref LLP 0111#closed-request-and-command-registry — hosted lifecycle verb
+// spellings are derived from the exhaustive authority registry.
+export const PACKAGED_CLI_SUBCOMMANDS = Object.freeze([
+  nestedCliHelp(['accept', 'comparator'], 'snapback accept comparator <--config <profile.mjs>|--verify-receipt <receipt.json>> [--receipt <receipt.json>] [--timeout-ms <ms>] [--max-age-ms <ms>] [--json]', 'Run a comparator profile or verify its retained receipt.'),
+  nestedCliHelp(['target', 'add'], 'snapback target add --descriptor <target.json> [--control-root <dir>] [--json]', 'Register an immutable target descriptor.'),
+  ...['show', 'doctor', 'inspect'].map((verb) => nestedCliHelp(['target', verb], `snapback target ${verb} <target-id> [--control-root <dir>] [--json]`, `${verb[0].toUpperCase()}${verb.slice(1)} a registered target.`)),
+  nestedCliHelp(['hosted', 'plan'], 'snapback hosted plan [--target <id>] [--control-root <dir>] [--json]', 'Render the closed hosted command and asset plan.'),
+  ...['inspect', 'logs'].map((verb) => nestedCliHelp(['hosted', verb], `snapback hosted ${verb} --target <id> [--since-ms <ms>] [--until-ms <ms>] [--limit <n>] [--cursor <opaque>] [--control-root <dir>] [--json]`, `${verb[0].toUpperCase()}${verb.slice(1)} bounded hosted target facts.`)),
+  nestedCliHelp(['hosted', 'operator-request'], 'snapback hosted operator-request --request <supervisor-request-v1.json> --supervisor <https-origin> --client-key <mode-0600.pem> --client-cert <pem> --server-ca <pem> --root-public-key <pem> --server-certificate-sha256 <sha256:...> [--json]', 'Submit a signed, certificate-pinned supervisor request.'),
+  nestedCliHelp(['hosted', 'lifecycle'], HOSTED_LIFECYCLE_USAGE, 'Invoke one verb from the closed hosted lifecycle registry.', HOSTED_LIFECYCLE_HELP_DETAILS),
+  ...Object.entries(HOSTED_LIFECYCLE_VERBS).map(([verb, operation]) => nestedCliHelp(
+    ['hosted', 'lifecycle', verb],
+    HOSTED_LIFECYCLE_USAGE.replace('<closed-verb>', verb),
+    `Invoke the ${operation} hosted lifecycle operation.`,
+    HOSTED_LIFECYCLE_HELP_DETAILS,
+  )),
+  nestedCliHelp(['audit', 'verify'], 'snapback audit verify [--control-root <dir>] [--json]', 'Verify the control audit ledger.'),
+  nestedCliHelp(['backup', 'create'], 'snapback backup create <plan|apply> ... --target <id> [--control-root <dir>] [--json]', 'Plan or apply creation of a retained backup.'),
+  nestedCliHelp(['backup', 'create', 'plan'], 'snapback backup create plan --target <id> --reason <text> --retention-policy <policy> [--operation-id <id>] [--control-root <dir>] [--json]', 'Create a confirmation-bound backup plan.'),
+  nestedCliHelp(['backup', 'create', 'apply'], 'snapback backup create apply <plan-id> --target <id> --confirm <token> [--control-root <dir>] [--json]', 'Apply an exact confirmed backup plan.'),
+  nestedCliHelp(['backup', 'list'], 'snapback backup list --target <id> [--control-root <dir>] [--json]', 'List retained backups for a target.'),
+  nestedCliHelp(['backup', 'verify'], 'snapback backup verify <backup-id> --target <id> [--control-root <dir>] [--json]', 'Verify a retained backup manifest.'),
+  nestedCliHelp(['restore', 'plan'], 'snapback restore plan <backup-id> --source-target <id> --target <destination-id> --reason <text> [--replace-release <id> --destination-sentinel <sha256>] [--operation-id <id>] [--control-root <dir>] [--json]', 'Create a confirmation-bound restore plan.'),
+  nestedCliHelp(['restore', 'apply'], 'snapback restore apply <plan-id> --target <destination-id> --confirm <token> [--control-root <dir>] [--json]', 'Apply an exact confirmed restore plan.'),
+  nestedCliHelp(['restore', 'verify'], 'snapback restore verify <receipt-id> --target <destination-id> [--control-root <dir>] [--json]', 'Verify a retained restore receipt.'),
+  nestedCliHelp(['restore', 'activate'], 'snapback restore activate <plan|apply> ... --target <destination-id> [--control-root <dir>] [--json]', 'Plan or apply restored-generation activation.'),
+  nestedCliHelp(['restore', 'activate', 'plan'], 'snapback restore activate plan <restore-receipt-id> --target <destination-id> --release <restored-release-dir> --prepared-release <manifest> --adapter-qualification <manifest> --reason <text> [--operation-id <id>] [--control-root <dir>] [--json]', 'Create a confirmation-bound restored-generation activation plan.'),
+  nestedCliHelp(['restore', 'activate', 'apply'], 'snapback restore activate apply <plan-id> --target <destination-id> --release <restored-release-dir> --prepared-release <manifest> --adapter-qualification <manifest> --confirm <token> [--control-root <dir>] [--json]', 'Apply an exact confirmed restored-generation activation plan.'),
+  nestedCliHelp(['deploy', 'build'], 'snapback deploy build [<backend-dir>] [--target-profile <id>] [--output <dir>] [--web-dist <dir>] [--runtime-artifact <dir>] [--runtime-platform <id>] [--runtime-hermes-bundle <id>] [--allow-dirty] [--json]', 'Build and verify an immutable target-neutral release.'),
+  nestedCliHelp(['deploy', 'plan'], 'snapback deploy plan <release-dir> --target <id> --reason <text> [--prepared-release <manifest>] [--adapter-qualification <manifest>] [--operation-id <id>] [--control-root <dir>] [--json]', 'Create a confirmation-bound deployment plan.'),
+  nestedCliHelp(['deploy', 'apply'], 'snapback deploy apply <plan-id> --target <id> --release <release-dir> --prepared-release <manifest> --adapter-qualification <manifest> --confirm <token> [--control-root <dir>] [--json]', 'Apply an exact confirmed deployment plan.'),
+  nestedCliHelp(['deploy', 'status'], 'snapback deploy status --target <id> [--control-root <dir>] [--json]', 'Inspect current deployment status.'),
+  nestedCliHelp(['deploy', 'rollback'], 'snapback deploy rollback <plan|apply> ... --target <id> [--control-root <dir>] [--json]', 'Plan or apply a code-only rollback.'),
+  nestedCliHelp(['deploy', 'rollback', 'plan'], 'snapback deploy rollback plan --target <id> --release <destination-release-dir> --prepared-release <manifest> --adapter-qualification <manifest> --reason <text> [--operation-id <id>] [--control-root <dir>] [--json]', 'Create a confirmation-bound rollback plan.'),
+  nestedCliHelp(['deploy', 'rollback', 'apply'], 'snapback deploy rollback apply <plan-id> --target <id> --release <destination-release-dir> --prepared-release <manifest> --adapter-qualification <manifest> --confirm <token> [--control-root <dir>] [--json]', 'Apply an exact confirmed rollback plan.'),
+]);
+
+const PACKAGED_CLI_HELP_BY_NAME = new Map([
+  ...PACKAGED_CLI_COMMAND_BY_NAME,
+  ...PACKAGED_CLI_SUBCOMMANDS.map((entry) => [entry.name, entry]),
+]);
+
+function resolvePackagedHelpName(command, args = []) {
+  if (!PACKAGED_CLI_COMMAND_BY_NAME.has(command)) return command;
+  let match = command;
+  for (const entry of PACKAGED_CLI_SUBCOMMANDS) {
+    if (entry.path[0] !== command || entry.path.length === 1) continue;
+    const suffix = entry.path.slice(1);
+    if (suffix.every((part, index) => args[index] === part) && entry.path.length > match.split(' ').length) {
+      match = entry.name;
+    }
+  }
+  return match;
+}
+
 function nativeHelp(options, command = null) {
   try {
     const runtime = resolveRuntimeBinary(options);
@@ -2704,15 +2785,17 @@ function nativeHelp(options, command = null) {
 }
 
 function printCliHelp(command, { json, options }) {
-  if (command !== null && PACKAGED_CLI_COMMAND_BY_NAME.has(command)) {
-    const entry = PACKAGED_CLI_COMMAND_BY_NAME.get(command);
+  if (command !== null && PACKAGED_CLI_HELP_BY_NAME.has(command)) {
+    const entry = PACKAGED_CLI_HELP_BY_NAME.get(command);
+    const scope = entry.path ? 'subcommand' : 'command';
     if (json) {
-      console.log(JSON.stringify({ schemaVersion: 'snapback.cli-help.v1', ok: true, scope: 'command', command: entry }, null, 2));
+      console.log(JSON.stringify({ schemaVersion: 'snapback.cli-help.v1', ok: true, scope, command: entry }, null, 2));
     } else {
       console.log([
         `Usage: ${entry.usage}`,
         '',
         entry.description,
+        ...(entry.details?.length ? ['', ...entry.details] : []),
         '',
         `Lifecycle: ${entry.lifecycle}`,
         `Machine output: ${entry.output}`,
@@ -2759,13 +2842,17 @@ function printCliHelp(command, { json, options }) {
 export async function runCli(argv, options = {}) {
   const args = [...argv];
   const command = args.shift();
-  const helpFlag = args.includes('--help') || args.includes('-h');
-  if (command === '--help' || command === '-h' || command === 'help' || helpFlag) {
+  const helpIndex = args.findIndex((argument) => argument === '--help' || argument === '-h');
+  if (command === '--help' || command === '-h' || command === 'help' || helpIndex !== -1) {
     const target = command === '--help' || command === '-h'
       ? null
       : command === 'help'
-        ? (args.find((argument) => !argument.startsWith('-')) ?? null)
-        : command;
+        ? (() => {
+            const targetIndex = args.findIndex((argument) => !argument.startsWith('-'));
+            if (targetIndex === -1) return null;
+            return resolvePackagedHelpName(args[targetIndex], args.slice(targetIndex + 1));
+          })()
+        : resolvePackagedHelpName(command, args.slice(0, helpIndex));
     return printCliHelp(target, { json: args.includes('--json'), options });
   }
   const json = args.includes('--json');
