@@ -392,10 +392,21 @@ The first normal-sandbox Linux verification of that patch, PR run
 `30961216863` at `a144b2d896d722021dcb17094c24b87e1caa5fcc`, reproduced the
 same 32/34 pair after the registry install and production build passed. That
 result disproved activation alone as a complete repair. The shared fixture
-helper had treated the `Page.navigate` acknowledgement as a document-commit
-acknowledgement, then immediately started a long `Runtime.evaluate` poll. On
-the slower Linux transition that poll remained bound to the old `about:blank`
-execution context, explaining both `window.allAboard` and `station-name`
-timeouts. Navigation now brings the page to the front and waits, using only
-short evaluations, until the requested URL owns a non-loading execution
-context before any surface boot assertion starts.
+helper was then made commit-aware: navigation brought the page to the front and
+waited, using only short evaluations, until the requested URL owned a
+non-loading execution context before any surface boot assertion started.
+
+The next normal-sandbox Linux run, `30962027409` at
+`7dcbd2bc3f0d09262eeca03b46070ab27095e57f`, again passed the registry install
+and production build and reproduced the same 32/34 pair. It did not report the
+new navigation-commit diagnostic, proving that the requested document had
+committed; the new Chrome 151 target still failed to execute the
+frame-dependent Contract bootstrap as a tab. The D4 assertion says "second
+window" but the fixture had created a second tab. It now requests a real CDP
+window (`newWindow: true`) while retaining one browser/backend, which matches
+the declared multi-window claim and avoids hidden-tab scheduling. The final
+backend-unreachable assertion no longer creates an otherwise-unused tab: as
+the last check it reloads the active primary page with API interception in
+place. If D4 still misses, its failure now retains URL, document readiness,
+visibility, focus, root, boot-status, and script diagnostics instead of only
+"never booted."

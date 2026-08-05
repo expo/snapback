@@ -439,7 +439,7 @@ async function main() {
     });
 
     await suite.check('second window boot does not clear the first (D4 inspect-first)', async () => {
-      const page2 = await cdp.newPage();
+      const page2 = await cdp.newPage({ newWindow: true });
       try {
         // Contract commits are frame-driven. Chrome throttles background tabs,
         // so make the window under test foreground before asking it to boot.
@@ -447,7 +447,20 @@ async function main() {
         await page2.navigate(`${viteUrl}/?appearance=light`);
         const second = await page2.eval(`(async () => {
           const d = Date.now() + 20000;
-          while (!window.allAboard) { if (Date.now() > d) throw new Error('second window never booted'); await new Promise(r=>setTimeout(r,50)); }
+          while (!window.allAboard) {
+            if (Date.now() > d) {
+              throw new Error('second window never booted: ' + JSON.stringify({
+                href: location.href,
+                readyState: document.readyState,
+                visibilityState: document.visibilityState,
+                hasFocus: document.hasFocus(),
+                exactRootChildren: document.getElementById('exact-root')?.childElementCount ?? null,
+                bootStatus: document.getElementById('boot-status')?.textContent ?? null,
+                scripts: [...document.scripts].map((script) => script.src || script.textContent?.slice(0, 80) || ''),
+              }));
+            }
+            await new Promise(r=>setTimeout(r,50));
+          }
           await window.allAboard.ready;
           const s = Date.now() + 8000;
           for (;;) {
@@ -947,30 +960,28 @@ async function main() {
     // health/ensure/subscribe again, this page would render nothing but
     // loading chrome.
     await suite.check('backend unreachable: the open still shows a schedule board, honestly labeled', async () => {
-      const page3 = await cdp.newPage();
-      try {
-        await page3.activate();
-        await page3.blockUrls(`${apiUrl}/*`);
-        await page3.navigate(`${viteUrl}/?appearance=light`);
-        await page3.waitForTestId('station-name');
-        const stationName = await page3.text('station-name');
-        const heroMinutes = await page3.text('hero-minutes');
-        const badge = await page3.text('data-source');
-        const note = await page3.pollText('delays-loading', 'Connecting for live updates|Offline — showing scheduled departures', 8000);
-        if (!stationName) throw new Error('no station rendered with the backend unreachable');
-        if (!/^\d+$/.test(heroMinutes ?? '')) throw new Error(`no schedule departure rendered: ${heroMinutes}`);
-        if (!/SCHEDULE/.test(badge ?? '')) throw new Error(`schedule data not honestly labeled: ${badge}`);
-        if (!/Connecting for live updates|Offline/.test(note ?? '')) throw new Error(`honest status note missing: ${note}`);
-        const timing = await page3.eval('window.allAboard?.startupTiming ?? null');
-        if (timing?.backendConnectedMs !== null) throw new Error(`backend unexpectedly attached: ${JSON.stringify(timing)}`);
-        const bootChromeVisible = await page3.eval(
-          `(() => { const el = document.getElementById('boot-status'); return el ? getComputedStyle(el).display !== 'none' : false; })()`,
-        );
-        if (bootChromeVisible) throw new Error('blocking boot chrome shown instead of the board');
-        return { stationName, heroMinutes, badge, note };
-      } finally {
-        await page3.close().catch(() => {});
-      }
+      // This is the last check, so reload the already-active primary target
+      // with its API origin refused. Creating an otherwise-unused background
+      // tab made the assertion depend on Chrome's hidden-tab scheduling rather
+      // than on the product's render-first offline behavior.
+      await page.blockUrls(`${apiUrl}/*`);
+      await page.navigate(`${viteUrl}/?appearance=light`);
+      await page.waitForTestId('station-name');
+      const stationName = await page.text('station-name');
+      const heroMinutes = await page.text('hero-minutes');
+      const badge = await page.text('data-source');
+      const note = await page.pollText('delays-loading', 'Connecting for live updates|Offline — showing scheduled departures', 8000);
+      if (!stationName) throw new Error('no station rendered with the backend unreachable');
+      if (!/^\d+$/.test(heroMinutes ?? '')) throw new Error(`no schedule departure rendered: ${heroMinutes}`);
+      if (!/SCHEDULE/.test(badge ?? '')) throw new Error(`schedule data not honestly labeled: ${badge}`);
+      if (!/Connecting for live updates|Offline/.test(note ?? '')) throw new Error(`honest status note missing: ${note}`);
+      const timing = await page.eval('window.allAboard?.startupTiming ?? null');
+      if (timing?.backendConnectedMs !== null) throw new Error(`backend unexpectedly attached: ${JSON.stringify(timing)}`);
+      const bootChromeVisible = await page.eval(
+        `(() => { const el = document.getElementById('boot-status'); return el ? getComputedStyle(el).display !== 'none' : false; })()`,
+      );
+      if (bootChromeVisible) throw new Error('blocking boot chrome shown instead of the board');
+      return { stationName, heroMinutes, badge, note };
     });
   }, { cleanups });
 }
@@ -1013,8 +1024,12 @@ async function connectCdp(url) {
   };
   return {
     close: () => socket.close(),
-    newPage: async () => {
-      const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
+    newPage: async ({ newWindow = false } = {}) => {
+      const { targetId } = await send('Target.createTarget', {
+        url: 'about:blank',
+        background: false,
+        ...(newWindow ? { newWindow: true } : {}),
+      });
       const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
       await send('Page.enable', {}, sessionId);
       await send('Runtime.enable', {}, sessionId);

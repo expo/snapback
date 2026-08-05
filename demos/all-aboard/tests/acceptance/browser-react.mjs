@@ -353,13 +353,25 @@ async function main() {
     });
 
     await suite.check('second window boot does not clear the first (D4 inspect-first)', async () => {
-      const page2 = await cdp.newPage();
+      const page2 = await cdp.newPage({ newWindow: true });
       try {
         await page2.activate();
         await page2.navigate(`${viteUrl}/`);
         const second = await page2.eval(`(async () => {
           const d = Date.now() + 20000;
-          while (!window.allAboard) { if (Date.now() > d) throw new Error('second window never booted'); await new Promise(r=>setTimeout(r,50)); }
+          while (!window.allAboard) {
+            if (Date.now() > d) {
+              throw new Error('second window never booted: ' + JSON.stringify({
+                href: location.href,
+                readyState: document.readyState,
+                visibilityState: document.visibilityState,
+                hasFocus: document.hasFocus(),
+                rootChildren: document.getElementById('root')?.childElementCount ?? null,
+                scripts: [...document.scripts].map((script) => script.src || script.textContent?.slice(0, 80) || ''),
+              }));
+            }
+            await new Promise(r=>setTimeout(r,50));
+          }
           await window.allAboard.ready;
           const s = Date.now() + 8000;
           for (;;) {
@@ -498,8 +510,12 @@ async function connectCdp(url) {
   };
   return {
     close: () => socket.close(),
-    newPage: async () => {
-      const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
+    newPage: async ({ newWindow = false } = {}) => {
+      const { targetId } = await send('Target.createTarget', {
+        url: 'about:blank',
+        background: false,
+        ...(newWindow ? { newWindow: true } : {}),
+      });
       const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
       await send('Page.enable', {}, sessionId);
       await send('Runtime.enable', {}, sessionId);
