@@ -6,6 +6,12 @@
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
 
+**Revised (unattended CLI contract):** 2026-08-05 (`snapback --help` now
+composes the package-owned and delegated native inventories; package command
+help is data-only and declares lifecycle/output/exit/recovery; non-TTY stdin
+EOF closes only `snapback dev`'s optional control channel and no longer stops
+the managed loop).
+
 **Revised (first-publication bootstrap lineage):** 2026-08-01 (see §First-publication `latest` bootstrap lineage: "record and move on" — no bootstrap path built; 0.1.7's npm-auto-`latest` first publish recorded as dated lineage.)
 
 **Revised (decision-9 scope migration):** 2026-07-31 (see §Decision-9 terminal-scope migration.)
@@ -842,6 +848,13 @@ commands:
 Commands return structured diagnostics and stable exit codes. Human text is
 rendered from the structured result.
 
+The packaged entry point owns a composed, non-executing help registry for
+every package-dispatched command and appends the native binary's clap-derived
+inventory at root help. `snapback <package-command> --help` is resolved before
+dispatch and declares its flags, one-shot/long-running lifecycle, machine
+output, exit taxonomy, and recovery channel. Delegated native command help is
+still rendered by clap; help never invokes the command body.
+
 ### Watch mode
 
 Watch mode coalesces edits and performs:
@@ -891,7 +904,11 @@ The first client surface is the SC-2a-migrated Contract demo served through
 refused for attached servers) — are available with or without a client arm,
 interactively (TTY single keys) and machine-readably (newline-delimited
 `snapback.dev-command.v1` commands on stdin, responses and states on the
-`snapback.dev.v1` stdout stream).
+`snapback.dev.v1` stdout stream). For non-TTY launchers, stdin is an optional
+control channel rather than process-lifetime authority: EOF disables further
+commands but leaves the dev loop and managed arms running. SIGINT/SIGTERM (or
+TTY `q`/Ctrl-C) owns shutdown. MCP stdio commands retain their independent
+EOF-terminates-server contract.
 
 The same contract is the **Exact-side seam** for a native Contract/Exact
 client arm: an Exact surface participates by (a) being spawned as the

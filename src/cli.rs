@@ -2739,6 +2739,36 @@ fn emit_impersonation_capability_to_controlling_terminal(
     ))
 }
 
+#[cfg(unix)]
+fn controlling_terminal_available() -> bool {
+    use std::os::unix::fs::{FileTypeExt as _, OpenOptionsExt as _};
+
+    std::fs::OpenOptions::new()
+        .write(true)
+        .custom_flags(libc::O_CLOEXEC | libc::O_NOFOLLOW)
+        .open("/dev/tty")
+        .and_then(|terminal| terminal.metadata())
+        .is_ok_and(|metadata| metadata.file_type().is_char_device())
+}
+
+#[cfg(not(unix))]
+fn controlling_terminal_available() -> bool {
+    false
+}
+
+fn ready_descriptor_required_error() -> crate::diagnostic::SnapbackError {
+    crate::diagnostic::SnapbackError::error(
+        "SNAPBACK_READY_DESCRIPTOR_REQUIRED",
+        "server-lifecycle",
+        "a detached server start requires --ready-file so process-bound capabilities have an owner-only handoff",
+    )
+    .with_details(json!({
+        "next": [{
+            "command": "snapback start --ready-file <owner-only-path> ..."
+        }]
+    }))
+}
+
 struct ResolvedHttpTarget {
     server_url: String,
     minted_token: Option<String>,
@@ -4511,6 +4541,13 @@ async fn run_composed(
     embedded_startup_artifacts: Option<crate::auth::mode::StartupArtifacts>,
     target: Option<&crate::deploy::TargetDescriptor>,
 ) -> anyhow::Result<()> {
+    // @ref LLP 0030#readiness-and-port-discovery — detached launchers need the
+    // owner-only readiness descriptor; stdout/stderr and inherited stdin are
+    // not capability handoff channels. Refuse before resolving/creating the
+    // database so a missing descriptor cannot leave startup side effects.
+    if args.ready_file.is_none() && !controlling_terminal_available() {
+        return Err(anyhow::Error::new(ready_descriptor_required_error()));
+    }
     anyhow::ensure!(
         !(args.memory && args.restored_from_backup.is_some()),
         "SNAPBACK_AUTH_BACKUP_INVALID: in-memory startup cannot consume a restore declaration"
@@ -5139,11 +5176,8 @@ async fn run_composed(
             );
             impersonation_capability_file_display = Some(path.display().to_string());
         } else {
-            emit_impersonation_capability_to_controlling_terminal(operator).context(
-                "failed to emit impersonation capability to the controlling terminal; \
-                 when starting without a terminal, pass --ready-file <path> so the \
-                 capability can be published to its owner-only sidecar",
-            )?;
+            emit_impersonation_capability_to_controlling_terminal(operator)
+                .map_err(|_| anyhow::Error::new(ready_descriptor_required_error()))?;
         }
     }
 
@@ -7557,6 +7591,19 @@ mod tests {
     }
 
     #[test]
+    fn detached_start_refusal_has_stable_code_and_repair() {
+        let error = super::ready_descriptor_required_error();
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_READY_DESCRIPTOR_REQUIRED"
+        );
+        assert_eq!(
+            error.diagnostic.details["next"][0]["command"],
+            "snapback start --ready-file <owner-only-path> ..."
+        );
+    }
+
+    #[test]
     fn parent_serve_flags_with_subcommands_are_rejected() {
         let cli = Cli::parse_from(["snapback", "--memory", "start"]);
 
@@ -7628,6 +7675,7 @@ mod tests {
         let database = directory.path().join("must-not-exist.sqlite3");
         let error = super::run(Args {
             db: database.clone(),
+            ready_file: Some(directory.path().join("server.ready.json")),
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Hosted,
             ..Args::default()
         })
@@ -7861,6 +7909,7 @@ mod tests {
 
     #[tokio::test]
     async fn coordinator_and_worker_construction_fail_before_socket_bind() {
+        let directory = tempfile::tempdir().unwrap();
         for failure in [
             AuthConstructionFailure::Coordinator,
             AuthConstructionFailure::ExpiryWorker,
@@ -7871,6 +7920,7 @@ mod tests {
             let error = super::run(Args {
                 port: Some(port),
                 memory: true,
+                ready_file: Some(directory.path().join(format!("{failure:?}.ready.json"))),
                 auth_construction_failure: Some(failure),
                 ..Args::default()
             })

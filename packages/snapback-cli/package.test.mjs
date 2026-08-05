@@ -1695,7 +1695,7 @@ process.stdout.write(JSON.stringify(response));
       'SNAPBACK_DEV_COMMAND_INVALID',
       'SNAPBACK_DEV_COMMAND_UNKNOWN_VERB',
     ]);
-    assert.equal(stopped, 1, 'stdin end must stop the loop');
+    assert.equal(stopped, 0, 'stdin EOF must only close the optional command channel');
   }
 
   console.log('package.test.mjs: doctor, scaffold, pre-provision remote-drill planning, positive qualification/prepared-release production, deploy lifecycle, interruption resume, standalone backup, mandatory audit, code-only rollback, destructive restore/activation, bounded logs, authenticated inspection, backup verification, target fencing, attach fencing, seed-once reload, and dev control channels pass');

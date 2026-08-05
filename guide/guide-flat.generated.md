@@ -9052,8 +9052,8 @@ examples: [packages/snapback-cli/templates/todo-contract, packages/snapback-cli/
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-05
+reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
 ---
 
 # The authoring loop
@@ -9177,6 +9177,18 @@ before reading the managed owner-only token. A different target fails with
 started by this command is stopped. If later generation succeeds but live load
 fails, the event state is `generated-but-not-loaded`; generation errors are
 the distinct `generation-failed` state.
+
+Use `snapback --help` to enumerate the complete packaged and delegated native
+surface. `snapback <command> --help` is non-executing; package-command help
+also declares whether the command is one-shot or long-running, its machine
+output, exit taxonomy, and recovery channel.
+
+When `snapback dev` runs without a TTY, stdin accepts optional
+`snapback.dev-command.v1` JSON lines while it remains open. EOF only closes
+that control channel: it does not stop the server, watcher, or generated
+client arm. Stop a detached loop with SIGINT/SIGTERM; an interactive terminal
+may also use `q` or Ctrl-C. This is deliberately different from stdio MCP
+servers, where EOF ends the protocol process.
 
 If a selected native runtime predates the generated artifact shape, the loop
 reports `SNAPBACK_RUNTIME_ARTIFACT_IDENTITY_MISMATCH` with the exact selected
@@ -9717,8 +9729,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/a
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-05
+reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
 ---
 
 # Diagnostics and local doctoring
@@ -9768,6 +9780,13 @@ export async function assertThrows(fn, code, message) {
 
 Messages may improve without a compatibility event. A code change is a
 contract change and must update its schemas, callers, tests, and docs together.
+
+A native `snapback start` without `--ready-file` may hand process-bound
+capabilities to a controlling terminal. A detached start has no safe carrier
+and fails before database creation with
+`SNAPBACK_READY_DESCRIPTOR_REQUIRED`; its diagnostic `details.next` names
+`snapback start --ready-file <owner-only-path> ...` as the repair. Never scrape
+the human startup log or redirect a bearer through inherited stdout/stderr.
 
 ## Repair ambient time and identifier diagnostics
 

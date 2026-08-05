@@ -1,6 +1,6 @@
 # Packaged CLI help omits the wrapper surface and executes work for `--help`
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 5
 **Urgency:** 4
 **Ease:** 3
@@ -44,3 +44,16 @@ or one-shot, its machine-output schema, and its recovery channel.
 Run root and per-verb help under the A/B/C unattended harness. Every help
 invocation exits 0, performs no operation, and the mechanically derived
 dispatch set equals the documented set.
+
+## Resolution (2026-08-05)
+
+The packaged CLI now owns one data-only registry for every package-dispatched
+top-level command. Root help renders that registry and the native binary's
+clap-derived command inventory. Package command help is intercepted before
+dispatch and declares usage, lifecycle, machine output, exit taxonomy, and
+recovery; delegated native help remains clap-owned.
+
+`cli-help.test.mjs` mechanically derives the package dispatch set from
+`runCli`, compares it to the registry, exercises root/native composition, and
+runs every package command's help against a trap binary to prove help did not
+execute the command.

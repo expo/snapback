@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "14d9658a04baebec1408ee6fa3c49410c16d7c29"
+    "commit": "f419ba394b12655d8703a9471bdadbe74eec153c"
   },
   "nav": {
     ".": [
@@ -1991,9 +1991,9 @@
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/todo/surfaces/headless/run.mjs"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "39fc9085a371bf6beaf83d6b92488f744945ad9651d21ab3af0712bbce6c5e0b",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
+      "sha256": "36019bbfac61646f9526d7c65d08914aaba28d5dad2696a7a4e867e95e251b69",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -2182,9 +2182,9 @@
         "demos/todo/tests/acceptance/headless.mjs",
         "packages/snapback-codegen/authoring-validation.test.mjs"
       ],
-      "reviewed": "2026-08-03",
-      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "2c9b6431ae53491ab6705b30c0a5aec912f7707d62263aa199312e2b4b3f4649",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
+      "sha256": "376323db9d3688aa78a94fae52de7eaf2d98ab6d809eb8386ea3f0dad7a16361",
       "snippets": [
         {
           "lang": "js",
@@ -3011,5 +3011,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "948e694b33707150deb58ca21b7b2b0e883e8edc0595343ea93a9aa9a3151d81"
+  "contentHash": "0220bf16a16bfde16e8b7069062dfb672ede05c9fc79495272144c5b8d93048b"
 }

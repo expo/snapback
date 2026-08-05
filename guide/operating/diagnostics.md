@@ -9,8 +9,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, packages/snapback-codegen/a
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-05
+reviewed-commit: 4a6000ac6f17a8c94bc2aecf573c0654e850b758
 ---
 
 # Diagnostics and local doctoring
@@ -60,6 +60,13 @@ export async function assertThrows(fn, code, message) {
 
 Messages may improve without a compatibility event. A code change is a
 contract change and must update its schemas, callers, tests, and docs together.
+
+A native `snapback start` without `--ready-file` may hand process-bound
+capabilities to a controlling terminal. A detached start has no safe carrier
+and fails before database creation with
+`SNAPBACK_READY_DESCRIPTOR_REQUIRED`; its diagnostic `details.next` names
+`snapback start --ready-file <owner-only-path> ...` as the repair. Never scrape
+the human startup log or redirect a bearer through inherited stdout/stderr.
 
 ## Repair ambient time and identifier diagnostics
 
