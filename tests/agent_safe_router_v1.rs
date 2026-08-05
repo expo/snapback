@@ -288,6 +288,48 @@ async fn generated_owner_mutations_compose_public_admin_explanation_and_app_effe
     .await;
     let range = range_response.range;
 
+    // @ref LLP 0162#acceptance — public mutation transport must reject both
+    //   identity-without-retry-key and any attempt to occupy the host namespace.
+    for (client_mutation_id, operation_issuance, expected_code) in [
+        (
+            None,
+            client_issuance(&range, range.range_start),
+            "SNAPBACK_OPERATION_IDENTITY_REQUIRES_CLIENT_MUTATION_ID",
+        ),
+        (
+            Some("client-host-namespace-squat"),
+            OperationIssuanceV1::HostIncarnation {
+                epoch_id: "forged-host-epoch".to_owned(),
+                upstream_identity: "forged-host-upstream".to_owned(),
+                commit_ordinal: 0,
+                authority_authenticator_digest: format!("sha256:{}", "f".repeat(64)),
+            },
+            "SNAPBACK_OPERATION_HOST_IDENTITY_FORBIDDEN",
+        ),
+    ] {
+        let (status, bytes) = send_json(
+            &router,
+            Method::POST,
+            "/mutation/createNote",
+            Some(json!({
+                "args": { "body": "must-not-run" },
+                "auth": { "user_id": OWNER },
+                "clientMutationId": client_mutation_id,
+                "operationIssuance": operation_issuance,
+            })),
+            false,
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{expected_code}");
+        let refusal: Value = serde_json::from_slice(&bytes).unwrap_or_else(|error| {
+            panic!(
+                "decode {expected_code} response: {error}; body={}",
+                String::from_utf8_lossy(&bytes)
+            )
+        });
+        assert_eq!(refusal["diagnostic"]["code"], expected_code);
+    }
+
     let create_id = "agent-safe-create-1";
     let create_args = json!({ "body": "created" });
     let create_issuance = client_issuance(&range, range.range_start);

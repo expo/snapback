@@ -25156,6 +25156,10 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_BINDING_MISSING"
         | "SNAPBACK_CAPTURED_READ_INVALID"
         | "SNAPBACK_CLIENT_MUTATION_ID_INVALID"
+        // @ref LLP 0162#acceptance — client mutation transport cannot omit
+        //   its retry key or claim the server-derived Host identity namespace.
+        | "SNAPBACK_OPERATION_IDENTITY_REQUIRES_CLIENT_MUTATION_ID"
+        | "SNAPBACK_OPERATION_HOST_IDENTITY_FORBIDDEN"
         | "SNAPBACK_CONFIG_DEFAULT_UNIMPLEMENTED"
         | "SNAPBACK_CONFIG_ENTRY_INVALID"
         | "SNAPBACK_CONFIG_MISSING"
