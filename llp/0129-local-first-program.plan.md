@@ -5,7 +5,10 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-04 (rung-2 evidence-gate half (a) accepted — the
+**Revised:** 2026-08-04 (write-rung-2 EXIT accepted — Calendar gate 8/8
+on the unwidened ceiling; rung 2 closes, no write-lane phase open; see
+the dated EXIT block under OQ5.)
+2026-08-04 (rung-2 evidence-gate half (a) accepted — the
 no-widening reading; W2/W3 collapse as evidence-vacuous, W4 proceeds on
 rung 1's ceiling; see the dated acceptance under OQ5.)
 2026-08-04 (read-lane capability activation record:
@@ -1794,6 +1797,24 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    > rung 1's existing ceiling. A later inexpressibility finding
    > returns here for a fresh dated ruling; nothing in this acceptance
    > is an Option-C trigger detection or admission (LLP 0130 ER-1).
+   >
+   > **Write-rung-2 EXIT (2026-08-04, Charlie Cheever): ACCEPTED.** The
+   > Calendar exit gate was presented and accepted the same day, two
+   > weeks ahead of the timebox: the transcribed gate passed 8/8 with 0
+   > blocked on a real served run
+   > (`tests/acceptance/fixtures/contention-calendar/
+   > rung2-exit.2026-08-04.r1.v1.json`, landed 917b16e7c) — provisional
+   > sub-frame render, exactly-one winner across two racing clients,
+   > loser-correction with zero provisional residue, ambiguous-retry
+   > idempotence with identical idMap, non-overlap success, observer
+   > convergence, owned cleanup — all on rung 1's unwidened
+   > `Insert`/`Get`/`Guard`/`Patch` ceiling (the generated plan carries a
+   > sole `Insert`). W1 and W4 complete; W2/W3 collapsed under the
+   > accepted evidence reading. Write rung 2 closes; LLP 0155 Move 4's
+   > exit application is delivered. Rung-3 and decision-lab scheduling
+   > return to this document's machinery: no write-lane phase is open,
+   > and opening one is a future author act with its own owner/timebox
+   > ruling (OQ10/OQ11 remain the lab's open prerequisites).
 6. **The ephemeral no-sync pin.** Does the proposed LLP 0013
    amendment (0126 OQ8; constraint 4) land with Phase 0 or
    independently, and who writes it?
