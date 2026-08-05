@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# @ref LLP 0062#7-acceptance — one Ubuntu 22.04 lane qualifies the exact
+# GLIBC-floor release kit and the literal app-bound consumer as one product.
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+IBEX="$ROOT/vendor/ibex"
+RUN_ROOT="${RUNNER_TEMP:-/tmp}/snapback-app-bound-linux"
+KIT="$RUN_ROOT/ibex-release-kit"
+RECEIPTS="$RUN_ROOT/receipts"
+READY_FILE="$RUN_ROOT/live-target.json"
+TARGET_PORT="${SNAPBACK_APP_BOUND_PORT:-43991}"
+CLOUDFLARED="${SNAPBACK_CLOUDFLARED:-$RUN_ROOT/cloudflared}"
+APP="$RUN_ROOT/snapback-app-linux"
+APP_REPEAT="$RUN_ROOT/snapback-app-linux-repeat"
+TARGET_PID=""
+TUNNEL_PID=""
+
+cleanup() {
+  if [[ -n "$TUNNEL_PID" ]] && kill -0 "$TUNNEL_PID" 2>/dev/null; then kill -TERM "$TUNNEL_PID" 2>/dev/null || true; fi
+  if [[ -n "$TARGET_PID" ]] && kill -0 "$TARGET_PID" 2>/dev/null; then kill -TERM "$TARGET_PID" 2>/dev/null || true; fi
+}
+trap cleanup EXIT
+
+[[ "$(uname -s)-$(uname -m)" == "Linux-x86_64" ]] || { echo "qualification requires Linux x86_64" >&2; exit 2; }
+[[ -x "$CLOUDFLARED" ]] || { echo "missing pinned cloudflared at $CLOUDFLARED" >&2; exit 2; }
+[[ -f "$IBEX/scripts/build-sfe-release.sh" ]] || { echo "vendor/ibex is not initialized" >&2; exit 2; }
+mkdir -p "$RUN_ROOT" "$RECEIPTS"
+
+glibc_host="$(ldd --version | sed -n '1s/.* //p')"
+[[ "$glibc_host" == "2.35" ]] || { echo "expected GLIBC 2.35 host, got $glibc_host" >&2; exit 1; }
+
+hermes_gh_token="${GH_TOKEN:-}"
+(cd "$IBEX" && GH_TOKEN="$hermes_gh_token" scripts/download-hermes.sh)
+unset GH_TOKEN GITHUB_TOKEN hermes_gh_token
+SNAPBACK_IBEX_CHECKOUT="$IBEX" scripts/bootstrap-ibex-runtime
+
+icu_lib_dir="$(pkg-config --variable=libdir icu-i18n)"
+rm -rf "$KIT"
+HERMES_LINK_STATIC=1 HERMES_STATIC_LIB_NAME=hermesvm_a \
+  "$IBEX/scripts/build-sfe-release.sh" \
+    --target x86_64-unknown-linux-gnu \
+    --minimum-platform linux-glibc-2.35-x86-64-v1 \
+    --engine-profile hermes-release-static-v1 \
+    --hermesc "$IBEX/tools/hermes/hermesc-linux-x64" \
+    --hermes "$IBEX/tools/hermes/hermes-linux-x64" \
+    --policy-runner "$(command -v bun)" \
+    --static-archive hermesvm "$IBEX/linux/lib/libhermesvm_a.a" \
+    --static-archive jsi "$IBEX/linux/lib/libjsi.a" \
+    --static-archive boost-context "$IBEX/linux/lib/libboost_context.a" \
+    --static-archive icu-i18n "$icu_lib_dir/libicui18n.a" \
+    --static-archive icu-uc "$icu_lib_dir/libicuuc.a" \
+    --static-archive icu-data "$icu_lib_dir/libicudata.a" \
+    --output "$KIT" \
+    --release "snapback-linux-${GITHUB_SHA:-$(git rev-parse HEAD)}" \
+    --sequence 1 \
+    --app-bound
+
+catalog_asset=("$KIT"/ibex-sfe-catalog-*.tar.gz)
+[[ ${#catalog_asset[@]} -eq 1 && -f "${catalog_asset[0]}" ]]
+catalog_unpack="$RUN_ROOT/catalog-unpack"
+rm -rf "$catalog_unpack"
+mkdir -p "$catalog_unpack"
+tar -xzf "${catalog_asset[0]}" -C "$catalog_unpack"
+catalog_source=("$catalog_unpack"/*)
+[[ ${#catalog_source[@]} -eq 1 && -d "${catalog_source[0]}" ]]
+"$KIT/ibex-sfe-catalog" install --source "${catalog_source[0]}"
+
+SNAPBACK_APP_BOUND_READY_FILE="$READY_FILE" SNAPBACK_APP_BOUND_PORT="$TARGET_PORT" \
+  node tests/acceptance/app-bound-live-target.mjs >"$RUN_ROOT/live-target.log" 2>&1 &
+TARGET_PID=$!
+for _ in $(seq 1 120); do [[ -s "$READY_FILE" ]] && break; kill -0 "$TARGET_PID" 2>/dev/null || break; sleep 1; done
+[[ -s "$READY_FILE" ]] || { cat "$RUN_ROOT/live-target.log" >&2; exit 1; }
+
+"$CLOUDFLARED" tunnel --no-autoupdate --url "http://127.0.0.1:$TARGET_PORT" \
+  --logfile "$RUN_ROOT/cloudflared.log" >"$RUN_ROOT/cloudflared.stdout" 2>&1 &
+TUNNEL_PID=$!
+origin=""
+for _ in $(seq 1 120); do
+  origin="$(sed -nE 's#.*(https://[a-z0-9-]+\.trycloudflare\.com).*#\1#p' "$RUN_ROOT/cloudflared.log" | head -1)"
+  [[ -n "$origin" ]] && curl -fsS --retry 3 --retry-delay 1 "$origin" >/dev/null && break
+  kill -0 "$TUNNEL_PID" 2>/dev/null || break
+  sleep 1
+done
+[[ -n "$origin" ]] || { cat "$RUN_ROOT/cloudflared.log" >&2; exit 1; }
+
+engine_compatibility="$(node -e "const v=JSON.parse(require('fs').readFileSync(process.argv[1]));process.stdout.write(v.engineCompatibilityDigest)" "$KIT/restricted-worker-target-advertisement.canonical.json")"
+source_commit="$(git rev-parse HEAD)"
+recipe_digest="sha256-$(printf '%s' "$source_commit" | openssl dgst -sha256 -binary | base64 | tr '+/' '-_' | tr -d '=\n')"
+builder=(scripts/build-app-bound-executable --ibex "$KIT/ibex" --origin "$origin" --app-id app \
+  --engine-compatibility "$engine_compatibility" --publisher-key-id llp0062-linux-proof \
+  --recipe-digest "$recipe_digest")
+"${builder[@]}" --output "$APP"
+"${builder[@]}" --output "$APP_REPEAT"
+cmp "$APP" "$APP_REPEAT"
+
+bearer_file="$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(process.argv[1])).bearerFile)" "$READY_FILE")"
+SNAPBACK_APP_BOUND_EXECUTABLE="$APP" \
+SNAPBACK_APP_BOUND_SESSION_BEARER_FILE="$bearer_file" \
+SNAPBACK_APP_BOUND_RECEIPT_DIR="$RECEIPTS" \
+  node tests/acceptance/app-bound-final-artifact.mjs
+
+max_glibc="$(objdump -T "$APP" | grep -oE 'GLIBC_[0-9]+(\.[0-9]+)*' | sed 's/^GLIBC_//' | sort -V | tail -1)"
+[[ -n "$max_glibc" ]]
+highest="$(printf '%s\n' "$max_glibc" 2.35 | sort -V | tail -1)"
+[[ "$highest" == "2.35" ]] || { echo "final artifact exceeds GLIBC 2.35: $max_glibc" >&2; exit 1; }
+ldd "$APP" >"$RECEIPTS/ldd.txt"
+if grep -q 'not found' "$RECEIPTS/ldd.txt"; then echo "final artifact has a missing shared dependency" >&2; exit 1; fi
+if grep -qF "$ROOT" "$RECEIPTS/ldd.txt"; then echo "final artifact links into the source tree" >&2; exit 1; fi
+if grep -qF "$RUN_ROOT" "$RECEIPTS/ldd.txt"; then echo "final artifact links into the release staging tree" >&2; exit 1; fi
+
+catalog_digest="$(node -e "const v=JSON.parse(require('fs').readFileSync(process.argv[1]));process.stdout.write(v.catalogDigest)" "$KIT/catalog-report.json")"
+executable_sha256="$(sha256sum "$APP" | awk '{print $1}')"
+ibex_commit="$(git -C "$IBEX" rev-parse HEAD)"
+node - "$RECEIPTS/qualification.json" "$source_commit" "$ibex_commit" "$glibc_host" "$max_glibc" "$catalog_digest" "$executable_sha256" "$engine_compatibility" <<'NODE'
+const [path, snapbackCommit, ibexCommit, hostGlibc, maximumRequiredGlibc, catalogDigest, executableSha256, engineCompatibility] = process.argv.slice(2);
+const receipt = {
+  schema: 'snapback/app-bound-linux-qualification/1',
+  result: 'pass',
+  target: { triple: 'x86_64-unknown-linux-gnu', minimumPlatform: 'linux-glibc-2.35-x86-64-v1' },
+  snapbackCommit,
+  ibexCommit,
+  hostGlibc,
+  maximumRequiredGlibc,
+  catalogDigest,
+  executableSha256,
+  engineCompatibility,
+  deterministicDuplicateBuild: true,
+};
+require('fs').writeFileSync(path, `${JSON.stringify(receipt, null, 2)}\n`);
+NODE
+sha256sum "$APP" "$APP_REPEAT" "${catalog_asset[0]}" >"$RECEIPTS/artifacts.sha256"
+cat "$RECEIPTS/qualification.json"
