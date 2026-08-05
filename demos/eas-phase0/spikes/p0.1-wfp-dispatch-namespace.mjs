@@ -34,6 +34,8 @@ const INVOCATION_DEADLINE_MS = 10_000;
 const EDGE_PROBE_CONCURRENCY = 8;
 const EDGE_STABLE_ROUNDS = 3;
 const EDGE_MAX_ROUNDS = 90;
+const NAMESPACE_STABLE_ROUNDS = 3;
+const NAMESPACE_MAX_ROUNDS = 90;
 const here = path.dirname(fileURLToPath(import.meta.url));
 const defaultReceipt = path.resolve(here, '../receipts/p0.1-wfp-dispatch-namespace.json');
 
@@ -305,7 +307,7 @@ export class Gate {
 }
 
 const allowed = new Set([
-  "query", "mutation", "mutation-retry", "runtime-facts", "ambient-fetch", "ambient-global-fetch", "allowlisted-fetch",
+  "query", "mutation", "mutation-retry", "runtime-facts", "activation-probe", "ambient-fetch", "ambient-global-fetch", "allowlisted-fetch",
   "denied-action-fetch", "slow-action", "queue-hold", "oversized-response",
   "subrequest-bomb", "cpu-spin", "stale-capability", "tamper-app-capability",
   "tamper-release-capability",
@@ -357,7 +359,7 @@ export default {
       return json(400, { ok: false, code: "SNAPBACK_ROLE_OPERATION_MISMATCH" });
     }
     if (role === "action" &&
-        !["allowlisted-fetch", "denied-action-fetch", "slow-action", "subrequest-bomb"].includes(operation)) {
+        !["activation-probe", "ambient-global-fetch", "allowlisted-fetch", "denied-action-fetch", "slow-action", "subrequest-bomb"].includes(operation)) {
       return json(400, { ok: false, code: "SNAPBACK_ROLE_OPERATION_MISMATCH" });
     }
     const bodyBytes = await request.arrayBuffer();
@@ -485,6 +487,7 @@ const RELEASE = ${JSON.stringify(release)};
 const ROLE = ${JSON.stringify(role)};
 const OBJECT_ID = "root";
 const forbiddenScopeKeys = new Set(["appId", "environmentId", "objectId", "release", "requestId", "deadline"]);
+const nativeFetch = globalThis.fetch.bind(globalThis);
 
 function json(status, body) {
   return new Response(JSON.stringify(body), {
@@ -493,17 +496,17 @@ function json(status, body) {
   });
 }
 
-if (ROLE === "handler") {
-  Object.defineProperty(globalThis, "fetch", {
-    value: async () => json(403, {
-      ok: false,
-      code: "SNAPBACK_HANDLER_AMBIENT_NETWORK_DENIED",
-      role: ROLE,
-    }),
-    writable: false,
-    configurable: false,
-  });
-}
+Object.defineProperty(globalThis, "fetch", {
+  value: async () => json(403, {
+    ok: false,
+    code: ROLE === "handler"
+      ? "SNAPBACK_HANDLER_AMBIENT_NETWORK_DENIED"
+      : "SNAPBACK_ACTION_AMBIENT_NETWORK_DENIED_USE_GOVERNED_FETCH",
+    role: ROLE,
+  }),
+  writable: false,
+  configurable: false,
+});
 
 function toB64url(text) {
   return btoa(text).split("+").join("-").split("/").join("_").replace(/=+$/g, "");
@@ -547,7 +550,7 @@ export default {
       }
       subrequests += 1;
       if (subrequests > ${SUBREQUESTS}) throw new Error("SNAPBACK_SUBREQUEST_LIMIT");
-      return fetch(...fetchArgs);
+      return nativeFetch(...fetchArgs);
     };
     const argKeys = Object.keys(args).sort();
     if (argKeys.some((key) => forbiddenScopeKeys.has(key))) {
@@ -556,6 +559,9 @@ export default {
         code: "SNAPBACK_HOST_SCOPE_ARGUMENT_FORBIDDEN",
         rejectedKeys: argKeys.filter((key) => forbiddenScopeKeys.has(key)),
       });
+    }
+    if (operation === "activation-probe") {
+      return json(200, { ok: true, appId: APP_ID, release: RELEASE, role: ROLE });
     }
     if (operation === "cpu-spin") {
       let checksum = 2_166_136_261;
@@ -809,9 +815,13 @@ async function main() {
   }
 
   let baseUrl = null;
-  async function invoke(appId, release, role, operation, args = {}, { retryEdge = true } = {}) {
+  async function invoke(appId, release, role, operation, args = {}, {
+    retryEdge = true,
+    retryWorker = true,
+    maxAttempts = 60,
+  } = {}) {
     const started = performance.now();
-    for (let activationAttempt = 1; activationAttempt <= 60; activationAttempt += 1) {
+    for (let activationAttempt = 1; activationAttempt <= maxAttempts; activationAttempt += 1) {
       const nonce = randomBytes(8).toString('hex');
       const response = await fetch(`${baseUrl}/invoke/${appId}/${release}/${role}/${operation}?probe=${nonce}`, {
         method: 'POST',
@@ -825,10 +835,11 @@ async function main() {
       const text = await response.text();
       let body;
       try { body = JSON.parse(text); } catch { body = { text: text.slice(0, 500) }; }
-      const workerNotFound = response.status === 500 && body?.category === 'Worker not found.';
+      const workerNotFound = retryWorker && response.status === 502 &&
+        body?.code === 'SNAPBACK_USER_WORKER_FAILED' && body?.category === 'Worker not found.';
       const edgeNotReady = retryEdge && response.status >= 404 && typeof body?.text === 'string' &&
         /(?:Page|Script) not found/iu.test(body.text);
-      if ((!workerNotFound && !edgeNotReady) || activationAttempt === 60) {
+      if ((!workerNotFound && !edgeNotReady) || activationAttempt === maxAttempts) {
         return {
           status: response.status,
           body,
@@ -1031,15 +1042,6 @@ async function main() {
         await new Promise((resolve) => setTimeout(resolve, 1_000));
       }
     }
-    check('dispatcher-activated', consecutiveStableRounds >= EDGE_STABLE_ROUNDS &&
-      health?.ok === true && health?.namespace === options.namespace, {
-      namespace: health?.namespace || null,
-      limits: health?.limits || null,
-      requiredConsecutiveStableRounds: EDGE_STABLE_ROUNDS,
-      consecutiveStableRounds,
-      rounds: edgeRounds.length,
-    });
-
     receipt.cloudflare.dispatcherEdgeActivationObservation = {
       stable: consecutiveStableRounds >= EDGE_STABLE_ROUNDS,
       controlPlanePost: subdomainEnabled.result,
@@ -1054,6 +1056,64 @@ async function main() {
         .filter((entry) => entry.generatedNotFound).length,
       scope: 'P0.2 ingress follow-up; P0.1 starts only after the stable readiness barrier',
     };
+
+    const namespaceActivationRounds = [];
+    let namespaceConsecutiveStableRounds = 0;
+    const namespaceTargets = ['app-a', 'app-b'].flatMap((appId) =>
+      ['r1', 'r2'].flatMap((release) =>
+        ['handler', 'action'].map((role) => ({ appId, release, role }))));
+    for (let round = 1; round <= NAMESPACE_MAX_ROUNDS &&
+        namespaceConsecutiveStableRounds < NAMESPACE_STABLE_ROUNDS; round += 1) {
+      const results = await Promise.all(namespaceTargets.map(async ({ appId, release, role }) => {
+        const result = await invoke(appId, release, role, 'activation-probe', {}, {
+          retryEdge: false,
+          retryWorker: false,
+          maxAttempts: 1,
+        });
+        return {
+          script: `${appId}-${release}-${role}`,
+          status: result.status,
+          ok: result.body?.ok === true && result.body?.appId === appId &&
+            result.body?.release === release && result.body?.role === role,
+          code: result.body?.code || null,
+          category: result.body?.category || null,
+        };
+      }));
+      const stable = results.every((entry) => entry.status === 200 && entry.ok);
+      namespaceConsecutiveStableRounds = stable ? namespaceConsecutiveStableRounds + 1 : 0;
+      namespaceActivationRounds.push({ round, stable, results });
+      if (namespaceConsecutiveStableRounds < NAMESPACE_STABLE_ROUNDS) {
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+      }
+    }
+    receipt.cloudflare.namespaceDispatchActivationObservation = {
+      stable: namespaceConsecutiveStableRounds >= NAMESPACE_STABLE_ROUNDS,
+      concurrency: namespaceTargets.length,
+      requiredConsecutiveStableRounds: NAMESPACE_STABLE_ROUNDS,
+      consecutiveStableRounds: namespaceConsecutiveStableRounds,
+      maxRounds: NAMESPACE_MAX_ROUNDS,
+      rounds: namespaceActivationRounds,
+      workerNotFoundCount: namespaceActivationRounds.flatMap((entry) => entry.results)
+        .filter((entry) => entry.category === 'Worker not found.').length,
+      scope: 'all two-app/two-release/two-role namespaced scripts before P0.1 assertions',
+    };
+    check('dispatcher-activated', consecutiveStableRounds >= EDGE_STABLE_ROUNDS &&
+      namespaceConsecutiveStableRounds >= NAMESPACE_STABLE_ROUNDS &&
+      health?.ok === true && health?.namespace === options.namespace, {
+      namespace: health?.namespace || null,
+      limits: health?.limits || null,
+      workersDev: {
+        requiredConsecutiveStableRounds: EDGE_STABLE_ROUNDS,
+        consecutiveStableRounds,
+        rounds: edgeRounds.length,
+      },
+      namespaceDispatch: {
+        scripts: namespaceTargets.map(({ appId, release, role }) => `${appId}-${release}-${role}`),
+        requiredConsecutiveStableRounds: NAMESPACE_STABLE_ROUNDS,
+        consecutiveStableRounds: namespaceConsecutiveStableRounds,
+        rounds: namespaceActivationRounds.length,
+      },
+    });
 
     const runtimeFacts = await invoke('app-a', 'r1', 'handler', 'runtime-facts');
     check('namespaced-worker-untrusted-runtime', runtimeFacts.status === 200 &&
@@ -1162,11 +1222,20 @@ async function main() {
     });
 
     const allowedAction = await invoke('app-a', 'r1', 'action', 'allowlisted-fetch');
+    const deniedGlobalAction = await invoke('app-a', 'r1', 'action', 'ambient-global-fetch');
     const deniedAction = await invoke('app-a', 'r1', 'action', 'denied-action-fetch');
     check('action-allowlisted-fetch', allowedAction.status === 200 &&
-      allowedAction.body?.outboundStatus === 200 && allowedAction.body?.role === 'action', {
+      allowedAction.body?.outboundStatus === 200 && allowedAction.body?.role === 'action' &&
+      deniedGlobalAction.status === 200 && deniedGlobalAction.body?.outboundStatus === 403 &&
+      deniedGlobalAction.body?.role === 'action', {
       status: allowedAction.status,
       outboundStatus: allowedAction.body?.outboundStatus,
+      ambientGlobalFetch: {
+        status: deniedGlobalAction.status,
+        outboundStatus: deniedGlobalAction.body?.outboundStatus,
+        role: deniedGlobalAction.body?.role || null,
+      },
+      layer: 'action ambient global fetch is frozen-denied; outbound access requires the per-invocation governed helper',
     });
     check('action-nonallowlisted-fetch-denied', deniedAction.status === 200 &&
       deniedAction.body?.outboundStatus === 403 && deniedAction.body?.role === 'action', {
