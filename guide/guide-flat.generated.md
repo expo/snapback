@@ -14,8 +14,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 37ed952672d43abdfede88a9d51a76e04a11da5b
+reviewed: 2026-08-04
+reviewed-commit: HEAD
 ---
 
 # Capability index
@@ -43,6 +43,7 @@ and `guide-gap`.
 | backend.relational-queries | Bounded two-source equi-joins with explicit visibility, closed projections, and transactionally maintained projection tables (`defineRelationalQuery`, `defineMaintainedProjection`, stable capability since 2026-07-26) | joins, relational queries, denormalized reads, materialized views | local | partial | `defineRelationalQuery` in packages/snapback-codegen/define.mjs | llp/0080, llp/0065 | backend/relational-queries.md |
 | backend.bounded-children-v1 | Experimental one-visible-parent/one-index-bounded-child-page profile with protected relation incarnations and `sbbc1` AEAD keysets; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | one-to-many, parent children, relation incarnation, bounded child page | local | partial | src/local-relation-activity-publication.v1.json | llp/0104, llp/0108, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
 | backend.snapshot-batch-v1 | Experimental local composition of 2–8 complete `bounded-children.v1` nodes: one pinned authoritative snapshot per invocation, structural parent-authorization dedup, a sealed all-or-nothing tuple, one LLP 0157 `sbsb1` continuation, and cursor-free-first-page `live_replace`; hosted and public-package publication remain nonclaims | snapshot batch, board view, multiple child lists, one snapshot, sbsb1, composite query | local | shipped | `snapshot_batch_three_node_cursor_sealing_and_live_acceptance` in src/local.rs + schemas/capability.manifest.local-dev-sqlite-ibex.json (`snapshot_batch_v1`) | llp/0135, llp/0157, llp/0113 | backend/snapshot-batches.md |
+| backend.single-table-v1 | Experimental host-derived `single_table_v1@1` for an exact public, authority-independent declarative live query over one table. It is single-node-only, never author-assertable, uses the class-scoped 1,024 examined-entry QMK-establishment refusal, preserves whole-result/no-cursor semantics, delivers ordered/limited results by `live_replace`, and retains through Arm A `rqs-authority-independent-snapshot-v1` with no `AuthorizedLease`. Only contributor-source local builds with the exact store publication carrier advertise it; public packages and remote/hosted targets remain structured GAPs. | single table, rqsEligible, qmk1, authority-independent retention, single node | local | shipped | src/local-persistent-store-publication.v1.json + schemas/capability.manifest.local-dev-sqlite-ibex.json (`single_table_v1`) | llp/0157, llp/0166, llp/0110, llp/0113 | sync/offline-and-retention.md |
 | backend.write-activity-v1 | Experimental closed source-write plus one provenance-bearing activity insert with exact source-effect assertion and LLP 0043/0101 settlement; only contributor source builds with the exact embedded atomic carrier advertise it, while public runtime packages and hosted targets retain a structured GAP | audit log, activity feed, transactional activity, write receipt | local | partial | tests/conformance/relation-activity-publication-v1.receipt.json | llp/0104, llp/0108, llp/0043, llp/0101 | GAP (public-package attestation and hosted publication; owner: Charlie, review: 2026-08-31) |
 | backend.text-search | Portable term, phrase, prefix, exclusion, and equality-filter search with deterministic ranking, bounded highlights, public/owner/membership (seat-per-resource) visibility, and AEAD keyset cursors | search, full text, text index, phrase, prefix, highlights | local | shipped | `defineSearchQuery` in packages/snapback-codegen/define.mjs | llp/0073, llp/0065, llp/0100 | backend/text-search.md |
 | backend.streamed-actions | Bounded pull-driven response streaming in actions: `ctx.fetchStream`, `ctx.streamAttempt` lease/settlement, durable progress via mutations | streaming, fetchStream, ReadableStream, AI tokens, SSE bytes | local | partial | `open_response_stream` in src/server.rs | llp/0076, llp/0075 | backend/streamed-actions.md |
@@ -64,10 +65,10 @@ and `guide-gap`.
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | live, subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
 | realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | realtime/ephemeral-state.md |
-| realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner. The contributor local target additionally ships Experimental `mixed_bundle_boot_v2`: a disjoint LLP 0157 `mixed-route.v2` artifact/wire evaluates live and ordinary children at one pinned snapshot, registers only identity-bound live children, and returns plain children honestly read-only. `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register and mixed mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) | llp/0090, llp/0092, llp/0157 | realtime/snapshot-bundles.md |
+| realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner. The contributor local target additionally ships Experimental `mixed_bundle_boot_v2`: a disjoint LLP 0157 `mixed-route.v2` artifact/wire evaluates live and ordinary children at one pinned snapshot, registers only identity-bound live children, and returns plain children honestly read-only. Qualifying legacy RQS entries enter QMK custody only while connected through prove-or-fresh adoption; legacy bytes stay grandfathered under LLP 0090 until that one-transaction switch. `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register and mixed mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
-| sync.offline-js-arm | Experimental JS/React offline substrate: default IndexedDB + Web Locks in capable browsers, durable file storage in capable Node hosts, and in-memory fallback; declared public authority-independent retained queries; durable M2 outbox with exact ordered replay and pending-intent projection. Node/file and React-stub tests pass, and LLP 0155 proves real-Chrome `SIGKILL` persistence plus two-tab lock refusal/takeover. End-to-end browser React/server retained-current, resync/replay, settlement, observer convergence, and protected-refusal proof remain GAPs; no local execution or `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, retainability opt-in, pending intent render | local | partial | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs + `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` (Node/file, same-process) + `demos/zero-bakeoff/stage0/browser/run.mjs` (real-browser carrier substrate only) | llp/0043, llp/0090, llp/0129, llp/0155 | GAP (end-to-end browser product proof; owner: Charlie, review: 2026-08-31; issue: issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md); sync/offline-and-retention.md |
-| sync.local-persistent-store | LLP 0166 store + hydration bridge: one store domain per clientStoreId, registration-led establishment from the generated trusted activation only, completeness-proof + lease validation before any page commit, durable registrations behind the internal OQ8 seam, and proof-revalidated `authoritative`/`retained` relaunch answers for owner-scoped generated relational queries; snapshot-batch stays volatile (`none` retention); capability publication and the finite-carrier proof amendment remain GAPs | retained render, materialization, completeness proof, qmk1, hydration bridge, relaunch, answer class | local | partial | tests/acceptance/local-store-carrier-exit-v1.mjs --check in scripts/verify-local-proof (receipt 15 PASS / 2 GAP) + demos/triage-graph acceptance (8/8) | llp/0166, llp/0157, llp/0094 | GAP (publication-gated receipt rows; owner: Charlie, review: 2026-08-31; issue: issues/20260803-p1-server-proof-issuance.md); sync/offline-and-retention.md |
+| sync.offline-js-arm | Experimental JS/React offline substrate: default IndexedDB + Web Locks in capable browsers, durable file storage in capable Node hosts, and in-memory fallback; declared public authority-independent retained queries; durable M2 outbox with exact ordered replay and pending-intent projection. Qualifying legacy RQS entries are grandfathered under LLP 0090 and move to QMK custody only while connected through prove-or-fresh, one atomic same-domain transaction; adoption never relabels bytes or drops pending outbox intent. Node/file and React-stub tests pass, and LLP 0155 proves real-Chrome `SIGKILL` persistence plus two-tab lock refusal/takeover. End-to-end browser React/server retained-current, resync/replay, settlement, observer convergence, and protected-refusal proof remain GAPs; no local execution or `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, retainability opt-in, pending intent render | local | partial | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs + `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` (Node/file, same-process) + `demos/zero-bakeoff/stage0/browser/run.mjs` (real-browser carrier substrate only) | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166 | GAP (end-to-end browser product proof; owner: Charlie, review: 2026-08-31; issue: issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md); sync/offline-and-retention.md |
+| sync.local-persistent-store | LLP 0166 store + hydration bridge: one store domain per clientStoreId, registration-led establishment from the generated trusted activation only, completeness-proof validation before any page commit, durable registrations behind the internal OQ8 seam, and proof-revalidated `authoritative`/`retained` relaunch answers. The source-qualified local target now publishes experimental `single_table_v1@1` with Arm A `rqs-authority-independent-snapshot-v1` retention and no `AuthorizedLease`; owner-scoped relational retention remains lease-backed, while snapshot-batch stays volatile (`none`). Legacy RQS entries remain grandfathered until connected prove-or-fresh adoption atomically enters QMK custody. | retained render, materialization, completeness proof, qmk1, hydration bridge, relaunch, answer class, single_table_v1 | local | partial | src/local-persistent-store-publication.v1.json + schemas/capability.manifest.local-dev-sqlite-ibex.json (`single_table_v1`) + tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json (16 PASS / 1 GAP / 0 SKIPPED, 2026-08-04) + tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json | llp/0166, llp/0157, llp/0110, llp/0094 | GAP (Fleet footprint/hydration remains outside support under LLP 0135 OQ5; owner: Charlie, review: 2026-08-31.); sync/offline-and-retention.md |
 | sync.offline-js-arm-protected | Lease-bounded protected retention (LLP 0043 M1 custody) on the JS/React arm — the Contract arm ships it; this arm does not yet | offline auth browser, lease js | none | design-only | llp/0129-local-first-program.plan.md (Phase 0 status note; no shipped witness) | llp/0043, llp/0053, llp/0129 | GAP (owner: Charlie, review: 2026-08-31; issue: issues/20260731-js-arm-lease-custody-and-sessions-outbox.md) |
 | sync.settlement-bounded-skew | `settlement.bounded_skew`: a mutation-declared, structurally direct `runtimeNow()` field may accept a lane-L captured time only within its declared bound; mixed sinks stay server-derived and lane Q remains unbounded replay-accept. The server path and receipt fact ship, while local capture/execution remains outside this slice. | bounded skew, local settlement, runtimeNow, claim ledger | local | partial | src/local.rs | llp/0133 | GAP (local capture/executor; owner: LLP 0155 Stage 2, review: 2026-08-31) |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
@@ -4197,13 +4198,13 @@ id: backend.standard-patterns
 order: 25
 audience: agent-first
 capabilities: [backend.standard-patterns]
-authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0113-qualification-and-publication-authority.spec.md, packages/snapback-codegen/standard-patterns.mjs, packages/snapback-codegen/define.mjs]
+authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, llp/0100-membership-addressed-operations-and-pages.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0113-qualification-and-publication-authority.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, packages/snapback-codegen/standard-patterns.mjs, packages/snapback-codegen/define.mjs]
 examples: [packages/snapback-codegen/standard-patterns.test.mjs, packages/snapback-codegen/relation-activity-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-04
+reviewed-commit: HEAD
 ---
 
 # Safe standard data patterns
@@ -4490,6 +4491,14 @@ one pinned-snapshot batch via `defineSnapshotBatchQuery` — a further
 experimental capability (`snapshot_batch_v1`, which also requires
 `bounded_children_v1`) with its own page:
 [snapshot batches](./snapshot-batches.md).
+
+The neighboring experimental `single_table_v1` class is deliberately not an
+authoring helper. Codegen derives it automatically when an ordinary
+`defineLiveQuery` is public, authority-independent, ambient-free, and its
+complete read summary is the one table in its declarative plan. The generated
+artifact then requires the class; authors cannot assert membership. It remains
+single-node-only and uses Arm A authority-independent snapshot retention, not
+an `AuthorizedLease` and not `defineSnapshotBatchQuery`.
 
 The source operation is exactly `insert`, `patch`, or `delete`. Empty and
 storage-identical patches are not effects; missing targets and operation
@@ -4789,13 +4798,13 @@ id: backend.snapshot-batches
 order: 27
 audience: agent-first
 capabilities: [backend.snapshot-batch-v1]
-authorities: [llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, src/manifest.rs, src/local.rs, src/snapshot_batch_cursor.rs, packages/snapback-codegen/define.mjs]
+authorities: [llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0166-local-persistent-store.spec.md, src/manifest.rs, src/local.rs, src/snapshot_batch_cursor.rs, packages/snapback-codegen/define.mjs]
 examples: [packages/snapback-codegen/relation-activity-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-04
+reviewed-commit: HEAD
 ---
 
 # Snapshot batches
@@ -4804,6 +4813,12 @@ reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 > contributor local SQLite/Ibex target. Hosted targets and public runtime
 > packages do not claim it. An artifact must acknowledge both
 > `snapshot_batch_v1` and its `bounded_children_v1` dependency.
+
+`single_table_v1` is a separate experimental sibling selected automatically
+for qualifying public authority-independent declarative live queries. It is
+single-node-only and therefore cannot be placed inside a snapshot batch; its
+Arm A retained answer and QMK adoption rules are documented under
+[offline retention](../sync/offline-and-retention.md).
 
 Use `defineSnapshotBatchQuery` when one screen needs several independently
 bounded child lists from one authoritative snapshot. Build each node with
@@ -6756,7 +6771,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: ef39198a819669f832d93be65dfbcf6686025a6b
+reviewed-commit: e8e9ada94aa7354a5f8845ee0199d4bbe0bc5746
 ---
 
 # The artifact-driven app CLI
@@ -11065,13 +11080,13 @@ id: realtime.snapshot-bundles
 order: 3
 audience: agent-first
 capabilities: [realtime.snapshot-bundles]
-authorities: [llp/0090-resumable-query-snapshots.rfc.md, llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-codegen/index.mjs, src/bundle.rs, src/local.rs]
+authorities: [llp/0090-resumable-query-snapshots.rfc.md, llp/0092-rqs-manifest-bundle-and-channel-a-contract.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-codegen/index.mjs, src/bundle.rs, src/local.rs]
 examples: [demos/public-dashboard]
 status: current
 targets: [local, cloudflare]
 maturity: partial
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-04
+reviewed-commit: HEAD
 ---
 
 # Route snapshot bundles
@@ -11084,6 +11099,14 @@ carry resumable-query tokens.
 The local target supports read and authenticated register mode. The Cloudflare
 target supports read-mode bundles and token resume; register mode remains
 deferred there.
+
+For a qualifying public authority-independent single-table live query, the
+local target now uses the host-derived experimental `single_table_v1@1` class
+and QMK identity. Existing legacy RQS entries do not change identity merely
+because this class is active: LLP 0090 grandfathers them until a connected
+prove-or-fresh adoption installs the QMK record and switches custody in one
+atomic same-domain transaction. Adoption never relabels old bytes in place and
+never drops pending outbox intent.
 
 ### Mix live and read-only children without losing the live siblings
 
@@ -11690,14 +11713,14 @@ title: Offline retention and mutation replay
 id: sync.offline-and-retention
 order: 1
 audience: agent-first
-capabilities: [sync.offline, sync.offline-js-arm, sync.local-persistent-store]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs]
+capabilities: [backend.single-table-v1, sync.offline, sync.offline-js-arm, sync.local-persistent-store]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0090-resumable-query-snapshots.rfc.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0129-local-first-program.plan.md, llp/0133-local-settlement.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0166-local-persistent-store.spec.md, src/local-persistent-store-publication.v1.json, packages/snapback-client/local-read-admission.mjs, packages/snapback-client/materialization-bridge.mjs, tests/acceptance/local-store-carrier-exit-v1.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/external-store.test.mjs, packages/snapback-client/outbox-store.test.mjs, packages/snapback-react/index.mjs]
 examples: [demos/triage-graph, demos/card-game, demos/todo-v2/surfaces/contract, demos/public-dashboard, packages/snapback-contract/agent-authority-contract.test.mjs, packages/snapback-react/offline.test.mjs]
 status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: d3e80b7d4981c4fa14535e2a852e8cc2bc82e95d
+reviewed-commit: HEAD
 ---
 
 # Offline retention and mutation replay
@@ -11826,8 +11849,9 @@ stored fragments were installed only after server-side completeness-proof
 and lease validation. This is the strongest retained-render path on the
 JS arm and it is receipt-proven end to end by
 [`tests/acceptance/local-store-carrier-exit-v1.mjs`](repo:tests/acceptance/local-store-carrier-exit-v1.mjs)
-(run in the local proof; receipt currently **15 PASS / 2 GAP**, the two
-GAPs being capability-publication rows, not mechanism gaps).
+(run in the local proof; the retained 2026-08-04 run measured **16 PASS / 1
+GAP / 0 SKIPPED** after consuming Triage's qualified budget freeze; Fleet
+remains the one explicit LLP 0135 OQ5 boundary).
 
 Evidence scope, stated precisely: local target, Node process, file carrier,
 owner-scoped generated relational queries. It is not a browser-restart
@@ -11840,6 +11864,14 @@ it is not a hosted claim.
   composites) — retainable: their materializations carry qmk1 identity,
   a completeness proof, and lease custody, so a fresh client may re-render
   them offline as `authoritative` / `retained`.
+- **Host-derived `single_table_v1@1` live queries** — retainable through
+  `rqs-authority-independent-snapshot-v1`: the generated function carries the
+  experimental capability requirement, and the contributor-source local
+  target publishes it through the exact LLP 0110/0166 carrier. This is Arm A:
+  `authorizedLeaseHash` stays `null`, and no `AuthorizedLease` is consumed.
+  Ordered or limited results remain whole-result `live_replace`; class
+  membership is derived from the public, ambient-free single-table plan and
+  cannot be asserted by the author.
 - **Snapshot-batch composites** (`snapshot-batch.v1`) — deliberately
   volatile: retention is `none`. Stored grace payloads exist only to smooth
   release; they are **never** authoritative offline answers. Do not read a
@@ -11889,7 +11921,7 @@ decisions key off `answerClass` + `freshness`, never off "bytes exist":
 | `answerClass` | Meaning | Render offline? |
 | --- | --- | --- |
 | `authoritative` (`freshness: current`) | Live, connected, proof-backed | Yes |
-| `authoritative` (`freshness: retained`) | Relaunch answer whose proof and lease custody revalidated | Yes, marked retained |
+| `authoritative` (`freshness: retained`) | Relaunch answer whose proof and applicable retention custody revalidated (lease-backed for protected relational results; no-lease Arm A for `single_table_v1`) | Yes, marked retained |
 | `labeled-retained` | Rows retained but authority could not be revalidated | Only with an explicit degraded label |
 | `unknown` | Store cannot classify (no proof, no custody) | No — treat as no data |
 | `refused` | Policy or authorization refused the read | No — surface the refusal |
@@ -11934,7 +11966,11 @@ From those facts plus the closed-inputs proof (single-table plan whose read
 summary equals the plan's table), the server derives the `rqsEligible`
 predicate and mints resume tokens — there is no authored `rqsEligible`
 field, and a query failing the proof is simply not eligible, never a load
-error (LLP 0090). The eligible query in the public-dashboard demo:
+error (LLP 0090). The same predicate now derives LLP 0157's
+`single_table_v1@1` node class; codegen adds that experimental target
+requirement automatically, while multi-node composition remains closed and
+the 1,024 examined-entry refusal applies only during QMK establishment. The
+eligible query in the public-dashboard demo:
 
 ```js source=demos/public-dashboard/snapback/functions.mjs
 export const dashboardMetrics = defineLiveQuery({
@@ -11953,6 +11989,12 @@ export const dashboardMetrics = defineLiveQuery({
 permission for HTML boot — see
 [snapshot bundles](../realtime/snapshot-bundles.md) — and is **not**
 required for retention.)
+
+Existing legacy RQS entries are not rewritten merely because the class is now
+active. LLP 0090 grandfathers those bytes. While connected, adoption either
+proves the exact legacy identity or performs a fresh sync, then switches into
+QMK custody in one atomic same-domain transaction. It never relabels in place,
+never adopts while offline, and never drops pending outbox intent.
 
 The handle tells you whether the opt-in took: `handle.retention` is the
 refuse-with-clarity classification, and an eligible query holds a

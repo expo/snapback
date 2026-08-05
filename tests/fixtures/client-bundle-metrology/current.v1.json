@@ -78,6 +78,16 @@
         "node packages/snapback-client/micro.test.mjs",
         "node packages/snapback-codegen/micro-profile.test.mjs"
       ]
+    },
+    {
+      "filename": "baseline.ir-evaluator.v1.json",
+      "inputs": {
+        "profilesSha256": "2d473301b61aeffd323e71c68fa9e1697b44e47118a97b8eb07a751fd678420b",
+        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+      },
+      "behaviorCommands": [
+        "node packages/snapback-client/ir-evaluator.test.mjs"
+      ]
     }
   ],
   "rolloverLedgers": [
@@ -183,6 +193,25 @@
         "node packages/snapback-client/rqs-resume-memory.test.mjs",
         "node packages/snapback-client/rqs-resume-expo.test.mjs",
         "node packages/snapback-client/rqs-resume-native.test.mjs"
+      ]
+    },
+    {
+      "filename": "baseline.move3-single-table-lifecycle.v1.json",
+      "workloadVersion": "move3-single-table-lifecycle.v1",
+      "inputs": {
+        "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
+        "lockfileSha256": "295900d1cc605a41af337ca27ddbc567120e6d432d4b9aa6c101274a4d881489"
+      },
+      "behaviorCommands": [
+        "node packages/snapback-client/ir-evaluator.test.mjs",
+        "node packages/snapback-client/local-read-admission.test.mjs",
+        "node packages/snapback-client/optimistic-rebase.test.mjs",
+        "node packages/snapback-client/optimistic-rebase-acceptance.test.mjs",
+        "node packages/snapback-client/generated-mutation-ir.test.mjs",
+        "node packages/snapback-client/materialization-bridge.test.mjs",
+        "node packages/snapback-client/mixed-route-v2.test.mjs",
+        "node packages/snapback-client/logout-v3-bridge.test.mjs",
+        "node packages/snapback-client/demand-broker.test.mjs"
       ]
     }
   ],
@@ -9642,9 +9671,9 @@
         }
       },
       "savings": {
-        "minifiedBytes": 201,
-        "gzipBytes": 73,
-        "brotliBytes": 55
+        "minifiedBytes": 0,
+        "gzipBytes": 0,
+        "brotliBytes": 0
       }
     },
     {
@@ -23088,11 +23117,13 @@
     "baseline.push-installation-expo.v1.json",
     "baseline.vector-search.v1.json",
     "baseline.micro-phase-b.v1.json",
+    "baseline.ir-evaluator.v1.json",
     "baseline.local-persistent-store.v1.json",
     "baseline.local-read-admission.v1.json",
     "baseline.generated-mutation-ir.v1.json",
     "baseline.offline-unavailable.v1.json",
     "baseline.finite-carrier-completeness.v1.json",
-    "baseline.rowless-rqs-resume.v1.json"
+    "baseline.rowless-rqs-resume.v1.json",
+    "baseline.move3-single-table-lifecycle.v1.json"
   ]
 }

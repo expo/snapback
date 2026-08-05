@@ -2,13 +2,16 @@
   "schemaVersion": "snapback.local-persistent-store.bundle-attribution.v1",
   "date": "2026-08-04",
   "source": {
-    "revision": "13f026cd31af3886e5e68512fd58912adf88eb29",
-    "dirty": false,
-    "dirtyPaths": [],
+    "revision": "d7275aefc7ca449b55b75dad69bc2a4936dcebf2",
+    "dirty": true,
+    "dirtyPaths": [
+      "endor/ibex",
+      "scripts/.vlp-skip-telemetry.sh"
+    ],
     "files": [
       {
         "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
-        "sha256": "38f5a0a0673e6e56d9717a272a4385fa7c8d5af74c0aa1ba86d1ce72c8cc5aed"
+        "sha256": "74a2860eaae1c70f382f16a388be2e64a37f41ebd027768969b60879ea41724a"
       },
       {
         "path": "packages/snapback-client/materialization-store.mjs",
@@ -71,24 +74,32 @@
         "sha256": "88b945747108253fb3c3020560bce59e540aeac0ffb3b945dc7a26e23f9dbb64"
       },
       {
-        "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-03.v1.json",
-        "sha256": "18edbe117f8801ed22e8f3bcae80e63b4559b2d57d54816075b31a99ac66d7ba"
+        "path": "demos/triage-graph/demo.snapback.json",
+        "sha256": "4cefa0af8fab9471ef867dc6ec0ecd67f1289e94d72f451aa580754e721ff8af"
       },
       {
-        "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-03.v1.json",
-        "sha256": "2e3822997c5d8d51e12269168f6f54cafd56e09b68efab9f6edb29e9c6e08b6e"
+        "path": "demos/triage-graph/snapback/functions.mjs",
+        "sha256": "74622a7b1949c2216dc2936604dbd52ea836ff7c6b57a702cde775a6d8db5241"
+      },
+      {
+        "path": "demos/triage-graph/snapback/schema.mjs",
+        "sha256": "db72b875a82245c8e2106dde0d63aa7085c29f97dfd8857442b363b87e23f360"
       },
       {
         "path": "demos/triage-graph/snapback/trusted-composition-activation.json",
-        "sha256": "691354ec47c8a7032fe66b7992e4e9821d2e79d7ca46760f740c372b989bd812"
+        "sha256": "ef39d6d5239c25b6e909923f2d94ffae171863c7af3109c0ba576792a542af42"
       },
       {
         "path": "demos/triage-graph/snapback/generated/artifacts.json",
-        "sha256": "57ba0f2731bfa999a617d92d51aabdd51f617253cde1911a627b72a5a2890b44"
+        "sha256": "21ce1d6e6a0c3667e4dc5a2e0c05967b72f86c793136b15953ec3a260757336a"
       },
       {
-        "path": "demos/triage-graph/demo.snapback.json",
-        "sha256": "4cefa0af8fab9471ef867dc6ec0ecd67f1289e94d72f451aa580754e721ff8af"
+        "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
+        "sha256": "1dbf954ae06038cc69c520a493de988be27ea5c2c31c3d3fd73bb9704422375d"
+      },
+      {
+        "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
+        "sha256": "ff822310323c5bb66c4302574d9f3754b170104d2cc9022c34181eecb0fff429"
       }
     ]
   },

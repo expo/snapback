@@ -4,6 +4,7 @@
 **/.snapback/codegen-cache/
 /.snapback.snapback.restore.lock
 node_modules/
+__pycache__/
 .agent-local-secrets.md
 .env.local
 

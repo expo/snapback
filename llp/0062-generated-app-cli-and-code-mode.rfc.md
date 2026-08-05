@@ -1673,7 +1673,7 @@ direction or implementation reconciliation, not additional review rounds.
   and value-free per-call/summary audits. The final catalog is
   `sha256-7Pt7_U-TZ7QHWQHUkh9ytz7SISktYhL4rnNH_PPxz_Q`; two literal builds
   were byte-identical at SHA-256
-  `462904fb75c571394c10745fdb39ba3be301afe15476e3e322e39c2dce7a407d`.
+  `7eb31cf1f3b4aaa24aa10ea45268f28c7a33e51a6d92437a8cd6a78b60e3a8f5`.
   The exact artifact passed the host-portable language, disclosure, ceiling,
   settlement, timeout, SIGTERM, cleanup, and relocation matrix. Ticket 08 and
   this RFC remain open because the fleet cannot qualify the declared Linux

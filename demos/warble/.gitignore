@@ -1,0 +1,14 @@
+# Local dev server state. Contains the sqlite database, the minted admin token
+# file, impersonation and secret-read-root capability files, and resume/
+# completeness keyrings — none of which may be committed.
+.dev/
+.dev.snapback.restore.lock
+
+# Expo/Metro and package state
+app/node_modules/
+app/.expo/
+app/dist/
+app/web-build/
+
+# Acceptance report written by the offline suite at run time
+offline-acceptance-report.json

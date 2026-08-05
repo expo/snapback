@@ -124,3 +124,36 @@ IDs eliminate slot collisions; process-group ownership prevents the spawned
 cache from outliving its runner, and final cleanup verifies absence of both
 the owned database and replication slot. The immutable comparison above was
 not rewritten to erase the surprise.
+
+### 2026-08-04 — write-rung-2 shipping arm
+
+W4 replaced the Snapback arm's JS reservation handler and component-local
+`pending` array with one generated `Insert` plan and the shipped optimistic
+mutation view. The provisional reservation now participates in the same
+typed filter, sort, count, React list, and resource-title projection as
+canonical reservations. Its UI identity is the durable protocol
+`clientMutationId`; the branded reservation id appears only after a generated
+schedule row supplies the authoritative value. No cast or client-side id
+admission bridges that distinction.
+
+The W1 sizing result held: Calendar needed no new evaluator verb. Inline
+`Concat` derives the structural resource-slot key, the server unique index
+chooses the race winner, a rejection retires only the losing private layer,
+and the existing LLP 0133 id map replaces the winner's logical mint. Ambiguous
+retry is now exercised as response loss after commit followed by replay of
+the exact durable protocol identity; the repeated response must carry the
+same result and id map and create only one canonical row. The unused
+`clearReservations` JS utility remains outside the frozen common path.
+
+Compared with the first bakeoff, Snapback now reaches Zero's important shared
+projection property while retaining server-minted canonical ids and a stable
+constraint diagnostic. The cost is that the shipping React surface composes
+the framework-neutral optimistic view directly; this is more explicit and
+lower-level than Zero's shared mutator and than the current Snapback React
+hooks. The already-filed optimistic-create/app-error guide gap still captures
+that missing authoring guidance.
+
+This lane authored the transcribed rung-2 gate but did not execute its served
+runtime. The orchestrator owns the controlled run and dated receipt. The
+Option-C decision lab, its frozen manifests, and Field Notebook were not
+changed or used as evidence.

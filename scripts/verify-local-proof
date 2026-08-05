@@ -115,6 +115,7 @@ run node scripts/check-hermes-intrinsics.mjs
 run node scripts/check-package-export-types.mjs
 run node tests/conformance/relation-activity-publication-v1.mjs
 run node tests/conformance/sequence-allocation-publication-v1.mjs
+run node tests/conformance/local-persistent-store-publication-v1.mjs
 run node tests/conformance/snapshot-batch-sbsb1-parity-v1.mjs
 run node --test scripts/runtime-package-authority.test.mjs
 run node --test scripts/snapback-package-cold-install.test.mjs

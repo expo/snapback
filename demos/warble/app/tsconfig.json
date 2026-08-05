@@ -1,0 +1,13 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@warble/generated-api": ["../snapback/generated/api"]
+    },
+    "resolveJsonModule": true,
+    "noEmit": true
+  },
+  "include": ["App.tsx", "src"]
+}

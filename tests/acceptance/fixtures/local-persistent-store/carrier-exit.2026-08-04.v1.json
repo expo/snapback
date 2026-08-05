@@ -6,8 +6,8 @@
     "LLP 0166#executable-acceptance",
     "LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle"
   ],
-  "startedAt": "2026-08-04T19:31:07.559Z",
-  "completedAt": "2026-08-04T19:34:28.603Z",
+  "startedAt": "2026-08-05T02:31:49.910Z",
+  "completedAt": "2026-08-05T02:35:26.973Z",
   "runtime": {
     "node": "v24.18.0",
     "platform": "darwin",
@@ -15,13 +15,16 @@
     "hostnameClass": "local-evidence-machine"
   },
   "source": {
-    "revision": "13f026cd31af3886e5e68512fd58912adf88eb29",
-    "dirty": false,
-    "dirtyPaths": [],
+    "revision": "d7275aefc7ca449b55b75dad69bc2a4936dcebf2",
+    "dirty": true,
+    "dirtyPaths": [
+      "endor/ibex",
+      "scripts/.vlp-skip-telemetry.sh"
+    ],
     "files": [
       {
         "path": "tests/acceptance/local-store-carrier-exit-v1.mjs",
-        "sha256": "38f5a0a0673e6e56d9717a272a4385fa7c8d5af74c0aa1ba86d1ce72c8cc5aed"
+        "sha256": "74a2860eaae1c70f382f16a388be2e64a37f41ebd027768969b60879ea41724a"
       },
       {
         "path": "packages/snapback-client/materialization-store.mjs",
@@ -84,24 +87,32 @@
         "sha256": "88b945747108253fb3c3020560bce59e540aeac0ffb3b945dc7a26e23f9dbb64"
       },
       {
-        "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-03.v1.json",
-        "sha256": "18edbe117f8801ed22e8f3bcae80e63b4559b2d57d54816075b31a99ac66d7ba"
+        "path": "demos/triage-graph/demo.snapback.json",
+        "sha256": "4cefa0af8fab9471ef867dc6ec0ecd67f1289e94d72f451aa580754e721ff8af"
       },
       {
-        "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-03.v1.json",
-        "sha256": "2e3822997c5d8d51e12269168f6f54cafd56e09b68efab9f6edb29e9c6e08b6e"
+        "path": "demos/triage-graph/snapback/functions.mjs",
+        "sha256": "74622a7b1949c2216dc2936604dbd52ea836ff7c6b57a702cde775a6d8db5241"
+      },
+      {
+        "path": "demos/triage-graph/snapback/schema.mjs",
+        "sha256": "db72b875a82245c8e2106dde0d63aa7085c29f97dfd8857442b363b87e23f360"
       },
       {
         "path": "demos/triage-graph/snapback/trusted-composition-activation.json",
-        "sha256": "691354ec47c8a7032fe66b7992e4e9821d2e79d7ca46760f740c372b989bd812"
+        "sha256": "ef39d6d5239c25b6e909923f2d94ffae171863c7af3109c0ba576792a542af42"
       },
       {
         "path": "demos/triage-graph/snapback/generated/artifacts.json",
-        "sha256": "57ba0f2731bfa999a617d92d51aabdd51f617253cde1911a627b72a5a2890b44"
+        "sha256": "21ce1d6e6a0c3667e4dc5a2e0c05967b72f86c793136b15953ec3a260757336a"
       },
       {
-        "path": "demos/triage-graph/demo.snapback.json",
-        "sha256": "4cefa0af8fab9471ef867dc6ec0ecd67f1289e94d72f451aa580754e721ff8af"
+        "path": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
+        "sha256": "1dbf954ae06038cc69c520a493de988be27ea5c2c31c3d3fd73bb9704422375d"
+      },
+      {
+        "path": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
+        "sha256": "ff822310323c5bb66c4302574d9f3754b170104d2cc9022c34181eecb0fff429"
       }
     ]
   },
@@ -251,7 +262,7 @@
           2,
           3
         ],
-        "relaunchToReadableMs": 2139.454,
+        "relaunchToReadableMs": 2139.728,
         "browser": {
           "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
           "version": "Google Chrome 150.0.7871.187",
@@ -264,12 +275,12 @@
         },
         "cleanup": {
           "firstBrowser": {
-            "pid": 6248,
+            "pid": 13991,
             "requestedSignal": "SIGKILL",
             "processTreeExitAttested": true
           },
           "finalBrowser": {
-            "pid": 6907,
+            "pid": 14191,
             "requestedSignal": "SIGTERM",
             "processTreeExitAttested": true
           },
@@ -367,7 +378,7 @@
           {
             "type": "boundary",
             "boundary": "before-rename",
-            "pid": 52732,
+            "pid": 64218,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -378,7 +389,7 @@
           {
             "type": "boundary",
             "boundary": "after-rename-before-directory-sync",
-            "pid": 52782,
+            "pid": 64226,
             "exit": {
               "code": null,
               "signal": "SIGKILL"
@@ -411,12 +422,12 @@
       "status": "PASS",
       "evidence": {
         "serverBinary": "target/debug/snapback",
-        "serverBinarySha256": "e9f85d8b3761ae6a6a4cc2b10fb001a6720df2babc6751b4bbb4c24a9767fc6a",
+        "serverBinarySha256": "c09011736df1a3bd9ef303203abd78d56af227db05ac1570d707008ee00dec18",
         "launchRung": "configured",
         "backendStoppedBeforeRelaunch": true,
         "activationPreparation": {
           "format": "snapback.composition-activation-preparation.v1",
-          "activationHash": "sha256:9f40994077e2475c6a36edadd2fb36bbe71270a56954bf99563167afe07755e3",
+          "activationHash": "sha256:a396f36d63a341d18ba207a788528d5b2eb8aa8a37a3ba69b698d5d2ae3d77fe",
           "sourceClass": "temporary-backend-source",
           "next": "rerun Snapback codegen for this backend"
         },
@@ -458,7 +469,7 @@
         },
         "materialization": {
           "records": 1,
-          "qmk1": "qmk1.4mtXkk3-Lw9DsFsEyA30HOaF3ICbwdEyVQdTFCKqiXU",
+          "qmk1": "qmk1.8YDxoNdSEP-7adHy7NvDvHPcZ_rmMlpc8qXPVaiAHLA",
           "freshness": "retained",
           "fragments": 1,
           "leaseCustody": 1
@@ -627,7 +638,7 @@
           "version": 7,
           "token": "sbrt1.carrier-exit.7"
         },
-        "maintenanceMs": 158299.897
+        "maintenanceMs": 177771.499
       }
     },
     {
@@ -689,71 +700,33 @@
     },
     {
       "leg": "footprint-hydration-triage",
-      "carrier": "move-1-successor-app",
+      "carrier": "triage-graph-budget-freeze-v1",
       "status": "PASS",
       "evidence": {
         "applicationExists": true,
-        "controlledRun": {
-          "receipt": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-03.v1.json",
-          "sourceRevision": "f47abcfb982a61a003da2f45a42864f622d279df",
-          "activationHash": "sha256:b8a2d109d816b0ef55000e56ee40cfe06a1556a0ec61263253f5573a25074dc1",
-          "gatesPassed": 8
-        },
+        "application": "demos/triage-graph",
+        "qualificationStatus": "PASS",
         "currentSuccessorActivation": {
           "artifact": "demos/triage-graph/snapback/trusted-composition-activation.json",
-          "activationHash": "sha256:24a7913ae52d4face25a851fb39b8c4dd09ae9bb810d9878417863b1a753043d",
-          "deploymentId": "triage-graph-p3-controlled-run"
+          "activationHash": "sha256:8e1772130afd2d4c1a9329db8c079562e7d1341c5e519e2365bc33d865c19593",
+          "deploymentId": "triage-graph-p3-controlled-run",
+          "sha256": "ef39d6d5239c25b6e909923f2d94ffae171863c7af3109c0ba576792a542af42"
         },
-        "budgetFreeze": {
-          "artifact": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-03.v1.json",
-          "controlledWorkload": {
-            "baselineEvents": 249000,
-            "updateBurst": 1000,
-            "totalEvents": 250000
-          },
-          "measured": {
-            "custody": {
-              "materializationRecords": 21,
-              "payloadBearingRecords": 21,
-              "volatileSnapshotRecords": 20,
-              "fragments": 21,
-              "storedResultRows": 120,
-              "authoritativeRetainedRows": 100,
-              "logicalBytes": 48016,
-              "resultBytes": 21561,
-              "proofBytes": 26455,
-              "durableRegistrations": 1,
-              "registrationBytes": 612,
-              "leaseRecords": 1,
-              "physicalCarrierBytes": 124572
-            },
-            "hydration": {
-              "attempts": 1,
-              "rowsInstalled": 100,
-              "payloadBytes": 14981,
-              "elapsedMs": 122.919
-            }
-          },
-          "frozenCeilings": {
-            "custody": {
-              "materializationRecords": 21,
-              "payloadBearingRecords": 21,
-              "volatileSnapshotRecords": 20,
-              "fragments": 21,
-              "storedResultRows": 120,
-              "authoritativeRetainedRows": 100,
-              "logicalBytes": 48016,
-              "durableRegistrations": 1,
-              "registrationBytes": 612,
-              "leaseRecords": 1
-            },
-            "hydration": {
-              "attempts": 1,
-              "rowsInstalled": 100,
-              "payloadBytes": 14981,
-              "elapsedMs": 1000
-            }
-          }
+        "measurements": {
+          "materializations": 21,
+          "storedResultRows": 120,
+          "logicalBytes": 48016,
+          "hydrationAttempts": 1,
+          "hydrationRows": 100,
+          "hydrationPayloadBytes": 14981,
+          "hydrationElapsedMs": 232.918,
+          "hydrationCeilingMs": 1000
+        },
+        "receipts": {
+          "budgetFreeze": "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json",
+          "budgetFreezeSha256": "1dbf954ae06038cc69c520a493de988be27ea5c2c31c3d3fd73bb9704422375d",
+          "move1Exit": "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json",
+          "move1ExitSha256": "ff822310323c5bb66c4302574d9f3754b170104d2cc9022c34181eecb0fff429"
         }
       }
     },

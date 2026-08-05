@@ -30,7 +30,7 @@ in a cargo-capable checkout until it lands.
 | P1 | `20260803-p1-server-proof-issuance.md` | Server-side `CompletenessProofV1` issuance: the trusted activation artifact + proof-key manifest through the generated/deployment path, Ed25519 signing at establishment, golden vectors (0157 §D3) | step 0 (Rust) |
 | P2 | `20260803-p2-client-hydration-bridge.md` | The public client bridge that seeds LLP 0166 v3 materializations from a live backend (establishment → `commitPage` with real proofs) and renders the answer-class projection; flips the retained-render receipt GAP | P1 |
 | P3 | `20260803-p3-triage-successor-app.md` | The fresh Triage Graph successor app on composites + the store (the Move 1/2 exit half not blocked by 0135 OQ5) + the OQ9 custody/hydration budget freeze from its first controlled run | P1+P2 |
-| P4 | `20260803-p4-single-table-node-class.md` | The `single_table_v1` node-class proposal to the LLP 0004/0007 owners + 0157 registry (brings the shipped `rqsEligible` population under `qmk1`; carries 0166's anonymous-retention precondition) | none (design/owner work) |
+| P4 | `closed/20260803-single-table-v1-node-class-proposal.md` | **Resolved 2026-08-04:** all five owner rulings landed and the dormant `single_table_v1` implementation was activated at experimental maturity for the source-qualified local target. The connected prove-or-fresh legacy→QMK path and Arm A/no-lease boundary remain exact. | complete |
 | P5 | `20260803-p5-result-transform-implementation.md` | `TransformPlanV1` + the dual-runtime conformance corpus (0157 OQ9's home decision with the LLP 0051 owners first); per-plan owner opt-in stays the ship gate | corpus-home ruling |
 
 Sequencing: P1 → P2 → P3 serial (each consumes the previous's wire
