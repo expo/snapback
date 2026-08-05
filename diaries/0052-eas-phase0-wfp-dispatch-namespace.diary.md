@@ -99,12 +99,13 @@ honest: the receipt does not pretend the minimal native subrequest result was
 observed through the outbound path. A focused follow-up ticket keeps the action
 kill-domain question open.
 
-Workers.dev activation was slow but convergent. The minimal run needed 49
-eight-way rounds and saw 181 generated 404s. The final full run needed 80 rounds
-and saw 141 404s plus one 500 before three consecutive clean rounds. Unique URLs
-showed this was not just one poisoned cache key. Waiting for one successful
-health response was too weak; a bounded, consecutive concurrent barrier made
-the disposable run deterministic while leaving production ingress to P0.2.
+Workers.dev activation was slow but convergent. The first minimal run needed 49
+eight-way rounds and saw 181 generated 404s. A pre-commit full run needed 80
+rounds and saw 141 404s plus one 500 before three consecutive clean rounds.
+Unique URLs showed this was not just one poisoned cache key. Waiting for one
+successful health response was too weak; a bounded, consecutive concurrent
+barrier made the disposable run deterministic while leaving production ingress
+to P0.2.
 
 The corrected full run passed 23/23. The action guard stopped the sixth
 subrequest with `SNAPBACK_SUBREQUEST_LIMIT`; the calibrated handler CPU witness
@@ -126,4 +127,6 @@ passing rerun converged at round 77 after 276 generated 404s; all three
 subrequest probes failed natively, and CPU termination arrived on attempt four.
 That variance reinforces why the receipts retain every attempt and why the
 readiness protocol is bounded by a conservative ceiling rather than a typical
-round count.
+round count. The final clean full run converged at round 81 after 312 HTTP 404s;
+all 23 checks passed, native CPU terminated on attempt three, and four exact
+post-delete API lookups returned 404.

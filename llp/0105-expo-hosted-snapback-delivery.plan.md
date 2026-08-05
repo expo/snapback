@@ -550,7 +550,7 @@ platform/pricing facts.
   subrequest guard; the narrower composition question remains in
   `issues/20260804-eas-phase0-wfp-outbound-custom-limit-interaction.md`. A
   Workers.dev barrier now requires three consecutive clean eight-way rounds;
-  the final run converged at round 80 after 141 HTTP 404s and one HTTP 500,
+  the final run converged at round 81 after 312 HTTP 404s,
   retaining DNS, Ray-ID, and cache evidence. The namespace and all three ordinary
   Workers were deleted, then four independent exact lookups returned HTTP 404.
   The two original findings are closed under `issues/closed/`; this P0.1 pass does

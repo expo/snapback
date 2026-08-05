@@ -17,8 +17,8 @@ not merely one stale negative cache key:
 
 - the final minimal control observed 276 generated 404 responses and reached
   three consecutive clean eight-way rounds only at round 77;
-- the corrected full run observed 141 HTTP 404 responses and one HTTP 500, all
-  with Cloudflare Ray IDs, before reaching the same barrier at round 80.
+- the final corrected full run observed 312 HTTP 404 responses with Cloudflare
+  Ray IDs before reaching the same barrier at round 81.
 
 Both receipts retain the control-plane state, resolved IPv4 and IPv6 address
 sets, response status, Ray ID, cache headers, and server header without storing
