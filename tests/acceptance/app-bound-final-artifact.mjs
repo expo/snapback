@@ -62,18 +62,35 @@ const mutation = await run([
 ]);
 expectExit('mutation', mutation, 0);
 
-// The final executable's network backend is statically linked. Exercise its
-// WebSocket path on the release artifact itself, not only HTTP query/mutation
-// calls or the Node-hosted coordinator tests.
+// The final executable's network backend is statically linked. Require a
+// post-establishment update before the client's 1.5-second HTTP fallback can
+// run, so a broken WebSocket path cannot pass on the initial HTTP snapshot.
+const liveTransport = await writeCase('live-transport.ts', `
+const counts = [];
+for await (const rows of api.watchNotes({})) {
+  counts.push(rows.length);
+  if (counts.length === 1) {
+    await api.createNote({
+      title: 'llp0062-linux-live-update',
+      body: 'llp0062-linux-websocket-only',
+    });
+  } else {
+    break;
+  }
+}
+export default { counts };
+`);
 const liveQuery = await run([
   ...session,
-  '--args-json',
-  '{}',
-  'call',
-  'watchNotes',
+  'run',
+  liveTransport,
+  '--timeout-ms',
+  '1400',
 ]);
 expectExit('live-query-websocket', liveQuery, 0);
-assert.match(liveQuery.stdout, /llp0062-linux/u);
+const liveValue = JSON.parse(liveQuery.stdout);
+assert.equal(liveValue.counts.length, 2);
+assert.equal(liveValue.counts[1], liveValue.counts[0] + 1);
 
 const language = await writeCase('language.ts', `
 type Count = number;

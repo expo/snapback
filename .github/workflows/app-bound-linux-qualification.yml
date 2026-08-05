@@ -23,7 +23,7 @@ on:
       - packages/snapback-codegen/**
       - packages/snapback-contract/**
       - schemas/**
-      - demos/_kit/server-process.mjs
+      - demos/_kit/**
       - guide/capabilities.md
       - guide/clients/app-cli.md
       - issues/**/20260801-0062-00-program.md
