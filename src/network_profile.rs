@@ -14,6 +14,7 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 pub const NETWORK_PROFILE_HEADER: &str = "snapback-network-profile";
+pub const NETWORK_PROFILE_SOURCE_HEADER: &str = "x-snapback-network-profile-source";
 pub const NETWORK_PROFILE_DELAY_CEILING_MS: u64 = 30_000;
 pub const NETWORK_PROFILE_DELAY_CEILING_CODE: &str = "SNAPBACK_NETWORK_PROFILE_DELAY_CEILING";
 pub const NETWORK_PROFILE_FORBIDDEN_CODE: &str = "SNAPBACK_NETWORK_PROFILE_FORBIDDEN";
@@ -61,16 +62,24 @@ impl NetworkConditionProfile {
         }
     }
 
+    /// The executable built-in authority. Name parsing and the MCP schema
+    /// projection test both enumerate this collection, so the advertised
+    /// vocabulary cannot drift from the profiles Rust will actually accept.
+    ///
+    /// @ref LLP 0167#profile-model — built-in names and values are one finite
+    ///   Rust-owned vocabulary projected to operating surfaces.
+    pub fn builtins() -> [Self; 3] {
+        [Self::normal(), Self::optimistic(), Self::demo_slow()]
+    }
+
     pub fn named(name: &str) -> SnapbackResult<Self> {
-        match name {
-            "normal" => Ok(Self::normal()),
-            "optimistic" => Ok(Self::optimistic()),
-            "demo-slow" => Ok(Self::demo_slow()),
-            _ => Err(
+        Self::builtins()
+            .into_iter()
+            .find(|profile| profile.name == name)
+            .ok_or_else(|| {
                 invalid_profile_error("unknown network condition profile name")
-                    .with_details(json!({ "name": name })),
-            ),
-        }
+                    .with_details(json!({ "name": name }))
+            })
     }
 
     pub fn is_normal(&self) -> bool {
@@ -196,8 +205,10 @@ fn invalid_profile_error(message: impl Into<String>) -> SnapbackError {
 pub enum NetworkProfileSource {
     Env,
     Api,
+    Console,
     #[serde(rename = "host-ops")]
     HostOps,
+    Mcp,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
@@ -242,6 +253,7 @@ pub struct NetworkProfileAuthority {
     pub server_profile: Option<ServerProfile>,
     pub deployment: Option<AuthDeploymentTarget>,
     pub hosted_serving_present: Option<bool>,
+    pub derived_instance_present: Option<bool>,
 }
 
 impl NetworkProfileAuthority {
@@ -249,11 +261,13 @@ impl NetworkProfileAuthority {
         server_profile: ServerProfile,
         deployment: AuthDeploymentTarget,
         hosted_serving_present: bool,
+        derived_instance_present: bool,
     ) -> Self {
         Self {
             server_profile: Some(server_profile),
             deployment: Some(deployment),
             hosted_serving_present: Some(hosted_serving_present),
+            derived_instance_present: Some(derived_instance_present),
         }
     }
 
@@ -261,18 +275,32 @@ impl NetworkProfileAuthority {
         if profile.is_normal() {
             return Ok(());
         }
-        let allowed = matches!(
+        let non_production = matches!(
             self.server_profile,
             Some(ServerProfile::Dev | ServerProfile::Demo | ServerProfile::Test)
-        ) && self.deployment == Some(AuthDeploymentTarget::Local)
-            && self.hosted_serving_present == Some(false);
+        );
+        let deployment_allowed = matches!(
+            (
+                self.deployment,
+                self.hosted_serving_present,
+                self.derived_instance_present,
+            ),
+            // Primary and derived local instances retain the existing local
+            // allowance. The derived fact must still be classified explicitly.
+            (Some(AuthDeploymentTarget::Local), Some(false), Some(_))
+                // OQ3's sole hosted exception: the otherwise-identical primary
+                // tuple stays refused unless boot-validated derived identity is
+                // present.
+                | (Some(AuthDeploymentTarget::Hosted), Some(true), Some(true))
+        );
+        let allowed = non_production && deployment_allowed;
         if allowed {
             return Ok(());
         }
         Err(SnapbackError::error(
             NETWORK_PROFILE_FORBIDDEN_CODE,
             "network-profile",
-            "non-normal network profiles require a classified local non-production server without hosted serving",
+            "non-normal network profiles require a classified non-production local server or an explicitly derived hosted instance",
         )
         .with_details(json!({
             "serverProfile": self.server_profile.map(ServerProfile::as_str),
@@ -281,6 +309,7 @@ impl NetworkProfileAuthority {
                 AuthDeploymentTarget::Hosted => "hosted",
             }),
             "hostedServingPresent": self.hosted_serving_present,
+            "derivedInstancePresent": self.derived_instance_present,
         })))
     }
 }
@@ -542,7 +571,7 @@ mod tests {
     use super::*;
 
     fn local_authority(profile: ServerProfile) -> NetworkProfileAuthority {
-        NetworkProfileAuthority::classified(profile, AuthDeploymentTarget::Local, false)
+        NetworkProfileAuthority::classified(profile, AuthDeploymentTarget::Local, false, false)
     }
 
     #[test]
@@ -631,57 +660,145 @@ mod tests {
         for source in [
             NetworkProfileSource::Env,
             NetworkProfileSource::Api,
+            NetworkProfileSource::Console,
             NetworkProfileSource::HostOps,
+            NetworkProfileSource::Mcp,
         ] {
             for profile in [ServerProfile::Dev, ServerProfile::Demo, ServerProfile::Test] {
                 NetworkProfileState::new()
                     .activate(
                         NetworkConditionProfile::optimistic(),
                         local_authority(profile),
-                        source,
+                        source.clone(),
                         None,
                     )
                     .unwrap();
             }
-            for authority in [
-                local_authority(ServerProfile::Prod),
-                // The non-loopback fail-closed default resolves to Prod before
-                // it reaches this gate, so it is the same authoritative fact.
-                NetworkProfileAuthority::classified(
-                    crate::admin::resolve_profile(None, false),
-                    AuthDeploymentTarget::Local,
-                    false,
+            NetworkProfileState::new()
+                .activate(
+                    NetworkConditionProfile::optimistic(),
+                    NetworkProfileAuthority::classified(
+                        ServerProfile::Dev,
+                        AuthDeploymentTarget::Local,
+                        false,
+                        true,
+                    ),
+                    source.clone(),
+                    None,
+                )
+                .expect("a local derived instance retains the local allowance");
+            NetworkProfileState::new()
+                .activate(
+                    NetworkConditionProfile::optimistic(),
+                    NetworkProfileAuthority::classified(
+                        ServerProfile::Dev,
+                        AuthDeploymentTarget::Hosted,
+                        true,
+                        true,
+                    ),
+                    source.clone(),
+                    None,
+                )
+                .expect("boot-validated derived identity is the hosted exception");
+
+            for (case, authority) in [
+                ("explicit prod", local_authority(ServerProfile::Prod)),
+                (
+                    "defaulted prod",
+                    // The non-loopback fail-closed default resolves to Prod
+                    // before it reaches this gate.
+                    NetworkProfileAuthority::classified(
+                        crate::admin::resolve_profile(None, false),
+                        AuthDeploymentTarget::Local,
+                        false,
+                        false,
+                    ),
                 ),
-                NetworkProfileAuthority::classified(
-                    ServerProfile::Dev,
-                    AuthDeploymentTarget::Hosted,
-                    true,
+                (
+                    "primary hosted",
+                    NetworkProfileAuthority::classified(
+                        ServerProfile::Dev,
+                        AuthDeploymentTarget::Hosted,
+                        true,
+                        false,
+                    ),
                 ),
-                NetworkProfileAuthority {
-                    server_profile: None,
-                    deployment: Some(AuthDeploymentTarget::Local),
-                    hosted_serving_present: Some(false),
-                },
-                NetworkProfileAuthority::classified(
-                    ServerProfile::Dev,
-                    AuthDeploymentTarget::Local,
-                    true,
+                (
+                    "derived prod",
+                    NetworkProfileAuthority::classified(
+                        ServerProfile::Prod,
+                        AuthDeploymentTarget::Hosted,
+                        true,
+                        true,
+                    ),
                 ),
-                NetworkProfileAuthority::classified(
-                    ServerProfile::Dev,
-                    AuthDeploymentTarget::Hosted,
-                    false,
+                (
+                    "missing server profile",
+                    NetworkProfileAuthority {
+                        server_profile: None,
+                        deployment: Some(AuthDeploymentTarget::Local),
+                        hosted_serving_present: Some(false),
+                        derived_instance_present: Some(false),
+                    },
+                ),
+                (
+                    "missing deployment",
+                    NetworkProfileAuthority {
+                        server_profile: Some(ServerProfile::Dev),
+                        deployment: None,
+                        hosted_serving_present: Some(false),
+                        derived_instance_present: Some(false),
+                    },
+                ),
+                (
+                    "missing hosted-serving fact",
+                    NetworkProfileAuthority {
+                        server_profile: Some(ServerProfile::Dev),
+                        deployment: Some(AuthDeploymentTarget::Local),
+                        hosted_serving_present: None,
+                        derived_instance_present: Some(false),
+                    },
+                ),
+                (
+                    "missing derived-instance fact",
+                    NetworkProfileAuthority {
+                        server_profile: Some(ServerProfile::Dev),
+                        deployment: Some(AuthDeploymentTarget::Local),
+                        hosted_serving_present: Some(false),
+                        derived_instance_present: None,
+                    },
+                ),
+                (
+                    "local target with hosted serving",
+                    NetworkProfileAuthority::classified(
+                        ServerProfile::Dev,
+                        AuthDeploymentTarget::Local,
+                        true,
+                        true,
+                    ),
+                ),
+                (
+                    "hosted target without hosted serving",
+                    NetworkProfileAuthority::classified(
+                        ServerProfile::Dev,
+                        AuthDeploymentTarget::Hosted,
+                        false,
+                        true,
+                    ),
                 ),
             ] {
                 let error = NetworkProfileState::new()
                     .activate(
                         NetworkConditionProfile::optimistic(),
                         authority,
-                        source,
+                        source.clone(),
                         None,
                     )
                     .unwrap_err();
-                assert_eq!(error.diagnostic.code, NETWORK_PROFILE_FORBIDDEN_CODE);
+                assert_eq!(
+                    error.diagnostic.code, NETWORK_PROFILE_FORBIDDEN_CODE,
+                    "{source:?}: {case}"
+                );
             }
         }
     }
@@ -695,6 +812,7 @@ mod tests {
                     server_profile: None,
                     deployment: None,
                     hosted_serving_present: None,
+                    derived_instance_present: None,
                 },
                 NetworkProfileSource::Api,
                 None,
@@ -879,5 +997,29 @@ mod tests {
                 .is_none()
         );
         assert!(state.admit_commit(Instant::now()).is_none());
+    }
+
+    #[test]
+    fn mcp_authority_projection_matches_rust_builtins_and_ceiling() {
+        // @ref LLP 0167#profile-model — the MCP schema derives from this
+        // package projection, while this owning Rust test pins that projection
+        // to the model and ceiling enforced by the activation authority.
+        let projection: serde_json::Value = serde_json::from_str(include_str!(
+            "../packages/snapback-cli/network-profile-authority.json"
+        ))
+        .expect("network-profile MCP authority projection is JSON");
+        assert_eq!(
+            projection["builtinNames"],
+            serde_json::json!(
+                NetworkConditionProfile::builtins()
+                    .into_iter()
+                    .map(|profile| profile.name)
+                    .collect::<Vec<_>>()
+            )
+        );
+        assert_eq!(
+            projection["delayCeilingMs"],
+            NETWORK_PROFILE_DELAY_CEILING_MS
+        );
     }
 }

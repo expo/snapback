@@ -493,8 +493,15 @@ export class AdminClient {
     return this.#req('GET', '/debug/network-profile');
   }
 
-  setNetworkProfile(profile) {
-    return this.#req('PUT', '/debug/network-profile', profile);
+  setNetworkProfile(profile, { source = 'api' } = {}) {
+    // @ref LLP 0167#authority-one-activation-chokepoint — this is a source
+    // hint for provenance only; deployment/admin authority remains server-owned.
+    return this.#req(
+      'PUT',
+      '/debug/network-profile',
+      profile,
+      source === 'console' ? { 'x-snapback-network-profile-source': 'console' } : {},
+    );
   }
 
   telemetryStats(filter = {}) {

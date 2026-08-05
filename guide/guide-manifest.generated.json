@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "dcecd319d811b60cd60c69bec968282109753daa"
+    "commit": "f419ba394b12655d8703a9471bdadbe74eec153c"
   },
   "nav": {
     ".": [
@@ -961,9 +961,9 @@
         "demos/todo-v2",
         "demos/signal-desk"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "c4762d69175f4d6148ae7b0fef52c082e3d4a240de24a05a1424396249733ab8",
+      "reviewed": "2026-08-03",
+      "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
+      "sha256": "02a895c71904066c454ac15414c3e6f1dfd19eddd61e84d8bf9b71f4b8d3115e",
       "snippets": [
         {
           "lang": "js",
@@ -1291,9 +1291,9 @@
       "examples": [
         "demos/signal-desk"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "8678a4c72653120a9448f27e0526c93279353500fdc8b4e31bf0e8e4064511d7",
+      "reviewed": "2026-08-03",
+      "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
+      "sha256": "72a1079d7f209fb5cfa9b54d8151cea0e71d925badb88f7de63b18394cc101c6",
       "snippets": [
         {
           "lang": "js",
@@ -1370,9 +1370,9 @@
         "packages/snapback-codegen/vector-authoring.test.mjs",
         "packages/snapback-client/package.test.mjs"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "488f18ae2ec507ccf58126544f272096e8add8dfbb20da70fe2b9e1e2094d194",
+      "reviewed": "2026-08-03",
+      "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
+      "sha256": "30fddeb8218fe326c3ec435870cf1b68f3b2b239dae5345bad62eca70c53a006",
       "snippets": [
         {
           "lang": "js",
@@ -1445,7 +1445,7 @@
       "examples": [],
       "reviewed": "2026-08-04",
       "reviewedCommit": "HEAD",
-      "sha256": "4b2c0111df9551470be2c44d11d8df295563b5af4961de193f248f9ea428b12a",
+      "sha256": "327b8923c85f66a995e65b5c0ff08d03f44c052ca9266a157171e65e9528ab1d",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1991,9 +1991,9 @@
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/todo/surfaces/headless/run.mjs"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "6957cc19ecb55b01fbe374820a54c8b7d651e79f2f7556062abe42889bb8cf15",
+      "reviewed": "2026-08-03",
+      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
+      "sha256": "39fc9085a371bf6beaf83d6b92488f744945ad9651d21ab3af0712bbce6c5e0b",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -2182,9 +2182,9 @@
         "demos/todo/tests/acceptance/headless.mjs",
         "packages/snapback-codegen/authoring-validation.test.mjs"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "376323db9d3688aa78a94fae52de7eaf2d98ab6d809eb8386ea3f0dad7a16361",
+      "reviewed": "2026-08-03",
+      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
+      "sha256": "2c9b6431ae53491ab6705b30c0a5aec912f7707d62263aa199312e2b4b3f4649",
       "snippets": [
         {
           "lang": "js",
@@ -2873,9 +2873,9 @@
         "demos/all-aboard/tests/acceptance/headless.mjs",
         "packages/snapback-cli/fixtures/comparator/green.config.mjs"
       ],
-      "reviewed": "2026-08-05",
-      "reviewedCommit": "HEAD",
-      "sha256": "36217c23daac04ad360ed0866a6f76a17fd59e9d7aa8afa340f36513a4c2db75",
+      "reviewed": "2026-08-03",
+      "reviewedCommit": "3109a3b4f5068595a71448b10788b56b4fa358f5",
+      "sha256": "096610d9411e0fda03afd3b8ca438bb305c0e98eb28b04a9233e1998bca1fdb4",
       "snippets": [
         {
           "lang": "js",
@@ -3011,5 +3011,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "55a30381e175c3724df92356c7770d0bd3de0feb3f4dc33a89a60cac4b0c5f83"
+  "contentHash": "9bfde09f5e3dab5e68f2ef0855725a95a26b3f0ce42803d382be677db4e9da40"
 }

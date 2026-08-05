@@ -16,10 +16,15 @@ The following work genuinely remains:
 - **Fleet footprint/hydration row.** Remains an honest carrier-exit GAP blocked
   on LLP 0135 OQ5's relational-node successor admission. Do not replace it with
   a synthetic application or inferred measurement.
-- **DK-9 diagnostic spelling.** LLP 0166 records the shipped
-  `SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE` spelling while DK-9 still names its
-  predecessor. Reconcile the owner text without silently renaming shipped
-  diagnostics.
+- **DK-9 diagnostic spelling — Resolved 2026-08-05 by owner-document
+  reconciliation.** LLP 0008 DK-9 and LLP 0166 §D1 now state that
+  `SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE` is the authoritative emitted code for
+  the successor RQS store, while DK-9's generic
+  `SNAPBACK_CLIENT_STORE_LOCK_UNAVAILABLE` text is its semantic/documentation
+  alias and remains emitted only by the predecessor localStorage adapter. No
+  code was renamed or dual-emitted. A `rg --text` audit of `src/`, `packages/`,
+  and `tests/` found two occurrences in two files for each spelling: one
+  emitter and one matching test per carrier family.
 
-Fleet and DK-9 require their respective owners and may be split into successor
-tickets when scheduled.
+The Fleet row remains open and still requires its owning admission decision;
+the DK-9 owner-text residue is closed above.

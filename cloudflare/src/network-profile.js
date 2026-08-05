@@ -2,15 +2,19 @@
 //
 // @ref LLP 0167#profile-model — keep the hosted JS arm byte-for-byte aligned
 //   with the Rust arm's camelCase profile vocabulary and pinned built-ins.
-// @ref LLP 0167#authority-one-activation-chokepoint — only deployments whose
-//   authoritative SNAPBACK_TESTING binding is exactly "1" may select a
-//   non-normal profile; missing, false, and contradictory values fail closed.
+// @ref LLP 0167#authority-one-activation-chokepoint — test deployments and
+//   explicitly identified LLP 0158 derived deployments are the only classes
+//   that may select a non-normal profile; missing or contradictory deployment
+//   facts fail closed.
 
 export const NETWORK_PROFILE_HEADER = 'snapback-network-profile';
 export const NETWORK_PROFILE_DELAY_CEILING_MS = 30_000;
 export const NETWORK_PROFILE_FORBIDDEN_CODE = 'SNAPBACK_NETWORK_PROFILE_FORBIDDEN';
 export const NETWORK_PROFILE_INVALID_CODE = 'SNAPBACK_NETWORK_PROFILE_INVALID';
 export const NETWORK_PROFILE_DELAY_CEILING_CODE = 'SNAPBACK_NETWORK_PROFILE_DELAY_CEILING';
+export const DERIVED_INSTANCE_ID_BINDING = 'SNAPBACK_DERIVED_INSTANCE_ID';
+
+const DERIVED_INSTANCE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 const PROFILE_FIELDS = Object.freeze([
   'name',
@@ -156,6 +160,29 @@ function isNormal(profile) {
   return PROFILE_FIELDS.every((field) => profile[field] === normal[field]);
 }
 
+function deploymentPermitsPerturbation(env) {
+  const testing = env.SNAPBACK_TESTING;
+  const derivedInstanceId = env[DERIVED_INSTANCE_ID_BINDING];
+  const hasDerivedFact = derivedInstanceId !== undefined && derivedInstanceId !== null;
+  const validDerivedIdentity = typeof derivedInstanceId === 'string'
+    && DERIVED_INSTANCE_ID.test(derivedInstanceId);
+
+  // SNAPBACK_TESTING remains the existing non-hosted test class, but it must
+  // not also claim to be a hosted derived deployment. A hosted deployment may
+  // omit the testing binding (the production config convention) or set its
+  // exact false value; no other spelling is authoritative.
+  const testingDeployment = testing === '1' && !hasDerivedFact;
+  const hostedDerivedDeployment = (testing == null || testing === '0')
+    && validDerivedIdentity;
+  return Object.freeze({
+    allowed: testingDeployment || hostedDerivedDeployment,
+    testingClassification: testing == null ? 'missing' : String(testing),
+    derivedIdentityClassification: !hasDerivedFact
+      ? 'missing'
+      : validDerivedIdentity ? 'valid' : 'invalid',
+  });
+}
+
 function sampleJitterMs(maximumMs) {
   if (maximumMs === 0) return 0;
   // Rejection sampling avoids modulo bias while keeping one sample shared by
@@ -225,14 +252,14 @@ export class NetworkProfileState {
   // The one activation chokepoint for env and runtime selectors.
   activate(profile, source, principal = null) {
     const validated = parseNetworkProfile(profile);
-    if (!isNormal(validated) && this.env.SNAPBACK_TESTING !== '1') {
+    const deployment = deploymentPermitsPerturbation(this.env);
+    if (!isNormal(validated) && !deployment.allowed) {
       throw new NetworkProfileError(
         NETWORK_PROFILE_FORBIDDEN_CODE,
-        'non-normal network profiles require a Cloudflare deployment classified by SNAPBACK_TESTING === "1"',
+        'non-normal network profiles require a classified test deployment or an explicitly identified hosted derived instance',
         {
-          testingClassification: this.env.SNAPBACK_TESTING == null
-            ? 'missing'
-            : String(this.env.SNAPBACK_TESTING),
+          testingClassification: deployment.testingClassification,
+          derivedIdentityClassification: deployment.derivedIdentityClassification,
         },
       );
     }

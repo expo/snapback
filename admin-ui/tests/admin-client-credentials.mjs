@@ -535,7 +535,7 @@ await telemetryClient.errorsIssues({ state: 'regressed', failureDisposition: 'fa
 await telemetryClient.errorsIssue('iss_test');
 await telemetryClient.errorsTransition({ issue: 'iss_test', to: 'resolved', expectSeq: 7 });
 await telemetryClient.networkProfile();
-await telemetryClient.setNetworkProfile('optimistic');
+await telemetryClient.setNetworkProfile('optimistic', { source: 'console' });
 await telemetryClient.setNetworkProfile({
   name: 'office-wifi',
   mutationAckDelayMs: 120,
@@ -597,6 +597,11 @@ assert.equal(
 assert.equal(telemetryRequests[5].options.method, 'GET', 'network profile status is a GET');
 assert.equal(telemetryRequests[6].options.method, 'PUT', 'built-in profile activation is a PUT');
 assert.equal(telemetryRequests[6].options.body, '"optimistic"', 'built-in profile activation sends a JSON string');
+assert.equal(
+  telemetryRequests[6].options.headers['x-snapback-network-profile-source'],
+  'console',
+  'an explicit console activation carries the provenance source hint',
+);
 assert.deepEqual(
   JSON.parse(telemetryRequests[7].options.body),
   {

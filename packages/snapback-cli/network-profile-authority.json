@@ -1,0 +1,4 @@
+{
+  "builtinNames": ["normal", "optimistic", "demo-slow"],
+  "delayCeilingMs": 30000
+}
