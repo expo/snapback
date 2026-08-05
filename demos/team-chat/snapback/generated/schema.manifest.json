@@ -8,9 +8,9 @@
   "artifactKind": "schemaManifest",
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "b8be084493b69b791c2cb314792e8e6afa813cb6bb180f605eadd86db6b76cf6",
+  "inputsHash": "3f23d2bf0a60bf9499d3fe839cafe4a39426761ae78958ba0e7708e6c09539c4",
   "portabilityFlags": [],
-  "schemaHash": "sha256:a35662b4c3cd014f",
+  "schemaHash": "sha256:c1728f749170e05d",
   "schemaVersion": "snapback.v0",
   "tables": [
     {

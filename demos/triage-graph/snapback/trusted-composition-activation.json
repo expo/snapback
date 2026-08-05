@@ -2,27 +2,27 @@
   "format": "snapback.trusted-composition-activation.v1",
   "activation": {
     "format": "snapback.composition-activation.v1",
-    "databaseId": "019fd0ee-119e-79a0-a7f2-090ed05f2ae1",
+    "databaseId": "019fd149-833c-7792-a7b2-c3929a64dab0",
     "deploymentId": "triage-graph-p3-controlled-run",
     "targetProfileId": "local-dev-sqlite-ibex",
     "authMode": "sessions",
     "expectedGeneration": {
       "schemaVersion": "snapback.v1",
       "appId": "triage-graph",
-      "schemaHash": "snapback.v1:sessions:schema:sha256:e18b8520c09722aa16dd32ddbb35606b7b53543c6a0ea32a166fb8920c7734ed",
-      "bundleHash": "snapback.v1:sessions:function:sha256:5d7dbe2a14904ccf7e1b585d3b9e4511d65918673cad7a5bb21b6cf4d6e3e54b",
-      "inputsHash": "snapback.v1:sessions:inputs:sha256:1ed88b552c23950c2f7d7c438c3ac62b53a125509e6c6359ef61072894c8c46e"
+      "schemaHash": "snapback.v1:sessions:schema:sha256:1be6d0624b1f069c6d347ef0732a9002fba8c5b585c0df806afc627484a5757f",
+      "bundleHash": "snapback.v1:sessions:function:sha256:b7223d2edcad8fd4b7a8ed7264db50ea5d64834c0d623c324b3b60427fd0a341",
+      "inputsHash": "snapback.v1:sessions:inputs:sha256:04b99f51af8c01de3baa2d71ad136852524f9d5a77cec15fcb4a6ad2bf655710"
     },
-    "proofKeyManifestDigest": "sha256:a4af44bbd706d1572d2a8f3880243087569a303b08e5b0aaed063bab492a674f"
+    "proofKeyManifestDigest": "sha256:bf7bc40576cc72ecd0e919b8fa5b8e921fbff39fe68b837e83ad3d6d64682daa"
   },
-  "activationHash": "sha256:b91c2c9478f9a190f0042e61d00b4f0242b12f4f3d9a0d30915e2b53514cefac",
+  "activationHash": "sha256:c2f7a345c4e561b8f94bafb1bd0ab450fa9568e7f14290ca7f3118694be7403d",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
-        "proofKeyId": "sbpk1.lyHWw57ctNiV1y-rhSzY-A",
+        "proofKeyId": "sbpk1.25yU9P6meMHurPII55NMug",
         "algorithm": "Ed25519",
-        "publicKeyBase64url": "aw2AIWSQb7Te39rT-dD7VtRDGJlgu7HeZPjzvjJ9tbs"
+        "publicKeyBase64url": "Rpkaqqrh_D00-tfMWBfvDs0CFn7IqWk7ibSa7T-wukg"
       }
     ]
   }

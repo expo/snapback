@@ -41,6 +41,7 @@ const inventories = [
     suffix: '.test.mjs',
     expectedFiles: [
       'adapters/fly-machines-vm-driver.test.mjs',
+      'cli-help.test.mjs',
       'comparator-profile.test.mjs',
       'dev-cli-diagnostics.test.mjs',
       'dev-loop.test.mjs',
@@ -545,7 +546,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // react-runtime chunk rejection.
 // 201 -> 202 (2026-08-05, authoring omission audit): @expo/snapback-codegen
 // gains explicit visibility/delete-filter omission refusal coverage.
-assert.equal(total, 202, 'reviewed package/admin test count changed');
+// 202 -> 203 (2026-08-05, unattended authoring audit): @expo/snapback-cli
+// gains composed and non-executing CLI help acceptance coverage.
+assert.equal(total, 203, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
