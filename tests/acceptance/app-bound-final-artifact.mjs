@@ -71,7 +71,7 @@ for await (const rows of api.watchNotes({ title: 'llp0062-linux' })) {
   counts.push(rows.length);
   if (counts.length === 1) {
     await api.createNote({
-      title: 'llp0062-linux-live-update',
+      title: 'llp0062-linux',
       body: 'llp0062-linux-websocket-only',
     });
   } else {
