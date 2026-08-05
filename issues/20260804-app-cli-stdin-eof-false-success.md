@@ -45,4 +45,3 @@ Pin all three input modes:
 Evidence is recorded in
 `/tmp/snapback-unattended-audit.7qbgiS/unattended-audit.md` for the originating
 audit run.
-

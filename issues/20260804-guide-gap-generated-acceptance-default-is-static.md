@@ -51,4 +51,3 @@ per-template prose recipes.
 - `packages/snapback-cli/templates/react/acceptance.mjs` and
   `acceptance.live.mjs`.
 - `/tmp/snapback-unattended-audit.7qbgiS/unattended-audit.md` — A/B/C results.
-

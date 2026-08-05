@@ -47,4 +47,3 @@ defaulted, so inspect/verify can identify compatibility-era omissions.
 For every omission, a generated scratch app either fails at codegen with a
 stable repair diagnostic or emits a review artifact proving the safe resolved
 choice. No omitted field may silently widen authority or destructive scope.
-

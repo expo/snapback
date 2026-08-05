@@ -44,4 +44,3 @@ or one-shot, its machine-output schema, and its recovery channel.
 Run root and per-verb help under the A/B/C unattended harness. Every help
 invocation exits 0, performs no operation, and the mechanically derived
 dispatch set equals the documented set.
-

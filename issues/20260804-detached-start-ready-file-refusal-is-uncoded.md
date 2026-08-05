@@ -42,4 +42,3 @@ The generalized A/B/C lifecycle suite pins:
 - PTY without a ready file may use terminal capability handoff and stay live;
 - detached without a ready file exits non-zero with the stable code and repair;
 - detached with a ready file reaches ready and stays live.
-
