@@ -37,6 +37,13 @@ command -v socat >/dev/null || { echo "qualification requires socat" >&2; exit 2
 [[ -f "$IBEX/scripts/build-sfe-release.sh" ]] || { echo "vendor/ibex is not initialized" >&2; exit 2; }
 mkdir -p "$RUN_ROOT" "$RECEIPTS"
 
+# Fail before the expensive native builds if this runner cannot provide the
+# private procfs required by Ibex's mapped-self-image proof in the consumer
+# root. The real consumer commands repeat this isolation around the chroot.
+sudo /usr/bin/unshare --mount --pid --fork --mount-proc=/proc \
+  /bin/sh -c 'test -r /proc/self/exe && test -r /proc/self/maps'
+printf '%s\n' private-pid-mount-proc-ok >"$RECEIPTS/consumer-namespace-preflight.txt"
+
 glibc_host="$(ldd --version | sed -n '1s/.* //p')"
 [[ "$glibc_host" == "2.35" ]] || { echo "expected GLIBC 2.35 host, got $glibc_host" >&2; exit 1; }
 
