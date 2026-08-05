@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "702f82f5bd6b250b24e068f650fa6fca63f7aac7"
+    "commit": "14d9658a04baebec1408ee6fa3c49410c16d7c29"
   },
   "nav": {
     ".": [
@@ -1065,7 +1065,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "e518c989907e4b7eeaeb71f1a899e366040ed6eb99e7575b16f0f8b9775965f8",
+      "sha256": "f2b7e571f65289c75df44427b08bb43c32bb6863cc99f23c132b31cbf735eeab",
       "snippets": [
         {
           "lang": "js",
@@ -1445,7 +1445,7 @@
       "examples": [],
       "reviewed": "2026-08-04",
       "reviewedCommit": "HEAD",
-      "sha256": "d20c40f75cc4da17dddfe381322b6ccae132ff064e429f82b6a90350266cf078",
+      "sha256": "4b2c0111df9551470be2c44d11d8df295563b5af4961de193f248f9ea428b12a",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2770,7 +2770,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "HEAD",
-      "sha256": "28897bc12df124ca3257de377e0d4e4fd643be3f57a4c868f0a6321284817c62",
+      "sha256": "14d6debf73fe102b28786611c0781c98e8b4a00076a48acdb9df24dc536bac61",
       "snippets": [
         {
           "lang": "js",
@@ -2791,6 +2791,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "tests/acceptance/local-store-carrier-exit-v1.mjs"
+        },
+        {
+          "lang": "ts",
+          "class": "transcluded",
+          "source": "demos/triage-graph/src/retained-registration.ts"
         },
         {
           "lang": "js",
@@ -3006,5 +3011,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "acd7c23d0e93beee939cb61d56a6435eb82953d4ca011a80e7b014765e135c8d"
+  "contentHash": "948e694b33707150deb58ca21b7b2b0e883e8edc0595343ea93a9aa9a3151d81"
 }
