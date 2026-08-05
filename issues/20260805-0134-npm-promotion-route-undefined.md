@@ -15,8 +15,12 @@ at candidate source
 `4c8245a1a05e4f5f724771e7557f9a583bac2410`. Main local-proof run
 `31035872210` is green with 119 selected gates passing, zero failed or blocked
 gates, and only the two expected not-selected gates. Qualified staging run
-`019fd366-7f4c-7998-a1ff-1c4382ac338d` was then started for version `0.1.9`
-at that exact source revision.
+`019fd366-7f4c-7998-a1ff-1c4382ac338d` then completed successfully for version
+`0.1.9` at that exact source revision: both runtime builds, assembly, both
+staged cold installs, and retained release are green. Its ledger and tarballs
+validate, but the real-publication consumer separately rejects the EAS-hosted
+platform receipts; that independent producer/consumer gap is recorded in
+`issues/20260805-eas-qualified-receipts-rejected-by-publish-validator.md`.
 
 The capstone's step 2 asks for per-route `soakEvidence` and a
 `MaturityPromotionReceiptV1` pinned to the package candidate's

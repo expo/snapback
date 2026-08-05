@@ -11,6 +11,36 @@ closure and packaging facets), LLP 0145 (client bundle metrology), LLP 0148
 
 ## Running log
 
+- **2026-08-05 — green source proof and qualified staging complete; two
+  fail-closed production gaps stop publication.** Candidate source
+  `4c8245a1a05e4f5f724771e7557f9a583bac2410` has green main local-proof run
+  `31035872210`: the structured artifact contains 119 `PASS`, the two expected
+  `NOT_SELECTED` gates (`cargo-test-profile-clean`, `swift-client`), and zero
+  failed or blocked gates; JSONL SHA-256
+  `8cdba690c1870d9bb56d63cd5d63259ff91bfb503ef82864e3bae2cfe4108a12`.
+  Qualified EAS staging run `019fd366-7f4c-7998-a1ff-1c4382ac338d` is green
+  for `0.1.9` at that exact source: both runtime builds, nine-package
+  assembly, both staged cold installs, and final retention succeeded. The
+  retained release archive SHA-256 is
+  `feea37839dfd2e426eab0b1376886fe8972a86af20d98c6b166a348e77249b81`;
+  qualified ledger file SHA-256
+  `f1501bd223eea5f69366624177e6c2530d900657ebc820d7c6e1940bab0b41cd`
+  (self-digest
+  `8a4a171700087032bab5cf780f3769678d9ba9a219583e955d5fdd8c46ed8b29`);
+  macOS/Linux receipt SHA-256 values
+  `99f491e231109c37492d419366275cfc21577774598395ad10c6a7e9e7f0db6f`
+  and
+  `464fed1f7ad6c5ace22805bdc58abf9284c21e240017e27de7af3cd289ff7b80`.
+  First production use then stopped before npm mutation for two recorded
+  reasons: the instruction names no capability transition from which LLP
+  0134 can honestly construct its required maturity receipt
+  (`issues/20260805-0134-npm-promotion-route-undefined.md`), and the real
+  publication validator rejects the EAS receipts because it still requires
+  GitHub-hosted provenance
+  (`issues/20260805-eas-qualified-receipts-rejected-by-publish-validator.md`).
+  No candidate tag or `latest` tag was changed; the nine-package public vector
+  remains `latest: 0.1.8`.
+
 - **2026-08-03 — PUSH-01 is closed and no longer caps promotion.** The local
   `notifications.expoPushSeam` surface has its packaged fake-provider kit and
   a retained physical iOS development-build ticket/receipt witness with both
