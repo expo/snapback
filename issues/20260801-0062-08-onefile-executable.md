@@ -1,8 +1,8 @@
 # 0062-08: the app-bound one-file Ibex executable
 
-**Status:** OPEN — the macOS arm64 implementation checkpoint landed on
-2026-08-04; qualified Linux and the remaining §7 lifecycle/acceptance matrix
-are still required. **Authority:** LLP 0062 §6.2 whole (the 2026-08-01 author
+**Status:** OPEN — the macOS arm64 implementation and complete host-portable
+acceptance matrix landed on 2026-08-04; only the qualified Linux x86_64 tuple
+is still required. **Authority:** LLP 0062 §6.2 whole (the 2026-08-01 author
 direction: embeds Ibex/Hermes + the generic trusted engine + the fixed
 app binding; fetches the dynamic envelope; ordinary deploys never
 rebuild it; one executable per app × platform; the one-file claim is
@@ -44,24 +44,40 @@ Changing only publisher lineage changed both the embedded binding digest and
 the executable digest, so the basic rebuild-only-on-binding-change claim is
 proven for the qualified tuple.
 
-This checkpoint does not close the issue or accept LLP 0062. Remaining work:
+## Completion pass (2026-08-04)
 
-- Produce and exercise the Linux x86_64 release on a builder that can qualify
-  the declared GLIBC 2.35 floor. The available GLIBC 2.39 hosts correctly
-  refused promotion instead of emitting an unqualified artifact.
-- Implement and prove signal-first grace before forced interruption, including
-  broker-call refusal during grace and cleanup observation.
-- Complete exact worker-to-parent frame-body admission. Ibex already enforces
-  canonical framing, protocol, `runId`, monotonic sequence, and the closed
-  frame-type set in that direction, and exact parent-to-worker bodies; the
-  emitted body schemas still need equally closed validation.
-- Add the value-free per-call and run-summary audit lane, including planted
-  sensitive-value and large-intermediate-value leakage proofs.
-- Complete provisional-settlement and teardown/race semantics: strict result
-  admission, late-frame handling, timer/iterator cleanup, and pinned terminal
-  precedence.
-- Run the remaining §7 host-portable language, disclosure, resource-ceiling,
-  lifecycle, and race matrix across every claimed release tuple.
+Ibex commit `4c34c831aa087d6783b0d68f281cdb374ed7fc89` and the
+Snapback implementation commits `656cf3c1c91bc49937865e4fa63259aa542ae6f6`
+and `25cde3801ebf40d77342bb0bf53a3f9942778789` close the macOS-side
+implementation remainder from the earlier checkpoint:
+
+- the worker-to-parent ABI now admits exact closed bodies and typed identifiers;
+- signal and timeout teardown fire `signal` first, refuse new calls, live opens,
+  and timers during grace, retain already-established cleanup work, then force
+  interruption with pinned terminal precedence;
+- provisional settlement validates strict JSON, exact chunks, digest, and size
+  before stdout, and reports result ceilings through the resource exit class;
+- per-call and terminal summary audit frames carry only allowlisted metadata,
+  keyed commitments, coarse size classes, and typed elision records; and
+- timers, iterators, establishment timers, late frames, and terminal races have
+  deterministic cleanup and regression coverage.
+
+The final qualified macOS arm64 catalog is
+`sha256-7Pt7_U-TZ7QHWQHUkh9ytz7SISktYhL4rnNH_PPxz_Q`. Two builds of the
+literal executable from identical inputs were byte-for-byte identical at
+SHA-256 `462904fb75c571394c10745fdb39ba3be301afe15476e3e322e39c2dce7a407d`.
+The exact final artifact passed live authenticated broker calls; file and stdin
+top-level-await TypeScript; categorical import, enum, namespace, and parameter-
+property refusal; absent-default output; strict-result and call/output ceilings;
+timeout and SIGTERM cleanup grace; orphan-timer teardown; planted 500-row value
+non-disclosure; authenticated inspection; system-library-only Mach-O dependency
+inspection; and cached offline introspection after relocation.
+
+This checkpoint does not close the issue or accept LLP 0062. The sole remaining
+gate is to produce and exercise the Linux x86_64 release on a builder that can
+qualify the declared GLIBC 2.35 floor. The available fleet is Ubuntu 24.04 or
+newer with GLIBC 2.39, lacks a usable container/chroot path, and correctly
+refuses promotion instead of emitting an unqualified artifact.
 
 ## Blocker resolution (2026-08-03)
 

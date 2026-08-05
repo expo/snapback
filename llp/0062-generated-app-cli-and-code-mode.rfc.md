@@ -5,11 +5,13 @@
 **Systems:** Client integration, Developer experience, Tooling, API, Auth, Docs
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-17
-**Revised:** 2026-08-04, latest (phase-2 implementation checkpoint: the Ibex
-contract blocker is removed and the qualified macOS arm64 build exercises the
-literal app-bound path; ticket 08 remains open for qualified Linux and the
-complete §7 host-portable disclosure, ceiling, lifecycle, and race proof; see the
-dated record below). 2026-08-01 (Snapback phase 1 implemented: tickets 01–06 and 09 are
+**Revised:** 2026-08-04, latest (phase-2 completion pass: the qualified macOS
+arm64 artifact now passes the complete §7 host-portable disclosure, ceiling,
+lifecycle, settlement, and race matrix; ticket 08 remains open only for a Linux
+x86_64 artifact qualified at the declared GLIBC 2.35 floor; see the dated record
+below). Earlier same day (phase-2 implementation checkpoint: the Ibex contract
+blocker was removed and the first qualified macOS arm64 build exercised the
+literal app-bound path). 2026-08-01 (Snapback phase 1 implemented: tickets 01–06 and 09 are
 closed; the credentialed lanes and Node/POSIX code-mode host landed in
 `f245965c` with executable-mode correction `46adfb69`; phase 2 was then blocked
 on ticket 07's reviewed Ibex external-script/worker contract and ticket 08's
@@ -1660,6 +1662,22 @@ Revisions r1–r10 were made 2026-07-17, one per /llp-super-refine round;
 full review artifacts are under
 `llp/reviews/0062-*.{fable,codex}.md`. Later dated amendments are author
 direction or implementation reconciliation, not additional review rounds.
+
+- **2026-08-04 phase-2 completion pass** — The qualified macOS arm64
+  implementation now closes the earlier lifecycle remainder: exact closed
+  worker frame bodies, signal-first timeout and process-signal grace, refusal of
+  new broker/timer work during grace, deterministic late-frame and teardown
+  behavior, provisional strict settlement with resource fault classification,
+  and value-free per-call/summary audits. The final catalog is
+  `sha256-7Pt7_U-TZ7QHWQHUkh9ytz7SISktYhL4rnNH_PPxz_Q`; two literal builds
+  were byte-identical at SHA-256
+  `462904fb75c571394c10745fdb39ba3be301afe15476e3e322e39c2dce7a407d`.
+  The exact artifact passed the host-portable language, disclosure, ceiling,
+  settlement, timeout, SIGTERM, cleanup, and relocation matrix. Ticket 08 and
+  this RFC remain open because the fleet cannot qualify the declared Linux
+  GLIBC 2.35 floor: its available Ubuntu 24.04+ hosts expose GLIBC 2.39 and no
+  usable container/chroot escape hatch, and the producer correctly refuses
+  promotion.
 
 - **2026-08-04 phase-2 implementation checkpoint** — Ibex now publishes the
   app-bound Stub V4/Catalog V2 profile with a restricted Hermes worker and
