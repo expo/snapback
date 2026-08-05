@@ -165,6 +165,12 @@ ldd "$APP" >"$RECEIPTS/ldd.txt"
 if grep -q 'not found' "$RECEIPTS/ldd.txt"; then echo "final artifact has a missing shared dependency" >&2; exit 1; fi
 if grep -qF "$ROOT" "$RECEIPTS/ldd.txt"; then echo "final artifact links into the source tree" >&2; exit 1; fi
 if grep -qF "$RUN_ROOT" "$RECEIPTS/ldd.txt"; then echo "final artifact links into the release staging tree" >&2; exit 1; fi
+elf_interpreter="$(readelf -l "$APP" | sed -n 's/.*Requesting program interpreter: \(.*\)]/\1/p')"
+[[ "$elf_interpreter" == /* && -e "$elf_interpreter" ]] || {
+  echo "final artifact has an unavailable ELF interpreter: $elf_interpreter" >&2
+  exit 1
+}
+printf '%s\n' "$elf_interpreter" >"$RECEIPTS/elf-interpreter.txt"
 
 # Prove the literal file without producer fallbacks. The chroot contains only
 # the executable, its audited system-library closure, trust/localhost data,
@@ -182,8 +188,14 @@ install -m 0644 /etc/ssl/certs/ca-certificates.crt \
   "$CONSUMER_ROOT/etc/ssl/certs/ca-certificates.crt"
 while IFS= read -r library; do
   [[ -n "$library" && -f "$library" ]] || continue
-  cp --parents "$library" "$CONSUMER_ROOT"
+  cp -L --parents "$library" "$CONSUMER_ROOT"
 done < <(awk '/=> \// { print $(NF - 1) } /^[[:space:]]*\// { print $1 }' "$RECEIPTS/ldd.txt" | sort -u)
+# `ldd` reports the interpreter's conventional path, which is commonly a
+# symlink whose absolute target is not a separate dependency row. Preserve the
+# requested path but materialize its bytes so the consumer root is complete.
+mkdir -p "$CONSUMER_ROOT$(dirname "$elf_interpreter")"
+install -m 0755 "$(readlink -f "$elf_interpreter")" "$CONSUMER_ROOT$elf_interpreter"
+[[ -x "$CONSUMER_ROOT$elf_interpreter" ]]
 for library in /lib/x86_64-linux-gnu/libnss_files.so.2 /lib/x86_64-linux-gnu/libnss_dns.so.2; do
   [[ -f "$library" ]] && cp --parents "$library" "$CONSUMER_ROOT"
 done
