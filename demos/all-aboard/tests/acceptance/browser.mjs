@@ -445,31 +445,29 @@ async function main() {
         // so make the window under test foreground before asking it to boot.
         await page2.activate();
         await page2.navigate(`${viteUrl}/?appearance=light`);
-        const second = await page2.eval(`(async () => {
-          const d = Date.now() + 20000;
-          while (!window.allAboard) {
-            if (Date.now() > d) {
-              throw new Error('second window never booted: ' + JSON.stringify({
-                href: location.href,
-                readyState: document.readyState,
-                visibilityState: document.visibilityState,
-                hasFocus: document.hasFocus(),
-                exactRootChildren: document.getElementById('exact-root')?.childElementCount ?? null,
-                bootStatus: document.getElementById('boot-status')?.textContent ?? null,
-                scripts: [...document.scripts].map((script) => script.src || script.textContent?.slice(0, 80) || ''),
-              }));
+        let second;
+        try {
+          second = await page2.eval(`(async () => {
+            const d = Date.now() + 20000;
+            while (!window.allAboard) {
+              if (Date.now() > d) throw new Error('second window never booted');
+              await new Promise(r=>setTimeout(r,50));
             }
-            await new Promise(r=>setTimeout(r,50));
-          }
-          await window.allAboard.ready;
-          const s = Date.now() + 8000;
-          for (;;) {
-            const conns = window.allAboard.connections ? window.allAboard.connections() : null;
-            if (conns && conns.liveTrainStatus === 'live') return { provisioned: window.allAboard.provisioned, connections: conns };
-            if (Date.now() > s) throw new Error('second window connections never settled: ' + JSON.stringify(conns));
-            await new Promise(r => setTimeout(r, 100));
-          }
-        })()`);
+            await window.allAboard.ready;
+            const s = Date.now() + 8000;
+            for (;;) {
+              const conns = window.allAboard.connections ? window.allAboard.connections() : null;
+              if (conns && conns.liveTrainStatus === 'live') return { provisioned: window.allAboard.provisioned, connections: conns };
+              if (Date.now() > s) throw new Error('second window connections never settled: ' + JSON.stringify(conns));
+              await new Promise(r => setTimeout(r, 100));
+            }
+          })()`);
+        } catch (error) {
+          const diagnostics = await page2.diagnostics().catch((diagnosticsError) => ({
+            diagnosticsError: diagnosticsError.message,
+          }));
+          throw new Error(`${error.message}; diagnostics=${JSON.stringify(diagnostics)}`, { cause: error });
+        }
         // Inspect-first: the backend is already provisioned and seeded, so the
         // second window's boot performs NO provisioning writes (the LLP 0275 C4
         // footgun — a second window calling loadSchema/reset — is gone).
@@ -966,7 +964,14 @@ async function main() {
       // than on the product's render-first offline behavior.
       await page.blockUrls(`${apiUrl}/*`);
       await page.navigate(`${viteUrl}/?appearance=light`);
-      await page.waitForTestId('station-name');
+      try {
+        await page.waitForTestId('station-name');
+      } catch (error) {
+        const diagnostics = await page.diagnostics().catch((diagnosticsError) => ({
+          diagnosticsError: diagnosticsError.message,
+        }));
+        throw new Error(`${error.message}; diagnostics=${JSON.stringify(diagnostics)}`, { cause: error });
+      }
       const stationName = await page.text('station-name');
       const heroMinutes = await page.text('hero-minutes');
       const badge = await page.text('data-source');
@@ -989,6 +994,7 @@ async function main() {
 async function connectCdp(url) {
   const socket = new WebSocket(url);
   const pending = new Map();
+  const sessionEvents = new Map();
   let nextId = 1;
   // A dropped DevTools WebSocket used to hang the suite forever: a command sent
   // on a dead socket gets no response, and there was no timeout, close/error
@@ -1003,6 +1009,9 @@ async function connectCdp(url) {
     const text = typeof e.data === 'string' ? e.data : await e.data.text();
     const msg = JSON.parse(text);
     if (msg.id && pending.has(msg.id)) { const p = settle(msg.id); msg.error ? p.reject(new Error(msg.error.message)) : p.resolve(msg.result || {}); }
+    if (msg.sessionId && sessionEvents.has(msg.sessionId)) {
+      sessionEvents.get(msg.sessionId)(msg.method, msg.params ?? {});
+    }
     // Fetch interception (ENG-23727 backend-unreachable check): a session that
     // enabled Fetch with a URL pattern gets every matching request refused —
     // the paused event only arrives for sessions that opted in.
@@ -1031,8 +1040,65 @@ async function connectCdp(url) {
         ...(newWindow ? { newWindow: true } : {}),
       });
       const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
+      const requestUrls = new Map();
+      const captured = {
+        runtimeExceptions: [],
+        consoleErrors: [],
+        logEntries: [],
+        networkFailures: [],
+        moduleResponses: [],
+      };
+      sessionEvents.set(sessionId, (method, params) => {
+        if (method === 'Runtime.exceptionThrown') {
+          captured.runtimeExceptions.push({
+            text: params.exceptionDetails?.text,
+            description: params.exceptionDetails?.exception?.description,
+            url: params.exceptionDetails?.url,
+            lineNumber: params.exceptionDetails?.lineNumber,
+            columnNumber: params.exceptionDetails?.columnNumber,
+          });
+        } else if (method === 'Runtime.consoleAPICalled' && ['error', 'assert'].includes(params.type)) {
+          captured.consoleErrors.push({
+            type: params.type,
+            values: (params.args ?? []).map((arg) => arg.value ?? arg.description ?? arg.type),
+          });
+        } else if (method === 'Log.entryAdded') {
+          captured.logEntries.push(params.entry ?? {});
+        } else if (method === 'Network.requestWillBeSent') {
+          requestUrls.set(params.requestId, params.request?.url);
+        } else if (method === 'Network.responseReceived') {
+          const response = params.response ?? {};
+          if (params.type === 'Script' || response.url?.includes('/main.ts') || response.url?.includes('/@vite/client')) {
+            captured.moduleResponses.push({
+              url: response.url,
+              status: response.status,
+              statusText: response.statusText,
+              mimeType: response.mimeType,
+              protocol: response.protocol,
+              fromDiskCache: response.fromDiskCache,
+              fromServiceWorker: response.fromServiceWorker,
+            });
+          }
+        } else if (method === 'Network.loadingFailed') {
+          captured.networkFailures.push({
+            url: requestUrls.get(params.requestId),
+            errorText: params.errorText,
+            canceled: params.canceled,
+            blockedReason: params.blockedReason,
+            type: params.type,
+          });
+          requestUrls.delete(params.requestId);
+        } else if (method === 'Network.loadingFinished') {
+          requestUrls.delete(params.requestId);
+        }
+        for (const values of Object.values(captured)) {
+          if (values.length > 20) values.splice(0, values.length - 20);
+        }
+      });
       await send('Page.enable', {}, sessionId);
       await send('Runtime.enable', {}, sessionId);
+      await send('Log.enable', {}, sessionId);
+      await send('Network.enable', {}, sessionId);
       const evalRaw = async (expression) => {
         const r = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true }, sessionId);
         if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
@@ -1074,10 +1140,29 @@ async function connectCdp(url) {
           (lastError ? `; lastError=${lastError.message}` : ''),
         );
       };
+      const diagnostics = async () => ({
+        page: await evalRaw(`({
+          href: location.href,
+          readyState: document.readyState,
+          visibilityState: document.visibilityState,
+          hasFocus: document.hasFocus(),
+          exactRootChildren: document.getElementById('exact-root')?.childElementCount ?? null,
+          bootStatus: document.getElementById('boot-status')?.textContent ?? null,
+          scripts: [...document.scripts].map((script) => script.src || script.textContent?.slice(0, 80) || ''),
+          moduleResources: performance.getEntriesByType('resource')
+            .filter((entry) => entry.name.includes('/main.ts') || entry.name.includes('/@vite/client'))
+            .map((entry) => ({ name: entry.name, duration: entry.duration, transferSize: entry.transferSize })),
+        })`),
+        captured,
+      });
       return {
         navigate,
         activate,
-        close: () => send('Target.closeTarget', { targetId }),
+        diagnostics,
+        close: async () => {
+          sessionEvents.delete(sessionId);
+          return send('Target.closeTarget', { targetId });
+        },
         // Refuse every request matching the pattern (ENG-23727): navigation
         // and module loads on other origins proceed normally, so the surface
         // loads while its API origin is unreachable.

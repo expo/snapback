@@ -410,3 +410,17 @@ the last check it reloads the active primary page with API interception in
 place. If D4 still misses, its failure now retains URL, document readiness,
 visibility, focus, root, boot-status, and script diagnostics instead of only
 "never booted."
+
+The third normal-sandbox Linux run, `30963181647` at
+`592f7b3fa1697564133268a3fb8f354e527a5859`, also passed the registry install
+and production build and reproduced 32/34 after both lifecycle changes. Its
+new D4 receipt is decisive: Chrome 151 reported the requested Vite document at
+`readyState: "complete"`, `visibilityState: "visible"`, and `hasFocus: true`,
+with both `@vite/client` and `main.ts` script elements present, but an empty
+Exact root and no `window.allAboard`. The backend-unreachable check likewise
+failed after reloading the already-active primary target. A hidden tab,
+uncommitted navigation, and a second-target lifecycle error are therefore no
+longer honest explanations for this pair. The fixture now retains Runtime,
+console, browser-log, and module-network evidence on either boot timeout so the
+next normal-sandbox run can distinguish a served-module failure from an Exact
+evaluation failure before ownership is assigned.
