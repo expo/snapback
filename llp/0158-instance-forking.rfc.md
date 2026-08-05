@@ -5,7 +5,12 @@
 **Systems:** Storage, Deployment, Runtime, Scheduling, Assets, Security, Agent experience, Developer experience
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-03 (v0.14 — F0b implementation and first-consumer
+**Revised:** 2026-08-05 (LLP 0167 OQ3 boundary note: network-profile
+authority now consumes the existing boot-validated local fork lineage as a
+derived-instance fact; the Cloudflare arm reserves the deployment binding
+`SNAPBACK_DERIVED_INSTANCE_ID` as its fork-id carrier. This does not implement
+F2's Cloudflare fork mint/materialization mechanics or relax any LLP 0158
+containment gate.); 2026-08-03 (v0.14 — F0b implementation and first-consumer
 record: the finite-TTL local `fork create/list/diff/drop/reap` surface now
 packages the green F0a substrate, boots a same-`appId` derived server with
 cron/jobs/assets inert and fail-closed egress, emits a ready descriptor and
@@ -941,6 +946,15 @@ comes before the CLI verb, and no duration estimates until it exists):
   export/import on Cloudflare; container-VM rides Fly volume forks
   (LLP 0099) and adds the ProcessContained tier (§Threat model);
   fork-aware shared asset store. Only after F0/F1 demonstrate use.
+
+  **Boundary note — 2026-08-05:** LLP 0167 now recognizes derived identity
+  solely for network-profile activation. Rust obtains it from the existing
+  `inspect_boot` proof (matching permanent lineage, mint receipt, non-promotable
+  identity, database filename, and fresh sidecars). The Cloudflare coordinator
+  reserves `SNAPBACK_DERIVED_INSTANCE_ID` as a deployment-level canonical
+  fork-id binding; only the future F2 deployment/mint path may stamp the real
+  value. This binding does not claim that Cloudflare fork materialization,
+  lifecycle, custody, or egress containment is built.
 
 What F0 deliberately does *not* include: promotion/graduation of a fork,
 schema-migration tooling inside the fork (agents just load their changed

@@ -9517,7 +9517,7 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:55de483b19bfebcd2f41c5ff02cddfa3cad1d7d4a0f2cda5615b299b48482eca";
+    "sha256:1408dc59ddbd13c1efbacf49b482417c87be22d9d81c98987b5b0d1d0490fe3d";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
@@ -9529,7 +9529,7 @@ const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-persistent-store-publication.v1.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256: &str =
-    "sha256:b2eadf149ced28469cd4eee3782538c7dd7a1865e58ab07f9423ae78e5f9a596";
+    "sha256:701a8337c30635826ea3b119f71bb3f04d4403dcae0c47cee0cb363148afc16f";
 const LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES: &[u8] = include_bytes!(
     "../tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json"
 );
@@ -9655,7 +9655,7 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:510fb0e24cf355f3afbb9004fd2ebbd00f14384689493a1ec5b3b0716eea4985"
+                    "sha256:fad6987719dfb41f1a7f61ed4d822b4b5084076302515827faf11cfc2f322dae"
                         .to_owned(),
                 ),
                 (
@@ -9812,7 +9812,7 @@ fn local_persistent_store_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:510fb0e24cf355f3afbb9004fd2ebbd00f14384689493a1ec5b3b0716eea4985"
+                    "sha256:fad6987719dfb41f1a7f61ed4d822b4b5084076302515827faf11cfc2f322dae"
                         .to_owned(),
                 ),
                 (

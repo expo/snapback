@@ -86,8 +86,14 @@ await surface.links.activateNetworkProfile({
   liveDeltaDelayMs: '', queryResponseDelayMs: '', jitterMs: '',
 });
 assert.equal(client.lastNetworkProfileInput, 'optimistic', 'built-in activation sends the name string');
+assert.deepEqual(
+  client.lastNetworkProfileOptions,
+  { source: 'console' },
+  'the console identifies its activation surface to the shared admin client',
+);
 assert.equal(surface.queryRows('networkProfile')[0].showBanner, true, 'non-normal activation raises shared banner state');
-assert.equal(surface.queryRows('networkProfile')[0].source, 'api', 'activation provenance is surfaced');
+assert.equal(surface.queryRows('networkProfile')[0].source, 'console', 'activation provenance is surfaced');
+assert.equal(surface.queryRows('networkProfile')[0].hasPrincipal, false, 'browser bypass invents no operator principal');
 
 await surface.links.activateNetworkProfile({
   mode: 'custom', name: 'office-wifi', mutationAckDelayMs: '120',
@@ -400,8 +406,9 @@ function createFakeAdminClient() {
     async networkProfile() {
       return structuredClone(client.activeNetworkProfile);
     },
-    async setNetworkProfile(profile) {
+    async setNetworkProfile(profile, options) {
       client.lastNetworkProfileInput = profile;
+      client.lastNetworkProfileOptions = options;
       if (client.networkProfileForbidden && profile !== 'normal') {
         const error = new Error('SNAPBACK_NETWORK_PROFILE_FORBIDDEN');
         error.status = 403;
@@ -418,7 +425,7 @@ function createFakeAdminClient() {
       };
       client.activeNetworkProfile = {
         profile: typeof profile === 'string' ? builtins[profile] : profile,
-        provenance: { source: 'api', principal: 'console-test', activatedAtMs: 1_700_000_000_100 },
+        provenance: { source: 'console', activatedAtMs: 1_700_000_000_100 },
       };
       return structuredClone(client.activeNetworkProfile);
     },

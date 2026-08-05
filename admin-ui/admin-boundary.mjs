@@ -144,7 +144,7 @@ export async function createAdminSurface({ runtime, client }) {
           const requested = input.mode === 'custom'
             ? inlineNetworkProfile(input)
             : input.name;
-          const activated = await client.setNetworkProfile(requested);
+          const activated = await client.setNetworkProfile(requested, { source: 'console' });
           if (!networkProfileReadOnly) lastNetworkProfileError = null;
           currentNetworkProfile = shapeNetworkProfile(
             activated,

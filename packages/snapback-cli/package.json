@@ -24,6 +24,7 @@
     "index.d.mts",
     "index.mjs",
     "mcp-control.mjs",
+    "network-profile-authority.json",
     "runtime-readiness.d.mts",
     "runtime-readiness.mjs",
     "runtime-recovery.d.mts",

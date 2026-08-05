@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
-use std::sync::Mutex as StdMutex;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex as StdMutex;
 use std::sync::{
     Arc, Condvar, MutexGuard, OnceLock, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard,
 };
@@ -54,6 +54,12 @@ struct DeliveryNotifierState {
     teardowns: HashMap<String, u64>,
 }
 
+#[derive(Default)]
+struct DeliveryDeadlineState {
+    by_deadline: BTreeMap<std::time::Instant, BTreeSet<String>>,
+    running: bool,
+}
+
 #[derive(Clone, Debug)]
 struct DeliveryRegistration {
     generation: u64,
@@ -84,9 +90,28 @@ impl Default for DeliveryNotifierState {
     }
 }
 
-#[derive(Default)]
 pub struct DeliveryNotifier {
     state: StdMutex<DeliveryNotifierState>,
+    deadlines: StdMutex<DeliveryDeadlineState>,
+    deadline_changed: Notify,
+    #[cfg(test)]
+    deadline_task_spawns: AtomicU64,
+    #[cfg(test)]
+    deadline_timer_arms: AtomicU64,
+}
+
+impl Default for DeliveryNotifier {
+    fn default() -> Self {
+        Self {
+            state: StdMutex::new(DeliveryNotifierState::default()),
+            deadlines: StdMutex::new(DeliveryDeadlineState::default()),
+            deadline_changed: Notify::new(),
+            #[cfg(test)]
+            deadline_task_spawns: AtomicU64::new(0),
+            #[cfg(test)]
+            deadline_timer_arms: AtomicU64::new(0),
+        }
+    }
 }
 
 /// Exact socket-generation claim held while connection cleanup runs without
@@ -382,12 +407,78 @@ impl DeliveryNotifier {
             // a runtime can still poll after the deadline; it merely has no
             // process-owned asynchronous wake source.
             if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-                runtime.spawn(async move {
-                    tokio::time::sleep(delay).await;
-                    notifier.wake_now(&connection_id);
-                });
+                // @ref LLP 0167#observation-semantics--what-a-delay-means —
+                // one server scheduler owns absolute release deadlines; the
+                // queue's monotone clamp remains the FIFO authority.
+                let (spawn, earlier) = {
+                    let mut state = lock(&notifier.deadlines);
+                    let previous_earliest = state.by_deadline.first_key_value().map(|(at, _)| *at);
+                    state
+                        .by_deadline
+                        .entry(deadline)
+                        .or_default()
+                        .insert(connection_id);
+                    let earliest = state.by_deadline.first_key_value().map(|(at, _)| *at);
+                    let spawn = !state.running;
+                    if spawn {
+                        state.running = true;
+                    }
+                    (spawn, !spawn && earliest < previous_earliest)
+                };
+                if spawn {
+                    #[cfg(test)]
+                    notifier.deadline_task_spawns.fetch_add(1, Ordering::Relaxed);
+                    runtime.spawn(Arc::clone(&notifier).run_deadline_scheduler());
+                } else if earlier {
+                    notifier.deadline_changed.notify_one();
+                }
             }
         });
+    }
+
+    async fn run_deadline_scheduler(self: Arc<Self>) {
+        loop {
+            let next = {
+                let mut state = lock(&self.deadlines);
+                let Some((deadline, _)) = state.by_deadline.first_key_value() else {
+                    state.running = false;
+                    return;
+                };
+                *deadline
+            };
+            #[cfg(test)]
+            self.deadline_timer_arms.fetch_add(1, Ordering::Relaxed);
+            tokio::select! {
+                _ = tokio::time::sleep_until(tokio::time::Instant::from_std(next)) => {
+                    let now = std::time::Instant::now();
+                    let due = {
+                        let mut state = lock(&self.deadlines);
+                        let deadlines = state
+                            .by_deadline
+                            .range(..=now)
+                            .map(|(deadline, _)| *deadline)
+                            .collect::<Vec<_>>();
+                        let mut due = BTreeSet::new();
+                        for deadline in deadlines {
+                            if let Some(connections) = state.by_deadline.remove(&deadline) {
+                                due.extend(connections);
+                            }
+                        }
+                        due.into_iter().collect::<Vec<_>>()
+                    };
+                    self.wake_many_now(&due);
+                }
+                _ = self.deadline_changed.notified() => {}
+            }
+        }
+    }
+
+    #[cfg(test)]
+    fn deadline_scheduler_counts(&self) -> (u64, u64) {
+        (
+            self.deadline_task_spawns.load(Ordering::Relaxed),
+            self.deadline_timer_arms.load(Ordering::Relaxed),
+        )
     }
 
     fn wake_now(&self, connection_id: &str) {
@@ -1435,21 +1526,31 @@ impl DurableMessage {
     ///
     /// @ref LLP 0167#honesty-requirements — delayed socket frames identify
     ///   the exact profile snapshot that supplied their deadline.
-    pub(crate) fn into_live_socket_payload(self) -> Vec<u8> {
-        let Self {
-            payload,
-            network_egress,
-            ..
-        } = self;
-        let Some(network_egress) = network_egress else {
-            return payload;
+    pub(crate) fn into_live_socket_payload(mut self) -> Vec<u8> {
+        self.install_live_wire_network_profile_marker();
+        self.payload
+    }
+
+    /// Install the LLP 0093 marker into a durable transport handoff. This
+    /// mutates only the selected copy, never the queued frame, and reads only
+    /// the immutable admission snapshot retained beside that copy. A normal
+    /// or compatibility frame remains byte-identical.
+    ///
+    /// @ref LLP 0167#honesty-requirements — poll/socket delay and marker must
+    ///   describe the same per-frame admission snapshot.
+    fn install_live_wire_network_profile_marker(&mut self) {
+        let Some(network_egress) = &self.network_egress else {
+            return;
         };
-        let Ok(envelope) = serde_json::from_slice::<crate::live_wire::LiveEnvelope>(&payload)
+        let Ok(envelope) = serde_json::from_slice::<crate::live_wire::LiveEnvelope>(&self.payload)
         else {
-            return payload;
+            return;
         };
-        serde_json::to_vec(&envelope.with_network_profile(network_egress.profile_name().to_owned()))
-            .unwrap_or(payload)
+        if let Ok(payload) = serde_json::to_vec(
+            &envelope.with_network_profile(network_egress.profile_name().to_owned()),
+        ) {
+            self.payload = payload;
+        }
     }
 }
 
@@ -1623,6 +1724,13 @@ pub enum RealtimeEnvelope {
 }
 
 impl RealtimeEnvelope {
+    pub(crate) fn into_poll_lane_frame(mut self) -> Self {
+        if let Self::Durable(message) = &mut self {
+            message.install_live_wire_network_profile_marker();
+        }
+        self
+    }
+
     pub fn lane(&self) -> RealtimeLane {
         match self {
             Self::Durable(_) => RealtimeLane::Durable,
@@ -8786,6 +8894,7 @@ mod tests {
                     crate::admin::ServerProfile::Test,
                     crate::auth::deployment::AuthDeploymentTarget::Local,
                     false,
+                    false,
                 ),
                 crate::network_profile::NetworkProfileSource::Api,
                 None,
@@ -8829,12 +8938,75 @@ mod tests {
         assert!(queue.durable.iter().all(|queued| queued.lease_id.is_none()));
     }
 
+    #[tokio::test]
+    async fn delayed_burst_uses_one_scheduler_timer_and_releases_fifo() {
+        let backend = LocalEphemeralBackend::new();
+        let notifier = backend.delivery_notifier();
+        let (_generation, wake) = notifier.register("profile-burst").unwrap();
+        let profiles = crate::network_profile::NetworkProfileState::new();
+        profiles
+            .activate(
+                crate::network_profile::NetworkConditionProfile {
+                    name: "coalesced-burst".to_owned(),
+                    mutation_ack_delay_ms: 0,
+                    live_delta_delay_ms: 40,
+                    query_response_delay_ms: 0,
+                    jitter_ms: 0,
+                },
+                crate::network_profile::NetworkProfileAuthority::classified(
+                    crate::admin::ServerProfile::Test,
+                    crate::auth::deployment::AuthDeploymentTarget::Local,
+                    false,
+                    false,
+                ),
+                crate::network_profile::NetworkProfileSource::Api,
+                None,
+            )
+            .unwrap();
+        let basis = std::time::Instant::now();
+        for index in 0..16_u8 {
+            let egress = profiles
+                .admit_result(crate::network_profile::NetworkEgressLane::LiveDelta, basis)
+                .unwrap();
+            backend.enqueue_durable_with_network_egress(
+                "profile-burst",
+                vec![index],
+                Some(egress),
+            );
+        }
+        assert!(backend.drain_outbox("profile-burst").is_empty());
+        tokio::time::timeout(std::time::Duration::from_secs(1), wake.notified())
+            .await
+            .expect("coalesced deadline wakes at release");
+        assert!(basis.elapsed() >= std::time::Duration::from_millis(35));
+        let released = backend.drain_outbox("profile-burst");
+        assert_eq!(released.len(), 16);
+        for (index, envelope) in released.into_iter().enumerate() {
+            let RealtimeEnvelope::Durable(message) = envelope else {
+                panic!("burst emitted a non-durable frame");
+            };
+            assert_eq!(message.payload, vec![index as u8]);
+        }
+        assert_eq!(
+            notifier.deadline_scheduler_counts(),
+            (1, 1),
+            "one burst deadline owns one scheduler task and one Tokio timer"
+        );
+
+        let normal = LocalEphemeralBackend::new();
+        let normal_notifier = normal.delivery_notifier();
+        normal_notifier.register("normal-burst").unwrap();
+        normal.enqueue_durable("normal-burst", b"identity".to_vec());
+        assert_eq!(normal_notifier.deadline_scheduler_counts(), (0, 0));
+    }
+
     #[test]
     fn live_socket_marker_uses_admission_snapshot_and_normal_preserves_bytes() {
         let profiles = crate::network_profile::NetworkProfileState::new();
         let authority = crate::network_profile::NetworkProfileAuthority::classified(
             crate::admin::ServerProfile::Test,
             crate::auth::deployment::AuthDeploymentTarget::Local,
+            false,
             false,
         );
         profiles
@@ -8882,6 +9054,7 @@ mod tests {
                 crate::network_profile::NetworkProfileAuthority::classified(
                     crate::admin::ServerProfile::Test,
                     crate::auth::deployment::AuthDeploymentTarget::Local,
+                    false,
                     false,
                 ),
                 crate::network_profile::NetworkProfileSource::Api,

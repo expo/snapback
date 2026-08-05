@@ -9,6 +9,10 @@
 
 use serde_json::{Value, json};
 use snapback::admin::{AppState, ServerContext, ServerProfile};
+use snapback::admin_impersonation::{
+    IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
+};
+use snapback::auth::crypto::OsRandom;
 use snapback::host_ops::{HostOpsRequest, HostReadyDescriptor, execute_host_op};
 use snapback::local::LocalSnapback;
 use std::fs;
@@ -182,6 +186,59 @@ async fn network_profile_ops_share_the_activation_gate_and_standard_envelope() {
     assert_eq!(
         forbidden["diagnostics"][0]["code"],
         "SNAPBACK_NETWORK_PROFILE_FORBIDDEN"
+    );
+}
+
+#[tokio::test]
+async fn principal_bearing_mcp_profile_set_records_authenticated_provenance() {
+    let (registry, operator) =
+        ImpersonationCapabilityRegistry::generate("host-ops-network-principal".to_owned(), &OsRandom)
+            .expect("generate process-bound impersonation capability");
+    let mut capability = None;
+    operator
+        .emit_once_to_terminal(|value| {
+            capability = Some(value.to_owned());
+            Ok(())
+        })
+        .expect("capture fixture capability");
+
+    let mut context = ServerContext::detached();
+    context.profile = ServerProfile::Test;
+    context.admin_token = Some("host-ops-network-principal".to_owned());
+    let app = snapback::server::app(
+        AppState::from_snapback(
+            LocalSnapback::memory().expect("principal profile fixture"),
+            context,
+        )
+        .with_impersonation_capabilities(registry),
+    );
+    let request = Request::builder()
+        .method("POST")
+        .uri("/_snapback/api/host-ops")
+        .header(header::CONTENT_TYPE, "application/json")
+        .header("x-snapback-admin-token", "host-ops-network-principal")
+        .header(
+            IMPERSONATION_CAPABILITY_HEADER,
+            capability.expect("fixture capability"),
+        )
+        .header("x-snapback-network-profile-source", "mcp")
+        .body(Body::from(
+            serde_json::to_vec(&json!({
+                "operation": "debug.networkProfileSet",
+                "userId": "operator:principal-test",
+                "input": "optimistic"
+            }))
+            .unwrap(),
+        ))
+        .unwrap();
+    let response = app.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let response = response_json(response).await;
+    assert_eq!(response["ok"], true, "principal-bearing set: {response}");
+    assert_eq!(response["data"]["provenance"]["source"], "mcp");
+    assert_eq!(
+        response["data"]["provenance"]["principal"],
+        "operator:principal-test"
     );
 }
 

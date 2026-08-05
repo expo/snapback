@@ -9,7 +9,7 @@
     "triageMove1Exit": "sha256:185204266b382d1234a5465773a1c8a805dc048f07ec025009def7895e3faac0"
   },
   "executorSourceSha256": {
-    "src/local.rs": "sha256:510fb0e24cf355f3afbb9004fd2ebbd00f14384689493a1ec5b3b0716eea4985",
+    "src/local.rs": "sha256:fad6987719dfb41f1a7f61ed4d822b4b5084076302515827faf11cfc2f322dae",
     "src/storage.rs": "sha256:046f2a9e2274825b7c85ded21dd6cad9c0d0f67e77dd2105efd2cec5f2d3fd63"
   },
   "schemaSourceSha256": {

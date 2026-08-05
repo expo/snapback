@@ -147,6 +147,9 @@ const KIT_ENVELOPE_ROUTE =
 
 // parseJsonObjectRequest option bundle for kit routes (§0C.6 item 7).
 const KIT_PARSE = { errorDialect: 'kit' };
+// Internal-only discriminator: JSON.stringify ignores symbol keys, so action
+// wire envelopes cannot accidentally expose the pre-handler classification.
+const ACTION_PRE_HANDLER_REFUSAL = Symbol('action-pre-handler-refusal');
 const MAX_HOST_RESPONSE_BYTES = 1_000_000;
 // The closed v1 target-capability registry (LLP 0058; nine ids). Only ids
 // this registry knows participate in admission: an unknown string is a
@@ -2006,15 +2009,24 @@ export class Coordinator {
       // queries, mutations, or live pushes.
       const kitAction = path.match(/^\/action\/([A-Za-z0-9_-]+)$/);
       if (kitAction) {
-        return this.withJsonObject(request, async (payload) => {
+        // @ref LLP 0167#observation-semantics--what-a-delay-means — action
+        //   body/staging refusals are commitless results admitted on the
+        //   query-response lane; handler-origin action responses retain the
+        //   existing no-action-response-lane behavior.
+        return this.withProfiledJsonObject(request, 'queryResponse', async (payload) => {
           const outcome = await this.executeAction(kitAction[1], (payload && payload.args) || {}, 'manual');
           // The kind-mismatch refusal is a non-2xx kit-route failure and rides
           // the closed ErrorResponse; ordinary action outcomes (including
           // failed ones) keep their 200 outcome envelope.
+          let response;
           if (outcome.diagnostic?.code === 'SNAPBACK_FUNCTION_KIND_MISMATCH') {
-            return kitError(400, outcome.diagnostic.code, outcome.diagnostic.message, outcome.diagnostic.details ?? null);
+            response = kitError(400, outcome.diagnostic.code, outcome.diagnostic.message, outcome.diagnostic.details ?? null);
+          } else {
+            response = json(200, outcome);
           }
-          return json(200, outcome);
+          return outcome[ACTION_PRE_HANDLER_REFUSAL]
+            ? response
+            : this.preparedResponse(response);
         }, KIT_PARSE);
       }
       if (path === '/connection/open') {
@@ -2364,7 +2376,13 @@ export class Coordinator {
       return { fn, appGeneration: this.appGeneration() };
     });
     if (staged.error) {
-      return { ok: false, function: name, kind: 'Action', diagnostic: staged.error };
+      return {
+        ok: false,
+        function: name,
+        kind: 'Action',
+        diagnostic: staged.error,
+        [ACTION_PRE_HANDLER_REFUSAL]: true,
+      };
     }
     const timeoutMs = this.actionTimeoutMs();
     const control = {

@@ -6,7 +6,11 @@
 Live queries, Relational queries, Optimistic updates, Auth, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-08-03
-**Revised:** 2026-08-04 (Move 2 Lane F publication reconciliation: the local
+**Revised:** 2026-08-05 (D1/DK-9 diagnostic-spelling reconciliation: the
+successor RQS store's authoritative emitted code remains
+`SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE`; LLP 0008's generic CLIENT spelling is
+the owner-level semantic alias and remains emitted only by the predecessor
+localStorage adapter; no runtime rename or dual-emission.) 2026-08-04 (Move 2 Lane F publication reconciliation: the local
 contributor-source target now advertises `single_table_v1@1`, bound by
 `src/local-persistent-store-publication.v1.json` to the dated 2026-08-04
 carrier-exit receipt at 16 PASS / 1 Fleet GAP / 0 skipped and the dated
@@ -472,13 +476,14 @@ and LLP 0155 OQ16.
   Locks exclusive lock (non-holders read and adopt, never write); the file
   carrier's exclusively created lock file with liveness-verdict staleness.
   Independently constructed same-origin clients serialize per LLP 0008
-  DK-9's rule, failing closed with the lock-unavailable diagnostic (the
-  shipped spelling is `SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE`; DK-9 names
-  `SNAPBACK_CLIENT_STORE_LOCK_UNAVAILABLE` — the successor store keeps the
-  shipped code and the reconciliation of the two spellings is a DK-9-owned
-  diagnostics note, not a new code minted here). Non-writer *demand* is
-  brokered through the writer (§D2); non-writer contexts never write store
-  bytes.
+  DK-9's rule, failing closed with the lock-unavailable diagnostic.
+  **Reconciled 2026-08-05:** the successor store's authoritative emitted code
+  remains `SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE`; DK-9's generic
+  `SNAPBACK_CLIENT_STORE_LOCK_UNAVAILABLE` envelope text is the owner-level
+  semantic alias and remains emitted only by the predecessor localStorage
+  adapter. This is documentation reconciliation, not a runtime rename or
+  dual-emission. Non-writer *demand* is brokered through the writer (§D2);
+  non-writer contexts never write store bytes.
 - **Format versioning:** every store format change is a numbered, one-way,
   crash-safe migration. A migration preserves pending intent, unresolved
   acknowledgements, durable registrations, and in-grace release clocks or

@@ -617,3 +617,21 @@ actively owned PUSH-01/F0a correctness path was widened.
 
 The fifth root failure is the already-open Linux telemetry receipt re-mint;
 its exact-source producer and final receipt are recorded in that owning ticket.
+
+### Post-residue-sweep publication-carrier refresh — 2026-08-05
+
+The next main batch through `4f26d312b` included residue-sweep landing
+`f9177e9f1`, whose `src/local.rs` changes made the already-batched relation /
+activity and persistent-store publication carriers stale again. The official
+`scripts/refresh-publication-carrier.mjs` generator refreshed both carriers,
+their manifest identities, and their conformance assertions. The resulting
+carrier SHA-256 values are
+`1408dc59ddbd13c1efbacf49b482417c87be22d9d81c98987b5b0d1d0490fe3d`
+(relation/activity) and
+`701a8337c30635826ea3b119f71bb3f04d4403dcae0c47cee0cb363148afc16f`
+(persistent store); the sequence-allocation carrier remained exact and was
+not rewritten. All three publication conformance tests, deployment-identity
+check, package test inventory, export/type parity, all 54 bundle-metrology
+profiles, and the 29/29 Cloudflare local suite pass on the combined tree. This
+is publication-carrier drift attributable to the residue-sweep landing, not a
+PUSH-01 or F0a correctness failure.
