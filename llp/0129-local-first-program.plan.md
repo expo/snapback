@@ -5,7 +5,22 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-04 (write-rung-2 EXIT accepted — Calendar gate 8/8
+**Revised:** 2026-08-05 (Phase-2b client-outbox re-adoption boundary: the
+shipped replay path drains through the same client instance that queued on a
+transport failure; a fresh post-swap client does not re-adopt that durable
+pending record. The honest first rung therefore proves empty-outbox swap and
+pending-intent fail-closed rollback with the record still pending; cross-client
+re-adoption is a named follow-on); 2026-08-05 (Phase-2b swap-replay correction: the app-owned
+client must attest an explicit rebind to the candidate's ephemeral URL before
+resume, and a URL-bound replay receipt with zero remaining pending intent is
+required before the sidecar commits `swapped`); 2026-08-05 (Phase-2b desktop-sidecar first-rung implementation:
+the productized `@expo/snapback-sidecar` supervisor, client-outbox swap
+protocol, and real-runtime acceptance runner landed. The local sandbox refused
+the runner's listener bind, so no PASS receipt was manufactured and the
+evidence gate remains unpromoted here until the orchestrator reruns the exact
+command recorded in the dated note. The in-process ABI spike, LLP 0081
+tombstone-and-re-entry quarantine, and LLP 0123 package sealing remain named
+follow-ons, not sidecar claims.) 2026-08-04 (write-rung-2 EXIT accepted — Calendar gate 8/8
 on the unwidened ceiling; rung 2 closes, no write-lane phase open; see
 the dated EXIT block under OQ5.)
 2026-08-04 (rung-2 evidence-gate half (a) accepted — the
@@ -1902,3 +1917,127 @@ connected-only prove-or-fresh and pending-intent-safe; Arm A adds no
 false/GAP. This record satisfies the capability board for the introduction
 act and changes no Phase, Option-C trigger, write-rung owner/timebox, or
 current OQ disposition in this Plan.
+
+## Phase-2b desktop-sidecar first-rung note — 2026-08-05
+
+The desktop sidecar implementation now lives at
+`packages/snapback-sidecar/`. An application embeds one in-process supervisor,
+which resolves the platform runtime through `@expo/snapback-cli`, spawns
+`snapback start --ready-file <path> --db <path> --port 0`, and accepts an
+attachment only after the Rust-owned `HostReadyDescriptor` passes database,
+port/URL, child-pid, loopback, startup-nonce, and owner-only capability-sibling
+validation. The typed attachment exposes the actual HTTP origin and redacting
+handles for the admin-token, secret-read-root, and impersonation files. HTTP
+remains the runtime data plane; `start`, `health`, `stop`, `status`, and `swap`
+are the embedding application's in-process lifecycle control plane. This is
+the sidecar rung under §Phases, not an in-process native embedding.
+
+Lifecycle ownership is bounded and explicit. Native `snapback stop` rechecks
+the descriptor nonce before signaling only the spawned child; the supervisor
+then attests child exit, descriptor removal, and health loss. An unexpected
+exit surfaces a `SIDECAR_CHILD_DIED` error before an application-selected
+restart decision. Even an always-restart decision is capped by
+`maxAttempts` and bounded backoff. Every normal start and restart requests OS
+port `0`; no stale fixed-port fallback exists.
+
+Updater swap is a journaled stop-then-attach protocol over the same SQLite
+custody domain. Before the predecessor stops, an application-owned outbox
+adapter quiesces new submissions and settles any in-flight submission back to
+durable client custody or completion; pending durable intents may remain
+queued. The supervisor persists the old/new runtime selections, stops the old
+child cleanly, and starts and health-attests the candidate. Because each child
+owns a new OS-assigned port, the app then must use the candidate attachment to
+re-point or replace its app-owned data client and return a binding receipt for
+that exact URL before replay begins. An adapter with an adoption path may then
+resume the same outbox through that rebound client; this first rung instead
+reports the application store's authoritative nonzero pending count without
+attempting unsupported cross-instance replay. In either case it returns a
+URL-bound receipt: `stopped: true` or any nonzero `remaining` count is a failed
+swap, not a successful no-op. The supervisor commits the candidate attachment
+only after a zero-remaining receipt.
+Candidate start, verification, rebind, or resume failure stops
+the candidate and reattaches the old package, with the candidate as the
+second recovery choice if the old package itself became unavailable. A
+retained swap journal lets a recreated supervisor recover either selection;
+it cannot turn a broken/missing pair of runtime packages into a runnable one,
+and reports `SIDECAR_SWAP_RECOVERY_FAILED` without deleting the journal in
+that physically unrecoverable case.
+
+This split records the ownership boundary exposed by the outside-sandbox
+acceptance runs: the supervisor owns lifecycle sequencing and verifies the
+selected attachment, while the embedding app owns the `SnapbackClient` and
+client-custodied outbox. The original combined `resume()` callback could
+resolve after a connectivity-stopped replay (`replayed: 0`, `remaining: 1`),
+allowing `swapped` to commit while intent remained stranded. The `rebind()`
+then receipted `resume()` cut makes that state unrepresentable as success.
+
+The harder underlying behavior is client-outbox re-adoption. The shipped replay
+pattern queues on a transport failure and drains through that **same**
+`SnapbackClient` instance. After a runtime swap kills that client's connection,
+a freshly attached client instance does not see the predecessor instance's
+durably pending record through its own `outboxPending()` replay view, even
+though the application-owned store still reports the record pending. The
+bounded Phase-2b rung therefore does **not** ask the fresh client to drain it
+and does not claim hot swap with pending intent. A pending-intent attempt must
+return `SIDECAR_OUTBOX_RESUME_INCOMPLETE`, stop the candidate, reattach the old
+runtime, and leave the client-minted record safely pending. A successful swap
+requires an already empty outbox—for example, no pending work, or work drained
+by its minting client before the swap begins.
+
+The named **hot-swap-with-pending-intent follow-on** must add explicit
+cross-client/post-swap adoption of the application-owned durable queue, bind
+that adopted replay to the new origin, and prove durable exactly-once
+settlement of the original mutation identity on the candidate. Neither
+`/health`, capability-file readiness, nor constructing a fresh client is that
+proof.
+
+The executable evidence owner is
+`tests/acceptance/desktop-sidecar-v1.mjs`. Its real-child journey proves the
+healthy descriptor/capability attachment, OS-assigned port reporting,
+nonce-verified graceful stop, typed killed-child event plus one-attempt
+restart, a pending-intent swap refusing with
+`SIDECAR_OUTBOX_RESUME_INCOMPLETE` and recovering the old runtime without a
+false `swap-completed` while the genuine transport-failure-queued intent stays
+durably pending, a separate empty-outbox swap attaching the candidate, and a
+candidate killed after readiness but before commit recovering exactly one
+old-or-new attachment. A fully passing run writes the source- and
+runtime-digest-bound receipt
+`tests/acceptance/fixtures/desktop-sidecar/phase-2b.2026-08-05.v1.json`; the
+`--check` mode refuses absent, non-PASS, or source-drifted evidence.
+
+The listener-bound command is:
+
+```sh
+DYLD_FRAMEWORK_PATH=$PWD/vendor/ibex/ios/Frameworks \
+SNAPBACK_RUNTIME_BINARY=$PWD/target/debug/snapback \
+node --test tests/acceptance/desktop-sidecar-v1.mjs
+```
+
+This worktree's managed sandbox refused the real listener with `EPERM`, and
+the runner emitted `SIDECAR_LISTENER_BLOCKED`; therefore this dated note does
+not claim the Phase-2b evidence gate is met yet and no PASS receipt is checked
+in. The same lifecycle and swap state machine has a listener-free,
+process-real package test, but that is diagnostic support rather than a
+substitute for the named real-runtime gate. The orchestrator must rerun the
+command above outside the listener-blocked sandbox; only its retained PASS
+receipt promotes the gate.
+
+Two follow-on boundaries stay explicit:
+
+- LLP 0081 attaches at `onUpgradeRequired`. The sidecar provides the refusal
+  and app-owned outbox snapshot to that hook, but does not implement
+  quarantine, redacted tombstones, or action re-entry.
+- LLP 0123 attaches at runtime-package production and the optional
+  `verifyCandidate` hook. Descriptor/health nonce attestation proves a live
+  child identity, not that the co-packaged binary/Hermes pair is sealed or
+  behaviorally coherent. Production sealing and attestation custody remain
+  unimplemented.
+- Hot swap with pending outbox intent attaches at cross-client adoption of the
+  application-owned durable queue after `rebind()`. The current first rung
+  proves fail-closed rollback with the record still pending plus empty-outbox
+  swap, not predecessor-intent replay against the candidate.
+
+No diary was added: this landing introduces a package/control surface, not a
+new or substantially changed demo application under the repository diary
+rule. The stable native ABI required for in-process embedding still does not
+exist; §Phases' separate spike remains the prerequisite to any such claim.

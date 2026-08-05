@@ -1711,7 +1711,7 @@ export async function waitForReady(path, child, timeoutMs = 15_000) {
   throw diagnosticError('SNAPBACK_DEV_SERVER_READY_TIMEOUT', `Snapback did not write ${path} within ${timeoutMs}ms`, { path });
 }
 
-function spawnManagedRuntime(binary, args, {
+export function spawnManagedRuntime(binary, args, {
   cwd,
   env,
   stdio = ['ignore', 2, 2],

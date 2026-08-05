@@ -5,7 +5,11 @@
 **Systems:** Competitive evaluation, Developer experience, Runtime, Bootstrap, Packaging, Documentation, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-07-31 (dated note in Option 2: the landed CV-2
+**Revised:** 2026-08-05 (desktop-sidecar boundary note: LLP 0129 Phase 2b now
+consumes the runtime-package resolver and exposes a pre-commit
+`verifyCandidate` hook, but its descriptor/health nonce attestation is only a
+live-child identity proof. It does not seal the binary/Hermes pair, qualify
+package-production behavior, or solve attestation custody.) 2026-07-31 (dated note in Option 2: the landed CV-2
 qualification shape — a separate-process `snapback runtime-qualify`
 subcommand — is posture-neutral toward serving processes by process
 isolation, pinned by `tests/runtime_qualify_posture_v0.rs`; the standing
@@ -66,7 +70,7 @@ aligned with 0115's status board (Fable); Finding 5 now credits CV-2's
 owned invalidate-or-relink half (Fable); the "bug surface, not a
 feature" pre-judgment removed in favor of attributed analysis (Fable).
 Related gains LLP 0035, LLP 0048, and Diaries 0029–0031.)
-**Related:** LLP 0009, LLP 0010, LLP 0030, LLP 0031, LLP 0035, LLP 0041, LLP 0048, LLP 0074, LLP 0115, LLP 0116, LLP 0122, Diary 0022, Diary 0028, Diary 0029–0031, Diary 0032–0039
+**Related:** LLP 0009, LLP 0010, LLP 0030, LLP 0031, LLP 0035, LLP 0041, LLP 0048, LLP 0074, LLP 0115, LLP 0116, LLP 0122, LLP 0129, Diary 0022, Diary 0028, Diary 0029–0031, Diary 0032–0039
 
 This document is part of the Convex-parity research series:
 
@@ -499,6 +503,26 @@ at the package-production boundary (and/or at consumption, per option
 2's `runtime-qualify` probe), plus a custody story for the attestation
 itself. Residual: contributors still live in the mutable world, so
 option 1 remains necessary for the source-tree lane either way.
+
+#### Desktop-sidecar package-swap attachment boundary (2026-08-05)
+
+The first LLP 0129 Phase-2b sidecar rung consumes, but does not strengthen,
+this option. `@expo/snapback-sidecar` resolves its initial and updater-supplied
+runtime selections through the packaged CLI resolver, starts the selected
+binary on an OS-assigned port, validates the Rust-owned ready descriptor and
+owner-only siblings, and matches `startupNonce` against `/health`. Its
+optional `verifyCandidate` callback runs after that health proof but before
+the updater commits the candidate attachment; a failed callback triggers the
+journaled old-or-new recovery path.
+
+Those checks prove which live child wrote the descriptor. They do not prove
+that the binary and Hermes artifact were installed atomically, that their
+digests are bound into a tamper-resistant package receipt, or that the pair
+can create the required handler VM. The callback is an attachment point for a
+future package-production/consumption verifier, not permission to label the
+current package sealed. Option 1's behavioral qualification and this option's
+attestation-custody work therefore remain necessary before LLP 0129's
+"sealed, attested artifact" phrase can be promoted beyond a named dependency.
 
 ### Option 4 — Content-addressed immutable dynamic engine selection
 

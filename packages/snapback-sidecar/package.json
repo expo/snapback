@@ -1,0 +1,30 @@
+{
+  "name": "@expo/snapback-sidecar",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Managed desktop sidecar supervisor for the packaged Snapback runtime.",
+  "files": [
+    "README.md",
+    "index.d.mts",
+    "index.mjs"
+  ],
+  "exports": {
+    ".": {
+      "types": "./index.d.mts",
+      "import": "./index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@expo/snapback-cli": "workspace:*"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "node package.test.mjs"
+  }
+}

@@ -379,6 +379,19 @@ export interface ManagedChildProcess {
   once(event: string, listener: (...args: never[]) => void): unknown;
 }
 
+/** Spawn the packaged runtime with bounded startup-output capture and the
+ * CLI's dynamic-loader environment policy. Lifecycle owners still perform
+ * readiness validation and nonce-verified stop themselves. */
+export function spawnManagedRuntime(
+  binary: string,
+  args: readonly string[],
+  options?: {
+    readonly cwd?: string;
+    readonly env?: EnvironmentVariables;
+    readonly stdio?: unknown;
+  },
+): ManagedChildProcess;
+
 export function waitForReady(
   path: string,
   child: ManagedChildProcess,
@@ -515,6 +528,22 @@ export function attachDevControlChannel(options: {
   readonly onEvent?: (event: DevEvent) => void;
   readonly stdin?: DevControlStdin;
 }): () => void;
+
+export interface PackagedCliHelpEntry {
+  readonly name: string;
+  readonly usage: string;
+  readonly description: string;
+  readonly lifecycle: string;
+  readonly output: string;
+  readonly exits: string;
+  readonly recovery: string;
+  readonly path?: readonly string[];
+  readonly details?: readonly string[];
+}
+
+/** Data-only help registries rendered before command dispatch. */
+export const PACKAGED_CLI_COMMANDS: readonly PackagedCliHelpEntry[];
+export const PACKAGED_CLI_SUBCOMMANDS: readonly PackagedCliHelpEntry[];
 
 // ---------------------------------------------------------------------------
 // CLI entry
