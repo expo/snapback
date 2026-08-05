@@ -556,3 +556,29 @@ These are both proof-carrier defects attributed to their introducing
 landings. Neither is a correctness failure in the actively owned PUSH-01 seam
 or F0a fork code. The current main advance through `917b16e7c` does not
 intersect the telemetry receipt's enumerated source closure.
+
+### Clean-host carrier follow-through — 2026-08-05
+
+PR run `30981322562` at `c5732d531` passed every gate except bundle
+metrology: clean CI could not resolve the source revisions recorded by the
+Move-3 single-table lifecycle and PUSH installation Expo receipts. The two
+immutable measurement commits are now carried by exact lightweight tags:
+
+- `client-bundle-baseline-source-f2b79cc6d457a5fbdad45427957ab2d328e4428c`;
+- `client-bundle-baseline-source-553a9bc1317373d53c058b72f9e322194b056172`.
+
+The pinned full-history checkout explicitly fetches `refs/tags/*`, so the
+recorded package trees resolve without importing either side branch into the
+candidate history. The initial history-parent carrier proved the distinction:
+run `30985013182` passed all 43 bundle profiles but correctly rejected the
+imported `f2b79cc6d` capability transition because the candidate tree's later
+single-table introduction record did not record that abandoned side-branch
+act. The tag carrier preserves both immutable source objects without weakening
+LLP 0134's transition audit.
+
+After current main advanced to `4a6000ac6`, the asset implementation-identity
+landing `58b9755ee` grew only `public-subpath-assets` by 138 minified, 29 gzip,
+and 19 Brotli bytes. This pass declares the LLP 0044 one-profile workload
+rollover and retains the primary receipt as its immutable predecessor. It is
+asset-carrier drift attributable to that landing, not a PUSH-01 or F0a
+correctness failure.
