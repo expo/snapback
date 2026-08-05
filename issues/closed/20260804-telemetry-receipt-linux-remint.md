@@ -212,3 +212,38 @@ The idle interval observed zero storage mutations, zero read bytes, zero write
 bytes, 3/10 allowed CPU ticks (30/100 ms), and 0/8 allowed RSS-page growth. The
 receipt lands in the following carrier commit, preserving the producer's
 no-self-reference contract.
+
+## 2026-08-05 post-residue-sweep merged-candidate re-mint
+
+Main's residue-sweep and network-profile batch changed the enumerated
+telemetry source closure, so the retained `fdf87c25c` evidence correctly
+reopened. The replacement EPYC producer measured a fresh, tag-bearing clone at
+exact source revision `a6d1b2609c4e828c14469aa835a7afa65f228c62`. The clone
+used the ordinary `ccheever` fleet account, checksum-verified temporary Node
+24.18.0, the unchanged registry-integrity-verified temporary Bun 1.3.12, and
+`bun install --frozen-lockfile`; no system or administrator change was made.
+
+Before measurement, `scripts/bootstrap-ibex-runtime` initialized the recorded
+`f8c893b0b` Ibex submodule and copied compatible prepared Hermes artifacts
+through the coded `SNAPBACK_IBEX_CHECKOUT` input. Its recovery record reported
+`gitDirty: false`, exact commit `a6d1b2609`, successful link and launch, and a
+successful restricted no-eval handler-VM qualification. The unchanged
+`scripts/verify-telemetry-phase1-proof --full` producer then passed its Rust
+smoke, independent release build and readiness qualification, full benchmark,
+and complete 120-second idle witness.
+
+The retained receipt has SHA-256
+`47f29917b3e94b3cb15a028015cc2e145d41d42425c143b715024b146dc98fab`
+and source-closure digest
+`0fd09654552f9233772ca25fe4809e7769a80dd35fcd62b0b4db3c44d8f743d2`.
+The 1,201-line successful transcript at
+`/var/cache/expose-build/snapback-telemetry-a6d1.MplM9G/telemetry-full.log`
+has SHA-256
+`a26bba802b7509bbb4550c747fe7034c492022575df29c013b562bddfddf9cc8`;
+the coded-bootstrap transcript has SHA-256
+`d135eb8e9c22ad61a9737b8230b5e24fa9d0588536566e3ff463b4fb69c31df6`.
+
+The idle interval observed zero storage mutations, zero read bytes, zero write
+bytes, 3/10 allowed CPU ticks (30/100 ms), and 0/8 allowed RSS-page growth. The
+receipt lands in the following carrier commit, preserving the producer's
+no-self-reference contract.
