@@ -6272,6 +6272,11 @@ impl LocalSnapback {
         self.functions.bundle_hash.clone()
     }
 
+    #[cfg(test)]
+    pub(crate) fn initialize_data_version_stream_for_test(&mut self) -> SnapbackResult<String> {
+        self.db.initialize_data_version_stream_for_test()
+    }
+
     /// Create a managed in-app branch from the exact currently served app and
     /// function bundle. IDs, custody paths, and the branch grant are all
     /// server-derived after the AdminWrite host gate; callers choose only a
@@ -6595,6 +6600,7 @@ impl LocalSnapback {
                         None,
                         authority,
                         Some(&context),
+                        Self::ensure_permission_epoch_capacity,
                     )
                 },
             );
@@ -13760,6 +13766,7 @@ impl LocalSnapback {
             receipt_mutation_id,
             authority,
             None,
+            Self::ensure_permission_epoch_capacity,
         )
     }
 
@@ -13773,6 +13780,7 @@ impl LocalSnapback {
         receipt_mutation_id: Option<&str>,
         authority: PreparedAuthority,
         branch_operation: Option<&crate::fork_promotion::BranchMutationCommitV1>,
+        permission_epoch_preflight: fn(&LocalSnapback, &BTreeSet<String>) -> SnapbackResult<()>,
     ) -> SnapbackResult<MutationCommit> {
         // @ref LLP 0043#settlement-consumption-and-acknowledgement-lifecycle-2026-08-01
         // Recovery of an already-committed identity is non-executing and does
@@ -13873,7 +13881,7 @@ impl LocalSnapback {
         // a mutation whose declared epoch bumps cannot be resolved, and the
         // post-commit path below is infallible by construction.
         let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
-        self.ensure_permission_epoch_capacity(&epoch_scopes)?;
+        permission_epoch_preflight(self, &epoch_scopes)?;
         let correlation = telemetry_correlation(&input.correlation);
         let span = self.telemetry.start_classified_span(
             crate::telemetry_contract::OperationClassIdV1::FUNCTION_MUTATION,

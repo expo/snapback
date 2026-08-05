@@ -2840,6 +2840,9 @@ mod tests {
                 .all(|diagnostic| diagnostic.severity
                     != crate::diagnostic::DiagnosticSeverity::Error)
         );
+        snapback
+            .initialize_data_version_stream_for_test()
+            .expect("initialize canonical stream for direct host-op fixture");
 
         let create = execute_host_op(
             &mut snapback,
