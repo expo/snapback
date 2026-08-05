@@ -107,6 +107,13 @@
       "name": "@expo/snapback-runtime-linux-x64",
       "version": "0.1.0",
     },
+    "packages/snapback-sidecar": {
+      "name": "@expo/snapback-sidecar",
+      "version": "0.1.0",
+      "dependencies": {
+        "@expo/snapback-cli": "workspace:*",
+      },
+    },
     "packages/snapback-vite": {
       "name": "@expo/snapback-vite",
       "version": "0.1.0",
@@ -259,6 +266,8 @@
     "@expo/snapback-runtime-darwin-arm64": ["@expo/snapback-runtime-darwin-arm64@workspace:packages/snapback-runtime-darwin-arm64"],
 
     "@expo/snapback-runtime-linux-x64": ["@expo/snapback-runtime-linux-x64@workspace:packages/snapback-runtime-linux-x64"],
+
+    "@expo/snapback-sidecar": ["@expo/snapback-sidecar@workspace:packages/snapback-sidecar"],
 
     "@expo/snapback-vite": ["@expo/snapback-vite@workspace:packages/snapback-vite"],
 

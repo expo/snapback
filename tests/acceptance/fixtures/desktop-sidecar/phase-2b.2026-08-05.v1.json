@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "snapback.desktop-sidecar-acceptance.v1",
+  "date": "2026-08-05",
+  "status": "PASS",
+  "authority": [
+    "LLP 0129 Phase 2b",
+    "LLP 0030 attach"
+  ],
+  "source": {
+    "revision": "97e8ae9e9e6564877057a00e97a18f735fe79381",
+    "dirty": true,
+    "files": [
+      {
+        "path": "packages/snapback-sidecar/index.mjs",
+        "sha256": "f3b268f69368951d475ec890bee5da4a8d285819bbdf70919ad3653a407d88f1"
+      },
+      {
+        "path": "packages/snapback-sidecar/index.d.mts",
+        "sha256": "c4bb1aa32675ff50534287e07f88367eee012c401dfadec6e8b5af2a200642c0"
+      },
+      {
+        "path": "tests/acceptance/desktop-sidecar-v1.mjs",
+        "sha256": "b7cc2c81edb1c25efd93ba99cda9c1b5558765cf6c31ea37feab72f2c4208136"
+      }
+    ]
+  },
+  "runtime": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "binary": "target/debug/snapback",
+    "binarySha256": "2ae6f9a640c58a0fae0c04e9fc2b95e670fc7dd24ce7e6e23d576ac21b3fef78"
+  },
+  "sections": {
+    "healthyStart": {
+      "status": "PASS",
+      "descriptorValidated": true,
+      "healthNonceAttested": true,
+      "capabilityHandles": [
+        "admin-token",
+        "secret-read-root",
+        "impersonation"
+      ],
+      "secretSerialization": "redacted"
+    },
+    "portCustody": {
+      "status": "PASS",
+      "requested": 0,
+      "actualReportedByDescriptor": true,
+      "fixedPort": false
+    },
+    "crashRestart": {
+      "status": "PASS",
+      "errorCode": "SIDECAR_CHILD_DIED",
+      "restartAttempts": 1,
+      "boundedMaximum": 1,
+      "newProcessAttached": true
+    },
+    "pendingOutboxSwap": {
+      "status": "PASS",
+      "pendingBefore": 1,
+      "queuedBy": "same-client transport failure",
+      "clientMutationId": "mut_01kz9mfxhzeqatemf0ccq6dkkq",
+      "candidateReplay": {
+        "attempts": 0,
+        "replayed": 0,
+        "failed": 0,
+        "remaining": 1,
+        "stopped": true
+      },
+      "refusalCode": "SIDECAR_OUTBOX_RESUME_INCOMPLETE",
+      "successfulSwapEventEmitted": false,
+      "recoveredRuntime": "old",
+      "pendingAfterRecovery": 1,
+      "durableRecordStatus": "pending",
+      "disposition": "fail-closed rollback"
+    },
+    "emptyOutboxSwap": {
+      "status": "PASS",
+      "pendingBefore": 0,
+      "reboundUrl": "http://127.0.0.1:63195",
+      "replayedAfterAttach": 0,
+      "pendingAfter": 0,
+      "outcome": "swapped",
+      "outboxCustody": "client-file-store"
+    },
+    "midSwapCrash": {
+      "status": "PASS",
+      "candidateKilled": true,
+      "attachedAfterFault": true,
+      "attachedPidIsKilledCandidate": false
+    },
+    "gracefulStop": {
+      "status": "PASS",
+      "nativeNonceVerifiedStop": true,
+      "childExited": true,
+      "descriptorRemoved": true,
+      "healthUnavailable": true
+    }
+  },
+  "explicitFollowOns": {
+    "llp0081": "upgrade-required hook only; tombstone-and-re-entry quarantine not implemented",
+    "llp0123": "candidate verification hook only; package sealing/production attestation not implemented",
+    "pendingOutboxHotSwap": "fresh clients do not re-adopt predecessor-client pending records; safe first rung retains the record, rolls back, and requires a drained outbox for successful swap",
+    "inProcessEmbedding": "no stable ABI; separately gated spike remains"
+  }
+}

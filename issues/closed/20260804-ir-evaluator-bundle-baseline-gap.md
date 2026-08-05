@@ -51,3 +51,22 @@ unavailable. A final literal combined rerun from this sandbox reaches
 `listen(127.0.0.1) -> EPERM`; rerun
 `volta run node scripts/client-bundle-metrology.mjs --check` in a
 network-capable shell to retain the one-process witness.
+
+## Remote provenance correction — 2026-08-05
+
+The first completed main proof after the capability landing found a separate
+carrier defect in the new supplemental ledger. Landing `30e3d09c7` recorded
+the exact measurement revision
+`fd0c8a34f0d7cdd0d50cb50b4aa52252c633a18b`, but that worktree revision was
+not an ancestor of main or reachable from a remote ref. A local clone retained
+the object and could verify the recorded `packages/snapback-client` tree
+`b721854aab682ab0c9e89871338d25baee15b6d4`; a clean GitHub checkout could
+not, so main run `30974150301` failed at provenance validation before comparing
+any size ceiling.
+
+Carrier commit `5cd6fb927` makes that exact measured revision an ancestor
+without changing the immutable baseline, its package-tree hashes, or any size
+number. A branch-only Git bundle/clone then resolved the recorded tree hash,
+and the exact Node 24.18.0 full check passed all 43 profiles with no frozen
+ceiling regression. This is a provenance reachability repair, not a baseline
+rewrite or a ceiling relaxation.

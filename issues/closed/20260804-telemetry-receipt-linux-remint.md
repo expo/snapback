@@ -1,6 +1,6 @@
 # Telemetry phase-1 evidence receipt needs a Linux re-mint
 
-**Status:** Open
+**Status:** Closed
 **Found:** 2026-08-04, by the capability-publication landing's proof run
 
 `scripts/verify-telemetry-phase1-proof --check` fails on
@@ -46,13 +46,78 @@ for the source-revision-bound receipt re-mint after the fix is committed.
 
 ## Resolution (2026-08-05)
 
-Complete. The idle regression this lane surfaced was fixed (jobs-worker
-activity hint, `issues/closed/20260804-idle-cpu-regression.md`) and the
-receipt was re-minted on expo-build-1000 at the Move-2 tip (f17cb9dfd);
-`scripts/verify-telemetry-phase1-proof --check` passes on macOS at
-current main. The Minisforum remains a provisioned secondary Linux lane
-(system libicu/libcurl/pkg-config; user-space rust/volta/bun/sqlite3).
+Complete on main. The idle regression this lane surfaced was fixed (jobs-worker
+activity hint, `issues/closed/20260804-idle-cpu-regression.md`) and the receipt
+was re-minted on expo-build-1000 at the Move-2 tip (`f17cb9dfd`);
+`scripts/verify-telemetry-phase1-proof --check` passed on macOS at that main.
+The Minisforum remains a provisioned secondary Linux lane (system
+libicu/libcurl/pkg-config; user-space rust/volta/bun/sqlite3).
 
+## 2026-08-05 pre-Move-2 branch re-mint
+
+The final EPYC producer used a fresh detached checkout on the user-owned
+secondary volume and measured source commit
+`ddad5edbdc2cdcb6d7b53e966095b7fff51546a5`. Before the measurement,
+`scripts/verify-telemetry-phase1-proof --full` ran the coded Ibex bootstrap;
+the exact-link recovery record reported `gitDirty: false`, exact commit
+`ddad5edbd`, successful launch, and a successful restricted no-eval handler-VM
+qualification. No administrator change, loader bypass, stale binary, shortened
+window, or competing fleet workload was accepted.
+
+The producer passed its dedicated Rust smoke, release build, complete
+benchmark, and 120-second idle witness, then exited zero. The retained receipt
+has SHA-256
+`d1e2b57dce2bb1e74509e5cb9b32a3d597cb8033bf19d93944cbd997f255d5b0`
+and source-closure digest
+`3916d34f2b3b4fd0b395949e130614b129f1e8edb57a74d264eca5ea4e353aa9`.
+The 1,206-line final transcript has SHA-256
+`5ab13946eb6abf94fc2a43d12727eb18a8b9fad04b55d9562de4e7958dcb0361`.
+
+The idle interval observed zero storage mutations, zero read bytes, zero write
+bytes, 3/10 allowed CPU ticks (30/100 ms), and 0/8 allowed RSS-page growth.
+The receipt lands in this later carrier commit, as required by the producer's
+documented no-self-reference contract; validation at the retained commit must
+therefore see `ddad5edbd` as an ancestor with an unchanged source closure and
+byte-identical tracked receipt. It closed the fifth root failure from main
+KEEP-GOING run `30987191822` at that branch tip; main's later Move-2 advance
+requires the final merged candidate to reopen freshness rather than retaining
+either predecessor receipt by assertion.
+
+## 2026-08-05 final merged-candidate re-mint
+
+After the wave branch merged Move 2 and the unattended CLI/audit landings, the
+retained evidence correctly reopened. The final EPYC producer measured exact
+source commit `31b315ba555a2a000d7ecf9aa74cbd05add40c6d` in a detached worktree.
+An initial launch attempt stopped at
+`SNAPBACK_TELEMETRY_PHASE1_CLEAN_CHECKOUT_REQUIRED` before bootstrap because a
+shared build-cache symlink appeared as an untracked file; no measurement from
+that attempt was accepted. The successful launch used an ignored hard-linked
+build cache and Node 24.18.0, passed the clean-checkout gate, and then used
+`scripts/verify-telemetry-phase1-proof --full` unchanged.
+
+The coded bootstrap initialized the exact `vendor/ibex` submodule, copied a
+profile-compatible prepared artifact set through its supported
+`SNAPBACK_IBEX_CHECKOUT` input, and produced an exact-link recovery record with
+`gitDirty: false`, commit `31b315ba5`, a successful launch, and a successful
+restricted no-eval handler-VM qualification. No administrator access, loader
+bypass, stale binary, shortened idle window, or competing fleet workload was
+accepted.
+
+The dedicated Rust smoke, release build, complete benchmark, and 120-second
+idle witness all passed. The retained receipt has SHA-256
+`d86bb8ab2d31cc068680084bb7f651773e0564d608a4c661f1a494a9ad485084`
+and source-closure digest
+`710201c2264314af36edd0288747b5173ab39bc26f2ab8026593c99d5d11a065`.
+The 680-line successful transcript at
+`/var/cache/expose-build/snapback-wave-final-31b.UfM9Ae/telemetry-full.log`
+has SHA-256
+`fa927e7b2270a19b7875f9b0215d45ffd45078c41674ea3393d10fac954f3f89`.
+
+The idle interval observed zero storage mutations, zero read bytes, zero write
+bytes, 3/10 allowed CPU ticks (30/100 ms), and 0/8 allowed RSS-page growth.
+The receipt lands in the following carrier commit so validation can establish
+the measured revision as an ancestor while keeping the measured source closure
+unchanged.
 ## 2026-08-05 correction — two claims above are not reproducible as written
 
 Recorded after re-running this lane end to end on the Minisforum. The
@@ -108,3 +173,151 @@ revision containing the jobs-worker activity hint (`702f82f5b`): 8 of 8
 within the ceiling, high mode absent. 8/8 by chance on the pre-fix
 distribution is ≈0.4%. The gate is genuinely green, and no ceiling or
 statistical re-specification is needed.
+
+## 2026-08-05 post-`ba4864e34` merged-candidate re-mint
+
+Merging main's final asset-ratchet repair changed the telemetry source closure,
+so the retained evidence correctly reopened once more. The replacement EPYC
+producer measured the clean, tag-bearing checkout at exact source revision
+`fdf87c25cb7bd55c8d7f2935eb13b8eea7a3b957`. Its first producer invocation
+refused before measurement because the fresh clone had no JavaScript
+dependencies (`ERR_MODULE_NOT_FOUND: acorn`). That refusal is retained at
+`/var/cache/expose-build/snapback-telemetry-fdf.gSq9WD/telemetry-dependency-refusal.log`;
+no result from it was accepted. The successful invocation used checksum-verified
+temporary Node 24.18.0, registry-integrity-verified temporary Bun 1.3.12, and
+`bun install --frozen-lockfile`, matching the canonical workflow without a
+system or administrator change.
+
+Before either invocation, `scripts/bootstrap-ibex-runtime` initialized the
+recorded `f8c893b0b` Ibex submodule and copied its compatible prepared Hermes
+artifacts through the coded `SNAPBACK_IBEX_CHECKOUT` input. The exact-link
+recovery record reported `gitDirty: false`, exact commit `fdf87c25c`, successful
+launch, and successful restricted no-eval handler-VM qualification. The
+successful `scripts/verify-telemetry-phase1-proof --full` run then passed its
+dedicated Rust smoke, release build, full benchmark, and complete 120-second
+idle witness.
+
+The retained receipt has SHA-256
+`cb66ba89eb9251aecfaa99b622478180d16f6fc99433d7218de2bbc1ffd313dc`
+and source-closure digest
+`a4172bdb49be33f4622982b343cc48cfb5636be2f635d7ec248583b713b9370f`.
+The 1,201-line successful transcript at
+`/var/cache/expose-build/snapback-telemetry-fdf.gSq9WD/telemetry-full.log`
+has SHA-256
+`e7039060783474d0783f28c985f26ab3825614ff81d6478849108d818cb3f581`;
+the coded-bootstrap transcript has SHA-256
+`4a82c3f5dddbcfe2ff6ff72c7a4b92b73a7db87f0106de0e41ef355641165c9b`.
+
+The idle interval observed zero storage mutations, zero read bytes, zero write
+bytes, 3/10 allowed CPU ticks (30/100 ms), and 0/8 allowed RSS-page growth. The
+receipt lands in the following carrier commit, preserving the producer's
+no-self-reference contract.
+
+## 2026-08-05 post-residue-sweep merged-candidate re-mint
+
+Main's residue-sweep and network-profile batch changed the enumerated
+telemetry source closure, so the retained `fdf87c25c` evidence correctly
+reopened. The replacement EPYC producer measured a fresh, tag-bearing clone at
+exact source revision `a6d1b2609c4e828c14469aa835a7afa65f228c62`. The clone
+used the ordinary `ccheever` fleet account, checksum-verified temporary Node
+24.18.0, the unchanged registry-integrity-verified temporary Bun 1.3.12, and
+`bun install --frozen-lockfile`; no system or administrator change was made.
+
+Before measurement, `scripts/bootstrap-ibex-runtime` initialized the recorded
+`f8c893b0b` Ibex submodule and copied compatible prepared Hermes artifacts
+through the coded `SNAPBACK_IBEX_CHECKOUT` input. Its recovery record reported
+`gitDirty: false`, exact commit `a6d1b2609`, successful link and launch, and a
+successful restricted no-eval handler-VM qualification. The unchanged
+`scripts/verify-telemetry-phase1-proof --full` producer then passed its Rust
+smoke, independent release build and readiness qualification, full benchmark,
+and complete 120-second idle witness.
+
+The retained receipt has SHA-256
+`47f29917b3e94b3cb15a028015cc2e145d41d42425c143b715024b146dc98fab`
+and source-closure digest
+`0fd09654552f9233772ca25fe4809e7769a80dd35fcd62b0b4db3c44d8f743d2`.
+The 1,201-line successful transcript at
+`/var/cache/expose-build/snapback-telemetry-a6d1.MplM9G/telemetry-full.log`
+has SHA-256
+`a26bba802b7509bbb4550c747fe7034c492022575df29c013b562bddfddf9cc8`;
+the coded-bootstrap transcript has SHA-256
+`d135eb8e9c22ad61a9737b8230b5e24fa9d0588536566e3ff463b4fb69c31df6`.
+
+The idle interval observed zero storage mutations, zero read bytes, zero write
+bytes, 3/10 allowed CPU ticks (30/100 ms), and 0/8 allowed RSS-page growth. The
+receipt lands in the following carrier commit, preserving the producer's
+no-self-reference contract.
+
+## 2026-08-05 post-final-main merged-candidate re-mint
+
+Main's LLP 0062 Linux-completion, app-bound-test, final deployment-identity,
+and Ibex-pin batch changed the enumerated telemetry source closure after the
+post-residue receipt. The replacement EPYC producer measured the clean,
+tag-bearing candidate at exact source revision
+`18df33ae5a026daf3387349336b17fda3129959c`. It ran under the ordinary
+`ccheever` fleet account with Node 24.18.0 and Bun 1.3.12 from the existing
+user-owned toolchain; no system or administrator change was made.
+
+Before measurement, the coded `scripts/bootstrap-ibex-runtime` path reused
+profile-compatible prepared Hermes artifacts for the exact recorded
+`4c34c831aa087d6783b0d68f281cdb374ed7fc89` Ibex pin through the supported
+`SNAPBACK_IBEX_CHECKOUT` input. Its exact-link recovery record reported
+`gitDirty: false`, exact commit `18df33ae5`, a successful link and launch, and
+a successful restricted no-eval handler-VM qualification. The unchanged
+`scripts/verify-telemetry-phase1-proof --full` producer then passed its
+dedicated Rust smoke, locked release build, complete benchmark, and full
+120-second idle witness.
+
+The retained receipt covers 438 tracked proof-source files, has SHA-256
+`7978a413f8c6a8df57dfe92ecfde6f91094ff038e93ddf68272e2474f592ab54`,
+and records source-closure digest
+`3691325e15e4201e15ed96f34393e1c904025edd09f2d8884e0228df863577e0`.
+The 1,046-line successful transcript at
+`/var/cache/expose-build/snapback-native-final.bhcjAO/telemetry-full-18df33ae5.log`
+has SHA-256
+`4c8fb3062a60daeea48db6cde1a6431e5a0f10ab7f4794c1106fe6aa00c25d30`;
+the immediately preceding coded-bootstrap repair transcript has SHA-256
+`edb1e8959ac53fbc0d5e269ed504a97ea80f85d2df1d1d84ab83c9b2db688b57`.
+
+The idle interval observed zero storage mutations, zero read bytes, zero write
+bytes, 4/10 allowed CPU ticks (40/100 ms), and 0/8 allowed RSS-page growth.
+After the producer wrote the expected tracked receipt modification, the outer
+capture wrapper's over-strict clean-tree assertion stopped before printing its
+hash footer. The producer itself had completed successfully; the receipt,
+transcript tail, structured ceilings, and hashes were inspected directly, and
+the expensive producer was not rerun. The receipt lands in the following
+carrier commit, preserving the producer's documented no-self-reference
+contract.
+
+## 2026-08-05 final package-teardown carrier re-mint
+
+The last exact-candidate proof, run `31024847949`, correctly reopened freshness
+after the package-proof teardown repair changed
+`scripts/lib/process-tree.mjs`. That was the only bound path changed since the
+retained `18df33ae5` measurement; the run reported exactly one root failure,
+zero blocked gates, and all other selected gates passing.
+
+The replacement EPYC producer used a fresh clean clone at exact source
+revision `807116dd6afd8d6ae51e16f8b6c7878afd4a97f0`, the existing user-owned
+Node 24.18.0 / Bun 1.3.12 toolchain, and `bun install --frozen-lockfile`.
+Unchanged `scripts/verify-telemetry-phase1-proof --full` ran the coded
+bootstrap, which initialized recorded Ibex pin
+`4c34c831aa087d6783b0d68f281cdb374ed7fc89` and used compatible prepared
+Hermes artifacts through supported `SNAPBACK_IBEX_CHECKOUT`. No administrator
+change, loader bypass, stale binary, shortened interval, or competing fleet
+workload was accepted.
+
+The dedicated Rust smoke, locked release build, runtime-readiness
+qualification, complete benchmark, and full 120-second idle witness passed.
+The receipt covers 438 tracked proof-source files, has SHA-256
+`d91d7d056fbc48abb2abe3a595b6bb3a25ff5ac05261cbec7fb878cfd1d138e7`,
+and records source-closure digest
+`23264a1da95d13ac32c6a0d157c82ddea18b230c26859038caef2bc2aa898834`.
+The 1,209-line producer transcript at
+`/var/cache/expose-build/snapback-telemetry-807.ylRDcd/telemetry-full.log`
+has SHA-256
+`8ccf08292c8e130f8e03920c38681e049a12f345ee291ddd26d4b97c18421481`.
+The idle interval observed zero storage mutations, zero read bytes, zero write
+bytes, 3/10 allowed CPU ticks (30/100 ms), and zero RSS-page growth. The
+receipt lands in the following carrier commit, preserving the no-self-reference
+contract.

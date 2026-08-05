@@ -5,7 +5,11 @@
 **Systems:** Schema evolution, Migrations, Storage portability, Deployment, Backup and restore, Code generation, CLI, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-08-03, later (LLP 0109 acceptance: dated versioned-seed
+**Revised:** 2026-08-05 (desktop-sidecar boundary note: LLP 0129 Phase 2b's
+updater swap now exposes `onUpgradeRequired` with the application-owned
+outbox snapshot after quiescence. This is the attachment point for this RFC's
+incompatible-client disposition, not an implementation of quarantine,
+redacted tombstones, migration execution, or action re-entry.) 2026-08-03, later (LLP 0109 acceptance: dated versioned-seed
 transitions amendment — `migration-plan-v1` unchanged, the specified
 `migration-plan-v2` `seedTransition` binding recorded, and the accepted
 first landing's removal of v2/restore-rebase/rollback-republish from v1
@@ -90,7 +94,7 @@ with LLP 0014's shared alarm dispatcher); 2026-07-20 (post-review
 reconciliation: deterministic inputs, independent data proof, retained-client
 publication semantics, control-plane approval/backup custody, and resumable
 hosted execution are pinned)
-**Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0012, LLP 0014, LLP 0018, LLP 0036, LLP 0037, LLP 0041, LLP 0043, LLP 0046, LLP 0051, LLP 0053, LLP 0055, LLP 0056, LLP 0062, LLP 0063, LLP 0070, LLP 0072, LLP 0080
+**Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0012, LLP 0014, LLP 0018, LLP 0036, LLP 0037, LLP 0041, LLP 0043, LLP 0046, LLP 0051, LLP 0053, LLP 0055, LLP 0056, LLP 0062, LLP 0063, LLP 0070, LLP 0072, LLP 0080, LLP 0129
 
 ## Summary
 
@@ -552,6 +556,25 @@ the executor, not its mutation implementation. A digest with no independent
 predecessor-derived expected value is inventory, not proof.
 
 ### 6. Compatibility and deployment ordering
+
+#### Desktop-sidecar updater attachment boundary (2026-08-05)
+
+LLP 0129 Phase 2b's first sidecar rung composes this section only at the
+incompatible-client refusal boundary. Before replacing a runtime child, the
+embedding app's adapter quiesces submissions and leaves every incomplete
+intent in the app's durable outbox. If candidate attachment returns an
+upgrade-required diagnostic, `@expo/snapback-sidecar` invokes
+`onUpgradeRequired` with that refusal and an app-owned outbox snapshot, then
+recovers an old-or-new runtime attachment. The supervisor neither reads nor
+rewrites queued mutation payloads itself.
+
+That hook is deliberately not this RFC's tombstone-and-re-entry
+implementation. The client/storage-evolution owner must still classify
+compatibility against generated facts, create the stable redacted tombstone,
+prevent silent replay under an incompatible schema, and drive explicit action
+re-entry after successor admission. Until that owner lands, the sidecar can
+surface and recover from the refusal but cannot claim the quarantine behavior
+specified in §4 or its acceptance rows.
 
 Each plan declares one of:
 

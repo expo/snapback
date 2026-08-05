@@ -35,6 +35,13 @@ const inventories = [
     expectedFiles: ['package.test.mjs'],
   },
   {
+    id: '@expo/snapback-sidecar',
+    packageDir: 'packages/snapback-sidecar',
+    testDir: '.',
+    suffix: '.test.mjs',
+    expectedFiles: ['package.test.mjs'],
+  },
+  {
     id: '@expo/snapback-cli',
     packageDir: 'packages/snapback-cli',
     testDir: '.',
@@ -548,7 +555,9 @@ const total = results.reduce((sum, result) => sum + result.count, 0);
 // gains explicit visibility/delete-filter omission refusal coverage.
 // 202 -> 203 (2026-08-05, unattended authoring audit): @expo/snapback-cli
 // gains composed and non-executing CLI help acceptance coverage.
-assert.equal(total, 203, 'reviewed package/admin test count changed');
+// 203 -> 204 (2026-08-05, LLP 0129 Phase 2b): the desktop-sidecar package
+// gains its descriptor/capability/publication contract suite.
+assert.equal(total, 204, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }
