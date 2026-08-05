@@ -47,8 +47,13 @@ IBEX_ALLOW_CURL_CLI_FALLBACK=1 SNAPBACK_BOOTSTRAP_CHECK=0 \
 # built below by build-sfe-release.sh with sfe-static-network and is separately
 # audited to contain the pinned static libcurl Fetch/WebSocket backend.
 IBEX_ALLOW_CURL_CLI_FALLBACK=1 cargo build --locked --bin snapback
-IBEX_ALLOW_CURL_CLI_FALLBACK=1 SNAPBACK_IBEX_CHECKOUT="$IBEX" \
-  scripts/bootstrap-ibex-runtime
+mkdir -p "$ROOT/target/lib"
+cp "$IBEX/linux/lib/libhermesvm.so" "$ROOT/target/lib/libhermesvm.so"
+node packages/snapback-cli/runtime-readiness.mjs issue \
+  --root "$ROOT" \
+  --binary "$ROOT/target/debug/snapback" \
+  --issuer app-bound-linux-qualification \
+  --json
 
 # The standard Jammy runner cannot retain two independent Cargo closure trees
 # while ar assembles Ibex's large release archive. Preserve the exact qualified
