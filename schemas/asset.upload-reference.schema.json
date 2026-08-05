@@ -2,7 +2,7 @@
   "$id": "https://schemas.snapback.dev/snapback.v0/asset.upload-reference.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "The generated upload-intent reference, in the shipped `functionReference`\nwhole-artifact idiom. Deliberately carries no `ExpectedOperationV1`\nmember — that carrier stays removed (LLP 0108 §B).\n\n@ref LLP 0044#generated-upload-intents — the reference freezes admitted\n  policy identity: `intentPolicyHash` plus the per-intent policy\n  generation an attempt finalizes under.",
+  "description": "The generated upload-intent reference, in the shipped `functionReference`\nwhole-artifact idiom. Deliberately carries no `ExpectedOperationV1`\nmember — that carrier stays removed (LLP 0108 §B).\n\n@ref LLP 0044#asset-intent-implementation-identity-the-helper-closure-joins-the-carrier-dated-decision-2026-08-03 —\n  the generated reference carries both policy and executable identity;\n  admission binds them to the per-intent generation an attempt finalizes\n  under.",
   "properties": {
     "appId": {
       "type": "string"

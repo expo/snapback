@@ -6786,13 +6786,27 @@ impl LocalSnapback {
         use crate::assets;
 
         let intent = self.asset_intent(&request.intent_id)?.clone();
+        let deployed_implementation_hash = intent
+            .implementation_hash
+            .as_deref()
+            .filter(|hash| !hash.is_empty())
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_INTENT_IDENTITY_INVALID",
+                    "assets",
+                    "the deployed upload intent is missing implementationHash",
+                )
+                .with_details(serde_json::json!({ "intentId": intent.id }))
+            })?;
         // A stale or target-incompatible generated reference refuses before
         // reserving an asset id or writing staging bytes.
-        if intent.intent_policy_hash != request.intent_policy_hash {
+        if intent.intent_policy_hash != request.intent_policy_hash
+            || request.implementation_hash.as_deref() != Some(deployed_implementation_hash)
+        {
             return Err(SnapbackError::error(
                 "SNAPBACK_ASSET_INTENT_STALE",
                 "assets",
-                "the generated upload reference does not match the deployed intent policy",
+                "the generated upload reference does not match the deployed intent policy and implementation",
             )
             .with_details(serde_json::json!({ "intentId": intent.id })));
         }
@@ -6887,6 +6901,7 @@ impl LocalSnapback {
                 tx,
                 &intent.id,
                 &intent.intent_policy_hash,
+                deployed_implementation_hash,
                 &intent_artifact_json,
                 now,
             )?;
@@ -7047,6 +7062,7 @@ impl LocalSnapback {
                 all_chunks_checksummed: true,
                 admission: assets::AssetAdmissionV1 {
                     intent_policy_hash: intent.intent_policy_hash.clone(),
+                    implementation_hash: Some(deployed_implementation_hash.to_owned()),
                     policy_generation: generation.generation,
                     owner_principal: run.owner.clone(),
                     auth: auth_pair.clone(),
@@ -8008,6 +8024,7 @@ impl LocalSnapback {
             crate::assets::AssetAttemptCreateRequestV1 {
                 intent_id: intent.id.clone(),
                 intent_policy_hash: intent.intent_policy_hash.clone(),
+                implementation_hash: intent.implementation_hash.clone(),
                 args,
                 declared_filename: file_name,
                 declared_length: Some(bytes.len() as u64),
@@ -8689,15 +8706,44 @@ impl LocalSnapback {
                 )
             })?
             .clone();
-        // The frozen generation's authorizer code (LLP 0044 v6.1 reading
-        // (a)): when the policy hash moved, the attempt still finalizes under
-        // the policy it was admitted with — witness re-runs go through the
-        // retained artifact of the frozen generation, not the current
-        // deployment. `None` only when the retained row is genuinely missing
-        // (crash-safety), which keeps the fail-closed refusal.
-        let frozen_intent: Option<crate::manifest::AssetUploadIntentDefinition> =
-            if intent.intent_policy_hash == attempt.admission.intent_policy_hash {
-                Some(intent.clone())
+        // @ref LLP 0044#asset-intent-implementation-identity-the-helper-closure-joins-the-carrier-dated-decision-2026-08-03 —
+        //   current code is eligible only when BOTH carrier hashes match the
+        //   admission. Otherwise finalization selects and validates the
+        //   generation-retained artifact. A policy-only legacy admission has
+        //   no executable identity to freeze, so the upgrade refuses it
+        //   rather than silently adopting current code.
+        let admitted_implementation_hash = attempt
+            .admission
+            .implementation_hash
+            .as_deref()
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_ADMISSION_STALE",
+                    "assets",
+                    "this attempt predates the implementationHash carrier; retry to re-admit it under the current generation",
+                )
+                .with_details(serde_json::json!({
+                    "legacyPolicyOnlyAdmission": true,
+                    "policyGeneration": attempt.admission.policy_generation,
+                }))
+            })?;
+        let current_implementation_hash = intent
+            .implementation_hash
+            .as_deref()
+            .filter(|hash| !hash.is_empty())
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_ASSET_INTENT_IDENTITY_INVALID",
+                    "assets",
+                    "the deployed upload intent is missing implementationHash",
+                )
+            })?;
+        let current_matches_admission = intent.intent_policy_hash
+            == attempt.admission.intent_policy_hash
+            && current_implementation_hash == admitted_implementation_hash;
+        let frozen_intent: crate::manifest::AssetUploadIntentDefinition =
+            if current_matches_admission {
+                intent.clone()
             } else {
                 self.db
                     .asset_transaction(|tx| {
@@ -8708,17 +8754,29 @@ impl LocalSnapback {
                         )
                     })?
                     .and_then(|json| serde_json::from_str(&json).ok())
+                    .filter(|retained: &crate::manifest::AssetUploadIntentDefinition| {
+                        retained.intent_policy_hash == attempt.admission.intent_policy_hash
+                            && retained.implementation_hash.as_deref()
+                                == Some(admitted_implementation_hash)
+                    })
+                    .ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_ASSET_ADMISSION_STALE",
+                            "assets",
+                            "the frozen intent generation's retained artifact is missing or does not match the admitted implementation; retry to re-admit this asset under the current generation",
+                        )
+                        .with_details(serde_json::json!({
+                            "missingRetainedArtifact": true,
+                            "policyGeneration": attempt.admission.policy_generation,
+                            "implementationHash": admitted_implementation_hash,
+                        }))
+                    })?
             };
 
         // Callbacks are declared intent policy: the ready callback runs
         // under the frozen admitted policy exactly like every other policy
         // fact the attempt finalizes under.
-        let on_ready: Option<String> = frozen_intent
-            .as_ref()
-            .unwrap_or(&intent)
-            .on
-            .as_ref()
-            .and_then(|on| on.ready.clone());
+        let on_ready: Option<String> = frozen_intent.on.as_ref().and_then(|on| on.ready.clone());
 
         let revoked = self.db.asset_transaction(|tx| {
             use rusqlite::OptionalExtension as _;
@@ -8746,8 +8804,8 @@ impl LocalSnapback {
         // @ref LLP 0044#video-location-policy-the-video--location--sibling-block-dated-decision-2026-08-03 —
         //   trusted detection selects the matching image/video sibling; the
         //   two declarations never alias at finalization.
-        let image_location = intent.image.as_ref().map(|image| image.location);
-        let video_location = intent.video.as_ref().map(|video| video.location);
+        let image_location = frozen_intent.image.as_ref().map(|image| image.location);
+        let video_location = frozen_intent.video.as_ref().map(|video| video.location);
         // The capability defense for strip-declared media is keyed by the
         // *detected* type below — image bytes need the image-finalization
         // fact, video bytes the video one — so it runs after detection.
@@ -8786,7 +8844,7 @@ impl LocalSnapback {
             );
         }
         let detected = assets::detect_content_type(&staged.head);
-        if !asset_media_type_admitted(&intent.accept.media_types, detected) {
+        if !asset_media_type_admitted(&frozen_intent.accept.media_types, detected) {
             return self.asset_fail_attempt(
                 &attempt,
                 assets::AssetAvailability::Pending,
@@ -9014,7 +9072,7 @@ impl LocalSnapback {
                 if strip_declared { "strip" } else { "retain" }.into(),
             );
         }
-        if canonical.byte_length > intent.accept.max_bytes {
+        if canonical.byte_length > frozen_intent.accept.max_bytes {
             return self.asset_fail_attempt(
                 &attempt,
                 assets::AssetAvailability::Pending,
@@ -9146,7 +9204,7 @@ impl LocalSnapback {
         // primary and switch `ready` atomically with the last required
         // publication; optional ones enqueue ledger work inside that same
         // transaction and never gate the asset.
-        let declared_variants: Vec<crate::manifest::AssetImageVariant> = intent
+        let declared_variants: Vec<crate::manifest::AssetImageVariant> = frozen_intent
             .image
             .as_ref()
             .map(|image| image.variants.clone())
@@ -9585,19 +9643,6 @@ impl LocalSnapback {
                     // schema-validated output DTO — exactly `{ owner }`)
                     // publishes, so benign churn never strands an upload,
                     // including across an ordinary intent redeploy.
-                    let Some(frozen) = frozen_intent.as_ref() else {
-                        return Err(SnapbackError::error(
-                            "SNAPBACK_ASSET_ADMISSION_STALE",
-                            "assets",
-                            "the admission witness moved and the frozen intent generation's \
-                             retained authorizer artifact is missing; retry to re-admit this \
-                             asset under the current generation",
-                        )
-                        .with_details(serde_json::json!({
-                            "missingRetainedArtifact": true,
-                            "policyGeneration": attempt.admission.policy_generation,
-                        })));
-                    };
                     revalidations += 1;
                     if revalidations > 2 {
                         return Err(SnapbackError::error(
@@ -9606,10 +9651,10 @@ impl LocalSnapback {
                             "admission re-validation kept conflicting with concurrent writes",
                         ));
                     }
-                    let definition = self.asset_intent_definition(frozen)?;
+                    let definition = self.asset_intent_definition(&frozen_intent)?;
                     let prepared =
                         InvocationGate::prepare_function(authority.clone(), &definition)?;
-                    let module = match &frozen.runtime {
+                    let module = match &frozen_intent.runtime {
                         crate::manifest::FunctionRuntime::IbexModule(module) => module.clone(),
                         _ => {
                             return Err(SnapbackError::error(
@@ -29798,6 +29843,7 @@ globalThis.__snapbackHandlers = {
         crate::assets::AssetAttemptCreateRequestV1 {
             intent_id: "app:avatarUpload".to_owned(),
             intent_policy_hash: "sha256:test-policy".to_owned(),
+            implementation_hash: Some("sha256:test-impl".to_owned()),
             args: serde_json::json!({}),
             declared_filename: Some("photo.bin".to_owned()),
             declared_length: length,
@@ -29917,6 +29963,18 @@ globalThis.__snapbackHandlers = {
         let error = snapback
             .asset_attempt_create(&creator, stale)
             .expect_err("stale reference refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_STALE");
+        let mut stale = asset_create_request(Some(1));
+        stale.implementation_hash = Some("sha256:old-implementation".to_owned());
+        let error = snapback
+            .asset_attempt_create(&creator, stale)
+            .expect_err("an implementation-stale reference refuses");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_STALE");
+        let mut legacy = asset_create_request(Some(1));
+        legacy.implementation_hash = None;
+        let error = snapback
+            .asset_attempt_create(&creator, legacy)
+            .expect_err("a policy-only legacy reference refuses");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_STALE");
 
         // Media bounds and accept-list enforcement.
@@ -33455,6 +33513,278 @@ globalThis.__snapbackHandlers = {
         let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
             .expect_err("intent removal revokes");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_INTENT_REVOKED");
+    }
+
+    #[test]
+    fn asset_implementation_carrier_lifecycle_metamorphics() {
+        const HELPER_BASE_SOURCE: &str = r#"
+function ownerForAsset(ctx) {
+  return (ctx.auth && ctx.auth.userId) ? ctx.auth.userId : "owner_1";
+}
+globalThis.__snapbackHandlers = {
+  async avatarUpload(ctx) { return { owner: ownerForAsset(ctx) }; }
+};
+"#;
+        const DIRECT_CHANGED_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async avatarUpload(_ctx) { return { owner: "current-direct-body" }; }
+};
+"#;
+        const HELPER_CHANGED_SOURCE: &str = r#"
+function ownerForAsset(_ctx) {
+  return "current-helper-body";
+}
+globalThis.__snapbackHandlers = {
+  async avatarUpload(ctx) { return { owner: ownerForAsset(ctx) }; }
+};
+"#;
+
+        #[derive(Clone, Copy)]
+        enum Change {
+            DirectBody,
+            HelperOnly,
+            Reads,
+        }
+
+        fn implementation_hash(change: Change, version: &str) -> String {
+            let change = match change {
+                Change::DirectBody => "direct",
+                Change::HelperOnly => "helper",
+                Change::Reads => "reads",
+            };
+            format!("sha256:{change}-{version}")
+        }
+
+        fn intent_for(
+            change: Change,
+            version: &str,
+        ) -> crate::manifest::AssetUploadIntentDefinition {
+            let mut intent = asset_test_intent();
+            intent.implementation_hash = Some(implementation_hash(change, version));
+            match (change, version) {
+                (Change::DirectBody, "changed") => {
+                    intent.runtime = FunctionRuntime::IbexModule(IbexModule {
+                        source: DIRECT_CHANGED_SOURCE.to_owned(),
+                        export: "avatarUpload".to_owned(),
+                    });
+                }
+                (Change::HelperOnly, "base") | (Change::HelperOnly, "rollback") => {
+                    intent.runtime = FunctionRuntime::IbexModule(IbexModule {
+                        source: HELPER_BASE_SOURCE.to_owned(),
+                        export: "avatarUpload".to_owned(),
+                    });
+                }
+                (Change::HelperOnly, "changed") => {
+                    intent.runtime = FunctionRuntime::IbexModule(IbexModule {
+                        source: HELPER_CHANGED_SOURCE.to_owned(),
+                        export: "avatarUpload".to_owned(),
+                    });
+                }
+                (Change::Reads, "changed") => {
+                    intent.declared_reads = vec!["profiles".to_owned()];
+                }
+                _ => {}
+            }
+            intent
+        }
+
+        fn unrelated_intent() -> crate::manifest::AssetUploadIntentDefinition {
+            let mut intent = asset_profile_intent(
+                "unrelatedUpload",
+                crate::assets::AssetDeliveryProfile::PrivateStrict,
+            );
+            intent.implementation_hash = Some("sha256:unrelated-stable".to_owned());
+            intent
+        }
+
+        fn request_for(
+            intent: &crate::manifest::AssetUploadIntentDefinition,
+            length: u64,
+        ) -> crate::assets::AssetAttemptCreateRequestV1 {
+            let mut request = asset_create_request(Some(length));
+            request.intent_id = intent.id.clone();
+            request.intent_policy_hash = intent.intent_policy_hash.clone();
+            request.implementation_hash = intent.implementation_hash.clone();
+            request
+        }
+
+        fn create_for(
+            snapback: &mut LocalSnapback,
+            intent: &crate::manifest::AssetUploadIntentDefinition,
+            bytes: Option<&[u8]>,
+        ) -> crate::assets::AssetAttemptCreateResponseV1 {
+            let creator = asset_dev_authority(snapback, "user_a", InvocationSource::HttpQuery);
+            let created = snapback
+                .asset_attempt_create(
+                    &creator,
+                    request_for(intent, bytes.map_or(1, |bytes| bytes.len() as u64)),
+                )
+                .expect("carrier-matching reference admits");
+            if let Some(bytes) = bytes {
+                let transfer =
+                    asset_dev_authority(snapback, "user_a", InvocationSource::AssetTransfer);
+                let checksum = asset_chunk_checksum(bytes);
+                snapback
+                    .asset_tus_patch(
+                        &transfer,
+                        &created.task.attempt_id,
+                        0,
+                        bytes,
+                        Some(("sha256", checksum.as_str())),
+                    )
+                    .expect("fixture bytes land");
+            }
+            created
+        }
+
+        fn generation(snapback: &mut LocalSnapback, intent_id: &str) -> (Option<String>, u64) {
+            snapback
+                .db
+                .asset_transaction(|tx| {
+                    Ok(tx.query_row(
+                        "SELECT implementation_hash, generation
+                         FROM _snapback_asset_intent_generations_v1
+                         WHERE intent_id = ?1",
+                        [intent_id],
+                        |row| Ok((row.get(0)?, row.get(1)?)),
+                    )?)
+                })
+                .expect("intent generation")
+        }
+
+        for change in [Change::DirectBody, Change::HelperOnly, Change::Reads] {
+            let base = intent_for(change, "base");
+            let changed = intent_for(change, "changed");
+            let mut rollback = intent_for(change, "rollback");
+            rollback.implementation_hash = base.implementation_hash.clone();
+            let unrelated = unrelated_intent();
+            let mut snapback = LocalSnapback::memory().expect("memory snapback");
+            snapback
+                .db
+                .apply_schema(asset_profiles_schema())
+                .expect("schema");
+            snapback.load_functions(FunctionManifest {
+                asset_upload_intents: vec![base.clone(), unrelated.clone()],
+                ..FunctionManifest::default()
+            });
+
+            let old = create_for(&mut snapback, &base, Some(b"frozen-code"));
+            asset_plant_missing_row_witness(&mut snapback, &old.task.attempt_id);
+            asset_insert_phantom(&mut snapback);
+            create_for(&mut snapback, &unrelated, None);
+            assert_eq!(generation(&mut snapback, &base.id).1, 1);
+            assert_eq!(generation(&mut snapback, &unrelated.id).1, 1);
+
+            snapback.load_functions(FunctionManifest {
+                asset_upload_intents: vec![changed.clone(), unrelated.clone()],
+                ..FunctionManifest::default()
+            });
+            let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+            let stale = snapback
+                .asset_attempt_create(&creator, request_for(&base, 1))
+                .expect_err("the predecessor generated reference refuses stale");
+            assert_eq!(stale.diagnostic.code, "SNAPBACK_ASSET_INTENT_STALE");
+
+            create_for(&mut snapback, &changed, None);
+            assert_eq!(
+                generation(&mut snapback, &changed.id),
+                (changed.implementation_hash.clone(), 2),
+                "the implementation carrier bumps the changed intent generation",
+            );
+            assert_eq!(
+                generation(&mut snapback, &unrelated.id),
+                (unrelated.implementation_hash.clone(), 1),
+                "an unrelated intent remains on its stable generation",
+            );
+            let retained: crate::manifest::AssetUploadIntentDefinition = snapback
+                .db
+                .asset_transaction(|tx| crate::assets::load_intent_artifact(tx, &base.id, 1))
+                .expect("retained artifact query")
+                .and_then(|json| serde_json::from_str(&json).ok())
+                .expect("generation one artifact retained");
+            assert_eq!(retained.implementation_hash, base.implementation_hash);
+            assert_ne!(retained.implementation_hash, changed.implementation_hash);
+
+            let finalized = asset_finalize(&mut snapback, "user_a", &old.task.attempt_id, None)
+                .expect("the in-flight attempt finalizes with frozen generation code");
+            assert_eq!(
+                finalized.task.availability,
+                crate::assets::AssetAvailability::Ready,
+            );
+
+            snapback.load_functions(FunctionManifest {
+                asset_upload_intents: vec![rollback.clone(), unrelated.clone()],
+                ..FunctionManifest::default()
+            });
+            let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+            let stale = snapback
+                .asset_attempt_create(&creator, request_for(&changed, 1))
+                .expect_err("the superseded reference refuses after rollback");
+            assert_eq!(stale.diagnostic.code, "SNAPBACK_ASSET_INTENT_STALE");
+            create_for(&mut snapback, &rollback, None);
+            assert_eq!(
+                generation(&mut snapback, &rollback.id),
+                (rollback.implementation_hash.clone(), 3),
+                "rolling back implementation identity is another fenced generation",
+            );
+            create_for(&mut snapback, &unrelated, None);
+            assert_eq!(
+                generation(&mut snapback, &unrelated.id).1,
+                1,
+                "rollback still leaves the unrelated intent stable",
+            );
+        }
+    }
+
+    #[test]
+    fn asset_upgrade_refuses_policy_only_inflight_attempt() {
+        let mut snapback = asset_test_snapback();
+        let created = asset_upload(&mut snapback, "user_a", b"legacy-attempt", true);
+        snapback
+            .db
+            .asset_transaction(|tx| {
+                let mut attempt =
+                    crate::assets::load_attempt(tx, &created.task.attempt_id)?.expect("attempt");
+                attempt.admission.implementation_hash = None;
+                crate::assets::store_attempt(tx, &attempt)?;
+                tx.execute(
+                    "UPDATE _snapback_asset_intent_generations_v1
+                     SET implementation_hash = NULL WHERE intent_id = ?1",
+                    [&attempt.intent_id],
+                )?;
+                Ok(())
+            })
+            .expect("simulate pre-carrier storage");
+
+        let current = asset_test_intent();
+        let creator = asset_dev_authority(&snapback, "user_a", InvocationSource::HttpQuery);
+        let mut current_request = asset_create_request(Some(1));
+        current_request.intent_id = current.id.clone();
+        current_request.intent_policy_hash = current.intent_policy_hash.clone();
+        current_request.implementation_hash = current.implementation_hash.clone();
+        snapback
+            .asset_attempt_create(&creator, current_request)
+            .expect("the first carrier-aware admission activates a new generation");
+        let generation: u64 = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(tx.query_row(
+                    "SELECT generation FROM _snapback_asset_intent_generations_v1
+                     WHERE intent_id = ?1",
+                    [&current.id],
+                    |row| row.get(0),
+                )?)
+            })
+            .expect("generation");
+        assert_eq!(
+            generation, 2,
+            "legacy NULL identity cannot be silently adopted"
+        );
+
+        let error = asset_finalize(&mut snapback, "user_a", &created.task.attempt_id, None)
+            .expect_err("a pre-carrier in-flight attempt refuses stale");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_ADMISSION_STALE");
+        assert_eq!(error.diagnostic.details["legacyPolicyOnlyAdmission"], true);
     }
 
     #[test]

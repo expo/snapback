@@ -5,7 +5,7 @@
 **Systems:** Assets, Storage, API, Security, Auth, Runtime, Deployment, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-08-04 (sessions lifecycle callbacks implemented under the ruled per-app `asset-callbacks` service principal). 2026-08-03 (two author decisions from decision sitting #2,
+**Revised:** 2026-08-04 (the ruled asset-intent implementation carrier is implemented end to end, with legacy policy-only generations bumped and legacy in-flight attempts refused stale); 2026-08-04 (sessions lifecycle callbacks implemented under the ruled per-app `asset-callbacks` service principal). 2026-08-03 (two author decisions from decision sitting #2,
 `issues/20260803-author-decision-sitting-2.md` — §Video location policy
 and §Asset-intent implementation identity: a `video: { location }`
 sibling block is admitted with `image:` untouched and its frozen
@@ -1613,7 +1613,7 @@ change.
 
 Ruled by the author at decision sitting #2
 (`issues/20260803-author-decision-sitting-2.md`), resolving
-`issues/20260801-asset-intent-implementation-hash-omits-helper-closure.md`
+`issues/closed/20260801-asset-intent-implementation-hash-omits-helper-closure.md`
 (disposition 1): `implementationHash` is extended to cover the spliced
 reachable helper closure (mirroring the ordinary-function
 implementation record) **and** is carried through the whole lifecycle
@@ -1624,6 +1624,25 @@ fixtures then pin it: direct-body change, helper-only change, and
 frozen-code finalization, rollback, and stability of unrelated intents.
 This is the prerequisite disposition LLP 0140 Stage 0 requires before
 freezing its baseline.
+
+**Implemented 2026-08-04.** Inline authorizers now extend the existing
+`snapback.asset-intent-implementation.v1` preimage with the deterministically
+ordered reachable `helpers: [{ name, contentHash }]` set when it is non-empty;
+helper-free preimages remain byte-identical. Generated references send both
+hashes, admission compares and stores both, and the per-intent generation row
+keys activation on the pair. Finalization uses current code only when both
+admitted hashes match; otherwise it loads the generation-retained artifact and
+validates both hashes before re-running its authorizer and applying its frozen
+finalization policy.
+
+The storage upgrade is deliberately fail-closed. The new generation column is
+nullable only for additive migration: a pre-carrier row remains `NULL`, so the
+first carrier-aware admission bumps the generation even when the policy hash is
+unchanged. A pre-carrier in-flight attempt has no executable identity to select
+safely and refuses `SNAPBACK_ASSET_ADMISSION_STALE`; it never adopts current or
+retained code by policy hash alone. Codegen and in-process lifecycle fixtures
+pin direct-body, helper-only, and `reads` changes, rollback, frozen finalization,
+stale-reference refusal, and unrelated-intent stability.
 
 ## Non-goals
 
