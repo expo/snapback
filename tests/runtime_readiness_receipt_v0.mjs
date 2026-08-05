@@ -111,7 +111,7 @@ test('a receipt is never issued for a failed qualification', () => {
   }
 });
 
-test('absence, malformation, and an un-OK verdict are refused with the shared code', () => {
+test('absence, malformation, an un-OK verdict, and probe drift are refused with the shared code', () => {
   const { root, binary } = scaffold();
   try {
     const absent = verifyRuntimeReadinessReceipt({ root, binaryPath: binary });
@@ -137,6 +137,13 @@ test('absence, malformation, and an un-OK verdict are refused with the shared co
     const unqualified = verifyRuntimeReadinessReceipt({ root, binaryPath: binary });
     assert.equal(unqualified.reason, 'unqualified');
     assert.equal(unqualified.diagnostic.code, RUNTIME_READINESS_INVALID_CODE);
+
+    tampered.qualification.ok = true;
+    tampered.qualification.probe = 'legacy-launch-only';
+    writeFileSync(receiptPath, JSON.stringify(tampered));
+    const probeDrift = verifyRuntimeReadinessReceipt({ root, binaryPath: binary });
+    assert.equal(probeDrift.reason, 'probe-contract-drift');
+    assert.equal(probeDrift.diagnostic.details.observedProbe, 'legacy-launch-only');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -33,10 +33,22 @@ VENDOR_IBEX="$ROOT/vendor/ibex"
 TARGET_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 
 # --json (LLP 0032 P7): emit a structured report instead of text lines.
+# --reuse-authoritative-build (LLP 0175 D3.1): skip the disposable exact-link
+# target only when the caller has already produced and qualified the served
+# binary in this proof. The receipt check below remains mandatory and becomes
+# an error when that asserted producer output is absent.
 JSON_MODE=0
-if [ "${1:-}" = "--json" ]; then
-    JSON_MODE=1
-fi
+REUSE_AUTHORITATIVE_BUILD=0
+for doctor_arg in "$@"; do
+    case "$doctor_arg" in
+        --json) JSON_MODE=1 ;;
+        --reuse-authoritative-build) REUSE_AUTHORITATIVE_BUILD=1 ;;
+        *)
+            printf 'usage: scripts/ibex-doctor [--json] [--reuse-authoritative-build]\n' >&2
+            exit 2
+            ;;
+    esac
+done
 
 FINDINGS=0
 JSON_CHECKS=""
@@ -269,7 +281,9 @@ fi
 # prove that this checkout's final binary target links and launches. The helper
 # owns a temporary Cargo target and removes it after success, failure, signal,
 # or timeout, preserving doctor's read-only repository contract.
-if [ "$FINDINGS" -eq 0 ] && command -v cargo >/dev/null 2>&1 && command -v node >/dev/null 2>&1; then
+if [ "$REUSE_AUTHORITATIVE_BUILD" = "1" ]; then
+    note "INFO exact-link probe delegated to the caller's authoritative build; verifying its digest-bound readiness receipt"
+elif [ "$FINDINGS" -eq 0 ] && command -v cargo >/dev/null 2>&1 && command -v node >/dev/null 2>&1; then
     probe_status=0
     probe_json="$(node "$ROOT/scripts/runtime-link-smoke.mjs" --json)" || probe_status=$?
     if printf '%s' "$probe_json" | python3 -c 'import json,sys; json.load(sys.stdin)' >/dev/null 2>&1; then
@@ -306,7 +320,11 @@ fi
 # never re-qualifying or writing anything.
 if command -v node >/dev/null 2>&1; then
     SERVED_BINARY="${SNAPBACK_SERVER_BINARY:-$ROOT/target/debug/snapback}"
-    if [ -f "$SERVED_BINARY" ]; then
+    if [ "$REUSE_AUTHORITATIVE_BUILD" = "1" ] && [ -f "$SERVED_BINARY" ] && [ ! -x "$SERVED_BINARY" ]; then
+        report ERROR SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID \
+            "the caller selected --reuse-authoritative-build but the served snapback binary is not executable: $SERVED_BINARY"
+        hint "$ROOT/scripts/bootstrap-ibex-runtime"
+    elif [ -f "$SERVED_BINARY" ]; then
         receipt_status=0
         receipt_json="$(node "$ROOT/packages/snapback-cli/runtime-readiness.mjs" verify \
             --binary "$SERVED_BINARY" --root "$ROOT" --json)" || receipt_status=$?
@@ -326,6 +344,10 @@ if command -v node >/dev/null 2>&1; then
                 "the readiness receipt verifier failed without a structured report (exit $receipt_status)"
             hint "node $ROOT/packages/snapback-cli/runtime-readiness.mjs verify --binary $SERVED_BINARY"
         fi
+    elif [ "$REUSE_AUTHORITATIVE_BUILD" = "1" ]; then
+        report ERROR SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID \
+            "the caller selected --reuse-authoritative-build but no served snapback binary exists at $SERVED_BINARY"
+        hint "$ROOT/scripts/bootstrap-ibex-runtime"
     else
         note "INFO no served snapback binary at $SERVED_BINARY yet; scripts/bootstrap-ibex-runtime issues its readiness receipt at build time"
     fi
@@ -336,8 +358,9 @@ fi
 if [ "$JSON_MODE" = 1 ]; then
     OK_VALUE=true
     [ "$FINDINGS" -gt 0 ] && OK_VALUE=false
-    printf '{"schemaVersion":"snapback.v0","resultKind":"ibexDoctorReport","os":"%s","ok":%s,"errorFindings":%s,"checks":[%s],"runtimeRecovery":%s}\n' \
-        "$TARGET_OS" "$OK_VALUE" "$FINDINGS" "$JSON_CHECKS" "$RUNTIME_RECOVERY_JSON"
+    printf '{"schemaVersion":"snapback.v0","resultKind":"ibexDoctorReport","os":"%s","probeMode":"%s","ok":%s,"errorFindings":%s,"checks":[%s],"runtimeRecovery":%s}\n' \
+        "$TARGET_OS" "$([ "$REUSE_AUTHORITATIVE_BUILD" = "1" ] && printf receipt-reuse || printf exact-link)" \
+        "$OK_VALUE" "$FINDINGS" "$JSON_CHECKS" "$RUNTIME_RECOVERY_JSON"
     [ "$FINDINGS" -eq 0 ] && exit 0
     exit 1
 fi
