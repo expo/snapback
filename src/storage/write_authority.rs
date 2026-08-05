@@ -358,6 +358,7 @@ impl WriterAuthorityV1 {
         self.install_authorizer(conn);
         armed?;
         cache_release?;
+        release_activation_allocator_slack();
         Ok(())
     }
 
@@ -505,6 +506,38 @@ impl WriterAuthorityV1 {
             .map_err(|_| authority_invalid("generated writer authority state is poisoned"))
     }
 }
+
+/// Return allocator pages made unused by the one-time activation work.
+///
+/// SQLite's `shrink_memory` releases its caches, but Darwin's allocator may
+/// otherwise retain the newly-free pages in process RSS. Coverage activation
+/// is a rare control-plane cut, so paying pressure-relief latency here keeps
+/// that transient setup memory out of the active steady state without changing
+/// the live manifest, issued identities, connection, or authorizer. Other
+/// platforms retain their allocator's normal policy.
+///
+/// @ref LLP 0162#measurement-gate — active-covered idle RSS includes live
+///   authority state, not allocator slack left by activation setup.
+#[cfg(target_os = "macos")]
+fn release_activation_allocator_slack() {
+    unsafe extern "C" {
+        fn malloc_zone_pressure_relief(
+            zone: *mut libc::malloc_zone_t,
+            goal: libc::size_t,
+        ) -> libc::size_t;
+    }
+
+    // SAFETY: This is macOS's process-wide, thread-safe allocator pressure
+    // advisory. A null zone requests all zones and a zero goal requests the
+    // allocator's maximal best effort; only unused allocator pages may be
+    // unmapped, so live Rust and SQLite allocations remain valid.
+    unsafe {
+        let _ = malloc_zone_pressure_relief(std::ptr::null_mut(), 0);
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn release_activation_allocator_slack() {}
 
 /// Possession is the authority. Its fields and constructor are private to this
 /// module, and dropping the final nested token revokes authority before the

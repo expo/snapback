@@ -4855,15 +4855,14 @@ impl LocalDatabase {
             let snapshot_version = current_version_on(conn)?;
             let quoted = quote_ident(table)?;
 
-            let total: i64 =
-                conn.query_row(&format!("SELECT COUNT(*) FROM {quoted}"), [], |row| {
-                    row.get(0)
-                })?;
+            let total: i64 = conn
+                .prepare_cached(&format!("SELECT COUNT(*) FROM {quoted}"))?
+                .query_row([], |row| row.get(0))?;
 
             let sql = format!(
                 "SELECT * FROM {quoted} ORDER BY \"_createdAt\" ASC, \"_id\" ASC LIMIT ?1 OFFSET ?2"
             );
-            let mut statement = conn.prepare(&sql)?;
+            let mut statement = conn.prepare_cached(&sql)?;
             let columns = statement
                 .column_names()
                 .into_iter()
@@ -9812,7 +9811,7 @@ fn query_on_with_storage_limit_visibility_keyset(
                 },
             )?;
         }
-        let mut statement = conn.prepare(&sql)?;
+        let mut statement = conn.prepare_cached(&sql)?;
         let columns = statement
             .column_names()
             .into_iter()
@@ -9891,7 +9890,7 @@ pub(crate) fn get_on(
             ));
         }
         let sql = format!("SELECT * FROM {} WHERE _id = ?1", quote_ident(&table.name)?);
-        let mut statement = conn.prepare(&sql)?;
+        let mut statement = conn.prepare_cached(&sql)?;
         let columns = statement
             .column_names()
             .into_iter()
@@ -9911,11 +9910,8 @@ pub(crate) fn get_on(
 pub(crate) fn current_version_on(conn: &Connection) -> SnapbackResult<u64> {
     crate::exec_guard::debug_assert_off_async_worker("a SQLite version read");
     let version: Option<SqlValue> = conn
-        .query_row(
-            "SELECT version FROM _snapback_version WHERE id = 1",
-            [],
-            |row| row.get(0),
-        )
+        .prepare_cached("SELECT version FROM _snapback_version WHERE id = 1")?
+        .query_row([], |row| row.get(0))
         .optional()?;
     let Some(version) = version else {
         return Err(SnapbackError::error(
@@ -25542,6 +25538,91 @@ mod guarded_commit_tests {
         }
     }
 
+    fn host_operation_crash_fixture(
+        writer: CoveredWriterFixtureV1,
+    ) -> (
+        tempfile::TempDir,
+        PathBuf,
+        LocalDatabase,
+        HandlerInput,
+        ClientMutationIdentity,
+    ) {
+        let (dir, path, mut db) = file_database();
+        db.install_operation_coverage_for_test(
+            vec![crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned()],
+            crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1
+                .iter()
+                .map(|writer| (*writer).to_owned())
+                .collect(),
+        )
+        .expect("activate test-only host-child coverage");
+        let input = HandlerInput::default();
+        let function = match writer {
+            CoveredWriterFixtureV1::HostPlan => "items.insert",
+            CoveredWriterFixtureV1::Buffered => "items.bufferedInsert",
+        };
+        let upstream_identity = match writer {
+            CoveredWriterFixtureV1::HostPlan => "job:host-crash-plan",
+            CoveredWriterFixtureV1::Buffered => "job:host-crash-buffered",
+        };
+        let issuance = db
+            .host_operation_issuance(
+                TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID,
+                upstream_identity,
+                0,
+                now_millis(),
+            )
+            .expect("server-issued host incarnation");
+        let identity = ClientMutationIdentity::for_authority(
+            crate::commit_envelope::derive_host_operation_id(upstream_identity, 0),
+            function,
+            &input,
+            TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID,
+        )
+        .with_operation_issuance(issuance);
+        (dir, path, db, input, identity)
+    }
+
+    fn execute_host_operation_crash_fixture(
+        db: &mut LocalDatabase,
+        writer: CoveredWriterFixtureV1,
+        input: &HandlerInput,
+        identity: &ClientMutationIdentity,
+    ) -> SnapbackResult<MutationCommit> {
+        match writer {
+            CoveredWriterFixtureV1::HostPlan => db
+                .execute_host_mutation_guarded_with_settlement_time(
+                    &insert_plan(),
+                    input,
+                    Some(identity),
+                    None,
+                    || Ok(()),
+                    || Ok(()),
+                ),
+            CoveredWriterFixtureV1::Buffered => db.commit_buffered_host_writes_guarded(
+                input,
+                BufferedCommitPayload {
+                    writes: vec![BufferedWrite::Insert {
+                        table: "items".to_owned(),
+                        id: format!("host-crash-buffered-{}", identity.id),
+                        values: Map::from_iter([("title".to_owned(), json!("host buffered"))]),
+                    }],
+                    sequence_allocations: Vec::new(),
+                    membership_plans: Vec::new(),
+                    read_dependencies: Vec::new(),
+                    result: json!({ "receiptSecret": "classified-host-operation-output" }),
+                    ctx_ledger: CtxAnswerLedger::default(),
+                    job_enqueues: Vec::new(),
+                    job_producer: None,
+                    asset_admissions: Vec::new(),
+                },
+                Some(identity),
+                || Ok(()),
+                || Ok(()),
+            ),
+        }
+    }
+
     fn assert_operation_commit_absent(db: &LocalDatabase) {
         assert_eq!(db.current_version().expect("version after crash cut"), 0);
         assert_eq!(db.scan_table("items", 10, 0).expect("app rows").total, 0);
@@ -25605,6 +25686,55 @@ mod guarded_commit_tests {
                     )
                     .expect("one complete envelope"),
                 1
+            );
+        }
+    }
+
+    #[test]
+    fn llp0163_host_writers_are_atomic_at_every_envelope_crash_cut_and_after_reopen() {
+        let points = [
+            OperationEnvelopeCrashPointV1::BeforeSettlement,
+            OperationEnvelopeCrashPointV1::AfterSettlementBeforeEnvelope,
+            OperationEnvelopeCrashPointV1::AfterEnvelopeBeforeCommit,
+        ];
+        for writer in [
+            CoveredWriterFixtureV1::HostPlan,
+            CoveredWriterFixtureV1::Buffered,
+        ] {
+            for point in points {
+                let (_dir, path, mut db, input, identity) = host_operation_crash_fixture(writer);
+                inject_operation_envelope_crash_for_test(point);
+                let error =
+                    execute_host_operation_crash_fixture(&mut db, writer, &input, &identity)
+                        .expect_err("injected crash cut must roll back the host-child commit");
+                assert_eq!(error.diagnostic.code, "SNAPBACK_TEST_OPERATION_CRASH_CUT");
+                drop(db);
+                let reopened = LocalDatabase::open(&path).expect("reopen after host crash cut");
+                assert_operation_commit_absent(&reopened);
+            }
+
+            let (_dir, path, mut db, input, identity) = host_operation_crash_fixture(writer);
+            let committed =
+                execute_host_operation_crash_fixture(&mut db, writer, &input, &identity)
+                    .expect("complete covered host-child commit");
+            assert!(!committed.changes.is_empty());
+            let expected = committed.output;
+            drop(db);
+            let mut reopened =
+                LocalDatabase::open(&path).expect("reopen committed host-child database");
+            let replay =
+                execute_host_operation_crash_fixture(&mut reopened, writer, &input, &identity)
+                    .expect("exact host-child replay after process restart");
+            assert!(replay.changes.is_empty());
+            assert_eq!(replay.output, expected);
+            let envelopes = reopened
+                .operation_envelopes_for_test()
+                .expect("read retained host-child envelopes");
+            assert_eq!(envelopes.len(), 1);
+            let envelope = &envelopes[0];
+            assert_eq!(
+                envelope.identity.key.originator_class,
+                crate::commit_envelope::OperationOriginatorClassV1::Host
             );
         }
     }
