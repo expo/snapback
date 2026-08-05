@@ -9517,19 +9517,19 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:426261dd45fb8cebb7ffd0ea2978b4e4beef549f6006de259de1ca34265cce7a";
+    "sha256:1408dc59ddbd13c1efbacf49b482417c87be22d9d81c98987b5b0d1d0490fe3d";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:b3e2003f8cb552823896e227ee9c19eeab5249a098ea3238d16568e0b898b85a";
+    "sha256:1f20457232f41176429197ae5ee522256b705e2f7a7b59a6e60a1d175cafbb95";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-persistent-store-publication.v1.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256: &str =
-    "sha256:f5efd9bafc13e97f760975ac917e6ec8bd90a36336c2cf6d941ec8de16ed91d4";
+    "sha256:701a8337c30635826ea3b119f71bb3f04d4403dcae0c47cee0cb363148afc16f";
 const LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES: &[u8] = include_bytes!(
     "../tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json"
 );
@@ -9655,7 +9655,7 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:0e805dc28080ee8b3930ed998bc2931e1933d61ae6a50b420e4b92bf8ed7f241"
+                    "sha256:fad6987719dfb41f1a7f61ed4d822b4b5084076302515827faf11cfc2f322dae"
                         .to_owned(),
                 ),
                 (
@@ -9667,7 +9667,7 @@ fn local_relation_activity_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:eba01442e65b0a824ae216613c6d475e6ce062ec8d7073cbaf4b71d8ccd9c7a8"
+                "sha256:ab810609fa833f5fed96016f6eb9300a7c0d8793b348c3ff076fd443743faecd"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
@@ -9718,7 +9718,7 @@ fn local_sequence_allocation_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/runtime.rs".to_owned(),
-                    "sha256:56925ee217229ff6df0b114ce0e957e1bd4396d6ffaa4eeac26f247cd0f5f328"
+                    "sha256:a4e56138992a39a677c971fa6724910c3a736561f5ecf1b16934fb149915b620"
                         .to_owned(),
                 ),
                 (
@@ -9730,7 +9730,7 @@ fn local_sequence_allocation_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:eba01442e65b0a824ae216613c6d475e6ce062ec8d7073cbaf4b71d8ccd9c7a8"
+                "sha256:ab810609fa833f5fed96016f6eb9300a7c0d8793b348c3ff076fd443743faecd"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -9812,7 +9812,7 @@ fn local_persistent_store_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:0e805dc28080ee8b3930ed998bc2931e1933d61ae6a50b420e4b92bf8ed7f241"
+                    "sha256:fad6987719dfb41f1a7f61ed4d822b4b5084076302515827faf11cfc2f322dae"
                         .to_owned(),
                 ),
                 (
@@ -9824,7 +9824,7 @@ fn local_persistent_store_publication_verified_for(
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:585fa906e636df8917295cbe565ee8a984708a3dece65da30dc285acc053450e"
+                "sha256:a8589be96b603a92c74b90a7bbc651717509620e52f20b7abfb35c176dd64792"
                     .to_owned(),
             )])
         && carrier.client_source_sha256

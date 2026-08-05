@@ -139,6 +139,26 @@ export interface DiagnosticError extends Error {
 
 export function diagnosticError(code: string, message: string, details?: unknown): DiagnosticError;
 
+/** Data-only help metadata for one package-owned top-level command. */
+export interface PackagedCliCommandHelp {
+  readonly name: string;
+  readonly usage: string;
+  readonly description: string;
+  readonly lifecycle: string;
+  readonly output: string;
+  readonly exits: string;
+  readonly recovery: string;
+}
+
+/** Data-only help metadata for one exact positional subcommand path. */
+export interface PackagedCliSubcommandHelp extends PackagedCliCommandHelp {
+  readonly path: readonly string[];
+  readonly details: readonly string[];
+}
+
+export const PACKAGED_CLI_COMMANDS: readonly PackagedCliCommandHelp[];
+export const PACKAGED_CLI_SUBCOMMANDS: readonly PackagedCliSubcommandHelp[];
+
 /** Copy the environment with `DYLD_*` and `LD_LIBRARY_PATH` removed. */
 export function scrubDynamicLoaderEnvironment(
   environment?: EnvironmentVariables,

@@ -58,6 +58,7 @@ import {
   validateStagedPublicationLedger,
 } from './snapback-package-cold-install-lib.mjs';
 import { canonicalJcs, sha256Hex } from './snapback-promotion-core.mjs';
+import { stopOwnedProcessTree } from './lib/process-tree.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const BROWSER_PACKAGE_VERSION = '1.62.0';
@@ -268,9 +269,11 @@ async function provePackagedDevLoop({ cli, scaffoldRoot }) {
   const child = spawn(cli, ['dev', 'snapback'], {
     cwd: scaffoldRoot,
     env: process.env,
+    detached: process.platform !== 'win32',
     // Watch mode owns a machine-readable stdin control channel. Keep it open
     // for the proof lifetime: EOF is intentionally interpreted as "stop".
     stdio: ['pipe', 'pipe', 'pipe'],
+    windowsHide: true,
   });
   let stdout = '';
   let stderr = '';
@@ -320,12 +323,14 @@ async function provePackagedDevLoop({ cli, scaffoldRoot }) {
       'watched regeneration and server load',
     );
   } finally {
-    if (child.exitCode === null) child.kill('SIGINT');
-    const deadline = Date.now() + 15_000;
-    while (child.exitCode === null && Date.now() < deadline) {
-      await new Promise((resolveWait) => setTimeout(resolveWait, 50));
+    const cleanup = await stopOwnedProcessTree(child, {
+      requestGracefulStop: () => {
+        if (child.exitCode === null) child.kill('SIGINT');
+      },
+    });
+    if (!cleanup.ok) {
+      throw new Error(`packaged managed-dev cleanup failed: ${JSON.stringify(cleanup)}`);
     }
-    if (child.exitCode === null) child.kill('SIGKILL');
   }
   if (existsSync(readyFile)) fail('managed dev stop left a stale ready-file descriptor');
   return { readyFile, database };
@@ -1227,7 +1232,9 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
       VITE_SNAPBACK_ADMIN_TOKEN: browserSecretCanary,
       PLAYWRIGHT_BROWSERS_PATH: playwrightBrowsersPath,
     },
+    detached: process.platform !== 'win32',
     stdio: ['pipe', 'pipe', 'pipe'],
+    windowsHide: true,
   });
   let stdout = '';
   let stderr = '';
@@ -2158,17 +2165,10 @@ async function proveOneCommandReactStarter(scaffoldRoot, sourceIdentity) {
       browserJourney,
     };
   } finally {
-    if (child.exitCode === null) child.stdin.end();
-    const deadline = Date.now() + 15_000;
-    while (child.exitCode === null && Date.now() < deadline) {
-      await new Promise((resolveWait) => setTimeout(resolveWait, 50));
+    const cleanup = await stopOwnedProcessTree(child);
+    if (!cleanup.ok) {
+      throw new Error(`one-command starter cleanup failed: ${JSON.stringify(cleanup)}`);
     }
-    if (child.exitCode === null) child.kill('SIGTERM');
-    const hardDeadline = Date.now() + 5_000;
-    while (child.exitCode === null && Date.now() < hardDeadline) {
-      await new Promise((resolveWait) => setTimeout(resolveWait, 50));
-    }
-    if (child.exitCode === null) child.kill('SIGKILL');
   }
 }
 

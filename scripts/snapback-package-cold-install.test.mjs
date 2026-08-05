@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   closeSync,
@@ -62,6 +62,7 @@ import {
   validateQualifiedTarballs,
 } from './snapback-publish-core.mjs';
 import { sha256TarEntry } from './snapback-tar-entry.mjs';
+import { stopOwnedProcessTree } from './lib/process-tree.mjs';
 
 const script = fileURLToPath(new URL('./snapback-package-cold-install.mjs', import.meta.url));
 const DEFAULT_BROWSER_SOURCE_REVISION = '0'.repeat(40);
@@ -2430,4 +2431,42 @@ test('spawn ENOENT rejects without hanging or escaping the promise', async () =>
   } finally {
     clearTimeout(deadline);
   }
+});
+
+test('owned cold-install teardown retires descendants that retain captured pipes', {
+  skip: process.platform === 'win32',
+}, async () => {
+  const child = spawn(process.execPath, ['-e', [
+    'const { spawn } = require("node:child_process");',
+    'const descendant = spawn(process.execPath, ["-e", "process.on(\\"SIGTERM\\", () => {}); setInterval(() => {}, 1000)"], { stdio: ["ignore", "inherit", "inherit"] });',
+    'console.log(`descendant:${descendant.pid}`);',
+    'process.stdin.resume();',
+    'process.stdin.once("end", () => process.exit(0));',
+  ].join(' ')], {
+    detached: true,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  let output = '';
+  child.stdout.on('data', (chunk) => { output += chunk; });
+  const deadline = Date.now() + 2_000;
+  while (!/descendant:\d+/u.test(output) && Date.now() < deadline) {
+    await new Promise((resolveWait) => setTimeout(resolveWait, 10));
+  }
+  const descendantPid = Number(/descendant:(\d+)/u.exec(output)?.[1]);
+  assert(Number.isInteger(descendantPid), `fixture did not publish its descendant pid: ${output}`);
+
+  const cleanup = await stopOwnedProcessTree(child, {
+    gracefulTimeoutMs: 50,
+    leaderCloseTimeoutMs: 500,
+    processGroupTimeoutMs: 2_000,
+    processGroupPollMs: 5,
+  });
+  assert.equal(cleanup.ok, true, JSON.stringify(cleanup));
+  assert.equal(cleanup.cleanup.mechanism, 'process-group');
+  assert.equal(cleanup.cleanup.exitAttested, true);
+  assert.equal(cleanup.leaderClosed, true);
+  assert.throws(
+    () => process.kill(descendantPid, 0),
+    (error) => error?.code === 'ESRCH',
+  );
 });

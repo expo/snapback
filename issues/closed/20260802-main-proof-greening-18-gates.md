@@ -334,6 +334,15 @@ and has SHA-256
 `4759a0896a779842534d8eeca8fed24785ae4b3f4504bd606b9e0fe993a3309b`;
 the checkout remained clean after the run.
 
+The 2026-08-05 batched drift replay found that the Linux idle-evidence harness
+also depended on an unpinned system `sqlite3` CLI. That was proof-machinery
+debt rather than telemetry correctness: the full release benchmark completed,
+then the lifecycle sampler failed before the idle window on a qualified host
+whose package set could not be changed without administrator access. The
+sampler now uses the pinned Node 24 `node:sqlite` reader for the same read-only
+queries and lock retry; no curl fallback, stale binary, or reduced witness was
+accepted.
+
 This was the terminal replay of the real gates, not a focused substitute. The
 coded bootstrap linked and launched the exact carrier commit and qualified its
 restricted handler VM. Strict Clippy, deployment identity, both publication
@@ -484,3 +493,296 @@ recorded by reopening
 `issues/20260802-exact-production-runtime-breaks-contract-routes.md`; this pass
 did not edit the external Exact implementation or misrepresent a dev-browser
 pass as a production-runtime pass.
+
+### Exact-main multiplexed fixture reconciliation — 2026-08-04
+
+After PR #12 merged normally, exact main commit
+`1302272f60b8d18b82ea1b4b9f3363a577774209` passed the coded
+link/launch/restricted-handler-VM bootstrap and every non-local-proof workflow,
+including the normal-sandbox All Aboard cold clone at 34/34. Its complete local
+KEEP-GOING replay found one failed gate and no cascade. The 7,709-line
+transcript has SHA-256
+`c06f6f3651d216d425a799df824b5cb51b6e28aebe8c8e06e50a3312ed5a1e81`.
+
+`regression-multiplexed-lanes` began its second independent lifecycle check by
+reusing the first check's hard-coded connection id while exact socket teardown
+was still terminalizing, and correctly received
+`SNAPBACK_CONNECTION_TEARDOWN_PENDING`. The reuse dates to the named P4 fixture
+landing `8027cd145`; exact fail-closed teardown suspension landed later in
+`9365aa708`. The immediately preceding head proof passed the same fixture,
+confirming timing sensitivity rather than a deterministic push, F0a, or
+realtime correctness regression. The fixture now assigns distinct connection
+ids to its independent checks while each check still proves that its two
+durable handles and ephemeral overlay share one socket. The server's teardown
+fence is unchanged.
+
+### Post-capability main drift reconciliation — 2026-08-05
+
+Main KEEP-GOING run `30974150301` at
+`589bee2cc103c0330ebdfe89e87a63907cf8ef57` completed with exactly two
+failed gates:
+
+1. `node scripts/client-bundle-metrology.mjs --check` failed before size
+   comparison because the IR-evaluator supplemental baseline added by
+   `30e3d09c7` named measurement commit `fd0c8a34`, but that commit was not
+   reachable from main or a remote ref. The baseline bytes and package-tree
+   hashes were correct in the producing worktree. Carrier `5cd6fb927` anchors
+   that exact commit in the branch ancestry without rewriting a historical
+   ledger or loosening a ceiling. A branch-only bundle/clone resolved the
+   recorded `snapback-client` tree, and the full Node 24.18.0 metrology check
+   passed all 43 profiles.
+2. `scripts/verify-telemetry-phase1-proof --check` correctly rejected the
+   stale Linux receipt after the P1, LLP 0167, Move-3, and capability landings
+   changed its bound source closure. The first exact fleet replay then exposed
+   a proof-fixture dependency on a system `sqlite3` executable. That dependency
+   belongs to the telemetry harness, not telemetry correctness or machine
+   provisioning: the two read-only queries now use pinned Node 24
+   `node:sqlite`, preserving their separators and bounded lock retry.
+
+The full Linux producer at exact source `305dd0081` passed coded bootstrap,
+binary launch, restricted handler-VM qualification, smoke, release benchmark,
+and the complete 120-second idle witness. It wrote receipt SHA-256
+`2b33ac4b4677312e08fdc6ccfbe4ae8dd60d24c73b90d1c5acabbc11574e8f73`
+for source-closure digest
+`4bf171fab89c55e95c3e09cead373a5f7b54c9c2b70fb29234d0194707e8679a`.
+The 668-line producer transcript has SHA-256
+`5c493cd4c87c293f9a81d87e443e927c998f82298a0235b9d5f06a035102be9d`.
+The idle interval observed zero storage mutations, zero read/write-byte
+deltas, 8/10 allowed CPU ticks, and 0/8 allowed RSS-page growth. No
+administrator change, degraded curl fallback, stale binary, or shortened
+witness was accepted.
+
+These are both proof-carrier defects attributed to their introducing
+landings. Neither is a correctness failure in the actively owned PUSH-01 seam
+or F0a fork code. The current main advance through `917b16e7c` does not
+intersect the telemetry receipt's enumerated source closure.
+
+### Clean-host carrier follow-through — 2026-08-05
+
+PR run `30981322562` at `c5732d531` passed every gate except bundle
+metrology: clean CI could not resolve the source revisions recorded by the
+Move-3 single-table lifecycle and PUSH installation Expo receipts. The two
+immutable measurement commits are now carried by exact lightweight tags:
+
+- `client-bundle-baseline-source-f2b79cc6d457a5fbdad45427957ab2d328e4428c`;
+- `client-bundle-baseline-source-553a9bc1317373d53c058b72f9e322194b056172`.
+
+The pinned full-history checkout explicitly fetches `refs/tags/*`, so the
+recorded package trees resolve without importing either side branch into the
+candidate history. The initial history-parent carrier proved the distinction:
+run `30985013182` passed all 43 bundle profiles but correctly rejected the
+imported `f2b79cc6d` capability transition because the candidate tree's later
+single-table introduction record did not record that abandoned side-branch
+act. The tag carrier preserves both immutable source objects without weakening
+LLP 0134's transition audit.
+
+After current main advanced to `4a6000ac6`, the asset implementation-identity
+landing `58b9755ee` initially appeared to grow only `public-subpath-assets` by
+138 minified, 29 gzip, and 19 Brotli bytes. The first integrated pass therefore
+prepared a one-profile LLP 0044 rollover. Main commit `ba4864e34` then isolated
+the breach to the dead `state.lifecycleGeneration` assignment introduced by
+`1b4d104bc` and removed it, bringing the profile to 13,855 / 5,550 / 4,814 —
+below the original immutable 13,860 / 5,564 / 4,814 ceiling. The candidate
+absorbs that fix and drops the prepared rollover instead of permanently
+loosening a ceiling for dead code. This was asset-carrier drift attributable
+to those landings, not a PUSH-01 or F0a correctness failure.
+
+### Batched publication-carrier refresh — 2026-08-05
+
+Main KEEP-GOING run `30987191822` at `4a6000ac6` completed with five root
+failures and no blocked gates. The asset-identity bundle failure is the
+one-profile rollover above. Three more failures were the expected batched
+publication-carrier drift: `src/local.rs` no longer matched the relation /
+activity or persistent-store carriers, `src/runtime.rs` no longer matched the
+sequence-allocation carrier, and the persistent-store carrier also lagged the
+codegen source. The source changes belong to these landings:
+
+- asset implementation identity `58b9755ee` and local-proof hardening
+  `702f82f5b` changed `src/local.rs`; `58b9755ee` also changed
+  `packages/snapback-codegen/index.mjs`;
+- first-ordered-rejection fingerprint authority `eed1203d8` changed
+  `src/runtime.rs`.
+
+`node scripts/refresh-publication-carrier.mjs` recomputed the existing three
+source-owned carriers as one batch, including their manifest-embedded digests
+and conformance assertions. The resulting carrier SHA-256 values are
+`48a7756abe42d2e0c5038130f7dc0c26796022b9de49019ed141237360cefdb7`
+(relation/activity),
+`9b2f3d432eb0ed8ba2b438f81ab235c3e37130d458c31e52aa8c903e6be8013c`
+(sequence allocation), and
+`c1a4737b0d36cb71f746a6ae54b75ff09bb8334ce21ef28e7922e6ee6dcd52c4`
+(persistent store). All three publication conformance gates pass. No
+capability, maturity, receipt content, public-package claim, hosted claim, or
+actively owned PUSH-01/F0a correctness path was widened.
+
+The fifth root failure is the already-open Linux telemetry receipt re-mint;
+its exact-source producer and final receipt are recorded in that owning ticket.
+
+### Post-residue-sweep publication-carrier refresh — 2026-08-05
+
+The next main batch through `4f26d312b` included residue-sweep landing
+`f9177e9f1`, whose `src/local.rs` changes made the already-batched relation /
+activity and persistent-store publication carriers stale again. The official
+`scripts/refresh-publication-carrier.mjs` generator refreshed both carriers,
+their manifest identities, and their conformance assertions. The resulting
+carrier SHA-256 values are
+`1408dc59ddbd13c1efbacf49b482417c87be22d9d81c98987b5b0d1d0490fe3d`
+(relation/activity) and
+`701a8337c30635826ea3b119f71bb3f04d4403dcae0c47cee0cb363148afc16f`
+(persistent store); the sequence-allocation carrier remained exact and was
+not rewritten. All three publication conformance tests, deployment-identity
+check, package test inventory, export/type parity, all 54 bundle-metrology
+profiles, and the 29/29 Cloudflare local suite pass on the combined tree. This
+is publication-carrier drift attributable to the residue-sweep landing, not a
+PUSH-01 or F0a correctness failure.
+
+### Latest completed main KEEP-GOING closure — 2026-08-05
+
+Main run `31001456821` at `4f26d312b` completed with nine root failures and
+one blocked gate: package export/type parity; the three publication carriers;
+deployment identity; telemetry receipt freshness; clippy; Rust tests; and the
+Cloudflare local suite, with the auth-invalidation report blocked by Rust
+tests. The combined candidate through telemetry carrier `28d93cc0b` passes the
+first six drift classes, all 54 bundle profiles, the 203-file package test
+inventory, browser availability/fixtures, and the 29/29 Cloudflare suite.
+
+The remaining native failures were also landing debt rather than product
+correctness failures. Residue-sweep landing `f9177e9f1` copied the now-`Copy`
+`NetworkProfileSource` value four times in the expanded authority matrix;
+clippy 1.97 correctly rejected all four `clone()` calls. Unattended CLI
+landing `1b8971233` introduced the CLI-only
+`SNAPBACK_READY_DESCRIPTOR_REQUIRED` code without adding it to the reviewed
+HTTP-inventory exclusions, so the suite reported one unclassified production
+literal. The fix removes the four redundant clones and records that detached
+start diagnostic as CLI-local and never HTTP-emitted. The CLI export/type
+drift in the same main run is likewise attributed to `1b8971233` and
+`d732a700a`, whose new packaged command/subcommand exports lacked declaration
+entries; the candidate adds those declarations. None of these failures is in
+the actively owned PUSH-01 seam or F0a fork implementation.
+
+### Latest-main cascade and final suite-fixture reconciliation — 2026-08-05
+
+At the post-interruption reinspection, the newest completed main proof was
+run `31005939253` at `e9e4a92ee`. Its KEEP-GOING summary named 35 root
+failures and one blocked gate. The branch replay separated the independent
+defects from the cascade: the carrier, export/type, deployment-identity,
+telemetry, clippy, Rust, Cloudflare, workout, demo, regression, Exact, and
+admin-unit lanes all pass on the combined candidate. The repeated server-gate
+failures on main were downstream of a dirty source identity and 90-second
+fallback link exhaustion, not 35 independent product regressions.
+
+Three suite fixtures required fixing forward:
+
+1. App-bound Linux workflow landing `8f217183f` added an eighth workflow and
+   six pinned actions without extending `tests/ci_workflows_v0.mjs`. The
+   inventory now covers the workflow, its reviewed read-only
+   `attestations: read` permission (needed by the coded Hermes bootstrap's
+   `gh attestation verify`), named checkout-step shape, and the
+   `actions/cache/restore` / `actions/cache/save` action subpaths. The focused
+   gate passes with 8 workflows and 38 immutable action pins.
+2. The served app-CLI journey landed in `8a6731dfc` with a latent assertion
+   that lowercased `LiveQuery` to `livequery`, while the engine's closed kind
+   vocabulary correctly reports lower-camel `liveQuery`. Local-proof landing
+   `702f82f5b` first selected that journey in the recurring proof. The fixture
+   now compares the manifest and engine lower-camel forms; canonical
+   app-qualified function ids, argument schemas, and the engine itself are
+   unchanged.
+3. Client cleanup landing `ba4864e34` removed the dead assets assignment that
+   had breached bundle metrology, but the committed cursors Contract
+   production dist still named the pre-cleanup chunks. The required-surface
+   gate honestly rebuilt those tracked bytes in place, leaving the checkout
+   dirty and making later binary-identity consumers refuse prebuilt reuse.
+   The tracked dist is regenerated from the exact Linux surface lock and the
+   resulting directory's combined SHA-256 is
+   `fded363c61e8f57cfc3bfef13aa9b0687f4a59ddedb3494cbe56044178fec971`;
+   the artifact-path hygiene gate passes.
+
+The first complete fleet replay at candidate `e476847e6` therefore reported
+five roots: the first two fixture defects above plus three host-policy
+refusals. The two custody gates correctly rejected temporary/profile roots
+under shared `/var/cache/expose-build`, and Chrome correctly refused to start
+on a host with no usable browser sandbox. Those are execution-environment
+errors, not code changes: no custody check was weakened, no `--no-sandbox`
+escape was added, and no administrator change was made. The final replay uses
+ordinary-user-owned 0700 temp/profile ancestry; the normal GitHub sandbox
+runner remains the authority for the browser leg. None of these defects or
+environment refusals is a correctness failure in the actively owned PUSH-01
+seam or F0a fork implementation.
+
+### Post-green main race and Messenger demo fixture closure — 2026-08-05
+
+Candidate run `31017197222` at `b6f52862b` completed green with 119 passing
+gates and the two expected not-selected gates, but main advanced before that
+candidate could land. Snapback Messenger landing `4b30b364e` added
+`demos/messaging-snapback/demo.snapback.json` and a committed backend without
+extending the two explicit all-demo inventories. On the combined tree,
+`tests/demo_setup_v0.mjs` first rejected the missing demo id; after honest
+inventory admission it then exposed the clean-checkout defect: the generated
+schema and function manifests needed by provisioning were absent because
+`scripts/check-generated-artifacts` never regenerated that backend.
+
+The fix adds `messaging-snapback` to the demo materialization fixture and adds
+its backend and review manifest to the existing all-demo regeneration ledger.
+Running the canonical gate order now regenerates its 41-file cache from the
+committed `artifacts.json`, verifies the review surface, and provisions all 23
+metadata-declared demos through exactly one reset. The downstream required
+surface build gate also passes for both registry-selected web surfaces. This
+is suite-fixture and generated-carrier drift attributable to `4b30b364e`, not
+a correctness failure in the actively owned PUSH-01 seam or F0a fork code.
+
+### Linux package post-receipt teardown closure — 2026-08-05
+
+Linux package run `31017196511` at `b6f52862b` built and launch-qualified the
+relocatable runtime, completed the staged public-alias cold-install journey,
+and emitted its green receipt at `2026-08-05T15:04:00Z`. It then produced no
+further output for 61 minutes and was cancelled only when the next branch push
+activated the workflow's concurrency replacement. Actions cleanup found the
+outer Node proof plus a surviving `snapback`, shell, and Node child tree. The
+receipt was truthful about the checks it had completed, but the workflow could
+never retain that receipt or finish green.
+
+The latent ownership defect is attributed to one-command starter landing
+`b1006fa2d`: `scripts/snapback-package-cold-install.mjs` spawned `npm run dev`
+with captured pipes and later signaled only the npm leader. A shell or Snapback
+descendant could retain those pipes after the leader exited and keep the proof
+runner alive indefinitely. The fix launches both long-lived cold-install dev
+arms as owned POSIX process groups and reuses the repository's cross-platform
+tree primitive for bounded graceful stop, hard cleanup, POSIX ESRCH exit
+attestation, leader-close observation, and captured-handle retirement. A real
+regression fixture leaves a TERM-resistant descendant holding the leader's
+pipes; teardown kills and attests the whole group and the test process exits.
+This is package-proof harness debt, not a PUSH-01/F0a correctness failure, and
+no browser sandbox, custody boundary, or administrator setting is weakened.
+
+### Final exact-candidate telemetry carrier — 2026-08-05
+
+Pull-request local-proof run `31024847949` at exact candidate
+`807116dd6afd8d6ae51e16f8b6c7878afd4a97f0` completed KEEP-GOING with one
+root failure, zero blocked gates, and the two expected not-selected gates. The
+sole root was `telemetry-receipt-check`: the package-proof process-tree repair
+above changed `scripts/lib/process-tree.mjs`, exactly one of the retained
+receipt's 438 bound files. All other selected gates passed. This freshness
+failure is therefore attributed to the `b1006fa2d` package-starter landing and
+this pass's teardown fix, not to telemetry product behavior or the actively
+owned PUSH-01/F0a correctness paths.
+
+The replacement EPYC producer measured a fresh clean clone at exact source
+revision `807116dd6afd8d6ae51e16f8b6c7878afd4a97f0`. It used the existing
+user-owned Node 24.18.0 and Bun 1.3.12 toolchain, installed the frozen lockfile,
+and invoked unchanged `scripts/verify-telemetry-phase1-proof --full`. The coded
+bootstrap initialized Ibex pin
+`4c34c831aa087d6783b0d68f281cdb374ed7fc89` and copied compatible prepared
+Hermes artifacts through supported `SNAPBACK_IBEX_CHECKOUT`; no administrator
+change or loader bypass was used. The Rust smoke, locked release build,
+runtime qualification, full benchmark, and 120-second idle witness all passed.
+
+The retained receipt has SHA-256
+`d91d7d056fbc48abb2abe3a595b6bb3a25ff5ac05261cbec7fb878cfd1d138e7`
+and source-closure digest
+`23264a1da95d13ac32c6a0d157c82ddea18b230c26859038caef2bc2aa898834`.
+The 1,209-line transcript at
+`/var/cache/expose-build/snapback-telemetry-807.ylRDcd/telemetry-full.log`
+has SHA-256
+`8ccf08292c8e130f8e03920c38681e049a12f345ee291ddd26d4b97c18421481`.
+The idle interval observed zero storage mutations, zero read bytes, zero write
+bytes, 3/10 allowed CPU ticks (30/100 ms), and zero RSS-page growth.

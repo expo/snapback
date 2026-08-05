@@ -20,6 +20,7 @@ run node packages/snapback-codegen/index.mjs demos/todo/snapback
 run node packages/snapback-codegen/index.mjs demos/todo-v2/snapback
 run node packages/snapback-codegen/index.mjs demos/todo-v2/snapback --target-profile remote-service-sqlite-ibex
 run node packages/snapback-codegen/index.mjs demos/latency-kanban/snapback
+run node packages/snapback-codegen/index.mjs demos/messaging-snapback/snapback
 run node packages/snapback-codegen/index.mjs demos/triage-graph/snapback
 # All Aboard's committed backend uses real data actions (outbound seam).
 run env SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/all-aboard/snapback
@@ -61,6 +62,7 @@ REVIEW_ROOTS=(
     demos/todo-v2/snapback/generated
     demos/todo-v2/snapback/generated-remote-service
     demos/latency-kanban/snapback/generated
+    demos/messaging-snapback/snapback/generated
     demos/triage-graph/snapback/generated
     demos/all-aboard/snapback/generated
     demos/all-aboard/tests/egress-probe/generated

@@ -111,7 +111,7 @@ for (const source of newlyQualifiedClientSources) {
 }
 assert.equal(
   sha256(carrierBytes),
-  'sha256:f5efd9bafc13e97f760975ac917e6ec8bd90a36336c2cf6d941ec8de16ed91d4',
+  'sha256:701a8337c30635826ea3b119f71bb3f04d4403dcae0c47cee0cb363148afc16f',
 );
 for (const [source, expected] of Object.entries({
   ...carrier.executorSourceSha256,
