@@ -39054,6 +39054,10 @@ globalThis.__snapbackHandlers = {
             "environment variable selecting the startup network condition profile (LLP 0167)",
         ),
         (
+            "SNAPBACK_READY_DESCRIPTOR_REQUIRED",
+            "CLI-local detached-start lifecycle diagnostic; never emitted by the Snapback HTTP server",
+        ),
+        (
             "SNAPBACK_ACTION_MAX_CONCURRENCY",
             "environment variable configuring detached action worker admission",
         ),

@@ -635,3 +635,27 @@ check, package test inventory, export/type parity, all 54 bundle-metrology
 profiles, and the 29/29 Cloudflare local suite pass on the combined tree. This
 is publication-carrier drift attributable to the residue-sweep landing, not a
 PUSH-01 or F0a correctness failure.
+
+### Latest completed main KEEP-GOING closure — 2026-08-05
+
+Main run `31001456821` at `4f26d312b` completed with nine root failures and
+one blocked gate: package export/type parity; the three publication carriers;
+deployment identity; telemetry receipt freshness; clippy; Rust tests; and the
+Cloudflare local suite, with the auth-invalidation report blocked by Rust
+tests. The combined candidate through telemetry carrier `28d93cc0b` passes the
+first six drift classes, all 54 bundle profiles, the 203-file package test
+inventory, browser availability/fixtures, and the 29/29 Cloudflare suite.
+
+The remaining native failures were also landing debt rather than product
+correctness failures. Residue-sweep landing `f9177e9f1` copied the now-`Copy`
+`NetworkProfileSource` value four times in the expanded authority matrix;
+clippy 1.97 correctly rejected all four `clone()` calls. Unattended CLI
+landing `1b8971233` introduced the CLI-only
+`SNAPBACK_READY_DESCRIPTOR_REQUIRED` code without adding it to the reviewed
+HTTP-inventory exclusions, so the suite reported one unclassified production
+literal. The fix removes the four redundant clones and records that detached
+start diagnostic as CLI-local and never HTTP-emitted. The CLI export/type
+drift in the same main run is likewise attributed to `1b8971233` and
+`d732a700a`, whose new packaged command/subcommand exports lacked declaration
+entries; the candidate adds those declarations. None of these failures is in
+the actively owned PUSH-01 seam or F0a fork implementation.

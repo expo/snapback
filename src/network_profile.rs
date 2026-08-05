@@ -669,7 +669,7 @@ mod tests {
                     .activate(
                         NetworkConditionProfile::optimistic(),
                         local_authority(profile),
-                        source.clone(),
+                        source,
                         None,
                     )
                     .unwrap();
@@ -683,7 +683,7 @@ mod tests {
                         false,
                         true,
                     ),
-                    source.clone(),
+                    source,
                     None,
                 )
                 .expect("a local derived instance retains the local allowance");
@@ -696,7 +696,7 @@ mod tests {
                         true,
                         true,
                     ),
-                    source.clone(),
+                    source,
                     None,
                 )
                 .expect("boot-validated derived identity is the hosted exception");
@@ -791,7 +791,7 @@ mod tests {
                     .activate(
                         NetworkConditionProfile::optimistic(),
                         authority,
-                        source.clone(),
+                        source,
                         None,
                     )
                     .unwrap_err();
