@@ -13,7 +13,7 @@
     "src/storage.rs": "sha256:046f2a9e2274825b7c85ded21dd6cad9c0d0f67e77dd2105efd2cec5f2d3fd63"
   },
   "schemaSourceSha256": {
-    "packages/snapback-codegen/index.mjs": "sha256:52d51e300481dd9802002b8bcaed4ea6c6a1eee240e126e7aa09edfef6d40a9f"
+    "packages/snapback-codegen/index.mjs": "sha256:a8589be96b603a92c74b90a7bbc651717509620e52f20b7abfb35c176dd64792"
   },
   "clientSourceSha256": {
     "packages/snapback-client/local-read-admission.mjs": "sha256:7ffaf2ad7e59d98c3e4dd2a8195da7705882f11c187b1239725e33d84a04bc54",

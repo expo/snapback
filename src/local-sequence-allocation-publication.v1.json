@@ -9,7 +9,7 @@
     "src/storage.rs": "sha256:046f2a9e2274825b7c85ded21dd6cad9c0d0f67e77dd2105efd2cec5f2d3fd63"
   },
   "schemaSourceSha256": {
-    "packages/snapback-codegen/define.mjs": "sha256:eba01442e65b0a824ae216613c6d475e6ce062ec8d7073cbaf4b71d8ccd9c7a8"
+    "packages/snapback-codegen/define.mjs": "sha256:ab810609fa833f5fed96016f6eb9300a7c0d8793b348c3ff076fd443743faecd"
   },
   "clientSourceSha256": {
     "packages/snapback-contract/derived-overlay.mjs": "sha256:8b5324a45a8beaaa7db4eaf93361f8faf1008e152a74f9903844335d0f8e0a32",
