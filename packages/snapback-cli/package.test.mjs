@@ -143,14 +143,29 @@ console.log(JSON.stringify({
   assert.equal(scaffold.ok, true);
   const manifest = JSON.parse(readFileSync(join(project, 'package.json'), 'utf8'));
   assert.match(manifest.dependencies['@expo/snapback-cli'], /^\^\d+\.\d+\.\d+/);
+  assert.equal(manifest.scripts.test, 'node acceptance.mjs');
+  assert.equal(manifest.scripts['test:static'], 'node acceptance.static.mjs');
+  assert.equal(manifest.scripts['test:live'], manifest.scripts.test);
   const generated = await generateApp(join(project, 'snapback'));
   assert.equal(generated.ok, true, JSON.stringify(generated.diagnostics));
+  const todoStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], {
+    cwd: project,
+    encoding: 'utf8',
+  });
+  assert.equal(todoStatic.status, 0, todoStatic.stderr);
+  const todoAcceptanceSource = readFileSync(join(project, 'acceptance.mjs'), 'utf8');
+  assert.match(todoAcceptanceSource, /snapback\.starter-acceptance\.v1/u);
+  assert.match(todoAcceptanceSource, /client\.query\(api\.listTodos/u);
+  assert.match(todoAcceptanceSource, /client\.mutate\(api\.createTodo/u);
 
   const reactProject = join(root, 'react-starter');
   const reactScaffold = scaffoldApp(reactProject, { template: 'react' });
   assert.equal(reactScaffold.ok, true);
   const reactManifest = JSON.parse(readFileSync(join(reactProject, 'package.json'), 'utf8'));
   assert.match(reactManifest.dependencies['@expo/snapback-react'], /^\^\d+\.\d+\.\d+/);
+  assert.equal(reactManifest.scripts.test, 'node acceptance.mjs');
+  assert.equal(reactManifest.scripts['test:static'], 'node acceptance.static.mjs');
+  assert.equal(reactManifest.scripts['test:live'], reactManifest.scripts.test);
   const generatedReact = await generateApp(join(reactProject, 'snapback'));
   assert.equal(generatedReact.ok, true, JSON.stringify(generatedReact.diagnostics));
   assert.equal(
@@ -159,6 +174,15 @@ console.log(JSON.stringify({
     `the untouched React starter must generate without degraded-result advisories: ${JSON.stringify(generatedReact.summary.degradedResults)}`,
   );
   assert.match(readFileSync(join(reactProject, 'src', 'App.tsx'), 'utf8'), /useSnapbackQueries/);
+  const reactStatic = spawnSync(process.execPath, ['acceptance.static.mjs'], {
+    cwd: reactProject,
+    encoding: 'utf8',
+  });
+  assert.equal(reactStatic.status, 0, reactStatic.stderr);
+  const reactAcceptanceSource = readFileSync(join(reactProject, 'acceptance.mjs'), 'utf8');
+  assert.match(reactAcceptanceSource, /snapback\.starter-acceptance\.v1/u);
+  assert.match(reactAcceptanceSource, /observeSnapbackQueries/u);
+  assert.match(reactAcceptanceSource, /invokeSnapbackMutation/u);
 
   const git = (...args) => {
     const result = spawnSync('git', ['-C', project, ...args], { encoding: 'utf8' });

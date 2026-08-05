@@ -5,7 +5,10 @@
 **Systems:** Client integration, Developer experience, Tooling, API, Auth, Docs
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-17
-**Revised:** 2026-08-04, latest (phase-2 completion pass: the qualified macOS
+**Revised:** 2026-08-05, latest (`run -` now refuses stdin EOF without
+non-whitespace source as `SNAPBACK_APP_CLI_SCRIPT_EMPTY`/exit 2 before artifact
+or authority setup; a held-open producer still waits, and a non-empty program
+with no default export still succeeds without stdout). 2026-08-04 (phase-2 completion pass: the qualified macOS
 arm64 artifact now passes the complete §7 host-portable disclosure, ceiling,
 lifecycle, settlement, and race matrix; ticket 08 remains open only for a Linux
 x86_64 artifact qualified at the declared GLIBC 2.35 floor; see the dated record
@@ -551,6 +554,14 @@ Exit 1 is reserved for engine-internal failure outside this contract
 (a crash is never dressed up as a taxonomy row), and signal deaths
 (SIGINT/SIGTERM on a `--watch`) are outside the taxonomy too —
 conventional `128+n`, not something agents should branch on.
+
+`run -` reaching EOF before receiving a non-whitespace source byte is the
+typed usage refusal `SNAPBACK_APP_CLI_SCRIPT_EMPTY` (exit 2), with a structured
+repair naming file and stdin alternatives. It refuses before artifact loading,
+principal acquisition, or app-data traffic. This does not reinterpret result
+absence: a non-empty program with no default export still succeeds and prints
+no value, while an explicit `export default undefined` remains outside the
+strict-value profile and is a script error.
 
 ### 3. Code mode
 

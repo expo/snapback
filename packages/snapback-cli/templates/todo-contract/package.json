@@ -6,7 +6,9 @@
   "scripts": {
     "generate": "snapback generate snapback",
     "dev": "snapback dev snapback",
-    "test": "node acceptance.mjs"
+    "test": "node acceptance.mjs",
+    "test:static": "node acceptance.static.mjs",
+    "test:live": "node acceptance.mjs"
   },
   "dependencies": {
     "@expo/snapback-cli": "__SNAPBACK_VERSION__",

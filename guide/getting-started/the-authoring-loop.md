@@ -203,8 +203,18 @@ Headless first — the required surface is driveable without any UI
 product path:
 
 ```sh
-node <app>/tests/acceptance/headless.mjs
+cd <generated-app>
+npm test
 ```
+
+The generated todo and React starters make that default live: it boots and
+loads an isolated Snapback target, executes generated query and mutation
+references, verifies loaded artifact identity, cleans up, and prints a
+`snapback.starter-acceptance.v1` receipt. Use `npm run test:static` for the
+faster generated-file/source-coherence check; it does not boot Snapback and
+does not satisfy acceptance. Repository demos that do not use a generated
+starter run their named headless suite directly, for example
+`node <app>/tests/acceptance/headless.mjs`.
 
 Exit `0` = every declared check passed; `1` = a check failed or the run was
 short (zero checks can never pass); `2` = setup error. See
