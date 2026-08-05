@@ -73,7 +73,7 @@ jobs:
             vendor/ibex/linux
             vendor/ibex/tools/hermes
             vendor/ibex/target
-          key: app-bound-linux-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.lock', 'Cargo.lock') }}
+          key: app-bound-linux-v2-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.lock', 'Cargo.lock') }}
 
       - name: Install JavaScript dependencies
         run: |
@@ -94,7 +94,7 @@ jobs:
             vendor/ibex/linux
             vendor/ibex/tools/hermes
             vendor/ibex/target
-          key: app-bound-linux-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.lock', 'Cargo.lock') }}
+          key: app-bound-linux-v2-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.lock', 'Cargo.lock') }}
 
       - name: Upload value-free qualification receipts
         if: always()
