@@ -53,7 +53,13 @@ assert.equal(
   'app',
 );
 
-const mutation = await run([...session, '--args-json', '{"text":"llp0062-linux-planted-value"}', 'call', 'createNote']);
+const mutation = await run([
+  ...session,
+  '--args-json',
+  '{"title":"llp0062-linux","body":"llp0062-linux-planted-value"}',
+  'call',
+  'createNote',
+]);
 expectExit('mutation', mutation, 0);
 
 const language = await writeCase('language.ts', `
