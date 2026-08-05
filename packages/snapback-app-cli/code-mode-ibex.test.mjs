@@ -36,7 +36,7 @@ const maxima = Object.freeze({
 });
 const digestValue = hash(Buffer.from('identity'));
 
-const fakeBridge = ({ settleAs, graceCall = false, settles = true, onAbort = () => {}, consoleCount = 1 } = {}) => ({
+const fakeBridge = ({ settleAs, graceCall = false, settles = true, onAbort = () => {}, consoleCount = 1, live = false } = {}) => ({
   contract: jcsCanonical({
     schema: 'ibex/app-bound-worker-bridge-contract/1',
     appBindingDigest: digestValue,
@@ -76,7 +76,11 @@ const fakeBridge = ({ settleAs, graceCall = false, settles = true, onAbort = () 
         const start = JSON.parse(encoded);
         runId = start.runId;
         assert.match(start.body.surface.envelopeDigest, /^sha256-[A-Za-z0-9_-]{43}$/u);
-        frame('call', { callId: '1', functionId: 'app:list', args: {}, timeoutMs: 60000 });
+        if (live) {
+          frame('liveOpen', { subscriptionId: 'live-1', functionId: 'app:watch', args: {}, timeoutMs: 60000 });
+        } else {
+          frame('call', { callId: '1', functionId: 'app:list', args: {}, timeoutMs: 60000 });
+        }
       },
       submit(encoded) {
         const received = JSON.parse(encoded);
@@ -88,7 +92,12 @@ const fakeBridge = ({ settleAs, graceCall = false, settles = true, onAbort = () 
           if (graceCall) frame('call', { callId: '2', functionId: 'app:list', args: {}, timeoutMs: 60000 });
           return;
         }
-        assert.equal(received.type, 'callResult');
+        if (live && received.type === 'liveOpened') {
+          assert.equal(received.body.ok, true);
+          return;
+        }
+        if (live) assert.equal(received.type, 'liveValue');
+        else assert.equal(received.type, 'callResult');
         if (settled) {
           assert.equal(received.body.ok, false);
           assert.equal(received.body.error.code, 'SNAPBACK_APP_CLI_ABORTED');
@@ -96,7 +105,9 @@ const fakeBridge = ({ settleAs, graceCall = false, settles = true, onAbort = () 
         }
         if (!settles) return;
         settled = true;
-        const value = settleAs ?? (received.body.ok ? received.body.value : { caught: true });
+        const value = settleAs ?? (live
+          ? received.body.value
+          : (received.body.ok ? received.body.value : { caught: true }));
         const text = jcsCanonical(value);
         const bytes = Buffer.from(text);
         frame('settlementBegin', { hasValue: true, byteLength: bytes.length, digest: hash(bytes), chunkCount: 1 });
@@ -142,6 +153,42 @@ const hexResult = await runIbexCodeMode({
   graceMs: 1,
 });
 assert.deepEqual(hexResult.value, [{ id: 2 }]);
+delete globalThis.__ibexAppBoundWorkerV1;
+
+// A managed live callback is asynchronous parent work, so it can arrive while
+// the restricted worker is idle in iterator.next() and emitting no frames.
+// The parent must still drain that snapshot instead of deadlocking until the
+// run wall clock expires.
+globalThis.__ibexAppBoundWorkerV1 = fakeBridge({ live: true });
+const liveSurface = Object.freeze({
+  ...surface,
+  functions: Object.freeze([{ id: 'app:watch', name: 'watch', kind: 'liveQuery', argsSchema: null }]),
+});
+let liveDisposed = false;
+const liveResult = await runIbexCodeMode({
+  client: {
+    startLiveQuery(_ref, { onUpdate }) {
+      const established = new Promise((resolve) => {
+        setImmediate(() => {
+          onUpdate([{ id: 'async-live-value' }]);
+          resolve();
+        });
+      });
+      return {
+        started: () => established,
+        dispose: () => { liveDisposed = true; },
+        settled: async () => {},
+      };
+    },
+  },
+  surface: liveSurface,
+  script: 'let value; for await (const rows of api.watch({})) { value = rows; break; } export default value;',
+  scriptSource: 'live-idle-wake.ts',
+  timeoutMs: 500,
+  graceMs: 20,
+});
+assert.deepEqual(liveResult.value, [{ id: 'async-live-value' }]);
+assert.equal(liveDisposed, true);
 delete globalThis.__ibexAppBoundWorkerV1;
 
 const planted = 'planted-sensitive-message-details-and-500-row-value';

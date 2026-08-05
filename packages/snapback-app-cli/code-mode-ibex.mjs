@@ -181,6 +181,21 @@ export async function runIbexCodeMode({
   const timers = new Map();
   const establishmentTimers = new Set();
   const live = new Map();
+  const drainLiveSnapshots = () => {
+    for (const [subscriptionId, row] of live) {
+      const latest = row.snapshots.splice(0).at(-1);
+      if (latest === undefined) continue;
+      try {
+        if (Buffer.byteLength(jcsCanonical(latest)) > limits.frameBytes - 1024) {
+          throw failure('SNAPBACK_APP_CLI_RESOURCE_EXCEEDED', 'a parent live result exceeds the broker frame ceiling', 11);
+        }
+      } catch (error) {
+        if (error?.code === 'SNAPBACK_APP_CLI_RESOURCE_EXCEEDED') throw error;
+        throw failure('SNAPBACK_APP_CLI_ENGINE_INTERNAL', 'a parent live result is outside the strict value profile', 1);
+      }
+      send('liveValue', { subscriptionId, value: latest });
+    }
+  };
   let settlement = null;
   let asynchronousFailure = null;
   let parentSignal = null;
@@ -352,6 +367,10 @@ export async function runIbexCodeMode({
       }
       if (event === undefined) {
         if (observedAt >= deadline) throw failure('SNAPBACK_APP_CLI_TIMEOUT', 'the app-bound script deadline expired', 9);
+        // Live updates are callbacks from the client, not worker-originated
+        // frames. Drain them while the worker is idle on iterator.next();
+        // waiting for another worker frame here deadlocks both sides.
+        drainLiveSnapshots();
         await nextTurn();
         continue;
       }
@@ -531,20 +550,7 @@ export async function runIbexCodeMode({
           ? failure(frame.body.error.code, 'uncaught broker failure', frame.body.error.exitClass)
           : failure('SNAPBACK_APP_CLI_SCRIPT_ERROR', 'the app-bound script failed', 10);
       }
-      for (const [subscriptionId, row] of live) {
-        const latest = row.snapshots.splice(0).at(-1);
-        if (latest !== undefined) {
-          try {
-            if (Buffer.byteLength(jcsCanonical(latest)) > limits.frameBytes - 1024) {
-              throw failure('SNAPBACK_APP_CLI_RESOURCE_EXCEEDED', 'a parent live result exceeds the broker frame ceiling', 11);
-            }
-          } catch (error) {
-            if (error?.code === 'SNAPBACK_APP_CLI_RESOURCE_EXCEEDED') throw error;
-            throw failure('SNAPBACK_APP_CLI_ENGINE_INTERNAL', 'a parent live result is outside the strict value profile', 1);
-          }
-          send('liveValue', { subscriptionId, value: latest });
-        }
-      }
+      drainLiveSnapshots();
     }
     throw failure('SNAPBACK_APP_CLI_ENGINE_INTERNAL', 'restricted worker terminated without an outcome', 1);
   } catch (error) {
