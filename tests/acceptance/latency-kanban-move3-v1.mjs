@@ -10,7 +10,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync, fork } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -24,12 +24,35 @@ import { startServer } from '../../demos/_kit/server-process.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, '../..');
-const DATE = '2026-08-04';
+const RUN_DATE = '2026-08-04';
+const RUN_REVISION = 2;
 const DEMO = join(ROOT, 'demos/latency-kanban');
 const BACKEND = join(DEMO, 'snapback');
 const GENERATED = join(BACKEND, 'generated');
 const FIXTURE_DIR = join(ROOT, 'tests/acceptance/fixtures/latency-kanban');
-const RECEIPT_PATH = join(FIXTURE_DIR, `move3-exit.${DATE}.v1.json`);
+const retainedReceipts = () => readdirSync(FIXTURE_DIR)
+  .map((name) => {
+    const match = name.match(/^move3-exit\.(\d{4}-\d{2}-\d{2})(?:\.r(\d+))?\.v1\.json$/u);
+    return match && {
+      date: match[1],
+      revision: Number(match[2] ?? 1),
+      path: join(FIXTURE_DIR, name),
+    };
+  })
+  .filter(Boolean)
+  .sort((left, right) => (
+    left.date.localeCompare(right.date) || left.revision - right.revision
+  ));
+const retainedReceipt = process.argv.includes('--check')
+  ? retainedReceipts().at(-1)
+  : {
+      date: RUN_DATE,
+      revision: RUN_REVISION,
+      path: join(FIXTURE_DIR, `move3-exit.${RUN_DATE}.r${RUN_REVISION}.v1.json`),
+    };
+assert.ok(retainedReceipt, `no dated Latency Kanban Move-3 receipt in ${FIXTURE_DIR}`);
+const DATE = retainedReceipt.date;
+const RECEIPT_PATH = retainedReceipt.path;
 const EVIDENCE_PATH = join(ROOT, 'tests/acceptance/latency-kanban-move3-v1-evidence.md');
 const SERVER_BINARY = resolve(process.env.SNAPBACK_RUNTIME_BINARY || join(ROOT, 'target/debug/snapback'));
 const SECTION_NAMES = Object.freeze([
@@ -469,7 +492,8 @@ function evidenceMarkdown(receipt) {
   }).join('\n');
   return `# Latency Kanban Move-3 exit evidence
 
-**Run date:** ${DATE}  
+**Run date:** ${DATE}
+
 **Controlled run:** ${receipt.controlledRun.status}
 
 Each row is a separate receipt section. A sandbox socket denial is recorded as
@@ -493,9 +517,26 @@ async function verifyReceipt() {
     if (section.status === 'BLOCKED') assert.match(section.reason, /^SNAPBACK_KANBAN_SANDBOX_SOCKET_BLOCKED:/u);
   }
   for (const file of receipt.source.files) {
-    assert.equal(sha256Hex(await readFile(join(ROOT, file.path))), file.sha256, file.path);
+    assert.equal(
+      sha256Hex(await readFile(join(ROOT, file.path))),
+      file.sha256,
+      `${file.path}: retained receipt source drifted from the working tree`,
+    );
   }
   if (receipt.controlledRun.status === 'PASS') {
+    const activation = JSON.parse(await readFile(
+      join(BACKEND, 'trusted-composition-activation.json'),
+      'utf8',
+    ));
+    assert.equal(activation.format, 'snapback.trusted-composition-activation.v1');
+    assert.equal(receipt.controlledRun.activation.activationHash, activation.activationHash);
+    assert.equal(
+      receipt.controlledRun.activation.deploymentId,
+      activation.activation.deploymentId,
+    );
+    for (const plan of Object.values(receipt.sections.sourceIdentity.evidence.generatedPlans)) {
+      assert.deepEqual(plan.activation, activation.activation.expectedGeneration);
+    }
     assert.equal(receipt.summary.pass, 5);
     assert.equal(receipt.summary.blocked, 0);
     assert.deepEqual(Object.keys(receipt.sections.localEvaluation.evidence.latencyMs).sort(), [

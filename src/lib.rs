@@ -23,9 +23,9 @@ pub mod embed;
 #[doc(hidden)]
 pub mod admin;
 #[doc(hidden)]
-pub mod admin_link;
-#[doc(hidden)]
 pub mod admin_impersonation;
+#[doc(hidden)]
+pub mod admin_link;
 #[doc(hidden)]
 pub mod admin_secret_read;
 pub(crate) mod agent_safe_publication;
@@ -115,9 +115,9 @@ pub(crate) mod membership_rules;
 pub mod migration;
 #[doc(hidden)]
 pub mod migration_presentation;
-pub(crate) mod operation_detail;
 #[doc(hidden)]
 pub mod network_profile;
+pub(crate) mod operation_detail;
 #[doc(hidden)]
 pub mod operation_ledger;
 #[doc(hidden)]

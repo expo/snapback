@@ -18,13 +18,13 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 use crate::commit_envelope::{
-    ClientIdentityRangeV1, CommitEnvelopeV1, ExplanationDispositionV1, IdentityEpochStateV1,
-    FactProvenanceV1, IdentityEpochV1, OperationCoverageManifestV1, OperationIdentityComparison,
-    OperationIdentityTombstoneV1, OperationIdentityV1, OperationIssuanceV1,
-    OperationLookupDispositionV1, OperationOriginatorClassV1, OperationSuppressionRecordV1,
-    OperationTerminalOutcomeV1, PendingOperationLifecycleV1, PendingOperationTerminalOutcomeV1,
-    PendingOperationTerminalSupplementV1, RetainedEnvelopeDetailV1, SnapshotAssociationKindV1,
-    derive_host_operation_id,
+    ClientIdentityRangeV1, CommitEnvelopeV1, ExplanationDispositionV1, FactProvenanceV1,
+    IdentityEpochStateV1, IdentityEpochV1, OperationCoverageManifestV1,
+    OperationIdentityComparison, OperationIdentityTombstoneV1, OperationIdentityV1,
+    OperationIssuanceV1, OperationLookupDispositionV1, OperationOriginatorClassV1,
+    OperationSuppressionRecordV1, OperationTerminalOutcomeV1, PendingOperationLifecycleV1,
+    PendingOperationTerminalOutcomeV1, PendingOperationTerminalSupplementV1,
+    RetainedEnvelopeDetailV1, SnapshotAssociationKindV1, derive_host_operation_id,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 
@@ -58,10 +58,13 @@ pub(crate) struct HostIncarnationAuthorityV1 {
     pub authority_authenticator_digest: String,
 }
 
+// Lookup results cross the storage/runtime boundary as one explicit value.
+// Boxing the common exact-replay arm would add an allocation to every retry.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum OperationLookupV1 {
     Novel,
-    ExactReplay(OperationSuppressionRecordV1),
+    ExactReplay(Box<OperationSuppressionRecordV1>),
     ResultExpired {
         outcome: OperationTerminalOutcomeV1,
         receipt_digest: String,
@@ -1988,16 +1991,14 @@ fn authenticate_operation_identity(
         commit_ordinal,
         ..
     } = &identity.issuance
-    {
-        if upstream_identity.trim().is_empty()
+        && (upstream_identity.trim().is_empty()
             || identity.key.operation_id
-                != derive_host_operation_id(upstream_identity, *commit_ordinal)
-        {
-            return Err(refused(
-                "SNAPBACK_HOST_OPERATION_IDENTITY_INVALID",
-                "host operation id does not match its authenticated upstream derivation",
-            ));
-        }
+                != derive_host_operation_id(upstream_identity, *commit_ordinal))
+    {
+        return Err(refused(
+            "SNAPBACK_HOST_OPERATION_IDENTITY_INVALID",
+            "host operation id does not match its authenticated upstream derivation",
+        ));
     }
     let epoch: Option<(i64, String, String, String)> = conn
         .query_row(
@@ -2061,7 +2062,7 @@ pub fn lookup_operation(
         reject_divergence(&identity, proposed)?;
         let record: OperationSuppressionRecordV1 =
             decode(&record_json, "stored suppression record")?;
-        return Ok(OperationLookupV1::ExactReplay(record));
+        return Ok(OperationLookupV1::ExactReplay(Box::new(record)));
     }
 
     let tombstone: Option<String> = conn
@@ -2309,15 +2310,17 @@ pub fn operator_purge_client_operations_in(
               WHERE stream_id=?1 AND originator_class='client' AND operation_id=?2",
         )?;
         let bodies = statement
-            .query_map(params![stream_id, operation_id], |row| row.get::<_, String>(0))?
+            .query_map(params![stream_id, operation_id], |row| {
+                row.get::<_, String>(0)
+            })?
             .collect::<Result<Vec<_>, _>>()?;
         drop(statement);
         for body in bodies {
             let identity: OperationIdentityV1 = decode(&body, "purged operation identity")?;
             if identity.bound_facts.principal_fingerprint != *principal_fingerprint
-                || authority_instance_id.as_ref().is_some_and(|expected| {
-                    identity.bound_facts.authority_instance_id != *expected
-                })
+                || authority_instance_id
+                    .as_ref()
+                    .is_some_and(|expected| identity.bound_facts.authority_instance_id != *expected)
             {
                 return Err(invalid(
                     "operator purge settlement and operation authority diverged",

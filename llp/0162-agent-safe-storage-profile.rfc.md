@@ -19,6 +19,13 @@ strictly earlier C. No performance artifact was created for the abandoned
 candidate; no threshold, protocol, estimator, or claim changed. A new exact
 clean candidate must rerun every original gate.
 
+Candidate `86a43eacc6aaaf4b7af23d619eaf6b52dbbda138` contained that
+repair and passed the clean withheld-state checker, but it likewise produced no
+performance artifact: the immediately preceding fetch found newer
+`origin/main` that was not its ancestor. The lane therefore integrates and
+reconciles that mainline before freezing the next candidate, so no post-C source
+merge can evade the publication history guard.
+
 **Implementation evidence:** 2026-08-03 (dated candidate evidence recorded:
 the comparable read/write/idle observations are within threshold on the step-0
 machine, but the historical runs were ordinal-zipped rather than experimentally

@@ -16,6 +16,21 @@ export { formatCodegenSummary } from './codegen-summary.mjs';
 /** Canonical sorted projection of Rust's registry-owned experimental ids. */
 export function experimentalTargetCapabilityIdsCanonicalJson(): string;
 
+/**
+ * Validates the closed, server-prepared trust root before codegen publishes it.
+ * The returned value is the same candidate, preserving its caller-known shape.
+ */
+export function validateTrustedCompositionActivationV1<
+  const Activation extends Readonly<Record<string, unknown>>,
+>(
+  candidate: Activation,
+  options: Readonly<{
+    expectedGeneration: unknown;
+    targetProfileId: string;
+    authMode: string;
+  }>,
+): Activation;
+
 export interface CodegenDiagnostic {
   readonly code: string;
   readonly severity: 'error' | 'warning' | 'info';
@@ -301,6 +316,42 @@ export interface GenerateSuccess {
 }
 
 export type GenerateResult = GenerateFailure | GenerateSuccess;
+
+/** The closed `snapback.trusted-composition-activation.v1` record. */
+export interface TrustedCompositionActivationV1 {
+  format: 'snapback.trusted-composition-activation.v1';
+  activation: {
+    format: 'snapback.composition-activation.v1';
+    databaseId: string;
+    deploymentId: string;
+    targetProfileId: string;
+    authMode: string;
+    expectedGeneration: unknown;
+    proofKeyManifestDigest: string;
+  };
+  activationHash: string;
+  proofKeys: {
+    format: 'snapback.completeness-proof-keys.v1';
+    keys: ReadonlyArray<{
+      proofKeyId: string;
+      algorithm: 'Ed25519';
+      publicKeyBase64url: string;
+    }>;
+  };
+}
+
+/**
+ * Validates a trusted-composition-activation record against the generated
+ * deployment it must bind; returns the validated record or throws.
+ */
+export function validateTrustedCompositionActivationV1(
+  candidate: unknown,
+  options: Readonly<{
+    expectedGeneration: unknown;
+    targetProfileId: string;
+    authMode: string;
+  }>,
+): TrustedCompositionActivationV1;
 
 /**
  * Runs generation in a fresh cache-busting worker process; never rejects —

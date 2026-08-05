@@ -5,7 +5,19 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-03 (OQ7 ruled — the Phase-0 evidence gate splits;
+**Revised:** 2026-08-04 (write-rung-2 EXIT accepted — Calendar gate 8/8
+on the unwidened ceiling; rung 2 closes, no write-lane phase open; see
+the dated EXIT block under OQ5.)
+2026-08-04 (rung-2 evidence-gate half (a) accepted — the
+no-widening reading; W2/W3 collapse as evidence-vacuous, W4 proceeds on
+rung 1's ceiling; see the dated acceptance under OQ5.)
+2026-08-04 (read-lane capability activation record:
+`single_table_v1` registered/required and source-qualified local support
+published; no write-rung authority changes). 2026-08-04 (OQ5 dated ruling — write rung 2 (LLP 0155
+Move 4) opened: owner/timebox recorded, Candidate-A framing and the
+Calendar shipping-vs-lab disposition stated;
+`issues/20260804-0129-write-rung2-ruling.md`.)
+2026-08-03 (OQ7 ruled — the Phase-0 evidence gate splits;
 author decision sitting #2,
 `issues/20260803-author-decision-sitting-2.md`; see §Open questions 7.)
 2026-08-02 (ledger row 1 implementation record — LLP 0133's
@@ -1742,6 +1754,67 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
    > in the program ticket. **Phase-2 scheduling returns to this
    > document's machinery**: no phase is open; opening Phase 2 is a
    > future author act with its own owner/timebox ruling.
+   >
+   > **Dated ruling (2026-08-04, Charlie Cheever) — write rung 2 only.**
+   > Recorded from `issues/20260804-0129-write-rung2-ruling.md`. This
+   > ruling opens exactly LLP 0155 write rung 2 (Move 4's entry point)
+   > as the write lane's next phase under this Plan's machinery. Owner:
+   > Charlie Cheever as deciding author, executing through the current
+   > session's codex-implemented lane under session supervision.
+   > Evidence gate, presented to the author by **2026-08-11**: (a) a
+   > widened-ceiling sizing spike — the measured browser-evaluator
+   > closure delta for exactly the verb subset Contention Calendar's
+   > common path needs (candidate set `AllocateSequence`, `Delete`,
+   > `Let`; widened further only with measurement) — and (b) the LLP
+   > 0051 D5 conformance corpus extended to cover every newly exported
+   > verb, passing Rust-vs-JS exactly. Exit: the Calendar-gate exit
+   > presentation by **2026-08-18**. Advancement stays author-presented;
+   > a missed timebox returns here for a fresh dated ruling rather than
+   > sliding silently. Two explicit dispositions: verb widening is
+   > Candidate-A substrate work under rung 1's authority per LLP 0155 —
+   > it is not a detection of open question 4's Option-C trigger and
+   > makes no admission claim (LLP 0130 ER-1 reserves that to the
+   > author); Contention Calendar serves as this rung's shipping exit
+   > application while remaining the decision lab's frozen manifest —
+   > the lab is untouched and Field Notebook, the rung-3 discriminator,
+   > is not used or repurposed. The browser-WASM ladder (Phase 2a) and
+   > desktop ladder (Phase 2b) remain unassigned.
+   >
+   > **Evidence-gate half (a) ACCEPTED (2026-08-04, Charlie Cheever) —
+   > the no-widening reading.** The W1 sizing spike
+   > (`tests/acceptance/fixtures/write-lane/
+   > rung2-sizing-spike.2026-08-04.v1.md`, landed 589bee2cc) measured
+   > Contention Calendar's frozen common path as exactly one `Insert` —
+   > `AllocateSequence`, `Delete`, and `Let` occur zero times (loser
+   > correction is settlement-layer retirement; retry idempotence is
+   > protocol identity) — and recommended retaining the
+   > `Insert`/`Get`/`Guard`/`Patch` ceiling; measured widening deltas
+   > (+1,118 min / +328 gzip cumulative) are retained as evidence. The
+   > author accepts the reading: the ceiling stays unwidened, the
+   > program's W2 (D5 extension for newly exported verbs) and W3
+   > (evaluator widening) lanes collapse as evidence-vacuous, and the
+   > rung proceeds directly to W4 (the Calendar exit application) on
+   > rung 1's existing ceiling. A later inexpressibility finding
+   > returns here for a fresh dated ruling; nothing in this acceptance
+   > is an Option-C trigger detection or admission (LLP 0130 ER-1).
+   >
+   > **Write-rung-2 EXIT (2026-08-04, Charlie Cheever): ACCEPTED.** The
+   > Calendar exit gate was presented and accepted the same day, two
+   > weeks ahead of the timebox: the transcribed gate passed 8/8 with 0
+   > blocked on a real served run
+   > (`tests/acceptance/fixtures/contention-calendar/
+   > rung2-exit.2026-08-04.r1.v1.json`, landed 917b16e7c) — provisional
+   > sub-frame render, exactly-one winner across two racing clients,
+   > loser-correction with zero provisional residue, ambiguous-retry
+   > idempotence with identical idMap, non-overlap success, observer
+   > convergence, owned cleanup — all on rung 1's unwidened
+   > `Insert`/`Get`/`Guard`/`Patch` ceiling (the generated plan carries a
+   > sole `Insert`). W1 and W4 complete; W2/W3 collapsed under the
+   > accepted evidence reading. Write rung 2 closes; LLP 0155 Move 4's
+   > exit application is delivered. Rung-3 and decision-lab scheduling
+   > return to this document's machinery: no write-lane phase is open,
+   > and opening one is a future author act with its own owner/timebox
+   > ruling (OQ10/OQ11 remain the lab's open prerequisites).
 6. **The ephemeral no-sync pin.** Does the proposed LLP 0013
    amendment (0126 OQ8; constraint 4) land with Phase 0 or
    independently, and who writes it?
@@ -1817,3 +1890,15 @@ scope; both were adjudicated 2026-07-30 and no longer gate this Plan
     should become conformance on both executions plus mismatch
     refusal/quarantine/resync tests — but naming that owner is the
     author's call.
+
+## Read-lane capability activation record — 2026-08-04
+
+The LLP 0155/0157/0166 read lane has activated `single_table_v1`: the id is
+registered at experimental maturity, qualifying generated artifacts require
+it, and the contributor-source local target publishes support only through
+LLP 0110's exact store/class carrier. The legacy-to-QMK path stays
+connected-only prove-or-fresh and pending-intent-safe; Arm A adds no
+`AuthorizedLease`. Public packages, remote/hosted targets, and Fleet remain
+false/GAP. This record satisfies the capability board for the introduction
+act and changes no Phase, Option-C trigger, write-rung owner/timebox, or
+current OQ disposition in this Plan.

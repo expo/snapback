@@ -4,13 +4,13 @@ id: backend.snapshot-batches
 order: 27
 audience: agent-first
 capabilities: [backend.snapshot-batch-v1]
-authorities: [llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, src/manifest.rs, src/local.rs, src/snapshot_batch_cursor.rs, packages/snapback-codegen/define.mjs]
+authorities: [llp/0135-sequence-allocation-and-snapshot-batch.spec.md, llp/0157-composition-algebra-and-completeness.spec.md, llp/0110-bounded-children-and-activity-patterns.spec.md, llp/0166-local-persistent-store.spec.md, src/manifest.rs, src/local.rs, src/snapshot_batch_cursor.rs, packages/snapback-codegen/define.mjs]
 examples: [packages/snapback-codegen/relation-activity-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-08-03
-reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
+reviewed: 2026-08-04
+reviewed-commit: HEAD
 ---
 
 # Snapshot batches
@@ -19,6 +19,12 @@ reviewed-commit: 6e5d69d1037c6042fb9338221dfb489e00f5f78a
 > contributor local SQLite/Ibex target. Hosted targets and public runtime
 > packages do not claim it. An artifact must acknowledge both
 > `snapshot_batch_v1` and its `bounded_children_v1` dependency.
+
+`single_table_v1` is a separate experimental sibling selected automatically
+for qualifying public authority-independent declarative live queries. It is
+single-node-only and therefore cannot be placed inside a snapshot batch; its
+Arm A retained answer and QMK adoption rules are documented under
+[offline retention](../sync/offline-and-retention.md).
 
 Use `defineSnapshotBatchQuery` when one screen needs several independently
 bounded child lists from one authoritative snapshot. Build each node with

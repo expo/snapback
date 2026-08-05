@@ -43,20 +43,25 @@ pub const HISTORY_MAX_ROWS_PER_TABLE: u64 = 100_000;
 pub const HISTORY_PAGE_MAX: u32 = 1_000;
 
 #[cfg(test)]
+type CheckpointSyncHook = Box<dyn FnOnce(&Path) -> SnapbackResult<()>>;
+
+#[cfg(test)]
 thread_local! {
     static CHECKPOINT_AFTER_PIN_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
         const { std::cell::RefCell::new(None) };
     static CHECKPOINT_AFTER_INTENT_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
         const { std::cell::RefCell::new(None) };
-    static CHECKPOINT_SYNC_HOOK: std::cell::RefCell<
-        Option<Box<dyn FnOnce(&Path) -> SnapbackResult<()>>>
-    > = const { std::cell::RefCell::new(None) };
+    static CHECKPOINT_SYNC_HOOK: std::cell::RefCell<Option<CheckpointSyncHook>> =
+        const { std::cell::RefCell::new(None) };
 }
 
 #[cfg(test)]
 fn install_checkpoint_after_intent_hook(hook: impl FnOnce() + 'static) {
     CHECKPOINT_AFTER_INTENT_HOOK.with(|slot| {
-        assert!(slot.borrow().is_none(), "checkpoint intent hook is one-shot");
+        assert!(
+            slot.borrow().is_none(),
+            "checkpoint intent hook is one-shot"
+        );
         *slot.borrow_mut() = Some(Box::new(hook));
     });
 }
@@ -674,23 +679,21 @@ impl ProtectedRecordErasureAuthorityV1 {
                 "protected-record erasure requires its registered product invocation source",
             ));
         }
-        let (mode, principal_id, audit_class) = match (
-            authority.active_mode(),
-            authority.resolved(),
-        ) {
-            (AuthMode::Dev, ResolvedAppAuthority::Anonymous) => {
-                ("dev", "operator:local-admin", "anonymous-admin-transport")
-            }
-            (AuthMode::Sessions, ResolvedAppAuthority::AdminBypass { .. }) => {
-                ("sessions", "operator:admin-bypass", "admin-bypass")
-            }
-            _ => {
-                return Err(proof_error(
-                    "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
-                    "protected-record erasure requires current administrative authority",
-                ));
-            }
-        };
+        let (mode, principal_id, audit_class) =
+            match (authority.active_mode(), authority.resolved()) {
+                (AuthMode::Dev, ResolvedAppAuthority::Anonymous) => {
+                    ("dev", "operator:local-admin", "anonymous-admin-transport")
+                }
+                (AuthMode::Sessions, ResolvedAppAuthority::AdminBypass { .. }) => {
+                    ("sessions", "operator:admin-bypass", "admin-bypass")
+                }
+                _ => {
+                    return Err(proof_error(
+                        "SNAPBACK_PROTECTED_ERASURE_AUTHORITY_INVALID",
+                        "protected-record erasure requires current administrative authority",
+                    ));
+                }
+            };
         let profile = match authority.profile() {
             ServerProfile::Dev => "dev",
             ServerProfile::Demo => "demo",
@@ -721,7 +724,9 @@ impl ProtectedRecordErasureAuthorityV1 {
         });
         let authority_fingerprint = format!(
             "sha256:{}",
-            hex(&Sha256::digest(canonical(&fingerprint_preimage)?.as_bytes()))
+            hex(&Sha256::digest(
+                canonical(&fingerprint_preimage)?.as_bytes()
+            ))
         );
         Ok(Self {
             principal_id: principal_id.to_owned(),
@@ -945,6 +950,7 @@ pub(crate) fn create_infra(conn: &Connection) -> SnapbackResult<()> {
 ///
 /// @ref LLP 0162#6-bounded-history-and-named-checkpoints — history retention
 /// never pins or derives from the sync-resume floor.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn record_history_change(
     tx: &Transaction<'_>,
     version: u64,
@@ -1189,6 +1195,7 @@ pub(crate) fn prune_record_history(conn: &Connection, now_ms: u64) -> SnapbackRe
 /// Read history with the two-part fail-closed rule. Pagination is applied
 /// after per-version authorization; `next_visible_offset` counts only visible
 /// entries and therefore cannot disclose how many versions were elided.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn read_record_history(
     conn: &Connection,
     table: &str,
@@ -1897,9 +1904,7 @@ fn ensure_checkpoint_producer_current(
 
 fn protected_erasure_generation(conn: &Connection) -> SnapbackResult<u64> {
     conn.query_row(
-        &format!(
-            "SELECT generation FROM {PROTECTED_ERASURE_GENERATION_TABLE} WHERE id=1"
-        ),
+        &format!("SELECT generation FROM {PROTECTED_ERASURE_GENERATION_TABLE} WHERE id=1"),
         [],
         |row| row.get(0),
     )
@@ -2268,24 +2273,14 @@ fn create_named_checkpoint_inner(
     admit_checkpoint_intent(conn, &intent_record, &recovery_intent)?;
     maybe_cut(cut_at, CheckpointPublicationCut::AfterRegistryIntent)?;
     run_checkpoint_after_intent_hook();
-    ensure_checkpoint_producer_current(
-        conn,
-        &checkpoint_id,
-        erasure_generation,
-        request.now_ms,
-    )?;
+    ensure_checkpoint_producer_current(conn, &checkpoint_id, erasure_generation, request.now_ms)?;
     fs::create_dir(&staging).map_err(|error| io_error("create checkpoint staging", error))?;
     File::create(staging.join(CHECKPOINT_SENTINEL))
         .and_then(|file| file.sync_all())
         .map_err(|error| io_error("write checkpoint staging sentinel", error))?;
     sync_directory(&staging)?;
     maybe_cut(cut_at, CheckpointPublicationCut::AfterSentinelSync)?;
-    ensure_checkpoint_producer_current(
-        conn,
-        &checkpoint_id,
-        erasure_generation,
-        request.now_ms,
-    )?;
+    ensure_checkpoint_producer_current(conn, &checkpoint_id, erasure_generation, request.now_ms)?;
 
     let source =
         Connection::open_with_flags(source_database, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
@@ -2363,12 +2358,7 @@ fn create_named_checkpoint_inner(
     drop(target);
     tx.commit()?;
     maybe_cut(cut_at, CheckpointPublicationCut::AfterCopy)?;
-    ensure_checkpoint_producer_current(
-        conn,
-        &checkpoint_id,
-        erasure_generation,
-        request.now_ms,
-    )?;
+    ensure_checkpoint_producer_current(conn, &checkpoint_id, erasure_generation, request.now_ms)?;
 
     let copied = Connection::open_with_flags(
         &staging_database,
@@ -2404,29 +2394,14 @@ fn create_named_checkpoint_inner(
         .map_err(|error| io_error("sync checkpoint database", error))?;
     sync_directory(&staging)?;
     maybe_cut(cut_at, CheckpointPublicationCut::AfterEvidenceSync)?;
-    ensure_checkpoint_producer_current(
-        conn,
-        &checkpoint_id,
-        erasure_generation,
-        request.now_ms,
-    )?;
+    ensure_checkpoint_producer_current(conn, &checkpoint_id, erasure_generation, request.now_ms)?;
     fs::rename(&staging, destination)
         .map_err(|error| io_error("publish checkpoint rename", error))?;
     maybe_cut(cut_at, CheckpointPublicationCut::AfterRename)?;
-    ensure_checkpoint_producer_current(
-        conn,
-        &checkpoint_id,
-        erasure_generation,
-        request.now_ms,
-    )?;
+    ensure_checkpoint_producer_current(conn, &checkpoint_id, erasure_generation, request.now_ms)?;
     sync_directory(parent)?;
     maybe_cut(cut_at, CheckpointPublicationCut::AfterParentSync)?;
-    ensure_checkpoint_producer_current(
-        conn,
-        &checkpoint_id,
-        erasure_generation,
-        request.now_ms,
-    )?;
+    ensure_checkpoint_producer_current(conn, &checkpoint_id, erasure_generation, request.now_ms)?;
     let record = CheckpointRegistryRecordV1 {
         state: CheckpointRegistryStateV1::Published,
         receipt: receipt.clone(),
@@ -2469,7 +2444,11 @@ pub(crate) fn create_named_checkpoint(
         return Err(error);
     };
     if record.state == CheckpointRegistryStateV1::Invalid && record.producer_active {
-        acknowledge_cancelled_checkpoint_producer(conn, &record.receipt.checkpoint_id, request.now_ms)?;
+        acknowledge_cancelled_checkpoint_producer(
+            conn,
+            &record.receipt.checkpoint_id,
+            request.now_ms,
+        )?;
         return Err(error);
     }
     match recover_checkpoint(conn, &record.receipt.checkpoint_id, request.now_ms) {
@@ -2581,16 +2560,14 @@ fn erase_checkpoint_with(
                 if !record.producer_active {
                     record.state = CheckpointRegistryStateV1::Erased;
                     record.open_erasure_obligation = false;
-                    record.receipt.copy_disposition =
-                        Some(CheckpointCopyDispositionV1::Destroyed);
+                    record.receipt.copy_disposition = Some(CheckpointCopyDispositionV1::Destroyed);
                 }
             }
             Err(error) if error.kind() == ErrorKind::NotFound => {
                 if !record.producer_active {
                     record.state = CheckpointRegistryStateV1::Erased;
                     record.open_erasure_obligation = false;
-                    record.receipt.copy_disposition =
-                        Some(CheckpointCopyDispositionV1::Destroyed);
+                    record.receipt.copy_disposition = Some(CheckpointCopyDispositionV1::Destroyed);
                 }
             }
             Err(_) => {
@@ -2771,8 +2748,8 @@ fn begin_protected_record_erasure(
         }
         if !terminal {
             record.state = CheckpointRegistryStateV1::Invalid;
-            record.open_erasure_obligation = materialized
-                && (record.destination.is_some() || record.staging.is_some());
+            record.open_erasure_obligation =
+                materialized && (record.destination.is_some() || record.staging.is_some());
             if materialized {
                 record.receipt.copy_disposition =
                     Some(CheckpointCopyDispositionV1::InvalidUnreachable);
@@ -3868,10 +3845,8 @@ mod tests {
             },
         )
         .expect("prepare registered protected-erasure authority");
-        let credential = ProtectedErasureAdminCredentialBinding::for_test(
-            "master-admin",
-            authority_label,
-        );
+        let credential =
+            ProtectedErasureAdminCredentialBinding::for_test("master-admin", authority_label);
         ProtectedRecordErasureRequestV1 {
             operation_id: operation_id.to_owned(),
             authority: ProtectedRecordErasureAuthorityV1::from_prepared(&prepared, &credential)
@@ -3903,11 +3878,9 @@ mod tests {
         assert_eq!(carrier.authority_fingerprint().len(), 71);
         let different_credential =
             ProtectedErasureAdminCredentialBinding::for_test("master-admin", "admin-b");
-        let different_carrier = ProtectedRecordErasureAuthorityV1::from_prepared(
-            &prepared,
-            &different_credential,
-        )
-        .expect("derive other concrete admin credential");
+        let different_carrier =
+            ProtectedRecordErasureAuthorityV1::from_prepared(&prepared, &different_credential)
+                .expect("derive other concrete admin credential");
         assert_ne!(
             carrier.authority_instance_id(),
             different_carrier.authority_instance_id(),
@@ -4331,9 +4304,16 @@ mod tests {
         )
         .expect("atomic erasure retains unreachable obligation");
         assert_eq!(open.state, ProtectedRecordErasureStateV1::OpenObligations);
-        assert_eq!(open.copies.len(), 2, "all materialized registry entries bind");
+        assert_eq!(
+            open.copies.len(),
+            2,
+            "all materialized registry entries bind"
+        );
         assert!(!active_path.exists());
-        assert!(expired_path.exists(), "unreachable expired copy stays an obligation");
+        assert!(
+            expired_path.exists(),
+            "unreachable expired copy stays an obligation"
+        );
         let canonical_and_detail: (u64, u64, u64) = registry
             .query_row(
                 &format!(
@@ -4396,12 +4376,8 @@ mod tests {
                 .code,
             "SNAPBACK_CHECKPOINT_PROTECTED_ERASURE_FENCED"
         );
-        let divergent_authority = protected_erasure_request(
-            "erase:item-a",
-            "operator-b",
-            "item-a",
-            70_002,
-        );
+        let divergent_authority =
+            protected_erasure_request("erase:item-a", "operator-b", "item-a", 70_002);
         assert_eq!(
             database
                 .erase_protected_record(&divergent_authority)
@@ -4446,14 +4422,13 @@ mod tests {
         let after = reopened
             .create_named_checkpoint(Some(&after_path), &checkpoint_request(70_004))
             .expect("new checkpoint is admitted after fence completion");
-        let copied_database = after_path.join(
-            database_path
-                .file_name()
-                .expect("database filename"),
-        );
+        let copied_database =
+            after_path.join(database_path.file_name().expect("database filename"));
         let copied_rows: u64 = Connection::open(copied_database)
             .expect("open post-erasure copy")
-            .query_row("SELECT COUNT(*) FROM items WHERE _id='item-a'", [], |row| row.get(0))
+            .query_row("SELECT COUNT(*) FROM items WHERE _id='item-a'", [], |row| {
+                row.get(0)
+            })
             .expect("copied target count");
         assert_eq!(copied_rows, 0, "new copies cannot resurrect erased bytes");
         reopened
@@ -4466,12 +4441,8 @@ mod tests {
         let exact_temp = tempfile::tempdir().expect("exact-retry tempdir");
         let exact_database_path = exact_temp.path().join("source.sqlite");
         drop(seeded_file_database(&exact_database_path));
-        let exact_request = protected_erasure_request(
-            "erase-concurrent-exact",
-            "operator-a",
-            "item-a",
-            75_000,
-        );
+        let exact_request =
+            protected_erasure_request("erase-concurrent-exact", "operator-a", "item-a", 75_000);
         let exact_barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
         let exact_receipts = std::thread::scope(|scope| {
             let mut handles = Vec::new();
@@ -4499,9 +4470,11 @@ mod tests {
             exact_receipts[0].canonical_delete_version,
             exact_receipts[1].canonical_delete_version
         );
-        assert!(exact_receipts
-            .iter()
-            .all(|receipt| receipt.state == ProtectedRecordErasureStateV1::Complete));
+        assert!(
+            exact_receipts
+                .iter()
+                .all(|receipt| receipt.state == ProtectedRecordErasureStateV1::Complete)
+        );
         let exact_reader = Connection::open(&exact_database_path).expect("inspect exact retry");
         let exact_tombstones: u64 = exact_reader
             .query_row(
@@ -4531,18 +4504,8 @@ mod tests {
             .expect("insert second divergent target");
         drop(divergent_database);
         let divergent_requests = [
-            protected_erasure_request(
-                "erase-concurrent-divergent",
-                "operator-a",
-                "item-a",
-                76_000,
-            ),
-            protected_erasure_request(
-                "erase-concurrent-divergent",
-                "operator-b",
-                "item-b",
-                76_001,
-            ),
+            protected_erasure_request("erase-concurrent-divergent", "operator-a", "item-a", 76_000),
+            protected_erasure_request("erase-concurrent-divergent", "operator-b", "item-b", 76_001),
         ];
         let divergent_barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
         let divergent_results = std::thread::scope(|scope| {
@@ -4672,12 +4635,8 @@ mod tests {
         let database_path = temp.path().join("source.sqlite");
         let destination = temp.path().join("racing-checkpoint");
         let mut database = seeded_file_database(&database_path);
-        let erasure_request = protected_erasure_request(
-            "erase-racing-checkpoint",
-            "operator-a",
-            "item-a",
-            90_000,
-        );
+        let erasure_request =
+            protected_erasure_request("erase-racing-checkpoint", "operator-a", "item-a", 90_000);
         let hook_database = database_path.clone();
         let hook_request = erasure_request.clone();
         install_checkpoint_after_pin_hook(move || {
@@ -4690,7 +4649,10 @@ mod tests {
                 None,
             )
             .expect("concurrent erasure installs an open fence");
-            assert_eq!(receipt.state, ProtectedRecordErasureStateV1::OpenObligations);
+            assert_eq!(
+                receipt.state,
+                ProtectedRecordErasureStateV1::OpenObligations
+            );
         });
         let error = database
             .create_named_checkpoint(Some(&destination), &checkpoint_request(89_000))
@@ -4882,7 +4844,8 @@ mod tests {
             drop(conn);
             drop(database);
 
-            let reopened = LocalDatabase::open(&database_path).expect("reopen after producer crash");
+            let reopened =
+                LocalDatabase::open(&database_path).expect("reopen after producer crash");
             let recovered = reopened
                 .recover_named_checkpoint(&checkpoint_id, 94_000 + index as u64)
                 .expect("recovery successor destroys stale generation and acknowledges");

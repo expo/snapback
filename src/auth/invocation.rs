@@ -1511,10 +1511,9 @@ impl InvocationGate {
                 InvocationSource::HostOperationFunctionRun
                 | InvocationSource::HostOperationMutationDryRun,
             ) => AuthorityAuditFact::HostOperationImpersonation,
-            (
-                ResolvedAppAuthority::DevImpersonation { .. },
-                InvocationSource::BranchOperation,
-            ) => AuthorityAuditFact::BranchPrincipal,
+            (ResolvedAppAuthority::DevImpersonation { .. }, InvocationSource::BranchOperation) => {
+                AuthorityAuditFact::BranchPrincipal
+            }
             (ResolvedAppAuthority::DevImpersonation { .. }, _) => {
                 AuthorityAuditFact::DevBodyAuthority
             }

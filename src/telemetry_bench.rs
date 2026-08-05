@@ -240,7 +240,7 @@ pub fn run_phase1_benchmark(
         || config.flush_batch_size > 1_024
         || config.sweep_rows < 1
         || config.query_rows < QUERY_NAMES_PER_BUCKET * 2
-        || config.query_rows % (QUERY_NAMES_PER_BUCKET * 2) != 0
+        || !config.query_rows.is_multiple_of(QUERY_NAMES_PER_BUCKET * 2)
         || config.query_samples < 1
         || config.app_samples < 1
     {

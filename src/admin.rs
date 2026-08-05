@@ -39,7 +39,6 @@ use base64::Engine as _;
 use futures_util::StreamExt as _;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
-use subtle::ConstantTimeEq as _;
 use std::collections::{BTreeSet, HashMap};
 use std::ffi::OsString;
 use std::fmt;
@@ -56,6 +55,7 @@ use std::{
         unix::{ffi::OsStrExt as _, fs::OpenOptionsExt as _},
     },
 };
+use subtle::ConstantTimeEq as _;
 #[cfg(unix)]
 use tokio::io::AsyncReadExt as _;
 use tokio::sync::Mutex;
@@ -220,9 +220,7 @@ pub(crate) fn operation_profile_requirement(
         // available in every profile and writes must reach the network-profile
         // activation gate so its finer hosted/Prod policy and refusal codes
         // remain authoritative. Do not preempt that gate with NonProd here.
-        "debug.networkProfileGet" | "debug.networkProfileSet" => {
-            OperationProfileRequirement::Any
-        }
+        "debug.networkProfileGet" | "debug.networkProfileSet" => OperationProfileRequirement::Any,
         "app.reset"
         | "app.ensure.provision"
         | "app.seed.ensure.v1"
@@ -471,9 +469,7 @@ impl ConsoleCredentialRegistry {
                             "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted credential digest is invalid"
                         ))?;
                     let lifetime_cap = match persisted.provenance {
-                        ConsoleCredentialProvenance::Standard => {
-                            CONSOLE_CREDENTIAL_MAX_LIFETIME
-                        }
+                        ConsoleCredentialProvenance::Standard => CONSOLE_CREDENTIAL_MAX_LIFETIME,
                         ConsoleCredentialProvenance::OperatorClaim => {
                             CONSOLE_CLAIM_CREDENTIAL_MAX_LIFETIME
                         }
@@ -519,12 +515,10 @@ impl ConsoleCredentialRegistry {
                                 .credential_max_expires_at_ms
                                 .saturating_sub(persisted.redeemed_at_ms)
                                 <= CONSOLE_CLAIM_CREDENTIAL_MAX_LIFETIME.as_millis() as u64
-                            && persisted
-                                .revoked_at_ms
-                                .is_none_or(|revoked| {
-                                    revoked >= persisted.redeemed_at_ms
-                                        && revoked <= persisted.credential_max_expires_at_ms
-                                }),
+                            && persisted.revoked_at_ms.is_none_or(|revoked| {
+                                revoked >= persisted.redeemed_at_ms
+                                    && revoked <= persisted.credential_max_expires_at_ms
+                            }),
                         "SNAPBACK_ADMIN_CONSOLE_CREDENTIAL_STORE_INVALID: persisted claim redemption lifetime is invalid"
                     );
                     if persisted.credential_max_expires_at_ms > now_ms {
@@ -879,22 +873,22 @@ fn persist_console_credentials(state: &ConsoleCredentialState) -> std::io::Resul
     let mut claim_redemptions = state
         .claim_redemptions
         .iter()
-        .map(|(claim_digest, redemption)| PersistedConsoleClaimRedemption {
-            claim_digest_sha256: encode_console_credential_digest(claim_digest),
-            redeemed_at_ms: redemption.redeemed_at_ms,
-            transport_peer: redemption.transport_peer.clone(),
-            credential_digest_sha256: encode_console_credential_digest(
-                &redemption.credential_digest,
-            ),
-            credential_expires_at_ms: redemption.credential_expires_at_ms,
-            credential_max_expires_at_ms: redemption.credential_max_expires_at_ms,
-            revoked_at_ms: redemption.revoked_at_ms,
-        })
+        .map(
+            |(claim_digest, redemption)| PersistedConsoleClaimRedemption {
+                claim_digest_sha256: encode_console_credential_digest(claim_digest),
+                redeemed_at_ms: redemption.redeemed_at_ms,
+                transport_peer: redemption.transport_peer.clone(),
+                credential_digest_sha256: encode_console_credential_digest(
+                    &redemption.credential_digest,
+                ),
+                credential_expires_at_ms: redemption.credential_expires_at_ms,
+                credential_max_expires_at_ms: redemption.credential_max_expires_at_ms,
+                revoked_at_ms: redemption.revoked_at_ms,
+            },
+        )
         .collect::<Vec<_>>();
-    claim_redemptions.sort_by(|left, right| {
-        left.claim_digest_sha256
-            .cmp(&right.claim_digest_sha256)
-    });
+    claim_redemptions
+        .sort_by(|left, right| left.claim_digest_sha256.cmp(&right.claim_digest_sha256));
     let bytes = serde_json::to_vec(&PersistedConsoleCredentialStore {
         version: CONSOLE_CREDENTIAL_STORE_VERSION,
         credentials,
@@ -1374,8 +1368,7 @@ impl ConsoleClaimRegistry {
             console_credential_digest(&claim_code),
             ConsoleClaimEntry {
                 expires_at_ms,
-                retain_until_ms: expires_at_ms
-                    .saturating_add(CONSOLE_CLAIM_TTL.as_millis() as u64),
+                retain_until_ms: expires_at_ms.saturating_add(CONSOLE_CLAIM_TTL.as_millis() as u64),
                 consumed_at_ms: None,
             },
         );
@@ -1690,7 +1683,10 @@ impl ConsoleReachabilityRegistry {
                 "console relay lease is unavailable",
             )
         })?;
-        if session.claim_digest.is_some_and(|bound| bound != claim_digest) {
+        if session
+            .claim_digest
+            .is_some_and(|bound| bound != claim_digest)
+        {
             return Err(console_claim_error(
                 "SNAPBACK_ADMIN_RELAY_LEASE_CLAIM_MISMATCH",
                 "console relay lease is already bound to another claim",
@@ -1740,12 +1736,13 @@ impl ConsoleReachabilityRegistry {
                         "redeemed console relay status omitted its credential binding",
                     )
                 })?;
-                let credential_digest = decode_console_credential_digest(encoded).ok_or_else(|| {
-                    console_claim_error(
-                        "SNAPBACK_ADMIN_RELAY_LEASE_STATUS_INVALID",
-                        "redeemed console relay status carried an invalid credential binding",
-                    )
-                })?;
+                let credential_digest =
+                    decode_console_credential_digest(encoded).ok_or_else(|| {
+                        console_claim_error(
+                            "SNAPBACK_ADMIN_RELAY_LEASE_STATUS_INVALID",
+                            "redeemed console relay status carried an invalid credential binding",
+                        )
+                    })?;
                 if session
                     .credential_digest
                     .is_some_and(|bound| bound != credential_digest)
@@ -1866,9 +1863,8 @@ impl ConsoleReachabilityRegistry {
         let now_ms = now_millis();
         let mut state = self.state.lock().unwrap_or_else(|lock| lock.into_inner());
         prune_console_reachability(&mut state, now_ms);
-        let matches_host = |session: &&ConsoleReachabilitySession| {
-            session.authority.eq_ignore_ascii_case(host)
-        };
+        let matches_host =
+            |session: &&ConsoleReachabilitySession| session.authority.eq_ignore_ascii_case(host);
         if let Some(session_id) = requested_session {
             let session = state.sessions.get(session_id)?;
             if !matches_host(&session) {
@@ -2592,12 +2588,8 @@ impl AppState {
         source: crate::network_profile::NetworkProfileSource,
         principal: Option<String>,
     ) -> Result<Arc<crate::network_profile::ActiveNetworkProfile>, SnapbackError> {
-        self.network_profiles.activate(
-            profile,
-            self.network_profile_authority(),
-            source,
-            principal,
-        )
+        self.network_profiles
+            .activate(profile, self.network_profile_authority(), source, principal)
     }
 
     pub(crate) fn activate_network_profile_env(
@@ -3753,10 +3745,7 @@ pub(crate) fn admin_route_registrations() -> Vec<RegisteredRoute> {
             get(console_asset),
         ),
         RegisteredRoute::new(
-            system_static_route(
-                "GET",
-                "/_snapback/admin/reachability/identity",
-            ),
+            system_static_route("GET", "/_snapback/admin/reachability/identity"),
             get(console_reachability_identity),
         ),
         RegisteredRoute::new(
@@ -4653,21 +4642,20 @@ async fn exchange_console_claim(
         transport_peer,
         &ctx.console_credentials,
     )?;
-    response.reachability = match reachability
-        .bind_redeemed_credential(&request.claim_code, &response.credential)
-    {
-        Ok(binding) => binding,
-        Err(_) => {
-            // The claim was consumed concurrently with loss of its managed
-            // front. Revoke the just-issued credential before returning the
-            // ordinary opaque claim refusal; it must never escape without its
-            // tab/session binding.
-            let _ = ctx
-                .console_claims
-                .revoke(&request.claim_code, &ctx.console_credentials);
-            return Err(console_claim_invalid().into());
-        }
-    };
+    response.reachability =
+        match reachability.bind_redeemed_credential(&request.claim_code, &response.credential) {
+            Ok(binding) => binding,
+            Err(_) => {
+                // The claim was consumed concurrently with loss of its managed
+                // front. Revoke the just-issued credential before returning the
+                // ordinary opaque claim refusal; it must never escape without its
+                // tab/session binding.
+                let _ = ctx
+                    .console_claims
+                    .revoke(&request.claim_code, &ctx.console_credentials);
+                return Err(console_claim_invalid().into());
+            }
+        };
     Ok(Json(response))
 }
 
@@ -4709,7 +4697,9 @@ async fn register_console_reachability(
 ) -> Result<Json<ConsoleReachabilityLeaseResponse>, ApiError> {
     require_console_claim_posture(&ctx, policy_mode)?;
     authorize_master(&ctx, &headers, policy_mode)?;
-    Ok(Json(reachability.register(&request.origin, &instance_id.0)?))
+    Ok(Json(
+        reachability.register(&request.origin, &instance_id.0)?,
+    ))
 }
 
 async fn bind_console_reachability(
@@ -4721,7 +4711,9 @@ async fn bind_console_reachability(
 ) -> Result<Json<ConsoleReachabilityLeaseResponse>, ApiError> {
     require_console_claim_posture(&ctx, policy_mode)?;
     authorize_master(&ctx, &headers, policy_mode)?;
-    let claim_digest = ctx.console_claims.pending_claim_digest(&request.claim_code)?;
+    let claim_digest = ctx
+        .console_claims
+        .pending_claim_digest(&request.claim_code)?;
     let status = ctx
         .console_claims
         .status(&request.claim_code, &ctx.console_credentials)?;
@@ -4751,11 +4743,7 @@ async fn renew_console_reachability(
         .console_claims
         .status(&request.claim_code, &ctx.console_credentials)?;
     let lease = if matches!(claim.status, "pending" | "redeemed") {
-        Some(reachability.renew(
-            &request.session_id,
-            &request.claim_code,
-            &claim,
-        )?)
+        Some(reachability.renew(&request.session_id, &request.claim_code, &claim)?)
     } else {
         reachability.drop_session(&request.session_id);
         None
@@ -4789,8 +4777,7 @@ async fn console_reachability_identity(
         .get(header::HOST)
         .and_then(|value| value.to_str().ok())
         .unwrap_or_default();
-    let Some(identity) = reachability.identity_for_host(host, query.session.as_deref())
-    else {
+    let Some(identity) = reachability.identity_for_host(host, query.session.as_deref()) else {
         return diagnostic_response(
             StatusCode::NOT_FOUND,
             console_claim_error(
@@ -5183,8 +5170,7 @@ async fn admin_operation_coverage_activate(
     .await?;
     Ok(Json(
         crate::commit_envelope::OperationCoverageActivationResponseV1 {
-            schema_version:
-                crate::commit_envelope::operation_coverage_activation_schema_version(),
+            schema_version: crate::commit_envelope::operation_coverage_activation_schema_version(),
             target_profile_id,
             coverage_profile,
             manifest,
@@ -5360,12 +5346,8 @@ async fn admin_push_maintenance(
         .into());
     }
     let now_ms = request.now_ms.unwrap_or_else(crate::server::now_millis);
-    crate::server::drive_push_maintenance_once(
-        &state.snapback,
-        state.server.profile,
-        now_ms,
-    )
-    .await?;
+    crate::server::drive_push_maintenance_once(&state.snapback, state.server.profile, now_ms)
+        .await?;
     Ok(Json(serde_json::json!({
         "artifactKind": "snapback.push-maintenance/v1",
         "nowMs": now_ms,
@@ -5654,23 +5636,21 @@ mod tests {
             .await
             .expect("protected-erasure response");
         assert_eq!(accepted.status(), StatusCode::OK);
-        let receipt = serde_json::from_slice::<
-            crate::proof_checkpoint::ProtectedRecordErasureReceiptV1,
-        >(
-            &axum::body::to_bytes(accepted.into_body(), 1_000_000)
-                .await
-                .expect("receipt body"),
-        )
-        .expect("protected-erasure receipt");
+        let receipt =
+            serde_json::from_slice::<crate::proof_checkpoint::ProtectedRecordErasureReceiptV1>(
+                &axum::body::to_bytes(accepted.into_body(), 1_000_000)
+                    .await
+                    .expect("receipt body"),
+            )
+            .expect("protected-erasure receipt");
         assert_eq!(
             receipt.state,
             crate::proof_checkpoint::ProtectedRecordErasureStateV1::Complete
         );
-        let remaining = crate::server::with_snapback(&shared, |snapback| {
-            snapback.scan_table("items", 10, 0)
-        })
-        .await
-        .expect("scan canonical rows after erasure");
+        let remaining =
+            crate::server::with_snapback(&shared, |snapback| snapback.scan_table("items", 10, 0))
+                .await
+                .expect("scan canonical rows after erasure");
         assert!(remaining.rows.is_empty());
     }
 
@@ -5690,7 +5670,10 @@ mod tests {
             CredentialResolution::AdminCredential
         );
         assert_eq!(route.invocation_authority, InvocationAuthority::Operator);
-        assert_eq!(route.response_sensitivity, ResponseSensitivity::OperatorMetadata);
+        assert_eq!(
+            route.response_sensitivity,
+            ResponseSensitivity::OperatorMetadata
+        );
     }
 
     #[tokio::test]
@@ -5745,10 +5728,7 @@ mod tests {
                 .uri("/_snapback/api/storage/operation-coverage/activate")
                 .header(header::CONTENT_TYPE, "application/json");
             if authenticated {
-                builder = builder.header(
-                    header::AUTHORIZATION,
-                    "Bearer coverage-activation-admin",
-                );
+                builder = builder.header(header::AUTHORIZATION, "Bearer coverage-activation-admin");
             }
             builder
                 .body(Body::from(
@@ -6931,11 +6911,7 @@ mod tests {
                 let barrier = barrier.clone();
                 std::thread::spawn(move || {
                     barrier.wait();
-                    claims.exchange(
-                        &claim,
-                        format!("127.0.0.1:{}", 4100 + index),
-                        &credentials,
-                    )
+                    claims.exchange(&claim, format!("127.0.0.1:{}", 4100 + index), &credentials)
                 })
             })
             .collect::<Vec<_>>();
@@ -6973,8 +6949,7 @@ mod tests {
             credential.provenance,
             Some(ConsoleCredentialProvenance::OperatorClaim)
         );
-        let absolute = issued_at_ms
-            + CONSOLE_CLAIM_CREDENTIAL_MAX_LIFETIME.as_millis() as u64;
+        let absolute = issued_at_ms + CONSOLE_CLAIM_CREDENTIAL_MAX_LIFETIME.as_millis() as u64;
         let mut now_ms = issued_at_ms + 9 * 60_000;
         let mut expiry = credential.expires_at_ms;
         while now_ms < absolute {
@@ -6990,8 +6965,7 @@ mod tests {
         }
         assert_eq!(expiry, absolute);
         assert!(
-            absolute
-                < issued_at_ms + CONSOLE_CREDENTIAL_MAX_LIFETIME.as_millis() as u64,
+            absolute < issued_at_ms + CONSOLE_CREDENTIAL_MAX_LIFETIME.as_millis() as u64,
             "claim provenance never inherits the ordinary eight-hour cap"
         );
         assert!(
@@ -7010,14 +6984,10 @@ mod tests {
         let claims = ConsoleClaimRegistry::default();
         let claim = claims.mint().unwrap();
         let issued = claims
-            .exchange(
-                &claim.claim_code,
-                "127.0.0.1:4300".to_owned(),
-                &credentials,
-            )
+            .exchange(&claim.claim_code, "127.0.0.1:4300".to_owned(), &credentials)
             .unwrap();
-        let stored = String::from_utf8(crate::secure_file::read_owner_only(&path).unwrap())
-            .unwrap();
+        let stored =
+            String::from_utf8(crate::secure_file::read_owner_only(&path).unwrap()).unwrap();
         assert!(!stored.contains(&claim.claim_code));
         assert!(!stored.contains(&issued.credential));
         assert!(stored.contains("operatorClaim"));
@@ -7042,7 +7012,10 @@ mod tests {
         let approvals = ConsoleApprovalRegistry::default();
         for attempt in 0..CONSOLE_APPROVAL_REQUESTS_PER_MINUTE {
             approvals
-                .request_at("http://127.0.0.1/admin".to_owned(), 1_000 + u64::from(attempt))
+                .request_at(
+                    "http://127.0.0.1/admin".to_owned(),
+                    1_000 + u64::from(attempt),
+                )
                 .unwrap();
         }
         assert_eq!(
@@ -7157,11 +7130,7 @@ mod tests {
         let claim = claims.mint().unwrap();
         let claim_digest = claims.pending_claim_digest(&claim.claim_code).unwrap();
         reachability
-            .bind_claim(
-                &lease.session_id,
-                claim_digest,
-                claim.expires_at_ms,
-            )
+            .bind_claim(&lease.session_id, claim_digest, claim.expires_at_ms)
             .unwrap();
         let mut exchanged = claims
             .exchange(

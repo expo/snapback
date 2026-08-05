@@ -110,6 +110,29 @@ const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-codegen/micro-profile.test.mjs']],
     ]),
   }),
+  Object.freeze({
+    filename: 'baseline.ir-evaluator.v1.json',
+    profileFilename: 'ir-evaluator-profiles.v1.json',
+    profileIds: Object.freeze([
+      'public-subpath-ir-evaluator',
+    ]),
+    authorities: Object.freeze([
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0051#d2-promote-the-mutation-ir-extend-it-to-the-common-mutation',
+      'LLP 0051#d5-conformance-the-corpus-becomes-the-data-tier-contract',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/ir-evaluator.test.mjs']],
+    ]),
+    // Main independently froze this byte-identical profile in the later
+    // local-read-admission rollover. Retain the supplemental receipt while
+    // making that landed successor the one active ceiling.
+    shadowedByRollover: Object.freeze({
+      filename: 'baseline.local-read-admission.v1.json',
+      profileIds: Object.freeze(['public-subpath-ir-evaluator']),
+    }),
+  }),
 ]);
 
 // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — a real
@@ -162,6 +185,89 @@ const LOCAL_STORE_PRIMARY_PREDECESSOR_PROFILE_IDS = Object.freeze(
     ...LOCAL_STORE_SUPPLEMENTAL_PREDECESSOR_PROFILE_IDS,
   ].includes(id)),
 );
+const LOCAL_READ_ADMISSION_ROLLOVER_PROFILE_IDS = Object.freeze([
+  ...LOCAL_STORE_ROLLOVER_PROFILE_IDS,
+  'public-subpath-ir-evaluator',
+  'public-subpath-local-read-admission',
+  'public-subpath-optimistic-rebase',
+  'public-subpath-outbox-shared',
+]);
+const GENERATED_MUTATION_IR_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'app-data-operation-live',
+  'external-react-application',
+  'full-operation-call',
+  'full-operation-live',
+  'full-public-surface',
+  'full-sessions',
+  'micro-root-negative',
+  'online-operation-live',
+  'public-subpath-app-data',
+  'public-subpath-hosted-browser',
+  'public-subpath-local-read-admission',
+  'public-subpath-online',
+  'public-subpath-optimistic-rebase',
+  'public-subpath-push-registry',
+  'public-subpath-root',
+  'public-subpath-vector-search',
+  'push-registry-attach',
+  'push-registry-root-negative',
+  'react-external',
+]);
+const OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS = Object.freeze([
+  'app-data-operation-live',
+  'full-operation-call',
+  'full-operation-live',
+  'full-public-surface',
+  'full-sessions',
+  'micro-root-negative',
+  'online-operation-live',
+  'public-subpath-app-data',
+  'public-subpath-hosted-browser',
+  'public-subpath-online',
+  'public-subpath-push-registry',
+  'public-subpath-root',
+  'public-subpath-vector-search',
+  'push-registry-attach',
+  'push-registry-root-negative',
+]);
+const FINITE_CARRIER_COMPLETENESS_ROLLOVER_PROFILE_IDS = Object.freeze([
+  ...OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS,
+  'public-subpath-materialization-store',
+]);
+const ROWLESS_RQS_RESUME_ROLLOVER_PROFILE_IDS = Object.freeze([
+  ...OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS,
+]);
+// @ref LLP 0155#move-3--shared-mutation-ir-for-local-prediction-and-server-authority
+// — the completed evaluator/admission/rebase/generated-mutation workload,
+// together with the single-table and client-lifecycle landings it consumes,
+// deliberately advances the latest landed ceiling for every affected closure.
+const POST_FFEE_GENERATED_PREDECESSOR_PROFILE_IDS = Object.freeze([
+  'external-react-application',
+  'public-subpath-local-read-admission',
+  'public-subpath-optimistic-rebase',
+  'react-external',
+]);
+const POST_FFEE_LOCAL_READ_PREDECESSOR_PROFILE_IDS = Object.freeze([
+  'public-subpath-outbox-shared',
+  'public-subpath-rqs-preload',
+  'public-subpath-rqs-store',
+  'public-subpath-rqs-store-default',
+  'public-subpath-rqs-store-expo',
+  'public-subpath-rqs-store-file',
+]);
+const POST_FFEE_FINITE_PREDECESSOR_PROFILE_IDS = Object.freeze([
+  'public-subpath-materialization-store',
+]);
+const POST_FFEE_PRIMARY_PREDECESSOR_PROFILE_IDS = Object.freeze([
+  'public-subpath-agent-authority',
+]);
+const POST_FFEE_ROLLOVER_PROFILE_IDS = Object.freeze([
+  ...ROWLESS_RQS_RESUME_ROLLOVER_PROFILE_IDS,
+  ...POST_FFEE_GENERATED_PREDECESSOR_PROFILE_IDS,
+  ...POST_FFEE_LOCAL_READ_PREDECESSOR_PROFILE_IDS,
+  ...POST_FFEE_FINITE_PREDECESSOR_PROFILE_IDS,
+  ...POST_FFEE_PRIMARY_PREDECESSOR_PROFILE_IDS,
+].toSorted());
 const ROLLOVER_LEDGER_SPECS = Object.freeze([
   Object.freeze({
     filename: 'baseline.local-persistent-store.v1.json',
@@ -205,6 +311,195 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/answer-classes.test.mjs']],
       ['node', ['packages/snapback-client/evaluation-floor.test.mjs']],
       ['node', ['packages/snapback-client/lease-convergence.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.local-read-admission.v1.json',
+    profileFilename: 'local-read-admission-profiles.v1.json',
+    workloadVersion: 'llp-0155-move3-phase1.v1',
+    profileIds: LOCAL_READ_ADMISSION_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.local-persistent-store.v1.json',
+        profileIds: LOCAL_STORE_ROLLOVER_PROFILE_IDS,
+      }),
+      Object.freeze({
+        filename: 'baseline.v1.json',
+        profileIds: Object.freeze(['public-subpath-outbox-shared']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0155#execution-contract',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/ir-evaluator.test.mjs']],
+      ['node', ['packages/snapback-client/optimistic-rebase.test.mjs']],
+      ['node', ['packages/snapback-client/optimistic-rebase-acceptance.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store-v3.test.mjs']],
+      ['node', ['packages/snapback-client/materialization-store.test.mjs']],
+      ['node', ['packages/snapback-client/registration-ledger.test.mjs']],
+      ['node', ['packages/snapback-client/answer-classes.test.mjs']],
+      ['node', ['packages/snapback-client/evaluation-floor.test.mjs']],
+      ['node', ['packages/snapback-client/lease-convergence.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.generated-mutation-ir.v1.json',
+    profileFilename: 'generated-mutation-ir-profiles.v1.json',
+    workloadVersion: 'llp-0155-generated-mutation-ir.v1',
+    profileIds: GENERATED_MUTATION_IR_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.local-read-admission.v1.json',
+        profileIds: GENERATED_MUTATION_IR_ROLLOVER_PROFILE_IDS,
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0155#execution-contract',
+      'LLP 0155#acceptance-gate',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/generated-mutation-ir.test.mjs']],
+      ['node', ['packages/snapback-client/local-read-admission.test.mjs']],
+      ['node', ['packages/snapback-client/optimistic-rebase.test.mjs']],
+      ['node', ['packages/snapback-client/optimistic-rebase-acceptance.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.offline-unavailable.v1.json',
+    profileFilename: 'offline-unavailable-profiles.v1.json',
+    workloadVersion: 'llp-0166-offline-unavailable.v1',
+    profileIds: OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.generated-mutation-ir.v1.json',
+        profileIds: OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS,
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0166#d4--completeness-honest-local-answers',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/argument-validation.test.mjs']],
+      ['node', ['packages/snapback-client/materialization-bridge.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.finite-carrier-completeness.v1.json',
+    profileFilename: 'finite-carrier-completeness-profiles.v1.json',
+    workloadVersion: 'llp-0093-0094-finite-carrier-completeness.v1',
+    profileIds: FINITE_CARRIER_COMPLETENESS_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.offline-unavailable.v1.json',
+        profileIds: OFFLINE_UNAVAILABLE_ROLLOVER_PROFILE_IDS,
+      }),
+      Object.freeze({
+        filename: 'baseline.local-read-admission.v1.json',
+        profileIds: Object.freeze(['public-subpath-materialization-store']),
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0093#finite-carrier-completeness-amendment--2026-08-04',
+      'LLP 0094#llp-0157-finite-carrier-completeness-amendment--2026-08-04',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/materialization-store.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.rowless-rqs-resume.v1.json',
+    profileFilename: 'rowless-rqs-resume-profiles.v1.json',
+    workloadVersion: 'llp-0091-rowless-rqs-resume-ordering.v1',
+    profileIds: ROWLESS_RQS_RESUME_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.finite-carrier-completeness.v1.json',
+        profileIds: ROWLESS_RQS_RESUME_ROLLOVER_PROFILE_IDS,
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0091#0b2-currentasof-envelope',
+      'LLP 0091#0b3-client-transition-table',
+      'LLP 0091#0b4-token-resume-wire-naming-and-dispatch-against-the-reattach-route',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+      ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-resume.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-resume-memory.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-resume-expo.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-resume-native.test.mjs']],
+    ]),
+  }),
+  Object.freeze({
+    filename: 'baseline.move3-single-table-lifecycle.v1.json',
+    profileFilename: 'move3-single-table-lifecycle-profiles.v1.json',
+    workloadVersion: 'move3-single-table-lifecycle.v1',
+    profileIds: POST_FFEE_ROLLOVER_PROFILE_IDS,
+    predecessors: Object.freeze([
+      Object.freeze({
+        filename: 'baseline.rowless-rqs-resume.v1.json',
+        profileIds: ROWLESS_RQS_RESUME_ROLLOVER_PROFILE_IDS,
+      }),
+      Object.freeze({
+        filename: 'baseline.generated-mutation-ir.v1.json',
+        profileIds: POST_FFEE_GENERATED_PREDECESSOR_PROFILE_IDS,
+      }),
+      Object.freeze({
+        filename: 'baseline.local-read-admission.v1.json',
+        profileIds: POST_FFEE_LOCAL_READ_PREDECESSOR_PROFILE_IDS,
+      }),
+      Object.freeze({
+        filename: 'baseline.finite-carrier-completeness.v1.json',
+        profileIds: POST_FFEE_FINITE_PREDECESSOR_PROFILE_IDS,
+      }),
+      Object.freeze({
+        filename: 'baseline.v1.json',
+        profileIds: POST_FFEE_PRIMARY_PREDECESSOR_PROFILE_IDS,
+      }),
+    ]),
+    authorities: Object.freeze([
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0155#move-3--shared-mutation-ir-for-local-prediction-and-server-authority',
+      'LLP 0157#single_table_v1-activation-and-local-publication--2026-08-04',
+      'LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle',
+    ]),
+    beforeAfterProfileIds: POST_FFEE_ROLLOVER_PROFILE_IDS,
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/ir-evaluator.test.mjs']],
+      ['node', ['packages/snapback-client/local-read-admission.test.mjs']],
+      ['node', ['packages/snapback-client/optimistic-rebase.test.mjs']],
+      ['node', ['packages/snapback-client/optimistic-rebase-acceptance.test.mjs']],
+      ['node', ['packages/snapback-client/generated-mutation-ir.test.mjs']],
+      ['node', ['packages/snapback-client/materialization-bridge.test.mjs']],
+      ['node', ['packages/snapback-client/mixed-route-v2.test.mjs']],
+      ['node', ['packages/snapback-client/logout-v3-bridge.test.mjs']],
+      ['node', ['packages/snapback-client/demand-broker.test.mjs']],
     ]),
   }),
 ]);
@@ -564,10 +859,10 @@ function rolloverProfileIds() {
 
 function prospectiveProfileIds(baseline) {
   const historical = new Set(baseline.profiles.map((profile) => profile.id));
-  return [
+  return [...new Set([
     ...additiveProfileIds(),
     ...rolloverProfileIds().filter((id) => !historical.has(id)),
-  ];
+  ])];
 }
 
 function assertDeclaredAdditiveProfiles(additiveConfigs, profiles) {
@@ -597,6 +892,13 @@ function assertDeclaredRolloverProfiles(rolloverConfigs, profiles) {
       predecessorIds.length,
       `${spec.filename}: predecessor ids are unique`,
     );
+    if (spec.beforeAfterProfileIds !== undefined) {
+      assert.deepEqual(
+        predecessorIds.toSorted(),
+        spec.beforeAfterProfileIds.toSorted(),
+        `${spec.filename}: every superseded profile records before/after metrics`,
+      );
+    }
   }
 }
 
@@ -801,6 +1103,47 @@ function rolloverPredecessorReceipts(spec) {
   });
 }
 
+function profileMetricSnapshot(profile) {
+  return {
+    minifiedBytes: profile.minifiedBytes,
+    gzipBytes: profile.gzipBytes,
+    brotliBytes: profile.brotliBytes,
+    outputSha256: profile.outputSha256,
+  };
+}
+
+function rolloverBeforeAfter(spec, profiles) {
+  const predecessorById = new Map();
+  for (const predecessor of spec.predecessors) {
+    const baseline = readJson(join(FIXTURE_DIR, predecessor.filename));
+    const profilesById = new Map(baseline.profiles.map((profile) => [profile.id, profile]));
+    for (const id of predecessor.profileIds) {
+      assert.equal(predecessorById.has(id), false, `${spec.filename}: ${id} has one predecessor`);
+      const profile = profilesById.get(id);
+      assert.ok(profile, `${spec.filename}: predecessor metric for ${id}`);
+      predecessorById.set(id, { filename: predecessor.filename, profile });
+    }
+  }
+  const successorById = new Map(profiles.map((profile) => [profile.id, profile]));
+  return spec.beforeAfterProfileIds.toSorted().map((id) => {
+    const predecessor = predecessorById.get(id);
+    const successor = successorById.get(id);
+    assert.ok(predecessor, `${spec.filename}: before profile ${id}`);
+    assert.ok(successor, `${spec.filename}: after profile ${id}`);
+    return {
+      id,
+      predecessor: {
+        filename: predecessor.filename,
+        ...profileMetricSnapshot(predecessor.profile),
+      },
+      successor: profileMetricSnapshot(successor),
+      delta: Object.fromEntries(
+        METRICS.map((metric) => [metric, successor[metric] - predecessor.profile[metric]]),
+      ),
+    };
+  });
+}
+
 function compactRolloverBaseline(report, spec, profiles) {
   const evidence = report.rolloverLedgers.find((entry) => entry.filename === spec.filename);
   assert.ok(evidence, `${spec.filename}: rollover evidence`);
@@ -814,6 +1157,9 @@ function compactRolloverBaseline(report, spec, profiles) {
     method: report.method,
     inputs: evidence.inputs,
     behaviorCommands: evidence.behaviorCommands,
+    ...(spec.beforeAfterProfileIds !== undefined
+      ? { beforeAfter: rolloverBeforeAfter(spec, profiles) }
+      : {}),
     profiles: profiles.map(compactProfile),
   };
 }
@@ -861,6 +1207,22 @@ function validateSupplementalBaseline(report, spec, supplemental) {
     spec.profileIds.toSorted(),
     `${spec.filename}: exact additive profile ids`,
   );
+  if (spec.shadowedByRollover !== undefined) {
+    const successor = readJson(join(FIXTURE_DIR, spec.shadowedByRollover.filename));
+    const supplementalById = new Map(
+      supplemental.profiles.map((profile) => [profile.id, profile]),
+    );
+    const successorById = new Map(
+      successor.profiles.map((profile) => [profile.id, profile]),
+    );
+    for (const id of spec.shadowedByRollover.profileIds) {
+      assert.deepEqual(
+        supplementalById.get(id),
+        successorById.get(id),
+        `${spec.filename}: ${id} is byte-identical in the independently landed rollover`,
+      );
+    }
+  }
 }
 
 function validateRolloverBaseline(report, spec, rollover) {
@@ -895,6 +1257,13 @@ function validateRolloverBaseline(report, spec, rollover) {
     spec.profileIds.toSorted(),
     `${spec.filename}: exact rollover profile ids`,
   );
+  if (spec.beforeAfterProfileIds !== undefined) {
+    assert.deepEqual(
+      rolloverBeforeAfter(spec, rollover.profiles),
+      rollover.beforeAfter,
+      `${spec.filename}: immutable before/after profile metrics`,
+    );
+  }
 }
 
 function compareProfiles(report, baselines, { requireComplete = true } = {}) {
@@ -932,7 +1301,12 @@ function historicalBaselineEntries(baseline, supplementals) {
     { filename: 'baseline.v1.json', baseline },
     ...supplementals.map(({ spec, baseline: supplemental }) => ({
       filename: spec.filename,
-      baseline: supplemental,
+      baseline: {
+        ...supplemental,
+        profiles: supplemental.profiles.filter(
+          (profile) => !spec.shadowedByRollover?.profileIds.includes(profile.id),
+        ),
+      },
     })),
   ];
 }
@@ -944,11 +1318,17 @@ function activeBaselineEntries(
   { retireSpecs = rollovers.map(({ spec }) => spec) } = {},
 ) {
   const historical = historicalBaselineEntries(baseline, supplementals);
-  const historicalByFilename = new Map(historical.map((entry) => [entry.filename, entry]));
+  const rolloverEntries = rollovers.map(({ spec, baseline: rollover }) => ({
+    filename: spec.filename,
+    baseline: rollover,
+  }));
+  const allEntries = [...historical, ...rolloverEntries];
+  const entriesByFilename = new Map(allEntries.map((entry) => [entry.filename, entry]));
+  assert.equal(entriesByFilename.size, allEntries.length, 'baseline filenames are unique');
   const supersededByFilename = new Map();
   for (const spec of retireSpecs) {
     for (const predecessor of spec.predecessors) {
-      const entry = historicalByFilename.get(predecessor.filename);
+      const entry = entriesByFilename.get(predecessor.filename);
       assert.ok(entry, `${spec.filename}: declared predecessor ${predecessor.filename} exists`);
       const owned = new Set(entry.baseline.profiles.map((profile) => profile.id));
       let superseded = supersededByFilename.get(predecessor.filename);
@@ -963,21 +1343,15 @@ function activeBaselineEntries(
       }
     }
   }
-  return [
-    ...historical.map((entry) => ({
-      filename: entry.filename,
-      baseline: {
-        ...entry.baseline,
-        profiles: entry.baseline.profiles.filter(
-          (profile) => !supersededByFilename.get(entry.filename)?.has(profile.id),
-        ),
-      },
-    })),
-    ...rollovers.map(({ spec, baseline: rollover }) => ({
-      filename: spec.filename,
-      baseline: rollover,
-    })),
-  ];
+  return allEntries.map((entry) => ({
+    filename: entry.filename,
+    baseline: {
+      ...entry.baseline,
+      profiles: entry.baseline.profiles.filter(
+        (profile) => !supersededByFilename.get(entry.filename)?.has(profile.id),
+      ),
+    },
+  }));
 }
 
 function compareToBaselines(report, baseline, supplementals, rollovers) {
@@ -1015,12 +1389,17 @@ function withSavings(report, baseline, supplementals, rollovers) {
   };
 }
 
-function readSupplementalBaselines() {
-  return SUPPLEMENTAL_LEDGER_SPECS.map((spec) => {
+function readSupplementalBaselines({ allowMissing = false } = {}) {
+  const entries = [];
+  for (const spec of SUPPLEMENTAL_LEDGER_SPECS) {
     const path = join(FIXTURE_DIR, spec.filename);
-    if (!existsSync(path)) fail(`${spec.filename} is missing`);
-    return { spec, baseline: readJson(path) };
-  });
+    if (!existsSync(path)) {
+      if (allowMissing) continue;
+      fail(`${spec.filename} is missing`);
+    }
+    entries.push({ spec, baseline: readJson(path) });
+  }
+  return entries;
 }
 
 function readRolloverBaselines({ allowMissing = false } = {}) {
@@ -1088,13 +1467,19 @@ if (!existsSync(BASELINE_PATH)) fail('baseline.v1.json is missing');
 const baseline = readJson(BASELINE_PATH);
 validateMainBaseline(report, baseline);
 if (mode === '--check-primary') {
+  const supplementals = readSupplementalBaselines({ allowMissing: true });
+  for (const { spec, baseline: supplemental } of supplementals) {
+    validateSupplementalBaseline(report, spec, supplemental);
+  }
   const rollovers = readRolloverBaselines({ allowMissing: true });
   for (const { spec, baseline: rollover } of rollovers) {
     validateRolloverBaseline(report, spec, rollover);
   }
   compareProfiles(
     report,
-    activeBaselineEntries(baseline, [], rollovers).map((entry) => entry.baseline),
+    activeBaselineEntries(baseline, supplementals, rollovers, {
+      retireSpecs: ROLLOVER_LEDGER_SPECS,
+    }).map((entry) => entry.baseline),
     { requireComplete: false },
   );
   const additions = assertExactProspectiveAdditions(report, baseline);
@@ -1102,13 +1487,19 @@ if (mode === '--check-primary') {
   process.exit(0);
 }
 if (mode === '--write-supplemental-baseline') {
+  const supplementals = readSupplementalBaselines({ allowMissing: true });
+  for (const { spec, baseline: supplemental } of supplementals) {
+    validateSupplementalBaseline(report, spec, supplemental);
+  }
   const rollovers = readRolloverBaselines({ allowMissing: true });
   for (const { spec, baseline: rollover } of rollovers) {
     validateRolloverBaseline(report, spec, rollover);
   }
   compareProfiles(
     report,
-    activeBaselineEntries(baseline, [], rollovers).map((entry) => entry.baseline),
+    activeBaselineEntries(baseline, supplementals, rollovers, {
+      retireSpecs: ROLLOVER_LEDGER_SPECS,
+    }).map((entry) => entry.baseline),
     { requireComplete: false },
   );
   const additions = assertExactProspectiveAdditions(report, baseline);
@@ -1122,9 +1513,17 @@ if (mode === '--write-supplemental-baseline') {
   const selected = additions.filter((profile) => spec.profileIds.includes(profile.id));
   const supplemental = compactSupplementalBaseline(report, spec, selected);
   writeFileSync(join(FIXTURE_DIR, spec.filename), stableJson(supplemental));
-  const supplementals = readSupplementalBaselines();
-  writeFileSync(CURRENT_PATH, stableJson(withSavings(report, baseline, supplementals, rollovers)));
+  const frozenSupplementals = readSupplementalBaselines();
+  const pendingRollovers = ROLLOVER_LEDGER_SPECS.filter(
+    (candidate) => !existsSync(join(FIXTURE_DIR, candidate.filename)),
+  );
+  if (pendingRollovers.length === 0) {
+    writeFileSync(CURRENT_PATH, stableJson(withSavings(report, baseline, frozenSupplementals, rollovers)));
+  }
   console.log(`client bundle additive baseline frozen in ${spec.filename}: ${selected.length} profiles`);
+  if (pendingRollovers.length > 0) {
+    console.log(`current report deferred until ${pendingRollovers.map((entry) => entry.filename).join(', ')} is frozen`);
+  }
   process.exit(0);
 }
 if (mode === '--write-rollover-baseline') {

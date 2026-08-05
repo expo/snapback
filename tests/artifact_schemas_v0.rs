@@ -74,9 +74,6 @@ use snapback::manifest::{
     MutationRequest, REPLAY_OPAQUE_ID_MAX_BYTES, REPLAY_OPAQUE_ID_PATTERN, SNAPBACK_SCHEMA_VERSION,
     SchemaManifest, SettlementLane, SourceSpan, TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
 };
-use snapback::runtime::{
-    CapabilityState, IbexCliCapability, IbexSubmoduleCapability, RuntimeCapabilities,
-};
 use snapback::result_transform::{
     RESULT_TRANSFORM_V1_CASE_SCHEMA_FILE, RESULT_TRANSFORM_V1_CORPUS,
     RESULT_TRANSFORM_V1_CORPUS_FORMAT_VERSION, RESULT_TRANSFORM_V1_CORPUS_SCHEMA_FILE,
@@ -84,6 +81,9 @@ use snapback::result_transform::{
     ResultTransformCorpusCaseEntryV1, ResultTransformCorpusCaseV1,
     ResultTransformCorpusExpectationV1, ResultTransformCorpusManifestV1,
     ResultTransformEvaluatorIdentitiesV1,
+};
+use snapback::runtime::{
+    CapabilityState, IbexCliCapability, IbexSubmoduleCapability, RuntimeCapabilities,
 };
 use snapback::schema_export::{SchemaArtifact, artifact_instances, artifact_schemas};
 use snapback::service_profile::{
@@ -721,10 +721,22 @@ fn telemetry_agent_export_fixtures_match_the_pinned_carrier_schemas() {
 #[test]
 fn errors_operation_fixtures_match_the_pinned_authority_split_schemas() {
     let corpus = committed("errors.query-fixtures-v1.json");
-    assert_validates("errors.issues.request.schema.json", &corpus["issues"]["request"]);
-    assert_validates("errors.issues.response.schema.json", &corpus["issues"]["response"]);
-    assert_validates("errors.issue.request.schema.json", &corpus["issue"]["request"]);
-    assert_validates("errors.issue.response.schema.json", &corpus["issue"]["response"]);
+    assert_validates(
+        "errors.issues.request.schema.json",
+        &corpus["issues"]["request"],
+    );
+    assert_validates(
+        "errors.issues.response.schema.json",
+        &corpus["issues"]["response"],
+    );
+    assert_validates(
+        "errors.issue.request.schema.json",
+        &corpus["issue"]["request"],
+    );
+    assert_validates(
+        "errors.issue.response.schema.json",
+        &corpus["issue"]["response"],
+    );
     assert_validates(
         "errors.transition.request.schema.json",
         &corpus["transition"]["singleRequest"],
@@ -856,10 +868,9 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
             "authorizedLease": oversized_lease_query_instance
         }),
     );
-    let completeness_fixture: Value = serde_json::from_str(include_str!(
-        "conformance/completeness-proof-v1.json"
-    ))
-    .expect("parse completeness proof fixture");
+    let completeness_fixture: Value =
+        serde_json::from_str(include_str!("conformance/completeness-proof-v1.json"))
+            .expect("parse completeness proof fixture");
     assert_validates(
         "authorized-lease.query.output.schema.json",
         &json!({
@@ -3634,10 +3645,9 @@ fn gap_row_schemas_accept_representative_values() {
         "dryRun": false
     });
     assert_validates("query.output.schema.json", &attributed);
-    let completeness_fixture: Value = serde_json::from_str(include_str!(
-        "conformance/completeness-proof-v1.json"
-    ))
-    .expect("parse completeness proof fixture");
+    let completeness_fixture: Value =
+        serde_json::from_str(include_str!("conformance/completeness-proof-v1.json"))
+            .expect("parse completeness proof fixture");
     let finite_carrier = json!({
         "version": 43,
         "rows": [{ "_id": "r1", "n": 1 }],
@@ -3682,9 +3692,11 @@ fn gap_row_schemas_accept_representative_values() {
         writes: vec!["notes".to_owned()],
         captured_reads: vec![],
         captured_writes: vec![],
-        conformance: Some(snapback::conformance::DeclarationConformance::without_capture(
-            snapback::conformance::DependencyProvenance::Unsupported,
-        )),
+        conformance: Some(
+            snapback::conformance::DeclarationConformance::without_capture(
+                snapback::conformance::DependencyProvenance::Unsupported,
+            ),
+        ),
         admin_bypass: false,
         elapsed_ms: 12,
         version: Some(7),

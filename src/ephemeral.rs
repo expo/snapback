@@ -6547,8 +6547,7 @@ impl LocalEphemeralBackend {
         match network_egress {
             Some(network_egress) => self.enqueue_network_profiled_durable_message(
                 connection_id,
-                DurableMessage::bound(payload, effect_fence)
-                    .with_network_egress(network_egress),
+                DurableMessage::bound(payload, effect_fence).with_network_egress(network_egress),
             ),
             None => self.enqueue_durable_bound(connection_id, payload, effect_fence),
         }
@@ -8806,15 +8805,11 @@ mod tests {
         let mut queue = OutboundQueue::new();
         let mut first_message =
             DurableMessage::new(b"first".to_vec()).with_network_egress(first.clone());
-        let first_deadline = queue
-            .prepare_durable_deadline(&mut first_message)
-            .unwrap();
+        let first_deadline = queue.prepare_durable_deadline(&mut first_message).unwrap();
         queue.push_durable(first_message);
         let mut second_message =
             DurableMessage::new(b"second".to_vec()).with_network_egress(second);
-        let second_deadline = queue
-            .prepare_durable_deadline(&mut second_message)
-            .unwrap();
+        let second_deadline = queue.prepare_durable_deadline(&mut second_message).unwrap();
         queue.push_durable(second_message);
 
         assert_eq!(second_deadline, first_deadline);

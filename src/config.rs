@@ -1011,7 +1011,10 @@ mod tests {
             .expect("private failure context survives redaction")
             .carriers[0];
         assert_eq!(carrier.message.as_deref(), Some("vendor echoed [REDACTED]"));
-        assert_eq!(carrier.stack.as_deref(), Some("at handler ([REDACTED]:1:1)"));
+        assert_eq!(
+            carrier.stack.as_deref(),
+            Some("at handler ([REDACTED]:1:1)")
+        );
     }
 
     #[test]

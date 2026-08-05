@@ -3,6 +3,8 @@ export type ProviderBindingMetadataVersion = 'provider-binding-metadata.v1';
 
 export type ReservationsForSlotArgs = { "ownerId": string; "slotKey": string };
 export type ReservationsForSlotResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "createdAt": number; "idempotencyKey": string; "ownerId": string; "resourceKey": string; "resourceSlotKey": string; "slotKey": string; "title": string }>;
+export type ResourceListArgs = Record<string, never>;
+export type ResourceListResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "key": string; "title": string }>;
 export type ScheduleArgs = Record<string, never>;
 export type ScheduleResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "createdAt": number; "idempotencyKey": string; "ownerId": string; "resourceKey": string; "resourceSlotKey": string; "slotKey": string; "title": string }>;
 export type ClearReservationsArgs = Record<string, never>;
@@ -12,6 +14,7 @@ export type ReserveResult = string;
 
 export interface ProviderQueryBindings {
   "reservationsForSlot": { args: ReservationsForSlotArgs; result: ReservationsForSlotResult };
+  "resourceList": { args: ResourceListArgs; result: ResourceListResult };
   "schedule": { args: ScheduleArgs; result: ScheduleResult };
 }
 export interface ProviderMutationBindings {

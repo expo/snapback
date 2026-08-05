@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "snapback.triage-graph.budget-freeze.v1",
+  "date": "2026-08-04",
+  "authority": "LLP 0155 OQ9",
+  "feedsMeasuredRevision": "LLP 0166 OQ4",
+  "optimizationPerformedBeforeFreeze": false,
+  "controlledWorkload": {
+    "baselineEvents": 249000,
+    "updateBurst": 1000,
+    "totalEvents": 250000
+  },
+  "measured": {
+    "custody": {
+      "materializationRecords": 21,
+      "payloadBearingRecords": 21,
+      "volatileSnapshotRecords": 20,
+      "fragments": 21,
+      "storedResultRows": 120,
+      "authoritativeRetainedRows": 100,
+      "logicalBytes": 48016,
+      "resultBytes": 21561,
+      "proofBytes": 26455,
+      "durableRegistrations": 1,
+      "registrationBytes": 612,
+      "leaseRecords": 1,
+      "physicalCarrierBytes": 124572
+    },
+    "hydration": {
+      "attempts": 1,
+      "rowsInstalled": 100,
+      "payloadBytes": 14981,
+      "elapsedMs": 232.918
+    }
+  },
+  "frozenCeilings": {
+    "custody": {
+      "materializationRecords": 21,
+      "payloadBearingRecords": 21,
+      "volatileSnapshotRecords": 20,
+      "fragments": 21,
+      "storedResultRows": 120,
+      "authoritativeRetainedRows": 100,
+      "logicalBytes": 48016,
+      "durableRegistrations": 1,
+      "registrationBytes": 612,
+      "leaseRecords": 1
+    },
+    "hydration": {
+      "attempts": 1,
+      "rowsInstalled": 100,
+      "payloadBytes": 14981,
+      "elapsedMs": 1000
+    }
+  }
+}

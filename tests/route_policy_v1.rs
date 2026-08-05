@@ -255,10 +255,7 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("POST", "/_snapback/api/app/seed/reset-install-v1"),
         ("POST", "/_snapback/api/client-mutations/purge"),
         ("POST", "/_snapback/api/operations/explain"),
-        (
-            "POST",
-            "/_snapback/api/storage/operation-coverage/activate",
-        ),
+        ("POST", "/_snapback/api/storage/operation-coverage/activate"),
         ("POST", "/_snapback/api/storage/protected-erasure"),
         ("POST", "/_snapback/api/host-ops"),
         (
@@ -3332,5 +3329,4 @@ async fn host_ops_peek_admits_declared_byte_envelopes() {
 
 /// Base64 payload size that pushes the host-ops JSON body past the widened
 /// peek/route envelope (chunk fact × 4/3 + 64 KiB).
-const POLICY_HOST_OPS_PROBE_OVER_LIMIT: usize =
-    (8 * 1024 * 1024 * 4) / 3 + 64 * 1024 + 128 * 1024;
+const POLICY_HOST_OPS_PROBE_OVER_LIMIT: usize = (8 * 1024 * 1024 * 4) / 3 + 64 * 1024 + 128 * 1024;

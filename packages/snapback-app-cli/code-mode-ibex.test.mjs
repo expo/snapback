@@ -36,7 +36,7 @@ const maxima = Object.freeze({
 });
 const digestValue = hash(Buffer.from('identity'));
 
-const fakeBridge = () => ({
+const fakeBridge = ({ settleAs, graceCall = false, settles = true, onAbort = () => {}, consoleCount = 1 } = {}) => ({
   contract: jcsCanonical({
     schema: 'ibex/app-bound-worker-bridge-contract/1',
     appBindingDigest: digestValue,
@@ -66,6 +66,7 @@ const fakeBridge = () => ({
     let runId;
     let outgoing = 1;
     const queue = [];
+    let settled = false;
     const frame = (type, body) => queue.push({
       tag: 1,
       frame: jcsCanonical({ schema: 'ibex/restricted-worker-broker/1', runId, sequence: outgoing++, type, body }),
@@ -79,16 +80,31 @@ const fakeBridge = () => ({
       },
       submit(encoded) {
         const received = JSON.parse(encoded);
+        if (received.type === 'abort') {
+          onAbort(received.body);
+          for (let index = 0; index < consoleCount; index += 1) {
+            frame('console', { level: 'log', values: ['cleanup-observed', 'x'.repeat(128)] });
+          }
+          if (graceCall) frame('call', { callId: '2', functionId: 'app:list', args: {}, timeoutMs: 60000 });
+          return;
+        }
         assert.equal(received.type, 'callResult');
-        assert.equal(received.body.ok, true);
-        const text = jcsCanonical(received.body.value);
+        if (settled) {
+          assert.equal(received.body.ok, false);
+          assert.equal(received.body.error.code, 'SNAPBACK_APP_CLI_ABORTED');
+          return;
+        }
+        if (!settles) return;
+        settled = true;
+        const value = settleAs ?? (received.body.ok ? received.body.value : { caught: true });
+        const text = jcsCanonical(value);
         const bytes = Buffer.from(text);
         frame('settlementBegin', { hasValue: true, byteLength: bytes.length, digest: hash(bytes), chunkCount: 1 });
         frame('settlementChunk', { index: 0, data: bytes.toString('base64url') });
         frame('settlementEnd', {});
       },
       take: () => queue.shift(),
-      interrupt() {},
+      interrupt() { queue.push({ tag: 4 }); },
       destroy() {},
     };
   },
@@ -101,15 +117,21 @@ const surface = Object.freeze({
   envelopeSha256: digestValue,
   functions: Object.freeze([{ id: 'app:list', name: 'list', kind: 'query', argsSchema: null }]),
 });
+const stderr = [];
 const result = await runIbexCodeMode({
   client: { query: async () => ({ rows: [{ id: 1 }] }) },
   surface,
   script: 'export default await api.list({});',
   scriptSource: 'analysis.ts',
+  graceMs: 20,
+  onStderr: (record) => stderr.push(record),
 });
 assert.equal(result.hasValue, true);
 assert.deepEqual(result.value, [{ id: 1 }]);
 assert.equal(result.callsUsed, 1);
+assert.equal(stderr.some((record) => record.type === 'audit-call' && record.functionId === 'app:list'), true);
+assert.equal(stderr.at(-1).type, 'audit-summary');
+assert.equal(JSON.stringify(stderr).includes('"id":1'), false);
 
 const hexSurface = Object.freeze({ ...surface, envelopeSha256: 'ab'.repeat(32) });
 const hexResult = await runIbexCodeMode({
@@ -117,8 +139,78 @@ const hexResult = await runIbexCodeMode({
   surface: hexSurface,
   script: 'export default await api.list({});',
   scriptSource: 'hex-envelope.ts',
+  graceMs: 1,
 });
 assert.deepEqual(hexResult.value, [{ id: 2 }]);
+delete globalThis.__ibexAppBoundWorkerV1;
+
+const planted = 'planted-sensitive-message-details-and-500-row-value';
+const largeRows = Array.from({ length: 500 }, (_, index) => ({ index, planted }));
+const protectedStderr = [];
+globalThis.__ibexAppBoundWorkerV1 = fakeBridge({ settleAs: { count: 500 }, graceCall: true });
+const protectedResult = await runIbexCodeMode({
+  client: { query: async () => ({ rows: largeRows }) },
+  surface,
+  script: 'const rows = await api.list({}); signal.addEventListener("abort", async () => { try { await api.list({}); } catch {} console.log("cleanup-observed"); }); export default { count: rows.length };',
+  scriptSource: 'leakage.ts',
+  graceMs: 20,
+  onStderr: (record) => protectedStderr.push(record),
+});
+assert.deepEqual(protectedResult.value, { count: 500 });
+assert.equal(JSON.stringify(protectedStderr).includes(planted), false);
+assert.equal(protectedStderr.some((record) => record.type === 'console' && record.values.includes('cleanup-observed')), true);
+assert.equal(protectedStderr.some((record) => record.type === 'audit-call' && record.outcome === 'refused-during-grace'), true);
+assert.equal(protectedStderr.filter((record) => record.type === 'audit-summary').length, 1);
+delete globalThis.__ibexAppBoundWorkerV1;
+
+const elidedStderr = [];
+globalThis.__ibexAppBoundWorkerV1 = fakeBridge({ consoleCount: 20 });
+await runIbexCodeMode({
+  client: { query: async () => ({ rows: [] }) },
+  surface,
+  script: 'export default await api.list({});',
+  scriptSource: 'elision.ts',
+  graceMs: 20,
+  maxStderrBytes: 1024,
+  onStderr: (record) => elidedStderr.push(record),
+});
+assert.equal(elidedStderr.some((record) => record.type === 'elision'), true);
+assert.equal(elidedStderr.at(-1).type, 'audit-summary');
+delete globalThis.__ibexAppBoundWorkerV1;
+
+const timeoutStderr = [];
+globalThis.__ibexAppBoundWorkerV1 = fakeBridge({ graceCall: true, settles: false });
+await assert.rejects(
+  runIbexCodeMode({
+    client: { query: async () => ({ rows: [] }) },
+    surface,
+    script: 'await new Promise(() => {}); export default 1;',
+    scriptSource: 'timeout.ts',
+    timeoutMs: 1,
+    graceMs: 20,
+    onStderr: (record) => timeoutStderr.push(record),
+  }),
+  (error) => error.code === 'SNAPBACK_APP_CLI_TIMEOUT' && error.exitCode === 9,
+);
+assert.equal(timeoutStderr.some((record) => record.type === 'console' && record.values.includes('cleanup-observed')), true);
+assert.equal(timeoutStderr.some((record) => record.type === 'audit-call' && record.outcome === 'refused-during-grace'), true);
+assert.equal(timeoutStderr.at(-1).type, 'audit-summary');
+delete globalThis.__ibexAppBoundWorkerV1;
+
+let signalAbort = null;
+globalThis.__ibexAppBoundWorkerV1 = fakeBridge({ settles: false, onAbort: (body) => { signalAbort = body; } });
+setImmediate(() => process.emit('SIGTERM'));
+await assert.rejects(
+  runIbexCodeMode({
+    client: { query: async () => ({ rows: [] }) },
+    surface,
+    script: 'await new Promise(() => {}); export default 1;',
+    scriptSource: 'signal.ts',
+    graceMs: 1,
+  }),
+  (error) => error.signalExit === true && error.exitCode === 143,
+);
+assert.deepEqual(signalAbort, { reason: 'parent-signal', signal: 15 });
 delete globalThis.__ibexAppBoundWorkerV1;
 
 console.log('app-bound Ibex code-mode coordinator tests passed');

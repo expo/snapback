@@ -33,13 +33,12 @@ use snapback::commit_envelope::{
 use snapback::diagnostic::SnapbackResult;
 use snapback::fork_promotion::{
     ApprovedOperationFactsV1, BranchArtifactBindingV1, BranchGrantV1, BranchLimitsV1,
-    BranchOperationDraftV1, BranchOperationV1, ForkCoverageV1,
-    ForkEgressPolicyV1, InAppBranchCreateV1, LogicalWriteFactV1, PromotionApprovalV1,
-    PromotionAuthorityDecisionV1, PromotionContentionPolicyV1, PromotionReplayContextV1,
-    PromotionSealKey, ReplayCustodyClassV1, RetainedReplayInputV1, SnapshotRowV1,
-    create_in_app_branch, exact_fork_diff, execute_branch_operation,
-    issue_promotion_ticket, promote_by_reexecution, reap_expired_in_app_branches,
-    request_head_reservation, seal_promotion_request,
+    BranchOperationDraftV1, BranchOperationV1, ForkCoverageV1, ForkEgressPolicyV1,
+    InAppBranchCreateV1, LogicalWriteFactV1, PromotionApprovalV1, PromotionAuthorityDecisionV1,
+    PromotionContentionPolicyV1, PromotionReplayContextV1, PromotionSealKey, ReplayCustodyClassV1,
+    RetainedReplayInputV1, SnapshotRowV1, create_in_app_branch, exact_fork_diff,
+    execute_branch_operation, issue_promotion_ticket, promote_by_reexecution,
+    reap_expired_in_app_branches, request_head_reservation, seal_promotion_request,
 };
 
 const RECORDED_RUNS: usize = 11;
@@ -835,6 +834,9 @@ fn facts(name: &str) -> ApprovedOperationFactsV1 {
     }
 }
 
+// These benchmark adapters deliberately use the production promotion seam's
+// concrete diagnostic type so the measured path is the shipping path.
+#[allow(clippy::result_large_err)]
 fn rename(
     tx: &Transaction<'_>,
     draft: &BranchOperationDraftV1,
@@ -846,6 +848,7 @@ fn rename(
     Ok(facts(name))
 }
 
+#[allow(clippy::result_large_err)]
 fn rename_replay(
     context: &PromotionReplayContextV1<'_>,
     operation: &BranchOperationV1,
@@ -857,6 +860,7 @@ fn rename_replay(
     Ok(facts(name))
 }
 
+#[allow(clippy::result_large_err)]
 fn scan_widgets(conn: &Connection) -> SnapbackResult<Vec<SnapshotRowV1>> {
     let mut statement = conn.prepare("SELECT id, name FROM widgets")?;
     let rows = statement.query_map([], |row| {

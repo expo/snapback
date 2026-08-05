@@ -2382,8 +2382,8 @@ impl LocalDatabase {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let stream_id = crate::seed_identity::strict_current_data_version_stream(&tx)?
-            .ok_or_else(|| {
+        let stream_id =
+            crate::seed_identity::strict_current_data_version_stream(&tx)?.ok_or_else(|| {
                 SnapbackError::error(
                     "SNAPBACK_OPERATION_STREAM_UNAVAILABLE",
                     "storage",
@@ -2412,8 +2412,8 @@ impl LocalDatabase {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let stream_id = crate::seed_identity::strict_current_data_version_stream(&tx)?
-            .ok_or_else(|| {
+        let stream_id =
+            crate::seed_identity::strict_current_data_version_stream(&tx)?.ok_or_else(|| {
                 SnapbackError::error(
                     "SNAPBACK_OPERATION_STREAM_UNAVAILABLE",
                     "storage",
@@ -5345,8 +5345,7 @@ impl LocalDatabase {
         //   reopen and resume cannot readmit application writes.
         migration_executor::ensure_migration_fence_open(&tx)?;
         if enforce_canonical_promotion_reservation {
-            if let Some(stream_id) =
-                crate::seed_identity::strict_current_data_version_stream(&tx)?
+            if let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(&tx)?
             {
                 crate::fork_promotion::enforce_canonical_mutation_admission_in(
                     &tx,
@@ -6678,8 +6677,7 @@ impl LocalDatabase {
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         migration_executor::ensure_migration_fence_open(&tx)?;
         if enforce_canonical_promotion_reservation {
-            if let Some(stream_id) =
-                crate::seed_identity::strict_current_data_version_stream(&tx)?
+            if let Some(stream_id) = crate::seed_identity::strict_current_data_version_stream(&tx)?
             {
                 crate::fork_promotion::enforce_canonical_mutation_admission_in(
                     &tx,
@@ -9853,9 +9851,9 @@ fn query_on_with_storage_limit_visibility_keyset(
             output.push(document);
         }
         drop(rows);
-        let fullscan_steps = statement.get_status(rusqlite::StatementStatus::FullscanStep);
         #[cfg(test)]
         {
+            let fullscan_steps = statement.get_status(rusqlite::StatementStatus::FullscanStep);
             KEYSET_SCAN_STATS.with(|stats| {
                 stats.borrow_mut().push(KeysetScanStats {
                     table: table.name.clone(),
@@ -19057,6 +19055,7 @@ fn record_change(
 ///
 /// @ref LLP 0162#5-promotion-stays-strict-and-merge-free — promotion publishes
 /// one canonical version with durable write and operation-envelope truth.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn record_promotion_change(
     tx: &Transaction<'_>,
     version: u64,
@@ -20412,15 +20411,15 @@ mod vector_storage_carrier_tests {
         assert_eq!(declared, "BLOB");
 
         db.seed(SeedData {
-                tables: BTreeMap::from([(
-                    "embeddings".to_owned(),
-                    vec![Map::from_iter([
-                        ("_id".to_owned(), json!("embedding_1")),
-                        ("embedding".to_owned(), json!([-0.0, 2.0, 3.0])),
-                    ])],
-                )]),
-            })
-            .expect("internal vector storage admits canonical values");
+            tables: BTreeMap::from([(
+                "embeddings".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("embedding_1")),
+                    ("embedding".to_owned(), json!([-0.0, 2.0, 3.0])),
+                ])],
+            )]),
+        })
+        .expect("internal vector storage admits canonical values");
         let stored: Vec<u8> = db
             .conn
             .query_row(
@@ -25088,7 +25087,10 @@ mod guarded_commit_tests {
         let stream = auth_invalidation::ensure_data_version_stream_in(&tx)
             .expect("initialize nonliteral data-version stream");
         tx.commit().expect("commit stream");
-        assert_ne!(stream, "canonical", "fixture literals are never stream authority");
+        assert_ne!(
+            stream, "canonical",
+            "fixture literals are never stream authority"
+        );
 
         crate::fork_promotion::ensure_promotion_tables(&db.conn)
             .expect("promotion admission tables");
@@ -25145,7 +25147,10 @@ mod guarded_commit_tests {
         let host_plan = db
             .execute_mutation(&insert_plan(), &HandlerInput::default())
             .expect_err("HostPlan must defer inside its SQLite writer transaction");
-        assert_eq!(host_plan.diagnostic.code, "SNAPBACK_PROMOTION_HEAD_RESERVED");
+        assert_eq!(
+            host_plan.diagnostic.code,
+            "SNAPBACK_PROMOTION_HEAD_RESERVED"
+        );
         let buffered = db
             .commit_buffered_writes(
                 &HandlerInput::default(),
@@ -25160,7 +25165,9 @@ mod guarded_commit_tests {
             .expect_err("buffered writer must defer inside its SQLite writer transaction");
         assert_eq!(buffered.diagnostic.code, "SNAPBACK_PROMOTION_HEAD_RESERVED");
         assert_eq!(
-            db.scan_table("items", 10, 0).expect("no partial writes").total,
+            db.scan_table("items", 10, 0)
+                .expect("no partial writes")
+                .total,
             0
         );
 
@@ -25199,8 +25206,8 @@ mod guarded_commit_tests {
     #[test]
     fn llp0163_issuance_bearing_host_plan_and_buffered_mutations_share_envelope_choke_point() {
         use crate::commit_envelope::{
-            ClientIdentityRangeV1, IdentityEpochStateV1, IdentityEpochV1,
-            OperationIssuanceV1, OperationOriginatorClassV1,
+            ClientIdentityRangeV1, IdentityEpochStateV1, IdentityEpochV1, OperationIssuanceV1,
+            OperationOriginatorClassV1,
         };
 
         let mut history_schema = schema();
@@ -25369,7 +25376,10 @@ mod guarded_commit_tests {
                 |row| row.get(0),
             )
             .expect("protected detail count");
-        assert_eq!(protected_count, 8, "four protected fact classes per envelope");
+        assert_eq!(
+            protected_count, 8,
+            "four protected fact classes per envelope"
+        );
         let retained_envelopes: String = db
             .conn
             .query_row(
@@ -25714,7 +25724,9 @@ mod guarded_commit_tests {
             "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
         );
         assert_eq!(
-            db.scan_table("items", 10, 0).expect("one retained write").total,
+            db.scan_table("items", 10, 0)
+                .expect("one retained write")
+                .total,
             1
         );
         let replay = execute_operation_crash_fixture(
@@ -25739,10 +25751,7 @@ mod guarded_commit_tests {
         let expired = db
             .client_mutation_result(&first)
             .expect_err("ACKed covered result keeps a compact duplicate barrier");
-        assert_eq!(
-            expired.diagnostic.code,
-            "SNAPBACK_OPERATION_RESULT_EXPIRED"
-        );
+        assert_eq!(expired.diagnostic.code, "SNAPBACK_OPERATION_RESULT_EXPIRED");
         assert_eq!(expired.diagnostic.details["outcome"], "committed");
 
         let (audience, expires_at_ms): (String, u64) = db
@@ -25804,15 +25813,16 @@ mod guarded_commit_tests {
                 Ok(output) => panic!("{label} below-floor identity executed: {output:?}"),
             };
             assert_eq!(
-                horizon.diagnostic.code,
-                "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED",
+                horizon.diagnostic.code, "SNAPBACK_OPERATION_IDENTITY_HORIZON_PASSED",
                 "{label} must surface outcome-unknown"
             );
             assert_eq!(horizon.diagnostic.details["outcome"], "unknown");
             assert_eq!(horizon.diagnostic.details["terminal"], false);
         }
         assert_eq!(
-            db.scan_table("items", 10, 0).expect("no below-floor write").total,
+            db.scan_table("items", 10, 0)
+                .expect("no below-floor write")
+                .total,
             1
         );
     }
@@ -25823,7 +25833,8 @@ mod guarded_commit_tests {
 
         fn database_with_lanes(lanes: &[&str]) -> LocalDatabase {
             let mut db = LocalDatabase::memory().expect("memory database");
-            db.apply_schema(schema()).expect("apply writer fixture schema");
+            db.apply_schema(schema())
+                .expect("apply writer fixture schema");
             let mut covered_lanes = lanes
                 .iter()
                 .map(|lane| (*lane).to_owned())
@@ -25921,11 +25932,7 @@ mod guarded_commit_tests {
         )
         .expect("ordinary issuance matches ordinary-only coverage");
         assert_eq!(
-            refusal_code(
-                &ordinary_only,
-                CoveredMutationLaneV1::Ordinary,
-                Some(&host),
-            ),
+            refusal_code(&ordinary_only, CoveredMutationLaneV1::Ordinary, Some(&host),),
             "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH"
         );
         let host_authority = TEST_CLIENT_MUTATION_AUTHORITY_INSTANCE_ID;
@@ -25986,11 +25993,7 @@ mod guarded_commit_tests {
         )
         .expect("host issuance matches host-only coverage");
         assert_eq!(
-            refusal_code(
-                &host_only,
-                CoveredMutationLaneV1::HostChild,
-                Some(&client),
-            ),
+            refusal_code(&host_only, CoveredMutationLaneV1::HostChild, Some(&client),),
             "SNAPBACK_OPERATION_WRITER_IDENTITY_MISMATCH"
         );
 
@@ -26084,12 +26087,12 @@ mod guarded_commit_tests {
     #[test]
     fn llp0163_host_retry_capacity_purge_and_rotation_use_the_real_writer() {
         use crate::commit_envelope::{
-            IdentityEpochStateV1, IdentityEpochV1, OperationIssuanceV1,
-            OperationOriginatorClassV1,
+            IdentityEpochStateV1, IdentityEpochV1, OperationIssuanceV1, OperationOriginatorClassV1,
         };
 
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema()).expect("apply writer fixture schema");
+        db.apply_schema(schema())
+            .expect("apply writer fixture schema");
         db.install_operation_coverage_for_test(
             vec![crate::operation_ledger::HOST_CHILD_MUTATION_LANE_V1.to_owned()],
             crate::operation_ledger::HOST_CHILD_MUTATION_WRITERS_V1
@@ -26171,7 +26174,9 @@ mod guarded_commit_tests {
             "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
         );
         assert_eq!(
-            db.scan_table("items", 10, 0).expect("only one host plan ran").total,
+            db.scan_table("items", 10, 0)
+                .expect("only one host plan ran")
+                .total,
             2
         );
         drop(limits);
@@ -26260,7 +26265,9 @@ mod guarded_commit_tests {
             "SNAPBACK_OPERATION_ISSUANCE_AUTH_INVALID"
         );
         assert_eq!(
-            db.scan_table("items", 10, 0).expect("no delayed host write").total,
+            db.scan_table("items", 10, 0)
+                .expect("no delayed host write")
+                .total,
             2
         );
     }
@@ -26276,7 +26283,8 @@ mod guarded_commit_tests {
         }
 
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema()).expect("apply writer fixture schema");
+        db.apply_schema(schema())
+            .expect("apply writer fixture schema");
         db.conn
             .execute_batch(
                 "CREATE TRIGGER raw_system_to_app_bypass
@@ -26305,8 +26313,7 @@ mod guarded_commit_tests {
             .expect_err("raw insert must be denied by SQLite");
         assert!(authorization_denied(&direct_insert));
 
-        let cached_sql =
-            "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title) \
+        let cached_sql = "INSERT INTO items(_id,_version,_createdAt,_updatedAt,title) \
              VALUES('cached',1,1,1,'cached')";
         {
             let _token = db
@@ -26463,7 +26470,8 @@ mod guarded_commit_tests {
     #[test]
     fn llp0162_local_target_activation_names_only_envelope_writers_and_blocks_exclusions() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema()).expect("apply writer fixture schema");
+        db.apply_schema(schema())
+            .expect("apply writer fixture schema");
         db.activate_local_target_operation_coverage(1)
             .expect("activate closed local target manifest");
         assert!(
@@ -26504,10 +26512,7 @@ mod guarded_commit_tests {
                 Ok(_) => panic!("an excluded app writer acquired authority"),
                 Err(error) => error,
             };
-            assert_eq!(
-                error.diagnostic.code,
-                "SNAPBACK_OPERATION_WRITER_EXCLUDED"
-            );
+            assert_eq!(error.diagnostic.code, "SNAPBACK_OPERATION_WRITER_EXCLUDED");
         }
 
         let schema_error = db
@@ -26572,14 +26577,22 @@ mod guarded_commit_tests {
         superset
             .install_operation_coverage_for_test(exact_lanes.clone(), extra_writers)
             .expect("install superset");
-        assert!(!superset.agent_safe_exact_operation_coverage_active().unwrap());
+        assert!(
+            !superset
+                .agent_safe_exact_operation_coverage_active()
+                .unwrap()
+        );
 
         let mut removed = LocalDatabase::memory().expect("removed database");
         removed.apply_schema(schema()).expect("removed schema");
         removed
             .install_operation_coverage_for_test(exact_lanes, exact_writers)
             .expect("install exact manifest");
-        assert!(removed.agent_safe_exact_operation_coverage_active().unwrap());
+        assert!(
+            removed
+                .agent_safe_exact_operation_coverage_active()
+                .unwrap()
+        );
         removed
             .conn
             .execute("DELETE FROM _snapback_operation_coverage_v1", [])
@@ -26587,7 +26600,11 @@ mod guarded_commit_tests {
         removed
             .refresh_writer_authority_manifest()
             .expect("refresh removed activation");
-        assert!(!removed.agent_safe_exact_operation_coverage_active().unwrap());
+        assert!(
+            !removed
+                .agent_safe_exact_operation_coverage_active()
+                .unwrap()
+        );
     }
 
     #[test]
@@ -26595,7 +26612,8 @@ mod guarded_commit_tests {
         let dir = tempfile::tempdir().expect("writer authority tempdir");
         let path = dir.path().join("writer-authority.sqlite");
         let mut db = LocalDatabase::open(&path).expect("create file database");
-        db.apply_schema(schema()).expect("apply writer fixture schema");
+        db.apply_schema(schema())
+            .expect("apply writer fixture schema");
         assert_eq!(
             db.conn
                 .execute(
@@ -26655,7 +26673,8 @@ mod guarded_commit_tests {
     #[test]
     fn llp0162_writer_authority_installs_only_at_the_active_coverage_cut() {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.apply_schema(schema()).expect("apply writer fixture schema");
+        db.apply_schema(schema())
+            .expect("apply writer fixture schema");
 
         // A dormant connection must preserve SQLite's normal statement-cache
         // behavior. Preparing raw application DML is admitted before the
@@ -26675,9 +26694,9 @@ mod guarded_commit_tests {
         .expect("activate ordinary writer fixture");
 
         let denied = match db.conn.prepare_cached(sql) {
-            Ok(_) => panic!(
-                "activation failed to clear the dormant cache and install the authorizer"
-            ),
+            Ok(_) => {
+                panic!("activation failed to clear the dormant cache and install the authorizer")
+            }
             Err(error) => error,
         };
         assert!(matches!(
@@ -28926,24 +28945,21 @@ mod guarded_commit_tests {
         let mut retired_stream_client = base_identity.clone();
         retired_stream_client.key.stream_id = "retired-stream-fixture".to_owned();
         retired_stream_client.bound_facts.principal_fingerprint =
-            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-                .to_owned();
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_owned();
         insert_unrelated(retired_stream_client);
 
         let mut host = base_identity;
         host.key.originator_class = OperationOriginatorClassV1::Host;
         host.bound_facts.audience = "host-audience-fixture".to_owned();
         host.bound_facts.principal_fingerprint =
-            "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-                .to_owned();
+            "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".to_owned();
         host.bound_facts.authority_instance_id = "host-authority-fixture".to_owned();
         host.issuance = OperationIssuanceV1::HostIncarnation {
             epoch_id: "host-epoch-fixture".to_owned(),
             upstream_identity: "job:purge-collision".to_owned(),
             commit_ordinal: 0,
             authority_authenticator_digest:
-                "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
-                    .to_owned(),
+                "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd".to_owned(),
         };
         insert_unrelated(host);
 

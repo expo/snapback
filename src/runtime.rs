@@ -5,8 +5,8 @@ use crate::auth::invocation::{HandlerAuthProjection, PreparedInvocation};
 use crate::cron::CronRunMetadata;
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::error_tracking::{
-    AppRefusalTrackingV1, FailureCarrierV1, PrivateFailureContextV1,
-    UNCLASSIFIED_ERROR_CLASS, extract_failure_carrier, validated_error_class,
+    AppRefusalTrackingV1, FailureCarrierV1, PrivateFailureContextV1, UNCLASSIFIED_ERROR_CLASS,
+    extract_failure_carrier, validated_error_class,
 };
 use crate::live_matcher::{
     compare_sort_keys, query_dependency_metadata, row_matches_query_filters, sort_key,
@@ -3355,12 +3355,7 @@ fn render_async_failure(
             Ok(None)
         };
         let decoded_stack = if metadata_fields & THROW_FIELD_STACK != 0 {
-            copy_native_utf8(
-                stack.data,
-                stack.length,
-                SAFE_TEXT_MAX_BYTES,
-                "error stack",
-            )
+            copy_native_utf8(stack.data, stack.length, SAFE_TEXT_MAX_BYTES, "error stack")
         } else {
             Ok(None)
         };
@@ -3372,7 +3367,9 @@ fn render_async_failure(
     }
     let (decoded_message, decoded_stack) = decoded?;
     let raw_error_class = error_class_name(error_class)?;
-    if decoded_message.as_deref().is_some_and(|message| !message.is_empty())
+    if decoded_message
+        .as_deref()
+        .is_some_and(|message| !message.is_empty())
         || decoded_stack.is_some()
         || error_class != 0
     {
@@ -3380,9 +3377,7 @@ fn render_async_failure(
             error_class: validated_error_class(raw_error_class),
             message: decoded_message,
             stack: decoded_stack,
-            message_extraction_truncated: metadata_fields
-                & THROW_FIELD_MESSAGE_TRUNCATED
-                != 0,
+            message_extraction_truncated: metadata_fields & THROW_FIELD_MESSAGE_TRUNCATED != 0,
             stack_extraction_truncated: metadata_fields & THROW_FIELD_STACK_TRUNCATED != 0,
         });
     }
@@ -3594,10 +3589,7 @@ fn handler_failure_carrier(object: &Map<String, Value>) -> FailureCarrierV1 {
     carrier
 }
 
-fn with_handler_failure_carrier(
-    error: SnapbackError,
-    carrier: FailureCarrierV1,
-) -> SnapbackError {
+fn with_handler_failure_carrier(error: SnapbackError, carrier: FailureCarrierV1) -> SnapbackError {
     error.with_private_failure_context(PrivateFailureContextV1 {
         carriers: vec![carrier],
         app_refusal_tracking: None,
@@ -4893,19 +4885,16 @@ mod private_failure_carrier_tests {
             source: source.to_owned(),
             export: "probe".to_owned(),
         };
-        run_ibex_handler_with_context(&module, &mut invocation, None)
-            .expect_err("probe must fail")
+        run_ibex_handler_with_context(&module, &mut invocation, None).expect_err("probe must fail")
     }
 
     #[test]
     fn ordinary_throw_preserves_private_settle_carrier() {
-        let error = run(
-            r#"
+        let error = run(r#"
             globalThis.__snapbackHandlers = {
               async probe() { throw new TypeError('settle carrier'); }
             };
-            "#,
-        );
+            "#);
         assert_eq!(error.diagnostic.code, "SNAPBACK_HANDLER_FAILED");
         assert!(error.diagnostic.details.get("errorClass").is_none());
         assert!(error.diagnostic.details.get("stack").is_none());
@@ -4916,26 +4905,32 @@ mod private_failure_carrier_tests {
         assert_eq!(carriers.len(), 1);
         assert_eq!(carriers[0].error_class, "TypeError");
         assert_eq!(carriers[0].message.as_deref(), Some("settle carrier"));
-        assert!(carriers[0].stack.as_deref().is_some_and(|stack| !stack.is_empty()));
+        assert!(
+            carriers[0]
+                .stack
+                .as_deref()
+                .is_some_and(|stack| !stack.is_empty())
+        );
     }
 
     #[test]
     fn one_unhandled_rejection_decodes_ibex_structured_metadata_before_release() {
-        let error = run(
-            r#"
+        let error = run(r#"
             globalThis.__snapbackHandlers = {
               async probe() {
                 Promise.reject(new TypeError('detached carrier'));
                 return null;
               }
             };
-            "#,
-        );
+            "#);
         assert_eq!(
             error.diagnostic.code,
             "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
         );
-        assert_eq!(error.diagnostic.details["rejections"], json!(["detached carrier"]));
+        assert_eq!(
+            error.diagnostic.details["rejections"],
+            json!(["detached carrier"])
+        );
         let carriers = &error
             .private_failure_context()
             .expect("private async carrier")
@@ -4943,13 +4938,17 @@ mod private_failure_carrier_tests {
         assert_eq!(carriers.len(), 1);
         assert_eq!(carriers[0].error_class, "TypeError");
         assert_eq!(carriers[0].message.as_deref(), Some("detached carrier"));
-        assert!(carriers[0].stack.as_deref().is_some_and(|stack| !stack.is_empty()));
+        assert!(
+            carriers[0]
+                .stack
+                .as_deref()
+                .is_some_and(|stack| !stack.is_empty())
+        );
     }
 
     #[test]
     fn multiple_unhandled_rejections_preserve_queue_order_without_a_winner() {
-        let error = run(
-            r#"
+        let error = run(r#"
             globalThis.__snapbackHandlers = {
               async probe() {
                 Promise.reject(new Error('first carrier'));
@@ -4957,8 +4956,7 @@ mod private_failure_carrier_tests {
                 return null;
               }
             };
-            "#,
-        );
+            "#);
         assert_eq!(
             error.diagnostic.details["rejections"],
             json!(["first carrier", "second carrier"])

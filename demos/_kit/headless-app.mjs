@@ -59,16 +59,27 @@ export async function openHeadlessApp(metaUrl, {
         serverBinary,
         env,
       });
-  const provisioner = new SnapbackClient(server.baseUrl, server.clientOptions);
-  const routesPath = join(generatedDir, 'routes.manifest.json');
-  const provisioned = await provisioner.ensureApp({
-    schema: generated('schema.manifest.json'),
-    functions: generated('functions.manifest.json'),
-    // A fork is useful because it keeps the parent's real cardinalities and
-    // oddities. Never mix the demo seed into that state implicitly.
-    ...(forkFrom === null ? { seed: readJson(join(backendDir, 'seed.json')) } : {}),
-    ...(existsSync(routesPath) ? { routes: readJson(routesPath) } : {}),
+  const provisioner = new SnapbackClient(server.baseUrl, {
+    ...server.clientOptions,
+    rqsStore: null,
   });
+  const routesPath = join(generatedDir, 'routes.manifest.json');
+  let provisioned;
+  try {
+    provisioned = await provisioner.ensureApp({
+      schema: generated('schema.manifest.json'),
+      functions: generated('functions.manifest.json'),
+      // A fork is useful because it keeps the parent's real cardinalities and
+      // oddities. Never mix the demo seed into that state implicitly.
+      ...(forkFrom === null ? { seed: readJson(join(backendDir, 'seed.json')) } : {}),
+      ...(existsSync(routesPath) ? { routes: readJson(routesPath) } : {}),
+    });
+  } finally {
+    // @ref LLP 0166#writer-discipline-and-format-versioning — the fresh
+    // product client may not write until the provisioning client's owned
+    // file-store lease has been released.
+    await provisioner.closeAuth();
+  }
   // Provisioning changes the app/auth generation. Start product traffic from
   // a fresh client so no pre-provision handshake or connection cache can cross
   // that boundary.
@@ -87,6 +98,12 @@ export async function openHeadlessApp(metaUrl, {
     provisioned,
     repoRoot,
     server,
-    close: () => server.stop(),
+    close: async () => {
+      try {
+        await client.closeAuth();
+      } finally {
+        await server.stop();
+      }
+    },
   };
 }

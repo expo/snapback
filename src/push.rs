@@ -5062,11 +5062,9 @@ mod tests {
         .unwrap();
 
         assert!(
-            db.with_auth_transaction(|tx| {
-                claim_recovered_batch_for_transmit_in(tx, 9)
-            })
-            .unwrap()
-            .is_none(),
+            db.with_auth_transaction(|tx| { claim_recovered_batch_for_transmit_in(tx, 9) })
+                .unwrap()
+                .is_none(),
             "maintenance must not race a fresh fence-zero action reservation"
         );
 

@@ -787,9 +787,8 @@ async fn console_credential_is_derived_sliding_and_no_store() {
 
     let hosted = app_with_context(
         seeded_snapback(),
-        loopback_context(Some("master-secret")).with_auth_deployment(
-            snapback::auth::deployment::AuthDeploymentTarget::Hosted,
-        ),
+        loopback_context(Some("master-secret"))
+            .with_auth_deployment(snapback::auth::deployment::AuthDeploymentTarget::Hosted),
     )
     .oneshot(post_with_token(
         "/_snapback/api/console/credential",
@@ -807,10 +806,7 @@ async fn console_credential_is_derived_sliding_and_no_store() {
 
 #[tokio::test]
 async fn master_console_exchange_rate_counts_invalid_master_attempts() {
-    let app = app_with_context(
-        seeded_snapback(),
-        loopback_context(Some("master-secret")),
-    );
+    let app = app_with_context(seeded_snapback(), loopback_context(Some("master-secret")));
     for attempt in 0..60 {
         let mut request = post_with_token(
             "/_snapback/api/console/credential",
@@ -823,11 +819,7 @@ async fn master_console_exchange_rate_counts_invalid_master_attempts() {
                 "sbcc_bogus".parse().unwrap(),
             );
         }
-        let response = app
-            .clone()
-            .oneshot(request)
-            .await
-            .unwrap();
+        let response = app.clone().oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
     let bounded = app
@@ -885,17 +877,11 @@ async fn console_device_approval_is_terminal_authorized_and_single_use() {
     let app = app_with_context(seeded_snapback(), loopback_context(Some("master-secret")));
     let requested = app
         .clone()
-        .oneshot(post(
-            "/_snapback/api/console/approval/request",
-            json!({}),
-        ))
+        .oneshot(post("/_snapback/api/console/approval/request", json!({})))
         .await
         .unwrap();
     assert_eq!(requested.status(), StatusCode::OK);
-    assert_eq!(
-        requested.headers()["cache-control"],
-        "no-store, private"
-    );
+    assert_eq!(requested.headers()["cache-control"], "no-store, private");
     let requested = json(requested).await;
     let device_code = requested["deviceCode"].as_str().unwrap();
     let user_code = requested["userCode"].as_str().unwrap();
@@ -1118,7 +1104,12 @@ async fn console_claim_exchange_is_atomic_uniform_master_observable_and_revocabl
     let status = json(status).await;
     assert_eq!(status["status"], "redeemed");
     assert_eq!(status["transportPeerSource"], "directTransport");
-    assert!(status["transportPeer"].as_str().unwrap().starts_with("127.0.0.1:500"));
+    assert!(
+        status["transportPeer"]
+            .as_str()
+            .unwrap()
+            .starts_with("127.0.0.1:500")
+    );
     assert_ne!(status["credentialDigestSha256"], credential);
     assert_eq!(status["credentialDigestSha256"].as_str().unwrap().len(), 64);
 
@@ -1170,9 +1161,8 @@ async fn console_claim_mint_and_exchange_refuse_non_loopback_and_hosted_targets(
             "SNAPBACK_ADMIN_DISABLED",
         ),
         (
-            loopback_context(Some("master-secret")).with_auth_deployment(
-            snapback::auth::deployment::AuthDeploymentTarget::Hosted,
-            ),
+            loopback_context(Some("master-secret"))
+                .with_auth_deployment(snapback::auth::deployment::AuthDeploymentTarget::Hosted),
             "SNAPBACK_ADMIN_CLAIM_UNAVAILABLE",
         ),
     ];

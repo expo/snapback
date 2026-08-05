@@ -754,10 +754,7 @@ fn migration_host_digest(domain: &[u8], value: &Value) -> String {
 /// Provision the server-owned host epoch before a migration transaction can
 /// consume a child ordinal. If that later transaction rolls back, retry sees
 /// the same authenticated issuance facts as well as the same operation key.
-fn ensure_migration_host_authority(
-    conn: &mut Connection,
-    issued_at_ms: u64,
-) -> SnapbackResult<()> {
+fn ensure_migration_host_authority(conn: &mut Connection, issued_at_ms: u64) -> SnapbackResult<()> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
     let stream_id = super::auth_invalidation::ensure_data_version_stream_in(&tx)?;
     crate::operation_ledger::ensure_host_incarnation_in(

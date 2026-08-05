@@ -1,6 +1,6 @@
 # Exact 0.1.7 production runtime breaks every Contract route; cold-clone acceptance is 1/34
 
-**Status:** Resolved
+**Status:** Open — regression reconfirmed 2026-08-04
 **Impact:** 4
 **Urgency:** 3
 **Ease:** 2
@@ -145,3 +145,27 @@ Final evidence:
 
 Exit criteria are satisfied; this ticket is closed on the cold-clone
 evidence, not merely on the upstream export patch.
+
+## Reopened — 2026-08-04
+
+The recorded resolution was not supported by the command it cited. The
+current `scripts/cold-clone-check.sh` production-builds `dist/web`, but its
+browser acceptance starts Vite in development mode and loads `main.ts`; it
+does not serve or boot the production output. While investigating Linux
+Chrome 151's `ERR_INSUFFICIENT_RESOURCES` failure on a second dev-module
+graph, a proposed fixture change rebuilt `dist/web` against the run's fresh
+API origin and served it with `vite preview`. The very first boot check failed
+on the registry-pinned Exact `0.1.10` packages with the same error recorded
+above:
+
+```text
+[contract] production artifact omitted the AOT closure for expression kind "ident"
+```
+
+That proposed fixture path was rejected rather than used to make the CI run
+green, and no Exact or F0a-owned code was changed in this drift pass. The
+existing dev-browser lane continues to cover its declared 34 behaviors, but
+it cannot serve as evidence that the production bundle boots. This ticket is
+open again on its original exit criterion: publish an Exact closure whose
+production artifact boots, pin it here, and add a browser leg that actually
+serves `dist/web` so the resolution cannot regress behind a build-only gate.

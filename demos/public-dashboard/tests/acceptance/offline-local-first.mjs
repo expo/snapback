@@ -197,7 +197,18 @@ await runAcceptance(suite, async () => {
     assert(queuedUpdate.sequence > queuedCreate.sequence, 'monotonic sequence order');
     const pending = await clientB.rqsStore.outboxPending();
     assertEqual(pending.map((r) => r.function), ['recordMetric', 'setMetricValue'], 'durable pending queue');
-    return { queuedCreate, queuedUpdate };
+    return {
+      queuedCreate: {
+        queued: queuedCreate.queued,
+        clientMutationIdPresent: true,
+        sequence: queuedCreate.sequence,
+      },
+      queuedUpdate: {
+        queued: queuedUpdate.queued,
+        clientMutationIdPresent: true,
+        sequence: queuedUpdate.sequence,
+      },
+    };
   });
 
   // ---- LLP 0090 D3 outbox rule (2026-08-01 rendering-side note) ----
@@ -270,7 +281,15 @@ await runAcceptance(suite, async () => {
     const diagnostics = clientB.outboxDiagnostics.map(({ code }) => code);
     assert(diagnostics.includes('SNAPBACK_OFFLINE_MUTATION_QUEUED'), 'queue diagnostic recorded');
     assert(diagnostics.includes('SNAPBACK_OFFLINE_MUTATION_REPLAYED'), 'replay diagnostic recorded');
-    return { rows: handleB.rows, diagnostics };
+    return {
+      rows: handleB.rows.map(({ _version, dashboardId, label, value }) => ({
+        _version,
+        dashboardId,
+        label,
+        value,
+      })),
+      diagnostics,
+    };
   });
 
   await suite.check('duplicate delivery of a settled id returns the original settlement (exactly-once ledger)', async () => {
@@ -280,6 +299,11 @@ await runAcceptance(suite, async () => {
       queue: false,
     });
     assert(duplicate.result, 'duplicate delivery returned a settlement');
+    const settledCreate = handleB.rows.find((row) => row.label === 'error_rate');
+    assertEqual(duplicate.result, settledCreate?._id, 'duplicate returns the original row identity');
+    assertEqual(duplicate.changed_count, 1, 'duplicate retains the original changed-count witness');
+    assertEqual(duplicate.receipt?.outcome, 'confirmed', 'duplicate retains the confirmed outcome');
+    assertEqual(duplicate.receipt?.settlementLane, 'replay-accept', 'duplicate retains the replay lane');
     await waitUntil(
       () => handleB.rows.filter((row) => row.label === 'error_rate').length === 1,
       { label: 'no ghost duplicate row' },
@@ -297,7 +321,30 @@ await runAcceptance(suite, async () => {
     } finally {
       probe.dispose();
     }
-    return { duplicate };
+    return {
+      duplicate: {
+        version: duplicate.version,
+        changedCount: duplicate.changed_count,
+        resultMatchesSettledCreate: true,
+        authorityDescriptorVersion: duplicate.authorityDescriptor?.descriptorVersion,
+        authoritySessionGeneration: duplicate.authorityDescriptor?.sessionGeneration,
+        receipt: {
+          kind: duplicate.receipt?.kind,
+          mutation: duplicate.receipt?.mutation,
+          outcome: duplicate.receipt?.outcome,
+          settlementLane: duplicate.receipt?.settlementLane,
+          claimFields: duplicate.receipt?.claimLedger?.map(({ fieldOrSlot, disposition }) => ({
+            fieldOrSlot,
+            disposition,
+          })),
+          rollbackReason: duplicate.receipt?.rollbackReason,
+          affectedTables: duplicate.receipt?.affectedTables,
+          snapshotVersion: duplicate.receipt?.snapshotVersion,
+          transport: duplicate.receipt?.transport,
+          correlation: duplicate.receipt?.correlation,
+        },
+      },
+    };
   });
 
   // ---- Cold boot with data after server restart + client relaunch ----

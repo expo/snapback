@@ -61,9 +61,7 @@ impl SecretReadScope {
             | Self::Receipts
             | Self::TelemetryEvents
             | Self::TelemetryExport
-            | Self::ErrorsIssue => {
-                Ok(())
-            }
+            | Self::ErrorsIssue => Ok(()),
             Self::Table(name) | Self::FunctionRun(name) | Self::FunctionExplain(name) => {
                 if name.trim().is_empty() || name.contains('*') || name.len() > MAX_SCOPE_NAME_BYTES
                 {

@@ -29,8 +29,8 @@ use crate::auth::wire::{
     RescueCollidingTableRequest,
 };
 use crate::commit_envelope::{
-    ClientIdentityRangeV1, CommitEnvelopeV1, IdentityEpochV1, OperationCoverageManifestV1,
-    OperationCoverageActivationRequestV1, OperationCoverageActivationResponseV1,
+    ClientIdentityRangeV1, CommitEnvelopeV1, IdentityEpochV1, OperationCoverageActivationRequestV1,
+    OperationCoverageActivationResponseV1, OperationCoverageManifestV1,
     OperationExplanationRequestV1, OperationExplanationResponseV1, OperationExplanationV1,
     OperationIdentityRangeRequestV1, OperationIdentityRangeResponseV1,
     OperationIdentityTombstoneV1, OperationIdentityV1, OperationSuppressionRecordV1,
@@ -57,9 +57,8 @@ use crate::ephemeral::{
 };
 use crate::fork_promotion::{
     BranchOperationV1, BranchReapReceiptV1, CapturedEffectIntentV1, DenyAllAttemptMarkerV1,
-    ForkDiffReceiptV1, InAppBranchReceiptV1, ManagedInAppBranchReceiptV1,
-    PromotedEffectIntentV1, PromotionAdmissionTicketV1, PromotionReceiptV1, PromotionRequestV1,
-    RebaseReplayReceiptV1,
+    ForkDiffReceiptV1, InAppBranchReceiptV1, ManagedInAppBranchReceiptV1, PromotedEffectIntentV1,
+    PromotionAdmissionTicketV1, PromotionReceiptV1, PromotionRequestV1, RebaseReplayReceiptV1,
 };
 use crate::handler_wire::{HandlerHostCallRequest, HandlerInvokeRequest, HandlerInvokeResponse};
 use crate::host_ops::{

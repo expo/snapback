@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-08-04
-reviewed-commit: 37ed952672d43abdfede88a9d51a76e04a11da5b
+reviewed-commit: e8e9ada94aa7354a5f8845ee0199d4bbe0bc5746
 ---
 
 # The artifact-driven app CLI
@@ -28,10 +28,12 @@ refuses rather than running against different code.
 
 The local phase-1 engine is shipped. Phase 2 now has an app-bound Ibex builder,
 embedded coordinator, and literal executable proof on the qualified macOS
-arm64 tuple. The capability remains partial: hosted targets do not advertise
-it, and ticket 0062-08 keeps qualified Linux plus the full host-portable
-lifecycle and acceptance matrix open. The ordinary supported download remains
-the Node package until that matrix is complete.
+arm64 tuple. Its host-portable lifecycle and acceptance matrix is complete on
+that tuple, including signal-first grace, exact frame admission, strict
+settlement, resource classification, deterministic cleanup, and value-free
+audits. The capability remains partial: hosted targets do not advertise it,
+and ticket 0062-08 keeps the qualified Linux GLIBC 2.35 tuple open. The
+ordinary supported download remains the Node package until that tuple lands.
 
 ## Discover the app surface
 
@@ -221,9 +223,10 @@ executable admits only its embedded app identity. The current API envelope is
 dynamic data fetched from that origin, so ordinary function and schema deploys
 do not alter the fixed binding. Rebuilds are intended only for that binding,
 the trusted engine/runtime, policy/protocol, platform, or release provenance;
-ticket 0062-08 still owns the comprehensive §7 disclosure, ceiling, lifecycle,
-and race matrix. Unsupported producer tuples refuse instead of emitting a
-wrapper or sidecar approximation.
+ticket 0062-08 still owns the qualified Linux x86_64 tuple. The comprehensive
+§7 disclosure, ceiling, lifecycle, and race matrix is green on qualified macOS
+arm64. Unsupported producer tuples refuse instead of emitting a wrapper or
+sidecar approximation.
 
 ## Run the packaged agent journey
 
@@ -257,6 +260,6 @@ semantics and durable daemon custody, read
 - Do not infer agent safety from a hostname; the phase-1 lane requires a
   literal loopback origin and peer.
 - Do not present the app-bound build checkpoint as a generally released
-  download until ticket 0062-08's host-portable acceptance matrix is complete.
+  download until ticket 0062-08's qualified Linux tuple is complete.
 - Do not describe the Node package as the app-bound one-file executable; they
   remain distinct products with different trust and distribution postures.

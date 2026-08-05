@@ -128,7 +128,9 @@ registry class 4 of 6 is single-node-only through `single-node.v1`, activates
 `rqs-authority-independent-snapshot-v1` to both retention unions, and pins
 its no-lease proof/witness/fence/trusted-activation custody and staged
 legacy-to-QMK adoption. Semantic acceptance only; no implementation or
-capability claim.)
+capability claim.) 2026-08-04 (v0.10 activation/publication amendment:
+`single_table_v1` is registered at experimental maturity and activated on the
+source-qualified local target; see the dated status amendment.)
 **Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0012,
 LLP 0017, LLP 0039, LLP 0043, LLP 0048, LLP 0051, LLP 0053, LLP 0059,
 LLP 0073, LLP 0080,
@@ -2184,3 +2186,26 @@ The v0.9 dated amendment records Charlie's semantic acceptance of
 advertises the class, proof path, retention authority, or staged adoption;
 those remain gated by the separately commissioned implementation program and
 the existing proof/wire/store conformance requirements.
+
+## `single_table_v1` activation and local publication — 2026-08-04
+
+The dormant class is now active. The closed target registry contains
+`single_table_v1` at `experimental` maturity with its same-commit introduction
+record; codegen adds the id to `requiredCapabilities` exactly when the
+host-derived predicate selects class 4, and the contributor-source
+`local-dev-sqlite-ibex` target derives support only through LLP 0110's exact
+store/class `LocalCapabilityPublicationV1` carrier. Public packages,
+remote/hosted targets, and the Fleet footprint leg remain false/GAP under
+their own publication authorities.
+
+Activation changes no class semantics. Membership remains host-derived and
+never author-assertable; admission remains `single-node.v1` only; ordered or
+limited results remain `live_replace`; the 1,024 examined-entry refusal is
+scoped to QMK establishment. Arm A continues to carry
+`rqs-authority-independent-snapshot-v1`, `authorizedLeaseHash: null`, and no
+`AuthorizedLease`. Legacy adoption remains connected-only prove-or-fresh, one
+atomic same-domain transaction, never relabel-in-place, and never drops
+pending outbox intent. Existing result/cursor wire encodings stay unchanged;
+the newly required capability id is part of the plan's declared capability
+classification and therefore rotates the plan identity consistently in
+codegen and host reconstruction.

@@ -485,7 +485,7 @@ impl LocalDatabase {
             None,
             seed,
         )
-            .into_result()
+        .into_result()
     }
 
     pub(crate) fn stage_auth_mode_with_functions(
@@ -503,7 +503,7 @@ impl LocalDatabase {
             Some(functions.clone()),
             seed,
         )
-            .into_result()
+        .into_result()
     }
 
     #[cfg(test)]
@@ -578,14 +578,21 @@ impl LocalDatabase {
         let authorization_interlock = self.authorization_interlock.clone();
         let order_field_bounds = self.order_field_bounds.clone();
         let mut predecessor_sequence_declarations = BTreeMap::new();
-        let exact_active_predecessor = trusted_predecessor_functions.as_ref().is_some_and(|functions| {
-            predecessor.active_manifest.as_ref().is_some_and(|schema| {
-                DeploymentIdentity::from_manifests(predecessor.state.active, schema, functions)
-                    .ok()
-                    .as_ref()
-                    == predecessor.state.active_deployment.as_ref()
-            })
-        });
+        let exact_active_predecessor =
+            trusted_predecessor_functions
+                .as_ref()
+                .is_some_and(|functions| {
+                    predecessor.active_manifest.as_ref().is_some_and(|schema| {
+                        DeploymentIdentity::from_manifests(
+                            predecessor.state.active,
+                            schema,
+                            functions,
+                        )
+                        .ok()
+                        .as_ref()
+                            == predecessor.state.active_deployment.as_ref()
+                    })
+                });
         if exact_active_predecessor {
             predecessor_sequence_declarations.extend(self.sequence_declarations.as_ref().clone());
             predecessor_sequence_declarations.extend(sequence_declarations.clone());
@@ -667,11 +674,7 @@ impl LocalDatabase {
                     &schema_manifest,
                     current_version_on(tx)?,
                 )?;
-                super::validate_sequence_activation(
-                    tx,
-                    &schema_manifest,
-                    &sequence_declarations,
-                )?;
+                super::validate_sequence_activation(tx, &schema_manifest, &sequence_declarations)?;
                 apply_schema_indexes(tx, &schema_manifest)?;
                 crate::search::sqlite::activate_manifest_in_tx(
                     tx,
@@ -1290,8 +1293,7 @@ impl LocalDatabase {
         let authorization_interlock = self.authorization_interlock.clone();
         let order_field_bounds = self.order_field_bounds.clone();
         let mut predecessor_sequence_declarations = BTreeMap::new();
-        let sequence_declarations =
-            super::sequence_declarations_from_function_manifest(&functions);
+        let sequence_declarations = super::sequence_declarations_from_function_manifest(&functions);
         if predecessor.state.active_deployment.as_ref() == Some(&deployment) {
             predecessor_sequence_declarations.extend(self.sequence_declarations.as_ref().clone());
             predecessor_sequence_declarations.extend(sequence_declarations.clone());

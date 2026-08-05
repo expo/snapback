@@ -63,18 +63,17 @@ use crate::local::{
     AdmittedCronClaim, AppActionStage, AuthProvisionCommit, AuthorizationInvalidationAckInput,
     AuthorizationInvalidationManualRetryInput, ConfigVerifyStage, DetachedMutationRead,
     EnsureAppExplicitInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse, EphemeralApi,
-    FunctionRunResult, InspectState, LiveInvalidationAdmission, LiveResumeInput,
-    LiveSubscribeRequest, LiveUnsubscribeInput, LocalSnapback, MaintenanceOperation,
-    PreparedAuthProvision, StagedAction, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
-    HostOperationParentV1, live_stream_text, live_stream_text_with_server_observed,
+    FunctionRunResult, HostOperationParentV1, InspectState, LiveInvalidationAdmission,
+    LiveResumeInput, LiveSubscribeRequest, LiveUnsubscribeInput, LocalSnapback,
+    MaintenanceOperation, PreparedAuthProvision, StagedAction, StagedAppAction, StagedConfigVerify,
+    StagedNestedMutation, live_stream_text, live_stream_text_with_server_observed,
 };
 use crate::manifest::{
     ActionReturnValue, ActionStep, ArtifactGeneration, AuthInput, AuthMode, AuthRequirement,
     AuthorityDescriptor, CtxAnswerLedger, FiniteQueryOutput, FiniteQueryRequest,
-    FunctionCallRequest, FunctionInvocationFacts, FunctionKind, FunctionManifest,
-    FunctionResponse, FunctionRuntime, HandlerInput, MutationAcknowledgementRequest,
-    MutationAcknowledgementResponse, MutationOutput, MutationRequest, QueryOutput,
-    ReadDependency, SchemaManifest, SeedData,
+    FunctionCallRequest, FunctionInvocationFacts, FunctionKind, FunctionManifest, FunctionResponse,
+    FunctionRuntime, HandlerInput, MutationAcknowledgementRequest, MutationAcknowledgementResponse,
+    MutationOutput, MutationRequest, QueryOutput, ReadDependency, SchemaManifest, SeedData,
 };
 use crate::push::{
     PushTokenRegistrationResponse, PushTokenUnregisterResponse, RegisterPushTokenRequest,
@@ -1481,12 +1480,8 @@ impl IbexActionHost for DetachedActionHost {
         let authority = self
             .authority
             .inherit_for(InvocationSource::NestedMutation)?;
-        let host_identity = snapback.covered_host_child_identity(
-            &self.host_operation,
-            name,
-            &input,
-            &authority,
-        )?;
+        let host_identity =
+            snapback.covered_host_child_identity(&self.host_operation, name, &input, &authority)?;
         match snapback.stage_nested_mutation(name, &input, authority)? {
             StagedNestedMutation::InLock(staged) => {
                 let snapshot = snapback.authorization_reservation_snapshot()?;
@@ -1546,10 +1541,10 @@ impl IbexActionHost for DetachedActionHost {
                 );
                 drop(snapback);
                 let mut output = (|| {
-                let module = match &binding.function.runtime {
-                    FunctionRuntime::IbexModule(module) => module,
-                    _ => unreachable!("detached nested mutation must be an Ibex module"),
-                };
+                    let module = match &binding.function.runtime {
+                        FunctionRuntime::IbexModule(module) => module,
+                        _ => unreachable!("detached nested mutation must be an Ibex module"),
+                    };
                     let executed = crate::runtime::with_runtime_log_telemetry(
                         telemetry.clone(),
                         correlation,
@@ -14678,11 +14673,7 @@ pub(crate) fn router_from_registrations(
                             .get::<NetworkProfileObservation>()
                             .and_then(|observation| serde_json::to_value(&*observation.0).ok())
                             .map(|profile| json!({ "networkProfile": profile }));
-                        span.finish(
-                            Some(i64::from(response.status().as_u16())),
-                            code,
-                            details,
-                        );
+                        span.finish(Some(i64::from(response.status().as_u16())), code, details);
                     }
                     if let Some(value) = sender_nonce.value() {
                         response
@@ -14830,20 +14821,14 @@ fn router_for_state(state: AppState) -> Router {
     let reachability = state.console_reachability.clone();
     router_from_registrations(all_route_registrations(), state.clone())
         .with_state(state)
-        .layer(middleware::from_fn_with_state(
-            reachability,
-            local_dev_cors,
-        ))
+        .layer(middleware::from_fn_with_state(reachability, local_dev_cors))
 }
 
 fn app_from_registrations(registrations: Vec<RegisteredRoute>, state: AppState) -> SnapbackApp {
     let reachability = state.console_reachability.clone();
     let router = router_from_registrations(registrations, state.clone())
         .with_state(state.clone())
-        .layer(middleware::from_fn_with_state(
-            reachability,
-            local_dev_cors,
-        ));
+        .layer(middleware::from_fn_with_state(reachability, local_dev_cors));
     SnapbackApp { router, state }
 }
 
@@ -18009,11 +17994,7 @@ async fn host_ops_handler_inner(
         };
         let result = with_snapback(&state, move |snapback| {
             crate::host_ops::network_profile_result(
-                snapback,
-                &request,
-                server_url,
-                profile,
-                outcome,
+                snapback, &request, server_url, profile, outcome,
             )
         })
         .await;
@@ -18194,11 +18175,11 @@ async fn host_ops_handler_inner(
                     let rows = response.issues.len();
                     (
                         serde_json::to_value(response).map_err(|_| {
-                        SnapbackError::error(
-                            "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
-                            "telemetry",
-                            "failed to serialize the errors issues response",
-                        )
+                            SnapbackError::error(
+                                "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
+                                "telemetry",
+                                "failed to serialize the errors issues response",
+                            )
                         }),
                         rows,
                     )
@@ -18216,11 +18197,11 @@ async fn host_ops_handler_inner(
                         .saturating_add(response.transitions.len());
                     (
                         serde_json::to_value(response).map_err(|_| {
-                        SnapbackError::error(
-                            "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
-                            "telemetry",
-                            "failed to serialize the errors issue response",
-                        )
+                            SnapbackError::error(
+                                "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
+                                "telemetry",
+                                "failed to serialize the errors issue response",
+                            )
                         }),
                         rows,
                     )
@@ -18234,11 +18215,11 @@ async fn host_ops_handler_inner(
                 .and_then(|input| runtime.telemetry.transition_errors(&input))
                 .and_then(|response| {
                     serde_json::to_value(response).map_err(|_| {
-                    SnapbackError::error(
-                        "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
-                        "telemetry",
-                        "failed to serialize the errors transition response",
-                    )
+                        SnapbackError::error(
+                            "SNAPBACK_ERRORS_QUERY_SERIALIZATION_FAILED",
+                            "telemetry",
+                            "failed to serialize the errors transition response",
+                        )
                     })
                 });
                 (outcome, 0)
@@ -20080,15 +20061,10 @@ async fn acknowledge_mutations(
 async fn issue_operation_identity_range(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
-    input: Result<
-        Json<crate::commit_envelope::OperationIdentityRangeRequestV1>,
-        JsonRejection,
-    >,
+    input: Result<Json<crate::commit_envelope::OperationIdentityRangeRequestV1>, JsonRejection>,
 ) -> Result<Json<crate::commit_envelope::OperationIdentityRangeResponseV1>, ApiError> {
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
-    if request.schema_version
-        != crate::commit_envelope::operation_identity_range_schema_version()
-    {
+    if request.schema_version != crate::commit_envelope::operation_identity_range_schema_version() {
         return Err(SnapbackError::error(
             "SNAPBACK_OPERATION_IDENTITY_RANGE_VERSION_UNSUPPORTED",
             "protocol",
@@ -20116,10 +20092,7 @@ async fn issue_operation_identity_range(
 async fn explain_operation_public(
     State(state): State<SharedSnapback>,
     Extension(authority): Extension<PreparedAuthority>,
-    input: Result<
-        Json<crate::commit_envelope::OperationExplanationRequestV1>,
-        JsonRejection,
-    >,
+    input: Result<Json<crate::commit_envelope::OperationExplanationRequestV1>, JsonRejection>,
 ) -> Result<Json<crate::commit_envelope::OperationExplanationResponseV1>, ApiError> {
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
     if request.schema_version != crate::commit_envelope::operation_explanation_schema_version() {
@@ -20158,10 +20131,7 @@ async fn explain_operation_admin(
     State(state): State<SharedSnapback>,
     State(ctx): State<Arc<ServerContext>>,
     headers: HeaderMap,
-    input: Result<
-        Json<crate::commit_envelope::OperationExplanationRequestV1>,
-        JsonRejection,
-    >,
+    input: Result<Json<crate::commit_envelope::OperationExplanationRequestV1>, JsonRejection>,
 ) -> Result<Json<crate::commit_envelope::OperationExplanationResponseV1>, ApiError> {
     crate::admin::authorize(&ctx, &headers, false)?;
     let Json(request) = input.map_err(ApiError::from_json_rejection)?;
@@ -20765,7 +20735,8 @@ async fn invoke_mutation(
     // The invocation lease is deliberately released before egress waiting.
     drop(authority);
     let response = result.into_response();
-    let prepared = prepare_mutation_network_egress(&network_profiles, network_basis, Instant::now());
+    let prepared =
+        prepare_mutation_network_egress(&network_profiles, network_basis, Instant::now());
     release_network_profiled_response(response, prepared).await
 }
 
@@ -25657,17 +25628,16 @@ mod tests {
         ACTION_WORKER_LIMIT_MAX, ADMITTED_BODY_INGEST_DEADLINE_MS, AdmissionLease,
         CRON_DISPATCH_CONCURRENCY_DEFAULT, CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant,
         ConnectionOpenAttempt, DetachedActionHost, DetachedActionWorkerCounters,
-        HostOperationParentV1,
-        OpenConnectionRequest, PolicyAuthMode, PreparedAuthority, RealtimeEnvelope, SharedSnapback,
-        SnapbackApp, TEST_FINITE_AUTHORITY_PAUSE_HEADER, TestFiniteAuthorityPausePoint,
-        already_terminal_session_error, app, configured_action_worker_limit,
-        configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
-        finish_registered_response, install_test_finite_authority_pause,
-        linearize_detached_action_abandonment, parse_action_watchdog_timeout, parse_optional_json,
-        reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
-        retain_realtime_authority_in, run_detached_ibex_action_with_admission_and_counters,
-        spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
-        with_snapback_staged_authorization_write,
+        HostOperationParentV1, OpenConnectionRequest, PolicyAuthMode, PreparedAuthority,
+        RealtimeEnvelope, SharedSnapback, SnapbackApp, TEST_FINITE_AUTHORITY_PAUSE_HEADER,
+        TestFiniteAuthorityPausePoint, already_terminal_session_error, app,
+        configured_action_worker_limit, configured_cron_dispatch_concurrency,
+        coordinated_app_reset, dispatch_cron_tick_background, finish_registered_response,
+        install_test_finite_authority_pause, linearize_detached_action_abandonment,
+        parse_action_watchdog_timeout, parse_optional_json, reserve_detached_action_worker,
+        reserve_detached_action_worker_with_counters, retain_realtime_authority_in,
+        run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
+        status_for_diagnostic_code, with_snapback, with_snapback_staged_authorization_write,
     };
 
     #[tokio::test]
@@ -25700,10 +25670,7 @@ mod tests {
             ready_at,
         )
         .expect("a rejected mutation uses its result-readiness deadline");
-        assert!(
-            rejected.release_at()
-                >= ready_at + std::time::Duration::from_millis(30)
-        );
+        assert!(rejected.release_at() >= ready_at + std::time::Duration::from_millis(30));
         let started = Instant::now();
         let delayed = super::release_network_profiled_response(
             axum::response::Response::new(axum::body::Body::empty()),
@@ -40287,8 +40254,7 @@ globalThis.__snapbackHandlers = {
     ];
 
     const MISDIRECTED_REQUEST_DIAGNOSTICS: &[&str] = &["SNAPBACK_ADMIN_RELAY_HOST_REFUSED"];
-    const NOT_IMPLEMENTED_DIAGNOSTICS: &[&str] =
-        &["SNAPBACK_ADMIN_RELAY_WEBSOCKET_UNAVAILABLE"];
+    const NOT_IMPLEMENTED_DIAGNOSTICS: &[&str] = &["SNAPBACK_ADMIN_RELAY_WEBSOCKET_UNAVAILABLE"];
 
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_CHECKPOINT_SOURCE_UNSUPPORTED",
@@ -40903,7 +40869,6 @@ globalThis.__snapbackHandlers = {
             );
         }
     }
-
 
     /// LLP 0032 S5.D10 / ENG-24357 — every diagnostic emitted by the Rust
     /// implementation has a reviewed HTTP result, across every status family.
@@ -42264,8 +42229,7 @@ globalThis.__snapbackHandlers = {
         };
         let first_prepared = prepared(&mut snapback);
         let second_prepared = prepared(&mut snapback);
-        let mut first_metadata =
-            crate::local::manual_action_metadata("test", "carrierAction");
+        let mut first_metadata = crate::local::manual_action_metadata("test", "carrierAction");
         first_metadata.run_id = "carrier-run-1".to_owned();
         first_metadata.attempt = 1;
         let mut retry_metadata = first_metadata.clone();

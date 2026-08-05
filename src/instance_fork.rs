@@ -2018,9 +2018,8 @@ mod tests {
             );
         }
         let database = destination.join("app.sqlite3");
-        let child_operation_detail_key =
-            fs::read(crate::operation_detail::keyring_path(&database))
-                .expect("child operation detail key");
+        let child_operation_detail_key = fs::read(crate::operation_detail::keyring_path(&database))
+            .expect("child operation detail key");
         assert_ne!(
             parent_operation_detail_key, child_operation_detail_key,
             "derived forks rotate protected-detail custody rather than copying the parent key"

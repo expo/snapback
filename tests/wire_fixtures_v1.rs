@@ -186,7 +186,9 @@ fn fixture_schema_valid_claims_are_proven_against_committed_schemas() {
         }
         let fixture_family = fixture["family"].as_str();
         let any_family = fixture_family.is_some()
-            || units.iter().any(|(_, override_family)| override_family.is_some());
+            || units
+                .iter()
+                .any(|(_, override_family)| override_family.is_some());
         if any_family {
             for (index, (unit, override_family)) in units.iter().enumerate() {
                 let Some(family) = override_family.or(fixture_family) else {
@@ -688,7 +690,8 @@ fn unwrapped_payload(name: &str, frame: &Value) -> Value {
         .iter()
         .map(|byte| byte.as_u64().expect("payload byte") as u8)
         .collect();
-    serde_json::from_slice(&bytes).unwrap_or_else(|error| panic!("{name}: payload decodes: {error}"))
+    serde_json::from_slice(&bytes)
+        .unwrap_or_else(|error| panic!("{name}: payload decodes: {error}"))
 }
 
 fn fixture<'a>(fixtures: &'a [Value], name: &str) -> &'a Value {
@@ -710,7 +713,10 @@ fn format_v3_pins_parity_negotiation_grant_loss_and_timing() {
     // carries exactly the envelope its core sibling carries.
     for (wrapped_name, core_name) in [
         ("poll.wrapped_durable.unwrap", "durable.live_replace.basic"),
-        ("poll.wrapped_live_delta.unwrap", "durable.live_delta.apply_by_id"),
+        (
+            "poll.wrapped_live_delta.unwrap",
+            "durable.live_delta.apply_by_id",
+        ),
         (
             "poll.wrapped_resync_required.subscription_scoped",
             "durable.resync_required.subscription_scoped",
@@ -744,8 +750,13 @@ fn format_v3_pins_parity_negotiation_grant_loss_and_timing() {
 
     // Drain-cancel duplicate tolerance: the redelivered entry is the exact
     // wrapper bytes, dropped by the version guard, and the batch continues.
-    let drain_cancel = fixture(&fixtures, "poll.drain_cancel.redelivered_duplicates_tolerated");
-    let steps = drain_cancel["steps"].as_array().expect("drain-cancel steps");
+    let drain_cancel = fixture(
+        &fixtures,
+        "poll.drain_cancel.redelivered_duplicates_tolerated",
+    );
+    let steps = drain_cancel["steps"]
+        .as_array()
+        .expect("drain-cancel steps");
     assert_eq!(
         steps[0]["frame"], steps[1]["frame"],
         "the redelivered entry must repeat the exact wrapper"
@@ -802,7 +813,10 @@ fn format_v3_pins_parity_negotiation_grant_loss_and_timing() {
         let forbidden = refused["expect"]["forbiddenActions"]
             .as_array()
             .unwrap_or_else(|| panic!("{name}: refusal fixtures forbid blind retry"));
-        assert!(forbidden.contains(&Value::from("retry_unchanged")), "{name}");
+        assert!(
+            forbidden.contains(&Value::from("retry_unchanged")),
+            "{name}"
+        );
     }
 
     // The socket offer sets never count the bearer carrier as a version
@@ -831,10 +845,17 @@ fn format_v3_pins_parity_negotiation_grant_loss_and_timing() {
     );
 
     // Grant loss: recovery is re-open and re-establish everything (§4.4).
-    let grant_loss = fixture(&fixtures, "grant.connection_token_invalid_reopens_everything");
+    let grant_loss = fixture(
+        &fixtures,
+        "grant.connection_token_invalid_reopens_everything",
+    );
     assert_eq!(
         grant_loss["expect"]["actions"],
-        serde_json::json!(["reopen_connection", "resubscribe_all", "clear_retained_overlays"])
+        serde_json::json!([
+            "reopen_connection",
+            "resubscribe_all",
+            "clear_retained_overlays"
+        ])
     );
 
     // Arm mismatch: the hosted drain blackout is a declared-empty array on
@@ -927,10 +948,7 @@ fn auth_profile_fixtures_pin_refusals_split_dispositions_and_lease_rules() {
             step["refusal"]["code"],
             "SNAPBACK_AUTH_PROFILE_CLIENT_UNSUPPORTED"
         );
-        assert_eq!(
-            step["refusal"]["details"]["minimumAuthClientProtocol"],
-            1
-        );
+        assert_eq!(step["refusal"]["details"]["minimumAuthClientProtocol"], 1);
     }
     assert_eq!(
         rr_steps[1]["request"]["headers"],
@@ -938,8 +956,7 @@ fn auth_profile_fixtures_pin_refusals_split_dispositions_and_lease_rules() {
         "the missing-offer negative carries no offer header"
     );
     assert_eq!(
-        rr_steps[2]["request"]["headers"]["x-snapback-auth-client-protocol"],
-        "2",
+        rr_steps[2]["request"]["headers"]["x-snapback-auth-client-protocol"], "2",
         "the unknown-integer negative offers a non-v1 value"
     );
 
@@ -969,8 +986,7 @@ fn auth_profile_fixtures_pin_refusals_split_dispositions_and_lease_rules() {
         false
     );
     assert_eq!(
-        ack_negotiation["request"]["headers"]["x-snapback-auth-invalidation-protocol"],
-        "1",
+        ack_negotiation["request"]["headers"]["x-snapback-auth-invalidation-protocol"], "1",
         "the per-request header must be present so the fixture isolates the open-time half"
     );
     assert!(
@@ -1002,7 +1018,10 @@ fn auth_profile_fixtures_pin_refusals_split_dispositions_and_lease_rules() {
         &fixtures,
         "auth.live.terminal_auth_durable_delete_disposition",
     );
-    assert_eq!(durable_delete["frame"]["authorityDisposition"], "durableDelete");
+    assert_eq!(
+        durable_delete["frame"]["authorityDisposition"],
+        "durableDelete"
+    );
     assert!(
         durable_delete["expect"]["actions"]
             .as_array()
@@ -1127,8 +1146,7 @@ fn auth_profile_fixtures_pin_refusals_split_dispositions_and_lease_rules() {
         "the wrapped invalidation must carry the exact core envelope"
     );
     assert_eq!(
-        wrapped_invalidation["expect"]["orderedActions"][0],
-        "unwrap_durable",
+        wrapped_invalidation["expect"]["orderedActions"][0], "unwrap_durable",
         "unwrapping precedes the invalidation judgment"
     );
 }

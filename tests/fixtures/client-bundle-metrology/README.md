@@ -8,7 +8,7 @@ the bundle ratchet.
 Run the gate with:
 
 ```sh
-node scripts/client-bundle-metrology.mjs --check
+volta run node scripts/client-bundle-metrology.mjs --check
 ```
 
 The runner uses esbuild's browser/ES2022 ESM pipeline with minification and
@@ -37,7 +37,7 @@ ledger, declare its profile file and exact ids in the runner, commit the
 implementation and instrument first, then run:
 
 ```sh
-node scripts/client-bundle-metrology.mjs --write-supplemental-baseline
+volta run node scripts/client-bundle-metrology.mjs --write-supplemental-baseline
 ```
 
 The command refuses unless exactly one declared ledger is missing and every
@@ -52,7 +52,7 @@ never rewritten. Commit the implementation, instrument declaration, profile
 inventory, and governing LLP amendment first, then run:
 
 ```sh
-node scripts/client-bundle-metrology.mjs --write-rollover-baseline
+volta run node scripts/client-bundle-metrology.mjs --write-rollover-baseline
 ```
 
 The command refuses unless exactly one rollover is missing, every unaffected
@@ -61,6 +61,44 @@ ceilings are exactly the rollover's declared set. The LLP 0166 local persistent
 store is the first such workload version; its declarative inventory lives in
 `local-persistent-store-profiles.v1.json` and its frozen receipt lives in
 `baseline.local-persistent-store.v1.json`.
+
+Move 3's local-read-admission workload is the next rollover, followed by the
+generated-mutation-IR workload that changed the shipped Full/root closures at
+the M4 exit. Their declarative inventories are
+`local-read-admission-profiles.v1.json` and
+`generated-mutation-ir-profiles.v1.json`; each receipt retains its complete
+predecessor by digest rather than rewriting an earlier ceiling.
+
+The typed offline-unavailable refusal that implements LLP 0166 D4 changes
+only the Full/root profiles that contain the public client entry. Its
+`offline-unavailable-profiles.v1.json` declaration rolls those exact profiles
+forward from the generated-mutation-IR receipt; the M4-only and unaffected
+ceilings remain active.
+
+The LLP 0093/0094 finite-carrier completeness implementation then adds client
+proof verification to those same Full/root closures and to the public
+materialization-store subpath. Its
+`finite-carrier-completeness-profiles.v1.json` declaration rolls the shared
+closures forward from the offline-unavailable receipt and the store-only
+closure forward from the local-read-admission receipt. Both predecessors stay
+immutable and independently provenance-valid.
+
+The rowless token-resume ordering rollover then advances the Full/root closure
+set from the finite-carrier receipt while leaving its materialization-store-only
+row active. The final `move3-single-table-lifecycle.v1` rollover composes the
+latest active rows from that chain: rowless resume, generated mutation IR,
+local-read admission, finite-carrier materialization, and the primary
+agent-authority profile. Its receipt records an exact before/after metric row
+for all 27 superseded profiles; no predecessor receipt is rewritten.
+
+The IR-evaluator extension is also retained independently as
+`baseline.ir-evaluator.v1.json`, backed by
+`ir-evaluator-profiles.v1.json`. Main's local-read-admission rollover froze
+the same profile bytes in parallel, so the runner verifies the two records are
+byte-identical and treats the landed rollover as the active ceiling while
+preserving the supplemental receipt. Both that ledger and the final chained
+rollover pin Node 24.18.0; metrology write and check invocations therefore use
+`volta run node`.
 
 The OQ2 extension is `baseline.push-installation-expo.v1.json`, backed by
 `push-installation-expo-profiles.v1.json`. It freezes the optional Expo

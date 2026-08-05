@@ -17,6 +17,7 @@ import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import {
   existsSync,
   readFileSync,
+  readdirSync,
   statSync,
 } from 'node:fs';
 import {
@@ -79,11 +80,38 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(here, '../..');
-const DATE = '2026-08-03';
+const RUN_DATE = '2026-08-04';
 const FIXTURE_DIR = join(ROOT, 'tests/acceptance/fixtures/local-persistent-store');
-const RECEIPT_PATH = join(FIXTURE_DIR, `carrier-exit.${DATE}.v1.json`);
+const latestDatedFixture = (directory, stem) => {
+  const candidates = readdirSync(directory)
+    .map((name) => ({
+      name,
+      match: name.match(new RegExp(`^${stem}\\.(\\d{4}-\\d{2}-\\d{2})\\.v1\\.json$`, 'u')),
+    }))
+    .filter(({ match }) => match !== null)
+    .sort((left, right) => left.match[1].localeCompare(right.match[1]));
+  assert.ok(candidates.length > 0, `${stem}: no dated retained fixture in ${directory}`);
+  const selected = candidates.at(-1);
+  return { date: selected.match[1], path: join(directory, selected.name) };
+};
+const retainedCarrier = process.argv.includes('--check')
+  ? latestDatedFixture(FIXTURE_DIR, 'carrier-exit')
+  : { date: RUN_DATE, path: join(FIXTURE_DIR, `carrier-exit.${RUN_DATE}.v1.json`) };
+const DATE = retainedCarrier.date;
+const RECEIPT_PATH = retainedCarrier.path;
 const EVIDENCE_PATH = join(ROOT, 'tests/acceptance/local-store-carrier-exit-v1-evidence.md');
 const BUNDLE_PATH = join(FIXTURE_DIR, `bundle-attribution.${DATE}.v1.json`);
+const TRIAGE_FIXTURE_DIR = join(ROOT, 'tests/acceptance/fixtures/triage-graph');
+const retainedTriage = latestDatedFixture(TRIAGE_FIXTURE_DIR, 'move1-exit');
+const TRIAGE_RECEIPT_PATH = retainedTriage.path;
+const TRIAGE_BUDGET_PATH = join(
+  TRIAGE_FIXTURE_DIR,
+  `budget-freeze.${retainedTriage.date}.v1.json`,
+);
+const TRIAGE_ACTIVATION_PATH = join(
+  ROOT,
+  'demos/triage-graph/snapback/trusted-composition-activation.json',
+);
 const SERVER_BINARY = join(ROOT, 'target/debug/snapback');
 const CHILD_MODE = process.argv[2] === '--file-child';
 const encoder = new TextEncoder();
@@ -2363,6 +2391,13 @@ function sourceProvenance() {
     'packages/snapback-contract/auth-coordinator.mjs',
     'packages/snapback-contract/client-store.mjs',
     'demos/_kit/chrome-process.mjs',
+    'demos/triage-graph/demo.snapback.json',
+    'demos/triage-graph/snapback/functions.mjs',
+    'demos/triage-graph/snapback/schema.mjs',
+    relative(ROOT, TRIAGE_ACTIVATION_PATH),
+    'demos/triage-graph/snapback/generated/artifacts.json',
+    relative(ROOT, TRIAGE_BUDGET_PATH),
+    relative(ROOT, TRIAGE_RECEIPT_PATH),
   ].map((path) => ({ path, sha256: sha256Hex(readFileSync(join(ROOT, path))) }));
   return {
     revision,
@@ -2390,6 +2425,79 @@ function skipped(leg, carrier) {
   };
 }
 
+function triageFootprintHydrationEvidence() {
+  const budgetBytes = readFileSync(TRIAGE_BUDGET_PATH);
+  const receiptBytes = readFileSync(TRIAGE_RECEIPT_PATH);
+  const currentActivationBytes = readFileSync(TRIAGE_ACTIVATION_PATH);
+  const budget = JSON.parse(budgetBytes);
+  const receipt = JSON.parse(receiptBytes);
+  const currentActivation = JSON.parse(currentActivationBytes);
+  assert.equal(budget.schemaVersion, 'snapback.triage-graph.budget-freeze.v1');
+  assert.equal(receipt.schemaVersion, 'snapback.triage-graph.move1-exit.v1');
+  assert.equal(receipt.controlledRun.status, 'PASS');
+  assert.deepEqual(receipt.summary, {
+    pass: 8,
+    blocked: 0,
+    total: 8,
+    capabilityClaimsChanged: false,
+    fleetIncluded: false,
+  });
+  assert.deepEqual(receipt.budgetFreeze, budget);
+  assert.equal(currentActivation.format, 'snapback.trusted-composition-activation.v1');
+  assert.match(currentActivation.activationHash, /^sha256:[0-9a-f]{64}$/u);
+  assert.equal(
+    currentActivation.activation?.deploymentId,
+    'triage-graph-p3-controlled-run',
+  );
+  assert.equal(existsSync(join(ROOT, 'demos/triage-graph/demo.snapback.json')), true);
+  assert.equal(receipt.date, retainedTriage.date);
+  assert.equal(budget.date, retainedTriage.date);
+  for (const file of receipt.source.files) {
+    assert.equal(
+      sha256Hex(readFileSync(join(ROOT, file.path))),
+      file.sha256,
+      `${file.path}: Triage receipt source drifted from the working tree`,
+    );
+  }
+
+  const { custody, hydration } = budget.measured;
+  const ceilings = budget.frozenCeilings;
+  for (const [name, ceiling] of Object.entries(ceilings.custody)) {
+    assert.ok(custody[name] <= ceiling, `Triage custody ${name} exceeded ceiling ${ceiling}`);
+  }
+  for (const [name, ceiling] of Object.entries(ceilings.hydration)) {
+    assert.ok(hydration[name] <= ceiling, `Triage hydration ${name} exceeded ceiling ${ceiling}`);
+  }
+
+  return {
+    applicationExists: true,
+    application: 'demos/triage-graph',
+    qualificationStatus: receipt.controlledRun.status,
+    currentSuccessorActivation: {
+      artifact: relative(ROOT, TRIAGE_ACTIVATION_PATH),
+      activationHash: currentActivation.activationHash,
+      deploymentId: currentActivation.activation.deploymentId,
+      sha256: sha256Hex(currentActivationBytes),
+    },
+    measurements: {
+      materializations: custody.materializationRecords,
+      storedResultRows: custody.storedResultRows,
+      logicalBytes: custody.logicalBytes,
+      hydrationAttempts: hydration.attempts,
+      hydrationRows: hydration.rowsInstalled,
+      hydrationPayloadBytes: hydration.payloadBytes,
+      hydrationElapsedMs: hydration.elapsedMs,
+      hydrationCeilingMs: ceilings.hydration.elapsedMs,
+    },
+    receipts: {
+      budgetFreeze: relative(ROOT, TRIAGE_BUDGET_PATH),
+      budgetFreezeSha256: sha256Hex(budgetBytes),
+      move1Exit: relative(ROOT, TRIAGE_RECEIPT_PATH),
+      move1ExitSha256: sha256Hex(receiptBytes),
+    },
+  };
+}
+
 function evidenceMarkdown(receipt, bundle) {
   const rows = receipt.legs.map((row) => (
     `| ${row.leg} | ${row.carrier} | ${row.status} | ${row.status === 'GAP' ? row.reason.replaceAll('|', '\\|') : summarizeEvidence(row.evidence).replaceAll('|', '\\|')} |`
@@ -2399,8 +2507,10 @@ function evidenceMarkdown(receipt, bundle) {
   )).join('\n');
   return `# LLP 0166 local-store carrier-exit v1 evidence
 
-**Run date:** ${DATE}  
-**Source revision:** \`${receipt.source.revision}\` (${receipt.source.dirty ? 'dirty evidence worktree' : 'clean'})  
+**Run date:** ${DATE}
+
+**Source revision:** \`${receipt.source.revision}\` (${receipt.source.dirty ? 'dirty evidence worktree' : 'clean'})
+
 **Machine:** ${receipt.runtime.platform}/${receipt.runtime.arch}, Node ${receipt.runtime.node}
 
 This is the standards-real Move-2 carrier exit consumed by LLP 0157 and LLP
@@ -2450,11 +2560,12 @@ module-own minified bytes.
   stores the P1 proof and complete lease custody, the owned backend process
   exits, and a newly constructed client projects authoritative-retained bytes
   from the same file-v3 identity while the endpoint is unreachable.
-- Triage and Fleet remain GAP exactly as LLP 0157's commission crosswalk says:
-  the Move-1 successor apps do not exist, and Fleet additionally waits on LLP
-  0135 OQ5's relational-node successor.
+- Triage consumes the qualified successor application's frozen custody and
+  hydration measurements. Fleet remains GAP exactly as LLP 0157's commission
+  crosswalk says and still waits on LLP 0135 OQ5's relational-node successor.
 
-Machine receipt: \`tests/acceptance/fixtures/local-persistent-store/carrier-exit.${DATE}.v1.json\`  
+Machine receipt: \`tests/acceptance/fixtures/local-persistent-store/carrier-exit.${DATE}.v1.json\`
+
 Bundle receipt: \`tests/acceptance/fixtures/local-persistent-store/bundle-attribution.${DATE}.v1.json\`
 `;
 }
@@ -2484,12 +2595,17 @@ async function verifyRetainedArtifacts() {
   assert.deepEqual(bundle.modules.map((entry) => `${entry.module}.mjs`), ATTRIBUTION_MODULES);
   assert.ok(bundle.modules.every((entry) => Number.isInteger(entry.minifiedModuleOwnBytes) && entry.minifiedModuleOwnBytes > 0));
   for (const file of receipt.source.files) {
+    const bytes = await readFile(join(ROOT, file.path));
     assert.equal(
-      sha256Hex(await readFile(join(ROOT, file.path))),
+      sha256Hex(bytes),
       file.sha256,
-      `${file.path}: retained source digest`,
+      `${file.path}: retained receipt source drifted from the working tree`,
     );
   }
+  const triage = receipt.legs.find((row) => row.leg === 'footprint-hydration-triage');
+  assert.equal(triage?.status, 'PASS', 'the landed Triage successor is measured, not a GAP');
+  const fleet = receipt.legs.find((row) => row.leg === 'footprint-hydration-fleet');
+  assert.equal(fleet?.status, 'GAP', 'Fleet remains the explicit relational-node GAP');
   assert.equal(existsSync(EVIDENCE_PATH), true);
   console.log(`PASS LLP 0166 retained carrier-exit receipt: ${receipt.legs.filter((row) => row.status === 'PASS').length} PASS / ${receipt.legs.filter((row) => row.status === 'GAP').length} GAP / ${receipt.legs.filter((row) => row.status === 'SKIPPED').length} SKIPPED`);
 }
@@ -2581,11 +2697,10 @@ async function main() {
     browser
       ? pass('bounded-custody-query-churn', 'browser-indexeddb-v3', browser.boundedCustody)
       : skipped('bounded-custody-query-churn', 'browser-indexeddb-v3'),
-    gap(
+    pass(
       'footprint-hydration-triage',
-      'move-1-successor-app',
-      { applicationExists: false, measurements: null },
-      'SNAPBACK_CARRIER_EXIT_TRIAGE_SUCCESSOR_MISSING: the fresh Move-1 successor Triage application does not exist, so byte/row footprint and hydration cannot be measured end to end',
+      'triage-graph-budget-freeze-v1',
+      triageFootprintHydrationEvidence(),
     ),
     gap(
       'footprint-hydration-fleet',

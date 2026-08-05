@@ -16,7 +16,7 @@ L2's fixtures are the compatibility target). Oracle: 0157 A5's proof
 half end-to-end against the real server; the client's existing fixture
 suite passes unchanged against real proofs.
 
-## Wire-governance flag — 2026-08-03 (not landed as an amendment)
+## Wire-governance flag — 2026-08-04 (amendment landed)
 
 The live establishment carrier is the optional
 `LiveSubscribeOutput.completenessProof` member. LLP 0094 §0C.2 classifies
@@ -27,8 +27,11 @@ semantic preimage.
 Finite retained-query establishment is not covered by that license.
 `AuthorizedLeaseQueryResponse` is a closed exact-protocol family (LLP 0094
 §0C.2) even though its request already carries the exact `clientStoreId`,
-`queryKey`, and `queryInstanceId` needed by `CompletenessProofV1`. Before a
-finite carrier lands, LLP 0093/0094 need this dated amendment in substance:
+`queryKey`, and `queryInstanceId` needed by `CompletenessProofV1`. LLP 0094's
+2026-08-04 dated amendment now owns the following normative text, and LLP 0093
+v0.13 cross-references it. This closes only the wire-governance flag; this
+ticket's server-issuance and decoder-compatibility implementation scope stays
+open:
 
 > **Dated amendment — completeness-proof response carrier.** A successful
 > `AuthorizedLeaseQueryResponse` may carry one optional

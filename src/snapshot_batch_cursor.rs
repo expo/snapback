@@ -416,7 +416,7 @@ mod tests {
                 parent_id: "board-1".into(),
                 parent_incarnation: "018f4d5a-0000-7000-8000-000000000001".into(),
                 parent_version: 7,
-                }],
+            }],
             vec![
                 Node {
                     position: 0,
@@ -426,12 +426,12 @@ mod tests {
                         boundary: vec![json!(9)],
                         row_id: "card-9".into(),
                     },
-                    },
+                },
                 Node {
                     position: 1,
                     node_plan_hash: format!("sha256:{}", "d".repeat(64)),
                     state: NodeState::Terminal,
-            },
+                },
             ],
             format!("sha256:{}", "e".repeat(64)),
             10_000,
@@ -445,16 +445,16 @@ mod tests {
         let wire = mint(&root, &body).unwrap();
         assert_eq!(
             decode(
-            &wire,
+                &wire,
                 &[("generation-1".into(), root)],
-            "app",
-            "db",
-            "local",
+                "app",
+                "db",
+                "local",
                 10_001
-        )
+            )
             .unwrap(),
             body
-            );
+        );
         assert!(
             decode(
                 &wire,

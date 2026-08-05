@@ -659,11 +659,7 @@ pub fn validate_mutation_plan(plan: &crate::manifest::MutationPlan) -> Result<()
             }
         }
         for expr in exprs {
-            validate_allocation_binding_order(
-                expr,
-                &allocation_bindings,
-                &allocated_bindings,
-            )?;
+            validate_allocation_binding_order(expr, &allocation_bindings, &allocated_bindings)?;
             validate_expr(expr, 0)?;
         }
         let introduced = match step {
@@ -699,7 +695,9 @@ pub fn validate_mutation_plan(plan: &crate::manifest::MutationPlan) -> Result<()
                 return Err(SnapbackError::error(
                     "SNAPBACK_PLAN_INVALID",
                     "runtime",
-                    format!("sequence allocation binding {binding:?} collides with another binding"),
+                    format!(
+                        "sequence allocation binding {binding:?} collides with another binding"
+                    ),
                 )
                 .with_details(json!({ "binding": binding, "reason": "duplicate" })));
             }

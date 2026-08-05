@@ -375,9 +375,7 @@ pub struct BranchArtifactBindingV1 {
 
 impl BranchArtifactBindingV1 {
     fn validate(&self) -> SnapbackResult<()> {
-        if !is_sha256_digest(&self.schema_hash)
-            || !is_sha256_digest(&self.function_bundle_hash)
-        {
+        if !is_sha256_digest(&self.schema_hash) || !is_sha256_digest(&self.function_bundle_hash) {
             return Err(error(
                 "SNAPBACK_BRANCH_ARTIFACT_IDENTITY_MISSING",
                 "managed branch creation requires canonical sha256 schema and function bundle identities",
@@ -589,7 +587,8 @@ fn branch_profile(
     branch_id: &BranchId,
 ) -> SnapbackResult<(InAppBranchCreateV1, InAppBranchReceiptV1)> {
     ensure_in_app_branch_tables(conn)?;
-    let row: Option<(Vec<u8>, i64, Option<String>, i64, i64, i64)> = conn
+    type BranchProfileRow = (Vec<u8>, i64, Option<String>, i64, i64, i64);
+    let row: Option<BranchProfileRow> = conn
         .query_row(
             "SELECT profile_json, promotable, foreclosed_by_operation_id,
                     retained_operation_count, retained_operation_bytes,
@@ -3491,6 +3490,7 @@ pub fn finish_promoted_effect_settlement(
 /// Mint one FIFO ticket. The budget formula is explicit and inspectable:
 /// `max(observedConcurrentForks, queuePosition + R)`. The caller-supplied
 /// policy must equal the frozen production v1 constants before admission.
+#[allow(clippy::too_many_arguments)]
 pub fn issue_promotion_ticket(
     canonical: &mut Connection,
     ticket_identity: OperationIdentityV1,
@@ -3656,6 +3656,7 @@ fn require_exact_durable_ticket(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn seal_promotion_request(
     workspace: &MaterializedBase,
     diff: &ForkDiffReceiptV1,
@@ -3938,7 +3939,8 @@ fn stored_promotion_result(
     canonical: &Connection,
     request: &PromotionRequestV1,
 ) -> SnapbackResult<Option<PromotionResultV1>> {
-    let row: Option<(Vec<u8>, String, Option<String>, Vec<u8>)> = canonical
+    type StoredPromotionResultRow = (Vec<u8>, String, Option<String>, Vec<u8>);
+    let row: Option<StoredPromotionResultRow> = canonical
         .query_row(
             "SELECT aggregate_identity_json, approved_facts_digest, request_digest, receipt_json
                FROM _snapback_promotion_receipts WHERE ticket_id = ?1",
@@ -4971,6 +4973,7 @@ fn build_aggregate_envelope(
 /// replay reproduces its sealed facts, the product-owned transaction seam
 /// applies only those approved logical writes and records every one through
 /// the canonical change/history journal before publication.
+#[allow(clippy::too_many_arguments)]
 pub fn promote_by_reexecution<F>(
     canonical: &mut Connection,
     workspace: &MaterializedBase,
@@ -7209,7 +7212,8 @@ mod tests {
             .expect("durable late capture");
         let canonical_version_before = crate::storage::current_version_on(&canonical)
             .expect("canonical version before promotion refusal");
-        let canonical_rows_before = scan_widgets(&canonical).expect("canonical rows before refusal");
+        let canonical_rows_before =
+            scan_widgets(&canonical).expect("canonical rows before refusal");
         let reexecuted = std::cell::Cell::new(false);
         let refusal = promote_by_reexecution(
             &mut canonical,

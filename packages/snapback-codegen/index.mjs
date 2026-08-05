@@ -351,7 +351,11 @@ function serializedValueUsesAuthorityOrAmbientInput(value) {
 // class marker.
 function singleTableRqsDigestKind(fn) {
   const plan = fn.runtime?.HostPlan?.Query;
-  const summary = fn.readSetSummary;
+  // Generation derives the served read summary in the same pass that emits
+  // requiredCapabilities, while later identity reconstruction receives the
+  // already-emitted summary. Consume the same host-owned derivation in both
+  // positions; an author-supplied class marker is never consulted.
+  const summary = fn.readSetSummary ?? readSummary(fn);
   if (fn.authorityIndependent !== true
     || fn.kind !== 'LiveQuery'
     || fn.authRequirement !== 'public'
@@ -680,6 +684,7 @@ const TARGET_CAPABILITY_IDS = new Set([
   'migration_keyset_scan_v1',
   'sequence_allocation_v1',
   'snapshot_batch_v1',
+  'single_table_v1',
   'result_contract_v1',
   'args_contract_v1',
   'settlement.bounded_skew',
@@ -715,6 +720,7 @@ const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
   'mixed_bundle_boot_v2',
   'sequence_allocation_v1',
   'snapshot_batch_v1',
+  'single_table_v1',
   'registered_bundle_boot_v1',
   'result_contract_v1',
   'versioned_seed_install_v1',
@@ -6548,6 +6554,18 @@ function requiredCapabilities(fn) {
     return fn.kind === 'LiveQuery'
       ? ['live_subscriptions', ...relational, ...contractCapabilities]
       : [...relational, ...contractCapabilities];
+  }
+  // @ref LLP 0157#d1--the-node-algebra — this capability is selected
+  // only from the host-derived normalized single-table node class. Authors
+  // cannot assert membership, and the experimental requirement forces target
+  // support plus explicit artifact acknowledgment before activation.
+  if (singleTableRqsDigestKind(fn) !== null) {
+    return [
+      'live_subscriptions',
+      runtimeCapability,
+      'single_table_v1',
+      ...contractCapabilities,
+    ];
   }
   // @ref LLP 0110#local-and-packaged-publication-authority — these profiles
   // retain dedicated requirements even where the exact local source target
