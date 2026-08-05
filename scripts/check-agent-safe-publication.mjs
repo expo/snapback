@@ -25,7 +25,7 @@ export const IMPLEMENTATION_ROOTS = [
   'scripts/generated-artifact-policy.mjs',
 ];
 
-const PUBLICATION_CYCLE_ALLOWLIST = new Set([
+export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'src/local-agent-safe-storage-publication.anchor.json',
   'src/local-agent-safe-storage-publication.carrier.json',
   'src/local-agent-safe-derived-deployment-fork-publication.anchor.json',
@@ -43,7 +43,31 @@ const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'tests/acceptance/triage-graph-move1-v1-evidence.md',
   'tests/acceptance/fixtures/contention-calendar/rung2-exit.2026-08-04.r1.v1.json',
   'tests/acceptance/contention-calendar-rung2-v1-evidence.md',
+  'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
+  'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json',
+  'tests/acceptance/local-store-carrier-exit-v1-evidence.md',
+  'src/local-persistent-store-publication.anchor.v1.json',
+  'src/local-persistent-store-publication.v1.json',
 ]);
+
+const LOCAL_STORE_PUBLICATION_TRANSFORM = {
+  anchor: 'src/local-persistent-store-publication.anchor.v1.json',
+  carrier: 'src/local-persistent-store-publication.v1.json',
+  receipts: [
+    {
+      path: 'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
+      value: (carrier) => carrier.qualificationReceiptSha256,
+    },
+    {
+      path: 'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json',
+      value: (carrier) => carrier.supportingReceiptSha256?.triageBudgetFreeze,
+    },
+    {
+      path: 'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json',
+      value: (carrier) => carrier.supportingReceiptSha256?.triageMove1Exit,
+    },
+  ],
+};
 
 const EVIDENCE = [
   ['acceptanceCorpus', 'tests/acceptance/fixtures/agent-safe-storage/acceptance-corpus.2026-08-04.v1.json'],
@@ -124,6 +148,13 @@ function fail(message) {
 
 function git(root, args, encoding = 'utf8') {
   return execFileSync('git', args, { cwd: root, encoding }).toString().trim();
+}
+
+function committedBytes(root, commit, path) {
+  return execFileSync('git', ['show', `${commit}:${path}`], {
+    cwd: root,
+    maxBuffer: 32 * 1024 * 1024,
+  });
 }
 
 function treeEntriesAt(root, commit, roots) {
@@ -218,6 +249,79 @@ function publicationChangesBetween(root, from, to) {
 
 function sha256(bytes) {
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
+}
+
+function substituteSinglePinnedDigest(bytes, before, after, label) {
+  if (!isSha256(before, true) || !isSha256(after, true)) {
+    fail(`${label} digest is invalid`);
+  }
+  const text = bytes.toString('utf8');
+  const occurrences = text.split(before).length - 1;
+  if (occurrences !== 1) {
+    fail(`${label} expected one qualification-C digest, found ${occurrences}`);
+  }
+  return Buffer.from(text.replace(before, after));
+}
+
+// @ref LLP 0162#source-owned-publication-carrier-amendment--2026-08-04
+// Publishing the local agent-safe manifest refreshes signed Triage evidence,
+// which is itself an input to the already-published local-store carrier. The
+// source-owned anchor and carrier remain a cycle exclusion only for the exact
+// mechanical digest substitution rooted in qualification C; Rust and its
+// conformance logic remain byte-identical implementation inputs.
+export function expectedLocalStorePublicationTransform(root, qualificationCommit) {
+  const carrierAtQualification = committedBytes(
+    root,
+    qualificationCommit,
+    LOCAL_STORE_PUBLICATION_TRANSFORM.carrier,
+  );
+  let carrier;
+  try {
+    carrier = JSON.parse(carrierAtQualification);
+  } catch (error) {
+    fail(`qualification-C local-store carrier is not valid JSON: ${error.message}`);
+  }
+
+  let expectedCarrier = carrierAtQualification;
+  for (const receipt of LOCAL_STORE_PUBLICATION_TRANSFORM.receipts) {
+    const recorded = receipt.value(carrier);
+    const receiptAtQualification = committedBytes(root, qualificationCommit, receipt.path);
+    if (recorded !== sha256(receiptAtQualification)) {
+      fail(`qualification-C local-store carrier was stale at ${receipt.path}`);
+    }
+    const published = sha256(readFileSync(join(root, receipt.path)));
+    expectedCarrier = substituteSinglePinnedDigest(
+      expectedCarrier,
+      recorded,
+      published,
+      `${LOCAL_STORE_PUBLICATION_TRANSFORM.carrier}:${receipt.path}`,
+    );
+  }
+
+  const carrierDigestAtQualification = sha256(carrierAtQualification);
+  const expectedCarrierDigest = sha256(expectedCarrier);
+  const expectedAnchor = substituteSinglePinnedDigest(
+    committedBytes(root, qualificationCommit, LOCAL_STORE_PUBLICATION_TRANSFORM.anchor),
+    carrierDigestAtQualification,
+    expectedCarrierDigest,
+    LOCAL_STORE_PUBLICATION_TRANSFORM.anchor,
+  );
+  return new Map([
+    [LOCAL_STORE_PUBLICATION_TRANSFORM.carrier, expectedCarrier],
+    [LOCAL_STORE_PUBLICATION_TRANSFORM.anchor, expectedAnchor],
+  ]);
+}
+
+export function validateLocalStorePublicationTransform(root, qualificationCommit) {
+  for (const [path, expected] of expectedLocalStorePublicationTransform(
+    root,
+    qualificationCommit,
+  )) {
+    const actual = readFileSync(join(root, path));
+    if (!actual.equals(expected)) {
+      fail(`${path} drifted beyond the qualification-C local-store digest transform`);
+    }
+  }
 }
 
 function isSha256(value, nonzero = false) {
@@ -995,6 +1099,7 @@ export function runChecker(root) {
       fail(`${result.id} P changed forbidden post-qualification paths: ${forbidden
         .map(({ status, path }) => `${status}:${path}`).join(',')}`);
     }
+    validateLocalStorePublicationTransform(root, result.commit);
     const atQualification = implementationDigestAt(root, result.commit);
     const atPublication = implementationDigestWorkingTree(root);
     if (carrier.implementationTreeSha256 !== atQualification

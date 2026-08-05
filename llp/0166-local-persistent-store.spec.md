@@ -2283,6 +2283,13 @@ it does not generalize to Fleet, public packages, remote services, or hosted
 targets. The Fleet footprint/hydration leg remains the explicit LLP 0135 OQ5
 boundary.
 
+The source-owned `local-persistent-store-publication.anchor.v1.json` is the
+only carrier selector: its closed `published` record names `single_table_v1`
+and SHA-binds the raw carrier bytes. Evidence refresh rotates the carrier's
+three receipt digests and then the anchor digest; unchanged code validates the
+anchor → carrier → receipts → source chain. Neither `src/manifest.rs` nor the
+conformance test changes during that publication operation.
+
 When that carrier verifies, the local target may advertise the id at code-owned
 `experimental` maturity. This publication does not weaken §D5/§D6: legacy
 entries remain grandfathered under LLP 0090, while entry into the QMK

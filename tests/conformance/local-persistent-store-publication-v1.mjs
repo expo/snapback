@@ -22,6 +22,8 @@ const triageMove1Bytes = await read(`../acceptance/fixtures/triage-graph/move1-e
 const triageMove1 = JSON.parse(triageMove1Bytes);
 const triageBudgetBytes = await read(`../acceptance/fixtures/triage-graph/budget-freeze.${triageDate}.v1.json`);
 const triageBudget = JSON.parse(triageBudgetBytes);
+const anchorBytes = await read('../../src/local-persistent-store-publication.anchor.v1.json');
+const anchor = JSON.parse(anchorBytes);
 const carrierBytes = await read('../../src/local-persistent-store-publication.v1.json');
 const carrier = JSON.parse(carrierBytes);
 const localManifest = JSON.parse(await read('../../schemas/capability.manifest.local-dev-sqlite-ibex.json'));
@@ -85,6 +87,12 @@ assert.ok(
 );
 
 assert.equal(carrier.schemaVersion, 'snapback.local-capability-publication.v1');
+assert.deepEqual(anchor, {
+  schemaVersion: 'snapback.local-capability-publication-anchor.v1',
+  capabilityId: 'single_table_v1',
+  state: 'published',
+  carrierSha256: sha256(carrierBytes),
+});
 assert.equal(carrier.targetProfileId, 'local-dev-sqlite-ibex');
 assert.deepEqual(carrier.capabilityIds, ['single_table_v1']);
 assert.equal(carrier.maturity, 'experimental');
@@ -109,10 +117,6 @@ for (const source of newlyQualifiedClientSources) {
     `${source}: Triage receipt pins the refactored behavior owner`,
   );
 }
-assert.equal(
-  sha256(carrierBytes),
-  'sha256:a46be2350ea884b9ac33f5c292b35cf7c5555b76c9831c381354a03dc9931b49',
-);
 for (const [source, expected] of Object.entries({
   ...carrier.executorSourceSha256,
   ...carrier.schemaSourceSha256,

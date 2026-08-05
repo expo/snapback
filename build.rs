@@ -444,8 +444,18 @@ fn agent_safe_publication_cycle_path(path: &str) -> bool {
             | "tests/acceptance/fixtures/agent-safe-storage/agent-safe-active-covered-paired.2026-08-04.v1.json"
             | "tests/acceptance/fixtures/agent-safe-storage/fork-promotion-performance.2026-08-04.v1.json"
             | "tests/acceptance/fixtures/agent-safe-storage/author-acceptance.2026-08-04.v1.json"
-            | "tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.v1.json"
+            | "tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json"
             | "tests/acceptance/latency-kanban-move3-v1-evidence.md"
+            | "tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json"
+            | "tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json"
+            | "tests/acceptance/triage-graph-move1-v1-evidence.md"
+            | "tests/acceptance/fixtures/contention-calendar/rung2-exit.2026-08-04.r1.v1.json"
+            | "tests/acceptance/contention-calendar-rung2-v1-evidence.md"
+            | "tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json"
+            | "tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json"
+            | "tests/acceptance/local-store-carrier-exit-v1-evidence.md"
+            | "src/local-persistent-store-publication.anchor.v1.json"
+            | "src/local-persistent-store-publication.v1.json"
     )
 }
 

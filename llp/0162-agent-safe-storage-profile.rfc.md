@@ -1951,8 +1951,16 @@ recorders, and the `vendor/ibex` gitlink identity. Incremental builds track
 the vendored source directories plus the resolved submodule worktree and
 common-git metadata, so an in-place Ibex source, index, HEAD, or ref change
 cannot retain a cached clean digest. The two anchors, carriers,
-receipts, and closed dated evidence outputs are the only cycle exclusions. The
-history-aware checker, now in the canonical local proof, proves the
+receipts, and closed dated evidence outputs are cycle exclusions. Publishing
+the local manifest also refreshes the pre-existing signed codegen closures for
+Latency Kanban, Triage Graph, and Contention Calendar. Because Triage evidence
+is itself an input to the local persistent-store publication carrier, its three
+dated evidence outputs plus that carrier and its source-owned anchor are a
+second, closed transitive cycle exclusion. The checker derives the exact
+receipt substitutions and resulting anchor digest from C; source maps and all
+other carrier/anchor bytes are immutable. Rust and conformance-test bytes stay
+inside the implementation digest and cannot change at P. The history-aware
+checker, now in the canonical local proof, proves the
 qualification commit C
 is an ancestor of publication commit P and that the implementation tree is
 identical at C and P; the carrier binds the receipt, which in turn binds the

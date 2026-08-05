@@ -9571,19 +9571,19 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:d91fb439e079a136e652af306bc28ae71196a82c160c3c6dae060488fb5c2bac";
+    "sha256:0dc7bebe7b71a069a049c3b6340ad69bb16063bfd0eecad60ca3234a7a29dc03";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:cf89f290e2d436873ba2896f585a8c682199aae7c142182b47c4365b9ce9f921";
+    "sha256:9a26bfcb506e1073f6306b3e3f5be59a726baa2aba2bf00aba0e3ca9b1c51291";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-persistent-store-publication.v1.json");
-const LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256: &str =
-    "sha256:a46be2350ea884b9ac33f5c292b35cf7c5555b76c9831c381354a03dc9931b49";
+const LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES: &[u8] =
+    include_bytes!("local-persistent-store-publication.anchor.v1.json");
 const LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES: &[u8] = include_bytes!(
     "../tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json"
 );
@@ -9663,6 +9663,18 @@ struct LocalPersistentStorePublicationV1 {
     build_provenance_requirement: String,
 }
 
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+struct LocalPersistentStorePublicationAnchorV1 {
+    #[serde(rename = "schemaVersion")]
+    schema_version: String,
+    #[serde(rename = "capabilityId")]
+    capability_id: String,
+    state: String,
+    #[serde(rename = "carrierSha256")]
+    carrier_sha256: String,
+}
+
 fn sha256_prefixed(bytes: &[u8]) -> String {
     format!("sha256:{:x}", Sha256::digest(bytes))
 }
@@ -9708,12 +9720,12 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:fde13990b49f21d20ae60bfa9fb69d1c3bfab8195136028f1e5a04172582e4fb"
+                    "sha256:b50d99504bfeffceaf9cd89f33252a5088ec22be664fcd9e85bb6bda8dc65355"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:a830a261f1b8140a2e763b60294bb4c141ae07eec12d8e2d048fce1d55cb2189"
+                    "sha256:f038509c531e5c82c61dade9e87f41b3f95bee9204f0571d3013758879725987"
                         .to_owned(),
                 ),
             ])
@@ -9776,7 +9788,7 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:a830a261f1b8140a2e763b60294bb4c141ae07eec12d8e2d048fce1d55cb2189"
+                    "sha256:f038509c531e5c82c61dade9e87f41b3f95bee9204f0571d3013758879725987"
                         .to_owned(),
                 ),
             ])
@@ -9826,7 +9838,7 @@ fn local_sequence_allocation_publication_verified() -> bool {
 fn local_persistent_store_publication_verified_for(
     build_distribution: &str,
     carrier_bytes: &[u8],
-    expected_carrier_sha256: &str,
+    anchor_bytes: &[u8],
     carrier_exit_receipt_bytes: &[u8],
     triage_move1_receipt_bytes: &[u8],
     triage_budget_receipt_bytes: &[u8],
@@ -9834,7 +9846,16 @@ fn local_persistent_store_publication_verified_for(
     if build_distribution != crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE {
         return false;
     }
-    if sha256_prefixed(carrier_bytes) != expected_carrier_sha256 {
+    let Ok(anchor) =
+        serde_json::from_slice::<LocalPersistentStorePublicationAnchorV1>(anchor_bytes)
+    else {
+        return false;
+    };
+    if anchor.schema_version != "snapback.local-capability-publication-anchor.v1"
+        || anchor.capability_id != "single_table_v1"
+        || anchor.state != "published"
+        || sha256_prefixed(carrier_bytes) != anchor.carrier_sha256
+    {
         return false;
     }
     let Ok(carrier) = serde_json::from_slice::<LocalPersistentStorePublicationV1>(carrier_bytes)
@@ -9865,12 +9886,12 @@ fn local_persistent_store_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:fde13990b49f21d20ae60bfa9fb69d1c3bfab8195136028f1e5a04172582e4fb"
+                    "sha256:b50d99504bfeffceaf9cd89f33252a5088ec22be664fcd9e85bb6bda8dc65355"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:a830a261f1b8140a2e763b60294bb4c141ae07eec12d8e2d048fce1d55cb2189"
+                    "sha256:f038509c531e5c82c61dade9e87f41b3f95bee9204f0571d3013758879725987"
                         .to_owned(),
                 ),
             ])
@@ -9956,7 +9977,7 @@ fn local_persistent_store_publication_verified() -> bool {
     local_persistent_store_publication_verified_for(
         crate::identity::build_distribution(),
         LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
-        LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+        LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
         LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
         LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
         LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
@@ -10039,7 +10060,7 @@ impl TargetCapabilityFacts {
             local_persistent_store_publication_verified_for(
                 build_distribution,
                 LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
-                LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+                LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
                 LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
                 LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
                 LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
@@ -13600,15 +13621,47 @@ mod membership_manifest_grammar_tests {
         assert!(!local_persistent_store_publication_verified_for(
             crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
             &tampered_carrier,
-            LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
             LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
             LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
             LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
         ));
+        let mut tampered_anchor = LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES.to_vec();
+        tampered_anchor[0] ^= 1;
+        assert!(!local_persistent_store_publication_verified_for(
+            crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+            &tampered_anchor,
+            LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+            LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+        ));
+        let anchor_mutations: [fn(&mut Value); 4] = [
+            |anchor: &mut Value| anchor["state"] = json!("withheld"),
+            |anchor: &mut Value| anchor["capabilityId"] = json!("bounded_children_v1"),
+            |anchor: &mut Value| {
+                anchor["carrierSha256"] = json!(format!("sha256:{}", "0".repeat(64)))
+            },
+            |anchor: &mut Value| anchor["unexpected"] = json!(true),
+        ];
+        for mutate in anchor_mutations {
+            let mut anchor: Value =
+                serde_json::from_slice(LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES)
+                    .expect("persistent-store publication anchor parses");
+            mutate(&mut anchor);
+            assert!(!local_persistent_store_publication_verified_for(
+                crate::identity::BUILD_DISTRIBUTION_CONTRIBUTOR_SOURCE,
+                LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
+                &serde_json::to_vec(&anchor).expect("tampered anchor serializes"),
+                LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
+                LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
+                LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,
+            ));
+        }
         assert!(!local_persistent_store_publication_verified_for(
             crate::identity::BUILD_DISTRIBUTION_PUBLIC_PACKAGE,
             LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES,
-            LOCAL_PERSISTENT_STORE_PUBLICATION_SHA256,
+            LOCAL_PERSISTENT_STORE_PUBLICATION_ANCHOR_BYTES,
             LOCAL_PERSISTENT_STORE_CARRIER_EXIT_RECEIPT_BYTES,
             LOCAL_PERSISTENT_STORE_TRIAGE_MOVE1_RECEIPT_BYTES,
             LOCAL_PERSISTENT_STORE_TRIAGE_BUDGET_RECEIPT_BYTES,

@@ -12,11 +12,14 @@ import {
   generatedPublicationPathsAt,
   IMPLEMENTATION_ROOTS,
   implementationDigestAt,
+  expectedLocalStorePublicationTransform,
+  PUBLICATION_CYCLE_ALLOWLIST,
   runChecker,
   validateAbsolutePerformanceArtifact,
   validatePairedPerformanceArtifact,
   validatePublishedEvidenceSemantics,
   validatePublicationRecord,
+  validateLocalStorePublicationTransform,
 } from '../scripts/check-agent-safe-publication.mjs';
 import {
   ADMIN_GENERATED_ROOTS,
@@ -271,6 +274,46 @@ function fixture() {
     }
   }
   return scratch;
+}
+
+const localStoreTransformPaths = [
+  'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
+  'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json',
+  'tests/acceptance/local-store-carrier-exit-v1-evidence.md',
+  'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json',
+  'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json',
+  'src/local-persistent-store-publication.anchor.v1.json',
+  'src/local-persistent-store-publication.v1.json',
+];
+
+function localStoreTransformFixture() {
+  const scratch = mkdtempSync(join(tmpdir(), 'snapback-local-store-publication-transform-'));
+  for (const path of localStoreTransformPaths) {
+    mkdirSync(dirname(join(scratch, path)), { recursive: true });
+    writeFileSync(join(scratch, path), readFileSync(join(root, path)));
+  }
+  execFileSync('git', ['init', '--quiet'], { cwd: scratch });
+  execFileSync('git', ['config', 'user.name', 'Snapback Test'], { cwd: scratch });
+  execFileSync('git', ['config', 'user.email', 'snapback-test@example.invalid'], { cwd: scratch });
+  execFileSync('git', ['add', '.'], { cwd: scratch });
+  execFileSync('git', ['commit', '--quiet', '-m', 'qualification C'], { cwd: scratch });
+  const qualification = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: scratch,
+    encoding: 'utf8',
+  }).trim();
+  for (const path of [
+    'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
+    'tests/acceptance/fixtures/triage-graph/budget-freeze.2026-08-04.v1.json',
+    'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json',
+  ]) {
+    writeFileSync(join(scratch, path), Buffer.concat([
+      readFileSync(join(scratch, path)),
+      Buffer.from(' '),
+    ]));
+  }
+  const expected = expectedLocalStorePublicationTransform(scratch, qualification);
+  for (const [path, bytes] of expected) writeFileSync(join(scratch, path), bytes);
+  return { scratch, qualification };
 }
 
 test('frozen C validates both independent records as withheld', () => {
@@ -549,6 +592,12 @@ test('build and checker bind the shared generated-artifact policy', () => {
   for (const path of IMPLEMENTATION_ROOTS) {
     assert.ok(build.includes(`"${path}"`), `build digest omits ${path}`);
   }
+  for (const path of PUBLICATION_CYCLE_ALLOWLIST) {
+    if (!IMPLEMENTATION_ROOTS.some((rootPath) => (
+      path === rootPath || path.startsWith(`${rootPath}/`)
+    ))) continue;
+    assert.ok(build.includes(`"${path}"`), `build cycle exclusions omit ${path}`);
+  }
   assert.ok(build.includes(
     'cargo:rerun-if-changed=scripts/generated-artifact-policy.mjs',
   ));
@@ -633,6 +682,11 @@ test('P-vs-C generated allowance is the exact qualification-C leaf set', () => {
 
 test('P-vs-C publication path allowlist rejects executable drift', () => {
   assert.equal(allowedPublicationPath('src/local.rs'), false);
+  assert.equal(allowedPublicationPath('src/manifest.rs'), false);
+  assert.equal(
+    allowedPublicationPath('tests/conformance/local-persistent-store-publication-v1.mjs'),
+    false,
+  );
   assert.equal(allowedPublicationPath('packages/snapback-client/index.mjs'), false);
   assert.equal(
     allowedPublicationPath('src/local-agent-safe-storage-publication.anchor.json'),
@@ -660,6 +714,11 @@ test('P-vs-C publication path allowlist rejects executable drift', () => {
     'demos/zero-bakeoff/apps/contention-calendar/snapback/trusted-composition-activation.json',
     'tests/acceptance/fixtures/contention-calendar/rung2-exit.2026-08-04.r1.v1.json',
     'tests/acceptance/contention-calendar-rung2-v1-evidence.md',
+    'tests/acceptance/fixtures/local-persistent-store/carrier-exit.2026-08-04.v1.json',
+    'tests/acceptance/fixtures/local-persistent-store/bundle-attribution.2026-08-04.v1.json',
+    'tests/acceptance/local-store-carrier-exit-v1-evidence.md',
+    'src/local-persistent-store-publication.anchor.v1.json',
+    'src/local-persistent-store-publication.v1.json',
   ]) {
     assert.equal(allowedPublicationPath(path), true, path);
   }
@@ -668,4 +727,27 @@ test('P-vs-C publication path allowlist rejects executable drift', () => {
     false,
   );
   assert.equal(allowedPublicationPath('guide/arbitrary-executable.mjs'), false);
+});
+
+test('P-vs-C local-store carrier refresh is an exact digest-only transform', () => {
+  const { scratch, qualification } = localStoreTransformFixture();
+  validateLocalStorePublicationTransform(scratch, qualification);
+});
+
+test('P-vs-C local-store transform rejects extra carrier or anchor edits', () => {
+  for (const path of [
+    'src/local-persistent-store-publication.anchor.v1.json',
+    'src/local-persistent-store-publication.v1.json',
+  ]) {
+    const { scratch, qualification } = localStoreTransformFixture();
+    writeFileSync(join(scratch, path), Buffer.concat([
+      readFileSync(join(scratch, path)),
+      Buffer.from('\nforged-publication-edit\n'),
+    ]));
+    assert.throws(
+      () => validateLocalStorePublicationTransform(scratch, qualification),
+      /drifted beyond the qualification-C local-store digest transform/u,
+      path,
+    );
+  }
 });
