@@ -12,21 +12,21 @@ KIT="$RUN_ROOT/ibex-release-kit"
 RECEIPTS="$RUN_ROOT/receipts"
 READY_FILE="$RUN_ROOT/live-target.json"
 TARGET_PORT="${SNAPBACK_APP_BOUND_PORT:-43991}"
-CLOUDFLARED="${SNAPBACK_CLOUDFLARED:-$RUN_ROOT/cloudflared}"
+TLS_PORT="${SNAPBACK_APP_BOUND_TLS_PORT:-43992}"
 APP="$RUN_ROOT/snapback-app-linux"
 APP_REPEAT="$RUN_ROOT/snapback-app-linux-repeat"
 LIVE_SERVER_ROOT="$RUN_ROOT/live-server-runtime"
 TARGET_PID=""
-TUNNEL_PID=""
+TLS_PROXY_PID=""
 
 cleanup() {
-  if [[ -n "$TUNNEL_PID" ]] && kill -0 "$TUNNEL_PID" 2>/dev/null; then kill -TERM "$TUNNEL_PID" 2>/dev/null || true; fi
+  if [[ -n "$TLS_PROXY_PID" ]] && kill -0 "$TLS_PROXY_PID" 2>/dev/null; then kill -TERM "$TLS_PROXY_PID" 2>/dev/null || true; fi
   if [[ -n "$TARGET_PID" ]] && kill -0 "$TARGET_PID" 2>/dev/null; then kill -TERM "$TARGET_PID" 2>/dev/null || true; fi
 }
 trap cleanup EXIT
 
 [[ "$(uname -s)-$(uname -m)" == "Linux-x86_64" ]] || { echo "qualification requires Linux x86_64" >&2; exit 2; }
-[[ -x "$CLOUDFLARED" ]] || { echo "missing pinned cloudflared at $CLOUDFLARED" >&2; exit 2; }
+command -v socat >/dev/null || { echo "qualification requires socat" >&2; exit 2; }
 [[ -f "$IBEX/scripts/build-sfe-release.sh" ]] || { echo "vendor/ibex is not initialized" >&2; exit 2; }
 mkdir -p "$RUN_ROOT" "$RECEIPTS"
 
@@ -105,18 +105,29 @@ TARGET_PID=$!
 for _ in $(seq 1 120); do [[ -s "$READY_FILE" ]] && break; kill -0 "$TARGET_PID" 2>/dev/null || break; sleep 1; done
 [[ -s "$READY_FILE" ]] || { cat "$RUN_ROOT/live-target.log" >&2; exit 1; }
 
-: >"$RUN_ROOT/cloudflared.log"
-"$CLOUDFLARED" tunnel --no-autoupdate --url "http://127.0.0.1:$TARGET_PORT" \
-  --logfile "$RUN_ROOT/cloudflared.log" >"$RUN_ROOT/cloudflared.stdout" 2>&1 &
-TUNNEL_PID=$!
-origin=""
+# Use a runner-local, system-trusted TLS terminator. A public CDN is not a
+# faithful qualification transport for this route: some CDNs rewrite the
+# server's explicit `Content-Encoding: identity` to gzip, which the app-bound
+# client must (and does) refuse. The local TLS hop still proves the shipped
+# static libcurl TLS and WebSocket path while preserving the exact server
+# response contract.
+tls_key="$RUN_ROOT/localhost.key"
+tls_cert="$RUN_ROOT/localhost.crt"
+openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+  -keyout "$tls_key" -out "$tls_cert" -subj /CN=localhost \
+  -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' >/dev/null 2>&1
+sudo install -m 0644 "$tls_cert" /usr/local/share/ca-certificates/snapback-app-bound-qualification.crt
+sudo update-ca-certificates >/dev/null
+socat "OPENSSL-LISTEN:$TLS_PORT,reuseaddr,fork,cert=$tls_cert,key=$tls_key,verify=0" \
+  "TCP:127.0.0.1:$TARGET_PORT" >"$RUN_ROOT/tls-proxy.log" 2>&1 &
+TLS_PROXY_PID=$!
+origin="https://localhost:$TLS_PORT"
 for _ in $(seq 1 120); do
-  origin="$(sed -nE 's#.*(https://[a-z0-9-]+\.trycloudflare\.com).*#\1#p' "$RUN_ROOT/cloudflared.log" | head -1)"
-  [[ -n "$origin" ]] && curl -fsS --retry 3 --retry-delay 1 "$origin" >/dev/null && break
-  kill -0 "$TUNNEL_PID" 2>/dev/null || break
+  curl -fsS "$origin" >/dev/null && break
+  kill -0 "$TLS_PROXY_PID" 2>/dev/null || break
   sleep 1
 done
-[[ -n "$origin" ]] || { cat "$RUN_ROOT/cloudflared.log" >&2; exit 1; }
+curl -fsS "$origin" >/dev/null || { cat "$RUN_ROOT/tls-proxy.log" >&2; exit 1; }
 
 engine_compatibility="$(node -e "const v=JSON.parse(require('fs').readFileSync(process.argv[1]));process.stdout.write(v.engineCompatibilityDigest)" "$KIT/restricted-worker-target-advertisement.canonical.json")"
 source_commit="$(git rev-parse HEAD)"
