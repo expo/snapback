@@ -56,3 +56,10 @@ trigger detection or admission claim (LLP 0130 ER-1). Calendar is used
 as a shipping exit application; the decision lab and Field Notebook are
 untouched. Advancement is author-presented; a missed timebox returns
 to 0129 OQ5 for a fresh dated ruling.
+
+---
+
+**CLOSED (2026-08-04).** Exit accepted the same day it opened: W1 spike
+(no-widening evidence, accepted) + W4 Calendar exit gate 8/8 / 0 blocked
+on a real served run; W2/W3 collapsed as evidence-vacuous. Recorded as
+the dated EXIT block at LLP 0129 OQ5.
