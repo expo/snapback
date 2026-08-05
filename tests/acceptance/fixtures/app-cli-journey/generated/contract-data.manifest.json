@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "snapback.v1:sessions:function:sha256:09a16763995d6c20709a06136c762083cdf1aef0c0c014f45ef2403bdd59038f",
+  "bundleHash": "snapback.v1:sessions:function:sha256:824f80b95d2a18c347eb03865f28cc5af8d7479b72a71275cf462753aabc17d4",
   "capabilities": {
     "branchableFixtures": false,
     "derivedOptimisticOverlays": true,
@@ -15,7 +15,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:bd324babb86c374d6d174db3b5c190b2f50cb6df9ae23bc6fa00932253a129e3",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:fbd9e86d4c5a8d51a5b243b2ab58e9cf3f9a9546b29f40b22e0e199c4fec2f01",
   "manifestVersion": 2,
   "mutations": {
     "createNote": {
@@ -196,9 +196,141 @@
       "resultHash": "sha256:0277dae8dfe65b8109b028de347686fb0b7e9d2caf57b32cb155b74837470957",
       "serverRunnable": true,
       "subscription": "none"
+    },
+    "watchNotes": {
+      "argOrder": [
+        "title"
+      ],
+      "args": {
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "argsHash": "sha256:183eacdd291aace7e537f40eba314ec53ab2435baedec326d97336385a2cee0c",
+      "defaultLive": true,
+      "ephemeral": false,
+      "implementationHash": "sha256:403bf7e40ac9f7819a559c529255334815cdd73111076c5d60fd556c095266ad",
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "watchNotes",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "notes"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "body": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "notes"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "authorId",
+              "required": true,
+              "value": {
+                "kind": "principal"
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "body",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "notes"
+      },
+      "resultHash": "sha256:0277dae8dfe65b8109b028de347686fb0b7e9d2caf57b32cb155b74837470957",
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "snapback.v1:sessions:schema:sha256:0611c6707fbe58778289bd3aec03273bf21a22c6810dc55be77591c3190f4702",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:ffe87da5e57dfd272d0bc0e23c17b41633a05d6ce31d445047d9ac95d589f6f2",
   "schemaVersion": "snapback.v1"
 }

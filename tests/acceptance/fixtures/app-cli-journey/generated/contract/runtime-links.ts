@@ -4,6 +4,7 @@
 export interface SnapbackContractLinks {
   createNote(args: { title: string; body: string }): unknown;
   listNotes(args: Record<string, never>): unknown;
+  watchNotes(args: { title: string }): unknown;
 }
 
 let links: SnapbackContractLinks | null = null;

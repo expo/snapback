@@ -67,7 +67,7 @@ expectExit('mutation', mutation, 0);
 // run, so a broken WebSocket path cannot pass on the initial HTTP snapshot.
 const liveTransport = await writeCase('live-transport.ts', `
 const counts = [];
-for await (const rows of api.watchNotes({})) {
+for await (const rows of api.watchNotes({ title: 'llp0062-linux' })) {
   counts.push(rows.length);
   if (counts.length === 1) {
     await api.createNote({

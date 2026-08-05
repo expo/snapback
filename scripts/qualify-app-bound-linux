@@ -21,6 +21,7 @@ TLS_PORT="${SNAPBACK_APP_BOUND_TLS_PORT:-43992}"
 APP="$RUN_ROOT/snapback-app-linux"
 APP_REPEAT="$RUN_ROOT/snapback-app-linux-repeat"
 LIVE_SERVER_ROOT="$RUN_ROOT/live-server-runtime"
+CONSUMER_ROOT="$RUN_ROOT/clean-consumer-root"
 TARGET_PID=""
 TLS_PROXY_PID=""
 
@@ -164,6 +165,46 @@ ldd "$APP" >"$RECEIPTS/ldd.txt"
 if grep -q 'not found' "$RECEIPTS/ldd.txt"; then echo "final artifact has a missing shared dependency" >&2; exit 1; fi
 if grep -qF "$ROOT" "$RECEIPTS/ldd.txt"; then echo "final artifact links into the source tree" >&2; exit 1; fi
 if grep -qF "$RUN_ROOT" "$RECEIPTS/ldd.txt"; then echo "final artifact links into the release staging tree" >&2; exit 1; fi
+
+# Prove the literal file without producer fallbacks. The chroot contains only
+# the executable, its audited system-library closure, trust/localhost data,
+# and explicit test inputs. Node, Bun, the checkout, and the installed catalog
+# are outside its namespace, while an empty PATH prevents tool discovery.
+rm -rf "$CONSUMER_ROOT"
+mkdir -p "$CONSUMER_ROOT/app-bin" "$CONSUMER_ROOT/dev" "$CONSUMER_ROOT/etc/ssl/certs" \
+  "$CONSUMER_ROOT/root" "$CONSUMER_ROOT/run" "$CONSUMER_ROOT/tmp"
+chmod 1777 "$CONSUMER_ROOT/tmp"
+install -m 0755 "$APP" "$CONSUMER_ROOT/app-bin/snapback-app"
+install -m 0600 "$bearer_file" "$CONSUMER_ROOT/run/session-bearer"
+install -m 0644 /etc/hosts "$CONSUMER_ROOT/etc/hosts"
+install -m 0644 /etc/nsswitch.conf "$CONSUMER_ROOT/etc/nsswitch.conf"
+install -m 0644 /etc/ssl/certs/ca-certificates.crt \
+  "$CONSUMER_ROOT/etc/ssl/certs/ca-certificates.crt"
+while IFS= read -r library; do
+  [[ -n "$library" && -f "$library" ]] || continue
+  cp --parents "$library" "$CONSUMER_ROOT"
+done < <(awk '/=> \// { print $(NF - 1) } /^\// { print $1 }' "$RECEIPTS/ldd.txt" | sort -u)
+for library in /lib/x86_64-linux-gnu/libnss_files.so.2 /lib/x86_64-linux-gnu/libnss_dns.so.2; do
+  [[ -f "$library" ]] && cp --parents "$library" "$CONSUMER_ROOT"
+done
+sudo mknod -m 0666 "$CONSUMER_ROOT/dev/null" c 1 3
+sudo mknod -m 0666 "$CONSUMER_ROOT/dev/urandom" c 1 9
+install -m 0644 /dev/stdin "$CONSUMER_ROOT/run/probe.ts" <<'PROBE'
+export default { consumerRoot: true, fetchType: typeof fetch, processType: typeof process };
+PROBE
+consumer=(sudo env -i HOME=/root PATH=/no-producer-tools \
+  SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+  /usr/sbin/chroot --userspec="$(id -u):$(id -g)" \
+  "$CONSUMER_ROOT" /app-bin/snapback-app)
+"${consumer[@]}" introspect >"$RECEIPTS/consumer-root-introspect.json"
+"${consumer[@]}" --principal session --session-bearer-file /run/session-bearer \
+  --args-json '{"title":"clean-consumer-root","body":"no-producer-fallbacks"}' \
+  call createNote >"$RECEIPTS/consumer-root-call.json"
+"${consumer[@]}" run /run/probe.ts >"$RECEIPTS/consumer-root-run.json"
+grep -q '"consumerRoot":true' "$RECEIPTS/consumer-root-run.json"
+grep -q '"fetchType":"undefined"' "$RECEIPTS/consumer-root-run.json"
+grep -q '"processType":"undefined"' "$RECEIPTS/consumer-root-run.json"
+"${consumer[@]}" --offline introspect >"$RECEIPTS/consumer-root-offline.json"
 
 catalog_digest="$(node -e "const v=JSON.parse(require('fs').readFileSync(process.argv[1]));process.stdout.write(v.catalogDigest)" "$KIT/catalog-report.json")"
 executable_sha256="$(sha256sum "$APP" | awk '{print $1}')"
