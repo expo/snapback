@@ -82,16 +82,27 @@ function validPairedEvidence(commit) {
     databaseFamilyBytesBefore: 100,
     databaseFamilyBytesAfter: 100,
   };
-  const rawPairs = Array.from({ length: 11 }, (_, index) => ({
-    pair: index + 1,
-    order: index % 2 === 0 ? 'baselineThenCandidate' : 'candidateThenBaseline',
-    baseline: { ...report },
-    baselineIdle: { ...idle },
-    candidateActiveCovered: { ...report },
-    candidateActiveCoveredIdle: { ...idle },
-  }));
+  const rawPairs = Array.from({ length: 11 }, (_, pairIndex) => {
+    const orders = pairIndex % 2 === 0
+      ? ['baselineThenCandidate', 'candidateThenBaseline', 'baselineThenCandidate']
+      : ['candidateThenBaseline', 'baselineThenCandidate', 'candidateThenBaseline'];
+    return {
+      pair: pairIndex + 1,
+      orderSequence: pairIndex % 2 === 0 ? 'AB/BA/AB' : 'BA/AB/BA',
+      rawSubpairs: orders.map((order, subpairIndex) => ({
+        subpair: subpairIndex + 1,
+        order,
+        baselineWorkerProtocol: 'agentSafeDormantBaselineWorkerV1',
+        candidateActiveCoveredWorkerProtocol: 'agentSafeActiveCoveredWorkerV3',
+        baseline: { ...report },
+        baselineIdle: { ...idle },
+        candidateActiveCovered: { ...report },
+        candidateActiveCoveredIdle: { ...idle },
+      })),
+    };
+  });
   return {
-    schemaVersion: 'snapback.agent-safe-active-paired.v2',
+    schemaVersion: 'snapback.agent-safe-active-paired.v3',
     artifactName: 'agent-safe-active-covered-paired-2026-08-04',
     date: '2026-08-04',
     baseline: {
@@ -122,9 +133,10 @@ function validPairedEvidence(commit) {
     protocol: {
       warmupsPerExecutable: 1,
       recordedPairs: 11,
-      pairOrder: 'AB/BA alternating by zero-based pair parity',
-      estimator: 'median of 11 time-local paired regression percentages',
-      confidenceInterval: 'deterministic bootstrap 90% interval over paired medians; interval must lie wholly inside the registered bound',
+      rawSubpairsPerRecordedPair: 3,
+      pairOrder: 'even zero-based outer pairs AB/BA/AB; odd zero-based outer pairs BA/AB/BA',
+      estimator: 'compute each raw subpair regression, take the median of three within each of 11 outer pairs, then take the median of the 11 outer values',
+      confidenceInterval: 'deterministic bootstrap 90% interval over 11 outer median-of-three regressions; interval must lie wholly inside the registered bound',
       bootstrapSamples: 20_000,
       bootstrapSeed: 'snapback-agent-safe-active-paired-v2/2026-08-04',
       quiescenceRule: 'direct release binary refuses unless no cargo or rustc process exists',
@@ -156,8 +168,8 @@ function validPairedEvidence(commit) {
     })),
     idleGates: {
       durationMs: 5_000,
-      baselineCombinedCpuUs: Array(11).fill(0),
-      candidateCombinedCpuUs: Array(11).fill(0),
+      baselineCombinedCpuUs: Array(33).fill(0),
+      candidateCombinedCpuUs: Array(33).fill(0),
       candidateCpuMaxObservedUs: 0,
       cpuResolutionUs: 5_000,
       cpuPassed: true,
@@ -171,8 +183,8 @@ function validPairedEvidence(commit) {
       bootstrap90PercentUpper: 0,
       rssEquivalenceBoundPercent: 5,
       rssPassed: true,
-      candidateOutputBlockOperations: Array(11).fill(0),
-      candidateDatabaseFamilyByteDeltas: Array(11).fill(0),
+      candidateOutputBlockOperations: Array(33).fill(0),
+      candidateDatabaseFamilyByteDeltas: Array(33).fill(0),
       everyCandidateOutputBlockCountZero: true,
       everyCandidateDatabaseFamilyDeltaZero: true,
       diskPassed: true,
@@ -312,10 +324,72 @@ test('paired evidence is recomputed from raw observations', () => {
   const valid = validPairedEvidence(commit);
   validatePairedPerformanceArtifact(valid, commit);
   for (let index = 0; index < 6; index += 1) {
-    valid.rawPairs[index].candidateActiveCovered.current_point_read_p50_us = 200;
+    for (let subpair = 0; subpair < 2; subpair += 1) {
+      valid.rawPairs[index].rawSubpairs[subpair]
+        .candidateActiveCovered.current_point_read_p50_us = 200;
+    }
   }
   assert.throws(
     () => validatePairedPerformanceArtifact(valid, commit),
+    /disagrees with retained raw observations/u,
+  );
+});
+
+test('paired evidence rejects legacy v2 and missing or reordered raw subpairs', () => {
+  const commit = '2'.repeat(40);
+  const mutations = [
+    (value) => { value.schemaVersion = 'snapback.agent-safe-active-paired.v2'; },
+    (value) => { value.rawPairs[0].rawSubpairs.pop(); },
+    (value) => { value.rawPairs[0].rawSubpairs.reverse(); },
+    (value) => { value.rawPairs[1].orderSequence = 'AB/BA/AB'; },
+    (value) => { delete value.rawPairs[0].rawSubpairs[0].candidateActiveCovered; },
+    (value) => { delete value.rawPairs[0].rawSubpairs[0].baselineWorkerProtocol; },
+    (value) => {
+      value.rawPairs[0].rawSubpairs[0].candidateActiveCoveredWorkerProtocol
+        = 'agentSafeActiveCoveredWorkerV2';
+    },
+  ];
+  for (const mutate of mutations) {
+    const invalid = validPairedEvidence(commit);
+    mutate(invalid);
+    assert.throws(() => validatePairedPerformanceArtifact(invalid, commit));
+  }
+});
+
+test('paired outer summaries use the median of all three raw subpair ratios', () => {
+  const commit = '3'.repeat(40);
+  const valid = validPairedEvidence(commit);
+  valid.rawPairs[0].rawSubpairs[0]
+    .candidateActiveCovered.current_point_read_p50_us = 1_000;
+  validatePairedPerformanceArtifact(valid, commit);
+
+  valid.rawPairs[0].rawSubpairs[1]
+    .candidateActiveCovered.current_point_read_p50_us = 1_000;
+  assert.throws(
+    () => validatePairedPerformanceArtifact(valid, commit),
+    /disagrees with retained raw observations/u,
+  );
+});
+
+test('paired byte and RSS summaries independently use raw median-of-three values', () => {
+  const commit = '6'.repeat(40);
+  const bytes = validPairedEvidence(commit);
+  bytes.rawPairs[0].rawSubpairs[0]
+    .candidateActiveCovered.allocated_write_bytes_per_changed_row = 1_000;
+  validatePairedPerformanceArtifact(bytes, commit);
+  bytes.rawPairs[0].rawSubpairs[1]
+    .candidateActiveCovered.allocated_write_bytes_per_changed_row = 1_000;
+  assert.throws(
+    () => validatePairedPerformanceArtifact(bytes, commit),
+    /byte observations disagree with raw pairs/u,
+  );
+
+  const rss = validPairedEvidence(commit);
+  rss.rawPairs[0].rawSubpairs[0].candidateActiveCoveredIdle.residentKbBefore = 1_000;
+  validatePairedPerformanceArtifact(rss, commit);
+  rss.rawPairs[0].rawSubpairs[1].candidateActiveCoveredIdle.residentKbBefore = 1_000;
+  assert.throws(
+    () => validatePairedPerformanceArtifact(rss, commit),
     /disagrees with retained raw observations/u,
   );
 });
@@ -324,9 +398,11 @@ test('paired raw reports reject camelCase metric aliases', () => {
   const commit = 'd'.repeat(40);
   const invalid = validPairedEvidence(commit);
   for (const pair of invalid.rawPairs) {
-    for (const report of [pair.baseline, pair.candidateActiveCovered]) {
-      report.currentPointReadP50Us = report.current_point_read_p50_us;
-      delete report.current_point_read_p50_us;
+    for (const subpair of pair.rawSubpairs) {
+      for (const report of [subpair.baseline, subpair.candidateActiveCovered]) {
+        report.currentPointReadP50Us = report.current_point_read_p50_us;
+        delete report.current_point_read_p50_us;
+      }
     }
   }
   assert.throws(
@@ -339,14 +415,26 @@ test('paired raw reports reject camelCase byte aliases', () => {
   const commit = 'e'.repeat(40);
   const invalid = validPairedEvidence(commit);
   for (const pair of invalid.rawPairs) {
-    for (const report of [pair.baseline, pair.candidateActiveCovered]) {
-      report.allocatedWriteBytesPerChangedRow = report.allocated_write_bytes_per_changed_row;
-      delete report.allocated_write_bytes_per_changed_row;
+    for (const subpair of pair.rawSubpairs) {
+      for (const report of [subpair.baseline, subpair.candidateActiveCovered]) {
+        report.allocatedWriteBytesPerChangedRow = report.allocated_write_bytes_per_changed_row;
+        delete report.allocated_write_bytes_per_changed_row;
+      }
     }
   }
   assert.throws(
     () => validatePairedPerformanceArtifact(invalid, commit),
     /allocatedWriteBytesPerChangedRow byte observation identity\/value drifted/u,
+  );
+});
+
+test('paired byte summaries reject a truncated outer population', () => {
+  const commit = '7'.repeat(40);
+  const invalid = validPairedEvidence(commit);
+  invalid.byteComparisons[0].pairedChangePercent.pop();
+  assert.throws(
+    () => validatePairedPerformanceArtifact(invalid, commit),
+    /paired change population drifted/u,
   );
 });
 
@@ -359,6 +447,24 @@ test('paired evidence rejects the old or missing candidate worker protocol', () 
     const invalid = validPairedEvidence(commit);
     if (protocol === undefined) delete invalid.protocol.candidateWorkerProtocol;
     else invalid.protocol.candidateWorkerProtocol = protocol;
+    assert.throws(
+      () => validatePairedPerformanceArtifact(invalid, commit),
+      /paired protocol identity drifted/u,
+    );
+  }
+});
+
+test('paired evidence rejects a forged median-of-three protocol', () => {
+  const commit = '4'.repeat(40);
+  const mutations = [
+    (value) => { delete value.protocol.rawSubpairsPerRecordedPair; },
+    (value) => { value.protocol.rawSubpairsPerRecordedPair = 1; },
+    (value) => { value.protocol.pairOrder = 'AB/BA alternating by zero-based pair parity'; },
+    (value) => { value.protocol.estimator = 'median of 11 time-local paired regression percentages'; },
+  ];
+  for (const mutate of mutations) {
+    const invalid = validPairedEvidence(commit);
+    mutate(invalid);
     assert.throws(
       () => validatePairedPerformanceArtifact(invalid, commit),
       /paired protocol identity drifted/u,
@@ -385,14 +491,29 @@ test('paired idle gate rejects impossible raw counters', () => {
   const commit = 'c'.repeat(40);
   const invalid = validPairedEvidence(commit);
   for (const pair of invalid.rawPairs) {
-    pair.candidateActiveCoveredIdle.cpuUserUs = -1;
+    for (const subpair of pair.rawSubpairs) {
+      subpair.candidateActiveCoveredIdle.cpuUserUs = -1;
+    }
   }
-  invalid.idleGates.candidateCombinedCpuUs = Array(11).fill(-1);
+  invalid.idleGates.candidateCombinedCpuUs = Array(33).fill(-1);
   invalid.idleGates.candidateCpuMaxObservedUs = -1;
   assert.throws(
     () => validatePairedPerformanceArtifact(invalid, commit),
     /candidate idle counters are invalid/u,
   );
+});
+
+test('paired idle gates inspect every raw candidate, not just outer medians', () => {
+  const commit = '5'.repeat(40);
+  for (const mutate of [
+    (subpair) => { subpair.candidateActiveCoveredIdle.cpuUserUs = 5_001; },
+    (subpair) => { subpair.candidateActiveCoveredIdle.outputBlockOperations = 1; },
+    (subpair) => { subpair.candidateActiveCoveredIdle.databaseFamilyBytesAfter = 101; },
+  ]) {
+    const invalid = validPairedEvidence(commit);
+    mutate(invalid.rawPairs[0].rawSubpairs[0]);
+    assert.throws(() => validatePairedPerformanceArtifact(invalid, commit));
+  }
 });
 
 test('absolute summaries and p99 are recomputed from raw observations', () => {

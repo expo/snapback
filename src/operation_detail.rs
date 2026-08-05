@@ -6,7 +6,11 @@
 //! can seal detail without widening the public storage API or retaining a TEMP
 //! database pager solely for key custody.
 
-use std::path::{Path, PathBuf};
+use std::{
+    io::{self, ErrorKind},
+    path::{Path, PathBuf},
+    sync::Mutex,
+};
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use chacha20poly1305::{
@@ -16,7 +20,7 @@ use chacha20poly1305::{
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use zeroize::Zeroizing;
+use zeroize::{Zeroize as _, Zeroizing};
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 
@@ -40,6 +44,61 @@ struct PersistedKeyV1 {
     secret: String,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PersistedKeyRef<'a> {
+    format_version: u32,
+    key_id: &'a str,
+    secret: &'a str,
+}
+
+struct CustodyKey {
+    key_id: String,
+    secret: Zeroizing<[u8; KEY_BYTES]>,
+}
+
+struct LazyCustodyKey {
+    persisted: Option<PathBuf>,
+    loaded: Option<CustodyKey>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum KeyPublication {
+    Published,
+    Existing,
+}
+
+impl LazyCustodyKey {
+    fn for_empty_database(persisted: Option<PathBuf>) -> Self {
+        Self {
+            persisted,
+            loaded: None,
+        }
+    }
+
+    fn with_loaded(persisted: Option<PathBuf>, loaded: CustodyKey) -> Self {
+        Self {
+            persisted,
+            loaded: Some(loaded),
+        }
+    }
+
+    fn for_seal(&mut self) -> Result<&CustodyKey, ()> {
+        if self.loaded.is_none() {
+            self.loaded = Some(load_or_mint_key(self.persisted.as_deref())?);
+        }
+        self.loaded.as_ref().ok_or(())
+    }
+
+    fn for_open(&mut self) -> Result<&CustodyKey, ()> {
+        if self.loaded.is_none() {
+            let path = self.persisted.as_deref().ok_or(())?;
+            self.loaded = Some(load_key(path)?);
+        }
+        self.loaded.as_ref().ok_or(())
+    }
+}
+
 fn invalid(detail: impl Into<String>) -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_OPERATION_PROTECTED_CUSTODY_INVALID",
@@ -59,6 +118,7 @@ pub(crate) fn keyring_path(database: &Path) -> PathBuf {
 pub(crate) fn persisted_file_has_key(database: &Path) -> bool {
     crate::secure_file::read_owner_only(&keyring_path(database))
         .ok()
+        .map(Zeroizing::new)
         .and_then(|bytes| decode_key(&bytes))
         .is_some()
 }
@@ -70,30 +130,125 @@ pub(crate) fn mint_new_sidecar(database: &Path) -> SnapbackResult<()> {
             "protected operation detail key sidecar already exists",
         ));
     }
-    let key_id = crate::ids::mint_time_ordered(crate::ids::Kind::Opaque);
-    let mut secret = [0_u8; KEY_BYTES];
-    getrandom::fill(&mut secret)
-        .map_err(|_| invalid("protected operation detail key generation failed"))?;
-    let bytes = serde_json::to_vec(&PersistedKeyV1 {
-        format_version: FORMAT_VERSION,
-        key_id,
-        secret: URL_SAFE_NO_PAD.encode(secret),
-    })
-    .map_err(|_| invalid("protected operation detail key could not be encoded"))?;
-    crate::secure_file::write_new_owner_only(&path, &bytes)
-        .map_err(|_| invalid("protected operation detail key sidecar could not be persisted"))
+    let key =
+        generate_key().map_err(|_| invalid("protected operation detail key generation failed"))?;
+    match publish_key_candidate(&path, &key) {
+        Ok(KeyPublication::Published) => Ok(()),
+        Ok(KeyPublication::Existing) => Err(invalid(
+            "protected operation detail key sidecar already exists",
+        )),
+        Err(()) => Err(invalid(
+            "protected operation detail key sidecar could not be persisted",
+        )),
+    }
 }
 
-fn decode_key(bytes: &[u8]) -> Option<(String, [u8; KEY_BYTES])> {
+fn decode_key(bytes: &[u8]) -> Option<CustodyKey> {
     if bytes.len() > MAX_KEY_FILE_BYTES {
         return None;
     }
-    let persisted: PersistedKeyV1 = serde_json::from_slice(bytes).ok()?;
+    let mut persisted: PersistedKeyV1 = serde_json::from_slice(bytes).ok()?;
     if persisted.format_version != FORMAT_VERSION || persisted.key_id.is_empty() {
+        persisted.secret.zeroize();
         return None;
     }
-    let secret = URL_SAFE_NO_PAD.decode(persisted.secret).ok()?;
-    Some((persisted.key_id, secret.try_into().ok()?))
+    let decoded = URL_SAFE_NO_PAD.decode(&persisted.secret).ok();
+    persisted.secret.zeroize();
+    let decoded = Zeroizing::new(decoded?);
+    let secret: [u8; KEY_BYTES] = decoded.as_slice().try_into().ok()?;
+    Some(CustodyKey {
+        key_id: persisted.key_id,
+        secret: Zeroizing::new(secret),
+    })
+}
+
+fn generate_key() -> Result<CustodyKey, ()> {
+    let mut secret = Zeroizing::new([0_u8; KEY_BYTES]);
+    getrandom::fill(&mut *secret).map_err(|_| ())?;
+    Ok(CustodyKey {
+        key_id: crate::ids::mint_time_ordered(crate::ids::Kind::Opaque),
+        secret,
+    })
+}
+
+fn encode_key(key: &CustodyKey) -> Result<Zeroizing<Vec<u8>>, ()> {
+    let secret = Zeroizing::new(URL_SAFE_NO_PAD.encode(&*key.secret));
+    serde_json::to_vec(&PersistedKeyRef {
+        format_version: FORMAT_VERSION,
+        key_id: &key.key_id,
+        secret: &secret,
+    })
+    .map(Zeroizing::new)
+    .map_err(|_| ())
+}
+
+fn load_key(path: &Path) -> Result<CustodyKey, ()> {
+    crate::secure_file::read_owner_only(path)
+        .ok()
+        .map(Zeroizing::new)
+        .and_then(|bytes| decode_key(&bytes))
+        .ok_or(())
+}
+
+fn publish_key_candidate(path: &Path, key: &CustodyKey) -> Result<KeyPublication, ()> {
+    let bytes = encode_key(key)?;
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    let staged = parent.join(format!(".snapback-operation-detail-key-{}.tmp", key.key_id));
+    crate::secure_file::write_new_owner_only(&staged, &bytes).map_err(|_| ())?;
+    match crate::secure_file::rename_no_replace(&staged, path) {
+        Ok(()) => {
+            sync_key_parent(path).map_err(|_| ())?;
+            Ok(KeyPublication::Published)
+        }
+        Err(error) if error.kind() == ErrorKind::AlreadyExists => {
+            let _ = std::fs::remove_file(&staged);
+            // Either participant may make the winner's complete atomic entry
+            // durable before any ciphertext row is allowed to commit.
+            sync_key_parent(path).map_err(|_| ())?;
+            Ok(KeyPublication::Existing)
+        }
+        Err(_) => {
+            let _ = std::fs::remove_file(&staged);
+            Err(())
+        }
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    static FAIL_NEXT_KEY_PARENT_SYNC: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+fn sync_key_parent(path: &Path) -> io::Result<()> {
+    #[cfg(test)]
+    if FAIL_NEXT_KEY_PARENT_SYNC.with(|fail| fail.replace(false)) {
+        return Err(io::Error::other(
+            "injected operation-detail parent sync failure",
+        ));
+    }
+    crate::secure_file::sync_parent(path)
+}
+
+fn load_or_mint_key(path: Option<&Path>) -> Result<CustodyKey, ()> {
+    let Some(path) = path else {
+        return generate_key();
+    };
+    match crate::secure_file::read_owner_only(path) {
+        Ok(bytes) => {
+            sync_key_parent(path).map_err(|_| ())?;
+            decode_key(&Zeroizing::new(bytes)).ok_or(())
+        }
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            let generated = generate_key()?;
+            match publish_key_candidate(path, &generated)? {
+                KeyPublication::Published => Ok(generated),
+                // Another connection won the empty-database race by atomically
+                // publishing complete, fsynced bytes at the final pathname.
+                KeyPublication::Existing => load_key(path),
+            }
+        }
+        Err(_) => Err(()),
+    }
 }
 
 fn retained_ciphertext_exists(conn: &Connection) -> SnapbackResult<bool> {
@@ -166,49 +321,27 @@ fn authenticate_retained_ciphertext(
 }
 
 /// Install one process-local key projection. Existing ciphertext makes a
-/// missing/corrupt sidecar a hard fail-closed condition; a new empty database
-/// may create its first key.
+/// missing/corrupt sidecar a hard fail-closed condition. An empty database
+/// registers the direct-only function without reading, minting, or persisting
+/// a key; the function initializes custody on its first seal.
 pub(crate) fn install(conn: &Connection, database_path: Option<&Path>) -> SnapbackResult<()> {
     let retained_ciphertext = retained_ciphertext_exists(conn)?;
     let persisted = database_path.map(keyring_path);
-    let loaded = persisted
-        .as_ref()
-        .and_then(|path| crate::secure_file::read_owner_only(path).ok())
-        .and_then(|bytes| decode_key(&bytes));
-    let (key_id, secret) = match loaded {
-        Some(key) => key,
-        None if retained_ciphertext => {
-            return Err(invalid(
-                "protected operation detail exists but its owner-only key sidecar is unavailable",
-            ));
-        }
-        None => {
-            let key_id = crate::ids::mint_time_ordered(crate::ids::Kind::Opaque);
-            let mut secret = [0_u8; KEY_BYTES];
-            getrandom::fill(&mut secret)
-                .map_err(|_| invalid("protected operation detail key generation failed"))?;
-            if let Some(path) = &persisted {
-                let bytes = serde_json::to_vec(&PersistedKeyV1 {
-                    format_version: FORMAT_VERSION,
-                    key_id: key_id.clone(),
-                    secret: URL_SAFE_NO_PAD.encode(secret),
-                })
-                .map_err(|_| invalid("protected operation detail key could not be encoded"))?;
-                crate::secure_file::write_owner_only(path, &bytes).map_err(|_| {
-                    invalid("protected operation detail key sidecar could not be persisted")
-                })?;
-            }
-            (key_id, secret)
-        }
-    };
-    let secret = Zeroizing::new(secret);
-    if retained_ciphertext {
+    let custody = if retained_ciphertext {
+        let loaded = persisted
+            .as_deref()
+            .and_then(|path| load_key(path).ok())
+            .ok_or_else(|| {
+                invalid(
+                    "protected operation detail exists but its owner-only key sidecar is unavailable",
+                )
+            })?;
         let mismatched: bool = conn.query_row(
             "SELECT EXISTS(
                SELECT 1 FROM _snapback_operation_protected_detail_v1
                 WHERE key_id<>?1 LIMIT 1
              )",
-            [&key_id],
+            [&loaded.key_id],
             |row| row.get(0),
         )?;
         if mismatched {
@@ -216,8 +349,12 @@ pub(crate) fn install(conn: &Connection, database_path: Option<&Path>) -> Snapba
                 "protected operation detail does not match its owner-only key sidecar",
             ));
         }
-        authenticate_retained_ciphertext(conn, &key_id, &secret)?;
-    }
+        authenticate_retained_ciphertext(conn, &loaded.key_id, &loaded.secret)?;
+        LazyCustodyKey::with_loaded(persisted, loaded)
+    } else {
+        LazyCustodyKey::for_empty_database(persisted)
+    };
+    let custody = Mutex::new(custody);
     // The function returns only ciphertext or plaintext, never the root key.
     // @ref LLP 0163#implementation-record--2026-08-04-explanation-and-protected-custody — protected crypto stays connection-local without retaining a second SQLite pager or projecting the key through SQL.
     conn.create_scalar_function(
@@ -239,11 +376,17 @@ pub(crate) fn install(conn: &Connection, database_path: Option<&Path>) -> Snapba
                     let custody_reference: String = context.get(1)?;
                     let payload_digest: String = context.get(2)?;
                     let plaintext = Zeroizing::new(context.get::<Vec<u8>>(3)?);
+                    let Ok(mut custody) = custody.lock() else {
+                        return Ok(vec![CRYPTO_RESPONSE_METADATA_INVALID]);
+                    };
+                    let Ok(key) = custody.for_seal() else {
+                        return Ok(vec![CRYPTO_RESPONSE_METADATA_INVALID]);
+                    };
                     let mut nonce = [0_u8; NONCE_BYTES];
                     if getrandom::fill(&mut nonce).is_err() {
                         return Ok(vec![CRYPTO_RESPONSE_METADATA_INVALID]);
                     }
-                    let Ok(ciphertext) = XChaCha20Poly1305::new((&*secret).into()).encrypt(
+                    let Ok(ciphertext) = XChaCha20Poly1305::new((&*key.secret).into()).encrypt(
                         XNonce::from_slice(&nonce),
                         Payload {
                             msg: &plaintext,
@@ -252,7 +395,7 @@ pub(crate) fn install(conn: &Connection, database_path: Option<&Path>) -> Snapba
                     ) else {
                         return Ok(vec![CRYPTO_RESPONSE_AUTH_FAILED]);
                     };
-                    let key_id_bytes = key_id.as_bytes();
+                    let key_id_bytes = key.key_id.as_bytes();
                     let Ok(key_id_len) = u32::try_from(key_id_bytes.len()) else {
                         return Ok(vec![CRYPTO_RESPONSE_METADATA_INVALID]);
                     };
@@ -275,10 +418,16 @@ pub(crate) fn install(conn: &Connection, database_path: Option<&Path>) -> Snapba
                     let stored_key_id: String = context.get(3)?;
                     let nonce: Vec<u8> = context.get(4)?;
                     let ciphertext: Vec<u8> = context.get(5)?;
-                    if stored_key_id != key_id || nonce.len() != NONCE_BYTES {
+                    let Ok(mut custody) = custody.lock() else {
+                        return Ok(vec![CRYPTO_RESPONSE_METADATA_INVALID]);
+                    };
+                    let Ok(key) = custody.for_open() else {
+                        return Ok(vec![CRYPTO_RESPONSE_METADATA_INVALID]);
+                    };
+                    if stored_key_id != key.key_id || nonce.len() != NONCE_BYTES {
                         return Ok(vec![CRYPTO_RESPONSE_METADATA_INVALID]);
                     }
-                    let Ok(plaintext) = XChaCha20Poly1305::new((&*secret).into()).decrypt(
+                    let Ok(plaintext) = XChaCha20Poly1305::new((&*key.secret).into()).decrypt(
                         XNonce::from_slice(&nonce),
                         Payload {
                             msg: &ciphertext,
@@ -466,6 +615,7 @@ pub(crate) fn open(
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::sync::{Arc, Barrier};
 
     #[test]
     fn installed_key_uses_no_temp_database_and_protected_detail_round_trips() {
@@ -538,6 +688,211 @@ mod tests {
     }
 
     #[test]
+    fn empty_file_database_defers_sidecar_until_first_seal_and_reopens() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let database = directory.path().join("app.sqlite3");
+        let key_path = keyring_path(&database);
+        let mut conn = Connection::open(&database).expect("database");
+
+        install(&conn, Some(&database)).expect("install lazy protected custody");
+        assert!(
+            !key_path.exists(),
+            "opening an empty database must not mint a protected-detail sidecar"
+        );
+        let tx = conn.transaction().expect("infra transaction");
+        crate::operation_ledger::create_infra(&tx).expect("operation infra");
+        tx.commit().expect("commit infra");
+        let digest = format!("sha256:{}", "b".repeat(64));
+        assert_eq!(
+            open(&conn, "operation-detail:test:lazy", &digest)
+                .expect("open absent protected detail"),
+            None
+        );
+        assert!(
+            !key_path.exists(),
+            "an absent detail read must not mint a protected-detail sidecar"
+        );
+
+        let expected = json!({ "secret": "persist-on-first-seal" });
+        let tx = conn.transaction().expect("protected detail transaction");
+        seal_in(&tx, "operation-detail:test:lazy", &digest, &expected)
+            .expect("first seal initializes protected custody");
+        assert!(
+            persisted_file_has_key(&database),
+            "the first protected write must persist its owner-only sidecar before the row"
+        );
+        tx.commit().expect("commit protected detail");
+        drop(conn);
+
+        let reopened = Connection::open(&database).expect("reopen database");
+        install(&reopened, Some(&database)).expect("authenticate retained custody at boot");
+        assert_eq!(
+            open(&reopened, "operation-detail:test:lazy", &digest)
+                .expect("open protected detail after restart"),
+            Some(expected)
+        );
+    }
+
+    #[test]
+    fn explicitly_minted_empty_sidecar_is_reused_on_first_seal() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let database = directory.path().join("fork.sqlite3");
+        let key_path = keyring_path(&database);
+        let mut conn = Connection::open(&database).expect("database");
+        let tx = conn.transaction().expect("infra transaction");
+        crate::operation_ledger::create_infra(&tx).expect("operation infra");
+        tx.commit().expect("commit infra");
+        mint_new_sidecar(&database).expect("explicit fork sidecar mint");
+        let minted = crate::secure_file::read_owner_only(&key_path).expect("minted sidecar");
+
+        install(&conn, Some(&database)).expect("install lazy protected custody");
+        let tx = conn.transaction().expect("protected detail transaction");
+        seal_in(
+            &tx,
+            "operation-detail:test:explicit-mint",
+            &format!("sha256:{}", "c".repeat(64)),
+            &json!({ "secret": "fork-private" }),
+        )
+        .expect("seal with explicitly minted key");
+        tx.commit().expect("commit protected detail");
+        assert_eq!(
+            crate::secure_file::read_owner_only(&key_path).expect("retained sidecar"),
+            minted,
+            "lazy initialization must not replace an explicitly minted fork sidecar"
+        );
+    }
+
+    #[test]
+    fn concurrent_first_key_publication_converges_on_one_complete_sidecar() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("app.operation-detail-key.json");
+        let barrier = Arc::new(Barrier::new(2));
+        let mut publishers = Vec::new();
+        for _ in 0..2 {
+            let path = path.clone();
+            let barrier = Arc::clone(&barrier);
+            publishers.push(std::thread::spawn(move || {
+                let key = generate_key().expect("generate publication candidate");
+                let key_id = key.key_id.clone();
+                barrier.wait();
+                let publication =
+                    publish_key_candidate(&path, &key).expect("publish or join key sidecar");
+                (key_id, publication)
+            }));
+        }
+        let outcomes = publishers
+            .into_iter()
+            .map(|publisher| publisher.join().expect("publisher thread"))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            outcomes
+                .iter()
+                .filter(|(_, result)| *result == KeyPublication::Published)
+                .count(),
+            1
+        );
+        assert_eq!(
+            outcomes
+                .iter()
+                .filter(|(_, result)| *result == KeyPublication::Existing)
+                .count(),
+            1
+        );
+        let loaded = load_key(&path).expect("atomically published complete sidecar");
+        let published_id = outcomes
+            .iter()
+            .find_map(|(key_id, result)| (*result == KeyPublication::Published).then_some(key_id))
+            .expect("published candidate identity");
+        assert_eq!(&loaded.key_id, published_id);
+        assert!(
+            std::fs::read_dir(directory.path())
+                .expect("sidecar directory")
+                .all(|entry| !entry
+                    .expect("sidecar directory entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .ends_with(".tmp")),
+            "atomic publication must not retain a losing key candidate"
+        );
+    }
+
+    #[test]
+    fn parent_sync_failure_refuses_ciphertext_commit_and_retry_converges() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let database = directory.path().join("app.sqlite3");
+        let mut conn = Connection::open(&database).expect("database");
+        install(&conn, Some(&database)).expect("install lazy protected custody");
+        let tx = conn.transaction().expect("infra transaction");
+        crate::operation_ledger::create_infra(&tx).expect("operation infra");
+        tx.commit().expect("commit infra");
+        let digest = format!("sha256:{}", "e".repeat(64));
+
+        FAIL_NEXT_KEY_PARENT_SYNC.with(|fail| fail.set(true));
+        let tx = conn.transaction().expect("protected detail transaction");
+        let error = seal_in(
+            &tx,
+            "operation-detail:test:parent-sync",
+            &digest,
+            &json!({ "secret": "must-not-commit-before-directory-sync" }),
+        )
+        .expect_err("parent sync failure must refuse the ciphertext write");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_OPERATION_PROTECTED_CUSTODY_INVALID"
+        );
+        drop(tx);
+        let retained: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_operation_protected_detail_v1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("count retained ciphertext");
+        assert_eq!(retained, 0, "failed parent sync must commit no ciphertext");
+
+        let expected = json!({ "secret": "retry-after-directory-sync" });
+        let tx = conn
+            .transaction()
+            .expect("retry protected detail transaction");
+        seal_in(&tx, "operation-detail:test:parent-sync", &digest, &expected)
+            .expect("retry loads the complete sidecar and syncs its parent");
+        tx.commit().expect("commit retry");
+        assert_eq!(
+            open(&conn, "operation-detail:test:parent-sync", &digest)
+                .expect("open retried protected detail"),
+            Some(expected)
+        );
+    }
+
+    #[test]
+    fn retained_ciphertext_without_sidecar_refuses_at_boot() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let database = directory.path().join("app.sqlite3");
+        let mut conn = Connection::open(&database).expect("database");
+        install(&conn, Some(&database)).expect("initial custody");
+        let tx = conn.transaction().expect("protected detail transaction");
+        crate::operation_ledger::create_infra(&tx).expect("operation infra");
+        seal_in(
+            &tx,
+            "operation-detail:test:missing-sidecar",
+            &format!("sha256:{}", "d".repeat(64)),
+            &json!({ "secret": "retained" }),
+        )
+        .expect("seal protected detail");
+        tx.commit().expect("commit protected detail");
+        drop(conn);
+
+        std::fs::remove_file(keyring_path(&database)).expect("remove sidecar");
+        let reopened = Connection::open(&database).expect("reopen database");
+        let error = install(&reopened, Some(&database))
+            .expect_err("retained ciphertext without its sidecar must fail at boot");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_OPERATION_PROTECTED_CUSTODY_INVALID"
+        );
+    }
+
+    #[test]
     fn swapped_well_formed_secret_with_retained_key_id_refuses_at_boot() {
         let directory = tempfile::tempdir().expect("tempdir");
         let database = directory.path().join("app.sqlite3");
@@ -557,15 +912,15 @@ mod tests {
 
         let key_path = keyring_path(&database);
         let original = crate::secure_file::read_owner_only(&key_path).expect("original sidecar");
-        let (retained_key_id, original_secret) = decode_key(&original).expect("valid sidecar");
-        let forged_secret = if original_secret == [7_u8; KEY_BYTES] {
+        let original_key = decode_key(&original).expect("valid sidecar");
+        let forged_secret = if *original_key.secret == [7_u8; KEY_BYTES] {
             [8_u8; KEY_BYTES]
         } else {
             [7_u8; KEY_BYTES]
         };
         let forged = serde_json::to_vec(&PersistedKeyV1 {
             format_version: FORMAT_VERSION,
-            key_id: retained_key_id,
+            key_id: original_key.key_id,
             secret: URL_SAFE_NO_PAD.encode(forged_secret),
         })
         .expect("forged sidecar encoding");

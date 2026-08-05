@@ -8,7 +8,8 @@
 //! client-range identity through the production commit seam.
 //!
 //! @ref LLP 0162#measurement-gate — compare the named baseline binary and the
-//!   active covered lane in time-local AB/BA pairs, bound to exact bytes.
+//!   active covered lane in time-local three-subpair AB/BA outer samples,
+//!   bound to exact bytes.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -25,6 +26,7 @@ use snapback::bench::{
 };
 
 const RECORDED_PAIRS: usize = 11;
+const RECORDED_SUBPAIRS_PER_PAIR: usize = 3;
 const BOOTSTRAP_SAMPLES: usize = 20_000;
 const ACCEPTED_BASELINE_SHA256: &str =
     "d28d8514f48db3f8a0e4d0c33a1381f12e4ad13eaf6a69187aef9b7fe822ab91";
@@ -170,6 +172,7 @@ struct Toolchain {
 struct Protocol {
     warmups_per_executable: usize,
     recorded_pairs: usize,
+    raw_subpairs_per_recorded_pair: usize,
     pair_order: &'static str,
     estimator: &'static str,
     confidence_interval: &'static str,
@@ -193,9 +196,19 @@ struct MeasurementCoverage {
 #[serde(rename_all = "camelCase")]
 struct RawPair {
     pair: usize,
+    order_sequence: &'static str,
+    raw_subpairs: Vec<RawSubpair>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RawSubpair {
+    subpair: usize,
     order: &'static str,
+    baseline_worker_protocol: String,
     baseline: BenchReport,
     baseline_idle: IdleObservation,
+    candidate_active_covered_worker_protocol: String,
     candidate_active_covered: BenchReport,
     candidate_active_covered_idle: IdleObservation,
 }
@@ -377,30 +390,43 @@ fn main() -> anyhow::Result<()> {
     let candidate_executable = canonical_regular_file(&std::env::current_exe()?)?;
     let candidate_executable_sha256 = digest_file(&candidate_executable)?;
 
-    // One complete warm-up per executable. Recorded samples then alternate
-    // AB/BA, so neither revision systematically owns the first observation.
+    // One complete warm-up per executable. Each recorded outer pair contains
+    // three full mirrored-order raw subpairs. The median-of-three estimator
+    // keeps a transient excursion from becoming an outer bootstrap sample,
+    // while the alternating outer parity balances which revision runs first.
     let _ = run_baseline(&baseline_executable)?;
     let _ = run_candidate(&candidate_executable)?;
     let mut raw_pairs = Vec::with_capacity(RECORDED_PAIRS);
     for pair in 0..RECORDED_PAIRS {
-        let (order, baseline, candidate) = if pair % 2 == 0 {
-            (
-                "baselineThenCandidate",
-                run_baseline(&baseline_executable)?,
-                run_candidate(&candidate_executable)?,
-            )
-        } else {
-            let candidate = run_candidate(&candidate_executable)?;
-            let baseline = run_baseline(&baseline_executable)?;
-            ("candidateThenBaseline", baseline, candidate)
-        };
+        let (order_sequence, baseline_first) = outer_pair_order(pair);
+        let mut raw_subpairs = Vec::with_capacity(RECORDED_SUBPAIRS_PER_PAIR);
+        for (subpair, baseline_first) in baseline_first.into_iter().enumerate() {
+            let (order, baseline, candidate) = if baseline_first {
+                (
+                    "baselineThenCandidate",
+                    run_baseline(&baseline_executable)?,
+                    run_candidate(&candidate_executable)?,
+                )
+            } else {
+                let candidate = run_candidate(&candidate_executable)?;
+                let baseline = run_baseline(&baseline_executable)?;
+                ("candidateThenBaseline", baseline, candidate)
+            };
+            raw_subpairs.push(RawSubpair {
+                subpair: subpair + 1,
+                order,
+                baseline_worker_protocol: baseline.protocol,
+                baseline: baseline.report,
+                baseline_idle: baseline.idle,
+                candidate_active_covered_worker_protocol: candidate.protocol,
+                candidate_active_covered: candidate.report,
+                candidate_active_covered_idle: candidate.idle,
+            });
+        }
         raw_pairs.push(RawPair {
             pair: pair + 1,
-            order,
-            baseline: baseline.report,
-            baseline_idle: baseline.idle,
-            candidate_active_covered: candidate.report,
-            candidate_active_covered_idle: candidate.idle,
+            order_sequence,
+            raw_subpairs,
         });
     }
     let comparisons = metrics()
@@ -410,12 +436,12 @@ fn main() -> anyhow::Result<()> {
     let byte_comparisons = byte_metrics()
         .iter()
         .map(|metric| compare_bytes(&raw_pairs, metric))
-        .collect::<Vec<_>>();
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let idle_gates = compare_idle(&raw_pairs)?;
     let measured_comparative_thresholds_passed =
         comparisons.iter().all(|comparison| comparison.passed) && idle_gates.passed;
     let artifact = Artifact {
-        schema_version: "snapback.agent-safe-active-paired.v2",
+        schema_version: "snapback.agent-safe-active-paired.v3",
         artifact_name: "agent-safe-active-covered-paired-2026-08-04",
         date: "2026-08-04",
         baseline: BaselineBinding {
@@ -455,9 +481,10 @@ fn main() -> anyhow::Result<()> {
         protocol: Protocol {
             warmups_per_executable: 1,
             recorded_pairs: RECORDED_PAIRS,
-            pair_order: "AB/BA alternating by zero-based pair parity",
-            estimator: "median of 11 time-local paired regression percentages",
-            confidence_interval: "deterministic bootstrap 90% interval over paired medians; interval must lie wholly inside the registered bound",
+            raw_subpairs_per_recorded_pair: RECORDED_SUBPAIRS_PER_PAIR,
+            pair_order: "even zero-based outer pairs AB/BA/AB; odd zero-based outer pairs BA/AB/BA",
+            estimator: "compute each raw subpair regression, take the median of three within each of 11 outer pairs, then take the median of the 11 outer values",
+            confidence_interval: "deterministic bootstrap 90% interval over 11 outer median-of-three regressions; interval must lie wholly inside the registered bound",
             bootstrap_samples: BOOTSTRAP_SAMPLES,
             bootstrap_seed: "snapback-agent-safe-active-paired-v2/2026-08-04",
             quiescence_rule: "direct release binary refuses unless no cargo or rustc process exists",
@@ -1048,13 +1075,21 @@ fn compare(pairs: &[RawPair], metric: &Metric) -> anyhow::Result<Comparison> {
     let regressions = pairs
         .iter()
         .map(|pair| {
-            let baseline = (metric.value)(&pair.baseline);
-            let candidate = (metric.value)(&pair.candidate_active_covered);
-            anyhow::ensure!(baseline > 0.0, "baseline {} is not positive", metric.name);
-            Ok(match metric.direction {
-                Direction::Latency => 100.0 * (candidate / baseline - 1.0),
-                Direction::Throughput => 100.0 * (1.0 - candidate / baseline),
-            })
+            ensure_three_subpairs(pair)?;
+            let raw_regressions = pair
+                .raw_subpairs
+                .iter()
+                .map(|subpair| {
+                    let baseline = (metric.value)(&subpair.baseline);
+                    let candidate = (metric.value)(&subpair.candidate_active_covered);
+                    anyhow::ensure!(baseline > 0.0, "baseline {} is not positive", metric.name);
+                    Ok(match metric.direction {
+                        Direction::Latency => 100.0 * (candidate / baseline - 1.0),
+                        Direction::Throughput => 100.0 * (1.0 - candidate / baseline),
+                    })
+                })
+                .collect::<anyhow::Result<Vec<_>>>()?;
+            median_of_three(raw_regressions)
         })
         .collect::<anyhow::Result<Vec<_>>>()?;
     let (lower, upper) = bootstrap_median_interval(&regressions);
@@ -1081,14 +1116,33 @@ fn compare(pairs: &[RawPair], metric: &Metric) -> anyhow::Result<Comparison> {
     })
 }
 
-fn compare_bytes(pairs: &[RawPair], metric: &ByteMetric) -> ByteComparison {
+fn compare_bytes(pairs: &[RawPair], metric: &ByteMetric) -> anyhow::Result<ByteComparison> {
+    for pair in pairs {
+        ensure_three_subpairs(pair)?;
+    }
     let baseline_values = pairs
         .iter()
-        .map(|pair| (metric.value)(&pair.baseline))
+        .map(|pair| {
+            let mut values = pair
+                .raw_subpairs
+                .iter()
+                .map(|subpair| (metric.value)(&subpair.baseline))
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            values[values.len() / 2]
+        })
         .collect::<Vec<_>>();
     let candidate_active_covered_values = pairs
         .iter()
-        .map(|pair| (metric.value)(&pair.candidate_active_covered))
+        .map(|pair| {
+            let mut values = pair
+                .raw_subpairs
+                .iter()
+                .map(|subpair| (metric.value)(&subpair.candidate_active_covered))
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            values[values.len() / 2]
+        })
         .collect::<Vec<_>>();
     let paired_change_percent = baseline_values
         .iter()
@@ -1101,7 +1155,7 @@ fn compare_bytes(pairs: &[RawPair], metric: &ByteMetric) -> ByteComparison {
     sorted_baseline.sort_unstable();
     let mut sorted_candidate = candidate_active_covered_values.clone();
     sorted_candidate.sort_unstable();
-    ByteComparison {
+    Ok(ByteComparison {
         metric: metric.name,
         baseline_values,
         candidate_active_covered_values,
@@ -1109,7 +1163,7 @@ fn compare_bytes(pairs: &[RawPair], metric: &ByteMetric) -> ByteComparison {
         candidate_active_covered_median: sorted_candidate[sorted_candidate.len() / 2],
         paired_change_percent,
         threshold_status: "observed; LLP 0162 registers the metric but no numeric byte bound",
-    }
+    })
 }
 
 fn compare_idle(pairs: &[RawPair]) -> anyhow::Result<IdleGates> {
@@ -1117,51 +1171,91 @@ fn compare_idle(pairs: &[RawPair]) -> anyhow::Result<IdleGates> {
         !pairs.is_empty(),
         "idle comparison requires paired observations"
     );
+    for pair in pairs {
+        ensure_three_subpairs(pair)?;
+    }
     anyhow::ensure!(
-        pairs.iter().all(|pair| {
-            pair.baseline_idle.duration_ms == 5_000
-                && pair.candidate_active_covered_idle.duration_ms == 5_000
-        }),
+        pairs
+            .iter()
+            .all(|pair| pair.raw_subpairs.iter().all(|subpair| {
+                subpair.baseline_idle.duration_ms == 5_000
+                    && subpair.candidate_active_covered_idle.duration_ms == 5_000
+            })),
         "idle worker observations must each cover exactly five seconds"
     );
     let baseline_combined_cpu_us = pairs
         .iter()
-        .map(|pair| {
-            pair.baseline_idle
+        .flat_map(|pair| &pair.raw_subpairs)
+        .map(|subpair| {
+            subpair
+                .baseline_idle
                 .cpu_user_us
-                .saturating_add(pair.baseline_idle.cpu_system_us)
+                .saturating_add(subpair.baseline_idle.cpu_system_us)
         })
         .collect::<Vec<_>>();
     let candidate_combined_cpu_us = pairs
         .iter()
-        .map(|pair| {
-            pair.candidate_active_covered_idle
+        .flat_map(|pair| &pair.raw_subpairs)
+        .map(|subpair| {
+            subpair
+                .candidate_active_covered_idle
                 .cpu_user_us
-                .saturating_add(pair.candidate_active_covered_idle.cpu_system_us)
+                .saturating_add(subpair.candidate_active_covered_idle.cpu_system_us)
         })
         .collect::<Vec<_>>();
     let candidate_cpu_max_observed_us =
         candidate_combined_cpu_us.iter().copied().max().unwrap_or(0);
     let baseline_rss_before_kb = pairs
         .iter()
-        .map(|pair| pair.baseline_idle.resident_kb_before)
+        .map(|pair| {
+            let mut values = pair
+                .raw_subpairs
+                .iter()
+                .map(|subpair| subpair.baseline_idle.resident_kb_before)
+                .collect::<Vec<_>>();
+            values.sort_by(f64::total_cmp);
+            median(&values)
+        })
         .collect::<Vec<_>>();
     let candidate_rss_before_kb = pairs
         .iter()
-        .map(|pair| pair.candidate_active_covered_idle.resident_kb_before)
+        .map(|pair| {
+            let mut values = pair
+                .raw_subpairs
+                .iter()
+                .map(|subpair| subpair.candidate_active_covered_idle.resident_kb_before)
+                .collect::<Vec<_>>();
+            values.sort_by(f64::total_cmp);
+            median(&values)
+        })
         .collect::<Vec<_>>();
     anyhow::ensure!(
-        baseline_rss_before_kb
+        pairs
             .iter()
-            .chain(&candidate_rss_before_kb)
-            .all(|rss| rss.is_finite() && *rss > 0.0),
+            .flat_map(|pair| &pair.raw_subpairs)
+            .all(|subpair| {
+                let baseline = subpair.baseline_idle.resident_kb_before;
+                let candidate = subpair.candidate_active_covered_idle.resident_kb_before;
+                baseline.is_finite() && baseline > 0.0 && candidate.is_finite() && candidate > 0.0
+            }),
         "idle RSS observations must be finite and positive"
     );
-    let paired_rss_regressions_percent = baseline_rss_before_kb
+    let paired_rss_regressions_percent = pairs
         .iter()
-        .zip(&candidate_rss_before_kb)
-        .map(|(baseline, candidate)| 100.0 * (candidate / baseline - 1.0))
-        .collect::<Vec<_>>();
+        .map(|pair| {
+            let raw_regressions = pair
+                .raw_subpairs
+                .iter()
+                .map(|subpair| {
+                    100.0
+                        * (subpair.candidate_active_covered_idle.resident_kb_before
+                            / subpair.baseline_idle.resident_kb_before
+                            - 1.0)
+                })
+                .collect::<Vec<_>>();
+            median_of_three(raw_regressions)
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
     let (bootstrap_90_percent_lower, bootstrap_90_percent_upper) =
         bootstrap_median_interval(&paired_rss_regressions_percent);
     let mut sorted_rss_regressions = paired_rss_regressions_percent.clone();
@@ -1172,12 +1266,18 @@ fn compare_idle(pairs: &[RawPair]) -> anyhow::Result<IdleGates> {
     sorted_candidate_rss.sort_by(f64::total_cmp);
     let candidate_output_block_operations = pairs
         .iter()
-        .map(|pair| pair.candidate_active_covered_idle.output_block_operations)
+        .flat_map(|pair| &pair.raw_subpairs)
+        .map(|subpair| {
+            subpair
+                .candidate_active_covered_idle
+                .output_block_operations
+        })
         .collect::<Vec<_>>();
     let candidate_database_family_byte_deltas = pairs
         .iter()
-        .map(|pair| {
-            let observation = &pair.candidate_active_covered_idle;
+        .flat_map(|pair| &pair.raw_subpairs)
+        .map(|subpair| {
+            let observation = &subpair.candidate_active_covered_idle;
             i64::try_from(
                 observation.database_family_bytes_after as i128
                     - observation.database_family_bytes_before as i128,
@@ -1219,6 +1319,32 @@ fn compare_idle(pairs: &[RawPair]) -> anyhow::Result<IdleGates> {
         disk_passed,
         passed: cpu_passed && rss_passed && disk_passed,
     })
+}
+
+fn ensure_three_subpairs(pair: &RawPair) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        pair.raw_subpairs.len() == RECORDED_SUBPAIRS_PER_PAIR,
+        "outer pair {} must contain exactly three raw subpairs",
+        pair.pair
+    );
+    Ok(())
+}
+
+fn outer_pair_order(pair: usize) -> (&'static str, [bool; RECORDED_SUBPAIRS_PER_PAIR]) {
+    if pair % 2 == 0 {
+        ("AB/BA/AB", [true, false, true])
+    } else {
+        ("BA/AB/BA", [false, true, false])
+    }
+}
+
+fn median_of_three(mut values: Vec<f64>) -> anyhow::Result<f64> {
+    anyhow::ensure!(
+        values.len() == RECORDED_SUBPAIRS_PER_PAIR,
+        "median-of-three estimator requires exactly three values"
+    );
+    values.sort_by(f64::total_cmp);
+    Ok(values[1])
 }
 
 fn bootstrap_median_interval(values: &[f64]) -> (f64, f64) {
@@ -1325,6 +1451,19 @@ mod tests {
             bootstrap_median_interval(&values),
             bootstrap_median_interval(&values)
         );
+    }
+
+    #[test]
+    fn outer_pairs_mirror_three_raw_subpair_orders() {
+        assert_eq!(outer_pair_order(0), ("AB/BA/AB", [true, false, true]));
+        assert_eq!(outer_pair_order(1), ("BA/AB/BA", [false, true, false]));
+        assert_eq!(outer_pair_order(10), ("AB/BA/AB", [true, false, true]));
+    }
+
+    #[test]
+    fn outer_estimator_uses_the_raw_median_of_three() {
+        assert_eq!(median_of_three(vec![80.0, 2.0, 3.0]).unwrap(), 3.0);
+        assert!(median_of_three(vec![2.0, 3.0]).is_err());
     }
 
     #[test]

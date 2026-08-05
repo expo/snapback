@@ -436,9 +436,10 @@ const BYTE_METRICS = [
 const PAIRED_PROTOCOL = Object.freeze({
   warmupsPerExecutable: 1,
   recordedPairs: 11,
-  pairOrder: 'AB/BA alternating by zero-based pair parity',
-  estimator: 'median of 11 time-local paired regression percentages',
-  confidenceInterval: 'deterministic bootstrap 90% interval over paired medians; interval must lie wholly inside the registered bound',
+  rawSubpairsPerRecordedPair: 3,
+  pairOrder: 'even zero-based outer pairs AB/BA/AB; odd zero-based outer pairs BA/AB/BA',
+  estimator: 'compute each raw subpair regression, take the median of three within each of 11 outer pairs, then take the median of the 11 outer values',
+  confidenceInterval: 'deterministic bootstrap 90% interval over 11 outer median-of-three regressions; interval must lie wholly inside the registered bound',
   bootstrapSamples: 20_000,
   bootstrapSeed: 'snapback-agent-safe-active-paired-v2/2026-08-04',
   quiescenceRule: 'direct release binary refuses unless no cargo or rustc process exists',
@@ -446,14 +447,38 @@ const PAIRED_PROTOCOL = Object.freeze({
   candidateWorkerProtocol: 'same release executable: --active-covered-worker records active-covered read/write metrics; a fresh --active-covered-idle-worker first runs the dormant comparator workload, then holds the armed storage connection and server-issued range across the five-second idle observation',
 });
 
-function validatePairedComparisons(value) {
+function expectedSubpairOrders(pairIndex) {
+  return pairIndex % 2 === 0
+    ? ['baselineThenCandidate', 'candidateThenBaseline', 'baselineThenCandidate']
+    : ['candidateThenBaseline', 'baselineThenCandidate', 'candidateThenBaseline'];
+}
+
+function validatePairedRawPopulation(value) {
   requireEvidence(Array.isArray(value.rawPairs) && value.rawPairs.length === 11,
     'paired raw observation population drifted');
-  value.rawPairs.forEach((pair, index) => {
-    requireEvidence(pair.pair === index + 1
-      && pair.order === (index % 2 === 0 ? 'baselineThenCandidate' : 'candidateThenBaseline'),
-    `paired raw observation ${index + 1} order drifted`);
+  value.rawPairs.forEach((pair, pairIndex) => {
+    const orders = expectedSubpairOrders(pairIndex);
+    const orderSequence = pairIndex % 2 === 0 ? 'AB/BA/AB' : 'BA/AB/BA';
+    requireEvidence(pair.pair === pairIndex + 1 && pair.orderSequence === orderSequence,
+      `paired raw observation ${pairIndex + 1} order drifted`);
+    requireEvidence(Array.isArray(pair.rawSubpairs) && pair.rawSubpairs.length === 3,
+      `paired raw observation ${pairIndex + 1} subpair population drifted`);
+    pair.rawSubpairs.forEach((subpair, subpairIndex) => {
+      requireEvidence(subpair.subpair === subpairIndex + 1
+        && subpair.order === orders[subpairIndex],
+      `paired raw observation ${pairIndex + 1} subpair ${subpairIndex + 1} order drifted`);
+      requireEvidence(
+        subpair.baselineWorkerProtocol === 'agentSafeDormantBaselineWorkerV1'
+          && subpair.candidateActiveCoveredWorkerProtocol
+            === 'agentSafeActiveCoveredWorkerV3',
+        `paired raw observation ${pairIndex + 1} subpair ${subpairIndex + 1} worker protocol drifted`,
+      );
+    });
   });
+}
+
+function validatePairedComparisons(value) {
+  validatePairedRawPopulation(value);
   requireEvidence(Array.isArray(value.comparisons)
     && value.comparisons.length === PAIRED_METRICS.length,
   'paired comparison vocabulary drifted');
@@ -467,13 +492,17 @@ function validatePairedComparisons(value) {
       && comparison.boundPercent === boundPercent,
     `paired comparison ${metric} identity/bound drifted`);
     const regressions = value.rawPairs.map((pair) => {
-      const baseline = pair.baseline?.[rawMetric];
-      const candidate = pair.candidateActiveCovered?.[rawMetric];
-      requireEvidence(Number.isFinite(baseline) && baseline > 0 && Number.isFinite(candidate),
+      const subpairRegressions = pair.rawSubpairs.map((subpair) => {
+        const baseline = subpair.baseline?.[rawMetric];
+        const candidate = subpair.candidateActiveCovered?.[rawMetric];
+        requireEvidence(Number.isFinite(baseline) && baseline > 0
+          && Number.isFinite(candidate) && candidate > 0,
         `paired raw metric ${metric} is invalid`);
-      return mode === 'throughput'
-        ? 100 * (1 - candidate / baseline)
-        : 100 * (candidate / baseline - 1);
+        return mode === 'throughput'
+          ? 100 * (1 - candidate / baseline)
+          : 100 * (candidate / baseline - 1);
+      });
+      return upperMedian(subpairRegressions);
     });
     const [lower, upper] = bootstrapMedianInterval(regressions);
     const passed = boundKind === 'twoSidedEquivalence'
@@ -494,13 +523,23 @@ function validatePairedComparisons(value) {
   'paired byte observation vocabulary drifted');
   BYTE_METRICS.forEach(([metric, rawMetric], index) => {
     const comparison = value.byteComparisons[index];
-    const baseline = value.rawPairs.map((pair) => pair.baseline?.[rawMetric]);
-    const candidate = value.rawPairs.map((pair) => pair.candidateActiveCovered?.[rawMetric]);
+    const baseline = value.rawPairs.map((pair) => upperMedian(
+      pair.rawSubpairs.map((subpair) => subpair.baseline?.[rawMetric]),
+    ));
+    const candidate = value.rawPairs.map((pair) => upperMedian(
+      pair.rawSubpairs.map((subpair) => subpair.candidateActiveCovered?.[rawMetric]),
+    ));
+    const rawBaseline = value.rawPairs.flatMap((pair) => (
+      pair.rawSubpairs.map((subpair) => subpair.baseline?.[rawMetric])
+    ));
+    const rawCandidate = value.rawPairs.flatMap((pair) => (
+      pair.rawSubpairs.map((subpair) => subpair.candidateActiveCovered?.[rawMetric])
+    ));
     requireEvidence(comparison.metric === metric
       && comparison.thresholdStatus
         === 'observed; LLP 0162 registers the metric but no numeric byte bound'
-      && baseline.every(Number.isSafeInteger)
-      && candidate.every(Number.isSafeInteger),
+      && rawBaseline.every((number) => Number.isSafeInteger(number) && number >= 0)
+      && rawCandidate.every((number) => Number.isSafeInteger(number) && number >= 0),
     `${metric} byte observation identity/value drifted`);
     requireEvidence(JSON.stringify(comparison.baselineValues) === JSON.stringify(baseline)
       && JSON.stringify(comparison.candidateActiveCoveredValues) === JSON.stringify(candidate),
@@ -511,6 +550,9 @@ function validatePairedComparisons(value) {
     const change = baseline.map((base, pairIndex) => (base > 0
       ? 100 * (candidate[pairIndex] / base - 1)
       : null));
+    requireEvidence(Array.isArray(comparison.pairedChangePercent)
+      && comparison.pairedChangePercent.length === change.length,
+    `${metric} paired change population drifted`);
     comparison.pairedChangePercent.forEach((actual, pairIndex) => {
       if (change[pairIndex] === null) {
         requireEvidence(actual === null, `${metric} zero-baseline change must be null`);
@@ -528,41 +570,48 @@ function validatePairedIdle(value) {
   const candidateRss = [];
   const outputBlocks = [];
   const databaseDeltas = [];
+  const rssRegressions = [];
   for (const pair of value.rawPairs) {
-    const baseline = pair.baselineIdle;
-    const candidate = pair.candidateActiveCoveredIdle;
-    requireEvidence(baseline?.durationMs === 5_000 && candidate?.durationMs === 5_000,
-      'paired idle duration drifted');
-    for (const [label, observation] of [['baseline', baseline], ['candidate', candidate]]) {
-      const counters = [
-        observation.cpuUserUs,
-        observation.cpuSystemUs,
-        observation.outputBlockOperations,
-        observation.databaseFamilyBytesBefore,
-        observation.databaseFamilyBytesAfter,
-      ];
-      requireEvidence(counters.every((number) => Number.isSafeInteger(number) && number >= 0)
-        && Number.isSafeInteger(observation.cpuUserUs + observation.cpuSystemUs)
-        && Number.isSafeInteger(
-          observation.databaseFamilyBytesAfter - observation.databaseFamilyBytesBefore,
-        ),
-      `paired ${label} idle counters are invalid`);
-      requireEvidence(Number.isFinite(observation.residentKbBefore)
-        && observation.residentKbBefore > 0
-        && Number.isFinite(observation.residentKbAfter)
-        && observation.residentKbAfter > 0,
-      `paired ${label} idle RSS observations are invalid`);
+    const pairBaselineRss = [];
+    const pairCandidateRss = [];
+    const pairRssRegressions = [];
+    for (const subpair of pair.rawSubpairs) {
+      const baseline = subpair.baselineIdle;
+      const candidate = subpair.candidateActiveCoveredIdle;
+      requireEvidence(baseline?.durationMs === 5_000 && candidate?.durationMs === 5_000,
+        'paired idle duration drifted');
+      for (const [label, observation] of [['baseline', baseline], ['candidate', candidate]]) {
+        const counters = [
+          observation.cpuUserUs,
+          observation.cpuSystemUs,
+          observation.outputBlockOperations,
+          observation.databaseFamilyBytesBefore,
+          observation.databaseFamilyBytesAfter,
+        ];
+        requireEvidence(counters.every((number) => Number.isSafeInteger(number) && number >= 0)
+          && Number.isSafeInteger(observation.cpuUserUs + observation.cpuSystemUs)
+          && Number.isSafeInteger(
+            observation.databaseFamilyBytesAfter - observation.databaseFamilyBytesBefore,
+          ),
+        `paired ${label} idle counters are invalid`);
+        requireEvidence(Number.isFinite(observation.residentKbBefore)
+          && observation.residentKbBefore > 0
+          && Number.isFinite(observation.residentKbAfter)
+          && observation.residentKbAfter > 0,
+        `paired ${label} idle RSS observations are invalid`);
+      }
+      baselineCpu.push(baseline.cpuUserUs + baseline.cpuSystemUs);
+      candidateCpu.push(candidate.cpuUserUs + candidate.cpuSystemUs);
+      pairBaselineRss.push(baseline.residentKbBefore);
+      pairCandidateRss.push(candidate.residentKbBefore);
+      pairRssRegressions.push(100 * (candidate.residentKbBefore / baseline.residentKbBefore - 1));
+      outputBlocks.push(candidate.outputBlockOperations);
+      databaseDeltas.push(candidate.databaseFamilyBytesAfter - candidate.databaseFamilyBytesBefore);
     }
-    baselineCpu.push(baseline.cpuUserUs + baseline.cpuSystemUs);
-    candidateCpu.push(candidate.cpuUserUs + candidate.cpuSystemUs);
-    baselineRss.push(baseline.residentKbBefore);
-    candidateRss.push(candidate.residentKbBefore);
-    outputBlocks.push(candidate.outputBlockOperations);
-    databaseDeltas.push(candidate.databaseFamilyBytesAfter - candidate.databaseFamilyBytesBefore);
+    baselineRss.push(upperMedian(pairBaselineRss));
+    candidateRss.push(upperMedian(pairCandidateRss));
+    rssRegressions.push(upperMedian(pairRssRegressions));
   }
-  const rssRegressions = baselineRss.map((baseline, index) => (
-    100 * (candidateRss[index] / baseline - 1)
-  ));
   const [rssLower, rssUpper] = bootstrapMedianInterval(rssRegressions);
   const cpuMax = Math.max(...candidateCpu);
   const cpuPassed = cpuMax <= 5_000;
@@ -600,7 +649,7 @@ function validatePairedIdle(value) {
 }
 
 export function validatePairedPerformanceArtifact(value, commit) {
-  requireEvidence(value.schemaVersion === 'snapback.agent-safe-active-paired.v2', 'paired schema drifted');
+  requireEvidence(value.schemaVersion === 'snapback.agent-safe-active-paired.v3', 'paired schema drifted');
   requireEvidence(value.artifactName === 'agent-safe-active-covered-paired-2026-08-04', 'paired artifact identity drifted');
   requireEvidence(value.date === '2026-08-04', 'paired date drifted');
   requireEvidence(value.candidate?.sourceRevision === commit, 'paired candidate is not exact C');
