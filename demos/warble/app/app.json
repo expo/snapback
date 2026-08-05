@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Warble",
+    "slug": "warble",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "scheme": "warble",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.snapback.warble",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true,
+          "NSAllowsArbitraryLoads": true
+        }
+      }
+    },
+    "android": {
+      "package": "com.snapback.warble",
+      "usesCleartextTraffic": true
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "capabilityClass": "Online+retained",
+      "note": "Local target only. Offline retention/replay is a local-target claim."
+    }
+  }
+}
