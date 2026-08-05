@@ -247,3 +247,44 @@ The idle interval observed zero storage mutations, zero read bytes, zero write
 bytes, 3/10 allowed CPU ticks (30/100 ms), and 0/8 allowed RSS-page growth. The
 receipt lands in the following carrier commit, preserving the producer's
 no-self-reference contract.
+
+## 2026-08-05 post-final-main merged-candidate re-mint
+
+Main's LLP 0062 Linux-completion, app-bound-test, final deployment-identity,
+and Ibex-pin batch changed the enumerated telemetry source closure after the
+post-residue receipt. The replacement EPYC producer measured the clean,
+tag-bearing candidate at exact source revision
+`18df33ae5a026daf3387349336b17fda3129959c`. It ran under the ordinary
+`ccheever` fleet account with Node 24.18.0 and Bun 1.3.12 from the existing
+user-owned toolchain; no system or administrator change was made.
+
+Before measurement, the coded `scripts/bootstrap-ibex-runtime` path reused
+profile-compatible prepared Hermes artifacts for the exact recorded
+`4c34c831aa087d6783b0d68f281cdb374ed7fc89` Ibex pin through the supported
+`SNAPBACK_IBEX_CHECKOUT` input. Its exact-link recovery record reported
+`gitDirty: false`, exact commit `18df33ae5`, a successful link and launch, and
+a successful restricted no-eval handler-VM qualification. The unchanged
+`scripts/verify-telemetry-phase1-proof --full` producer then passed its
+dedicated Rust smoke, locked release build, complete benchmark, and full
+120-second idle witness.
+
+The retained receipt covers 438 tracked proof-source files, has SHA-256
+`7978a413f8c6a8df57dfe92ecfde6f91094ff038e93ddf68272e2474f592ab54`,
+and records source-closure digest
+`3691325e15e4201e15ed96f34393e1c904025edd09f2d8884e0228df863577e0`.
+The 1,046-line successful transcript at
+`/var/cache/expose-build/snapback-native-final.bhcjAO/telemetry-full-18df33ae5.log`
+has SHA-256
+`4c8fb3062a60daeea48db6cde1a6431e5a0f10ab7f4794c1106fe6aa00c25d30`;
+the immediately preceding coded-bootstrap repair transcript has SHA-256
+`edb1e8959ac53fbc0d5e269ed504a97ea80f85d2df1d1d84ab83c9b2db688b57`.
+
+The idle interval observed zero storage mutations, zero read bytes, zero write
+bytes, 4/10 allowed CPU ticks (40/100 ms), and 0/8 allowed RSS-page growth.
+After the producer wrote the expected tracked receipt modification, the outer
+capture wrapper's over-strict clean-tree assertion stopped before printing its
+hash footer. The producer itself had completed successfully; the receipt,
+transcript tail, structured ceilings, and hashes were inspected directly, and
+the expensive producer was not rerun. The receipt lands in the following
+carrier commit, preserving the producer's documented no-self-reference
+contract.
