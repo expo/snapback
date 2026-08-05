@@ -708,3 +708,24 @@ ordinary-user-owned 0700 temp/profile ancestry; the normal GitHub sandbox
 runner remains the authority for the browser leg. None of these defects or
 environment refusals is a correctness failure in the actively owned PUSH-01
 seam or F0a fork implementation.
+
+### Post-green main race and Messenger demo fixture closure — 2026-08-05
+
+Candidate run `31017197222` at `b6f52862b` completed green with 119 passing
+gates and the two expected not-selected gates, but main advanced before that
+candidate could land. Snapback Messenger landing `4b30b364e` added
+`demos/messaging-snapback/demo.snapback.json` and a committed backend without
+extending the two explicit all-demo inventories. On the combined tree,
+`tests/demo_setup_v0.mjs` first rejected the missing demo id; after honest
+inventory admission it then exposed the clean-checkout defect: the generated
+schema and function manifests needed by provisioning were absent because
+`scripts/check-generated-artifacts` never regenerated that backend.
+
+The fix adds `messaging-snapback` to the demo materialization fixture and adds
+its backend and review manifest to the existing all-demo regeneration ledger.
+Running the canonical gate order now regenerates its 41-file cache from the
+committed `artifacts.json`, verifies the review surface, and provisions all 23
+metadata-declared demos through exactly one reset. The downstream required
+surface build gate also passes for both registry-selected web surfaces. This
+is suite-fixture and generated-carrier drift attributable to `4b30b364e`, not
+a correctness failure in the actively owned PUSH-01 seam or F0a fork code.
