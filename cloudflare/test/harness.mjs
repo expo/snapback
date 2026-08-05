@@ -196,10 +196,12 @@ export async function startProof({ app = 'notes', port = null, bindings = {}, se
     bundle('src/handler-worker.js', selected.bundle, { seedOverride }),
   ]);
   const gatewayBindings = { SNAPBACK_ADMIN_TOKEN: ADMIN_TOKEN, SNAPBACK_TESTING: '1', ...bindings };
-  // A null testing binding means authoritative classification is absent. The
-  // LLP 0167 refusal matrix needs to distinguish that from the literal "0";
-  // Miniflare bindings cannot carry undefined/null as a production binding.
-  if (bindings.SNAPBACK_TESTING === null) delete gatewayBindings.SNAPBACK_TESTING;
+  // Null means the deployment binding is absent. The LLP 0167 refusal matrix
+  // distinguishes absence from exact values, while Miniflare cannot carry
+  // undefined/null as a production binding.
+  for (const binding of ['SNAPBACK_TESTING', 'SNAPBACK_DERIVED_INSTANCE_ID']) {
+    if (bindings[binding] === null) delete gatewayBindings[binding];
+  }
 
   // Byte-transparent capture proxy for one service-binding edge: forwards the
   // request to INNER unchanged, replays the response bytes, and reports the

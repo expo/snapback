@@ -17111,7 +17111,7 @@ fn with_cors_headers(mut response: Response, allowed_origin: Option<HeaderValue>
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
         HeaderValue::from_static(
-            "content-type, authorization, dpop, x-snapback-admin-token, x-snapback-console-credential, x-snapback-connection-token, x-snapback-ephemeral-authority-instance, x-snapback-secret-read-lease, x-snapback-auth-client-protocol, x-snapback-auth-invalidation-protocol, x-snapback-authority-descriptor-protocol, x-snapback-authorized-lease-protocol",
+            "content-type, authorization, dpop, x-snapback-admin-token, x-snapback-console-credential, x-snapback-connection-token, x-snapback-ephemeral-authority-instance, x-snapback-secret-read-lease, x-snapback-auth-client-protocol, x-snapback-auth-invalidation-protocol, x-snapback-authority-descriptor-protocol, x-snapback-authorized-lease-protocol, x-snapback-network-profile-source",
         ),
     );
     headers.insert(
@@ -17958,6 +17958,31 @@ async fn host_ops_handler_inner(
         request.operation.as_str(),
         "debug.networkProfileGet" | "debug.networkProfileSet"
     ) {
+        let operator_principal = if request.operation == "debug.networkProfileSet" {
+            match request.user_id.clone() {
+                Some(principal) => {
+                    // A claimed operator becomes provenance only after the
+                    // independent, process-bound impersonation capability
+                    // authenticates the assertion.
+                    // @ref LLP 0167#authority-one-activation-chokepoint —
+                    //   capture known principal provenance at the shared gate.
+                    runtime
+                        .impersonation_capabilities
+                        .as_ref()
+                        .ok_or_else(crate::admin_impersonation::impersonation_required)
+                        .and_then(|registry| {
+                            registry.authorize(single_header_value(
+                                &headers,
+                                crate::admin_impersonation::IMPERSONATION_CAPABILITY_HEADER,
+                            ))
+                        })?;
+                    Some(principal)
+                }
+                None => None,
+            }
+        } else {
+            None
+        };
         crate::admin::authorize_host_operation(
             &ctx,
             &headers,
@@ -17993,10 +18018,19 @@ async fn host_ops_handler_inner(
                 //   the same state-changing method used by admin PUT; there is
                 //   no host-ops-specific validation or authority path.
                 .and_then(|profile| {
+                    let source = if headers
+                        .get(crate::network_profile::NETWORK_PROFILE_SOURCE_HEADER)
+                        .and_then(|value| value.to_str().ok())
+                        == Some("mcp")
+                    {
+                        crate::network_profile::NetworkProfileSource::Mcp
+                    } else {
+                        crate::network_profile::NetworkProfileSource::HostOps
+                    };
                     runtime.activate_network_profile(
                         profile,
-                        crate::network_profile::NetworkProfileSource::HostOps,
-                        None,
+                        source,
+                        operator_principal,
                     )
                 })
                 .map(|active| {
@@ -23881,7 +23915,7 @@ async fn drain_outbox_inner(
                 let (envelope, permit, lease) = admitted.into_leased_parts();
                 publication_authority.extend(permit);
                 outbox_leases.push(lease);
-                envelope
+                envelope.into_poll_lane_frame()
             })
             .collect::<Vec<_>>(),
         None => vec![RealtimeEnvelope::Durable(
@@ -25659,6 +25693,7 @@ mod tests {
             crate::admin::ServerProfile::Test,
             crate::auth::deployment::AuthDeploymentTarget::Local,
             false,
+            false,
         );
         profiles
             .activate(
@@ -25733,6 +25768,120 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn poll_lane_marker_uses_frame_admission_snapshot_and_normal_preserves_bytes() {
+        let mut context = ServerContext::detached();
+        context.profile = ServerProfile::Test;
+        let state = AppState::from_snapback(
+            LocalSnapback::memory().expect("poll marker fixture"),
+            context,
+        );
+        let opened = state
+            .connections
+            .open(Some("profiled-poll".to_owned()), None, true)
+            .expect("open poll grant");
+        let prepare_act = || {
+            state
+                .connections
+                .prepare_act(
+                    &opened.connection_id,
+                    Some(&opened.connection_token),
+                    None,
+                    true,
+                    super::now_millis(),
+                    Instant::now(),
+                )
+                .expect("prepare poll act")
+        };
+        let live_bytes = serde_json::to_vec(&crate::live_wire::LiveEnvelope::LiveReplace {
+            network_profile: None,
+            subscription_id: "sub_poll".to_owned(),
+            function: "listTodos".to_owned(),
+            version: 1,
+            rows: vec![],
+            resume: None,
+        })
+        .unwrap();
+        state
+            .activate_network_profile(
+                crate::network_profile::NetworkConditionProfile {
+                    name: "poll-admission".to_owned(),
+                    mutation_ack_delay_ms: 0,
+                    live_delta_delay_ms: 1,
+                    query_response_delay_ms: 0,
+                    jitter_ms: 0,
+                },
+                crate::network_profile::NetworkProfileSource::Api,
+                None,
+            )
+            .unwrap();
+        let admission = state
+            .network_profiles
+            .admit_result(
+                crate::network_profile::NetworkEgressLane::LiveDelta,
+                Instant::now() - Duration::from_millis(1),
+            )
+            .expect("profiled frame captures admission snapshot");
+        state
+            .ephemeral
+            .enqueue_durable_with_network_egress_for_test(
+                &opened.connection_id,
+                live_bytes.clone(),
+                admission,
+            );
+        state
+            .activate_network_profile(
+                crate::network_profile::NetworkConditionProfile::normal(),
+                crate::network_profile::NetworkProfileSource::Api,
+                None,
+            )
+            .unwrap();
+
+        let response = leased_queued_outbox_http_response(&state, prepare_act());
+        let batch: Value = serde_json::from_slice(
+            &to_bytes(response.into_body(), usize::MAX)
+                .await
+                .expect("profiled poll body"),
+        )
+        .unwrap();
+        let marked = batch[0]["Durable"]["payload"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|byte| byte.as_u64().unwrap() as u8)
+            .collect::<Vec<_>>();
+        let marked: Value = serde_json::from_slice(&marked).unwrap();
+        assert_eq!(marked["network_profile"], "poll-admission");
+
+        state
+            .ephemeral
+            .enqueue_durable_for_test(&opened.connection_id, live_bytes.clone());
+        let response = leased_queued_outbox_http_response(&state, prepare_act());
+        let normal_body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("normal poll body");
+        let expected_body = serde_json::to_vec(&vec![RealtimeEnvelope::Durable(
+            crate::ephemeral::DurableMessage::new(live_bytes.clone()),
+        )])
+        .unwrap();
+        assert_eq!(
+            normal_body.as_ref(),
+            expected_body,
+            "normal poll batch stays byte-identical"
+        );
+        let batch: Value = serde_json::from_slice(&normal_body).unwrap();
+        let normal = batch[0]["Durable"]["payload"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|byte| byte.as_u64().unwrap() as u8)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            normal, live_bytes,
+            "normal poll payload stays byte-identical"
+        );
+    }
+
+    #[tokio::test]
     async fn network_profile_admin_api_uses_shared_authorizer_and_activation_gate() {
         let mut context = ServerContext::detached();
         context.profile = ServerProfile::Test;
@@ -25759,6 +25908,7 @@ mod tests {
         assert_eq!(response_json(put).await["profile"]["name"], "optimistic");
 
         let get = router
+            .clone()
             .oneshot(
                 Request::builder()
                     .method("GET")
@@ -25773,6 +25923,28 @@ mod tests {
         let get = response_json(get).await;
         assert_eq!(get["profile"]["name"], "optimistic");
         assert_eq!(get["provenance"]["source"], "api");
+
+        let console = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/_snapback/api/debug/network-profile")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header("x-snapback-admin-token", "network-profile-admin")
+                    .header(
+                        crate::network_profile::NETWORK_PROFILE_SOURCE_HEADER,
+                        "console",
+                    )
+                    .body(Body::from(r#""normal""#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(console.status(), StatusCode::OK);
+        let console = response_json(console).await;
+        assert_eq!(console["provenance"]["source"], "console");
+        assert!(console["provenance"].get("principal").is_none());
 
         let mut context = ServerContext::detached();
         context.profile = ServerProfile::Prod;
@@ -29057,7 +29229,7 @@ globalThis.__snapbackHandlers = {
                 let (envelope, permit, lease) = admitted.into_leased_parts();
                 permits.extend(permit);
                 leases.push(lease);
-                envelope
+                envelope.into_poll_lane_frame()
             })
             .collect::<Vec<_>>();
         let mut response = Json(envelopes).into_response();

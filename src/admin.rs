@@ -2456,6 +2456,10 @@ pub struct AppState {
     /// Provider-authenticated hosted origin/admission authority. It is absent
     /// on every local target and cannot be synthesized from request headers.
     pub(crate) hosted_serving: Option<crate::auth::deployment::HostedServingHandle>,
+    /// LLP 0158 identity captured from the instance's boot-validated database
+    /// lineage and mint receipt while the trusted AppState builder owns it.
+    /// Primary instances carry `None`; no request or selector can assert this.
+    pub(crate) derived_instance_identity: Option<crate::instance_fork::DerivedForkLineageV1>,
     /// Whether startup observed an exact ReadyV1 catalog. Keyring readiness is
     /// intentionally revalidated on every health projection.
     pub(crate) auth_catalog_ready: bool,
@@ -2509,18 +2513,23 @@ impl AppState {
         let network_profiles = crate::network_profile::NetworkProfileState::new();
         let auth_terminal_lifecycle =
             AuthTerminalLifecycle::new(connections.clone(), &ephemeral, snapback.clone());
-        let (service_authority_fences, telemetry) = {
+        let (service_authority_fences, telemetry, derived_instance_identity) = {
             let mut instance = snapback
                 .try_lock()
                 .expect("trusted app-state builder owns the detached instance");
             let telemetry = instance.telemetry();
+            let derived_instance_identity = instance.derived_fork_identity().cloned();
             instance.install_network_profile_state(network_profiles.clone());
             let database = instance.auth_database_mut();
             assert!(
                 database.claim_app_state_graph(),
                 "one SharedSnapback may be wrapped by exactly one AppState graph; clone AppState for additional routers",
             );
-            (database.service_authority_fence_registry(), telemetry)
+            (
+                database.service_authority_fence_registry(),
+                telemetry,
+                derived_instance_identity,
+            )
         };
         (
             Self {
@@ -2556,6 +2565,7 @@ impl AppState {
                 auth_provider: None,
                 auth_coordinator: None,
                 hosted_serving: None,
+                derived_instance_identity,
                 auth_catalog_ready: false,
                 auth_invalidation: Arc::new(StdRwLock::new(None)),
                 authorized_lease_config: AuthorizedLeaseConfig::default(),
@@ -2573,6 +2583,7 @@ impl AppState {
             self.server.profile,
             self.server.auth_deployment,
             self.hosted_serving.is_some(),
+            self.derived_instance_identity.is_some(),
         )
     }
 
@@ -2580,8 +2591,9 @@ impl AppState {
     /// gate; callers may parse different transport representations but cannot
     /// select around classification or provenance capture.
     ///
-    /// @ref LLP 0167#authority-one-activation-chokepoint — ServerProfile and
-    ///   hosted-serving authority are checked together, fail closed.
+    /// @ref LLP 0167#authority-one-activation-chokepoint — ServerProfile,
+    ///   hosted-serving authority, and boot-validated derived identity are
+    ///   checked together, fail closed.
     pub(crate) fn activate_network_profile(
         &self,
         profile: crate::network_profile::NetworkConditionProfile,
@@ -4083,14 +4095,23 @@ async fn admin_network_profile_get(
 
 async fn admin_network_profile_put(
     State(runtime): State<AppState>,
+    headers: HeaderMap,
     Json(selection): Json<serde_json::Value>,
 ) -> Result<Json<crate::network_profile::ActiveNetworkProfile>, ApiError> {
     let profile = crate::network_profile::NetworkConditionProfile::parse_value(selection)?;
-    let active = runtime.activate_network_profile(
-        profile,
-        crate::network_profile::NetworkProfileSource::Api,
-        None,
-    )?;
+    // @ref LLP 0167#authority-one-activation-chokepoint — the browser console
+    //   identifies its surface, while an unhinted headless PUT remains `api`;
+    //   neither hint supplies authority or an operator principal.
+    let source = if headers
+        .get(crate::network_profile::NETWORK_PROFILE_SOURCE_HEADER)
+        .and_then(|value| value.to_str().ok())
+        == Some("console")
+    {
+        crate::network_profile::NetworkProfileSource::Console
+    } else {
+        crate::network_profile::NetworkProfileSource::Api
+    };
+    let active = runtime.activate_network_profile(profile, source, None)?;
     Ok(Json((*active).clone()))
 }
 
@@ -5853,6 +5874,47 @@ mod tests {
         assert_eq!(
             put.credential_resolution,
             CredentialResolution::AdminCredential
+        );
+    }
+
+    #[test]
+    fn network_profile_authority_captures_boot_validated_derived_identity() {
+        // @ref LLP 0158#design-sketch — a fork is identified by the matching
+        // permanent database lineage and fork-local mint receipt/sidecars, not
+        // by its path or shared appId.
+        // @ref LLP 0167#authority-one-activation-chokepoint — AppState carries
+        // that already-validated fact into every env/runtime activation.
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("parent.sqlite3");
+        drop(crate::storage::LocalDatabase::open(&source).unwrap());
+        let destination = directory.path().join("fork");
+        let receipt =
+            crate::instance_fork::publish(&source, &destination, "app-a", "parent-a", 42, None)
+                .unwrap();
+        let state = AppState::from_snapback(
+            LocalSnapback::open(destination.join(&receipt.database_file)).unwrap(),
+            ServerContext::new("127.0.0.1", 0, true),
+        );
+        assert_eq!(
+            state
+                .derived_instance_identity
+                .as_ref()
+                .map(|identity| identity.fork_id.as_str()),
+            Some(receipt.lineage.fork_id.as_str())
+        );
+        assert_eq!(
+            state.network_profile_authority().derived_instance_present,
+            Some(true)
+        );
+
+        let primary = AppState::from_snapback(
+            LocalSnapback::memory().unwrap(),
+            ServerContext::new("127.0.0.1", 0, true),
+        );
+        assert!(primary.derived_instance_identity.is_none());
+        assert_eq!(
+            primary.network_profile_authority().derived_instance_present,
+            Some(false)
         );
     }
 

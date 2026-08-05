@@ -5,7 +5,12 @@
 **Systems:** Sync, Realtime, Storage, API, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-08-03 (`single_table_v1@1` boundary: its class binding
+**Revised:** 2026-08-05 (DK-9 diagnostic-spelling reconciliation: the LLP 0166
+successor RQS store keeps `SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE` as its
+authoritative emitted code; DK-9's generic
+`SNAPBACK_CLIENT_STORE_LOCK_UNAVAILABLE` text is the owner-level semantic alias
+and remains emitted only by the predecessor localStorage adapter; no shipped
+diagnostic is renamed or dual-emitted.) 2026-08-03 (`single_table_v1@1` boundary: its class binding
 consumes DK-3's additive-delivery ceiling; `live_delta` keeps the honest
 `live_replace` fallback, ordered/limited results remain replace, and no wire
 bytes or implementation/capability claim change.) 2026-08-03 (DK-9 dated amendment landed with Accepted
@@ -522,6 +527,17 @@ What the decision pins:
   `SNAPBACK_CLIENT_STORE_LOCK_UNAVAILABLE` and fails closed rather than using a
   timeout lease or last-writer-wins storage. Native/SQLite implementations keep
   the existing single-connection mutex and transaction requirement.
+
+> **Diagnostic-spelling reconciliation (2026-08-05):** the successor RQS
+> store implemented under LLP 0166 authoritatively emits
+> `SNAPBACK_RQS_STORE_LOCK_UNAVAILABLE`; that is the canonical spelling for
+> that carrier and is not renamed. DK-9's generic
+> `SNAPBACK_CLIENT_STORE_LOCK_UNAVAILABLE` envelope text is the semantic and
+> documentation alias when this owner decision is applied to the successor;
+> it remains the actual emitted code only for the predecessor
+> `createLocalStorageSnapbackClientStore` adapter. This is not runtime
+> dual-emission: each shipped adapter keeps its existing code, and consumers
+> must match the code emitted by the carrier they use.
 
 Revisit trigger: if parity-class offline execution (local handler replay)
 ever requires query capabilities the interface cannot express without

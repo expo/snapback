@@ -89,7 +89,7 @@ export const LOCAL_SUITES = Object.freeze([
     id: 'acceptance-network-profile',
     file: 'cloudflare/test/acceptance.network-profile.mjs',
     evidence: [
-      'cloudflare network-profile acceptance: classification, ceilings, runtime lifecycle, two-phase deadlines, and admission passed',
+      'cloudflare network-profile acceptance: classification, ceilings, action refusals, runtime lifecycle, two-phase deadlines, admission, and the test/primary/derived/missing/contradictory matrix passed',
     ],
   },
   {

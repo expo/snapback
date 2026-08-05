@@ -2821,6 +2821,20 @@ impl EphemeralApi {
     }
 
     #[cfg(test)]
+    pub(crate) fn enqueue_durable_with_network_egress_for_test(
+        &self,
+        connection_id: &str,
+        payload: Vec<u8>,
+        network_egress: crate::network_profile::PreparedNetworkEgress,
+    ) {
+        self.store.enqueue_durable_with_network_egress(
+            connection_id.to_owned(),
+            payload,
+            Some(network_egress),
+        );
+    }
+
+    #[cfg(test)]
     pub(crate) fn enqueue_durable_bound_for_test(
         &self,
         connection_id: &str,
@@ -4061,7 +4075,16 @@ impl LocalSnapback {
     }
 
     pub(crate) fn is_derived_fork(&self) -> bool {
-        self.db.derived_fork().is_some()
+        self.derived_fork_identity().is_some()
+    }
+
+    /// Boot-validated LLP 0158 instance identity. This is sourced from the
+    /// database lineage + mint-receipt proof checked by `LocalDatabase::open`,
+    /// never from request data, a path convention, or an environment hint.
+    pub(crate) fn derived_fork_identity(
+        &self,
+    ) -> Option<&crate::instance_fork::DerivedForkLineageV1> {
+        self.db.derived_fork().map(|runtime| &runtime.lineage)
     }
 
     pub(crate) fn deny_derived_fork_egress(
@@ -53591,6 +53614,7 @@ globalThis.__snapbackHandlers = {
                 crate::network_profile::NetworkProfileAuthority::classified(
                     crate::admin::ServerProfile::Test,
                     crate::auth::deployment::AuthDeploymentTarget::Local,
+                    false,
                     false,
                 ),
                 crate::network_profile::NetworkProfileSource::Api,

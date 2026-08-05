@@ -123,6 +123,12 @@ try {
   assert.equal(tools.find((tool) => tool.name === 'snapback_inspect').annotations.readOnlyHint, true);
   assert.equal(tools.find((tool) => tool.name === 'snapback_network_profile_get').annotations.readOnlyHint, true);
   assert.equal(tools.find((tool) => tool.name === 'snapback_network_profile_set').annotations.readOnlyHint, false);
+  const profileSchema = tools.find((tool) => tool.name === 'snapback_network_profile_set').inputSchema
+    .properties.profile;
+  assert.deepEqual(profileSchema.oneOf[0].enum, ['normal', 'optimistic', 'demo-slow']);
+  for (const field of ['mutationAckDelayMs', 'liveDeltaDelayMs', 'queryResponseDelayMs', 'jitterMs']) {
+    assert.equal(profileSchema.oneOf[1].properties[field].maximum, 30_000);
+  }
   assert.equal(tools.find((tool) => tool.name === 'snapback_reset').annotations.destructiveHint, true);
 
   const catalog = listed.result._meta['snapback/appDataCatalog'];
@@ -344,6 +350,7 @@ try {
   assert.equal(initialProfile.structuredContent.data.profile.name, 'normal');
 
   const setProfile = await client.call('snapback_network_profile_set', {
+    operatorPrincipal: 'operator:mcp-acceptance',
     profile: {
       name: 'mcp-zero-delay',
       mutationAckDelayMs: 0,
@@ -356,7 +363,8 @@ try {
   assert.equal(setProfile.structuredContent.operation, 'debug.networkProfileSet');
   assert.equal(setProfile.structuredContent.ok, true, JSON.stringify(setProfile.structuredContent));
   assert.equal(setProfile.structuredContent.data.profile.name, 'mcp-zero-delay');
-  assert.equal(setProfile.structuredContent.data.provenance.source, 'host-ops');
+  assert.equal(setProfile.structuredContent.data.provenance.source, 'mcp');
+  assert.equal(setProfile.structuredContent.data.provenance.principal, 'operator:mcp-acceptance');
 
   const restoredProfile = await client.call('snapback_network_profile_set', { profile: 'normal' });
   assert.equal(restoredProfile.structuredContent.ok, true, JSON.stringify(restoredProfile.structuredContent));

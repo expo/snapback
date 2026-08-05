@@ -27,6 +27,10 @@ const PROFILE_PATH = join(FIXTURE_DIR, 'profiles.v1.json');
 const BASELINE_PATH = join(FIXTURE_DIR, 'baseline.v1.json');
 const CURRENT_PATH = join(FIXTURE_DIR, 'current.v1.json');
 const PACKAGE_DIR = join(ROOT, 'packages');
+const CLIENT_PACKAGE_MANIFEST = JSON.parse(readFileSync(
+  join(PACKAGE_DIR, 'snapback-client', 'package.json'),
+  'utf8',
+));
 const METRICS = ['minifiedBytes', 'gzipBytes', 'brotliBytes'];
 const PUSH_REGISTRY_MODULE = 'packages/snapback-client/push-registry.mjs';
 const PUSH_INSTALLATION_EXPO_MODULE = 'packages/snapback-client/push-installation-expo.mjs';
@@ -37,6 +41,68 @@ const REACT_RUNTIME_MODULE = 'packages/snapback-react/react-runtime.mjs';
 const FINITE_CARRIER_MODULE = 'packages/snapback-client/finite-completeness-carrier.mjs';
 const MATERIALIZATION_RUNTIME_MODULE =
   'packages/snapback-client/materialization-store-runtime.mjs';
+const LOCAL_SYNC_CLOSURE_MODULES = Object.freeze([
+  'packages/snapback-client/materialization-store.mjs',
+  'packages/snapback-client/local-read-admission.mjs',
+  'packages/snapback-client/ir-evaluator.mjs',
+  'packages/snapback-client/materialization-bridge.mjs',
+  'packages/snapback-client/optimistic-rebase.mjs',
+]);
+
+// Resolved-closure absence applies to every exported module by default. These
+// are the only sync-owned exceptions:
+//
+// - the Full client and compatibility façades below deliberately construct or
+//   attach to that Full client, whose optional store chunk is instead guarded
+//   by the existing static-entry assertions; and
+// - the remaining entries directly expose local-sync storage, evaluation,
+//   admission, rebase, resume, retention, or settlement machinery.
+//
+// Keep this allowlist about ownership, never about which profiles happen to be
+// measured today. A future export is resolved and checked automatically unless
+// it is deliberately classified here as sync-owned.
+const SYNC_OWNED_CLIENT_SUBPATHS = new Set(Object.freeze([
+  '.',
+  './app-data',
+  './hosted-browser',
+  './online',
+  './vector-search',
+  './push-registry',
+  './ir-evaluator',
+  './evaluation-floor',
+  './result-transform',
+  './materialization-store',
+  './lease-convergence',
+  './local-read-admission',
+  './optimistic-rebase',
+  './rqs',
+  './rqs-preload',
+  './rqs-registered',
+  './rqs-store',
+  './rqs-store-file',
+  './rqs-store-expo',
+  './rqs-store-default',
+  './outbox-shared',
+]));
+
+const RESOLVED_NARROW_SUBPATH_EXPORTS = Object.freeze(
+  Object.keys(CLIENT_PACKAGE_MANIFEST.exports)
+    // package.json is exported metadata, not an executable client entry.
+    .filter((key) => key !== './package.json')
+    .filter((key) => !SYNC_OWNED_CLIENT_SUBPATHS.has(key))
+    .sort(),
+);
+const RESOLVED_NARROW_SUBPATH_PROFILES = Object.freeze(
+  RESOLVED_NARROW_SUBPATH_EXPORTS.map((key) => Object.freeze({
+    id: `resolved-public-subpath-${key.slice(2).replaceAll('/', '-')}`,
+    package: `${CLIENT_PACKAGE_MANIFEST.name}/${key.slice(2)}`,
+    namespace: true,
+    resolveOptionalRuntimes: true,
+  })),
+);
+const RESOLVED_NARROW_SUBPATH_PROFILE_IDS = Object.freeze(
+  RESOLVED_NARROW_SUBPATH_PROFILES.map((profile) => profile.id),
+);
 const BEHAVIOR_COMMANDS = Object.freeze([
   ['node', ['packages/snapback-client/package.test.mjs']],
   ['node', ['packages/snapback-client/browser-closure.test.mjs']],
@@ -186,6 +252,21 @@ const SUPPLEMENTAL_LEDGER_SPECS = Object.freeze([
       filename: 'baseline.local-read-admission.v1.json',
       profileIds: Object.freeze(['public-subpath-ir-evaluator']),
     }),
+  }),
+  Object.freeze({
+    filename: 'baseline.local-sync-absence.v1.json',
+    profileFilename: 'local-sync-absence-profiles.v1.json',
+    profileIds: RESOLVED_NARROW_SUBPATH_PROFILE_IDS,
+    derivedProfiles: RESOLVED_NARROW_SUBPATH_PROFILES,
+    authorities: Object.freeze([
+      'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0063#workstream-8--performance-and-packaging-budgets',
+      'LLP 0166#d9--carriers-storage-profiles-arms-and-the-bundle',
+    ]),
+    behaviorCommands: Object.freeze([
+      ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/browser-closure.test.mjs']],
+    ]),
   }),
 ]);
 
@@ -976,7 +1057,9 @@ async function measureProfile(profile) {
     metafile: true,
     minify: true,
     platform: 'browser',
-    plugins: [workspaceExports, optionalRuntimeBoundaries],
+    plugins: profile.resolveOptionalRuntimes === true
+      ? [workspaceExports]
+      : [workspaceExports, optionalRuntimeBoundaries],
     target: 'es2022',
     treeShaking: true,
     write: false,
@@ -990,6 +1073,9 @@ async function measureProfile(profile) {
     package: profile.package,
     fixtureSha256: sha256(source),
     externals: [...(profile.external ?? [])].sort(),
+    ...(profile.resolveOptionalRuntimes === true
+      ? { resolveOptionalRuntimes: true }
+      : {}),
     minifiedBytes: bytes.byteLength,
     gzipBytes: gzipSync(bytes, { level: 9 }).byteLength,
     brotliBytes: brotliCompressSync(bytes, {
@@ -1030,10 +1116,15 @@ function prospectiveProfileIds(baseline) {
 function assertDeclaredAdditiveProfiles(additiveConfigs, profiles) {
   const measured = new Set(profiles.map((profile) => profile.id));
   for (const { spec, config } of additiveConfigs) {
-    const declared = [
-      ...config.profiles.map((profile) => profile.id),
-      ...spec.profileIds.filter((id) => id.startsWith('public-subpath-')),
-    ].sort();
+    const declared = spec.derivedProfiles === undefined
+      ? [
+        ...config.profiles.map((profile) => profile.id),
+        ...spec.profileIds.filter((id) => id.startsWith('public-subpath-')),
+      ].sort()
+      : [
+        ...config.profiles.map((profile) => profile.id),
+        ...spec.derivedProfiles.map((profile) => profile.id),
+      ].sort();
     assert.deepEqual(declared, spec.profileIds.toSorted(), `${spec.filename}: declared ids`);
     for (const id of declared) assert.ok(measured.has(id), `${id}: additive profile exists`);
   }
@@ -1163,6 +1254,46 @@ function assertStoreRuntimeClosure(profiles) {
   );
 }
 
+function assertResolvedNarrowSubpathAbsence(profiles) {
+  const executableExports = Object.keys(CLIENT_PACKAGE_MANIFEST.exports)
+    .filter((key) => key !== './package.json')
+    .sort();
+  for (const key of SYNC_OWNED_CLIENT_SUBPATHS) {
+    assert.ok(
+      executableExports.includes(key),
+      `sync-owned client subpath ${key} is still exported`,
+    );
+  }
+  assert.deepEqual(
+    RESOLVED_NARROW_SUBPATH_EXPORTS,
+    executableExports.filter((key) => !SYNC_OWNED_CLIENT_SUBPATHS.has(key)),
+    'resolved narrow subpaths are derived from the client exports map minus the sync-owned allowlist',
+  );
+
+  const byId = new Map(profiles.map((profile) => [profile.id, profile]));
+  for (const expected of RESOLVED_NARROW_SUBPATH_PROFILES) {
+    const profile = byId.get(expected.id);
+    assert.ok(profile, `${expected.id}: derived resolved narrow profile is present`);
+    assert.equal(
+      profile.resolveOptionalRuntimes,
+      true,
+      `${expected.id}: optional runtimes are resolved for the absence proof`,
+    );
+    for (const module of LOCAL_SYNC_CLOSURE_MODULES) {
+      assert.equal(
+        Object.hasOwn(profile.metafile.inputs, module),
+        false,
+        `${expected.id}: resolved narrow closure excludes ${module}`,
+      );
+    }
+    assert.equal(
+      Object.hasOwn(profile.metafile.inputs, STORE_RUNTIME_MODULE),
+      false,
+      `${expected.id}: resolved narrow closure excludes ${STORE_RUNTIME_MODULE}`,
+    );
+  }
+}
+
 function runBehaviorTrain() {
   runBehaviorCommands(BEHAVIOR_COMMANDS);
   for (const spec of SUPPLEMENTAL_LEDGER_SPECS) runBehaviorCommands(spec.behaviorCommands);
@@ -1190,6 +1321,7 @@ async function measure() {
   const profiles = [
     ...config.profiles,
     ...additiveConfigs.flatMap((entry) => entry.config.profiles),
+    ...additiveConfigs.flatMap((entry) => entry.spec.derivedProfiles ?? []),
     ...rolloverConfigs.flatMap((entry) => entry.config.profiles),
     ...publicSubpathProfiles(config),
   ];
@@ -1203,6 +1335,7 @@ async function measure() {
   assertPushRegistryClosure(measured);
   assertExpoPushInstallationClosure(measured);
   assertMicroClosure(measured);
+  assertResolvedNarrowSubpathAbsence(measured);
   assertStoreRuntimeClosure(measured);
   return {
     schemaVersion: 'snapback.client-bundle-metrology.v1',
@@ -1278,6 +1411,9 @@ function compactProfile(profile) {
     package: profile.package,
     fixtureSha256: profile.fixtureSha256,
     externals: profile.externals,
+    ...(profile.resolveOptionalRuntimes === true
+      ? { resolveOptionalRuntimes: true }
+      : {}),
     minifiedBytes: profile.minifiedBytes,
     gzipBytes: profile.gzipBytes,
     brotliBytes: profile.brotliBytes,

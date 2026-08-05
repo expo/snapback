@@ -50,3 +50,36 @@ gate, plus a resolved-profile sweep that also covers
 `local-sync-capability`-class regressions via the dynamic boundary. No
 client-source refactor; no savings rollover (there are no savings to
 declare).
+
+## Absence-ratchet landing (2026-08-05)
+
+The narrowed landing derives its resolved narrow-profile set directly from
+`packages/snapback-client/package.json`'s `exports` map. The script subtracts
+one explicit, commented allowlist of Full/compatibility and directly
+sync-owned subpaths; `./package.json` is excluded as metadata rather than an
+executable entry. Every other current export — and every future export by
+default — receives a `resolveOptionalRuntimes` profile. Those profiles assert
+the absence of `materialization-store.mjs`, `local-read-admission.mjs`,
+`ir-evaluator.mjs`, `materialization-bridge.mjs`, `optimistic-rebase.mjs`, and
+an independent explicit absence of `store-runtime.mjs`.
+
+`baseline.local-sync-absence.v1.json` freezes the nine derived profiles as a
+prospective additive supplemental receipt. No historical ceiling changed, no
+savings rollover was added, and all 45 pre-existing current profiles remained
+byte-for-byte unchanged. The script's write modes continue to run the complete
+primary + historical supplemental + rollover behavior train.
+
+Bite proof: a temporary static side-effect import of
+`./materialization-store.mjs` in the derived `./assets` narrow entry made
+`volta run node scripts/client-bundle-metrology.mjs --check` fail with
+`resolved-public-subpath-assets: resolved narrow closure excludes
+packages/snapback-client/materialization-store.mjs`. The probe was removed;
+the post-revert check passes with 54 profiles and no frozen ceiling
+regressions.
+
+## Resolution (2026-08-05)
+
+Lane complete under the narrowed scope: the exports-map-derived
+absence ratchet landed (nine resolved narrow profiles, five sync
+modules + store-runtime rejected, bite-proof recorded above); the
+closure win itself was already delivered by 1b4d104bc. Closed.
