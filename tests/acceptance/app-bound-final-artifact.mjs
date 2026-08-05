@@ -66,26 +66,31 @@ expectExit('mutation', mutation, 0);
 // post-establishment update before the client's 1.5-second HTTP fallback can
 // run, so a broken WebSocket path cannot pass on the initial HTTP snapshot.
 const liveTransport = await writeCase('live-transport.ts', `
-const counts = [];
-for await (const rows of api.watchNotes({ title: 'llp0062-linux' })) {
-  counts.push(rows.length);
-  if (counts.length === 1) {
-    await api.createNote({
-      title: 'llp0062-linux',
-      body: 'llp0062-linux-websocket-only',
-    });
-  } else {
-    break;
-  }
-}
-export default { counts };
+const iterator = api.watchNotes({ title: 'llp0062-linux' })[Symbol.asyncIterator]();
+const first = await iterator.next();
+if (first.done) throw new Error('live query ended before its initial snapshot');
+await api.createNote({
+  title: 'llp0062-linux',
+  body: 'llp0062-linux-websocket-only',
+});
+let deadlineTimer;
+const second = await Promise.race([
+  iterator.next(),
+  new Promise((_, reject) => {
+    deadlineTimer = setTimeout(() => reject(new Error('WebSocket update deadline exceeded')), 1400);
+  }),
+]);
+clearTimeout(deadlineTimer);
+await iterator.return?.();
+if (second.done) throw new Error('live query ended before its update');
+export default { counts: [first.value.length, second.value.length] };
 `);
 const liveQuery = await run([
   ...session,
   'run',
   liveTransport,
   '--timeout-ms',
-  '1400',
+  '10000',
 ]);
 expectExit('live-query-websocket', liveQuery, 0);
 const liveValue = JSON.parse(liveQuery.stdout);
