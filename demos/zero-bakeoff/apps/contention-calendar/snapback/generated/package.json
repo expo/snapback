@@ -14,7 +14,8 @@
     },
     "./provider-introspection": "./provider-introspection.json",
     "./schema": "./schema.manifest.json",
-    "./seed": "./seed.artifact.json"
+    "./seed": "./seed.artifact.json",
+    "./trusted-composition-activation": "./trusted-composition-activation.json"
   },
   "type": "module"
 }

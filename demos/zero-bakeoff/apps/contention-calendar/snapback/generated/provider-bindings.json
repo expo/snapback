@@ -33,8 +33,8 @@
         },
         "name": "reserve",
         "optimistic": {
-          "source": "none",
-          "supported": false
+          "source": "provider-plan",
+          "supported": true
         },
         "resultType": "string"
       }
@@ -86,6 +86,32 @@
         },
         "dependencies": {
           "reads": [
+            "resources"
+          ]
+        },
+        "name": "resourceList",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"key\": string; \"title\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
             "reservations"
           ]
         },
@@ -100,7 +126,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "219f0837561b0601baef99bd4495f9f9d8b3b3ed9c95e0dec2a5aa3e1bbe083b",
+    "inputsHash": "3989e4954d30583eea1d60a05251dab5ca3b755b9c5878695feda426897ebb5c",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

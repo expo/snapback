@@ -6,7 +6,7 @@
   ],
   "appId": "contention-calendar",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:528550ec64be5b22",
+  "bundleHash": "sha256:c090746da9251574",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -76,7 +76,7 @@
       "sourceSpan": {
         "column": 12,
         "file": "functions.mjs",
-        "line": 59
+        "line": 70
       },
       "syncabilityClass": "mutation",
       "uses": [],
@@ -349,44 +349,36 @@
       "bundleEntrypoint": "reserve",
       "effectCeiling": {
         "authorizationInputs": [],
-        "basis": "declared",
+        "basis": "static",
         "hostOperations": [],
-        "reads": [
-          {
-            "access": "query",
-            "table": "reservations"
-          }
-        ],
+        "reads": [],
         "version": "EffectCeilingV1",
         "writes": [
           {
             "operations": [
-              "declared"
+              "insert"
             ],
             "table": "reservations"
           }
         ]
       },
       "exportedName": "reserve",
-      "handlerForm": "inline",
+      "handlerForm": "plan",
       "id": "contention-calendar:reserve",
-      "implementationHash": "sha256:3e8673acc58deff9d3b791b85564871dc4d7f27b3295c8983273355158179efe",
+      "implementationHash": "sha256:f1b9530e4bf51e34e95c941fc68431d8d0fae6ef8b020d70e979ee51dca8f11f",
       "kind": "Mutation",
       "name": "reserve",
       "readSetSummary": {
         "authScopeField": null,
-        "mode": "handlerDeclared",
-        "primaryTable": "reservations",
-        "tables": [
-          "reservations"
-        ]
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
       },
       "requiredCapabilities": [
-        "ibex_ctx_db_host_bridge",
+        "host_plan_runtime",
         "mutation_read_set_validation",
         "result_contract_v1",
-        "args_contract_v1",
-        "inline_handler_v1"
+        "args_contract_v1"
       ],
       "resultContract": {
         "kind": "value",
@@ -397,24 +389,193 @@
       },
       "resultContractHash": "sha256:bc1b7c246a4f71f7367282a145ddd03081c61d8f669f2aede20cc369bea2e561",
       "runtime": {
-        "IbexModule": {
-          "export": "reserve",
-          "source": "globalThis.__snapbackHandlers = { \"reserve\": (async (ctx, args) => {\n    const prior = await ctx.db.query('reservations')\n      .withIndex('by_idempotency').eq('idempotencyKey', args.idempotencyKey).first();\n    if (prior) return prior._id;\n    return await ctx.db.insert('reservations', {\n      idempotencyKey: args.idempotencyKey,\n      resourceKey: args.resourceKey,\n      slotKey: args.slotKey,\n      resourceSlotKey: `${args.resourceKey}|${args.slotKey}`,\n      ownerId: args.ownerId,\n      title: args.title,\n      createdAt: args.now,\n    });\n  }) };\n"
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "reservationId"
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "reservationId",
+                  "table": "reservations",
+                  "values": {
+                    "createdAt": {
+                      "Arg": "now"
+                    },
+                    "idempotencyKey": {
+                      "Arg": "idempotencyKey"
+                    },
+                    "ownerId": {
+                      "Arg": "ownerId"
+                    },
+                    "resourceKey": {
+                      "Arg": "resourceKey"
+                    },
+                    "resourceSlotKey": {
+                      "Concat": [
+                        {
+                          "Arg": "resourceKey"
+                        },
+                        {
+                          "Literal": "|"
+                        },
+                        {
+                          "Arg": "slotKey"
+                        }
+                      ]
+                    },
+                    "slotKey": {
+                      "Arg": "slotKey"
+                    },
+                    "title": {
+                      "Arg": "title"
+                    }
+                  }
+                }
+              }
+            ]
+          }
         }
       },
-      "sourceSpan": {
-        "column": 12,
-        "file": "functions.mjs",
-        "line": 38
-      },
+      "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
       "writeSetSummary": {
-        "mode": "handlerDeclared",
+        "mode": "mutationPlan",
         "primaryTable": "reservations",
         "tables": [
           "reservations"
         ]
+      }
+    },
+    {
+      "argsContract": {
+        "fields": []
+      },
+      "argsContractHash": "sha256:2ed03ebf770f260ecd637e5f3309b67cf21119731f97265c55332273c25272ac",
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "resourceList",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_key",
+            "table": "resources"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
+      "exportedName": "resourceList",
+      "handlerForm": "plan",
+      "id": "contention-calendar:resourceList",
+      "implementationHash": "sha256:4719035ac68eff06c4e9655e0061275cd8c7f275e9e1b5e5736c8f32533979f2",
+      "kind": "LiveQuery",
+      "name": "resourceList",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "resources",
+        "tables": [
+          "resources"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime",
+        "result_contract_v1",
+        "args_contract_v1"
+      ],
+      "resultContract": {
+        "document": {
+          "allowExtra": false,
+          "fields": [
+            {
+              "name": "_id",
+              "required": true,
+              "value": {
+                "kind": "id",
+                "table": "resources"
+              }
+            },
+            {
+              "name": "_version",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_createdAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "_updatedAt",
+              "required": true,
+              "value": {
+                "kind": "integer",
+                "max": 9007199254740991,
+                "min": 0
+              }
+            },
+            {
+              "name": "key",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            },
+            {
+              "name": "title",
+              "required": true,
+              "value": {
+                "kind": "string",
+                "maxBytes": 1048576
+              }
+            }
+          ],
+          "kind": "object"
+        },
+        "kind": "documents",
+        "table": "resources"
+      },
+      "resultContractHash": "sha256:e336a4d9ca12f646f47195ff4f28593cfc1a3b61c4cc26a155e35254f1d0203c",
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": "by_key",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "key"
+              }
+            ],
+            "table": "resources"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
       }
     },
     {
@@ -593,7 +754,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "219f0837561b0601baef99bd4495f9f9d8b3b3ed9c95e0dec2a5aa3e1bbe083b",
+  "inputsHash": "3989e4954d30583eea1d60a05251dab5ca3b755b9c5878695feda426897ebb5c",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }
