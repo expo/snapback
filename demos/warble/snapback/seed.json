@@ -1,0 +1,52 @@
+{
+  "tables": {
+    "profiles": [
+      { "_id": "seed_profile_ada", "handle": "ada", "displayName": "Ada Lovelace", "bio": "Writing notes on the Analytical Engine. Opinions my own." },
+      { "_id": "seed_profile_grace", "handle": "grace", "displayName": "Grace Hopper", "bio": "Compilers, nanoseconds, and a healthy distrust of 'we've always done it this way'." },
+      { "_id": "seed_profile_alan", "handle": "alan", "displayName": "Alan Turing", "bio": "Machines, morphogenesis, long runs." }
+    ],
+    "posts": [
+      {
+        "_id": "seed_post_1",
+        "feed": "home",
+        "authorHandle": "ada",
+        "authorName": "Ada Lovelace",
+        "body": "The Analytical Engine weaves algebraic patterns just as the Jacquard loom weaves flowers and leaves.",
+        "likeCount": 2,
+        "createdAt": 1754300000000
+      },
+      {
+        "_id": "seed_post_2",
+        "feed": "home",
+        "authorHandle": "grace",
+        "authorName": "Grace Hopper",
+        "body": "It is easier to ask forgiveness than it is to get permission. Shipped the compiler anyway.",
+        "likeCount": 1,
+        "createdAt": 1754300100000
+      },
+      {
+        "_id": "seed_post_3",
+        "feed": "home",
+        "authorHandle": "alan",
+        "authorName": "Alan Turing",
+        "body": "We can only see a short distance ahead, but we can see plenty there that needs to be done.",
+        "likeCount": 0,
+        "createdAt": 1754300200000
+      },
+      {
+        "_id": "seed_post_4",
+        "feed": "home",
+        "authorHandle": "grace",
+        "authorName": "Grace Hopper",
+        "body": "Turn this one off and see if the airplane stays up. (It did not.)",
+        "likeCount": 0,
+        "createdAt": 1754300300000
+      }
+    ],
+    "likes": [
+      { "_id": "seed_like_1", "postId": "seed_post_1", "userHandle": "grace" },
+      { "_id": "seed_like_2", "postId": "seed_post_1", "userHandle": "alan" },
+      { "_id": "seed_like_3", "postId": "seed_post_2", "userHandle": "ada" }
+    ]
+  }
+}
