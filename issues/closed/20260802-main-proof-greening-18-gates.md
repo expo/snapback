@@ -582,3 +582,34 @@ and 19 Brotli bytes. This pass declares the LLP 0044 one-profile workload
 rollover and retains the primary receipt as its immutable predecessor. It is
 asset-carrier drift attributable to that landing, not a PUSH-01 or F0a
 correctness failure.
+
+### Batched publication-carrier refresh — 2026-08-05
+
+Main KEEP-GOING run `30987191822` at `4a6000ac6` completed with five root
+failures and no blocked gates. The asset-identity bundle failure is the
+one-profile rollover above. Three more failures were the expected batched
+publication-carrier drift: `src/local.rs` no longer matched the relation /
+activity or persistent-store carriers, `src/runtime.rs` no longer matched the
+sequence-allocation carrier, and the persistent-store carrier also lagged the
+codegen source. The source changes belong to these landings:
+
+- asset implementation identity `58b9755ee` and local-proof hardening
+  `702f82f5b` changed `src/local.rs`; `58b9755ee` also changed
+  `packages/snapback-codegen/index.mjs`;
+- first-ordered-rejection fingerprint authority `eed1203d8` changed
+  `src/runtime.rs`.
+
+`node scripts/refresh-publication-carrier.mjs` recomputed the existing three
+source-owned carriers as one batch, including their manifest-embedded digests
+and conformance assertions. The resulting carrier SHA-256 values are
+`48a7756abe42d2e0c5038130f7dc0c26796022b9de49019ed141237360cefdb7`
+(relation/activity),
+`9b2f3d432eb0ed8ba2b438f81ab235c3e37130d458c31e52aa8c903e6be8013c`
+(sequence allocation), and
+`c1a4737b0d36cb71f746a6ae54b75ff09bb8334ce21ef28e7922e6ee6dcd52c4`
+(persistent store). All three publication conformance gates pass. No
+capability, maturity, receipt content, public-package claim, hosted claim, or
+actively owned PUSH-01/F0a correctness path was widened.
+
+The fifth root failure is the already-open Linux telemetry receipt re-mint;
+its exact-source producer and final receipt are recorded in that owning ticket.

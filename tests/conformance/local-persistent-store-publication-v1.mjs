@@ -73,7 +73,7 @@ assert.deepEqual(carrier.supportingReceiptSha256, {
 });
 assert.equal(
   sha256(carrierBytes),
-  'sha256:eb2aa9237457ab44a48cddcd5414832211a32539353c9fe9ad9be2f131657d97',
+  'sha256:c1a4737b0d36cb71f746a6ae54b75ff09bb8334ce21ef28e7922e6ee6dcd52c4',
 );
 for (const [source, expected] of Object.entries({
   ...carrier.executorSourceSha256,
