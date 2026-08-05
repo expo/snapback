@@ -65,6 +65,15 @@ zeroize = "1.8"
 [build-dependencies]
 sha2 = "0.10"
 
+# The production release links as one optimization graph. Beyond throughput,
+# this keeps infrequently used storage/proof code from fragmenting the hot
+# executable pages retained by an otherwise-idle local instance.
+#
+# @ref LLP 0162#measurement-gate — the active covered profile must stay within
+#   the dated resident-memory equivalence bound in the shipped release shape.
+[profile.release]
+lto = "thin"
+
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = [
   "Win32_Foundation",
