@@ -163,6 +163,9 @@ you never build around a feature because you didn't know it existed.
   declare, set, verify, grant, and consume write-only values.
 - [Host operations](./operating/host-ops.md) — the complete CLI/HTTP
   operation inventory and its authority envelopes.
+- [Network condition profiles](./operating/network-profiles.md) — inject
+  server-side egress latency for honest optimistic-UI, settlement, and
+  convergence testing, then restore `normal`.
 - [Diagnostics](./operating/diagnostics.md) — stable codes, assertion
   discipline, exact runtime link/launch doctoring, binary recovery records,
   and bootstrap failure vocabulary.

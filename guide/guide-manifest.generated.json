@@ -224,6 +224,11 @@
         "title": "Host operations"
       },
       {
+        "id": "operating.network-profiles",
+        "order": 2,
+        "title": "Network condition profiles"
+      },
+      {
         "id": "operating.diagnostics",
         "order": 3,
         "title": "Diagnostics and local doctoring"
@@ -1445,7 +1450,7 @@
       "examples": [],
       "reviewed": "2026-08-04",
       "reviewedCommit": "HEAD",
-      "sha256": "c405948f7d8774ef6e1b834189d31414629b00b705e839cfa3b451a3b3c69e2b",
+      "sha256": "9fc8d4652b0ea7a23617ac08b0febea1aed3863403029e00af82269767b95b00",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2111,7 +2116,7 @@
       ],
       "reviewed": "2026-08-04",
       "reviewedCommit": "dab2410b6793ffa5685069a0a4054f0e2b21608a",
-      "sha256": "114765f99fefd339df74d2365be88d4219e7acc30892fc987c8aae09ec999285",
+      "sha256": "ddbc56ce07b4a6e6440ba1113ffdb18750c34e566398f17c4f6e1d55595fc754",
       "snippets": []
     },
     "operating.admin-console": {
@@ -2247,12 +2252,41 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "3863bc76b7774d6338607b02621b801327a676c27485a63e3a38ede4177666f7",
+      "sha256": "2d089ae63c44efffda186a90d0ff2b0ee1960294727a60e344167a751edda765",
       "snippets": [
         {
           "lang": "json",
           "class": "transcluded",
           "source": "tests/host_ops_v0.rs"
+        }
+      ]
+    },
+    "operating.network-profiles": {
+      "path": "guide/operating/network-profiles.md",
+      "title": "Network condition profiles",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "operating.network-profiles"
+      ],
+      "authorities": [
+        "llp/0167-network-condition-profiles.rfc.md"
+      ],
+      "examples": [
+        "demos/zero-bakeoff"
+      ],
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "HEAD",
+      "sha256": "eecc308a4fb6e2768a11bb90611c05c39dca314cbee87a93ec07222185b0b9cc",
+      "snippets": [
+        {
+          "lang": "json",
+          "class": "transcluded",
+          "source": "demos/zero-bakeoff/protocol/environment.v2.json"
         }
       ]
     },
@@ -2979,6 +3013,7 @@
       "operating.guide-mcp",
       "operating.host-ops",
       "operating.inspect",
+      "operating.network-profiles",
       "operating.packaged-dev-loop",
       "operating.secrets-config",
       "operating.served-guide",
@@ -3000,7 +3035,6 @@
       "clients.poll-hosted",
       "operating.declaration-conformance",
       "operating.instance-forks",
-      "operating.network-profiles",
       "sync.local-persistent-store",
       "sync.offline-js-arm",
       "sync.offline-js-arm-protected",
@@ -3011,5 +3045,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "a383c3eec7381f2e2a35f7588771f03ae574c8954812d583c72ff8601dd5a35b"
+  "contentHash": "423d01dd7f0d5fcc8eab9d1045efcd5f067e938295156c9ab22b5179a0ecb0d6"
 }

@@ -60,11 +60,11 @@ and `guide-gap`.
 | backend.observability-v1 | Shipped local Phase-1 backend telemetry with a generation-bound sibling store, operation-class spans, bounded retention and rollups, typed agent-facing queries, Health/Logs projections, and retained clean-release idle/benchmark evidence; hosted arms and declared product analytics remain later capabilities | telemetry, observability, health, logs, metrics, traces | local | shipped | tests/acceptance/telemetry-phase1-evidence.v1.json | llp/0154 | operating/observability.md |
 | backend.error-tracking-v1 | Local Phase E0/E1 backend failure classification, deterministic grouping (including first-ordered authority plus full raw carrier facts for multiple unhandled rejections), retained raw exemplars, release-aware issue lifecycle, typed CLI/MCP operations, and Errors/Health console projections; hosted grouping, E2 alerts, and E3 client ingest remain unbuilt | error tracking, issues, fingerprints, exceptions, failures | local | partial | route /_snapback/api/errors/issues | llp/0156, llp/0154, llp/0108 | operating/error-tracking.md |
 | backend.vector-search | Experimental bounded exact k-NN over declared fixed-width binary64 vector fields, with pinned `dot`/`l2sq` arithmetic, public/owner visibility partitions, exact equality filters, stored fields, synchronous SQLite maintenance, and digest-recheck quarantine; ANN, embedding computation, live/paginated/offline search, hosted targets, PostgreSQL, and sensitive fields remain nonclaims | vector, embeddings, similarity, semantic search, RAG, exact k-NN | local | shipped | schemas/capability.manifest.local-dev-sqlite-ibex.json (`vector_search_v1` + `vectorSearch`) + `defineVectorQuery` in packages/snapback-codegen/define.mjs | llp/0132, llp/0073 | backend/vector-search.md |
-| backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | backend/cron.md |
-| backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query (codegen emits the capability requirement and acknowledgment), the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 remains pre-Accepted (in Review since 2026-08-03) | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, drain, job status, secret-read lease | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
+| backend.cron | Scheduled execution | cron, schedule, background jobs, cron tick, run cron now, force tick | local | shipped | route /_snapback/api/cron/tick | llp/0028 | backend/cron.md |
+| backend.jobs-one-off | Experimental transactional one-off durable work (LLP 0070 first slice): `ctx.jobs.enqueue` inside the mutation transaction, a paved default queue, `availableAt = now + delay`, fenced claims with append-only attempt receipts, producer association on job rows plus bounded `enqueues` facts on confirmed mutation receipts, the generated declared job-status live query (codegen emits the capability requirement and acknowledgment), the injected-clock forced drain (`POST /_snapback/api/jobs/drain`), and the secret-read-leased admin inspection lane (`GET /_snapback/api/jobs`, `/jobs/{id}`). `jobs_one_off_v1` stays experimental and no durable-background-work capability class is claimed while LLP 0070 remains pre-Accepted (in Review since 2026-08-03) | one-off jobs, runAfter, scheduler, durable work, enqueue, background jobs, drain, job status, secret-read lease, job drain, drain jobs | local | partial | route /_snapback/api/jobs/drain | llp/0070, llp/0121, llp/0115 | backend/jobs.md |
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | live, subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
-| realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
-| realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | realtime/ephemeral-state.md |
+| realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state, connection disconnect, disconnect client, force disconnect | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
+| realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral, ephemeral cleanup, cleanup stale entries, expire ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | realtime/ephemeral-state.md |
 | realtime.snapshot-bundles | Resumable-query snapshot bundles: one request evaluates a served route-manifest entry's queries at one commit with per-query resume tokens; register mode arms the pending-registration owner. The contributor local target additionally ships Experimental `mixed_bundle_boot_v2`: a disjoint LLP 0157 `mixed-route.v2` artifact/wire evaluates live and ordinary children at one pinned snapshot, registers only identity-bound live children, and returns plain children honestly read-only. Qualifying legacy RQS entries enter QMK custody only while connected through prove-or-fresh adoption; legacy bytes stay grandfathered under LLP 0090 until that one-transaction switch. `defineRoutes` + `publicInline` feed the Channel A inlined web boot (`snapbackChannelA` in packages/snapback-vite) with anonymous reads for publicInline-class routes; on the Cloudflare arm the routes manifest compiles into the Worker, the gateway serves Channel A HTML, and the coordinator answers read-mode bundles + token resume (register and mixed mode Cloudflare: deferred) | bundle, preload, resumable snapshots, boot, RQS, mixed route, read-only child, registered live child, inlined HTML, routes manifest | local, cloudflare | partial | route /app/bundle + schemas/capability.manifest.local-dev-sqlite-ibex.json (`mixed_bundle_boot_v2`) | llp/0090, llp/0092, llp/0157, llp/0166 | realtime/snapshot-bundles.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays (Contract arm: lease-bounded protected retention, derived overlays, `Parity` under LLP 0043's proof rule) | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | sync.offline-js-arm | Experimental JS/React offline substrate: default IndexedDB + Web Locks in capable browsers, durable file storage in capable Node hosts, and in-memory fallback; declared public authority-independent retained queries; durable M2 outbox with exact ordered replay and pending-intent projection. Qualifying legacy RQS entries are grandfathered under LLP 0090 and move to QMK custody only while connected through prove-or-fresh, one atomic same-domain transaction; adoption never relabels bytes or drops pending outbox intent. Node/file and React-stub tests pass, and LLP 0155 proves real-Chrome `SIGKILL` persistence plus two-tab lock refusal/takeover. End-to-end browser React/server retained-current, resync/replay, settlement, observer convergence, and protected-refusal proof remain GAPs; no local execution or `Parity` claim | offline browser, cold boot, restart-safe queue, IndexedDB, default persistence, retainability opt-in, pending intent render | local | partial | `resolveDefaultRqsStore` in packages/snapback-client/rqs-store-default.mjs + `demos/public-dashboard/tests/acceptance/offline-local-first.mjs` (Node/file, same-process) + `demos/zero-bakeoff/stage0/browser/run.mjs` (real-browser carrier substrate only) | llp/0043, llp/0090, llp/0129, llp/0155, llp/0166 | GAP (end-to-end browser product proof; owner: Charlie, review: 2026-08-31; issue: issues/20260801-guide-gap-js-arm-browser-indexeddb-proof.md); sync/offline-and-retention.md |
@@ -99,9 +99,9 @@ and `guide-gap`.
 | operating.instance-forks | Experimental source-only finite-TTL derived-instance CLI; implementation and fleet evidence are not a capability claim while LLP 0158 stays Draft | fork, derived instance, diff, reap | none | partial | `ForkCommand` in src/cli.rs + tests/acceptance/instance-fork-fleet-dogfood.2026-08-03.v1.json (substrate only) | llp/0158 | GAP (operating page and fork-aware acceptance harness; owner: Charlie, review: 2026-08-31; issue: issues/20260803-guide-gap-instance-forks.md) |
 | operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI. The current packed React/Vite starter and inferred sessions startup pass locally, but the expanded React closure is not yet the byte-verified public `0.1.0` closure. | install, new app, react starter, vite, dev, one command, watch, sessions startup, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041, llp/0058, llp/0114, llp/0103 | getting-started/the-authoring-loop.md |
 | operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
-| operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
-| operating.admin-console | Browser inspection surface with master-derived fragment, device approval, and one-time operator claim-link handoffs | admin, console, dashboard, admin link, claim link, remote browser | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
-| operating.network-profiles | Named network condition profiles: server-side egress latency injection (mutation ack, live delta, query response lanes) with fail-closed local-only activation, startup-env and admin-API toggles, per-frame socket/poll markers, surface/principal activation provenance, and coalesced live deadlines | latency, slow network, network profile, delay, jitter, local-first testing | local | partial | route /_snapback/api/debug/network-profile + host_ops.debug.networkProfileSet + demos/zero-bakeoff/protocol/environment.v2.json | llp/0167 | GAP (CF action-route refusal parity and OQ3 implementation: fork exception + dedicated CF classification binding; owner: Charlie, review: 2026-08-31) |
+| operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys, config verification, verify config, config verify | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
+| operating.admin-console | Browser inspection surface with master-derived fragment, device approval, and one-time operator claim-link handoffs | admin, console, dashboard, admin link, claim link, remote browser, table inspection, browse table, table scan, inspect rows | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
+| operating.network-profiles | Named network condition profiles: server-side egress latency injection (mutation ack, live delta, query response lanes) with fail-closed local-only activation, startup-env and admin-API toggles, per-frame socket/poll markers, surface/principal activation provenance, and coalesced live deadlines | latency, slow network, network profile, delay, jitter, local-first testing | local | shipped | route /_snapback/api/debug/network-profile + host_ops.debug.networkProfileSet + demos/zero-bakeoff/protocol/environment.v2.json | llp/0167 | operating/network-profiles.md |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | operating/host-ops.md |
 | operating.diagnostics | Stable SNAPBACK_* codes; exact current-checkout link/launch diagnosis with one binary-selection recovery record; installed disposable vertical-slice doctor | diagnostics, errors, doctor, linker, missing symbols, stale binary, runtime recovery | all | shipped | `runRuntimeLinkProbe` in scripts/runtime-link-smoke.mjs | llp/0010, llp/0031, llp/0041, llp/0074 | operating/diagnostics.md |
 | operating.declaration-conformance | Per-invocation declared-vs-captured read/write report and local strict opt-in, plus `snapback verify` aggregation over explicitly registered acceptance paths: authoritative under-declarations and missing reports fail, universally extra declarations warn, and observed incomplete/unsupported provenance stays an explicit partial rather than a verdict. The Cloudflare target refuses `strictDeclarations: true` at compiled-schema load and `/app/ensure` with `SNAPBACK_STRICT_DECLARATIONS_TARGET_UNSUPPORTED`; it never admits the flag unenforced. Automatic discovery of every repository acceptance path, app-data-plane ring wiring, complete mutation-envelope provenance, and authoritative Cloudflare capture/reporting remain GAPs | declaration drift, undeclared read, undeclared write, strict declarations, conformance, coverage, missingReads, read set, write set | local | partial | `aggregateConformance` in packages/snapback-cli/verify.mjs | llp/0146, llp/0127, llp/0010 | GAP (guide page for the conformance report and strict opt-in; owner: ccheever, review: 2026-08-31) |
@@ -287,6 +287,9 @@ you never build around a feature because you didn't know it existed.
   declare, set, verify, grant, and consume write-only values.
 - [Host operations](./operating/host-ops.md) — the complete CLI/HTTP
   operation inventory and its authority envelopes.
+- [Network condition profiles](./operating/network-profiles.md) — inject
+  server-side egress latency for honest optimistic-UI, settlement, and
+  convergence testing, then restore `normal`.
 - [Diagnostics](./operating/diagnostics.md) — stable codes, assertion
   discipline, exact runtime link/launch doctoring, binary recovery records,
   and bootstrap failure vocabulary.
@@ -9751,6 +9754,222 @@ dev-impersonation gate instead.
   Pinned future verbs fail explicitly.
 - **Do not place credentials in request ids, logs, or `next[]`.** Credential
   operations use their dedicated response-sensitivity path.
+
+---
+
+<!-- snapback-guide-source: guide/operating/network-profiles.md -->
+---
+title: Network condition profiles
+id: operating.network-profiles
+order: 2
+audience: agent-first
+capabilities: [operating.network-profiles]
+authorities: [llp/0167-network-condition-profiles.rfc.md]
+examples: [demos/zero-bakeoff]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-08-05
+reviewed-commit: HEAD
+---
+
+# Network condition profiles
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Use a network condition profile when you need real Snapback responses to arrive
+slowly while commits and server-side ordering remain unchanged. The delay is
+applied on the server's mutation-ack, live-delta, and query-response egress
+lanes, so optimistic UI, settlement, and convergence experience the same
+conditions an actual client would.
+
+## Choose a built-in or custom profile
+
+Snapback ships three built-ins:
+
+| Profile | Mutation ack | Live delta | Query response | Jitter | Use it for |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `normal` | 0 ms | 0 ms | 0 ms | 0 ms | Ordinary operation; the identity profile. |
+| `optimistic` | 1,000 ms | 1,000 ms | 0 ms | 0 ms | Exercising optimistic UI and coordinated post-commit settlement. |
+| `demo-slow` | 2,000 ms | 2,000 ms | 2,000 ms | 250 ms | Making slow-server behavior visible in a demo. |
+
+Anywhere a built-in name is accepted, you may instead supply an inline JSON
+object with a name and the three lane delays. `jitterMs` is optional and
+defaults to zero. This is the real `demo-slow` shape from the zero-bakeoff
+acceptance environment:
+
+```json source=demos/zero-bakeoff/protocol/environment.v2.json
+{
+      "name": "demo-slow",
+      "mutationAckDelayMs": 2000,
+      "liveDeltaDelayMs": 2000,
+      "queryResponseDelayMs": 2000,
+      "jitterMs": 250
+    }
+```
+
+## Set or inspect a profile from the CLI
+
+Address the running server through its readiness file. `get` is read-only;
+`set` uses the ordinary admin-write authority and returns the structured
+`hostOpsResult` envelope.
+
+```sh
+snapback network-profile get --ready-file .snapback/dev.ready.json
+snapback network-profile set optimistic --ready-file .snapback/dev.ready.json
+snapback network-profile set demo-slow --ready-file .snapback/dev.ready.json
+```
+
+Pass custom JSON as the positional profile value:
+
+```sh
+snapback network-profile set '{"name":"ack-slow","mutationAckDelayMs":1500,"liveDeltaDelayMs":0,"queryResponseDelayMs":0,"jitterMs":0}' --ready-file .snapback/dev.ready.json
+```
+
+## Give an agent the same control through MCP
+
+The tools are exposed by `snapback mcp-control` and call the same host
+operations as the CLI:
+
+| Intent | MCP tool | Input |
+| --- | --- | --- |
+| Read the active profile and provenance | `snapback_network_profile_get` | No input. |
+| Activate a profile | `snapback_network_profile_set` | `profile` is a built-in name or the inline object above; `operatorPrincipal` is optional. |
+
+The underlying operations are `debug.networkProfileGet` and
+`debug.networkProfileSet`. The latter is mutating even though a profile does
+not change durable app data. Use `snapback_network_profile_set` with
+`profile: "normal"` as the MCP restore step.
+
+## Select a profile at server startup
+
+Set `SNAPBACK_NETWORK_PROFILE` to a built-in name or inline JSON before the
+server starts:
+
+```sh
+SNAPBACK_NETWORK_PROFILE=optimistic \
+  snapback start --memory --ready-file .snapback/dev.ready.json
+```
+
+This is startup configuration. Restarting with the same environment selects
+the profile again, and a non-`normal` selection is re-announced in startup and
+readiness output. Startup selection still passes through the same activation
+gate as every runtime control.
+
+## Read or change the profile through the admin API
+
+The admin API exposes one path with policy split by method:
+
+| Request | Authority | Body |
+| --- | --- | --- |
+| `GET /_snapback/api/debug/network-profile` | `AdminRead` | None. |
+| `PUT /_snapback/api/debug/network-profile` | `AdminWrite` | A JSON built-in name such as `"optimistic"`, or the inline profile object. |
+
+For example, after resolving the server URL and admin token from the readiness
+handoff:
+
+```sh
+curl -sS \
+  -H "x-snapback-admin-token: $ADMIN_TOKEN" \
+  http://127.0.0.1:4287/_snapback/api/debug/network-profile
+
+curl -sS -X PUT \
+  -H "x-snapback-admin-token: $ADMIN_TOKEN" \
+  -H 'content-type: application/json' \
+  --data '"demo-slow"' \
+  http://127.0.0.1:4287/_snapback/api/debug/network-profile
+```
+
+The response reports the active profile and activation provenance. Do not
+build a separate policy path around these routes; the CLI, host-ops, MCP, and
+console are thin clients over the same activation decision.
+
+## Toggle a profile while debugging in the console
+
+The admin console's Developer panel offers all three built-ins plus custom
+fields. While any non-`normal` profile is active, the console shows a
+persistent banner on every tab. The panel inherits the same refusal and
+authority behavior as the API; it does not have a browser-only bypass.
+
+## Know where activation is allowed
+
+Network profiles fail closed at one activation chokepoint. The complete matrix
+and rationale live in [LLP 0167](repo:llp/0167-network-condition-profiles.rfc.md),
+but these limits matter when operating the feature:
+
+- A local, non-`Prod` server may activate a non-`normal` profile.
+- A primary hosted target refuses every non-`normal` profile. The narrow
+  hosted exception is an LLP 0158 derived/forked instance with authoritative,
+  boot-validated identity. On Cloudflare that identity comes from the dedicated
+  `SNAPBACK_DERIVED_INSTANCE_ID` binding, independently of `SNAPBACK_TESTING`.
+- An explicit or defaulted `ServerProfile` of `Prod` always refuses a
+  non-`normal` profile, including on a derived instance.
+- Hosted, missing, malformed, or contradictory classification refusals use
+  `SNAPBACK_NETWORK_PROFILE_FORBIDDEN` on every activation surface.
+- The hard per-response delay ceiling is 30,000 ms. A profile that could
+  exceed it is refused with `SNAPBACK_NETWORK_PROFILE_DELAY_CEILING`; Snapback
+  never silently clamps it.
+
+These rules are why this page declares `targets: [local]`: the derived-instance
+allowance is a contained exception, not general hosted or production support.
+
+## Tell whether a response was perturbed
+
+Every response served under a non-`normal` profile names the profile that
+actually governed its delay:
+
+| Surface | Observation marker |
+| --- | --- |
+| HTTP | `snapback-network-profile` response header, exposed through CORS. |
+| Socket and poll live protocol | `network_profile` field on the frame. |
+
+The profile is snapshotted when the response or frame enters the delay seam, so
+a concurrent toggle cannot relabel an in-flight response. `normal` is a true
+identity: it emits no marker and adds no measurable overhead.
+
+## Understand what survives a restart
+
+A profile selected at runtime through the API, host-ops, MCP, or console is
+deliberately process-local and is not persisted. After restart, the server uses
+`normal` unless `SNAPBACK_NETWORK_PROFILE` supplies startup configuration.
+This prevents a forgotten interactive toggle from silently becoming durable;
+an environment-selected profile is different because the launcher explicitly
+selects it again at startup.
+
+## Restore `normal` when you're done
+
+Restoring the identity profile is mandatory cleanup for every test, demo, or
+debugging session that activates a non-`normal` profile. It is part of the
+honest-perturbation contract in LLP 0167, not an optional courtesy:
+
+```sh
+snapback network-profile set normal --ready-file .snapback/dev.ready.json
+```
+
+If the profile came from `SNAPBACK_NETWORK_PROFILE`, also remove that setting
+from the launcher or change it to `normal`; otherwise the next restart will
+select the non-`normal` profile again.
+
+The exact MCP equivalent is `snapback_network_profile_set` with
+`profile: "normal"`. Confirm with the CLI `get` command or
+`snapback_network_profile_get` before handing the server to another task.
+
+## Anti-patterns
+
+- **Do not leave a slow profile active.** Always perform and verify the
+  restore-to-`normal` step above, even when a test fails midway.
+- **Do not add client-side sleeps to simulate server latency.** Latency
+  Kanban's old sleep delayed the caller without exercising Snapback's pending,
+  settlement, and live-convergence paths; the server profile exists to replace
+  that false test.
+- **Do not assume hosted or production accepts non-`normal`.** Primary hosted
+  and every `Prod` profile refuse it; the derived-instance rule is the only
+  narrow hosted exception.
+- **Do not use latency profiles to model disconnects, drops, reordering, or
+  offline state.** Profiles delay otherwise unchanged, in-order observations;
+  those other perturbations belong to their dedicated test controls.
 
 ---
 
