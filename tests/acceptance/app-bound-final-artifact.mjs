@@ -62,6 +62,19 @@ const mutation = await run([
 ]);
 expectExit('mutation', mutation, 0);
 
+// The final executable's network backend is statically linked. Exercise its
+// WebSocket path on the release artifact itself, not only HTTP query/mutation
+// calls or the Node-hosted coordinator tests.
+const liveQuery = await run([
+  ...session,
+  '--args-json',
+  '{}',
+  'call',
+  'watchNotes',
+]);
+expectExit('live-query-websocket', liveQuery, 0);
+assert.match(liveQuery.stdout, /llp0062-linux/u);
+
 const language = await writeCase('language.ts', `
 type Count = number;
 const rows = await api.listNotes({});

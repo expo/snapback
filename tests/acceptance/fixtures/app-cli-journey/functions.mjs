@@ -5,6 +5,7 @@ import {
   arg,
   asc,
   authUserId,
+  defineLiveQuery,
   defineMutation,
   defineQuery,
   eq,
@@ -25,6 +26,14 @@ export const createNote = defineMutation({
 });
 
 export const listNotes = defineQuery({
+  auth: 'authenticated',
+  table: 'notes',
+  args: {},
+  filter: [eq('authorId', authUserId())],
+  order: [asc('_createdAt')],
+});
+
+export const watchNotes = defineLiveQuery({
   auth: 'authenticated',
   table: 'notes',
   args: {},

@@ -9,11 +9,31 @@ on:
       - llp-ship/llp0062-linux-**
     paths:
       - .github/workflows/app-bound-linux-qualification.yml
+      - .node-version
+      - Cargo.lock
+      - Cargo.toml
+      - build.rs
+      - bun.lock
+      - package.json
+      - rust-toolchain.toml
+      - src/**
       - packages/snapback-app-cli/**
+      - packages/snapback-cli/**
+      - packages/snapback-client/**
+      - packages/snapback-codegen/**
+      - packages/snapback-contract/**
+      - schemas/**
+      - demos/_kit/server-process.mjs
+      - guide/capabilities.md
+      - guide/clients/app-cli.md
+      - issues/**/20260801-0062-00-program.md
+      - issues/**/20260801-0062-08-onefile-executable.md
+      - llp/0062-generated-app-cli-and-code-mode.rfc.md
       - scripts/build-app-bound-executable
       - scripts/bootstrap-ibex-runtime
       - scripts/qualify-app-bound-linux
       - tests/acceptance/app-bound-**
+      - tests/acceptance/fixtures/app-cli-journey/**
       - vendor/ibex
   workflow_dispatch:
 
