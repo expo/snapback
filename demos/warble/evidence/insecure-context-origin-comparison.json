@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "warble.origin-comparison.v1",
+  "capturedAt": "2026-08-04",
+  "purpose": "Machine-readable receipt for the measurement LLP 0168 and LLP 0169 rest on: a plain-HTTP non-localhost origin loses Web Locks, and therefore loses the browser persistence arm, while the identical app on localhost keeps it.",
+  "method": {
+    "browser": "Google Chrome, --headless=new, fresh --user-data-dir per origin",
+    "probe": "Runtime.evaluate over CDP against the running Expo web bundle",
+    "cors": "curl with an explicit Origin header against the Snapback dev server",
+    "controls": "Same machine, same app bundle, same backend, same moment. Only the page origin differs between the two rows."
+  },
+  "app": {
+    "demo": "demos/warble",
+    "bundler": "Expo (Metro) web, dev bundle",
+    "backendOrigin": "http://192.168.1.13:4420"
+  },
+  "browserContext": [
+    {
+      "origin": "http://192.168.1.13:8090",
+      "isSecureContext": false,
+      "navigatorLocks": "undefined",
+      "indexedDBOpen": "function",
+      "resolvedStoreImplementation": "memory",
+      "note": "Terminal memory fallback. IndexedDB is present and unused: the browser arm requires Web Locks as well."
+    },
+    {
+      "origin": "http://localhost:8090",
+      "isSecureContext": true,
+      "navigatorLocks": "object",
+      "indexedDBOpen": "function",
+      "resolvedStoreImplementation": "indexeddb",
+      "note": "Same bundle, same backend. localhost is a secure context, so Web Locks is defined and the browser arm engages."
+    }
+  ],
+  "cors": [
+    {
+      "requestOrigin": "http://localhost:8090",
+      "accessControlAllowOriginHeaderPresent": true
+    },
+    {
+      "requestOrigin": "http://192.168.1.13:8090",
+      "accessControlAllowOriginHeaderPresent": false
+    }
+  ],
+  "conclusions": [
+    "The two failures are independent. CORS blocks the request (loud, app refuses to boot). The secure-context loss degrades persistence to memory (silent).",
+    "The persistence degradation is NOT caused by IndexedDB being unavailable; IndexedDB is present in both rows. It is caused by navigator.locks being undefined outside a secure context.",
+    "Fixing CORS alone would therefore make the silent failure MORE likely, by removing the error that currently prevents booting."
+  ],
+  "honestCaveats": [
+    "The localhost row's page also showed SNAPBACK_REACT_BINDING_MISMATCH at capture time, because codegen had been regenerated after the dev server loaded its artifacts. That is a developmentSync condition unrelated to the store facts: rqsStoreInfo is resolved by the client at construction, before binding admission, and the store implementation reported is therefore unaffected.",
+    "This receipt is a local-target dev measurement on one machine and one Chrome version. It is evidence for the causal chain, not a cross-browser or cross-platform claim.",
+    "Safari and Firefox were not measured. Web Locks secure-context gating is specified behavior, not Chrome-specific, but that is inference here rather than measurement."
+  ],
+  "sources": {
+    "storeLadder": "packages/snapback-client/rqs-store-default.mjs:122-124 (browser arm requires indexedDB AND navigator.locks), :215 (terminal memory fallback)",
+    "narrative": "diaries/0056-warble-local-first-microblog.diary.md",
+    "documents": ["llp/0168-browser-carrier-dev-edge.research.md", "llp/0169-insecure-context-store-diagnostic.spec.md"]
+  }
+}
