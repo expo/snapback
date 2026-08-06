@@ -18,6 +18,7 @@ import {
 const CONTROL_ROOT = resolve(import.meta.dirname, '..');
 const FIXTURE_ROOT = join(CONTROL_ROOT, 'fixtures/normal-seed-v1');
 const GENERATED_FUNCTIONS = join(CONTROL_ROOT, 'snapback/generated/functions.manifest.json');
+const GENERATED_ROUTES = join(CONTROL_ROOT, 'snapback/generated/routes.manifest.json');
 const ALL_TABLES = [
   'user', 'project', 'label', 'issue', 'issueLabel', 'comment', 'emoji',
   'viewState', 'userPref', 'issueNotifications', 'projectUserRead',
@@ -163,6 +164,13 @@ test('all 19 frozen query names generate precise result contracts', async () => 
     assert.equal(operation.kind, 'LiveQuery', `${name} is group/live eligible`);
     assert.equal(operation.resultContract?.kind, 'records', `${name} result contract`);
   }
+  await assert.rejects(
+    () => readFile(GENERATED_ROUTES, 'utf8'),
+    (error: unknown) => (
+      error instanceof Error && 'code' in error && error.code === 'ENOENT'
+    ),
+    'Lane 3 amendment keeps route-cut groups absent for opaque JS queries',
+  );
 });
 
 test('shared list predicate matches an independent raw-source oracle for every filter class', async () => {

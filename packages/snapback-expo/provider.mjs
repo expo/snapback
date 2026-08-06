@@ -128,13 +128,20 @@ async function appStateFor(environment) {
     const resolved = await environment.resolveAppState();
     if (resolved?.addEventListener) return resolved;
   }
-  const native = await import('react-native');
-  if (!native.AppState?.addEventListener) {
+  // Import the lifecycle owner directly. Metro turns a dynamic import of the
+  // React Native package root into a namespace bundle that evaluates legacy
+  // optional exports such as PushNotificationIOS; Expo Go intentionally does
+  // not carry those native modules, even though AppState itself is available.
+  const nativeAppState = await import(
+    'react-native/Libraries/AppState/AppState.js'
+  );
+  const appState = nativeAppState.default;
+  if (!appState?.addEventListener) {
     const error = new Error('react-native did not provide an AppState-compatible lifecycle source');
     error.code = 'SNAPBACK_EXPO_COMPATIBILITY_UNSUPPORTED';
     throw error;
   }
-  return native.AppState;
+  return appState;
 }
 
 // @ref LLP 0181#provider — the controller exposes exactly the RFC boot-state

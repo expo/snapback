@@ -81,9 +81,9 @@
     },
     {
       "bytes": 1085,
-      "consumer": "tooling",
+      "consumer": "client-bundler",
       "custody": "regenerable-cache",
-      "logicalKind": "generated-projection",
+      "logicalKind": "typed-app-descriptor",
       "path": "app.binding.105eddf08ddb8a9dc03ce430ae0114dba7ee069b2b951a1b4e623ab3776f6c87.mjs",
       "regeneration": {
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
@@ -92,7 +92,7 @@
       "sha256": "sha256:eb8ddf0d0fb77a9afc29c0fb23e6d439215e8b93e9edb76dbc92a52a91bb24e7"
     },
     {
-      "bytes": 1085,
+      "bytes": 398,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-app-descriptor",
@@ -101,7 +101,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:eb8ddf0d0fb77a9afc29c0fb23e6d439215e8b93e9edb76dbc92a52a91bb24e7"
+      "sha256": "sha256:16a2ea23be472757d8f16a26625220b72d68c4ea0e8e9b67d5e9c4f18e9acccc"
     },
     {
       "bytes": 1528,
@@ -117,9 +117,9 @@
     },
     {
       "bytes": 4100,
-      "consumer": "tooling",
+      "consumer": "client-bundler",
       "custody": "regenerable-cache",
-      "logicalKind": "generated-projection",
+      "logicalKind": "app-descriptor",
       "path": "app.descriptor.4bdcdb5e1ebdef3a6091935492e55b3d65c4da82ef1ef2b5f7dfc2b1e145c0d7.json",
       "regeneration": {
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",

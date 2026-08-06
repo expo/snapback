@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   rmSync,
 } from 'node:fs';
@@ -71,6 +72,11 @@ test('nested Expo fixture cold-installs one all-local Expo/client/React closure'
     for (const [name, digest] of Object.entries(firstReceipt.artifactDigests)) {
       assert.match(name, /^@expo\/snapback-/u);
       assert.match(digest, /^[0-9a-f]{64}$/u);
+      assert.match(
+        firstReceipt.localSpecifiers[name],
+        new RegExp(`\\.${digest}\\.tgz$`, 'u'),
+        `${name} tarball pathname carries its own packed-content digest`,
+      );
     }
 
     const manifest = JSON.parse(readFileSync(join(appRoot, 'package.json'), 'utf8'));
@@ -100,6 +106,13 @@ test('nested Expo fixture cold-installs one all-local Expo/client/React closure'
       );
     }
     assert.doesNotMatch(lock, /@expo\/snapback-(?:client|contract|expo|react)@(?:https?:|npm:)/u);
+    assert.deepEqual(
+      readdirSync(join(appRoot, '.snapback', 'local-source-packages')).sort(),
+      Object.values(firstReceipt.localSpecifiers)
+        .map((specifier) => specifier.split('/').at(-1))
+        .sort(),
+      'a successful install removes predecessor/provisional tarballs',
+    );
 
     const imported = spawnSync(process.execPath, [
       '--input-type=module',
@@ -110,9 +123,7 @@ test('nested Expo fixture cold-installs one all-local Expo/client/React closure'
 
     const expoTarball = join(
       appRoot,
-      '.snapback',
-      'local-source-packages',
-      'expo.tgz',
+      firstReceipt.localSpecifiers['@expo/snapback-expo'].replace(/^file:/u, ''),
     );
     const archive = spawnSync('tar', ['-tzf', expoTarball], { encoding: 'utf8' });
     assert.equal(archive.status, 0, archive.stderr || archive.stdout);

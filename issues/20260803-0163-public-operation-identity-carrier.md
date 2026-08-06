@@ -2,7 +2,7 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (LLP 0163 durable storage slice)
-**Updated:** 2026-08-05 (C32 stopped before qualifying dual review completed or performance; two newer mainline cuts were merged normally and C33 is prospective; Draft/Missing unchanged); 2026-08-05 (exact C30 stopped before performance; C31 repairs global Host-lease, pending-capacity, and client-suppression projection coherence; Draft/Missing unchanged); 2026-08-05 (exact C29 stopped before performance; C30 repairs terminal-supplement projection coherence, automatic sessions ACK custody, the public explanation oracle, and the Host rollback matrix; Draft/Missing unchanged); 2026-08-05 (merged C28 stopped before performance; C29 repairs automatic sessions range custody, Host tombstone schema nullability, retention-time coherence, and pending rollback proof; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 identity-lifecycle correction; Draft/Missing unchanged); 2026-08-04 (fork-boundary correction — managed branches pin
+**Updated:** 2026-08-06 (landed a0852be row-13 paired failure preserved; range-read p95 crossed the unchanged faster-side equivalence edge, absolute did not run, per-call range preparation is restored for a fix-forward successor, and Draft/Missing remain unchanged); 2026-08-05 (C32 stopped before qualifying dual review completed or performance; two newer mainline cuts were merged normally and C33 is prospective; Draft/Missing unchanged); 2026-08-05 (exact C30 stopped before performance; C31 repairs global Host-lease, pending-capacity, and client-suppression projection coherence; Draft/Missing unchanged); 2026-08-05 (exact C29 stopped before performance; C30 repairs terminal-supplement projection coherence, automatic sessions ACK custody, the public explanation oracle, and the Host rollback matrix; Draft/Missing unchanged); 2026-08-05 (merged C28 stopped before performance; C29 repairs automatic sessions range custody, Host tombstone schema nullability, retention-time coherence, and pending rollback proof; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 identity-lifecycle correction; Draft/Missing unchanged); 2026-08-04 (fork-boundary correction — managed branches pin
 canonical schema/function-bundle identities and preserve exact retry across
 parent drift, but CaptureOnly is truthfully non-promotable. Product provider
 custody, ordered settlement, and public effect-bearing strict promotion are
@@ -84,6 +84,24 @@ the upstream fork and client/demo changes. The merged tree lands after
 proportional verification, then row 13 runs against the landed commit. The
 Spec remains `Draft` and the capability remains `Missing` until performance
 and all other named gates pass.
+
+**Post-landing performance result — 2026-08-06:** Landed commit
+`a0852be190d7a908e2419ccaac43f30eee977ee2` produced one valid paired record,
+preserved outside the repository with SHA-256
+`8e1f6a4cbbe786eb4eba71c8dc435457331d87446dd26a39a80314a4c6272ab0`.
+Eight of nine read/write comparisons and all idle gates passed. Current-range
+p95 alone failed the unchanged two-sided five-percent equivalence gate on the
+faster side: paired median -4.1812%, bootstrap 90% interval -5.9841% to
+-1.4621%. Per the author ruling, the absolute process did not run, the
+production activation command remains uninvoked, the Spec stays `Draft`, and
+the capability stays `Missing`.
+
+The fix-forward successor restores `scan_table` to the pinned pre-profile
+per-call statement-preparation boundary instead of retaining its later
+statement-cache entry. The benchmark, baseline, threshold, estimator,
+protocol, active carrier, and exception posture are unchanged. Only a new
+landed commit that passes both original performance legs may continue to the
+remaining review, acceptance, and publication gates.
 
 The remaining closure gates are:
 

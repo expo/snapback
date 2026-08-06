@@ -244,6 +244,52 @@ export const searchEpoch = defineTable({
   .index('by_visibility_project', ['visibility', 'projectID'], { unique: true })
   .sync();
 
+// C-NOTIFY: one durable, transaction-coupled row per triggering mutation.
+// Payload and recipient-selection snapshots are canonical JSON strings because
+// stored table fields do not admit arrays/objects; Lane 5 owns their delivery
+// and attempt-state transitions. The public `idempotencyKey` is separately
+// stable from the table's server-owned physical `_id`.
+// @ref LLP 0183#zb3--optimistic-programs-and-durable-intent — external effects
+// are represented by committed intent before any delivery is attempted.
+export const notificationIntent = defineTable({
+  idempotencyKey: v.string(),
+  trigger: v.string(),
+  kind: v.string(),
+  issueID: v.id('issue'),
+  sourceIssueID: v.string(),
+  actorID: v.id('user'),
+  created: v.number(),
+  payloadSnapshot: v.string(),
+  recipientSnapshot: v.string(),
+  discordEligible: v.boolean(),
+  state: v.string(),
+})
+  .index('by_idempotency_key', ['idempotencyKey'], { unique: true })
+  .index('by_issue_created', ['issueID', 'created', 'idempotencyKey'])
+  .index('by_state_created', ['state', 'created', 'idempotencyKey']);
+
+// Lane 4 declares the attempt ledger but deliberately writes no attempt rows:
+// delivery, retry, ambiguity, and terminal capture belong to Lane 5.
+export const notificationAttempt = defineTable({
+  intentID: v.id('notificationIntent'),
+  channel: v.string(),
+  recipientKey: v.string(),
+  attempt: v.integer(),
+  state: v.string(),
+  providerIdempotencyKey: v.string(),
+  started: v.number(),
+  finished: v.optional(v.number()),
+  errorCode: v.optional(v.string()),
+  ambiguous: v.boolean(),
+})
+  .index('by_intent_channel_recipient_attempt', [
+    'intentID',
+    'channel',
+    'recipientKey',
+    'attempt',
+  ], { unique: true })
+  .index('by_state_started', ['state', 'started']);
+
 export default defineSchema(
   {
     user,
@@ -262,6 +308,8 @@ export default defineSchema(
     issueLabelRead,
     issueSearchDocument,
     searchEpoch,
+    notificationIntent,
+    notificationAttempt,
   },
   { auth: { mode: 'sessions' } },
 );

@@ -105,8 +105,7 @@ export function artifactConsumer(path) {
   }
   if (path === 'contract-data.manifest.json' || path.startsWith('contract/')) return 'contract';
   if (path === 'app.descriptor.json') return 'inspection';
-  if (/^app\.(?:binding|descriptor)\.[0-9a-f]{64}\.(?:mjs|json)$/u.test(path)) return 'client-bundler';
-  if (path === 'app.binding.mjs' || path === 'app.mjs' || path === 'app.d.ts' || path === 'api.mjs' || path === 'api.d.ts' || path === 'package.json') return 'client-bundler';
+  if (/^app\.descriptor\.[0-9a-f]{64}\.json$/u.test(path) || path === 'app.binding.mjs' || /^app\.binding\.[0-9a-f]{64}\.mjs$/u.test(path) || path === 'app.mjs' || path === 'app.d.ts' || path === 'api.mjs' || path === 'api.d.ts' || path === 'package.json') return 'client-bundler';
   if (path.startsWith('operations/')) return 'app-cli';
   if (path.startsWith('remote-')) return 'release';
   return 'tooling';

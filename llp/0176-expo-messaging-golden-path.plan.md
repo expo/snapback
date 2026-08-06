@@ -7,7 +7,11 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-05 (h) — G0 exit receipt appended under the existing G0
+**Revised:** 2026-08-06 (i) — Appended the G1 iOS-simulator half receipt:
+the no-URL Expo provider reached ordinary Sessions authority, a seeded live
+query, and an ordinary mutation observed through that live query over three
+verified IPv4-loopback listeners. Android/emulator evidence remains pending
+and document Status remains Review. Earlier 2026-08-05 (h) — G0 exit receipt appended under the existing G0
 gate: the messaging fixture now proves session mint → external-session client
 → ordinary asset upload → typed attach → embeddable delivery, plus the
 anonymous-public owner/caller 403 after fixing the asset client's dropped
@@ -521,6 +525,18 @@ G1's automatic session issuance.
 mutation from a clean fixture, **and** LLP 0114 has accepted both the
 `useSurface` and `useSnapbackCommand` amendments — so G2 and G3 can
 truthfully call their React semantics settled rather than proposed.
+
+**2026-08-06 iOS-half receipt.** The clean Expo SDK 57 fixture at
+[`demos/expo-golden-path-fixture`](../demos/expo-golden-path-fixture/) ran in
+Expo Go on a dedicated iOS 26.4 simulator on the fleet MacBook Air. It used
+`snapback dev --expo`, supplied only `app={app}` to the provider, enumerated
+bootstrap/backend/Metro on `127.0.0.1`, adopted ordinary Sessions authority,
+observed the seeded row through the live query, dispatched the ordinary
+mutation, and observed its row through that same live query. The raw
+supervisor stream, binary provenance, cleanup evidence, and screenshot are in
+[`20260806-g1-ios-simulator.md`](../demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md).
+This is only the iOS-simulator half of the gate: it makes no Android, physical
+device, LLP 0064 capability, full-G1-exit, or later-gate claim.
 
 ### G2 — conversation surface
 

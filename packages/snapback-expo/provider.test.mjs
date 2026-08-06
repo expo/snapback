@@ -37,6 +37,30 @@ assert.deepEqual(Object.keys(descriptorPrepared.references).sort(), [
   'updateRecord',
 ]);
 
+// The generated TypeScript binding hydrates portable references with a
+// non-enumerable runtime-artifacts convenience. The Expo entry point accepts
+// that exact module export, while the client admission owner hashes and
+// validates only its portable descriptor projection.
+const hydratedApp = structuredClone(app);
+const runtimeArtifacts = Object.freeze({ trustedCompositionActivation: null });
+for (const namespace of [hydratedApp.api.queries, hydratedApp.api.mutations]) {
+  for (const reference of Object.values(namespace)) {
+    Object.defineProperty(reference, 'artifacts', {
+      value: runtimeArtifacts,
+      enumerable: false,
+    });
+  }
+}
+const hydratedPrepared = await descriptorClient.prepareReactBinding({
+  generatedManifest: hydratedApp,
+});
+assert.equal(hydratedPrepared.appId, app.identity.app);
+assert.deepEqual(Object.keys(hydratedPrepared.references).sort(), [
+  'assignedRecords',
+  'createRecord',
+  'updateRecord',
+]);
+
 const binding = Object.freeze({
   format: 'snapback.app-binding.v1',
   source: 'supervised-dev',

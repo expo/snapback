@@ -150,23 +150,31 @@ function localPackageFilename(name) {
   return `${name.slice(INTERNAL_PREFIX.length).replace(/[^a-z0-9._-]/gu, '-')}.tgz`;
 }
 
+function contentAddressedLocalPackageFilename(name, digest) {
+  const base = localPackageFilename(name).replace(/\.tgz$/u, '');
+  return `${base}.${digest}.tgz`;
+}
+
 function packLocalClosure(appRoot, closure) {
   const bunVersion = assertBunVersion();
   const packageDirectory = join(appRoot, LOCAL_PACKAGE_DIRECTORY);
-  // This exact directory is helper-owned. Rebuilding it prevents a removed
-  // closure member from surviving as an ambiguous stale package artifact.
-  rmSync(packageDirectory, { recursive: true, force: true });
+  // Keep the prior lockfile-addressed artifacts until Bun has admitted the
+  // newly packed closure. A source change rotates the content-addressed file
+  // specifier; removing its predecessor first leaves Bun unable to migrate an
+  // existing lockfile because the integrity record still names that path.
   mkdirSync(packageDirectory, { recursive: true });
 
   const artifacts = new Map();
   for (const [name, sourcePackage] of [...closure].sort(([left], [right]) => left.localeCompare(right))) {
-    const filename = localPackageFilename(name);
+    const provisionalFilename = `${localPackageFilename(name).replace(/\.tgz$/u, '')}.packing-${process.pid}.tgz`;
+    const provisionalPath = join(packageDirectory, provisionalFilename);
+    rmSync(provisionalPath, { force: true });
     const result = spawnSync('bun', [
       'pm',
       'pack',
       '--ignore-scripts',
       '--filename',
-      join(packageDirectory, filename),
+      provisionalPath,
       '--quiet',
     ], {
       cwd: sourcePackage.packageRoot,
@@ -175,19 +183,44 @@ function packLocalClosure(appRoot, closure) {
     if (result.status !== 0) {
       fail(`could not pack ${name}: ${result.stderr || result.stdout || result.error?.message || 'unknown error'}`);
     }
-    const artifactPath = join(packageDirectory, filename);
-    if (!existsSync(artifactPath)) fail(`Bun did not produce ${artifactPath}`);
-    const stat = lstatSync(artifactPath);
+    if (!existsSync(provisionalPath)) fail(`Bun did not produce ${provisionalPath}`);
+    const stat = lstatSync(provisionalPath);
     if (!stat.isFile() || stat.isSymbolicLink()) {
-      fail(`local package artifact must be a regular file: ${artifactPath}`);
+      fail(`local package artifact must be a regular file: ${provisionalPath}`);
+    }
+    const digest = sha256(provisionalPath);
+    const artifactPath = join(
+      packageDirectory,
+      contentAddressedLocalPackageFilename(name, digest),
+    );
+    if (existsSync(artifactPath)) {
+      const existing = lstatSync(artifactPath);
+      if (
+        !existing.isFile()
+        || existing.isSymbolicLink()
+        || sha256(artifactPath) !== digest
+      ) {
+        fail(`content-addressed local package is not the expected regular file: ${artifactPath}`);
+      }
+      rmSync(provisionalPath, { force: true });
+    } else {
+      renameSync(provisionalPath, artifactPath);
     }
     artifacts.set(name, Object.freeze({
       artifactPath,
-      sha256: sha256(artifactPath),
+      sha256: digest,
       sourcePackageRoot: sourcePackage.packageRoot,
     }));
   }
   return Object.freeze({ artifacts, bunVersion, packageDirectory });
+}
+
+function cleanupSupersededLocalPackages(configuration) {
+  const retained = new Set(configuration.artifactPaths);
+  for (const entry of readdirSync(configuration.packageDirectory)) {
+    const path = join(configuration.packageDirectory, entry);
+    if (!retained.has(path)) rmSync(path, { recursive: true, force: true });
+  }
 }
 
 function writeJsonAtomically(path, value) {
@@ -246,6 +279,10 @@ export function configureLocalClientClosure(appInput) {
     )),
     bunVersion: packed.bunVersion,
     manifestPath,
+    packageDirectory: packed.packageDirectory,
+    artifactPaths: Object.freeze(
+      [...packed.artifacts.values()].map(({ artifactPath }) => artifactPath),
+    ),
     directPackages: Object.freeze([...ROOT_PACKAGES]),
     overridePackages: Object.freeze([...localSpecifiers.keys()].sort()),
     localSpecifiers: Object.freeze(Object.fromEntries([...localSpecifiers].sort())),
@@ -359,7 +396,12 @@ function main() {
     return;
   }
   const configuration = configureLocalClientClosure(options.appInput);
-  if (options.install) installWithBun(configuration, options);
+  if (options.install) {
+    installWithBun(configuration, options);
+    // Only after Bun rewrites/adopts the lock may the helper remove prior
+    // content-addressed tarballs. The directory is exclusively helper-owned.
+    cleanupSupersededLocalPackages(configuration);
+  }
   process.stdout.write(`${JSON.stringify({
     schemaVersion: 'snapback.local-source-package-closure.v1',
     ok: true,

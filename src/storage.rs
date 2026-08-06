@@ -4882,7 +4882,9 @@ impl LocalDatabase {
             let sql = format!(
                 "SELECT * FROM {quoted} ORDER BY \"_createdAt\" ASC, \"_id\" ASC LIMIT ?1 OFFSET ?2"
             );
-            let mut statement = conn.prepare_cached(&sql)?;
+            // @ref LLP 0162#measurement-gate — ordinary current-range reads
+            // preserve the pinned pre-profile per-call preparation boundary.
+            let mut statement = conn.prepare(&sql)?;
             let columns = statement
                 .column_names()
                 .into_iter()

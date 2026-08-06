@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "zerobugs-large-fixture.v1",
+  "fixtureId": "large-seed42-v1",
+  "manifest": "zerobugs-acceptance.v1 \u00a74.3",
+  "generatedAt": "2026-08-06 (wall clock), frozen generation instant 2026-08-05T00:00:00.000Z via Date shim",
+  "method": {
+    "generator": "apps/zbugs/scripts/generate-synthetic.ts",
+    "generatorSha256": "770b93d43545d64edd5e855075caed31580244fd960eed209229ba2463e685e7",
+    "pinCommit": "25c2c7308d3eb674d2d895022c9da11ef0c742fb",
+    "clockControl": "NODE_OPTIONS --require freeze-date.cjs (Date() no-arg + Date.now frozen at 2026-08-05T00:00:00.000Z); shim retained beside the artifact",
+    "faker": "9.6.0 (exact)",
+    "node": "v25.9.0",
+    "defaults": {
+      "SEED": 42,
+      "NUM_ISSUES": 1000000,
+      "NUM_PROJECTS": 100,
+      "NUM_USERS": 100,
+      "COMMENTS_PER_ISSUE": 3.0,
+      "SHARD_SIZE": 500000
+    },
+    "determinismProof": "two independent 1,000-issue smoke runs under the same shim produced byte-identical CSVs before the full run"
+  },
+  "counts": {
+    "user": 100,
+    "project": 100,
+    "label": 4810,
+    "issue": 1000000,
+    "comment": 2527886,
+    "issueLabel": 2000370,
+    "total": 5533266
+  },
+  "countsCrossCheck": "equal to the replayed counts frozen in LLP 0182 (2026-08-05 revision) and demos/zerobugs/stage0/0182-claim-verification.v1.md",
+  "shards": {
+    "comment_000.csv": "692fe90b8973babd2b093f7fb3ea02d7ded3bedab52c63f6b8d23a837c08cf09",
+    "comment_001.csv": "8cf8fddb481d5b1a65cc4a055ad0ea06e5c5d9279246075c2ba68ce9a575a3b3",
+    "comment_002.csv": "0454c6b62ec6546ad0fea51d2b696f8789a768a075d1e3683d34506bd0388394",
+    "comment_003.csv": "adab40cba1e5e3d34f4c9c166375ec0e8e2def8a93f1d520df451b59c36bbbfc",
+    "comment_004.csv": "c804b9eeaea08b9526ccba1b7bad1af593cbdf722fa8ebab5423416336263764",
+    "comment_005.csv": "47a9876ac22a679211e78e332375f72d0081376fad0c9ceb634779aab0934e3f",
+    "issue_000.csv": "91b7544f9b3854f277684bb84e93bdf59a133613a5dd8eb4ba4739df8b79da42",
+    "issue_001.csv": "cb50f3d8b4a67483374ffbf9f7ec9a36cb24e780870403df2751513c26043ae5",
+    "issueLabel_000.csv": "3ac5b941a3e6b9dbd062002022e030c8db2c2e984a3499809cecb5764dd3dcf3",
+    "issueLabel_001.csv": "d825db14dbcd56c30e80f08e21393e9d20416b13dcbc12337e5345653c853477",
+    "issueLabel_002.csv": "a1310c9c877662b28615ae539558e92807d58da9ff8fb02eaf359b4b7512f364",
+    "issueLabel_003.csv": "60930353bdeb32f0ee0893787a87a4863b67e004bf1e3bd385c7f0171c84f693",
+    "issueLabel_004.csv": "17853d9a6e5aa5580268d52b5214a1b619e45c84ae5dbe1fdd7adb9c8dcd81a2",
+    "label_000.csv": "f2aef05e424fdbab7bf6171574c9eac83e7fabaccd1b13eb19f747d629ce8102",
+    "project_000.csv": "32063f2519db9a2ae7aa682a65efae874d0037fad3e2b57d8d4eddf05697e8f2",
+    "user_000.csv": "40a389f7f9cdb3a2ab5f25d1314407a5a200500f33d14e093f0e114dc2c6397a"
+  },
+  "overallDigest": "sha256:7514938a88bb1b8d77fee15f2cf7a50aa1030be2ebee344c473ef4d263a21c94",
+  "storage": "CSV bytes retained locally at demos/zerobugs/fixtures-local/large-seed42-v1/ (gitignored; ~1.2 GiB); any arm imports these exact bytes and must verify the shard digests first"
+}

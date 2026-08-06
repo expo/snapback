@@ -1102,3 +1102,51 @@ outside the immutable graph. A package regression and both registry-locked
 production surface builds pass; the tracked Cursors build was refreshed from
 the same combined source. This is publication and bundler integration debt
 from the combined landings, not an actively owned correctness change.
+
+### KEEP-GOING closure after Track B, ZeroBugs, and Expo G1 — 2026-08-06
+
+The completed GitHub KEEP-GOING proof at run `31083229354` reported eleven
+root gates. They reduced to six attributable fix-forward groups rather than
+eleven independent product failures:
+
+- Track B's client closure exported `unresolvedOutboxRecords` without its
+  declaration, and its Rust landings accumulated Rust 1.97 dead-code,
+  complexity, argument-count, and mechanical style findings. The declaration
+  now matches the runtime export; type aliases and behavior-preserving lint
+  repairs close the strict Clippy gate across all targets. Fork code received
+  only mechanical formatting/lint treatment, not a drift-lane correctness
+  change.
+- The relation-activity, sequence-allocation, and local persistent-store
+  carriers were stale after the Track B source changes. Their coded refresh
+  machinery now binds the exact sources. Because generated Triage identity is
+  part of the retained local-store proof, the real 250,000-event Triage run was
+  regenerated first (`8/8 PASS`), followed by the browser-backed carrier run
+  (`16 PASS / 1 declared GAP / 0 SKIPPED`) and the publication chain.
+- The AppDescriptor generator's query-keyed local module imports were valid
+  ESM but not portable to Metro, causing Linux package proof to fail during a
+  real Expo export. The drift lane proved a real hash-in-filename graph with a
+  clean Expo export (588 Metro modules); main's subsequent Expo G1 landing
+  `bd89cebab` independently supplied the stronger stable-alias plus immutable
+  hydration-module form. Merge reconciliation retained that main design and
+  regenerated every selected review/package projection.
+- Expo E1's real-loop tests import `@expo/snapback-react`; the CLI package did
+  not declare that workspace dependency. Adding it closes clean package
+  resolution. The optional-argument codegen regression was an older fixture
+  contradicting LLP 0178's unsuppressible optional-plan rule; the fixture now
+  exercises optional type projection without inventing an omission policy.
+- The app CLI's dev principal selected `anonymous-public` custody after that
+  custody class correctly learned to strip legacy body authority. The fake
+  package server therefore saw no dev user, while a real sessions target
+  refused earlier as unauthenticated. The app-CLI-only internal construction
+  seam now preserves an explicit dev assertion while retaining the v1 offer:
+  dev targets consume it and sessions targets refuse it. The complete package
+  suite and the real served journey's 19 checks pass.
+- The telemetry receipt failed honestly because the reviewed source closure
+  advanced after its measurement. It is not rebound or edited; a fresh full
+  EPYC measurement is required for the exact final candidate.
+
+Package export typing passes 92 subpaths across 12 packages, the canonical
+inventory selects 214 tests, strict Clippy passes, deployment identities match,
+and all regenerated AppDescriptor/package surfaces reproduce. No correctness
+failure was found or repaired in the actively owned PUSH-01 seam or F0a fork
+implementation.

@@ -187,3 +187,16 @@ the Lane 3 amendment and runtime result removed `snapback/routes.mjs`, but the
 new pure test and earlier plan rows still required its generated manifest.
 Those witnesses now match the actual refusal-first outcome, and codegen's
 tracked artifact index is regenerated from the route-free source.
+
+## 2026-08-06 — Lane 4: the 16-mutator corpus
+
+Lane 4 landed after an interrupted-and-resumed codex run (the resume picked
+up the partial schema work cleanly): all 16 authoritative mutators with
+pinned id/timestamp semantics, same-transaction read-model maintenance,
+dependent cleanup, and durable notification intents for exactly the eight
+trigger operations — 18/18 live checks PASS including refusal/no-partial-
+write, observer convergence, and replay idempotency. Learning: app tables
+mint generic `id_` physical ids (no per-table prefix surface; LLP 0148
+reserves named prefixes for built-ins), and the functions manifest omits
+fields rather than nulling them — both caught as harness-expectation bugs,
+not corpus bugs, by the cascade pattern of the failures.

@@ -524,6 +524,12 @@ function resolveMetroCommand(command, port) {
   };
 }
 
+function metroNodeOptions(nodeOptions) {
+  return [String(nodeOptions ?? '').trim(), '--dns-result-order=ipv4first']
+    .filter(Boolean)
+    .join(' ');
+}
+
 function startMetro({ command, directory, port, bootstrapOrigin, env, emit, onExit }) {
   const resolved = resolveMetroCommand(command, port);
   const child = spawn(resolved.executable, resolved.args, {
@@ -537,6 +543,11 @@ function startMetro({ command, directory, port, bootstrapOrigin, env, emit, onEx
       EXPO_PUBLIC_SNAPBACK_SUPERVISOR_ORIGIN: bootstrapOrigin,
       SNAPBACK_EXPO_METRO_PORT: String(port),
       RCT_METRO_PORT: String(port),
+      // Expo's --localhost server asks Node to listen on the hostname
+      // "localhost". On IPv6-first Macs that otherwise resolves to ::1,
+      // while the supervised iOS route is deliberately 127.0.0.1. Keep the
+      // public and bound endpoints identical without exposing Metro on LAN.
+      NODE_OPTIONS: metroNodeOptions(env?.NODE_OPTIONS),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

@@ -108,24 +108,44 @@ try {
   assert.equal(descriptor.identity.functions, functionManifest.bundleHash);
   assert.equal(descriptor.identity.descriptor, appDescriptorDigestV1(descriptor));
   assert.equal(descriptorSource, serializeAppDescriptorV1(descriptor));
-  const descriptorDigest = descriptor.identity.descriptor.replace(/^sha256:/u, '');
-  const bindingSource = readFileSync(join(backend, 'generated', 'app.binding.mjs'), 'utf8');
-  const descriptorModule = `app.descriptor.${descriptorDigest}.json`;
-  assert(bindingSource.includes(`./${descriptorModule}`));
-  assert(!bindingSource.includes('?identity='));
-  assert.equal(
-    readFileSync(join(backend, 'generated', descriptorModule), 'utf8'),
-    descriptorSource,
-    'the portable descriptor has an immutable filename for bundler hydration',
+  // Metro treats URL queries on local module specifiers as literal filename
+  // text. The hydration graph stays content-addressed through portable real
+  // filenames so Node and Metro resolve the same generated graph.
+  const appBindingAliasSource = readFileSync(
+    join(backend, 'generated', 'app.binding.mjs'),
+    'utf8',
   );
+  const appSource = readFileSync(join(backend, 'generated', 'app.mjs'), 'utf8');
   const apiSource = readFileSync(join(backend, 'generated', 'api.mjs'), 'utf8');
-  const bindingModule = apiSource.match(/\.\/app\.binding\.([0-9a-f]{64})\.mjs/u)?.[0].slice(2);
-  assert.equal(typeof bindingModule, 'string');
-  assert(!apiSource.includes('?identity='));
+  for (const source of [appBindingAliasSource, appSource, apiSource]) {
+    assert.doesNotMatch(source, /\?identity=/u);
+  }
+  const appBindingAliasImport = /\.\/app\.binding\.([0-9a-f]{64})\.mjs/u.exec(
+    appBindingAliasSource,
+  );
+  const appBindingImport = /\.\/app\.binding\.([0-9a-f]{64})\.mjs/u.exec(appSource);
+  assert(appBindingAliasImport, 'the stable binding module aliases a content-addressed binding filename');
+  assert(appBindingImport, 'the app module imports a content-addressed binding filename');
+  assert.equal(appBindingAliasImport[1], appBindingImport[1]);
+  const contentAddressedAppBindingSource = readFileSync(
+    join(backend, 'generated', `app.binding.${appBindingImport[1]}.mjs`),
+    'utf8',
+  );
+  assert.doesNotMatch(contentAddressedAppBindingSource, /\?identity=/u);
+  const descriptorImport = /\.\/app\.descriptor\.([0-9a-f]{64})\.json/u.exec(
+    contentAddressedAppBindingSource,
+  );
+  assert(descriptorImport, 'the hydration module imports a content-addressed descriptor filename');
   assert.equal(
-    readFileSync(join(backend, 'generated', bindingModule), 'utf8'),
-    bindingSource,
-    'the generated binding has an immutable filename for Node, Vite, and Metro',
+    readFileSync(
+      join(backend, 'generated', `app.descriptor.${descriptorImport[1]}.json`),
+      'utf8',
+    ),
+    descriptorSource,
+  );
+  assert.equal(
+    /Stable compatibility alias/u.test(appBindingAliasSource),
+    true,
   );
 
   // No environment/binding/session/device fact enters the stable document.
@@ -146,7 +166,12 @@ try {
   // The typed hydration and every compatibility spelling share object
   // identity; there is no independently generated reference tree.
   const appModule = await import(pathToFileURL(join(backend, 'generated', 'app.mjs')).href);
+  const appBindingAliasModule = await import(
+    pathToFileURL(join(backend, 'generated', 'app.binding.mjs')).href
+  );
   const apiModule = await import(pathToFileURL(join(backend, 'generated', 'api.mjs')).href);
+  assert.strictEqual(appBindingAliasModule.app, appModule.app);
+  assert.strictEqual(appBindingAliasModule.default, appModule.app);
   assert.strictEqual(appModule.default, appModule.app);
   assert.strictEqual(apiModule.app, appModule.app);
   assert.strictEqual(apiModule.default.listItems, appModule.app.api.queries.listItems);
