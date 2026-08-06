@@ -63,6 +63,7 @@ export {
   admittedReactEphemeralDefinition,
   admittedReactQueryGroup,
   admittedReactReference,
+  admittedReactSurface,
   abandonConsumedReactQueryGroup,
   assertPreparedReactBinding,
   classifyRegeneratedReactReference,

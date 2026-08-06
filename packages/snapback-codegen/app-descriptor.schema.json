@@ -31,7 +31,10 @@
       }
     },
     "commands": { "type": "object", "maxProperties": 0 },
-    "surfaces": { "type": "object", "maxProperties": 0 },
+    "surfaces": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/surfaceDescriptor" }
+    },
     "capabilities": {
       "type": "object",
       "additionalProperties": false,
@@ -124,6 +127,86 @@
     "mutationMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/mutationReference" } },
     "assetMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/assetReference" } },
     "ephemeralMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/ephemeralReference" } },
-    "queryGroupMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/queryGroupReference" } }
+    "queryGroupMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/queryGroupReference" } },
+    "surfaceBindingValue": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "name"],
+          "properties": { "kind": { "enum": ["param", "input"] }, "name": { "type": "string", "minLength": 1 } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": { "kind": { "const": "literal" }, "value": {} }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "fields"],
+          "properties": {
+            "kind": { "const": "scope" },
+            "fields": { "type": "object", "additionalProperties": { "$ref": "#/$defs/surfaceBindingLeaf" } }
+          }
+        }
+      ]
+    },
+    "surfaceBindingLeaf": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "name"],
+          "properties": { "kind": { "enum": ["param", "input"] }, "name": { "type": "string", "minLength": 1 } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": { "kind": { "const": "literal" }, "value": {} }
+        }
+      ]
+    },
+    "surfaceMember": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactKind", "reference", "bindings", "inputs"],
+      "properties": {
+        "artifactKind": { "const": "surfaceMemberBinding" },
+        "reference": { "$ref": "#/$defs/reference" },
+        "bindings": { "type": "object", "additionalProperties": { "$ref": "#/$defs/surfaceBindingValue" } },
+        "inputs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["contract", "optional"],
+            "properties": { "contract": { "type": "object" }, "optional": { "type": "boolean" } }
+          }
+        }
+      }
+    },
+    "surfaceMemberMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/surfaceMember" } },
+    "surfaceDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactKind", "schemaVersion", "appId", "id", "name", "sourceSpan", "params", "reads", "mutations", "commands", "assets", "presence"],
+      "properties": {
+        "artifactKind": { "const": "surfaceDescriptor" },
+        "schemaVersion": { "type": "string", "minLength": 1 },
+        "appId": { "type": "string", "minLength": 1 },
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "sourceSpan": { "$ref": "#/$defs/sourceSpan" },
+        "params": { "type": "object", "additionalProperties": { "type": "object" } },
+        "reads": { "$ref": "#/$defs/surfaceMemberMap" },
+        "mutations": { "$ref": "#/$defs/surfaceMemberMap" },
+        "commands": { "type": "object", "maxProperties": 0 },
+        "assets": { "$ref": "#/$defs/surfaceMemberMap" },
+        "presence": { "$ref": "#/$defs/surfaceMemberMap" }
+      }
+    }
   }
 }

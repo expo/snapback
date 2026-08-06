@@ -82,6 +82,11 @@ export interface SnapbackReactProvider {
   readonly providerInstanceId: string;
   readonly binding: PreparedReactBinding;
   readonly assets: unknown | null;
+  surface<Surface extends SnapbackSurfaceDescriptor>(
+    descriptor: Surface,
+    params: SurfaceParams<Surface>,
+    options?: SurfaceOptions<Surface>,
+  ): BoundSnapbackSurface<Surface>;
   registerEphemeralRepublisher(
     reference: string,
     callback: (context: Readonly<{
@@ -217,6 +222,121 @@ export function useSnapbackPresence<
     ttlMs?: number;
   }>,
 ): PresenceState<EphemeralValue<Ref>>;
+
+export interface SnapbackSurfaceMember<Reference = unknown, Input = Record<string, never>> {
+  readonly artifactKind: 'surfaceMemberBinding';
+  readonly reference: Reference;
+  readonly __input?: Input;
+}
+export interface SnapbackSurfaceDescriptor<
+  Params = any,
+  Reads = any,
+  Mutations = any,
+  Presence = any,
+  Assets = any,
+> {
+  readonly artifactKind: 'surfaceDescriptor';
+  readonly id: string;
+  readonly params: Readonly<Record<string, unknown>>;
+  readonly reads: Reads;
+  readonly mutations: Mutations;
+  readonly presence: Presence;
+  readonly assets: Assets;
+  readonly __params?: Params;
+}
+export type SurfaceParams<Surface> = Surface extends SnapbackSurfaceDescriptor<infer Params, any, any, any, any>
+  ? Params
+  : never;
+type SurfaceReads<Surface> = Surface extends SnapbackSurfaceDescriptor<any, infer Reads, any, any, any> ? Reads : never;
+type SurfaceMutations<Surface> = Surface extends SnapbackSurfaceDescriptor<any, any, infer Mutations, any, any> ? Mutations : never;
+type SurfacePresence<Surface> = Surface extends SnapbackSurfaceDescriptor<any, any, any, infer Presence, any> ? Presence : never;
+type SurfaceAssets<Surface> = Surface extends SnapbackSurfaceDescriptor<any, any, any, any, infer Assets> ? Assets : never;
+type SurfaceMemberReference<Member> = Member extends SnapbackSurfaceMember<infer Reference, any> ? Reference : never;
+type SurfaceMemberInput<Member> = Member extends SnapbackSurfaceMember<any, infer Input> ? Input : never;
+export type SurfaceOptions<Surface extends SnapbackSurfaceDescriptor> = Readonly<{
+  presence?: Readonly<{
+    [Name in keyof SurfacePresence<Surface>]?: SurfaceMemberReference<SurfacePresence<Surface>[Name]> extends ConnectionEphemeralCollectionReference
+      ? EphemeralValue<SurfaceMemberReference<SurfacePresence<Surface>[Name]>> | typeof skip
+      : never
+  }>;
+}>;
+export type SurfaceResult<Surface extends SnapbackSurfaceDescriptor> = Readonly<{
+  data: Readonly<{
+    [Name in keyof SurfaceReads<Surface>]: SurfaceMemberReference<SurfaceReads<Surface>[Name]> extends QueryReference
+      ? FunctionResult<SurfaceMemberReference<SurfaceReads<Surface>[Name]>> | undefined
+      : never
+  }>;
+  state: Readonly<{
+    [Name in keyof SurfaceReads<Surface>]: SurfaceMemberReference<SurfaceReads<Surface>[Name]> extends QueryReference
+      ? QueryState<FunctionResult<SurfaceMemberReference<SurfaceReads<Surface>[Name]>>>
+      : never
+  }>;
+  mutations: Readonly<{
+    [Name in keyof SurfaceMutations<Surface>]: SurfaceMemberReference<SurfaceMutations<Surface>[Name]> extends MutationReference
+      ? (input: SurfaceMemberInput<SurfaceMutations<Surface>[Name]>) => Promise<FunctionResult<SurfaceMemberReference<SurfaceMutations<Surface>[Name]>>>
+      : never
+  }>;
+  presence: Readonly<{
+    [Name in keyof SurfacePresence<Surface>]: SurfaceMemberReference<SurfacePresence<Surface>[Name]> extends ConnectionEphemeralCollectionReference
+      ? PresenceState<EphemeralValue<SurfaceMemberReference<SurfacePresence<Surface>[Name]>>> & Readonly<{
+          members: readonly PresenceEntry<EphemeralValue<SurfaceMemberReference<SurfacePresence<Surface>[Name]>>>[];
+        }>
+      : never
+  }>;
+  assets: Readonly<{
+    [Name in keyof SurfaceAssets<Surface>]: Readonly<{
+      readonly reference: SurfaceMemberReference<SurfaceAssets<Surface>[Name]>;
+      start(input: SurfaceMemberInput<SurfaceAssets<Surface>[Name]> & Readonly<{
+        file: AssetFileLike;
+        declaredFilename?: string | null;
+        declaredContentType?: string | null;
+        previewUrl?: string | null;
+      }>): AssetUploadTask;
+    }>
+  }>;
+  descriptor: Surface;
+}>;
+export interface BoundSnapbackSurface<Surface extends SnapbackSurfaceDescriptor> {
+  readonly artifactKind: 'boundSnapbackSurface';
+  readonly descriptor: Surface;
+  readonly reads: Readonly<{
+    [Name in keyof SurfaceReads<Surface>]: Readonly<{
+      snapshot(): SurfaceResult<Surface>['state'][Name];
+      subscribe(listener: (state: SurfaceResult<Surface>['state'][Name]) => void): () => void;
+    }>
+  }>;
+  readonly mutations: SurfaceResult<Surface>['mutations'];
+  readonly assets: SurfaceResult<Surface>['assets'];
+  update(params: SurfaceParams<Surface>, options?: SurfaceOptions<Surface>): void;
+  subscribe(listener: () => void): () => void;
+  snapshot(): SurfaceResult<Surface>;
+  dispose(): Promise<void>;
+}
+export function bindSnapbackSurface<Surface extends SnapbackSurfaceDescriptor>(
+  provider: SnapbackReactProvider,
+  surface: Surface,
+  params: SurfaceParams<Surface>,
+  options?: SurfaceOptions<Surface>,
+): BoundSnapbackSurface<Surface>;
+export function observeSnapbackSurface<Surface extends SnapbackSurfaceDescriptor>(
+  provider: SnapbackReactProvider,
+  surface: Surface,
+  params: SurfaceParams<Surface>,
+  options: SurfaceOptions<Surface>,
+  listener: (state: SurfaceResult<Surface>) => void,
+): Readonly<{
+  snapshot(): SurfaceResult<Surface>;
+  readonly reads: BoundSnapbackSurface<Surface>['reads'];
+  readonly mutations: BoundSnapbackSurface<Surface>['mutations'];
+  readonly assets: BoundSnapbackSurface<Surface>['assets'];
+  update(params: SurfaceParams<Surface>, options?: SurfaceOptions<Surface>): void;
+  dispose(): Promise<void>;
+}>;
+export function useSurface<Surface extends SnapbackSurfaceDescriptor>(
+  surface: Surface,
+  params: SurfaceParams<Surface>,
+  options?: SurfaceOptions<Surface>,
+): SurfaceResult<Surface>;
 
 export type QueryEntry<Ref extends QueryReference = QueryReference> = Readonly<{
   ref: Ref;

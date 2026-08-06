@@ -1,11 +1,5 @@
-import {
-  allow,
-  defineEphemeral,
-  defineSchema,
-  defineTable,
-  ephemeral,
-  v,
-} from '@expo/snapback-codegen/define';
+import { defineEphemeral, defineSchema, defineTable, v } from '@expo/snapback-codegen/define';
+import { fixturePresence } from './surface-model.mjs';
 
 const valueTable = () => defineTable({ value: v.string() }).sync();
 
@@ -18,16 +12,7 @@ export default defineSchema(
   },
   {
     ephemeral: defineEphemeral({
-      fixturePresence: ephemeral.collection({
-        scope: { roomId: v.string() },
-        routing: ['roomId'],
-        key: 'connection',
-        ttlMs: 5_000,
-        maxTtlMs: 30_000,
-        value: v.object({ state: v.string() }),
-        publish: allow.all(),
-        subscribe: allow.all(),
-      }),
+      fixturePresence,
     }),
   },
 );

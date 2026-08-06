@@ -16,6 +16,14 @@ const app = JSON.parse(readFileSync(new URL('app.descriptor.json', generatedRoot
 const functionManifest = JSON.parse(readFileSync(new URL('functions.manifest.json', generatedRoot)));
 const schemaManifest = JSON.parse(readFileSync(new URL('schema.manifest.json', generatedRoot)));
 const capabilityManifest = JSON.parse(readFileSync(new URL('capability.manifest.json', generatedRoot)));
+const conversationGeneratedRoot = new URL(
+  '../../demos/expo-golden-path-fixture/snapback/generated/',
+  import.meta.url,
+);
+const conversationApp = JSON.parse(readFileSync(new URL('app.descriptor.json', conversationGeneratedRoot)));
+const conversationFunctions = JSON.parse(readFileSync(new URL('functions.manifest.json', conversationGeneratedRoot)));
+const conversationSchema = JSON.parse(readFileSync(new URL('schema.manifest.json', conversationGeneratedRoot)));
+const conversationCapabilities = JSON.parse(readFileSync(new URL('capability.manifest.json', conversationGeneratedRoot)));
 
 // LLP 0179 descriptor input reaches the existing client admission owner
 // directly; no function-manifest prop is needed on SnapbackExpoProvider.
@@ -175,6 +183,67 @@ unsubscribe();
 await boot.dispose();
 assert.equal(appState.count(), 0);
 assert.equal(providerDisposed, 1);
+
+// LLP 0179 S1: the maintained Expo fixture's generated conversation surface
+// passes through the E1 boot owner unchanged and is bindable headlessly from
+// the provider it creates. No URL or identity payload enters the surface call.
+const conversationClient = new SnapbackClient('http://127.0.0.1:9');
+conversationClient.inspect = async () => ({
+  targetProfileId: conversationCapabilities.targetProfileId,
+  target: 'local-dev-sqlite-ibex',
+  functions: conversationFunctions,
+  schema: conversationSchema,
+  capabilityManifest: conversationCapabilities,
+  routeManifestHash: null,
+});
+conversationClient.authSession = async () => ({ activeMode: 'sessions' });
+const conversationBinding = Object.freeze({
+  format: 'snapback.app-binding.v1',
+  source: 'supervised-dev',
+  descriptorIdentity: conversationApp.identity.descriptor,
+  target: Object.freeze({
+    app: conversationApp.identity.app,
+    schema: conversationApp.identity.schema,
+    functions: conversationApp.identity.functions,
+    origin: 'http://127.0.0.1:4317',
+    routing: 'loopback',
+  }),
+  capabilities: Object.freeze({ offered: Object.freeze([...conversationApp.capabilities.required]) }),
+  provenance: Object.freeze({
+    supervisorGeneration: 'surface-provider-test-generation',
+    issuedAt: '2026-08-05T20:00:00.000Z',
+    expiresAt: '2026-08-05T21:00:00.000Z',
+  }),
+  integrity: Object.freeze({ channel: 'local-supervised-ipc' }),
+});
+const surfaceBoot = createSnapbackExpoBoot({
+  app: conversationApp,
+  now: () => Date.parse('2026-08-05T20:30:00.000Z'),
+  environment: Object.freeze({
+    format: 'snapback.expo-environment.v1',
+    appState: appStateHarness(),
+    resolveBinding: async () => ({
+      binding: conversationBinding,
+      admission: { delivery: { channel: 'local-supervised-ipc' } },
+    }),
+    adoptAuthority: async () => ({
+      status: 'ready',
+      client: conversationClient,
+      publicFacts: { kind: 'session', authMode: 'sessions', sessionId: 'surface-session' },
+    }),
+  }),
+});
+assert.equal((await surfaceBoot.start()).status, 'ready');
+const surfaceProvider = surfaceBoot.reactProvider();
+const headlessConversation = surfaceProvider.surface(
+  conversationApp.surfaces.conversation,
+  { conversationId: 'g2_conversation_seed' },
+);
+assert.strictEqual(headlessConversation.descriptor, surfaceProvider.binding.surfaces.conversation);
+assert.equal(headlessConversation.snapshot().state.messages.status, 'pending');
+assert.equal(headlessConversation.snapshot().data.messages, undefined);
+await headlessConversation.dispose();
+await surfaceBoot.dispose();
 
 let mismatchAuthorityAdoptions = 0;
 const mismatch = structuredClone(binding);

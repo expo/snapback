@@ -1020,9 +1020,112 @@ async function prepareReactBindingOnce(
       queryGroupsById.set(reference.id, reference);
     }
   }
+  const assetIntents = Object.create(null);
+  const assetIntentsById = new Map();
+  if (generated.descriptorMode) {
+    for (const [name, carried] of Object.entries(generated.descriptor.api.assets ?? {})) {
+      if (
+        !carried
+        || carried.artifactKind !== 'assetUploadReference'
+        || carried.appId !== generated.functions.appId
+        || carried.name !== name
+        || typeof carried.id !== 'string'
+      ) {
+        throw diagnosticError('SNAPBACK_REACT_MANIFEST_INVALID', 'AppDescriptor contains an invalid asset intent', { asset: name });
+      }
+      const reference = deepFreeze(structuredClone(carried));
+      assetIntents[name] = reference;
+      assetIntentsById.set(reference.id, reference);
+    }
+  }
+  const surfaces = Object.create(null);
+  const surfacesById = new Map();
+  if (generated.descriptorMode) {
+    for (const [name, carried] of Object.entries(generated.descriptor.surfaces ?? {})) {
+      if (
+        !carried
+        || carried.artifactKind !== 'surfaceDescriptor'
+        || carried.appId !== generated.functions.appId
+        || carried.name !== name
+        || typeof carried.id !== 'string'
+        || !carried.params
+        || !carried.reads
+        || !carried.mutations
+        || !carried.presence
+        || Object.keys(carried.commands ?? {}).length !== 0
+      ) {
+        throw diagnosticError(
+          'SNAPBACK_REACT_MANIFEST_INVALID',
+          'AppDescriptor contains an invalid generated surface',
+          { surface: name },
+        );
+      }
+      const surface = structuredClone(carried);
+      for (const [namespace, members] of [
+        ['reads', surface.reads],
+        ['mutations', surface.mutations],
+      ]) {
+        for (const [memberName, member] of Object.entries(members)) {
+          const admitted = referencesById.get(member?.reference?.id);
+          const expectedKind = namespace === 'reads' ? ['Query', 'LiveQuery'] : ['Mutation'];
+          if (
+            member?.artifactKind !== 'surfaceMemberBinding'
+            || !admitted
+            || !expectedKind.includes(admitted.kind)
+            || exactDeploymentFunction(admitted) !== exactDeploymentFunction(member.reference)
+          ) {
+            throw diagnosticError(
+              'SNAPBACK_REACT_MANIFEST_INVALID',
+              'generated surface contains an unadmitted function child',
+              { surface: name, member: memberName },
+            );
+          }
+          member.reference = admitted;
+        }
+      }
+      for (const [memberName, member] of Object.entries(surface.presence)) {
+        const admitted = ephemeralDefinitionsById.get(member?.reference?.id)?.reference;
+        if (
+          member?.artifactKind !== 'surfaceMemberBinding'
+          || !admitted
+          || canonicalizeClientValueV1(admitted) !== canonicalizeClientValueV1(member.reference)
+        ) {
+          throw diagnosticError(
+            'SNAPBACK_REACT_MANIFEST_INVALID',
+            'generated surface contains an unadmitted presence child',
+            { surface: name, member: memberName },
+          );
+        }
+        member.reference = admitted;
+      }
+      for (const [memberName, member] of Object.entries(surface.assets ?? {})) {
+        const admitted = assetIntentsById.get(member?.reference?.id);
+        if (
+          member?.artifactKind !== 'surfaceMemberBinding'
+          || !admitted
+          || canonicalizeClientValueV1(admitted) !== canonicalizeClientValueV1(member.reference)
+        ) {
+          throw diagnosticError(
+            'SNAPBACK_REACT_MANIFEST_INVALID',
+            'generated surface contains an unadmitted asset child',
+            { surface: name, member: memberName },
+          );
+        }
+        member.reference = admitted;
+      }
+      const admittedSurface = deepFreeze(surface);
+      if (surfacesById.has(admittedSurface.id)) {
+        throw diagnosticError('SNAPBACK_REACT_MANIFEST_INVALID', 'AppDescriptor repeats a surface id', { surface: name });
+      }
+      surfaces[name] = admittedSurface;
+      surfacesById.set(admittedSurface.id, admittedSurface);
+    }
+  }
   Object.freeze(references);
   Object.freeze(ephemeralReferences);
   Object.freeze(queryGroups);
+  Object.freeze(assetIntents);
+  Object.freeze(surfaces);
   const functionCatalogDigest = await sha256Canonical(Object.values(references));
   // On the receipt path the live capability manifest is not available; the
   // receipt carries the digest and availability fact the online admission
@@ -1095,6 +1198,8 @@ async function prepareReactBindingOnce(
     references,
     ephemeral: ephemeralReferences,
     groups: queryGroups,
+    assetIntents,
+    surfaces,
     prepareQueryGroup(reference, params, groupOptions) {
       return prepareReactQueryGroupForBinding(binding, reference, params, groupOptions);
     },
@@ -1108,6 +1213,8 @@ async function prepareReactBindingOnce(
     authorityIndependentById: { value: authorityIndependentById },
     ephemeralDefinitionsById: { value: ephemeralDefinitionsById },
     queryGroupsById: { value: queryGroupsById },
+    surfacesById: { value: surfacesById },
+    assetIntentsById: { value: assetIntentsById },
     routesManifest: { value: generated.routes },
   });
   // Channel A has concrete, schema-decoded route arguments while the raw
@@ -1246,6 +1353,47 @@ export function admittedReactQueryGroup(binding, reference) {
       'SNAPBACK_REACT_GROUP_REFERENCE_INVALID',
       'React query-group preparation requires a complete generated group reference',
       { groupId: reference?.id ?? null },
+    );
+  }
+  return expected;
+}
+
+export function admittedReactSurface(binding, reference) {
+  const prepared = assertPreparedReactBinding(binding);
+  const expected = prepared.surfacesById.get(reference?.id);
+  let normalized = null;
+  if (reference && expected) {
+    normalized = structuredClone(reference);
+    for (const namespace of ['reads', 'mutations', 'presence']) {
+      for (const [name, member] of Object.entries(normalized[namespace] ?? {})) {
+        const expectedMember = expected[namespace]?.[name];
+        if (!expectedMember) continue;
+        if (namespace === 'presence') {
+          if (canonicalizeClientValueV1(member.reference) !== canonicalizeClientValueV1(expectedMember.reference)) continue;
+        } else if (exactDeploymentFunction(member.reference) !== exactDeploymentFunction(expectedMember.reference)) {
+          continue;
+        }
+        member.reference = expectedMember.reference;
+      }
+    }
+    for (const [name, member] of Object.entries(normalized.assets ?? {})) {
+      const expectedMember = expected.assets?.[name];
+      if (
+        expectedMember
+        && canonicalizeClientValueV1(member.reference) === canonicalizeClientValueV1(expectedMember.reference)
+      ) member.reference = expectedMember.reference;
+    }
+  }
+  if (
+    !reference
+    || reference.artifactKind !== 'surfaceDescriptor'
+    || !expected
+    || canonicalizeClientValueV1(expected) !== canonicalizeClientValueV1(normalized)
+  ) {
+    throw diagnosticError(
+      'SNAPBACK_REACT_SURFACE_INVALID',
+      'surface projection requires a complete generated surface admitted by this binding',
+      { surfaceId: reference?.id ?? null },
     );
   }
   return expected;

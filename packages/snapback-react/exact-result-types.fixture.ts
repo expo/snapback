@@ -5,12 +5,15 @@ import type {
 import type {
   GeneratedQueryGroups as BackendBakeoffQueryGroups,
 } from '../../demos/signal-desk/snapback/generated/api.d.ts';
+import type { GeneratedAppDescriptorV1 as ConversationAppDescriptor } from '../../demos/expo-golden-path-fixture/snapback/generated/app.d.ts';
+import type { Id } from '../../demos/expo-golden-path-fixture/snapback/generated/api.d.ts';
 import {
   projectRecordFields,
   skip,
   useSnapbackMutation,
   useSnapbackQueries,
   useSnapbackQuery,
+  useSurface,
 } from './index.mjs';
 
 declare const todos: SnapbackFunctionReference<
@@ -98,3 +101,26 @@ useSnapbackQuery(todos, { owner: 'ada', extra: true });
 useSnapbackQuery(createTodo, { title: 'wrong' });
 // @ts-expect-error exact mutation args are inferred from the reference.
 create({ body: 'wrong key' });
+
+// @ref LLP 0179#react-projection — the emitted surface declaration removes
+// bound params from child calls and preserves the empty typing payload.
+declare const conversationId: Id<'conversations'>;
+declare const messageId: Id<'messages'>;
+declare const conversationApp: ConversationAppDescriptor;
+const conversation = useSurface(
+  conversationApp.surfaces.conversation,
+  { conversationId },
+  { presence: { typing: {} } },
+);
+conversation.mutations.react({ messageId, emoji: '👍' });
+conversation.data.messages?.[0]?.body.toUpperCase();
+conversation.state.messages.retention;
+conversation.presence.typing.members[0]?.value;
+// @ts-expect-error conversationId is already bound at the surface.
+conversation.mutations.react({ conversationId, messageId, emoji: '👍' });
+useSurface(conversationApp.surfaces.conversation, { conversationId }, {
+  presence: { typing: {
+    // @ts-expect-error typing identity is session-derived, not a publish member.
+    userId: 'forged',
+  } },
+});

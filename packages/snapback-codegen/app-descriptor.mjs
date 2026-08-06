@@ -8,6 +8,11 @@ const ROOT_KEYS = ['api', 'capabilities', 'commands', 'format', 'identity', 'sur
 const IDENTITY_KEYS = ['app', 'descriptor', 'functions', 'schema'];
 const API_KEYS = ['assets', 'ephemeral', 'mutations', 'queries', 'queryGroups'];
 const CAPABILITY_KEYS = ['required'];
+const SURFACE_KEYS = [
+  'appId', 'artifactKind', 'assets', 'commands', 'id', 'mutations', 'name',
+  'params', 'presence', 'reads', 'schemaVersion', 'sourceSpan',
+];
+const SURFACE_MEMBER_KEYS = ['artifactKind', 'bindings', 'inputs', 'reference'];
 
 function isRecord(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -158,11 +163,126 @@ function validateReferenceMap(map, path, expectedClass, expectedKinds, problems,
   }
 }
 
+function validateSurfaceBindingValue(value, path, problems, depth = 0) {
+  if (!isRecord(value) || typeof value.kind !== 'string' || depth > 1) {
+    problems.push(problem(
+      'SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH',
+      path,
+      `${path} must be a bounded surface binding value`,
+    ));
+    return;
+  }
+  if (value.kind === 'param' || value.kind === 'input') {
+    if (!exactKeys(value, ['kind', 'name']) || typeof value.name !== 'string' || value.name.length === 0) {
+      problems.push(problem('SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH', path, `${path} has an invalid ${value.kind} binding`));
+    }
+    return;
+  }
+  if (value.kind === 'literal') {
+    if (!exactKeys(value, ['kind', 'value'])) {
+      problems.push(problem('SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH', path, `${path} has an invalid literal binding`));
+    }
+    return;
+  }
+  if (value.kind === 'scope') {
+    if (!exactKeys(value, ['fields', 'kind']) || !isRecord(value.fields)) {
+      problems.push(problem('SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH', path, `${path} has an invalid scope binding`));
+      return;
+    }
+    for (const [name, field] of Object.entries(value.fields)) {
+      validateSurfaceBindingValue(field, `${path}.fields.${name}`, problems, depth + 1);
+    }
+    return;
+  }
+  problems.push(problem(
+    'SNAPBACK_APP_DESCRIPTOR_MEMBER_CLASS_UNSUPPORTED',
+    path,
+    `${path} has unsupported binding class ${JSON.stringify(value.kind)}`,
+  ));
+}
+
+function validateSurfaceMember(member, path, expectedClass, expectedKinds, problems) {
+  if (!exactKeys(member, SURFACE_MEMBER_KEYS) || member.artifactKind !== 'surfaceMemberBinding') {
+    problems.push(problem(
+      'SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH',
+      path,
+      `${path} must be a closed surface member binding`,
+    ));
+    return;
+  }
+  validateReferenceMap({ member: member.reference }, `${path}.reference`, expectedClass, expectedKinds, problems);
+  if (!isRecord(member.bindings)) {
+    problems.push(problem('SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH', `${path}.bindings`, `${path}.bindings must be an object map`));
+  } else {
+    for (const [name, value] of Object.entries(member.bindings)) {
+      validateSurfaceBindingValue(value, `${path}.bindings.${name}`, problems);
+    }
+  }
+  if (!isRecord(member.inputs)) {
+    problems.push(problem('SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH', `${path}.inputs`, `${path}.inputs must be an object map`));
+  } else {
+    for (const [name, input] of Object.entries(member.inputs)) {
+      if (!exactKeys(input, ['contract', 'optional']) || !isRecord(input.contract) || typeof input.optional !== 'boolean') {
+        problems.push(problem('SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH', `${path}.inputs.${name}`, `${path}.inputs.${name} must carry a contract and optionality`));
+      }
+    }
+  }
+}
+
+function validateSurfaceMap(surfaces, problems) {
+  if (!isRecord(surfaces)) {
+    problems.push(problem('SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH', '$.surfaces', 'surfaces must be an object map'));
+    return;
+  }
+  for (const [surfaceName, surface] of Object.entries(surfaces)) {
+    const path = `$.surfaces.${surfaceName}`;
+    if (!exactKeys(surface, SURFACE_KEYS)
+      || surface.artifactKind !== 'surfaceDescriptor'
+      || typeof surface.appId !== 'string'
+      || typeof surface.id !== 'string'
+      || surface.name !== surfaceName
+      || typeof surface.schemaVersion !== 'string'
+      || surface.schemaVersion.length === 0
+      || !isRecord(surface.params)) {
+      problems.push(problem('SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH', path, `${path} must be a closed surface descriptor`));
+      continue;
+    }
+    validateSourceSpan(surface.sourceSpan, `${path}.sourceSpan`, problems);
+    for (const [name, contract] of Object.entries(surface.params)) {
+      if (!isRecord(contract)) problems.push(problem('SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH', `${path}.params.${name}`, `${path}.params.${name} must be a portable contract`));
+    }
+    for (const [namespace, expectedClass, expectedKinds] of [
+      ['reads', 'functionReference', new Set(['Query', 'LiveQuery'])],
+      ['mutations', 'functionReference', new Set(['Mutation'])],
+      ['presence', 'ephemeralCollectionReference', null],
+      ['assets', 'assetUploadReference', null],
+    ]) {
+      const members = surface[namespace];
+      if (!isRecord(members)) {
+        problems.push(problem('SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH', `${path}.${namespace}`, `${path}.${namespace} must be an object map`));
+        continue;
+      }
+      for (const [name, member] of Object.entries(members)) {
+        validateSurfaceMember(member, `${path}.${namespace}.${name}`, expectedClass, expectedKinds, problems);
+      }
+    }
+    for (const namespace of ['commands']) {
+      if (!isRecord(surface[namespace]) || Object.keys(surface[namespace]).length > 0) {
+        problems.push(problem(
+          'SNAPBACK_APP_DESCRIPTOR_MEMBER_CLASS_UNSUPPORTED',
+          `${path}.${namespace}`,
+          `${path}.${namespace} is reserved for a later delivery slice`,
+        ));
+      }
+    }
+  }
+}
+
 // This validator is the language-neutral descriptor admission twin used by
 // codegen before the transactional graph publication. It deliberately closes
-// S0's namespaces while leaving the RFC's later surface/command grammars empty.
-// @ref LLP 0179#delivery — S0 emits api plus identity/provenance/capabilities;
-// commands and surfaces exist as closed empty maps until their later slices.
+// S1's surface grammar and S0's still-empty command namespace.
+// @ref LLP 0179#delivery — S1 admits bounded generated surfaces without
+// weakening the portable descriptor or pre-admitting S2 commands.
 export function validateAppDescriptorV1(candidate, {
   maxBytes = APP_DESCRIPTOR_MAX_BYTES,
   verifyDigest = true,
@@ -231,7 +351,7 @@ export function validateAppDescriptorV1(candidate, {
     validateReferenceMap(candidate.api.ephemeral, '$.api.ephemeral', 'ephemeralCollectionReference', null, problems);
     validateReferenceMap(candidate.api.queryGroups, '$.api.queryGroups', 'queryGroupReference', null, problems, 'route');
   }
-  for (const namespace of ['commands', 'surfaces']) {
+  for (const namespace of ['commands']) {
     if (!isRecord(candidate[namespace])) {
       problems.push(problem(
         'SNAPBACK_APP_DESCRIPTOR_MEMBER_TYPE_MISMATCH',
@@ -242,11 +362,12 @@ export function validateAppDescriptorV1(candidate, {
       problems.push(problem(
         'SNAPBACK_APP_DESCRIPTOR_MEMBER_CLASS_UNSUPPORTED',
         `$.${namespace}`,
-        `${namespace} members are not admitted in descriptor slice S0`,
+        `${namespace} members are not admitted before descriptor slice S2`,
         { members: Object.keys(candidate[namespace]).sort(compareUtf16) },
       ));
     }
   }
+  validateSurfaceMap(candidate.surfaces, problems);
   if (!exactKeys(candidate.capabilities, CAPABILITY_KEYS)
     || !Array.isArray(candidate.capabilities?.required)
     || candidate.capabilities.required.some((entry) => typeof entry !== 'string' || entry.length === 0)
@@ -306,6 +427,7 @@ export function createAppDescriptorV1({
   schema,
   functions,
   api,
+  surfaces = {},
   requiredCapabilities,
 }) {
   const descriptor = {
@@ -313,7 +435,7 @@ export function createAppDescriptorV1({
     identity: { app, schema, functions, descriptor: '' },
     api,
     commands: {},
-    surfaces: {},
+    surfaces,
     capabilities: {
       required: [...new Set(requiredCapabilities)].sort(compareUtf16),
     },

@@ -24,7 +24,7 @@ export interface PortableAppDescriptorV1 {
     queryGroups: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   }>;
   readonly commands: Readonly<Record<string, never>>;
-  readonly surfaces: Readonly<Record<string, never>>;
+  readonly surfaces: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   readonly capabilities: Readonly<{ required: readonly string[] }>;
 }
 
@@ -39,6 +39,7 @@ export function createAppDescriptorV1(input: Readonly<{
   schema: string;
   functions: string;
   api: PortableAppDescriptorV1['api'];
+  surfaces?: PortableAppDescriptorV1['surfaces'];
   requiredCapabilities: readonly string[];
 }>): PortableAppDescriptorV1;
 export function serializeAppDescriptorV1(descriptor: PortableAppDescriptorV1): string;
