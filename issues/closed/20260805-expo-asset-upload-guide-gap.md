@@ -94,5 +94,15 @@ Codegen cannot prove this contradiction. The authorizer output contract is
 closed to exactly `{ owner: <non-empty principal> }`, so every intent declares
 an owner; whether the caller can match it depends on runtime custody rather
 than the intent declaration. In particular, an `auth: 'public'` intent called
-with session custody is legitimate. The ticket remains open pending supervisor
-verification and close-out.
+with session custody is legitimate.
+
+## Closed
+
+2026-08-06: All four acceptance items are met — the assets guide states the
+owner-principal constraint and expected transfer authority (guide half,
+2026-08-05), the server now refuses the unsatisfiable anonymous/owned design
+at reservation with `SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE` before any
+transfer starts (product half, above), and the CI-verified ImagePicker →
+`expo/fetch` → Blob → `useSnapbackAssetUpload` recipe with real session
+custody landed with the guide half. Verified by the asset unit suite
+(including the new anonymous-custody refusal test) on a clean fleet checkout.
