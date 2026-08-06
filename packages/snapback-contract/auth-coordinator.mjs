@@ -1167,6 +1167,27 @@ export class AuthCoordinator {
     const eagerCut = this.#exhaustedWakeupCut;
     if (eagerCut !== null) await eagerCut;
     this.#assertOperationAllowed();
+    const activeClearing = this.#record?.phase === 'clearing'
+      ? this.#activeBarrier
+      : null;
+    const insideParticipantCallback = this.#participants.some((entry) => (
+      entry.callbackDepth > 0
+    ));
+    if (activeClearing !== null && !insideParticipantCallback) {
+      // A clearing publication can wake client machinery that treats the
+      // prompt CLEARING result as retryable. Joining the installed terminal
+      // completion gives that caller one progress-making wait instead of an
+      // unbounded promise-microtask retry loop. Participant callbacks are the
+      // exception: quiesce may await work that reaches synchronize(), so a
+      // callback must continue to the owned exact-clearing refusal below
+      // rather than wait on the barrier that is waiting on that callback.
+      // @ref LLP 0059#cross-context-ownership — external clearing observers
+      // join settlement; participant reentry refuses promptly without
+      // reintroducing ownership across participant work.
+      await activeClearing.completion.promise;
+      this.#assertOperationAllowed();
+      return this.synchronize();
+    }
     if (this.#activeBarrier?.phase === 'resume' && this.#record?.phase === 'settled') {
       // A resume participant may be inside either an owner transition or the
       // outer synchronize operation. Starting peer adoption here would replace
@@ -1219,6 +1240,21 @@ export class AuthCoordinator {
           }
           const validated = record;
           if (validated.phase === 'clearing') {
+            if (this.#activeBarrier !== null) {
+              const sameLocalClearing = this.#record?.phase === 'clearing'
+                && this.#record.revision === validated.revision
+                && this.#record.authorityEpoch === validated.authorityEpoch
+                && this.#record.transitionIntent?.transitionId
+                  === validated.transitionIntent?.transitionId;
+              throw coordinatorError(
+                sameLocalClearing
+                  ? 'SNAPBACK_CLIENT_AUTHORITY_CLEARING'
+                  : 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+                sameLocalClearing
+                  ? 'local authority transition is still clearing'
+                  : 'local authority barrier changed before synchronization',
+              );
+            }
             return this.#recoverOwned(owner, validated, 'peer_recovery');
           }
           if (
@@ -1972,7 +2008,7 @@ export class AuthCoordinator {
           pendingSenderConstraint: normalized.senderConstraint,
         } : {}),
       });
-      return this.#finishClearingOwned(owner, clearing, {
+      return this.#prepareClearingBarrierOwned(owner, clearing, {
         expectedEpoch: current.authorityEpoch,
         expectedAuthorityKey,
         nextEpoch,
@@ -2087,7 +2123,7 @@ export class AuthCoordinator {
 
   async #recoverOwned(owner, clearing, reason) {
     const intent = validateTransitionIntent(clearing.transitionIntent, this.#appId);
-    return this.#finishClearingOwned(owner, clearing, {
+    return this.#prepareClearingBarrierOwned(owner, clearing, {
       expectedEpoch: intent.expectedEpoch,
       expectedAuthorityKey: intent.expectedAuthorityKey,
       nextEpoch: intent.nextEpoch,
@@ -2100,7 +2136,7 @@ export class AuthCoordinator {
     });
   }
 
-  async #finishClearingOwned(owner, clearing, context) {
+  async #prepareClearingBarrierOwned(owner, clearing, context) {
     const validated = validateAuthCustody(clearing, this.#appId);
     let settledRevision;
     try {
@@ -2109,6 +2145,12 @@ export class AuthCoordinator {
       if (!isCounterExhaustion(error)) throw error;
       await this.#terminalizeOwned(owner, validated, error);
       throw error;
+    }
+    if (this.#activeBarrier !== null) {
+      throw coordinatorError(
+        'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+        'local authority barrier is already active',
+      );
     }
     const barrier = Object.freeze({
       appId: this.#appId,
@@ -2141,48 +2183,85 @@ export class AuthCoordinator {
       },
     };
     this.#publish(validated);
+    return {
+      settleClearingAfterOwnership: true,
+      clearing: validated,
+      settledRevision,
+      barrier,
+      barrierState: this.#activeBarrier,
+    };
+  }
+
+  async #settleClearingAfterOwnership({
+    clearing: validated,
+    settledRevision,
+    barrier,
+    barrierState,
+  }) {
     try {
       await this.#runAwaitedPhase('quiesce', barrier);
       this.#runSyncPhase('blank', barrier);
       this.#runSyncPhase('clearMemory', barrier);
       await this.#runAwaitedPhase('commitDurable', barrier);
-      const retainSenderConstraint = (
-        validated.formatVersion === SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION
-        && validated.pendingSenderConstraint !== null
-      );
-      const settledBase = {
-        formatVersion: !retainSenderConstraint
-          ? SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION
-          : SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION,
-        appId: validated.appId,
-        authorityEpoch: validated.authorityEpoch,
-        revision: settledRevision,
-        phase: 'settled',
-        authority: validated.pendingAuthority,
-        pendingAuthority: null,
-        bearer: validated.pendingBearer,
-        pendingBearer: null,
-        refreshAfterMs: validated.refreshAfterMs,
-        transitionIntent: validated.transitionIntent,
-      };
-      const settled = await owner.replace(validated.revision, {
-        ...settledBase,
-        ...(!retainSenderConstraint ? {} : {
-          senderConstraint: validated.pendingSenderConstraint,
-          pendingSenderConstraint: null,
-        }),
+      const settled = await this.#withOwnership(async (owner) => {
+        const current = await this.#readOwned(owner);
+        const transitionId = validated.transitionIntent?.transitionId;
+        const currentTransitionId = current?.transitionIntent?.transitionId;
+        const exactClearing = current?.phase === 'clearing'
+          && current.revision === validated.revision
+          && current.authorityEpoch === validated.authorityEpoch
+          && currentTransitionId === transitionId;
+        const exactSettledSuccessor = current?.phase === 'settled'
+          && current.revision >= settledRevision
+          && current.authorityEpoch === validated.authorityEpoch
+          && currentTransitionId === transitionId
+          && canonicalAuthorityKey(this.#appId, current.authority)
+            === canonicalAuthorityKey(this.#appId, validated.pendingAuthority);
+        if (!exactClearing && !exactSettledSuccessor) {
+          throw coordinatorError(
+            'SNAPBACK_CLIENT_AUTHORITY_STALE',
+            'durable authority changed while the local transition barrier settled',
+          );
+        }
+        if (exactSettledSuccessor) return current;
+
+        const retainSenderConstraint = (
+          validated.formatVersion === SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION
+          && validated.pendingSenderConstraint !== null
+        );
+        const settledBase = {
+          formatVersion: !retainSenderConstraint
+            ? SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION
+            : SNAPBACK_AUTH_SENDER_CUSTODY_FORMAT_VERSION,
+          appId: validated.appId,
+          authorityEpoch: validated.authorityEpoch,
+          revision: settledRevision,
+          phase: 'settled',
+          authority: validated.pendingAuthority,
+          pendingAuthority: null,
+          bearer: validated.pendingBearer,
+          pendingBearer: null,
+          refreshAfterMs: validated.refreshAfterMs,
+          transitionIntent: validated.transitionIntent,
+        };
+        return owner.replace(validated.revision, {
+          ...settledBase,
+          ...(!retainSenderConstraint ? {} : {
+            senderConstraint: validated.pendingSenderConstraint,
+            pendingSenderConstraint: null,
+          }),
+        });
       });
       this.#adoptSettled(settled, { expose: false });
       this.#publish(settled);
-      // Return from withOwnership before participant resume. Resume may open
-      // sockets and perform the bootstrap handshake; keeping the Web Lock or
-      // lease mutex across it can deadlock every other context.
-      // @ref LLP 0059#transition-barrier — durable settle ends phase 8;
-      // phase 9 is local exposure work outside cross-context ownership.
+      // @ref LLP 0059#transition-barrier — participant settlement runs after
+      // the clearing CAS releases ownership. The exact transition id/revision
+      // above fences the short clearing-to-settled reacquisition; resume and
+      // final exposure remain outside it with their own exact confirmation.
       return { resumeAfterOwnership: true, settled, barrier };
     } catch (error) {
       this.#publicationPaused = true;
-      const failedPhase = this.#activeBarrier?.phase ?? 'unknown';
+      const failedPhase = barrierState?.phase ?? 'unknown';
       if (
         deferredCounterTerminalValue(error) !== null
         || isCounterExhaustion(error)
@@ -2197,7 +2276,7 @@ export class AuthCoordinator {
       );
       return {
         barrierFailureAfterOwnership: true,
-        barrierState: this.#activeBarrier,
+        barrierState,
         context: barrier,
         snapshot: this.#participants.filter((entry) => !entry.removed),
         primaryError,
@@ -2206,6 +2285,9 @@ export class AuthCoordinator {
   }
 
   async #resumeAfterOwnership(result) {
+    if (result?.settleClearingAfterOwnership) {
+      result = await this.#settleClearingAfterOwnership(result);
+    }
     if (result?.barrierFailureAfterOwnership) {
       const {
         barrierState,
