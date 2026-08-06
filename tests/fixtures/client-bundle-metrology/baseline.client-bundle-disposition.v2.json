@@ -1,22 +1,25 @@
 {
   "schemaVersion": "snapback.client-bundle-metrology-rollover-baseline.v1",
   "source": {
-    "revision": "32da7c9a589388eb01a088831ada32e6c2038087",
+    "revision": "3a52b93f92b22ddcb0083c0d699c845519c691ba",
     "packageTrees": {
-      "packages/snapback-client": "ea76e9c6d944a797fa181042e4463d9afbf90d00",
+      "packages/snapback-client": "df01e644318c9fd1fc9ddeee4e1e2da210e13441",
       "packages/snapback-contract": "44e5b4ccf7a4d4151b2eba35a6f49eaea29ec758",
-      "packages/snapback-react": "1400274fe1aedc3f4517fee0516fdcce6356e27c"
+      "packages/snapback-react": "ada8cfcaf6cb2ff75db58410bcf61111ef3f5fd9"
     }
   },
   "authorities": [
     "LLP 0063#workstream-8--performance-and-packaging-budgets",
     "LLP 0145#phase-a--establish-a-size-ratchet",
     "LLP 0176#g3--one-online-image-send-command",
-    "LLP 0180#command-task",
-    "LLP 0181#e2--online-asset-command"
+    "LLP 0180#input-and-platform-adapters",
+    "LLP 0180#authority-and-replacement",
+    "LLP 0180#react-and-surface-projections",
+    "LLP 0181#e2--online-asset-command",
+    "LLP 0059#cross-context-ownership"
   ],
   "frozenRule": "declared prospective workload-version rollover; predecessor receipts remain immutable; valid ceilings never loosen",
-  "workloadVersion": "expo-e2-command-correctness.2026-08-06.v1",
+  "workloadVersion": "client-bundle-ratchet-disposition.2026-08-06.v2",
   "predecessors": [
     {
       "filename": "baseline.client-bundle-disposition.v1.json",
@@ -70,7 +73,7 @@
   },
   "inputs": {
     "profilesSha256": "37a0fe0037a1ed88e069bd03faef3d90f30ab4a2028ed4d2c94a6e5d5e642f54",
-    "lockfileSha256": "2909d4ff00eecfd81fdf7aaba30b10c7d87c5fc239bca8ba6d49a7c8f4afbc39"
+    "lockfileSha256": "d4d0bf8850037640a1f1adb0be58136902e596a60087be2db9b970285dadfa51"
   },
   "behaviorCommands": [
     "node packages/snapback-client/package.test.mjs",
@@ -79,16 +82,57 @@
     "node packages/snapback-client/commands.test.mjs",
     "node packages/snapback-client/ir-evaluator.test.mjs",
     "node packages/snapback-react/package.test.mjs",
+    "node packages/snapback-react/assets.test.mjs",
     "node packages/snapback-react/commands.test.mjs",
-    "node packages/snapback-react/surface.test.mjs"
+    "node packages/snapback-react/surface.test.mjs",
+    "node packages/snapback-expo/package.test.mjs",
+    "node packages/snapback-expo/asset-source.test.mjs",
+    "node packages/snapback-expo/provider.test.mjs"
   ],
   "rationale": {
     "date": "2026-08-06",
-    "classification": "accepted Expo E2 capability and command/auth correctness mass",
-    "expoE2": "47b4a59ac adds the structural picker/content-URI adapter and the native platform source path. The shipped assets, commands, and React closures retain those bytes because the online command accepts the platform source synchronously.",
-    "commandCorrectness": "02bf40745 fences command tasks when their provider is disposed and stops reporting false mutation ambiguity. Those checks belong to the existing synchronous CommandTask contract and cannot move behind an asynchronous import without changing it.",
-    "authCompressionResidue": "f782431bd repairs auth-custody lock ordering. Tree shaking leaves the ir-evaluator profile at the same minified and gzip sizes and with the same per-module byte attribution, but the changed auth-coordinator source rotates the output and adds one Brotli byte; the exact compressed artifact is therefore recorded rather than waived.",
-    "summary": "Advance exactly the seven closures exceeded by the E2 picker adapter, command-task disposal correction, and auth lock-ordering output rotation. Every predecessor receipt and every unrelated ceiling remains immutable."
+    "classification": "reviewed G3/E2 capability and command-lifecycle growth; no assets-subpath import leak found",
+    "reviewNote": "The post-E2 module-attribution review found that both assets-only profiles still contain exactly assets.mjs plus their fixture. CommandAssetSource and the Expo picker types are declaration-only; neither commands.mjs nor @expo/snapback-expo crosses the assets export boundary. The 588 minified bytes are the asset owner's host-fetch seam and public-immutable delivery URL, both exercised by the landed E2/G3 behavior, so removing them would change that behavior rather than repair an import leak.",
+    "landedFeatures": {
+      "g3": "17e7ca8ca feat(client,react,codegen,runtime): image-send command core + S2 commands admission",
+      "e2": "47b4a59ac feat(expo,fixture): E2 picker adapter + G3 platform receipts",
+      "commandLifecycle": "02bf40745 fix(client,react): fence command tasks on disposal and stop reporting false ambiguity",
+      "authCompressionDrift": "f782431bd fix(auth): custody lock must not span the transition participant barrier"
+    },
+    "perProfileDisposition": [
+      {
+        "profiles": [
+          "public-subpath-assets",
+          "resolved-public-subpath-assets"
+        ],
+        "decision": "ratify",
+        "justification": "47b4a59ac added the generic host-fetch seam used by Expo binary TUS transport and public-immutable rendition URL construction; attribution proves no command or Expo adapter module is present in either assets-only closure."
+      },
+      {
+        "profiles": [
+          "public-subpath-commands",
+          "resolved-public-subpath-commands"
+        ],
+        "decision": "ratify",
+        "justification": "47b4a59ac added platform-source normalization to the 17e7ca8ca command engine, and 02bf40745 added the required disposal/authority fence and truthful settlement handling."
+      },
+      {
+        "profiles": [
+          "external-react-application",
+          "react-external"
+        ],
+        "decision": "ratify",
+        "justification": "The React closure composes LLP 0179 useSurface/useSnapbackCommand, the 47b4a59ac asset-source and public-delivery projections, and the 02bf40745 provider-disposal fence."
+      },
+      {
+        "profiles": [
+          "public-subpath-ir-evaluator"
+        ],
+        "decision": "ratify compressed-output-only drift",
+        "justification": "f782431bd changed reachable auth-coordinator correctness code; minified and gzip bytes remain identical while Brotli increases by one byte. No evaluator capability or closure module was added."
+      }
+    ],
+    "summary": "Advance exactly the seven profiles changed by the landed G3/E2 and command-lifecycle work, plus the one-byte reachable-auth compression residue; every predecessor and all unaffected ceilings remain immutable."
   },
   "beforeAfter": [
     {
@@ -101,15 +145,15 @@
         "outputSha256": "0cda89db2271fd46edfbbcd06e7e84e8eee60ab2318b7097758354e9ef1dae55"
       },
       "successor": {
-        "minifiedBytes": 92630,
-        "gzipBytes": 28756,
-        "brotliBytes": 25100,
-        "outputSha256": "d25768d012d4fd4b0149f3d696839061821fb619d052a8e1b76b2198691e44ca"
+        "minifiedBytes": 92764,
+        "gzipBytes": 28792,
+        "brotliBytes": 25118,
+        "outputSha256": "c80089b2f4dd33b960a06d53c9630f2d4b9faa62c461cd94383bddc46f69bfd2"
       },
       "delta": {
-        "minifiedBytes": 3285,
-        "gzipBytes": 818,
-        "brotliBytes": 722
+        "minifiedBytes": 3419,
+        "gzipBytes": 854,
+        "brotliBytes": 740
       }
     },
     {
@@ -122,15 +166,15 @@
         "outputSha256": "551a959d15b39fe48aef0c0fea2fcb1110b9806e6930d2fdecc11751aea8231b"
       },
       "successor": {
-        "minifiedBytes": 15680,
-        "gzipBytes": 6004,
-        "brotliBytes": 5205,
-        "outputSha256": "fa36ea41aacc99bf19b52ff04bc1cd5b8754b915e2a00b41cfd84a7e9611e12f"
+        "minifiedBytes": 15817,
+        "gzipBytes": 6022,
+        "brotliBytes": 5208,
+        "outputSha256": "af6371e5fb73323f4bb5568baaa2cf07559a3834b7f7111fb4620a6d97e8b1a5"
       },
       "delta": {
-        "minifiedBytes": 451,
-        "gzipBytes": 125,
-        "brotliBytes": 118
+        "minifiedBytes": 588,
+        "gzipBytes": 143,
+        "brotliBytes": 121
       }
     },
     {
@@ -143,15 +187,15 @@
         "outputSha256": "94550e1bc5c4218d7071df1e33858cc02420a2fd8fe25da67e27187b2971ab5c"
       },
       "successor": {
-        "minifiedBytes": 27660,
-        "gzipBytes": 9366,
-        "brotliBytes": 8176,
-        "outputSha256": "2a97bede0aad39b1eb8c3611f74d68485a0c6dd4a4e60990ccad240645582924"
+        "minifiedBytes": 27795,
+        "gzipBytes": 9392,
+        "brotliBytes": 8203,
+        "outputSha256": "0826b60bdff162bf4934d23b6d133b9a02f7256c4b8ff099f219660b1c9803b5"
       },
       "delta": {
-        "minifiedBytes": 2908,
-        "gzipBytes": 723,
-        "brotliBytes": 666
+        "minifiedBytes": 3043,
+        "gzipBytes": 749,
+        "brotliBytes": 693
       }
     },
     {
@@ -185,15 +229,15 @@
         "outputSha256": "6f669d8469ac20da7d5fa9146ea3290441dced02724655e0405b1a8c3d00c5a2"
       },
       "successor": {
-        "minifiedBytes": 92455,
-        "gzipBytes": 28715,
-        "brotliBytes": 25004,
-        "outputSha256": "e26014b34268dd81a5807bce410db0609345ee670e2ad0a9625f1d93423580de"
+        "minifiedBytes": 92589,
+        "gzipBytes": 28739,
+        "brotliBytes": 25028,
+        "outputSha256": "971e6393e2cd73541346d30555dae19d537f35be81d6a198ce289566c08d50fa"
       },
       "delta": {
-        "minifiedBytes": 3285,
-        "gzipBytes": 840,
-        "brotliBytes": 689
+        "minifiedBytes": 3419,
+        "gzipBytes": 864,
+        "brotliBytes": 713
       }
     },
     {
@@ -206,15 +250,15 @@
         "outputSha256": "b5b0a0eccf732f7944eb9f8828a7c21061ece494f66153ab14a3adf017aa0e9b"
       },
       "successor": {
-        "minifiedBytes": 15689,
-        "gzipBytes": 6010,
-        "brotliBytes": 5209,
-        "outputSha256": "ddc99113c11365185b6cfb38f11d52e0560fd2a13b5f9d1d28552d59804cd43a"
+        "minifiedBytes": 15826,
+        "gzipBytes": 6027,
+        "brotliBytes": 5216,
+        "outputSha256": "469bc1dfda9e14c7e08afadbaac64cc815aa841a6b24530466e55f086e00dc9f"
       },
       "delta": {
-        "minifiedBytes": 451,
-        "gzipBytes": 127,
-        "brotliBytes": 122
+        "minifiedBytes": 588,
+        "gzipBytes": 144,
+        "brotliBytes": 129
       }
     },
     {
@@ -227,15 +271,15 @@
         "outputSha256": "3da1f415833e0efb779519deb70ff7b351a021bdeb4db781d6d240d6cee49f06"
       },
       "successor": {
-        "minifiedBytes": 27669,
-        "gzipBytes": 9372,
-        "brotliBytes": 8196,
-        "outputSha256": "3beda12e34c700f0f0111ba6a4de94861f459b12ee2e77dfc41295607d91d4d9"
+        "minifiedBytes": 27804,
+        "gzipBytes": 9398,
+        "brotliBytes": 8202,
+        "outputSha256": "b488ea48059196cd9df66f84053bb7b84166b9409bd9ba51918e4c6acb7669f5"
       },
       "delta": {
-        "minifiedBytes": 2908,
-        "gzipBytes": 725,
-        "brotliBytes": 685
+        "minifiedBytes": 3043,
+        "gzipBytes": 751,
+        "brotliBytes": 691
       }
     }
   ],
@@ -247,10 +291,10 @@
       "externals": [
         "react"
       ],
-      "minifiedBytes": 92630,
-      "gzipBytes": 28756,
-      "brotliBytes": 25100,
-      "outputSha256": "d25768d012d4fd4b0149f3d696839061821fb619d052a8e1b76b2198691e44ca",
+      "minifiedBytes": 92764,
+      "gzipBytes": 28792,
+      "brotliBytes": 25118,
+      "outputSha256": "c80089b2f4dd33b960a06d53c9630f2d4b9faa62c461cd94383bddc46f69bfd2",
       "attribution": {
         "packages": [
           {
@@ -259,7 +303,7 @@
           },
           {
             "name": "@expo/snapback-client",
-            "bytes": 41617
+            "bytes": 41751
           },
           {
             "name": "@expo/snapback-contract",
@@ -279,7 +323,7 @@
           {
             "module": "packages/snapback-client/assets.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 15124
+            "bytes": 15258
           },
           {
             "module": "packages/snapback-client/commands.mjs",
@@ -389,7 +433,7 @@
             "imports": []
           },
           "packages/snapback-client/assets.mjs": {
-            "bytes": 37998,
+            "bytes": 38170,
             "imports": []
           },
           "packages/snapback-client/canonical-client-value.mjs": {
@@ -411,7 +455,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 526676,
+            "bytes": 525774,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -878,7 +922,7 @@
           }
         },
         "output": {
-          "bytes": 92630,
+          "bytes": 92764,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/external-react-application.fixture.mjs",
           "imports": [
             {
@@ -904,7 +948,7 @@
           ],
           "inputs": {
             "packages/snapback-client/assets.mjs": {
-              "bytesInOutput": 15124
+              "bytesInOutput": 15258
             },
             "packages/snapback-client/canonical-client-value.mjs": {
               "bytesInOutput": 3652
@@ -963,15 +1007,15 @@
       "package": "@expo/snapback-client/assets",
       "fixtureSha256": "6255358997d1d08c9e01b7f21944c791d8d5ff0dc46d7a980cec785641f21ca7",
       "externals": [],
-      "minifiedBytes": 15680,
-      "gzipBytes": 6004,
-      "brotliBytes": 5205,
-      "outputSha256": "fa36ea41aacc99bf19b52ff04bc1cd5b8754b915e2a00b41cfd84a7e9611e12f",
+      "minifiedBytes": 15817,
+      "gzipBytes": 6022,
+      "brotliBytes": 5208,
+      "outputSha256": "af6371e5fb73323f4bb5568baaa2cf07559a3834b7f7111fb4620a6d97e8b1a5",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 15419
+            "bytes": 15556
           },
           {
             "name": "<fixture>",
@@ -982,7 +1026,7 @@
           {
             "module": "packages/snapback-client/assets.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 15419
+            "bytes": 15556
           },
           {
             "module": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-assets.fixture.mjs",
@@ -994,7 +1038,7 @@
       "metafile": {
         "inputs": {
           "packages/snapback-client/assets.mjs": {
-            "bytes": 37998,
+            "bytes": 38170,
             "imports": []
           },
           "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-assets.fixture.mjs": {
@@ -1009,12 +1053,12 @@
           }
         },
         "output": {
-          "bytes": 15680,
+          "bytes": 15817,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-assets.fixture.mjs",
           "imports": [],
           "inputs": {
             "packages/snapback-client/assets.mjs": {
-              "bytesInOutput": 15419
+              "bytesInOutput": 15556
             },
             "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-assets.fixture.mjs": {
               "bytesInOutput": 129
@@ -1028,15 +1072,15 @@
       "package": "@expo/snapback-client/commands",
       "fixtureSha256": "8273256d463ba4b9e6f2c798be1c82cda164d70aaabb23ef7e89069c8cbfe217",
       "externals": [],
-      "minifiedBytes": 27660,
-      "gzipBytes": 9366,
-      "brotliBytes": 8176,
-      "outputSha256": "2a97bede0aad39b1eb8c3611f74d68485a0c6dd4a4e60990ccad240645582924",
+      "minifiedBytes": 27795,
+      "gzipBytes": 9392,
+      "brotliBytes": 8203,
+      "outputSha256": "0826b60bdff162bf4934d23b6d133b9a02f7256c4b8ff099f219660b1c9803b5",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 27395
+            "bytes": 27530
           },
           {
             "name": "<fixture>",
@@ -1047,12 +1091,12 @@
           {
             "module": "packages/snapback-client/assets.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 15078
+            "bytes": 15215
           },
           {
             "module": "packages/snapback-client/commands.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 12317
+            "bytes": 12315
           },
           {
             "module": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-commands.fixture.mjs",
@@ -1064,7 +1108,7 @@
       "metafile": {
         "inputs": {
           "packages/snapback-client/assets.mjs": {
-            "bytes": 37998,
+            "bytes": 38170,
             "imports": []
           },
           "packages/snapback-client/commands.mjs": {
@@ -1089,15 +1133,15 @@
           }
         },
         "output": {
-          "bytes": 27660,
+          "bytes": 27795,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-commands.fixture.mjs",
           "imports": [],
           "inputs": {
             "packages/snapback-client/assets.mjs": {
-              "bytesInOutput": 15078
+              "bytesInOutput": 15215
             },
             "packages/snapback-client/commands.mjs": {
-              "bytesInOutput": 12317
+              "bytesInOutput": 12315
             },
             "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/public-subpath-commands.fixture.mjs": {
               "bytesInOutput": 132
@@ -1476,10 +1520,10 @@
       "externals": [
         "react"
       ],
-      "minifiedBytes": 92455,
-      "gzipBytes": 28715,
-      "brotliBytes": 25004,
-      "outputSha256": "e26014b34268dd81a5807bce410db0609345ee670e2ad0a9625f1d93423580de",
+      "minifiedBytes": 92589,
+      "gzipBytes": 28739,
+      "brotliBytes": 25028,
+      "outputSha256": "971e6393e2cd73541346d30555dae19d537f35be81d6a198ce289566c08d50fa",
       "attribution": {
         "packages": [
           {
@@ -1488,7 +1532,7 @@
           },
           {
             "name": "@expo/snapback-client",
-            "bytes": 41617
+            "bytes": 41751
           },
           {
             "name": "@expo/snapback-contract",
@@ -1508,7 +1552,7 @@
           {
             "module": "packages/snapback-client/assets.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 15124
+            "bytes": 15258
           },
           {
             "module": "packages/snapback-client/commands.mjs",
@@ -1618,7 +1662,7 @@
             "imports": []
           },
           "packages/snapback-client/assets.mjs": {
-            "bytes": 37998,
+            "bytes": 38170,
             "imports": []
           },
           "packages/snapback-client/canonical-client-value.mjs": {
@@ -1640,7 +1684,7 @@
             "imports": []
           },
           "packages/snapback-client/index.mjs": {
-            "bytes": 526676,
+            "bytes": 525774,
             "imports": [
               {
                 "path": "./store-runtime.mjs",
@@ -2107,7 +2151,7 @@
           }
         },
         "output": {
-          "bytes": 92455,
+          "bytes": 92589,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/react-external.fixture.mjs",
           "imports": [
             {
@@ -2133,7 +2177,7 @@
           ],
           "inputs": {
             "packages/snapback-client/assets.mjs": {
-              "bytesInOutput": 15124
+              "bytesInOutput": 15258
             },
             "packages/snapback-client/canonical-client-value.mjs": {
               "bytesInOutput": 3652
@@ -2193,15 +2237,15 @@
       "fixtureSha256": "2b534da6296a301d7e1ae1533787602dcb1071888410c4251ced95cd7e12985a",
       "externals": [],
       "resolveOptionalRuntimes": true,
-      "minifiedBytes": 15689,
-      "gzipBytes": 6010,
-      "brotliBytes": 5209,
-      "outputSha256": "ddc99113c11365185b6cfb38f11d52e0560fd2a13b5f9d1d28552d59804cd43a",
+      "minifiedBytes": 15826,
+      "gzipBytes": 6027,
+      "brotliBytes": 5216,
+      "outputSha256": "469bc1dfda9e14c7e08afadbaac64cc815aa841a6b24530466e55f086e00dc9f",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 15419
+            "bytes": 15556
           },
           {
             "name": "<fixture>",
@@ -2212,7 +2256,7 @@
           {
             "module": "packages/snapback-client/assets.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 15419
+            "bytes": 15556
           },
           {
             "module": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/resolved-public-subpath-assets.fixture.mjs",
@@ -2224,7 +2268,7 @@
       "metafile": {
         "inputs": {
           "packages/snapback-client/assets.mjs": {
-            "bytes": 37998,
+            "bytes": 38170,
             "imports": []
           },
           "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/resolved-public-subpath-assets.fixture.mjs": {
@@ -2239,12 +2283,12 @@
           }
         },
         "output": {
-          "bytes": 15689,
+          "bytes": 15826,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/resolved-public-subpath-assets.fixture.mjs",
           "imports": [],
           "inputs": {
             "packages/snapback-client/assets.mjs": {
-              "bytesInOutput": 15419
+              "bytesInOutput": 15556
             },
             "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/resolved-public-subpath-assets.fixture.mjs": {
               "bytesInOutput": 138
@@ -2259,15 +2303,15 @@
       "fixtureSha256": "aaf6bb1e0b23eeb9ba7720a12f7f64fcd930d06f7b0cc8d7474bbdb0ca4f720c",
       "externals": [],
       "resolveOptionalRuntimes": true,
-      "minifiedBytes": 27669,
-      "gzipBytes": 9372,
-      "brotliBytes": 8196,
-      "outputSha256": "3beda12e34c700f0f0111ba6a4de94861f459b12ee2e77dfc41295607d91d4d9",
+      "minifiedBytes": 27804,
+      "gzipBytes": 9398,
+      "brotliBytes": 8202,
+      "outputSha256": "b488ea48059196cd9df66f84053bb7b84166b9409bd9ba51918e4c6acb7669f5",
       "attribution": {
         "packages": [
           {
             "name": "@expo/snapback-client",
-            "bytes": 27395
+            "bytes": 27530
           },
           {
             "name": "<fixture>",
@@ -2278,12 +2322,12 @@
           {
             "module": "packages/snapback-client/assets.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 15078
+            "bytes": 15215
           },
           {
             "module": "packages/snapback-client/commands.mjs",
             "package": "@expo/snapback-client",
-            "bytes": 12317
+            "bytes": 12315
           },
           {
             "module": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/resolved-public-subpath-commands.fixture.mjs",
@@ -2295,7 +2339,7 @@
       "metafile": {
         "inputs": {
           "packages/snapback-client/assets.mjs": {
-            "bytes": 37998,
+            "bytes": 38170,
             "imports": []
           },
           "packages/snapback-client/commands.mjs": {
@@ -2320,15 +2364,15 @@
           }
         },
         "output": {
-          "bytes": 27669,
+          "bytes": 27804,
           "entryPoint": "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/resolved-public-subpath-commands.fixture.mjs",
           "imports": [],
           "inputs": {
             "packages/snapback-client/assets.mjs": {
-              "bytesInOutput": 15078
+              "bytesInOutput": 15215
             },
             "packages/snapback-client/commands.mjs": {
-              "bytesInOutput": 12317
+              "bytesInOutput": 12315
             },
             "tests/fixtures/client-bundle-metrology/tests/fixtures/client-bundle-metrology/resolved-public-subpath-commands.fixture.mjs": {
               "bytesInOutput": 141

@@ -871,6 +871,7 @@ const REVIEWED_GENERATED_PUBLICATION_PATHS = new Set([
   'demos/dispatch-board/snapback/generated/artifacts.json',
   'demos/file-drop/snapback/generated/artifacts.json',
   'demos/graffiti/snapback/generated/artifacts.json',
+  'demos/fleet-observatory-move1/snapback/generated/artifacts.json',
   'demos/latency-kanban/snapback/generated/artifacts.json',
   'demos/messaging-snapback/snapback/generated/artifacts.json',
   'demos/partiful-matrix/snapback/generated/api.mjs',

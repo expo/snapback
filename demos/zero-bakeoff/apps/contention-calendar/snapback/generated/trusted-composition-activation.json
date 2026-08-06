@@ -1,7 +1,7 @@
 {
   "activation": {
     "authMode": "dev",
-    "databaseId": "019fd7da-398d-7bc0-9348-e4c3ac7b27c3",
+    "databaseId": "019fd869-c573-7383-947c-432c48da3fd4",
     "deploymentId": "contention-calendar-rung2-exit",
     "expectedGeneration": {
       "appId": "contention-calendar",
@@ -14,7 +14,7 @@
     "proofKeyManifestDigest": "sha256:e8a3e1e6546701d3491e6ee54e53c09f952e57a0bf5277260c0849f6f6477615",
     "targetProfileId": "local-dev-sqlite-ibex"
   },
-  "activationHash": "sha256:0b4b92febe582c8aa94d9de135331777567db56e6635fb397da1c5eca1d6123e",
+  "activationHash": "sha256:817832afa0219d4fcb2c005065cd479bd4c0d71d1c8451968e63a35485622ccc",
   "format": "snapback.trusted-composition-activation.v1",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",

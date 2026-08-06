@@ -44,10 +44,11 @@ try {
     writeBackend(backend, {
       schema: baseSchema,
       functions: `
-import { defineLiveQuery, v } from '../../_kit/define.mjs';
+import { argOpt, defineLiveQuery, eq, v } from '../../_kit/define.mjs';
 export const listThings = defineLiveQuery({
   table: 'things',
   args: { title: v.optional(v.string()), nested: v.optional(v.object({ maybe: v.optional(v.number()) })) },
+  filter: [eq('title', argOpt('title'))],
 });
 `,
     });

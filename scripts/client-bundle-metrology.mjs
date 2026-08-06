@@ -459,7 +459,7 @@ const CLIENT_BUNDLE_DISPOSITION_ROLLOVER_PROFILE_IDS = Object.freeze([
   'react-external',
   'resolved-public-subpath-assets',
 ]);
-const E2_COMMAND_CORRECTNESS_ROLLOVER_PROFILE_IDS = Object.freeze([
+const CLIENT_BUNDLE_G3_E2_DISPOSITION_ROLLOVER_PROFILE_IDS = Object.freeze([
   'external-react-application',
   'public-subpath-assets',
   'public-subpath-commands',
@@ -844,15 +844,11 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-react/surface.test.mjs']],
     ]),
   }),
-  // @ref LLP 0181#e2--online-asset-command — the picker/content-URI adapter
-  // is shipped client capability mass, not an unmeasured Expo-only wrapper.
-  // @ref LLP 0180#command-task — provider disposal and authority ambiguity
-  // fencing are correctness obligations of the synchronous command task.
   Object.freeze({
-    filename: 'baseline.e2-command-correctness.v1.json',
-    profileFilename: 'e2-command-correctness-profiles.v1.json',
-    workloadVersion: 'expo-e2-command-correctness.2026-08-06.v1',
-    profileIds: E2_COMMAND_CORRECTNESS_ROLLOVER_PROFILE_IDS,
+    filename: 'baseline.client-bundle-disposition.v2.json',
+    profileFilename: 'client-bundle-disposition-profiles.v1.json',
+    workloadVersion: 'client-bundle-ratchet-disposition.2026-08-06.v2',
+    profileIds: CLIENT_BUNDLE_G3_E2_DISPOSITION_ROLLOVER_PROFILE_IDS,
     predecessors: Object.freeze([
       Object.freeze({
         filename: 'baseline.client-bundle-disposition.v1.json',
@@ -879,18 +875,47 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       'LLP 0063#workstream-8--performance-and-packaging-budgets',
       'LLP 0145#phase-a--establish-a-size-ratchet',
       'LLP 0176#g3--one-online-image-send-command',
-      'LLP 0180#command-task',
+      'LLP 0180#input-and-platform-adapters',
+      'LLP 0180#authority-and-replacement',
+      'LLP 0180#react-and-surface-projections',
       'LLP 0181#e2--online-asset-command',
+      'LLP 0059#cross-context-ownership',
     ]),
     rationale: Object.freeze({
       date: '2026-08-06',
-      classification: 'accepted Expo E2 capability and command/auth correctness mass',
-      expoE2: '47b4a59ac adds the structural picker/content-URI adapter and the native platform source path. The shipped assets, commands, and React closures retain those bytes because the online command accepts the platform source synchronously.',
-      commandCorrectness: '02bf40745 fences command tasks when their provider is disposed and stops reporting false mutation ambiguity. Those checks belong to the existing synchronous CommandTask contract and cannot move behind an asynchronous import without changing it.',
-      authCompressionResidue: 'f782431bd repairs auth-custody lock ordering. Tree shaking leaves the ir-evaluator profile at the same minified and gzip sizes and with the same per-module byte attribution, but the changed auth-coordinator source rotates the output and adds one Brotli byte; the exact compressed artifact is therefore recorded rather than waived.',
-      summary: 'Advance exactly the seven closures exceeded by the E2 picker adapter, command-task disposal correction, and auth lock-ordering output rotation. Every predecessor receipt and every unrelated ceiling remains immutable.',
+      classification: 'reviewed G3/E2 capability and command-lifecycle growth; no assets-subpath import leak found',
+      reviewNote: 'The post-E2 module-attribution review found that both assets-only profiles still contain exactly assets.mjs plus their fixture. CommandAssetSource and the Expo picker types are declaration-only; neither commands.mjs nor @expo/snapback-expo crosses the assets export boundary. The 588 minified bytes are the asset owner\'s host-fetch seam and public-immutable delivery URL, both exercised by the landed E2/G3 behavior, so removing them would change that behavior rather than repair an import leak.',
+      landedFeatures: Object.freeze({
+        g3: '17e7ca8ca feat(client,react,codegen,runtime): image-send command core + S2 commands admission',
+        e2: '47b4a59ac feat(expo,fixture): E2 picker adapter + G3 platform receipts',
+        commandLifecycle: '02bf40745 fix(client,react): fence command tasks on disposal and stop reporting false ambiguity',
+        authCompressionDrift: 'f782431bd fix(auth): custody lock must not span the transition participant barrier',
+      }),
+      perProfileDisposition: Object.freeze([
+        Object.freeze({
+          profiles: Object.freeze(['public-subpath-assets', 'resolved-public-subpath-assets']),
+          decision: 'ratify',
+          justification: '47b4a59ac added the generic host-fetch seam used by Expo binary TUS transport and public-immutable rendition URL construction; attribution proves no command or Expo adapter module is present in either assets-only closure.',
+        }),
+        Object.freeze({
+          profiles: Object.freeze(['public-subpath-commands', 'resolved-public-subpath-commands']),
+          decision: 'ratify',
+          justification: '47b4a59ac added platform-source normalization to the 17e7ca8ca command engine, and 02bf40745 added the required disposal/authority fence and truthful settlement handling.',
+        }),
+        Object.freeze({
+          profiles: Object.freeze(['external-react-application', 'react-external']),
+          decision: 'ratify',
+          justification: 'The React closure composes LLP 0179 useSurface/useSnapbackCommand, the 47b4a59ac asset-source and public-delivery projections, and the 02bf40745 provider-disposal fence.',
+        }),
+        Object.freeze({
+          profiles: Object.freeze(['public-subpath-ir-evaluator']),
+          decision: 'ratify compressed-output-only drift',
+          justification: 'f782431bd changed reachable auth-coordinator correctness code; minified and gzip bytes remain identical while Brotli increases by one byte. No evaluator capability or closure module was added.',
+        }),
+      ]),
+      summary: 'Advance exactly the seven profiles changed by the landed G3/E2 and command-lifecycle work, plus the one-byte reachable-auth compression residue; every predecessor and all unaffected ceilings remain immutable.',
     }),
-    beforeAfterProfileIds: E2_COMMAND_CORRECTNESS_ROLLOVER_PROFILE_IDS,
+    beforeAfterProfileIds: CLIENT_BUNDLE_G3_E2_DISPOSITION_ROLLOVER_PROFILE_IDS,
     behaviorCommands: Object.freeze([
       ['node', ['packages/snapback-client/package.test.mjs']],
       ['node', ['packages/snapback-client/browser-closure.test.mjs']],
@@ -898,8 +923,12 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/commands.test.mjs']],
       ['node', ['packages/snapback-client/ir-evaluator.test.mjs']],
       ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-react/assets.test.mjs']],
       ['node', ['packages/snapback-react/commands.test.mjs']],
       ['node', ['packages/snapback-react/surface.test.mjs']],
+      ['node', ['packages/snapback-expo/package.test.mjs']],
+      ['node', ['packages/snapback-expo/asset-source.test.mjs']],
+      ['node', ['packages/snapback-expo/provider.test.mjs']],
     ]),
   }),
 ]);

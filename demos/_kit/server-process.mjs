@@ -720,6 +720,7 @@ async function launchServerAttempt(plan, {
                 ? `SNAPBACK_SERVER_BINARY=${JSON.stringify(plan.command)}`
                 : null,
             }),
+            outputTail: () => log,
             stop: () => {
               if (!stopPromise) {
                 stopPromise = ownership.stop().then(() => {
@@ -768,6 +769,7 @@ function serverHandle({
   identity = null,
   launch = null,
   runtimeRecovery = null,
+  outputTail = null,
 }) {
   const credentials = Object.freeze({ adminToken });
   return {
@@ -820,6 +822,13 @@ function serverHandle({
     // facts together so callers never have to reconstruct a safe override
     // from prose.
     runtimeRecovery,
+    // A bounded read-only view used by supervising acceptance gates when a
+    // setup/lane failure needs the owned child's recent stdout/stderr. Callers
+    // remain responsible for redaction before retaining or printing it.
+    outputTail({ lines = 40 } = {}) {
+      if (!Number.isInteger(lines) || lines < 1) throw new TypeError('output tail lines must be positive');
+      return String(outputTail?.() ?? '').split(/\r?\n/u).slice(-lines).join('\n');
+    },
     stop,
   };
 }

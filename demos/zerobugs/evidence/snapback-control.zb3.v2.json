@@ -1,0 +1,1353 @@
+{
+  "actorIdentity": {
+    "declaredActors": [
+      "ordinary-user",
+      "creator",
+      "assignee",
+      "crew-admin",
+      "removed-member"
+    ],
+    "mode": "fresh bound sessions verified by landed lane setup checks"
+  },
+  "arm": "snapback-control",
+  "assistance": [
+    {
+      "at": "2026-08-06T18:55:33.320Z",
+      "kind": "governing-design",
+      "purpose": "ZB acceptance and immutable evidence contract",
+      "sequence": 1,
+      "source": "llp/0183-zerobugs-quality-surface.rfc.md"
+    },
+    {
+      "at": "2026-08-06T18:55:33.320Z",
+      "kind": "guide",
+      "purpose": "fresh owned server and non-vacuous check lifecycle",
+      "sequence": 2,
+      "source": "guide/testing/acceptance.md"
+    },
+    {
+      "at": "2026-08-06T18:55:33.320Z",
+      "kind": "landed-lane-evidence",
+      "purpose": "reuse source-oracle, actor, mutation, effect, and adapter checks",
+      "sequence": 3,
+      "source": "demos/zerobugs/control/tests/acceptance/lane2-live.mts..lane6a-live.mts"
+    }
+  ],
+  "attempt": "v2",
+  "browserIdentity": {
+    "mode": "not-used-headless-server-gate",
+    "owner": "browser-only facts are assigned to ZB5-ZB7"
+  },
+  "capabilityFacts": [
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.issue.create",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.issue.update",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.issue.delete",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.issue.addLabel",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "current-ir",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.issue.removeLabel",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.notification.update",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.emoji.addToIssue",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.emoji.addToComment",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "explicit-value-or-lane-q",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.emoji.remove",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.comment.add",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": true,
+      "id": "mutation.comment.edit",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "current-ir",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.comment.remove",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.label.create",
+      "optimisticCarrier": "honest-server-pending",
+      "preliminaryClass": "explicit-value-or-lane-q",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.label.createAndAddToIssue",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "explicit-value-or-lane-q",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.viewState.set",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "status": "supported-local-control"
+    },
+    {
+      "actualTier": "JS/Ibex-authoritative-fallback",
+      "durableIntent": false,
+      "id": "mutation.userPref.set",
+      "optimisticCarrier": "application-owned-visible-fact-reducer",
+      "preliminaryClass": "new-verb",
+      "status": "supported-local-control"
+    },
+    {
+      "id": "effect.email-durable",
+      "status": "supported-local-capture-composition"
+    },
+    {
+      "id": "effect.webhook-durable",
+      "status": "supported-local-capture-composition"
+    },
+    {
+      "id": "durable-disconnected-intent",
+      "owner": "ZB5 and D3/D5",
+      "status": "gap"
+    }
+  ],
+  "checks": {
+    "counts": {
+      "fail": 0,
+      "gap": 2,
+      "missing": 0,
+      "pass": 26
+    },
+    "executed": 28,
+    "expected": 28,
+    "harness": {
+      "expectedChecks": 28,
+      "failed": 0,
+      "ok": true,
+      "passed": 26,
+      "shortfall": null,
+      "skipped": 2,
+      "total": 28
+    },
+    "missing": [],
+    "rows": [
+      {
+        "details": {
+          "lane": "lane4",
+          "sourceCheck": "settled-start-fixture-and-lane2-bindings",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1"
+        },
+        "id": "lane4.settled-start-fixture-and-lane2-bindings",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "lane": "lane4",
+          "sourceCheck": "frozen-lowering-inventory-and-current-ir-fallback",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1"
+        },
+        "id": "lane4.frozen-lowering-inventory-and-current-ir-fallback",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "conflict": {
+            "disposition": "authorization refusal leaves no partial write; authoritative rebase is checked against the reducer ledger below",
+            "observer": "Lane 4 raw server audit converges after commit and replay"
+          },
+          "durableEffectIntent": true,
+          "generatedAdmission": {
+            "actualTier": "JS/Ibex-authoritative-fallback",
+            "generatedIrPresent": false,
+            "preliminaryClass": "new-verb",
+            "reason": "Insert/Get/Guard are present, but the full atomic program includes conditional notification Upsert/Branch."
+          },
+          "lane": "lane4",
+          "mutation": "issue.create",
+          "replay": {
+            "outcome": "fulfilled",
+            "settlement": "2026-08-06T18:55:55.161Z",
+            "submit": "2026-08-06T18:55:55.121Z"
+          },
+          "sourceCheck": "mutator-01-issue.create",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1",
+          "timingMarks": {
+            "authoritativeSettlement": "2026-08-06T18:55:52.860Z",
+            "optimisticPaintFact": {
+              "applicable": true,
+              "disposition": "app-owned-visible-fact-reducer",
+              "evidence": "Lane 6a mutation presentation ledger; representative live paint check below",
+              "observedAt": null,
+              "pendingBranches": [
+                "subscription-effect",
+                "notification-effect"
+              ],
+              "timingReason": "The reducer is synchronous before transport submission; Lane 6a proves the representative paint-before-settlement ordering, while Lane 4 does not invoke the app adapter and therefore supplies no fabricated per-mutator paint timestamp."
+            },
+            "submit": "2026-08-06T18:55:52.733Z",
+            "submitToSettlementMs": 126.81005859375
+          }
+        },
+        "id": "lane4.mutator-01-issue.create",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "conflict": {
+            "disposition": "authorization refusal leaves no partial write; authoritative rebase is checked against the reducer ledger below",
+            "observer": "Lane 4 raw server audit converges after commit and replay"
+          },
+          "durableEffectIntent": true,
+          "generatedAdmission": {
+            "actualTier": "JS/Ibex-authoritative-fallback",
+            "generatedIrPresent": false,
+            "preliminaryClass": "new-verb",
+            "reason": "base Get/Guard/Patch fits current IR, but assignee-dependent bounded branches and notification Upserts do not."
+          },
+          "lane": "lane4",
+          "mutation": "issue.update",
+          "replay": {
+            "outcome": "fulfilled",
+            "settlement": "2026-08-06T18:56:03.773Z",
+            "submit": "2026-08-06T18:56:03.753Z"
+          },
+          "sourceCheck": "mutator-02-issue.update",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1",
+          "timingMarks": {
+            "authoritativeSettlement": "2026-08-06T18:56:01.659Z",
+            "optimisticPaintFact": {
+              "applicable": true,
+              "disposition": "app-owned-visible-fact-reducer",
+              "evidence": "Lane 6a mutation presentation ledger; representative live paint check below",
+              "observedAt": null,
+              "pendingBranches": [
+                "assignee-subscription",
+                "protected-visibility",
+                "subscription-effect",
+                "notification-effect"
+              ],
+              "timingReason": "The reducer is synchronous before transport submission; Lane 6a proves the representative paint-before-settlement ordering, while Lane 4 does not invoke the app adapter and therefore supplies no fabricated per-mutator paint timestamp."
+            },
+            "submit": "2026-08-06T18:56:01.534Z",
+            "submitToSettlementMs": 124.811279296875
+          }
+        },
+        "id": "lane4.mutator-02-issue.update",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "conflict": {
+            "disposition": "authorization refusal leaves no partial write; authoritative rebase is checked against the reducer ledger below",
+            "observer": "Lane 4 raw server audit converges after commit and replay"
+          },
+          "durableEffectIntent": true,
+          "generatedAdmission": {
+            "actualTier": "JS/Ibex-authoritative-fallback",
+            "generatedIrPresent": false,
+            "preliminaryClass": "current-ir",
+            "reason": "bounded Get/Guard/Insert; post-commit notification remains server authority and is not speculative."
+          },
+          "lane": "lane4",
+          "mutation": "issue.addLabel",
+          "replay": {
+            "outcome": "fulfilled",
+            "settlement": "2026-08-06T18:56:20.000Z",
+            "submit": "2026-08-06T18:56:19.973Z"
+          },
+          "sourceCheck": "mutator-03-issue.addLabel",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1",
+          "timingMarks": {
+            "authoritativeSettlement": "2026-08-06T18:56:14.339Z",
+            "optimisticPaintFact": {
+              "applicable": true,
+              "disposition": "app-owned-visible-fact-reducer",
+              "evidence": "Lane 6a mutation presentation ledger; representative live paint check below",
+              "observedAt": null,
+              "pendingBranches": [
+                "notification-effect"
+              ],
+              "timingReason": "The reducer is synchronous before transport submission; Lane 6a proves the representative paint-before-settlement ordering, while Lane 4 does not invoke the app adapter and therefore supplies no fabricated per-mutator paint timestamp."
+            },
+            "submit": "2026-08-06T18:56:14.260Z",
+            "submitToSettlementMs": 78.231689453125
+          }
+        },
+        "id": "lane4.mutator-03-issue.addLabel",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "conflict": {
+            "disposition": "authorization refusal leaves no partial write; authoritative rebase is checked against the reducer ledger below",
+            "observer": "Lane 4 raw server audit converges after commit and replay"
+          },
+          "durableEffectIntent": true,
+          "generatedAdmission": {
+            "actualTier": "JS/Ibex-authoritative-fallback",
+            "generatedIrPresent": false,
+            "preliminaryClass": "new-verb",
+            "reason": "requires Delete."
+          },
+          "lane": "lane4",
+          "mutation": "issue.removeLabel",
+          "replay": {
+            "outcome": "fulfilled",
+            "settlement": "2026-08-06T18:56:32.811Z",
+            "submit": "2026-08-06T18:56:32.790Z"
+          },
+          "sourceCheck": "mutator-04-issue.removeLabel",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1",
+          "timingMarks": {
+            "authoritativeSettlement": "2026-08-06T18:56:28.535Z",
+            "optimisticPaintFact": {
+              "applicable": true,
+              "disposition": "app-owned-visible-fact-reducer",
+              "evidence": "Lane 6a mutation presentation ledger; representative live paint check below",
+              "observedAt": null,
+              "pendingBranches": [
+                "notification-effect"
+              ],
+              "timingReason": "The reducer is synchronous before transport submission; Lane 6a proves the representative paint-before-settlement ordering, while Lane 4 does not invoke the app adapter and therefore supplies no fabricated per-mutator paint timestamp."
+            },
+            "submit": "2026-08-06T18:56:28.478Z",
+            "submitToSettlementMs": 56.344970703125
+          }
+        },
+        "id": "lane4.mutator-04-issue.removeLabel",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "conflict": {
+            "disposition": "authorization refusal leaves no partial write; authoritative rebase is checked against the reducer ledger below",
+            "observer": "Lane 4 raw server audit converges after commit and replay"
+          },
+          "durableEffectIntent": false,
+          "generatedAdmission": {
+            "actualTier": "JS/Ibex-authoritative-fallback",
+            "generatedIrPresent": false,
+            "preliminaryClass": "new-verb",
+            "reason": "requires Upsert and a bounded subscribe/unsubscribe branch."
+          },
+          "lane": "lane4",
+          "mutation": "notification.update",
+          "replay": {
+            "outcome": "fulfilled",
+            "settlement": "2026-08-06T18:56:52.371Z",
+            "submit": "2026-08-06T18:56:52.344Z"
+          },
+          "sourceCheck": "mutator-05-notification.update",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1",
+          "timingMarks": {
+            "authoritativeSettlement": "2026-08-06T18:56:49.240Z",
+            "optimisticPaintFact": {
+              "applicable": true,
+              "disposition": "app-owned-visible-fact-reducer",
+              "evidence": "Lane 6a mutation presentation ledger; representative live paint check below",
+              "observedAt": null,
+              "pendingBranches": [
+                "hidden-upsert-absence"
+              ],
+              "timingReason": "The reducer is synchronous before transport submission; Lane 6a proves the representative paint-before-settlement ordering, while Lane 4 does not invoke the app adapter and therefore supplies no fabricated per-mutator paint timestamp."
+            },
+            "submit": "2026-08-06T18:56:49.151Z",
+            "submitToSettlementMs": 89.229736328125
+          }
+        },
+        "id": "lane4.mutator-05-notification.update",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "conflict": {
+            "disposition": "authorization refusal leaves no partial write; authoritative rebase is checked against the reducer ledger below",
+            "observer": "Lane 4 raw server audit converges after commit and replay"
+          },
+          "durableEffectIntent": true,
+          "generatedAdmission": {
+            "actualTier": "JS/Ibex-authoritative-fallback",
+            "generatedIrPresent": false,
+            "preliminaryClass": "new-verb",
+            "reason": "base Get/Guard/Insert needs explicit values, but the full program also needs conditional notification Upsert/Branch."
+          },
+          "lane": "lane4",
+          "mutation": "emoji.addToIssue",
+          "replay": {
+            "outcome": "fulfilled",
+            "settlement": "2026-08-06T18:57:00.282Z",
+            "submit": "2026-08-06T18:57:00.258Z"
+          },
+          "sourceCheck": "mutator-06-emoji.addToIssue",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1",
+          "timingMarks": {
+            "authoritativeSettlement": "2026-08-06T18:56:58.265Z",
+            "optimisticPaintFact": {
+              "applicable": true,
+              "disposition": "app-owned-visible-fact-reducer",
+              "evidence": "Lane 6a mutation presentation ledger; representative live paint check below",
+              "observedAt": null,
+              "pendingBranches": [
+                "subscription-effect",
+                "notification-effect"
+              ],
+              "timingReason": "The reducer is synchronous before transport submission; Lane 6a proves the representative paint-before-settlement ordering, while Lane 4 does not invoke the app adapter and therefore supplies no fabricated per-mutator paint timestamp."
+            },
+            "submit": "2026-08-06T18:56:58.189Z",
+            "submitToSettlementMs": 76.163818359375
+          }
+        },
+        "id": "lane4.mutator-06-emoji.addToIssue",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "conflict": {
+            "disposition": "authorization refusal leaves no partial write; authoritative rebase is checked against the reducer ledger below",
+            "observer": "Lane 4 raw server audit converges after commit and replay"
+          },
+          "durableEffectIntent": true,
+          "generatedAdmission": {
+            "actualTier": "JS/Ibex-authoritative-fallback",
+            "generatedIrPresent": false,
+            "preliminaryClass": "new-verb",
+            "reason": "base Get/Guard/Insert needs explicit values, but the full program includes conditional notification Upsert/Branch."
+          },
+          "lane": "lane4",
+          "mutation": "comment.add",
+          "replay": {
+            "outcome": "fulfilled",
+            "settlement": "2026-08-06T18:57:08.276Z",
+            "submit": "2026-08-06T18:57:08.251Z"
+          },
+          "sourceCheck": "mutator-07-comment.add",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1",
+          "timingMarks": {
+            "authoritativeSettlement": "2026-08-06T18:57:06.098Z",
+            "optimisticPaintFact": {
+              "applicable": true,
+              "disposition": "app-owned-visible-fact-reducer",
+              "evidence": "Lane 6a mutation presentation ledger; representative live paint check below",
+              "observedAt": null,
+              "pendingBranches": [
+                "subscription-effect",
+                "notification-effect"
+              ],
+              "timingReason": "The reducer is synchronous before transport submission; Lane 6a proves the representative paint-before-settlement ordering, while Lane 4 does not invoke the app adapter and therefore supplies no fabricated per-mutator paint timestamp."
+            },
+            "submit": "2026-08-06T18:57:06.035Z",
+            "submitToSettlementMs": 62.51611328125
+          }
+        },
+        "id": "lane4.mutator-07-comment.add",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "conflict": {
+            "disposition": "authorization refusal leaves no partial write; authoritative rebase is checked against the reducer ledger below",
+            "observer": "Lane 4 raw server audit converges after commit and replay"
+          },
+          "durableEffectIntent": true,
+          "generatedAdmission": {
+            "actualTier": "JS/Ibex-authoritative-fallback",
+            "generatedIrPresent": false,
+            "preliminaryClass": "explicit-value-or-lane-q",
+            "reason": "bounded Get/Guard/Insert fits current verbs; exact local row identity/time depends on explicit client values or Lane Q settlement policy."
+          },
+          "lane": "lane4",
+          "mutation": "emoji.addToComment",
+          "replay": {
+            "outcome": "fulfilled",
+            "settlement": "2026-08-06T18:57:18.326Z",
+            "submit": "2026-08-06T18:57:18.303Z"
+          },
+          "sourceCheck": "mutator-08-emoji.addToComment",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1",
+          "timingMarks": {
+            "authoritativeSettlement": "2026-08-06T18:57:15.680Z",
+            "optimisticPaintFact": {
+              "applicable": true,
+              "disposition": "app-owned-visible-fact-reducer",
+              "evidence": "Lane 6a mutation presentation ledger; representative live paint check below",
+              "observedAt": null,
+              "pendingBranches": [
+                "unproven-visible-parent",
+                "notification-effect"
+              ],
+              "timingReason": "The reducer is synchronous before transport submission; Lane 6a proves the representative paint-before-settlement ordering, while Lane 4 does not invoke the app adapter and therefore supplies no fabricated per-mutator paint timestamp."
+            },
+            "submit": "2026-08-06T18:57:15.596Z",
+            "submitToSettlementMs": 83.889892578125
+          }
+        },
+        "id": "lane4.mutator-08-emoji.addToComment",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "conflict": {
+            "disposition": "authorization refusal leaves no partial write; authoritative rebase is checked against the reducer ledger below",
+            "observer": "Lane 4 raw server audit converges after commit and replay"
+          },
+          "durableEffectIntent": false,
+          "generatedAdmission": {
+            "actualTier": "JS/Ibex-authoritative-fallback",
+            "generatedIrPresent": false,
+            "preliminaryClass": "new-verb",
+            "reason": "requires Delete."
+          },
+          "lane": "lane4",
+          "mutation": "emoji.remove",
+          "replay": {
+            "outcome": "fulfilled",
+            "settlement": "2026-08-06T18:57:26.646Z",
+            "submit": "2026-08-06T18:57:26.624Z"
+          },
+          "sourceCheck": "mutator-09-emoji.remove",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1",
+          "timingMarks": {
+            "authoritativeSettlement": "2026-08-06T18:57:24.638Z",
+            "optimisticPaintFact": {
+              "applicable": true,
+              "disposition": "app-owned-visible-fact-reducer",
+              "evidence": "Lane 6a mutation presentation ledger; representative live paint check below",
+              "observedAt": null,
+              "pendingBranches": [],
+              "timingReason": "The reducer is synchronous before transport submission; Lane 6a proves the representative paint-before-settlement ordering, while Lane 4 does not invoke the app adapter and therefore supplies no fabricated per-mutator paint timestamp."
+            },
+            "submit": "2026-08-06T18:57:24.586Z",
+            "submitToSettlementMs": 51.86328125
+          }
+        },
+        "id": "lane4.mutator-09-emoji.remove",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "conflict": {
+            "disposition": "authorization refusal leaves no partial write; authoritative rebase is checked against the reducer ledger below",
+            "observer": "Lane 4 raw server audit converges after commit and replay"
+          },
+          "durableEffectIntent": true,
+          "generatedAdmission": {
+            "actualTier": "JS/Ibex-authoritative-fallback",
+            "generatedIrPresent": false,
+            "preliminaryClass": "current-ir",
+            "reason": "bounded Get/Guard/Patch; effect remains server-only after commit."
+          },
+          "lane": "lane4",
+          "mutation": "comment.edit",
+          "replay": {
+            "outcome": "fulfilled",
+            "settlement": "2026-08-06T18:57:35.187Z",
+            "submit": "2026-08-06T18:57:35.169Z"
+          },
+          "sourceCheck": "mutator-10-comment.edit",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1",
+          "timingMarks": {
+            "authoritativeSettlement": "2026-08-06T18:57:32.914Z",
+            "optimisticPaintFact": {
+              "applicable": true,
+              "disposition": "app-owned-visible-fact-reducer",
+              "evidence": "Lane 6a mutation presentation ledger; representative live paint check below",
+              "observedAt": null,
+              "pendingBranches": [
+                "notification-effect",
+                "search-repair"
+              ],
+              "timingReason": "The reducer is synchronous before transport submission; Lane 6a proves the representative paint-before-settlement ordering, while Lane 4 does not invoke the app adapter and therefore supplies no fabricated per-mutator paint timestamp."
+            },
+            "submit": "2026-08-06T18:57:32.853Z",
+            "submitToSettlementMs": 60.876220703125
+          }
+        },
+        "id": "lane4.mutator-10-comment.edit",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "conflict": {
+            "disposition": "authorization refusal leaves no partial write; authoritative rebase is checked against the reducer ledger below",
+            "observer": "Lane 4 raw server audit converges after commit and replay"
+          },
+          "durableEffectIntent": false,
+          "generatedAdmission": {
+            "actualTier": "JS/Ibex-authoritative-fallback",
+            "generatedIrPresent": false,
+            "preliminaryClass": "new-verb",
+            "reason": "requires Delete plus bounded dependent cleanup."
+          },
+          "lane": "lane4",
+          "mutation": "comment.remove",
+          "replay": {
+            "outcome": "fulfilled",
+            "settlement": "2026-08-06T18:57:45.802Z",
+            "submit": "2026-08-06T18:57:45.775Z"
+          },
+          "sourceCheck": "mutator-11-comment.remove",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1",
+          "timingMarks": {
+            "authoritativeSettlement": "2026-08-06T18:57:43.640Z",
+            "optimisticPaintFact": {
+              "applicable": true,
+              "disposition": "app-owned-visible-fact-reducer",
+              "evidence": "Lane 6a mutation presentation ledger; representative live paint check below",
+              "observedAt": null,
+              "pendingBranches": [
+                "search-repair"
+              ],
+              "timingReason": "The reducer is synchronous before transport submission; Lane 6a proves the representative paint-before-settlement ordering, while Lane 4 does not invoke the app adapter and therefore supplies no fabricated per-mutator paint timestamp."
+            },
+            "submit": "2026-08-06T18:57:43.572Z",
+            "submitToSettlementMs": 67.6357421875
+          }
+        },
+        "id": "lane4.mutator-11-comment.remove",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "conflict": {
+            "disposition": "authorization refusal leaves no partial write; authoritative rebase is checked against the reducer ledger below",
+            "observer": "Lane 4 raw server audit converges after commit and replay"
+          },
+          "durableEffectIntent": false,
+          "generatedAdmission": {
+            "actualTier": "JS/Ibex-authoritative-fallback",
+            "generatedIrPresent": false,
+            "preliminaryClass": "explicit-value-or-lane-q",
+            "reason": "Guard/Insert fits current verbs; exact label identity is an explicit application value."
+          },
+          "lane": "lane4",
+          "mutation": "label.create",
+          "replay": {
+            "outcome": "fulfilled",
+            "settlement": "2026-08-06T18:57:56.385Z",
+            "submit": "2026-08-06T18:57:56.370Z"
+          },
+          "sourceCheck": "mutator-12-label.create",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1",
+          "timingMarks": {
+            "authoritativeSettlement": "2026-08-06T18:57:52.725Z",
+            "optimisticPaintFact": {
+              "applicable": false,
+              "disposition": "honest-server-pending",
+              "evidence": "label.create declares server-only-label-create and paints no false fact",
+              "observedAt": null,
+              "pendingBranches": [
+                "server-only-label-create"
+              ],
+              "timingReason": "No optimistic paint is admitted for this mutation."
+            },
+            "submit": "2026-08-06T18:57:52.659Z",
+            "submitToSettlementMs": 66.259033203125
+          }
+        },
+        "id": "lane4.mutator-12-label.create",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "conflict": {
+            "disposition": "authorization refusal leaves no partial write; authoritative rebase is checked against the reducer ledger below",
+            "observer": "Lane 4 raw server audit converges after commit and replay"
+          },
+          "durableEffectIntent": false,
+          "generatedAdmission": {
+            "actualTier": "JS/Ibex-authoritative-fallback",
+            "generatedIrPresent": false,
+            "preliminaryClass": "explicit-value-or-lane-q",
+            "reason": "bounded two-Insert program plus Guard fits the current verbs; exact new label identity is explicit application input."
+          },
+          "lane": "lane4",
+          "mutation": "label.createAndAddToIssue",
+          "replay": {
+            "outcome": "fulfilled",
+            "settlement": "2026-08-06T18:58:08.719Z",
+            "submit": "2026-08-06T18:58:08.642Z"
+          },
+          "sourceCheck": "mutator-13-label.createAndAddToIssue",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1",
+          "timingMarks": {
+            "authoritativeSettlement": "2026-08-06T18:58:06.141Z",
+            "optimisticPaintFact": {
+              "applicable": true,
+              "disposition": "app-owned-visible-fact-reducer",
+              "evidence": "Lane 6a mutation presentation ledger; representative live paint check below",
+              "observedAt": null,
+              "pendingBranches": [
+                "incomplete-visible-collections"
+              ],
+              "timingReason": "The reducer is synchronous before transport submission; Lane 6a proves the representative paint-before-settlement ordering, while Lane 4 does not invoke the app adapter and therefore supplies no fabricated per-mutator paint timestamp."
+            },
+            "submit": "2026-08-06T18:58:06.059Z",
+            "submitToSettlementMs": 82.10400390625
+          }
+        },
+        "id": "lane4.mutator-13-label.createAndAddToIssue",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "conflict": {
+            "disposition": "authorization refusal leaves no partial write; authoritative rebase is checked against the reducer ledger below",
+            "observer": "Lane 4 raw server audit converges after commit and replay"
+          },
+          "durableEffectIntent": false,
+          "generatedAdmission": {
+            "actualTier": "JS/Ibex-authoritative-fallback",
+            "generatedIrPresent": false,
+            "preliminaryClass": "new-verb",
+            "reason": "requires Upsert."
+          },
+          "lane": "lane4",
+          "mutation": "viewState.set",
+          "replay": {
+            "outcome": "fulfilled",
+            "settlement": "2026-08-06T18:58:27.567Z",
+            "submit": "2026-08-06T18:58:27.510Z"
+          },
+          "sourceCheck": "mutator-14-viewState.set",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1",
+          "timingMarks": {
+            "authoritativeSettlement": "2026-08-06T18:58:20.034Z",
+            "optimisticPaintFact": {
+              "applicable": true,
+              "disposition": "app-owned-visible-fact-reducer",
+              "evidence": "Lane 6a mutation presentation ledger; representative live paint check below",
+              "observedAt": null,
+              "pendingBranches": [],
+              "timingReason": "The reducer is synchronous before transport submission; Lane 6a proves the representative paint-before-settlement ordering, while Lane 4 does not invoke the app adapter and therefore supplies no fabricated per-mutator paint timestamp."
+            },
+            "submit": "2026-08-06T18:58:19.951Z",
+            "submitToSettlementMs": 82.6123046875
+          }
+        },
+        "id": "lane4.mutator-14-viewState.set",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "conflict": {
+            "disposition": "authorization refusal leaves no partial write; authoritative rebase is checked against the reducer ledger below",
+            "observer": "Lane 4 raw server audit converges after commit and replay"
+          },
+          "durableEffectIntent": false,
+          "generatedAdmission": {
+            "actualTier": "JS/Ibex-authoritative-fallback",
+            "generatedIrPresent": false,
+            "preliminaryClass": "new-verb",
+            "reason": "requires Upsert."
+          },
+          "lane": "lane4",
+          "mutation": "userPref.set",
+          "replay": {
+            "outcome": "fulfilled",
+            "settlement": "2026-08-06T18:59:02.808Z",
+            "submit": "2026-08-06T18:59:02.771Z"
+          },
+          "sourceCheck": "mutator-15-userPref.set",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1",
+          "timingMarks": {
+            "authoritativeSettlement": "2026-08-06T18:58:54.492Z",
+            "optimisticPaintFact": {
+              "applicable": true,
+              "disposition": "app-owned-visible-fact-reducer",
+              "evidence": "Lane 6a mutation presentation ledger; representative live paint check below",
+              "observedAt": null,
+              "pendingBranches": [],
+              "timingReason": "The reducer is synchronous before transport submission; Lane 6a proves the representative paint-before-settlement ordering, while Lane 4 does not invoke the app adapter and therefore supplies no fabricated per-mutator paint timestamp."
+            },
+            "submit": "2026-08-06T18:58:54.445Z",
+            "submitToSettlementMs": 47.40234375
+          }
+        },
+        "id": "lane4.mutator-15-userPref.set",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "conflict": {
+            "disposition": "authorization refusal leaves no partial write; authoritative rebase is checked against the reducer ledger below",
+            "observer": "Lane 4 raw server audit converges after commit and replay"
+          },
+          "durableEffectIntent": false,
+          "generatedAdmission": {
+            "actualTier": "JS/Ibex-authoritative-fallback",
+            "generatedIrPresent": false,
+            "preliminaryClass": "new-verb",
+            "reason": "requires Delete plus bounded dependent physical deletes."
+          },
+          "lane": "lane4",
+          "mutation": "issue.delete",
+          "replay": {
+            "outcome": "fulfilled",
+            "settlement": "2026-08-06T18:59:36.834Z",
+            "submit": "2026-08-06T18:59:36.806Z"
+          },
+          "sourceCheck": "mutator-16-issue.delete",
+          "sourceExpectedChecks": 18,
+          "sourceReceipt": "zerobugs-lane4-live.v1",
+          "timingMarks": {
+            "authoritativeSettlement": "2026-08-06T18:59:29.587Z",
+            "optimisticPaintFact": {
+              "applicable": true,
+              "disposition": "app-owned-visible-fact-reducer",
+              "evidence": "Lane 6a mutation presentation ledger; representative live paint check below",
+              "observedAt": null,
+              "pendingBranches": [
+                "cascade-settlement"
+              ],
+              "timingReason": "The reducer is synchronous before transport submission; Lane 6a proves the representative paint-before-settlement ordering, while Lane 4 does not invoke the app adapter and therefore supplies no fabricated per-mutator paint timestamp."
+            },
+            "submit": "2026-08-06T18:59:29.469Z",
+            "submitToSettlementMs": 117.8896484375
+          }
+        },
+        "id": "lane4.mutator-16-issue.delete",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "lane": "lane6a",
+          "sourceCheck": "reducer-paints-then-authoritative-result-settles",
+          "sourceExpectedChecks": 6,
+          "sourceReceipt": "zerobugs-lane6a-live.v1"
+        },
+        "id": "lane6a.reducer-paints-then-authoritative-result-settles",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "lane": "lane6a",
+          "sourceCheck": "refusal-drops-and-rebases-optimistic-layer",
+          "sourceExpectedChecks": 6,
+          "sourceReceipt": "zerobugs-lane6a-live.v1"
+        },
+        "id": "lane6a.refusal-drops-and-rebases-optimistic-layer",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "mutations": 16,
+          "pendingOnly": 1,
+          "reducer": 15
+        },
+        "id": "reducer-ledger-all-16-dispositions",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "authoritativeBaseAdopted": true,
+          "optimisticVisibleFactReapplied": true,
+          "remainingOperations": 1
+        },
+        "id": "concurrent-authority-rebases-remaining-operation",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "lane": "lane5",
+          "sourceCheck": "effect-eight-trigger-classes-exact-capture-and-internal-recipients",
+          "sourceExpectedChecks": 16,
+          "sourceReceipt": "zerobugs-lane5-live.v1"
+        },
+        "id": "lane5.effect-eight-trigger-classes-exact-capture-and-internal-recipients",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "lane": "lane5",
+          "sourceCheck": "effect-fault-before-send-retries-from-durable-intent-once",
+          "sourceExpectedChecks": 16,
+          "sourceReceipt": "zerobugs-lane5-live.v1"
+        },
+        "id": "lane5.effect-fault-before-send-retries-from-durable-intent-once",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "lane": "lane5",
+          "sourceCheck": "effect-fault-after-send-is-explicitly-ambiguous-and-fenced",
+          "sourceExpectedChecks": 16,
+          "sourceReceipt": "zerobugs-lane5-live.v1"
+        },
+        "id": "lane5.effect-fault-after-send-is-explicitly-ambiguous-and-fenced",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "lane": "lane5",
+          "sourceCheck": "all-eight-nontriggers-produce-no-delivery",
+          "sourceExpectedChecks": 16,
+          "sourceReceipt": "zerobugs-lane5-live.v1"
+        },
+        "id": "lane5.all-eight-nontriggers-produce-no-delivery",
+        "status": "PASS"
+      },
+      {
+        "details": {
+          "owner": "ZB5 real-browser offline/custody arm and D3/D5 integration",
+          "reason": "The control adapter passes queue:false; no disconnected enqueue or browser-process restart surface exists to exercise honestly in this headless gate."
+        },
+        "id": "durable-queued-intent-restart",
+        "status": "GAP"
+      },
+      {
+        "details": {
+          "owner": "ZB5 real-browser offline/custody arm and D3/D5 integration",
+          "reason": "Without an admitted queued control mutation, a revocation-crossing replay would be fabricated. Online refusal/rebase is proved by Lane 6a instead."
+        },
+        "id": "revocation-crossing-queued-write",
+        "status": "GAP"
+      }
+    ]
+  },
+  "cleanup": {
+    "ownership": "Every resource registered through the gate runner was cleaned in reverse ownership order.",
+    "results": [
+      {
+        "label": "Snapback server",
+        "reverseIndex": 0,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "62434",
+            "kind": "process"
+          }
+        ]
+      },
+      {
+        "label": "ZB3-LANE5 scratch namespace",
+        "reverseIndex": 1,
+        "status": "PASS",
+        "targets": [
+          {
+            "kind": "directory",
+            "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb3-lane5-biLn1y"
+          }
+        ]
+      },
+      {
+        "label": "Snapback server",
+        "reverseIndex": 2,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "29600",
+            "kind": "process"
+          }
+        ]
+      },
+      {
+        "label": "ZB3-LANE6A scratch namespace",
+        "reverseIndex": 3,
+        "status": "PASS",
+        "targets": [
+          {
+            "kind": "directory",
+            "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb3-lane6a-fE6aQj"
+          }
+        ]
+      },
+      {
+        "label": "Snapback server",
+        "reverseIndex": 4,
+        "status": "PASS",
+        "targets": [
+          {
+            "id": "28778",
+            "kind": "process"
+          }
+        ]
+      },
+      {
+        "label": "ZB3-LANE4 scratch namespace",
+        "reverseIndex": 5,
+        "status": "PASS",
+        "targets": [
+          {
+            "kind": "directory",
+            "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb3-lane4-fbjGOV"
+          }
+        ]
+      }
+    ],
+    "status": "PASS",
+    "targets": [
+      {
+        "id": "62434",
+        "kind": "process"
+      },
+      {
+        "kind": "directory",
+        "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb3-lane5-biLn1y"
+      },
+      {
+        "id": "29600",
+        "kind": "process"
+      },
+      {
+        "kind": "directory",
+        "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb3-lane6a-fE6aQj"
+      },
+      {
+        "id": "28778",
+        "kind": "process"
+      },
+      {
+        "kind": "directory",
+        "path": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/zerobugs-zb3-lane4-fbjGOV"
+      }
+    ]
+  },
+  "completedAt": "2026-08-06T19:01:40.204Z",
+  "componentReleaseIdentities": [
+    {
+      "id": "zerobugs-control-composition",
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "runtime": {
+        "entrypoint": "composition/server.mts",
+        "hostEnv": "ZERBUGS_GATEWAY_HOST",
+        "name": "bun",
+        "portEnv": "ZERBUGS_GATEWAY_PORT",
+        "readyFileEnv": "ZERBUGS_GATEWAY_READY_FILE",
+        "version": "1.3.12"
+      },
+      "sha256": "sha256:20f5979c095376fc4b89c9780bb3073da6ef147bf327a25c7a1ef24d38018012",
+      "snapbackRelease": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "status": "supported-local-control",
+      "version": 1
+    }
+  ],
+  "custodyAccounting": {
+    "browserFactsRetained": 0,
+    "mode": "headless online mutation/effect evidence",
+    "mutationTimingTraces": 74,
+    "queuedOfflineIntents": 0,
+    "speculativeExternalEffects": 0
+  },
+  "diagnostics": [],
+  "execution": {
+    "harnessAcceptedCount": true,
+    "setupCompleted": true,
+    "status": "PASS"
+  },
+  "fixtureIdentity": {
+    "digest": "sha256:be2eb1f31fe95e0a5c46a5230d98b18d762449e330691cb73e33d578fec276bd",
+    "extensionId": "policy-extension-v1",
+    "id": "normal-seed-v1",
+    "mode": "fresh normal fixture plus policy extension; load verified by gate checks",
+    "rowCount": 3758,
+    "seedVersion": "normal-seed-v1.policy-extension-v1"
+  },
+  "gate": "zb3",
+  "generatedIdentities": [
+    {
+      "id": "schemaManifest",
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:a2a46a753008fe92272a2eb24cb43c57fba851be9dd64bef49b49b6fd8a95b96"
+    },
+    {
+      "id": "functionManifest",
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:7d66a60ff891ff2334d21e1d14162887209e4496af7b402806f8f9c0f20b9963"
+    },
+    {
+      "id": "capabilityManifest",
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v0",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:8f9212e82b140d1ebfbaa00ca55c7df02298ac8c1424ff7931a9d84a102947f7"
+    },
+    {
+      "id": "contractDataManifest",
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:6701d2e93f18dac78c54bfc0bf61ce691c9d0cad5a8faed19d7de8dbb37ddbff"
+    },
+    {
+      "id": "artifactIndex",
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "release": {
+        "appId": "zerobugs-control",
+        "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+        "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+        "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+        "schemaVersion": "snapback.v1",
+        "targetProfileId": "local-dev-sqlite-ibex"
+      },
+      "sha256": "sha256:d35d3d6815093829a6633c19c70032ed66bc0501cdb977e0bb49095515e15b2b"
+    }
+  ],
+  "machineIdentity": {
+    "arch": "arm64",
+    "cpuCount": 18,
+    "hostnameSha256": "sha256:4a238cd09cfb162aa54334e6f1b3fba341960951bd6f36b2b01b6e77a72395c0",
+    "platform": "darwin"
+  },
+  "manifest": {
+    "id": "zerobugs-acceptance.v1",
+    "path": "demos/zerobugs/manifest/acceptance.v1.json",
+    "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+  },
+  "network": "loopback-only; normal network profile",
+  "outcome": "GAP",
+  "rawArtifacts": [
+    {
+      "path": "demos/zerobugs/control/PLAN.md",
+      "sha256": "sha256:eda483a61590fed35fff8c7162f501b3f203a52e45cea5ec48862442ea5ea42d"
+    },
+    {
+      "path": "demos/zerobugs/control/composition/effects/deliver.mts",
+      "sha256": "sha256:4a8e77878531e51fc35644226067088bd10c5fb984941d7bbde756af4002753c"
+    },
+    {
+      "path": "demos/zerobugs/control/composition/effects/payloads.mts",
+      "sha256": "sha256:70a7e78d0fb82701aa04704271ad60efb0bde6331055e7df08ca6ee6b27e35e7"
+    },
+    {
+      "path": "demos/zerobugs/control/composition/zerobugs-control-composition.v1.json",
+      "sha256": "sha256:20f5979c095376fc4b89c9780bb3073da6ef147bf327a25c7a1ef24d38018012"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/artifacts.json",
+      "sha256": "sha256:d35d3d6815093829a6633c19c70032ed66bc0501cdb977e0bb49095515e15b2b"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/capability.manifest.json",
+      "sha256": "sha256:8f9212e82b140d1ebfbaa00ca55c7df02298ac8c1424ff7931a9d84a102947f7"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/contract-data.manifest.json",
+      "sha256": "sha256:6701d2e93f18dac78c54bfc0bf61ce691c9d0cad5a8faed19d7de8dbb37ddbff"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/functions.manifest.json",
+      "sha256": "sha256:7d66a60ff891ff2334d21e1d14162887209e4496af7b402806f8f9c0f20b9963"
+    },
+    {
+      "path": "demos/zerobugs/control/snapback/generated/schema.manifest.json",
+      "sha256": "sha256:a2a46a753008fe92272a2eb24cb43c57fba851be9dd64bef49b49b6fd8a95b96"
+    },
+    {
+      "path": "demos/zerobugs/control/src/data/mutations.ts",
+      "sha256": "sha256:9b8663e1d8c67c44b913d10dbb53f8b3bac63add50a93c56213758ea660c38e6"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gate-support.mjs",
+      "sha256": "sha256:52e514bc20ab2ac0dfba2639e7e07ac2f38f824836070c3847867afb221f2437"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/gates/zb3.mjs",
+      "sha256": "sha256:923fa4cc0732af35ccf7504e1126ad4a8bfeb0c2f06c1fa20a0a953566bc7b2a"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/lane4-live.mts",
+      "sha256": "sha256:649981928065d31669d37bc862f4d9622a10472a25745f5c3ef400e411a80ae9"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/lane5-live.mts",
+      "sha256": "sha256:975be4f34837a70a1f3d59aaa2a0a6add62c05ad3f476961da9d49c8b3b4c3d6"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/acceptance/lane6a-live.mts",
+      "sha256": "sha256:348652cbaead3881914be60853a566ea35e17d5ae3da26e0800e22dbf16440ee"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/fixtures/fixture-digests.json",
+      "sha256": "sha256:56afa56a74f0edddfd71ac0e7a09f5c12bc1e2eaed9e2be2f2ad6c84c31d38b3"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/lane4-oracle.mts",
+      "sha256": "sha256:f274d3692d865e209b480d4e0859d6a3d9f548e3ef91226a941bf986ed8a8582"
+    },
+    {
+      "path": "demos/zerobugs/control/tests/lane6a-mutations.test.mts",
+      "sha256": "sha256:03d7cde7caccaba3fc550a57eac5010a51b0beb5229235a84b56be3c287bc8cf"
+    },
+    {
+      "path": "demos/zerobugs/manifest/acceptance.v1.json",
+      "sha256": "sha256:3eb0280a5803da887cea371193f62ff372ac537efa24e7cd53b150afe0d1fc2c"
+    },
+    {
+      "path": "demos/zerobugs/stage0/inventory.v1.json",
+      "sha256": "sha256:0d7233897864c39f99ef5c46946da21ddfc8a404e6f0441c741c02192a43eaa3"
+    }
+  ],
+  "refusalFacts": [
+    {
+      "evidence": "Lane 4 emits intent only; Lane 5 delivers after commit",
+      "id": "speculative-effect-delivery",
+      "status": "refused"
+    },
+    {
+      "evidence": "Lane 5 ambiguity fence",
+      "id": "ambiguous-effect-replay",
+      "status": "refused"
+    }
+  ],
+  "schemaVersion": "zerobugs-gate-receipt.v1",
+  "sourceAccounting": {
+    "adapterLaneChecks": 6,
+    "authoritativeLaneChecks": 18,
+    "compositionLaneChecks": 16,
+    "durableEffectTriggers": 8,
+    "frozenMutations": 16,
+    "honestPendingOnlyDispositions": 1,
+    "nonTriggers": 8,
+    "reducerDispositions": 15
+  },
+  "startedAt": "2026-08-06T18:55:33.320Z",
+  "targetIdentity": {
+    "appId": "zerobugs-control",
+    "bundleHash": "snapback.v1:sessions:function:sha256:71c0388b762244a7b55d30b2dc60419067aa54f34c1613b665d4023c9f44c133",
+    "id": "local-dev-sqlite-ibex",
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:fc70057e0f736feb5cd8c35837eff291ce9df1102f5dc92f3d09da18272fb8b1",
+    "mode": "fresh local Ibex plus SQLite server",
+    "schemaHash": "snapback.v1:sessions:schema:sha256:556a1db53ffa60f7f7d8075fae3e6ae8c046f0ae28f262e29aaf74a3ad61f7bc",
+    "schemaVersion": "snapback.v1"
+  },
+  "workarounds": [
+    {
+      "id": "W-MUTATION-IR",
+      "status": "retained; authoritative JS fallback named per mutation"
+    },
+    {
+      "id": "W-REDUCER",
+      "status": "15 app-owned visible-fact reducers"
+    },
+    {
+      "id": "W-PENDING",
+      "status": "one pending-only mutation plus named hidden branches"
+    },
+    {
+      "id": "C-NOTIFY",
+      "status": "durable local companion intent/attempt ledger"
+    }
+  ]
+}
