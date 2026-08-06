@@ -81,7 +81,7 @@ export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'src/local-persistent-store-publication.v1.json',
 ]);
 
-const LOCAL_STORE_PUBLICATION_TRANSFORM = {
+export const LOCAL_STORE_PUBLICATION_TRANSFORM = {
   anchor: 'src/local-persistent-store-publication.anchor.v1.json',
   carrier: 'src/local-persistent-store-publication.v1.json',
   receipts: [

@@ -229,3 +229,23 @@ the published versions.
   or move any dist-tag, or run public-registry/G4 smoke proofs. A landed lock
   reconciliation and fresh complete green candidate proof are required before
   retry.
+
+- **2026-08-06 — 0.1.11 successor attempt 4 BLOCKED before staging; nothing
+  published.** The attempt fetched and pinned clean `origin/main`
+  `85e1e5a160e7080214e15bed02deb3c9c2432380`, confirmed npm authentication as
+  `ccheever`, and observed `latest: 0.1.10` with no `0.1.11` on all ten names.
+  The complete 134-gate proof selected Exact and ran fail-fast under the
+  repository-pinned Node 24.18.0. Fifteen gates passed, including capability
+  maturity, before `agent-safe-publication-fixtures` failed three of its 28
+  cases. Commit `29d4c3d465` moved the production local-store publication
+  transform and allowlist to the 2026-08-06 carrier/Triage receipt paths, but
+  the self-test scratch fixture and allowlist assertions still name the
+  2026-08-04 paths. The transform tests consequently try to read absent
+  2026-08-06 files from their synthetic qualification-C commit, and the
+  allowlist case expects an old Triage receipt the production set no longer
+  admits. Filed
+  `issues/20260806-local-proof-agent-safe-publication-fixture-lineage-drift.md`.
+  This is the task's sixth distinct central-gate failure, so the attempt did
+  not stage tarballs, create a 0.1.11 ledger, publish or move any dist-tag, or
+  run public-registry/G4 smoke proofs. A landed fixture/lineage reconciliation
+  and fresh complete green candidate proof are required before retry.
