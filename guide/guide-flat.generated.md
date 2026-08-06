@@ -918,10 +918,10 @@ land):
    rows." Expected pages: `auth/sessions-and-principals.md`,
    `recipes/hidden-hands.md`.
 
-Cases 4–7 are regression seeds from the replicated 2026-08-04/05 bakeoff
-discoverability misses (LLP 0187 T7, landed under LLP 0186 W2). The standing
-rule: every replicated discoverability miss, once fixed in the guide, must
-add a seed case here that would have caught it.
+Cases 4–8 are regression seeds from the replicated 2026-08-04/05 bakeoff and
+2026-08-06 G4 external-proof discoverability misses (LLP 0187 T7, landed under
+LLP 0186 W2). The standing rule: every replicated discoverability miss, once
+fixed in the guide, must add a seed case here that would have caught it.
 
 4. **Relational routing:** "Show a user's conversation list (a membership
    join)." Expected pages: `backend/relational-queries.md`. The run fails if
@@ -938,6 +938,11 @@ add a seed case here that would have caught it.
    pages: `backend/assets.md` (the unified ImagePicker recipe). The plan
    must state the owner-authorization rule — attempt creation may be public,
    but ownership checks are never anonymous.
+8. **Expo binding identity:** "My Expo app reports
+   `SNAPBACK_APP_BINDING_IDENTITY_MISMATCH`." Expected page:
+   `clients/react-expo.md`. The plan must regenerate the descriptor, stop an
+   older supervisor, and restart the supervised loop; it fails if it suggests
+   overriding the identity or weakening binding admission.
 
 ## Budget
 
@@ -8490,7 +8495,7 @@ order: 3
 audience: agent-first
 capabilities: [clients.react-expo]
 authorities: [llp/0012-headless-integration-contract.spec.md, llp/0017-admin-console-inspection-surface.rfc.md, llp/0041-packaged-dev-loop.rfc.md, llp/0064-native-client-surfaces.rfc.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0176-expo-messaging-golden-path.plan.md, llp/0181-zero-configuration-expo.rfc.md, packages/snapback-cli/expo-dev.mjs, packages/snapback-client/index.mjs, packages/snapback-client/react-binding.mjs, packages/snapback-client/rqs-store-default.mjs, packages/snapback-client/rqs-store-expo.mjs, packages/snapback-expo/app-binding.mjs, packages/snapback-expo/config-plugin.cjs, packages/snapback-expo/index.mjs, packages/snapback-expo/provider.mjs, packages/snapback-expo/supervised-environment.mjs, packages/snapback-react/index.mjs, scripts/install-local-snapback-packages.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs, demos/_kit/eas-stage-build.mjs]
-examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
+examples: [demos/expo-golden-path-fixture, demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md, demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md, demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md, demos/partiful-matrix/native/react-expo, packages/snapback-client/webcrypto-fallback.test.mjs, packages/snapback-expo/provider.test.mjs, packages/snapback-react/webcrypto-fallback.test.mjs, packages/snapback-client/rqs-store-expo.test.mjs, packages/snapback-client/rqs-resume-expo.test.mjs, scripts/local-source-package-closure.test.mjs, demos/rn-durable-store-witness/probe-App.tsx, demos/tandem-expo-bakeoff/scripts/build-ios-dev-client, demos/_kit/tests/repo-layout-unit.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -8560,10 +8565,11 @@ remain a separate workflow: use only the published package versions and no
 source paths or local overrides there.
 
 For image messages, use the authenticated
-[Expo ImagePicker asset recipe](../backend/assets.md#upload-from-expo-imagepicker-with-an-ordinary-session).
-It covers the native URI-to-Blob bridge, `useSnapbackAssetUpload`, the
-completed task receipt, and typed attachment; a client with no real session
-cannot finish the multi-request upload under any intent auth mode.
+[Expo ImagePicker command recipe](../backend/assets.md#send-one-expo-imagepicker-image-with-an-ordinary-session).
+It passes the picker asset directly to the typed command and keeps the native
+source adapter, upload task, asset id, and attachment sequence behind the
+provider-owned client. A client with no real session cannot finish the
+multi-request upload under any intent auth mode.
 
 ## Debug the backend before writing another probe
 
@@ -8584,6 +8590,15 @@ back to `curl`, raw host operations, or a one-off verification script.
 ## Run the supervised Expo development loop
 
 <!-- since: 0.1.10 -->
+
+> **Published 0.1.10 caveat.** The package names exist on npm, but the dated
+> [external-consumer G4 proof](repo:demos/expo-golden-path-fixture/receipts/20260806-g4-external-summary.md)
+> found that the 0.1.10 generated descriptor requires `single_table_v1` while
+> the 0.1.10 packaged runtime rejects it, before Metro starts. That Expo
+> package also predates the provider's ImagePicker source adapter. Use the
+> source-checkout install above until a successor closure containing both
+> already-landed source repairs is published; do not cast the picker asset or
+> mix checkout and registry packages to force 0.1.10 through.
 
 The north-star boot has three application-visible pieces: the config-plugin
 entry, the generated `app`, and `SnapbackExpoProvider`. There is no backend URL
@@ -8653,6 +8668,16 @@ If that precondition is absent, the mint refuses and the provider reports
 continues as anonymous. See [Sessions and principals](../auth/sessions-and-principals.md)
 for the mode transition, and [LLP 0181 §Provider](repo:llp/0181-zero-configuration-expo.rfc.md#provider)
 for the provider state contract.
+
+### Diagnose a binding identity mismatch
+
+`SNAPBACK_APP_BINDING_IDENTITY_MISMATCH` means the imported
+`AppDescriptor` and the delivered `AppBinding` name different descriptor
+identities. Stop any older supervisor, regenerate the conventional
+`snapback/generated/` app from the backend you intend to run, then restart
+`snapback dev --expo`. Do not overwrite the identity, construct a second
+descriptor in application code, or weaken admission: the refusal prevents a
+client generated for one backend shape from being bound to another.
 
 ### Choose simulator or emulator routing
 
