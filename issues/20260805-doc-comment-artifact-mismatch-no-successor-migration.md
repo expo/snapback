@@ -8,8 +8,9 @@
 **Systems:** CLI, Developer experience, Local server lifecycle, Deployment identity
 **Date:** 2026-08-05
 **Governing:** LLP 0041, LLP 0058, LLP 0174
-**Related:** LLP 0176; `issues/20260805-managed-dev-multi-json-load.md`; Diary
-0059 ("Snapback experience")
+**Related:** LLP 0176;
+`issues/closed/20260805-managed-dev-multi-json-load.md`; Diary 0059
+("Snapback experience")
 
 ## Problem
 

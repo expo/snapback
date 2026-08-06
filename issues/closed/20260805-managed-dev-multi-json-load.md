@@ -1,6 +1,6 @@
 # Managed dev loop rejects native load's two JSON documents
 
-**Status:** Open
+**Status:** Resolved
 **Impact:** 4
 **Urgency:** 4
 **Ease:** 4
@@ -37,3 +37,15 @@ the demo to add a lower-level `scripts/dev-server.mjs` provisioner.
   command and reaches its ready event.
 - One failing envelope still produces the exact failing operation's diagnostic
   and non-zero exit.
+
+## Resolution
+
+Resolved on 2026-08-05 in the package-owned `loadGenerated` path. Native
+`snapback load --schema ... --functions ...` emits one `hostOpsResult` JSON
+document for each requested host operation, so the managed dev loop now parses
+stdout as a sequential JSON-document stream instead of assuming one aggregate
+document. Multiple successful envelopes are accepted; an envelope with
+`ok: false`, an empty stream, or genuinely malformed/non-JSON content retains
+the existing `SNAPBACK_DEV_SERVER_LOAD_FAILED: schema/function load failed`
+diagnostic boundary. Regression coverage pins the two-document success shape,
+malformed trailing content, and a failing `functions.load` envelope.

@@ -1615,7 +1615,14 @@ process.stdout.write(JSON.stringify(response));
 
   const commandLog = join(root, 'runtime-commands.log');
   const recordingRuntime = join(root, 'recording-snapback');
-  writeFileSync(recordingRuntime, `#!/bin/sh\nprintf '%s\\n' "$*" >> '${commandLog}'\nexit 0\n`);
+  writeFileSync(recordingRuntime, `#!/bin/sh
+printf '%s\\n' "$*" >> '${commandLog}'
+if [ "$1" = "load" ]; then
+  printf '%s\\n' '{"resultKind":"hostOpsResult","operation":"schema.load","ok":true}'
+  printf '%s\\n' '{"resultKind":"hostOpsResult","operation":"functions.load","ok":true}'
+fi
+exit 0
+`);
   chmodSync(recordingRuntime, 0o755);
   const backend = join(root, 'seed-once', 'snapback');
   mkdirSync(join(backend, 'generated'), { recursive: true });
