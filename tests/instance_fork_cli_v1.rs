@@ -399,6 +399,22 @@ fn executable_fork_lifecycle_is_detached_exact_and_reap_safe() {
     assert!(source.is_file(), "reap never changes the parent database");
 }
 
+/// A parent database carrying the Todo demo schema, the minimum a
+/// `fork create` source needs (`SNAPBACK_FORK_APP_ID_REQUIRED`).
+fn parent_with_schema(directory: &Path) -> PathBuf {
+    let source = directory.join("parent.sqlite3");
+    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let schema: SchemaManifest = serde_json::from_slice(
+        &std::fs::read(repo.join("demos/todo/snapback/generated/schema.manifest.json"))
+            .expect("generated Todo schema"),
+    )
+    .expect("Todo schema manifest");
+    let mut parent = LocalDatabase::open(&source).expect("parent database");
+    parent.apply_schema(schema).expect("apply parent schema");
+    drop(parent);
+    source
+}
+
 struct ParentServer {
     child: std::process::Child,
     ready: PathBuf,
@@ -628,6 +644,338 @@ fn live_parent_writes_after_fork_point_never_appear_in_the_fork() {
         "diff row is the fork-local todo: {}",
         rows[0]
     );
+}
+
+/// LLP 0185 Phase 3 item 5: a registry entry whose fork directory is already
+/// gone (partial cleanup) must not wedge list, reap, or create for every
+/// other fork — it is completed and reported, deterministically.
+#[test]
+fn stale_registry_partial_cleanup_never_wedges_list_reap_or_create() {
+    let directory = tempfile::tempdir().expect("stale registry fixture");
+    let source = parent_with_schema(directory.path());
+    let app_root = directory.path().join("app");
+    std::fs::create_dir(&app_root).unwrap();
+    let fork_root = directory.path().join("forks");
+    std::fs::create_dir(&fork_root).unwrap();
+
+    let intact = snapback::instance_fork::publish_managed(
+        &source,
+        &fork_root.join("fork-intact"),
+        "stale-app",
+        "stale-parent",
+        1_000,
+        61_000,
+        false,
+    )
+    .expect("publish intact fixture");
+    let stale = snapback::instance_fork::publish_managed(
+        &source,
+        &fork_root.join("fork-stale"),
+        "stale-app",
+        "stale-parent",
+        1_000,
+        61_000,
+        false,
+    )
+    .expect("publish soon-stale fixture");
+    // Simulate the partial-cleanup shape the 2026-08-03 dogfood run hit:
+    // the directory is gone but the advisory registry entry survived.
+    std::fs::remove_dir_all(fork_root.join("fork-stale")).unwrap();
+
+    let mut list = snapback();
+    list.args([
+        "fork",
+        "list",
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let listed = successful(list, "fork list over a stale entry");
+    let forks = listed["data"]["forks"].as_array().expect("bound forks");
+    assert_eq!(forks.len(), 1);
+    assert_eq!(forks[0]["lineage"]["forkId"], intact.lineage.fork_id);
+    let unbound = listed["data"]["unboundRegistry"]
+        .as_array()
+        .expect("unbound registry entries");
+    assert_eq!(unbound.len(), 1);
+    assert_eq!(unbound[0]["forkId"], stale.lineage.fork_id);
+    assert_eq!(unbound[0]["code"], "SNAPBACK_FORK_REGISTRY_STALE");
+
+    let mut reap = snapback();
+    reap.args([
+        "fork",
+        "reap",
+        "--now-ms",
+        "61000",
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let reaped = successful(reap, "fork reap over a stale entry");
+    assert_eq!(
+        reaped["data"]["receipt"]["reapedForkIds"],
+        serde_json::json!([intact.lineage.fork_id]),
+        "the intact expired fork is reaped normally"
+    );
+    assert_eq!(
+        reaped["data"]["clearedStaleRegistryIds"],
+        serde_json::json!([stale.lineage.fork_id]),
+        "the stale entry is completed, reported separately from real reaps"
+    );
+    assert!(!fork_root.join("fork-intact").exists());
+    assert!(
+        snapback::instance_fork::managed_registry_ids(&fork_root)
+            .unwrap()
+            .is_empty(),
+        "no registry residue survives the sweep"
+    );
+
+    // The end-to-end wedge check: a fresh stale entry must not refuse the
+    // next create; automatic reap completes it and says so.
+    let wedge = snapback::instance_fork::publish_managed(
+        &source,
+        &fork_root.join("fork-wedge"),
+        "stale-app",
+        "stale-parent",
+        1_000,
+        61_000,
+        false,
+    )
+    .expect("publish wedge fixture");
+    std::fs::remove_dir_all(fork_root.join("fork-wedge")).unwrap();
+    let mut cleanup = ForkCleanup {
+        fork_root: fork_root.clone(),
+        app_root: app_root.clone(),
+        fork_ids: Vec::new(),
+    };
+    let created = fork_create(&source, &app_root, &fork_root, "5m", false);
+    cleanup.track(fork_id(&created));
+    assert_eq!(
+        created["data"]["automaticReap"]["clearedStaleRegistryIds"],
+        serde_json::json!([wedge.lineage.fork_id]),
+        "create clears the stale entry instead of refusing forever"
+    );
+}
+
+/// LLP 0185 Phase 3 item 5: simultaneously running forks bind distinct
+/// OS-assigned ports, stay healthy together, and concurrent drops settle
+/// without trampling each other's cleanup.
+#[test]
+fn concurrent_fork_creates_bind_distinct_ports_and_drop_cleanly() {
+    let directory = tempfile::tempdir().expect("concurrent fork fixture");
+    let source = parent_with_schema(directory.path());
+    let app_root = directory.path().join("app");
+    std::fs::create_dir(&app_root).unwrap();
+    let fork_root = directory.path().join("forks");
+
+    let created: Vec<Value> = std::thread::scope(|scope| {
+        let handles = (0..3)
+            .map(|_| {
+                let source = source.clone();
+                let app_root = app_root.clone();
+                let fork_root = fork_root.clone();
+                scope.spawn(move || fork_create(&source, &app_root, &fork_root, "5m", false))
+            })
+            .collect::<Vec<_>>();
+        handles
+            .into_iter()
+            .map(|handle| handle.join().expect("concurrent create"))
+            .collect()
+    });
+    let mut cleanup = ForkCleanup {
+        fork_root: fork_root.clone(),
+        app_root: app_root.clone(),
+        fork_ids: Vec::new(),
+    };
+    for value in &created {
+        cleanup.track(fork_id(value));
+    }
+
+    let mut ports = std::collections::BTreeSet::new();
+    let mut ids = std::collections::BTreeSet::new();
+    for value in &created {
+        let url = value["target"]["serverUrl"].as_str().expect("fork URL");
+        assert_eq!(health(url)["ok"], true, "every fork is healthy at once");
+        let port = url
+            .rsplit(':')
+            .next()
+            .and_then(|port| port.trim_end_matches('/').parse::<u16>().ok())
+            .expect("fork port");
+        ports.insert(port);
+        ids.insert(fork_id(value).to_owned());
+    }
+    assert_eq!(ports.len(), 3, "simultaneous forks never collide on a port");
+    assert_eq!(ids.len(), 3, "every create minted a distinct fork identity");
+
+    let outcomes: Vec<std::process::Output> = std::thread::scope(|scope| {
+        let handles = created
+            .iter()
+            .map(|value| {
+                let fork_id = fork_id(value).to_owned();
+                let app_root = app_root.clone();
+                let fork_root = fork_root.clone();
+                scope.spawn(move || {
+                    snapback()
+                        .args([
+                            "fork",
+                            "drop",
+                            &fork_id,
+                            "--app-root",
+                            app_root.to_str().unwrap(),
+                            "--fork-root",
+                            fork_root.to_str().unwrap(),
+                        ])
+                        .output()
+                        .expect("spawn concurrent drop")
+                })
+            })
+            .collect::<Vec<_>>();
+        handles
+            .into_iter()
+            .map(|handle| handle.join().expect("concurrent drop"))
+            .collect()
+    });
+    for outcome in &outcomes {
+        assert_success(outcome, "concurrent fork drop");
+    }
+    assert!(
+        snapback::instance_fork::managed_registry_ids(&fork_root)
+            .unwrap()
+            .is_empty(),
+        "concurrent drops leave no registry residue"
+    );
+}
+
+/// LLP 0185 Phase 3 item 5: a dead server (SIGKILL) and a deleted ready file
+/// each settle into one deterministic, named lifecycle outcome.
+#[test]
+fn dead_server_and_missing_ready_file_settle_deterministically() {
+    let directory = tempfile::tempdir().expect("dead server fixture");
+    let source = parent_with_schema(directory.path());
+    let app_root = directory.path().join("app");
+    std::fs::create_dir(&app_root).unwrap();
+    let fork_root = directory.path().join("forks");
+    let mut cleanup = ForkCleanup {
+        fork_root: fork_root.clone(),
+        app_root: app_root.clone(),
+        fork_ids: Vec::new(),
+    };
+
+    // Case 1: the fork server dies without any cleanup (kill -9).
+    let killed = fork_create(&source, &app_root, &fork_root, "5m", false);
+    cleanup.track(fork_id(&killed));
+    let killed_ready = data_path(&killed, "readyFile");
+    let descriptor: Value =
+        serde_json::from_slice(&std::fs::read(&killed_ready).expect("ready file"))
+            .expect("ready JSON");
+    let pid = descriptor["pid"].as_u64().expect("fork pid").to_string();
+    assert!(
+        Command::new("kill")
+            .args(["-9", &pid])
+            .status()
+            .expect("send SIGKILL")
+            .success()
+    );
+    for _ in 0..100 {
+        if !Command::new("kill")
+            .args(["-0", &pid])
+            .status()
+            .expect("probe pid")
+            .success()
+        {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+
+    let mut inspect = snapback();
+    inspect.args([
+        "fork",
+        "inspect",
+        fork_id(&killed),
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let inspected = successful(inspect, "inspect killed fork");
+    assert_eq!(
+        inspected["data"]["status"]["processHealth"]["status"], "stopped",
+        "a SIGKILLed server is reported as provably stopped, not unknown"
+    );
+    assert!(
+        inspected["diagnostics"]
+            .as_array()
+            .expect("inspect diagnostics")
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "SNAPBACK_FORK_REGISTRY_STALE"),
+        "the surviving ready descriptor is called out as stale"
+    );
+    let mut drop_killed = snapback();
+    drop_killed.args([
+        "fork",
+        "drop",
+        fork_id(&killed),
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let dropped = successful(drop_killed, "drop killed fork");
+    assert_eq!(dropped["data"]["dropped"], true);
+    assert_eq!(
+        dropped["data"]["stoppedPid"],
+        Value::Null,
+        "nothing was left to stop; drop proves absence instead of signalling"
+    );
+
+    // Case 2: the ready descriptor is deleted while the server still runs.
+    // Absence of the descriptor means process absence cannot be proved, so
+    // drop fails closed with one named code and changes nothing.
+    let orphan = fork_create(&source, &app_root, &fork_root, "5m", false);
+    cleanup.track(fork_id(&orphan));
+    let orphan_ready = data_path(&orphan, "readyFile");
+    let saved = std::fs::read(&orphan_ready).expect("save ready descriptor");
+    std::fs::remove_file(&orphan_ready).expect("delete ready descriptor");
+    let refused = snapback()
+        .args([
+            "fork",
+            "drop",
+            fork_id(&orphan),
+            "--app-root",
+            app_root.to_str().unwrap(),
+            "--fork-root",
+            fork_root.to_str().unwrap(),
+        ])
+        .output()
+        .expect("run refused drop");
+    assert!(!refused.status.success());
+    assert!(
+        String::from_utf8_lossy(&refused.stderr).contains("SNAPBACK_FORK_STOP_UNVERIFIED"),
+        "{}",
+        String::from_utf8_lossy(&refused.stderr)
+    );
+    assert!(
+        data_path(&orphan, "database").is_file(),
+        "a refused drop deletes nothing"
+    );
+    // Restoring the descriptor restores the provable path end to end.
+    std::fs::write(&orphan_ready, saved).expect("restore ready descriptor");
+    let mut drop_orphan = snapback();
+    drop_orphan.args([
+        "fork",
+        "drop",
+        fork_id(&orphan),
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    let dropped = successful(drop_orphan, "drop restored fork");
+    assert_eq!(dropped["data"]["dropped"], true);
+    assert!(dropped["data"]["stoppedPid"].as_u64().is_some());
 }
 
 #[test]

@@ -2355,40 +2355,69 @@ fn resolve_fork_destination(root: &Path, requested: PathBuf) -> anyhow::Result<P
     Ok(destination)
 }
 
-fn reap_expired_entries(
-    root: &Path,
-    expired: Vec<crate::instance_fork::ForkRegistryEntryV1>,
-) -> anyhow::Result<Vec<String>> {
-    let mut reaped = Vec::new();
-    for entry in expired {
-        let target = crate::instance_fork::managed_target(root, &entry.lineage.fork_id)?;
-        if let Some(ready) = target.ready_file.as_deref() {
-            let _ = quiet_stop_fork(ready, &target.database)?;
-        }
-        crate::instance_fork::drop_managed(root, &entry.lineage.fork_id)?;
-        reaped.push(entry.lineage.fork_id);
-    }
-    reaped.sort();
-    Ok(reaped)
+#[derive(Debug, Default)]
+struct ForkReapOutcome {
+    reaped: Vec<String>,
+    cleared_stale_registry: Vec<String>,
 }
 
-fn automatic_reap_before_create(root: &Path, observed_at_ms: u64) -> anyhow::Result<Vec<String>> {
-    let expired = crate::instance_fork::expired_managed(root, observed_at_ms)?;
-    let expired_count = expired.len();
-    if expired_count == 0 {
-        return Ok(Vec::new());
+/// Reap every expired fork and complete any partial cleanup, tolerating
+/// concurrent lifecycle actors: an entry that disappears mid-sweep was
+/// cleaned up by its other owner, and a registry entry whose directory is
+/// already gone is stale bookkeeping to clear, never a reason to wedge the
+/// remaining forks' cleanup (LLP 0185 Phase 3 item 5).
+fn reap_managed_forks(root: &Path, now_ms: u64) -> anyhow::Result<ForkReapOutcome> {
+    let mut outcome = ForkReapOutcome::default();
+    for fork_id in crate::instance_fork::managed_registry_ids(root)? {
+        // Holding the cleanup lock across bind → stop → drop means a
+        // concurrent drop/reap either finished before we bound (observed as
+        // NOT_FOUND) or waits until we finish — never a torn mid-teardown.
+        let lock = crate::instance_fork::lock_cleanup(root, &fork_id)?;
+        match crate::instance_fork::managed_target(root, &fork_id) {
+            Ok(target) => {
+                let expired = target
+                    .entry
+                    .lineage
+                    .expires_at_ms
+                    .is_some_and(|expires| expires <= now_ms);
+                if !expired {
+                    continue;
+                }
+                if let Some(ready) = target.ready_file.as_deref() {
+                    let _ = quiet_stop_fork(ready, &target.database)?;
+                }
+                crate::instance_fork::drop_managed_locked(root, &fork_id)?;
+                outcome.reaped.push(fork_id);
+                lock.dispose();
+            }
+            Err(error) if error.diagnostic.code == "SNAPBACK_FORK_NOT_FOUND" => {
+                lock.dispose();
+            }
+            Err(error) if error.diagnostic.code == "SNAPBACK_FORK_REGISTRY_STALE" => {
+                crate::instance_fork::clear_stale_registry_entry_locked(root, &fork_id)?;
+                outcome.cleared_stale_registry.push(fork_id);
+                lock.dispose();
+            }
+            Err(error) => return Err(error.into()),
+        }
     }
-    reap_expired_entries(root, expired).map_err(|error| {
+    outcome.reaped.sort();
+    outcome.cleared_stale_registry.sort();
+    Ok(outcome)
+}
+
+fn automatic_reap_before_create(
+    root: &Path,
+    observed_at_ms: u64,
+) -> anyhow::Result<ForkReapOutcome> {
+    reap_managed_forks(root, observed_at_ms).map_err(|error| {
         anyhow::Error::new(
             crate::diagnostic::SnapbackError::error(
                 "SNAPBACK_FORK_EXPIRED_REAP_FAILED",
                 "instanceFork",
-                format!(
-                    "create refused: {expired_count} expired managed fork(s) were present and could not all be swept"
-                ),
+                "create refused: expired managed fork(s) were present and could not all be swept",
             )
             .with_details(json!({
-                "expiredForkCount": expired_count,
                 "observedAtMs": observed_at_ms,
                 "cause": error.to_string(),
             })),
@@ -2589,14 +2618,21 @@ fn quiet_stop_fork(ready_file: &Path, expected_database: &Path) -> anyhow::Resul
             diagnostic.message
         );
     }
-    anyhow::ensure!(
-        std::process::Command::new("kill")
-            .arg(descriptor.pid.to_string())
-            .status()
-            .context("failed to signal fork server")?
-            .success(),
-        "SNAPBACK_FORK_STOP_FAILED: fork server did not accept SIGTERM"
-    );
+    let signalled = std::process::Command::new("kill")
+        .arg(descriptor.pid.to_string())
+        .status()
+        .context("failed to signal fork server")?
+        .success();
+    if !signalled {
+        // The server can exit between identity verification and the signal
+        // (self-shutdown at expiry, or a concurrent stop). Losing that race
+        // is a completed stop, not a failure.
+        if process_is_proven_gone(descriptor.pid)? {
+            remove_ready_after_process_gone(ready_file)?;
+            return Ok(None);
+        }
+        anyhow::bail!("SNAPBACK_FORK_STOP_FAILED: fork server did not accept SIGTERM");
+    }
     for _ in 0..40 {
         if fetch_health(&descriptor.server_url).is_err() {
             break;
@@ -2827,7 +2863,8 @@ where
                     "secrets": fork_secret_disposition(with_secrets, &database),
                     "automaticReap": {
                         "observedAtMs": created_at_ms,
-                        "reapedForkIds": automatically_reaped,
+                        "reapedForkIds": automatically_reaped.reaped,
+                        "clearedStaleRegistryIds": automatically_reaped.cleared_stale_registry,
                     },
                 }),
             );
@@ -2846,17 +2883,42 @@ where
         } => {
             let app_root = std::fs::canonicalize(app_root)?;
             let root = fork_root(&app_root, requested_root)?;
-            let entries = crate::instance_fork::list_managed(&root)?;
+            // One stale or corrupt registry entry must not hide every other
+            // fork from the operator; bind what proves out and surface the
+            // rest as diagnostics (LLP 0185 Phase 3 item 5).
+            let mut entries = Vec::new();
+            let mut unbound = Vec::new();
+            let mut diagnostics = Vec::new();
+            for fork_id in crate::instance_fork::managed_registry_ids(&root)? {
+                match crate::instance_fork::managed_target(&root, &fork_id) {
+                    Ok(target) => entries.push(target.entry),
+                    Err(error) if error.diagnostic.code == "SNAPBACK_FORK_NOT_FOUND" => {}
+                    Err(error) => {
+                        let code = error.diagnostic.code.clone();
+                        unbound.push(json!({ "forkId": fork_id, "code": code }));
+                        diagnostics.push(
+                            crate::diagnostic::Diagnostic::warning(
+                                error.diagnostic.code,
+                                "instanceFork",
+                                "registry entry could not be bound to local fork evidence",
+                            )
+                            .with_details(json!({ "forkId": fork_id })),
+                        );
+                    }
+                }
+            }
+            entries.sort_by(|left, right| left.lineage.fork_id.cmp(&right.lineage.fork_id));
             let app_id = entries
                 .first()
                 .map(|entry| entry.lineage.app_id.clone())
                 .unwrap_or_else(|| "unknown".to_owned());
-            let envelope = fork_envelope(
+            let envelope = fork_envelope_with_diagnostics(
                 "fork.list",
                 app_id,
                 Some(&app_root),
                 None,
-                json!({ "forkRoot": root, "forks": entries }),
+                json!({ "forkRoot": root, "forks": entries, "unboundRegistry": unbound }),
+                diagnostics,
             );
             print_envelope(&serde_json::to_value(envelope)?);
             Ok(())
@@ -2967,6 +3029,7 @@ where
         } => {
             let app_root = std::fs::canonicalize(app_root)?;
             let root = fork_root(&app_root, requested_root)?;
+            let lock = crate::instance_fork::lock_cleanup(&root, &fork_id)?;
             let target = crate::instance_fork::managed_target(&root, &fork_id)?;
             let stopped_pid = target
                 .ready_file
@@ -2974,7 +3037,8 @@ where
                 .map(|ready| quiet_stop_fork(ready, &target.database))
                 .transpose()?
                 .flatten();
-            crate::instance_fork::drop_managed(&root, &fork_id)?;
+            crate::instance_fork::drop_managed_locked(&root, &fork_id)?;
+            lock.dispose();
             let envelope = fork_envelope(
                 "fork.drop",
                 target.entry.lineage.app_id,
@@ -2996,19 +3060,21 @@ where
                 now_ms <= crate::manifest::PORTABLE_TIMESTAMP_MAX_MS,
                 "SNAPBACK_FORK_REAP_CLOCK_INVALID: reap clock exceeds the portable timestamp range"
             );
-            let expired = crate::instance_fork::expired_managed(&root, now_ms)?;
-            let reaped = reap_expired_entries(&root, expired)?;
+            let outcome = reap_managed_forks(&root, now_ms)?;
             let receipt = crate::instance_fork::ForkReapReceiptV1 {
                 schema_version: "snapback.fork-reap.v1".to_owned(),
                 now_ms,
-                reaped_fork_ids: reaped,
+                reaped_fork_ids: outcome.reaped,
             };
             let envelope = fork_envelope(
                 "fork.reap",
                 "unknown".to_owned(),
                 Some(&app_root),
                 None,
-                json!({ "receipt": receipt }),
+                json!({
+                    "receipt": receipt,
+                    "clearedStaleRegistryIds": outcome.cleared_stale_registry,
+                }),
             );
             print_envelope(&serde_json::to_value(envelope)?);
             Ok(())

@@ -1392,7 +1392,10 @@ pub fn record_managed_runtime(
     Ok(entry)
 }
 
-pub fn list_managed(fork_root: &Path) -> SnapbackResult<Vec<ForkRegistryEntryV1>> {
+/// Enumerate the fork ids recorded in the advisory registry without binding
+/// them to local evidence. Lifecycle sweeps use this so one stale or
+/// concurrently-removed entry cannot wedge every other fork's cleanup.
+pub fn managed_registry_ids(fork_root: &Path) -> SnapbackResult<Vec<String>> {
     let registry = fork_root.join(REGISTRY_DIRECTORY);
     if !registry.exists() {
         return Ok(Vec::new());
@@ -1405,7 +1408,7 @@ pub fn list_managed(fork_root: &Path) -> SnapbackResult<Vec<ForkRegistryEntryV1>
             "fork registry is not a real directory",
         ));
     }
-    let mut entries = Vec::new();
+    let mut ids = Vec::new();
     for child in fs::read_dir(&registry).map_err(|error| io_error("scan fork registry", error))? {
         let child = child.map_err(|error| io_error("read fork registry entry", error))?;
         if child.path().extension().and_then(|value| value.to_str()) != Some("json") {
@@ -1423,6 +1426,15 @@ pub fn list_managed(fork_root: &Path) -> SnapbackResult<Vec<ForkRegistryEntryV1>
             })?
             .to_owned();
         validate_fork_id(&recorded_id)?;
+        ids.push(recorded_id);
+    }
+    ids.sort();
+    Ok(ids)
+}
+
+pub fn list_managed(fork_root: &Path) -> SnapbackResult<Vec<ForkRegistryEntryV1>> {
+    let mut entries = Vec::new();
+    for recorded_id in managed_registry_ids(fork_root)? {
         entries.push(managed_target(fork_root, &recorded_id)?.entry);
     }
     entries.sort_by(|left, right| left.lineage.fork_id.cmp(&right.lineage.fork_id));
@@ -1681,14 +1693,73 @@ pub fn managed_target(fork_root: &Path, fork_id: &str) -> SnapbackResult<Managed
     })
 }
 
+/// A per-fork advisory lock serializing destructive lifecycle actions. A
+/// cleanup actor that loses the race then observes complete absence
+/// (`SNAPBACK_FORK_NOT_FOUND`) instead of a torn mid-teardown state — the
+/// 2026-08-03 fleet-dogfood drop/reap race was exactly that torn window.
+/// The serialization guarantee is Unix-only (flock); elsewhere the lock file
+/// is advisory bookkeeping without mutual exclusion.
+pub struct ForkCleanupLock {
+    _file: File,
+    path: PathBuf,
+}
+
+pub fn lock_cleanup(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkCleanupLock> {
+    validate_fork_id(fork_id)?;
+    let directory = fork_root.join(REGISTRY_DIRECTORY);
+    fs::create_dir_all(&directory)
+        .map_err(|error| io_error("create fork registry for cleanup lock", error))?;
+    let path = directory.join(format!("{fork_id}.cleanup-lock"));
+    let file = File::create(&path).map_err(|error| io_error("create fork cleanup lock", error))?;
+    #[cfg(unix)]
+    {
+        use std::os::fd::AsRawFd as _;
+        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) } != 0 {
+            return Err(io_error(
+                "acquire fork cleanup lock",
+                std::io::Error::last_os_error(),
+            ));
+        }
+    }
+    Ok(ForkCleanupLock { _file: file, path })
+}
+
+impl ForkCleanupLock {
+    /// Remove the lock file once the fork it guarded is fully gone. Actors
+    /// already queued on this inode wake to plain absence; later actors
+    /// create a fresh lock and equally observe absence.
+    pub fn dispose(self) {
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
 /// Remove exactly one registry-bound fork directory. Callers stop a live
 /// child first; path validation prevents registry corruption from widening the
 /// deletion target.
 pub fn drop_managed(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkRegistryEntryV1> {
+    let lock = lock_cleanup(fork_root, fork_id)?;
+    let entry = drop_managed_locked(fork_root, fork_id)?;
+    lock.dispose();
+    Ok(entry)
+}
+
+/// The teardown body. Callers must hold this fork's [`ForkCleanupLock`];
+/// re-binding evidence under the lock is what makes concurrent cleanup
+/// observe all-or-nothing states.
+pub fn drop_managed_locked(
+    fork_root: &Path,
+    fork_id: &str,
+) -> SnapbackResult<ForkRegistryEntryV1> {
     let target = managed_target(fork_root, fork_id)?;
     let entry = target.entry;
-    fs::remove_dir_all(&target.destination)
-        .map_err(|error| io_error("drop fork directory", error))?;
+    // A concurrent drop/reap may win the directory removal between the
+    // evidence re-bind above and this call. Duplicate cleanup of the same
+    // fork is idempotent, not an I/O fault.
+    match fs::remove_dir_all(&target.destination) {
+        Ok(()) => {}
+        Err(error) if error.kind() == ErrorKind::NotFound => {}
+        Err(error) => return Err(io_error("drop fork directory", error)),
+    }
     sync_directory(fork_root)?;
     let registry = registry_path(fork_root, fork_id);
     match fs::remove_file(&registry) {
@@ -1697,6 +1768,38 @@ pub fn drop_managed(fork_root: &Path, fork_id: &str) -> SnapbackResult<ForkRegis
         Err(error) => return Err(io_error("remove fork registry entry", error)),
     }
     Ok(entry)
+}
+
+/// Complete a partial cleanup: remove one registry entry whose recorded fork
+/// directory is already gone. Refuses while the destination still exists, so
+/// this can never widen into deleting fork state — only stale bookkeeping.
+pub fn clear_stale_registry_entry(fork_root: &Path, fork_id: &str) -> SnapbackResult<()> {
+    let lock = lock_cleanup(fork_root, fork_id)?;
+    clear_stale_registry_entry_locked(fork_root, fork_id)?;
+    lock.dispose();
+    Ok(())
+}
+
+/// See [`clear_stale_registry_entry`]; callers must hold the cleanup lock.
+pub fn clear_stale_registry_entry_locked(
+    fork_root: &Path,
+    fork_id: &str,
+) -> SnapbackResult<()> {
+    let root = fs::canonicalize(fork_root)
+        .map_err(|error| io_error("resolve managed fork root", error))?;
+    let entry = load_registry_entry(&root, fork_id)?;
+    if root.join(&entry.destination).exists() {
+        return Err(fork_error(
+            "SNAPBACK_FORK_EVIDENCE_MISMATCH",
+            "registry entry is not stale: its recorded fork destination still exists",
+        )
+        .with_details(json!({ "forkId": fork_id })));
+    }
+    match fs::remove_file(registry_path(&root, fork_id)) {
+        Ok(()) => sync_directory(&root.join(REGISTRY_DIRECTORY)),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(io_error("remove stale fork registry entry", error)),
+    }
 }
 
 pub fn expired_managed(fork_root: &Path, now_ms: u64) -> SnapbackResult<Vec<ForkRegistryEntryV1>> {
@@ -2888,6 +2991,89 @@ mod tests {
         assert_eq!(
             diff_receipt(&database).unwrap_err().diagnostic.code,
             "SNAPBACK_FORK_DIFF_RETENTION_GAP"
+        );
+    }
+
+    #[test]
+    fn concurrent_drops_of_one_fork_settle_idempotently() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        // Several rounds to vary the interleaving; each round races four
+        // cleanup actors on the same fork.
+        for round in 0..4 {
+            let destination = root.join(format!("fork-{round}"));
+            let receipt =
+                publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
+                    .unwrap();
+            let outcomes = std::thread::scope(|scope| {
+                let handles = (0..4)
+                    .map(|_| {
+                        let root = root.clone();
+                        let fork_id = receipt.lineage.fork_id.clone();
+                        scope.spawn(move || drop_managed(&root, &fork_id))
+                    })
+                    .collect::<Vec<_>>();
+                handles
+                    .into_iter()
+                    .map(|handle| handle.join().unwrap())
+                    .collect::<Vec<_>>()
+            });
+            let mut wins = 0;
+            for outcome in outcomes {
+                match outcome {
+                    Ok(_) => wins += 1,
+                    Err(error) => assert_eq!(
+                        error.diagnostic.code, "SNAPBACK_FORK_NOT_FOUND",
+                        "a losing cleanup actor observes complete absence, never a torn teardown"
+                    ),
+                }
+            }
+            assert_eq!(wins, 1, "round {round}: exactly one actor performs the teardown");
+            assert!(!destination.exists(), "round {round}: fork directory is gone");
+            assert!(
+                !registry_path(&root, &receipt.lineage.fork_id).exists(),
+                "round {round}: registry entry is gone"
+            );
+        }
+    }
+
+    #[test]
+    fn stale_registry_entries_clear_only_after_their_directory_is_gone() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let root = directory.path().join("forks");
+        fs::create_dir(&root).unwrap();
+        let destination = root.join("fork-a");
+        let receipt =
+            publish_managed(&source, &destination, "app-a", "parent-a", 100, 200_000, false)
+                .unwrap();
+
+        // While the fork directory exists the entry is not stale; clearing
+        // must refuse rather than orphan a live fork's bookkeeping.
+        assert_eq!(
+            clear_stale_registry_entry(&root, &receipt.lineage.fork_id)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_EVIDENCE_MISMATCH"
+        );
+
+        fs::remove_dir_all(&destination).unwrap();
+        assert_eq!(
+            managed_registry_ids(&root).unwrap(),
+            vec![receipt.lineage.fork_id.clone()],
+            "id enumeration keeps working over a stale entry"
+        );
+        clear_stale_registry_entry(&root, &receipt.lineage.fork_id).unwrap();
+        assert!(managed_registry_ids(&root).unwrap().is_empty());
+        assert_eq!(
+            clear_stale_registry_entry(&root, &receipt.lineage.fork_id)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_FORK_NOT_FOUND"
         );
     }
 
