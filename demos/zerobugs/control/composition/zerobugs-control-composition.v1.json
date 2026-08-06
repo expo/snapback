@@ -36,9 +36,9 @@
           "code_challenge": "stored PKCE challenge"
         }
       },
-      "output": "302 allowlisted redirect plus HttpOnly SameSite=Lax server-session cookie",
-      "auth": "state cookie + one-use in-memory state + PKCE + githubID to frozen identityBinding to admin-gated session mint",
-      "bound": "10-minute state; session Max-Age 30 days",
+      "output": "302 allowlisted redirect plus HttpOnly SameSite=Lax server-session cookie and one-use browser-login bootstrap cookie",
+      "auth": "state cookie + one-use in-memory state + PKCE + githubID to frozen identityBinding to admin-gated gateway session mint; a separate email challenge is held for browser AuthCoordinator exchange",
+      "bound": "10-minute state and bootstrap; at most 1024 staged bootstraps; session Max-Age 30 days",
       "support": "LOCAL/DEV PARTIAL; public-TLS and real provider exchange are ZB7 GAP"
     },
     {
@@ -108,6 +108,11 @@
     }
   ],
   "auxiliaryRoutes": [
+    {
+      "method": "POST",
+      "path": "/api/auth/bootstrap",
+      "purpose": "consume and clear the callback's HttpOnly one-use artifact, returning only the closed email challenge/code that the SPA passes to the shipped AuthCoordinator authExchange surface"
+    },
     {
       "method": "GET",
       "path": "/health",

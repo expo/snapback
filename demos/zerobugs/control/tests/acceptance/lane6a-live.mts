@@ -134,7 +134,7 @@ async function main(): Promise<void> {
     assert(mutationTarget, 'oracle contains a public issue not owned by the ordinary actor');
     const mutationTargetID = sourceID(mutationTarget);
     const window = new WindowController({
-      identity: windowIdentity({query: 'issueListV2', args: {listContext: context}, order: {
+      identity: windowIdentity({query: 'issueListV2', args: {listContext: context}, authority: 'crew', order: {
         field: context.sortField, direction: context.sortDirection,
       }}),
       source: issueWindowSource(ordinaryAdapter, context),

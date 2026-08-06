@@ -78,7 +78,7 @@ function source(options: Readonly<{
 
 function controller(dataSource = source(), pageSize = 3): WindowController<Row, Cursor> {
   return new WindowController({
-    identity: windowIdentity({query: 'fixture', args: {}, order: 'asc'}),
+    identity: windowIdentity({query: 'fixture', args: {}, order: 'asc', authority: 'fixture'}),
     source: dataSource,
     pageSize,
     estimateSize: () => 10,
@@ -136,7 +136,9 @@ describe('Lane 6a window controller', () => {
     const window = controller(wrapped);
     const predecessor = window.loadInitial();
     expect(window.getSnapshot().phase).toBe('hydrating');
-    window.replaceIdentity(windowIdentity({query: 'fixture', args: {open: true}, order: 'asc'}));
+    window.replaceIdentity(windowIdentity({
+      query: 'fixture', args: {open: true}, order: 'asc', authority: 'fixture',
+    }));
     expect(window.getSnapshot().items).toEqual([]);
     expect(window.getSnapshot().generation).toBe(1);
     release(frame(rows.slice(0, 3), rows.length, true));
@@ -169,6 +171,42 @@ describe('Lane 6a window controller', () => {
     await window.loadInitial();
     expect(window.getSnapshot().phase).toBe('ready');
     expect(window.getSnapshot().complete).toBe(true);
+  });
+
+  test('session settlement retires a refused generation and re-requests the window', async () => {
+    let calls = 0;
+    const transitioning = source({
+      override: request => {
+        if (request.start !== null || calls++ > 0) return null;
+        return {
+          status: 'refused',
+          value: undefined,
+          reason: null,
+          connection: 'error',
+          freshness: 'unknown',
+          refusal: {
+            code: 'SNAPBACK_AUTH_TRANSITION_IN_PROGRESS',
+            message: 'query refused while auth custody is transitioning',
+            details: {},
+          },
+        };
+      },
+    });
+    const window = controller(transitioning);
+    await window.loadInitial();
+    const refusedGeneration = window.getSnapshot().generation;
+    expect(window.getSnapshot().phase).toBe('refused');
+
+    window.suspend();
+    expect(window.getSnapshot().generation).toBe(refusedGeneration + 1);
+    expect(window.getSnapshot().phase).toBe('pending');
+    await window.loadInitial();
+
+    expect(calls).toBe(2);
+    expect(window.getSnapshot().phase).toBe('ready');
+    expect(window.getSnapshot().items.map(item => item.key)).toEqual(
+      rows.slice(0, 3).map(row => row.id),
+    );
   });
 
   test('refuses duplicate, non-adjacent, and contradictory cursor frames', async () => {
@@ -213,7 +251,9 @@ describe('Lane 6a window controller', () => {
   });
 
   test('scroll history value is compatible with an opaque wouter state slot', () => {
-    const identity = windowIdentity({query: 'fixture', args: {label: 'bug'}, order: 'desc'});
+    const identity = windowIdentity({
+      query: 'fixture', args: {label: 'bug'}, order: 'desc', authority: 'fixture',
+    });
     const value = windowScrollState({
       identity,
       anchor: {...rows[3]},

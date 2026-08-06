@@ -1,0 +1,21 @@
+{
+  "format": "zerobugs-source-inventory.v1",
+  "pinnedRoot": "/private/tmp/claude-501/-Users-ccheever-projects-snapback/befae82c-8eee-49a1-ac15-50f149675605/scratchpad/zbugs-pin/apps/zbugs/src",
+  "replacements": [
+    {
+      "source": "jwt.ts",
+      "target": "auth/session.tsx",
+      "reason": "Retired: bearer custody is server/session-coordinator owned and no readable client JWT file is admitted."
+    },
+    {
+      "source": "server/upload.ts",
+      "target": "assets/upload.ts",
+      "reason": "Replaced by the gateway presign/delivery adapter using same-origin HttpOnly session custody."
+    },
+    {
+      "source": "zero-init.tsx",
+      "target": "data/snapback.ts",
+      "reason": "Replaced by the Snapback client, generated-manifest binding, IndexedDB-backed browser auth coordinator, and Lane 6a adapter boot."
+    }
+  ]
+}

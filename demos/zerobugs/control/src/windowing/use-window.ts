@@ -8,6 +8,7 @@ import {
 
 export type UseWindowOptions<Row, Cursor> = WindowControllerOptions<Row, Cursor> & Readonly<{
   permalinkID?: string | null;
+  enabled?: boolean;
 }>;
 
 export type UseWindowValue<Row, Cursor> = Readonly<{
@@ -42,9 +43,13 @@ export function useWindow<Row, Cursor>(
 
   useEffect(() => () => controller.dispose(), [controller]);
   useEffect(() => {
+    if (options.enabled === false) {
+      controller.suspend();
+      return;
+    }
     if (options.permalinkID) void controller.loadPermalink(options.permalinkID);
     else void controller.loadInitial();
-  }, [controller, options.permalinkID]);
+  }, [controller, options.enabled, options.permalinkID]);
 
   return useMemo(() => Object.freeze({
     controller,

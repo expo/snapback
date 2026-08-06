@@ -9,9 +9,13 @@ import {
 import {useSnapbackConnection, type SnapbackConnection} from '@expo/snapback-react';
 
 import {api} from '../../snapback/generated/api.mjs';
+import {
+  fetchLoginBootstrap,
+  type LoginBootstrapExchange,
+} from './login-bootstrap';
 
-// @ref LLP 0059#transition-barrier — bearer replacement synchronously
-// blanks the predecessor projection; only the successor handshake and
+// @ref LLP 0059#transition-barrier — authExchange advances browser custody
+// through the coordinator barrier; only the successor handshake and
 // principal-derived identity query may publish a current user.
 
 export type SessionIdentity = Readonly<{
@@ -49,6 +53,7 @@ export type SessionSnapshot = Readonly<{
 
 export type SessionClient = Readonly<{
   authSession(options?: Readonly<{force?: boolean}>): Promise<SessionHandshake | null>;
+  authExchange(exchange: LoginBootstrapExchange): Promise<unknown>;
   authLogout(): Promise<unknown>;
   replaceBearerToken(token: string | null): Promise<void>;
   query(
@@ -60,7 +65,16 @@ export type SessionClient = Readonly<{
 export type SessionControllerOptions = Readonly<{
   client: SessionClient;
   loginBasePath?: string;
+  loadLoginBootstrap?: () => Promise<LoginBootstrapExchange | null>;
   navigate?: (url: string) => void;
+}>;
+
+export type SessionAuthorityIdentity = Readonly<{
+  phase: SessionSnapshot['phase'];
+  principal: string | null;
+  authorityInstanceId: string | null;
+  sessionGeneration: number | null;
+  authorizationStreamIncarnation: string | null;
 }>;
 
 function offlineFact(connection: SnapbackConnection): OfflineFact {
@@ -116,11 +130,25 @@ function isAuthenticated(session: SessionHandshake | null): boolean {
     || session?.authority?.kind === 'session';
 }
 
+/** The authority-bearing portion of a server-backed query/window identity. */
+export function sessionAuthorityIdentity(snapshot: SessionSnapshot): SessionAuthorityIdentity {
+  return Object.freeze({
+    phase: snapshot.phase,
+    principal: snapshot.phase === 'authenticated' ? snapshot.current?.principal ?? null : null,
+    authorityInstanceId: snapshot.session?.authorityDescriptor?.authorityInstanceId ?? null,
+    sessionGeneration: snapshot.session?.authorityDescriptor?.sessionGeneration ?? null,
+    authorizationStreamIncarnation: snapshot.session?.authorizationStreamIncarnation ?? null,
+  });
+}
+
 export class SessionController {
   readonly #client: SessionClient;
   readonly #loginBasePath: string;
+  readonly #loadLoginBootstrap: () => Promise<LoginBootstrapExchange | null>;
   readonly #navigate: (url: string) => void;
+  #bootstrapFlight: Promise<void> | null = null;
   #generation = 0;
+  #activeFlows = new Set<number>();
   #listeners = new Set<() => void>();
   #snapshot: SessionSnapshot = Object.freeze({
     phase: 'loading',
@@ -134,6 +162,7 @@ export class SessionController {
   constructor(options: SessionControllerOptions) {
     this.#client = options.client;
     this.#loginBasePath = options.loginBasePath ?? '/api/login/github';
+    this.#loadLoginBootstrap = options.loadLoginBootstrap ?? fetchLoginBootstrap;
     this.#navigate = options.navigate ?? (url => {
       if (typeof window !== 'undefined') window.location.assign(url);
     });
@@ -175,34 +204,104 @@ export class SessionController {
     });
   }
 
-  async refresh(options: Readonly<{blank?: boolean}> = {}): Promise<void> {
-    if (options.blank) this.blank();
+  #beginFlow(phase: 'loading' | 'transitioning'): number {
     const generation = ++this.#generation;
-    if (this.#snapshot.phase !== 'transitioning') {
-      this.#publish({phase: 'loading', session: null, current: null, error: null});
+    this.#activeFlows.add(generation);
+    this.#publish({phase, session: null, current: null, error: null});
+    return generation;
+  }
+
+  #finishFlow(generation: number): void {
+    this.#activeFlows.delete(generation);
+    if (
+      (this.#snapshot.phase === 'loading' || this.#snapshot.phase === 'transitioning')
+      && !this.#activeFlows.has(this.#generation)
+    ) {
+      this.#publish({
+        phase: 'error',
+        session: null,
+        current: null,
+        error: Object.freeze({
+          code: 'ZBUGS_SESSION_FLOW_ABANDONED',
+          message: 'the session transition ended without a terminal successor publication',
+        }),
+      });
     }
+  }
+
+  #publishError(generation: number, error: unknown): void {
+    if (generation !== this.#generation) return;
+    this.#publish({phase: 'error', session: null, current: null, error: safeError(error)});
+  }
+
+  async refresh(options: Readonly<{blank?: boolean}> = {}): Promise<void> {
+    const generation = this.#beginFlow(options.blank ? 'transitioning' : 'loading');
     try {
-      const session = await this.#client.authSession({force: true});
+      await this.#refreshGeneration(generation);
+    } catch (error) {
+      this.#publishError(generation, error);
+    } finally {
+      this.#finishFlow(generation);
+    }
+  }
+
+  bootstrap(): Promise<void> {
+    if (this.#bootstrapFlight !== null) return this.#bootstrapFlight;
+    const flight = this.#bootstrapOnce().finally(() => {
+      if (this.#bootstrapFlight === flight) this.#bootstrapFlight = null;
+    });
+    this.#bootstrapFlight = flight;
+    return flight;
+  }
+
+  async #bootstrapOnce(): Promise<void> {
+    const generation = this.#beginFlow('loading');
+    try {
+      const exchange = await this.#loadLoginBootstrap();
       if (generation !== this.#generation) return;
-      if (!isAuthenticated(session)) {
-        this.#publish({phase: 'anonymous', session, current: null, error: null});
+      if (exchange !== null) {
+        this.#publish({phase: 'transitioning', session: null, current: null, error: null});
+        await this.#client.authExchange(exchange);
+        // Custody has advanced: a concurrent authSession refresh can bump the
+        // generation mid-exchange with a pre-exchange snapshot (observed live:
+        // GET /auth/session interleaving the exchange POST). The exchange
+        // outcome must still settle — claim a fresh generation instead of
+        // abandoning the UI in 'transitioning'.
+        const settled = ++this.#generation;
+        this.#activeFlows.add(settled);
+        try {
+          await this.#refreshGeneration(settled);
+        } finally {
+          this.#finishFlow(settled);
+        }
         return;
       }
-      const output = await this.#client.query(api.gatewayIdentitySelf, {args: {}});
-      if (generation !== this.#generation) return;
-      if (output.rows.length !== 1) {
-        throw new TypeError('gateway identity query must return exactly one row');
-      }
-      this.#publish({
-        phase: 'authenticated',
-        session,
-        current: identity(output.rows[0]),
-        error: null,
-      });
+      await this.#refreshGeneration(generation);
     } catch (error) {
-      if (generation !== this.#generation) return;
-      this.#publish({phase: 'error', session: null, current: null, error: safeError(error)});
+      this.#publishError(generation, error);
+    } finally {
+      this.#finishFlow(generation);
     }
+  }
+
+  async #refreshGeneration(generation: number): Promise<void> {
+    const session = await this.#client.authSession({force: true});
+    if (generation !== this.#generation) return;
+    if (!isAuthenticated(session)) {
+      this.#publish({phase: 'anonymous', session, current: null, error: null});
+      return;
+    }
+    const output = await this.#client.query(api.gatewayIdentitySelf, {args: {}});
+    if (generation !== this.#generation) return;
+    if (output.rows.length !== 1) {
+      throw new TypeError('gateway identity query must return exactly one row');
+    }
+    this.#publish({
+      phase: 'authenticated',
+      session,
+      current: identity(output.rows[0]),
+      error: null,
+    });
   }
 
   login(redirect?: string): string {
@@ -216,8 +315,7 @@ export class SessionController {
   }
 
   async logout(): Promise<void> {
-    this.blank();
-    const generation = this.#generation;
+    const generation = this.#beginFlow('transitioning');
     try {
       await this.#client.authLogout();
       if (generation !== this.#generation) return;
@@ -228,23 +326,35 @@ export class SessionController {
       }
       this.#publish({phase: 'anonymous', session, current: null, error: null});
     } catch (error) {
-      if (generation !== this.#generation) return;
-      this.#publish({phase: 'error', session: null, current: null, error: safeError(error)});
+      this.#publishError(generation, error);
+    } finally {
+      this.#finishFlow(generation);
     }
   }
 
   async switchBearer(token: string | null): Promise<void> {
-    this.blank();
-    const generation = this.#generation;
+    const generation = this.#beginFlow('transitioning');
     try {
       await this.#client.replaceBearerToken(token);
       if (generation !== this.#generation) return;
-      await this.refresh();
+      await this.#refreshGeneration(generation);
     } catch (error) {
-      if (generation !== this.#generation) return;
-      this.#publish({phase: 'error', session: null, current: null, error: safeError(error)});
+      this.#publishError(generation, error);
+    } finally {
+      this.#finishFlow(generation);
     }
   }
+}
+
+const controllersByClient = new WeakMap<SessionClient, SessionController>();
+
+/** Remount-stable controller ownership for one module-level Snapback client. */
+export function getSessionController(options: SessionControllerOptions): SessionController {
+  const existing = controllersByClient.get(options.client);
+  if (existing) return existing;
+  const controller = new SessionController(options);
+  controllersByClient.set(options.client, controller);
+  return controller;
 }
 
 const SessionContext = createContext<SessionController | null>(null);
@@ -259,7 +369,7 @@ export function SessionProvider(props: Readonly<{
     connection.status,
   ]);
   useEffect(() => {
-    void props.controller.refresh();
+    void props.controller.bootstrap();
   }, [props.controller]);
   return <SessionContext.Provider value={props.controller}>{props.children}</SessionContext.Provider>;
 }
