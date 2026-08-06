@@ -6,7 +6,14 @@
 experience, Developer experience, CLI, Documentation, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-06 (round-2 derived-fork review closure: registered writer
+**Revised:** 2026-08-06 (row-13 concurrent-create hang repair: root admission
+now uses a 30-second monotonic nonblocking-acquisition deadline with stable
+`SNAPBACK_FORK_ADMISSION_TIMEOUT`, while detached server exec marks every
+non-stdio inherited descriptor close-on-exec. This closes the macOS concurrent
+`Command::output` pipe-creation race in which a sibling create inherited a
+capture writer before Rust applied `FD_CLOEXEC`, then passed it to the
+five-minute fork server and withheld EOF from the completed CLI.); 2026-08-06
+(round-2 derived-fork review closure: registered writer
 construction now reconstructs the fork receipt/stream/manifest plus a monotonic
 coverage-continuity carrier before issuing authority, protects those carriers
 from arbitrary armed DML, and records any observed gap in both the database and
@@ -963,7 +970,13 @@ held across the observed count/byte snapshot, registry intent, and permanent
 directory publication, so concurrent creates at either the count or total-byte
 boundary cannot both admit against the same stale observation. The lock does
 not broaden authority: each create and any automatic reap performed before it
-still sees only the invoking app-root-bound lifecycle set.
+still sees only the invoking app-root-bound lifecycle set. Acquisition polls
+`LOCK_NB` against a 30-second monotonic deadline and refuses with
+`SNAPBACK_FORK_ADMISSION_TIMEOUT` rather than sleeping without bound. After
+publication releases the lock and before the detached server exec, every
+non-stdio descriptor inherited from the create caller is marked close-on-exec;
+the server therefore cannot retain a caller capture pipe, lifecycle lock, or
+other accidental descriptor for its TTL.
 
 Bounded renewal is built (LLP 0185 Phase 3, 2026-08-05): `fork renew` extends
 a finite expiry under the per-fork cleanup lock, refuses an already-expired
@@ -1451,6 +1464,7 @@ the freeze:
 | `SNAPBACK_FORK_APP_BINDING_MISMATCH` | The invoking opaque identity no longer matches its canonical app-root receipt, or the selected registry, staging intent, fork-local receipt, or runtime attachment is bound to a different canonical app root and/or logical app id. |
 | `SNAPBACK_FORK_APP_BINDING_REQUIRED` | A legacy, lower-level unmanaged, or malformed entry lacks the mint-time app-root identity required for fail-closed lifecycle selection. Never-launched managed forks are not in this class because mint publishes their binding. |
 | `SNAPBACK_FORK_APP_ROOT_INVALID` | The requested app-root path cannot be canonicalized. |
+| `SNAPBACK_FORK_ADMISSION_TIMEOUT` | Root-wide create admission remained contended through its 30-second monotonic acquisition deadline; no count/byte observation or publication began. |
 | `SNAPBACK_FORK_BOOT_FAILED` | The child server could not spawn or exited before readiness. |
 | `SNAPBACK_FORK_BOOT_TIMEOUT` | The child did not publish its ready descriptor within the creation deadline. |
 | `SNAPBACK_FORK_CUSTODY_REFUSED` | An occupied source table belongs to a subsystem whose fork disposition is refusal (in-app branch/promotion/migration state; since 2026-08-05 supported local asset tables are `Copy` custody, not this class). |

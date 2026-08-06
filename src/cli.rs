@@ -3380,6 +3380,59 @@ fn quiet_stop_fork(ready_file: &Path, expected_database: &Path) -> anyhow::Resul
     Ok(Some(descriptor.pid))
 }
 
+#[cfg(unix)]
+fn detached_child_descriptor_ceiling() -> i32 {
+    let observed = ["/proc/self/fd", "/dev/fd"]
+        .into_iter()
+        .find_map(|directory| std::fs::read_dir(directory).ok())
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .filter_map(|entry| entry.file_name().to_str()?.parse::<i32>().ok())
+        .max();
+    if let Some(maximum) = observed {
+        return maximum.saturating_add(1).max(3);
+    }
+
+    let mut limit = std::mem::MaybeUninit::<libc::rlimit>::uninit();
+    if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, limit.as_mut_ptr()) } == 0 {
+        let current = unsafe { limit.assume_init() }.rlim_cur;
+        return current.min(65_536) as i32;
+    }
+    1_024
+}
+
+#[cfg(unix)]
+fn configure_detached_child(command: &mut std::process::Command) {
+    use std::os::unix::process::CommandExt as _;
+
+    let descriptor_ceiling = detached_child_descriptor_ceiling();
+    // @ref LLP 0158#lifecycle-and-gc — the detached server outlives the
+    // short create CLI, so it must not also prolong arbitrary caller-owned
+    // pipes or locks that happened to cross the CLI's own exec boundary.
+    unsafe {
+        command.pre_exec(move || {
+            for descriptor in 3..descriptor_ceiling {
+                loop {
+                    if libc::fcntl(descriptor, libc::F_SETFD, libc::FD_CLOEXEC) == 0 {
+                        break;
+                    }
+                    let error = std::io::Error::last_os_error();
+                    match error.raw_os_error() {
+                        Some(libc::EBADF) => break,
+                        Some(libc::EINTR) => continue,
+                        _ => return Err(error),
+                    }
+                }
+            }
+            if libc::setsid() == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+}
+
 async fn fork_command(command: ForkCommand) -> anyhow::Result<()> {
     fork_command_with_clock(command, now_ms).await
 }
@@ -3565,18 +3618,12 @@ where
             }
             #[cfg(unix)]
             {
-                use std::os::unix::process::CommandExt as _;
                 // The fork server outlives this short CLI projection. A new
                 // session prevents terminal/launcher teardown from killing
-                // the derived deployment immediately after readiness.
-                unsafe {
-                    launch.pre_exec(|| {
-                        if libc::setsid() == -1 {
-                            return Err(std::io::Error::last_os_error());
-                        }
-                        Ok(())
-                    });
-                }
+                // the derived deployment immediately after readiness, while
+                // the descriptor sweep prevents it from retaining caller
+                // capture pipes after the CLI has exited.
+                configure_detached_child(&mut launch);
             }
             let mut child = launch
                 .spawn()
@@ -6945,17 +6992,9 @@ async fn restart_start_result(
     }
     #[cfg(unix)]
     {
-        use std::os::unix::process::CommandExt as _;
         // The replacement outlives this one-shot CLI process. MCP keeps its
         // child owner alive; the CLI uses a new session for equivalent custody.
-        unsafe {
-            command.pre_exec(|| {
-                if libc::setsid() == -1 {
-                    return Err(std::io::Error::last_os_error());
-                }
-                Ok(())
-            });
-        }
+        configure_detached_child(&mut command);
     }
     let mut child = match command.spawn() {
         Ok(child) => child,

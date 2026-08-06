@@ -1891,6 +1891,95 @@ fn stale_registry_partial_cleanup_never_wedges_list_reap_or_create() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn detached_fork_server_closes_unrelated_inherited_descriptors_on_exec() {
+    use std::os::fd::{AsRawFd as _, FromRawFd as _};
+    use std::os::unix::process::CommandExt as _;
+
+    let directory = tempfile::tempdir().expect("descriptor inheritance fixture");
+    let source = parent_with_schema(directory.path());
+    let app_root = directory.path().join("app");
+    std::fs::create_dir(&app_root).unwrap();
+    let fork_root = directory.path().join("forks");
+
+    let mut descriptors = [-1; 2];
+    assert_eq!(unsafe { libc::pipe(descriptors.as_mut_ptr()) }, 0);
+    for descriptor in descriptors {
+        assert_eq!(
+            unsafe { libc::fcntl(descriptor, libc::F_SETFD, libc::FD_CLOEXEC) },
+            0
+        );
+    }
+    let mut reader = unsafe { File::from_raw_fd(descriptors[0]) };
+    let writer = unsafe { File::from_raw_fd(descriptors[1]) };
+    let writer_fd = writer.as_raw_fd();
+    const INHERITED_CALLER_FD: i32 = 198;
+
+    let mut command = snapback();
+    command.args([
+        "fork",
+        "create",
+        "--from",
+        source.to_str().unwrap(),
+        "--ttl",
+        "5m",
+        "--app-root",
+        app_root.to_str().unwrap(),
+        "--fork-root",
+        fork_root.to_str().unwrap(),
+    ]);
+    unsafe {
+        command.pre_exec(move || {
+            if libc::dup2(writer_fd, INHERITED_CALLER_FD) < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+    command.stdout(Stdio::piped()).stderr(Stdio::piped());
+    let child = command.spawn().expect("spawn fork create with inherited pipe");
+    drop(writer);
+    let output = child
+        .wait_with_output()
+        .expect("fork create exits after detached readiness");
+    assert_success(&output, "fork create with inherited caller descriptor");
+    let created: Value = serde_json::from_slice(&output.stdout).expect("fork create JSON");
+    let mut cleanup = ForkCleanup {
+        fork_root,
+        app_root,
+        fork_ids: vec![fork_id(&created).to_owned()],
+    };
+
+    let flags = unsafe { libc::fcntl(reader.as_raw_fd(), libc::F_GETFL) };
+    assert!(flags >= 0);
+    assert_eq!(
+        unsafe { libc::fcntl(reader.as_raw_fd(), libc::F_SETFL, flags | libc::O_NONBLOCK) },
+        0
+    );
+    let mut byte = [0_u8; 1];
+    let reached_eof = matches!(reader.read(&mut byte), Ok(0));
+
+    let fork_id = cleanup.fork_ids.pop().unwrap();
+    let output = snapback()
+        .args([
+            "fork",
+            "drop",
+            &fork_id,
+            "--app-root",
+            cleanup.app_root.to_str().unwrap(),
+            "--fork-root",
+            cleanup.fork_root.to_str().unwrap(),
+        ])
+        .output()
+        .expect("drop descriptor inheritance fixture");
+    assert_success(&output, "drop descriptor inheritance fixture");
+    assert!(
+        reached_eof,
+        "the detached server retained an unrelated caller descriptor after the create CLI exited"
+    );
+}
+
 /// LLP 0185 Phase 3 item 5: simultaneously running forks bind distinct
 /// OS-assigned ports, stay healthy together, and concurrent drops settle
 /// without trampling each other's cleanup.

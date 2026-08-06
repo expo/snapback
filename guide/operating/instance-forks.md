@@ -70,8 +70,10 @@ The fork operation does all of these before it returns:
   `--max-total-bytes`), reporting the admitted usage as
   `data.resourceAdmission`; a fork-root lock keeps the count/byte observation,
   registry intent, and publication one atomic admission interval even when
-  creates race at a boundary; the creation TTL itself is bounded by the same
-  maximum total fork lifetime that caps renewal;
+  creates race at a boundary; lock acquisition has a 30-second monotonic
+  deadline and refuses with `SNAPBACK_FORK_ADMISSION_TIMEOUT` rather than
+  waiting without bound; the creation TTL itself is bounded by the same maximum
+  total fork lifetime that caps renewal;
 - treats those byte checks as admission-time estimates, not a live disk
   quota: fork-local writes and uploads can grow after creation until finite
   TTL/reap cleanup, so use a filesystem/container quota when runtime growth
@@ -306,6 +308,7 @@ details object in automation; the message is for people.
 | `SNAPBACK_FORK_REGISTRY_STALE` | Treat the registry as advisory and inspect the named exact path; never recursively sweep based only on the row. |
 | `SNAPBACK_FORK_STOP_UNVERIFIED` | Resolve the missing/stale ready descriptor or live PID; Snapback intentionally will not signal or delete an unproved target. |
 | `SNAPBACK_FORK_EXPIRED_REAP_FAILED` | Inspect the reported expired targets and restore enough evidence to stop/reap them safely before retrying create. |
+| `SNAPBACK_FORK_ADMISSION_TIMEOUT` | Another creator did not finish its atomic admission/publication interval within 30 seconds. Inspect that creator and its exact staging/publication state; retry only after it exits or recovery resolves its destination. |
 | `SNAPBACK_FORK_SERVER_EXPIRED` | Expected finite-TTL enforcement: use `create` or explicit `reap` to prove the stopped process and remove the fork, or `renew` **before** expiry to extend it. |
 | `SNAPBACK_FORK_RENEW_EXPIRED` | Renewal never resurrects: the fork is already past expiry — reap it and create a fresh fork. |
 | `SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` | A configured bound refused deterministically; the details name the resource (`fork-count`, `fork-bytes`, `total-bytes`, `diff-work`, `renewal-lifetime`) and the observed usage. Net diff additionally reports its streaming `phase`, `limitKind`, journal/scanned rows, and bytes. Drop forks, raise the explicit flag, or bound the request. |

@@ -12,7 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File};
 use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 pub const STAGING_SENTINEL: &str = ".snapback-fork-staging.v1";
@@ -43,6 +43,7 @@ pub const WRITER_COVERAGE_INVALID_CODE: &str = "SNAPBACK_FORK_WRITER_COVERAGE_IN
 pub const WRITER_COVERAGE_GAP_CODE: &str = "SNAPBACK_FORK_WRITER_COVERAGE_GAP";
 pub const APP_BINDING_REQUIRED_CODE: &str = "SNAPBACK_FORK_APP_BINDING_REQUIRED";
 pub const APP_BINDING_MISMATCH_CODE: &str = "SNAPBACK_FORK_APP_BINDING_MISMATCH";
+pub const ADMISSION_TIMEOUT_CODE: &str = "SNAPBACK_FORK_ADMISSION_TIMEOUT";
 
 /// Maximum total lifetime for a managed fork, binding creation through every
 /// renewal (LLP 0185 Phase 3 item 6's "configured maximum"; author-ratified
@@ -61,6 +62,8 @@ pub const MANAGED_FORK_MAX_FORK_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 pub const MANAGED_FORK_MAX_TOTAL_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 pub const FORK_DIFF_MAX_ROWS: u64 = 100_000;
 pub const FORK_DIFF_MAX_BYTES: u64 = 64 * 1024 * 1024;
+pub const FORK_CREATION_ADMISSION_TIMEOUT_MS: u64 = 30_000;
+const FORK_CREATION_ADMISSION_POLL_MS: u64 = 10;
 
 #[derive(Clone, Copy, Debug)]
 pub struct ForkResourceLimits {
@@ -3337,6 +3340,22 @@ pub fn admit_creation(
     limits: &ForkResourceLimits,
     retain_base: bool,
 ) -> SnapbackResult<ForkCreationAdmission> {
+    admit_creation_with_timeout(
+        fork_root,
+        source_database,
+        limits,
+        retain_base,
+        Duration::from_millis(FORK_CREATION_ADMISSION_TIMEOUT_MS),
+    )
+}
+
+fn admit_creation_with_timeout(
+    fork_root: &Path,
+    source_database: &Path,
+    limits: &ForkResourceLimits,
+    retain_base: bool,
+    timeout: Duration,
+) -> SnapbackResult<ForkCreationAdmission> {
     let registry = fork_root.join(REGISTRY_DIRECTORY);
     fs::create_dir_all(&registry)
         .map_err(|error| io_error("create fork registry for admission lock", error))?;
@@ -3350,11 +3369,33 @@ pub fn admit_creation(
     #[cfg(unix)]
     {
         use std::os::fd::AsRawFd as _;
-        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) } != 0 {
-            return Err(io_error(
-                "acquire fork-root admission lock",
-                std::io::Error::last_os_error(),
-            ));
+        // @ref LLP 0158#lifecycle-and-gc — quota linearization is required,
+        // but a crashed or externally wedged creator cannot leave every later
+        // lifecycle request sleeping forever in a blocking `flock`.
+        let started = Instant::now();
+        loop {
+            if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } == 0 {
+                break;
+            }
+            let error = std::io::Error::last_os_error();
+            if error.kind() != ErrorKind::WouldBlock {
+                return Err(io_error("acquire fork-root admission lock", error));
+            }
+            let elapsed = started.elapsed();
+            if elapsed >= timeout {
+                return Err(fork_error(
+                    ADMISSION_TIMEOUT_CODE,
+                    "fork create timed out waiting for the root-wide admission interval; inspect the active creator before retrying",
+                )
+                .with_details(json!({
+                    "timeoutMs": timeout.as_millis().min(u128::from(u64::MAX)) as u64,
+                })));
+            }
+            std::thread::park_timeout(
+                timeout
+                    .saturating_sub(elapsed)
+                    .min(Duration::from_millis(FORK_CREATION_ADMISSION_POLL_MS)),
+            );
         }
     }
     let usage = enforce_creation_limits(fork_root, source_database, limits, retain_base)?;
@@ -7061,6 +7102,51 @@ mod tests {
                 .map(|handle| handle.join().unwrap())
                 .collect()
         })
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn root_wide_admission_deadline_is_stable_and_releases_cleanly() {
+        use std::os::fd::AsRawFd as _;
+
+        let directory = tempfile::tempdir().unwrap();
+        let source = source_database(directory.path());
+        let root = directory.path().join("forks");
+        let registry = root.join(REGISTRY_DIRECTORY);
+        fs::create_dir_all(&registry).unwrap();
+        let holder = fs::OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .open(registry.join("root.admission-lock"))
+            .unwrap();
+        assert_eq!(
+            unsafe { libc::flock(holder.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
+            0
+        );
+
+        let refusal = match admit_creation_with_timeout(
+            &root,
+            &source,
+            &ForkResourceLimits::default(),
+            false,
+            Duration::ZERO,
+        ) {
+            Ok(_) => panic!("a held admission lock must refuse at the test deadline"),
+            Err(error) => error,
+        };
+        assert_eq!(refusal.diagnostic.code, ADMISSION_TIMEOUT_CODE);
+        assert_eq!(refusal.diagnostic.details["timeoutMs"], 0);
+
+        drop(holder);
+        admit_creation_with_timeout(
+            &root,
+            &source,
+            &ForkResourceLimits::default(),
+            false,
+            Duration::ZERO,
+        )
+        .expect("an uncontended first attempt succeeds even at a zero test deadline");
     }
 
     #[test]
