@@ -1,4 +1,79 @@
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+
 export const PUBLIC_PACKAGE_BUILD_DISTRIBUTION = 'public-package';
+export const PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE =
+  'packaged-store-qualification.receipt.json';
+export const PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION =
+  'snapback.packaged-store-qualification.v1';
+
+function receiptError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
+
+// @ref LLP 0166#public-package-advertisement-amendment--2026-08-06 — release
+// staging installs the qualification receipt beside the exact packaged binary;
+// runtime admission remains responsible for validating its substantive binds.
+export function installPackagedStoreQualificationReceipt({
+  sourceBinary,
+  binDirectory,
+  receiptEnvironmentName,
+  environment = process.env,
+}) {
+  const explicit = Object.hasOwn(environment, receiptEnvironmentName);
+  const sibling = join(
+    dirname(sourceBinary),
+    PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE,
+  );
+  const source = explicit
+    ? resolve(String(environment[receiptEnvironmentName] ?? ''))
+    : sibling;
+  if (!explicit && !existsSync(source)) return null;
+
+  let bytes;
+  try {
+    bytes = readFileSync(source);
+  } catch (error) {
+    throw receiptError(
+      'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_UNREADABLE',
+      `${explicit ? `${receiptEnvironmentName} points to` : 'qualification receipt is unreadable at'} ${source}: ${error.message}`,
+    );
+  }
+
+  let receipt;
+  try {
+    receipt = JSON.parse(bytes.toString('utf8'));
+  } catch (error) {
+    throw receiptError(
+      'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INVALID',
+      `qualification receipt at ${source} is not valid JSON: ${error.message}`,
+    );
+  }
+  if (receipt?.schemaVersion !== PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION) {
+    throw receiptError(
+      'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INVALID',
+      `qualification receipt at ${source} must have schemaVersion '${PACKAGED_STORE_QUALIFICATION_SCHEMA_VERSION}'`,
+    );
+  }
+
+  const destination = join(
+    binDirectory,
+    PACKAGED_STORE_QUALIFICATION_RECEIPT_FILE,
+  );
+  try {
+    // Install the bytes that were validated, rather than reopening a mutable
+    // source path between validation and copy.
+    writeFileSync(destination, bytes);
+  } catch (error) {
+    throw receiptError(
+      'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INSTALL_FAILED',
+      `could not install qualification receipt at ${destination}: ${error.message}`,
+    );
+  }
+  return { source, destination };
+}
 
 export function assertPublicPackageBuildIdentity(identity) {
   if (identity?.schemaVersion !== 'snapback.binary-identity.v1'

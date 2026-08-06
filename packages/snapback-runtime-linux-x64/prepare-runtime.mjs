@@ -18,7 +18,10 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { assertPublicPackageBuildIdentity } from '../../scripts/runtime-package-authority.mjs';
+import {
+  assertPublicPackageBuildIdentity,
+  installPackagedStoreQualificationReceipt,
+} from '../../scripts/runtime-package-authority.mjs';
 import {
   readLinuxRuntimeArtifactAttestation,
   validateLinuxRuntimeArtifactAttestation,
@@ -184,6 +187,19 @@ chmodSync(join(binDirectory, 'snapback'), 0o755);
 cpSync(sourceHermes, join(libDirectory, 'libhermesvm.so'));
 chmodSync(join(libDirectory, 'libhermesvm.so'), 0o755);
 cpSync(sourceHermesHeader, join(includeDirectory, 'hermes', 'hermes.h.artifact'));
+try {
+  installPackagedStoreQualificationReceipt({
+    sourceBinary,
+    binDirectory,
+    receiptEnvironmentName:
+      'SNAPBACK_RUNTIME_LINUX_X64_QUALIFICATION_RECEIPT',
+  });
+} catch (error) {
+  fail(
+    error?.code ?? 'SNAPBACK_PACKAGED_STORE_QUALIFICATION_RECEIPT_INVALID',
+    error?.message ?? 'packaged-store qualification receipt could not be installed',
+  );
+}
 try {
   // @ref LLP 0123#package-seal-landing-2026-08-06 — native production
   // qualifies this final RUNPATH layout; cross-host assembly reuses only the
