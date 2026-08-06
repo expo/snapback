@@ -1441,6 +1441,20 @@ and persistent-store carrier SHA-256
 `c48e062bdae3455d571a95ec39c1dd921de109096cb53ae53f1fc28d60377423`;
 sequence allocation reproduced unchanged at
 `79498ab71bfec20bb983ca006a7ab48cfcea3529b7f7b2890364c7d4240f16b9`.
+
+With that dependency chain embedded, the remaining S1 application producers
+passed normally. Latency passed 5/5 from qualified source `1b8bd5766` on
+binary SHA-256
+`bd33cda4d568792337c9a71bbf716bd830b1f32234856c22b09720c96b329a2d`;
+its retained receipt SHA-256 is
+`df630dc9706406e71ec47a18b591d25b8b638e9e7ed4bcad5001f0115dc02403`.
+Contention passed 8/8 with all seven frozen checks from source `ec85c4a65` on
+binary SHA-256
+`3ee12a1c9efbfbceeb83c12b7cc621df15cc9aa1bc61a5ba0d4e0ac5d234b9c6`;
+its retained receipt SHA-256 is
+`ebeb76105cd7d92cac22f635e73cca36efb0cbf0e4f35e92cc8c3f0957290662`.
+Neither run widened an effect ceiling or changed an actively owned
+correctness seam.
 All three conformance gates, capability maturity, and agent-safe publication
 pass without a capability expansion or actively owned correctness edit.
 
