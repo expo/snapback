@@ -170,7 +170,7 @@ function prepareCursorEnd(value, where) {
   if (value?.kind === 'first') return clone(exact(value, ['kind'], where));
   if (value?.kind === 'cursor') {
     exact(value, ['kind', 'profileId', 'digest'], where);
-    if (!['relational-query.v1', 'bounded-children.v1', 'snapshot-batch.v1'].includes(value.profileId)) {
+    if (!['relational-query.v1', 'bounded-children.v1', 'snapshot-batch.v1', 'snapshot-batch.v2'].includes(value.profileId)) {
       refuse('SNAPBACK_MATERIALIZATION_RECORD_INVALID', `${where}.profileId is not admitted`);
     }
     digest(value.digest, `${where}.digest`);

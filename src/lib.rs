@@ -149,6 +149,8 @@ pub mod server;
 pub mod service_profile;
 pub(crate) mod snapshot_batch_cursor;
 #[doc(hidden)]
+pub mod snapshot_batch_cursor_v2;
+#[doc(hidden)]
 pub mod storage;
 #[doc(hidden)]
 pub mod stream_attempt;

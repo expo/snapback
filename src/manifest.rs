@@ -1596,6 +1596,13 @@ impl FunctionManifest {
                     validate_snapshot_batch_argument_bindings(function, plan)?;
                 }
                 (
+                    FunctionKind::Query | FunctionKind::LiveQuery,
+                    FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)),
+                ) => {
+                    validate_snapshot_batch_v2_plan_shape(plan)?;
+                    validate_snapshot_batch_v2_argument_bindings(function, plan)?;
+                }
+                (
                     FunctionKind::Mutation,
                     FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)),
                 ) => crate::value_expr::validate_mutation_plan(plan)?,
@@ -1671,6 +1678,31 @@ impl FunctionManifest {
                         &["snapshot_batch_v1", "bounded_children_v1"]
                     }
                 }
+                FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
+                    let bounded = plan
+                        .nodes
+                        .iter()
+                        .any(|node| matches!(node, SnapshotBatchNodeV2::BoundedChildren(_)));
+                    match (function.kind == FunctionKind::LiveQuery, bounded) {
+                        (true, true) => &[
+                            "snapshot_batch_v2",
+                            "relational_query_v1",
+                            "bounded_children_v1",
+                            "live_subscriptions",
+                        ],
+                        (true, false) => &[
+                            "snapshot_batch_v2",
+                            "relational_query_v1",
+                            "live_subscriptions",
+                        ],
+                        (false, true) => &[
+                            "snapshot_batch_v2",
+                            "relational_query_v1",
+                            "bounded_children_v1",
+                        ],
+                        (false, false) => &["snapshot_batch_v2", "relational_query_v1"],
+                    }
+                }
                 FunctionRuntime::HostPlan(HandlerPlan::WriteWithActivity(_)) => {
                     &["write_activity_v1"]
                 }
@@ -1715,6 +1747,20 @@ impl FunctionManifest {
                         "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
                         "query",
                         "snapshot batch emitted identity does not match the host reconstruction",
+                    ));
+                }
+            }
+            if let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) = &function.runtime
+            {
+                validate_snapshot_batch_v2_outer_result_contract(function, plan)?;
+                let identity = snapshot_batch_identity_v2(function, plan)?;
+                if plan.normalized_composite_plan != identity.normalized_composite_plan
+                    || plan.plan_hash != identity.plan_hash
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                        "query",
+                        "snapshot batch v2 emitted identity does not match the host reconstruction",
                     ));
                 }
             }
@@ -3636,6 +3682,31 @@ impl ObservedEffects {
                 }
                 self.authorization_inputs.insert("parentVisibility");
             }
+            HandlerPlan::SnapshotBatchV2(plan) => {
+                // @ref LLP 0157#sbsb2-plaintext-and-budget — each class keeps
+                // its owner dependency set; relational nodes add both source
+                // indexes and never invent a parent point-read.
+                let mut has_bounded_parent = false;
+                for node in &plan.nodes {
+                    match node {
+                        SnapshotBatchNodeV2::BoundedChildren(node) => {
+                            has_bounded_parent = true;
+                            self.read(&node.parent_table, "point", None);
+                            self.read(&node.child_table, "query", Some(&node.child_index));
+                        }
+                        SnapshotBatchNodeV2::RelationalQuery(node) => {
+                            self.read(&node.root, "query", Some(&node.root_index));
+                            self.read(&node.joined, "query", Some(&node.joined_index));
+                            self.filters(&node.root_filters);
+                            self.filters(&node.root_visibility);
+                            self.filters(&node.joined_visibility);
+                        }
+                    }
+                }
+                if has_bounded_parent {
+                    self.authorization_inputs.insert("parentVisibility");
+                }
+            }
             HandlerPlan::Mutation(plan) => {
                 for step in &plan.steps {
                     match step {
@@ -4739,6 +4810,63 @@ pub fn validate_snapshot_batch_plan_shape(plan: &SnapshotBatchPlanV1) -> Snapbac
     Ok(())
 }
 
+/// Structural admission for `snapshot-batch.v2`'s closed mixed-node tuple.
+///
+/// @ref LLP 0157#d1--the-node-algebra — v2 admits exactly two through eight
+///   owner-valid bounded-child or relational nodes, requires at least one
+///   relational node, and caps the summed `take` at 1,024.
+pub fn validate_snapshot_batch_v2_plan_shape(plan: &SnapshotBatchPlanV2) -> SnapbackResult<()> {
+    let invalid = |message: String| {
+        SnapbackError::error("SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID", "query", message)
+    };
+    if plan.profile != "snapshot-batch.v2" || !(2..=8).contains(&plan.nodes.len()) {
+        return Err(invalid(
+            "snapshot batch v2 requires profile snapshot-batch.v2 and two through eight nodes"
+                .to_owned(),
+        ));
+    }
+    let mut total_take = 0_u32;
+    let mut relational = false;
+    for node in &plan.nodes {
+        let admitted = match node {
+            SnapshotBatchNodeV2::BoundedChildren(plan) => {
+                validate_bounded_children_plan_shape(plan)
+            }
+            SnapshotBatchNodeV2::RelationalQuery(plan) => {
+                relational = true;
+                validate_relational_query_plan_shape(plan)
+            }
+        };
+        admitted.map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_NODE_INELIGIBLE",
+                "query",
+                "snapshot batch v2 nodes must be complete bounded_children_v1 or relational_query_v1 plans",
+            )
+        })?;
+        total_take = total_take.checked_add(node.take()).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED",
+                "query",
+                "snapshot batch v2 node take sum overflowed the closed ceiling",
+            )
+        })?;
+    }
+    if !relational {
+        return Err(invalid(
+            "snapshot batch v2 requires at least one relational_query_v1 node".to_owned(),
+        ));
+    }
+    if total_take > 1_024 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED",
+            "query",
+            "snapshot batch v2 node take sum exceeds 1,024",
+        ));
+    }
+    Ok(())
+}
+
 /// One internally derived structural parent-authorization identity. The dated
 /// LLP 0135 implementation record maps it to the exact closed
 /// `ParentAuthorizationKeyV1` JCS carrier used in plan and cursor identity.
@@ -4768,6 +4896,19 @@ pub struct SnapshotBatchIdentityV1 {
     pub normalized_composite_plan: Value,
     pub plan_hash: String,
     pub node_plan_hashes: Vec<String>,
+    pub parent_authorization_key_jcs: Vec<String>,
+    pub parent_authorization_key_digests: Vec<String>,
+}
+
+/// Host-recomputed LLP 0157 identity inputs used by `sbsb2` admission.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SnapshotBatchIdentityV2 {
+    pub normalized_composite_plan: Value,
+    pub plan_hash: String,
+    pub node_plan_hashes: Vec<String>,
+    pub node_examined_entry_ceilings: Vec<usize>,
+    pub node_joined_lookup_ceilings: Vec<usize>,
+    pub parent_authorization_group_count: usize,
     pub parent_authorization_key_jcs: Vec<String>,
     pub parent_authorization_key_digests: Vec<String>,
 }
@@ -5206,6 +5347,397 @@ pub fn snapshot_batch_identity_v1(
     })
 }
 
+fn collect_snapshot_batch_v2_argument_uses(
+    value: &ValueExpr,
+    names: &mut BTreeSet<String>,
+    uses_all: &mut bool,
+) -> SnapbackResult<()> {
+    match value {
+        ValueExpr::Arg(path) => {
+            let name = path
+                .split('.')
+                .next()
+                .filter(|name| !name.is_empty())
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                        "query",
+                        "snapshot batch v2 relational argument path must name a top-level binding",
+                    )
+                })?;
+            names.insert(name.to_owned());
+        }
+        ValueExpr::Args => *uses_all = true,
+        ValueExpr::Field { base, .. } => {
+            collect_snapshot_batch_v2_argument_uses(base, names, uses_all)?;
+        }
+        ValueExpr::Binary { left, right, .. } => {
+            collect_snapshot_batch_v2_argument_uses(left, names, uses_all)?;
+            collect_snapshot_batch_v2_argument_uses(right, names, uses_all)?;
+        }
+        ValueExpr::Unary { expr, .. } => {
+            collect_snapshot_batch_v2_argument_uses(expr, names, uses_all)?;
+        }
+        ValueExpr::If { cond, then, r#else } => {
+            collect_snapshot_batch_v2_argument_uses(cond, names, uses_all)?;
+            collect_snapshot_batch_v2_argument_uses(then, names, uses_all)?;
+            collect_snapshot_batch_v2_argument_uses(r#else, names, uses_all)?;
+        }
+        ValueExpr::Concat(values) | ValueExpr::Call { args: values, .. } => {
+            for value in values {
+                collect_snapshot_batch_v2_argument_uses(value, names, uses_all)?;
+            }
+        }
+        ValueExpr::Record { fields } => {
+            for value in fields.values() {
+                collect_snapshot_batch_v2_argument_uses(value, names, uses_all)?;
+            }
+        }
+        ValueExpr::AuthUserId
+        | ValueExpr::AuthKind
+        | ValueExpr::AuthActorKind
+        | ValueExpr::AuthActivityActorKind
+        | ValueExpr::AuthActorUserId
+        | ValueExpr::AuthGrantId
+        | ValueExpr::ClientMutationDigest
+        | ValueExpr::AuthIsDelegated
+        | ValueExpr::RuntimeId
+        | ValueExpr::RuntimeNow
+        | ValueExpr::Binding(_)
+        | ValueExpr::Literal(_)
+        | ValueExpr::MembershipExists(_) => {}
+    }
+    Ok(())
+}
+
+fn snapshot_batch_v2_node_argument_names(
+    function: &FunctionDefinition,
+    node: &SnapshotBatchNodeV2,
+) -> SnapbackResult<Vec<String>> {
+    let contract = function.args_contract.as_ref().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+            "query",
+            "snapshot batch v2 requires a closed typed argument contract",
+        )
+    })?;
+    let mut names = BTreeSet::new();
+    let mut uses_all = false;
+    match node {
+        SnapshotBatchNodeV2::BoundedChildren(plan) => {
+            names.insert(plan.parent_id_arg.clone());
+        }
+        SnapshotBatchNodeV2::RelationalQuery(plan) => {
+            for filter in plan
+                .root_filters
+                .iter()
+                .chain(&plan.root_visibility)
+                .chain(&plan.joined_visibility)
+            {
+                collect_snapshot_batch_v2_argument_uses(&filter.value, &mut names, &mut uses_all)?;
+            }
+        }
+    }
+    if uses_all {
+        names.extend(
+            contract
+                .fields
+                .iter()
+                .filter(|field| field.name != "cursor")
+                .map(|field| field.name.clone()),
+        );
+    }
+    for name in &names {
+        if name == "cursor" || !contract.fields.iter().any(|field| field.name == *name) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                "query",
+                format!("snapshot batch v2 node references undeclared argument {name}"),
+            ));
+        }
+    }
+    // Owner declaration order is the function contract order, never set order
+    // or traversal order through an expression tree.
+    Ok(contract
+        .fields
+        .iter()
+        .filter(|field| names.contains(&field.name))
+        .map(|field| field.name.clone())
+        .collect())
+}
+
+/// Validate and derive v2's parent groups. Relational nodes deliberately
+/// contribute no parent key and an all-relational tuple therefore returns the
+/// canonical empty group list.
+pub fn snapshot_batch_v2_parent_authorization_groups(
+    function: &FunctionDefinition,
+    plan: &SnapshotBatchPlanV2,
+) -> SnapbackResult<Vec<SnapshotBatchParentAuthorizationGroupV1>> {
+    let contract = function.args_contract.as_ref().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+            "query",
+            "snapshot batch v2 requires a closed typed argument contract",
+        )
+    })?;
+    let mut group_positions = BTreeMap::<SnapshotBatchParentAuthorizationIdentityV1, usize>::new();
+    let mut groups: Vec<SnapshotBatchParentAuthorizationGroupV1> = Vec::new();
+    for (node_index, node) in plan.nodes.iter().enumerate() {
+        let SnapshotBatchNodeV2::BoundedChildren(node) = node else {
+            continue;
+        };
+        let argument = contract
+            .fields
+            .iter()
+            .find(|field| field.name == node.parent_id_arg)
+            .ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                    "query",
+                    format!(
+                        "snapshot batch v2 node {node_index} names undeclared parent argument {}",
+                        node.parent_id_arg
+                    ),
+                )
+            })?;
+        if !argument.required
+            || argument.value
+                != (ResultValueContract::Id {
+                    table: node.parent_table.clone(),
+                })
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                "query",
+                format!(
+                    "snapshot batch v2 node {node_index} parent argument {} must be a required id<{}>",
+                    node.parent_id_arg, node.parent_table
+                ),
+            ));
+        }
+        let identity = SnapshotBatchParentAuthorizationIdentityV1 {
+            parent_table: node.parent_table.clone(),
+            parent_id_argument: node.parent_id_arg.clone(),
+            parent_id_table: node.parent_table.clone(),
+            visibility: node.parent_visibility.clone(),
+        };
+        if let Some(group_index) = group_positions.get(&identity).copied() {
+            groups[group_index].node_indices.push(node_index);
+        } else {
+            group_positions.insert(identity.clone(), groups.len());
+            groups.push(SnapshotBatchParentAuthorizationGroupV1 {
+                identity,
+                node_indices: vec![node_index],
+            });
+        }
+    }
+    Ok(groups)
+}
+
+fn validate_snapshot_batch_v2_argument_bindings(
+    function: &FunctionDefinition,
+    plan: &SnapshotBatchPlanV2,
+) -> SnapbackResult<()> {
+    snapshot_batch_v2_parent_authorization_groups(function, plan)?;
+    let contract = function
+        .args_contract
+        .as_ref()
+        .expect("v2 group derivation requires the argument contract");
+    let mut expected = BTreeSet::<String>::new();
+    for node in &plan.nodes {
+        expected.extend(snapshot_batch_v2_node_argument_names(function, node)?);
+    }
+    expected.insert("cursor".to_owned());
+    let actual = contract
+        .fields
+        .iter()
+        .map(|field| field.name.clone())
+        .collect::<BTreeSet<_>>();
+    let cursor = contract.fields.iter().find(|field| field.name == "cursor");
+    if actual != expected
+        || !cursor.is_some_and(|field| {
+            !field.required && field.value == ResultValueContract::String { max_bytes: 8_192 }
+        })
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+            "query",
+            "snapshot batch v2 arguments must be exactly the merged node bindings plus optional cursor:string(maxBytes=8192)",
+        ));
+    }
+    Ok(())
+}
+
+/// Rebuild the exact v2 node/composite identity without inferring node class,
+/// parent grouping, liveness, or argument closure from serialized shape.
+///
+/// @ref LLP 0157#d2--plan-identity — v2 reuses the v1 identity stack with
+///   profileId `snapshot-batch.v2`; only bounded-child positions enter parent
+///   groups and every node binds its owner-declared arguments in order.
+pub fn snapshot_batch_identity_v2(
+    function: &FunctionDefinition,
+    plan: &SnapshotBatchPlanV2,
+) -> SnapbackResult<SnapshotBatchIdentityV2> {
+    validate_snapshot_batch_v2_argument_bindings(function, plan)?;
+    let contract = function
+        .args_contract
+        .as_ref()
+        .expect("v2 argument admission requires the contract");
+    let groups = snapshot_batch_v2_parent_authorization_groups(function, plan)?;
+    let mut node_records = Vec::with_capacity(plan.nodes.len());
+    let mut node_hashes = Vec::with_capacity(plan.nodes.len());
+    let mut merged = Vec::<Value>::new();
+    let mut merged_positions = BTreeMap::<String, usize>::new();
+
+    for (position, node) in plan.nodes.iter().enumerate() {
+        let mut bindings = Vec::new();
+        for name in snapshot_batch_v2_node_argument_names(function, node)? {
+            let field = contract
+                .fields
+                .iter()
+                .find(|field| field.name == name)
+                .expect("v2 argument closure checked names");
+            let binding_contract = serde_json::json!({
+                "format": "snapback.argument-binding-contract.v1",
+                "required": field.required,
+                "value": field.value,
+            });
+            let contract_hash =
+                domain_hash(b"snapback:argument-binding-contract:v1:", &binding_contract)?;
+            let binding = serde_json::json!({
+                "name": field.name,
+                "contract": binding_contract,
+                "contractHash": contract_hash,
+            });
+            if let Some(index) = merged_positions.get(&field.name).copied() {
+                let entry = merged[index]
+                    .as_object_mut()
+                    .expect("host-created v2 merged binding object");
+                let same = entry.get("contract") == binding.get("contract")
+                    && entry.get("contractHash") == binding.get("contractHash");
+                if !same {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                        "query",
+                        "one merged snapshot batch v2 argument has incompatible node contracts",
+                    ));
+                }
+                entry
+                    .get_mut("sourcePositions")
+                    .and_then(Value::as_array_mut)
+                    .expect("host-created v2 sourcePositions")
+                    .push(Value::from(position));
+            } else {
+                merged_positions.insert(field.name.clone(), merged.len());
+                merged.push(serde_json::json!({
+                    "name": field.name,
+                    "contract": binding.get("contract").cloned().expect("binding contract"),
+                    "contractHash": binding.get("contractHash").cloned().expect("binding hash"),
+                    "sourcePositions": [position],
+                }));
+            }
+            bindings.push(binding);
+        }
+        let class_id = node.class_id();
+        let node_record = serde_json::json!({
+            "format": "snapback.node-plan.v1",
+            "classId": class_id,
+            "classVersion": 1,
+            "normalizedPlan": node.normalized_plan()?,
+            "argumentBindings": bindings,
+            "capability": {
+                "exportKind": "internal",
+                "live": {"kind": "none"},
+                "retention": "none",
+                "requiredCapabilityIds": [class_id],
+            },
+        });
+        let node_hash = domain_hash(b"snapback:node-plan:v1:", &node_record)?;
+        node_records.push(serde_json::json!({
+            "position": position,
+            "nodePlan": node_record,
+            "nodePlanHash": node_hash,
+        }));
+        node_hashes.push(node_hash);
+    }
+
+    let merged_record = serde_json::json!({
+        "format": "snapback.merged-args-contract.v1",
+        "bindings": merged,
+    });
+    let merged_hash = domain_hash(b"snapback:merged-args-contract:v1:", &merged_record)?;
+
+    let mut key_jcs = Vec::with_capacity(groups.len());
+    let mut key_digests = Vec::with_capacity(groups.len());
+    let mut normalized_groups = Vec::with_capacity(groups.len());
+    for group in groups {
+        let key = serde_json::json!({
+            "format": "snapback.parent-authorization-key.v1",
+            "parentTable": group.identity.parent_table,
+            "parentIdArgument": group.identity.parent_id_argument,
+            "parentIdType": {"kind": "id", "table": group.identity.parent_id_table},
+            "visibility": match group.identity.visibility {
+                BoundedParentVisibility::PublicRead => serde_json::json!({
+                    "kind": "public-read",
+                }),
+                BoundedParentVisibility::Owner { field } => serde_json::json!({
+                    "kind": "owner.v1",
+                    "field": field,
+                }),
+            },
+        });
+        let canonical = crate::rqs::jcs(&key).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                "query",
+                "snapshot batch v2 parent authorization key is not canonicalizable",
+            )
+        })?;
+        let digest = domain_hash(b"snapback:parent-authorization-key:v1:", &key)?;
+        normalized_groups.push(serde_json::json!({
+            "members": group.node_indices,
+            "keyJcsBase64url": URL_SAFE_NO_PAD.encode(canonical.as_bytes()),
+        }));
+        key_jcs.push(canonical);
+        key_digests.push(digest);
+    }
+    let normalized = serde_json::json!({
+        "format": "snapback.normalized-composite-plan.v1",
+        "profileId": "snapshot-batch.v2",
+        "nodes": node_records,
+        "mergedArgsContractHash": merged_hash,
+        "classification": {
+            "callable": true,
+            "live": {
+                "kind": "admitted",
+                "delivery": "live_replace",
+                "pageDomain": "cursor-free-first-page",
+            },
+            "invalidation": "table-granular-resnapshot",
+            "retention": "none",
+        },
+        "parentAuthorizationGroups": normalized_groups,
+    });
+    Ok(SnapshotBatchIdentityV2 {
+        normalized_composite_plan: normalized.clone(),
+        plan_hash: domain_hash(b"snapback:plan-hash:v1:", &normalized)?,
+        node_plan_hashes: node_hashes,
+        node_examined_entry_ceilings: plan
+            .nodes
+            .iter()
+            .map(SnapshotBatchNodeV2::examined_entry_ceiling)
+            .collect(),
+        node_joined_lookup_ceilings: plan
+            .nodes
+            .iter()
+            .map(SnapshotBatchNodeV2::joined_lookup_ceiling)
+            .collect(),
+        parent_authorization_group_count: key_digests.len(),
+        parent_authorization_key_jcs: key_jcs,
+        parent_authorization_key_digests: key_digests,
+    })
+}
+
 /// Validate and derive the merged argument identities and parent-auth groups.
 /// A bounded-child parent binding must name a required `id<parentTable>` field
 /// in the function's existing LLP 0131 argument contract. Reusing one argument
@@ -5314,9 +5846,32 @@ fn validate_snapshot_batch_outer_result_contract(
     function: &FunctionDefinition,
     plan: &SnapshotBatchPlanV1,
 ) -> SnapbackResult<()> {
+    validate_snapshot_batch_outer_result_contract_len(
+        function,
+        plan.nodes.len(),
+        "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+    )
+}
+
+fn validate_snapshot_batch_v2_outer_result_contract(
+    function: &FunctionDefinition,
+    plan: &SnapshotBatchPlanV2,
+) -> SnapbackResult<()> {
+    validate_snapshot_batch_outer_result_contract_len(
+        function,
+        plan.nodes.len(),
+        "SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID",
+    )
+}
+
+fn validate_snapshot_batch_outer_result_contract_len(
+    function: &FunctionDefinition,
+    node_count: usize,
+    diagnostic_code: &'static str,
+) -> SnapbackResult<()> {
     let invalid = || {
         SnapbackError::error(
-            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+            diagnostic_code,
             "query",
             "snapshot batch requires the exact one-row sealed outer result envelope",
         )
@@ -5380,7 +5935,7 @@ fn validate_snapshot_batch_outer_result_contract(
     let ResultValueContract::Tuple { elements } = &visible[1].value else {
         return Err(invalid());
     };
-    if elements.len() != plan.nodes.len() {
+    if elements.len() != node_count {
         return Err(invalid());
     }
     Ok(())
@@ -6585,6 +7140,86 @@ pub struct SnapshotBatchPlanV1 {
     pub plan_hash: String,
 }
 
+/// One class-explicit node in `snapshot-batch.v2`. The adjacent tag keeps
+/// class membership host-visible while leaving `plan` as the owner's exact
+/// normalized record for LLP 0157 node identity.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(tag = "classId", content = "plan", deny_unknown_fields)]
+pub enum SnapshotBatchNodeV2 {
+    #[serde(rename = "bounded_children_v1")]
+    BoundedChildren(BoundedChildrenQueryPlan),
+    #[serde(rename = "relational_query_v1")]
+    RelationalQuery(RelationalQueryPlan),
+}
+
+impl SnapshotBatchNodeV2 {
+    pub fn class_id(&self) -> &'static str {
+        match self {
+            Self::BoundedChildren(_) => "bounded_children_v1",
+            Self::RelationalQuery(_) => "relational_query_v1",
+        }
+    }
+
+    pub fn take(&self) -> u32 {
+        match self {
+            Self::BoundedChildren(plan) => plan.take,
+            Self::RelationalQuery(plan) => plan.take,
+        }
+    }
+
+    /// Per-node examined index-entry ceiling carried into plan identity by
+    /// the owner-normalized `take`; parent point reads remain a separate group
+    /// count and relational joined lookups remain a separate executor axis.
+    ///
+    /// @ref LLP 0157#sbsb2-plaintext-and-budget — bounded children use
+    ///   `take + 1` except at zero; relational roots use exactly `take`.
+    pub fn examined_entry_ceiling(&self) -> usize {
+        match self {
+            Self::BoundedChildren(plan) => {
+                if plan.take == 0 {
+                    0
+                } else {
+                    plan.take as usize + 1
+                }
+            }
+            Self::RelationalQuery(plan) => plan.take as usize,
+        }
+    }
+
+    pub fn joined_lookup_ceiling(&self) -> usize {
+        match self {
+            Self::BoundedChildren(_) => 0,
+            Self::RelationalQuery(plan) => plan.take as usize,
+        }
+    }
+
+    pub fn normalized_plan(&self) -> SnapbackResult<Value> {
+        match self {
+            Self::BoundedChildren(plan) => serde_json::to_value(plan),
+            Self::RelationalQuery(plan) => serde_json::to_value(plan),
+        }
+        .map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                "query",
+                "snapshot batch v2 node does not serialize",
+            )
+        })
+    }
+}
+
+/// The class-tagged mixed-node carrier for LLP 0157 `snapshot-batch.v2`.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct SnapshotBatchPlanV2 {
+    pub profile: String,
+    pub nodes: Vec<SnapshotBatchNodeV2>,
+    #[serde(rename = "normalizedCompositePlan")]
+    pub normalized_composite_plan: Value,
+    #[serde(rename = "planHash")]
+    pub plan_hash: String,
+}
+
 #[derive(
     Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
 )]
@@ -6961,6 +7596,7 @@ pub enum PublicHostPlanKind {
     RelationalQuery,
     BoundedChildrenQuery,
     SnapshotBatch,
+    SnapshotBatchV2,
     WriteWithActivity,
 }
 
@@ -7168,6 +7804,7 @@ impl From<FunctionRuntime> for PublicFunctionRuntime {
                 HandlerPlan::RelationalQuery(_) => PublicHostPlanKind::RelationalQuery,
                 HandlerPlan::BoundedChildrenQuery(_) => PublicHostPlanKind::BoundedChildrenQuery,
                 HandlerPlan::SnapshotBatch(_) => PublicHostPlanKind::SnapshotBatch,
+                HandlerPlan::SnapshotBatchV2(_) => PublicHostPlanKind::SnapshotBatchV2,
                 HandlerPlan::WriteWithActivity(_) => PublicHostPlanKind::WriteWithActivity,
             }),
             // `source: _` is the redaction this projection exists for.
@@ -7220,6 +7857,9 @@ pub enum HandlerPlan {
     /// analysis exist, but whole-manifest load remains fail-closed until the
     /// exact tuple result contract is owner-pinned; no executor is registered.
     SnapshotBatch(SnapshotBatchPlanV1),
+    /// Class-tagged bounded-child/relational tuple using one `sbsb2`
+    /// continuation and LLP 0157's unchanged two-arm outer envelope.
+    SnapshotBatchV2(SnapshotBatchPlanV2),
     /// Closed source/scope/activity transaction.
     WriteWithActivity(WriteWithActivityPlan),
 }
@@ -7732,13 +8372,13 @@ pub enum FilterOp {
 pub struct OrderExpr {
     pub field: String,
     pub direction: OrderDirection,
-    /// Optional UTF-8 ceiling for a string order field. The loader reconciles
-    /// every occurrence to one value per `(table, field)` before storage
-    /// installs it as a central-writer constraint.
+    /// Optional UTF-8 ceiling for a string or application-id order field. The
+    /// loader reconciles every occurrence to one value per `(table, field)`
+    /// before storage installs it as a central-writer constraint.
     ///
-    /// @ref LLP 0135#4-fold-on-acceptance-amendments-applied-2026-08-02 — the
-    ///   bound is schema-level even though authoring declares it at an order
-    ///   use; conflicting declarations and oversized writes fail closed.
+    /// @ref LLP 0157#d8--coordinated-cursor-family-grammar-and-the-llp-0135-seam —
+    ///   the snapshot-batch family applies the same schema-level,
+    ///   write-enforced bound to string and application-id order values.
     #[serde(
         default,
         rename = "maxEncodedBytes",
@@ -9002,6 +9642,11 @@ pub enum TargetCapabilityId {
     SequenceAllocationV1,
     #[serde(rename = "snapshot_batch_v1")]
     SnapshotBatchV1,
+    /// LLP 0157's mixed bounded-child/relational composite. Registration is
+    /// experimental and local-only; hosted, remote, and Cloudflare targets
+    /// retain explicit gaps until their own executors and evidence land.
+    #[serde(rename = "snapshot_batch_v2")]
+    SnapshotBatchV2,
     #[serde(rename = "single_table_v1")]
     SingleTableV1,
     #[serde(rename = "migration_keyset_scan_v1")]
@@ -9053,7 +9698,7 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 36] = [
+    pub const ALL: [Self; 37] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::BoundedChildrenV1,
@@ -9072,6 +9717,7 @@ impl TargetCapabilityId {
         Self::RelationalQueryV1,
         Self::SequenceAllocationV1,
         Self::SnapshotBatchV1,
+        Self::SnapshotBatchV2,
         Self::SingleTableV1,
         Self::MigrationKeysetScanV1,
         Self::FullTextSearchV1,
@@ -9112,6 +9758,7 @@ impl TargetCapabilityId {
             Self::RelationalQueryV1 => "relational_query_v1",
             Self::SequenceAllocationV1 => "sequence_allocation_v1",
             Self::SnapshotBatchV1 => "snapshot_batch_v1",
+            Self::SnapshotBatchV2 => "snapshot_batch_v2",
             Self::SingleTableV1 => "single_table_v1",
             Self::MigrationKeysetScanV1 => "migration_keyset_scan_v1",
             Self::FullTextSearchV1 => "full_text_search_v1",
@@ -9168,6 +9815,7 @@ impl TargetCapabilityId {
             | Self::RegisteredBundleBootV1
             | Self::SequenceAllocationV1
             | Self::SnapshotBatchV1
+            | Self::SnapshotBatchV2
             | Self::SingleTableV1
             | Self::LiveFullTextSearchV1
             | Self::VectorSearchV1
@@ -9357,6 +10005,16 @@ impl TargetCapabilityId {
             Self::SnapshotBatchV1 => {
                 facts.snapshot_batch_v1_registered
                     && Self::BoundedChildrenV1.is_supported_by(manifest, facts)
+                    && Self::LiveSubscriptions.is_supported_by(manifest, facts)
+                    && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
+            }
+            // @ref LLP 0157#d1--the-node-algebra — v2 support is a distinct,
+            // experimental local executor fact conjoined with the stable
+            // relational and live dependencies. Bounded-child tuples carry
+            // their own additional required capability at artifact admission.
+            Self::SnapshotBatchV2 => {
+                facts.snapshot_batch_v2_registered
+                    && Self::RelationalQueryV1.is_supported_by(manifest, facts)
                     && Self::LiveSubscriptions.is_supported_by(manifest, facts)
                     && manifest.target_profile_id == TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX
             }
@@ -9568,13 +10226,13 @@ impl CapabilityMaturity {
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-relation-activity-publication.v1.json");
 const LOCAL_RELATION_ACTIVITY_PUBLICATION_SHA256: &str =
-    "sha256:a81a229227ea83109ca5c676ca0cd8c12793c46f7d3fd825e75e32a02c192182";
+    "sha256:d07c3ad62e8eb5147479888081fa9ca1b600a4f39e6c48b78d62716f42f220b1";
 const LOCAL_RELATION_ACTIVITY_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/relation-activity-publication-v1.receipt.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_BYTES: &[u8] =
     include_bytes!("local-sequence-allocation-publication.v1.json");
 const LOCAL_SEQUENCE_ALLOCATION_PUBLICATION_SHA256: &str =
-    "sha256:c5b430e5004814fa606a7040e3db3f01bd93706c19799a5afa8b8803966ac1d0";
+    "sha256:a4293b873bca40fb25a25fcbfab168c831472ad33318c8bb6df1056b6c618e4d";
 const LOCAL_SEQUENCE_ALLOCATION_QUALIFICATION_RECEIPT_BYTES: &[u8] =
     include_bytes!("../tests/conformance/sequence-allocation-publication-v1.receipt.json");
 const LOCAL_PERSISTENT_STORE_PUBLICATION_BYTES: &[u8] =
@@ -9717,19 +10375,19 @@ fn local_relation_activity_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:19151778dcc0c6c1bdc64024167c4dd180241846f5adf4efce5c0b4b9568eb86"
+                    "sha256:843eaae26dad465185dd01b9eda0901ad1272374adb2c1ddd2dedbf68ab6af41"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:ca67cb2a863597602463b03f86f46b92915b6cad92d1b2f25573a9ccc043f8b3"
+                    "sha256:46276ec976af22875bef149d1fc49797f45274714c0129b44c2d1f03d6adea73"
                         .to_owned(),
                 ),
             ])
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:9cefeae8d1209ee0633a2ba3692df59bf04b4c6735e009280982abb2a05581fe"
+                "sha256:38dbd612624f11a8a9e8532fd83326638238ccf6dfc0e8432b76c96cbe7bfcce"
                     .to_owned(),
             )])
         && carrier.package_closure_sha256.is_none()
@@ -9785,14 +10443,14 @@ fn local_sequence_allocation_publication_verified_for(
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:ca67cb2a863597602463b03f86f46b92915b6cad92d1b2f25573a9ccc043f8b3"
+                    "sha256:46276ec976af22875bef149d1fc49797f45274714c0129b44c2d1f03d6adea73"
                         .to_owned(),
                 ),
             ])
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/define.mjs".to_owned(),
-                "sha256:9cefeae8d1209ee0633a2ba3692df59bf04b4c6735e009280982abb2a05581fe"
+                "sha256:38dbd612624f11a8a9e8532fd83326638238ccf6dfc0e8432b76c96cbe7bfcce"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -9883,19 +10541,19 @@ fn local_persistent_store_publication_verified_for(
             == BTreeMap::from([
                 (
                     "src/local.rs".to_owned(),
-                    "sha256:19151778dcc0c6c1bdc64024167c4dd180241846f5adf4efce5c0b4b9568eb86"
+                    "sha256:843eaae26dad465185dd01b9eda0901ad1272374adb2c1ddd2dedbf68ab6af41"
                         .to_owned(),
                 ),
                 (
                     "src/storage.rs".to_owned(),
-                    "sha256:ca67cb2a863597602463b03f86f46b92915b6cad92d1b2f25573a9ccc043f8b3"
+                    "sha256:46276ec976af22875bef149d1fc49797f45274714c0129b44c2d1f03d6adea73"
                         .to_owned(),
                 ),
             ])
         && carrier.schema_source_sha256
             == BTreeMap::from([(
                 "packages/snapback-codegen/index.mjs".to_owned(),
-                "sha256:59e43608c4d0a91355bbfab1d3f243cb12b6aef104c62a4fa484d3b2f58f31b4"
+                "sha256:d68aeeed0b906d51e9a7b3ea4a38ed50306b9b6f50944ab238e515d24bf24433"
                     .to_owned(),
             )])
         && carrier.client_source_sha256
@@ -9912,7 +10570,7 @@ fn local_persistent_store_publication_verified_for(
                 ),
                 (
                     "packages/snapback-client/materialization-store.mjs".to_owned(),
-                    "sha256:e490cd25fba95521c3e0fc2f79d83bbead1f3b33f4e6fa1ab155e4e058c0717e"
+                    "sha256:34ebc65b3632869e39fd9587bd79a36e0a85316c4c660d8f1b12497668652310"
                         .to_owned(),
                 ),
                 (
@@ -9988,6 +10646,7 @@ fn local_persistent_store_publication_verified() -> bool {
 pub struct TargetCapabilityFacts {
     bounded_children_v1_registered: bool,
     snapshot_batch_v1_registered: bool,
+    snapshot_batch_v2_registered: bool,
     single_table_v1_registered: bool,
     bounded_response_stream_v1_registered: bool,
     relational_query_v1_registered: bool,
@@ -10076,6 +10735,10 @@ impl TargetCapabilityFacts {
             //   — exact tuple execution, `sbsb1` custody, and first-page live
             //   replacement are registered together on the local target.
             snapshot_batch_v1_registered: true,
+            // @ref LLP 0157#sbsb2-plaintext-and-budget — the mixed executor,
+            // coordinated cursor family, and fixed first-page live posture
+            // are one local registration; maturity remains experimental.
+            snapshot_batch_v2_registered: true,
             // @ref LLP 0157#d1--the-node-algebra — registration enables
             // only the host-derived, single-node class; the publication
             // carrier below remains the independent support gate.
@@ -10138,6 +10801,7 @@ impl TargetCapabilityFacts {
         Self {
             bounded_children_v1_registered: false,
             snapshot_batch_v1_registered: false,
+            snapshot_batch_v2_registered: false,
             single_table_v1_registered: false,
             mixed_bundle_boot_v2_registered: false,
             sequence_allocation_v1_registered: false,
@@ -11303,6 +11967,7 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "bounded_response_stream_v1".to_owned(),
         "bounded_children_v1".to_owned(),
         "snapshot_batch_v1".to_owned(),
+        "snapshot_batch_v2".to_owned(),
         "single_table_v1".to_owned(),
         "mixed_bundle_boot_v2".to_owned(),
         "notifications".to_owned(),
@@ -11331,6 +11996,12 @@ fn ensure_relation_activity_capability_gaps(gaps: &mut Vec<String>) {
 fn ensure_snapshot_batch_capability_gap(gaps: &mut Vec<String>) {
     if !gaps.iter().any(|gap| gap == "snapshot_batch_v1") {
         gaps.push("snapshot_batch_v1".to_owned());
+    }
+}
+
+fn ensure_snapshot_batch_v2_capability_gap(gaps: &mut Vec<String>) {
+    if !gaps.iter().any(|gap| gap == "snapshot_batch_v2") {
+        gaps.push("snapshot_batch_v2".to_owned());
     }
 }
 
@@ -11818,6 +12489,7 @@ impl CapabilityManifest {
             "bounded_response_stream_v1".to_owned(),
             "bounded_children_v1".to_owned(),
             "snapshot_batch_v1".to_owned(),
+            "snapshot_batch_v2".to_owned(),
             "notifications".to_owned(),
             "notifications.expoPushSeam".to_owned(),
             "cron".to_owned(),
@@ -11893,6 +12565,17 @@ impl CapabilityManifest {
                 .retain(|gap| gap != "snapshot_batch_v1");
         } else {
             ensure_snapshot_batch_capability_gap(&mut self.capability_gaps);
+        }
+        // @ref LLP 0157#d1--the-node-algebra — registration and maturity do
+        // not let remote/hosted targets inherit the local mixed executor.
+        if self
+            .supported_capabilities
+            .contains(&TargetCapabilityId::SnapshotBatchV2)
+        {
+            self.capability_gaps
+                .retain(|gap| gap != "snapshot_batch_v2");
+        } else {
+            ensure_snapshot_batch_v2_capability_gap(&mut self.capability_gaps);
         }
         if self
             .supported_capabilities
@@ -13002,6 +13685,314 @@ mod membership_manifest_grammar_tests {
         function
     }
 
+    fn snapshot_v2_relational_node_fixture(take: u32) -> RelationalQueryPlan {
+        RelationalQueryPlan {
+            root: "events".to_owned(),
+            root_alias: "event".to_owned(),
+            joined: "actors".to_owned(),
+            joined_alias: "actor".to_owned(),
+            join_kind: JoinKind::Left,
+            join_on: vec![JoinEquality {
+                root_field: "actorId".to_owned(),
+                joined_field: "id".to_owned(),
+            }],
+            root_filters: Vec::new(),
+            root_visibility: Vec::new(),
+            joined_visibility: Vec::new(),
+            projection: vec![ProjectionLeaf {
+                name: "title".to_owned(),
+                source: ProjectionSource::RootField("title".to_owned()),
+            }],
+            order: vec![OrderExpr {
+                field: "createdAt".to_owned(),
+                direction: OrderDirection::Asc,
+                max_encoded_bytes: None,
+            }],
+            take,
+            root_index: "by_created_at".to_owned(),
+            joined_index: "by_id".to_owned(),
+        }
+    }
+
+    fn snapshot_v2_function_fixture(plan: SnapshotBatchPlanV2) -> FunctionDefinition {
+        let mut arguments = plan
+            .nodes
+            .iter()
+            .filter_map(|node| match node {
+                SnapshotBatchNodeV2::BoundedChildren(node) => {
+                    Some((node.parent_id_arg.clone(), node.parent_table.clone()))
+                }
+                SnapshotBatchNodeV2::RelationalQuery(_) => None,
+            })
+            .collect::<BTreeMap<_, _>>()
+            .into_iter()
+            .map(|(name, table)| ResultObjectFieldContract {
+                name,
+                required: true,
+                value: ResultValueContract::Id { table },
+            })
+            .collect::<Vec<_>>();
+        arguments.push(ResultObjectFieldContract {
+            name: "cursor".to_owned(),
+            required: false,
+            value: ResultValueContract::String { max_bytes: 8_192 },
+        });
+        let args_contract = FunctionArgsContract { fields: arguments };
+        let outer = |kind: &str, nodes: ResultValueContract, continuation: ResultValueContract| {
+            ResultValueContract::Object {
+                fields: vec![
+                    ResultObjectFieldContract {
+                        name: "kind".to_owned(),
+                        required: true,
+                        value: ResultValueContract::Literal { value: json!(kind) },
+                    },
+                    ResultObjectFieldContract {
+                        name: "nodes".to_owned(),
+                        required: true,
+                        value: nodes,
+                    },
+                    ResultObjectFieldContract {
+                        name: "continuation".to_owned(),
+                        required: true,
+                        value: continuation,
+                    },
+                ],
+                allow_extra: false,
+            }
+        };
+        let result_contract = FunctionResultContract::Records {
+            record: ResultValueContract::Union {
+                variants: vec![
+                    outer(
+                        "absent",
+                        ResultValueContract::Null,
+                        ResultValueContract::Null,
+                    ),
+                    outer(
+                        "visible",
+                        ResultValueContract::Tuple {
+                            elements: plan
+                                .nodes
+                                .iter()
+                                .map(|node| match node {
+                                    SnapshotBatchNodeV2::BoundedChildren(_) => {
+                                        ResultValueContract::Json {
+                                            max_depth: 16,
+                                            max_bytes: 1_048_576,
+                                        }
+                                    }
+                                    SnapshotBatchNodeV2::RelationalQuery(node) => {
+                                        ResultValueContract::Array {
+                                            element: Box::new(ResultValueContract::Json {
+                                                max_depth: 16,
+                                                max_bytes: 1_048_576,
+                                            }),
+                                            max_items: node.take as usize,
+                                        }
+                                    }
+                                })
+                                .collect(),
+                        },
+                        ResultValueContract::Union {
+                            variants: vec![
+                                ResultValueContract::Null,
+                                ResultValueContract::String { max_bytes: 8_192 },
+                            ],
+                        },
+                    ),
+                ],
+            },
+            rows: Some(ResultRowsBound {
+                min_items: 1,
+                max_items: 1,
+            }),
+        };
+        let mut function = FunctionDefinition::new(
+            "mixedView",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)),
+        );
+        function.args_contract_hash = Some(args_contract_hash(&args_contract).expect("args hash"));
+        function.args_contract = Some(args_contract);
+        function.result_contract_hash =
+            Some(result_contract_hash(&result_contract).expect("result hash"));
+        function.result_contract = result_contract;
+        function.required_capabilities = vec![
+            "snapshot_batch_v2".to_owned(),
+            "relational_query_v1".to_owned(),
+            "bounded_children_v1".to_owned(),
+            "args_contract_v1".to_owned(),
+            "result_contract_v1".to_owned(),
+        ];
+        let identity = {
+            let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) = &function.runtime
+            else {
+                unreachable!("snapshot v2 fixture")
+            };
+            snapshot_batch_identity_v2(&function, plan).expect("snapshot v2 identity")
+        };
+        let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) = &mut function.runtime
+        else {
+            unreachable!("snapshot v2 fixture")
+        };
+        plan.normalized_composite_plan = identity.normalized_composite_plan;
+        plan.plan_hash = identity.plan_hash;
+        function
+    }
+
+    #[test]
+    fn snapshot_batch_v2_shape_identity_groups_and_effect_ceilings_are_closed() {
+        let bounded = SnapshotBatchNodeV2::BoundedChildren(snapshot_node_fixture(
+            "boardId",
+            BoundedParentVisibility::PublicRead,
+            4,
+        ));
+        let relational =
+            SnapshotBatchNodeV2::RelationalQuery(snapshot_v2_relational_node_fixture(7));
+        assert_eq!(bounded.examined_entry_ceiling(), 5);
+        assert_eq!(bounded.joined_lookup_ceiling(), 0);
+        assert_eq!(relational.examined_entry_ceiling(), 7);
+        assert_eq!(relational.joined_lookup_ceiling(), 7);
+
+        let plan = SnapshotBatchPlanV2 {
+            profile: "snapshot-batch.v2".to_owned(),
+            nodes: vec![bounded.clone(), relational.clone()],
+            normalized_composite_plan: Value::Null,
+            plan_hash: String::new(),
+        };
+        validate_snapshot_batch_v2_plan_shape(&plan).expect("mixed v2 tuple");
+        let function = snapshot_v2_function_fixture(plan.clone());
+        let groups = snapshot_batch_v2_parent_authorization_groups(&function, &plan)
+            .expect("bounded positions alone form groups");
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].node_indices, vec![0]);
+        let identity = snapshot_batch_identity_v2(&function, &plan).expect("v2 identity");
+        assert_eq!(identity.node_examined_entry_ceilings, vec![5, 7]);
+        assert_eq!(identity.node_joined_lookup_ceilings, vec![0, 7]);
+        assert_eq!(identity.parent_authorization_group_count, 1);
+        assert_eq!(
+            identity.normalized_composite_plan["profileId"],
+            "snapshot-batch.v2"
+        );
+        assert_eq!(
+            identity.normalized_composite_plan["nodes"][1]["nodePlan"]["classId"],
+            "relational_query_v1"
+        );
+        assert_eq!(
+            identity.normalized_composite_plan["parentAuthorizationGroups"][0]["members"],
+            json!([0])
+        );
+        assert!(matches!(
+            PublicFunctionDefinition::from(function).runtime,
+            PublicFunctionRuntime::HostPlan(PublicHostPlanKind::SnapshotBatchV2)
+        ));
+
+        let all_relational_plan = SnapshotBatchPlanV2 {
+            profile: "snapshot-batch.v2".to_owned(),
+            nodes: vec![relational.clone(), relational.clone()],
+            normalized_composite_plan: Value::Null,
+            plan_hash: String::new(),
+        };
+        let all_relational = snapshot_v2_function_fixture(all_relational_plan.clone());
+        assert!(
+            snapshot_batch_v2_parent_authorization_groups(&all_relational, &all_relational_plan,)
+                .expect("all-relational has no parent groups")
+                .is_empty()
+        );
+
+        let no_relational = SnapshotBatchPlanV2 {
+            profile: "snapshot-batch.v2".to_owned(),
+            nodes: vec![bounded.clone(), bounded],
+            normalized_composite_plan: Value::Null,
+            plan_hash: String::new(),
+        };
+        assert_eq!(
+            validate_snapshot_batch_v2_plan_shape(&no_relational)
+                .expect_err("v2 requires a relational node")
+                .diagnostic
+                .code,
+            "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+        );
+
+        for nodes in [vec![relational.clone()], vec![relational.clone(); 9]] {
+            let out_of_range = SnapshotBatchPlanV2 {
+                profile: "snapshot-batch.v2".to_owned(),
+                nodes,
+                normalized_composite_plan: Value::Null,
+                plan_hash: String::new(),
+            };
+            assert_eq!(
+                validate_snapshot_batch_v2_plan_shape(&out_of_range)
+                    .expect_err("v2 admits exactly two through eight nodes")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+            );
+        }
+
+        let exceeded = SnapshotBatchPlanV2 {
+            profile: "snapshot-batch.v2".to_owned(),
+            nodes: vec![
+                SnapshotBatchNodeV2::RelationalQuery(snapshot_v2_relational_node_fixture(1_024)),
+                SnapshotBatchNodeV2::RelationalQuery(snapshot_v2_relational_node_fixture(1)),
+            ],
+            normalized_composite_plan: Value::Null,
+            plan_hash: String::new(),
+        };
+        assert_eq!(
+            validate_snapshot_batch_v2_plan_shape(&exceeded)
+                .expect_err("summed take stays bounded")
+                .diagnostic
+                .code,
+            "SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED",
+        );
+
+        let encoded = serde_json::to_value(relational).expect("serialize tagged v2 node");
+        assert_eq!(encoded["classId"], "relational_query_v1");
+        assert!(encoded.get("plan").is_some());
+        assert_eq!(encoded.as_object().map(|value| value.len()), Some(2));
+    }
+
+    #[test]
+    fn snapshot_batch_v2_outer_contract_never_narrows_to_visible() {
+        let plan = SnapshotBatchPlanV2 {
+            profile: "snapshot-batch.v2".to_owned(),
+            nodes: vec![
+                SnapshotBatchNodeV2::RelationalQuery(snapshot_v2_relational_node_fixture(2)),
+                SnapshotBatchNodeV2::RelationalQuery(snapshot_v2_relational_node_fixture(2)),
+            ],
+            normalized_composite_plan: Value::Null,
+            plan_hash: String::new(),
+        };
+        let function = snapshot_v2_function_fixture(plan.clone());
+        validate_snapshot_batch_v2_outer_result_contract(&function, &plan)
+            .expect("two-arm envelope admits even when absence is unreachable");
+
+        let mut narrowed = function;
+        let FunctionResultContract::Records {
+            record: ResultValueContract::Union { variants },
+            ..
+        } = &mut narrowed.result_contract
+        else {
+            unreachable!("v2 fixture result")
+        };
+        let visible = variants[1].clone();
+        narrowed.result_contract = FunctionResultContract::Records {
+            record: visible,
+            rows: Some(ResultRowsBound {
+                min_items: 1,
+                max_items: 1,
+            }),
+        };
+        assert_eq!(
+            validate_snapshot_batch_v2_outer_result_contract(&narrowed, &plan)
+                .expect_err("visible-only contract must refuse")
+                .diagnostic
+                .code,
+            "SNAPBACK_SNAPSHOT_BATCH_RESULT_CONTRACT_INVALID",
+        );
+    }
+
     #[test]
     fn snapshot_batch_static_tuple_ceiling_arguments_and_structural_groups_are_closed() {
         let owner = BoundedParentVisibility::Owner {
@@ -13284,6 +14275,10 @@ mod membership_manifest_grammar_tests {
             ),
             (
                 TargetCapabilityId::SnapshotBatchV1,
+                CapabilityMaturity::Experimental,
+            ),
+            (
+                TargetCapabilityId::SnapshotBatchV2,
                 CapabilityMaturity::Experimental,
             ),
             (
@@ -13788,6 +14783,66 @@ mod membership_manifest_grammar_tests {
                     .iter()
                     .any(|gap| gap == "snapshot_batch_v1"),
                 "{} must report the structured snapshot_batch_v1 GAP",
+                manifest.target_profile_id,
+            );
+        }
+    }
+
+    #[test]
+    fn snapshot_batch_v2_registry_is_experimental_and_local_only() {
+        assert_eq!(
+            TargetCapabilityId::SnapshotBatchV2.maturity(),
+            CapabilityMaturity::Experimental,
+        );
+        for manifest in [
+            CapabilityManifest::local_v0_declared(),
+            CapabilityManifest::local_v0_instance(Vec::new(), true),
+        ] {
+            assert!(
+                manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::SnapshotBatchV2),
+                "{} must advertise the registered local v2 executor",
+                manifest.target_profile_id,
+            );
+            assert_eq!(
+                manifest
+                    .capability_maturity
+                    .get(&TargetCapabilityId::SnapshotBatchV2),
+                Some(&CapabilityMaturity::Experimental),
+            );
+            assert!(
+                !manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "snapshot_batch_v2")
+            );
+        }
+        for manifest in [
+            CapabilityManifest::remote_service_sqlite_ibex_declared(),
+            CapabilityManifest::conformance_workerd_v8(json!({})),
+            CapabilityManifest::cloudflare_do_sqlite_v8(json!({})),
+        ] {
+            assert!(
+                !manifest
+                    .supported_capabilities
+                    .contains(&TargetCapabilityId::SnapshotBatchV2),
+                "{} must not inherit local snapshot-batch v2 support",
+                manifest.target_profile_id,
+            );
+            assert!(
+                !manifest
+                    .capability_maturity
+                    .contains_key(&TargetCapabilityId::SnapshotBatchV2),
+                "{} must not annotate maturity for an unsupported id",
+                manifest.target_profile_id,
+            );
+            assert!(
+                manifest
+                    .capability_gaps
+                    .iter()
+                    .any(|gap| gap == "snapshot_batch_v2"),
+                "{} must report the structured snapshot_batch_v2 GAP",
                 manifest.target_profile_id,
             );
         }

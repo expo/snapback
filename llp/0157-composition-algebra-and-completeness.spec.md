@@ -375,6 +375,15 @@ shipped generated artifact may require the capability (acceptance-corpus
 fixtures may), and no support, capability, or implementation claim may be
 published.
 
+**Dated implementation checkpoint (2026-08-06):** the `sbsb2` codec,
+class-tagged plan admission, local composite executor, mixed-node authoring and
+identity mirror, and local-only `snapshot_batch_v2` experimental capability
+registration have landed together with the required same-commit introduction
+record, the §D8 frozen Rust/JavaScript parity vectors, and the A14 local oracle.
+Remote-service and Cloudflare targets retain explicit GAP rows. This checkpoint
+makes no Move-1 exit claim: a fresh Fleet workload receipt remains the gate
+before any guide capability-row promotion or hosted claim.
+
 **Growth stop rule.** The active registry has exactly four node classes and
 four plan profiles (`single-node.v1`, `snapshot-batch.v1`, `mixed-route.v2`,
 `snapshot-batch.v2`). The 2026-08-06 registration above consumed the fourth

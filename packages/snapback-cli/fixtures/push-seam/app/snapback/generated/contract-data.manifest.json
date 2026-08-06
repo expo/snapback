@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "snapback.v1:sessions:function:sha256:75a61f9d61d55981f8d213ea6677cdfd46d03bf09aba7fd25097fd8db3fd0f5a",
+  "bundleHash": "snapback.v1:sessions:function:sha256:f35854ecd0fe2db0f23f52fec27b899e71f579eae6204b642b71e51d233bf58e",
   "capabilities": {
     "branchableFixtures": false,
     "derivedOptimisticOverlays": false,
@@ -15,7 +15,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:c1bcd4d700b4038aa72100139e39de8e1926316ba4a82de88f50be192782e288",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:78c93a445b4088fec1fbb50138e904d6348c9458893ff72b63b15dfc55b2e595",
   "manifestVersion": 2,
   "mutations": {
     "joinAsHost": {
@@ -824,6 +824,6 @@
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "snapback.v1:sessions:schema:sha256:32471a9a0d47a9eb591816f5a41c860f724d9f9cba0b4a41b08a5271422fcd1c",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:c6a9493a044bc2615aeebfccb3ba13fc62aafb509ed8e6d2706775cc6ba73df4",
   "schemaVersion": "snapback.v1"
 }

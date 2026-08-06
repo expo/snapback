@@ -5,7 +5,7 @@
 **Systems:** Competitive evaluation, Demo applications, Developer experience, React, Data modeling, Relational queries, Realtime, Offline sync, Optimistic updates, Auth, Conflict handling, Performance, Testing, Documentation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-31
-**Revised:** 2026-08-01 (corrected the retained Fleet failure diagnosis after exact-fixture inspection proved all writes durable: an implicit 1,024-row query prefix was silently treated as complete before application-side ordering) 2026-08-01 (implemented all six paired applications and the Replicache control; retained 13 provider receipts, six diaries, one Snapback Fleet visibility failure, explicit browser-carrier gaps, and the final improvement synthesis)
+**Revised:** 2026-08-06 (successor checkpoint: the local-only experimental `snapshot_batch_v2` implementation, registry entry, frozen vectors, and A14 oracle landed without changing this Plan's frozen Fleet evidence; a fresh successor witness remains pending). 2026-08-01 (corrected the retained Fleet failure diagnosis after exact-fixture inspection proved all writes durable: an implicit 1,024-row query prefix was silently treated as complete before application-side ordering) 2026-08-01 (implemented all six paired applications and the Replicache control; retained 13 provider receipts, six diaries, one Snapback Fleet visibility failure, explicit browser-carrier gaps, and the final improvement synthesis)
 **Related:** LLP 0000, LLP 0008, LLP 0010, LLP 0015, LLP 0016, LLP 0035, LLP 0043, LLP 0053, LLP 0059, LLP 0061, LLP 0074, LLP 0080, LLP 0090, LLP 0102, LLP 0107, LLP 0114, LLP 0126, LLP 0127, LLP 0129, LLP 0130, LLP 0137
 
 ## Summary
@@ -317,3 +317,10 @@ could not certify it.
 No Rocicorp credentials were required. Evidence is local/self-hosted and does
 not make Cloud Zero, hosted Snapback, browser-compositor, production-scale, or
 cross-machine performance claims.
+
+The 2026-08-06 successor checkpoint registers `snapshot_batch_v2` as an
+experimental capability on the local development target after its codec,
+admission, executor, mixed-node codegen, frozen cross-language vectors, and
+A14 oracle landed under LLP 0157 §D8. It does not revise the immutable bakeoff
+totals or close the Fleet GAP: a fresh Fleet receipt is still required before
+the successor can become evidence for this Plan's workload.

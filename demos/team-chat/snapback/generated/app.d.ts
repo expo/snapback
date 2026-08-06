@@ -4,7 +4,20 @@ export type GeneratedAppQueryName = "firstInboxPage" | "firstRoomMessagePage" | 
 export type GeneratedAppMutationName = "acceptInvite" | "createRoom" | "inviteMember" | "leaveRoom" | "markRoomRead" | "ownerRemoveMember" | "sendMessage";
 export type GeneratedAppAssetName = never;
 export type CapabilityRequirement = string;
-export type CommandDescriptor = never;
+export interface CommandAssetSource { readonly size: number; readonly name?: string; readonly type?: string; slice(start: number, end?: number): { arrayBuffer(): Promise<ArrayBuffer> } }
+type ReferenceArgs<Reference> = Reference extends { readonly __args?: infer Args } ? Args : Record<string, unknown>;
+type ReferenceResult<Reference> = Reference extends { readonly __result?: infer Result } ? Result : unknown;
+type CommandAssetInput<Input extends string | never, Optional extends boolean> = [Input] extends [never] ? unknown : Optional extends true ? { readonly [Field in Input]?: CommandAssetSource } : { readonly [Field in Input]: CommandAssetSource };
+export interface CommandDescriptor<Mutation = unknown, Input extends string | never = never, MutationArg extends string | never = never, Optional extends boolean = false, Intent = unknown> {
+  readonly kind: 'asset-bearing-command.v1';
+  readonly mutation: Mutation;
+  readonly asset: [Input] extends [never] ? null : Readonly<{ input: Input; intent: Intent; mutationArg: MutationArg; optional: Optional }>;
+  readonly passthroughArgs: readonly string[];
+  readonly __args?: Omit<ReferenceArgs<Mutation>, MutationArg> & CommandAssetInput<Input, Optional>;
+  readonly __result?: ReferenceResult<Mutation>;
+}
+export interface GeneratedAppCommands {
+}
 export interface SurfaceMemberDescriptor<Reference = unknown, Input = Record<string, never>> {
   readonly artifactKind: 'surfaceMemberBinding';
   readonly reference: Reference;
@@ -12,7 +25,7 @@ export interface SurfaceMemberDescriptor<Reference = unknown, Input = Record<str
   readonly inputs: Readonly<Record<string, unknown>>;
   readonly __input?: Input;
 }
-export interface SurfaceDescriptor<Params = Record<string, never>, Reads = Record<string, never>, Mutations = Record<string, never>, Presence = Record<string, never>, Assets = Record<string, never>> {
+export interface SurfaceDescriptor<Params = Record<string, never>, Reads = Record<string, never>, Mutations = Record<string, never>, Commands = Record<string, never>, Presence = Record<string, never>, Assets = Record<string, never>> {
   readonly artifactKind: 'surfaceDescriptor';
   readonly id: string;
   readonly name: string;
@@ -20,7 +33,7 @@ export interface SurfaceDescriptor<Params = Record<string, never>, Reads = Recor
   readonly reads: Reads;
   readonly mutations: Mutations;
   readonly presence: Presence;
-  readonly commands: Readonly<Record<string, never>>;
+  readonly commands: Commands;
   readonly assets: Assets;
   readonly __params?: Params;
 }
@@ -36,7 +49,7 @@ export interface AppDescriptorV1 {
     ephemeral: GeneratedEphemeral;
     queryGroups: GeneratedQueryGroups;
   }>;
-  readonly commands: Readonly<Record<string, CommandDescriptor>>;
+  readonly commands: Readonly<GeneratedAppCommands>;
   readonly surfaces: Readonly<GeneratedAppSurfaces>;
   readonly capabilities: Readonly<{ required: readonly CapabilityRequirement[] }>;
 }

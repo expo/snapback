@@ -1,28 +1,28 @@
 {
   "activation": {
     "authMode": "dev",
-    "databaseId": "019fd77d-5720-7da3-ab86-4fd914a8bb78",
+    "databaseId": "019fd7da-398d-7bc0-9348-e4c3ac7b27c3",
     "deploymentId": "contention-calendar-rung2-exit",
     "expectedGeneration": {
       "appId": "contention-calendar",
-      "bundleHash": "sha256:723adaa7771bac4c",
-      "inputsHash": "43800d9e818ee1b98b859dcaa79112a7a77339665f19ec8fd2f0ae389ab755c3",
-      "schemaHash": "sha256:5672641b4c4097ac",
+      "bundleHash": "sha256:343929390907affa",
+      "inputsHash": "2b77c0d111ae3eae67d29080eae1bd8c4d12260f3f0e512d1b1f91f9b751fd1f",
+      "schemaHash": "sha256:56cfc7afdbc7469f",
       "schemaVersion": "snapback.v0"
     },
     "format": "snapback.composition-activation.v1",
-    "proofKeyManifestDigest": "sha256:199e327cf78bf431a14b0f69a5a447a7aa67d0c64b3f31152dcd680a3f3d208a",
+    "proofKeyManifestDigest": "sha256:e8a3e1e6546701d3491e6ee54e53c09f952e57a0bf5277260c0849f6f6477615",
     "targetProfileId": "local-dev-sqlite-ibex"
   },
-  "activationHash": "sha256:75507f9155f69819bd00ef0ec78b127dea21687fb10609e800a948e9e10aae50",
+  "activationHash": "sha256:0b4b92febe582c8aa94d9de135331777567db56e6635fb397da1c5eca1d6123e",
   "format": "snapback.trusted-composition-activation.v1",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
         "algorithm": "Ed25519",
-        "proofKeyId": "sbpk1.tLT64g7WkXOxkW-4eh2HNQ",
-        "publicKeyBase64url": "fm28_ZNBKAG3k6LBUIPF1HFjFNNpx6R0-8dMGKkJKf4"
+        "proofKeyId": "sbpk1.yO6VsWF1tVzxe_fYIa_BzA",
+        "publicKeyBase64url": "XgzXygvu4WfHRwQLe56zwBov_gQoXIW77xWIs7-30Ug"
       }
     ]
   }

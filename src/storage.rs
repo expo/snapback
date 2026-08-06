@@ -9613,6 +9613,29 @@ pub(crate) fn query_relational_on(
     input: &HandlerInput,
     cursor: Option<&KeysetAfter>,
 ) -> SnapbackResult<(QueryOutput, Option<KeysetAfter>)> {
+    let (output, continuation, _) = query_relational_on_observed(db, plan, input, cursor)?;
+    Ok((output, continuation))
+}
+
+/// Executor-owned work facts for one relational root window. The composite
+/// executor consumes these facts immediately and refuses any implementation
+/// drift beyond the owner-pinned per-node ceilings.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(crate) struct RelationalExecutionObservation {
+    pub(crate) examined_root_entries: usize,
+    pub(crate) joined_lookups: usize,
+}
+
+pub(crate) fn query_relational_on_observed(
+    db: &DbRead<'_>,
+    plan: &crate::manifest::RelationalQueryPlan,
+    input: &HandlerInput,
+    cursor: Option<&KeysetAfter>,
+) -> SnapbackResult<(
+    QueryOutput,
+    Option<KeysetAfter>,
+    RelationalExecutionObservation,
+)> {
     use crate::manifest::{FilterExpr, JoinKind, ProjectionSource};
 
     validate_relational_plan_shape(plan)?;
@@ -9640,6 +9663,7 @@ pub(crate) fn query_relational_on(
                 cursor: None,
             },
             None,
+            RelationalExecutionObservation::default(),
         ));
     }
 
@@ -9671,7 +9695,16 @@ pub(crate) fn query_relational_on(
     };
 
     let mut rows = Vec::with_capacity(root_window.rows.len());
+    let mut observation = RelationalExecutionObservation {
+        examined_root_entries: root_window.rows.len(),
+        joined_lookups: 0,
+    };
     for root_row in &root_window.rows {
+        // @ref LLP 0157#sbsb2-plaintext-and-budget — one joined-side
+        // unique-key decision is charged for every consumed root, including
+        // null-key and inner-omitted roots. This is the owner's separate work
+        // axis; it never gets folded into examined root entries.
+        observation.joined_lookups += 1;
         // A null (or absent) value in any join-key position never matches.
         let mut key_values = Vec::with_capacity(plan.join_on.len());
         let mut null_key = false;
@@ -9707,7 +9740,7 @@ pub(crate) fn query_relational_on(
                 // (LLP 0080 §2).
                 limit: Some(2),
                 membership_filters: Vec::new(),
-                indexed_by: None,
+                indexed_by: Some(plan.joined_index.clone()),
             };
             let looked_up = db.query(&lookup, input)?;
             if looked_up.rows.len() > 1 {
@@ -9760,6 +9793,7 @@ pub(crate) fn query_relational_on(
             cursor: None,
         },
         continuation,
+        observation,
     ))
 }
 
@@ -18068,7 +18102,7 @@ fn order_field_max_encoded_bytes_exceeded(
     SnapbackError::error(
         "SNAPBACK_ORDER_FIELD_MAX_ENCODED_BYTES_EXCEEDED",
         "storage",
-        "string order field exceeds its declared UTF-8 byte ceiling",
+        "string or id order field exceeds its declared UTF-8 byte ceiling",
     )
     .with_details(json!({
         "table": table,
@@ -24381,12 +24415,33 @@ mod guarded_commit_tests {
         let continuation = windowed_continuation.expect("full window continues");
         assert_eq!(continuation.id, "b2");
 
+        let (_, _, observed) = query_relational_on_observed(
+            &DbRead::Live(&db),
+            &relational_plan(JoinKind::Inner, 2),
+            &input,
+            None,
+        )
+        .expect("observed relational window");
+        assert_eq!(observed.examined_root_entries, 2);
+        assert_eq!(
+            observed.joined_lookups, 2,
+            "every consumed root is charged one joined-side lookup decision",
+        );
+
         // take: 0 is an empty page that consumes nothing.
         let (empty, empty_continuation) = db
             .query_relational(&relational_plan(JoinKind::Inner, 0), &input, None)
             .expect("take zero");
         assert!(empty.rows.is_empty());
         assert!(empty_continuation.is_none());
+        let (_, _, observed_empty) = query_relational_on_observed(
+            &DbRead::Live(&db),
+            &relational_plan(JoinKind::Inner, 0),
+            &input,
+            None,
+        )
+        .expect("observed take-zero window");
+        assert_eq!(observed_empty, RelationalExecutionObservation::default());
 
         // Below-constraint duplicate injection: a second row under the
         // claimed-unique joined key is a storage-invariant refusal.

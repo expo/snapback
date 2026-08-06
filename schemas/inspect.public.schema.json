@@ -3520,6 +3520,7 @@
         "RelationalQuery",
         "BoundedChildrenQuery",
         "SnapshotBatch",
+        "SnapshotBatchV2",
         "WriteWithActivity"
       ],
       "type": "string"
@@ -5124,6 +5125,11 @@
         {
           "const": "jobs_one_off_v1",
           "description": "Transactional one-off durable work, first slice (LLP 0070, Draft):\n`ctx.jobs.enqueue` from JS mutations, the paved default queue,\njob/attempt receipts, the declared job-status query, and the\ninjected-clock forced drain. Experimental for as long as LLP 0070 is\nDraft — its claim boundary bars any durable-background-work\ncapability-class claim, and this id asserts current-contract\ncompatibility only.",
+          "type": "string"
+        },
+        {
+          "const": "snapshot_batch_v2",
+          "description": "LLP 0157's mixed bounded-child/relational composite. Registration is\nexperimental and local-only; hosted, remote, and Cloudflare targets\nretain explicit gaps until their own executors and evidence land.",
           "type": "string"
         },
         {

@@ -276,7 +276,10 @@ impl PageIdentityV1 {
                 CursorEndV1::Cursor { profile_id, digest }
                     if matches!(
                         profile_id.as_str(),
-                        "relational-query.v1" | "bounded-children.v1" | "snapshot-batch.v1"
+                        "relational-query.v1"
+                            | "bounded-children.v1"
+                            | "snapshot-batch.v1"
+                            | "snapshot-batch.v2"
                     ) && is_sha256_digest(digest) =>
                 {
                     Ok(())
@@ -983,6 +986,19 @@ mod tests {
             proof_key_id: String::new(),
         })
         .unwrap()
+    }
+
+    #[test]
+    fn snapshot_batch_v2_is_an_admitted_completeness_cursor_profile() {
+        let page = PageIdentityV1::Visible {
+            input: CursorEndV1::Cursor {
+                profile_id: "snapshot-batch.v2".to_owned(),
+                digest: format!("sha256:{}", "55".repeat(32)),
+            },
+            boundary_vector_digest: format!("sha256:{}", "66".repeat(32)),
+            output: CursorEndV1::Terminal,
+        };
+        page.digest().expect("v2 batch cursor end is admitted");
     }
 
     #[derive(Deserialize)]
