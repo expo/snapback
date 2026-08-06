@@ -166,6 +166,12 @@ normal code generator before running the surface behavior suite, so a clean
 checkout exercises the same generated input rather than depending on local
 cache state.
 
+Rollover writes follow a two-commit protocol: first commit the implementation,
+instrument declaration, profile inventory, and authorities; then mint and
+commit the receipt. The writer's same-process final self-check binds the one
+just-written receipt to that exact committed `HEAD`. Subsequent checks admit no
+override and require exactly one reachable Git introduction for every ledger.
+
 The Phase-B Micro extension is `baseline.micro-phase-b.v1.json`, backed by
 `micro-phase-b-profiles.v1.json`. It freezes separate generated core and live
 closures, the three public experimental subpaths, and a root/`./online`

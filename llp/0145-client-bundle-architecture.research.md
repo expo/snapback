@@ -1540,7 +1540,8 @@ clusters. `4ac8387f080a2659484fc09916ff22a076dc4ca8` repairs IndexedDB
 binding-receipt persistence through writer election, and
 `6ec40820dc853f79c9207f9c9f008e81242f8348` adds LLP 0081's durable
 tombstone-and-re-entry custody. Together they change the shared outbox and
-retained-query-store profiles. LLP 0179 S1 / LLP 0176 G2 landing
+retained-query-store profiles and the two React application closures that
+consume the same client graph. LLP 0179 S1 / LLP 0176 G2 landing
 `c7a8b90312ac979830df6948023689af169166a3` separately adds generated surface
 admission and `useSurface` to the two React application workloads. The latter
 17.7 kB minified / 5.9 kB gzip step is new feature mass, not part of the
@@ -1556,6 +1557,14 @@ ceiling and every predecessor receipt remain immutable. This disposition
 records the cost of the accepted capabilities; it does not weaken the
 separately commissioned static-capability-composition remediation in
 `issues/20260805-static-capability-composition.md`.
+
+The first production write also exposed a bootstrap defect in the instrument:
+after writing a new receipt, its same-process final validation required that
+receipt to already have a reachable Git introduction. The writer now permits
+one narrowly scoped override only for the exact just-written filename and
+committed source `HEAD`; normal `--check` retains the one-reachable-carrier
+requirement. This makes the documented commit-declaration → mint-receipt →
+commit-receipt sequence executable without weakening later validation.
 
 #### 2026-08-04 rowless token-resume ordering rollover
 

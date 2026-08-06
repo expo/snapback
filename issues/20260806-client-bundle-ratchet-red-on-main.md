@@ -108,7 +108,9 @@ persistence through writer election, while
 `6ec40820dc853f79c9207f9c9f008e81242f8348` added LLP 0081's durable
 tombstone-and-re-entry custody. `public-subpath-rqs-registered` retains the
 same minified size but changes compressed identity through that evolved store
-dependency; the other five profiles contain the new custody code directly.
+dependency; the other five narrow profiles contain the new custody code
+directly, and both React application closures consume the same evolved client
+graph in addition to G2's surface code.
 
 The fix-forward therefore declares one batched
 `aug6-client-capabilities.v1` workload and mints
@@ -124,3 +126,11 @@ cache. No historical receipt or unrelated ceiling is edited. The
 static-capability-composition lane
 commissioned by the prior size ruling remains open; this rollover does not
 claim that remediation is complete.
+
+The complete behavior train passed, but the first write then exposed an
+instrument bootstrap defect: after writing the candidate receipt, the same
+process demanded its already-reachable Git introduction before it could finish
+the final self-check. The repair admits an uncommitted carrier revision only
+for that exact just-written receipt and requires it to equal committed `HEAD`.
+Ordinary `--check` still requires exactly one reachable carrier introduction,
+so the exception cannot bless a later dirty or untracked ledger.

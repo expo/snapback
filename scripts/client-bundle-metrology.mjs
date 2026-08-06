@@ -828,14 +828,16 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
             '6ec40820dc853f79c9207f9c9f008e81242f8348',
           ]),
           profileIds: Object.freeze([
+            'external-react-application',
             'public-subpath-outbox-shared',
             'public-subpath-rqs-registered',
             'public-subpath-rqs-store',
             'public-subpath-rqs-store-default',
             'public-subpath-rqs-store-expo',
             'public-subpath-rqs-store-file',
+            'react-external',
           ]),
-          summary: 'The IndexedDB writer-election repair and LLP 0081 tombstone-and-re-entry custody deliberately evolve the shared outbox and retained-query-store closures. The registered-RQS output remains the same size but changes compressed identity through its evolved store dependency.',
+          summary: 'The IndexedDB writer-election repair and LLP 0081 tombstone-and-re-entry custody deliberately evolve the shared outbox and retained-query-store closures, including the two React application closures that consume that client graph. The registered-RQS output remains the same size but changes compressed identity through its evolved store dependency.',
         }),
         Object.freeze({
           revisions: Object.freeze([
@@ -911,7 +913,7 @@ function validateBaselineSource(source) {
   }
 }
 
-function ledgerCarrierRevision(ledgerFilename) {
+function ledgerCarrierRevision(ledgerFilename, uncommittedCarrierRevision = null) {
   const revisions = gitText([
     'log',
     '--diff-filter=A',
@@ -919,12 +921,26 @@ function ledgerCarrierRevision(ledgerFilename) {
     '--',
     `tests/fixtures/client-bundle-metrology/${ledgerFilename}`,
   ]).split('\n').filter(Boolean);
+  if (revisions.length === 0 && uncommittedCarrierRevision !== null) {
+    assert.equal(
+      uncommittedCarrierRevision,
+      gitText(['rev-parse', 'HEAD']),
+      `${ledgerFilename}: uncommitted write carrier is the exact committed source head`,
+    );
+    return uncommittedCarrierRevision;
+  }
   assert.equal(revisions.length, 1, `${ledgerFilename}: one reachable carrier introduction`);
   return revisions[0];
 }
 
-function validateFrozenInputs(inputs, profileFilename, ledgerFilename, label) {
-  const carrierRevision = ledgerCarrierRevision(ledgerFilename);
+function validateFrozenInputs(
+  inputs,
+  profileFilename,
+  ledgerFilename,
+  label,
+  uncommittedCarrierRevision = null,
+) {
+  const carrierRevision = ledgerCarrierRevision(ledgerFilename, uncommittedCarrierRevision);
   assert.deepEqual(
     inputs,
     {
@@ -1749,7 +1765,7 @@ function validateSupplementalBaseline(report, spec, supplemental) {
   }
 }
 
-function validateRolloverBaseline(report, spec, rollover) {
+function validateRolloverBaseline(report, spec, rollover, uncommittedCarrierRevision = null) {
   assert.equal(
     rollover.schemaVersion,
     'snapback.client-bundle-metrology-rollover-baseline.v1',
@@ -1760,6 +1776,7 @@ function validateRolloverBaseline(report, spec, rollover) {
     spec.profileFilename,
     spec.filename,
     spec.filename,
+    uncommittedCarrierRevision,
   );
   const evidence = report.rolloverLedgers.find((entry) => entry.filename === spec.filename);
   assert.ok(evidence, `${spec.filename}: rollover evidence`);
@@ -1910,12 +1927,23 @@ function activeBaselineEntries(
   }));
 }
 
-function compareToBaselines(report, baseline, supplementals, rollovers) {
+function compareToBaselines(
+  report,
+  baseline,
+  supplementals,
+  rollovers,
+  { uncommittedCarrierRevisions = new Map() } = {},
+) {
   for (const { spec, baseline: supplemental } of supplementals) {
     validateSupplementalBaseline(report, spec, supplemental);
   }
   for (const { spec, baseline: rollover } of rollovers) {
-    validateRolloverBaseline(report, spec, rollover);
+    validateRolloverBaseline(
+      report,
+      spec,
+      rollover,
+      uncommittedCarrierRevisions.get(spec.filename) ?? null,
+    );
   }
   compareProfiles(
     report,
@@ -2119,7 +2147,15 @@ if (mode === '--write-rollover-baseline') {
   runBehaviorTrain();
   writeFileSync(join(FIXTURE_DIR, spec.filename), stableJson(rollover));
   const frozenRollovers = readRolloverBaselines();
-  compareToBaselines(report, baseline, supplementals, frozenRollovers);
+  compareToBaselines(report, baseline, supplementals, frozenRollovers, {
+    // The documented write protocol commits the implementation, declaration,
+    // profile inventory, and authorities before minting the immutable receipt.
+    // During this one final self-check the new receipt cannot yet have a Git
+    // carrier; bind its frozen inputs to that exact committed source head.
+    // Ordinary --check invocations pass no override and still require one
+    // reachable carrier introduction.
+    uncommittedCarrierRevisions: new Map([[spec.filename, rollover.source.revision]]),
+  });
   writeFileSync(
     CURRENT_PATH,
     stableJson(withSavings(report, baseline, supplementals, frozenRollovers)),

@@ -550,6 +550,7 @@
       },
       "degradedResults": 0,
       "ephemeralCollections": 1,
+      "implicitAuthRequirements": 5,
       "operations": {
         "action": 0,
         "live": 3,
@@ -559,9 +560,91 @@
         "total": 5
       },
       "tables": 3,
-      "warnings": 0
+      "warnings": 5
     },
     "degradedResults": [],
+    "implicitAuthRequirements": [
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "addReceiptNote",
+        "source": {
+          "column": 14,
+          "line": 27,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "conversationDetails",
+        "source": {
+          "column": 14,
+          "line": 48,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "conversationMessages",
+        "source": {
+          "column": 14,
+          "line": 40,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "listReceiptNotes",
+        "source": {
+          "column": 14,
+          "line": 21,
+          "path": "functions.mjs"
+        }
+      },
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "reactToMessage",
+        "source": {
+          "column": 14,
+          "line": 54,
+          "path": "functions.mjs"
+        }
+      }
+    ],
     "inputsHash": "snapback.v1:sessions:inputs:sha256:63234090c8a9b1f94945ced3c23cae4750a1cfc561fe7207d3d84658afd1dd2c",
     "schemaVersion": "snapback.codegen-summary.v1"
   },
