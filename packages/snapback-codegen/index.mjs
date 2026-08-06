@@ -2036,8 +2036,8 @@ export async function generateInProcess(backendDir, options = {}) {
 
     // @ref LLP 0178#v1--optional-plan-argument-contradiction — a strict Arg
     // node cannot consume a caller-optional argument: the shared runtime
-    // evaluator refuses an omitted key with SNAPBACK_ARG_MISSING. Keep both
-    // valid repairs as human policy choices; codegen must not guess one.
+    // evaluator refuses an omitted key with SNAPBACK_ARG_MISSING. Keep the
+    // three valid repairs as human policy choices; codegen must not guess one.
     const reportOptionalArgContradiction = (argument, planSite) => {
       if (!optionalArgNames.has(argument)) return;
       const siteKey = `${argument}\0${planSite}`;
@@ -2077,6 +2077,15 @@ export async function generateInProcess(backendDir, options = {}) {
                 authorityEffect: 'none',
                 precondition,
                 description: `Split ${name} into a required-argument operation and an omission-safe operation.`,
+              },
+              {
+                kind: 'consumeViaArgOpt',
+                riskClass: 'policy',
+                machineApplicable: false,
+                requiresApproval: true,
+                authorityEffect: 'none',
+                precondition,
+                description: `Consume ${argument} with argOpt("${argument}") — an omitted property evaluates to null (wrap with coalesce(argOpt(...), lit(default)) for a default); a null write requires the target field to be declared optional.`,
               },
             ],
           },

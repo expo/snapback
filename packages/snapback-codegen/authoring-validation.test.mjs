@@ -367,7 +367,7 @@ export const createTodo = defineMutation({
   assert.equal(contradiction.details.runtimeRefusal, 'SNAPBACK_ARG_MISSING');
   assert.deepEqual(
     contradiction.details.remediations.map((remediation) => remediation.kind),
-    ['makeArgumentRequired', 'splitOperation'],
+    ['makeArgumentRequired', 'splitOperation', 'consumeViaArgOpt'],
   );
   assert(
     contradiction.details.remediations.every((remediation) => (
