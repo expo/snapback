@@ -659,6 +659,7 @@
       },
       "degradedResults": 7,
       "ephemeralCollections": 0,
+      "implicitAuthRequirements": 1,
       "operations": {
         "action": 0,
         "live": 1,
@@ -669,7 +670,7 @@
       },
       "seedRows": 5,
       "tables": 3,
-      "warnings": 1
+      "warnings": 2
     },
     "degradedResults": [
       {
@@ -774,6 +775,24 @@
         "source": {
           "column": 14,
           "line": 125,
+          "path": "functions.mjs"
+        }
+      }
+    ],
+    "implicitAuthRequirements": [
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "eventWall",
+        "source": {
+          "column": 14,
+          "line": 71,
           "path": "functions.mjs"
         }
       }

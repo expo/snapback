@@ -408,6 +408,7 @@
       },
       "degradedResults": 2,
       "ephemeralCollections": 0,
+      "implicitAuthRequirements": 0,
       "operations": {
         "action": 0,
         "live": 1,
@@ -451,6 +452,7 @@
         }
       }
     ],
+    "implicitAuthRequirements": [],
     "inputsHash": "snapback.v1:sessions:inputs:sha256:7b2eaf04813e4a0c4fab3215108e7ab870226cb49dcb9ea1cc2381bc2e8b7c32",
     "schemaVersion": "snapback.codegen-summary.v1"
   },

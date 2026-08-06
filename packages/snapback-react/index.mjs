@@ -1809,6 +1809,8 @@ function createRegistry(binding, providerInstanceId, options = {}) {
       view: null,
       viewVersion: -1,
       actions: null,
+      detachedView: null,
+      unsupportedView: null,
     };
     token.actions = Object.freeze({
       async publish(value, publishOptions = {}) {
@@ -1837,6 +1839,14 @@ function createRegistry(binding, providerInstanceId, options = {}) {
         if (!token.room) return;
         return deleteTokenIntent(token.room, token);
       },
+    });
+    // useSyncExternalStore reads before subscribing. Keep that detached read
+    // referentially stable so React does not treat it as a changing store.
+    token.detachedView = Object.freeze({
+      ...PRESENCE_SERVER_PENDING,
+      publisher: Object.freeze({ status: 'observing', diagnostic: null }),
+      publish: token.actions.publish,
+      delete: token.actions.delete,
     });
     return token;
   };
@@ -1874,26 +1884,22 @@ function createRegistry(binding, providerInstanceId, options = {}) {
   const presenceSnapshot = (descriptor, token) => {
     if (descriptor.unsupported || token.unsupported) {
       const unsupported = descriptor.unsupported ?? token.unsupported;
-      return Object.freeze({
-        status: 'unsupported',
-        entries: Object.freeze([]),
-        selfKey: null,
-        diagnostic: unsupported,
-        connection: 'idle',
-        publisher: Object.freeze({ status: 'observing', diagnostic: null }),
-        publish: token.actions.publish,
-        delete: token.actions.delete,
-      });
+      if (token.unsupportedView?.diagnostic !== unsupported) {
+        token.unsupportedView = Object.freeze({
+          status: 'unsupported',
+          entries: Object.freeze([]),
+          selfKey: null,
+          diagnostic: unsupported,
+          connection: 'idle',
+          publisher: Object.freeze({ status: 'observing', diagnostic: null }),
+          publish: token.actions.publish,
+          delete: token.actions.delete,
+        });
+      }
+      return token.unsupportedView;
     }
     const room = token.room ?? rooms.get(descriptor.key);
-    if (!room) {
-      return Object.freeze({
-        ...PRESENCE_SERVER_PENDING,
-        publisher: Object.freeze({ status: 'observing', diagnostic: null }),
-        publish: token.actions.publish,
-        delete: token.actions.delete,
-      });
-    }
+    if (!room) return token.detachedView;
     return presenceView(room, token);
   };
 

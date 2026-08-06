@@ -5,7 +5,7 @@
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (exact C30 review stop and prospective C31 repair — global Host-lease and pending-capacity projection validation plus client-suppression closure symmetry; Draft/Missing unchanged); 2026-08-05 (exact C29 review stop and prospective C30 repair — terminal-supplement retention coherence, automatic sessions ACK custody, closed public explanation lookup, and direct Host writer rollback matrix; Draft/Missing unchanged); 2026-08-05 (merged C28 review stop and prospective C29 repair — automatic sessions range custody, nullable-required Host tombstones, terminal-time coherence, and pending-writer rollback; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 lifecycle repair — comparison-complete tombstones, contiguous floors, bounded ranges, and transactional writer guards; Draft/Missing unchanged); 2026-08-04 (explicit activation transport — an authenticated,
+**Revised:** 2026-08-06 (post-landing row-13 result recorded — landed commit a0852be… preserved a valid paired failure on current-range p95 only; scope corrections: row-9 assertion ceded to LLP 0164/0165, derived-fork net-diff attribution named out of this Spec's acceptance rows; Draft/Missing unchanged); 2026-08-05 (exact C30 review stop and prospective C31 repair — global Host-lease and pending-capacity projection validation plus client-suppression closure symmetry; Draft/Missing unchanged); 2026-08-05 (exact C29 review stop and prospective C30 repair — terminal-supplement retention coherence, automatic sessions ACK custody, closed public explanation lookup, and direct Host writer rollback matrix; Draft/Missing unchanged); 2026-08-05 (merged C28 review stop and prospective C29 repair — automatic sessions range custody, nullable-required Host tombstones, terminal-time coherence, and pending-writer rollback; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 lifecycle repair — comparison-complete tombstones, contiguous floors, bounded ranges, and transactional writer guards; Draft/Missing unchanged); 2026-08-04 (explicit activation transport — an authenticated,
 managed-admission AdminWrite command now accepts only the versioned local
 target/profile pair and publishes the exact four-adapter manifest; it remains
 inactive until an operator invokes it, and independent review, author
@@ -974,3 +974,31 @@ fork lifecycle evidence, and client/demo fixes from main. The merged tree must
 land after proportional verification, and row 13 then runs against the landed
 commit. The Spec remains `Draft` and every related capability remains
 `Missing` until post-landing performance and every other named gate pass.
+
+## Implementation record — 2026-08-06, post-landing row-13 result and scope reconciliation
+
+The C33 merge chain landed; landed commit
+`a0852be190d7a908e2419ccaac43f30eee977ee2` then ran the row-13 paired gate
+and produced a preserved paired record (SHA-256
+`8e1f6a4cbbe786eb4eba71c8dc435457331d87446dd26a39a80314a4c6272ab0`). Eight
+of nine read/write comparisons and every idle gate passed; current-range p95
+alone crossed the unchanged faster-side equivalence edge, and the absolute
+process did not run. The fix-forward restores the pinned per-call range
+preparation boundary without changing the measurement contract (LLP 0162
+v0.39). A new landed successor must pass the unchanged paired and
+conditional absolute gates; the Spec remains `Draft` and every related
+capability remains `Missing`.
+
+Two scope corrections for earlier records in this Spec:
+
+- The 2026-08-04 write-authority record's closing sentence asserts "row 4
+  and row 9 remain Partial." Row-9 state is not this Spec's to assert: under
+  the LLP 0185 Phase 0 ownership split, LLP 0164 owns the fork/diff rows and
+  LLP 0165 owns the journal-completeness leg. The row-4 half of that
+  sentence stands.
+- This Spec's acceptance scope (rows 1–4, 13, 14) does not include the
+  derived-deployment fork net diff as an attribution consumer. The
+  `snapback.fork-net-diff.v1` receipt does not carry LLP 0163 operation
+  identities today; that deferral is owned by LLP 0185 Phase 4 item 8
+  ("absence of attribution stays explicit") and is not a gap in this Spec's
+  rows.

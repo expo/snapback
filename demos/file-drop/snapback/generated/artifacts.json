@@ -382,6 +382,7 @@
       },
       "degradedResults": 0,
       "ephemeralCollections": 0,
+      "implicitAuthRequirements": 1,
       "operations": {
         "action": 0,
         "live": 1,
@@ -392,9 +393,27 @@
       },
       "seedRows": 0,
       "tables": 1,
-      "warnings": 0
+      "warnings": 1
     },
     "degradedResults": [],
+    "implicitAuthRequirements": [
+      {
+        "allowed": [
+          "public",
+          "optional-user",
+          "authenticated"
+        ],
+        "code": "SNAPBACK_AUTH_REQUIREMENT_IMPLICIT",
+        "effectiveLegacyRequirement": "optional-user",
+        "guideAnchor": "guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement",
+        "operation": "listPhotos",
+        "source": {
+          "column": 14,
+          "line": 25,
+          "path": "functions.mjs"
+        }
+      }
+    ],
     "inputsHash": "snapback.v1:sessions:inputs:sha256:a8d7a9ab2a3fed0c0af442a62cf9fcf82afcf6b8d6bbbce9d61b82c02a7ea36f",
     "schemaVersion": "snapback.codegen-summary.v1",
     "seed": {

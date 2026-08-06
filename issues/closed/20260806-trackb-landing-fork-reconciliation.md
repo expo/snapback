@@ -1,6 +1,6 @@
 # Track B landing: reconcile against the landed LLP 0185 fork work
 
-**Status:** Open
+**Status:** Closed 2026-08-06
 **Opened:** 2026-08-06
 **Systems:** Storage, Testing
 **Related:** LLP 0158, LLP 0164, LLP 0185;
@@ -37,3 +37,35 @@ dual-READY cut may land first and run its performance leg immediately
 after landing; activation stays gated on the performance result.
 
 Close when the Track B integration lands green against these points.
+
+## Resolution — 2026-08-06
+
+The Track B integration landed on main while this ticket was open:
+`llp-ship/trackb-acceptance-20260804/integration-r5` (`fd751aac5`) is now an
+ancestor of main, and the post-landing performance leg ran against landed
+commit `a0852be190d7` (recorded in
+`issues/20260803-agent-safe-storage-acceptance-tail.md`). All four
+reconciliation points verified on main at `6e158169b`:
+
+1. **Asset-table custody:** main's `TABLE_CUSTODY` Copy rules and
+   `copy_fork_private_assets` (`src/instance_fork.rs:2915`) are intact; no
+   stale `SNAPBACK_FORK_CUSTODY_REFUSED` expectation for asset-bearing
+   sources survives.
+2. **Near-duplicate test:** both fixtures were deliberately kept at their two
+   levels — `derived_fork_keeps_its_pinned_copy_when_parent_writes_after_publication`
+   (`src/instance_fork.rs:3582`) and
+   `parent_commits_after_the_fork_point_are_invisible_to_the_published_fork`
+   (`src/instance_fork.rs:3636`, plus the live-server leg in
+   `tests/instance_fork_cli_v1.rs`).
+3. **Newer fork surface preserved:** `fork renew`, resource limits
+   (`SNAPBACK_FORK_RESOURCE_LIMIT_REFUSED` in `src/instance_fork.rs` and
+   `src/server.rs`), per-fork cleanup locks, `--retain-base` +
+   `fork diff --net` (`snapback.fork-net-diff.v1`), and the s5-d10
+   diagnostic-code inventory are all present on main.
+4. **`scrub_copied_authority_for_in_app_branch`** is on main
+   (`src/instance_fork.rs:1132`) and wired into promotion
+   (`src/fork_promotion.rs:1112`).
+
+Post-landing verification 2026-08-06: `instance_fork::tests` 34/34 and
+`fork_promotion::tests` 37/37 green on main at `6e158169b` (the suite grew
+past the 33 tests this ticket anticipated).
