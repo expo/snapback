@@ -1,7 +1,7 @@
 {
   "activation": {
     "authMode": "dev",
-    "databaseId": "019fd75a-cee4-7ea1-aa7b-56f07335fdb6",
+    "databaseId": "019fd77d-5720-7da3-ab86-4fd914a8bb78",
     "deploymentId": "contention-calendar-rung2-exit",
     "expectedGeneration": {
       "appId": "contention-calendar",
@@ -11,18 +11,18 @@
       "schemaVersion": "snapback.v0"
     },
     "format": "snapback.composition-activation.v1",
-    "proofKeyManifestDigest": "sha256:9896d6aa4656bc69d03ac0fe88691ca523bd2304430e79dc1240e6d8c9d98f04",
+    "proofKeyManifestDigest": "sha256:199e327cf78bf431a14b0f69a5a447a7aa67d0c64b3f31152dcd680a3f3d208a",
     "targetProfileId": "local-dev-sqlite-ibex"
   },
-  "activationHash": "sha256:c536ddb57ed66f93e2416a5a28de601d42b2fab946cc2eeb3feab7b63e302767",
+  "activationHash": "sha256:75507f9155f69819bd00ef0ec78b127dea21687fb10609e800a948e9e10aae50",
   "format": "snapback.trusted-composition-activation.v1",
   "proofKeys": {
     "format": "snapback.completeness-proof-keys.v1",
     "keys": [
       {
         "algorithm": "Ed25519",
-        "proofKeyId": "sbpk1.2BwYgQ8NCmRnJmxw_WoyEQ",
-        "publicKeyBase64url": "RXTKXvhtQUnyFYW35x7fJ5BAcc9Hy-PMju8ZV5XGH6A"
+        "proofKeyId": "sbpk1.tLT64g7WkXOxkW-4eh2HNQ",
+        "publicKeyBase64url": "fm28_ZNBKAG3k6LBUIPF1HFjFNNpx6R0-8dMGKkJKf4"
       }
     ]
   }
