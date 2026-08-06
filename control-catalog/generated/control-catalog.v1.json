@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:7624d26866a45188127af998d7ba84d1a2a5426681cfb9ecd098379a41754f7f",
+  "catalogDigest": "sha256:bb7a38241f6a013d9d25aa624b439fb291c1ea0629116599acb7d0d2f16305dd",
   "buildIdentity": {
-    "sourceCommit": "251367f3dc55b0453ece065ebddb8f8b0e62cfcf",
-    "dirty": false
+    "sourceCommit": "ded064bfd9bbba74d28023e9595933e405609fc8",
+    "dirty": true
   },
-  "generatedAtCommit": "251367f3dc55b0453ece065ebddb8f8b0e62cfcf",
+  "generatedAtCommit": "ded064bfd9bbba74d28023e9595933e405609fc8",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -2435,7 +2435,12 @@
     {
       "operation": "config.set",
       "title": "config.set",
-      "intents": [],
+      "intents": [
+        "set config",
+        "set secret",
+        "configure api key",
+        "write deployment credential"
+      ],
       "status": "shipped",
       "domain": "systemApi",
       "surfaceAccess": "cliOnly",
@@ -2461,21 +2466,73 @@
         "persistsAcrossRestart": true
       },
       "projections": {
-        "cli": null,
+        "cli": "snapback config set --entry <name> (--value-stdin|--value-fd N)",
         "mcp": null,
         "hostOps": null,
         "http": "POST /_snapback/api/config/set",
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "operating/secrets-and-config.md#set-an-agent-held-value-without-exposing-it",
       "authorities": [
-        "llp/0031-server-route-taxonomy"
+        "llp/0036-app-secrets-and-config",
+        "llp/0184-agent-accessible-control-plane"
       ],
       "sources": [
-        "src/server.rs route_registry()"
+        "src/server.rs config_set()",
+        "src/cli.rs ConfigCommand::Set"
       ],
-      "mcpDeferralReason": "No MCP secret carrier is defined (§Product contract): stdin/fd is a CLI-process carrier with no MCP equivalent. Promoting to native requires a defined, security-owner-approved MCP secret carrier first."
+      "mcpDeferralReason": "No MCP secret carrier is defined (§Product contract): stdin/fd is a CLI-process carrier with no MCP equivalent. Promoting to native requires a defined, security-owner-approved MCP secret carrier first.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entry",
+          "valueCarrier"
+        ],
+        "properties": {
+          "entry": {
+            "type": "string",
+            "minLength": 1
+          },
+          "valueCarrier": {
+            "enum": [
+              "stdin",
+              "fd"
+            ],
+            "description": "The CLI accepts value bytes only through --value-stdin or --value-fd N. The value is structurally absent from argv, MCP, catalog examples, and receipts."
+          },
+          "append": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "entry",
+          "applyState",
+          "valueChanged",
+          "generation"
+        ],
+        "properties": {
+          "entry": {
+            "type": "string"
+          },
+          "applyState": {
+            "type": "string"
+          },
+          "valueChanged": {
+            "type": "boolean"
+          },
+          "generation": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
     },
     {
       "operation": "config.status",

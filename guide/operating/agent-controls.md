@@ -86,7 +86,7 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **114 operations** at digest `sha256:7624d26866a45188127af998d7ba84d1a2a5426681cfb9ecd098379a41754f7f`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **114 operations** at digest `sha256:bb7a38241f6a013d9d25aa624b439fb291c1ea0629116599acb7d0d2f16305dd`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
@@ -152,7 +152,7 @@ The embedded build catalog contains **114 operations** at digest `sha256:7624d26
 | `cli.telemetry.query` | `cliOnly` | `direct` | `shipped` | snapback telemetry query | — | — |
 | `client-mutations.purge` | `apiOnly` | `internal` | `shipped` | — | — | — |
 | `config.plan` | `native` | `direct` | `shipped` | snapback config plan | snapback_config_plan | operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify |
-| `config.set` | `cliOnly` | `direct` | `shipped` | — | — | — |
+| `config.set` | `cliOnly` | `direct` | `shipped` | snapback config set --entry <name> (--value-stdin\|--value-fd N) | — | operating/secrets-and-config.md#set-an-agent-held-value-without-exposing-it |
 | `config.status` | `native` | `direct` | `shipped` | snapback config status | snapback_config_status | operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify |
 | `config.unset` | `native` | `direct` | `shipped` | snapback config unset | snapback_config_unset | — |
 | `config.verify` | `native` | `direct` | `shipped` | snapback config verify <entry> | snapback_config_verify | operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify |

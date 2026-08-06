@@ -108,9 +108,36 @@
     "config.verify": { "operability": "direct", "note": "LLP 0184 Phase 2 P1: gained snapback config verify + snapback_config_verify; now (native, direct)." },
     "config.set": {
       "operability": "direct",
-      "surfaceAccessOverride": "cliOnly",
+      "intents": ["set config", "set secret", "configure api key", "write deployment credential"],
       "mcpDeferralReason": "No MCP secret carrier is defined (§Product contract): stdin/fd is a CLI-process carrier with no MCP equivalent. Promoting to native requires a defined, security-owner-approved MCP secret carrier first.",
-      "note": "Carries a secret value via stdin/fd (the only v1 carrier). Human entry through the existing browser/operator setup page needs no agent-facing handoff row — the agent is never in that call chain."
+      "guide": "operating/secrets-and-config.md#set-an-agent-held-value-without-exposing-it",
+      "authorities": ["llp/0036-app-secrets-and-config", "llp/0184-agent-accessible-control-plane"],
+      "sources": ["src/server.rs config_set()", "src/cli.rs ConfigCommand::Set"],
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["entry", "valueCarrier"],
+        "properties": {
+          "entry": { "type": "string", "minLength": 1 },
+          "valueCarrier": {
+            "enum": ["stdin", "fd"],
+            "description": "The CLI accepts value bytes only through --value-stdin or --value-fd N. The value is structurally absent from argv, MCP, catalog examples, and receipts."
+          },
+          "append": { "type": "boolean", "default": false }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["entry", "applyState", "valueChanged", "generation"],
+        "properties": {
+          "entry": { "type": "string" },
+          "applyState": { "type": "string" },
+          "valueChanged": { "type": "boolean" },
+          "generation": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "note": "Phase 4: snapback config set now carries exactly one UTF-8 secret value through --value-stdin or --value-fd N, posts the existing admin-gated route with source=cli, and returns only the value-free ConfigWriteOutcome. Human entry through the existing browser/operator setup page needs no agent-facing handoff row — the agent is never in that call chain."
     },
     "cron.tick": { "operability": "direct", "note": "LLP 0184 §P2 landed `snapback cron tick` (src/cli.rs CronCommand::Tick) and `snapback_cron_tick` (mcp-control.mjs); surfaceAccess is now derived native. AdminClient.tickCron() (packages/snapback-admin-client/index.mjs:577) remains the pre-existing apiOnly path." },
     "cron.list": { "operability": "direct", "note": "LLP 0184 Phase 2 residue: read-only cron inspection projects the loaded functions manifest and already-held scheduler ledger through the AdminRead cron.list host operation, `GET /_snapback/api/cron`, `snapback cron list`, and `snapback_cron_list`. It deliberately omits run ids, handler diagnostics/results, jitter seeds, and recent-run payloads." },

@@ -89,6 +89,33 @@ test('ephemeral operator delete narrows availability and keeps projections hones
   }
 });
 
+test('config.set compiles as CLI-only with a stdin/fd carrier and no MCP projection', () => {
+  const dir = scratchRepo();
+  try {
+    const result = runCompiler(dir);
+    assert.equal(result.ok, true, `expected clean compile, got:\n${result.output}`);
+    const catalog = JSON.parse(readFileSync(
+      join(dir, 'control-catalog/generated/control-catalog.v1.json'),
+      'utf8',
+    ));
+    const entry = catalog.entries.find((candidate) => candidate.operation === 'config.set');
+    assert.ok(entry, 'config.set must be compiled from the live admin route registry');
+    assert.equal(entry.operability, 'direct');
+    assert.equal(entry.surfaceAccess, 'cliOnly');
+    assert.equal(
+      entry.projections.cli,
+      'snapback config set --entry <name> (--value-stdin|--value-fd N)',
+    );
+    assert.equal(entry.projections.mcp, null);
+    assert.match(entry.mcpDeferralReason, /no MCP secret carrier/i);
+    assert.deepEqual(entry.inputSchema.properties.valueCarrier.enum, ['stdin', 'fd']);
+    assert.match(entry.inputSchema.properties.valueCarrier.description, /absent from argv/i);
+    assert.match(entry.guide, /secrets-and-config\.md#set-an-agent-held-value/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('check preserves the valid generation snapshot while recomputing catalog content', () => {
   const dir = scratchRepo();
   try {
