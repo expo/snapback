@@ -1,12 +1,17 @@
 # LLP 0176: Expo messaging golden-path program
 
 **Type:** Plan
-**Status:** Review
+**Status:** Accepted
 **Systems:** React/Expo, Client integration, Assets, Auth, Live queries,
 Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
+**Revised:** 2026-08-06 (s) — Accepted by the author (sitting ruling on the
+program recommendations): direction and ordering ratified with G0–G3
+complete and receipted; this does not close G4/G5. The same sitting ruled
+OQ4 and OQ5 (answers recorded in §Open questions) and authorized one real
+EAS development-client build per OS as G4 closure evidence.
 **Revised:** 2026-08-06 (r) — Closed (q)'s per-OS nonclaim: text-only and one
 picked-image send now share the same typed `chat.commands.send` call under
 one ordinary session on a real iOS simulator and Android emulator (system
@@ -1029,15 +1034,33 @@ to create replacement primitives. Tickets include
    supply a path this Plan has not yet checked? If 0039 must be unfrozen,
    does that decision belong to this program at all, or is it a
    prerequisite this Plan can only name and wait on?
-4. Can a USB/port-forward physical-device path cover both OSes before G5, or
-   should real-device qualification wait for hosted HTTPS or the reviewed LAN
-   carrier?
-5. Which setup/ceremony metric is stable enough to compare against the
-   bakeoffs without rewarding omitted guarantees?
+4. **Ruled 2026-08-06:** the USB/port-forward path leads — Android rides the
+   supervisor's existing verified `adb reverse` machinery on a USB-attached
+   device; iOS adds a bounded `devicectl`/USB port-forward extension under
+   the same loopback-from-the-app posture, with nothing for LLP 0168 to
+   review (no LAN listener). Receipts are produced opportunistically when a
+   physical device is available; G4 does not block on them and ships
+   simulator/emulator evidence explicitly labeled as not an LLP 0064 claim.
+   Hosted HTTPS remains the hosted-target lane (LLP 0103/0105), not this
+   program's 0064 path. Fallback if iOS USB forwarding proves unreliable:
+   revisit hosted HTTPS despite the claim-separation cost.
+5. **Ruled 2026-08-06:** author actions (commands typed + files hand-edited
+   + decisions) from empty external repository to (m1) first rendered live
+   query and (m2) first committed image send is the primary metric;
+   wall-clock is recorded as secondary; a mandatory guarantees ledger
+   (settled Sessions auth, loopback-only listeners, typed contracts,
+   retained cold boot, truthful residue provenance) accompanies every
+   comparison so a shorter path that drops a guarantee is visibly
+   non-comparable. Baselines come from Diaries 0058–0060's recorded command
+   logs, with asymmetries stated, not from re-run competitor arms. The
+   metric definition is frozen in the G4 receipt before any number is
+   claimed.
 
 ## Status
 
-Review. This revision resolves the overlap among LLPs 0176–0181 at the document
+Accepted (2026-08-06). G0–G3 are complete with receipts; G4 is in flight
+against the live 0.1.10 vector; G5 remains parked behind LLP 0168's own
+gate. This revision resolves the overlap among LLPs 0176–0181 at the document
 level: 0176 is the program, 0179 owns the stable app vocabulary, 0180 adds one
 bounded command kind to it, and 0181 binds it to Expo environments. The first
 implementation work should be G0, followed by the G1 descriptor/binding spine;
