@@ -9262,7 +9262,15 @@ async fn select_http_operation(
             let impersonated = fields
                 .get("userId")
                 .or_else(|| fields.get("user_id"))
-                .is_some_and(|value| !value.is_null());
+                .is_some_and(|value| !value.is_null())
+                || fields
+                    .get("input")
+                    .and_then(Value::as_object)
+                    .and_then(|input| input.get("authority"))
+                    .and_then(Value::as_object)
+                    .and_then(|authority| authority.get("mode"))
+                    .and_then(Value::as_str)
+                    == Some("devUser");
             match host_ops_operation_spec(operation, kind.as_ref(), impersonated) {
                 Some(spec) => HttpOperationSelection::Selected(spec),
                 None => HttpOperationSelection::UnknownHost,
@@ -15083,6 +15091,29 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             SessionModeOverlay::NONE,
         )
     };
+    let data_patch = |name, impersonated| {
+        operation(
+            name,
+            "/_snapback/api/host-ops",
+            HostOps,
+            RouteClass::SystemApi,
+            RoutePolicy::AdminWrite,
+            CredentialResolution::AdminCredential,
+            if impersonated {
+                InvocationAuthority::DevImpersonation
+            } else {
+                InvocationAuthority::AnonymousAdminBypass
+            },
+            LegacyBodyPolicy::NotApplicable,
+            if impersonated {
+                EffectPolicy::ImpersonationCapability
+            } else {
+                EffectPolicy::None
+            },
+            ResponseSensitivity::SensitiveApplicationData,
+            SessionModeOverlay::NONE,
+        )
+    };
     let operations = vec![
         operation(
             "app.ensure.legacy",
@@ -15653,6 +15684,13 @@ pub fn operation_registry() -> Vec<OperationSpec> {
                 response_sensitivity: None,
             },
         ),
+        // LLP 0184 §A uses LLP 0024's two existing authority branches as-is.
+        // The physical route remains the registered SystemApi/AdminWrite
+        // host-ops carrier; operation identity holds the dynamic effect.
+        data_patch("host_ops.data.patch.preview", false),
+        data_patch("host_ops.data.patch.preview.impersonated", true),
+        data_patch("host_ops.data.patch.apply", false),
+        data_patch("host_ops.data.patch.apply.impersonated", true),
         host(
             "host_ops.function.run.mutation",
             RoutePolicy::AdminWrite,
@@ -15920,6 +15958,10 @@ pub(crate) fn host_ops_operation_spec(
         "host.start" => "host_ops.host.start",
         "host.stop" => "host_ops.host.stop",
         "host.restart" => "host_ops.host.restart",
+        "data.patch.preview" if impersonated => "host_ops.data.patch.preview.impersonated",
+        "data.patch.preview" => "host_ops.data.patch.preview",
+        "data.patch.apply" if impersonated => "host_ops.data.patch.apply.impersonated",
+        "data.patch.apply" => "host_ops.data.patch.apply",
         "function.explain" if impersonated => "host_ops.function.explain.impersonated",
         "function.explain" => "host_ops.function.explain",
         "function.run" if impersonated => "host_ops.function.run.impersonated",
@@ -17971,6 +18013,23 @@ async fn host_ops_handler_inner(
 
     if matches!(
         request.operation.as_str(),
+        crate::data_patch::DATA_PATCH_PREVIEW_OPERATION
+            | crate::data_patch::DATA_PATCH_APPLY_OPERATION
+    ) {
+        let result = execute_data_patch_host_operation(
+            &runtime,
+            &headers,
+            impersonation.as_ref().map(|Extension(verified)| verified),
+            request,
+            server_url,
+            profile,
+        )
+        .await?;
+        return Ok(Json(result));
+    }
+
+    if matches!(
+        request.operation.as_str(),
         "auth.mintSession" | "auth.rescueCollidingTable"
     ) {
         let result = execute_auth_host_operation(
@@ -18827,6 +18886,274 @@ async fn host_ops_handler_inner(
         }
     }
     Ok(Json(result))
+}
+
+fn data_patch_input_error() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_DATA_PATCH_VALIDATION_FAILED",
+        "data-patch",
+        "data patch input must match the closed operation schema",
+    )
+}
+
+fn data_patch_authority_from_raw(
+    request: &crate::host_ops::HostOpsRequest,
+) -> Option<crate::data_patch::DataPatchAuthorityV1> {
+    request
+        .input
+        .as_ref()
+        .and_then(Value::as_object)
+        .and_then(|input| input.get("authority"))
+        .cloned()
+        .and_then(|authority| serde_json::from_value(authority).ok())
+}
+
+async fn project_data_patch_result(
+    state: &SharedSnapback,
+    request: crate::host_ops::HostOpsRequest,
+    server_url: Option<String>,
+    profile: ServerProfile,
+    authority: Option<crate::data_patch::DataPatchAuthorityV1>,
+    outcome: Result<Value, SnapbackError>,
+) -> crate::host_ops::HostOpsResult {
+    with_snapback(state, move |snapback| {
+        crate::host_ops::data_patch_result(
+            snapback, &request, server_url, profile, authority, outcome,
+        )
+    })
+    .await
+}
+
+fn data_patch_target_context(
+    runtime: &AppState,
+    app_id: String,
+    schema_identity: Option<String>,
+) -> SnapbackResult<crate::data_patch::DataPatchTokenContextV1> {
+    crate::data_patch::target_context(
+        app_id,
+        schema_identity,
+        runtime.server.profile,
+        runtime.server.auth_deployment,
+        runtime.hosted_serving.is_some(),
+        runtime.derived_instance_identity.is_some(),
+        runtime.server_startup_nonce.to_string(),
+    )
+}
+
+/// The one managed server entry point for both token intents. Authentication
+/// is still the LLP 0031 operation gate; this function adds the LLP 0184
+/// target/binding lifecycle without defining another authority mode.
+async fn execute_data_patch_host_operation(
+    runtime: &AppState,
+    headers: &HeaderMap,
+    impersonation: Option<&crate::admin_impersonation::VerifiedImpersonationCapability>,
+    request: crate::host_ops::HostOpsRequest,
+    server_url: Option<String>,
+    profile: ServerProfile,
+) -> Result<crate::host_ops::HostOpsResult, ApiError> {
+    let state = runtime.snapback.clone();
+    let raw_authority = data_patch_authority_from_raw(&request);
+    let policy_mode = runtime.active_policy_auth_mode();
+    let operation = request.operation.clone();
+
+    if operation == crate::data_patch::DATA_PATCH_PREVIEW_OPERATION {
+        let input = match request
+            .input
+            .clone()
+            .ok_or_else(data_patch_input_error)
+            .and_then(|value| {
+                serde_json::from_value::<crate::data_patch::DataPatchPreviewInputV1>(value)
+                    .map_err(|_| data_patch_input_error())
+            }) {
+            Ok(input) => input,
+            Err(error) => {
+                return Ok(project_data_patch_result(
+                    &state,
+                    request,
+                    server_url,
+                    profile,
+                    raw_authority,
+                    Err(error),
+                )
+                .await);
+            }
+        };
+        if let Err(error) = input.authority.validate(&input.reason) {
+            return Ok(project_data_patch_result(
+                &state,
+                request,
+                server_url,
+                profile,
+                Some(input.authority),
+                Err(error),
+            )
+            .await);
+        }
+        let impersonated = input.authority.impersonated();
+        crate::admin::authorize_host_operation(
+            &runtime.server,
+            headers,
+            &operation,
+            None,
+            impersonated,
+            policy_mode,
+            &runtime.secret_reads,
+            impersonation,
+        )?;
+        crate::admin::require_operation_profile(&runtime.server, &operation, impersonated)?;
+        let (app_id, schema_identity) = with_snapback(&state, |snapback| {
+            (snapback.loaded_app_id(), snapback.loaded_schema_hash())
+        })
+        .await;
+        let context = match data_patch_target_context(runtime, app_id, schema_identity) {
+            Ok(context) => context,
+            Err(error) => {
+                return Ok(project_data_patch_result(
+                    &state,
+                    request,
+                    server_url,
+                    profile,
+                    Some(input.authority),
+                    Err(error),
+                )
+                .await);
+            }
+        };
+        let preview_input = input.clone();
+        let validated = with_snapback(&state, move |snapback| {
+            snapback.preview_direct_data_patch(&preview_input)
+        })
+        .await;
+        let authority = input.authority.clone();
+        let outcome = validated.and_then(|validated| {
+            let binding = crate::data_patch::binding_from_preview(&input, &validated, &context);
+            let (apply_token, apply_token_id, apply_token_expires_at_ms) =
+                runtime.data_patch_tokens.mint(binding)?;
+            Ok(serde_json::to_value(crate::data_patch::DataPatchPreviewOutputV1 {
+                validated,
+                apply_token,
+                apply_token_id,
+                apply_token_expires_at_ms,
+                catalog_digest: context.catalog_digest,
+                startup_nonce: context.startup_nonce,
+            })
+            .expect("closed data-patch preview output serializes"))
+        });
+        return Ok(project_data_patch_result(
+            &state,
+            request,
+            server_url,
+            profile,
+            Some(authority),
+            outcome,
+        )
+        .await);
+    }
+
+    let input = match request
+        .input
+        .clone()
+        .ok_or_else(data_patch_input_error)
+        .and_then(|value| {
+            serde_json::from_value::<crate::data_patch::DataPatchApplyInputV1>(value)
+                .map_err(|_| data_patch_input_error())
+        }) {
+        Ok(input) => input,
+        Err(error) => {
+            return Ok(project_data_patch_result(
+                &state,
+                request,
+                server_url,
+                profile,
+                raw_authority,
+                Err(error),
+            )
+            .await);
+        }
+    };
+    if let Err(error) = input.authority.validate(&input.reason) {
+        return Ok(project_data_patch_result(
+            &state,
+            request,
+            server_url,
+            profile,
+            Some(input.authority),
+            Err(error),
+        )
+        .await);
+    }
+    let impersonated = input.authority.impersonated();
+    crate::admin::authorize_host_operation(
+        &runtime.server,
+        headers,
+        &operation,
+        None,
+        impersonated,
+        policy_mode,
+        &runtime.secret_reads,
+        impersonation,
+    )?;
+    crate::admin::require_operation_profile(&runtime.server, &operation, impersonated)?;
+    let (app_id, schema_identity) = with_snapback(&state, |snapback| {
+        (snapback.loaded_app_id(), snapback.loaded_schema_hash())
+    })
+    .await;
+    let context = match data_patch_target_context(runtime, app_id, schema_identity) {
+        Ok(context) => context,
+        Err(error) => {
+            return Ok(project_data_patch_result(
+                &state,
+                request,
+                server_url,
+                profile,
+                Some(input.authority),
+                Err(error),
+            )
+            .await);
+        }
+    };
+    let authority = input.authority.clone();
+    let consumed = runtime.data_patch_tokens.consume(&input, &context);
+    let (token_id, binding) = match consumed {
+        Ok(consumed) => consumed,
+        Err(error) => {
+            return Ok(project_data_patch_result(
+                &state,
+                request,
+                server_url,
+                profile,
+                Some(authority),
+                Err(error),
+            )
+            .await);
+        }
+    };
+    let commit_binding = binding.clone();
+    let committed = with_snapback_authorization_write(
+        &state,
+        |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
+        move |snapback| snapback.apply_direct_data_patch(&commit_binding),
+    )
+    .await
+    .and_then(|outcome| outcome);
+    let outcome = committed.and_then(|commit| {
+        Ok(serde_json::to_value(crate::data_patch::receipt(
+            token_id,
+            binding,
+            commit.output.version,
+            commit.output.changed_count,
+        ))
+        .expect("closed data-patch receipt serializes"))
+    });
+    Ok(project_data_patch_result(
+        &state,
+        request,
+        server_url,
+        profile,
+        Some(authority),
+        outcome,
+    )
+    .await)
 }
 
 /// Execute the sole production app-reset primitive. Provider maintenance is

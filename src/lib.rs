@@ -72,6 +72,8 @@ pub mod control_catalog;
 #[doc(hidden)]
 pub mod cron;
 #[doc(hidden)]
+pub mod data_patch;
+#[doc(hidden)]
 pub mod data_tier;
 #[doc(hidden)]
 pub mod deploy;

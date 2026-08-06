@@ -221,6 +221,10 @@ pub(crate) fn operation_profile_requirement(
         // activation gate so its finer hosted/Prod policy and refusal codes
         // remain authoritative. Do not preempt that gate with NonProd here.
         "debug.networkProfileGet" | "debug.networkProfileSet" => OperationProfileRequirement::Any,
+        // The dedicated data-patch target classifier owns the stricter
+        // local/non-production/primary-instance rule and its availability
+        // refusal diagnostic.
+        "data.patch.preview" | "data.patch.apply" => OperationProfileRequirement::Any,
         "app.reset"
         | "app.ensure.provision"
         | "app.seed.ensure.v1"
@@ -2421,6 +2425,9 @@ pub struct AppState {
     /// by the bootstrap handshake. It is captured once so one response cannot
     /// accidentally combine facts from different startup identities.
     pub(crate) server_startup_nonce: Arc<str>,
+    /// Single process-local registry shared by every router clone. Raw apply
+    /// tokens never leave this registry except in the one preview response.
+    pub(crate) data_patch_tokens: crate::data_patch::DataPatchTokenStore,
     /// CLI-only, process-local opt-in for exposing dev body authority on a
     /// non-loopback bind. Production profiles never honor this bit.
     pub(crate) allow_insecure_dev_auth: bool,
@@ -2556,6 +2563,7 @@ impl AppState {
                         .startup_nonce
                         .into_boxed_str(),
                 ),
+                data_patch_tokens: crate::data_patch::DataPatchTokenStore::default(),
                 allow_insecure_dev_auth: false,
                 secret_reads,
                 telemetry_export_continuation_key: Arc::new(telemetry_export_continuation_key),
@@ -2631,6 +2639,17 @@ impl AppState {
         registry: ImpersonationCapabilityRegistry,
     ) -> Self {
         self.impersonation_capabilities = Some(registry);
+        self
+    }
+
+    /// Deterministic integration-test seam for expiry without waiting. The
+    /// production constructor always uses the fixed one-minute TTL.
+    #[doc(hidden)]
+    pub fn with_data_patch_token_ttl_ms(mut self, ttl_ms: u64) -> Self {
+        self.data_patch_tokens = crate::data_patch::DataPatchTokenStore::new(
+            ttl_ms,
+            crate::data_patch::DATA_PATCH_TOKEN_CAPACITY,
+        );
         self
     }
 
