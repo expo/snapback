@@ -1,12 +1,19 @@
 # LLP 0180: Asset-bearing client commands
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Assets, Client integration, Mutations, Auth, React/Expo, Code
 generation, Protocol, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-05 (d) — Super-refine round 2 (delta): fixed a
+**Revised:** 2026-08-06 (e) — Accepted by the author (Charlie Cheever,
+LLP 0176 G1 gate). Per §React projection, this acceptance amends LLP 0114
+to add `useSnapbackCommand` as a named projection with the same
+lifecycle/cleanup discipline as `useSnapbackMutation`; the corresponding
+dated amendment is recorded in LLP 0114's own header and §Named
+projections from accepted RFCs. Implementation remains LLP 0176 G3
+delivery work.
+2026-08-05 (d) — Super-refine round 2 (delta): fixed a
 self-defeating terminal-state rule that tied a task's `.done` settlement to
 the act of retrying it, which would leave an un-retried failed task's
 `.done` unsettled forever — settlement now happens the instant a task

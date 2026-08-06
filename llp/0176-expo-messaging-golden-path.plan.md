@@ -7,7 +7,12 @@ Ephemeral state, Code generation, Developer experience, Packaging, Local
 server lifecycle, Testing, Competitive evaluation
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (j) — Appended the G1 Android-emulator half receipt.
+**Revised:** 2026-08-06 (k) — G1 exit complete: the author accepted LLPs
+0179/0180, whose acceptance amends LLP 0114 with the `useSurface` and
+`useSnapbackCommand` named projections (see LLP 0114 §Named projections
+from accepted RFCs); combined with the two receipt halves below, every G1
+exit condition is met and G2/G3 React semantics are settled.
+2026-08-06 (j) — Appended the G1 Android-emulator half receipt.
 The same no-URL Expo fixture reached ordinary Sessions authority, a seeded
 live query, and an ordinary mutation observed through that live query via
 three verified `adb reverse` rules over host IPv4-loopback listeners. Together
@@ -560,6 +565,13 @@ evidence is complete for simulator/emulator.** This completion makes no
 physical-device, release, or LLP 0064 capability claim and does not change
 this Plan's Status. Other G1 exit conditions remain governed by the gate text
 above.
+
+**2026-08-06 amendment acceptance — G1 exit complete.** The author accepted
+LLPs 0179 and 0180, which per those RFCs' own §React projection text amends
+LLP 0114 to add `useSurface` and `useSnapbackCommand` as named projections
+over its canonical stores (recorded in LLP 0114 §Named projections from
+accepted RFCs). With both receipt halves above, every G1 exit condition is
+now met: G2 and G3 may truthfully call their React semantics settled.
 
 ### G2 — conversation surface
 

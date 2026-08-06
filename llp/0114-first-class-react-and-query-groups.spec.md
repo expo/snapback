@@ -5,7 +5,10 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-06 (IndexedDB binding-receipt commits now defer through
+**Revised:** 2026-08-06 (named-projection amendment, author-accepted with
+LLPs 0179/0180: `useSurface` and `useSnapbackCommand` are named projections
+over this Spec's canonical stores — see §Named projections from accepted
+RFCs; no React state rule changes); 2026-08-06 (IndexedDB binding-receipt commits now defer through
 boot-time Web Locks election, with observable terminal refusals and a
 browser-carrier regression witness); 2026-08-05 (mounted-provider HMR generation handoff: in a
 positively identified development environment, a regenerated same-app
@@ -639,6 +642,27 @@ With no active resource, `connection` is `null`,
 not React hook or group-edge subscribers.
 Errors are structured and authority-safe; removing the resource that owned the
 latest error recomputes the aggregate.
+
+## Named projections from accepted RFCs
+
+Accepted sibling RFCs may add named projections over this Spec's canonical
+stores without becoming second React authorities. This section is the
+amendment ledger those acceptances write into; each entry reuses this
+Spec's retained/error/lifecycle/cleanup semantics unchanged and adds no
+new React state rules.
+
+- **`useSurface` (LLP 0179, accepted 2026-08-06).** A surface binding is a
+  projection over this Spec's canonical query stores, mutation attempts,
+  and presence rooms: equivalent low-level and surface reads share one
+  store, equivalent presence shares one room, and cleanup follows the same
+  strict disposal rules as `useSnapbackQuery`/`useSnapbackPresence`. The
+  surface grammar, budgets, and refusal vocabulary belong to LLP 0179; the
+  React state semantics remain this Spec's.
+- **`useSnapbackCommand` (LLP 0180, accepted 2026-08-06).** A command task
+  hook is a projection with the same lifecycle/cleanup discipline this
+  Spec requires of `useSnapbackMutation`; its child asset/mutation facts
+  and residue vocabulary belong to LLP 0180. It never merges into the
+  ordinary mutation return type.
 
 ## External-store composition and cleanup
 
