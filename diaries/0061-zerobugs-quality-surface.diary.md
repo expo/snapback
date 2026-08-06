@@ -81,3 +81,36 @@ authors for D2/D3/D4/D6, and LLP 0183's own acceptance review.
 Next: Stage 0.5 — build the complete source-faithful control app on the current
 shipped Snapback surface, run every applicable ZB gate, and retain PASS/GAP
 receipts plus the lowered mutation corpus.
+
+## 2026-08-05 — Stage 0.5 kickoff: control plan + scaffold
+
+Codex gpt-5.6-sol xhigh produced `demos/zerobugs/control/`: a 400-line build
+plan (per-query and per-mutator lowering tables, a predeclared 13-entry
+workaround/component register each mapped to the D-workstream that would
+remove it, lane sequencing with acceptance checks) plus a validated scaffold —
+ten-table schema generates cleanly, React boot typechecks and builds.
+
+Experience notes:
+
+- **The guide's paved path held for scaffolding.** `defineSchema`/`defineTable`
+  with typed `v.id()` references, `snapback generate`, and the Vite plugin all
+  worked first try from the guide alone. One ambient-type gap
+  (`virtual:snapback/dev` needs a hand-added `src/snapback-dev.d.ts` in a new
+  app) is a candidate guide gap.
+- **Stored fields reject literal-union validators** (`SCHEMA_INVALID_VALIDATOR`
+  for `v.union` of literals), so the source `role`/`visibility` enums store as
+  strings with duplicated closed-domain guards at every write boundary
+  (`W-ENUM`). A portable stored-enum domain would remove a whole workaround
+  class.
+- **Runtime readiness is honestly blocked, not skipped:** `snapback verify`
+  fails `SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID` (packaged: absent;
+  target/debug: binary-drift). Schema admission and acceptance lanes wait on a
+  re-qualified runtime; the plan records this rather than treating artifact
+  freshness as a live-load claim.
+- **Source-id vs typed-id duality is the first real representation tax.** The
+  pinned app's public `id` strings must survive exactly (URLs, mutation args)
+  while Snapback's prefixed `_id` is the physical reference; every fixture and
+  adapter carries the mapping.
+
+Next jobs (per PLAN.md sequencing): fixtures + support schema, local
+auth/identity composition, then the 19-query corpus.

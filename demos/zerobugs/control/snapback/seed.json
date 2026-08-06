@@ -1,0 +1,14 @@
+{
+  "tables": {
+    "user": [],
+    "project": [],
+    "issue": [],
+    "viewState": [],
+    "comment": [],
+    "label": [],
+    "issueLabel": [],
+    "emoji": [],
+    "userPref": [],
+    "issueNotifications": []
+  }
+}
