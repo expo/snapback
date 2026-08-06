@@ -786,3 +786,47 @@ has SHA-256
 `8ccf08292c8e130f8e03920c38681e049a12f345ee291ddd26d4b97c18421481`.
 The idle interval observed zero storage mutations, zero read bytes, zero write
 bytes, 3/10 allowed CPU ticks (30/100 ms), and zero RSS-page growth.
+
+### Sidecar landing drift closure — 2026-08-05
+
+The next two completed main proofs, runs `31037555505` at
+`aba38e04fa6e3ffcfe7a284dea3e24f96b17a00e` and `31040866743` at
+`736e4913d27a57cc857c3017758fbea51f2cce5b`, each retained exactly three
+roots in their KEEP-GOING summaries: `client-bundle-metrology`,
+`package-export-types`, and `telemetry-receipt-check`. All three are
+attributed to sidecar landing `d035eaefb8b66c5714e0ddd2f3d1fb6145fbac6b`:
+it changed `bun.lock`, duplicated the packaged CLI declaration exports, and
+changed the telemetry proof-source closure. The later `aba38e04f` and
+`736e4913d` documentation landings did not introduce another proof defect.
+
+The declaration carrier now has one typed definition for each packaged CLI
+export. Bundle metrology still measures the current checkout against every
+immutable ceiling and behavior train, but validates each historical receipt's
+input digests against the unique reachable commit that first carried that
+receipt. The current carrier records the sidecar-era lock digest
+`9628eafaecbc80ec49e2730ae786e518b0a0958556ac24c2c78236e0b7926be5`;
+no frozen size ceiling or historical measurement was loosened.
+
+The replacement telemetry producer measured a fresh clean EPYC clone at exact
+source revision `fe2715f8eeca04ebe850d4dafac7af3f234afd9e`. It used the
+existing user-owned Node 24.18.0 and Bun 1.3.12 toolchain, installed the frozen
+lockfile, and invoked unchanged
+`scripts/verify-telemetry-phase1-proof --full`. The coded bootstrap initialized
+Ibex pin `4c34c831aa087d6783b0d68f281cdb374ed7fc89` and copied compatible
+prepared Hermes artifacts through supported `SNAPBACK_IBEX_CHECKOUT`; no
+administrator change or loader bypass was used. The Rust smoke, locked release
+build, runtime qualification, full benchmark, and 120-second idle witness all
+passed.
+
+The retained receipt has SHA-256
+`fbc18f4dbc45eb3a6a5e24e21e8e273647c3c4f23794c028ea9e04790e1b8c98`
+and covers 438 proof-source files with digest
+`139c1f8282d6d82016de73db543837a9d87e176bdc020efaeba22cba8e02fefc`.
+The 675-line transcript at
+`/var/cache/expose-build/snapback-telemetry-fe2715.xQpt0r/telemetry-full.log`
+has SHA-256
+`6b11141a28e80b2b2903571fecbd11b3571c3cb60681f48eef87c28925950904`.
+The idle interval observed zero storage mutations, zero read bytes, zero write
+bytes, 4/10 allowed CPU ticks (40/100 ms), and zero RSS-page growth. This is
+proof-carrier and declaration drift, not a correctness failure in the actively
+owned PUSH-01 seam or F0a fork code.
