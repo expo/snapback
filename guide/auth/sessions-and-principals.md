@@ -179,12 +179,7 @@ other way, such as an identity broker) is constructed with
 
 ## Read public data anonymously
 
-<!-- since: 0.1.9 unreleased -->
-
-> **Unreleased.** `custody: 'anonymous-public'` is in the source tree but not
-> in the newest published closure (`0.1.8`); a packaged consumer on
-> `@expo/snapback-*@0.1.8` must read public data with a signed-in principal or
-> a hand-rolled HTTP call. Expected in the next published closure.
+<!-- since: 0.1.9 -->
 
 A sessions-mode app often has a public surface — an event preview, a shared
 link — that must read *without* a signed-in principal. Bare clients are

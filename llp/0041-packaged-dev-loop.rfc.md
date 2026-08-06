@@ -75,6 +75,9 @@ section added, package/CLI surface corrected to repo reality, LLP 0030
 boundary stated, ready-file attach pinned; initial same day)
 **Related:** LLP 0000, LLP 0010, LLP 0012, LLP 0015, LLP 0016, LLP 0021, LLP 0023, LLP 0024, LLP 0030, LLP 0037, LLP 0038, LLP 0042
 
+**Revised (0.1.9 fast-path publication):** 2026-08-06 (0.1.9 published
+fast-path from clean main `7c16f6d0b8` to `latest` on all nine packages;
+see §Fast-path pre-consumer release, 0.1.9 entry.)
 **Revised (0.1.8 fast-path publication):** 2026-08-01 (author decision:
 pre-consumer releases may skip the staged proofs and the candidate-tag/
 leased-promotion ceremony entirely while the packages have no external

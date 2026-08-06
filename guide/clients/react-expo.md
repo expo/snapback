@@ -101,7 +101,7 @@ back to `curl`, raw host operations, or a one-off verification script.
 <!-- since: 0.1.10 unreleased -->
 
 > **Unreleased.** `@expo/snapback-expo` is in the source tree but not in the
-> newest published closure (`0.1.8`): a packaged consumer on
+> newest published closure (`0.1.9`): a packaged consumer on
 > `@expo/snapback-*@0.1.8` cannot install the config plugin or provider this
 > section configures from npm. Use the source-checkout install above until
 > the package joins a published closure

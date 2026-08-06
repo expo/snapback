@@ -148,13 +148,7 @@ settle it without guessing. A confirmed receipt always carries a non-null
 durable `snapshotVersion`; `null` is allowed only for a rejected invocation
 whose durable cursor could not be read safely.
 
-<!-- since: 0.1.9 unreleased -->
-
-> **Unreleased.** Declared `refusals:` and `ctx.refuse` are in the source
-> tree but not in the newest published closure (`0.1.8`): a packaged consumer
-> on `@expo/snapback-*@0.1.8` has no `ctx.refuse`, and every application
-> rejection surfaces as `SNAPBACK_HANDLER_FAILED`. Expected in the next
-> published closure.
+<!-- since: 0.1.9 -->
 
 Application-semantic refusals get typed codes instead of message prose. A
 handler declares a closed set — `refusals: ['STALE_MOVE']` (uppercase

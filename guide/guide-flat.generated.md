@@ -1150,12 +1150,7 @@ other way, such as an identity broker) is constructed with
 
 ## Read public data anonymously
 
-<!-- since: 0.1.9 unreleased -->
-
-> **Unreleased.** `custody: 'anonymous-public'` is in the source tree but not
-> in the newest published closure (`0.1.8`); a packaged consumer on
-> `@expo/snapback-*@0.1.8` must read public data with a signed-in principal or
-> a hand-rolled HTTP call. Expected in the next published closure.
+<!-- since: 0.1.9 -->
 
 A sessions-mode app often has a public surface — an event preview, a shared
 link — that must read *without* a signed-in principal. Bare clients are
@@ -2673,13 +2668,7 @@ settle it without guessing. A confirmed receipt always carries a non-null
 durable `snapshotVersion`; `null` is allowed only for a rejected invocation
 whose durable cursor could not be read safely.
 
-<!-- since: 0.1.9 unreleased -->
-
-> **Unreleased.** Declared `refusals:` and `ctx.refuse` are in the source
-> tree but not in the newest published closure (`0.1.8`): a packaged consumer
-> on `@expo/snapback-*@0.1.8` has no `ctx.refuse`, and every application
-> rejection surfaces as `SNAPBACK_HANDLER_FAILED`. Expected in the next
-> published closure.
+<!-- since: 0.1.9 -->
 
 Application-semantic refusals get typed codes instead of message prose. A
 handler declares a closed set — `refusals: ['STALE_MOVE']` (uppercase
@@ -8057,7 +8046,7 @@ back to `curl`, raw host operations, or a one-off verification script.
 <!-- since: 0.1.10 unreleased -->
 
 > **Unreleased.** `@expo/snapback-expo` is in the source tree but not in the
-> newest published closure (`0.1.8`): a packaged consumer on
+> newest published closure (`0.1.9`): a packaged consumer on
 > `@expo/snapback-*@0.1.8` cannot install the config plugin or provider this
 > section configures from npm. Use the source-checkout install above until
 > the package joins a published closure
@@ -10192,16 +10181,16 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **111 operations** at digest `sha256:5bbf88591517e38e1334718c0b162b0e809c50eab17be072d70d3cbfd7932455`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **112 operations** at digest `sha256:d50a314a6ad6ea12926715ac43d09cb68a19bd6e150716ad4690f3b6331bba59`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
 | surfaceAccess | `apiOnly` | 39 |
 | surfaceAccess | `cliOnly` | 29 |
 | surfaceAccess | `mcpOnly` | 3 |
-| surfaceAccess | `native` | 36 |
+| surfaceAccess | `native` | 37 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 79 |
+| operability | `direct` | 80 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 14 |
@@ -10287,6 +10276,7 @@ The embedded build catalog contains **111 operations** at digest `sha256:5bbf885
 | `direct_runner.query` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `direct_runner.unknown` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
 | `ephemeral.cleanup` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `ephemeral.operatorDelete` | `native` | `direct` | `shipped` | snapback ephemeral operator-delete | snapback_ephemeral_operator_delete | realtime/ephemeral-state.md#delete-one-entry-as-an-operator |
 | `errors.issue` | `native` | `direct` | `shipped` | snapback errors issue | snapback_errors_issue | operating/host-ops.md |
 | `errors.issues` | `native` | `direct` | `shipped` | snapback errors issues | snapback_errors_issues | operating/host-ops.md |
 | `errors.transition` | `native` | `direct` | `shipped` | snapback errors transition | snapback_errors_transition | operating/host-ops.md |
@@ -12232,7 +12222,7 @@ examples: [tests/data_patch_v1.rs, packages/snapback-cli/mcp-control.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-since: 0.1.9
+since: 0.1.10
 unreleased: true
 reviewed: 2026-08-06
 reviewed-commit: HEAD
@@ -12245,7 +12235,7 @@ reviewed-commit: HEAD
 > [auth/targets](../auth/targets.md).
 
 > **Unreleased.** This surface is newer than the newest published Snapback
-> closure, 0.1.8. Use a runtime built from this checkout until 0.1.9 ships.
+> closure, 0.1.9. Use a runtime built from this checkout until 0.1.10 ships.
 
 Use `data.patch` to correct known fields on one existing row without adding a
 raw SQL, insert, delete, or arbitrary update surface. Preview validates the
@@ -12977,10 +12967,10 @@ introspection. Keep imperative overlays in headless/React code and generated
 ephemeral links in Contract code—do not mix a second polling or publish lane
 into the same surface.
 
-<!-- since: 0.1.9 unreleased -->
+<!-- since: 0.1.10 unreleased -->
 
 > **Unreleased.** The operator-delete control is in the source tree but not
-> in the newest published closure (`0.1.8`). Expected in the next published
+> in the newest published closure (`0.1.9`). Expected in the next published
 > closure.
 
 ## Delete one entry as an operator
