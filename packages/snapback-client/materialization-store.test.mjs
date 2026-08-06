@@ -576,6 +576,13 @@ for (const carrier of ['memory', 'file', 'indexeddb']) {
       fence(record),
     );
     assert.equal(deriveCompletenessStatusV1(record), 'unknown');
+    const v2BatchInput = { kind: 'cursor', profileId: 'snapshot-batch.v2', digest: digest('e') };
+    record = await store.beginEstablishment(
+      fixture.address,
+      { kind: 'page', input: v2BatchInput },
+      fence(record),
+    );
+    assert.equal(deriveCompletenessStatusV1(record), 'unknown');
     record = await store.recordAttemptOutcome(
       fixture.address,
       { kind: 'refused', code: 'SNAPBACK_TEST_REFUSAL', fallback: null },

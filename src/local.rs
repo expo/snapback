@@ -16518,7 +16518,9 @@ impl LocalSnapback {
         }
         if matches!(
             function.runtime,
-            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(_))
+            FunctionRuntime::HostPlan(
+                HandlerPlan::SnapshotBatch(_) | HandlerPlan::SnapshotBatchV2(_)
+            )
         ) && subscription_input
             .args
             .get("cursor")
@@ -21136,13 +21138,33 @@ impl LocalSnapback {
                     .collect();
                 (identity.plan_hash, nodes, "snapshot-batch.v1")
             }
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
+                let identity = crate::manifest::snapshot_batch_identity_v2(function, plan)?;
+                let nodes = identity
+                    .node_plan_hashes
+                    .into_iter()
+                    .zip(&plan.nodes)
+                    .enumerate()
+                    .map(|(position, (node_plan_hash, node))| {
+                        crate::completeness::ProofNodeIdentityV1 {
+                            position: position as u64,
+                            class_id: node.class_id().to_owned(),
+                            class_version: 1,
+                            node_plan_hash,
+                        }
+                    })
+                    .collect();
+                (identity.plan_hash, nodes, "snapshot-batch.v2")
+            }
             _ => return Ok(None),
         };
         let input_cursor = input.args.get("cursor").and_then(Value::as_str);
         let output_cursor = match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(_)) => output.cursor.as_deref(),
             FunctionRuntime::HostPlan(
-                HandlerPlan::BoundedChildrenQuery(_) | HandlerPlan::SnapshotBatch(_),
+                HandlerPlan::BoundedChildrenQuery(_)
+                | HandlerPlan::SnapshotBatch(_)
+                | HandlerPlan::SnapshotBatchV2(_),
             ) => output
                 .rows
                 .first()
@@ -21316,6 +21338,99 @@ impl LocalSnapback {
                             .collect()
                     }
                 }
+                FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => {
+                    if let Some(cursor) = output_cursor {
+                        let roots = self
+                            .resume_keyring
+                            .read()
+                            .map_err(|_| issue_error("resume keyring lock is poisoned".to_owned()))?
+                            .snapshot_batch_cursor_v2_materials(now_millis());
+                        let body = crate::snapshot_batch_cursor_v2::decode(
+                            cursor,
+                            &roots,
+                            &activation.activation.expected_generation.app_id,
+                            &activation.activation.database_id,
+                            &activation.activation.target_profile_id,
+                            now_millis(),
+                        )
+                        .map_err(|_| {
+                            issue_error("issued snapshot-batch v2 cursor did not verify".to_owned())
+                        })?;
+                        body.nodes
+                            .into_iter()
+                            .zip(&plan.nodes)
+                            .map(|(node, plan_node)| {
+                                let state = match (node.state, plan_node) {
+                                    (
+                                        crate::snapshot_batch_cursor_v2::NodeState::Terminal,
+                                        _,
+                                    ) => crate::completeness::NodeBoundaryStateV1::Terminal,
+                                    (
+                                        crate::snapshot_batch_cursor_v2::NodeState::Boundary {
+                                            order_fields,
+                                            boundary,
+                                            row_id,
+                                        },
+                                        crate::manifest::SnapshotBatchNodeV2::BoundedChildren(_),
+                                    ) => {
+                                        let boundary = crate::completeness::NodePageBoundaryV1::BoundedChildren {
+                                            order_fields,
+                                            boundary,
+                                            row_id,
+                                        };
+                                        crate::completeness::NodeBoundaryStateV1::Boundary {
+                                            boundary_digest: crate::completeness::node_page_boundary_digest(
+                                                node.position as u64,
+                                                "bounded_children_v1",
+                                                1,
+                                                &boundary,
+                                            ).map_err(|error| issue_error(error.to_string()))?,
+                                        }
+                                    }
+                                    (
+                                        crate::snapshot_batch_cursor_v2::NodeState::RelationalBoundary {
+                                            order_fields,
+                                            boundary,
+                                            row_id,
+                                        },
+                                        crate::manifest::SnapshotBatchNodeV2::RelationalQuery(_),
+                                    ) => {
+                                        let boundary = crate::completeness::NodePageBoundaryV1::RelationalQuery {
+                                            order_fields,
+                                            boundary,
+                                            row_id,
+                                        };
+                                        crate::completeness::NodeBoundaryStateV1::Boundary {
+                                            boundary_digest: crate::completeness::node_page_boundary_digest(
+                                                node.position as u64,
+                                                "relational_query_v1",
+                                                1,
+                                                &boundary,
+                                            ).map_err(|error| issue_error(error.to_string()))?,
+                                        }
+                                    }
+                                    _ => {
+                                        return Err(issue_error(
+                                            "issued snapshot-batch v2 cursor state did not match its node class".to_owned(),
+                                        ));
+                                    }
+                                };
+                                Ok(crate::completeness::PageBoundaryVectorNodeV1 {
+                                    position: node.position as u64,
+                                    state,
+                                })
+                            })
+                            .collect::<SnapbackResult<Vec<_>>>()?
+                    } else {
+                        nodes
+                            .iter()
+                            .map(|node| crate::completeness::PageBoundaryVectorNodeV1 {
+                                position: node.position,
+                                state: crate::completeness::NodeBoundaryStateV1::Terminal,
+                            })
+                            .collect()
+                    }
+                }
                 _ => unreachable!("admitted completeness class selected above"),
             };
             let vector = crate::completeness::PageBoundaryVectorV1 {
@@ -21388,7 +21503,9 @@ impl LocalSnapback {
             .map_err(|error| issue_error(error.to_string()))?;
         let page_set_manifest = if matches!(
             function.runtime,
-            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(_))
+            FunctionRuntime::HostPlan(
+                HandlerPlan::SnapshotBatch(_) | HandlerPlan::SnapshotBatchV2(_)
+            )
         ) && matches!(
             &proof.page,
             crate::completeness::PageIdentityV1::Visible {
@@ -27620,6 +27737,14 @@ fn snapshot_batch_cursor_mint_unavailable() -> SnapbackError {
     )
 }
 
+fn snapshot_batch_work_ceiling_exceeded() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_SNAPSHOT_BATCH_CEILING_EXCEEDED",
+        "query",
+        "snapshot batch executor exceeded an owner-pinned per-node work ceiling",
+    )
+}
+
 fn snapshot_batch_non_cursor_args(input: &HandlerInput) -> SnapbackResult<Value> {
     let mut args = input
         .args
@@ -27692,12 +27817,20 @@ fn snapshot_batch_max_boundary(
     db: &DbRead<'_>,
     node: &crate::manifest::BoundedChildrenQueryPlan,
 ) -> SnapbackResult<Vec<Value>> {
+    snapshot_batch_max_boundary_for(db, &node.child_table, &node.order)
+}
+
+fn snapshot_batch_max_boundary_for(
+    db: &DbRead<'_>,
+    table_name: &str,
+    order: &[crate::manifest::OrderExpr],
+) -> SnapbackResult<Vec<Value>> {
     use crate::manifest::FieldType;
     let table = db
         .schema()
-        .table(&node.child_table)
+        .table(table_name)
         .ok_or_else(snapshot_batch_cursor_invalid)?;
-    node.order
+    order
         .iter()
         .map(|order| {
             let field = table
@@ -27819,6 +27952,570 @@ fn enforce_snapshot_batch_cursor_budget(
         return Err(snapshot_batch_cursor_budget_exceeded());
     }
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn snapshot_batch_v2_max_plaintext_len(
+    db: &DbRead<'_>,
+    plan: &crate::manifest::SnapshotBatchPlanV2,
+    identity: &crate::manifest::SnapshotBatchIdentityV2,
+    key_generation: &str,
+    app_id: &str,
+    database_id: &str,
+    stream_epoch: &str,
+    function: &str,
+    args: &Value,
+    authority_partition: &str,
+    parent_ids: &[String],
+) -> SnapbackResult<usize> {
+    let parent_groups = identity
+        .parent_authorization_key_digests
+        .iter()
+        .enumerate()
+        .map(
+            |(index, digest)| crate::snapshot_batch_cursor_v2::ParentGroup {
+                group_index: index as u32,
+                parent_authorization_key_digest: digest.clone(),
+                parent_id: parent_ids[index].clone(),
+                parent_incarnation: "0".repeat(36),
+                parent_version: 9_007_199_254_740_991,
+            },
+        )
+        .collect();
+    let nodes = plan
+        .nodes
+        .iter()
+        .enumerate()
+        .map(|(position, node)| {
+            let state = match node {
+                crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
+                    crate::snapshot_batch_cursor_v2::NodeState::Boundary {
+                        order_fields: node.order.iter().map(|order| order.field.clone()).collect(),
+                        boundary: snapshot_batch_max_boundary_for(
+                            db,
+                            &node.child_table,
+                            &node.order,
+                        )?,
+                        row_id: "x".repeat(256),
+                    }
+                }
+                crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
+                    crate::snapshot_batch_cursor_v2::NodeState::RelationalBoundary {
+                        order_fields: node.order.iter().map(|order| order.field.clone()).collect(),
+                        boundary: snapshot_batch_max_boundary_for(db, &node.root, &node.order)?,
+                        row_id: "x".repeat(256),
+                    }
+                }
+            };
+            Ok(crate::snapshot_batch_cursor_v2::Node {
+                position: position as u32,
+                node_plan_hash: identity.node_plan_hashes[position].clone(),
+                state,
+            })
+        })
+        .collect::<SnapbackResult<Vec<_>>>()?;
+    let body = crate::snapshot_batch_cursor_v2::Body::new(
+        key_generation.to_owned(),
+        app_id.to_owned(),
+        database_id.to_owned(),
+        TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+        stream_epoch.to_owned(),
+        function.to_owned(),
+        identity.plan_hash.clone(),
+        args.clone(),
+        parent_groups,
+        nodes,
+        authority_partition.to_owned(),
+        9_007_198_045_140_991,
+    );
+    crate::snapshot_batch_cursor_v2::compact_plaintext(&body)
+        .map(|bytes| bytes.len())
+        .map_err(|_| snapshot_batch_cursor_budget_exceeded())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn enforce_snapshot_batch_v2_cursor_budget(
+    db: &DbRead<'_>,
+    plan: &crate::manifest::SnapshotBatchPlanV2,
+    identity: &crate::manifest::SnapshotBatchIdentityV2,
+    key_generation: &str,
+    app_id: &str,
+    database_id: &str,
+    stream_epoch: &str,
+    function: &str,
+    args: &Value,
+    authority_partition: &str,
+    parent_ids: &[String],
+) -> SnapbackResult<()> {
+    if snapshot_batch_v2_max_plaintext_len(
+        db,
+        plan,
+        identity,
+        key_generation,
+        app_id,
+        database_id,
+        stream_epoch,
+        function,
+        args,
+        authority_partition,
+        parent_ids,
+    )? > crate::snapshot_batch_cursor_v2::MAX_PLAINTEXT_BYTES
+    {
+        return Err(snapshot_batch_cursor_budget_exceeded());
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute_snapshot_batch_v2(
+    function: &FunctionDefinition,
+    plan: &crate::manifest::SnapshotBatchPlanV2,
+    db: &DbRead<'_>,
+    input: &HandlerInput,
+    prepared: &PreparedInvocation,
+    cursor_authority: Option<RelationalCursorAuthority<'_>>,
+) -> SnapbackResult<QueryInvocation> {
+    // @ref LLP 0135#22-one-snapshot-execution-and-parent-authorization-dedup —
+    // all node work shares this pinned DbRead; relational nodes add no
+    // structural parent and bounded nodes share declaration-equal checks.
+    let authority = cursor_authority.ok_or_else(snapshot_batch_cursor_mint_unavailable)?;
+    let now_ms = now_millis();
+    let database_id = db.search_database_identity()?;
+    let stream_epoch = prepared
+        .authority()
+        .authorization_stream_incarnation()
+        .unwrap_or(database_id.as_str())
+        .to_owned();
+    let canonical_args = snapshot_batch_non_cursor_args(input)?;
+    let identity = crate::manifest::snapshot_batch_identity_v2(function, plan)?;
+    let authority_partition =
+        snapshot_batch_authority_partition_digest(prepared, input, &stream_epoch)?;
+    let groups = crate::manifest::snapshot_batch_v2_parent_authorization_groups(function, plan)?;
+    let parent_ids = groups
+        .iter()
+        .map(|group| {
+            input
+                .args
+                .get(&group.identity.parent_id_argument)
+                .and_then(Value::as_str)
+                .filter(|id| !id.is_empty())
+                .map(ToOwned::to_owned)
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_SNAPSHOT_BATCH_PLAN_INVALID",
+                        "query",
+                        "snapshot batch v2 parent argument is missing or invalid",
+                    )
+                })
+        })
+        .collect::<SnapbackResult<Vec<_>>>()?;
+    let (roots, key_generation, root) = {
+        let keyring = authority
+            .keyring
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let roots = keyring.snapshot_batch_cursor_v2_materials(now_ms);
+        let (generation, root) = keyring
+            .active_current()
+            .ok_or_else(snapshot_batch_cursor_mint_unavailable)?;
+        let longest_generation = roots
+            .iter()
+            .map(|(generation, _)| generation.as_str())
+            .max_by_key(|generation| generation.len())
+            .unwrap_or(generation.as_str())
+            .to_owned();
+        (roots, (generation, longest_generation), root)
+    };
+
+    // @ref LLP 0157#sbsb2-plaintext-and-budget — establishment compares the
+    // exact class-specific maximum body against 6,099 bytes before the first
+    // application row read. Relational root order fields use the same pinned
+    // closed scalar templates as bounded-child order fields.
+    enforce_snapshot_batch_v2_cursor_budget(
+        db,
+        plan,
+        &identity,
+        &key_generation.1,
+        authority.app_id,
+        &database_id,
+        &stream_epoch,
+        &function.id,
+        &canonical_args,
+        &authority_partition,
+        &parent_ids,
+    )?;
+
+    let mut group_rows = Vec::with_capacity(groups.len());
+    for (group_index, group) in groups.iter().enumerate() {
+        let parent_id = &parent_ids[group_index];
+        let parent = db.get(&group.identity.parent_table, parent_id)?;
+        let visible = parent
+            .as_ref()
+            .is_some_and(|parent| match &group.identity.visibility {
+                crate::manifest::BoundedParentVisibility::PublicRead => true,
+                crate::manifest::BoundedParentVisibility::Owner { field } => {
+                    parent.get(field).and_then(Value::as_str) == input.auth.user_id.as_deref()
+                }
+            });
+        let state = if visible {
+            let incarnation = db
+                .active_relation_incarnation(&group.identity.parent_table, parent_id)?
+                .ok_or_else(snapshot_batch_restart_required)?;
+            let parent = parent.expect("visible snapshot-batch v2 parent exists");
+            let version = parent
+                .get("_version")
+                .and_then(Value::as_u64)
+                .ok_or_else(snapshot_batch_restart_required)?;
+            Some((parent, incarnation, version))
+        } else {
+            None
+        };
+        group_rows.push(state);
+    }
+
+    // @ref LLP 0157#sbsb2-plaintext-and-budget — bounded-parent absence or
+    // invisibility seals the whole mixed tuple before any cursor validation;
+    // all-relational tuples have no groups and cannot enter this arm.
+    if group_rows.iter().any(Option::is_none) {
+        return Ok(QueryInvocation {
+            output: QueryOutput {
+                version: db.current_version()?,
+                rows: vec![json!({
+                    "kind": "absent",
+                    "nodes": null,
+                    "continuation": null,
+                })],
+                cursor: None,
+            },
+            read_dependencies: Vec::new(),
+        });
+    }
+
+    let mut group_for_node = vec![None; plan.nodes.len()];
+    for (group_index, group) in groups.iter().enumerate() {
+        for &node_index in &group.node_indices {
+            group_for_node[node_index] = Some(group_index);
+        }
+    }
+    let mut resume = vec![(false, None::<crate::storage::KeysetAfter>); plan.nodes.len()];
+    if let Some(cursor) = input.args.get("cursor").filter(|cursor| !cursor.is_null()) {
+        let wire = cursor.as_str().ok_or_else(snapshot_batch_cursor_invalid)?;
+        let body = crate::snapshot_batch_cursor_v2::decode(
+            wire,
+            &roots,
+            authority.app_id,
+            &database_id,
+            TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+            now_ms,
+        )
+        .map_err(|_| snapshot_batch_cursor_invalid())?;
+
+        // Decode validity and every static binding failure collapse before
+        // the dynamic epoch/parent restart partition. Authority is included
+        // here, so cross-authority always wins over a coincident rotation.
+        if body.function != function.id
+            || body.plan_hash != identity.plan_hash
+            || body.args != canonical_args
+            || body.authority_partition != authority_partition
+            || body.parent_groups.len() != groups.len()
+            || body.nodes.len() != plan.nodes.len()
+        {
+            return Err(snapshot_batch_cursor_invalid());
+        }
+        for (index, cursor_group) in body.parent_groups.iter().enumerate() {
+            if cursor_group.group_index != index as u32
+                || cursor_group.parent_authorization_key_digest
+                    != identity.parent_authorization_key_digests[index]
+                || cursor_group.parent_id != parent_ids[index]
+            {
+                return Err(snapshot_batch_cursor_invalid());
+            }
+        }
+        for (position, (cursor_node, node)) in body.nodes.iter().zip(&plan.nodes).enumerate() {
+            if cursor_node.position != position as u32
+                || cursor_node.node_plan_hash != identity.node_plan_hashes[position]
+            {
+                return Err(snapshot_batch_cursor_invalid());
+            }
+            match (&cursor_node.state, node) {
+                (crate::snapshot_batch_cursor_v2::NodeState::Terminal, _) => {
+                    resume[position].0 = true;
+                }
+                (
+                    crate::snapshot_batch_cursor_v2::NodeState::Boundary {
+                        order_fields,
+                        boundary,
+                        row_id,
+                    },
+                    crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node),
+                ) => {
+                    let expected = node
+                        .order
+                        .iter()
+                        .map(|order| order.field.as_str())
+                        .collect::<Vec<_>>();
+                    if order_fields.iter().map(String::as_str).collect::<Vec<_>>() != expected {
+                        return Err(snapshot_batch_cursor_invalid());
+                    }
+                    resume[position].1 = Some(
+                        crate::storage::validate_query_keyset_boundary(
+                            db.schema(),
+                            &node.child_table,
+                            &node.order,
+                            boundary,
+                            row_id,
+                        )
+                        .map_err(|_| snapshot_batch_cursor_invalid())?,
+                    );
+                }
+                (
+                    crate::snapshot_batch_cursor_v2::NodeState::RelationalBoundary {
+                        order_fields,
+                        boundary,
+                        row_id,
+                    },
+                    crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node),
+                ) => {
+                    let expected = node
+                        .order
+                        .iter()
+                        .map(|order| order.field.as_str())
+                        .collect::<Vec<_>>();
+                    if order_fields.iter().map(String::as_str).collect::<Vec<_>>() != expected {
+                        return Err(snapshot_batch_cursor_invalid());
+                    }
+                    resume[position].1 = Some(
+                        crate::storage::validate_relational_boundary(
+                            db.schema(),
+                            node,
+                            boundary,
+                            row_id,
+                        )
+                        .map_err(|_| snapshot_batch_cursor_invalid())?,
+                    );
+                }
+                _ => return Err(snapshot_batch_cursor_invalid()),
+            }
+        }
+
+        if body.stream_epoch != stream_epoch {
+            return Err(snapshot_batch_restart_required());
+        }
+        for (index, (cursor_group, runtime_group)) in
+            body.parent_groups.iter().zip(&group_rows).enumerate()
+        {
+            let (_, incarnation, version) = runtime_group
+                .as_ref()
+                .expect("all snapshot-batch v2 groups remain visible");
+            debug_assert_eq!(cursor_group.group_index, index as u32);
+            if cursor_group.parent_incarnation != *incarnation
+                || cursor_group.parent_version != *version
+            {
+                return Err(snapshot_batch_restart_required());
+            }
+        }
+    }
+
+    let mut pages = Vec::with_capacity(plan.nodes.len());
+    let mut next_nodes = Vec::with_capacity(plan.nodes.len());
+    for (position, node) in plan.nodes.iter().enumerate() {
+        match node {
+            crate::manifest::SnapshotBatchNodeV2::BoundedChildren(node) => {
+                let group_index = group_for_node[position]
+                    .expect("every bounded snapshot-batch v2 node has a parent group");
+                let (parent, incarnation, _) = group_rows[group_index]
+                    .as_ref()
+                    .expect("all snapshot-batch v2 parents are visible");
+                if resume[position].0 || node.take == 0 {
+                    pages.push(json!({
+                        "parent": project_bounded_row(parent, &node.parent_projection),
+                        "children": [],
+                    }));
+                    next_nodes.push(crate::snapshot_batch_cursor_v2::Node {
+                        position: position as u32,
+                        node_plan_hash: identity.node_plan_hashes[position].clone(),
+                        state: crate::snapshot_batch_cursor_v2::NodeState::Terminal,
+                    });
+                    continue;
+                }
+                let child_query = QueryPlan {
+                    table: node.child_table.clone(),
+                    filters: vec![
+                        crate::manifest::FilterExpr {
+                            field: node.child_foreign_key.clone(),
+                            op: crate::manifest::FilterOp::Eq,
+                            value: ValueExpr::Literal(Value::String(
+                                parent_ids[group_index].clone(),
+                            )),
+                        },
+                        crate::manifest::FilterExpr {
+                            field: node.child_relation_incarnation.clone(),
+                            op: crate::manifest::FilterOp::Eq,
+                            value: ValueExpr::Literal(Value::String(incarnation.clone())),
+                        },
+                    ],
+                    membership_filters: Vec::new(),
+                    order: node.order.clone(),
+                    limit: Some(node.take.saturating_add(1) as usize),
+                    indexed_by: Some(node.child_index.clone()),
+                };
+                let mut child_output =
+                    db.query_keyset(&child_query, input, resume[position].1.as_ref())?;
+                let examined = child_output.rows.len();
+                if examined > identity.node_examined_entry_ceilings[position] {
+                    return Err(snapshot_batch_work_ceiling_exceeded());
+                }
+                let has_more = examined > node.take as usize;
+                child_output.rows.truncate(node.take as usize);
+                pages.push(json!({
+                    "parent": project_bounded_row(parent, &node.parent_projection),
+                    "children": child_output.rows.iter().map(|row| {
+                        project_bounded_row(row, &node.child_projection)
+                    }).collect::<Vec<_>>(),
+                }));
+                let state = if has_more {
+                    let boundary_row = child_output
+                        .rows
+                        .last()
+                        .ok_or_else(snapshot_batch_cursor_mint_unavailable)?;
+                    let boundary = node
+                        .order
+                        .iter()
+                        .map(|entry| {
+                            boundary_row
+                                .get(&entry.field)
+                                .cloned()
+                                .filter(|value| !value.is_null())
+                                .ok_or_else(snapshot_batch_cursor_mint_unavailable)
+                        })
+                        .collect::<SnapbackResult<Vec<_>>>()?;
+                    let row_id = boundary_row
+                        .get("_id")
+                        .and_then(Value::as_str)
+                        .filter(|id| !id.is_empty())
+                        .ok_or_else(snapshot_batch_cursor_mint_unavailable)?;
+                    crate::snapshot_batch_cursor_v2::NodeState::Boundary {
+                        order_fields: node.order.iter().map(|entry| entry.field.clone()).collect(),
+                        boundary,
+                        row_id: row_id.to_owned(),
+                    }
+                } else {
+                    crate::snapshot_batch_cursor_v2::NodeState::Terminal
+                };
+                next_nodes.push(crate::snapshot_batch_cursor_v2::Node {
+                    position: position as u32,
+                    node_plan_hash: identity.node_plan_hashes[position].clone(),
+                    state,
+                });
+            }
+            crate::manifest::SnapshotBatchNodeV2::RelationalQuery(node) => {
+                debug_assert!(group_for_node[position].is_none());
+                if resume[position].0 || node.take == 0 {
+                    pages.push(Value::Array(Vec::new()));
+                    next_nodes.push(crate::snapshot_batch_cursor_v2::Node {
+                        position: position as u32,
+                        node_plan_hash: identity.node_plan_hashes[position].clone(),
+                        state: crate::snapshot_batch_cursor_v2::NodeState::Terminal,
+                    });
+                    continue;
+                }
+                // No standalone relational cursor is decoded or minted here:
+                // `KeysetAfter` is reconstructed from the sbsb2 node state
+                // and returned directly to the owner executor.
+                let (output, continuation, observation) =
+                    crate::storage::query_relational_on_observed(
+                        db,
+                        node,
+                        input,
+                        resume[position].1.as_ref(),
+                    )?;
+                if observation.examined_root_entries
+                    > identity.node_examined_entry_ceilings[position]
+                    || observation.joined_lookups != observation.examined_root_entries
+                    || observation.joined_lookups > identity.node_joined_lookup_ceilings[position]
+                {
+                    return Err(snapshot_batch_work_ceiling_exceeded());
+                }
+                pages.push(Value::Array(output.rows));
+                let state = if let Some(boundary) = continuation {
+                    crate::snapshot_batch_cursor_v2::NodeState::RelationalBoundary {
+                        order_fields: node.order.iter().map(|entry| entry.field.clone()).collect(),
+                        boundary: boundary
+                            .entries
+                            .into_iter()
+                            .map(|(_, value)| value)
+                            .collect(),
+                        row_id: boundary.id,
+                    }
+                } else {
+                    crate::snapshot_batch_cursor_v2::NodeState::Terminal
+                };
+                next_nodes.push(crate::snapshot_batch_cursor_v2::Node {
+                    position: position as u32,
+                    node_plan_hash: identity.node_plan_hashes[position].clone(),
+                    state,
+                });
+            }
+        }
+    }
+
+    let continuation = if next_nodes.iter().any(|node| {
+        !matches!(
+            node.state,
+            crate::snapshot_batch_cursor_v2::NodeState::Terminal
+        )
+    }) {
+        let cursor_groups = group_rows
+            .iter()
+            .enumerate()
+            .map(|(index, state)| {
+                let (_, incarnation, version) = state
+                    .as_ref()
+                    .expect("all snapshot-batch v2 parent groups are visible");
+                crate::snapshot_batch_cursor_v2::ParentGroup {
+                    group_index: index as u32,
+                    parent_authorization_key_digest: identity.parent_authorization_key_digests
+                        [index]
+                        .clone(),
+                    parent_id: parent_ids[index].clone(),
+                    parent_incarnation: incarnation.clone(),
+                    parent_version: *version,
+                }
+            })
+            .collect();
+        let body = crate::snapshot_batch_cursor_v2::Body::new(
+            key_generation.0,
+            authority.app_id.to_owned(),
+            database_id,
+            TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+            stream_epoch,
+            function.id.clone(),
+            identity.plan_hash,
+            canonical_args,
+            cursor_groups,
+            next_nodes,
+            authority_partition,
+            now_ms,
+        );
+        Some(
+            crate::snapshot_batch_cursor_v2::mint(&root, &body)
+                .map_err(|_| snapshot_batch_cursor_mint_unavailable())?,
+        )
+    } else {
+        None
+    };
+    Ok(QueryInvocation {
+        output: QueryOutput {
+            version: db.current_version()?,
+            rows: vec![json!({
+                "kind": "visible",
+                "nodes": pages,
+                "continuation": continuation,
+            })],
+            cursor: None,
+        },
+        read_dependencies: Vec::new(),
+    })
 }
 
 fn project_bounded_row(row: &Value, fields: &[crate::manifest::BoundedProjectionField]) -> Value {
@@ -28611,6 +29308,10 @@ fn execute_query_invocation(
                 read_dependencies,
             })
         }
+        (
+            FunctionKind::Query | FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)),
+        ) => execute_snapshot_batch_v2(function, plan, &db, &input, prepared, cursor_authority),
         (
             FunctionKind::Query | FunctionKind::LiveQuery,
             FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatch(plan)),
@@ -42811,6 +43512,159 @@ globalThis.__snapbackHandlers = {
             }
         }
         (schema, functions, plan)
+    }
+
+    #[test]
+    fn snapshot_batch_v2_all_relational_executor_uses_one_sbsb2_cursor() {
+        use crate::manifest::{
+            FunctionArgsContract, ResultObjectFieldContract, ResultValueContract,
+            SnapshotBatchNodeV2, SnapshotBatchPlanV2,
+        };
+        let mut snapback = LocalSnapback::memory().expect("v2 executor shell");
+        let (schema, fixture_functions) = relational_live_fixture_functions(1);
+        snapback.apply_schema(schema).expect("apply v2 test schema");
+        snapback
+            .seed(crate::manifest::SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![
+                            json!({"_id":"b1","title":"alpha","authorSlug":"ada","ownerId":"user-a"}),
+                            json!({"_id":"b2","title":"beta","authorSlug":"grace","ownerId":"user-a"}),
+                        ]
+                        .into_iter()
+                        .map(|row| row.as_object().cloned().expect("book row"))
+                        .collect(),
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![
+                            json!({"_id":"a1","slug":"ada","name":"Ada","ownerId":"user-a"}),
+                            json!({"_id":"a2","slug":"grace","name":"Grace","ownerId":"user-b"}),
+                        ]
+                        .into_iter()
+                        .map(|row| row.as_object().cloned().expect("author row"))
+                        .collect(),
+                    ),
+                ]),
+            })
+            .expect("seed v2 test rows");
+        let mut relational = match &fixture_functions.functions[0].runtime {
+            FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) => plan.clone(),
+            _ => panic!("relational fixture plan"),
+        };
+        relational.order[0].max_encoded_bytes = Some(32);
+        let plan = SnapshotBatchPlanV2 {
+            profile: "snapshot-batch.v2".to_owned(),
+            nodes: vec![
+                SnapshotBatchNodeV2::RelationalQuery(relational.clone()),
+                SnapshotBatchNodeV2::RelationalQuery(relational),
+            ],
+            normalized_composite_plan: Value::Null,
+            plan_hash: String::new(),
+        };
+        let mut function = FunctionDefinition::new(
+            "relationalBatch",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan.clone())),
+        );
+        function.args_contract = Some(FunctionArgsContract {
+            fields: vec![ResultObjectFieldContract {
+                name: "cursor".to_owned(),
+                required: false,
+                value: ResultValueContract::String { max_bytes: 8_192 },
+            }],
+        });
+        let identity = crate::manifest::snapshot_batch_identity_v2(&function, &plan)
+            .expect("all-relational v2 identity");
+        let FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(sealed)) = &mut function.runtime
+        else {
+            unreachable!("v2 plan")
+        };
+        sealed.normalized_composite_plan = identity.normalized_composite_plan;
+        sealed.plan_hash = identity.plan_hash;
+
+        let input = |cursor: Option<&str>| {
+            let mut args = json!({});
+            if let Some(cursor) = cursor {
+                args["cursor"] = json!(cursor);
+            }
+            HandlerInput {
+                args,
+                auth: AuthInput {
+                    user_id: Some("user-a".to_owned()),
+                    ..AuthInput::default()
+                },
+                ..HandlerInput::default()
+            }
+        };
+        let invoke = |snapback: &LocalSnapback, input: HandlerInput| {
+            let authority = InvocationGate::prepare_admitted_dev_input(
+                InvocationSource::LocalQuery,
+                ServerProfile::Dev,
+                &input,
+                snapback.admission.admit_dev().expect("admit v2 test input"),
+            )
+            .expect("prepare v2 test authority");
+            let prepared = InvocationGate::prepare_function(authority, &function)
+                .expect("bind v2 function authority");
+            super::execute_snapshot_batch_v2(
+                &function,
+                match &function.runtime {
+                    FunctionRuntime::HostPlan(HandlerPlan::SnapshotBatchV2(plan)) => plan,
+                    _ => unreachable!("v2 plan"),
+                },
+                &DbRead::Live(&snapback.db),
+                &input,
+                &prepared,
+                Some(super::RelationalCursorAuthority {
+                    app_id: "snapshot-batch-v2-test-app",
+                    keyring: &snapback.resume_keyring,
+                    schema_hash: None,
+                    function_bundle_hash: None,
+                    function_publication_generation: 0,
+                    target_profile: Some(crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX),
+                }),
+            )
+            .expect("execute v2 relational batch")
+            .output
+        };
+
+        let first = invoke(&snapback, input(None));
+        assert_eq!(first.rows[0]["kind"], "visible");
+        let first_nodes = first.rows[0]["nodes"].as_array().expect("v2 tuple");
+        assert_eq!(first_nodes.len(), 2);
+        assert!(first_nodes.iter().all(|node| node.as_array().is_some()));
+        let cursor = first.rows[0]["continuation"]
+            .as_str()
+            .expect("coordinated v2 continuation")
+            .to_owned();
+        assert!(cursor.starts_with("sbsb2."));
+        let database_id = DbRead::Live(&snapback.db)
+            .search_database_identity()
+            .expect("database identity");
+        let body = crate::snapshot_batch_cursor_v2::decode(
+            &cursor,
+            &snapback
+                .resume_keyring
+                .read()
+                .expect("keyring")
+                .snapshot_batch_cursor_v2_materials(now_millis()),
+            "snapshot-batch-v2-test-app",
+            &database_id,
+            crate::manifest::TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX,
+            now_millis(),
+        )
+        .expect("decode executor cursor");
+        assert!(body.parent_groups.is_empty());
+        assert!(body.nodes.iter().all(|node| matches!(
+            node.state,
+            crate::snapshot_batch_cursor_v2::NodeState::RelationalBoundary { .. }
+        )));
+
+        let second = invoke(&snapback, input(Some(&cursor)));
+        assert_eq!(second.rows[0]["kind"], "visible");
+        assert!(second.rows[0]["continuation"].is_string());
     }
 
     // @ref LLP 0135#5-acceptance — executable Relay-shaped proof: three
