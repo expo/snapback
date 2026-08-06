@@ -1,6 +1,6 @@
 # `verify_attachment`'s cross-owner refusal has no negative test
 
-**Status:** Open
+**Status:** Closed
 **Impact:** 3
 **Urgency:** 2
 **Ease:** 4
@@ -57,3 +57,20 @@ case at 34126):
 Pre-existing; not introduced by the LLP 0180 command work. Found by the G3
 adversarial review while tracing what actually guarantees the command's
 attachment safety.
+
+## Resolution — 2026-08-06
+
+Closed with two layers of negative coverage:
+
+- acceptance Vector 3d in `tests/acceptance/asset-conformance-v1.mjs`
+  finalizes Ada's asset, proves Grace's `createPhotoPlan` reaches the exact
+  `SNAPBACK_ASSET_FORBIDDEN` / "attachment caller is not the asset owner"
+  branch, proves the asset remains ready and unreadable by Grace, and proves
+  no row/reverse edge committed by successfully deleting the asset as Ada;
+- focused local tests in `src/local.rs` pin both shared-code branches by exact
+  message and prove the refused changesets leave zero rows:
+  `asset_attachment_authority_cross_owner_refuses_at_commit_boundary` and
+  `asset_attachment_authority_missing_principal_refuses_at_commit_boundary`.
+
+Verified by the asset conformance receipt, the two-test focused Rust run, and
+`./ref-check --verbose`.

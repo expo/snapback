@@ -34172,6 +34172,85 @@ globalThis.__snapbackHandlers = {
     }
 
     #[test]
+    fn asset_attachment_authority_cross_owner_refuses_at_commit_boundary() {
+        let mut snapback = asset_reference_snapback();
+        let asset_id = asset_ready(&mut snapback, "user_a", b"cross-owner-bytes");
+        let plan = MutationPlan {
+            steps: vec![MutationStep::Insert {
+                table: "posts".to_owned(),
+                values: BTreeMap::from([(
+                    "photo".to_owned(),
+                    ValueExpr::Literal(json!(asset_id)),
+                )]),
+                bind_id_as: None,
+            }],
+            return_value: None,
+        };
+        let error = snapback
+            .db
+            .execute_mutation(
+                &plan,
+                &HandlerInput {
+                    auth: crate::manifest::AuthInput {
+                        user_id: Some("user_b".to_owned()),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+            )
+            .expect_err("a foreign principal cannot attach the owner's asset");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+        assert_eq!(
+            error.diagnostic.message,
+            "attachment caller is not the asset owner"
+        );
+        let row_count = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(tx.query_row("SELECT COUNT(*) FROM posts", [], |row| {
+                    row.get::<_, u64>(0)
+                })?)
+            })
+            .expect("count posts after refusal");
+        assert_eq!(row_count, 0, "the refused changeset must roll back the row");
+    }
+
+    #[test]
+    fn asset_attachment_authority_missing_principal_refuses_at_commit_boundary() {
+        let mut snapback = asset_reference_snapback();
+        let asset_id = asset_ready(&mut snapback, "user_a", b"missing-principal-bytes");
+        let plan = MutationPlan {
+            steps: vec![MutationStep::Insert {
+                table: "posts".to_owned(),
+                values: BTreeMap::from([(
+                    "photo".to_owned(),
+                    ValueExpr::Literal(json!(asset_id)),
+                )]),
+                bind_id_as: None,
+            }],
+            return_value: None,
+        };
+        let error = snapback
+            .db
+            .execute_mutation(&plan, &HandlerInput::default())
+            .expect_err("a non-seed attachment requires caller authority");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ASSET_FORBIDDEN");
+        assert_eq!(
+            error.diagnostic.message,
+            "attachment requires a caller principal"
+        );
+        let row_count = snapback
+            .db
+            .asset_transaction(|tx| {
+                Ok(tx.query_row("SELECT COUNT(*) FROM posts", [], |row| {
+                    row.get::<_, u64>(0)
+                })?)
+            })
+            .expect("count posts after refusal");
+        assert_eq!(row_count, 0, "the refused changeset must roll back the row");
+    }
+
+    #[test]
     fn asset_host_plan_and_seed_derive_admission_from_the_restriction() {
         let mut snapback = asset_reference_snapback();
         let asset_id = asset_ready(&mut snapback, "user_a", b"plan-bytes");

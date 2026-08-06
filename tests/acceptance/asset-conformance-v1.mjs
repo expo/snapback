@@ -415,6 +415,53 @@ try {
   assert.equal(openRefusal, 'SNAPBACK_ASSET_REF_UNVERIFIED');
   checks.unrestrictedHostPlanRefused = true;
 
+  // Vector 3d — cross-owner attachment refuses at the commit boundary.
+  // This is the check that makes the LLP 0180 asset-bearing command safe:
+  // the command attaches nothing itself, but passes an assetRef to an
+  // ordinary mutation and lets this check decide. If ownership comparison
+  // inverted, returned early, or lost authority.principal, every positive
+  // attach vector would still pass while cross-tenant attachment failed
+  // silently.
+  const adaCrossOwnerAsset = await uploadReady(
+    ada,
+    adaAssets,
+    redPng(8),
+    api.photoUpload,
+  );
+  let crossOwnerDiagnostic = null;
+  const crossOwnerRefusal = await refusalOf(async () => {
+    try {
+      await mutate(grace, 'createPhotoPlan', {
+        caption: 'grace cannot attach ada asset',
+        assetId: adaCrossOwnerAsset.assetId,
+      }, 'cm_assets_cross_owner_attach');
+    } catch (error) {
+      crossOwnerDiagnostic = error?.diagnostic ?? null;
+      throw error;
+    }
+  });
+  assert.equal(crossOwnerRefusal, 'SNAPBACK_ASSET_FORBIDDEN');
+  assert.equal(
+    crossOwnerDiagnostic?.message,
+    'attachment caller is not the asset owner',
+    'the refusal reaches verify_attachment ownership, not an earlier gate',
+  );
+  const untouchedCrossOwnerRecord = await adaAssets.record(adaCrossOwnerAsset.assetId);
+  assert.equal(untouchedCrossOwnerRecord.availability, 'ready');
+  const crossOwnerForeignRecord = await refusalOf(
+    () => graceAssets.record(adaCrossOwnerAsset.assetId),
+  );
+  assert.ok(crossOwnerForeignRecord, 'the refused attach confers no metadata read');
+  const crossOwnerDelete = await fetch(
+    `${sessionsServer.baseUrl}/assets/records/${encodeURIComponent(adaCrossOwnerAsset.assetId)}`,
+    { method: 'DELETE', headers: custody(ada) },
+  );
+  // A committed photos row would have atomically created a reverse edge and
+  // made this delete refuse with SNAPBACK_ASSET_REFERENCED. Success proves
+  // the refused mutation wrote no row.
+  assert.equal(crossOwnerDelete.status, 200, await crossOwnerDelete.text());
+  checks.crossOwnerAttachmentRefused = true;
+
   // Vector 4 — a forged raw string fails the commit hook from the handler path.
   const forged = await uploadReady(ada, adaAssets, redPng(8), api.photoUpload);
   const forgeRefusal = await refusalOf(() => mutate(ada, 'forgePhoto', {
