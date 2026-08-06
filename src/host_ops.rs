@@ -32,7 +32,15 @@ pub const HOST_READY_DESCRIPTOR_KIND: &str = "snapbackHostReady";
 pub const TELEMETRY_EXPORT_HOST_ENVELOPE_ALLOWANCE: usize = 64 * 1024;
 
 /// Operations this endpoint serves in the first slice.
-pub const SERVED_HOST_OPS: [&str; 18] = [
+///
+/// This includes the ten `asset.*` operations dispatched inline by the
+/// `execute_host_op_with_profile` match arm and the two
+/// `debug.networkProfile{Get,Set}` operations dispatched entirely in
+/// `src/server.rs` (outside that match arm, via `network_profile_result`).
+/// Both groups are fully served today; they belong here so
+/// `host_op_diagnostic` recognizes their spelling instead of rewriting it to
+/// `"unrecognized"` in diagnostics.
+pub const SERVED_HOST_OPS: [&str; 30] = [
     "app.inspect",
     "app.reset",
     "app.seed.ensure.v1",
@@ -51,10 +59,31 @@ pub const SERVED_HOST_OPS: [&str; 18] = [
     "errors.issues",
     "errors.issue",
     "errors.transition",
+    "asset.put",
+    "asset.ensureSeedFixture",
+    "asset.inspect",
+    "asset.list",
+    "asset.exportCut",
+    "asset.importCut",
+    "asset.retry",
+    "asset.gcSweep",
+    "asset.delete",
+    "asset.rotateSigningKey",
+    "debug.networkProfileGet",
+    "debug.networkProfileSet",
 ];
 
-/// Pinned by LLP 0024 but process-lifecycle verbs: the CLI owns them (a
-/// running server cannot start itself over its own HTTP surface).
+/// Pinned by LLP 0024 but process-lifecycle verbs: `host.start`/`host.stop`
+/// are CLI-owned today (a running server cannot start itself over its own
+/// HTTP surface). `host.restart` has no CLI command today; its only current
+/// projection is the composed `snapback_restart` MCP tool
+/// (`packages/snapback-cli/mcp-control.mjs`'s `snapback_restart` case),
+/// which spawns `host.stop` then `host.start` under one request id. All
+/// three still refuse over this HTTP surface with
+/// `SNAPBACK_HOST_OP_CLI_ONLY`; only `host.start`/`host.stop` name an actual
+/// CLI command in that refusal today. A `snapback restart` CLI command is
+/// planned (LLP 0184 Phase 2) but does not exist yet — do not describe one
+/// as shipped.
 pub const CLI_ONLY_HOST_OPS: [&str; 3] = ["host.start", "host.stop", "host.restart"];
 
 /// Pinned by LLP 0024, not yet built anywhere. Requests return a structured
@@ -1441,6 +1470,17 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
                 "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
                 &operation,
                 "the injected auth operator service is unavailable",
+            )],
+        ),
+        "host.restart" => envelope(
+            snapback,
+            false,
+            authority_none(),
+            Value::Object(Default::default()),
+            vec![host_op_diagnostic(
+                "SNAPBACK_HOST_OP_CLI_ONLY",
+                &operation,
+                "this operation manages the host process; a running server cannot restart itself over its own HTTP surface. There is no `snapback restart` CLI command yet — use the composed `snapback_restart` MCP tool, which spawns host.stop then host.start under one request id",
             )],
         ),
         cli_only if CLI_ONLY_HOST_OPS.contains(&cli_only) => envelope(
