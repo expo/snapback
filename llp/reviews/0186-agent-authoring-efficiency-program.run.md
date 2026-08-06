@@ -104,7 +104,13 @@ treadmill.
 
 **Stop reviewing; recommend stay `Review` and accept on the author's own
 reading of revision (d), or accept after the first W0/W1 execution
-receipts.** Three rounds produced monotonically shrinking defect classes:
+receipts.**
+
+> **Author ruling, 2026-08-06:** Charlie accepted both documents at
+> revision (d) ("ok flip/promote these"). Both set to `Accepted`; the
+> acceptance is the author's own, applied outside the loop, with revision
+> (d)'s unreviewed status disclosed above and in each document's Revised
+> header. Three rounds produced monotonically shrinking defect classes:
 round 1 = real evidence/ownership defects; round 2 = altitude
 disagreement plus verified precision defects; round 3 = almost entirely
 mid-loop repository movement. Each further round now reviews a moving

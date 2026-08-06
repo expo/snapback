@@ -1,12 +1,12 @@
 # LLP 0187: Agent discoverability — routing over coverage
 
 **Type:** RFC
-**Status:** Review
+**Status:** Accepted
 **Systems:** Guide, Developer experience, CLI, Packaging, Code generation,
 Diagnostics
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-05
-**Revised:** 2026-08-06 (d — round-3 reconciliation: mid-loop landings (T5 fence 8b821028a) + verified round-3 findings; revision (d) itself is unreviewed)
+**Revised:** 2026-08-06 (e — Accepted by author ruling at revision (d); the super-refine run record in llp/reviews/0186-agent-authoring-efficiency-program.run.md holds the verdict history, incl. that revision (d) was unreviewed)
 **Related:** LLP 0016, LLP 0061, LLP 0146, LLP 0176, LLP 0177, LLP 0178, LLP
 0179, LLP 0184, LLP 0186
 
