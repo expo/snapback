@@ -453,6 +453,13 @@ LLP 0010/0012:
   (including join violations), and expired GAP review dates. Drift warnings
   stay warnings.
 
+**Implementation note (2026-08-06).** The published-closure fence is now a
+registered guide-consistency check: page or section `since:` / `unreleased:`
+claims join against `guide/published-closure.json`, and stale or missing fences
+fail locally without consulting the network. The mechanism was prompted by
+`issues/20260804-guide-gap-published-closure-drift.md`, where source-tree guide
+claims had outrun the npm closure.
+
 ### 4. Distribution and discovery
 
 **Audience honesty first:** the `@snapback/*` packages are private, and demo

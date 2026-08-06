@@ -646,6 +646,8 @@ Fields (schema: [`frontmatter.schema.json`](./frontmatter.schema.json)):
 | `status` | yes | `draft` \| `current` \| `deprecated` — authored lifecycle. |
 | `targets` | yes | `[local]`, `[local, cloudflare]`, or `[all]` for genuinely target-independent material. Local-only pages render a banner line (see below). |
 | `maturity` | yes | `shipped` \| `partial` \| `design-only`, consistent with the capability index. |
+| `since` | no | Published closure version (`X.Y.Z`) in which the page's described surface first became, or is expected to become, available. |
+| `unreleased` | no | The boolean `true` when the whole page deliberately describes a surface newer than the newest published closure; requires `since` and a rendered unreleased banner. |
 | `reviewed` | yes | Date of the last intentional review — display metadata only. |
 | `reviewed-commit` | yes | The commit the page was last reviewed at — the freshness **identity**. Bumping it is a deliberate act in a review pass; no tool regenerates it. `HEAD` is permitted only in the same change that creates or fully revises the page. |
 
@@ -664,6 +666,37 @@ Pages with `targets: [local]` start the body with:
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](./auth/targets.md).
+
+## The published-closure fence
+
+[`published-closure.json`](./published-closure.json) is the checked-in,
+machine-readable record of the newest `@expo/snapback-*` closure available
+from npm. The guide checker reads that local record; this check performs no
+network access.
+
+A page whose whole surface has one version may declare `since: X.Y.Z`. If the
+whole page is deliberately ahead of the record's `newestPublished`, it also
+declares `unreleased: true` and renders a blockquote whose first line starts
+with `> **Unreleased.**` before the first `##` heading. The banner names the
+literal newest published version so a reader knows which concrete closure is
+missing the surface. Once the closure catches up, the fence is stale and must
+be removed (or `since:` must be bumped to the actual future version).
+
+Pages that mix vintages fence the affected section with an HTML comment on its
+own line: `<!-- since: X.Y.Z -->` for a surface already present in that
+closure, or `<!-- since: X.Y.Z unreleased -->` for a surface expected in a
+future closure. An unreleased marker must be immediately followed (apart from
+blank lines) by a contiguous rendered blockquote whose first line starts with
+`> **Unreleased.**` and whose text names the literal newest published version.
+A released marker may not name a version newer than `newestPublished`, and an
+unreleased marker may not name that version or an older one.
+
+This is an availability fence, separate from capability maturity. A
+`maturity: shipped` page that claims a surface absent from the newest published
+closure without an unreleased fence is a check **failure**. The npm promotion
+lane updates `published-closure.json` in the same change that publishes a new
+closure, regenerates the guide manifest, and sweeps all unreleased fences. The
+stale-fence errors make a forgotten promotion-time sweep loud.
 
 ## Headings
 
@@ -1029,6 +1062,13 @@ other way, such as an identity broker) is constructed with
 `authClientProtocol: 1` construction without declared custody is refused.
 
 ## Read public data anonymously
+
+<!-- since: 0.1.9 unreleased -->
+
+> **Unreleased.** `custody: 'anonymous-public'` is in the source tree but not
+> in the newest published closure (`0.1.8`); a packaged consumer on
+> `@expo/snapback-*@0.1.8` must read public data with a signed-in principal or
+> a hand-rolled HTTP call. Expected in the next published closure.
 
 A sessions-mode app often has a public surface — an event preview, a shared
 link — that must read *without* a signed-in principal. Bare clients are
@@ -2537,6 +2577,14 @@ still has a terminal receipt on the error envelope so the client store can
 settle it without guessing. A confirmed receipt always carries a non-null
 durable `snapshotVersion`; `null` is allowed only for a rejected invocation
 whose durable cursor could not be read safely.
+
+<!-- since: 0.1.9 unreleased -->
+
+> **Unreleased.** Declared `refusals:` and `ctx.refuse` are in the source
+> tree but not in the newest published closure (`0.1.8`): a packaged consumer
+> on `@expo/snapback-*@0.1.8` has no `ctx.refuse`, and every application
+> rejection surfaces as `SNAPBACK_HANDLER_FAILED`. Expected in the next
+> published closure.
 
 Application-semantic refusals get typed codes instead of message prose. A
 handler declares a closed set — `refusals: ['STALE_MOVE']` (uppercase
@@ -9517,7 +9565,10 @@ need the proven closure.
 Still do not infer that a published closure contains every surface in the
 current source tree: source lands continuously, and a packaged consumer has
 whatever the newest published version froze. When a page describes a surface
-newer than the newest closure, it says so.
+newer than the newest closure, it says so. This rule is mechanical: pages carry
+`since:` / `unreleased:` fences checked against
+[`published-closure.json`](../published-closure.json) by
+`scripts/check-guide.mjs`.
 
 On each supported tuple the mapped runtime package carries the prebuilt server
 and Hermes runtime. `doctor` first launches that relocated binary with
