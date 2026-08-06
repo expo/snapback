@@ -1073,3 +1073,20 @@ combined source. Inventory selects 214 declared tests and generated artifacts
 reproduce byte-for-byte. These are proof, declaration, bundler, and carrier
 debts attributable to their named landings. No correctness failure was found
 or repaired in the actively owned PUSH-01 seam or F0a fork code.
+
+Main then advanced through the Track B acceptance landing at
+`a0852be190d7a908e2419ccaac43f30eee977ee2`. The first operation-identity
+carrier had already frozen its affected profiles before the subsequent review
+tail added the durable `result-gone` projection and tightened lifecycle and
+range validation. Those functional additions legitimately grew the external
+React application, shared outbox, and four retained-query-store bundle
+closures.
+
+The fix-forward adds a second prospective immutable rollover,
+`baseline.operation-lifecycle-review-tail.v1.json`, for only those six
+affected profiles. It preserves each prior carrier as the predecessor, records
+the Track B landing chain and governing LLP authorities, and advances the
+workload identity to `llp-0163-operation-lifecycle-review-tail.v1`. The full
+declared behavior train passed before the carrier and 54-profile current report
+were regenerated. No frozen historical measurement was edited, no unrelated
+profile was rolled over, and no actively owned correctness code was changed.
