@@ -152,6 +152,82 @@ try {
   assert.equal(descriptor.api.queries.listItems.argumentSchema.additionalProperties, false);
   assert.equal(descriptor.api.mutations.createItem.resultContract.kind, 'unknown');
 
+  {
+    const surfacelessRoot = mkdtempSync(join(tmpdir(), 'snapback-app-descriptor-surfaceless-'));
+    try {
+      const surfacelessBackend = join(surfacelessRoot, 'fixture', 'snapback');
+      mkdirSync(surfacelessBackend, { recursive: true });
+      writeFileSync(join(surfacelessBackend, 'schema.mjs'), validSchema);
+      writeFileSync(join(surfacelessBackend, 'functions.mjs'), `
+import { arg, defineLiveQuery, eq, v } from '${defineUrl}';
+export const listItems = defineLiveQuery({
+  table: 'items',
+  args: { group: v.string() },
+  filter: [eq('group', arg('group'))],
+  index: 'by_group',
+});
+`);
+      const surfacelessGeneration = await generate(surfacelessBackend);
+      assert.equal(
+        surfacelessGeneration.ok,
+        true,
+        JSON.stringify(surfacelessGeneration.diagnostics),
+      );
+
+      const surfacelessDescriptor = JSON.parse(readFileSync(
+        join(surfacelessBackend, 'generated', 'app.descriptor.json'),
+        'utf8',
+      ));
+      assert.deepEqual(surfacelessDescriptor.surfaces, {});
+      assert.deepEqual(validateAppDescriptorV1(surfacelessDescriptor), []);
+
+      // The surface type block is emitted unconditionally: a surfaceless app
+      // carries the same SurfaceMemberDescriptor/SurfaceDescriptor preamble as
+      // a surface-bearing one and differs only by an empty GeneratedAppSurfaces
+      // body. (Before the S1 grammar landed the surfaceless emission was
+      // `export type SurfaceDescriptor = never;`, so every committed app.d.ts
+      // in the corpus rotates once — this pins the post-S1 shape so a later
+      // surface change cannot move surfaceless apps again unnoticed.)
+      const surfacelessAppTypes = readFileSync(
+        join(surfacelessBackend, 'generated', 'app.d.ts'),
+        'utf8',
+      );
+      const committedSurfaceAppTypes = readFileSync(
+        join(
+          repoRoot,
+          'packages',
+          'snapback-cli',
+          'fixtures',
+          'comparator',
+          'app',
+          'snapback',
+          'generated',
+          'app.d.ts',
+        ),
+        'utf8',
+      );
+      const surfacePreamble = (source) => {
+        const start = source.indexOf('export interface SurfaceMemberDescriptor<');
+        const end = source.indexOf('export interface GeneratedAppSurfaces {');
+        assert(start >= 0 && end > start, 'app.d.ts is missing the surface type preamble');
+        return source.slice(start, end);
+      };
+      assert.equal(
+        surfacePreamble(surfacelessAppTypes),
+        surfacePreamble(committedSurfaceAppTypes),
+        'a surfaceless app emits the same surface type preamble as a surface-bearing one',
+      );
+      assert(surfacelessAppTypes.includes('export interface GeneratedAppSurfaces {\n}\n'));
+      assert(surfacelessAppTypes.includes('  readonly surfaces: Readonly<GeneratedAppSurfaces>;\n'));
+      assert(!surfacelessAppTypes.includes('export type SurfaceDescriptor = never;'));
+      // The committed surface-bearing control names its one member, so the
+      // empty-body assertion above is a real difference and not a tautology.
+      assert(committedSurfaceAppTypes.includes('export interface GeneratedAppSurfaces {\n  readonly "fixtureSurface": SurfaceDescriptor<'));
+    } finally {
+      rmSync(surfacelessRoot, { recursive: true, force: true });
+    }
+  }
+
   const schemaManifest = JSON.parse(readFileSync(join(backend, 'generated', 'schema.manifest.json')));
   const functionManifest = JSON.parse(readFileSync(join(backend, 'generated', 'functions.manifest.json')));
   assert.equal(descriptor.identity.app, schemaManifest.appId);
@@ -340,6 +416,78 @@ export const items = defineSurface({
 });
 `);
   await assertGenerationRefusedPreservingDescriptor('SNAPBACK_SURFACE_PARAMETER_UNKNOWN');
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { bind, defineLiveQuery, defineSurface, param, v } from '${defineUrl}';
+export const listItems = defineLiveQuery({ table: 'items', args: { group: v.string() } });
+export const items = defineSurface({
+  params: { group: v.number() },
+  reads: { rows: bind(listItems, { group: param('group') }) },
+});
+`);
+  await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_SURFACE_PARAMETER_TYPE_MISMATCH',
+    { onlyExpectedError: true },
+  );
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { bind, defineLiveQuery, defineSurface, v } from '${defineUrl}';
+export const listItems = defineLiveQuery({ table: 'items', args: { group: v.string() } });
+export const items = defineSurface({
+  reads: { rows: bind(listItems, {}) },
+});
+`);
+  await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_SURFACE_REQUIRED_INPUT_UNBOUND',
+    { onlyExpectedError: true },
+  );
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { bind, defineLiveQuery, defineSurface, param, v } from '${defineUrl}';
+const hiddenItems = defineLiveQuery({ table: 'items', args: { group: v.string() } });
+export const items = defineSurface({
+  params: { group: v.string() },
+  reads: { rows: bind(hiddenItems, { group: param('group') }) },
+});
+`);
+  await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_SURFACE_REFERENCE_UNKNOWN',
+    { onlyExpectedError: true },
+  );
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { bind, defineLiveQuery, defineSurface, input, v } from '${defineUrl}';
+export const listItems = defineLiveQuery({ table: 'items', args: { group: v.string() } });
+export const items = defineSurface({
+  reads: { rows: bind(listItems, { group: input('group') }) },
+});
+`);
+  const unsupportedInputMember = await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED',
+    { onlyExpectedError: true },
+  );
+  assert(unsupportedInputMember.message.includes(
+    'input(...) is admitted only for mutation and asset calls in S1',
+  ));
+
+  writeValidSources();
+  writeFileSync(join(backend, 'functions.mjs'), `
+import { bind, defineLiveQuery, defineSurface, param, v } from '${defineUrl}';
+export const listItems = defineLiveQuery({ table: 'items', args: { group: v.string() } });
+export const items = defineSurface({
+  params: { group: v.string() },
+  commands: { rows: bind(listItems, { group: param('group') }) },
+});
+`);
+  const reservedCommands = await assertGenerationRefusedPreservingDescriptor(
+    'SNAPBACK_SURFACE_MEMBER_CLASS_UNSUPPORTED',
+    { onlyExpectedError: true },
+  );
+  assert(reservedCommands.message.includes('commands are reserved for descriptor slice S2'));
 
   writeValidSources();
   writeFileSync(join(backend, 'functions.mjs'), `
