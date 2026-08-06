@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "fc00370d79b969c659194a98d26643027114769e"
+    "commit": "1598409441c695b95dd8a7f1ac865ac8a2de5649"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -218,11 +218,6 @@
     ],
     "operating": [
       {
-        "id": "operating.agent-controls",
-        "order": 1,
-        "title": "Discover agent controls"
-      },
-      {
         "id": "operating.secrets-and-config",
         "order": 1,
         "title": "Secrets and deployment config"
@@ -261,6 +256,11 @@
         "id": "operating.instance-forks",
         "order": 7,
         "title": "Local instance forks"
+      },
+      {
+        "id": "operating.data-patch",
+        "order": 8,
+        "title": "Patch one existing row safely"
       }
     ],
     "protocol": [
@@ -1490,7 +1490,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "f0ed9d61088ba8d7a8c4060abeae886163d4172944083c58f0b2df7eae799837",
+      "sha256": "13c857f52fce151c5a4aa2ac91c9a10b9d95c6c1294bf0c2c238d6c4975e17b2",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1753,7 +1753,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
-      "sha256": "6f0fe08eaa6c12be7791906e8850c5bcb5a28530c276e0f3d5e7045bb4f9a20d",
+      "sha256": "81390f9fe0a0509e2ee525e4e4429b369a25e9816a08df323e4ba76b76c2651d",
       "snippets": [
         {
           "lang": "json",
@@ -2196,7 +2196,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "c86ac817750e847d785b42d7ebde574415554cccb4f482c89273aa13521dfae5",
+      "sha256": "f6f2d1c3438880becd44fd0fa12b3885e4fe917d67a12ec3ce0e17d542a22d2b",
       "snippets": [
         {
           "lang": "json",
@@ -2246,31 +2246,44 @@
         }
       ]
     },
-    "operating.agent-controls": {
-      "path": "guide/operating/agent-controls.md",
-      "title": "Discover agent controls",
-      "order": 1,
+    "operating.data-patch": {
+      "path": "guide/operating/data-patch.md",
+      "title": "Patch one existing row safely",
+      "order": 8,
       "status": "current",
       "targets": [
         "local"
       ],
       "maturity": "shipped",
+      "since": "0.1.9",
+      "unreleased": true,
       "capabilities": [
-        "operating.agent-controls"
+        "operating.data-patch"
       ],
       "authorities": [
         "llp/0184-agent-accessible-control-plane.rfc.md",
+        "llp/0024-agent-operating-surface.spec.md",
         "llp/0031-server-route-taxonomy.spec.md",
-        "llp/0042-agent-mcp-surface.rfc.md",
-        "src/control_catalog.rs",
+        "llp/0017-admin-console-inspection-surface.rfc.md",
+        "src/data_patch.rs",
+        "src/local.rs",
+        "src/server.rs",
         "src/cli.rs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
-      "examples": [],
+      "examples": [
+        "tests/data_patch_v1.rs",
+        "packages/snapback-cli/mcp-control.test.mjs"
+      ],
       "reviewed": "2026-08-06",
-      "reviewedCommit": "2715951cf",
-      "sha256": "bc9f1889bdc831468caafc7d5455666b11aeb32a36f3f45127a977845516a46d",
-      "snippets": []
+      "reviewedCommit": "HEAD",
+      "sha256": "e7cacb1ce41b67404b948dd28300e9b15d4f4eee2f448d5c760f4dc9520b6ccd",
+      "snippets": [
+        {
+          "lang": "json",
+          "class": "fragment"
+        }
+      ]
     },
     "operating.diagnostics": {
       "path": "guide/operating/diagnostics.md",
@@ -2364,7 +2377,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "acbb7b922a060788fd09f3f98211eb9ce35f23f4",
-      "sha256": "907b5aceb2d08629de267fdd90f9d16771e5725b8e7b9c5b37f8bcf72dd0d4fd",
+      "sha256": "8281eaf3095097f852f4e95e6aa49c8fcfee42d0a4a810ae7e9efe8278516133",
       "snippets": [
         {
           "lang": "json",
@@ -2498,7 +2511,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "9417e04cc8246623bc3a3d6e2d1969c5e8b131ebcf61ae9726f46c7c6e47ec9c",
+      "sha256": "2ced65efc45a6223b3623ff4540591ee6c7e335de9692388a4dd804226b008a9",
       "snippets": [
         {
           "lang": "js",
@@ -2918,7 +2931,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "7b467cf16",
-      "sha256": "130577ea51d0e7e6079dc6ef40df77d81273558743ec62f4807b2f0ff4719ad0",
+      "sha256": "390c49e09e191be6f00f87abdc868e2591905a908976093b98b45b5a423125ff",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -2971,9 +2984,9 @@
         "packages/snapback-contract/agent-authority-contract.test.mjs",
         "packages/snapback-react/offline.test.mjs"
       ],
-      "reviewed": "2026-08-06",
-      "reviewedCommit": "711e4d763d87cadf0c638bd15ed33a85427e4f11",
-      "sha256": "fde971949340552da32f8e05c9a0628c1b999f33f59748ce740994cc738a5287",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "HEAD",
+      "sha256": "8fe5f0ae2b8af693d44cd055129a6514060e60661d801373a7387bfad08502be",
       "snippets": [
         {
           "lang": "js",
@@ -3178,7 +3191,7 @@
       "deploy.release-build",
       "deploy.target-control",
       "operating.admin-console",
-      "operating.agent-controls",
+      "operating.data-patch",
       "operating.diagnostics",
       "operating.guide-mcp",
       "operating.host-ops",
@@ -3214,8 +3227,8 @@
     ]
   },
   "surfaces": {
-    "routes": 120,
-    "hostOps": 37
+    "routes": 117,
+    "hostOps": 41
   },
-  "contentHash": "1a41d7fa80a7a2ae57d74161b2ae5c4b727dca0e788ef89b7853a8ea00d6d369"
+  "contentHash": "e6272c8fe6b69fea8c99ed76313c5013e9756f7ce68123ed4efc65eea8f53911"
 }

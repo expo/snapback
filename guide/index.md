@@ -233,6 +233,9 @@ you never build around a feature because you didn't know it existed.
 - [Network condition profiles](./operating/network-profiles.md) — inject
   server-side egress latency for honest optimistic-UI, settlement, and
   convergence testing, then restore `normal`.
+- [Patch one existing row safely](./operating/data-patch.md) — preview a
+  schema-validated, per-row-versioned correction and apply it with one
+  short-lived single-use capability (local non-production only).
 - [Diagnostics](./operating/diagnostics.md) — stable codes, assertion
   discipline, exact runtime link/launch doctoring, binary recovery records,
   and bootstrap failure vocabulary.

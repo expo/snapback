@@ -39,6 +39,20 @@
     "errors.issues": { "operability": "direct" },
     "errors.issue": { "operability": "direct" },
     "errors.transition": { "operability": "direct" },
+    "data.patch.preview": {
+      "operability": "direct",
+      "availability": { "targets": ["local"] },
+      "behavior": { "persistsAcrossRestart": false },
+      "authorities": ["llp/0024-agent-operating-surface", "llp/0184-agent-accessible-control-plane"],
+      "sources": ["src/data_patch.rs", "src/local.rs", "src/server.rs", "packages/snapback-cli/mcp-control.mjs"]
+    },
+    "data.patch.apply": {
+      "operability": "direct",
+      "availability": { "targets": ["local"] },
+      "behavior": { "persistsAcrossRestart": true },
+      "authorities": ["llp/0024-agent-operating-surface", "llp/0184-agent-accessible-control-plane"],
+      "sources": ["src/data_patch.rs", "src/local.rs", "src/server.rs", "packages/snapback-cli/mcp-control.mjs"]
+    },
     "debug.networkProfileGet": { "operability": "direct" },
     "debug.networkProfileSet": { "operability": "direct" },
     "asset.put": { "operability": "direct", "mcpDeferralReason": "Assets: full typed CLI, zero MCP tools today — the RFC's (cliOnly, direct) worked example (§Product contract). MCP projection is a Phase 2 P1 item." },

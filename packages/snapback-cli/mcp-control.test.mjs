@@ -208,6 +208,8 @@ try {
     'snapback_connection_disconnect',
     'snapback_asset_delete', 'snapback_asset_gc_sweep', 'snapback_asset_rotate_signing_key',
     'snapback_asset_export_cut', 'snapback_asset_import_cut',
+    // LLP 0184 §A's bounded direct row patch.
+    'snapback_data_patch_preview', 'snapback_data_patch_apply',
   ]) {
     assert.ok(names.includes(pinned), `missing pinned control tool ${pinned}`);
   }
@@ -221,6 +223,19 @@ try {
     assert.equal(profileSchema.oneOf[1].properties[field].maximum, 30_000);
   }
   assert.equal(tools.find((tool) => tool.name === 'snapback_reset').annotations.destructiveHint, true);
+  assert.equal(
+    tools.find((tool) => tool.name === 'snapback_data_patch_preview').annotations.destructiveHint,
+    false,
+  );
+  assert.equal(
+    tools.find((tool) => tool.name === 'snapback_data_patch_apply').annotations.destructiveHint,
+    true,
+  );
+  assert.equal(
+    tools.find((tool) => tool.name === 'snapback_data_patch_apply')
+      .inputSchema.properties.applyToken,
+    undefined,
+  );
 
   const catalog = listed.result._meta['snapback/appDataCatalog'];
   assert.equal(catalog.catalogKind, 'appDataMcpCatalog');
@@ -397,6 +412,63 @@ try {
   const rows = queried.structuredContent.data.functionResult.rows;
   assert.equal(rows.length, 1, JSON.stringify(queried.structuredContent.data));
   assert.equal(rows[0].title, 'from mcp');
+
+  const patchAuthority = {
+    mode: 'devUser',
+    actorPrincipal: null,
+    effectivePrincipal: { userId: 'u_mcp', roles: [] },
+    localDevOnly: true,
+    adminBypass: false,
+    scope: null,
+    reason: null,
+  };
+  const patchInput = {
+    table: 'todos',
+    rowId: rows[0]._id,
+    expectedVersion: rows[0]._version,
+    patch: { title: 'patched through mcp' },
+    authority: patchAuthority,
+    reason: 'MCP control acceptance patch',
+  };
+  const patchPreview = await client.call('snapback_data_patch_preview', patchInput);
+  assert.equal(patchPreview.structuredContent.ok, true, JSON.stringify(patchPreview.structuredContent));
+  assert.match(patchPreview.structuredContent.data.applyTokenId, /^sha256:[0-9a-f]{64}$/);
+  assert.equal(patchPreview.structuredContent.data.applyToken, undefined);
+  assert.doesNotMatch(patchPreview.content[0].text, /sbpat_/);
+
+  // A non-authorizing id cannot switch the authority/patch binding. The MCP
+  // wrapper keeps the matching capability available for the exact apply.
+  const patchMismatch = await client.call('snapback_data_patch_apply', {
+    ...patchInput,
+    patch: { title: 'tampered through mcp' },
+    applyTokenId: patchPreview.structuredContent.data.applyTokenId,
+  });
+  assert.equal(patchMismatch.structuredContent.ok, false);
+  assert.equal(
+    patchMismatch.structuredContent.diagnostics[0].code,
+    'SNAPBACK_MCP_DATA_PATCH_TOKEN_UNAVAILABLE',
+  );
+
+  const patchApplied = await client.call('snapback_data_patch_apply', {
+    ...patchInput,
+    applyTokenId: patchPreview.structuredContent.data.applyTokenId,
+  });
+  assert.equal(patchApplied.structuredContent.ok, true, JSON.stringify(patchApplied.structuredContent));
+  assert.equal(patchApplied.structuredContent.data.receiptKind, 'dataPatchReceipt.v1');
+  assert.equal(patchApplied.structuredContent.data.authority.mode, 'devUser');
+  assert.equal(patchApplied.structuredContent.data.reason, patchInput.reason);
+  assert.equal(patchApplied.structuredContent.data.applyToken, undefined);
+  assert.doesNotMatch(patchApplied.content[0].text, /sbpat_/);
+
+  const patchReused = await client.call('snapback_data_patch_apply', {
+    ...patchInput,
+    applyTokenId: patchPreview.structuredContent.data.applyTokenId,
+  });
+  assert.equal(patchReused.structuredContent.ok, false);
+  assert.equal(
+    patchReused.structuredContent.diagnostics[0].code,
+    'SNAPBACK_MCP_DATA_PATCH_TOKEN_UNAVAILABLE',
+  );
 
   // Read diagnostics through MCP: the SC-1a recent-invocations ring reflects
   // the loads and runs since the restart; MCP-local authority refusals never

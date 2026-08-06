@@ -166,6 +166,10 @@ here (or listed here but gone from the code).
 | host_ops.asset.importCut | notAuthorFacing (operator consistent-cut restore) |
 | host_ops.auth.mintSession | operating.host-ops |
 | host_ops.auth.rescueCollidingTable | operating.host-ops |
+| host_ops.data.patch.preview | operating.data-patch |
+| host_ops.data.patch.preview.impersonated | operating.data-patch |
+| host_ops.data.patch.apply | operating.data-patch |
+| host_ops.data.patch.apply.impersonated | operating.data-patch |
 | host_ops.errors.issue | backend.error-tracking-v1 |
 | host_ops.errors.issues | backend.error-tracking-v1 |
 | host_ops.errors.transition | backend.error-tracking-v1 |

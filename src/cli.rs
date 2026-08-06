@@ -841,6 +841,11 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: NetworkProfileCommand,
     },
+    /// Schema-aware bounded data operations.
+    Data {
+        #[command(subcommand)]
+        command: DataCommand,
+    },
     /// Mint one short-lived, scoped administrative data-read lease. This is a
     /// ready-file-only operation because the proof root is local operator
     /// authority and can never be discovered from a URL.
@@ -1233,6 +1238,10 @@ pub enum DataCommand {
         #[arg(long)]
         secret_read_lease: Option<String>,
     },
+    /// Preview or apply one existing-row closed field patch. The complete JSON
+    /// input, including an apply token when applying, is read from a file or
+    /// stdin and is never accepted as an argv value.
+    Patch(DataPatchArgs),
 }
 
 #[derive(clap::Subcommand)]
@@ -1336,6 +1345,27 @@ pub enum NetworkProfileCommand {
         /// Built-in name (normal, optimistic, demo-slow) or an inline JSON object.
         profile: String,
     },
+}
+
+#[derive(clap::Args)]
+#[command(group(
+    clap::ArgGroup::new("data_patch_intent")
+        .required(true)
+        .multiple(false)
+        .args(["preview", "apply"])
+))]
+pub struct DataPatchArgs {
+    #[command(flatten)]
+    pub target: TargetArgs,
+    /// Validate and mint one short-lived apply token.
+    #[arg(long)]
+    pub preview: bool,
+    /// Consume the apply token carried inside the JSON input and commit.
+    #[arg(long)]
+    pub apply: bool,
+    /// Closed JSON input file, or '-' for stdin.
+    #[arg(long, value_name = "FILE|-")]
+    pub input: PathBuf,
 }
 
 #[derive(clap::Subcommand)]
@@ -3723,6 +3753,35 @@ fn read_json_file(path: &Path) -> anyhow::Result<Value> {
     serde_json::from_str(&raw).with_context(|| format!("{} is not valid JSON", path.display()))
 }
 
+fn read_data_patch_input(path: &Path) -> anyhow::Result<Value> {
+    use std::io::Read as _;
+
+    const MAX_BYTES: usize = 1024 * 1024;
+    let mut bytes = Vec::new();
+    if path.as_os_str() == "-" {
+        std::io::stdin()
+            .take((MAX_BYTES + 1) as u64)
+            .read_to_end(&mut bytes)
+            .context("failed to read data patch JSON from stdin")?;
+    } else {
+        bytes = std::fs::read(path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+    }
+    anyhow::ensure!(
+        bytes.len() <= MAX_BYTES,
+        "data patch JSON exceeds the 1 MiB input bound"
+    );
+    let value: Value = serde_json::from_slice(&bytes).with_context(|| {
+        if path.as_os_str() == "-" {
+            "data patch stdin is not valid JSON".to_owned()
+        } else {
+            format!("{} is not valid JSON", path.display())
+        }
+    })?;
+    anyhow::ensure!(value.is_object(), "data patch input must be a JSON object");
+    Ok(value)
+}
+
 fn prepare_composition_activation_source(
     database_path: &Path,
     generated_dir: &Path,
@@ -4029,7 +4088,15 @@ fn request_requires_impersonation(request: &Value) -> bool {
     let impersonated = request
         .get("userId")
         .and_then(Value::as_str)
-        .is_some_and(|user_id| !user_id.is_empty());
+        .is_some_and(|user_id| !user_id.is_empty())
+        || request
+            .get("input")
+            .and_then(Value::as_object)
+            .and_then(|input| input.get("authority"))
+            .and_then(Value::as_object)
+            .and_then(|authority| authority.get("mode"))
+            .and_then(Value::as_str)
+            == Some("devUser");
     crate::server::host_ops_operation_spec(operation, None, impersonated).is_some_and(|spec| {
         [
             crate::server::PolicyAuthMode::Dev,
@@ -4316,6 +4383,23 @@ fn data_command(command: DataCommand) -> anyhow::Result<()> {
             )?;
             println!("{}", serde_json::to_string_pretty(&response)?);
             Ok(())
+        }
+        DataCommand::Patch(args) => {
+            if args.input.as_os_str() == "-" && args.target.impersonation_capability_stdin {
+                anyhow::bail!(
+                    "--input - and --impersonation-capability-stdin cannot share stdin; use a ready file or a JSON input file"
+                );
+            }
+            let input = read_data_patch_input(&args.input)?;
+            let operation = if args.preview {
+                crate::data_patch::DATA_PATCH_PREVIEW_OPERATION
+            } else {
+                crate::data_patch::DATA_PATCH_APPLY_OPERATION
+            };
+            host_op_via_http(
+                &args.target,
+                json!({ "operation": operation, "input": input }),
+            )
         }
     }
 }
@@ -8425,7 +8509,8 @@ mod tests {
         AdminArgs, AdminCommand, Args, AssetsCommand, AuthCommand, AuthConstructionFailure,
         AuthCoordinatorReadinessReceipt, AuthProgramConstructionReceipts,
         BEFORE_STARTUP_TARGET_RESERVATION, Cli, ConfigCommand, ConnectionsCommand, ControlsCommand,
-        CronCommand, ErrorsCommand, ForkCommand, HostCommand, JobsCommand,
+        CronCommand, DataCommand, DataPatchArgs, ErrorsCommand, ForkCommand, HostCommand,
+        JobsCommand,
         ManagedPath, NetworkProfileCommand, ReadyFileTarget, ResolvedHttpTarget, SessionCommand,
         TargetArgs, TelemetryCommand, automatic_reap_before_create, bind_first_available,
         bind_listener, console_claim_fragment_url, console_fragment_url, fork_secret_disposition,
@@ -10465,6 +10550,87 @@ mod tests {
     fn path_segment_escape_encodes_reserved_bytes() {
         assert_eq!(path_segment_escape("nightly-digest"), "nightly-digest");
         assert_eq!(path_segment_escape("a/b c"), "a%2Fb%20c");
+    }
+
+    #[test]
+    fn data_patch_cli_requires_one_intent_and_file_or_stdin_json() {
+        let preview = Cli::parse_from([
+            "snapback",
+            "data",
+            "patch",
+            "--preview",
+            "--input",
+            "preview.json",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            preview.command,
+            Some(HostCommand::Data {
+                command: DataCommand::Patch(DataPatchArgs { preview: true, apply: false, .. })
+            })
+        ));
+
+        let apply = Cli::parse_from([
+            "snapback",
+            "data",
+            "patch",
+            "--apply",
+            "--input",
+            "-",
+            "--ready-file",
+            "server.ready.json",
+        ]);
+        assert!(matches!(
+            apply.command,
+            Some(HostCommand::Data {
+                command: DataCommand::Patch(DataPatchArgs { preview: false, apply: true, .. })
+            })
+        ));
+
+        let missing_intent = Cli::try_parse_from([
+            "snapback",
+            "data",
+            "patch",
+            "--input",
+            "patch.json",
+            "--url",
+            "http://127.0.0.1:4287",
+        ])
+        .unwrap_err();
+        assert_eq!(
+            missing_intent.kind(),
+            clap::error::ErrorKind::MissingRequiredArgument
+        );
+
+        let both = Cli::try_parse_from([
+            "snapback",
+            "data",
+            "patch",
+            "--preview",
+            "--apply",
+            "--input",
+            "patch.json",
+            "--url",
+            "http://127.0.0.1:4287",
+        ])
+        .unwrap_err();
+        assert_eq!(both.kind(), clap::error::ErrorKind::ArgumentConflict);
+
+        let token_in_argv = Cli::try_parse_from([
+            "snapback",
+            "data",
+            "patch",
+            "--apply",
+            "--input",
+            "patch.json",
+            "--apply-token",
+            "must-not-be-an-argv-carrier",
+            "--url",
+            "http://127.0.0.1:4287",
+        ])
+        .unwrap_err();
+        assert_eq!(token_in_argv.kind(), clap::error::ErrorKind::UnknownArgument);
     }
 
     #[test]

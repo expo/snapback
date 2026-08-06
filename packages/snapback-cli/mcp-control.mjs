@@ -93,6 +93,77 @@ const AUTHORITY_INPUT_SCHEMA = {
   },
 };
 
+const DATA_PATCH_AUTHORITY_INPUT_SCHEMA = {
+  oneOf: [
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: [
+        'mode', 'actorPrincipal', 'effectivePrincipal', 'localDevOnly',
+        'adminBypass', 'scope', 'reason',
+      ],
+      properties: {
+        mode: { const: 'devUser' },
+        actorPrincipal: { type: 'null' },
+        effectivePrincipal: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['userId', 'roles'],
+          properties: {
+            userId: { type: 'string', minLength: 1 },
+            roles: { type: 'array', items: { type: 'string', minLength: 1 } },
+          },
+        },
+        localDevOnly: { const: true },
+        adminBypass: { const: false },
+        scope: { type: 'null' },
+        reason: { type: ['string', 'null'] },
+      },
+    },
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: [
+        'mode', 'actorPrincipal', 'effectivePrincipal', 'localDevOnly',
+        'adminBypass', 'scope', 'reason',
+      ],
+      properties: {
+        mode: { const: 'devAdminBypass' },
+        actorPrincipal: { type: 'null' },
+        effectivePrincipal: { type: 'null' },
+        localDevOnly: { const: true },
+        adminBypass: { const: true },
+        scope: { type: 'null' },
+        reason: { type: 'string', minLength: 1 },
+      },
+    },
+  ],
+};
+
+const DATA_PATCH_INPUT_PROPERTIES = {
+  table: { type: 'string', minLength: 1 },
+  rowId: { type: 'string', minLength: 1 },
+  expectedVersion: { type: 'integer', minimum: 0 },
+  patch: { type: 'object' },
+  authority: DATA_PATCH_AUTHORITY_INPUT_SCHEMA,
+  reason: { type: 'string', minLength: 1 },
+};
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return value.map(canonicalJson);
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nested]) => [key, canonicalJson(nested)]),
+    );
+  }
+  return value;
+}
+
+function dataPatchInputDigest(input) {
+  return `sha256:${createHash('sha256').update(JSON.stringify(canonicalJson(input))).digest('hex')}`;
+}
+
 function diagnostic(code, message, details = undefined) {
   return {
     code,
@@ -432,6 +503,42 @@ export const CONTROL_TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
   },
   {
+    name: 'snapback_data_patch_preview',
+    operation: 'data.patch.preview',
+    title: 'Preview one bounded direct row patch',
+    description: 'Validate an existing-row closed field patch and retain its short-lived apply capability privately inside this MCP process. Local non-production primary targets only.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['table', 'rowId', 'expectedVersion', 'patch', 'authority', 'reason'],
+      properties: DATA_PATCH_INPUT_PROPERTIES,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: 'snapback_data_patch_apply',
+    operation: 'data.patch.apply',
+    title: 'Apply one previewed bounded direct row patch',
+    description: 'Consume the privately retained apply capability selected by its non-authorizing id and commit the exact previewed patch. Destructive; local non-production primary targets only.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: [
+        'table', 'rowId', 'expectedVersion', 'patch', 'authority', 'reason',
+        'applyTokenId',
+      ],
+      properties: {
+        ...DATA_PATCH_INPUT_PROPERTIES,
+        applyTokenId: {
+          type: 'string',
+          pattern: '^sha256:[0-9a-f]{64}$',
+          description: 'Non-authorizing id returned by snapback_data_patch_preview.',
+        },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+  },
+  {
     name: 'snapback_load_schema',
     operation: 'schema.load',
     title: 'Load the generated schema manifest',
@@ -751,6 +858,7 @@ export class McpControlServer {
     this.runtime = null;
     this.child = null;
     this.managed = false;
+    this.dataPatchTokens = new Map();
     const { catalog, diagnostics } = buildAppDataCatalog(this.backendRoot);
     this.catalog = catalog;
     this.catalogDiagnostics = diagnostics;
@@ -1078,7 +1186,8 @@ export class McpControlServer {
         }),
       };
     }
-    if (authority.mode === 'devUser' && typeof authority.userId !== 'string') {
+    const devUserId = authority.userId ?? authority.effectivePrincipal?.userId;
+    if (authority.mode === 'devUser' && typeof devUserId !== 'string') {
       return {
         refusal: this.envelope(operation, {
           diagnostics: [diagnostic('SNAPBACK_MCP_AUTHORITY_INVALID', 'devUser authority requires a userId', { tool })],
@@ -1191,7 +1300,12 @@ export class McpControlServer {
   async postHostOp(body, { secretReadLease = null } = {}) {
     const descriptor = this.currentDescriptor();
     const adminToken = managedAdminToken(descriptor, this.database);
-    const impersonation = typeof body.userId === 'string' && body.userId
+    const impersonatedUserId = typeof body.userId === 'string' && body.userId
+      ? body.userId
+      : body.input?.authority?.mode === 'devUser'
+        ? body.input.authority.effectivePrincipal?.userId
+        : null;
+    const impersonation = typeof impersonatedUserId === 'string' && impersonatedUserId
       ? await this.impersonationCapability(descriptor)
       : null;
     const url = `${descriptor.serverUrl.replace(/\/$/, '')}/_snapback/api/host-ops`;
@@ -1605,6 +1719,10 @@ export class McpControlServer {
           authority: args.authority,
         });
       }
+      case 'snapback_data_patch_preview':
+        return this.dataPatchPreviewResult(name, args);
+      case 'snapback_data_patch_apply':
+        return this.dataPatchApplyResult(name, args);
       case 'snapback_load_schema':
         return this.loadArtifactResult(name, 'schema.load', 'schema', args.schemaPath ?? join(this.backendRoot, 'generated', 'schema.manifest.json'));
       case 'snapback_load_functions':
@@ -1730,6 +1848,73 @@ export class McpControlServer {
         if (refusal) return this.toolResult(refusal);
         return this.runFunctionResult(name, entry.functionId, args.args ?? {}, args.authority, { checked: true });
       }
+    }
+  }
+
+  async dataPatchPreviewResult(tool, args) {
+    const { refusal } = this.checkAuthority(args.authority, {
+      required: true,
+      operation: 'data.patch.preview',
+      tool,
+    });
+    if (refusal) return this.toolResult(refusal);
+    const payload = await this.postHostOp({ operation: 'data.patch.preview', input: args });
+    if (payload?.ok === true && typeof payload.data?.applyToken === 'string') {
+      const applyTokenId = payload.data.applyTokenId;
+      const expiresAtMs = payload.data.applyTokenExpiresAtMs;
+      if (typeof applyTokenId === 'string' && Number.isSafeInteger(expiresAtMs)) {
+        // @ref LLP 0184#a-bounded-direct-row-patch--add-now — MCP retains the
+        //   live single-use capability in a bounded process-local store and
+        //   exposes only its non-authorizing id.
+        this.pruneDataPatchTokens();
+        while (this.dataPatchTokens.size >= 64) {
+          this.dataPatchTokens.delete(this.dataPatchTokens.keys().next().value);
+        }
+        this.dataPatchTokens.set(applyTokenId, {
+          token: payload.data.applyToken,
+          inputDigest: dataPatchInputDigest(args),
+          expiresAtMs,
+        });
+      }
+      const scrubbed = JSON.parse(JSON.stringify(payload));
+      delete scrubbed.data.applyToken;
+      return this.toolResult(scrubbed, { isError: scrubbed?.resultKind !== 'hostOpsResult' });
+    }
+    return this.toolResult(payload, { isError: payload?.resultKind !== 'hostOpsResult' });
+  }
+
+  async dataPatchApplyResult(tool, args) {
+    const { refusal } = this.checkAuthority(args.authority, {
+      required: true,
+      operation: 'data.patch.apply',
+      tool,
+    });
+    if (refusal) return this.toolResult(refusal);
+    this.pruneDataPatchTokens();
+    const { applyTokenId, ...input } = args;
+    const retained = this.dataPatchTokens.get(applyTokenId);
+    if (!retained || retained.inputDigest !== dataPatchInputDigest(input)) {
+      return this.toolResult(this.envelope('data.patch.apply', {
+        diagnostics: [diagnostic(
+          'SNAPBACK_MCP_DATA_PATCH_TOKEN_UNAVAILABLE',
+          'no matching live preview capability is retained by this MCP process',
+          { applyTokenId: typeof applyTokenId === 'string' ? applyTokenId : null },
+        )],
+        next: [{ kind: 'callTool', tool: 'snapback_data_patch_preview' }],
+      }));
+    }
+    // Drop before transport so retries can never replay the capability even
+    // if the response is lost. Native still owns atomic compare-and-consume.
+    this.dataPatchTokens.delete(applyTokenId);
+    return this.servedResult({
+      operation: 'data.patch.apply',
+      input: { ...input, applyToken: retained.token },
+    });
+  }
+
+  pruneDataPatchTokens(nowMs = Date.now()) {
+    for (const [id, retained] of this.dataPatchTokens) {
+      if (retained.expiresAtMs <= nowMs) this.dataPatchTokens.delete(id);
     }
   }
 

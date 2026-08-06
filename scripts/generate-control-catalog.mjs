@@ -110,6 +110,8 @@ const CLI_PROJECTIONS = {
   'errors.issues': 'snapback errors issues',
   'errors.issue': 'snapback errors issue',
   'errors.transition': 'snapback errors transition',
+  'data.patch.preview': 'snapback data patch --preview --input <file|->',
+  'data.patch.apply': 'snapback data patch --apply --input <file|->',
   'asset.put': 'snapback assets put',
   'asset.inspect': 'snapback assets inspect',
   'asset.list': 'snapback assets list',
@@ -165,6 +167,8 @@ const GUIDE_ANCHORS = {
   'control.catalog.read': 'operating/agent-controls.md#search-the-build-catalog',
   'control.catalog.describe': 'operating/agent-controls.md#describe-one-operation',
   'control.catalog.instance.read': 'operating/agent-controls.md#build-versus-instance-identity',
+  'data.patch.preview': 'operating/data-patch.md#preview',
+  'data.patch.apply': 'operating/data-patch.md#apply',
 };
 
 // --- Build domain fact index -------------------------------------------
@@ -214,6 +218,10 @@ function applyOverride(entry, override) {
   if (override.mcpDeferralReason) entry.mcpDeferralReason = override.mcpDeferralReason;
   if (override.cliDeferralReason) entry.cliDeferralReason = override.cliDeferralReason;
   if (override.composedFrom) entry.composedFrom = override.composedFrom;
+  if (override.availability) entry.availability = override.availability;
+  if (override.behavior) entry.behavior = { ...entry.behavior, ...override.behavior };
+  if (override.authorities) entry.authorities = override.authorities;
+  if (override.sources) entry.sources = override.sources;
   if (override.unavailableReason) entry.unavailableReason = override.unavailableReason;
   if (override.internalReason) entry.internalReason = override.internalReason;
   if (override.projectionCredentials) {

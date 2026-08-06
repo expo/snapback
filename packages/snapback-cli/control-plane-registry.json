@@ -1082,6 +1082,50 @@
       "responseSensitivity": "SensitiveApplicationData"
     },
     {
+      "operation": "host_ops.data.patch.preview",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "AnonymousAdminBypass",
+      "effectPolicy": "None",
+      "responseSensitivity": "SensitiveApplicationData"
+    },
+    {
+      "operation": "host_ops.data.patch.preview.impersonated",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "DevImpersonation",
+      "effectPolicy": "ImpersonationCapability",
+      "responseSensitivity": "SensitiveApplicationData"
+    },
+    {
+      "operation": "host_ops.data.patch.apply",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "AnonymousAdminBypass",
+      "effectPolicy": "None",
+      "responseSensitivity": "SensitiveApplicationData"
+    },
+    {
+      "operation": "host_ops.data.patch.apply.impersonated",
+      "parentPath": "/_snapback/api/host-ops",
+      "transport": "HostOps",
+      "class": "SystemApi",
+      "pathPolicy": "AdminWrite",
+      "credentialResolution": "AdminCredential",
+      "invocationAuthority": "DevImpersonation",
+      "effectPolicy": "ImpersonationCapability",
+      "responseSensitivity": "SensitiveApplicationData"
+    },
+    {
       "operation": "host_ops.function.run.mutation",
       "parentPath": "/_snapback/api/host-ops",
       "transport": "HostOps",
@@ -1146,6 +1190,8 @@
       "errors.issues",
       "errors.issue",
       "errors.transition",
+      "data.patch.preview",
+      "data.patch.apply",
       "branch.create.v1",
       "branch.execute.v1",
       "branch.list.v1",
