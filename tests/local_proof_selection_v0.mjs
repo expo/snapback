@@ -104,14 +104,24 @@ test('package owners select their direct package and harness fixtures', () => {
 
 test('native, Cloudflare, seed, and carrier changes select their unique claims', () => {
   const native = select(['src/storage.rs']);
-  includesAll(native, ['cargo-clippy', 'rust-tests', 'versioned-seed-conformance', 'telemetry-smoke']);
+  includesAll(native, [
+    'cargo-clippy',
+    'rust-tests',
+    'snapshot-batch-v2-parity',
+    'versioned-seed-conformance',
+    'telemetry-smoke',
+  ]);
 
   const cloudflare = select(['cloudflare/src/index.mjs']);
   includesAll(cloudflare, ['cloudflare-local-suite', 'deployment-identity']);
   assert.equal(cloudflare.selectedGates.includes('rust-tests'), false);
 
   const seed = select(['tests/conformance/versioned-seed-v1.manifest.json']);
-  includesAll(seed, ['versioned-seed-conformance', 'current-binary-readiness']);
+  includesAll(seed, [
+    'snapshot-batch-v2-parity',
+    'versioned-seed-conformance',
+    'current-binary-readiness',
+  ]);
 
   const carrier = select(['tests/acceptance/local-store-carrier-exit-v1.mjs']);
   includesAll(carrier, ['local-store-carrier-receipt']);

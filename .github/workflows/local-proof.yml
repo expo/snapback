@@ -45,13 +45,15 @@ jobs:
       # @ref LLP 0175#d2--assign-every-test-to-an-explicit-cadence — compute
       # the checked path-to-gate closure before installing heavyweight tools.
       # The exact receipt is reopened by verify-local-proof and uploaded with
-      # its gate results; selector/workflow/shared-authority changes fail broad.
+      # its gate results. Keep it outside target/: the Rust cache restore owns
+      # that tree and may replace it after this planning step. Selector,
+      # workflow, and shared-authority changes fail broad.
       - name: Plan affected or complete proof
         id: selection
         env:
           PROOF_CADENCE: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'complete' || 'affected' }}
           PROOF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-          PROOF_SELECTION: ${{ github.workspace }}/target/proof/local-proof-selection.json
+          PROOF_SELECTION: ${{ runner.temp }}/local-proof-selection.json
         run: |
           set -euo pipefail
           mkdir -p "$(dirname "$PROOF_SELECTION")"
@@ -190,7 +192,7 @@ jobs:
           SNAPBACK_VERIFY_EXACT: "1"
           CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
           SNAPBACK_PROOF_RESULTS: ${{ github.workspace }}/target/proof/local-proof-results.jsonl
-          SNAPBACK_PROOF_SELECTION_RESULTS: ${{ github.workspace }}/target/proof/local-proof-selection.json
+          SNAPBACK_PROOF_SELECTION_RESULTS: ${{ runner.temp }}/local-proof-selection.json
           SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT: /opt/snapback-app-cli-test-${{ github.run_id }}
           # One red round names every broken gate instead of only the first
           # (issues/20260802-verify-local-proof-stops-at-the-first-failure.md).
@@ -219,5 +221,5 @@ jobs:
           name: local-proof-gate-results-${{ github.run_id }}
           path: |
             target/proof/local-proof-results.jsonl
-            target/proof/local-proof-selection.json
+            ${{ runner.temp }}/local-proof-selection.json
           if-no-files-found: warn
