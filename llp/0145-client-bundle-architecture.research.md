@@ -1533,23 +1533,28 @@ attribution, behavior train, and ceiling comparison. This corrects input
 provenance without loosening a ceiling or permitting a historical ledger to
 change.
 
-#### 2026-08-06 amendment — LLP 0179 conversation-surface rollover
+#### 2026-08-06 amendment — batched client-capability rollover
 
-LLP 0179 S1 and LLP 0176 G2 deliberately add generated surface admission and
-the `useSurface` projection to the two React application workloads. The
-resulting 17.7 kB minified / 5.9 kB gzip step in `react-external` and
-`external-react-application` is new feature mass attributable to landing
-`c7a8b90312ac979830df6948023689af169166a3`; it is not part of the earlier
-Move-3 size ruling.
+Three completed main landings deliberately evolve two disjoint closure
+clusters. `4ac8387f080a2659484fc09916ff22a076dc4ca8` repairs IndexedDB
+binding-receipt persistence through writer election, and
+`6ec40820dc853f79c9207f9c9f008e81242f8348` adds LLP 0081's durable
+tombstone-and-re-entry custody. Together they change the shared outbox and
+retained-query-store profiles. LLP 0179 S1 / LLP 0176 G2 landing
+`c7a8b90312ac979830df6948023689af169166a3` separately adds generated surface
+admission and `useSurface` to the two React application workloads. The latter
+17.7 kB minified / 5.9 kB gzip step is new feature mass, not part of the
+earlier Move-3 size ruling.
 
-`baseline.conversation-surface.v1.json` is therefore a declared prospective
-rollover for exactly those two profiles. It SHA-256-binds the independently
-valid Move-3 and operation-lifecycle predecessors, records complete
-before/after attribution, and runs the client, React surface, Expo provider,
-and generated-descriptor behavior train. Every unrelated active ceiling and
-both predecessor receipts remain immutable. This disposition records the
-cost of the accepted S1 capability; it does not weaken the separately
-commissioned static-capability-composition remediation in
+`baseline.aug6-client-capabilities.v1.json` is one declared prospective batch
+for exactly the eight changed profiles. It SHA-256-binds the independently
+valid Move-3, operation-identity, and operation-lifecycle predecessors,
+records per-landing profile attribution and complete before/after metrics,
+and runs the writer-election, quarantine, client, React surface, Expo
+provider, and generated-descriptor behavior train. Every unrelated active
+ceiling and every predecessor receipt remain immutable. This disposition
+records the cost of the accepted capabilities; it does not weaken the
+separately commissioned static-capability-composition remediation in
 `issues/20260805-static-capability-composition.md`.
 
 #### 2026-08-04 rowless token-resume ordering rollover

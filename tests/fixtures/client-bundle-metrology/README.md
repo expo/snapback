@@ -153,6 +153,15 @@ Move-3 and result-transform predecessors remain immutable. The unrelated asset
 closure stays governed by its original primary ceiling and is tightened back
 under that ceiling rather than rolled into LLP 0163.
 
+The 2026-08-06 completed-main batch is
+`baseline.aug6-client-capabilities.v1.json`, declared by
+`aug6-client-capabilities-profiles.v1.json`. It advances exactly eight
+closures in two attributed groups: six shared-outbox/RQS profiles for the
+IndexedDB writer-election repair and LLP 0081 tombstone-and-re-entry custody,
+and two React application profiles for LLP 0179 S1's conversation surface.
+The receipt binds all three predecessor ledgers independently and runs the
+focused behavior train for both groups; no unrelated ceiling is superseded.
+
 The Phase-B Micro extension is `baseline.micro-phase-b.v1.json`, backed by
 `micro-phase-b-profiles.v1.json`. It freezes separate generated core and live
 closures, the three public experimental subpaths, and a root/`./online`

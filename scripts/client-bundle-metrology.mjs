@@ -419,8 +419,14 @@ const OPERATION_LIFECYCLE_REVIEW_TAIL_ROLLOVER_PROFILE_IDS = Object.freeze([
   'public-subpath-rqs-store-expo',
   'public-subpath-rqs-store-file',
 ]);
-const CONVERSATION_SURFACE_ROLLOVER_PROFILE_IDS = Object.freeze([
+const AUG6_CLIENT_CAPABILITIES_ROLLOVER_PROFILE_IDS = Object.freeze([
   'external-react-application',
+  'public-subpath-outbox-shared',
+  'public-subpath-rqs-registered',
+  'public-subpath-rqs-store',
+  'public-subpath-rqs-store-default',
+  'public-subpath-rqs-store-expo',
+  'public-subpath-rqs-store-file',
   'react-external',
 ]);
 const ROLLOVER_LEDGER_SPECS = Object.freeze([
@@ -780,14 +786,25 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
     ]),
   }),
   Object.freeze({
-    filename: 'baseline.conversation-surface.v1.json',
-    profileFilename: 'conversation-surface-profiles.v1.json',
-    workloadVersion: 'llp-0179-conversation-surface.v1',
-    profileIds: CONVERSATION_SURFACE_ROLLOVER_PROFILE_IDS,
+    filename: 'baseline.aug6-client-capabilities.v1.json',
+    profileFilename: 'aug6-client-capabilities-profiles.v1.json',
+    workloadVersion: 'aug6-client-capabilities.v1',
+    profileIds: AUG6_CLIENT_CAPABILITIES_ROLLOVER_PROFILE_IDS,
     predecessors: Object.freeze([
       Object.freeze({
         filename: 'baseline.operation-lifecycle-review-tail.v1.json',
-        profileIds: Object.freeze(['external-react-application']),
+        profileIds: Object.freeze([
+          'external-react-application',
+          'public-subpath-outbox-shared',
+          'public-subpath-rqs-store',
+          'public-subpath-rqs-store-default',
+          'public-subpath-rqs-store-expo',
+          'public-subpath-rqs-store-file',
+        ]),
+      }),
+      Object.freeze({
+        filename: 'baseline.operation-identity-carrier.v1.json',
+        profileIds: Object.freeze(['public-subpath-rqs-registered']),
       }),
       Object.freeze({
         filename: 'baseline.move3-single-table-lifecycle.v1.json',
@@ -797,18 +814,51 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
     authorities: Object.freeze([
       'LLP 0063#workstream-8--performance-and-packaging-budgets',
       'LLP 0145#phase-a--establish-a-size-ratchet',
+      'LLP 0114#offline-binding-receipt-dated-amendment-2026-08-01',
+      'LLP 0081#4-execution-journaling-and-crash-recovery',
       'LLP 0179#react-projection',
       'LLP 0176#g2--conversation-surface',
     ]),
     rationale: Object.freeze({
       date: '2026-08-06',
-      landing: 'c7a8b90312ac979830df6948023689af169166a3',
-      summary: 'LLP 0179 S1 and LLP 0176 G2 deliberately add admitted surface descriptors and the useSurface projection to the two React application closures. This is new spec-governed capability mass, not part of the earlier Move-3 size ruling. The prospective rollover advances only the two measured React closures that select the capability; both predecessors and every unrelated active ceiling remain immutable.',
+      landings: Object.freeze([
+        Object.freeze({
+          revisions: Object.freeze([
+            '4ac8387f080a2659484fc09916ff22a076dc4ca8',
+            '6ec40820dc853f79c9207f9c9f008e81242f8348',
+          ]),
+          profileIds: Object.freeze([
+            'public-subpath-outbox-shared',
+            'public-subpath-rqs-registered',
+            'public-subpath-rqs-store',
+            'public-subpath-rqs-store-default',
+            'public-subpath-rqs-store-expo',
+            'public-subpath-rqs-store-file',
+          ]),
+          summary: 'The IndexedDB writer-election repair and LLP 0081 tombstone-and-re-entry custody deliberately evolve the shared outbox and retained-query-store closures. The registered-RQS output remains the same size but changes compressed identity through its evolved store dependency.',
+        }),
+        Object.freeze({
+          revisions: Object.freeze([
+            'c7a8b90312ac979830df6948023689af169166a3',
+          ]),
+          profileIds: Object.freeze([
+            'external-react-application',
+            'react-external',
+          ]),
+          summary: 'LLP 0179 S1 and LLP 0176 G2 deliberately add admitted surface descriptors and the useSurface projection to the two React application closures. This is new spec-governed capability mass, not part of the earlier Move-3 size ruling.',
+        }),
+      ]),
+      summary: 'One batched prospective rollover advances exactly the closures changed by the completed main landing wave; every predecessor and unrelated active ceiling remains immutable.',
     }),
-    beforeAfterProfileIds: CONVERSATION_SURFACE_ROLLOVER_PROFILE_IDS,
+    beforeAfterProfileIds: AUG6_CLIENT_CAPABILITIES_ROLLOVER_PROFILE_IDS,
     behaviorCommands: Object.freeze([
       ['node', ['packages/snapback-client/package.test.mjs']],
+      ['node', ['packages/snapback-client/outbox-quarantine.test.mjs']],
+      ['node', ['packages/snapback-client/outbox-store.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store.test.mjs']],
+      ['node', ['packages/snapback-client/rqs-store-file.test.mjs']],
       ['node', ['packages/snapback-react/package.test.mjs']],
+      ['node', ['packages/snapback-react/cold-boot-binding-indexeddb.test.mjs']],
       ['node', ['packages/snapback-react/surface.test.mjs']],
       ['node', ['packages/snapback-expo/provider.test.mjs']],
       ['node', ['packages/snapback-codegen/app-descriptor.test.mjs']],

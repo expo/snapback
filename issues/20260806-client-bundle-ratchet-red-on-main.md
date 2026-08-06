@@ -101,11 +101,22 @@ only in `react-external` and `external-react-application`, the two workloads
 that select the new React surface capability. The smaller 1–2% rows remain
 under their existing tolerances and ceilings.
 
-The fix-forward declares `llp-0179-conversation-surface.v1` and mints
-`baseline.conversation-surface.v1.json` prospectively for exactly those two
-profiles. It binds the complete immutable predecessors, records the exact
-landing and governing LLPs, and runs the client, React surface, Expo provider,
-and generated-descriptor behavior train before freezing. No historical
-receipt or unrelated ceiling is edited. The static-capability-composition
-lane commissioned by the prior size ruling remains open; this rollover does
-not claim that remediation is complete.
+The first rollover write then refused honestly because two earlier main
+landings also evolved six active outbox/RQS ceilings:
+`4ac8387f080a2659484fc09916ff22a076dc4ca8` fixed IndexedDB binding-receipt
+persistence through writer election, while
+`6ec40820dc853f79c9207f9c9f008e81242f8348` added LLP 0081's durable
+tombstone-and-re-entry custody. `public-subpath-rqs-registered` retains the
+same minified size but changes compressed identity through that evolved store
+dependency; the other five profiles contain the new custody code directly.
+
+The fix-forward therefore declares one batched
+`aug6-client-capabilities.v1` workload and mints
+`baseline.aug6-client-capabilities.v1.json` prospectively for exactly the
+eight affected profiles. It binds the complete immutable predecessors,
+records exact landing-to-profile attribution and governing LLPs, and runs the
+writer-election, quarantine, client, React surface, Expo provider, and
+generated-descriptor behavior train before freezing. No historical receipt
+or unrelated ceiling is edited. The static-capability-composition lane
+commissioned by the prior size ruling remains open; this rollover does not
+claim that remediation is complete.
