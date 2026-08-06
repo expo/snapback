@@ -7780,7 +7780,7 @@ mod tests {
             .render_long_help()
             .to_string();
         for lifecycle_word in [
-            "create", "inspect", "list", "diff", "drop", "reap", "recover",
+            "create", "inspect", "list", "diff", "renew", "drop", "reap", "recover",
         ] {
             assert!(fork_help.contains(lifecycle_word), "{lifecycle_word}: {fork_help}");
         }
@@ -7805,7 +7805,7 @@ mod tests {
     }
 
     #[test]
-    fn fork_create_refuses_with_expired_count_when_automatic_sweep_cannot_prove_stop() {
+    fn fork_create_refuses_when_automatic_sweep_cannot_prove_stop() {
         let directory = tempfile::tempdir().unwrap();
         let source = directory.path().join("parent.sqlite3");
         let database = crate::storage::LocalDatabase::open(&source).unwrap();
@@ -7840,7 +7840,16 @@ mod tests {
                 .contains("SNAPBACK_FORK_EXPIRED_REAP_FAILED"),
             "{error}"
         );
-        assert!(error.to_string().contains("1 expired managed fork"), "{error}");
+        let snapback_error = error
+            .downcast_ref::<crate::diagnostic::SnapbackError>()
+            .expect("typed refusal");
+        assert!(
+            snapback_error.diagnostic.details["cause"]
+                .as_str()
+                .is_some_and(|cause| cause.contains("SNAPBACK_FORK_READY_INVALID")),
+            "the refusal carries the exact per-fork cause, got {:?}",
+            snapback_error.diagnostic.details
+        );
         assert!(destination.is_dir(), "failed sweep must fail closed");
     }
 
