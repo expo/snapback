@@ -77,6 +77,27 @@ alternative (a bare `.query(table).collect()`) is not clearly sanctioned by
 "in any order after `.withIndex(name)`". A sentence on what a legitimately
 unscoped maintenance scan should look like would have saved the guesswork.
 
+**The cron page's worked example does not work.** I copied all-aboard's
+`inspectJob()` helper, which reads `state.cron?.jobs` from the public
+`/inspect`. That projection carries aggregate posture only — `jobCount`,
+`failedJobCount`, `inFlightJobCount` — and no `jobs` array. The `?? []` in the
+helper swallows the absence, so my job-declaration check failed against a
+`null` job rather than against a real fact. The page *does* say elsewhere that
+per-job facts live on `snapback cron list` / `GET /_snapback/api/cron`; the
+transcluded example contradicts the prose.
+
+Switching to the AdminRead route fixed it immediately and gave me a better
+check than I had planned: `lastOutcome: "Succeeded"` and `lastRunAtMs` let the
+expiry test assert the scheduler *ran*, so a tick that silently no-ops cannot
+pass on the strength of the entitlement reads alone.
+
+I then ran all-aboard's own cron suite to see whether this was my mistake. It
+fails 5 of 7 checks — precisely the five that read per-job facts. The two
+product-behavior checks pass, so the scheduler is fine and only the observation
+path is stale. That suite is not registered in `scripts/verify-local-proof`,
+and the guide's `source=` check verifies snippet *text*, not that the source
+file still passes. Filed as a ticket.
+
 **Optional fields at insert time are undocumented by example.** I needed to
 insert `expiresAt` as absent for a perpetual grant. Nothing in the guide shows
 this; I found `lastUpstreamPollAt: null` in `demos/all-aboard/snapback/handlers.mjs`
@@ -156,8 +177,25 @@ default. Three differences showed up in this slice.
   about the authoring surface, which is competitive; it is entirely about
   getting the runtime.
 
+### Result
+
+15/15 green. One check needed a fix after the first run (the cron projection
+above); everything else passed first time. Verified stable across 17
+consecutive runs at the landed commit, including 3 on the `cargo run` fallback
+rung.
+
+One caveat recorded honestly: an earlier run — the first after committing,
+while the harness rejected the stale-stamped prebuilt binary and fell back to
+`cargo run` — reported 14/15. I did not capture which check failed, and it has
+not recurred in the 17 runs since, including runs deliberately forced onto the
+same fallback rung. I could not reproduce it and cannot name it, so I am not
+claiming it was benign.
+
 ### Guide gaps filed
 
+- `issues/20260806-guide-gap-cron-per-job-inspect-projection.md` — the cron
+  page's transcluded example reads per-job facts from a projection that does
+  not carry them, and its source suite is red and unregistered.
 - `issues/20260806-guide-gap-live-matcher-leaving-predicate.md` — does a
   captured equality predicate refresh a subscription when a matching row stops
   matching?
