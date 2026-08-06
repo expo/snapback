@@ -86,16 +86,16 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **112 operations** at digest `sha256:d50a314a6ad6ea12926715ac43d09cb68a19bd6e150716ad4690f3b6331bba59`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **113 operations** at digest `sha256:a5b86935c2b52c7e7ec1107c59b4a4b26a14658a3feaab5dca41ea19c1995686`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
 | surfaceAccess | `apiOnly` | 39 |
 | surfaceAccess | `cliOnly` | 29 |
 | surfaceAccess | `mcpOnly` | 3 |
-| surfaceAccess | `native` | 37 |
+| surfaceAccess | `native` | 38 |
 | surfaceAccess | `none` | 4 |
-| operability | `direct` | 80 |
+| operability | `direct` | 81 |
 | operability | `internal` | 11 |
 | operability | `mediated` | 7 |
 | operability | `unavailable` | 14 |
@@ -174,6 +174,7 @@ The embedded build catalog contains **112 operations** at digest `sha256:d50a314
 | `data.patch.apply` | `native` | `direct` | `shipped` | snapback data patch --apply --input <file\|-> | snapback_data_patch_apply | operating/data-patch.md#apply |
 | `data.patch.preview` | `native` | `direct` | `shipped` | snapback data patch --preview --input <file\|-> | snapback_data_patch_preview | operating/data-patch.md#preview |
 | `data.scan` | `native` | `direct` | `shipped` | snapback data scan <table> | snapback_data_scan | operating/host-ops.md#direct-climcp-projections-beyond-host-ops-llp-0184-phase-2-p1 |
+| `debug.live.forceResync` | `native` | `direct` | `shipped` | snapback debug force-resync | snapback_live_force_resync | operating/host-ops.md |
 | `debug.networkProfileGet` | `native` | `direct` | `shipped` | snapback network-profile get | snapback_network_profile_get | operating/network-profiles.md#read-the-active-profile |
 | `debug.networkProfileSet` | `native` | `direct` | `shipped` | snapback network-profile set | snapback_network_profile_set | operating/network-profiles.md#set-a-profile |
 | `direct_runner.action` | `apiOnly` | `direct` | `shipped` | — | — | — |
