@@ -1,7 +1,8 @@
 # Two fork-lane lib tests red on main — unclassified FORK_APP_BINDING diagnostics + admin coverage 500
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-06
+**Resolved:** 2026-08-06
 
 At origin/main 7ae7bd3d5 (verified with a clean tree), two lib tests fail:
 
@@ -41,3 +42,22 @@ app root is already bound to a different canonical root or logical app id.
 This is a deterministic owner-code failure rather than load sensitivity; the
 wave-drift pass made no behavior change and leaves requalification with the
 fork/app-binding lane.
+
+## Resolution — 2026-08-06
+
+The diagnostic inventory was real classification drift. Commit `1048d97d6`
+classifies `SNAPBACK_FORK_APP_BINDING_MISMATCH`,
+`SNAPBACK_FORK_APP_BINDING_REQUIRED`, and
+`SNAPBACK_FORK_WRITER_COVERAGE_GAP` with the existing LLP 0158 server-invariant
+500 class; the exact inventory test passes 1/1.
+
+The two acceptance failures were not a reason to weaken the canonical-root
+guard. Carrier regeneration commit `1eb88cc4c` had accidentally tracked
+`demos/todo/.snapback/instance-fork-app-identity.v1.json` with an absolute path
+to `/private/tmp/snapback-llp0184-phase3-20260806/demos/todo`. Every other
+worktree therefore correctly refused that foreign binding. Commit `1e5260dd1`
+removes the generated receipt from version control and ignores that precise
+nested receipt family. At exact, clean, runtime-qualified revision
+`1e5260dd1e6d820a542a49c1cbd72db18dc99cef`, `forked-parent` passes 4/4 and
+`fork-parallel-dispositions` passes 7/7. The app-root binding remains
+fail-closed as LLP 0158 and LLP 0185 require.
