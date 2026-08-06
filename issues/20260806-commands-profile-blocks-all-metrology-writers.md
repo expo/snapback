@@ -74,3 +74,34 @@ commits later to whoever next tries to prove a commit. See also
 Under AGENTS.md's "main moves fast" guidance, gates whose records must be
 hand-updated per landing need either same-change enforcement or a derivation
 that does not require one.
+
+## 2026-08-06 — the writer blocker is cleared; the gate is still red on a different ticket
+
+Measured in a fresh worktree at `47b4a59ac` (origin/main tip), volta node
+24.18.0, fresh `bun install`:
+
+- `382958bde test(metrology): freeze S2 command profiles` landed the missing
+  `commands` profile registration and the supplemental rollover, and is an
+  ancestor of the tip. `validateSupplementalBaseline` now passes: the
+  `exact additive profile ids` assertion this ticket is about no longer
+  fires, and `--check` runs all the way through to `compareProfiles`. **The
+  writer modes are unblocked** — the headline claim above ("there is no
+  writer mode that can make progress at current `main`") is no longer true.
+- `node scripts/client-bundle-metrology.mjs --check` is nevertheless still
+  red, with a *different* failure:
+  `SNAPBACK_CLIENT_BUNDLE_RATCHET_FAILED` — 18 metric regressions across
+  `external-react-application`, `react-external`, `public-subpath-assets`,
+  `public-subpath-commands` and their `resolved-*` twins (e.g.
+  `external-react-application` minifiedBytes 89,345 → 91,033), plus the
+  1-byte `public-subpath-ir-evaluator` brotliBytes 6,739 → 6,740 residue.
+- That ratchet failure is the separately-tracked, still-open
+  `issues/20260806-client-bundle-metrology-red-on-main.md` (pre-existing,
+  environment-implicated — the baseline-freezing commit itself no longer
+  reproduces its own baselines). It is not this ticket's defect and was not
+  chased here.
+
+Left **Open** rather than closed: the symptom this ticket names is gone, but
+the leg it exists to unblock (minting the blessed growth / the npm capstone's
+precondition 1) still cannot be proven green until the ratchet ticket clears.
+Whoever closes the ratchet ticket should re-run `--check` and close this one
+in the same pass.
