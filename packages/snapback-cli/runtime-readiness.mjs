@@ -41,6 +41,9 @@ import { qualifyRuntimeBinary } from './runtime-recovery.mjs';
 
 export const RUNTIME_READINESS_SCHEMA_VERSION = 'snapback.runtime-readiness.v1';
 export const RUNTIME_READINESS_INVALID_CODE = 'SNAPBACK_IBEX_RUNTIME_RECEIPT_INVALID';
+export const RUNTIME_PACKAGE_QUALIFICATION_FAILED_CODE =
+  'SNAPBACK_RUNTIME_PACKAGE_QUALIFICATION_FAILED';
+export const RUNTIME_PACKAGE_RECEIPT_FILENAME = 'runtime-readiness.json';
 
 const HASH_CHUNK_BYTES = 1024 * 1024;
 
@@ -124,6 +127,29 @@ export function digestRuntimeArtifacts(root, {
   return artifacts;
 }
 
+/// The exact build-time header and load-time Hermes artifact shipped in a
+/// platform runtime package. Keeping the header in the package makes the
+/// compile-side half of the ABI pairing re-verifiable after installation,
+/// instead of retaining only an unverifiable digest label.
+// @ref LLP 0123#option-3--prebuilt-hermetic-runtime-distribution — the
+// package seal binds both sides of the Hermes ABI pairing.
+export function packagedRuntimeArtifactCandidates(root, { platform = process.platform } = {}) {
+  root = resolve(root);
+  return platform === 'darwin'
+    ? [
+        join(root, 'include/hermes/hermes.h.artifact'),
+        join(root, 'Frameworks/hermesvm.framework/hermesvm'),
+      ]
+    : [
+        join(root, 'include/hermes/hermes.h.artifact'),
+        join(root, 'lib/libhermesvm.so'),
+      ];
+}
+
+export function runtimePackageReceiptPath(root) {
+  return join(resolve(root), RUNTIME_PACKAGE_RECEIPT_FILENAME);
+}
+
 /// Issue a readiness receipt for a binary whose qualification verdict is OK.
 /// Refuses to issue anything else: a receipt asserts readiness, never records
 /// a failure (failures ride the runtime-recovery record).
@@ -135,6 +161,10 @@ export function issueRuntimeReadinessReceipt({
   issuer = 'unknown',
   platform = process.platform,
   artifacts = null,
+  buildIdentity = null,
+  sourceRevision = null,
+  packageName = null,
+  platformId = null,
 }) {
   root = resolve(root);
   binaryPath = resolve(binaryPath);
@@ -155,21 +185,224 @@ export function issueRuntimeReadinessReceipt({
     schemaVersion: RUNTIME_READINESS_SCHEMA_VERSION,
     issuedAt: new Date().toISOString(),
     issuer,
-    platform: `${platform}-${process.arch}`,
+    platform: platformId ?? `${platform}-${process.arch}`,
     binary: { bytes: binaryDigest.bytes, sha256: binaryDigest.sha256 },
-    buildIdentity: qualification.report?.binary ?? null,
+    buildIdentity: buildIdentity ?? qualification.report?.binary ?? null,
     artifacts: artifacts ?? digestRuntimeArtifacts(root, { platform }),
     qualification: {
       probe: qualification.probe ?? 'restricted-no-eval-handler-vm',
       ok: true,
       report: qualification.report ?? null,
     },
+    ...(sourceRevision === null ? {} : { sourceRevision }),
+    ...(packageName === null ? {} : { packageName }),
   };
   receiptPath = resolvedReceiptPath(binaryPath, receiptPath);
   const temporary = `${receiptPath}.${randomUUID()}.tmp`;
   writeFileSync(temporary, `${JSON.stringify(receipt, null, 2)}\n`);
   renameSync(temporary, receiptPath);
   return { receipt, receiptPath };
+}
+
+function packageSealRefusal(reason, message, context, details = {}) {
+  return refusal(reason, message, {
+    ...context,
+    details: { ...details, custody: 'runtime-package' },
+  });
+}
+
+function sameJson(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function stableBinaryIdentity(identity) {
+  if (identity === null || typeof identity !== 'object') return null;
+  return {
+    crateVersion: identity.crateVersion ?? null,
+    gitCommit: identity.gitCommit ?? null,
+    gitDirty: identity.gitDirty ?? null,
+    buildProfile: identity.buildProfile ?? null,
+  };
+}
+
+function runtimePackageBindingValid({ qualification, buildIdentity, sourceRevision }) {
+  const buildBinary = buildIdentity?.binary ?? buildIdentity;
+  return (
+    /^[0-9a-f]{40}$/u.test(sourceRevision ?? '')
+    && buildIdentity !== null
+    && typeof buildIdentity === 'object'
+    && qualification?.schemaVersion === 'snapback.runtime-qualify.v1'
+    && qualification.probe === 'restricted-no-eval-handler-vm'
+    && qualification.ok === true
+    && sameJson(
+      stableBinaryIdentity(qualification.binary),
+      stableBinaryIdentity(buildBinary),
+    )
+    && buildBinary?.gitCommit === sourceRevision
+  );
+}
+
+/// Verify the package-production seal before a resolver trusts a shipped
+/// binary. This is deliberately read-only: npm/package-manager integrity owns
+/// custody of the receipt, while this function proves the installed native
+/// bytes still match the qualified pair inside that receipt.
+// @ref LLP 0123#package-seal-landing-2026-08-06 — package resolution is the
+// fail-closed consumption point for the production-owned seal.
+export function verifyRuntimePackageSeal({
+  root,
+  binaryPath,
+  packageName,
+  platform,
+  architecture,
+  receiptPath = null,
+}) {
+  root = resolve(root);
+  binaryPath = resolve(binaryPath);
+  receiptPath = resolve(receiptPath ?? runtimePackageReceiptPath(root));
+  const candidates = packagedRuntimeArtifactCandidates(root, { platform });
+  const artifacts = digestRuntimeArtifacts(root, { candidates });
+  const context = { root, binaryPath, receiptPath };
+  if (artifacts.length !== candidates.length) {
+    return packageSealRefusal(
+      'framework-drift',
+      'the runtime package is missing a sealed Hermes header or runtime artifact',
+      context,
+      { expectedArtifacts: candidates.map((path) => relative(root, path)), currentArtifacts: artifacts },
+    );
+  }
+  const verdict = verifyRuntimeReadinessReceipt({
+    root,
+    binaryPath,
+    receiptPath,
+    platform,
+    artifacts,
+  });
+  if (!verdict.ok) return verdict;
+  const receipt = verdict.receipt;
+  const qualification = receipt.qualification?.report;
+  const buildIdentity = receipt.buildIdentity;
+  const expectedPlatform = `${platform}-${architecture}`;
+  if (
+    receipt.packageName !== packageName
+    || receipt.platform !== expectedPlatform
+    // startupNonce is process-scoped, so the build-identity and
+    // runtime-qualify subprocesses intentionally carry different values.
+    || !runtimePackageBindingValid({
+      qualification,
+      buildIdentity,
+      sourceRevision: receipt.sourceRevision,
+    })
+  ) {
+    return packageSealRefusal(
+      'package-binding-drift',
+      'the runtime package receipt does not bind one source revision, build identity, and OK runtime-qualify verdict',
+      context,
+      {
+        expectedPackage: packageName,
+        observedPackage: receipt.packageName ?? null,
+        expectedPlatform,
+        observedPlatform: receipt.platform ?? null,
+      },
+    );
+  }
+  const expectedArtifactPaths = candidates.map((path) => relative(root, path)).sort();
+  const recordedArtifactPaths = receipt.artifacts.map((artifact) => artifact.path).sort();
+  if (!sameJson(expectedArtifactPaths, recordedArtifactPaths)) {
+    return packageSealRefusal(
+      'package-binding-drift',
+      'the runtime package receipt does not bind the complete shipped Hermes header/runtime set',
+      context,
+      { expectedArtifactPaths, recordedArtifactPaths },
+    );
+  }
+  return verdict;
+}
+
+/// Run the CV-2 probe against the already-assembled package layout, then
+/// issue and immediately reopen the package-owned seal. A native builder may
+/// pass a previously captured qualification only for cross-host assembly;
+/// that verdict remains bound to byte-identical transported artifacts.
+// @ref LLP 0123#package-seal-landing-2026-08-06 — production qualifies the
+// final loader-relative layout before the seal can be issued.
+export function produceRuntimePackageSeal({
+  root,
+  binaryPath,
+  packageName,
+  platform,
+  architecture,
+  buildIdentity,
+  sourceRevision,
+  environment = process.env,
+  qualification = null,
+  issuer = 'snapback-runtime-package-production',
+}) {
+  root = resolve(root);
+  binaryPath = resolve(binaryPath);
+  if (!/^[0-9a-f]{40}$/u.test(sourceRevision ?? '')) {
+    const error = new Error('runtime package build identity does not match its source revision');
+    error.code = RUNTIME_READINESS_INVALID_CODE;
+    throw error;
+  }
+  qualification ??= qualifyRuntimeBinary(binaryPath, environment);
+  if (!qualification.ok) {
+    const error = new Error(
+      `the assembled ${platform}-${architecture} runtime package failed restricted handler-VM qualification: ${qualification.reason ?? 'unqualified verdict'}`,
+    );
+    error.code = RUNTIME_PACKAGE_QUALIFICATION_FAILED_CODE;
+    error.qualification = qualification.report ?? null;
+    throw error;
+  }
+  if (!runtimePackageBindingValid({
+    qualification: qualification.report,
+    buildIdentity,
+    sourceRevision,
+  })) {
+    const error = new Error(
+      'runtime package qualification verdict does not match its build identity and source revision',
+    );
+    error.code = RUNTIME_READINESS_INVALID_CODE;
+    throw error;
+  }
+  const candidates = packagedRuntimeArtifactCandidates(root, { platform });
+  const artifacts = digestRuntimeArtifacts(root, { candidates });
+  if (artifacts.length !== candidates.length) {
+    const error = new Error('the assembled runtime package is missing its Hermes header or runtime artifact');
+    error.code = RUNTIME_READINESS_INVALID_CODE;
+    throw error;
+  }
+  const receiptPath = runtimePackageReceiptPath(root);
+  const issued = issueRuntimeReadinessReceipt({
+    root,
+    binaryPath,
+    receiptPath,
+    qualification: {
+      probe: qualification.report?.probe ?? 'restricted-no-eval-handler-vm',
+      ok: true,
+      report: qualification.report,
+    },
+    issuer,
+    platform,
+    platformId: `${platform}-${architecture}`,
+    artifacts,
+    buildIdentity,
+    sourceRevision,
+    packageName,
+  });
+  const verified = verifyRuntimePackageSeal({
+    root,
+    binaryPath,
+    receiptPath,
+    packageName,
+    platform,
+    architecture,
+  });
+  if (!verified.ok) {
+    const error = new Error(verified.diagnostic.message);
+    error.code = verified.diagnostic.code;
+    error.verification = verified;
+    throw error;
+  }
+  return { ...issued, verification: verified };
 }
 
 function refusal(reason, message, { receiptPath, binaryPath, root, details = {} }) {

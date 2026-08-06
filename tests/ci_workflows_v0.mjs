@@ -428,9 +428,12 @@ const qualifiedPackageStaging = readFileSync(
 for (const required of [
   'SNAPBACK_RUNTIME_LINUX_X64_SOURCE_BINARY',
   'SNAPBACK_RUNTIME_LINUX_X64_HERMES_LIBRARY',
+  'SNAPBACK_RUNTIME_LINUX_X64_HERMES_HEADER',
   'SNAPBACK_RUNTIME_LINUX_X64_BUILD_ATTESTATION',
   'SNAPBACK_RUNTIME_LINUX_X64_SOURCE_REVISION',
   'snapback-create-runtime-artifact-attestation.mjs',
+  '--hermes-header',
+  'runtime-readiness.json',
   '--runtime-platforms all',
   'snapback.package-qualified-staging-ledger.v1',
   '--install-source staged',

@@ -5,7 +5,12 @@
 **Systems:** Sync, Storage, Runtime, Client integration, Auth, Wire Protocol, Realtime, Packaging, Testing, Documentation, Competitive evaluation
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-30
-**Revised:** 2026-08-06 (Phase-2b hot-swap design-spike correction: a durable
+**Revised:** 2026-08-06 (Phase-2b package-boundary follow-on closed: LLP 0123
+Option 3 now seals binary + Hermes header/runtime digests with the successful
+CV-2 verdict at package production, and the packaged CLI resolver re-verifies
+that seal before returning a runtime binary. This does not claim the distinct
+in-serving-process boot witness or pending-intent hot-swap follow-on.)
+2026-08-06 (Phase-2b hot-swap design-spike correction: a durable
 outbox record is store-owned, not client-instance-owned. A fresh client over
 the same explicit store sees and replays it; the reproduced empty view comes
 from the default file store's full-origin identity selecting a different blob
@@ -2086,11 +2091,15 @@ Two follow-on boundaries stay explicit:
 - LLP 0081 attaches at `onUpgradeRequired`. The sidecar provides the refusal
   and app-owned outbox snapshot to that hook, but does not implement
   quarantine, redacted tombstones, or action re-entry.
-- LLP 0123 attaches at runtime-package production and the optional
-  `verifyCandidate` hook. Descriptor/health nonce attestation proves a live
-  child identity, not that the co-packaged binary/Hermes pair is sealed or
-  behaviorally coherent. Production sealing and attestation custody remain
-  unimplemented.
+- LLP 0123's runtime-package-production follow-on is **closed at the package
+  boundary (2026-08-06)**. Each Darwin/Linux package carries the binary,
+  Hermes header/runtime, and one source/build/digest-bound successful
+  `runtime-qualify` verdict; the packaged CLI resolver re-verifies it before
+  returning the binary. Descriptor/health nonce attestation remains the live
+  child attachment proof, while the optional `verifyCandidate` hook can add
+  app policy. This closure does not supply LLP 0123 Option 2's distinct
+  in-serving-process boot witness, which remains with LLP 0009/Ibex
+  host-handoff owners.
 - Hot swap with pending outbox intent attaches at cross-client adoption of the
   application-owned durable queue after `rebind()`. The current first rung
   proves fail-closed rollback with the record still pending plus empty-outbox

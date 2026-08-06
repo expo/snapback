@@ -7,6 +7,7 @@ import {
   createLinuxRuntimeArtifactAttestation,
   readLinuxRuntimeBuildIdentity,
 } from '../packages/snapback-runtime-linux-x64/artifact-attestation.mjs';
+import { qualifyRuntimeBinary } from '../packages/snapback-cli/runtime-recovery.mjs';
 
 function fail(message) {
   console.error(`snapback-create-runtime-artifact-attestation: ${message}`);
@@ -22,6 +23,7 @@ for (let index = 0; index < argumentsList.length; index += 2) {
   const key = {
     '--binary': 'binary',
     '--hermes': 'hermes',
+    '--hermes-header': 'hermesHeader',
     '--identity': 'identity',
     '--source-revision': 'sourceRevision',
     '--out': 'out',
@@ -29,7 +31,7 @@ for (let index = 0; index < argumentsList.length; index += 2) {
   if (!key || Object.hasOwn(options, key)) fail(`unknown or duplicate option ${argument}`);
   options[key] = key === 'sourceRevision' ? value : resolve(value);
 }
-for (const key of ['binary', 'hermes', 'identity', 'sourceRevision', 'out']) {
+for (const key of ['binary', 'hermes', 'hermesHeader', 'identity', 'sourceRevision', 'out']) {
   if (!options[key]) fail(`missing required option ${key}`);
 }
 
@@ -44,10 +46,20 @@ try {
 }
 let attestation;
 try {
+  const qualification = qualifyRuntimeBinary(options.binary, process.env);
+  if (!qualification.ok) {
+    const error = new Error(
+      `SNAPBACK_RUNTIME_PACKAGE_QUALIFICATION_FAILED: ${qualification.reason}`,
+    );
+    error.code = 'SNAPBACK_RUNTIME_PACKAGE_QUALIFICATION_FAILED';
+    throw error;
+  }
   attestation = createLinuxRuntimeArtifactAttestation({
     binaryPath: options.binary,
     hermesPath: options.hermes,
+    hermesHeaderPath: options.hermesHeader,
     buildIdentity,
+    qualificationVerdict: qualification.report,
     sourceRevision: options.sourceRevision,
   });
 } catch (error) {
