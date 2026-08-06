@@ -1244,3 +1244,46 @@ The idle interval observed zero storage mutations, zero process read bytes,
 zero process write bytes, 3/10 allowed CPU ticks, and zero RSS-page growth
 against an eight-page ceiling. This new measurement is the retained evidence
 for the exact final wave-drift batch.
+
+The prospective merge then had to reconcile main through `167a9e080` to
+resolve a generated-manifest conflict. That reconciliation includes the
+function-auth advisory landing `459bd5e94`; because
+`packages/snapback-codegen/index.mjs` is in the telemetry proof-source set,
+the `90e3157c2` carrier above remains valid for its named candidate but is
+superseded for the merge-reconciled candidate. The React presence and
+agent-safe leaf-set fixes in the same reconciliation are independently green,
+including all 24 agent-safe publication cases and the reviewed exact leaf set.
+
+### Exact merge-reconciled Linux telemetry carrier — 2026-08-06
+
+The final producer measured exact merge-reconciled source
+`5980c210625cf05592223d7e432f1f71b5da5516`. The first attempt was stopped
+before benchmark or idle measurement when an unrelated 0.1.9 release build
+started after the host inspection. Only this producer's process groups were
+terminated. After the unrelated job completed, the host was re-inspected at
+0.55 one-minute load with 243 GiB available memory and no Cargo, Rust, Bun,
+Node, or Snapback proof process; the clean exact worktree then resumed through
+the coded path.
+
+The retained Node 24.18.0 and Bun 1.3.12 archives were rechecked against their
+upstream SHA-256 manifests. The read-only doctor reported the expected fresh-
+worktree submodule and readiness state. The coded bootstrap initialized the
+vendored Ibex pin, copied the supported prepared artifacts, rebuilt and
+launched the exact binary, and qualified its restricted no-eval handler VM.
+No administrator change, manual machine repair, loader bypass, or source
+substitution was used.
+
+The locked Rust smoke, exact release build, runtime-readiness issuance, full
+benchmark, and 120-second idle witness all passed. The retained receipt has
+SHA-256
+`22b4412bd84076f2bd72a3f1b789ec3555ce86d8aff39d0aefe422bbdf1e8a54`
+and covers 474 proof-source files with digest
+`d6205223a210cbde20946061d7b4d9ca8d0b5f574a0a939defdcd0f2011f831f`.
+The 675-line final transcript at
+`/var/cache/expose-build/snapback-telemetry-598.yzbPDj/telemetry-full.log`
+has SHA-256
+`80cf85476f4c96b0ff5edffe1761ae6c113724562624d6e49886d67d8bdb7c4b`.
+The idle interval observed zero storage mutations, zero process read bytes,
+zero process write bytes, 3/10 allowed CPU ticks, and zero RSS-page growth
+against an eight-page ceiling. This fresh carrier, not any superseded
+predecessor, closes the exact merge-reconciled batch.
