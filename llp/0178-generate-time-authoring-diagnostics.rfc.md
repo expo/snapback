@@ -6,7 +6,8 @@
 authoring, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-08-05
-**Revised:** 2026-08-05 (d) — Super-refine round 2 (delta): the round-1 fix's
+**Revised:** 2026-08-06 — V1's policy remediations now name the admitted
+`argOpt` omission branch. 2026-08-05 (d) — Super-refine round 2 (delta): the round-1 fix's
 second worked example itself machine-applied a schema-weakening change
 (`v.array()` → `v.json()`) despite being introduced as policy-free —
 replaced with a genuinely zero-semantic-content example (a re-exported,
@@ -133,7 +134,7 @@ Two examples, one of each shape:
 
 **A policy choice (V1's optional-argument contradiction).** There is no
 single correct fix — the argument could become required, or the plan could
-grow a missing-value branch — so every option is `machineApplicable: false`
+consume the omission branch through `argOpt` — so every option is `machineApplicable: false`
 and `requiresApproval: true`:
 
 ```json
@@ -162,12 +163,12 @@ and `requiresApproval: true`:
       "description": "Drop v.optional(...) so the caller must always supply replyToId."
     },
     {
-      "kind": "guidePointer",
+      "kind": "consumeViaArgOpt",
       "riskClass": "policy",
       "machineApplicable": false,
       "requiresApproval": true,
       "authorityEffect": "none",
-      "description": "Add a missing-value branch to the plan instead (not yet an admitted node — see LLP 0176 §Beyond the golden path)."
+      "description": "Consume replyToId with argOpt(\"replyToId\") — an omitted property evaluates to null (wrap with coalesce(argOpt(...), lit(default)) for a default); a null write requires the target field to be declared optional."
     }
   ]
 }
@@ -256,9 +257,9 @@ semantics require presence, generation fails with
 
 This is a validation under today's semantics: the omitted call is admitted by
 the generated type and guaranteed to fail with `SNAPBACK_ARG_MISSING`.
-Valid repairs are to make the argument required, split the operation, or use a
-future admitted missing-value node. V1 does not invent that node or equate
-missing with JSON `null`.
+Valid repairs are to make the argument required, split the operation, or
+consume the omission branch through `argOpt("x")`, whose `Field`-over-`Args`
+shape evaluates an omitted property as JSON `null`.
 
 #### V2 — result-only validator in a table field
 

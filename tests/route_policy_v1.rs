@@ -275,6 +275,8 @@ async fn registry_and_router_have_black_box_path_method_parity() {
         ("GET", "/_snapback/guide"),
         ("GET", "/_snapback/guide/flat.md"),
         ("GET", "/_snapback/guide/{*path}"),
+        // The llms.txt convention pins this guide projection to the root.
+        ("GET", "/llms.txt"),
         ("GET", "/_snapback/api/health"),
         ("GET", "/_snapback/api/telemetry/stats"),
         ("GET", "/_snapback/api/telemetry/events"),

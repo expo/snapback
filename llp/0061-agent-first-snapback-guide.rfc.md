@@ -5,7 +5,7 @@
 **Systems:** Docs, Developer experience, Tooling, Client integration, API, Testing
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-15
-**Revised:** 2026-08-03 (the 40 KiB trigger fired while classifying LLP 0017's claim-link routes; implemented the recorded split of the mechanical route/host-op surface map into `guide/surface-map.md` with its own 16 KiB budget while preserving the closed checker join). 2026-07-16 (r10 — ENG-25111 implemented Phase 2b as the resource-first `snapback mcp` stdio server: manifest, flat guide, and every manifest-named page are build-bound read-only resources; each carries the same guide hash/build commit; the consistency check validates exact resource membership and page hashes; host-operation tools remain explicitly absent). 2026-07-16 (r9 — ENG-25113 completed the reciprocal Exact seam: both corpora use `repo(<repository>):<path>`, Exact's `data.snapback` external-authority row points back to this guide without a fake local witness, and Snapback's checker now validates the generic form.) 2026-07-16 (r8 — ENG-25112 implemented optional Phase 3: the Contract admin console has a Docs tab whose navigation comes from the served generated manifest, whose page reads must match the manifest response's content-hash/build-commit identity, and whose console-owned Markdown block renderer emits text leaves only. The conditional dependency check found `@exact/markdown` source in the sibling Exact workspace but no supported published dependency in the admin package set, so this uses the RFC's pattern-reuse branch rather than creating a source-tree dependency.) 2026-07-15 (r7 — the public, content-negotiated instance home at `/` now advertises the guide index to humans and the one-request flat projection in its HTML and machine-readable renderings.) 2026-07-15 (r6 — ENG-25102 implemented Phase 2a: the generator emits and hash-stamps the capability-first flat projection; `build.rs` embeds the checked corpus with eval evidence excluded; the LLP 0031 registry serves index, files, and `flat.md` with content-hash/build-commit headers; memory-server acceptance pins the bytes and identity; and the capability row is shipped for out-of-repo readers.) 2026-07-15 (r5 — implementation program filed: ENG-25100
+**Revised:** 2026-08-06 (routing conventions amendment from accepted LLP 0187 T1: paved-alternative links at the point of choice, the alias column's grep-vocabulary charter — workload terms, plausible wrong-guess symbol names, and LLP 0186 W2's competitor rosetta rows — schema-side/client-side vocabulary splits classified as guide defects, and LLP 0187 T7's standing rule that every replicated discoverability miss produces a retrieval-eval seed case when fixed; recorded in §Design 1 with the executable forms in `guide/conventions.md` and `guide/retrieval-eval.md`). 2026-08-03 (the 40 KiB trigger fired while classifying LLP 0017's claim-link routes; implemented the recorded split of the mechanical route/host-op surface map into `guide/surface-map.md` with its own 16 KiB budget while preserving the closed checker join). 2026-07-16 (r10 — ENG-25111 implemented Phase 2b as the resource-first `snapback mcp` stdio server: manifest, flat guide, and every manifest-named page are build-bound read-only resources; each carries the same guide hash/build commit; the consistency check validates exact resource membership and page hashes; host-operation tools remain explicitly absent). 2026-07-16 (r9 — ENG-25113 completed the reciprocal Exact seam: both corpora use `repo(<repository>):<path>`, Exact's `data.snapback` external-authority row points back to this guide without a fake local witness, and Snapback's checker now validates the generic form.) 2026-07-16 (r8 — ENG-25112 implemented optional Phase 3: the Contract admin console has a Docs tab whose navigation comes from the served generated manifest, whose page reads must match the manifest response's content-hash/build-commit identity, and whose console-owned Markdown block renderer emits text leaves only. The conditional dependency check found `@exact/markdown` source in the sibling Exact workspace but no supported published dependency in the admin package set, so this uses the RFC's pattern-reuse branch rather than creating a source-tree dependency.) 2026-07-15 (r7 — the public, content-negotiated instance home at `/` now advertises the guide index to humans and the one-request flat projection in its HTML and machine-readable renderings.) 2026-07-15 (r6 — ENG-25102 implemented Phase 2a: the generator emits and hash-stamps the capability-first flat projection; `build.rs` embeds the checked corpus with eval evidence excluded; the LLP 0031 registry serves index, files, and `flat.md` with content-hash/build-commit headers; memory-server acceptance pins the bytes and identity; and the capability row is shipped for out-of-repo readers.) 2026-07-15 (r5 — implementation program filed: ENG-25100
 (umbrella) + ENG-25101 (eval intents 2–3, the formal Phase 1 exit),
 ENG-25102 (Phase 2a served guide), ENG-25103–25110 (the eight GAP-page
 issues), ENG-25111 (Phase 2b MCP, blocked on ENG-25102 + the LLP 0042
@@ -62,6 +62,8 @@ LLP 0017 (admin console inspection surface), LLP 0019 (agentic readiness),
 LLP 0024 (agent operating surface), LLP 0031 (server route taxonomy),
 LLP 0036 (app secrets and config), LLP 0041 (packaged dev loop),
 LLP 0042 (agent MCP surface), LLP 0039/0053/0055–0060 (auth program),
+LLP 0186 (agent authoring efficiency program; W2 context injection),
+LLP 0187 (agent discoverability — routing over coverage),
 Exact LLP 0365 (the agent-first Exact guide — the sibling-repo pattern this
 adapts; `~/projects/exact/llp/0365-agent-first-exact-guide.rfc.md`)
 
@@ -359,6 +361,24 @@ Page conventions are 0365 §1's, with these Snapback deltas:
   port (or an isolated one), verify server provenance before reusing
   anything, and stop only processes your own harness started"
   (`demos/_kit/server-process.mjs` is the transcludable reference for this).
+- **Routing conventions (added 2026-08-06, from accepted LLP 0187 T1 — the
+  routing-over-coverage diagnosis whose evidence is the replicated 2026-08-04/05
+  bakeoff misses).** (i) Anti-pattern and "hard way" teaching content must
+  link its paved alternative at the point of choice, with the paved road's
+  honest boundary — a worked hard-way example with no adjacent pointer is a
+  guide defect. (ii) The capability index's alias column's charter includes
+  grep vocabulary: the literal strings an agent would plausibly search for —
+  workload terms and plausible wrong-guess symbol names, whichever register
+  they come from, including competitor vocabulary (LLP 0186 W2's rosetta
+  rows). A miss caused by a reasonable grep that returned nothing is a guide
+  defect with a mechanical fix: add the string. (iii) A vocabulary split
+  between a feature's schema side and its client side is a guide defect;
+  each side's page names the other side's vocabulary. (iv) LLP 0187 T7's
+  standing rule: every replicated discoverability miss must produce a
+  retrieval-eval seed case when fixed, so the fix cannot silently regress.
+  The executable forms live in `guide/conventions.md` (§Routing) and
+  `guide/retrieval-eval.md` (seed cases 4–7 are the initial regression
+  seeds).
 
 ### 2. The capability index (registry-lite, with witnesses)
 

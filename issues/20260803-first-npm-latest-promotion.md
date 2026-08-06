@@ -61,3 +61,21 @@ subsequent promotions should get cheaper and more frequent, not rarer.
 **Exit:** packages live on npm `latest` with the promotion receipt recorded
 here and the cold-install-from-npm verification green; ticket closes citing
 the published versions.
+
+- **2026-08-06 — Lane D preflight complete; 0.1.9 goes fast-path; two structural gaps filed.** Full machinery mapping found (a) the qualified `--publish` path is structurally unrunnable — the receipt validator demands GitHub-hosted provenance from the deleted `.github/workflows/qualified-package-staging.yml` while staging now runs on EAS, which mints `githubProof: null` (`issues/20260806-qualified-publish-eas-provenance-blocker.md`); and (b) checklist item 2 (LLP 0134 for real) is not achievable inside this window — E6 requires 14 consecutive same-UTC-day-committed soak observations, and exactly one (now-lapsed) observation exists. Per this ticket's own "expect and file honest gaps" language and LLP 0041's standing pre-consumer fast-path ruling, 0.1.9 executes on the 0.1.8 fast-path shape at candidateSourceSha e32f35eb3, with the local proof, linux-x64 attested fleet build, honesty sweep, publish, ledger retention, public cold-install verification, and same-change guide closure sweep all retained. The 0134 soak window starts as its own 14-day program, decoupled from npm promotion. Also filed: `issues/20260806-linux-runtime-fleet-recipe-unscripted.md`.
+
+- **2026-08-06 (supersession) — candidateSourceSha re-pinned e32f35eb3 →
+  7c16f6d0b.** The earlier preflight pinned e32f35eb3 before the day's
+  remaining agent-efficiency landings reached main. 7c16f6d0b is a strict
+  superset adding three package-affecting fixes: the served `/llms.txt`
+  root projection (LLP 0186 W2), reservation-time
+  `SNAPBACK_ASSET_OWNER_CUSTODY_UNSATISFIABLE` refusal of the unsatisfiable
+  anonymous-owner asset contradiction, and the `argOpt` optional-arg
+  omission surfacing (remediation, guide, witnesses). Runtime binaries for
+  both platforms are building at 7c16f6d0b (linux-x64 on `expo-build-1000`
+  in `~/projects/snapback-release-0-1-9`, darwin-arm64 locally); this
+  session holds the 0.1.9 publish and will re-check the registry
+  immediately before publishing. If a publish from e32f35eb3 lands first
+  despite this entry, the 7c16f6d0b shape ships as 0.1.10 under the same
+  fast-path ruling and the closure sweep adjusts accordingly. Artifacts
+  built at e32f35eb3 should be discarded, not published.

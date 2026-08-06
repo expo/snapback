@@ -741,6 +741,28 @@ mod tests {
         validate_function_args(&required, &Value::Null).expect_err("missing required");
     }
 
+    // @ref LLP 0131#ruling-2-item-2--explicit-null-optionals-canonical-form-projection
+    // — optionality admits omission, not null outside the inner contract.
+    #[test]
+    fn optional_non_null_argument_refuses_explicit_null() {
+        let function = function(FunctionArgsContract {
+            fields: vec![field(
+                "limit",
+                false,
+                ResultValueContract::Integer { min: 1, max: 50 },
+            )],
+        });
+        let error = validate_function_args(&function, &json!({ "limit": null }))
+            .expect_err("explicit null is not an omitted optional integer");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_FUNCTION_ARGS_CONTRACT_VIOLATION"
+        );
+        assert_eq!(error.diagnostic.details["path"], "/limit");
+        assert_eq!(error.diagnostic.details["expected"], "integer");
+        assert_eq!(error.diagnostic.details["actual"], "null");
+    }
+
     #[test]
     fn legacy_function_without_descriptor_passes_through() {
         let mut legacy = function(split_vector_contract());

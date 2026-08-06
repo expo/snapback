@@ -34,6 +34,7 @@ here (or listed here but gone from the code).
 | /_snapback/guide | operating.served-guide |
 | /_snapback/guide/flat.md | operating.served-guide |
 | /_snapback/guide/{*path} | operating.served-guide |
+| /llms.txt | operating.served-guide |
 | /_snapback/api/admin-secret-read/mint | notAuthorFacing (operator data-read lease, LLP 0058) |
 | /_snapback/api/app/reset | backend.seed |
 | /_snapback/api/app/seed/clear-v1 | backend.versioned-seed |

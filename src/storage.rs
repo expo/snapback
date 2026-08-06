@@ -23468,6 +23468,58 @@ mod guarded_commit_tests {
         );
     }
 
+    // @ref LLP 0051#d2-promote-the-mutation-ir-extend-it-to-the-common-mutation
+    // — argOpt lowers to null-propagating Field access over the Args root.
+    #[test]
+    fn omitted_optional_arg_field_access_writes_null_to_optional_storage() {
+        let mut db = database();
+        let input = HandlerInput {
+            args: json!({}),
+            ..HandlerInput::default()
+        };
+        let plan = MutationPlan {
+            steps: vec![MutationStep::Insert {
+                table: "items".to_owned(),
+                values: BTreeMap::from([
+                    (
+                        "title".to_owned(),
+                        ValueExpr::Literal(json!("omitted optional arg")),
+                    ),
+                    (
+                        "rank".to_owned(),
+                        ValueExpr::Field {
+                            base: Box::new(ValueExpr::Args),
+                            key: "rank".to_owned(),
+                        },
+                    ),
+                ]),
+                bind_id_as: None,
+            }],
+            return_value: Some(ReturnValue::ChangedCount),
+        };
+        let identity = ClientMutationIdentity::new(
+            "cm_optional_arg_omitted",
+            "createItemWithOptionalRank",
+            &input,
+        );
+
+        let committed = db
+            .execute_mutation_idempotent(&plan, &input, &identity)
+            .expect("argOpt-shaped omitted property commits without SNAPBACK_ARG_MISSING");
+        assert_eq!(committed.output.changed_count, 1);
+        let row_id = &committed.changes.first().expect("inserted changed row").id;
+        let row = db
+            .get("items", row_id)
+            .expect("read committed item")
+            .expect("committed item exists");
+        assert_eq!(row["rank"], Value::Null);
+        assert!(
+            row.as_object()
+                .expect("stored row object")
+                .contains_key("rank")
+        );
+    }
+
     fn activity_insert_plan(return_value: ReturnValue) -> MutationPlan {
         let source_id = ValueExpr::Binding("sourceId".to_owned());
         MutationPlan {
