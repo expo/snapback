@@ -496,7 +496,7 @@
       "command": "EXACT_ROOT=../exact bun demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs --write",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step1-mutation-projection.json",
-        "sha256": "506bb02afaf7bbeabdb0a24ddc6028b297f511f3bbc88a2bf4615fef5eb65fa1"
+        "sha256": "a358202750e0aee413341696e0b8edc71d2fb2b29f191dec7153d8b4dc5c319d"
       },
       "skip": "forbidden",
       "owner": "LLP 0063#workstream-5--structural-mutation-outcomes-and-excellent-diagnostics",
