@@ -1422,3 +1422,24 @@ The same completed-main batch added
 without advancing the canonical package-test inventory. The reviewed list now
 names that suite and advances from 217 to 218 declared tests; the suite itself
 and the inventory checker both pass.
+
+The final carrier reconciliation is attributable to the control-plane
+landings `57aa150db` / `69136b5ac`, which changed the conservatively pinned
+`src/local.rs`, and the `6da170bf1` guide-pointer landing, which changed the
+store carrier's pinned codegen entry. The exact Triage producer passed 8/8
+over 250,000 events (Move-1 receipt SHA-256
+`1a05c520e8e00fccef37eed0946d629dd5bfb2407f80c314db298b70579bd9fb`;
+budget SHA-256
+`e384b75a71319a4f33ba3197bb6f22b87ada95e06b267268eee5414c5be5196a`).
+After a fresh coded bootstrap at `d194976c6`, the full browser-backed store
+producer passed 16 PASS / 1 declared Fleet GAP / 0 SKIPPED with clean-source
+receipt SHA-256
+`3f3f4e8edb9990ab3d65e19a03cbb47e27e3fa09c59b90b51807aa986b2232b2`.
+The mechanical finalizer then produced relation/activity carrier SHA-256
+`9a6d06dd6ecfc6403314542c0574328326e5c606ce8cde2c10f28e3e04a60b8b`
+and persistent-store carrier SHA-256
+`c48e062bdae3455d571a95ec39c1dd921de109096cb53ae53f1fc28d60377423`;
+sequence allocation reproduced unchanged at
+`79498ab71bfec20bb983ca006a7ab48cfcea3529b7f7b2890364c7d4240f16b9`.
+All three conformance gates, capability maturity, and agent-safe publication
+pass without a capability expansion or actively owned correctness edit.
