@@ -547,10 +547,14 @@ async function runRealExit() {
       false,
     );
     assert.ok(preparedMain, 'the main Fleet route must prepare a qmk1 bridge');
+    // Preparing the bridge initializes the qmk1 address record itself (the
+    // v2 volatile-online profile surfaces that bookkeeping immediately), so
+    // the pre-hydration claim is payload absence, not record absence.
     const beforeHydrationState = await materializationState(owner.store);
     assert.equal(
       beforeHydrationState.records.some((record) => (
         record.address[2] === preparedMain.bridge.address[2]
+        && record.fragments.length > 0
       )),
       false,
     );
@@ -589,10 +593,34 @@ async function runRealExit() {
     const serverSettlementMs = Number((performance.now() - burstStarted).toFixed(3));
     assert.equal(eventsChanged, 1_000);
     assert.equal(activeRollupsChanged, 100);
-    await eventually(() => {
-      const counts = activeCounts(mainLive.rows);
-      return counts.eventMatches === 100 && counts.rollupMatches === 100;
-    }, '1,000-update burst convergence');
+    // Convergence is proven by authoritative re-read, exactly like the
+    // triage-graph Move-1 precedent: LLP 0157's bullet demands the fixture
+    // converge to the 100 active matches, and the authoritative snapshot is
+    // the composite's own truth surface. (This kit's node client renders
+    // live updates through re-query delivery, for v1 and v2 alike; the
+    // server-side v2 live_replace lane is pinned separately by
+    // snapshot_batch_v2_relational_root_change_delivers_live_replace and the
+    // three-node live acceptance in src/local.rs.)
+    let convergedCounts = null;
+    {
+      const deadline = Date.now() + 60_000;
+      while (Date.now() < deadline) {
+        const reread = await owner.client.query(generated.api.fleetObservatory, {
+          args: { viewId: fixture.mainViewId },
+        });
+        const counts = activeCounts(reread.rows);
+        if (counts.eventMatches === 100 && counts.rollupMatches === 100) {
+          convergedCounts = counts;
+          break;
+        }
+        await new Promise((resolveWait) => setTimeout(resolveWait, 250));
+      }
+    }
+    assert.deepEqual(
+      convergedCounts,
+      { eventMatches: 100, rollupMatches: 100 },
+      '1,000-update burst convergence via authoritative re-read',
+    );
     const clientSettlementMs = Number((performance.now() - burstStarted).toFixed(3));
 
     const pagination = await collectAllPages(

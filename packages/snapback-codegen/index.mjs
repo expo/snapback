@@ -683,7 +683,8 @@ function singleNodeIdentityV1(fn) {
 function functionCompositionIdentityV1(fn) {
   const single = singleNodeIdentityV1(fn);
   if (single) return single;
-  const batch = fn.runtime?.HostPlan?.SnapshotBatch;
+  const batch = fn.runtime?.HostPlan?.SnapshotBatch
+    ?? fn.runtime?.HostPlan?.SnapshotBatchV2;
   if (!batch) return null;
   return {
     normalizedCompositePlan: batch.normalizedCompositePlan,

@@ -11,9 +11,9 @@
     "provider-bindings.d.ts",
     "contract-data.manifest.json",
     "app.descriptor.json",
-    "app.descriptor.6e92cc5005b4d91842a4d6fec8eea06f9401820ebe81dffe953a80a9a9ed1bec.json",
+    "app.descriptor.e0d8898411af61c8976d2e3c827bccb75a9da5fe3fde39695d37722c1680387a.json",
     "app.binding.mjs",
-    "app.binding.9f53b6eeba2c7fe6c30fd7d3b519031cc2166499ba8395375bd249d022a85d64.mjs",
+    "app.binding.c1c9acfa3f2d1661fd6ed6570ba6f8e29b1269a5bbbc8530ded88166e91dcced.mjs",
     "app.mjs",
     "app.d.ts",
     "api.mjs",
@@ -98,19 +98,19 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:82783dcb732210e83766b9177ec728c8cc5bbfb4ab41beaffd5cda126c598c1d"
+      "sha256": "sha256:a4c9c637440f8ee23d43ca668c54a7b37a08c924f4a987cca20700fe9e5634d7"
     },
     {
       "bytes": 4036,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "typed-app-descriptor",
-      "path": "app.binding.9f53b6eeba2c7fe6c30fd7d3b519031cc2166499ba8395375bd249d022a85d64.mjs",
+      "path": "app.binding.c1c9acfa3f2d1661fd6ed6570ba6f8e29b1269a5bbbc8530ded88166e91dcced.mjs",
       "regeneration": {
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:9319dcac440acca7f0e0fd8e6b45e44605dbfe66636eb1e5b0a7f4f96069a8b3"
+      "sha256": "sha256:9809d0d7eab4ad97f845f2d23a7d5b9aff4d6d0b8e9028bc3264c1ca2f1e7495"
     },
     {
       "bytes": 550,
@@ -122,7 +122,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:bff6332242a27990239a30660cc01ec7cd8c922cd467b8a4aba310268a4914fb"
+      "sha256": "sha256:11a48a713456e53814e1ecf4ec17a2669e07d4b91e481263d26ad305e1aaf2ef"
     },
     {
       "bytes": 4613,
@@ -137,19 +137,19 @@
       "sha256": "sha256:6a8143cffdd2160e52ec311b7baf481b33ae8c8f85b201070eaa30867013124a"
     },
     {
-      "bytes": 28000,
+      "bytes": 34686,
       "consumer": "client-bundler",
       "custody": "regenerable-cache",
       "logicalKind": "app-descriptor",
-      "path": "app.descriptor.6e92cc5005b4d91842a4d6fec8eea06f9401820ebe81dffe953a80a9a9ed1bec.json",
+      "path": "app.descriptor.e0d8898411af61c8976d2e3c827bccb75a9da5fe3fde39695d37722c1680387a.json",
       "regeneration": {
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:68149257c5d83fbae66d4db4069888e0d887e6dde8eb929a28ce4e803c38a264"
+      "sha256": "sha256:f4c3d4b790a876d7cdb9c27126b62ff1712d8033755777e704f2518028e899c0"
     },
     {
-      "bytes": 28000,
+      "bytes": 34686,
       "consumer": "inspection",
       "custody": "regenerable-cache",
       "logicalKind": "app-descriptor",
@@ -158,7 +158,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:68149257c5d83fbae66d4db4069888e0d887e6dde8eb929a28ce4e803c38a264"
+      "sha256": "sha256:f4c3d4b790a876d7cdb9c27126b62ff1712d8033755777e704f2518028e899c0"
     },
     {
       "bytes": 465,
@@ -170,7 +170,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:943df20e2d8b6ac0a7cc68ee3ff78f90810a0d8efc91d238451779f841855b7e"
+      "sha256": "sha256:dfdbdffcf11f6c7391973d08ded6a6a483b3a0a13223178f5f3ee1e160d9be58"
     },
     {
       "bytes": 14970,
@@ -614,7 +614,7 @@
         "command": "snapback generate snapback --target-profile local-dev-sqlite-ibex",
         "rule": "complete-inputs-hash"
       },
-      "sha256": "sha256:65b74b46c5206e230f7bc221835c67dafd193822c3a58bd0624dc57e1927fbaf"
+      "sha256": "sha256:2366860213e74efffe2b0e0628f3a3b801e5b6b057e744da50a938920917871b"
     }
   ],
   "functions": [

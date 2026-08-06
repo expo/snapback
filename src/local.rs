@@ -43922,6 +43922,88 @@ globalThis.__snapbackHandlers = {
     }
 
     #[test]
+    fn snapshot_batch_v2_relational_root_change_delivers_live_replace() {
+        // The three-node live test above mutates a bounded-child table; this
+        // pins the other matcher direction — a commit landing only on the
+        // relational node's root table must resnapshot the whole tuple
+        // (LLP 0157 §D4 table-granular live_replace), which is exactly the
+        // Fleet Move-1 burst shape.
+        use crate::manifest::{MutationPlan, MutationStep, ValueExpr};
+        let (schema, mut functions, _) = snapshot_batch_v2_publication_fixture(1, 1);
+        functions.functions.push(FunctionDefinition::new(
+            "addBook",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "books".to_owned(),
+                    values: [
+                        ("title".to_owned(), ValueExpr::Arg("title".to_owned())),
+                        ("authorSlug".to_owned(), ValueExpr::Arg("slug".to_owned())),
+                        ("ownerId".to_owned(), ValueExpr::Literal(json!("user-a"))),
+                    ]
+                    .into_iter()
+                    .collect(),
+                    bind_id_as: None,
+                }],
+                return_value: None,
+            })),
+        ));
+        let mut snapback = LocalSnapback::memory().expect("mixed v2 store");
+        snapback.apply_schema(schema).expect("apply schema");
+        let diagnostics = snapback.load_functions(functions);
+        assert!(
+            diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.severity
+                    != crate::diagnostic::DiagnosticSeverity::Error),
+            "artifact activates: {diagnostics:?}",
+        );
+        seed_snapshot_batch_v2_fixture(&mut snapback, "never-visible");
+        let subscribed = snapback
+            .subscribe_live(
+                "mixedView",
+                LiveSubscribeInput {
+                    connection_id: "conn-v2-root".to_owned(),
+                    input: HandlerInput {
+                        args: json!({"parentId":"parent-a"}),
+                        auth: AuthInput {
+                            user_id: Some("user-a".to_owned()),
+                            ..AuthInput::default()
+                        },
+                        ..HandlerInput::default()
+                    },
+                    authorization_namespace: None,
+                    supersedes: None,
+                    resume_from_token: None,
+                },
+            )
+            .expect("cursor-free v2 subscribe");
+        assert_eq!(
+            subscribed.snapshot.expect("initial live snapshot").rows[0]["kind"],
+            "visible"
+        );
+        snapback
+            .invoke_mutation(
+                "addBook",
+                HandlerInput {
+                    args: json!({"title":"gamma","slug":"author-a"}),
+                    auth: AuthInput {
+                        user_id: Some("user-a".to_owned()),
+                        ..AuthInput::default()
+                    },
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("commit touching only the relational root table");
+        let frames = rqs_drained_envelopes(&mut snapback, "conn-v2-root");
+        assert!(
+            !frames.is_empty(),
+            "a relational-root-only commit must deliver live_replace"
+        );
+        assert!(frames.iter().all(|frame| frame["kind"] == "live_replace"));
+    }
+
+    #[test]
     fn snapshot_batch_v2_completeness_nodes_boundaries_and_page_set_are_atomic() {
         let (mut schema, mut functions, _) = snapshot_batch_v2_publication_fixture(1, 1);
         schema.app_id = "snapshot-batch-v2-proof-app".to_owned();

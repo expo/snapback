@@ -9,12 +9,12 @@
     "LLP 0138#status"
   ],
   "source": {
-    "revision": "8743cf3cce87e7c56c7751a4223c60446213c472",
+    "revision": "8935a6cb7ea9b4ccb0f60957dc62604fd56ece42",
     "dirty": true,
     "files": [
       {
         "path": "tests/acceptance/fleet-observatory-move1-v1.mjs",
-        "sha256": "5103eb90dbf716de70a847cb8317f87e3523580d28df1e046d08ab68f2141593"
+        "sha256": "8bce5ede57035bcfcf2780007ae20d6cb0876d13799434de038f80f0082daefa"
       },
       {
         "path": "demos/fleet-observatory-move1/snapback/schema.mjs",
@@ -26,11 +26,11 @@
       },
       {
         "path": "demos/fleet-observatory-move1/snapback/trusted-composition-activation.json",
-        "sha256": "483ac879d174da0d4c3a6c601045fc7b5176da067f1cd8798d7aa6566f13b3f4"
+        "sha256": "d441e81e799052725a21d443e832c664b69ab59f7844520ffd743e86a2fc9997"
       },
       {
         "path": "demos/fleet-observatory-move1/snapback/generated/artifacts.json",
-        "sha256": "be14e0e168ef316093e907623480faaa9ab63575cfd84540bb0e15c9ad6578c5"
+        "sha256": "c9ea12835a9ac425a513fdd96ea07bb0cd605bd06147d17d006d8187d2e919a8"
       },
       {
         "path": "demos/fleet-observatory-move1/demo.snapback.json",
@@ -71,15 +71,129 @@
     ]
   },
   "controlledRun": {
-    "status": "BLOCKED",
-    "reason": "SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED: snapback server exited before verified readiness (1):\nError: failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)\n"
+    "status": "PASS",
+    "runtime": {
+      "serverBinary": "target/debug/snapback",
+      "serverBinarySha256": "47a904aa42d7ecd0d3832ce11ae2cb473c70c8be5c6cef849e992506eca5a443",
+      "launchRung": "configured"
+    },
+    "activation": {
+      "format": "snapback.composition-activation-preparation.v1",
+      "activationHash": "sha256:c67b022e53de78490a73b1be53ccd6f655f12cffff38f3d2d512476f0962a7e0",
+      "deploymentId": "fleet-observatory-move1-controlled-run"
+    }
   },
   "manifestDecision": "refreeze-fresh-successor-manifest",
-  "budgetFreeze": null,
-  "footprintHydration": null,
+  "budgetFreeze": {
+    "schemaVersion": "snapback.fleet-observatory.budget-freeze.v1",
+    "date": "2026-08-06",
+    "authority": "LLP 0155 OQ9",
+    "workload": {
+      "devices": 25000,
+      "sourceEventRows": 250000,
+      "updateBurst": 1000,
+      "activeMatches": 100,
+      "queryChanges": 20
+    },
+    "retentionPosture": "none",
+    "measured": {
+      "activeCustody": {
+        "materializationRecords": 21,
+        "payloadBearingRecords": 1,
+        "compactedPredecessorStubs": 20,
+        "fragments": 1,
+        "topLevelEnvelopeRows": 1,
+        "projectedResultRows": 200,
+        "eventRows": 100,
+        "rollupRows": 100,
+        "logicalBytes": 51027,
+        "resultBytes": 49652,
+        "proofBytes": 1375,
+        "physicalCarrierBytes": 129338
+      },
+      "releasedCustody": {
+        "materializationRecords": 21,
+        "payloadBearingRecords": 0,
+        "compactedInstanceBookkeepingStubs": 21,
+        "fragments": 0,
+        "retainedTopLevelRows": 0,
+        "retainedProjectedRows": 0,
+        "physicalCarrierBytes": 48731
+      },
+      "hydration": {
+        "attempts": 1,
+        "firstUsefulRows": 100,
+        "rowsInstalled": 200,
+        "payloadBytes": 49652,
+        "firstUsefulMs": 248.115,
+        "authoritativeCompleteMs": 248.115
+      }
+    },
+    "frozenCeilings": {
+      "activeCustody": {
+        "materializationRecords": 21,
+        "payloadBearingRecords": 1,
+        "compactedPredecessorStubs": 20,
+        "fragments": 1,
+        "topLevelEnvelopeRows": 1,
+        "projectedResultRows": 200,
+        "eventRows": 100,
+        "rollupRows": 100,
+        "logicalBytes": 51027
+      },
+      "releasedCustody": {
+        "materializationRecords": 21,
+        "payloadBearingRecords": 0,
+        "compactedInstanceBookkeepingStubs": 21,
+        "fragments": 0,
+        "retainedTopLevelRows": 0,
+        "retainedProjectedRows": 0
+      },
+      "hydration": {
+        "attempts": 1,
+        "firstUsefulRows": 100,
+        "rowsInstalled": 200,
+        "payloadBytes": 49652,
+        "elapsedMs": 1000
+      }
+    }
+  },
+  "footprintHydration": {
+    "activeCustody": {
+      "materializationRecords": 21,
+      "payloadBearingRecords": 1,
+      "compactedPredecessorStubs": 20,
+      "fragments": 1,
+      "topLevelEnvelopeRows": 1,
+      "projectedResultRows": 200,
+      "eventRows": 100,
+      "rollupRows": 100,
+      "logicalBytes": 51027,
+      "resultBytes": 49652,
+      "proofBytes": 1375,
+      "physicalCarrierBytes": 129338
+    },
+    "releasedCustody": {
+      "materializationRecords": 21,
+      "payloadBearingRecords": 0,
+      "compactedInstanceBookkeepingStubs": 21,
+      "fragments": 0,
+      "retainedTopLevelRows": 0,
+      "retainedProjectedRows": 0,
+      "physicalCarrierBytes": 48731
+    },
+    "hydration": {
+      "attempts": 1,
+      "firstUsefulRows": 100,
+      "rowsInstalled": 200,
+      "payloadBytes": 49652,
+      "firstUsefulMs": 248.115,
+      "authoritativeCompleteMs": 248.115
+    }
+  },
   "summary": {
-    "pass": 1,
-    "blocked": 7,
+    "pass": 8,
+    "blocked": 0,
     "total": 8,
     "capabilityClaimsChanged": false,
     "carrierGapChanged": false,
@@ -115,59 +229,166 @@
     },
     {
       "gate": "the client retains only desired bounded query results",
-      "status": "BLOCKED",
+      "status": "PASS",
       "evidence": {
-        "controlledServerRun": false
-      },
-      "reason": "SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED: snapback server exited before verified readiness (1):\nError: failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)\n"
+        "ownerClassification": {
+          "profile": "snapshot-batch.v2",
+          "retention": "none"
+        },
+        "active": {
+          "materializationRecords": 21,
+          "payloadBearingRecords": 1,
+          "compactedPredecessorStubs": 20,
+          "fragments": 1,
+          "topLevelEnvelopeRows": 1,
+          "projectedResultRows": 200,
+          "eventRows": 100,
+          "rollupRows": 100,
+          "logicalBytes": 51027,
+          "resultBytes": 49652,
+          "proofBytes": 1375,
+          "physicalCarrierBytes": 129338
+        },
+        "released": {
+          "materializationRecords": 21,
+          "payloadBearingRecords": 0,
+          "compactedInstanceBookkeepingStubs": 21,
+          "fragments": 0,
+          "retainedTopLevelRows": 0,
+          "retainedProjectedRows": 0,
+          "physicalCarrierBytes": 48731
+        },
+        "activePolicy": {
+          "addressKey": "qmk1.eeG31lSLBh6Ea5KcPbC9_6ebPq2L4-MODqdmJ1AbeF8",
+          "demandState": "demanded-active",
+          "effectiveRetentionRequest": "none",
+          "retainingReason": {
+            "kind": "registrations",
+            "entries": [
+              {
+                "registrationId": "qreg1_816b11c80423676ae44a9bcb9c065c21",
+                "source": "active",
+                "ownerContextKind": "subscription"
+              }
+            ]
+          },
+          "effectiveTtlClass": "default",
+          "compacted": false
+        },
+        "releasedPolicyReasons": {
+          "instanceBookkeeping": 21,
+          "registrations": 0,
+          "releaseGrace": 0,
+          "safetyBlockers": 0
+        },
+        "offlineRenderabilityAfterRelease": "unknown-render-nothing"
+      }
     },
     {
       "gate": "pagination neither duplicates nor skips an untouched root",
-      "status": "BLOCKED",
+      "status": "PASS",
       "evidence": {
-        "controlledServerRun": false
-      },
-      "reason": "SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED: snapback server exited before verified readiness (1):\nError: failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)\n"
+        "pages": 51,
+        "eventRows": 5000,
+        "uniqueEventKeys": 5000,
+        "queryRanks": [
+          0,
+          4999
+        ],
+        "continuationCount": 50,
+        "continuationFamily": "sbsb2",
+        "rollupRows": 100
+      }
     },
     {
       "gate": "20 query changes leak no predecessor rows",
-      "status": "BLOCKED",
+      "status": "PASS",
       "evidence": {
-        "controlledServerRun": false
-      },
-      "reason": "SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED: snapback server exited before verified readiness (1):\nError: failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)\n"
+        "changes": 20,
+        "rows": [
+          "switch-00",
+          "switch-01",
+          "switch-02",
+          "switch-03",
+          "switch-04",
+          "switch-05",
+          "switch-06",
+          "switch-07",
+          "switch-08",
+          "switch-09",
+          "switch-10",
+          "switch-11",
+          "switch-12",
+          "switch-13",
+          "switch-14",
+          "switch-15",
+          "switch-16",
+          "switch-17",
+          "switch-18",
+          "switch-19"
+        ],
+        "uniqueRows": 20,
+        "predecessorPayloadRecordsAfterMaintenance": 0,
+        "compactedInstanceBookkeepingStubs": 20
+      }
     },
     {
       "gate": "the 250,000-event fixture converges to exactly 100 active matches from the 1,000-update burst",
-      "status": "BLOCKED",
+      "status": "PASS",
       "evidence": {
-        "controlledServerRun": false
-      },
-      "reason": "SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED: snapback server exited before verified readiness (1):\nError: failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)\n"
+        "sourceEventRows": 250000,
+        "updates": 1000,
+        "activeEventMatches": 100,
+        "activeRollupMatches": 100,
+        "serverSettlementMs": 12981.822,
+        "clientSettlementMs": 13042.079,
+        "liveFramesObserved": 1
+      }
     },
     {
       "gate": "an implicit incomplete prefix is impossible to consume as complete",
-      "status": "BLOCKED",
+      "status": "PASS",
       "evidence": {
-        "controlledServerRun": false
-      },
-      "reason": "SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED: snapback server exited before verified readiness (1):\nError: failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)\n"
+        "refusal": "SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED"
+      }
     },
     {
       "gate": "Mallory receives no protected source or result rows",
-      "status": "BLOCKED",
+      "status": "PASS",
       "evidence": {
-        "controlledServerRun": false
-      },
-      "reason": "SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED: snapback server exited before verified readiness (1):\nError: failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)\n"
+        "protectedCompositeRows": 0,
+        "protectedSourceRows": 0,
+        "clientMaterializationRecords": 0
+      }
     },
     {
       "gate": "inspection explains every retained row and completeness transition",
-      "status": "BLOCKED",
+      "status": "PASS",
       "evidence": {
-        "controlledServerRun": false
-      },
-      "reason": "SNAPBACK_FLEET_SANDBOX_SOCKET_BLOCKED: snapback server exited before verified readiness (1):\nError: failed to bind Snapback server to 127.0.0.1:0: Operation not permitted (os error 1)\n"
+        "transitions": [
+          {
+            "state": "unhydrated",
+            "addressPresent": false,
+            "completeness": "unknown"
+          },
+          {
+            "state": "active",
+            "answerClass": "authoritative",
+            "freshness": "current",
+            "projectedRows": 200,
+            "retainingReason": "registrations"
+          },
+          {
+            "state": "released",
+            "completeness": "unknown",
+            "retainedProjectedRows": 0,
+            "retainingReason": "instance-bookkeeping",
+            "compacted": true
+          }
+        ],
+        "addressesExplained": 21,
+        "payloadBearingAddressesAfterRelease": 0
+      }
     }
   ]
 }
