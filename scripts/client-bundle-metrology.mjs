@@ -859,6 +859,7 @@ const ROLLOVER_LEDGER_SPECS = Object.freeze([
       ['node', ['packages/snapback-client/rqs-store-file.test.mjs']],
       ['node', ['packages/snapback-react/package.test.mjs']],
       ['node', ['packages/snapback-react/cold-boot-binding-indexeddb.test.mjs']],
+      ['node', ['packages/snapback-codegen/index.mjs', 'demos/expo-golden-path-fixture/snapback']],
       ['node', ['packages/snapback-react/surface.test.mjs']],
       ['node', ['packages/snapback-expo/provider.test.mjs']],
       ['node', ['packages/snapback-codegen/app-descriptor.test.mjs']],

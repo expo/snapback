@@ -161,6 +161,10 @@ IndexedDB writer-election repair and LLP 0081 tombstone-and-re-entry custody,
 and two React application profiles for LLP 0179 S1's conversation surface.
 The receipt binds all three predecessor ledgers independently and runs the
 focused behavior train for both groups; no unrelated ceiling is superseded.
+The train materializes the ignored Expo golden-path descriptor through the
+normal code generator before running the surface behavior suite, so a clean
+checkout exercises the same generated input rather than depending on local
+cache state.
 
 The Phase-B Micro extension is `baseline.micro-phase-b.v1.json`, backed by
 `micro-phase-b-profiles.v1.json`. It freezes separate generated core and live

@@ -116,7 +116,11 @@ The fix-forward therefore declares one batched
 eight affected profiles. It binds the complete immutable predecessors,
 records exact landing-to-profile attribution and governing LLPs, and runs the
 writer-election, quarantine, client, React surface, Expo provider, and
-generated-descriptor behavior train before freezing. No historical receipt
-or unrelated ceiling is edited. The static-capability-composition lane
+generated-descriptor behavior train before freezing. The train explicitly
+materializes the ignored Expo golden-path descriptor through the normal
+codegen command before the surface suite; its first production invocation
+refused the missing clean-checkout fixture instead of inheriting a local
+cache. No historical receipt or unrelated ceiling is edited. The
+static-capability-composition lane
 commissioned by the prior size ruling remains open; this rollover does not
 claim that remediation is complete.
