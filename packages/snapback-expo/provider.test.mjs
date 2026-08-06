@@ -17,7 +17,7 @@ const functionManifest = JSON.parse(readFileSync(new URL('functions.manifest.jso
 const schemaManifest = JSON.parse(readFileSync(new URL('schema.manifest.json', generatedRoot)));
 const capabilityManifest = JSON.parse(readFileSync(new URL('capability.manifest.json', generatedRoot)));
 const conversationGeneratedRoot = new URL(
-  '../../demos/expo-golden-path-fixture/snapback/generated/',
+  '../snapback-react/fixtures/conversation/app/snapback/generated/',
   import.meta.url,
 );
 const conversationApp = JSON.parse(readFileSync(new URL('app.descriptor.json', conversationGeneratedRoot)));

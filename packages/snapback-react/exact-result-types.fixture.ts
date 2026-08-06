@@ -4,9 +4,9 @@ import type {
 } from '@expo/snapback-client';
 import type {
   GeneratedQueryGroups as BackendBakeoffQueryGroups,
-} from '../../demos/signal-desk/snapback/generated/api.d.ts';
-import type { GeneratedAppDescriptorV1 as ConversationAppDescriptor } from '../../demos/expo-golden-path-fixture/snapback/generated/app.d.ts';
-import type { Id } from '../../demos/expo-golden-path-fixture/snapback/generated/api.d.ts';
+} from '../../demos/team-chat/snapback/generated/api.d.ts';
+import type { GeneratedAppDescriptorV1 as ConversationAppDescriptor } from './fixtures/conversation/app/snapback/generated/app.d.ts';
+import type { Id } from './fixtures/conversation/app/snapback/generated/api.d.ts';
 import {
   projectRecordFields,
   skip,
@@ -56,20 +56,14 @@ if (group.queries.feed.status === 'ready') {
   group.queries.feed.data[0]?.body.toUpperCase();
 }
 const realGeneratedGroup = useSnapbackQueries(generatedBackendBakeoff);
-if (realGeneratedGroup.queries.listIncidents.status === 'ready') {
-  realGeneratedGroup.queries.listIncidents.data[0]?.title.toUpperCase();
+if (realGeneratedGroup.queries.listMyRooms.status === 'ready') {
+  realGeneratedGroup.queries.listMyRooms.data[0]?.displayName.toUpperCase();
 }
-if (realGeneratedGroup.queries.allTasks.status === 'ready') {
-  realGeneratedGroup.queries.allTasks.data[0]?.body.toUpperCase();
+if (realGeneratedGroup.queries.unreadDeliveries.status === 'ready') {
+  realGeneratedGroup.queries.unreadDeliveries.data[0]?.body.toUpperCase();
 }
-if (realGeneratedGroup.queries.allComments.status === 'ready') {
-  realGeneratedGroup.queries.allComments.data[0]?.body.toUpperCase();
-}
-if (realGeneratedGroup.queries.allActivity.status === 'ready') {
-  realGeneratedGroup.queries.allActivity.data[0]?.kind.toUpperCase();
-}
-// @ts-expect-error the real generated route declaration has four exact keys.
-realGeneratedGroup.queries.incidentTasks;
+// @ts-expect-error the real generated route declaration has exactly two keys.
+realGeneratedGroup.queries.roomMessages;
 
 const create = useSnapbackMutation(createTodo);
 create({ title: 'ship it' }).then((id) => id.toUpperCase());

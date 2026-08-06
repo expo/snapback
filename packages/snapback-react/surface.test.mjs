@@ -15,7 +15,7 @@ import {
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-const fixtureRoot = new URL('../../demos/expo-golden-path-fixture/snapback/generated/', import.meta.url);
+const fixtureRoot = new URL('./fixtures/conversation/app/snapback/generated/', import.meta.url);
 const app = JSON.parse(readFileSync(new URL('app.descriptor.json', fixtureRoot)));
 const functions = JSON.parse(readFileSync(new URL('functions.manifest.json', fixtureRoot)));
 const schema = JSON.parse(readFileSync(new URL('schema.manifest.json', fixtureRoot)));

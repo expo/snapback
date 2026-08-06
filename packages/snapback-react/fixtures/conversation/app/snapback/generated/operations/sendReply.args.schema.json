@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/app/sendReply.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "conversationId": {
+      "type": "string"
+    },
+    "replyToId": {
+      "type": "string"
+    },
+    "senderId": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "conversationId",
+    "senderId",
+    "text",
+    "replyToId"
+  ],
+  "title": "app:sendReply arguments",
+  "type": "object"
+}
