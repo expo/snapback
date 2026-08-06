@@ -1,7 +1,8 @@
 # cargo clippy -D warnings is red on main — 26 lints in recently landed feature code
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-06
+**Resolved:** 2026-08-06
 **Related:** scripts/verify-local-proof cargo-clippy leg
 
 `cargo clippy --all-targets -- -D warnings` fails with 26 errors at
@@ -22,3 +23,17 @@ add scoped allows with justification.
 
 Filed by the sbsb2 implementation session (its own code is clippy-clean;
 verified by file attribution of every error).
+
+## Resolution
+
+The batched wave drift pass absorbed the 26-lint debt in commit `2048ba89f`
+and removed two later SBSB2 needless borrows in commit `cff30e35d`. After the
+S2 carrier and fixture reconciliation, the exact strict command completed
+successfully at `ad8ae1320bf94be786829510c60a0a7b511ffd6c`:
+
+```sh
+cargo clippy --locked --all-targets -- -D warnings
+```
+
+The vendored `ibex-runtime` dependency still emits its own ordinary warnings;
+Snapback's `-D warnings` surface is green.
