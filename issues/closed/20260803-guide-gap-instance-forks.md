@@ -55,3 +55,8 @@ Verification: the focused fork-aware Todo journey, an ordinary seeded
 Access Desk journey, `cargo test --lib instance_fork`, the guide checker,
 generated artifact checker, reference checker, JavaScript syntax checks, and
 diff whitespace checks.
+
+Status reconciliation — 2026-08-05: LLP 0158 subsequently reached Accepted.
+That status settles the local design but does not change this resolution's
+nonclaim: `agent_safe_derived_deployment_fork_v1` still has distinct
+qualification and publication gates and its public tuple remains `Missing`.

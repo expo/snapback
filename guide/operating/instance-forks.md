@@ -25,10 +25,12 @@ schema- or function-divergent development against realistic rows. The fork has
 the same logical `appId`, but fresh instance, authorization-stream,
 data-stream, admin-token, and resume-keyring identities.
 
-This is a **partial, unpublished surface** while
-[LLP 0158](repo:llp/0158-instance-forking.rfc.md) remains Draft. The guide
-teaches the implemented source workflow; it does not claim a packaged,
-hosted, promotable, or process-sandboxed capability.
+This is a **partial, unpublished surface**. The local design in
+[LLP 0158](repo:llp/0158-instance-forking.rfc.md) is Accepted, but the separate
+`agent_safe_derived_deployment_fork_v1` qualification and publication gates
+remain unsatisfied and its public tuple remains wholly `Missing`. The guide
+teaches the implemented source workflow; it does not claim a packaged, hosted,
+promotable, or process-sandboxed capability.
 
 ## Give a worktree its own backend
 

@@ -2,7 +2,7 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (Track B integrated implementation pass)
-**Updated:** 2026-08-05 (merged C28 stopped before performance after two NOT READY reviews; prospective C29 repairs automatic sessions range custody, Host tombstone schema nullability, terminal-time coherence, and pending-writer rollback proof; capabilities remain Missing); 2026-08-05 (C27 terminated pre-result with no artifacts; C28 repairs tombstone comparison, contiguous floors, bounded ranges, and transactional writer guards; capabilities remain Missing); 2026-08-04 (pre-result row-13 protocol repair: the author-ratified
+**Updated:** 2026-08-05 (exact C29 stopped before performance after two NOT READY reviews; prospective C30 closes terminal-supplement retention coherence, automatic sessions ACK custody, the public explanation oracle, Host terminal/pending rollback proof, and accepted-0158 status drift; capabilities remain Missing); 2026-08-05 (merged C28 stopped before performance after two NOT READY reviews; prospective C29 repairs automatic sessions range custody, Host tombstone schema nullability, terminal-time coherence, and pending-writer rollback proof; capabilities remain Missing); 2026-08-05 (C27 terminated pre-result with no artifacts; C28 repairs tombstone comparison, contiguous floors, bounded ranges, and transactional writer guards; capabilities remain Missing); 2026-08-04 (pre-result row-13 protocol repair: the author-ratified
 contention ceiling now matches the frozen 1,000-ms reservation and separate
 500-ms maximum promotion-commit duration; the absolute recorder binds exact
 baseline and compiled-candidate bytes, and its 128/eight-writer p99 uses the
@@ -45,9 +45,9 @@ not authorize capability publication.
 
 | LLP 0162 row | State through 2026-08-04 | Required closure |
 | --- | --- | --- |
-| 1 — atomic envelope | Partial | Public issuance, four-adapter activation, and crash cuts are landed. C29 requires both writer seams to reclassify retained state transactionally and proves post-prune terminal and pending replays roll back staged app/journal publication. Fresh exact proof remains. |
-| 2 — retry settlement | Partial | Range issue/refresh and atomic client custody are landed. C29 adds automatic sessions descriptor/principal custody, required-nullable Host tombstones, terminal-time SQL/JSON coherence, two-digest/counter-coherent tombstones, contiguous floors, four-range/1,024 capacity, exact re-service, fifth-range refusal, and same-principal fresh-authority recovery. Fresh exact proof remains. |
-| 3 — provenance/explanation | Partial | Public/admin transport and protected custody are wired. The public lane now revalidates the active artifact, current function/grant/profile policy, derived audience, current and retained historical owners, and every closed fact for exact generated owner-create/update envelopes. Create's private mint observation is exact-site-bound and stripped before projection; generated delete is recognized but remains a current-row-absent refusal. Complete positive evaluators, if justified, for aggregate/non-row, hand-written/opaque, predicate, membership, effect-bearing, and remaining policy classes. |
+| 1 — atomic envelope | Partial | Public issuance, four-adapter activation, and crash cuts are landed. C30 directly proves post-prune Host terminal and pending replays refuse before lifecycle/lease writes while caller app/journal writes remain staged, then caller rollback removes the publication set without losing the tombstone. Fresh exact proof remains. |
+| 2 — retry settlement | Partial | Range issue/refresh and atomic client custody are landed. C30 adds automatic sessions descriptor/principal/ACK custody, required-nullable-and-present Host tombstones, global Host suppression/pending/supplement SQL/JSON coherence, two-digest/counter tombstones, contiguous floors, four-range/1,024 capacity, exact re-service, fifth-range refusal, and same-principal fresh-authority recovery. Fresh exact proof remains. |
+| 3 — provenance/explanation | Partial | Public/admin transport and protected custody are wired. The public lane revalidates the active artifact, policy, audience, owners, and every closed fact for exact generated owner-create/update envelopes; foreign and absent keys share one metadata-free `authorization-unprovable` response. Create's private mint observation is exact-site-bound and stripped; generated delete remains a current-row-absent refusal. Complete positive evaluators, if justified, for aggregate/non-row, hand-written/opaque, predicate, membership, effect-bearing, and remaining policy classes. |
 | 4 — coverage honesty | Partial | The local target now names 23 physical writer families with no grouped row. Exactly four ordinary/host adapters are envelope-mapped; every other family has an executable exclusion reason, and non-envelope app writers refuse after arming. Raw/cached/trigger/system-field/DDL bypass, exact four-writer publication, target-vs-app-effective, crash/reopen, retry, and ordinary/host asymmetry fixtures are green. An authenticated managed-admission AdminWrite command accepts only the versioned local target/profile pair and idempotently publishes that exact manifest; open, range issuance, and capability inspection do not invoke it. Complete-target exclusions, fixed-Air, remaining corpus, review, and acceptance gates keep the row Partial and the command uninvoked by default. |
 | 5 — fork isolation | Partial | F0b and the derived post-fork-parent-write fixture cover the copied-instance leg; managed custody and `branch.execute.v1` run real mutations/actions only on the server-derived current-head workspace. The carrier admits exact multiple operations, retains mutation facts atomically with app rows/journal/version, and pins canonical schema/function-bundle identities. Exact retries survive parent drift; novel requests refuse before handler bytes. Final integrated correctness/review remains. |
 | 6 — effect quarantine | Partial | All inventoried local host-egress families route through branch mediation. `DenyAll` retains only bounded refusal markers; `CaptureOnly` retains server-ordered payload-free per-attempt intents, never initiates provider work, and immediately makes the branch non-promotable. Product provider custody and settlement are outside this publication scope; final bypass/review evidence remains. |
@@ -57,8 +57,8 @@ not authorize capability publication.
 | 10 — strict promotion | Partial | Frozen v1 no-effect contention/fairness/crash evidence is joined by atomic multi-operation retention. Any captured intent or approved effect fact—including effect-plus-write and transitive effect-dependent chains—refuses strict promotion before canonical mutation with `SNAPBACK_PROMOTION_CAPTURE_ONLY_UNSUPPORTED`. Public effect-bearing promotion remains outside this Track B publication scope; global writer coverage and applicable performance/review remain independent gates. |
 | 11 — history/checkpoint | Partial | Schema publication now atomically projects finite v2 per-record policy, removal erases retained detail, and current/per-version auth plus visible-only pagination/horizon and per-record pruning are covered without changing legacy v1 `maxRows`. The registered-copy sweep invalidates the complete materialized inventory before deletion and preserves crash/unreachable obligations, but it is not yet atomic with canonical protected-record deletion; close that new-checkpoint race and the remaining lifecycle corpus. |
 | 12 — boundary proof | Partial | Promotion and full migration verification are independently derived; migration's separate evaluator has explicit-value/equivalence plus executor-drift and staged-corruption negatives. Checkpoint concurrent-writer/publication/receipt-only no-upcast negatives are covered. Finish the remaining row-wide boundary integrations/coverage before an aggregate claim. |
-| 13 — performance | Partial | C27 produced no result; C28 was stopped by review before any performance process. The unchanged paired and conditional absolute recorders must run once on a fresh exact post-C29 candidate after correctness/review clears. |
-| 14 — identity lifecycle | Partial | First-party job/cron/migration carriers and transport-level client exclusion are landed. C29 adds automatic sessions carriage, bounded successor-capacity, schema/corruption/auth-divergence, out-of-order floor, and retention-time negatives; fresh integrated review/publication proof remains. |
+| 13 — performance | Partial | C27 produced no result; C28 and C29 were stopped by review before any performance process. The unchanged paired and conditional absolute recorders must run once on a fresh exact post-C30 candidate after correctness/review clears. |
+| 14 — identity lifecycle | Partial | First-party job/cron/migration carriers and transport-level client exclusion are landed. C30 adds automatic sessions range/ACK carriage, bounded successor capacity, required-nullable decoding, global corruption/auth-divergence, out-of-order floor, young-window, and exact final-reclamation negatives; fresh integrated review/publication proof remains. |
 
 The detailed LLP 0163 public-carrier work remains in its existing focused
 ticket. F1's operating guide and fork-aware acceptance-harness work remains in
@@ -103,6 +103,32 @@ tests, the direct Host/writer corruption-and-rollback fixture, 35/35 artifact
 schema tests including a representative Host tombstone, and the schemagen
 ownership/reaping test. Fresh exact reviews and both unchanged performance
 gates remain mandatory. Every related capability remains `Missing`.
+
+## Exact C29 review stop and prospective C30 repair — 2026-08-05
+
+Fresh mutually blind review of exact clean C29 commit
+`3f5c587fbe58533a6d471b0e13f238e6baabf774` and implementation digest
+`sha256:58dcf92bad47ae5327a5b8459b5ba5666ddfa467ee31a27266497ba4c9226ad9`
+returned two `NOT READY` verdicts. No performance process began. The shared
+blocking finding was a second retention-time projection on the pending-
+terminal supplement table. The reviews also found descriptor resolution too
+late for automatic sessions ACK selection, a public foreign-key explanation
+oracle, a non-discriminating Host writer rollback matrix, and live documents
+that still called accepted LLP 0158 Draft.
+
+Prospective C30 validates Host suppression, pending lifecycle, and terminal-
+supplement key/audience/epoch/time projections globally before closure, so a
+corrupt projection cannot hide a young receipt in another epoch. It resolves
+session authority before ACK selection, makes foreign and absent public
+explanation lookups return the same metadata-free
+`authorization-unprovable` posture, proves both Host writer seams before and
+after caller rollback including lease custody, requires the nullable Host
+tombstone counter during Rust decoding, and reconciles LLP 0158's Accepted
+status while keeping the distinct derived capability wholly `Missing`.
+
+Focused C30 proofs are green. Fresh exact review and the unchanged one-shot
+performance gates remain mandatory; no capability state changes in this
+record.
 
 ## Dated implementation evidence — 2026-08-04
 

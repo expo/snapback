@@ -6858,7 +6858,15 @@ impl LocalSnapback {
             fact_policy,
             administrative: false,
         };
-        self.db.explain_operation(identity, &current)
+        Ok(Some(
+            self.db
+                .explain_operation(identity, &current)?
+                .unwrap_or_else(|| {
+                    crate::commit_envelope::OperationExplanationV1::authorization_unprovable(
+                        identity.key.clone(),
+                    )
+                }),
+        ))
     }
 
     pub(crate) fn explain_operation_as_admin(

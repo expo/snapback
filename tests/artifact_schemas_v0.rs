@@ -654,6 +654,15 @@ fn operation_identity_tombstone_schema_accepts_required_nullable_host_counter() 
     let value = serde_json::to_value(tombstone).expect("host tombstone serializes");
     assert_eq!(value.get("counter"), Some(&Value::Null));
     assert_validates("operation.identity-tombstone-v1.schema.json", &value);
+    let mut missing_counter = value;
+    missing_counter
+        .as_object_mut()
+        .expect("tombstone object")
+        .remove("counter");
+    assert!(
+        serde_json::from_value::<OperationIdentityTombstoneV1>(missing_counter).is_err(),
+        "Rust decoding and the committed schema both require the nullable counter key"
+    );
 }
 
 #[test]

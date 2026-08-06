@@ -1646,23 +1646,30 @@ fn load_validated_pending_lifecycle(
     conn: &Connection,
     proposed: &OperationIdentityV1,
 ) -> SnapbackResult<Option<PendingOperationLifecycleV1>> {
-    let pending: Option<String> = conn
+    let pending: Option<(String, String, String, String)> = conn
         .query_row(
-            "SELECT lifecycle_json FROM _snapback_operation_pending_v1
+            "SELECT lane,audience,epoch_id,lifecycle_json
+               FROM _snapback_operation_pending_v1
               WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
             params![
                 proposed.key.stream_id,
                 originator(proposed.key.originator_class),
                 proposed.key.operation_id,
             ],
-            |row| row.get(0),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         )
         .optional()?;
-    let Some(pending) = pending else {
+    let Some((row_lane, row_audience, row_epoch_id, pending)) = pending else {
         return Ok(None);
     };
     let pending: PendingOperationLifecycleV1 = decode(&pending, "pending operation lifecycle")?;
     reject_divergence(&pending.identity, proposed)?;
+    if pending.lane != row_lane
+        || pending.identity.bound_facts.audience != row_audience
+        || issuance_parts(&pending.identity).0 != row_epoch_id
+    {
+        return Err(invalid("stored pending lifecycle is incoherent"));
+    }
     let envelope: Option<String> = conn
         .query_row(
             "SELECT envelope_json FROM _snapback_commit_envelopes_v1
@@ -1709,19 +1716,28 @@ pub fn lookup_pending_operation(
     proposed
         .validate()
         .map_err(|error| invalid(format!("pending operation identity is invalid: {error:?}")))?;
-    let terminal: Option<String> = conn
+    let terminal: Option<(String, String, String, i64, String)> = conn
         .query_row(
-            "SELECT supplement_json FROM _snapback_operation_terminal_supplements_v1
+            "SELECT lane,audience,epoch_id,terminal_at_ms,supplement_json
+               FROM _snapback_operation_terminal_supplements_v1
               WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
             params![
                 proposed.key.stream_id,
                 originator(proposed.key.originator_class),
                 proposed.key.operation_id,
             ],
-            |row| row.get(0),
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            },
         )
         .optional()?;
-    if let Some(terminal) = terminal {
+    if let Some((row_lane, row_audience, row_epoch_id, row_terminal_at_ms, terminal)) = terminal {
         let terminal: PendingOperationTerminalSupplementV1 =
             decode(&terminal, "pending operation terminal supplement")?;
         reject_divergence(&terminal.identity, proposed)?;
@@ -1730,7 +1746,12 @@ pub fn lookup_pending_operation(
                 "terminal supplement survived without its pending lifecycle",
             ));
         };
-        if terminal.publication != pending.publication
+        if row_lane != pending.lane
+            || row_audience != terminal.identity.bound_facts.audience
+            || row_epoch_id != issuance_parts(&terminal.identity).0
+            || row_terminal_at_ms
+                != to_i64(terminal.terminal_at_ms, "stored terminal supplement time")?
+            || terminal.publication != pending.publication
             || terminal.pending_receipt_digest != pending.pending_receipt_digest
             || terminal.terminal_at_ms < pending.pending_at_ms
             || terminal.transition_digest
@@ -1835,22 +1856,57 @@ pub fn finalize_pending_operation_in(
         return Err(invalid("pending operation terminal supplement is invalid"));
     }
     let identity = &supplement.identity;
-    let existing: Option<String> = tx
+    let existing: Option<(String, String, String, i64, String)> = tx
         .query_row(
-            "SELECT supplement_json FROM _snapback_operation_terminal_supplements_v1
+            "SELECT lane,audience,epoch_id,terminal_at_ms,supplement_json
+               FROM _snapback_operation_terminal_supplements_v1
               WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
             params![
                 identity.key.stream_id,
                 originator(identity.key.originator_class),
                 identity.key.operation_id,
             ],
-            |row| row.get(0),
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                ))
+            },
         )
         .optional()?;
-    if let Some(existing) = existing {
+    if let Some((row_lane, row_audience, row_epoch_id, row_terminal_at_ms, existing)) = existing {
         let existing: PendingOperationTerminalSupplementV1 =
             decode(&existing, "pending operation terminal supplement")?;
         reject_divergence(&existing.identity, identity)?;
+        let Some(pending) = load_validated_pending_lifecycle(tx, identity)? else {
+            return Err(invalid(
+                "terminal supplement survived without its pending lifecycle",
+            ));
+        };
+        if row_lane != pending.lane
+            || row_audience != existing.identity.bound_facts.audience
+            || row_epoch_id != issuance_parts(&existing.identity).0
+            || row_terminal_at_ms
+                != to_i64(existing.terminal_at_ms, "stored terminal supplement time")?
+            || existing.publication != pending.publication
+            || existing.pending_receipt_digest != pending.pending_receipt_digest
+            || existing.terminal_at_ms < pending.pending_at_ms
+            || existing.transition_digest
+                != pending_operation_transition_digest(
+                    &existing.identity,
+                    &existing.publication,
+                    &existing.pending_receipt_digest,
+                    existing.terminal_outcome,
+                    &existing.terminal_receipt_digest,
+                    &existing.terminal_write_set_digest,
+                    existing.terminal_write_set_count,
+                )
+        {
+            return Err(invalid("stored terminal supplement is incoherent"));
+        }
         if existing == *supplement {
             return Ok(PendingOperationFinalizationV1::ExactReplay);
         }
@@ -1859,26 +1915,13 @@ pub fn finalize_pending_operation_in(
             "pending operation was finalized with different terminal facts",
         ));
     }
-    let pending: Option<(String, String)> = tx
-        .query_row(
-            "SELECT lane,lifecycle_json FROM _snapback_operation_pending_v1
-              WHERE stream_id=?1 AND originator_class=?2 AND operation_id=?3",
-            params![
-                identity.key.stream_id,
-                originator(identity.key.originator_class),
-                identity.key.operation_id,
-            ],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        )
-        .optional()?;
-    let Some((lane, pending)) = pending else {
+    let Some(pending) = load_validated_pending_lifecycle(tx, identity)? else {
         return Err(refused(
             "SNAPBACK_OPERATION_PENDING_NOT_FOUND",
             "terminal settlement requires the exact retained pending publication",
         ));
     };
-    let pending: PendingOperationLifecycleV1 = decode(&pending, "pending operation lifecycle")?;
-    reject_divergence(&pending.identity, identity)?;
+    let lane = pending.lane.clone();
     if pending.publication != supplement.publication
         || pending.pending_receipt_digest != supplement.pending_receipt_digest
         || supplement.terminal_at_ms < pending.pending_at_ms
@@ -2636,20 +2679,12 @@ pub fn close_epoch_if_complete_in(
                     params![audience, epoch_id, to_i64(now_ms, "host closure time")?],
                     |row| row.get(0),
                 )?;
-                let outcome_pending: bool = tx.query_row(
-                    "SELECT EXISTS(
-                       SELECT 1
-                         FROM _snapback_operation_pending_v1 AS pending
-                         LEFT JOIN _snapback_operation_terminal_supplements_v1 AS terminal
-                           ON terminal.stream_id=pending.stream_id
-                          AND terminal.originator_class=pending.originator_class
-                          AND terminal.operation_id=pending.operation_id
-                        WHERE pending.audience=?1 AND pending.epoch_id=?2
-                          AND terminal.operation_id IS NULL
-                     )",
-                    params![audience, epoch_id],
-                    |row| row.get(0),
-                )?;
+                let outcome_pending = host_epoch_has_outcome_pending(tx, audience, epoch_id)?;
+                // Validate every Host terminal supplement before trusting its
+                // SQL audience/epoch/time projections in the retention query.
+                // The helper enumerates globally, so a corrupt projection
+                // cannot hide the young record by moving it out of this epoch.
+                let _ = pending_terminal_identities_for_epoch(tx, audience, epoch_id)?;
                 let young: bool = tx.query_row(
                     "SELECT EXISTS(
                        SELECT 1 FROM _snapback_operation_suppression_v1
@@ -2786,7 +2821,17 @@ pub fn explain_operation(
         return Ok(None);
     };
     let envelope: CommitEnvelopeV1 = decode(&body, "commit envelope")?;
-    reject_divergence(&envelope.identity, identity)?;
+    if envelope.identity != *identity {
+        if authority.administrative {
+            reject_divergence(&envelope.identity, identity)?;
+        } else {
+            // @ref LLP 0163#implementation-record--2026-08-04-explanation-and-protected-custody — public non-exact lookups use one metadata-free refusal; admin retains exact diagnostics.
+            // The public lane has one closed answer for a non-exact lookup.
+            // Reused/auth-stale classification is settlement authority, not
+            // a cross-principal operation-existence oracle.
+            return Ok(Some(authorization_unprovable(envelope)));
+        }
+    }
     Ok(Some(project_explanation(conn, envelope, authority)?))
 }
 
@@ -3470,6 +3515,48 @@ fn suppression_identities_for_epoch(
     audience: &str,
     epoch_id: &str,
 ) -> SnapbackResult<Vec<OperationIdentityV1>> {
+    if originator_class == OperationOriginatorClassV1::Host {
+        let mut statement = tx.prepare(
+            "SELECT stream_id,originator_class,operation_id,identity_json
+               FROM _snapback_operation_suppression_v1",
+        )?;
+        let rows = statement.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })?;
+        let rows = rows.collect::<Result<Vec<_>, _>>()?;
+        drop(statement);
+        let mut identities = Vec::new();
+        for (row_stream_id, row_originator, row_operation_id, identity_json) in rows {
+            let identity: OperationIdentityV1 = decode(&identity_json, "suppression identity")?;
+            if identity.key.originator_class != OperationOriginatorClassV1::Host
+                && row_originator != originator(OperationOriginatorClassV1::Host)
+            {
+                continue;
+            }
+            if row_stream_id != identity.key.stream_id
+                || row_originator != originator(identity.key.originator_class)
+                || row_operation_id != identity.key.operation_id
+                || !matches!(
+                    lookup_operation(tx, &identity)?,
+                    OperationLookupV1::ExactReplay(_)
+                )
+            {
+                return Err(invalid(
+                    "host suppression row is not exact retained authority",
+                ));
+            }
+            if identity.bound_facts.audience == audience && issuance_parts(&identity).0 == epoch_id
+            {
+                identities.push(identity);
+            }
+        }
+        return Ok(identities);
+    }
     let mut statement = tx.prepare(
         "SELECT identity_json FROM _snapback_operation_suppression_v1
          WHERE originator_class=?1 AND audience=?2 AND epoch_id=?3",
@@ -3488,16 +3575,99 @@ fn pending_terminal_identities_for_epoch(
     epoch_id: &str,
 ) -> SnapbackResult<Vec<OperationIdentityV1>> {
     let mut statement = tx.prepare(
-        "SELECT supplement_json FROM _snapback_operation_terminal_supplements_v1
-         WHERE originator_class='host' AND audience=?1 AND epoch_id=?2",
+        "SELECT stream_id,originator_class,operation_id,supplement_json
+           FROM _snapback_operation_terminal_supplements_v1",
     )?;
-    let rows = statement.query_map(params![audience, epoch_id], |row| row.get::<_, String>(0))?;
-    rows.map(|row| {
+    let rows = statement.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, String>(3)?,
+        ))
+    })?;
+    let rows = rows.collect::<Result<Vec<_>, _>>()?;
+    drop(statement);
+    let mut identities = Vec::new();
+    for (row_stream_id, row_originator, row_operation_id, supplement_json) in rows {
         let supplement: PendingOperationTerminalSupplementV1 =
-            decode(&row?, "pending terminal supplement")?;
-        Ok(supplement.identity)
-    })
-    .collect()
+            decode(&supplement_json, "pending terminal supplement")?;
+        let identity = supplement.identity.clone();
+        if identity.key.originator_class != OperationOriginatorClassV1::Host
+            && row_originator != originator(OperationOriginatorClassV1::Host)
+        {
+            continue;
+        }
+        if row_stream_id != identity.key.stream_id
+            || row_originator != originator(identity.key.originator_class)
+            || row_operation_id != identity.key.operation_id
+            || !matches!(
+                lookup_pending_operation(tx, &identity)?,
+                PendingOperationLookupV1::Terminal(ref retained) if retained == &supplement
+            )
+        {
+            return Err(invalid(
+                "host terminal supplement is not exact retained authority",
+            ));
+        }
+        if identity.bound_facts.audience == audience && issuance_parts(&identity).0 == epoch_id {
+            identities.push(identity);
+        }
+    }
+    Ok(identities)
+}
+
+fn host_epoch_has_outcome_pending(
+    tx: &Transaction<'_>,
+    audience: &str,
+    epoch_id: &str,
+) -> SnapbackResult<bool> {
+    let mut statement = tx.prepare(
+        "SELECT stream_id,originator_class,operation_id,lifecycle_json
+           FROM _snapback_operation_pending_v1",
+    )?;
+    let rows = statement.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, String>(3)?,
+        ))
+    })?;
+    let rows = rows.collect::<Result<Vec<_>, _>>()?;
+    drop(statement);
+    let mut outcome_pending = false;
+    for (row_stream_id, row_originator, row_operation_id, lifecycle_json) in rows {
+        let lifecycle: PendingOperationLifecycleV1 =
+            decode(&lifecycle_json, "pending operation lifecycle")?;
+        let identity = lifecycle.identity.clone();
+        if identity.key.originator_class != OperationOriginatorClassV1::Host
+            && row_originator != originator(OperationOriginatorClassV1::Host)
+        {
+            continue;
+        }
+        if row_stream_id != identity.key.stream_id
+            || row_originator != originator(identity.key.originator_class)
+            || row_operation_id != identity.key.operation_id
+        {
+            return Err(invalid("host pending lifecycle primary key is incoherent"));
+        }
+        let lookup = lookup_pending_operation(tx, &identity)?;
+        if identity.bound_facts.audience == audience && issuance_parts(&identity).0 == epoch_id {
+            match lookup {
+                PendingOperationLookupV1::Pending(ref retained) if retained == &lifecycle => {
+                    outcome_pending = true;
+                }
+                PendingOperationLookupV1::Terminal(_) => {}
+                _ => {
+                    return Err(invalid(
+                        "host pending lifecycle is not exact retained authority",
+                    ));
+                }
+            }
+        }
+    }
+    Ok(outcome_pending)
 }
 
 fn refuse_retained_identity_for_insert(
@@ -5486,6 +5656,58 @@ mod tests {
             prune_compact_envelope_in(&tx, &pending_guard)
                 .expect("prune pending-guard compact envelope")
         );
+        tx.execute_batch("SAVEPOINT terminal_writer_guard")
+            .expect("terminal writer savepoint");
+        insert_covered_change(&tx, 76, "terminal-guard-rolled-back");
+        assert_eq!(
+            record_operation_in(&tx, &envelope(pending_guard.clone(), 76, 1))
+                .expect_err("terminal writer cannot reuse a tombstoned host identity")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_ALREADY_RECORDED"
+        );
+        let (staged_rows, envelopes, suppressions, leases, tombstones): (u64, u64, u64, u64, u64) =
+            tx.query_row(
+                "SELECT
+                   (SELECT COUNT(*) FROM app_rows WHERE id='terminal-guard-rolled-back') +
+                   (SELECT COUNT(*) FROM _snapback_changes WHERE version=76),
+                   (SELECT COUNT(*) FROM _snapback_commit_envelopes_v1
+                     WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2),
+                   (SELECT COUNT(*) FROM _snapback_operation_suppression_v1
+                     WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2),
+                   (SELECT COUNT(*) FROM _snapback_host_identity_leases_v1
+                     WHERE stream_id=?1 AND operation_id=?2),
+                   (SELECT COUNT(*) FROM _snapback_operation_tombstones_v1
+                     WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2)",
+                params![pending_guard.key.stream_id, pending_guard.key.operation_id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
+            )
+            .expect("terminal guard staged state");
+        assert_eq!(
+            (staged_rows, envelopes, suppressions, leases, tombstones),
+            (2, 0, 0, 0, 1),
+            "the retained-state guard refuses before lifecycle writes while caller writes remain staged"
+        );
+        tx.execute_batch("ROLLBACK TO terminal_writer_guard; RELEASE terminal_writer_guard")
+            .expect("rollback terminal writer publication");
+        let terminal_staged_rows: u64 = tx
+            .query_row(
+                "SELECT
+                   (SELECT COUNT(*) FROM app_rows WHERE id='terminal-guard-rolled-back') +
+                   (SELECT COUNT(*) FROM _snapback_changes WHERE version=76)",
+                [],
+                |row| row.get(0),
+            )
+            .expect("terminal guard rollback state");
+        assert_eq!(terminal_staged_rows, 0);
         tx.execute_batch("SAVEPOINT pending_writer_guard")
             .expect("pending writer savepoint");
         insert_covered_change(&tx, 77, "pending-guard-rolled-back");
@@ -5516,10 +5738,8 @@ mod tests {
                 .code,
             "SNAPBACK_OPERATION_ALREADY_RECORDED"
         );
-        tx.execute_batch("ROLLBACK TO pending_writer_guard; RELEASE pending_writer_guard")
-            .expect("rollback pending writer publication");
-        let (staged_rows, pending_rows, envelopes, tombstones): (u64, u64, u64, u64) = tx
-            .query_row(
+        let (staged_rows, pending_rows, envelopes, leases, tombstones): (u64, u64, u64, u64, u64) =
+            tx.query_row(
                 "SELECT
                    (SELECT COUNT(*) FROM app_rows WHERE id='pending-guard-rolled-back') +
                    (SELECT COUNT(*) FROM _snapback_changes WHERE version=77),
@@ -5527,16 +5747,124 @@ mod tests {
                      WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2),
                    (SELECT COUNT(*) FROM _snapback_commit_envelopes_v1
                      WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2),
+                   (SELECT COUNT(*) FROM _snapback_host_identity_leases_v1
+                     WHERE stream_id=?1 AND operation_id=?2),
                    (SELECT COUNT(*) FROM _snapback_operation_tombstones_v1
                      WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2)",
                 params![pending_guard.key.stream_id, pending_guard.key.operation_id],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
+            )
+            .expect("pending guard staged state");
+        assert_eq!(
+            (staged_rows, pending_rows, envelopes, leases, tombstones),
+            (2, 0, 0, 0, 1),
+            "pending refusal leaves caller app/journal writes staged and writes no lifecycle state"
+        );
+        tx.execute_batch("ROLLBACK TO pending_writer_guard; RELEASE pending_writer_guard")
+            .expect("rollback pending writer publication");
+        let (staged_rows, pending_rows, envelopes, leases, tombstones): (u64, u64, u64, u64, u64) =
+            tx.query_row(
+                "SELECT
+                   (SELECT COUNT(*) FROM app_rows WHERE id='pending-guard-rolled-back') +
+                   (SELECT COUNT(*) FROM _snapback_changes WHERE version=77),
+                   (SELECT COUNT(*) FROM _snapback_operation_pending_v1
+                     WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2),
+                   (SELECT COUNT(*) FROM _snapback_commit_envelopes_v1
+                     WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2),
+                   (SELECT COUNT(*) FROM _snapback_host_identity_leases_v1
+                     WHERE stream_id=?1 AND operation_id=?2),
+                   (SELECT COUNT(*) FROM _snapback_operation_tombstones_v1
+                     WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2)",
+                params![pending_guard.key.stream_id, pending_guard.key.operation_id],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                    ))
+                },
             )
             .expect("pending guard retained state");
         assert_eq!(
-            (staged_rows, pending_rows, envelopes, tombstones),
-            (0, 0, 0, 1)
+            (staged_rows, pending_rows, envelopes, leases, tombstones),
+            (0, 0, 0, 0, 1)
         );
+        let mut pending_terminal = host.clone();
+        pending_terminal.key.operation_id =
+            derive_host_operation_id("migration:pending-terminal", 0);
+        pending_terminal.issuance = OperationIssuanceV1::HostIncarnation {
+            epoch_id: "host-epoch-1".to_owned(),
+            upstream_identity: "migration:pending-terminal".to_owned(),
+            commit_ordinal: 0,
+            authority_authenticator_digest: sha('e'),
+        };
+        insert_covered_change(&tx, 78, "pending-terminal-retained");
+        let mut pending_terminal_envelope = envelope(pending_terminal.clone(), 78, 1);
+        pending_terminal_envelope.snapshot.association = SnapshotAssociationKindV1::ProducedCommit;
+        pending_terminal_envelope.recorded_at_ms = 14;
+        pending_terminal_envelope.receipt.state = OperationReceiptStateV1::Pending;
+        pending_terminal_envelope.receipt.payload = RetainedEnvelopeDetailV1::InlineRedacted {
+            detail: json!({"migrationId":"pending-terminal"}),
+        };
+        let pending_terminal_payload =
+            serde_json::to_value(&pending_terminal_envelope.receipt.payload)
+                .expect("pending terminal payload");
+        pending_terminal_envelope.receipt.receipt_digest =
+            pending_operation_receipt_digest(&pending_terminal_payload)
+                .expect("pending terminal digest");
+        let pending_terminal_lifecycle = PendingOperationLifecycleV1 {
+            schema_version: 1,
+            lane: "migration".to_owned(),
+            identity: pending_terminal.clone(),
+            publication: pending_terminal_envelope.snapshot.clone(),
+            pending_receipt_digest: pending_terminal_envelope.receipt.receipt_digest.clone(),
+            pending_payload: pending_terminal_payload,
+            pending_at_ms: pending_terminal_envelope.recorded_at_ms,
+        };
+        record_pending_operation_in(
+            &tx,
+            &pending_terminal_envelope,
+            &pending_terminal_lifecycle,
+            8,
+        )
+        .expect("record outcome-pending Host publication");
+        let terminal_projection = json!({"migrationId":"pending-terminal","state":"committed"});
+        let terminal_receipt_digest =
+            pending_operation_terminal_receipt_digest(&terminal_projection)
+                .expect("terminal receipt digest");
+        let terminal_write_set_digest = sha('d');
+        let terminal_supplement = PendingOperationTerminalSupplementV1 {
+            schema_version: 1,
+            identity: pending_terminal.clone(),
+            publication: pending_terminal_lifecycle.publication.clone(),
+            pending_receipt_digest: pending_terminal_lifecycle.pending_receipt_digest.clone(),
+            terminal_outcome: PendingOperationTerminalOutcomeV1::Committed,
+            terminal_receipt_digest: terminal_receipt_digest.clone(),
+            terminal_write_set_digest: terminal_write_set_digest.clone(),
+            terminal_write_set_count: 1,
+            terminal_at_ms: 100,
+            transition_digest: pending_operation_transition_digest(
+                &pending_terminal,
+                &pending_terminal_lifecycle.publication,
+                &pending_terminal_lifecycle.pending_receipt_digest,
+                PendingOperationTerminalOutcomeV1::Committed,
+                &terminal_receipt_digest,
+                &terminal_write_set_digest,
+                1,
+            ),
+        };
+        finalize_pending_operation_in(&tx, &terminal_supplement, &terminal_projection)
+            .expect("finalize outcome-pending Host publication");
         let mut live_ticket = host.clone();
         live_ticket.key.operation_id = derive_host_operation_id("promotion:ticket-1", 0);
         live_ticket.issuance = OperationIssuanceV1::HostIncarnation {
@@ -5667,7 +5995,90 @@ mod tests {
             params![host.key.stream_id, host.key.operation_id],
         )
         .expect("restore coherent retention time");
-        assert!(
+        let host_record_json: String = tx
+            .query_row(
+                "SELECT record_json FROM _snapback_operation_suppression_v1
+                  WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2",
+                params![host.key.stream_id, host.key.operation_id],
+                |row| row.get(0),
+            )
+            .expect("read Host suppression JSON");
+        let host_record: OperationSuppressionRecordV1 =
+            serde_json::from_str(&host_record_json).expect("decode Host suppression JSON");
+        for (label, corrupted) in [
+            ("terminal JSON", {
+                let mut record = host_record.clone();
+                record.terminal_at_ms = 0;
+                record
+            }),
+            ("acknowledgement JSON", {
+                let mut record = host_record.clone();
+                record.acknowledged_at_ms = Some(5);
+                record
+            }),
+        ] {
+            tx.execute(
+                "UPDATE _snapback_operation_suppression_v1 SET record_json=?1
+                  WHERE stream_id=?2 AND originator_class='host' AND operation_id=?3",
+                params![
+                    serde_json::to_string(&corrupted).expect("encode corrupt Host suppression"),
+                    host.key.stream_id,
+                    host.key.operation_id,
+                ],
+            )
+            .unwrap_or_else(|error| panic!("stage {label} corruption: {error}"));
+            assert_eq!(
+                lookup_operation(&tx, &host)
+                    .expect_err("corrupt Host suppression never replays")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_OPERATION_LEDGER_INVALID"
+            );
+            assert_eq!(
+                close_epoch_if_complete_in(
+                    &tx,
+                    OperationOriginatorClassV1::Host,
+                    "audience-1",
+                    "host-epoch-1",
+                    HOST_RECEIPT_WINDOW_MS_V1 + 11,
+                )
+                .expect_err("Host closure rejects corrupt suppression JSON")
+                .diagnostic
+                .code,
+                "SNAPBACK_OPERATION_LEDGER_INVALID"
+            );
+            tx.execute(
+                "UPDATE _snapback_operation_suppression_v1 SET record_json=?1
+                  WHERE stream_id=?2 AND originator_class='host' AND operation_id=?3",
+                params![&host_record_json, host.key.stream_id, host.key.operation_id],
+            )
+            .unwrap_or_else(|error| panic!("restore {label} coherence: {error}"));
+        }
+        tx.execute(
+            "UPDATE _snapback_operation_terminal_supplements_v1
+                SET terminal_at_ms=0
+              WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2",
+            params![
+                pending_terminal.key.stream_id,
+                pending_terminal.key.operation_id
+            ],
+        )
+        .expect("stage terminal-supplement retention-time corruption");
+        assert_eq!(
+            lookup_pending_operation(&tx, &pending_terminal)
+                .expect_err("terminal-supplement projection corruption never settles")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_LEDGER_INVALID"
+        );
+        assert_eq!(
+            finalize_pending_operation_in(&tx, &terminal_supplement, &terminal_projection)
+                .expect_err("terminal exact replay validates retained SQL/JSON coherence")
+                .diagnostic
+                .code,
+            "SNAPBACK_OPERATION_LEDGER_INVALID"
+        );
+        assert_eq!(
             close_epoch_if_complete_in(
                 &tx,
                 OperationOriginatorClassV1::Host,
@@ -5675,7 +6086,90 @@ mod tests {
                 "host-epoch-1",
                 HOST_RECEIPT_WINDOW_MS_V1 + 11,
             )
+            .expect_err("host closure cannot trust a divergent supplement time")
+            .diagnostic
+            .code,
+            "SNAPBACK_OPERATION_LEDGER_INVALID"
+        );
+        tx.execute(
+            "UPDATE _snapback_operation_terminal_supplements_v1
+                SET terminal_at_ms=100
+              WHERE stream_id=?1 AND originator_class='host' AND operation_id=?2",
+            params![
+                pending_terminal.key.stream_id,
+                pending_terminal.key.operation_id
+            ],
+        )
+        .expect("restore coherent terminal-supplement time");
+        assert!(
+            !close_epoch_if_complete_in(
+                &tx,
+                OperationOriginatorClassV1::Host,
+                "audience-1",
+                "host-epoch-1",
+                HOST_RECEIPT_WINDOW_MS_V1 + 11,
+            )
+            .expect("young terminal supplement retains the Host epoch")
+        );
+        assert!(
+            close_epoch_if_complete_in(
+                &tx,
+                OperationOriginatorClassV1::Host,
+                "audience-1",
+                "host-epoch-1",
+                HOST_RECEIPT_WINDOW_MS_V1 + 101,
+            )
             .expect("host window elapsed after ticket completion")
+        );
+        let (state, floor, suppressions, pending, supplements, leases, tombstones): (
+            String,
+            u64,
+            u64,
+            u64,
+            u64,
+            u64,
+            u64,
+        ) = tx
+            .query_row(
+                "SELECT
+                   (SELECT state FROM _snapback_operation_epochs_v1
+                     WHERE originator_class='host' AND audience='audience-1'
+                       AND epoch_id='host-epoch-1'),
+                   (SELECT floor_sequence FROM _snapback_operation_floors_v1
+                     WHERE originator_class='host' AND audience='audience-1'),
+                   (SELECT COUNT(*) FROM _snapback_operation_suppression_v1
+                     WHERE originator_class='host' AND audience='audience-1'
+                       AND epoch_id='host-epoch-1'),
+                   (SELECT COUNT(*) FROM _snapback_operation_pending_v1
+                     WHERE originator_class='host' AND audience='audience-1'
+                       AND epoch_id='host-epoch-1'),
+                   (SELECT COUNT(*) FROM _snapback_operation_terminal_supplements_v1
+                     WHERE originator_class='host' AND audience='audience-1'
+                       AND epoch_id='host-epoch-1'),
+                   (SELECT COUNT(*) FROM _snapback_host_identity_leases_v1
+                     WHERE audience='audience-1' AND epoch_id='host-epoch-1'),
+                   (SELECT COUNT(*) FROM _snapback_operation_tombstones_v1
+                     WHERE originator_class='host' AND audience='audience-1'
+                       AND epoch_id='host-epoch-1')",
+                [],
+                |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
+                    ))
+                },
+            )
+            .expect("closed Host epoch retained-state projection");
+        assert_eq!(state, "closed");
+        assert_eq!(floor, 2);
+        assert_eq!(
+            (suppressions, pending, supplements, leases, tombstones),
+            (0, 0, 0, 0, 0)
         );
         tx.commit().expect("host close");
     }

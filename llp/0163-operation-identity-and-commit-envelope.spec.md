@@ -5,7 +5,7 @@
 **Systems:** Storage, Sync, Auth, Diagnostics, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-08-03
-**Revised:** 2026-08-05 (merged C28 review stop and prospective C29 repair — automatic sessions range custody, nullable-required Host tombstones, terminal-time coherence, and pending-writer rollback; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 lifecycle repair — comparison-complete tombstones, contiguous floors, bounded ranges, and transactional writer guards; Draft/Missing unchanged); 2026-08-04 (explicit activation transport — an authenticated,
+**Revised:** 2026-08-05 (exact C29 review stop and prospective C30 repair — terminal-supplement retention coherence, automatic sessions ACK custody, closed public explanation lookup, and direct Host writer rollback matrix; Draft/Missing unchanged); 2026-08-05 (merged C28 review stop and prospective C29 repair — automatic sessions range custody, nullable-required Host tombstones, terminal-time coherence, and pending-writer rollback; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 lifecycle repair — comparison-complete tombstones, contiguous floors, bounded ranges, and transactional writer guards; Draft/Missing unchanged); 2026-08-04 (explicit activation transport — an authenticated,
 managed-admission AdminWrite command now accepts only the versioned local
 target/profile pair and publishes the exact four-adapter manifest; it remains
 inactive until an operator invokes it, and independent review, author
@@ -859,3 +859,34 @@ Focused repair proof is 42/42 client tests, the exact writer/Host-closure test,
 not publication evidence: the Spec stays `Draft` and all related capabilities
 stay `Missing` pending a fresh clean exact candidate, independent reviews, and
 the unchanged performance/publication gates.
+
+## Implementation record — 2026-08-05, exact C29 stop and C30 repair
+
+Fresh Codex and Fable review of exact clean C29 commit
+`3f5c587fbe58533a6d471b0e13f238e6baabf774` returned two `NOT READY`
+verdicts before performance. No paired or absolute process ran. The shared
+blocker was the sibling pending-terminal table's unchecked SQL retention-time
+projection; the remaining carrier blockers were automatic sessions ACK
+selection before authority resolution, a public cross-principal
+existence/divergence oracle, and a Host writer rollback matrix that did not
+distinguish staged caller writes or cover both terminal and pending seams.
+
+C30 makes the retention check comparison-complete across ordinary suppression,
+pending lifecycle, and terminal-supplement rows. Host closure enumerates the
+global retained Host set, checks physical keys and JSON identities, validates
+lane/audience/epoch/time/ack projections, and only then trusts indexed SQL
+retention predicates. It resolves current session descriptor/principal custody
+before ACK cohort selection and proves the next automatic sessions mutation
+carries and confirms the consumed obligation. Public foreign and absent keys
+share one metadata-free `authorization-unprovable` response; only AdminRead
+retains exact collision diagnostics. Direct Host terminal and pending tests
+prove staged app/journal rows exist before caller rollback, no forbidden
+envelope/suppression/pending/lease row is written, rollback removes the staged
+publication, and the retained tombstone survives. Host closure additionally
+proves JSON-side terminal/ack corruption, terminal-supplement SQL corruption,
+the young-window hold, and final lifecycle reclamation/floor state.
+
+The required-nullable tombstone counter is now required by Rust decoding as
+well as the generated schema. This Spec remains `Draft`; all related
+capabilities remain `Missing` pending fresh exact review, the unchanged
+performance gates, and publication acceptance.

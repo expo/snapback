@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "9ba26b09620500af1f79a1bb25f7fbd4dde35af3"
+    "commit": "3f5c587fbe58533a6d471b0e13f238e6baabf774"
   },
   "nav": {
     ".": [
@@ -1455,7 +1455,7 @@
       "examples": [],
       "reviewed": "2026-08-04",
       "reviewedCommit": "HEAD",
-      "sha256": "8e436a70afed8e15324fb7e84ed0b424499407d24940b5b50aa846ecc8feb897",
+      "sha256": "2ff03bd144096722749fb19f4252721ffb14c54bf6aefe2e6c5c7b91d4dcd2a5",
       "snippets": []
     },
     "clients.app-cli": {
@@ -2301,7 +2301,7 @@
       ],
       "reviewed": "2026-08-04",
       "reviewedCommit": "HEAD",
-      "sha256": "ef481a43159d22ba0993855b0ca24386c014ef325f9eda08385c53947a2ad6a8",
+      "sha256": "9564b114b16be3c49ee11f84c85f5cbe33b328ae7a11732d0268b47f520ccc54",
       "snippets": [
         {
           "lang": "js",
@@ -3101,5 +3101,5 @@
     "routes": 116,
     "hostOps": 37
   },
-  "contentHash": "6a848ea1871a60639ec939be46c3fafd22fee22e126d2d716818064faac77919"
+  "contentHash": "3d944fef9c02be2e226427dcd3e78caa3e5df9057b25992772ef8c5060df13aa"
 }

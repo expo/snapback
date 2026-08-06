@@ -653,6 +653,13 @@ fn nullable_operation_counter_schema(
     generator.subschema_for::<Option<u64>>()
 }
 
+fn deserialize_required_nullable_counter<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Option::<u64>::deserialize(deserializer)
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, JsonSchema, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct OperationIdentityTombstoneV1 {
@@ -673,6 +680,7 @@ pub struct OperationIdentityTombstoneV1 {
     /// Retained SQL projection used to enforce client-range counter
     /// uniqueness. Keeping the scalar in the closed tombstone lets lookup
     /// validate SQL/JSON coherence without retaining the identity payload.
+    #[serde(deserialize_with = "deserialize_required_nullable_counter")]
     #[schemars(required, schema_with = "nullable_operation_counter_schema")]
     pub counter: Option<u64>,
     pub terminal_outcome: OperationTerminalOutcomeV1,
@@ -714,6 +722,26 @@ pub struct OperationExplanationV1 {
     pub write_set_digest: Option<String>,
     pub write_set_count: Option<u64>,
     pub detail: Option<Value>,
+}
+
+impl OperationExplanationV1 {
+    pub(crate) fn authorization_unprovable(key: OperationKeyV1) -> Self {
+        Self {
+            schema_version: operation_explanation_schema_version(),
+            key,
+            operation_kind: None,
+            function_or_command: None,
+            principal_fingerprint: None,
+            principal_session_or_invocation_id: None,
+            snapshot: None,
+            disposition: ExplanationDispositionV1::AuthorizationUnprovable,
+            read_set_digest: None,
+            read_set_count: None,
+            write_set_digest: None,
+            write_set_count: None,
+            detail: None,
+        }
+    }
 }
 
 pub(crate) fn operation_explanation_schema_version() -> u32 {

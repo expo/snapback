@@ -890,7 +890,7 @@ test('fresh same-principal authority atomically covers capacity-stranded intent'
   assert.equal(mutationBodies[0].operationIssuance.epoch_id, 'epoch-successor');
 });
 
-test('sessions mode automatically carries current authority through range issuance', async (t) => {
+test('sessions mode automatically carries authority through range issuance and ACK custody', async (t) => {
   t.after(() => { globalThis.fetch = originalFetch; });
   const store = createDurableTestStore();
   const issuedAtMs = Date.now();
@@ -945,6 +945,27 @@ test('sessions mode automatically carries current authority through range issuan
   assert.deepEqual(retained.authorityDescriptor, TEST_AUTHORITY_DESCRIPTOR);
   assert.equal(retained.operationAuthorityPrincipalId, TEST_SESSION_USER_ID);
   assert.equal(retained.operationIssuance.epoch_id, 'epoch-automatic-session');
+
+  const recovered = await client.settledMutations();
+  assert.equal(recovered.length, 1);
+  assert.equal(recovered[0].clientMutationId, retained.id);
+  await client.markMutationSettlementsConsumed([retained.id]);
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
+    [retained.id],
+  );
+
+  await client.mutate('createThing', {
+    args: { title: 'automatic session acknowledgement' },
+  });
+  assert.equal(mutationBodies.length, 2);
+  assert.deepEqual(mutationBodies[1].authorityDescriptor, TEST_AUTHORITY_DESCRIPTOR);
+  assert.deepEqual(mutationBodies[1].acknowledgedClientMutationIds, [retained.id]);
+  assert.deepEqual(
+    await store.outboxPendingAcknowledgements(null, 64, TEST_AUTHORITY_DESCRIPTOR),
+    [],
+    'the ACK obligation clears only after the second mutation succeeds',
+  );
 });
 
 test('authority rotation allocates a disjoint range without rebinding old queued identity', async (t) => {

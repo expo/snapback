@@ -2,7 +2,7 @@
 
 **Status:** Open
 **Opened:** 2026-08-03 (LLP 0163 durable storage slice)
-**Updated:** 2026-08-05 (merged C28 stopped before performance; C29 repairs automatic sessions range custody, Host tombstone schema nullability, retention-time coherence, and pending rollback proof; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 identity-lifecycle correction; Draft/Missing unchanged); 2026-08-04 (fork-boundary correction — managed branches pin
+**Updated:** 2026-08-05 (exact C29 stopped before performance; C30 repairs terminal-supplement projection coherence, automatic sessions ACK custody, the public explanation oracle, and the Host rollback matrix; Draft/Missing unchanged); 2026-08-05 (merged C28 stopped before performance; C29 repairs automatic sessions range custody, Host tombstone schema nullability, retention-time coherence, and pending rollback proof; Draft/Missing unchanged); 2026-08-05 (C27 pre-result abandonment and C28 identity-lifecycle correction; Draft/Missing unchanged); 2026-08-04 (fork-boundary correction — managed branches pin
 canonical schema/function-bundle identities and preserve exact retry across
 parent drift, but CaptureOnly is truthfully non-promotable. Product provider
 custody, ordered settlement, and public effect-bearing strict promotion are
@@ -72,6 +72,23 @@ a retained-identity refusal.
 The focused carrier proof is green, but this record does not activate the
 manifest or advertise coverage. Fresh exact review, one-shot fixed-Air
 performance, named-author acceptance, and publication binding remain open.
+
+## C29 review stop and C30 carrier repair — 2026-08-05
+
+Exact clean C29 commit `3f5c587fbe58533a6d471b0e13f238e6baabf774`
+received independent Codex and Fable `NOT READY` verdicts before performance.
+C30 closes their carrier findings: Host closure globally validates ordinary
+suppression, pending lifecycle, and terminal-supplement SQL/JSON projections;
+automatic sessions resolve descriptor/principal custody before ACK selection;
+public foreign and absent keys share one metadata-free
+`authorization-unprovable` disposition; and direct Host terminal plus pending
+writer negatives distinguish staged caller writes from forbidden lifecycle
+writes and prove rollback clears app/journal state without losing the retained
+tombstone. The required-nullable counter is also required by Rust decoding,
+not only the generated schema.
+
+The capability remains `Missing`. Fresh exact review, fixed-Air performance,
+named-author acceptance, and publication binding remain open.
 
 ## Progress — 2026-08-04
 

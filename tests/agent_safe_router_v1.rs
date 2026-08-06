@@ -415,6 +415,42 @@ async fn generated_owner_mutations_compose_public_admin_explanation_and_app_effe
             .contains("plan/steps/0/insert/row-id")
     );
 
+    // A foreign bound identity and a wholly absent key have the same closed
+    // public posture. The transport echoes only the caller-supplied key and
+    // never exposes whether a retained operation occupied it.
+    let mut foreign_existing = update_identity.clone();
+    foreign_existing.bound_facts.principal_fingerprint = "foreign-principal".to_owned();
+    foreign_existing.bound_facts.authority_instance_id = "foreign-authority".to_owned();
+    let mut foreign_missing = foreign_existing.clone();
+    foreign_missing.key.operation_id = "agent-safe-foreign-missing".to_owned();
+    for (expected_key, response) in [
+        (
+            foreign_existing.key.clone(),
+            public_explanation(&router, foreign_existing).await,
+        ),
+        (
+            foreign_missing.key.clone(),
+            public_explanation(&router, foreign_missing).await,
+        ),
+    ] {
+        let explanation = response
+            .explanation
+            .expect("public foreign lookup returns one closed disposition");
+        assert_eq!(explanation.key, expected_key);
+        assert_eq!(
+            explanation.disposition,
+            ExplanationDispositionV1::AuthorizationUnprovable
+        );
+        assert_eq!(explanation.operation_kind, None);
+        assert_eq!(explanation.function_or_command, None);
+        assert_eq!(explanation.principal_fingerprint, None);
+        assert_eq!(explanation.principal_session_or_invocation_id, None);
+        assert_eq!(explanation.snapshot, None);
+        assert_eq!(explanation.read_set_digest, None);
+        assert_eq!(explanation.write_set_digest, None);
+        assert_eq!(explanation.detail, None);
+    }
+
     let admin_create = admin_explanation(&router, create_identity).await;
     let admin_update = admin_explanation(&router, update_identity).await;
     for (function, response) in [("createNote", &admin_create), ("updateNote", &admin_update)] {

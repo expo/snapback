@@ -4097,15 +4097,13 @@ export class SnapbackClient {
       const mutationIdentityRequest = path.startsWith('/mutation/') && body?.clientMutationId;
       const rangeIdentityRequest = path === '/client-mutations/identity-range';
       if (mutationIdentityRequest || rangeIdentityRequest) {
-        if (mutationIdentityRequest) {
-          const queuedAvailability = session?.availability?.queuedReplay;
-          if (session && queuedAvailability?.available !== true) {
-            const code = queuedAvailability?.reason ?? 'SNAPBACK_AUTH_POLICY_UNAVAILABLE';
-            throw clientCodedError(
-              new Error(`${code}: queued mutation replay is unavailable`),
-              code,
-            );
-          }
+        const queuedAvailability = session?.availability?.queuedReplay;
+        if (session && queuedAvailability?.available !== true) {
+          const code = queuedAvailability?.reason ?? 'SNAPBACK_AUTH_POLICY_UNAVAILABLE';
+          throw clientCodedError(
+            new Error(`${code}: queued mutation replay is unavailable`),
+            code,
+          );
         }
         const descriptor = body.authorityDescriptor ?? session?.authorityDescriptor ?? null;
         if (descriptor !== null || sessionsMode) {
@@ -6484,6 +6482,31 @@ export class SnapbackClient {
         'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
       );
     }
+    let operationAuthorityPrincipalId = typeof userId === 'string' ? userId : null;
+    if (operationIdentityEnabled && this.authProtocols.authClient != null) {
+      const session = await this.authSession();
+      const currentDescriptor = requireAuthorityDescriptor(
+        session?.authorityDescriptor,
+        'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
+      );
+      const currentPrincipalId = session?.activeMode === 'sessions'
+        && session?.authority?.isAuthenticated === true
+        && typeof session?.authority?.userId === 'string'
+        ? session.authority.userId
+        : null;
+      if (
+        body.authorityDescriptor
+        && !sameAuthorityDescriptor(currentDescriptor, body.authorityDescriptor)
+      ) {
+        const error = new Error(
+          'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED: mutation descriptor is not current',
+        );
+        error.code = 'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED';
+        throw error;
+      }
+      body.authorityDescriptor = currentDescriptor;
+      operationAuthorityPrincipalId = currentPrincipalId;
+    }
     // Exactly-once ledger GC piggyback (LLP 0043 M2): ride pending ACK
     // obligations for this auth identity on the next mutation. A request
     // may not acknowledge its own current id.
@@ -6524,31 +6547,6 @@ export class SnapbackClient {
     if (settlementIdentity !== null) body.settlementIdentity = settlementIdentity;
     if (settlementClaims !== null) body.settlementClaims = settlementClaims;
     if (boundedSkew !== null) body.boundedSkew = boundedSkew;
-    let operationAuthorityPrincipalId = typeof userId === 'string' ? userId : null;
-    if (operationIdentityEnabled && this.authProtocols.authClient != null) {
-      const session = await this.authSession();
-      const currentDescriptor = requireAuthorityDescriptor(
-        session?.authorityDescriptor,
-        'SNAPBACK_AUTHORITY_DESCRIPTOR_INVALID',
-      );
-      const currentPrincipalId = session?.activeMode === 'sessions'
-        && session?.authority?.isAuthenticated === true
-        && typeof session?.authority?.userId === 'string'
-        ? session.authority.userId
-        : null;
-      if (
-        body.authorityDescriptor
-        && !sameAuthorityDescriptor(currentDescriptor, body.authorityDescriptor)
-      ) {
-        const error = new Error(
-          'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED: mutation descriptor is not current',
-        );
-        error.code = 'SNAPBACK_OPERATION_RANGE_REAUTH_REQUIRED';
-        throw error;
-      }
-      body.authorityDescriptor = currentDescriptor;
-      operationAuthorityPrincipalId = currentPrincipalId;
-    }
     const durableMutationRecord = clientMutationId ? {
       id: clientMutationId,
       function: name,
