@@ -246,6 +246,18 @@ try {
     /running dev server|reload/iu,
     'the recovery names the supported evolution path',
   );
+  // issues/20260805-doc-comment-artifact-mismatch-no-successor-migration.md:
+  // the discard path must be a named supported procedure with the real backup
+  // command and this exact store, not author-discovered folklore.
+  assert.match(
+    pinDiagnostic.details.recovery.freshReseed,
+    /snapback auth backup --db /u,
+    'the recovery names the supported backup-then-reseed discard path',
+  );
+  assert.ok(
+    pinDiagnostic.details.recovery.freshReseed.includes(database),
+    'the reseed guidance names the exact managed store',
+  );
   assert.equal(
     pinDiagnostic.details.recovery.contributorRebuild,
     undefined,
