@@ -208,7 +208,8 @@ try {
     'snapback_config_verify', 'snapback_cron_list', 'snapback_jobs_list', 'snapback_jobs_show',
     'snapback_asset_list', 'snapback_asset_inspect', 'snapback_asset_retry',
     // LLP 0184 §P2's controlled-mutation and asset-family direct tools.
-    'snapback_config_unset', 'snapback_cron_tick', 'snapback_cron_run', 'snapback_jobs_drain',
+    'snapback_config_unset', 'snapback_cron_tick', 'snapback_cron_run',
+    'snapback_ephemeral_cleanup', 'snapback_jobs_drain',
     'snapback_connection_disconnect', 'snapback_ephemeral_operator_delete',
     'snapback_asset_delete', 'snapback_asset_gc_sweep', 'snapback_asset_rotate_signing_key',
     'snapback_asset_export_cut', 'snapback_asset_import_cut',
@@ -618,6 +619,26 @@ try {
   const cronRunUnknown = await client.call('snapback_cron_run', { name: 'no-such-cron-job' });
   assert.equal(cronRunUnknown.structuredContent.operation, 'cron.runOne');
   assert.equal(cronRunUnknown.structuredContent.ok, false, JSON.stringify(cronRunUnknown.structuredContent));
+
+  const cleanupPreview = await client.call('snapback_ephemeral_cleanup', {
+    olderThanMs: 0,
+    dryRun: true,
+    maxEntries: 10,
+  });
+  assert.equal(cleanupPreview.structuredContent.operation, 'ephemeral.cleanup');
+  assert.equal(cleanupPreview.structuredContent.ok, true, JSON.stringify(cleanupPreview.structuredContent));
+  assert.equal(cleanupPreview.structuredContent.data.artifactKind, 'snapback.ephemeral-cleanup-receipt/v1');
+  assert.equal(cleanupPreview.structuredContent.data.dryRun, true);
+  assert.equal(cleanupPreview.structuredContent.data.counts.deleted, 0);
+
+  const cleanupApply = await client.call('snapback_ephemeral_cleanup', {
+    olderThanMs: 0,
+    dryRun: false,
+    maxEntries: 10,
+  });
+  assert.equal(cleanupApply.structuredContent.operation, 'ephemeral.cleanup');
+  assert.equal(cleanupApply.structuredContent.ok, true, JSON.stringify(cleanupApply.structuredContent));
+  assert.equal(cleanupApply.structuredContent.data.dryRun, false);
 
   const jobsDrain = await client.call('snapback_jobs_drain', { nowMs: Date.now(), maxWaves: 1 });
   assert.equal(jobsDrain.structuredContent.operation, 'jobs.drain');

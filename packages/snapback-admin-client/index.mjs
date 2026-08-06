@@ -614,8 +614,29 @@ export class AdminClient {
     return this.#req('GET', `/jobs/${encodeURIComponent(jobId)}`);
   }
 
-  cleanupEphemeral() {
-    return this.#req('POST', '/ephemeral/cleanup');
+  async cleanupEphemeral({
+    cutoffTimestampMs,
+    olderThanMs = cutoffTimestampMs === undefined ? 0 : undefined,
+    dryRun = false,
+    maxEntries = 1_000,
+    startupNonce,
+  } = {}) {
+    // Existing console callers keep apply semantics, but now do so through a
+    // finite batch and an explicit expiry cutoff. Bind the request to the
+    // process observed immediately before the write; a restart between these
+    // calls is refused by the server instead of cleaning a replacement.
+    let nonce = String(startupNonce ?? '').trim();
+    if (!nonce) {
+      const instance = await this.#req('GET', '/control-catalog/instance');
+      nonce = String(instance?.startupNonce ?? '').trim();
+    }
+    return this.#req('POST', '/ephemeral/cleanup', {
+      ...(cutoffTimestampMs === undefined ? {} : { cutoffTimestampMs }),
+      ...(olderThanMs === undefined ? {} : { olderThanMs }),
+      dryRun: dryRun === true,
+      maxEntries,
+      startupNonce: nonce,
+    });
   }
 
   // @ref LLP 0036#status-model-and-app-visibility-d4 — the status primitive:

@@ -4,7 +4,7 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0184-agent-accessible-control-plane.rfc.md, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/ephemeral.rs, src/server.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
 examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
 status: current
 targets: [local]
@@ -268,6 +268,29 @@ application authorization or ownership, and its receipt says
 ordinary `delete`, while still using the ordinary removal and subscriber
 notification path. The server refuses it on production and on derived
 instances; LLP 0158 does not yet recognize derived identity for this purpose.
+
+## Clean up expired entries operationally
+
+The server's background expiry sweep remains automatic. For an explicit,
+auditable maintenance pass, preview a bounded cutoff before applying it:
+
+```sh fragment reason="Operator example uses a runtime URL rather than a repository-owned server fixture."
+snapback ephemeral cleanup --url http://127.0.0.1:4287 \
+  --older-than-ms 60000 --dry-run --max-entries 1000
+```
+
+`--older-than-ms` means “expired for at least this long”; it is not the age of
+the last publish. Use `--cutoff-timestamp-ms` instead when a wall-clock expiry
+deadline is the operator's source of truth. Exactly one cutoff and exactly one
+of `--dry-run` or `--apply` are required. `--max-entries` is bounded from 1 to
+10,000.
+
+The CLI and the destructive `snapback_ephemeral_cleanup` MCP tool bind each
+request to the current process startup nonce. The receipt reports examined,
+eligible, would-delete, deleted, and remaining counts by collection and opaque
+room digest; it never exposes raw room scope. Apply emits the ordinary
+`Expired` removals and subscription notifications. Cleanup is room-linearized,
+so repeat an apply when `bounds.truncated` is true or `complete` is false.
 
 ## Anti-patterns
 

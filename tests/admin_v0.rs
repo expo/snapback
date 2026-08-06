@@ -1221,6 +1221,65 @@ async fn s1_retired_root_operations_are_absent() {
     }
 }
 
+/// @ref LLP 0184#p2-controlled-mutations — named maintenance binds to one
+/// startup and returns a structured preview instead of the legacy bare 204.
+#[tokio::test]
+async fn ephemeral_cleanup_requires_current_startup_and_returns_receipt() {
+    let route = snapback::server::route_registry()
+        .into_iter()
+        .find(|route| route.path == "/_snapback/api/ephemeral/cleanup")
+        .expect("ephemeral cleanup route is registered");
+    assert_eq!(route.path_policy, snapback::server::RoutePolicy::AdminWrite);
+
+    let state = AppState::from_snapback(seeded_snapback(), loopback_context(None))
+        .with_server_startup_nonce("startup-cleanup-test")
+        .unwrap();
+    let app = snapback::server::app(state);
+
+    let mismatch = app
+        .clone()
+        .oneshot(post(
+            "/_snapback/api/ephemeral/cleanup",
+            json!({
+                "olderThanMs": 0,
+                "dryRun": true,
+                "maxEntries": 10,
+                "startupNonce": "stale-startup",
+            }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(mismatch.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        json(mismatch).await["diagnostic"]["code"],
+        "SNAPBACK_EPHEMERAL_CLEANUP_STARTUP_MISMATCH"
+    );
+
+    let preview = app
+        .oneshot(post(
+            "/_snapback/api/ephemeral/cleanup",
+            json!({
+                "cutoffTimestampMs": 0,
+                "dryRun": true,
+                "maxEntries": 10,
+                "startupNonce": "startup-cleanup-test",
+            }),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(preview.status(), StatusCode::OK);
+    let receipt = json(preview).await;
+    assert_eq!(
+        receipt["artifactKind"],
+        "snapback.ephemeral-cleanup-receipt/v1"
+    );
+    assert_eq!(receipt["operation"], "ephemeral.cleanup");
+    assert_eq!(receipt["dryRun"], true);
+    assert_eq!(receipt["startupNonce"], "startup-cleanup-test");
+    assert_eq!(receipt["bounds"]["maxEntries"], 10);
+    assert_eq!(receipt["counts"]["deleted"], 0);
+}
+
 /// LLP 0032 S1 (was S0) — the migrated gated writes fail closed exactly like
 /// their admin peers: token-gated when a token is configured, even on loopback.
 #[tokio::test]

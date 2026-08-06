@@ -144,6 +144,7 @@ const CLI_PROJECTIONS = {
   'config.unset': 'snapback config unset',
   'cron.tick': 'snapback cron tick',
   'cron.runOne': 'snapback cron run',
+  'ephemeral.cleanup': 'snapback ephemeral cleanup',
   'jobs.drain': 'snapback jobs drain',
   'connection.disconnect': 'snapback connections disconnect',
   'control.catalog.read': 'snapback controls list',
@@ -169,6 +170,7 @@ const GUIDE_ANCHORS = {
   'config.plan': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
   'config.verify': 'operating/secrets-and-config.md#cli-and-mcp-projections-for-statusplanverify',
   'cron.list': 'backend/cron.md#inspect-declared-jobs-and-runtime-posture',
+  'ephemeral.cleanup': 'realtime/ephemeral-state.md#clean-up-expired-entries-operationally',
   'control.catalog.read': 'operating/agent-controls.md#search-the-build-catalog',
   'control.catalog.describe': 'operating/agent-controls.md#describe-one-operation',
   'control.catalog.instance.read': 'operating/agent-controls.md#build-versus-instance-identity',
@@ -241,6 +243,9 @@ function applyOverride(entry, override) {
   if (override.console) entry.projections.console = override.console;
   if (override.projectionCredentials) {
     entry.policy.projectionCredentials = override.projectionCredentials;
+  }
+  if (override.behavior) {
+    entry.behavior = { ...entry.behavior, ...override.behavior };
   }
   return entry;
 }

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "924f368615726dfeaf0733c0815cd9e323c29a4c"
+    "commit": "524e8161e093505fe64dd4a9d28ea8a6439875c5"
   },
   "publishedClosure": {
     "scope": "@expo/snapback-*",
@@ -2269,7 +2269,7 @@
       "examples": [],
       "reviewed": "2026-08-06",
       "reviewedCommit": "2715951cf",
-      "sha256": "f7f27600402e02a2190e0f292e5a9c2c60e1165821b554b0a5aed01e3c60a036",
+      "sha256": "f3fd918cd59cbe10d2225f7b891208004ae6b3ae04f3ab9aa7107009e9c6b9fc",
       "snippets": []
     },
     "operating.diagnostics": {
@@ -2562,6 +2562,10 @@
         "llp/0013-ephemeral-realtime-state.rfc.md",
         "llp/0107-react-presence-and-optimistic-lifecycle.spec.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
+        "llp/0184-agent-accessible-control-plane.rfc.md",
+        "src/admin.rs",
+        "src/cli.rs",
+        "packages/snapback-cli/mcp-control.mjs",
         "packages/snapback-codegen/define.mjs",
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-client/index.mjs",
@@ -2576,7 +2580,7 @@
       ],
       "reviewed": "2026-08-06",
       "reviewedCommit": "6e158169b3c908b8be149db4487a71dc35738470",
-      "sha256": "df6ac61a929e372a743901f76f3b98c032729cf70f89d1533459bf1a6fc4791f",
+      "sha256": "3e98db99fb55ba959bbf914fb3b0e6cd01a253faed7203c025c620a8ee90dd7e",
       "snippets": [
         {
           "lang": "tsx",
@@ -2918,7 +2922,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "7b467cf16",
-      "sha256": "4ded0710aee9cda182aaee2f320e6f2d3ac50c75ec7914e0963b20403b939f65",
+      "sha256": "3857351d4523bfaa99b6a30df1643af3b5b552176887f2313eec550fc095278d",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -3217,5 +3221,5 @@
     "routes": 121,
     "hostOps": 38
   },
-  "contentHash": "118adba2ef8870638cc2dcca4cb78aac0023984a059f820b5f90e64069d7e464"
+  "contentHash": "52ebdead56dbc962e007f94f1a1db01b3b60f78631f018dc43d3073d0dab120c"
 }

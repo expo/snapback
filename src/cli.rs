@@ -818,6 +818,11 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: CronCommand,
     },
+    /// Receipt-bearing operator cleanup for expired ephemeral entries.
+    Ephemeral {
+        #[command(subcommand)]
+        command: EphemeralCommand,
+    },
     /// jobs.list / jobs.show (LLP 0184 P1 read-only inspection) plus
     /// jobs.drain (LLP 0184 §P2's injected-clock typed projection of the
     /// existing `POST /_snapback/api/jobs/drain` route).
@@ -1199,6 +1204,35 @@ pub enum CronCommand {
         target: TargetArgs,
         /// The cron job's declared name.
         name: String,
+    },
+}
+
+/// @ref LLP 0184#p2-controlled-mutations — the operator cleanup is explicit
+/// about cutoff and preview/apply posture, and every apply is bounded.
+#[derive(clap::Subcommand)]
+pub enum EphemeralCommand {
+    #[command(
+        group(clap::ArgGroup::new("cutoff").required(true).multiple(false).args(["older_than_ms", "cutoff_timestamp_ms"])),
+        group(clap::ArgGroup::new("mode").required(true).multiple(false).args(["dry_run", "apply"]))
+    )]
+    Cleanup {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// Select entries whose expiry deadline is at least this old.
+        #[arg(long)]
+        older_than_ms: Option<u64>,
+        /// Select entries whose expiry deadline is at or before this timestamp.
+        #[arg(long)]
+        cutoff_timestamp_ms: Option<u64>,
+        /// Preview counts without deleting entries.
+        #[arg(long)]
+        dry_run: bool,
+        /// Apply ordinary expiry removals.
+        #[arg(long)]
+        apply: bool,
+        /// Maximum entries the corresponding apply may delete.
+        #[arg(long, default_value_t = 1_000)]
+        max_entries: usize,
     },
 }
 
@@ -2311,6 +2345,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
         Some(HostCommand::Errors { command }) => errors_command(command),
         Some(HostCommand::Config { command }) => config_command(command),
         Some(HostCommand::Cron { command }) => cron_command(command),
+        Some(HostCommand::Ephemeral { command }) => ephemeral_command(command),
         Some(HostCommand::Jobs { command }) => jobs_command(command),
         Some(HostCommand::Connections { command }) => connections_command(command),
         Some(HostCommand::Ephemeral { command }) => ephemeral_command(command),
@@ -4972,6 +5007,42 @@ fn cron_command(command: CronCommand) -> anyhow::Result<()> {
         CronCommand::Run { target, name } => {
             let path = format!("/_snapback/api/cron/{}/run", path_segment_escape(&name));
             let response = admin_json_post(&target, &path, json!({}))?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+fn ephemeral_command(command: EphemeralCommand) -> anyhow::Result<()> {
+    match command {
+        EphemeralCommand::Cleanup {
+            target,
+            older_than_ms,
+            cutoff_timestamp_ms,
+            dry_run,
+            apply: _,
+            max_entries,
+        } => {
+            let instance = admin_json_get(
+                &target,
+                "/_snapback/api/control-catalog/instance",
+                Vec::new(),
+            )?;
+            let startup_nonce = instance
+                .get("startupNonce")
+                .and_then(Value::as_str)
+                .context("control-catalog instance carried no startupNonce")?;
+            let response = admin_json_post(
+                &target,
+                "/_snapback/api/ephemeral/cleanup",
+                json!({
+                    "cutoffTimestampMs": cutoff_timestamp_ms,
+                    "olderThanMs": older_than_ms,
+                    "dryRun": dry_run,
+                    "maxEntries": max_entries,
+                    "startupNonce": startup_nonce,
+                }),
+            )?;
             println!("{}", serde_json::to_string_pretty(&response)?);
             Ok(())
         }
@@ -10883,6 +10954,65 @@ mod tests {
                 command: CronCommand::Run { name, .. }
             }) if name == "nightly-digest"
         ));
+    }
+
+    #[test]
+    fn ephemeral_cleanup_cli_requires_cutoff_mode_and_bound() {
+        let preview = Cli::parse_from([
+            "snapback",
+            "ephemeral",
+            "cleanup",
+            "--older-than-ms",
+            "60000",
+            "--dry-run",
+            "--max-entries",
+            "25",
+            "--url",
+            "http://127.0.0.1:4287",
+        ]);
+        assert!(matches!(
+            preview.command,
+            Some(HostCommand::Ephemeral {
+                command: EphemeralCommand::Cleanup {
+                    older_than_ms: Some(60_000),
+                    dry_run: true,
+                    max_entries: 25,
+                    ..
+                }
+            })
+        ));
+
+        let apply = Cli::parse_from([
+            "snapback",
+            "ephemeral",
+            "cleanup",
+            "--cutoff-timestamp-ms",
+            "1700000000000",
+            "--apply",
+        ]);
+        assert!(matches!(
+            apply.command,
+            Some(HostCommand::Ephemeral {
+                command: EphemeralCommand::Cleanup {
+                    cutoff_timestamp_ms: Some(1_700_000_000_000),
+                    apply: true,
+                    max_entries: 1_000,
+                    ..
+                }
+            })
+        ));
+
+        assert!(
+            Cli::try_parse_from([
+                "snapback",
+                "ephemeral",
+                "cleanup",
+                "--older-than-ms",
+                "0",
+            ])
+            .is_err(),
+            "cleanup must explicitly select preview or apply"
+        );
     }
 
     #[test]

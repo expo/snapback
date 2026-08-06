@@ -5598,17 +5598,96 @@ async fn admin_run_cron_job(
 }
 
 async fn admin_ephemeral_cleanup(
-    State(ephemeral): State<EphemeralApi>,
-    State(ctx): State<Arc<ServerContext>>,
+    State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<StatusCode, ApiError> {
-    // @ref LLP 0017#ephemeral-inspector — ephemeral mutating controls are
-    // privileged writes, gated like durable admin writes.
-    authorize(&ctx, &headers, true)?;
+    Json(body): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    // @ref LLP 0184#p2-controlled-mutations — this named, receipt-bearing
+    // maintenance operation retains the route's privileged AdminWrite gate.
+    authorize(&state.server, &headers, true)?;
+    let request: EphemeralCleanupRequest = serde_json::from_value(body).map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_CLEANUP_REQUEST_INVALID",
+            "ephemeral",
+            "cleanup requires startupNonce, dryRun, maxEntries, and exactly one cutoff",
+        )
+    })?;
+    if request.startup_nonce != state.server_startup_nonce() {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_CLEANUP_STARTUP_MISMATCH",
+            "ephemeral",
+            "cleanup target startup identity does not match the running server",
+        )
+        .into());
+    }
+    const MAX_EPHEMERAL_CLEANUP_ENTRIES: usize = 10_000;
+    if request.max_entries == 0 || request.max_entries > MAX_EPHEMERAL_CLEANUP_ENTRIES {
+        return Err(SnapbackError::error(
+            "SNAPBACK_EPHEMERAL_CLEANUP_BOUND_INVALID",
+            "ephemeral",
+            format!("maxEntries must be between 1 and {MAX_EPHEMERAL_CLEANUP_ENTRIES}"),
+        )
+        .into());
+    }
+    let evaluated_at_ms = now_millis();
+    let (cutoff_kind, requested_ms, cutoff_timestamp_ms) =
+        match (request.cutoff_timestamp_ms, request.older_than_ms) {
+            (Some(timestamp), None) if timestamp <= evaluated_at_ms => {
+                ("timestamp", timestamp, timestamp)
+            }
+            (None, Some(age)) => (
+                "expiredForAtLeast",
+                age,
+                evaluated_at_ms.saturating_sub(age),
+            ),
+            _ => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_EPHEMERAL_CLEANUP_CUTOFF_INVALID",
+                    "ephemeral",
+                    "provide exactly one of cutoffTimestampMs or olderThanMs; timestamps cannot be in the future",
+                )
+                .into());
+            }
+        };
     // Room authority is off the global mutex (LLP 0032 L9): cleanup reaches
     // the store directly and cannot queue behind a busy write.
-    ephemeral.cleanup_expired(now_millis());
-    Ok(StatusCode::NO_CONTENT)
+    let report = state.ephemeral.cleanup_expired_bounded(
+        cutoff_timestamp_ms,
+        request.max_entries,
+        request.dry_run,
+    );
+    Ok(Json(serde_json::json!({
+        "artifactKind": "snapback.ephemeral-cleanup-receipt/v1",
+        "schemaVersion": 1,
+        "operation": "ephemeral.cleanup",
+        "dryRun": request.dry_run,
+        "startupNonce": request.startup_nonce,
+        "evaluatedAtMs": evaluated_at_ms,
+        "cutoff": {
+            "kind": cutoff_kind,
+            "requestedMs": requested_ms,
+            "resolvedTimestampMs": cutoff_timestamp_ms,
+        },
+        "bounds": {
+            "maxEntries": request.max_entries,
+            "truncated": report.truncated,
+        },
+        "counts": report.counts,
+        "collections": report.collections,
+        "complete": report.complete,
+        "blockedRooms": report.blocked_rooms,
+        "consistency": "room-linearized",
+    })))
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct EphemeralCleanupRequest {
+    cutoff_timestamp_ms: Option<u64>,
+    older_than_ms: Option<u64>,
+    dry_run: bool,
+    max_entries: usize,
+    startup_nonce: String,
 }
 
 fn now_millis() -> u64 {

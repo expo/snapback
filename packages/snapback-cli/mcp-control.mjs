@@ -735,6 +735,28 @@ export const CONTROL_TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   },
   {
+    name: 'snapback_ephemeral_cleanup',
+    operation: 'ephemeral.cleanup',
+    title: 'Preview or apply bounded ephemeral expiry cleanup',
+    description: 'Count or remove entries whose expiry deadline is at/before an explicit cutoff. The tool binds the request to the current server startup and returns a room-count receipt.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['dryRun', 'maxEntries'],
+      oneOf: [
+        { required: ['olderThanMs'] },
+        { required: ['cutoffTimestampMs'] },
+      ],
+      properties: {
+        olderThanMs: { type: 'integer', minimum: 0, description: 'Select entries whose expiry deadline is at least this old.' },
+        cutoffTimestampMs: { type: 'integer', minimum: 0, description: 'Select entries whose expiry deadline is at or before this Unix millisecond timestamp.' },
+        dryRun: { type: 'boolean', description: 'True previews without deletion; false applies ordinary expiry removals.' },
+        maxEntries: { type: 'integer', minimum: 1, maximum: 10_000 },
+      },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+  },
+  {
     name: 'snapback_jobs_drain',
     operation: 'jobs.drain',
     title: 'Drain due one-off jobs',
@@ -1850,6 +1872,18 @@ export class McpControlServer {
       case 'snapback_cron_run': {
         const result = await this.postAdminRoute(`/_snapback/api/cron/${encodeURIComponent(args.name)}/run`, {});
         return this.toolResult(this.adminRouteEnvelope('cron.runOne', id, result));
+      }
+      case 'snapback_ephemeral_cleanup': {
+        const startupNonce = this.currentDescriptor().startupNonce;
+        const body = {
+          dryRun: args.dryRun === true,
+          maxEntries: args.maxEntries,
+          startupNonce,
+          ...(Number.isInteger(args.olderThanMs) ? { olderThanMs: args.olderThanMs } : {}),
+          ...(Number.isInteger(args.cutoffTimestampMs) ? { cutoffTimestampMs: args.cutoffTimestampMs } : {}),
+        };
+        const result = await this.postAdminRoute('/_snapback/api/ephemeral/cleanup', body);
+        return this.toolResult(this.adminRouteEnvelope('ephemeral.cleanup', id, result));
       }
       case 'snapback_jobs_drain': {
         const body = {};

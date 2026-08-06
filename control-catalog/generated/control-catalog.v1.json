@@ -1,11 +1,11 @@
 {
   "schemaVersion": "snapback.control-catalog.v1",
-  "catalogDigest": "sha256:b52f5fe470745410b01d2b358488d55e32da18819ac2179ba9638eac83d3f349",
+  "catalogDigest": "sha256:a41fcb4293c4112edec6e5a9bfbd6a0b1215d3ab106d673c928100da5bfd199b",
   "buildIdentity": {
-    "sourceCommit": "924f368615726dfeaf0733c0815cd9e323c29a4c",
+    "sourceCommit": "524e8161e093505fe64dd4a9d28ea8a6439875c5",
     "dirty": true
   },
-  "generatedAtCommit": "924f368615726dfeaf0733c0815cd9e323c29a4c",
+  "generatedAtCommit": "524e8161e093505fe64dd4a9d28ea8a6439875c5",
   "entries": [
     {
       "operation": "acceptance.run",
@@ -3683,11 +3683,11 @@
     },
     {
       "operation": "ephemeral.cleanup",
-      "title": "ephemeral.cleanup",
+      "title": "Preview or apply bounded ephemeral expiry cleanup",
       "intents": [],
       "status": "shipped",
       "domain": "systemApi",
-      "surfaceAccess": "apiOnly",
+      "surfaceAccess": "native",
       "operability": "direct",
       "availability": {
         "targets": [
@@ -3703,21 +3703,21 @@
       },
       "behavior": {
         "readOnly": false,
-        "destructive": false,
-        "approvalPosture": null,
+        "destructive": true,
+        "approvalPosture": "confirmFirst",
         "idempotent": false,
         "openWorld": false,
-        "persistsAcrossRestart": true
+        "persistsAcrossRestart": false
       },
       "projections": {
-        "cli": null,
-        "mcp": null,
+        "cli": "snapback ephemeral cleanup",
+        "mcp": "snapback_ephemeral_cleanup",
         "hostOps": null,
         "http": "POST /_snapback/api/ephemeral/cleanup",
         "adminClient": null,
         "console": null
       },
-      "guide": null,
+      "guide": "realtime/ephemeral-state.md#clean-up-expired-entries-operationally",
       "authorities": [
         "llp/0031-server-route-taxonomy"
       ],

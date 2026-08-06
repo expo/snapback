@@ -2773,6 +2773,16 @@ impl EphemeralApi {
         self.store.cleanup_expired(now_ms);
     }
 
+    pub fn cleanup_expired_bounded(
+        &self,
+        cutoff_timestamp_ms: u64,
+        max_entries: usize,
+        dry_run: bool,
+    ) -> crate::ephemeral::EphemeralCleanupReport {
+        self.store
+            .cleanup_expired_bounded(cutoff_timestamp_ms, max_entries, dry_run)
+    }
+
     /// Gather shard diagnostics without the global Local writer. Server
     /// inspect/receipts composition invokes this in the post-Local blocking
     /// phase; direct embedded callers may invoke it synchronously.

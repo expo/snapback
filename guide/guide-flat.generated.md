@@ -480,7 +480,7 @@ here (or listed here but gone from the code).
 | /_snapback/api/cron/{name}/run | backend.cron |
 | /_snapback/api/cron | backend.cron |
 | /_snapback/api/data/{table} | operating.admin-console |
-| /_snapback/api/ephemeral/cleanup | notAuthorFacing (operator maintenance) |
+| /_snapback/api/ephemeral/cleanup | realtime.ephemeral |
 | /_snapback/api/errors/issue | backend.error-tracking-v1 |
 | /_snapback/api/errors/issues | backend.error-tracking-v1 |
 | /_snapback/api/errors/transition | backend.error-tracking-v1 |
@@ -10207,14 +10207,14 @@ documentation absence never appears as success.
 ## Generated inventory
 
 <!-- BEGIN GENERATED CONTROL CATALOG: CONTROL CATALOG INVENTORY -->
-The embedded build catalog contains **110 operations** at digest `sha256:b52f5fe470745410b01d2b358488d55e32da18819ac2179ba9638eac83d3f349`. The counts and inventory below are generated; do not edit them by hand.
+The embedded build catalog contains **110 operations** at digest `sha256:a41fcb4293c4112edec6e5a9bfbd6a0b1215d3ab106d673c928100da5bfd199b`. The counts and inventory below are generated; do not edit them by hand.
 
 | Axis | Value | Count |
 | --- | --- | ---: |
-| surfaceAccess | `apiOnly` | 39 |
+| surfaceAccess | `apiOnly` | 38 |
 | surfaceAccess | `cliOnly` | 29 |
 | surfaceAccess | `mcpOnly` | 3 |
-| surfaceAccess | `native` | 35 |
+| surfaceAccess | `native` | 36 |
 | surfaceAccess | `none` | 4 |
 | operability | `direct` | 78 |
 | operability | `internal` | 11 |
@@ -10300,7 +10300,7 @@ The embedded build catalog contains **110 operations** at digest `sha256:b52f5fe
 | `direct_runner.mutation` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `direct_runner.query` | `apiOnly` | `direct` | `shipped` | — | — | — |
 | `direct_runner.unknown` | `apiOnly` | `unavailable` | `shipped` | — | — | — |
-| `ephemeral.cleanup` | `apiOnly` | `direct` | `shipped` | — | — | — |
+| `ephemeral.cleanup` | `native` | `direct` | `shipped` | snapback ephemeral cleanup | snapback_ephemeral_cleanup | realtime/ephemeral-state.md#clean-up-expired-entries-operationally |
 | `errors.issue` | `native` | `direct` | `shipped` | snapback errors issue | snapback_errors_issue | operating/host-ops.md |
 | `errors.issues` | `native` | `direct` | `shipped` | snapback errors issues | snapback_errors_issues | operating/host-ops.md |
 | `errors.transition` | `native` | `direct` | `shipped` | snapback errors transition | snapback_errors_transition | operating/host-ops.md |
@@ -12593,7 +12593,7 @@ id: realtime.ephemeral-state
 order: 2
 audience: agent-first
 capabilities: [realtime.ephemeral]
-authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, llp/0107-react-presence-and-optimistic-lifecycle.spec.md, llp/0114-first-class-react-and-query-groups.spec.md, llp/0184-agent-accessible-control-plane.rfc.md, src/admin.rs, src/cli.rs, packages/snapback-cli/mcp-control.mjs, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, packages/snapback-client/index.mjs, packages/snapback-contract/index.mjs, packages/snapback-react/index.mjs, packages/snapback-react/index.d.mts]
 examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs, demos/messaging-snapback/src/lib/useTyping.ts]
 status: current
 targets: [local]
@@ -12822,6 +12822,29 @@ value type; a typed value must not degrade to `unknown` at provider
 introspection. Keep imperative overlays in headless/React code and generated
 ephemeral links in Contract code—do not mix a second polling or publish lane
 into the same surface.
+
+## Clean up expired entries operationally
+
+The server's background expiry sweep remains automatic. For an explicit,
+auditable maintenance pass, preview a bounded cutoff before applying it:
+
+```sh fragment reason="Operator example uses a runtime URL rather than a repository-owned server fixture."
+snapback ephemeral cleanup --url http://127.0.0.1:4287 \
+  --older-than-ms 60000 --dry-run --max-entries 1000
+```
+
+`--older-than-ms` means “expired for at least this long”; it is not the age of
+the last publish. Use `--cutoff-timestamp-ms` instead when a wall-clock expiry
+deadline is the operator's source of truth. Exactly one cutoff and exactly one
+of `--dry-run` or `--apply` are required. `--max-entries` is bounded from 1 to
+10,000.
+
+The CLI and the destructive `snapback_ephemeral_cleanup` MCP tool bind each
+request to the current process startup nonce. The receipt reports examined,
+eligible, would-delete, deleted, and remaining counts by collection and opaque
+room digest; it never exposes raw room scope. Apply emits the ordinary
+`Expired` removals and subscription notifications. Cleanup is room-linearized,
+so repeat an apply when `bounds.truncated` is true or `complete` is false.
 
 ## Anti-patterns
 

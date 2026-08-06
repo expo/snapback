@@ -90,7 +90,7 @@ The embedded build catalog contains **113 operations** at digest `sha256:a5b8693
 
 | Axis | Value | Count |
 | --- | --- | ---: |
-| surfaceAccess | `apiOnly` | 39 |
+| surfaceAccess | `apiOnly` | 38 |
 | surfaceAccess | `cliOnly` | 29 |
 | surfaceAccess | `mcpOnly` | 3 |
 | surfaceAccess | `native` | 38 |
