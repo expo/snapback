@@ -101,6 +101,8 @@ export interface SnapbackReactProvider {
     preparedGroupSource: PreparedReactQueryGroup['source'] | null;
     preparedGroupReason: string | null;
     preparedGroupBoot: PreparedReactQueryGroup['boot'];
+    /** Mounted-provider HMR generation handoff state (development only). */
+    generationHandoff: 'active' | 'ok' | 'failed' | null;
   }>;
   dispose(): Promise<void>;
 }
@@ -113,6 +115,18 @@ export function createSnapbackReactProvider(
     readonly preparedGroup?: PreparedReactQueryGroup;
     /** Test/DI seam: a pre-built SnapbackAssetClient-compatible surface. */
     readonly assets?: unknown;
+    /**
+     * Mounted-provider HMR generation handoff tuning (development only —
+     * the handoff arms itself only on a positive development signal such as
+     * Metro's `__DEV__` or a bundler HMR host). `onReloadRequired` replaces
+     * the default full-reload attempt when the handoff cannot complete
+     * atomically.
+     */
+    readonly developmentHmr?: {
+      readonly timeoutMs?: number;
+      readonly pollIntervalMs?: number;
+      readonly onReloadRequired?: (failure: SnapbackDiagnostic) => void;
+    };
   },
 ): SnapbackReactProvider;
 

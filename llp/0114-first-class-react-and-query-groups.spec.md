@@ -5,7 +5,15 @@
 **Systems:** React, React/Expo, Client integration, Live Queries, Ephemeral state, Code generation, Sync, Auth, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-27
-**Revised:** 2026-08-04 (bounded subscribe-failure window: a live-query
+**Revised:** 2026-08-05 (mounted-provider HMR generation handoff: in a
+positively identified development environment, a regenerated same-app
+reference presented to an already-mounted provider becomes a
+provider-boundary invalidation — complete function admission re-runs against
+the live deployment and swaps atomically, hooks render a brief boundary frame
+instead of throwing, and a handoff that cannot complete triggers a controlled
+dev reload; foreign/stale references and production builds keep the strict
+`SNAPBACK_REACT_REFERENCE_INVALID` refusal — see the dated section);
+2026-08-04 (bounded subscribe-failure window: a live-query
 subscribe whose admission rejects before any transport exists holds its
 `error` snapshot behind a per-store timer-owned failure window on the
 client's 250 ms → 10 s reconnect ladder, held at the cap while demanded;
@@ -1476,3 +1484,66 @@ must carry its predecessor witness immediately) and every store stop
 clear the window. Healthy subscribes and async transport failures below this
 layer are untouched. Regression witness:
 `packages/snapback-react/subscribe-retry.test.mjs`.
+
+### Mounted-provider HMR generation handoff (dated amendment 2026-08-05)
+
+The 2026-08-03 local-development binding synchronization covers the
+pre-provider window. Its post-provider sibling
+(`issues/closed/20260803-react-hmr-reference-invalid.md`) remained: Metro/Vite
+HMR can hot-replace the generated api module while the mounted
+`SnapbackProvider` keeps a prepared binding admitted from the previous codegen
+generation. Hooks then present a valid new-generation reference to
+old-generation admission state, and the strict
+`SNAPBACK_REACT_REFERENCE_INVALID` refusal — correct in substance — threw
+uncaught through the application tree, turning a recoverable dev-loop handoff
+into a crash.
+
+The provider now treats that exact split as a **provider-boundary
+invalidation**, under three fail-closed gates:
+
+- **Positive development identification.** Recovery arms only when the host
+  affirmatively identifies itself as development: Metro/React Native's
+  compile-time `__DEV__`, a live bundler HMR host (`import.meta.hot` /
+  `module.hot`), or an explicit `NODE_ENV === 'development'`. Absence of
+  production markers is never treated as development, so release builds keep
+  the strict throw.
+- **Positive regeneration classification.** Only a complete same-app function
+  reference whose codegen-stamped `expectedGeneration` names a *different*
+  generation than the currently admitted deployment identity classifies as
+  regenerated (`classifyRegeneratedReactReference`). Foreign appIds, missing
+  generation stamps, and same-generation corruption stay strict even in
+  development.
+- **Deployment-proved re-admission.** The handoff
+  (`handoffPreparedReactBindingGeneration`) polls the live inspection inside a
+  bounded budget (the development-sync defaults: 10 s / 250 ms) until the
+  deployment serves exactly the target generation, then re-runs complete
+  per-function admission — reference completeness, result-contract
+  compilation, and hash binding — off to the side, and publishes the whole
+  new-generation admission view in **one synchronous swap** (a WeakMap
+  overlay over the frozen binding; single-flight per binding and target).
+  No frame can pair a new reference with old admission state: until the swap,
+  new-generation references resolve to a handoff descriptor whose snapshot is
+  a pending/refreshing boundary frame; after it, admission is exactly as
+  strict as boot-time preparation, proved against the live deployment.
+
+Renderability during and after the window: unchanged functions re-admit
+immediately (their store keys exclude the generation stamp), so untouched
+queries keep full continuity; changed queries show the brief boundary frame,
+then subscribe fresh under the new contract. Deferred mutation references
+admit at call time after awaiting the handoff, so a tap during the window is
+a handled rejection at worst, never an uncaught render error.
+
+What the overlay cannot re-prove from the live inspection it refuses to hand
+off: a changed routes manifest, changed ephemeral collection declarations, a
+changed query-group child, or a deployed manifest that fails admission ends
+the handoff, and development performs a **controlled full reload** — one
+clear `SNAPBACK_REACT_HMR_REBIND_FAILED` console diagnostic, the
+`developmentHmr.onReloadRequired` seam (defaulting to `DevSettings.reload` /
+`location.reload` where reachable), and an `error` snapshot on the affected
+hooks. Presence/ephemeral references are outside the v1 handoff: a changed
+collection under HMR resolves through the reload path.
+
+Regression witness: `packages/snapback-react/hmr-generation-handoff.test.mjs`
+(atomic handoff with continuity, mutation deferral, controlled reload on a
+never-redeployed backend, and strict production/foreign admission — all with
+zero uncaught errors).
