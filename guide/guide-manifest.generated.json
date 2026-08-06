@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "870acf4c6b7d5447941341f1f1bc5cde4492c216"
+    "commit": "49dbad538cc98dad1850b7cdd4c2efe454f3ecb0"
   },
   "nav": {
     ".": [
@@ -1677,12 +1677,14 @@
         "llp/0012-headless-integration-contract.spec.md",
         "llp/0064-native-client-surfaces.rfc.md",
         "llp/0114-first-class-react-and-query-groups.spec.md",
+        "llp/0176-expo-messaging-golden-path.plan.md",
         "packages/snapback-client/index.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-client/rqs-store-default.mjs",
         "packages/snapback-client/rqs-store-expo.mjs",
         "packages/snapback-react/index.mjs",
-        "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs"
+        "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs",
+        "demos/_kit/eas-stage-build.mjs"
       ],
       "examples": [
         "demos/partiful-matrix/native/react-expo",
@@ -1690,11 +1692,13 @@
         "packages/snapback-react/webcrypto-fallback.test.mjs",
         "packages/snapback-client/rqs-store-expo.test.mjs",
         "packages/snapback-client/rqs-resume-expo.test.mjs",
-        "demos/rn-durable-store-witness/probe-App.tsx"
+        "demos/rn-durable-store-witness/probe-App.tsx",
+        "demos/tandem-expo-bakeoff/scripts/build-ios-dev-client",
+        "demos/_kit/tests/repo-layout-unit.mjs"
       ],
       "reviewed": "2026-08-04",
       "reviewedCommit": "41c2db8804ba08071c39641cc46251c9084c7a31",
-      "sha256": "60e5d6006cce3123653743b314c6ffef912d5265cf0b5373cf92e7af14be12fd",
+      "sha256": "c03029734acd20197671b071312aa6d1a2e11cfa26f1447fa9bbf02e353e3a03",
       "snippets": [
         {
           "lang": "ts",
@@ -3057,5 +3061,5 @@
     "routes": 111,
     "hostOps": 37
   },
-  "contentHash": "91d2e67ae26f18b4d45fa9970cb1960894fd534b385b1ea40c57bc815b8e69cd"
+  "contentHash": "abc52960e575b438792b86c739ce798e03ef08b99df3a919ba1811899787d228"
 }
