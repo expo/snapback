@@ -5,11 +5,11 @@
   "maturity": "experimental",
   "qualificationReceiptSha256": "sha256:ecc5e14ddc282bbc1bdd6ddc5bb734a2b1f35f61047b9e7046d4f5852636cc3f",
   "executorSourceSha256": {
-    "src/runtime.rs": "sha256:5aa6d1ff7b6bfe72def0ec164fa603971bb2209b865f7782ec5d0344409070d0",
-    "src/storage.rs": "sha256:f038509c531e5c82c61dade9e87f41b3f95bee9204f0571d3013758879725987"
+    "src/runtime.rs": "sha256:ada756140a9088e5676e5fadb6fdddf9be2510158b94ad98b3c8ee7688ee03ef",
+    "src/storage.rs": "sha256:46276ec976af22875bef149d1fc49797f45274714c0129b44c2d1f03d6adea73"
   },
   "schemaSourceSha256": {
-    "packages/snapback-codegen/define.mjs": "sha256:016c8f0c22efcaa896363677360a2d5563063f422d821fac20f2f6f2ce301080"
+    "packages/snapback-codegen/define.mjs": "sha256:38dbd612624f11a8a9e8532fd83326638238ccf6dfc0e8432b76c96cbe7bfcce"
   },
   "clientSourceSha256": {
     "packages/snapback-contract/derived-overlay.mjs": "sha256:8b5324a45a8beaaa7db4eaf93361f8faf1008e152a74f9903844335d0f8e0a32",

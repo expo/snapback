@@ -3233,6 +3233,10 @@
         {
           "enum": [
             "UnknownCollection",
+            "RoomNotFound",
+            "EntryNotFound",
+            "StaleScopeEpoch",
+            "StaleEntryGeneration",
             "Unauthorized",
             "InvalidScope",
             "MissingKey",
