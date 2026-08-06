@@ -806,6 +806,24 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: NetworkProfileCommand,
     },
+    /// data.scan — bounded read-only table projection (LLP 0184 P1).
+    Data {
+        #[command(subcommand)]
+        command: DataCommand,
+    },
+    /// config.status / config.plan / config.verify — non-secret config
+    /// planning and verification (LLP 0036; LLP 0184 P1 backfill). `config
+    /// set`/`config unset` are not projected here yet (LLP 0184 §P3).
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommand,
+    },
+    /// jobs.list / jobs.show — read-only one-off job inspection (LLP 0184
+    /// P1). Draining/mutating jobs is out of this slice's scope.
+    Jobs {
+        #[command(subcommand)]
+        command: JobsCommand,
+    },
     /// Mint one short-lived, scoped administrative data-read lease. This is a
     /// ready-file-only operation because the proof root is local operator
     /// authority and can never be discovered from a URL.
@@ -1119,6 +1137,76 @@ pub enum ErrorsCommand {
         target: TargetArgs,
         #[arg(long)]
         open_before: String,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum DataCommand {
+    /// data.scan — bounded read-only projection over `DataQuery`'s shipped
+    /// fields: table, limit, offset. Not a cursor: the route has none, and
+    /// offset paging is not stable under concurrent writes — a row can shift
+    /// pages between two calls. Prefer a narrow `--limit` and re-scan rather
+    /// than relying on offset continuity across a long-lived operator
+    /// session.
+    ///
+    /// @ref LLP 0184#p1-read-and-diagnose — matches `DataQuery` as shipped;
+    ///   a stable/snapshot-bound cursor is a storage-owner amendment, out of
+    ///   this pure-projection scope.
+    Scan {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// The table to scan.
+        table: String,
+        #[arg(long, default_value_t = 50)]
+        limit: usize,
+        #[arg(long, default_value_t = 0)]
+        offset: usize,
+        /// A previously minted scoped secret-read lease. Omit to mint one
+        /// automatically from the ready file (requires --ready-file).
+        #[arg(long)]
+        secret_read_lease: Option<String>,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum ConfigCommand {
+    /// config.status — the full per-entry state machine: names, states,
+    /// generations, diagnostics. Never values.
+    Status {
+        #[command(flatten)]
+        target: TargetArgs,
+    },
+    /// config.plan — dry-run facts for setting an entry: write locus,
+    /// required credentials, the apply boundary, and whether this transport
+    /// would accept a value write. No write occurs.
+    Plan {
+        #[command(flatten)]
+        target: TargetArgs,
+        /// Narrow the plan to one declared entry; omitted plans every entry.
+        #[arg(long)]
+        entry: Option<String>,
+    },
+    /// config.verify — run one entry's probe action and report ok/not-ok
+    /// plus the probe diagnostic. Never returns the configured value.
+    Verify {
+        #[command(flatten)]
+        target: TargetArgs,
+        entry: String,
+    },
+}
+
+#[derive(clap::Subcommand)]
+pub enum JobsCommand {
+    /// jobs.list — the bounded one-off job inspection page (read-only).
+    List {
+        #[command(flatten)]
+        target: TargetArgs,
+    },
+    /// jobs.show — one job's full recorded state by id (read-only).
+    Show {
+        #[command(flatten)]
+        target: TargetArgs,
+        id: String,
     },
 }
 
@@ -2012,6 +2100,9 @@ pub async fn run_from_env() -> anyhow::Result<()> {
                 }),
             ),
         },
+        Some(HostCommand::Data { command }) => data_command(command),
+        Some(HostCommand::Config { command }) => config_command(command),
+        Some(HostCommand::Jobs { command }) => jobs_command(command),
         Some(HostCommand::Auth { command }) => match command {
             AuthCommand::Backup { db, output } => auth_backup(&db, &output).await,
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
@@ -4066,6 +4157,124 @@ fn telemetry_command(command: TelemetryCommand) -> anyhow::Result<()> {
                     max_bytes,
                 },
             )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+/// Generic admin GET, reusing the telemetry transport helper (it is not
+/// telemetry-specific: any admin-authenticated JSON GET fits it).
+fn admin_json_get(
+    target: &TargetArgs,
+    path: &str,
+    query: Vec<(&'static str, String)>,
+) -> anyhow::Result<Value> {
+    telemetry_json_get(target, path, query, None)
+}
+
+/// Generic admin POST for the non-secret-carrying config/jobs family below.
+/// `config.set` is intentionally not routed through this helper — it needs
+/// the stdin/fd secret carrier LLP 0036 owns, not this JSON-body shape.
+fn admin_json_post(target: &TargetArgs, path: &str, value: Value) -> anyhow::Result<Value> {
+    let resolved = resolve_http_target_for_operation(target, false)?;
+    let token = target
+        .token
+        .clone()
+        .or_else(|| std::env::var("SNAPBACK_ADMIN_TOKEN").ok())
+        .filter(|token| !token.is_empty())
+        .or(resolved.minted_token);
+    let mut request = ureq::post(&format!("{}{path}", resolved.server_url));
+    if let Some(token) = token {
+        request = request.set("x-snapback-admin-token", &token);
+    }
+    match request.send_json(value) {
+        Ok(response) => response.into_json().context("response was not JSON"),
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response
+                .into_string()
+                .unwrap_or_else(|_| "<unreadable response>".to_owned());
+            anyhow::bail!("request to {path} failed with HTTP {status}: {body}")
+        }
+        Err(error) => Err(error).context(format!("request to {path} failed")),
+    }
+}
+
+/// data.scan — LLP 0184 P1: a bounded, as-shipped projection of `DataQuery`
+/// (table/limit/offset, no cursor). Mirrors telemetry's automatic scoped
+/// secret-read lease minting; a Dev-policy server does not require the lease
+/// today (only Sessions-policy does), but minting it unconditionally keeps
+/// one code path correct under both policies rather than special-casing.
+fn data_command(command: DataCommand) -> anyhow::Result<()> {
+    match command {
+        DataCommand::Scan {
+            target,
+            table,
+            limit,
+            offset,
+            secret_read_lease,
+        } => {
+            let lease = telemetry_secret_read_lease(
+                &target,
+                secret_read_lease,
+                SecretReadScope::Table(table.clone()),
+                u64::try_from(limit).unwrap_or(u64::MAX),
+                4 * 1024 * 1024,
+            )?;
+            let response = telemetry_json_get(
+                &target,
+                &format!("/_snapback/api/data/{table}"),
+                vec![("limit", limit.to_string()), ("offset", offset.to_string())],
+                Some(&lease),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+/// config.status / config.plan / config.verify — LLP 0036-owned operations,
+/// non-secret projections only (LLP 0184 §P3: `config.set`/`config.unset`
+/// are a separate, not-yet-landed slice).
+fn config_command(command: ConfigCommand) -> anyhow::Result<()> {
+    match command {
+        ConfigCommand::Status { target } => {
+            let response = admin_json_get(&target, "/_snapback/api/config/status", Vec::new())?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        ConfigCommand::Plan { target, entry } => {
+            let mut query = Vec::new();
+            if let Some(entry) = entry {
+                query.push(("entry", entry));
+            }
+            let response = admin_json_get(&target, "/_snapback/api/config/plan", query)?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        ConfigCommand::Verify { target, entry } => {
+            let response = admin_json_post(
+                &target,
+                "/_snapback/api/config/verify",
+                json!({ "entry": entry }),
+            )?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+    }
+}
+
+/// jobs.list / jobs.show — read-only one-off job inspection (LLP 0184 P1).
+/// Draining is a separate, mutating operation out of this slice's scope.
+fn jobs_command(command: JobsCommand) -> anyhow::Result<()> {
+    match command {
+        JobsCommand::List { target } => {
+            let response = admin_json_get(&target, "/_snapback/api/jobs", Vec::new())?;
+            println!("{}", serde_json::to_string_pretty(&response)?);
+            Ok(())
+        }
+        JobsCommand::Show { target, id } => {
+            let response = admin_json_get(&target, &format!("/_snapback/api/jobs/{id}"), Vec::new())?;
             println!("{}", serde_json::to_string_pretty(&response)?);
             Ok(())
         }

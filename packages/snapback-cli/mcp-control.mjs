@@ -427,6 +427,119 @@ export const CONTROL_TOOLS = [
     },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
   },
+  // --- LLP 0184 Phase 2 P1: read and diagnose ------------------------------
+  {
+    name: 'snapback_data_scan',
+    operation: 'data.scan',
+    title: 'Bounded read-only table scan',
+    description: 'Project DataQuery as shipped: table, limit, offset. No cursor exists on this route — offset paging is not stable under concurrent writes; a row may shift pages between two calls. Mints a scoped, budgeted secret-read lease automatically.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['table'],
+      properties: {
+        table: { type: 'string' },
+        limit: { type: 'integer', minimum: 1, maximum: 500, default: 50 },
+        offset: { type: 'integer', minimum: 0, default: 0 },
+      },
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_asset_list',
+    operation: 'asset.list',
+    title: 'List assets by availability state',
+    description: 'asset.list — pending | ready | rejected | deleted (omitted lists all).',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: { state: { type: 'string', enum: ['pending', 'ready', 'rejected', 'deleted'] } },
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_asset_inspect',
+    operation: 'asset.inspect',
+    title: 'Inspect one asset',
+    description: "asset.inspect — one asset's lifecycle, receipts, quota, reference edges, and ledger claims. Never byte samples, staging keys, or bearer URLs.",
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['assetId'],
+      properties: {
+        assetId: { type: 'string' },
+        userId: { type: 'string', description: 'Read as this app user (owner/via-references authorization); omitted reads as the operator.' },
+      },
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_asset_retry',
+    operation: 'asset.retry',
+    title: 'Re-drive pending asset work',
+    description: 'asset.retry — generation-fenced re-drive of pending publication and ledger work; never reopens a terminal attempt.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['assetId'],
+      properties: { assetId: { type: 'string' } },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_config_status',
+    operation: 'config.status',
+    title: 'Read config status',
+    description: "config.status — the full per-entry state machine: names, states, generations, diagnostics. Never values.",
+    inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_config_plan',
+    operation: 'config.plan',
+    title: 'Dry-run a config entry write',
+    description: 'config.plan — write locus, required credentials, the apply boundary, and whether this transport would accept a value write. No write occurs.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: { entry: { type: 'string', description: 'Narrow to one declared entry; omitted plans every entry.' } },
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_config_verify',
+    operation: 'config.verify',
+    title: 'Verify one config entry',
+    description: "config.verify — run the entry's probe action. Reports ok/not-ok and the probe diagnostic; never the configured value.",
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['entry'],
+      properties: { entry: { type: 'string' } },
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  {
+    name: 'snapback_jobs_list',
+    operation: 'jobs.list',
+    title: 'List one-off jobs',
+    description: 'jobs.list — the bounded one-off job inspection page (read-only).',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  {
+    name: 'snapback_jobs_show',
+    operation: 'jobs.show',
+    title: 'Show one job',
+    description: "jobs.show — one job's full recorded state by id (read-only).",
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['id'],
+      properties: { id: { type: 'string' } },
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
   {
     name: 'snapback_acceptance_run',
     operation: 'acceptance.run',
@@ -618,14 +731,18 @@ export class McpControlServer {
   //
   // @ref LLP 0024#http-projection — the response body is the result envelope,
   //   including ok:false app-level failures.
-  secretReadLease(scopeFlag, rowBudget, byteBudget) {
+  // `scopeFlag` names a boolean secret-read-mint flag (e.g. 'telemetry-events');
+  // pass null and a value-carrying `scopeArgs` instead for a scope that takes
+  // an argument (e.g. data.scan's `--table <name>`, LLP 0184 P1).
+  secretReadLease(scopeFlag, rowBudget, byteBudget, scopeArgs = null) {
     const runtime = this.resolveRuntime();
     const descriptor = this.currentDescriptor();
     const adminToken = managedAdminToken(descriptor, this.database);
     const result = native(runtime.binary, [
       'secret-read-mint', '--ready-file', this.readyFile,
       ...(adminToken ? ['--token', adminToken] : []),
-      `--${scopeFlag}`, '--row-budget', String(rowBudget), '--byte-budget', String(byteBudget),
+      ...(scopeArgs ?? [`--${scopeFlag}`]),
+      '--row-budget', String(rowBudget), '--byte-budget', String(byteBudget),
     ], { cwd: this.projectRoot, env: this.env });
     if (result.status !== 0) {
       throw diagnosticError(
@@ -689,6 +806,72 @@ export class McpControlServer {
       const error = diagnosticError('SNAPBACK_MCP_TRANSPORT_FAILED', `host-ops response from ${url} was not JSON (HTTP ${response.status})`, { url, status: response.status });
       error.cause = cause;
       throw error;
+    }
+  }
+
+  // A direct SystemApi admin route (data.scan, config.*, jobs.*) — distinct
+  // from postHostOp's `/_snapback/api/host-ops` multiplexer, since these
+  // routes are their own typed endpoints returning their own JSON shape
+  // (TableScan, ConfigStatus, ...), not a `hostOpsResult` envelope.
+  //
+  // @ref LLP 0184#p1-read-and-diagnose — thin projections over the existing
+  //   admin API, never a second dialect.
+  async adminFetch(method, path, { query = {}, body, secretReadLease = null } = {}) {
+    const descriptor = this.currentDescriptor();
+    const adminToken = managedAdminToken(descriptor, this.database);
+    const url = new URL(`${descriptor.serverUrl.replace(/\/$/, '')}${path}`);
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
+    }
+    let response;
+    try {
+      response = await fetch(url, {
+        method,
+        headers: {
+          ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
+          ...(adminToken ? { 'x-snapback-admin-token': adminToken } : {}),
+          ...(secretReadLease ? { 'x-snapback-secret-read-lease': secretReadLease } : {}),
+        },
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      });
+    } catch (cause) {
+      const error = diagnosticError('SNAPBACK_MCP_TRANSPORT_FAILED', `request to ${url} failed: ${cause.message}`, { url: String(url) });
+      error.cause = cause;
+      throw error;
+    }
+    let payload;
+    try {
+      payload = await response.json();
+    } catch (cause) {
+      const error = diagnosticError('SNAPBACK_MCP_TRANSPORT_FAILED', `response from ${url} was not JSON (HTTP ${response.status})`, { url: String(url), status: response.status });
+      error.cause = cause;
+      throw error;
+    }
+    return { ok: response.ok, status: response.status, payload };
+  }
+
+  // Wraps an adminFetch call in the shared result envelope so every direct
+  // tool — host-ops multiplexed or not — returns the same shape (§Design/4:
+  // "the ordinary subsystem result envelope ... rather than projection-
+  // specific prose").
+  async adminResult(operation, method, path, options = {}) {
+    try {
+      const { ok, status, payload } = await this.adminFetch(method, path, options);
+      return this.toolResult(this.envelope(operation, {
+        ok,
+        data: ok ? (payload ?? {}) : {},
+        diagnostics: ok
+          ? []
+          : [payload?.diagnostic ?? diagnostic(
+            'SNAPBACK_MCP_ADMIN_REQUEST_FAILED',
+            `admin request to ${path} failed with HTTP ${status}`,
+            { status, payload },
+          )],
+      }));
+    } catch (error) {
+      return this.toolResult(this.envelope(operation, {
+        diagnostics: [error.diagnostic ?? diagnostic(error?.code ?? 'SNAPBACK_MCP_ADMIN_REQUEST_FAILED', error?.message ?? String(error))],
+      }), { isError: true });
     }
   }
 
@@ -900,6 +1083,40 @@ export class McpControlServer {
         return this.loadArtifactResult(name, 'functions.load', 'functions', args.functionsPath ?? join(this.backendRoot, 'generated', 'functions.manifest.json'));
       case 'snapback_run_function':
         return this.runFunctionResult(name, args.function, args.args ?? {}, args.authority);
+      // --- LLP 0184 Phase 2 P1: read and diagnose --------------------------
+      case 'snapback_data_scan': {
+        const limit = Number.isInteger(args.limit) ? args.limit : 50;
+        const offset = Number.isInteger(args.offset) ? args.offset : 0;
+        const lease = this.secretReadLease(null, limit, 4 * 1024 * 1024, ['--table', args.table]);
+        return this.adminResult('data.scan', 'GET', `/_snapback/api/data/${args.table}`, {
+          query: { limit, offset },
+          secretReadLease: lease,
+        });
+      }
+      case 'snapback_asset_list':
+        return this.servedResult({ operation: 'asset.list', input: { ...(args.state ? { state: args.state } : {}) } });
+      case 'snapback_asset_inspect':
+        return this.servedResult({
+          operation: 'asset.inspect',
+          input: { assetId: args.assetId },
+          ...(typeof args.userId === 'string' && args.userId ? { userId: args.userId } : {}),
+        });
+      case 'snapback_asset_retry':
+        return this.servedResult({ operation: 'asset.retry', input: { assetId: args.assetId } });
+      case 'snapback_config_status':
+        return this.adminResult('config.status', 'GET', '/_snapback/api/config/status');
+      case 'snapback_config_plan':
+        return this.adminResult('config.plan', 'GET', '/_snapback/api/config/plan', {
+          query: { ...(typeof args.entry === 'string' && args.entry ? { entry: args.entry } : {}) },
+        });
+      case 'snapback_config_verify':
+        return this.adminResult('config.verify', 'POST', '/_snapback/api/config/verify', {
+          body: { entry: args.entry },
+        });
+      case 'snapback_jobs_list':
+        return this.adminResult('jobs.list', 'GET', '/_snapback/api/jobs');
+      case 'snapback_jobs_show':
+        return this.adminResult('jobs.show', 'GET', `/_snapback/api/jobs/${args.id}`);
       case 'snapback_acceptance_run':
         // @ref LLP 0042#acceptance-suite-execution--exposed-runner-deferred —
         // exposed-but-honest: the server registers the pinned-unbuilt

@@ -2,11 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "05306b9908e150faa5bd271bf1110bcf0695ee24"
-  },
-  "publishedClosure": {
-    "scope": "@expo/snapback-*",
-    "newestPublished": "0.1.8"
+    "commit": "9d9265593fa4463695e1d89c0c18bcadae1aabb9"
   },
   "nav": {
     ".": [
@@ -530,8 +526,6 @@
         "llp/0057-auth-provider-protocol.spec.md",
         "llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
-        "llp/0172-explicit-function-authorization.rfc.md",
-        "packages/snapback-codegen/index.mjs",
         "src/auth/mode.rs",
         "packages/snapback-client/index.mjs",
         "demos/card-game/snapback/functions.mjs",
@@ -542,7 +536,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "883b7d6f51e46a019bfcb65c2ce6477e9be02fed7bb008e4a3ba4912c959b919",
+      "sha256": "4f9933cb2cbf37ad1e8ed7698088fb61e5ef7f97db3d0d86aeb2d1e12cfc96dc",
       "snippets": [
         {
           "lang": "js",
@@ -741,7 +735,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
-      "sha256": "dec2138b644866c5d1a25164c9f7fc6d103695edf6f7e6e26e1af593065e757a",
+      "sha256": "688a5f07813e224a08f1cd65b20c0c89f76059a2cd1a40eb9b03d52a3c615c74",
       "snippets": [
         {
           "lang": "js",
@@ -1003,7 +997,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "462fd22462cdc85f60ec238fcd127684386e3dc9572d2ac13a7b01e92dd30f3d",
+      "sha256": "c4762d69175f4d6148ae7b0fef52c082e3d4a240de24a05a1424396249733ab8",
       "snippets": [
         {
           "lang": "js",
@@ -1483,9 +1477,9 @@
         "packages/snapback-react/index.mjs"
       ],
       "examples": [],
-      "reviewed": "2026-08-06",
-      "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "2e19804e7ad3ac2bd585220e101de8298459264345bc218354d00615b2180e4e",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "58c6429173a09184b1cd815117abc27b38563c3c0a1c9242f957ac4e910aa3e6",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1678,7 +1672,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "c442237dedd412d1fe66a85c7a0ed463eba1e013",
-      "sha256": "9bb5883459da65583fa70e25712f523c5ba563bb2d685f00d299eb7b85353725",
+      "sha256": "bb2f86339e7725946128c26fc03dfed4def9759065271ab101cff805b2eaef91",
       "snippets": [
         {
           "lang": "js",
@@ -1716,7 +1710,6 @@
         "llp/0114-first-class-react-and-query-groups.spec.md",
         "llp/0176-expo-messaging-golden-path.plan.md",
         "llp/0181-zero-configuration-expo.rfc.md",
-        "packages/snapback-cli/expo-dev.mjs",
         "packages/snapback-client/index.mjs",
         "packages/snapback-client/react-binding.mjs",
         "packages/snapback-client/rqs-store-default.mjs",
@@ -1725,16 +1718,12 @@
         "packages/snapback-expo/config-plugin.cjs",
         "packages/snapback-expo/index.mjs",
         "packages/snapback-expo/provider.mjs",
-        "packages/snapback-expo/supervised-environment.mjs",
         "packages/snapback-react/index.mjs",
         "scripts/install-local-snapback-packages.mjs",
         "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs",
         "demos/_kit/eas-stage-build.mjs"
       ],
       "examples": [
-        "demos/expo-golden-path-fixture",
-        "demos/expo-golden-path-fixture/receipts/20260806-g1-ios-simulator.md",
-        "demos/expo-golden-path-fixture/receipts/20260806-g1-android-emulator.md",
         "demos/partiful-matrix/native/react-expo",
         "packages/snapback-client/webcrypto-fallback.test.mjs",
         "packages/snapback-expo/provider.test.mjs",
@@ -1746,19 +1735,13 @@
         "demos/tandem-expo-bakeoff/scripts/build-ios-dev-client",
         "demos/_kit/tests/repo-layout-unit.mjs"
       ],
-      "reviewed": "2026-08-06",
-      "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
-      "sha256": "81390f9fe0a0509e2ee525e4e4429b369a25e9816a08df323e4ba76b76c2651d",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "0bfd5643855d63ee286604d3bf52fdb8baeb32dd3a5fe568da441acbc8f2f2d3",
       "snippets": [
         {
-          "lang": "json",
-          "class": "transcluded",
-          "source": "demos/expo-golden-path-fixture/app.json"
-        },
-        {
           "lang": "tsx",
-          "class": "transcluded",
-          "source": "demos/expo-golden-path-fixture/App.tsx"
+          "class": "fragment"
         },
         {
           "lang": "ts",
@@ -1818,7 +1801,6 @@
         "demos/signal-desk/src/backends/snapback.ts",
         "demos/signal-desk/tests/react.mjs",
         "demos/signal-desk/acceptance/results/react-presence.v1.json",
-        "demos/messaging-snapback/src/lib/useTyping.ts",
         "packages/snapback-react/binding-development-sync.test.mjs",
         "packages/snapback-react/package.test.mjs",
         "packages/snapback-react/optimistic.test.mjs",
@@ -1826,9 +1808,9 @@
         "packages/snapback-react/offline.test.mjs",
         "packages/snapback-react/exact-result-types.fixture.ts"
       ],
-      "reviewed": "2026-08-06",
-      "reviewedCommit": "4ac8387f080a2659484fc09916ff22a076dc4ca8",
-      "sha256": "05b130a6a4b298986e6c4309263773ba802aeeaaa7e6e46a979a3e5a09ee3779",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "75ad6c86424692ca4163d3da2a705a3f54f5155e9b303fd63f50aeeb735d0920",
       "snippets": [
         {
           "lang": "ts",
@@ -1910,7 +1892,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "f9ae0083ef41bfc9d07f033da440f96048919613",
-      "sha256": "cbf89e513364e1ab07956f6f81dbf12c0fd5fa544e7229c117a5ba52a5cb8e8e",
+      "sha256": "b805e180deaa21eda00a0dcbfb85dcaf65daedcc5d9b1864900d332029de568f",
       "snippets": []
     },
     "deploying.cloudflare": {
@@ -2063,7 +2045,7 @@
       ],
       "reviewed": "2026-08-05",
       "reviewedCommit": "4a6000ac6f17a8c94bc2aecf573c0654e850b758",
-      "sha256": "52d065c8229acfe3aea5a2ec91ba3b0b77a00cb5ef1f73f1a796d73eff29f1e8",
+      "sha256": "6957cc19ecb55b01fbe374820a54c8b7d651e79f2f7556062abe42889bb8cf15",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -2173,12 +2155,10 @@
         "llp/0000-snapback.explainer.md",
         "llp/0042-agent-mcp-surface.rfc.md",
         "llp/0064-native-client-surfaces.rfc.md",
-        "llp/0181-zero-configuration-expo.rfc.md",
         "llp/0184-agent-accessible-control-plane.rfc.md",
         "src/cli.rs",
         "src/guide_mcp.rs",
         "packages/snapback-cli/index.mjs",
-        "packages/snapback-cli/expo-dev.mjs",
         "packages/snapback-cli/mcp-control.mjs"
       ],
       "examples": [
@@ -2186,12 +2166,11 @@
         "demos/todo-v2",
         "demos/cursors-web",
         "demos/card-game",
-        "demos/partiful-matrix",
-        "demos/expo-golden-path-fixture"
+        "demos/partiful-matrix"
       ],
-      "reviewed": "2026-08-06",
-      "reviewedCommit": "850427c31b9a668d55b46995e08389cd13a2c9b6",
-      "sha256": "40f9fa5cc8b37afcade46fadc2117d17603c1197f0b7bb3a52c269d9babdf699",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "bf2e2a49e951f5f3c6db419d6d571f5300a55e03dca1c29c79ca16570d6967d7",
       "snippets": [
         {
           "lang": "json",
@@ -2331,9 +2310,9 @@
       "examples": [
         "demos/todo"
       ],
-      "reviewed": "2026-08-06",
-      "reviewedCommit": "acbb7b922a060788fd09f3f98211eb9ce35f23f4",
-      "sha256": "2c94754760c79b52d3cde59e2a4ab281df8debcbada940a666e95a12dcab31d2",
+      "reviewed": "2026-08-03",
+      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
+      "sha256": "34b5b34efa57991ba4964d357b67b4855150fd9c13f63eeb9767a5a612d48f0e",
       "snippets": [
         {
           "lang": "json",
@@ -2467,7 +2446,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "2ced65efc45a6223b3623ff4540591ee6c7e335de9692388a4dd804226b008a9",
+      "sha256": "9417e04cc8246623bc3a3d6e2d1969c5e8b131ebcf61ae9726f46c7c6e47ec9c",
       "snippets": [
         {
           "lang": "js",
@@ -2535,22 +2514,21 @@
         "packages/snapback-codegen/index.mjs",
         "packages/snapback-client/index.mjs",
         "packages/snapback-contract/index.mjs",
-        "packages/snapback-react/index.mjs",
         "packages/snapback-react/index.d.mts"
       ],
       "examples": [
         "demos/cursors-web",
         "demos/todo-v2/snapback/schema.mjs",
-        "demos/messaging-snapback/src/lib/useTyping.ts"
+        "demos/improvement-sweep/arms/a2-snapback-web/evidence/app/App.tsx"
       ],
-      "reviewed": "2026-08-06",
-      "reviewedCommit": "6e158169b3c908b8be149db4487a71dc35738470",
-      "sha256": "df6ac61a929e372a743901f76f3b98c032729cf70f89d1533459bf1a6fc4791f",
+      "reviewed": "2026-08-05",
+      "reviewedCommit": "f3c7d9fbb394a413370a9264f22e72b6f151a25e",
+      "sha256": "99c5fb3832e80de4ca5bd8b862c26e533e6a14b7c4be5bec825e24846d617137",
       "snippets": [
         {
           "lang": "tsx",
           "class": "transcluded",
-          "source": "demos/messaging-snapback/src/lib/useTyping.ts"
+          "source": "demos/improvement-sweep/arms/a2-snapback-web/evidence/app/App.tsx"
         },
         {
           "lang": "js",
@@ -2599,7 +2577,7 @@
       ],
       "reviewed": "2026-08-03",
       "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
-      "sha256": "b16f362300516f1d5e77f287a08b3ebe97d2c54ac5172e50b22bb2260534c9ca",
+      "sha256": "687db916140b464ba0e34bdc1f5270937c094a7132b0b58f12f19a07cd67203e",
       "snippets": [
         {
           "lang": "js",
@@ -2816,19 +2794,16 @@
       ],
       "authorities": [
         "llp/0013-ephemeral-realtime-state.rfc.md",
-        "llp/0107-react-presence-and-optimistic-lifecycle.spec.md",
         "packages/snapback-codegen/define.mjs",
-        "packages/snapback-client/index.mjs",
-        "packages/snapback-react/index.mjs"
+        "packages/snapback-client/index.mjs"
       ],
       "examples": [
         "demos/cursors-web",
-        "demos/todo-v2/snapback/schema.mjs",
-        "demos/messaging-snapback/src/lib/useTyping.ts"
+        "demos/todo-v2/snapback/schema.mjs"
       ],
-      "reviewed": "2026-08-06",
-      "reviewedCommit": "6e158169b3c908b8be149db4487a71dc35738470",
-      "sha256": "030ee1d6e45aa45a4a31a67f897a700466c2f5406481d60e500c5043da700eab",
+      "reviewed": "2026-08-03",
+      "reviewedCommit": "6e5d69d1037c6042fb9338221dfb489e00f5f78a",
+      "sha256": "5b444604ca94c17a08b054adea82a529cfa8548da6c64cd049eb9f2b72aed6e0",
       "snippets": [
         {
           "lang": "js",
@@ -2863,7 +2838,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "3109a3b4f5068595a71448b10788b56b4fa358f5",
-      "sha256": "175a16e768ced3ef0193ffbfbf31acdde78bcd4074ae86fe8b80fc289e0186c2",
+      "sha256": "16348b4e472f6302e8802aad9a010afea53a314b1f9a59737cbb9749fbec73cf",
       "snippets": []
     },
     "meta.surface-map": {
@@ -2887,7 +2862,7 @@
       "examples": [],
       "reviewed": "2026-08-03",
       "reviewedCommit": "7b467cf16",
-      "sha256": "3252dae5ea3b8a012db4081a9c83aecde91560e2e1b900afb215e47a03e12c02",
+      "sha256": "2cd61aae00ec61ae7c7a8e1b61c4a701f6ba57987b49fde59401ae7c1cd25e83",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -3182,8 +3157,8 @@
     ]
   },
   "surfaces": {
-    "routes": 117,
+    "routes": 116,
     "hostOps": 37
   },
-  "contentHash": "b2de62dedf8c0addb06890b74a4efb658d063ad1671982f064e4f77e65435b2e"
+  "contentHash": "1668a488fd9cea92cd9b08059f24f77f2ebe8193965b622482aaba723c3352b8"
 }

@@ -100,6 +100,29 @@ value bytes, and neither does `status`, the diagnostics ring, or any log
 line. Pass values in the request body — never in argv, where a process list
 would leak them.
 
+## CLI and MCP projections for status/plan/verify
+
+`config.status`, `config.plan`, and `config.verify` never carry a secret
+value, so they are direct CLI and control-MCP tools (LLP 0184 Phase 2 P1).
+`config.set`/`config.unset` are not projected as CLI/MCP yet — set carries a
+value that needs the stdin/fd carrier LLP 0036 owns, and unset is a separate,
+not-yet-landed slice; keep using the routes above for both.
+
+```sh
+snapback config status --ready-file .snapback/dev.ready.json
+snapback config plan --ready-file .snapback/dev.ready.json --entry caltrainFeed
+snapback config verify --ready-file .snapback/dev.ready.json caltrainFeed
+```
+
+or, through `snapback mcp-control`: `snapback_config_status`,
+`snapback_config_plan` (optional `entry`), and `snapback_config_verify`
+(required `entry`). Every result is the shared `hostOpsResult`-shaped
+envelope; a missing/unset entry is `ok: true` with the entry's declared state,
+not a tool error. An agent detecting a missing required entry should point a
+human at `/_snapback/admin/setup` to enter the value — no agent-facing handoff
+row exists for that step in v1 (LLP 0184 §Product contract); afterward,
+`config.status`/`config.verify` confirm completion.
+
 ## Read through a granted handle
 
 An action names entries in `uses`, then reads `ctx.secrets.get(name)` for the
