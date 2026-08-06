@@ -797,6 +797,7 @@ async fn p6_ready_file_descriptor_is_written_and_validates() {
         hosted_edge: None,
         hosted_admission: None,
         cron_disabled: false,
+        derived_fork_arm_writer_coverage: false,
     };
     let server = tokio::spawn(snapback::cli::run(args));
 
@@ -859,6 +860,7 @@ async fn p6_secret_read_root_sidecar_does_not_survive_descriptor_custody() {
         hosted_edge: None,
         hosted_admission: None,
         cron_disabled: false,
+        derived_fork_arm_writer_coverage: false,
     };
     let server = tokio::spawn(snapback::cli::run(args));
 

@@ -12,6 +12,29 @@ import {
   REVIEW_CACHE_ROOTS,
 } from './generated-artifact-policy.mjs';
 
+const STORAGE_EVIDENCE = [
+  ['acceptanceCorpus', 'tests/acceptance/fixtures/agent-safe-storage/acceptance-corpus.2026-08-04.v1.json'],
+  ['pairedPerformance', 'tests/acceptance/fixtures/agent-safe-storage/agent-safe-active-covered-paired.2026-08-04.v1.json'],
+  ['absolutePerformance', 'tests/acceptance/fixtures/agent-safe-storage/fork-promotion-performance.2026-08-04.v1.json'],
+  ['independentReviewFable', 'llp/reviews/0162-agent-safe-storage-profile.implementation-2026-08-04.fable.md'],
+  ['independentReviewCodex', 'llp/reviews/0162-agent-safe-storage-profile.implementation-2026-08-04.codex.md'],
+  ['authorAcceptance', 'tests/acceptance/fixtures/agent-safe-storage/author-acceptance.2026-08-04.v1.json'],
+];
+
+// @ref LLP 0158#capability-registry-record — the guide-row witness has a
+// closed fork-specific vocabulary; storage evidence cannot substitute for it.
+const DERIVED_FORK_EVIDENCE = [
+  ['lifecycleBenchMacos', 'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json'],
+  ['lifecycleBenchLinux', 'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json'],
+  ['boundsRatification', 'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json'],
+  ['assetLifecycleEvidence', 'tests/acceptance/asset-lifecycle-v1-evidence.md'],
+  ['specReviewCodex', 'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md'],
+  ['specReviewFable', 'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md'],
+  ['implementationReviewCodex', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md'],
+  ['implementationReviewFable', 'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md'],
+  ['authorAcceptance', 'tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json'],
+];
+
 export const IMPLEMENTATION_ROOTS = [
   'Cargo.toml',
   'Cargo.lock',
@@ -36,6 +59,11 @@ export const PUBLICATION_CYCLE_ALLOWLIST = new Set([
   'tests/acceptance/fixtures/agent-safe-storage/agent-safe-active-covered-paired.2026-08-04.v1.json',
   'tests/acceptance/fixtures/agent-safe-storage/fork-promotion-performance.2026-08-04.v1.json',
   'tests/acceptance/fixtures/agent-safe-storage/author-acceptance.2026-08-04.v1.json',
+  // These fork records necessarily name or accept qualification C, so they
+  // arise in publication P and must not participate in C's implementation digest.
+  'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json',
+  'tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json',
+  'tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json',
   'tests/acceptance/fixtures/latency-kanban/move3-exit.2026-08-04.r2.v1.json',
   'tests/acceptance/latency-kanban-move3-v1-evidence.md',
   'tests/acceptance/fixtures/triage-graph/move1-exit.2026-08-04.v1.json',
@@ -68,15 +96,6 @@ const LOCAL_STORE_PUBLICATION_TRANSFORM = {
     },
   ],
 };
-
-const EVIDENCE = [
-  ['acceptanceCorpus', 'tests/acceptance/fixtures/agent-safe-storage/acceptance-corpus.2026-08-04.v1.json'],
-  ['pairedPerformance', 'tests/acceptance/fixtures/agent-safe-storage/agent-safe-active-covered-paired.2026-08-04.v1.json'],
-  ['absolutePerformance', 'tests/acceptance/fixtures/agent-safe-storage/fork-promotion-performance.2026-08-04.v1.json'],
-  ['independentReviewFable', 'llp/reviews/0162-agent-safe-storage-profile.implementation-2026-08-04.fable.md'],
-  ['independentReviewCodex', 'llp/reviews/0162-agent-safe-storage-profile.implementation-2026-08-04.codex.md'],
-  ['authorAcceptance', 'tests/acceptance/fixtures/agent-safe-storage/author-acceptance.2026-08-04.v1.json'],
-];
 
 const STORAGE_COMPONENTS = [
   'ordinaryMutationHostPlanEnvelope',
@@ -115,6 +134,10 @@ const PUBLICATION_ONLY_PATHS = new Set([
   'llp/0165-proof-domains-and-checkpoints.spec.md',
   'llp/reviews/0162-agent-safe-storage-profile.implementation-2026-08-04.fable.md',
   'llp/reviews/0162-agent-safe-storage-profile.implementation-2026-08-04.codex.md',
+  'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md',
+  'llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md',
+  'llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md',
+  'llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md',
   'issues/20260803-agent-safe-storage-acceptance-tail.md',
   'issues/20260803-0163-public-operation-identity-carrier.md',
   'issues/20260803-guide-gap-instance-forks.md',
@@ -453,6 +476,12 @@ export function implementationDigestWorkingTree(root) {
   return `sha256:${hash.digest('hex')}`;
 }
 
+function evidenceLocatorsFor(record) {
+  if (record.id === 'agent_safe_storage_v1') return STORAGE_EVIDENCE;
+  if (record.id === 'agent_safe_derived_deployment_fork_v1') return DERIVED_FORK_EVIDENCE;
+  fail(`unknown publication record ${record.id}`);
+}
+
 function validateReceiptShape(receipt, record, published) {
   exactKeys(receipt, [
     'schemaVersion', 'capabilityId', 'qualifiedSourceCommit', 'implementationTreeSha256',
@@ -467,10 +496,13 @@ function validateReceiptShape(receipt, record, published) {
       || JSON.stringify(receipt.negativeBuildDistributions) !== JSON.stringify(['public-package'])) {
     fail(`${record.id} receipt target/distribution facts drifted`);
   }
-  if (receipt.evidence.length !== EVIDENCE.length) fail(`${record.id} evidence count drifted`);
+  const evidenceLocators = evidenceLocatorsFor(record);
+  if (!Array.isArray(receipt.evidence) || receipt.evidence.length !== evidenceLocators.length) {
+    fail(`${record.id} evidence count drifted`);
+  }
   receipt.evidence.forEach((binding, index) => {
     exactKeys(binding, ['kind', 'path', 'sha256'], `${record.id} evidence ${index}`);
-    const [kind, path] = EVIDENCE[index];
+    const [kind, path] = evidenceLocators[index];
     if (binding.kind !== kind || binding.path !== path || !isSha256(binding.sha256, published)) {
       fail(`${record.id} evidence ${index} drifted`);
     }
@@ -811,7 +843,7 @@ export function validatePairedPerformanceArtifact(value, commit) {
 }
 
 function validatePairedPerformance(root, commit) {
-  const path = EVIDENCE[1][1];
+  const path = STORAGE_EVIDENCE[1][1];
   validatePairedPerformanceArtifact(readEvidenceJson(root, path, 'paired performance'), commit);
 }
 
@@ -904,13 +936,13 @@ export function validateAbsolutePerformanceArtifact(value, commit) {
 }
 
 function validateAbsolutePerformance(root, commit) {
-  const path = EVIDENCE[2][1];
+  const path = STORAGE_EVIDENCE[2][1];
   const value = readEvidenceJson(root, path, 'absolute performance');
   validateAbsolutePerformanceArtifact(value, commit);
 }
 
 function validateAcceptanceCorpus(root, commit, implementationTree) {
-  const path = EVIDENCE[0][1];
+  const path = STORAGE_EVIDENCE[0][1];
   const value = readEvidenceJson(root, path, 'acceptance corpus');
   requireEvidence(value.schemaVersion === 'snapback.agent-safe-storage-acceptance-corpus.v1',
     'acceptance corpus schema drifted');
@@ -980,7 +1012,7 @@ function validateReview(root, path, family, commit, implementationTree) {
 }
 
 function validateAuthorAcceptance(root, commit, implementationTree) {
-  const path = EVIDENCE[5][1];
+  const path = STORAGE_EVIDENCE[5][1];
   const value = readEvidenceJson(root, path, 'author acceptance');
   requireEvidence(value.schemaVersion === 'snapback.agent-safe-storage-author-acceptance.v1'
     && value.date === '2026-08-04'
@@ -999,26 +1031,233 @@ function validateAuthorAcceptance(root, commit, implementationTree) {
     && value.broaderCapabilityFactsState === 'Missing',
   'author acceptance widened withheld facts');
   const reviewDigests = value.reviewSha256 ?? {};
-  requireEvidence(reviewDigests.fable === sha256(readFileSync(join(root, EVIDENCE[3][1])))
-    && reviewDigests.codex === sha256(readFileSync(join(root, EVIDENCE[4][1]))),
+  requireEvidence(reviewDigests.fable === sha256(readFileSync(join(root, STORAGE_EVIDENCE[3][1])))
+    && reviewDigests.codex === sha256(readFileSync(join(root, STORAGE_EVIDENCE[4][1]))),
   'author acceptance did not bind both review bytes');
   const evidenceDigests = value.evidenceSha256 ?? {};
-  requireEvidence(evidenceDigests.acceptanceCorpus === sha256(readFileSync(join(root, EVIDENCE[0][1])))
-    && evidenceDigests.pairedPerformance === sha256(readFileSync(join(root, EVIDENCE[1][1])))
-    && evidenceDigests.absolutePerformance === sha256(readFileSync(join(root, EVIDENCE[2][1]))),
+  requireEvidence(evidenceDigests.acceptanceCorpus === sha256(readFileSync(join(root, STORAGE_EVIDENCE[0][1])))
+    && evidenceDigests.pairedPerformance === sha256(readFileSync(join(root, STORAGE_EVIDENCE[1][1])))
+    && evidenceDigests.absolutePerformance === sha256(readFileSync(join(root, STORAGE_EVIDENCE[2][1]))),
   'author acceptance did not bind the corpus and both performance records');
 }
 
-export function validatePublishedEvidenceSemantics(root, record, commit) {
+const DERIVED_FORK_BENCH_SCOPE =
+  'LLP 0162 row 13, narrow operating.instance-forks claim (author-scoped 2026-08-05)';
+const DERIVED_FORK_BENCH_NOTES = [
+  'create latency includes server boot, ready handshake, and manifest load — the full product surface',
+  'diff spans are 10k journal rows, an order of magnitude under the 100k diff-work bound',
+];
+const DERIVED_FORK_RATIFIED_BOUNDS = {
+  ratifiedBy: 'LLP 0162 author (Charlie), 2026-08-06',
+  createColdSmallParentMs: 2_000,
+  createColdLargeParent32MiBMs: 3_000,
+  createLiveParentMs: 2_000,
+  dropMs: 1_000,
+  attributedDiff10kRowsMs: 500,
+  netDiff10kRowsMs: 750,
+  reapSweepMs: 1_000,
+  concurrentCreate3WallMs: '<= 3x the sequential create bound',
+};
+const DERIVED_FORK_STAT_MEASUREMENTS = [
+  ['createColdSmallParent', 5, 'createColdSmallParentMs'],
+  ['createColdLargeParent32MiB', 3, 'createColdLargeParent32MiBMs'],
+  ['createLiveParent', 3, 'createLiveParentMs'],
+  ['dropSmall', 5, 'dropMs'],
+  ['dropLarge', 3, 'dropMs'],
+  ['dropLive', 3, 'dropMs'],
+  ['attributedDiff10kRows', 3, 'attributedDiff10kRowsMs'],
+  ['netDiff10kRows', 3, 'netDiff10kRowsMs'],
+];
+
+function validateDerivedForkRatifiedBounds(value, label) {
+  exactKeys(value, Object.keys(DERIVED_FORK_RATIFIED_BOUNDS), `${label} ratifiedBounds`);
+  requireEvidence(Object.entries(DERIVED_FORK_RATIFIED_BOUNDS)
+    .every(([key, expected]) => value[key] === expected),
+  `${label} author-ratified bounds drifted`);
+}
+
+export function validateDerivedForkLifecycleBenchArtifact(value, commit, os, arch) {
+  const label = `${os}-${arch} fork lifecycle bench`;
+  exactKeys(value, [
+    'schemaVersion', 'scope', 'environment', 'measurements', 'ratifiedBounds', 'notes',
+  ], label);
+  requireEvidence(value.schemaVersion === 'snapback.fork-lifecycle-bench.v1'
+    && value.scope === DERIVED_FORK_BENCH_SCOPE,
+  `${label} identity drifted`);
+  exactKeys(value.environment, ['os', 'arch', 'cpus', 'profile', 'commit'], `${label} environment`);
+  requireEvidence(value.environment.os === os
+    && value.environment.arch === arch
+    && Number.isInteger(value.environment.cpus)
+    && value.environment.cpus > 0
+    && value.environment.profile === 'release'
+    && value.environment.commit === commit,
+  `${label} environment/qualified commit drifted`);
+  validateDerivedForkRatifiedBounds(value.ratifiedBounds, label);
+  requireEvidence(JSON.stringify(value.notes) === JSON.stringify(DERIVED_FORK_BENCH_NOTES),
+    `${label} notes drifted`);
+  exactKeys(value.measurements, [
+    ...DERIVED_FORK_STAT_MEASUREMENTS.map(([name]) => name),
+    'reapThreeExpiredForks', 'concurrentCreate3WallMs', 'sequentialCreateMedianMs',
+  ], `${label} measurements`);
+  for (const [name, samples, bound] of DERIVED_FORK_STAT_MEASUREMENTS) {
+    const measurement = value.measurements[name];
+    exactKeys(measurement, ['samples', 'minMs', 'medianMs', 'maxMs'], `${label} ${name}`);
+    requireEvidence(measurement.samples === samples
+      && [measurement.minMs, measurement.medianMs, measurement.maxMs]
+        .every((number) => Number.isFinite(number) && number >= 0)
+      && measurement.minMs <= measurement.medianMs
+      && measurement.medianMs <= measurement.maxMs
+      && measurement.medianMs <= DERIVED_FORK_RATIFIED_BOUNDS[bound],
+    `${label} ${name} median/statistics exceeded or drifted from ratified bounds`);
+  }
+  const reap = value.measurements.reapThreeExpiredForks;
+  exactKeys(reap, ['samples', 'medianMs'], `${label} reapThreeExpiredForks`);
+  requireEvidence(reap.samples === 1
+    && Number.isFinite(reap.medianMs)
+    && reap.medianMs >= 0
+    && reap.medianMs <= DERIVED_FORK_RATIFIED_BOUNDS.reapSweepMs,
+  `${label} reap median exceeded or drifted from ratified bounds`);
+  const concurrent = value.measurements.concurrentCreate3WallMs;
+  const sequential = value.measurements.sequentialCreateMedianMs;
+  requireEvidence(Number.isFinite(concurrent)
+    && concurrent >= 0
+    && Number.isFinite(sequential)
+    && sequential >= 0
+    && sequential === value.measurements.createColdSmallParent.medianMs
+    && concurrent <= 3 * DERIVED_FORK_RATIFIED_BOUNDS.createColdSmallParentMs,
+  `${label} concurrent-create bound failed`);
+}
+
+function validateDerivedForkBoundsRatification(root, commit) {
+  const value = readEvidenceJson(root, DERIVED_FORK_EVIDENCE[2][1], 'fork bounds ratification');
+  const ratificationCommit = value.environment?.commit;
+  requireEvidence(/^[0-9a-f]{40}$/u.test(ratificationCommit ?? ''),
+    'fork bounds ratification commit is invalid');
+  validateDerivedForkLifecycleBenchArtifact(value, ratificationCommit, 'macos', 'aarch64');
+  try {
+    git(root, ['merge-base', '--is-ancestor', ratificationCommit, commit]);
+  } catch {
+    fail('published evidence: fork bounds ratification is not an ancestor of qualification C');
+  }
+}
+
+function reviewFamily(text, path) {
+  const family = markdownField(text, 'Reviewer family');
+  const provider = markdownField(text, 'Provider / runtime');
+  const date = markdownField(text, 'Date');
+  const redacted = markdownField(text, 'Redacted');
+  const method = markdownField(text, 'Method');
+  requireEvidence(Boolean(family && provider && method)
+    && date === '2026-08-06'
+    && /^(?:yes|no)(?:\b|\s*[—-])/iu.test(redacted ?? ''),
+  `${path} lacks the LLP 0005 provenance header`);
+  const codex = /(?:codex|gpt|openai)/iu.test(family);
+  const fable = /(?:fable|claude|anthropic)/iu.test(family);
+  requireEvidence(codex !== fable, `${path} reviewer family is ambiguous or unrecognized`);
+  return codex ? 'codex' : 'fable';
+}
+
+function validateDerivedForkReview(root, index, expectedFamily, implementation) {
+  const path = DERIVED_FORK_EVIDENCE[index][1];
+  let text;
+  try {
+    text = readFileSync(join(root, path), 'utf8');
+  } catch {
+    fail(`published evidence: missing or unreadable review ${path}`);
+  }
+  const family = reviewFamily(text, path);
+  requireEvidence(family === expectedFamily, `${path} came from the wrong reviewer family`);
+  if (implementation) {
+    requireEvidence(markdownField(text, 'Verdict') === 'READY',
+      `${path} implementation verdict is not READY`);
+  }
+  return family;
+}
+
+function validateDerivedForkAssetEvidence(root) {
+  const path = DERIVED_FORK_EVIDENCE[3][1];
+  const text = readFileSync(join(root, path), 'utf8');
+  requireEvidence(text.startsWith('# LLP 0044 `asset-lifecycle-v1` acceptance evidence (local target)\n')
+    && text.includes('<!-- @ref LLP 0044#acceptance'),
+  'asset lifecycle evidence identity drifted');
+}
+
+function validateDerivedForkAuthorAcceptance(root, receipt, commit, implementationTree) {
+  const path = DERIVED_FORK_EVIDENCE.at(-1)[1];
+  const value = readEvidenceJson(root, path, 'derived-fork author acceptance');
+  exactKeys(value, [
+    'schemaVersion', 'capabilityId', 'accepted', 'authorLine', 'qualifiedSourceCommit',
+    'implementationTreeSha256', 'candidateFactsSha256', 'qualifiedComponents',
+    'evidenceSha256',
+  ], 'derived-fork author acceptance');
+  requireEvidence(value.schemaVersion === 'snapback.derived-fork-author-acceptance.v1'
+    && value.capabilityId === 'agent_safe_derived_deployment_fork_v1'
+    && value.accepted === true
+    && value.authorLine === 'Charlie Cheever — accepted 2026-08-06'
+    && value.qualifiedSourceCommit === commit
+    && value.implementationTreeSha256 === implementationTree
+    && value.candidateFactsSha256 === receipt.candidateFactsSha256
+    && JSON.stringify(value.qualifiedComponents) === JSON.stringify(DERIVED_COMPONENTS),
+  'derived-fork named-author/source/component acceptance drifted');
+  const nonselfBindings = receipt.evidence.slice(0, -1);
+  exactKeys(value.evidenceSha256, nonselfBindings.map(({ kind }) => kind),
+    'derived-fork author evidence digests');
+  requireEvidence(nonselfBindings.every(({ kind, sha256: digest }) => (
+    value.evidenceSha256[kind] === digest
+  )), 'derived-fork author acceptance did not bind the exact non-self receipt digest set');
+}
+
+export function validatePublishedDerivedForkEvidenceSemantics(root, record, commit, receipt) {
+  requireEvidence(record.id === 'agent_safe_derived_deployment_fork_v1'
+    && /^[0-9a-f]{40}$/u.test(commit),
+  'derived-fork capability or qualification commit is invalid');
+  requireEvidence(JSON.stringify(record.components) === JSON.stringify(DERIVED_COMPONENTS)
+    && JSON.stringify(receipt.qualifiedComponents) === JSON.stringify(DERIVED_COMPONENTS),
+  'derived-fork qualified component scope drifted');
+  const publication = git(root, ['rev-parse', 'HEAD']);
+  try {
+    git(root, ['merge-base', '--is-ancestor', commit, publication]);
+  } catch {
+    fail('published evidence: derived-fork qualification commit is not an ancestor of publication HEAD');
+  }
+  validateDerivedForkBoundsRatification(root, commit);
+  const macos = readEvidenceJson(root, DERIVED_FORK_EVIDENCE[0][1], 'macOS fork lifecycle bench');
+  const linux = readEvidenceJson(root, DERIVED_FORK_EVIDENCE[1][1], 'Linux fork lifecycle bench');
+  validateDerivedForkLifecycleBenchArtifact(macos, commit, 'macos', 'aarch64');
+  validateDerivedForkLifecycleBenchArtifact(linux, commit, 'linux', 'x86_64');
+  requireEvidence(new Set([
+    `${macos.environment.os}/${macos.environment.arch}`,
+    `${linux.environment.os}/${linux.environment.arch}`,
+  ]).size === 2, 'both distinct release platforms were not present');
+  validateDerivedForkAssetEvidence(root);
+  const specCodex = validateDerivedForkReview(root, 4, 'codex', false);
+  const specFable = validateDerivedForkReview(root, 5, 'fable', false);
+  const implementationCodex = validateDerivedForkReview(root, 6, 'codex', true);
+  const implementationFable = validateDerivedForkReview(root, 7, 'fable', true);
+  requireEvidence(specCodex !== specFable
+    && implementationCodex !== implementationFable
+    && specCodex === implementationCodex
+    && specFable === implementationFable,
+  'derived-fork reviews did not preserve two distinct model families');
+  const implementationTree = implementationDigestAt(root, commit);
+  validateDerivedForkAuthorAcceptance(root, receipt, commit, implementationTree);
+}
+
+export function validatePublishedEvidenceSemantics(root, record, commit, receipt = undefined) {
+  if (record.id === 'agent_safe_derived_deployment_fork_v1') {
+    const boundReceipt = receipt ?? JSON.parse(readFileSync(join(root, record.receipt)));
+    validatePublishedDerivedForkEvidenceSemantics(root, record, commit, boundReceipt);
+    return;
+  }
   if (record.id !== 'agent_safe_storage_v1') {
-    fail(`${record.id} has no dedicated end-to-end F0b performance evidence contract`);
+    fail(`${record.id} has no publication evidence contract`);
   }
   const implementationTree = implementationDigestAt(root, commit);
   validatePairedPerformance(root, commit);
   validateAbsolutePerformance(root, commit);
   validateAcceptanceCorpus(root, commit, implementationTree);
-  validateReview(root, EVIDENCE[3][1], 'Fable', commit, implementationTree);
-  validateReview(root, EVIDENCE[4][1], 'Codex', commit, implementationTree);
+  validateReview(root, STORAGE_EVIDENCE[3][1], 'Fable', commit, implementationTree);
+  validateReview(root, STORAGE_EVIDENCE[4][1], 'Codex', commit, implementationTree);
   validateAuthorAcceptance(root, commit, implementationTree);
 }
 
@@ -1073,7 +1312,7 @@ export function validatePublicationRecord(root, record) {
       fail(`${record.id} evidence bytes drifted at ${binding.path}`);
     }
   }
-  validatePublishedEvidenceSemantics(root, record, carrier.qualifiedSourceCommit);
+  validatePublishedEvidenceSemantics(root, record, carrier.qualifiedSourceCommit, receipt);
   return { id: record.id, state: 'published', commit: carrier.qualifiedSourceCommit };
 }
 

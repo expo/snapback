@@ -9,11 +9,14 @@
   "negativeBuildDistributions": ["public-package"],
   "qualifiedComponents": [],
   "evidence": [
-    { "kind": "acceptanceCorpus", "path": "tests/acceptance/fixtures/agent-safe-storage/acceptance-corpus.2026-08-04.v1.json", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
-    { "kind": "pairedPerformance", "path": "tests/acceptance/fixtures/agent-safe-storage/agent-safe-active-covered-paired.2026-08-04.v1.json", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
-    { "kind": "absolutePerformance", "path": "tests/acceptance/fixtures/agent-safe-storage/fork-promotion-performance.2026-08-04.v1.json", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
-    { "kind": "independentReviewFable", "path": "llp/reviews/0162-agent-safe-storage-profile.implementation-2026-08-04.fable.md", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
-    { "kind": "independentReviewCodex", "path": "llp/reviews/0162-agent-safe-storage-profile.implementation-2026-08-04.codex.md", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
-    { "kind": "authorAcceptance", "path": "tests/acceptance/fixtures/agent-safe-storage/author-acceptance.2026-08-04.v1.json", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" }
+    { "kind": "lifecycleBenchMacos", "path": "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.macos-aarch64.v1.json", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+    { "kind": "lifecycleBenchLinux", "path": "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.linux-x86_64.v1.json", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+    { "kind": "boundsRatification", "path": "tests/acceptance/instance-fork-lifecycle-bench.2026-08-06.v1.json", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+    { "kind": "assetLifecycleEvidence", "path": "tests/acceptance/asset-lifecycle-v1-evidence.md", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+    { "kind": "specReviewCodex", "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.codex.md", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+    { "kind": "specReviewFable", "path": "llp/reviews/0163-0165-derived-fork-implementation-2026-08-06.fable.md", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+    { "kind": "implementationReviewCodex", "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.codex.md", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+    { "kind": "implementationReviewFable", "path": "llp/reviews/0158-instance-forking.implementation-2026-08-06.fable.md", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+    { "kind": "authorAcceptance", "path": "tests/acceptance/fixtures/instance-forks/author-acceptance.2026-08-06.v1.json", "sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000" }
   ]
 }
