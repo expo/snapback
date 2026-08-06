@@ -745,7 +745,17 @@ acceptance in
 [`tests/g3-command.mjs`](../demos/expo-golden-path-fixture/tests/g3-command.mjs).
 
 *The Exit's own bar.* Text-only and one-image send share one typed call;
-negative authority, retry, cancel, and no-false-atomicity are covered; residue
+negative authority, retry, cancel, and no-false-atomicity are covered. Measured
+2026-08-06 against a locally built, handler-VM-qualified binary in a fresh
+worktree at `96fd0ad1c`: `test:g3` **4/4** and `test:g2` **5/5**, with the
+reduce-and-reland's added evidence in the same run — exact phase traces
+(`preparing → committing → succeeded` for text-only, with every recorded
+snapshot's `asset` null; `preparing → transferring → committing → succeeded`
+for the image send; `… → failed` for the refusal), one attempt id / one asset
+id / one mutation id across the whole image-send trace, a retry that re-adopts
+the same asset and mutation identity rather than starting a shadow upload, and
+a live `asset.inspect` witness that the finalized residue is still
+`availability: 'ready'` and not deleted after the refusal. Residue
 is reported as `authoritative | inferred | unknown` with the `authoritative`
 branch reachable only when the asset child supplies a global authoritative
 unattached fact — which today's runtime does not emit, so that branch is
